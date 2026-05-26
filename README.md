@@ -46,7 +46,7 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 
 | Area | Current evidence |
 | --- | --- |
-| Build baseline | `OS.slnx` builds locally with .NET 10/C# 14.0 project settings. Host tests emit stable `TEST_START`, `TEST_PASS`, and `TEST_FAIL` markers. Source naming and source-firewall scripts exist. |
+| Build baseline | `CLROS.slnx` builds locally with .NET 10/C# 14.0 project settings. Host tests emit stable `TEST_START`, `TEST_PASS`, and `TEST_FAIL` markers. Source naming and source-firewall scripts exist. |
 | EFI boot artifact | `src/OS` publishes a minimal explicit no-stdlib NativeAOT EFI application. It is intentionally outside the normal managed solution. |
 | QEMU/OVMF smoke path | The raw GPT/FAT32 ESP image boots under QEMU/OVMF to firmware-visible markers including `OS_BOOT_OK` and `OS_SMOKE_PASS`. |
 | Boot ordering | `src/OS.Kernel/Boot/BootSequence.cs` is the boot-order source of truth. Host tests verify ordered boot phases and marker emission. |
@@ -121,7 +121,7 @@ Anything short of that is prerequisite work, not Kestrel evidence.
 Run from the repository root:
 
 ```powershell
-dotnet build .\OS.slnx --nologo -m:1
+dotnet build .\CLROS.slnx --nologo -m:1
 dotnet build .\tests\OS.HostTests\OS.HostTests.csproj --nologo
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 .\scripts\check-naming.ps1
@@ -151,7 +151,7 @@ OVMF/QEMU execution, captured serial logs, and expected markers.
 
 | Path | Purpose |
 | --- | --- |
-| `src/OS` | Explicit no-stdlib NativeAOT EFI shell project. It is intentionally outside `OS.slnx`. |
+| `src/OS` | Explicit no-stdlib NativeAOT EFI shell project. It is intentionally outside `CLROS.slnx`. |
 | `src/OS.Kernel` | Host-testable kernel, boot, diagnostics, platform, PAL, storage, networking, and app-model contracts. |
 | `std/no-runtime/shared` | No-runtime-compatible shared utility and BCL-like surface. Shared helpers go here before kernel/app usage. |
 | `apps` | App fixtures and workload placeholders. |
