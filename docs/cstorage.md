@@ -1,0 +1,1009 @@
+# Storage
+
+## Current Status
+
+Virtio storage readiness now includes a host-tested generic virtio initialization plan for status writes, feature selection, `FEATURES_OK` rejection, `FAILED` planning, and queue-count validation over caller-provided metadata only.
+
+Virtio-blk queue setup now has a host-tested command planner for queue 0 common-configuration setup. `OS.Storage.VirtioBlockQueueMmioSetupPlanner` consumes a successful block `VirtioDeviceDescriptor`, caller-provided queue size, physical descriptor/driver/device ring addresses, and caller-provided queue metadata, then emits deterministic future register commands without invoking a register accessor, mapping BARs, allocating DMA memory, publishing descriptors, configuring a live queue, notifying a device, or performing block I/O. `OS.Storage.VirtioBlockQueueMmioSetupRegisterWindowPlanner` now bridges those planned commands to checked virtio PCI common-configuration register-window access metadata, preserving setup-plan and register-window failure provenance while still avoiding volatile/live MMIO and queue mutation. `OS.Storage.VirtioBlockQueueMmioSetupRegisterWindowExecutor` can fake-execute that command stream over caller-owned common-configuration BAR-window bytes, staging expected device read values for queue size and notify offset, while still avoiding live MMIO, real barriers, DMA, queue ownership, and block I/O. `OS.Storage.VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutor` now adds explicit setup-write visibility metadata and gates the final `queue_enable` fake write on ordered-before-enable readiness. `OS.Storage.VirtioBlockReadOnlyReadSessionSetupGate` now makes that setup-barrier execution a required host-tested precondition before a read session can publish/notify descriptors.
+
+Storage is in the first contract and parser stage. The repository now has a minimal read-only block-device abstraction, a host-tested partition-relative block-device view, a host-tested GPT primary-header/first-partition parser, a host-tested caller-buffer GPT partition table parser with primary and backup header CRC32 plus partition-entry-array CRC32 validation, a host-tested caller-owned GPT partition selector over parsed descriptors, a host-tested GPT EFI System Partition selector/location result, a caller-buffer GPT ESP readiness path for package/manifest loaders with backup-GPT fallback plus primary/backup GPT table-source reporting and GPT scratch and manifest/package required/available byte reporting, a host-tested FAT32 BPB/root-directory parser with short 8.3 lookup plus VFAT long-file-name root lookup, FAT-chain-aware root and first-level directory lookup, and FAT-chain-aware file content reads, a host-tested in-memory OS package metadata parser with deterministic file-table enumeration, a tiny read-only package filesystem lookup/enumeration API, a host-tested loader that composes GPT ESP selection, FAT32 `OS/APP.PKG` reads, and package parsing over an `IReadOnlyBlockDevice`, a host-tested virtio-blk device-configuration parser for caller-provided capacity bytes, a host-tested virtio-blk device-configuration register-window fake capacity reader, a host-tested virtio-blk read-request layout/readiness contract, a host-tested virtio-blk read transaction planning contract, a host-tested virtqueue split-ring layout contract, a host-tested virtio-blk descriptor-chain publication metadata contract, a host-tested virtio-blk descriptor-chain writer for caller-owned split-ring memory, a host-tested virtio-blk used-ring completion/status parser for caller-owned used-ring and status-buffer bytes, a host-tested virtio-blk read lifecycle coordinator that composes planning, descriptor publication, and completion parsing over caller-owned buffers, a host-tested virtio-blk read-only device planner that validates `BlockDeviceInfo` sector geometry/ranges before publishing one lifecycle read request, a host-tested virtio-blk caller-owned descriptor ownership/free-list/reclaim contract, a host-tested virtio-blk publish planner that composes free-list selection with read publication and ownership marking, a host-tested virtio-blk reclaim planner that composes successful publication with caller-owned completion parsing and descriptor-state reclaim, a host-tested virtio-blk queue cursor planner that carries caller-owned available/used ring indexes through publish and reclaim, a host-tested virtio-blk read queue planner that composes block geometry/range validation with cursor publication and cursor reclaim completion, a host-tested virtio-blk read queue block-result projector for future `IReadOnlyBlockDevice` status metadata, a host-tested virtio-blk queue notification metadata planner plus checked notify-relative offset, register-window access planning, fake byte-span notify execution, explicit barrier-gated fake notify execution, a host-tested virtio-blk read-notify readiness executor that composes read queue publication, notification metadata, checked notify-offset planning, and barrier-gated fake notify execution, a host-tested virtio-blk read-notify completion planner that gates read queue completion/reclaim on successful read-notify readiness, a host-tested virtio-blk read-notify block-result projector that maps gated completion into future `BlockReadResult` metadata, a host-tested virtio-blk read pipeline composer over caller-owned buffers and fake notify bytes for future notify/completion flow, a host-tested virtio-blk read pipeline adapter that validates caller-owned request, destination, status, queue, descriptor-state, and notify-window buffers before delegating to that pipeline, a host-tested virtio-blk read session that carries caller-owned queue/cursor/descriptor state across repeated adapter reads, and a host-tested read-session setup gate that refuses descriptor publication until queue setup barrier execution succeeded and attempted `queue_enable`, a host-tested modern virtio PCI capability-list parser over caller-provided config bytes, and a host-tested virtio PCI discovery contract that can identify a modern virtio-blk PCI identity plus required capability metadata. These contracts can be validated before virtio-blk exists. Host image packaging can place manifest and app-package files into the ESP, and host tests now read a parser-valid generated `OS/APP.PKG` back through the same GPT ESP, FAT32, and `OsPackageLoader` stack. The guest OS cannot read those files from a real virtio block device yet.
+
+The app-model side now has `OS.Manifest.NativeAppSelectionLoader`, which consumes the caller-buffer manifest loader and caller-buffer package loader over the same injected block-device image before building launch and descriptor metadata, preserving nested manifest/package GPT table-source and scratch size metadata. `OS.Manifest.VirtioBlockNativeAppSelectionPreflight` now gates that selection loader on a completed caller-owned virtio-blk read-session result, expected `BlockDeviceInfo` geometry, the completed read-session block-device adapter, and `NativeAppSelectionBootScratchPlan` success while preserving nested read-session, adapter-create, scratch, and selection provenance. Host tests now also prefill a full-disk read-session destination with a GPT/FAT/package image, adapt that caller-owned destination through `OS.Storage.VirtioBlockReadSessionBlockDevice`, and prove app selection reads the manifest-selected package descriptor from that source. `OS.Storage.OsPackageFileStagingPlanner` can copy an already-opened package file entry from caller-owned package bytes into caller-owned staging storage while rejecting open failures, empty files, invalid package ranges including source-range arithmetic overflow, short destinations, and default results. `OS.Storage.VirtioBlockPackageFileStagingPreflight` now preserves staging-destination capacity alongside package-buffer capacity and source file length, `OS.Storage.VirtioBlockPackageFileStagingPreflightDiagnosticFormatter` can format that composed result into a stable caller-owned `APP_PACKAGE_FILE_STAGING_PREFLIGHT` diagnostic marker, and `BootSequence.RunAppPackageFileStagingPreflightReadiness` turns the same package-file staging boundary into host-tested `APP_PACKAGE_FILE_STAGING_PREFLIGHT_READY` or status-coded `APP_PACKAGE_FILE_STAGING_PREFLIGHT_NOT_READY` markers. `OS.Kernel.Runtime.NativeAppPayloadStagingPlanner` can copy only the selected executable bytes from already-loaded package bytes into caller-owned staging storage after payload range planning. `OS.Kernel.Runtime.NativeAppPackageStagingReadinessPlanner` composes already-produced manifest, package, descriptor, staging, executable-memory, and invocation results into one host-tested readiness value while rejecting dependency failures, byte-count mismatches, entry-offset mismatches, and default results. `OS.Manifest.NativeAppEntryStagingPreflight` wraps that value so final `APP_ENTRY_READY` requires initialized caller-owned package-file staging and caller-owned payload staging evidence. `BootSequence.RunAppPackageStagingReadiness` can turn that composed readiness into host-tested `APP_PACKAGE_STAGING_READY` or status-coded `APP_PACKAGE_STAGING_NOT_READY` markers, and `BootSequence.RunAppSelectionPreflightReadiness` can turn the virtio-blk preflight result into host-tested `APP_SELECTION_PREFLIGHT_READY` or status-coded `APP_SELECTION_PREFLIGHT_NOT_READY` markers. This is storage/app-model composition evidence only; it is not live virtio-blk, boot-time package evidence, executable mapping, or app execution.
+
+Broad app, hosted .NET, and Kestrel readiness claims are tracked in `docs/completion-gates.md`; this document keeps the storage-specific evidence and missing behavior.
+
+## Implemented Behavior
+
+- `OS.Storage.BlockDeviceInfo` describes a block device with block size, block count, and total byte capacity.
+- `OS.Storage.IReadOnlyBlockDevice` exposes a status-coded `ReadBlocks` operation over `Span<byte>`.
+- `OS.Storage.BlockDeviceRead.Validate` centralizes read validation for later drivers.
+- `BlockDeviceStatus` and result structs report invalid geometry, invalid ranges, short destinations, overflow, and I/O failure without exceptions in the kernel-facing contract.
+- `BlockReadResult`, `BlockDeviceInfoResult`, and `PartitionBlockDeviceCreateResult` reject default/zero result values as not successful before storage callers trust block-device or partition metadata.
+- Block sizes must be nonzero and aligned to the current 512-byte minimum.
+- Read operations support exact reads, last-block boundary reads, and zero-block reads at or before the end of the device.
+- `OS.Storage.PartitionBlockDevice` exposes a validated region of a parent `IReadOnlyBlockDevice` as a new relative block device. Relative block zero maps to the parent partition start LBA and reads are bounded by the partition block count.
+- `OS.Storage.GptParser.ReadPrimaryFirstPartition` reads the primary GPT header at LBA 1 through `IReadOnlyBlockDevice`, validates the supported geometry/header/entry-array ranges, and returns a status-coded `GptParseResult`.
+- The GPT parser decodes the first partition entry type GUID, unique GUID, first/last LBA, attributes, and UTF-16LE partition name.
+- `OS.Storage.GptParser.SelectPrimaryEfiSystemPartition` scans primary GPT partition entries, skips empty entries, validates non-empty entry ranges, and returns the EFI System Partition through `GptPartitionSelectionResult` with the selected entry index and start/end LBA metadata.
+- `OS.Storage.GptParser.LocatePrimaryEfiSystemPartition` returns ESP location metadata through `GptEfiSystemPartitionLocationResult`, including start/end LBA, block count, block size, byte offset, and byte length for later manifest/package readers.
+- `GptParseResult`, `GptPartitionSelectionResult`, and `GptEfiSystemPartitionLocationResult` reject default/zero result values as not successful before GPT callers trust parser or ESP metadata.
+- `OS.Storage.GptPartitionTableParser.ParsePrimary` parses a primary GPT header sector plus caller-provided contiguous partition-entry sectors without allocating parser-owned heap buffers or strings. It validates signature, revision, header size, current/backup LBA, usable LBA bounds, entry count, entry size, entry-array bounds, primary-header CRC32, partition-entry-array CRC32, destination capacity, and non-empty partition LBA ranges, then writes descriptors into a caller-provided span with type GUID, unique GUID, first/last LBA, attributes, entry offset, and UTF-16LE name metadata.
+- `OS.Storage.GptPartitionTableParser.ParseBackup` parses a backup GPT header sector plus caller-provided backup partition-entry sectors with the same descriptor output contract. It requires `CurrentLba == blockCount - 1`, `BackupLba == 1`, and backup partition-entry sectors that end immediately before the backup header, then validates the backup header CRC32 and partition-entry-array CRC32 before writing descriptors.
+- `GptPartitionTableParseResult` rejects default/zero result values as not successful before caller-buffer GPT parser consumers trust table or CRC metadata.
+- `OS.Storage.GptPartitionSelector` selects the first parsed descriptor matching a partition type GUID or unique partition GUID from caller-owned `GptPartitionDescriptor` spans without reparsing GPT bytes, reading block devices, allocating storage, or loading packages. It preserves selected descriptor index, GPT entry index, LBA range, block count, name byte metadata, match count, duplicate count, and requested GUID metadata while rejecting default/failed parse results, empty descriptor spans, descriptor-count mismatches, missing GUIDs, missing matches, and invalid descriptor ranges. The caller-buffer package-loader ESP path now routes already-parsed primary/backup GPT descriptors through this selector instead of maintaining a separate manual ESP scan.
+- GPT CRC validation uses `OS.Std.Hash.Crc32`. Header CRC calculation copies the validated header-size slice into a bounded stack buffer through `OS.Std.Memory.BufferOperations.MemoryCopy` so the checksum field can be zeroed without mutating the caller-owned header sector. Partition-entry-array CRC calculation reads the validated required byte range directly from the caller-owned entry span.
+- GPT parsing uses `OS.Std.Binary.EndianPrimitives` for fixed-width little-endian fields.
+- `OS.Storage.Fat32Parser.ReadBpb` parses a FAT32 BPB over `IReadOnlyBlockDevice` and validates bytes-per-sector, sectors-per-cluster, reserved-sector count, FAT count, FAT size, root cluster, total sectors, and boot-sector signature.
+- `OS.Storage.Fat32Parser.ReadRootDirectoryEntries` enumerates non-LFN root-directory entries across the root directory FAT chain into a caller-provided span.
+- `OS.Storage.Fat32Parser.FindRootDirectoryEntry` performs short 8.3 root lookups across the root directory FAT chain and returns file metadata for matching entries.
+- `OS.Storage.Fat32Parser.FindRootDirectoryEntry` also validates VFAT long-file-name metadata across the root directory FAT chain, matches root long names such as `MANIFEST.JSON`, verifies LFN checksums against the following short alias, and reports malformed or orphan LFN metadata through `Fat32Status.MalformedLongFileNameMetadata`.
+- `OS.Storage.Fat32Parser.FindRootDirectory` locates a first-level directory entry in the root directory, and `FindFirstLevelDirectoryEntry` locates a child entry such as `OS/MANIFEST.JSON` by scanning the matched child directory FAT chain.
+- `OS.Storage.Fat32Parser.ReadRootFile` reads a matching root-directory short-name or supported VFAT long-name file into caller-owned destination storage, rejects directory entries, rejects too-small destinations, reports invalid clusters, follows FAT32 chains, detects loops, detects short chains, and returns file size, bytes read, and whether the chain stayed contiguous through `Fat32FileReadResult`.
+- `OS.Storage.Fat32Parser.ReadFirstLevelFile` reads first-level files such as `OS/MANIFEST.JSON` or `OS/APP.PKG` into caller-owned destination storage after resolving the root directory and child entry. It uses the same FAT-chain-aware content path as root-file reads.
+- FAT32 file-content reads copy the final partial block into caller-owned destination storage through `OS.Std.Memory.BufferOperations.MemoryCopy` after existing size and read validation, and map any defensive shared-copy failure to `Fat32Status.FileDestinationTooSmall`.
+- `Fat32BpbParseResult`, `Fat32DirectoryReadResult`, `Fat32FileLookupResult`, and `Fat32FileReadResult` reject default/zero result values as not successful before FAT32 callers trust BPB, directory, lookup, or file-read metadata.
+- FAT32 parsing uses `OS.Std.Binary.EndianPrimitives` for fixed-width little-endian fields.
+- FAT32 short 8.3 name parsing trims base and extension trailing spaces through
+  `OS.Std.Text.AsciiString.TrimTrailingSpace` instead of a parser-local helper.
+- `OS.Storage.OsPackageParser` validates an in-memory read-only OS package v0 header and fixed-size file table over `ReadOnlySpan<byte>`. Public parser, lookup, path-copy, and content result structs reject default/zero result values as not successful before package callers trust metadata or content spans.
+- The package parser can locate file metadata and return caller-owned content spans by package-relative path. It rejects malformed magic/version/header/table metadata, invalid ranges, metadata overlaps, entry overlaps, invalid paths, duplicate paths, and missing files through `OsPackageStatus`.
+- The package parser can enumerate package file-table entries by deterministic zero-based index and copy package-relative file paths into caller-owned buffers. It reports out-of-range indexes and too-small path destinations without allocation.
+- `OS.Storage.OsPackageFileSystem` wraps the package parser with a kernel-facing read-only open/read/enumerate API. It opens package-relative paths, enumerates file paths by index, reads full files or bounded ranges into caller-owned destinations, routes package filesystem read copies through `OS.Std.Memory.BufferOperations.MemoryCopy` after existing size and range validation, maps any defensive shared-copy failure to the existing `DestinationTooSmall` status, rejects default/zero result values as not successful, reports missing files, invalid paths, out-of-range file indexes, too-small destinations, invalid ranges, and package-parse failures without throwing from the kernel-facing path.
+- `OS.Storage.OsPackageFileStagingPlanner` consumes an already-opened package file result plus caller-owned package bytes and copies only that file's content range into caller-owned staging storage through `OS.Std.Memory.BufferOperations.MemoryCopy`. It preserves open/package status, file index, package offset, file length, required bytes, written bytes, and source-range overflow metadata, rejects default/zero result values as success evidence, rejects zero-length files for staging readiness, maps any defensive shared-copy failure to `DestinationTooSmall`, and performs no live storage reads, PAL file calls, allocation, page mapping, or app execution.
+- `OS.Storage.VirtioBlockPackageFileStagingPreflight` composes a completed caller-owned virtio-blk read-session package preflight, package file open, and package file staging into one status-coded boundary. It preserves read-session, package-load, package-open, staging status, package-buffer capacity, staging-destination capacity, source file length, staged-byte count, and source-overflow metadata, writes only the caller-provided staging destination, and performs no live device notification, hardware wait, DMA mapping, MMIO, real disk read, executable mapping, hosted .NET startup, or Kestrel startup.
+- `OS.Storage.VirtioBlockPackageFileStagingPreflightDiagnosticFormatter` formats initialized preflight results into caller-owned ASCII marker buffers through the shared `OS.Std.Text.AsciiTextBuilder`, uses `OS.Std.Text.AsciiDecimalFormatter` for decimal byte-count accounting, reports required and available destination byte counts, rejects default/uninitialized results, and preserves nested read-session, pipeline, package-preflight, package-open, package-staging, byte-count, capacity, and source-overflow metadata without allocation or live storage access.
+- `OS.Pal.OSHostPackageFileTable` is a PAL-facing host-test mock over `OsPackageFileSystem`. It keeps package-file handles opaque, rejects unsafe package-relative paths before lookup, enumerates package files by index into caller-owned path buffers, reads offset ranges into caller-owned buffers through `OS.Std.Memory.BufferOperations.MemoryCopy`, reports stale handles, and models deterministic handle-table exhaustion for future `OSHost_OpenPackageFile`/`OSHost_ReadFileAt`/`OSHost_EnumeratePackage` behavior.
+- `OS.Storage.OsPackageLoader.LoadFromPrimaryGptEsp` locates the primary GPT EFI System Partition, creates a partition-relative block device, reads `OS/APP.PKG` through the FAT32 first-level file reader into caller-owned storage, and validates the package header/table through `OsPackageParser`.
+- `OS.Storage.OsPackageLoader.LoadFromPrimaryGptEspWithCallerBuffers` is the readiness path for moving package discovery off the legacy GPT parser. It first reads the primary GPT header and partition-entry sectors into caller-provided buffers, selects the EFI System Partition from parsed descriptors through `GptPartitionSelector.SelectByPartitionTypeGuid`, falls back to the backup GPT header and immediately preceding backup entry sectors when the primary caller-buffer ESP location fails, preserves the original primary failure if backup fallback also fails, preserves GPT table/CRC/source diagnostics in `OsPackageLoadResult`, reports GPT header/partition-entry scratch required and available bytes, reports package file bytes required plus caller-provided package buffer bytes available when `OS/APP.PKG` does not fit, and then uses the existing partition/FAT/package pipeline. Selector `NotFound` maps to the existing missing-ESP status path, while selector validation failures map to status-coded GPT parser/ESP readiness failure without throwing. The original loader remains available for existing tests and call sites.
+- `OsPackageLoadResult` records the failing layer: GPT, partition view, FAT32 read, or package parse. It preserves the relevant child status so future boot diagnostics can report why package readiness failed without exceptions. `OsPackageLoadResult` and `GptEspLocationReadinessResult` reject default/zero values as not successful before package-loader callers trust loader or GPT-ESP readiness metadata.
+- `OS.Manifest.NativeAppSelectionLoader.LoadFromPrimaryGptEspWithCallerBuffers` composes the caller-buffer manifest and package loader paths over one injected block-device image before package parsing and selected-app descriptor validation, preserving storage-layer status details, primary/backup GPT table-source metadata, and manifest/package scratch-buffer sizing for app-model diagnostics.
+- `OS.Kernel.Runtime.NativeAppPayloadStagingPlanner` consumes a successful selected-app payload range plan and copies the executable content range from already-loaded package bytes into caller-owned staging memory through `OS.Std.Memory.BufferOperations.MemoryCopy`. It preserves mapping, descriptor, payload-header, offset, length, written-byte, and required-byte metadata, rejects default/zero results, maps any defensive shared-copy failure to `DestinationTooSmall`, and performs no live storage reads, page mapping, permission changes, relocation, or app execution.
+- `OS.Kernel.Runtime.NativeAppPackageStagingReadinessPlanner` consumes already-created manifest/package/launch/descriptor results plus caller-owned package-file staging, payload mapping, payload staging, executable-memory, and invocation results. It preserves nested status and byte/entry metadata, rejects uninitialized dependency results, mismatched staged package bytes, mismatched staged executable bytes, writable-staging byte mismatches, entry-offset mismatches, and default/zero readiness values. `OS.Manifest.NativeAppEntryStagingPreflight` exposes the same package/payload staging evidence as a value-only app-entry preflight, and `BootSequence.RunAppPackageStagingReadiness` emits the resulting `APP_PACKAGE_STAGING_READY` or `APP_PACKAGE_STAGING_NOT_READY ...` marker with nested staging and byte metadata. These paths perform no live storage reads, allocation, executable mapping, page-permission changes, relocation, or app execution.
+- `tools/OS.ImageBuilder build-package` can create deterministic parser-valid `OSPKGv0` packages from a host directory, and `create-raw --package` can place optional `\OS\APP.PKG` files into the raw FAT32 ESP for future storage/package-reader work.
+- `OS.Storage.VirtioBlockRequestPlan` defines the read-only virtio-blk request layout contract: request type values for read/write, a 16-byte little-endian request header, sector and sector-count metadata, a 512-byte sector-size assumption, and fixed header/data/status descriptor metadata.
+- `VirtioBlockQueueReadiness.ValidateReadOnlyQueue` requires the virtio-blk read-only feature bit, a queue with at least three descriptors, a valid request plan, and a read request. The request-plan and queue-readiness result structs reject default/zero values as not successful. The readiness path rejects writes in read-only mode with status codes and does not perform MMIO, PCI discovery, DMA mapping, interrupts, queue notification, or disk reads.
+- `OS.Storage.VirtioBlockReadTransactionPlan` plans one read transaction over caller-owned request-header, destination, and status buffers. It validates 512-byte sector geometry, sector range, destination capacity, and minimum queue descriptor count, writes only the 16-byte request header on success, rejects default/zero transaction results as not successful, and explicitly does not perform DMA mapping, MMIO, interrupts, queue notification, or disk reads.
+- `OS.Drivers.VirtqueueSplitRingPlan` defines a generic virtqueue split-ring layout contract: power-of-two queue-size validation up to 32768 entries, descriptor-table/available-ring/used-ring offsets, 16/2/4-byte alignment rules, required byte length from a caller-owned start offset, default/zero result rejection, and status-coded overflow rejection.
+- `OS.Storage.VirtioBlockDescriptorChainPlan` combines a successful read transaction plan with a successful split-ring plan into metadata for exactly three read-only virtio-blk descriptors: request header, device-writable data buffer, and device-writable status byte. It records descriptor indexes, `NEXT`/`WRITE` flags, caller-provided physical address placeholders, byte lengths, descriptor-table offsets, available-ring index/slot/entry offset, and required memory ranges, rejects default/zero descriptor-chain results as not successful, and does so without allocating memory, writing queue memory, notifying a device, handling interrupts, or claiming disk reads.
+- `OS.Storage.VirtioBlockDescriptorChainWriter` materializes a successful descriptor-chain plan into caller-owned split-ring memory. It writes three 16-byte descriptor entries in little-endian format, writes the planned head descriptor into the available ring, advances `avail.idx`, preserves unrelated queue bytes, rejects default/zero writer results as not successful, and rejects failed plans, failed/mismatched queue plans, undersized queue memory, descriptor indexes outside the supplied queue size, invalid available-ring slots, and arithmetic overflow with deterministic status codes. It does not allocate DMA memory, write MMIO registers, notify the device, wait for used-ring completion, or read sectors.
+- `OS.Storage.VirtioBlockUsedRingCompletionReader` parses one completed virtio-blk read transaction from caller-owned split used-ring bytes and a caller-owned status buffer. It validates queue size, used-ring length, exact one-entry `used.idx` advancement, wrapped used-ring slot selection, expected descriptor head, expected data byte count, and virtio-blk status byte values. It rejects default/zero completion results as not successful and reports `OK`, device I/O error, unsupported command, unknown status byte, undersized rings, and mismatched completion metadata without polling MMIO, handling interrupts, mapping DMA memory, notifying a device, or reading sectors.
+- `OS.Storage.VirtioBlockReadLifecycle` composes one read lifecycle over caller-owned buffers by creating a read transaction plan, creating a split-ring plan, creating descriptor-chain metadata, writing descriptors/available-ring state, and later reading one matching used-ring completion. It exposes nested statuses from the read plan, request plan, queue plan, descriptor plan, descriptor writer, and completion reader; records sector range, data byte count, descriptor head, previous/next available index, previous/current/next used index, and completion metadata; rejects default/zero publish and completion results as not successful; and does not notify a device, poll MMIO, own DMA memory, copy payload bytes, or claim a real disk read.
+- `OS.Storage.VirtioBlockReadOnlyDevicePlan` composes the generic `BlockDeviceInfo` geometry contract with `VirtioBlockReadLifecycle.PublishReadRequest`. It rejects invalid virtio sector geometry and out-of-range sector requests before queue publication, delegates caller-owned request-header/data/status/split-ring memory handling to the lifecycle coordinator, exposes nested lifecycle statuses and request metadata, rejects default/zero device-plan results as not successful, and does not notify a device, poll for completion, copy payload bytes, or claim live disk I/O.
+- `OS.Storage.VirtioBlockDescriptorFreeListPlanner` and `VirtioBlockDescriptorOwnershipPlan` add caller-owned descriptor-state metadata for virtio-blk reads. The free-list selector finds the first contiguous three-descriptor `Free` chain required by the read request, skips in-flight descriptors, reports invalid state and capacity exhaustion, rejects default/zero result-success values, and does not mutate state. The ownership planner marks a successful published read chain `InFlight`, reclaims the three descriptors only after a successful lifecycle completion, preserves failed publish/completion provenance, rejects short state tables, in-flight reuse, not-in-flight reclaim, duplicate completion, and default/zero result-success values, and performs no MMIO, DMA mapping/allocation, device notification, polling, interrupts, or disk reads.
+- `OS.Storage.VirtioBlockDescriptorPublishPlanner` composes the caller-owned free-list selector, `VirtioBlockReadLifecycle.PublishReadRequest`, and ownership marking into one bounded publication step. It selects reusable descriptors, writes only the caller-owned request header and split-ring memory through the existing lifecycle path, marks descriptors in flight only after successful publication, preserves nested free-list/lifecycle/descriptor-writer/ownership statuses and attempted flags, rejects default/zero result-success values, and leaves descriptor state unchanged on free-list or lifecycle publish failures. It still performs no MMIO, DMA allocation/mapping, live notification, polling, interrupts, completion waiting, or disk reads.
+- `OS.Storage.VirtioBlockDescriptorReclaimPlanner` composes a successful publish-plan result with caller-owned used-ring/status-buffer completion parsing and descriptor-state reclaim. It rejects failed publish plans before reading completion state, rejects missing or invalid completion before mutating descriptor state, rejects ownership mismatches after completion validation, rejects default/zero result-success values, preserves nested publish/completion/ownership status evidence and attempted flags, and performs no MMIO, BAR mapping, volatile access, DMA allocation/mapping, live notification, polling, interrupt handling, hardware waiting, block I/O, or disk reads.
+- `OS.Storage.VirtioBlockQueueCursorPlanner` adds a caller-owned queue cursor state for available-ring and used-ring indexes. It feeds those indexes into the publish planner, advances only the available index after successful publication, feeds completed publish metadata into the reclaim planner, advances only the used index after successful completion/reclaim, rejects default/zero result-success values, preserves nested publish/reclaim status evidence, and performs no MMIO, BAR mapping, volatile access, DMA allocation/mapping, live notification, polling, interrupt handling, hardware waiting, block I/O, or disk reads.
+- `OS.Storage.VirtioBlockReadQueuePlanner` composes `BlockDeviceInfo` geometry/range validation with the caller-owned queue cursor publication path. It rejects invalid block geometry, out-of-range reads, and default/zero publication results before downstream completion or notification metadata is trusted, advances only the available index after successful publication, preserves nested cursor/free-list/lifecycle/ownership status evidence, and performs no MMIO, BAR mapping, volatile access, DMA allocation/mapping, live notification, polling, interrupt handling, hardware waiting, block I/O, or disk reads.
+- `OS.Storage.VirtioBlockReadQueueCompletionPlanner` consumes a successful read queue publication result, delegates caller-owned used-ring/status-buffer parsing plus descriptor reclaim to the cursor reclaim path, advances only the used index after successful completion/reclaim, rejects failed publications before reading queue memory, and performs no MMIO, BAR mapping, volatile access, DMA allocation/mapping, live notification, polling, interrupt handling, hardware waiting, block I/O, or disk reads.
+- `OS.Storage.VirtioBlockReadQueueBlockReadProjector` projects a read queue completion result into `BlockReadResult` metadata for a future `IReadOnlyBlockDevice` adapter. It reports requested blocks and bytes on successful completion, preserves validation failures as their existing `BlockDeviceStatus`, maps completion/reclaim failure to `IoError`, keeps nested status evidence, rejects default/zero projection results before adapter block-read success is trusted, and performs no queue/status reads, memory writes, cursor mutation, descriptor mutation, MMIO, DMA, notification, polling, interrupts, or disk reads.
+- `OS.Storage.VirtioBlockQueueNotificationMetadataPlanner` derives future block queue notify-write metadata from a successful read queue publication. It records queue index, queue notify offset, descriptor count, available-ring index transition, descriptor head, write value, and write width while rejecting failed publications and default/zero notification metadata before notify-offset planning is trusted. It performs no queue/status reads, memory writes, cursor mutation, descriptor mutation, MMIO, BAR mapping, volatile access, memory barriers, DMA, live notification, polling, interrupts, or disk reads.
+- `OS.Storage.VirtioBlockQueueNotifyOffsetPlanner` derives the checked notify-aperture relative offset from successful notification metadata plus the virtio notify offset multiplier. It preserves queue notification provenance, rejects failed notification metadata, reports arithmetic overflow, rejects default/zero notify-offset results before register-window planning is trusted, and performs no queue/status reads, memory writes, cursor mutation, descriptor mutation, MMIO, BAR mapping, volatile access, memory barriers, DMA, live notification, polling, interrupts, or disk reads.
+- `OS.Storage.VirtioBlockQueueNotificationRegisterWindowPlanner` binds a successful checked notify offset to the existing virtio PCI notify register-window access planner. It returns future 16-bit notify-write access metadata with queue, offset, descriptor, available-ring, write-value, and nested register-window status provenance while rejecting failed offset plans, register-window access failures, and default/zero notify register-window plans without BAR mapping, volatile MMIO, fake or live register writes, memory barriers, DMA, live notification, polling, interrupts, or disk reads.
+- `OS.Storage.VirtioBlockQueueNotificationRegisterWindowExecutor` fake-executes a successful block notify register-window plan through the generic caller-owned BAR-window byte-span executor. It writes only the planned 16-bit queue value into caller-owned notify bytes, preserves nested plan and access-execution statuses, rejects failed plans before touching bytes, reports short byte spans, and performs no BAR mapping, volatile/live MMIO, physical address access, real memory barriers, DMA, live notification, polling, interrupts, or disk reads.
+- `OS.Storage.VirtioBlockQueueNotificationBarrierReadiness` and `VirtioBlockQueueNotificationRegisterWindowBarrierExecutor` add explicit descriptor-write, available-ring-write, and ordered-before-notify readiness metadata before fake-executing the checked notify register-window write. They preserve barrier sequence and attempted-execution metadata, reject missing readiness before touching caller-owned bytes, and still perform no real memory barrier, BAR mapping, volatile/live MMIO, physical address access, DMA, live notification, polling, interrupts, or disk reads.
+- `OS.Storage.VirtioBlockReadQueueNotifyReadinessExecutor` composes a successful read queue publication with notification metadata derivation, checked notify-offset planning, explicit barrier readiness, and barrier-gated fake notify register-window execution. It preserves nested publication, notification metadata, offset, barrier, and notify execution statuses; rejects failed publication and missing barrier before fake notify writes; propagates notify execution failures; and performs no real memory barrier, BAR mapping, volatile/live MMIO, DMA, live notification, polling, interrupts, completion waiting, or disk reads.
+- `OS.Storage.VirtioBlockReadQueueNotifyCompletionPlanner` consumes read-notify readiness and delegates to the existing read queue completion path only after readiness succeeds. It refuses completion/reclaim when read-notify readiness failed, preserves nested readiness, publication, cursor reclaim, completion-reader, and ownership statuses, and relies on read-queue completion results that reject default/zero success evidence before block-result projection is trusted. It performs no BAR mapping, volatile/live MMIO, real memory barriers, DMA allocation/mapping, hardware polling/waiting, interrupts, payload copying, or disk reads.
+- `OS.Storage.VirtioBlockReadQueueNotifyBlockReadProjector` maps `VirtioBlockReadQueueNotifyCompletionResult` into future `BlockReadResult` metadata. It preserves notify-readiness, notify-completion, read-queue completion, reclaim, completion-reader, and ownership provenance, reports requested/completed block-byte counts on success, maps failed readiness or completion/reclaim failure to `IoError`, and performs no queue/status reads, memory writes, cursor or descriptor-state mutation, BAR mapping, volatile/live MMIO, real memory barriers, DMA, hardware notification, polling, interrupts, block I/O, or disk reads.
+- `OS.Storage.VirtioBlockReadQueuePipelineComposer` composes one read publication, read-notify readiness through caller-owned fake notify bytes, readiness-gated completion/reclaim, and read-notify block-result projection into one host-tested pipeline result. It preserves nested publication, readiness, completion, and projection statuses while rejecting publication failures before notify readiness, readiness failures before completion/reclaim, and completion/projection failures without BAR mapping, volatile/live MMIO, real memory barriers, DMA, hardware notification, polling/waiting, interrupts, runtime descriptor allocation, payload copying, block I/O, or disk reads.
+- `OS.Storage.VirtioBlockReadOnlyReadSessionSetupGate` consumes queue setup register-window barrier execution evidence before delegating to the read session. It rejects default or failed setup execution, missing setup-write barrier readiness, and missing `queue_enable` attempts before descriptor publication, preserves cursor state on setup failure, distinguishes setup failures from downstream read-session failures, and performs no BAR mapping, volatile/live MMIO, real memory barriers, DMA, live notification, polling/waiting, interrupts, block I/O, or disk reads.
+- `OS.Storage.VirtioBlockReadQueuePipelineAdapter` validates caller-owned request-header, destination, status, queue-memory, descriptor-state, and notify-window buffer capacity before invoking the read pipeline composer. Preflight failures return status-coded capacity metadata without mutating the cursor, descriptor state, request header, queue memory, status buffer, or notify window; successful preflight delegates to the host-tested pipeline and preserves nested pipeline status evidence.
+- `OS.Storage.VirtioBlockReadOnlyReadSession` carries caller-owned descriptor-state, cursor, request-header, destination, status, queue-memory, and notify-window spans plus register-window metadata across repeated reads. Each read delegates to the adapter, returns cursor-before/after metadata, preserves state across two host-tested calls with caller-prewritten completions, and remains a ref-struct host contract rather than an `IReadOnlyBlockDevice` implementation.
+- `OS.Storage.VirtioBlockReadSessionBlockDevice` exposes a completed full-disk `VirtioBlockReadOnlyReadSessionResult` plus caller-owned completed destination bytes as an `IReadOnlyBlockDevice`. Creation rejects default or incomplete sessions, invalid virtio sector geometry, non-zero or partial read-session coverage, completed byte-count mismatches, and backing storage shorter than the expected device capacity. `ReadBlocks` reuses `BlockDeviceRead.Validate`, copies from the completed caller-owned destination into the caller destination, reports existing block-device status codes for short destinations and out-of-range reads, and performs no live MMIO, DMA mapping/allocation, BAR mapping, PAL calls, polling, interrupts, block I/O, or real disk reads.
+- `OS.Storage.VirtioBlockPackageReadPreflight` bridges a caller-owned `VirtioBlockReadOnlyReadSessionResult` toward package-loader inputs. It rejects an incomplete read-session before package parsing, validates GPT header scratch, partition-entry scratch, partition-descriptor capacity, and package buffer size against caller-provided block-device geometry, reports required and available capacity, and only then delegates to `OsPackageLoader.LoadFromPrimaryGptEspWithCallerBuffers`. It preserves nested read-session provenance plus package-loader results, rejects default/zero preflight results as not successful, and performs no live device notification, hardware waiting, DMA mapping, BAR mapping, MMIO, or real disk reads.
+- `OS.Manifest.VirtioBlockNativeAppSelectionPreflight` extends that host-tested storage/app-model bridge to the selected-app boundary. It rejects incomplete read-session provenance before scratch validation, validates expected block-device geometry, can adapt a completed full-disk read-session destination through `VirtioBlockReadSessionBlockDevice`, validates `NativeAppSelectionBootScratchPlan` buffers, delegates to `NativeAppSelectionLoader` on success, exposes initialization state for default-result rejection, and preserves read-session cursor/pipeline metadata plus adapter-create, scratch, and manifest/package/launch/descriptor statuses. The scratch plan rejects sector sizes that are not aligned to the storage/GPT minimum sector size before GPT entry-sector capacity is computed. `BootSequence.RunAppSelectionPreflightReadiness` emits host-tested preflight ready/not-ready markers from the result without live virtio-blk reads or app execution.
+- `OS.Storage.VirtioBlockDeviceConfig` parses the virtio-blk device-configuration capacity field from caller-provided bytes at offset 0, treats it as a little-endian 64-bit sector count, uses the required 512-byte sector size, delegates geometry validation to `BlockDeviceInfo.Create`, preserves raw capacity plus nested `BlockDeviceStatus` metadata, and rejects default/zero config results as not successful. It rejects short config bytes, zero capacity, and capacity overflow without reading MMIO/device registers.
+- `OS.Storage.VirtioBlockDeviceConfigRegisterWindowReader` fake-reads the virtio-blk capacity field through a bound device-configuration register-window access plan, copies the value into caller-owned scratch storage, and then reuses the same config parser. It preserves register-window planning, access-execution, scratch-capacity, and parse-failure status metadata, rejects default/zero register-window read results as not successful, and does so without mapping BARs, performing live MMIO, configuring queues, notifying a device, or reading disk sectors.
+- `OS.Storage.VirtioBlockQueueMmioSetupPlanner` consumes a successful block device descriptor, queue size, caller-provided physical split-ring addresses, and caller-provided queue metadata, validates the split-ring layout, queue availability, device maximum queue size, notify-offset availability, physical address alignment, physical range overflow, and command destination capacity, then writes eight queue-0 common-configuration command records: queue select, queue size read/write, descriptor/driver/device address writes, notify-offset read, and queue enable. The result preserves descriptor, binding, block-configuration, initialization-profile, split-ring, failing-address, and command-capacity status metadata while rejecting default/zero results as not successful and performing no live MMIO, BAR mapping, DMA allocation/mapping, descriptor publication, queue configuration, notification, interrupt handling, block I/O, or disk reads.
+- `OS.Storage.VirtioBlockQueueMmioSetupRegisterWindowPlanner` consumes a successful queue MMIO setup plan, caller-owned setup commands, and a bound virtio PCI common-configuration register window, then writes one checked `VirtioPciBarRegisterWindowAccessPlan` per setup command into caller-owned storage. It rejects failed setup plans, short command sources, undersized access-plan destinations, unsupported command widths, propagated register-window failures, and default/zero results while performing no BAR mapping, volatile/live MMIO, descriptor publication, DMA allocation/mapping, queue configuration, notification, polling, interrupts, block I/O, or disk reads.
+- `OS.Storage.VirtioBlockQueueMmioSetupRegisterWindowExecutor` consumes the same setup command stream plus a bound common-configuration register window and caller-owned common BAR-window byte span. It writes future queue select, queue size, descriptor, driver, device, and queue-enable register values through the generic fake register-window access executor, stages expected queue-size and notify-offset reads before reading them back, rejects setup-plan failures, short command sources, read mismatches, access failures, and default/zero results, and performs no BAR mapping, volatile/live MMIO, physical-address access, real memory barriers, DMA allocation/mapping, queue ownership, notification, polling, interrupts, block I/O, or disk reads.
+- `OS.Storage.VirtioBlockQueueMmioSetupBarrierReadiness` and `VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutor` add explicit queue-select, queue-size, queue-address, and ordered-before-enable readiness metadata before the final `queue_enable` fake register-window write. They preserve barrier sequence and queue-enable-attempt metadata, reject missing readiness after earlier fake setup writes but before touching `queue_enable`, and still perform no real memory barrier, BAR mapping, volatile/live MMIO, physical-address access, DMA allocation/mapping, queue ownership, notification, polling, interrupts, block I/O, or disk reads.
+- `OS.Drivers.VirtioPciCapabilityListParser` decodes modern virtio PCI capability metadata from a caller-provided PCI config-space byte snapshot and capability-list start offset. It records common/notify/ISR/device configuration BAR, offset, length, and notify multiplier metadata for the existing discovery contract, and rejects malformed lists with status codes without live config reads or BAR mapping.
+- `OS.Drivers.VirtioPciDeviceDiscovery` identifies modern virtio block PCI functions from vendor `0x1AF4`, device ID `0x1042`, and required common/notify/ISR/device-configuration capability metadata. It is shared with networking for virtio-net identification and does not perform ECAM scans, BAR mapping, feature negotiation, virtqueue publication, or disk reads.
+- `OS.Drivers.PciBarSizingPlanner` derives caller-owned BAR aperture-size metadata from decoded type-0 BAR descriptors plus caller-owned all-ones sizing readback snapshots. `OS.Drivers.PciBarSizingProbePlanner` plans the ordered config-space write-all-ones, read-sizing-readback, and restore-original commands that would produce those snapshots. `OS.Drivers.PciBarSizingProbeAddressPlanner` binds those commands to checked ECAM config-space address metadata for a caller-provided virtio-blk PCI location. `OS.Drivers.PciBarSizingProbeExecutor` can capture fake BAR sizing readbacks from address-bound commands through an injected config-accessor test double for virtio-blk binding tests. `OS.Drivers.PciBarSizingProbeDerivedSizePlanner` feeds those fake-captured readbacks through the existing sizing planner so virtio aperture validation can be tested from the fake probe path. These contracts do not perform live PCI config writes, live reads, BAR restore execution, ECAM mapping, BAR mapping, DMA, interrupts, or disk reads.
+- `OS.Drivers.VirtioPciBindingDerivedBarSizePlanner` composes caller-provided virtio-blk PCI configuration bytes with fake-derived BAR sizing metadata and the existing virtio PCI binding plan. It proves only that block binding metadata can consume BAR sizes produced from fake-captured sizing readbacks while preserving nested sizing and binding failures; it does not execute live PCI config access, map BARs, negotiate virtio-blk features, publish queues, notify a device, or read sectors.
+- `OS.Drivers.VirtioPciBindingDerivedBarSizeCatalog` builds a bounded catalog of block/network binding metadata from caller-provided candidates, configuration snapshots, an injected fake config accessor, and caller-owned fake BAR sizing scratch buffers. For storage, it proves a virtio-blk candidate can be cataloged from fake-derived BAR sizing metadata while preserving nested failure provenance; it does not enumerate PCI hardware, size BARs on a live device, restore hardware BARs, map BARs, negotiate virtio-blk features, publish queues, notify a device, wait for completion, or read sectors.
+- `OS.Drivers.VirtioDeviceDescriptorCatalog` can now consume fake-derived binding provenance while building block descriptors from caller-provided virtio-blk device-configuration bytes, feature bits, and queue counts. It preserves failed fake-derived binding provenance before device-config parsing, but it still does not read config bytes from a live device, negotiate features, publish queues, notify a device, wait for completion, or read sectors.
+- `OS.Drivers.PciVirtioDescriptorCatalogPlanner` can now compose injected ECAM scan metadata through modern virtio candidate selection, fake-derived BAR-size binding, feature/queue metadata, and descriptor cataloging to produce host-tested virtio-blk descriptor metadata. It preserves scan and fake BAR-size provenance and reports capacity/failure statuses, but it still does not enumerate PCI hardware, size or map BARs live, configure queues, notify a device, wait for completion, or read sectors.
+- `OS.Drivers.VirtioDeviceInitializationPlan` records generic virtio status/feature negotiation intent for future storage drivers: `ACKNOWLEDGE`, `DRIVER`, `FEATURES_OK`, `DRIVER_OK`, `FAILED`, selected feature masks, missing required features, `FEATURES_OK` rejection, and queue-count validation over caller-provided metadata only.
+
+## Parser Primitive Rule
+
+Storage parsers for GPT, MBR, FAT32, package metadata, virtio descriptors, and future manifest/package tables must use `OS.Std.Binary.EndianPrimitives` from `std/no-runtime/shared` for fixed-width integer fields before adding parser-local byte shifting.
+
+`OS.Std.Hash.Crc32` is used by `GptPartitionTableParser` for GPT header CRC32 and partition-entry-array CRC32 validation. Future storage checksum work should continue to use the shared no-runtime helper rather than parser-local CRC implementations.
+
+Kernel-facing parsers should prefer the non-throwing `TryRead` and `TryWrite` variants so truncated sectors or corrupt metadata produce status-coded failures instead of relying on exceptions. Direct read/write variants are allowed only where the caller has already validated the span length.
+
+## Unsupported Behavior
+
+Live PCI enumeration, real virtio-blk device I/O, writes, flushes, discard/TRIM, backup GPT fallback in the legacy parser entrypoints, legacy `GptParser` CRC enforcement, boot-time package reads from a real device, MBR fallback, subdirectory traversal beyond one level, package payload loading, and app loading are pending.
+
+## Tests
+
+Host tests in `tests/OS.HostTests/StorageBlockDeviceTests.cs` cover:
+
+- exact in-memory block reads;
+- final-block boundary reads;
+- out-of-range reads;
+- destination-too-small failure;
+- zero, unaligned, and zero-count geometry rejection;
+- oversized read overflow detection;
+- zero-block read behavior;
+- default/zero result rejection for block read, block-device info, and partition-create results.
+
+Current block-device markers:
+
+```text
+TEST_PASS storage block device reads exact byte range
+TEST_PASS storage block device reads final block boundary
+TEST_PASS storage block device rejects out-of-range reads
+TEST_PASS storage block device rejects destination too small
+TEST_PASS storage block device rejects invalid block sizes
+TEST_PASS storage block device detects oversized read overflow
+TEST_PASS storage block device accepts zero-block read
+TEST_PASS storage block device result defaults are not success
+```
+
+Host tests in `tests/OS.HostTests/StoragePartitionBlockDeviceTests.cs` cover:
+
+- partition-relative reads;
+- out-of-range partition creation rejection;
+- read-past-partition-end rejection;
+- default/zero partition-create result rejection.
+
+Current partition-view markers:
+
+```text
+TEST_PASS storage partition device reads relative blocks
+TEST_PASS storage partition device rejects out of range partition
+TEST_PASS storage partition device rejects read past partition end
+TEST_PASS storage partition device default result is not success
+```
+
+Host tests in `tests/OS.HostTests/StorageGptParserTests.cs` cover:
+
+- valid primary GPT header and first partition parsing;
+- invalid primary header signature;
+- invalid partition entry size;
+- primary header short read;
+- partition entry short read;
+- unsupported geometry;
+- partition entry array out-of-range detection;
+- ESP selection when the ESP is first;
+- ESP selection when the ESP is not first;
+- missing ESP reporting;
+- empty entry skipping;
+- ESP selector partition-entry short reads;
+- ESP selector entry-range rejection;
+- ESP location metadata for the manifest/package reader boundary;
+- default/zero result rejection for public GPT parser, ESP selection, and ESP location results.
+
+Current GPT ESP markers:
+
+```text
+TEST_PASS storage gpt locates esp partition
+TEST_PASS storage gpt rejects missing esp partition
+TEST_PASS storage gpt rejects invalid esp lba range
+TEST_PASS storage gpt result defaults are not success
+```
+
+Host tests in `tests/OS.HostTests/GptPartitionTableParserTests.cs` cover the no-allocation caller-buffer GPT partition table parser:
+
+- valid header and partition descriptor extraction into a caller-provided span;
+- valid backup header and partition descriptor extraction into a caller-provided span;
+- validated primary-header CRC32 and partition-entry-array CRC32 metadata;
+- source guard coverage that the GPT header CRC stack copy uses the shared buffer operation helper;
+- explicit primary-header CRC32 mismatch rejection;
+- explicit partition-entry-array CRC32 mismatch rejection;
+- bad signature, unsupported revision, invalid header size, invalid current LBA, invalid backup LBA metadata, invalid usable bounds, invalid entry count, invalid entry size, entry-array out-of-range, short entry buffer, destination-too-small, invalid partition LBA range, and unterminated fixed-size UTF-16LE partition-name metadata.
+- default/zero caller-buffer GPT parse result rejection.
+
+Current caller-buffer GPT parser markers:
+
+```text
+TEST_PASS storage.gpt.parser parses caller buffers
+TEST_PASS storage.gpt.parser parses backup caller buffers
+TEST_PASS storage.gpt.parser.crc validates good buffers
+TEST_PASS storage.gpt.partition parser header copy uses shared buffer operations
+TEST_PASS storage.gpt.parser.crc rejects header mismatch
+TEST_PASS storage.gpt.parser.crc rejects partition array mismatch
+TEST_PASS storage.gpt.parser rejects bad signature
+TEST_PASS storage.gpt.parser rejects unsupported revision
+TEST_PASS storage.gpt.parser rejects invalid header size
+TEST_PASS storage.gpt.parser rejects invalid current lba
+TEST_PASS storage.gpt.parser rejects invalid usable bounds
+TEST_PASS storage.gpt.parser backup rejects invalid lba metadata
+TEST_PASS storage.gpt.parser rejects invalid entry count
+TEST_PASS storage.gpt.parser rejects invalid entry size
+TEST_PASS storage.gpt.parser rejects entry array out of range
+TEST_PASS storage.gpt.parser rejects short entry buffer
+TEST_PASS storage.gpt.parser reports destination too small
+TEST_PASS storage.gpt.parser rejects invalid partition lba range
+TEST_PASS storage.gpt.parser records unterminated name metadata
+TEST_PASS storage.gpt.parser default result is not success
+```
+
+`tests/OS.HostTests/GptPartitionSelectorTests.cs` covers the caller-owned GPT
+partition selector over already-parsed descriptor spans:
+
+- selection by partition type GUID;
+- selection by unique partition GUID;
+- missing partition and missing requested-GUID reporting;
+- duplicate type-GUID metadata while selecting the first match;
+- failed/default parse result, descriptor-count mismatch, and empty descriptor
+  rejection;
+- invalid descriptor range/identity metadata rejection;
+- no-managed-reference result metadata.
+
+Current caller-owned GPT selector markers:
+
+```text
+TEST_PASS storage.gpt selector selects type guid
+TEST_PASS storage.gpt selector selects unique guid
+TEST_PASS storage.gpt selector reports missing partition
+TEST_PASS storage.gpt selector reports duplicate type metadata
+TEST_PASS storage.gpt selector rejects failed default parse result
+TEST_PASS storage.gpt selector rejects invalid descriptor metadata
+TEST_PASS storage.gpt selector result layouts contain no managed references
+```
+
+Generated-image GPT readback markers:
+
+```text
+TEST_PASS imagebuilder.gpt-parser-readback
+TEST_PASS imagebuilder.gpt-backup-parser-readback
+```
+
+Host tests in `tests/OS.HostTests/StorageFat32ParserTests.cs` cover:
+
+- valid BPB parsing;
+- bad boot-sector signature rejection;
+- unsupported sector-size rejection;
+- invalid sectors-per-cluster rejection;
+- invalid FAT count rejection;
+- root directory entry enumeration;
+- chained root directory entry enumeration;
+- missing short-name root file lookup;
+- found short-name root file metadata;
+- found short-name root file metadata in a later root directory cluster;
+- found `MANIFEST.JSON` root long-name file metadata;
+- found `OS` directory metadata;
+- found `OS/MANIFEST.JSON` first-level child metadata;
+- found first-level child metadata in a later directory cluster;
+- unsupported nested first-level path rejection;
+- missing root long-name file reporting;
+- malformed long-name metadata reporting;
+- orphan long-name metadata reporting;
+- unsupported long-name path rejection;
+- truncated directory entry reporting.
+- root short-name file content reads;
+- root `MANIFEST.JSON` long-name file content reads;
+- too-small destination rejection for root file reads;
+- directory-as-file rejection for root file reads.
+- first-level `OS/MANIFEST.JSON` file content reads;
+- too-small destination rejection for first-level file reads;
+- missing parent directory rejection for first-level file reads.
+- non-contiguous FAT-chain file reads;
+- FAT-chain loop rejection;
+- short FAT-chain rejection.
+- directory-chain loop rejection;
+- short chained directory read rejection.
+- default/zero result rejection for public FAT32 BPB, directory, lookup, and file-read results.
+- source guard coverage that FAT32 short-name trimming uses the shared
+  `AsciiString.TrimTrailingSpace` helper.
+- source guard coverage that FAT32 final partial-block file reads use the
+  shared `BufferOperations.MemoryCopy` helper instead of direct span `CopyTo`.
+
+Current root-file read markers:
+
+```text
+TEST_PASS storage fat32 reads root short-name file content
+TEST_PASS storage fat32 reads chained root directory entries
+TEST_PASS storage fat32 finds chained root directory file metadata
+TEST_PASS storage fat32 reads MANIFEST.JSON root long-name file content
+TEST_PASS storage fat32 rejects root file destination too small
+TEST_PASS storage fat32 rejects directory read as file
+TEST_PASS storage fat32 finds OS directory metadata
+TEST_PASS storage fat32 finds OS/MANIFEST.JSON metadata
+TEST_PASS storage fat32 reads chained first-level directory entries
+TEST_PASS storage fat32 rejects unsupported nested path
+TEST_PASS storage fat32 reads OS/MANIFEST.JSON content
+TEST_PASS storage fat32 rejects OS/MANIFEST.JSON destination too small
+TEST_PASS storage fat32 rejects missing OS directory for content read
+TEST_PASS storage fat32 reads chained file content
+TEST_PASS storage fat32 rejects chained file loop
+TEST_PASS storage fat32 rejects short chained file
+TEST_PASS storage fat32 rejects directory chain loop
+TEST_PASS storage fat32 uses shared ascii trailing-space helper
+TEST_PASS storage fat32 final block copy uses shared buffer operations
+TEST_PASS storage fat32 reports short chained directory read
+TEST_PASS storage fat32 result defaults are not success
+```
+
+Image-builder host tests also verify generated-image package placement and readback:
+
+- `TEST_PASS imagebuilder.package-builds-directory`
+- `TEST_PASS imagebuilder.package-builds-deterministically`
+- `TEST_PASS imagebuilder.package-build rejects unsafe input`
+- `TEST_PASS imagebuilder creates raw ESP with manifest and APP.PKG`
+- `TEST_PASS imagebuilder.package-file`
+- `TEST_PASS imagebuilder.package-readback`
+- `TEST_PASS imagebuilder rejects missing package`
+- `TEST_PASS imagebuilder rejects empty package`
+- `TEST_PASS imagebuilder rejects oversized package`
+
+Host tests in `tests/OS.HostTests/StoragePackageParserTests.cs` cover:
+
+- package header and file-table parsing;
+- malformed metadata rejection, including bad magic/version/header/table/range/path/overlap/duplicate-path cases;
+- package-relative file lookup and content span return;
+- missing file reporting;
+- default/zero parser, lookup, path-copy, and content result rejection.
+
+Current package parser markers:
+
+```text
+TEST_PASS storage.package parses package header and file table
+TEST_PASS storage.package rejects malformed metadata
+TEST_PASS storage.package locates file content
+TEST_PASS storage.package enumerates file table
+TEST_PASS storage.package enumeration exposes file paths
+TEST_PASS storage.package enumeration rejects out of range index
+TEST_PASS storage.package parser path copy uses shared buffer operations
+TEST_PASS storage.package parser result defaults are not success
+```
+
+Host tests in `tests/OS.HostTests/StoragePackageFileSystemTests.cs` cover:
+
+- read-only package file open by safe package-relative path;
+- full-file reads into caller-owned storage;
+- bounded range reads into caller-owned storage;
+- missing file rejection;
+- invalid path rejection;
+- destination-too-small and invalid-range bounds failures;
+- default/zero open/read/enumerate result rejection.
+
+Current package filesystem markers:
+
+```text
+TEST_PASS storage.package opens file
+TEST_PASS storage.package rejects missing file
+TEST_PASS storage.package enforces bounds
+TEST_PASS storage.package filesystem enumerates bounded paths
+TEST_PASS storage.package filesystem copies use shared buffer operations
+TEST_PASS storage.package filesystem result defaults are not success
+TEST_PASS pal.file opens package file
+TEST_PASS pal.file reads offset ranges
+TEST_PASS pal.package file table read uses shared buffer operations
+TEST_PASS pal.file rejects unsafe paths
+TEST_PASS pal.file reports deterministic exhaustion
+TEST_PASS pal.file enumerates package files
+TEST_PASS pal.file enumeration reports buffer too small
+```
+
+Host tests in `tests/OS.HostTests/StoragePackageFileStagingPlanTests.cs` cover:
+
+- staging an already-opened package file into caller-owned storage;
+- short-destination rejection without modifying destination bytes;
+- invalid package-range rejection before copying;
+- open-failure rejection before copying;
+- explicit no-live-storage/no-PAL/no-map/no-execute boundary constants; and
+- default/zero result rejection.
+
+Current package file-staging markers:
+
+```text
+TEST_PASS storage.package staging copies opened file
+TEST_PASS storage.package staging rejects short destination
+TEST_PASS storage.package staging rejects invalid package range
+TEST_PASS storage.package staging rejects source range overflow
+TEST_PASS storage.package staging rejects open failure
+TEST_PASS storage.package staging preserves no-live-storage boundary
+TEST_PASS storage.package staging uses shared buffer operations
+TEST_PASS storage.package staging default result is not success
+```
+
+Host tests in `tests/OS.HostTests/OsPackageLoaderTests.cs` cover:
+
+- GPT ESP location followed by partition-relative FAT32 `OS/APP.PKG` read;
+- package header/table validation after the FAT32 read;
+- primary and backup GPT table-source reporting for caller-buffer package loads;
+- GPT header/partition-entry scratch required/available byte reporting when caller-owned GPT buffers are too small;
+- package file required/available byte reporting when the caller-owned package buffer is too small;
+- missing package reporting through the FAT32 status layer;
+- malformed package reporting through the package status layer.
+
+Current package loader markers:
+
+```text
+TEST_PASS storage.package loader reads package from gpt esp
+TEST_PASS storage.package loader caller-buffer gpt reads package
+TEST_PASS storage.package loader caller-buffer reports primary gpt source
+TEST_PASS storage.package loader caller-buffer gpt falls back to backup
+TEST_PASS storage.package loader caller-buffer reports backup gpt source
+TEST_PASS storage.package loader caller-buffer gpt rejects crc mismatch
+TEST_PASS storage.package loader caller-buffer reports gpt header capacity
+TEST_PASS storage.package loader caller-buffer reports gpt entry buffer capacity
+TEST_PASS storage.package loader caller-buffer reports package buffer capacity
+TEST_PASS storage.package loader caller-buffer uses gpt partition selector
+TEST_PASS storage.package loader default result is not success
+TEST_PASS storage.package loader gpt esp readiness default result is not success
+TEST_PASS storage.package loader rejects missing package
+TEST_PASS storage.package loader rejects malformed package
+```
+
+Host tests in `tests/OS.HostTests/StorageVirtioBlockRequestPlanTests.cs` cover:
+
+- read request header/data/status descriptor layout;
+- read-only feature and minimum queue descriptor readiness;
+- missing read-only feature rejection;
+- status-coded write rejection in read-only mode;
+- request-plan default/zero result rejection; and
+- queue-readiness default/zero result rejection.
+
+Current virtio-blk request-plan markers:
+
+```text
+TEST_PASS storage.virtioblk read request layout
+TEST_PASS storage.virtioblk readiness accepts read-only queue
+TEST_PASS storage.virtioblk readiness rejects missing features
+TEST_PASS storage.virtioblk rejects write request in read-only mode
+TEST_PASS storage.virtioblk request default result is not success
+TEST_PASS storage.virtioblk readiness default result is not success
+```
+
+Host tests in `tests/OS.HostTests/StorageVirtioBlockReadTransactionPlanTests.cs` cover:
+
+- successful read transaction planning for a bounded sector range;
+- caller-owned destination capacity rejection;
+- invalid 512-byte sector geometry rejection;
+- minimum queue descriptor capacity rejection; and
+- default/zero result rejection.
+
+Current virtio-blk read transaction markers:
+
+```text
+TEST_PASS storage.virtioblk read transaction plans sector range
+TEST_PASS storage.virtioblk read transaction rejects destination too small
+TEST_PASS storage.virtioblk read transaction rejects invalid sector geometry
+TEST_PASS storage.virtioblk read transaction rejects queue too small
+TEST_PASS storage.virtioblk read transaction default result is not success
+```
+
+Host tests in `tests/OS.HostTests/VirtqueueSplitRingPlanTests.cs` cover:
+
+- split-ring descriptor-table, available-ring, and used-ring lengths and alignments;
+- zero, non-power-of-two, and oversized queue-size rejection;
+- mapping descriptor/available/used offsets from a caller-provided start offset;
+- overflow rejection when aligned regions cannot fit in 32-bit layout offsets; and
+- default/zero result rejection.
+
+Current virtqueue split-ring markers:
+
+```text
+TEST_PASS drivers.virtqueue split ring layout
+TEST_PASS drivers.virtqueue rejects invalid queue size
+TEST_PASS drivers.virtqueue maps descriptor avail used offsets
+TEST_PASS drivers.virtqueue rejects overflow
+TEST_PASS drivers.virtqueue default result is not success
+```
+
+Host tests in `tests/OS.HostTests/StorageVirtioBlockDescriptorChainPlanTests.cs` cover:
+
+- successful planning of one three-descriptor read-only block request chain;
+- device-writable data and status descriptors with a device-readable request header descriptor;
+- insufficient free descriptor rejection;
+- failed transaction-plan rejection before descriptor metadata is produced; and
+- default/zero result rejection.
+
+Current virtio-blk descriptor-chain markers:
+
+```text
+TEST_PASS storage.virtioblk descriptor chain plans three descriptors
+TEST_PASS storage.virtioblk descriptor chain marks data writable
+TEST_PASS storage.virtioblk descriptor chain rejects insufficient descriptors
+TEST_PASS storage.virtioblk descriptor chain rejects failed transaction plan
+TEST_PASS storage.virtioblk descriptor chain default result is not success
+```
+
+Host tests in `tests/OS.HostTests/StorageVirtioBlockDescriptorChainWriterTests.cs` cover:
+
+- writing three planned descriptors in little-endian split-ring descriptor format;
+- writing the planned available-ring head entry and advancing `avail.idx`;
+- preserving unrelated queue-memory bytes;
+- failed descriptor-plan rejection before memory writes;
+- undersized queue-memory rejection;
+- descriptor index range rejection against the supplied split-ring plan;
+- invalid available-ring slot rejection;
+- arithmetic overflow rejection;
+- default/zero writer result rejection.
+
+Current virtio-blk descriptor-chain writer markers:
+
+```text
+TEST_PASS storage.virtioblk descriptor writer writes three descriptors
+TEST_PASS storage.virtioblk descriptor writer writes available ring head
+TEST_PASS storage.virtioblk descriptor writer preserves unrelated memory
+TEST_PASS storage.virtioblk descriptor writer rejects failed plan
+TEST_PASS storage.virtioblk descriptor writer rejects undersized queue memory
+TEST_PASS storage.virtioblk descriptor writer rejects descriptor index range
+TEST_PASS storage.virtioblk descriptor writer rejects invalid available slot
+TEST_PASS storage.virtioblk descriptor writer rejects arithmetic overflow
+TEST_PASS storage.virtioblk descriptor writer default result is not success
+```
+
+Host tests in `tests/OS.HostTests/StorageVirtioBlockUsedRingCompletionReaderTests.cs` cover:
+
+- successful used-ring entry parsing;
+- used index wrap from `65535` to `0`;
+- unexpected descriptor head rejection;
+- unexpected used byte-count rejection;
+- device I/O error reporting;
+- undersized used-ring rejection;
+- unknown virtio-blk status byte rejection; and
+- default/zero result rejection.
+
+Current virtio-blk completion reader markers:
+
+```text
+TEST_PASS storage.virtioblk completion parses successful used entry
+TEST_PASS storage.virtioblk completion advances wrapped used index
+TEST_PASS storage.virtioblk completion rejects unexpected descriptor head
+TEST_PASS storage.virtioblk completion rejects unexpected byte count
+TEST_PASS storage.virtioblk completion reports device io error
+TEST_PASS storage.virtioblk completion rejects undersized used ring
+TEST_PASS storage.virtioblk completion rejects unknown status byte
+TEST_PASS storage.virtioblk completion default result is not success
+```
+
+Host tests in `tests/OS.HostTests/StorageVirtioBlockReadLifecycleTests.cs` cover:
+
+- publishing one read request by composing transaction planning, split-ring planning, descriptor-chain planning, and descriptor-chain writing;
+- completing one read request by composing the published metadata with the used-ring completion reader;
+- wrapped available-ring and used-ring index carry-forward;
+- read-plan failure reporting before queue publication;
+- descriptor-writer failure reporting without claiming device progress;
+- completion-reader failure reporting with expected and completed descriptor metadata;
+- lifecycle publish result default/zero rejection; and
+- lifecycle completion result default/zero rejection.
+
+Current virtio-blk lifecycle markers:
+
+```text
+TEST_PASS storage.virtioblk lifecycle publishes read request
+TEST_PASS storage.virtioblk lifecycle completes read request
+TEST_PASS storage.virtioblk lifecycle carries next ring indexes
+TEST_PASS storage.virtioblk lifecycle reports read plan failure
+TEST_PASS storage.virtioblk lifecycle reports descriptor write failure
+TEST_PASS storage.virtioblk lifecycle reports completion failure
+TEST_PASS storage.virtioblk lifecycle publish default result is not success
+TEST_PASS storage.virtioblk lifecycle completion default result is not success
+```
+
+Host tests in `tests/OS.HostTests/StorageVirtioBlockReadOnlyDevicePlanTests.cs` cover:
+
+- publishing one read-only sector request through `VirtioBlockReadLifecycle`;
+- invalid non-512-byte block geometry rejection before lifecycle publication;
+- out-of-range sector rejection before lifecycle publication;
+- lifecycle publish-failure propagation from an undersized split-ring memory span;
+- preservation of sector, byte-count, descriptor-head, available-ring, and used-ring metadata;
+- default/zero read-only device-plan result rejection before metadata is trusted.
+
+Current virtio-blk read-only device planner markers:
+
+```text
+TEST_PASS storage.virtioblk.readonly publishes sector read
+TEST_PASS storage.virtioblk.readonly rejects invalid block geometry
+TEST_PASS storage.virtioblk.readonly rejects out-of-range sector
+TEST_PASS storage.virtioblk.readonly reports lifecycle publish failure
+TEST_PASS storage.virtioblk.readonly preserves request metadata
+TEST_PASS storage.virtioblk.readonly default result is not success
+```
+
+Host tests in `tests/OS.HostTests/StorageVirtioBlockPackageReadPreflightTests.cs`
+cover:
+
+- validating a complete read-session plus correctly sized GPT/FAT/package
+  buffers before delegating to the package loader and surfacing nested
+  package-load success;
+- rejecting an incomplete read-session before package parsing, with no
+  package-load attempt and preserved cursor provenance;
+- reporting required and available GPT header scratch, partition-entry scratch,
+  partition-descriptor, and package-buffer capacity when caller storage is too
+  small; and
+- preserving the no-live-device storage boundary;
+- composing package-read preflight, package file open, and caller-owned file
+  staging for a manifest-selected package path; and
+- formatting that package-file staging preflight result into a stable
+  caller-owned diagnostic marker and rejecting short/default formatter results;
+  and
+- proving app-selection preflight rejects incomplete read sessions before
+  scratch validation or selection loading;
+- default/zero package-read preflight result rejection before metadata is
+  trusted.
+
+Current virtio-blk package read-preflight markers:
+
+```text
+TEST_PASS storage.virtio package preflight validates buffers
+TEST_PASS storage.virtio package preflight rejects incomplete session
+TEST_PASS storage.virtio package preflight reports scratch capacity
+TEST_PASS storage.virtio package preflight preserves storage boundary
+TEST_PASS storage.virtio package preflight default result is not success
+TEST_PASS storage.virtioblk package preflight stages package file
+TEST_PASS storage.virtioblk package file staging formatter formats success marker
+TEST_PASS storage.virtioblk package file staging formatter reports short destination
+TEST_PASS storage.virtioblk package file staging formatter default result is not success
+TEST_PASS storage virtio block package file staging formatter uses shared ascii text builder
+TEST_PASS boot.sequence package file staging preflight ready
+TEST_PASS boot.sequence package file staging preflight blocks default result
+TEST_PASS appmodel.selection preflight rejects incomplete read session
+```
+
+Host tests in `tests/OS.HostTests/VirtioBlockNativeAppSelectionPreflightTests.cs`
+cover:
+
+- validating default app-selection scratch buffers before delegating to
+  `NativeAppSelectionLoader`;
+- rejecting an incomplete virtio-blk read-session before scratch validation or
+  selected-app loading;
+- preserving read-session cursor/pipeline metadata plus nested manifest/package,
+  package-parse, launch-plan, and descriptor provenance;
+- reading selected manifest/package app metadata from a simulated full-disk
+  read-session destination exposed through the block-device abstraction;
+- adapting the same completed full-disk read-session destination through
+  `VirtioBlockReadSessionBlockDevice`;
+- reporting adapter creation failures before scratch validation or selected-app
+  loading;
+- preserving the no-live-device/no-launch boundary; and
+- emitting boot-sequence preflight ready/not-ready markers from the result.
+
+Current virtio-blk app-selection preflight markers:
+
+```text
+TEST_PASS appmodel.virtio selection preflight validates scratch
+TEST_PASS appmodel.virtio selection preflight rejects incomplete session
+TEST_PASS appmodel.virtio selection preflight preserves selection provenance
+TEST_PASS appmodel.virtio selection preflight reads app from session destination
+TEST_PASS appmodel.virtio selection preflight adapts completed read session block device
+TEST_PASS appmodel.virtio selection preflight reports adapter creation failure
+TEST_PASS appmodel.virtio selection preflight preserves no-launch boundary
+TEST_PASS appmodel.virtio selection preflight default result is not success
+TEST_PASS boot.sequence virtio app selection preflight ready
+TEST_PASS boot.sequence virtio app selection preflight blocks default result
+TEST_PASS boot.sequence virtio app selection preflight reports selection failure
+```
+
+Host tests in `tests/OS.HostTests/NativeAppPayloadStagingPlanTests.cs` cover:
+
+- copying only selected executable bytes from already-loaded package bytes into
+  caller-owned staging storage;
+- short destination rejection with required byte count;
+- out-of-bounds package range rejection before copying;
+- failed payload-mapping status preservation;
+- explicit no-live-storage/no-map/no-execute boundary constants; and
+- default/zero result rejection.
+
+Current payload-staging markers:
+
+```text
+TEST_PASS appmodel payload staging copies executable bytes
+TEST_PASS appmodel payload staging rejects short destination
+TEST_PASS appmodel payload staging rejects package range
+TEST_PASS appmodel payload staging rejects mapping failure
+TEST_PASS appmodel payload staging preserves no-execute boundary
+TEST_PASS appmodel payload staging uses shared buffer operations
+TEST_PASS appmodel payload staging default result is not success
+```
+
+Current package-staging readiness markers:
+
+```text
+TEST_PASS appmodel package staging readiness composes
+TEST_PASS appmodel package staging readiness rejects selection failures
+TEST_PASS appmodel package staging readiness rejects staging failures
+TEST_PASS appmodel package staging readiness rejects memory invocation failures
+TEST_PASS appmodel package staging readiness rejects byte mismatches
+TEST_PASS appmodel package staging readiness preserves no-launch boundary
+TEST_PASS appmodel package staging readiness default result is not success
+TEST_PASS appmodel entry staging preflight accepts staged package and payload
+TEST_PASS appmodel entry staging preflight rejects payload staging failure
+TEST_PASS appmodel entry staging preflight rejects default staging readiness
+TEST_PASS appmodel entry staging preflight default result is not success
+TEST_PASS appmodel entry staging preflight preserves no-launch boundary
+```
+
+Host tests in `tests/OS.HostTests/StorageVirtioBlockDescriptorOwnershipPlanTests.cs`
+cover:
+
+- selecting the first contiguous caller-owned three-descriptor free chain;
+- skipping descriptors already marked in flight;
+- reporting free-list capacity exhaustion and invalid state;
+- marking published read descriptors in flight;
+- reclaiming descriptors after a validated lifecycle completion;
+- preserving state on failed publish and failed completion;
+- rejecting short state tables, in-flight reuse, not-in-flight completion, and
+  duplicate completion; and
+- preserving the no-live-device boundary.
+
+Current virtio-blk descriptor ownership markers:
+
+```text
+TEST_PASS storage.virtioblk.ownership marks published descriptors in flight
+TEST_PASS storage.virtioblk.ownership reclaims completed descriptors
+TEST_PASS storage.virtioblk.ownership rejects failed publish
+TEST_PASS storage.virtioblk.ownership rejects failed completion
+TEST_PASS storage.virtioblk.ownership rejects short state table
+TEST_PASS storage.virtioblk.ownership rejects descriptor already in flight
+TEST_PASS storage.virtioblk.ownership rejects descriptor not in flight
+TEST_PASS storage.virtioblk.ownership rejects duplicate completion
+TEST_PASS storage.virtioblk.ownership preserves no-live-device boundary
+TEST_PASS storage.virtioblk.freelist selects first free triple
+TEST_PASS storage.virtioblk.freelist skips in-flight descriptors
+TEST_PASS storage.virtioblk.freelist reports capacity exhaustion
+TEST_PASS storage.virtioblk.freelist rejects invalid state
+TEST_PASS storage.virtioblk.freelist preserves no-live-device boundary
+TEST_PASS storage.virtioblk.publishplan publishes selected free chain
+TEST_PASS storage.virtioblk.publishplan skips in-flight descriptors
+TEST_PASS storage.virtioblk.publishplan rejects free-list exhaustion
+TEST_PASS storage.virtioblk.publishplan preserves state on publish failure
+TEST_PASS storage.virtioblk.publishplan rejects invalid ownership state
+TEST_PASS storage.virtioblk.publishplan preserves no-live-device boundary
+TEST_PASS storage.virtioblk.reclaimplan composes publish completion ownership
+TEST_PASS storage.virtioblk.reclaimplan rejects failed publish
+TEST_PASS storage.virtioblk.reclaimplan rejects no completion
+TEST_PASS storage.virtioblk.reclaimplan rejects ownership mismatch
+TEST_PASS storage.virtioblk.reclaimplan preserves no-live-device boundary
+TEST_PASS storage.virtioblk.cursor publishes and advances available index
+TEST_PASS storage.virtioblk.cursor preserves index on publish failure
+TEST_PASS storage.virtioblk.cursor reclaims and advances used index
+TEST_PASS storage.virtioblk.cursor preserves used index on reclaim failure
+TEST_PASS storage.virtioblk.cursor preserves no-live-device boundary
+TEST_PASS storage.virtioblk.ownership default results are not success
+TEST_PASS storage.virtioblk.readqueue publishes valid block range
+TEST_PASS storage.virtioblk.readqueue rejects out-of-range block request
+TEST_PASS storage.virtioblk.readqueue preserves cursor on publish failure
+TEST_PASS storage.virtioblk.readqueue publish default result is not success
+TEST_PASS storage.virtioblk.readqueue preserves no-live-device boundary
+TEST_PASS storage.virtioblk.readqueue completes and advances used index
+TEST_PASS storage.virtioblk.readqueue completion rejects failed publication
+TEST_PASS storage.virtioblk.readqueue completion rejects no completion
+TEST_PASS storage.virtioblk.readqueue completion default result is not success
+TEST_PASS storage.virtioblk.readqueue completion preserves no-live-device boundary
+TEST_PASS storage.virtioblk.readqueue block result reports completed read
+TEST_PASS storage.virtioblk.readqueue block result maps publication failure
+TEST_PASS storage.virtioblk.readqueue block result maps completion failure
+TEST_PASS storage.virtioblk.readqueue block result default result is not success
+TEST_PASS storage.virtioblk.readqueue block result preserves no-live-device boundary
+TEST_PASS storage.virtioblk.notify plans readqueue notification metadata
+TEST_PASS storage.virtioblk.notify rejects failed publication
+TEST_PASS storage.virtioblk.notify default result is not success
+TEST_PASS storage.virtioblk.notify preserves no-live-device boundary
+TEST_PASS storage.virtioblk.notifyoffset derives relative offset
+TEST_PASS storage.virtioblk.notifyoffset rejects failed notification metadata
+TEST_PASS storage.virtioblk.notifyoffset rejects relative offset overflow
+TEST_PASS storage.virtioblk.notifyoffset default result is not success
+TEST_PASS storage.virtioblk.notifyoffset preserves no-live-device boundary
+TEST_PASS storage.virtioblk.notifywindow plans access
+TEST_PASS storage.virtioblk.notifywindow rejects failed offset plan
+TEST_PASS storage.virtioblk.notifywindow propagates register window failure
+TEST_PASS storage.virtioblk.notifywindow default result is not success
+TEST_PASS storage.virtioblk.notifywindow preserves no-live-device boundary
+TEST_PASS storage.virtioblk.notifywindowexec writes planned notify access
+TEST_PASS storage.virtioblk.notifywindowexec rejects failed plan
+TEST_PASS storage.virtioblk.notifywindowexec propagates access failure
+TEST_PASS storage.virtioblk.notifywindowexec default result is not success
+TEST_PASS storage.virtioblk.notifywindowexec preserves no-live-device boundary
+TEST_PASS storage.virtioblk.notifywindowbarrier writes planned notify access
+TEST_PASS storage.virtioblk.notifywindowbarrier rejects missing barrier
+TEST_PASS storage.virtioblk.notifywindowbarrier rejects failed plan
+TEST_PASS storage.virtioblk.notifywindowbarrier propagates access failure
+TEST_PASS storage.virtioblk.notifywindowbarrier default result is not success
+TEST_PASS storage.virtioblk.notifywindowbarrier preserves no-live-device boundary
+TEST_PASS storage.virtioblk.readnotify composes publication and barrier notify
+TEST_PASS storage.virtioblk.readnotify rejects failed publication
+TEST_PASS storage.virtioblk.readnotify rejects missing barrier
+TEST_PASS storage.virtioblk.readnotify propagates notify execution failure
+TEST_PASS storage.virtioblk.readnotify default result is not success
+TEST_PASS storage.virtioblk.readnotify preserves no-live-device boundary
+TEST_PASS storage.virtioblk.readnotifycompletion completes after notify readiness
+TEST_PASS storage.virtioblk.readnotifycompletion rejects failed readiness
+TEST_PASS storage.virtioblk.readnotifycompletion rejects no completion
+TEST_PASS storage.virtioblk.readnotifycompletion propagates ownership failure
+TEST_PASS storage.virtioblk.readnotifycompletion default result is not success
+TEST_PASS storage.virtioblk.readnotifycompletion preserves no-live-device boundary
+TEST_PASS storage.virtioblk.readnotifyblock projects completed read
+TEST_PASS storage.virtioblk.readnotifyblock maps readiness failure
+TEST_PASS storage.virtioblk.readnotifyblock maps completion failure
+TEST_PASS storage.virtioblk.readnotifyblock default result is not success
+TEST_PASS storage.virtioblk.readnotifyblock preserves no-live-device boundary
+TEST_PASS storage.virtioblk.readpipeline projects completed read
+TEST_PASS storage.virtioblk.readpipeline rejects publication failure
+TEST_PASS storage.virtioblk.readpipeline rejects readiness failure
+TEST_PASS storage.virtioblk.readpipeline maps completion failure
+TEST_PASS storage.virtioblk.readpipeline default result is not success
+TEST_PASS storage.virtioblk.readpipeline preserves no-live-device boundary
+TEST_PASS storage.virtioblk.readadapter executes pipeline read
+TEST_PASS storage.virtioblk.readadapter rejects short request buffer
+TEST_PASS storage.virtioblk.readadapter rejects short notify window
+TEST_PASS storage.virtioblk.readadapter propagates pipeline failure
+TEST_PASS storage.virtioblk.readadapter default result is not success
+TEST_PASS storage.virtioblk.readadapter preserves no-live-device boundary
+TEST_PASS storage.virtioblk.readsession delegates adapter read
+TEST_PASS storage.virtioblk.readsession preserves cursor state
+TEST_PASS storage.virtioblk.readsession rejects invalid setup
+TEST_PASS storage.virtioblk.readsession default result is not success
+TEST_PASS storage.virtioblk.readsession preserves no-live-device boundary
+TEST_PASS storage.virtioblk.readsession setup gate composes setup and read
+TEST_PASS storage.virtioblk.readsession setup gate rejects failed setup
+TEST_PASS storage.virtioblk.readsession setup gate rejects missing barrier
+TEST_PASS storage.virtioblk.readsession setup gate propagates read failure
+TEST_PASS storage.virtioblk.readsession setup gate default result is not success
+```
+
+Host tests in `tests/OS.HostTests/StorageVirtioBlockQueueMmioSetupPlanTests.cs` cover:
+
+- queue-0 common-configuration setup command planning from a successful block descriptor;
+- failed/default descriptor rejection and valid non-block descriptor rejection;
+- invalid split-ring queue size, unavailable queue, device-maximum queue-size rejection, and missing notify-offset rejection;
+- physical descriptor/driver/device ring address validation, alignment, and range-overflow rejection;
+- command destination capacity reporting; and
+- default/zero result rejection plus no-live-MMIO/no-DMA/no-block-I/O boundary constants.
+
+Current virtio-blk queue MMIO setup markers:
+
+```text
+TEST_PASS storage.virtioblk.queuesetup plans queue zero common config commands
+TEST_PASS storage.virtioblk.queuesetup rejects failed block descriptor
+TEST_PASS storage.virtioblk.queuesetup rejects queue metadata
+TEST_PASS storage.virtioblk.queuesetup rejects physical addresses
+TEST_PASS storage.virtioblk.queuesetup reports command destination capacity
+TEST_PASS storage.virtioblk.queuesetup default result is not success
+```
+
+Host tests in `tests/OS.HostTests/StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests.cs` cover:
+
+- setup-command to common-configuration register-window access planning;
+- failed setup-plan, short command-source, and undersized access-plan destination rejection;
+- propagated register-window access planning failures;
+- default/zero result rejection; and
+- no-live-MMIO/no-DMA/no-block-I/O boundary constants.
+
+Current virtio-blk queue MMIO setup register-window markers:
+
+```text
+TEST_PASS storage.virtioblk.queuesetup.window plans setup command accesses
+TEST_PASS storage.virtioblk.queuesetup.window rejects failed setup plan
+TEST_PASS storage.virtioblk.queuesetup.window rejects short command source
+TEST_PASS storage.virtioblk.queuesetup.window reports destination capacity
+TEST_PASS storage.virtioblk.queuesetup.window propagates register window failure
+TEST_PASS storage.virtioblk.queuesetup.window default result is not success
+```
+
+Host tests in `tests/OS.HostTests/StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests.cs` also cover:
+
+- fake execution of planned setup accesses over caller-owned common BAR-window bytes;
+- failed setup-plan and short command-source rejection before byte mutation;
+- staged device-read mismatch detection for queue-size/notify-offset reads;
+- register-window access execution failure propagation;
+- default/zero execution result rejection; and
+- no-live-MMIO/no-real-barrier/no-DMA/no-block-I/O boundary constants.
+
+Current virtio-blk queue MMIO setup register-window execution markers:
+
+```text
+TEST_PASS storage.virtioblk.queuesetup.windowexec writes planned setup accesses
+TEST_PASS storage.virtioblk.queuesetup.windowexec rejects failed setup plan
+TEST_PASS storage.virtioblk.queuesetup.windowexec rejects short command source
+TEST_PASS storage.virtioblk.queuesetup.windowexec rejects read mismatch
+TEST_PASS storage.virtioblk.queuesetup.windowexec propagates access failure
+TEST_PASS storage.virtioblk.queuesetup.windowexec preserves no-live-mmio boundary
+TEST_PASS storage.virtioblk.queuesetup.windowexec default result is not success
+```
+
+Host tests in `tests/OS.HostTests/StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests.cs` now also cover:
+
+- barrier-gated fake setup execution that writes `queue_enable` only after explicit setup-write visibility readiness;
+- missing barrier rejection after earlier fake setup writes but before touching `queue_enable`;
+- failed setup-plan, short command-source, and register-window access failure propagation; and
+- default/zero barrier result rejection plus no-live-MMIO/no-real-barrier/no-DMA/no-block-I/O boundary constants.
+
+Current virtio-blk queue MMIO setup register-window barrier markers:
+
+```text
+TEST_PASS storage.virtioblk.queuesetup.windowbarrier writes queue enable after barrier
+TEST_PASS storage.virtioblk.queuesetup.windowbarrier rejects missing barrier
+TEST_PASS storage.virtioblk.queuesetup.windowbarrier rejects failed setup plan
+TEST_PASS storage.virtioblk.queuesetup.windowbarrier rejects short command source
+TEST_PASS storage.virtioblk.queuesetup.windowbarrier propagates access failure
+TEST_PASS storage.virtioblk.queuesetup.windowbarrier preserves no-live-mmio boundary
+TEST_PASS storage.virtioblk.queuesetup.windowbarrier default result is not success
+```
+
+Host tests in `tests/OS.HostTests/StorageVirtioBlockDeviceConfigTests.cs` cover:
+
+- little-endian capacity parsing from caller-provided virtio-blk config bytes;
+- block-device geometry creation with 512-byte sectors;
+- short config rejection;
+- zero-capacity rejection;
+- capacity-overflow rejection through nested `BlockDeviceStatus`;
+- fake register-window capacity reads into caller-owned scratch storage;
+- register-window planning, access-execution, scratch-capacity, and config-parse failure propagation;
+- config result default/zero rejection;
+- register-window read result default/zero rejection; and
+- no-live-MMIO/no-block-I/O boundary constants for the fake register-window reader.
+
+Current virtio-blk device config markers:
+
+```text
+TEST_PASS storage.virtioblk.config parses capacity
+TEST_PASS storage.virtioblk.config creates block info
+TEST_PASS storage.virtioblk.config rejects short config
+TEST_PASS storage.virtioblk.config rejects zero capacity
+TEST_PASS storage.virtioblk.config reports capacity overflow
+TEST_PASS storage.virtioblk.config.windowexec reads capacity
+TEST_PASS storage.virtioblk.config.windowexec rejects short scratch buffer
+TEST_PASS storage.virtioblk.config.windowexec propagates register window failure
+TEST_PASS storage.virtioblk.config.windowexec propagates access failure
+TEST_PASS storage.virtioblk.config.windowexec propagates config parse failure
+TEST_PASS storage.virtioblk.config.windowexec preserves no-live-mmio boundary
+TEST_PASS storage.virtioblk.config default result is not success
+TEST_PASS storage.virtioblk.config.windowexec default result is not success
+```
+
+Virtio PCI discovery host tests include the storage-relevant block marker:
+
+```text
+TEST_PASS drivers.virtiopci.capability parser records required capabilities
+TEST_PASS drivers.virtiopci.capability parser rejects truncated capability
+TEST_PASS drivers.virtiopci.capability parser rejects capability loop
+TEST_PASS drivers.virtiopci.capability parser feeds discovery contract
+TEST_PASS drivers.virtiopci identifies virtio block device
+TEST_PASS drivers.virtiopci records required capabilities
+TEST_PASS drivers.virtio init plans status sequence
+TEST_PASS drivers.virtio init rejects missing features
+TEST_PASS drivers.virtio init rejects features-ok failure
+TEST_PASS drivers.virtio init records selected features
+TEST_PASS drivers.virtio.pci.binding.derive creates block binding from fake bar probe
+TEST_PASS drivers.virtio.pci.binding.derive.catalog binds multiple candidates
+TEST_PASS drivers.virtio.pci.binding.derive.catalog preserves no-live-config-access boundary
+TEST_PASS drivers.virtio.descriptor.catalog.derive creates block descriptor
+TEST_PASS drivers.virtio.descriptor.catalog.derive preserves no-live-device boundary
+```
+
+## Known Limitations
+
+`HelloSharpFs` is a placeholder app and does not read packaged files yet.
+
+The in-memory block device lives only in host tests. The kernel contract is intentionally read-only and status-code oriented so virtio-blk can implement it later without pulling in host allocations or filesystem behavior.
+
+`PartitionBlockDevice` is a host-tested offset/bounds adapter only. Its create-result default guard proves only that zero/default metadata is not accepted as a successful partition view. It does not prove real partition discovery from a live disk, virtio-blk reads, or FAT32 behavior by itself.
+
+Host-side package building, host-side `APP.PKG` placement, generated-image package readback, `OsPackageParser` in-memory parsing, `OsPackageFileSystem` lookup/read behavior, `OsPackageFileStagingPlanner` caller-owned copy behavior, `OSHostPackageFileTable` mock handle behavior, and `OsPackageLoader` over an in-memory `IReadOnlyBlockDevice` are not guest storage evidence. They prove bytes can be written into a parser-valid package and FAT32 ESP image and later read back or staged through the parser stack from caller-owned memory, but they do not prove virtio-blk, post-ExitBootServices disk reads, exported PAL file calls, executable mapping, or live app loading. Hosted workload claims remain in `docs/completion-gates.md`.
+
+The legacy block-device `GptParser` currently reads one block for the primary header and can scan the primary partition-entry array for the EFI System Partition, but it still does not enforce GPT CRCs. The newer caller-buffer `GptPartitionTableParser` validates primary and backup header CRC32 plus partition-entry-array CRC32 and enumerates non-empty partition descriptors into a supplied span without allocating parser-owned heap buffers. `GptPartitionSelector` selects by partition type GUID or unique partition GUID from those already-parsed descriptors and preserves duplicate-count and selected-range metadata, but it does not read disks or make boot policy decisions by itself. Caller-buffer package and manifest loader paths can fall back from a failed primary GPT location to a valid backup GPT location and report the selected primary/backup GPT table source plus GPT scratch required/available byte counts; their original legacy-parser entrypoints remain primary-only for compatibility until the boot path owns stable scratch buffers.
+
+The FAT32 parser follows root and first-level directory FAT chains for metadata lookup and entry enumeration, and follows FAT chains for file content reads. This remains host-tested over an injected `IReadOnlyBlockDevice`; it does not recurse through nested directories, support writes, or prove reads from a real virtio-blk device.
+
+The package filesystem API is a small parser wrapper, not a general filesystem. It enumerates the package file table only by deterministic zero-based index; it does not enumerate directories, perform path normalization beyond package-format validation, cache handles, allocate buffers, verify signatures, decompress data, or execute/load app payloads.
+
+The package loader locates `OS/APP.PKG` through a GPT ESP and a first-level FAT32 path over a supplied block-device abstraction. Its caller-buffer GPT overload improves GPT CRC diagnostics, falls back to backup GPT metadata when primary location fails, reports the selected primary/backup GPT table source, and reports GPT scratch plus package-buffer sizing diagnostics, but still depends on caller-owned scratch buffers sized for the full partition-entry sector range. It does not use virtio-blk, support alternate package paths, follow package compression/chunks, verify signatures, or execute/load app payloads.
+
+`NativeAppSelectionLoader` is a composition wrapper over those host-tested storage paths. Its nested loader results preserve manifest/package GPT table-source metadata and required and available byte counts, and `VirtioBlockNativeAppSelectionPreflight` can guard it with completed read-session provenance and scratch validation. `NativeAppPayloadStagingPlanner` copies selected executable bytes only from already-loaded package memory into caller-owned staging memory. `NativeAppPackageStagingReadinessPlanner` only validates already-produced selection, staging, mapping, executable-memory, and invocation metadata for consistency. `BootSequence.RunAppPackageStagingReadiness` and `BootSequence.RunAppSelectionPreflightReadiness` only emit marker metadata from those readiness results. None of these paths adds a live block driver, caches scratch buffers for boot, chooses alternate package locations, reads payload bytes from live storage, maps executable memory, changes permissions, relocates code, or executes/loads selected app payloads.
+
+`VirtioBlockDeviceConfig`, `VirtioBlockDeviceConfigRegisterWindowReader`, `VirtioBlockQueueMmioSetupPlanner`, `VirtioBlockQueueMmioSetupRegisterWindowPlanner`, `VirtioBlockQueueMmioSetupRegisterWindowExecutor`, `VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutor`, `VirtioBlockRequestPlan`, `VirtioBlockReadTransactionPlan`, `VirtqueueSplitRingPlan`, `VirtioBlockDescriptorChainPlan`, `VirtioBlockDescriptorChainWriter`, `VirtioBlockUsedRingCompletionReader`, `VirtioBlockReadLifecycle`, `VirtioBlockReadOnlyDevicePlan`, `VirtioBlockDescriptorFreeListPlanner`, `VirtioBlockDescriptorOwnershipPlan`, `VirtioBlockDescriptorPublishPlanner`, `VirtioBlockDescriptorReclaimPlanner`, `VirtioBlockQueueCursorPlanner`, `VirtioBlockReadQueuePlanner`, `VirtioBlockReadQueueCompletionPlanner`, `VirtioBlockReadQueueBlockReadProjector`, `VirtioBlockQueueNotificationMetadataPlanner`, `VirtioBlockQueueNotifyOffsetPlanner`, `VirtioBlockQueueNotificationRegisterWindowPlanner`, `VirtioBlockQueueNotificationRegisterWindowExecutor`, `VirtioBlockQueueNotificationRegisterWindowBarrierExecutor`, `VirtioBlockReadQueueNotifyReadinessExecutor`, `VirtioBlockReadQueueNotifyCompletionPlanner`, `VirtioBlockReadQueueNotifyBlockReadProjector`, `VirtioBlockReadQueuePipelineComposer`, `VirtioBlockReadQueuePipelineAdapter`, `VirtioBlockReadOnlyReadSession`, `VirtioBlockReadOnlyReadSessionSetupGate`, and `VirtioBlockReadSessionBlockDevice` are parser/layout/readiness/planning/caller-owned-memory contracts only. They prove capacity-field parsing, fake register-window capacity reads into caller-owned scratch storage, future queue-0 common-configuration command ordering, queue setup command to register-window access-plan binding, fake byte-span setup execution, explicit setup-write barrier metadata before `queue_enable`, setup execution gating before read-session descriptor publication, queue-size and notify-offset metadata validation, block geometry validation, deterministic request header bytes, descriptor directions, caller-owned buffer validation, sector-range validation, split-ring offsets, descriptor-chain metadata, available-ring slot calculation, little-endian descriptor materialization, available-ring head publication into a supplied memory span, used-ring completion metadata parsing, virtio-blk status-byte interpretation, lifecycle status propagation, ring-index carry-forward, caller-owned `Free`/`InFlight` descriptor-state selection and reclaim, reusable-descriptor publication composition, publish-to-completion-to-reclaim composition, caller-owned available/used index cursor advancement, range-validated read-queue publication/completion, block-read status projection with default/zero projection rejection, future notify-write metadata, checked relative-offset derivation, register-window access planning, fake byte-span notify execution, explicit barrier-readiness gating, read-notify readiness composition from publication through barrier-gated fake notify execution, read-notify completion composition from successful readiness into caller-owned used-ring/status-buffer completion parsing and descriptor-state reclaim, read-notify block-result projection from gated completion into future `BlockReadResult` metadata, single-read pipeline composition over caller-owned buffers and fake notify bytes, adapter preflight validation that rejects undersized caller buffers before queue/cursor/descriptor mutation, read-session cursor carry-forward across repeated adapter reads, and completed-read-session block-device adaptation for GPT/FAT/package consumers, unrelated-byte/state preservation, alignment, feature checks, queue-size checks, overflow rejection, and read-only write rejection in host tests, but they do not discover a PCI device, map common or device config BARs, read live device configuration, allocate DMA memory, configure a live queue, publish descriptors to a live device-owned virtqueue, notify a device, handle interrupts, poll or wait for hardware, own a runtime descriptor allocator, perform live block I/O, or read sectors from a real disk.
+
+`VirtioDeviceInitializationPlan` is status/feature planning only. It does not read device feature registers, write device status registers, observe live `FEATURES_OK`, select live queues, allocate DMA memory, or publish descriptors.
+
+`VirtioPciCapabilityListParser`, `VirtioPciDeviceDiscovery`, `PciBarSizingPlanner`, `PciBarSizingProbePlanner`, `PciBarSizingProbeAddressPlanner`, `PciBarSizingProbeExecutor`, `PciBarSizingProbeDerivedSizePlanner`, `VirtioPciBindingDerivedBarSizePlanner`, and `VirtioPciBindingDerivedBarSizeCatalog` prove only caller-provided config-byte parsing, identity/capability metadata handling, caller-owned BAR sizing-readback interpretation, planned BAR-size probe commands, checked ECAM address metadata, fake config-accessor readback capture, fake-readback-to-derived-size composition, fake-derived BAR-size consumption by the virtio PCI binding plan, and bounded cataloging of those fake-derived binding records for modern virtio PCI devices. For storage, they can recognize a caller-provided virtio-blk identity, required capability set, derived BAR-size metadata, the command sequence needed for a future live accessor, the future config-space access addresses for a caller-provided PCI location, fake readback capture for tests, virtio aperture-validator input from that fake path, and a block binding/catalog record from fake-derived sizes, but they do not enumerate PCI config space, execute live config writes/reads, restore BARs on hardware, map ECAM or BARs, negotiate virtio-blk features, create queues, notify a device, wait for completion, or read sectors.
+
+## Next Steps
+
+1. Add a general GPT partition enumeration API if a future caller needs more than ESP selection.
+2. Add multi-cluster directory chain walking for larger directories.
+3. Promote the PAL package-file table from host-only mock behavior into exported `OSHost_*` file functions once the hosted runtime adapter needs linkable symbols.
+4. Wire the package loader into the future boot app-package boundary once a real block device exists.
+5. Extend manifest/package loader integration toward live app payload reads.
+8. Wire future PCI enumeration to snapshot config bytes, feed them through `VirtioPciCapabilityListParser`, `VirtioPciDeviceDiscovery`, and the fake-derived BAR sizing binding composer, then feed live feature bits and queue counts into `VirtioDeviceInitializationPlan`.
+9. Implement live execution of the address-bound PCI BAR sizing write/read/restore commands after the fake config-accessor executor and before treating derived BAR sizes as real virtio-blk binding input.
+10. Add live virtio-blk feature negotiation, config BAR reads, DMA-safe queue ownership, barrier-ordered queue enable, device notification, and completion waiting on top of the device-config parser, queue setup register-window executor/barrier gate, split-ring, descriptor-chain writer, completion-reader, read-lifecycle, read-only device/read-queue planners, descriptor ownership state, publish/reclaim/cursor/read-queue-completion planners, notify register-window planner/executor/barrier gate, read-notify readiness executor, read-notify completion planner, read-notify block-result projector, read pipeline composer/adapter/session, and initialization-planning contracts while keeping the first live driver slice read-only.

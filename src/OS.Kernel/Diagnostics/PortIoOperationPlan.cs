@@ -1,0 +1,110 @@
+namespace OS.Kernel.Diagnostics;
+
+public enum PortIoOperationKind : byte
+{
+    None = 0,
+    Out8 = 1,
+    In8 = 2
+}
+
+public enum PortIoOperationPlanStatus
+{
+    Success = 0,
+    InvalidOperationKind = 1,
+    OutputBufferTooSmall = 2
+}
+
+public readonly struct PortIoOperationPlanResult
+{
+    private PortIoOperationPlanResult(
+        PortIoOperationPlanStatus status,
+        int bytesWritten,
+        int requiredBytes)
+    {
+        IsInitialized = true;
+        Status = status;
+        BytesWritten = bytesWritten;
+        RequiredBytes = requiredBytes;
+    }
+
+    public bool IsInitialized { get; }
+
+    public PortIoOperationPlanStatus Status { get; }
+
+    public int BytesWritten { get; }
+
+    public int RequiredBytes { get; }
+
+    public bool Succeeded => IsInitialized &&
+        Status == PortIoOperationPlanStatus.Success &&
+        RequiredBytes > 0 &&
+        BytesWritten == RequiredBytes;
+
+    public static PortIoOperationPlanResult Success(int bytesWritten)
+    {
+        return new PortIoOperationPlanResult(
+            PortIoOperationPlanStatus.Success,
+            bytesWritten,
+            PortIoOperationPlan.RequiredByteLength);
+    }
+
+    public static PortIoOperationPlanResult Fail(PortIoOperationPlanStatus status)
+    {
+        return new PortIoOperationPlanResult(status, 0, PortIoOperationPlan.RequiredByteLength);
+    }
+}
+
+public readonly struct PortIoOperationPlan
+{
+    public const byte Out8Opcode = 0xee;
+    public const byte In8Opcode = 0xec;
+    public const int RequiredByteLength = 1;
+
+    public PortIoOperationPlan(PortIoOperationKind operationKind)
+    {
+        OperationKind = operationKind;
+    }
+
+    public PortIoOperationKind OperationKind { get; }
+
+    public static PortIoOperationPlan Out8 => new PortIoOperationPlan(PortIoOperationKind.Out8);
+
+    public static PortIoOperationPlan In8 => new PortIoOperationPlan(PortIoOperationKind.In8);
+
+    public PortIoOperationPlanResult Emit(Span<byte> destination)
+    {
+        PortIoOperationPlanStatus status = Validate(OperationKind);
+        if (status != PortIoOperationPlanStatus.Success)
+        {
+            return PortIoOperationPlanResult.Fail(status);
+        }
+
+        if (destination.Length < RequiredByteLength)
+        {
+            return PortIoOperationPlanResult.Fail(PortIoOperationPlanStatus.OutputBufferTooSmall);
+        }
+
+        destination[0] = GetOpcode(OperationKind);
+        return PortIoOperationPlanResult.Success(RequiredByteLength);
+    }
+
+    public static PortIoOperationPlanStatus Validate(PortIoOperationKind operationKind)
+    {
+        if (operationKind == PortIoOperationKind.Out8 || operationKind == PortIoOperationKind.In8)
+        {
+            return PortIoOperationPlanStatus.Success;
+        }
+
+        return PortIoOperationPlanStatus.InvalidOperationKind;
+    }
+
+    private static byte GetOpcode(PortIoOperationKind operationKind)
+    {
+        if (operationKind == PortIoOperationKind.Out8)
+        {
+            return Out8Opcode;
+        }
+
+        return In8Opcode;
+    }
+}

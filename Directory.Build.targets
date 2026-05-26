@@ -1,0 +1,19 @@
+<Project>
+  <PropertyGroup Condition="'$(OSWorkloadProfile)' == 'SingleMinimalApi'">
+    <OSWorkloadProfileDefine>OS_PROFILE_SINGLE_MINIMAL_API</OSWorkloadProfileDefine>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(OSWorkloadProfile)' == 'MultiMinimalApi'">
+    <OSWorkloadProfileDefine>OS_PROFILE_MULTI_MINIMAL_API</OSWorkloadProfileDefine>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(OSWorkloadProfileDefine)' != ''">
+    <DefineConstants>$(DefineConstants);$(OSWorkloadProfileDefine)</DefineConstants>
+  </PropertyGroup>
+
+  <Target Name="ValidateOSWorkloadProfile" BeforeTargets="CoreCompile">
+    <Error
+      Condition="'$(OSWorkloadProfile)' != 'SingleMinimalApi' and '$(OSWorkloadProfile)' != 'MultiMinimalApi'"
+      Text="Invalid OSWorkloadProfile '$(OSWorkloadProfile)'. Valid values: SingleMinimalApi, MultiMinimalApi." />
+  </Target>
+</Project>

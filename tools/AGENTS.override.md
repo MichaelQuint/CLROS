@@ -1,0 +1,82 @@
+# `tools` Override
+
+This directory contains host-side tooling. Root `AGENTS.md` applies, with the following local rules.
+
+## Purpose
+
+Host tools build, validate, package, run, or inspect OS artifacts. They are not part of the OS image.
+
+Current tools:
+
+- `OS.QemuRunner`
+- `OS.ManifestTool`
+- `OS.LibvirtRunner`
+- `OS.ImageBuilder`
+
+## Allowed Dependencies
+
+Host tools may use normal .NET 10 APIs and NuGet packages when useful.
+
+Rules:
+
+- Do not link host-only packages into kernel, std, or app image code.
+- Keep third-party packages out of OS image paths.
+- Document any third-party host dependency in docs and license audit.
+- Prefer built-in .NET APIs when they are sufficient.
+
+## Coding Standards
+
+- Target `net10.0`.
+- Use C# 14.0.
+- Nullable should remain enabled.
+- Use clear command-line parsing and deterministic output.
+- Return nonzero exit codes on failure.
+- Validate inputs and paths.
+- Avoid printing secrets.
+- Keep generated paths under `artifacts/` unless the user explicitly requests another output.
+
+## Output Contract
+
+Tooling used by scripts or CI should emit stable machine-readable markers:
+
+- `TEST_START <name>`
+- `TEST_PASS <name>`
+- `TEST_FAIL <name> <reason>`
+
+Human-readable details are fine, but marker lines must remain parseable.
+
+## Image And Runner Rules
+
+For QEMU/libvirt/image tooling:
+
+- Do not claim boot success from dry-run command construction.
+- Capture serial logs as artifacts for real runs.
+- Require expected smoke markers for success.
+- Keep command lines reproducible.
+- Preserve dry-run modes for hosts without QEMU/libvirt.
+- Do not assume OVMF paths; discover or accept explicit configuration.
+
+## Manifest Rules
+
+Manifest tooling should:
+
+- Reject malformed JSON.
+- Reject unknown schema versions unless explicitly supported.
+- Enforce size limits.
+- Reject unsafe app paths.
+- Reject duplicate environment keys.
+- Validate network/device config with explicit messages.
+
+Add tests in `tests/OS.HostTests` for every manifest behavior change.
+
+## Testing
+
+Run the relevant host tests:
+
+```powershell
+dotnet build .\OS.slnx --nologo -m:1
+dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
+.\scripts\run-qemu-smoke.ps1 -DryRun
+```
+
+For image builder changes, add deterministic output tests before relying on QEMU.

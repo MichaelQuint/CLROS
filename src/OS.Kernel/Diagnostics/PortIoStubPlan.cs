@@ -1,0 +1,124 @@
+namespace OS.Kernel.Diagnostics;
+
+public enum PortIoStubPlanStatus
+{
+    Success = 0,
+    InvalidOperationKind = 1,
+    OutputBufferTooSmall = 2
+}
+
+public readonly struct PortIoStubPlanResult
+{
+    private PortIoStubPlanResult(
+        PortIoStubPlanStatus status,
+        int bytesWritten,
+        int requiredBytes)
+    {
+        IsInitialized = true;
+        Status = status;
+        BytesWritten = bytesWritten;
+        RequiredBytes = requiredBytes;
+    }
+
+    public bool IsInitialized { get; }
+
+    public PortIoStubPlanStatus Status { get; }
+
+    public int BytesWritten { get; }
+
+    public int RequiredBytes { get; }
+
+    public bool Succeeded => IsInitialized &&
+        Status == PortIoStubPlanStatus.Success &&
+        RequiredBytes > 0 &&
+        BytesWritten == RequiredBytes;
+
+    public static PortIoStubPlanResult Success(int bytesWritten, int requiredBytes)
+    {
+        return new PortIoStubPlanResult(PortIoStubPlanStatus.Success, bytesWritten, requiredBytes);
+    }
+
+    public static PortIoStubPlanResult Fail(PortIoStubPlanStatus status, int requiredBytes)
+    {
+        return new PortIoStubPlanResult(status, 0, requiredBytes);
+    }
+}
+
+public readonly struct PortIoStubPlan
+{
+    public const byte OperandSizeOverridePrefix = 0x66;
+    public const byte MovR16ToRm16Opcode = 0x89;
+    public const byte MovCxToDxModRm = 0xca;
+    public const byte MovR8ToRm8Opcode = 0x88;
+    public const byte MovDlToAlModRm = 0xd0;
+    public const byte RetOpcode = 0xc3;
+
+    public const int In8RequiredByteLength = 5;
+    public const int Out8RequiredByteLength = 7;
+    public const int MaximumRequiredByteLength = Out8RequiredByteLength;
+
+    public PortIoStubPlan(PortIoOperationKind operationKind)
+    {
+        OperationKind = operationKind;
+    }
+
+    public PortIoOperationKind OperationKind { get; }
+
+    public static PortIoStubPlan Out8 => new PortIoStubPlan(PortIoOperationKind.Out8);
+
+    public static PortIoStubPlan In8 => new PortIoStubPlan(PortIoOperationKind.In8);
+
+    public PortIoStubPlanResult Emit(Span<byte> destination)
+    {
+        PortIoOperationPlanStatus operationStatus = PortIoOperationPlan.Validate(OperationKind);
+        if (operationStatus != PortIoOperationPlanStatus.Success)
+        {
+            return PortIoStubPlanResult.Fail(PortIoStubPlanStatus.InvalidOperationKind, 0);
+        }
+
+        int requiredBytes = GetRequiredByteLength(OperationKind);
+        if (destination.Length < requiredBytes)
+        {
+            return PortIoStubPlanResult.Fail(PortIoStubPlanStatus.OutputBufferTooSmall, requiredBytes);
+        }
+
+        destination[0] = OperandSizeOverridePrefix;
+        destination[1] = MovR16ToRm16Opcode;
+        destination[2] = MovCxToDxModRm;
+
+        int operationOffset = 3;
+        if (OperationKind == PortIoOperationKind.Out8)
+        {
+            destination[3] = MovR8ToRm8Opcode;
+            destination[4] = MovDlToAlModRm;
+            operationOffset = 5;
+        }
+
+        PortIoOperationPlanResult operationResult =
+            new PortIoOperationPlan(OperationKind).Emit(destination.Slice(operationOffset, PortIoOperationPlan.RequiredByteLength));
+
+        if (!operationResult.Succeeded)
+        {
+            return PortIoStubPlanResult.Fail(PortIoStubPlanStatus.InvalidOperationKind, requiredBytes);
+        }
+
+        destination[operationOffset + PortIoOperationPlan.RequiredByteLength] = RetOpcode;
+
+        return PortIoStubPlanResult.Success(requiredBytes, requiredBytes);
+    }
+
+    public static int GetRequiredByteLength(PortIoOperationKind operationKind)
+    {
+        if (operationKind == PortIoOperationKind.Out8)
+        {
+            return Out8RequiredByteLength;
+        }
+
+        if (operationKind == PortIoOperationKind.In8)
+        {
+            return In8RequiredByteLength;
+        }
+
+        return 0;
+    }
+}

@@ -1,0 +1,27 @@
+<Solution>
+  <Folder Name="/apps/">
+    <Project Path="apps/DiagnosticApp/DiagnosticApp.csproj" />
+    <Project Path="apps/FetchApp/FetchApp.csproj" />
+    <Project Path="apps/HelloSharpFs/HelloSharpFs.csproj" />
+    <Project Path="apps/MinimalApiSmoke/MinimalApiSmoke.csproj" />
+    <Project Path="apps/TinyHttpServer/TinyHttpServer.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/OS.Kernel/OS.Kernel.csproj" />
+    <Project Path="src/OS/OS.csproj" />
+  </Folder>
+  <Folder Name="/std/" />
+  <Folder Name="/std/no-runtime/" />
+  <Folder Name="/std/no-runtime/shared/">
+    <Project Path="std/no-runtime/shared/OS.Std.NoRuntime.Shared.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OS.HostTests/OS.HostTests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/OS.ImageBuilder/OS.ImageBuilder.csproj" />
+    <Project Path="tools/OS.LibvirtRunner/OS.LibvirtRunner.csproj" />
+    <Project Path="tools/OS.ManifestTool/OS.ManifestTool.csproj" />
+    <Project Path="tools/OS.QemuRunner/OS.QemuRunner.csproj" />
+  </Folder>
+</Solution>
