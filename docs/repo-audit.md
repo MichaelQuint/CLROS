@@ -174,8 +174,14 @@ Current M00 recovery evidence from 2026-07-25:
   `artifacts/logs/m00-final/32a8f3b91e17-20260725T213702Z/` and is not
   committed as first-party source.
 - The live Gitea tracker contains the manifest's 68 labels, 16 milestones, and
-  319 keyed issues. Post-review closure and convergence are tracker state, not
-  additional kernel capability evidence.
+  319 uniquely keyed issues. All 22 M00 children and the M00 epic are closed
+  with 23 reviewed-evidence comments and `agent:done`; `M01-001` is the sole
+  `agent:ready` issue, 295 issues remain `agent:blocked`, and no issue remains
+  claimed or under review. A zero-change follow-up preview reported all 403
+  managed tracker objects unchanged. Only `M15-013`, the isolated optional
+  DOOM/WAD boundary, retains `reference:license-blocked`. The M00 milestone
+  object remains open by policy with zero open and 23 closed issues. This is
+  administrative tracker evidence, not additional kernel capability evidence.
 
 ## Known Limitations
 

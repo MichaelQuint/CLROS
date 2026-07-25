@@ -36,6 +36,23 @@ intent is committed and all 23 M00 evidence-review comments are present;
 tracker state is administrative evidence and is not part of the Step 846
 QEMU/kernel evidence boundary.
 
+The corrected live apply ended with:
+
+```text
+SYNC_CLOSURE_EVIDENCE requested=23 verified=23
+SYNC_VERIFY_PASS milestones=16 labels=68 issues=319
+SYNC_SUMMARY created=0 updated=38 unchanged=365 skipped=0 failed=0 wouldCreate=0 wouldUpdate=0
+TEST_PASS gitea.backlog.sync
+```
+
+The required follow-up preview reported all 403 managed tracker objects
+unchanged with `wouldCreate=0`, `wouldUpdate=0`, and `failed=0`. An independent
+API census found 23 `agent:done`, one `agent:ready` (`M01-001`), 295
+`agent:blocked`, zero `agent:claimed`, zero `agent:review`, 23 unique M00
+evidence-review markers, and exactly one `reference:license-blocked`
+issue (`M15-013`). The M00 milestone object intentionally remains open with
+zero open issues and 23 closed issues.
+
 ## Failures
 
 The first live tracker was empty. Partial-failure, duplicate-key, dependency
