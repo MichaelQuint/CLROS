@@ -3,9 +3,9 @@
 ## Current Status
 
 No CloudReady release is complete as of 2026-07-25. The repository has a
-historical EFI/QEMU smoke proof, a pending immutable-source re-verification,
-and broad host-tested planning contracts, but it is not a functional kernel,
-not cloud-ready, and not production-ready.
+current source-bound EFI/QEMU smoke proof and broad host-tested planning
+contracts, but it is not a functional kernel, not cloud-ready, and not
+production-ready.
 
 Gate status is explicit:
 
@@ -18,14 +18,16 @@ firmware-visible QEMU/OVMF boot-smoke boundary. It is not `ExitBootServices`,
 owned-driver, storage, networking, app-launch, hosted-.NET, Kestrel, cloud, or
 production evidence.
 
-The earlier 2026-07-25 M00 candidate was produced from the imported base commit
-plus an explicitly dirty recovery worktree, and its documented raw-image bytes
-were later replaced at the working artifact path. It remains useful historical
-diagnostic evidence but is not the source-bound current Gate 2 tuple. Step 846
-is reserved for a fresh run from the immutable M00 implementation commit; the
-following evidence commit must bind that exact source, command, tools, EFI,
-image, serial log, markers, timestamps, and hashes before the new tuple is
-called current. This does not change Gate 1.
+The current Gate 2 tuple was rebuilt and run from clean, pushed implementation
+commit `32a8f3b91e17e1fc7e4b296730a5ea6565c38369`. Its schema-version-1
+evidence manifest records source dirty `false`, the exact command and tool
+versions, 23 hashed evidence inputs, 12 required markers, 2 forbidden markers,
+UTC timestamps, exit code `0`, and classification `pass`. The manifest
+SHA-256 is
+`D398F73FF5051D138D5F2A77CE4EF51277BD2DE289F58BA5383FC6FC74D02E65`;
+`done/step846.md` records the complete tuple. The earlier dirty-worktree
+candidate remains only historical diagnostic evidence. This does not change
+Gate 1.
 
 `docs/workload-profiles.md` defines `SingleMinimalApi` as the near-term hosted
 workload profile and `MultiMinimalApi` as a later process/isolation/supervisor
@@ -36,8 +38,8 @@ any gate status or prove runtime behavior.
 
 | Gate | Status | Preserved current evidence | Missing before pass |
 | --- | --- | --- | --- |
-| 1. Clean build | Fail | Local `dotnet build .\CLROS.slnx --nologo -m:1`, the complete host harness ending in `TEST_PASS host.tests`, focused host builds, naming/source-firewall checks, and `git diff --check` pass in the M00 recovery worktree; `scripts/build-efi-shell.ps1` publishes the EFI shell | Preserve the same commands from a clean checkout, confirm no untracked source is required, and preserve release evidence proving no forbidden first-party `.c/.cpp/.h/.asm/.s` files or secrets were added |
-| 2. Boot | Pass | Historical real QEMU/OVMF evidence proves the firmware-visible EFI path reaches `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and `OS_SMOKE_PASS`; the superseded dirty-worktree M00 tuple is not called current, and Step 846 is reserved for its immutable-source replacement; opt-in ACPI and UEFI-gone probe artifacts remain separate historical marker evidence | Preserve the new source-bound tuple before calling it current, and keep this scoped to EFI smoke until later gates prove `ExitBootServices`, owned drivers, storage, networking, app launch, or hosted workload behavior |
+| 1. Clean build | Fail | From clean, pushed commit `32a8f3b91e17e1fc7e4b296730a5ea6565c38369`, the source-frozen 11-step M00 baseline passed solution build, host build/run with exactly one `TEST_PASS host.tests`, naming/source firewall, QEMU dry runs, qcow2/libvirt intent, `git diff --check`, and `git status --short`; `done/step845.md` records hashes | Repeat from an independently clean checkout/runner and preserve release/CI evidence that no untracked source, forbidden first-party `.c/.cpp/.h/.asm/.s`, or secret is required |
+| 2. Boot | Pass | Current real QEMU/OVMF evidence from clean commit `32a8f3b91e17e1fc7e4b296730a5ea6565c38369` reaches all 12 required firmware-visible markers including `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and `OS_SMOKE_PASS`, with no `TEST_FAIL` or `OS_SMOKE_FAIL`; manifest SHA-256 `D398F73FF5051D138D5F2A77CE4EF51277BD2DE289F58BA5383FC6FC74D02E65` binds source, command, tools, EFI, image, serial, summary, timestamps, and hashes; opt-in ACPI and UEFI-gone probe artifacts remain separate historical marker evidence | Keep this scoped to EFI smoke until later gates prove `ExitBootServices`, owned diagnostics/drivers, storage, networking, app launch, or hosted workload behavior |
 | 3. Fault diagnostics | Fail | Host-tested boot-event ring, panic formatter, panic serial reporter, COM1 configuration/writer contracts, GDT/TSS/IST/IDT descriptor plans, fault-vector metadata, fault-entry/fault-probe stub plans, and readiness markers exist | Install real IDT/GDT/TSS/IST, implement handlers and register capture, prove null-pointer and invalid-opcode panic probes in QEMU without triple fault or silent reboot |
 | 4. std/runtime | Fail | Host-tested `OS.Std.*` helper slices exist for ASCII/text formatting, memory operations, endian primitives, native integer helpers, integer math, array helpers, CRC32, and internet checksums; host-tested caller-owned boot page allocator mutation, class-constructor state-table transitions, cctor state diagnostic formatting, cctor runner preflight metadata validation, and BootSequence cctor preflight readiness markers now exist below the live runtime-helper boundary; `NativeAotHelperLedger` tracks runtime gaps | Complete the supported BCL subset, object/array/string allocation helpers, GC/root scanning, interface dispatch, full cctor runner/metadata execution, exceptions/finally/catch, thread statics, and runtime-helper QEMU/host tests |
 | 5. UEFI encapsulation | Fail | `EfiMain` uses no-stdlib adapters to capture/copy UEFI memory-map bytes, validate handoff, normalize compact records, carry ACPI RSDP provenance, and emit probe markers; host tests cover guarded platform interfaces including read-only filesystem denial under UEFI-gone simulation | Finish platform interfaces, own post-firmware serial/framebuffer/physical-memory/MMIO rules, simulate forbidden firmware calls broadly, and implement real `ExitBootServices` only after diagnostics and drivers can continue |

@@ -68,10 +68,12 @@ dotnet build .\CLROS.slnx
 ## Boot Status
 
 The first firmware-visible boot smoke exists and its default path was rebuilt
-and reverified on 2026-07-25. `scripts/build-efi-shell.ps1` publishes
-`artifacts/efi/BOOTX64.EFI`; `OS.ImageBuilder` wraps it into
-`artifacts/images/os.raw`; and `scripts/run-qemu-smoke.ps1` boots that image
-through QEMU/OVMF. The serial log reaches `TEST_START efi.main`,
+and reverified on 2026-07-25 from clean, pushed implementation commit
+`32a8f3b91e17e1fc7e4b296730a5ea6565c38369`.
+`scripts/build-efi-shell.ps1` published the source-bound
+`BOOTX64.EFI`; `OS.ImageBuilder` wrapped it into a 64 MiB raw image; and
+`scripts/run-qemu-smoke.ps1` booted that image through QEMU/OVMF. The serial
+log reaches `TEST_START efi.main`,
 `EFI_CONSOLE_READY`, `UEFI_MEMORY_MAP_READY`,
 `UEFI_MEMORY_MAP_DESCRIPTOR_COUNT <count>`, `UEFI_MEMORY_MAP_OWNED`,
 `BOOT_HANDOFF_READY`, `UEFI_MEMORY_MAP_NORMALIZED`,
@@ -140,32 +142,50 @@ Evidence:
 
 Current M00 recovery evidence from 2026-07-25:
 
-- `dotnet build .\CLROS.slnx --nologo -m:1` completed with zero warnings and
-  zero errors.
-- Complete candidate host runs ended in `TEST_PASS host.tests`. Step 845 is
-  reserved for the final source-frozen log, commands, and SHA-256.
+- The implementation source was committed and pushed as
+  `32a8f3b91e17e1fc7e4b296730a5ea6565c38369`; Git porcelain was empty
+  before and after source-bound capture.
+- `scripts/run-baseline-evidence.ps1` executed 11 steps from that source:
+  solution build, host build/run, naming/source firewall, two QEMU dry-run
+  lanes, qcow2/libvirt intent, `git diff --check`, and `git status --short`.
+  Every step exited zero. The host log has exactly one
+  `TEST_PASS host.tests` and no `TEST_FAIL host.tests`; summary SHA-256 is
+  `C6835020F4DF780806C8DEFBDE43F91853299E03E08FBBEE46E5AAC523F26783`.
+  `done/step845.md` records the full host tuple.
 - `scripts/test-efi-artifact.ps1` accepted the emitted PE32+ x64 EFI
-  application, associated the entrypoint with the checked-in `EfiMain`
-  build/source contract, and found the import, bound-import, IAT, and
-  delay-import directories absent.
-- The prior real-QEMU candidate reached `OS_SMOKE_PASS`, but its raw image was
-  replaced at the working artifact path and the source was a dirty worktree.
-  That tuple is explicitly superseded rather than silently rehashed.
-- Step 846 is reserved for the replacement evidence manifest that binds one
-  immutable implementation commit to the command/config bytes, tool versions,
-  EFI, raw image, serial log, accepted/forbidden markers, timestamps, and
-  SHA-256 values.
+  application, associated entry RVA `0x00003730` with the same-build
+  `EfiMain` contract, and found the import, bound-import, IAT, and
+  delay-import directories absent. EFI SHA-256 is
+  `0580A45FC10B93C7C218CAB9BA179549C278B4CA970C82420CE74684EDA6036F`.
+- Real QEMU/OVMF boot observed all 12 required markers, including
+  `BOOT_PAGE_ALLOCATOR_READY`, `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and
+  `OS_SMOKE_PASS`; neither `TEST_FAIL` nor `OS_SMOKE_FAIL` appeared. The raw
+  image SHA-256 is
+  `484A7B8D2C9E9C01BFF6AAA63633E3CEC3406A0FBAC487100DFB40B0A463428A`
+  and serial SHA-256 is
+  `C190355FB48902635AB4BC7EBD4BAEBD3E029619C851407A599D3BC9FB412BC7`.
+- The authoritative schema-version-1 evidence manifest has source dirty
+  `false`, classification `pass`, exit code `0`, 10 tool records, and 23
+  hashed inputs. Its SHA-256 is
+  `D398F73FF5051D138D5F2A77CE4EF51277BD2DE289F58BA5383FC6FC74D02E65`.
+  `done/step846.md` records the command, timestamps, markers, artifacts,
+  superseded manifest attempts, and exact non-claims.
+- Generated evidence is under
+  `artifacts/logs/m00-final/32a8f3b91e17-20260725T213702Z/` and is not
+  committed as first-party source.
 - The live Gitea tracker contains the manifest's 68 labels, 16 milestones, and
-  319 keyed issues. Final post-evidence closure/convergence counts are recorded
-  with Step 846.
+  319 keyed issues. Post-review closure and convergence are tracker state, not
+  additional kernel capability evidence.
 
 ## Known Limitations
 
 - This audit cannot claim runtime, live driver, live storage, live network, app execution, or hosted-workload readiness.
 - The default solution projects are plain `net10.0` scaffolds. The explicit `src/OS` EFI shell is no-stdlib and now has first-marker QEMU proof, but it is not a functional kernel artifact.
-- Modern SharpOS behavior in `references/SharpOS-main` is reference evidence
-  only until a licensed, provenance-recorded adaptation is implemented in
-  first-party source and tested here.
+- SharpOS-authored source in `references/SharpOS-main` is eligible for
+  selective adaptation under the recorded owner permission and public CC0
+  evidence, but each adaptation still requires exact local path/hash,
+  provenance, boundary, first-party review, and CLROS tests. File-local vendor,
+  GPL, CoreCLR, WAD, and media rights remain separate.
 
 ## Next Steps
 

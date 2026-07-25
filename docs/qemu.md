@@ -6,6 +6,26 @@ QEMU smoke now has real OVMF boot proof for the EFI smoke path from both raw and
 
 This is an EFI application smoke, not a complete OS boot. It proves OVMF can load `\EFI\BOOT\BOOTX64.EFI` from the raw image and that the EFI entry path emits firmware-visible markers.
 
+The current source-bound raw-image proof was captured on 2026-07-25 from
+clean, pushed commit
+`32a8f3b91e17e1fc7e4b296730a5ea6565c38369`. QEMU `11.0.50` and the
+OVMF file with SHA-256
+`33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`
+ran from `2026-07-25T21:42:47.9237542Z` through
+`2026-07-25T21:42:56.7816592Z`. The run observed all 12 required markers,
+including `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and `OS_SMOKE_PASS`, and
+observed neither `TEST_FAIL` nor `OS_SMOKE_FAIL`. The evidence-manifest
+SHA-256 is
+`D398F73FF5051D138D5F2A77CE4EF51277BD2DE289F58BA5383FC6FC74D02E65`;
+the EFI, image, and serial-log SHA-256 values are respectively
+`0580A45FC10B93C7C218CAB9BA179549C278B4CA970C82420CE74684EDA6036F`,
+`484A7B8D2C9E9C01BFF6AAA63633E3CEC3406A0FBAC487100DFB40B0A463428A`,
+and
+`C190355FB48902635AB4BC7EBD4BAEBD3E029619C851407A599D3BC9FB412BC7`.
+The generated tuple is under
+`artifacts/logs/m00-final/32a8f3b91e17-20260725T213702Z/`; it is ignored
+build evidence, while `done/step846.md` is the committed ledger.
+
 ## Implemented Behavior
 
 - `tools/OS.QemuRunner` builds a QEMU command line for a raw or qcow2 GPT/FAT32 image, OVMF pflash, serial-file capture, AHCI disk attachment, and user-mode virtio networking.

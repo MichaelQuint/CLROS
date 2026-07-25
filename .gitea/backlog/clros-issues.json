@@ -506,7 +506,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M00: Repository Recovery and Reference Trust.",
-      "currentEvidence": "CLROS.slnx builds, but stale OS.slnx sentinels abort the full host harness; the reachable tracker is empty.",
+      "currentEvidence": "All 22 M00 child slices are implemented and reviewed in done/step825.md through done/step846.md; the final clean-source host and QEMU tuple is bound to commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 and evidence-manifest SHA-256 D398F73FF5051D138D5F2A77CE4EF51277BD2DE289F58BA5383FC6FC74D02E65.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -537,7 +537,7 @@
         "docs/license-audit.md"
       ],
       "evidenceBoundary": "The epic records coordination only; it proves none of Repository Recovery and Reference Trust until every child and exit criterion passes.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-001",
@@ -573,7 +573,7 @@
       ],
       "collisionLane": null,
       "summary": "Persist the idempotent Gitea backlog manifest and synchronization tool.",
-      "currentEvidence": "Reconstruction baseline: the reachable CLROS tracker had no labels, milestones, or issues, and no version-controlled backlog manifest or idempotent synchronization command existed.",
+      "currentEvidence": "Implemented and reviewed in done/step825.md; final M00 host/QEMU evidence from clean commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 is preserved in done/step845.md and done/step846.md.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Persist the idempotent Gitea backlog manifest and synchronization tool.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -626,7 +626,7 @@
         "docs/repo-audit.md"
       ],
       "evidenceBoundary": "This issue proves only \"Persist the idempotent Gitea backlog manifest and synchronization tool.\" This backlog/tooling slice does not implement any kernel, driver, runtime, workload, QEMU boot, or cloud-provider capability.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-002",
@@ -660,7 +660,7 @@
       ],
       "collisionLane": "lane:solution-baseline",
       "summary": "Change the shared host-test repository sentinel to CLROS.slnx.",
-      "currentEvidence": "Reconstruction baseline: HostToolProcess still searched for OS.slnx, causing repository-root discovery to fail after the solution was renamed to CLROS.slnx.",
+      "currentEvidence": "Implemented and reviewed in done/step826.md; final M00 host/QEMU evidence from clean commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 is preserved in done/step845.md and done/step846.md.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Change the shared host-test repository sentinel to CLROS.slnx.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -706,7 +706,7 @@
         "docs/host-requirements.md"
       ],
       "evidenceBoundary": "This issue proves only \"Change the shared host-test repository sentinel to CLROS.slnx.\" This locator change does not rename OS assemblies/namespaces or prove any runtime/boot behavior.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-003",
@@ -744,7 +744,7 @@
       ],
       "collisionLane": "lane:solution-baseline",
       "summary": "Migrate the CI/completion-gate test root locators to the shared locator.",
-      "currentEvidence": "Reconstruction baseline: CI and completion-gate tests carried private OS.slnx root locators instead of the shared CLROS locator.",
+      "currentEvidence": "Implemented and reviewed in done/step827.md; final M00 host/QEMU evidence from clean commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 is preserved in done/step845.md and done/step846.md.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Migrate the CI/completion-gate test root locators to the shared locator.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -789,7 +789,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves only \"Migrate the CI/completion-gate test root locators to the shared locator.\" Passing source/document tests does not make any completion gate pass.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-004",
@@ -827,7 +827,7 @@
       ],
       "collisionLane": "lane:solution-baseline",
       "summary": "Migrate the FetchApp/HTTP test root locators.",
-      "currentEvidence": "Reconstruction baseline: FetchApp and HTTP test groups carried stale OS.slnx repository-root discovery logic.",
+      "currentEvidence": "Implemented and reviewed in done/step828.md; final M00 host/QEMU evidence from clean commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 is preserved in done/step845.md and done/step846.md.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Migrate the FetchApp/HTTP test root locators.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -872,7 +872,7 @@
         "docs/networking.md"
       ],
       "evidenceBoundary": "This issue proves only \"Migrate the FetchApp/HTTP test root locators.\" This is test-path repair only and does not prove live packet I/O, TCP, FetchApp, or HTTP execution in the guest.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-005",
@@ -910,7 +910,7 @@
       ],
       "collisionLane": "lane:solution-baseline",
       "summary": "Migrate the image-builder/runtime-boundary test root locators.",
-      "currentEvidence": "Reconstruction baseline: image-builder and NativeAOT boundary tests carried stale OS.slnx repository-root discovery logic.",
+      "currentEvidence": "Implemented and reviewed in done/step829.md; final M00 host/QEMU evidence from clean commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 is preserved in done/step845.md and done/step846.md.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Migrate the image-builder/runtime-boundary test root locators.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -956,7 +956,7 @@
         "docs/nativeaot-nostdlib-limits.md"
       ],
       "evidenceBoundary": "This issue proves only \"Migrate the image-builder/runtime-boundary test root locators.\" This root-locator repair does not build a cloud image or implement NativeAOT runtime helpers.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-006",
@@ -994,7 +994,7 @@
       ],
       "collisionLane": "lane:solution-baseline",
       "summary": "Migrate the source-firewall/workload-profile root locators.",
-      "currentEvidence": "Reconstruction baseline: source-firewall and workload-profile tests carried stale OS.slnx repository-root discovery logic.",
+      "currentEvidence": "Implemented and reviewed in done/step830.md; final M00 host/QEMU evidence from clean commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 is preserved in done/step845.md and done/step846.md.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Migrate the source-firewall/workload-profile root locators.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -1040,7 +1040,7 @@
         "docs/workload-profiles.md"
       ],
       "evidenceBoundary": "This issue proves only \"Migrate the source-firewall/workload-profile root locators.\" This test repair does not itself add a live workload, isolation, or provider implementation.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-007",
@@ -1082,7 +1082,7 @@
       ],
       "collisionLane": "lane:solution-baseline",
       "summary": "Update build, baseline, naming, and CI scripts to require CLROS.slnx.",
-      "currentEvidence": "Reconstruction baseline: build/evidence scripts either required OS.slnx or silently skipped solution inspection when OS.slnx was absent.",
+      "currentEvidence": "Implemented and reviewed in done/step831.md; final M00 host/QEMU evidence from clean commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 is preserved in done/step845.md and done/step846.md.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Update build, baseline, naming, and CI scripts to require CLROS.slnx.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -1137,7 +1137,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves only \"Update build, baseline, naming, and CI scripts to require CLROS.slnx.\" Dry-run and plan-only output are host tooling evidence, not QEMU boot or cloud evidence.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-008",
@@ -1179,7 +1179,7 @@
       ],
       "collisionLane": "lane:central-docs",
       "summary": "Correct CLROS identity, working-directory, solution, and Gitea coordinates in agent guides.",
-      "currentEvidence": "Reconstruction baseline: root and directory-local agent guides still identified the project/working solution as OS and listed stale OS.slnx commands.",
+      "currentEvidence": "Implemented and reviewed in done/step832.md; final M00 host/QEMU evidence from clean commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 is preserved in done/step845.md and done/step846.md.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Correct CLROS identity, working-directory, solution, and Gitea coordinates in agent guides.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -1225,7 +1225,7 @@
         "docs/host-requirements.md"
       ],
       "evidenceBoundary": "This issue proves only \"Correct CLROS identity, working-directory, solution, and Gitea coordinates in agent guides.\" Documentation identity repair changes no assembly name, namespace, ABI, or runtime behavior.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-009",
@@ -1260,7 +1260,7 @@
       ],
       "collisionLane": "lane:central-docs",
       "summary": "Correct README solution-membership and boot-marker claims without changing gate status.",
-      "currentEvidence": "Reconstruction baseline: README solution-membership and boot-evidence wording did not match CLROS.slnx or the documented completion-gate boundary.",
+      "currentEvidence": "Implemented and reviewed in done/step833.md; final M00 host/QEMU evidence from clean commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 is preserved in done/step845.md and done/step846.md.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Correct README solution-membership and boot-marker claims without changing gate status.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -1306,7 +1306,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves only \"Correct README solution-membership and boot-marker claims without changing gate status.\" README wording does not advance a completion gate.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-010",
@@ -1339,7 +1339,7 @@
       ],
       "collisionLane": null,
       "summary": "Restore references/AGENTS.override.md with read-mostly and build-isolation rules.",
-      "currentEvidence": "Reconstruction baseline: references/AGENTS.override.md was absent, leaving no enforced read-mostly/build-isolation contract for local reference snapshots.",
+      "currentEvidence": "Implemented and reviewed in done/step834.md; final M00 host/QEMU evidence from clean commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 is preserved in done/step845.md and done/step846.md.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Restore references/AGENTS.override.md with read-mostly and build-isolation rules.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -1385,7 +1385,7 @@
         "docs/reference-map.md"
       ],
       "evidenceBoundary": "This issue proves only \"Restore references/AGENTS.override.md with read-mostly and build-isolation rules.\" The override does not license, port, or execute any reference implementation.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-011",
@@ -1419,7 +1419,7 @@
       ],
       "collisionLane": "lane:central-docs",
       "summary": "Reconcile docs/reference-map.md against all 29 actual snapshots.",
-      "currentEvidence": "Reconstruction baseline: docs/reference-map.md listed stale/missing directory names and did not enumerate all 29 local reference snapshots.",
+      "currentEvidence": "Implemented and reviewed in done/step835.md; final M00 host/QEMU evidence from clean commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 is preserved in done/step845.md and done/step846.md.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Reconcile docs/reference-map.md against all 29 actual snapshots.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -1464,7 +1464,7 @@
         "docs/reference-map.md"
       ],
       "evidenceBoundary": "This issue proves only \"Reconcile docs/reference-map.md against all 29 actual snapshots.\" The reference map is an index, not provenance clearance or implementation evidence.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-012",
@@ -1499,7 +1499,7 @@
       ],
       "collisionLane": null,
       "summary": "Record SharpOS source/media/reproducibility evidence classes.",
-      "currentEvidence": "Reconstruction baseline: SharpOS source, media, external-runtime, and historical-evidence classes were not separated clearly enough to support safe reuse decisions.",
+      "currentEvidence": "Implemented and reviewed in done/step836.md; final M00 host/QEMU evidence from clean commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 is preserved in done/step845.md and done/step846.md.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Record SharpOS source/media/reproducibility evidence classes.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -1544,7 +1544,7 @@
         "docs/fork-diff.md"
       ],
       "evidenceBoundary": "This issue proves only \"Record SharpOS source/media/reproducibility evidence classes.\" This classification neither ports SharpOS nor proves DOOM, PowerShell, CoreCLR, or Kestrel on CLROS.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-013",
@@ -1577,7 +1577,7 @@
       ],
       "collisionLane": null,
       "summary": "Record actionable-reference upstream, revision, license, and reuse boundaries.",
-      "currentEvidence": "Reconstruction baseline: actionable reference snapshots lacked complete upstream revision, retrieval, license, and direct-reuse boundary records.",
+      "currentEvidence": "Implemented and reviewed in done/step837.md; final M00 host/QEMU evidence from clean commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 is preserved in done/step845.md and done/step846.md.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Record actionable-reference upstream, revision, license, and reuse boundaries.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -1622,7 +1622,7 @@
         "docs/license-audit.md"
       ],
       "evidenceBoundary": "This issue proves only \"Record actionable-reference upstream, revision, license, and reuse boundaries.\" License/provenance documentation does not itself authorize or implement a port.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-014",
@@ -1656,7 +1656,7 @@
       ],
       "collisionLane": null,
       "summary": "Add a first-party build/source firewall that rejects any reference project import through .slnx, .csproj, props, or targets.",
-      "currentEvidence": "Reconstruction baseline: the source firewall did not fail reliably when a first-party solution/project/props/targets file imported a project beneath references/.",
+      "currentEvidence": "Implemented and reviewed in done/step838.md; final M00 host/QEMU evidence from clean commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 is preserved in done/step845.md and done/step846.md.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add a first-party build/source firewall that rejects any reference project import through .slnx, .csproj, props, or targets.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -1703,7 +1703,7 @@
         "docs/reference-map.md"
       ],
       "evidenceBoundary": "This issue proves only \"Add a first-party build/source firewall that rejects any reference project import through .slnx, .csproj, props, or targets.\" The firewall prevents build contamination; it does not assess semantic correctness or license compatibility by itself.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-015",
@@ -1737,7 +1737,7 @@
       ],
       "collisionLane": null,
       "summary": "Restore .gitea/workflows/ci-smoke.yml to match its existing tests and documentation.",
-      "currentEvidence": "Reconstruction baseline: .gitea/workflows/ci-smoke.yml was absent even though host tests and documentation expected a guarded Windows dry-run workflow.",
+      "currentEvidence": "Implemented and reviewed in done/step839.md; final M00 host/QEMU evidence from clean commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 is preserved in done/step845.md and done/step846.md.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Restore .gitea/workflows/ci-smoke.yml to match its existing tests and documentation.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -1785,7 +1785,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves only \"Restore .gitea/workflows/ci-smoke.yml to match its existing tests and documentation.\" A dry-run CI workflow is not real QEMU, libvirt, provider, or production evidence.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-016",
@@ -1822,7 +1822,7 @@
       ],
       "collisionLane": "lane:solution-baseline",
       "summary": "Add global.json pinned to stable SDK 10.0.300 with latestPatch roll-forward and prerelease disabled.",
-      "currentEvidence": "Reconstruction baseline: no global.json pinned the supported stable .NET 10 SDK feature band or disabled prerelease SDK selection.",
+      "currentEvidence": "Implemented and reviewed in done/step840.md; final M00 host/QEMU evidence from clean commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 is preserved in done/step845.md and done/step846.md.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add global.json pinned to stable SDK 10.0.300 with latestPatch roll-forward and prerelease disabled.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -1868,7 +1868,7 @@
         "docs/host-requirements.md"
       ],
       "evidenceBoundary": "This issue proves only \"Add global.json pinned to stable SDK 10.0.300 with latestPatch roll-forward and prerelease disabled.\" SDK selection does not change the separately pinned ILCompiler/runtime packs or prove NativeAOT runtime completeness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-017",
@@ -1905,7 +1905,7 @@
       ],
       "collisionLane": null,
       "summary": "Make EFI build preflight report exact MSVC linker, Windows SDK, ILCompiler, QEMU, qemu-img, and OVMF discovery.",
-      "currentEvidence": "Reconstruction baseline: EFI publication preflight did not report the complete linker, SDK, ILCompiler, QEMU, qemu-img, and OVMF discovery contract.",
+      "currentEvidence": "Implemented and reviewed in done/step841.md; final M00 host/QEMU evidence from clean commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 is preserved in done/step845.md and done/step846.md.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Make EFI build preflight report exact MSVC linker, Windows SDK, ILCompiler, QEMU, qemu-img, and OVMF discovery.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -1960,7 +1960,7 @@
         "docs/host-requirements.md"
       ],
       "evidenceBoundary": "This issue proves only \"Make EFI build preflight report exact MSVC linker, Windows SDK, ILCompiler, QEMU, qemu-img, and OVMF discovery.\" Preflight success identifies prerequisites only; it is not a successful EFI publish or boot.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-018",
@@ -1997,7 +1997,7 @@
       ],
       "collisionLane": null,
       "summary": "Verify the emitted EFI file is PE32+ x64, EFI application subsystem, EfiMain entrypoint, and free of ordinary runtime imports.",
-      "currentEvidence": "Reconstruction baseline: no committed verifier rejected malformed/non-EFI PE output or ordinary import tables before accepting BOOTX64.EFI as evidence.",
+      "currentEvidence": "Implemented and reviewed in done/step842.md; final M00 host/QEMU evidence from clean commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 is preserved in done/step845.md and done/step846.md.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Verify the emitted EFI file is PE32+ x64, EFI application subsystem, EfiMain entrypoint, and free of ordinary runtime imports.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -2047,7 +2047,7 @@
         "docs/efi-build.md"
       ],
       "evidenceBoundary": "This issue proves only \"Verify the emitted EFI file is PE32+ x64, EFI application subsystem, EfiMain entrypoint, and free of ordinary runtime imports.\" Static EFI artifact validation does not prove firmware execution or any post-firmware kernel capability.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-019",
@@ -2084,7 +2084,7 @@
       ],
       "collisionLane": null,
       "summary": "Harden serial marker parsing across arbitrary read-chunk boundaries, noise, partial EOF, and conflicting terminal markers.",
-      "currentEvidence": "Reconstruction baseline: serial marker handling had not been proven across arbitrary chunk boundaries, noise, partial EOF, and conflicting terminal markers.",
+      "currentEvidence": "Implemented and reviewed in done/step843.md; final M00 host/QEMU evidence from clean commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 is preserved in done/step845.md and done/step846.md.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Harden serial marker parsing across arbitrary read-chunk boundaries, noise, partial EOF, and conflicting terminal markers.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -2130,7 +2130,7 @@
         "docs/diagnostics.md"
       ],
       "evidenceBoundary": "This issue proves only bounded streaming marker parsing and its host-runner integration across arbitrary chunk boundaries, noise, partial EOF, and conflicting terminal markers. It does not prove the guest emitted truthful markers, that QEMU booted, or that any kernel completion gate passed.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-020",
@@ -2169,7 +2169,7 @@
       ],
       "collisionLane": null,
       "summary": "Emit a machine-readable evidence manifest with source state, tool versions, artifact hashes, serial-log hash, markers, and timestamps.",
-      "currentEvidence": "Reconstruction baseline: QEMU evidence did not have one machine-readable manifest binding source state, tool versions, artifact/log hashes, markers, and timestamps.",
+      "currentEvidence": "Implemented and reviewed in done/step844.md; final M00 host/QEMU evidence from clean commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 is preserved in done/step845.md and done/step846.md.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Emit a machine-readable evidence manifest with source state, tool versions, artifact hashes, serial-log hash, markers, and timestamps.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -2216,7 +2216,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves only \"Emit a machine-readable evidence manifest with source state, tool versions, artifact hashes, serial-log hash, markers, and timestamps.\" An evidence manifest records a run; it cannot turn dry-run, stale, or failed evidence into a passing gate.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-021",
@@ -2261,7 +2261,7 @@
       ],
       "collisionLane": null,
       "summary": "Run and preserve the complete host baseline with final TEST_PASS host.tests.",
-      "currentEvidence": "Reconstruction baseline: the full host harness aborted before TEST_PASS host.tests because stale repository-root sentinels remained.",
+      "currentEvidence": "Accepted in done/step845.md: the 11-step source-frozen baseline from commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 passed with exactly one TEST_PASS host.tests and no host failure terminal; summary SHA-256 C6835020F4DF780806C8DEFBDE43F91853299E03E08FBBEE46E5AAC523F26783.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Run and preserve the complete host baseline with final TEST_PASS host.tests.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -2308,7 +2308,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves only \"Run and preserve the complete host baseline with final TEST_PASS host.tests.\" Host tests validate contracts only and do not prove real QEMU boot, ExitBootServices, live hardware, Kestrel, or cloud support.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M00-022",
@@ -2353,7 +2353,7 @@
       ],
       "collisionLane": null,
       "summary": "Rebuild the current EFI/raw image and reverify the narrowly scoped Gate 2 path under real QEMU/OVMF.",
-      "currentEvidence": "Reconstruction baseline: the historical firmware-visible Gate 2 proof had not been rebuilt from the current CLROS source state, and documented QEMU/OVMF paths were unavailable during planning.",
+      "currentEvidence": "Accepted in done/step846.md: real QEMU/OVMF boot from commit 32a8f3b91e17e1fc7e4b296730a5ea6565c38369 observed all 12 required markers and no forbidden marker; evidence-manifest SHA-256 D398F73FF5051D138D5F2A77CE4EF51277BD2DE289F58BA5383FC6FC74D02E65.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Rebuild the current EFI/raw image and reverify the narrowly scoped Gate 2 path under real QEMU/OVMF.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -2407,7 +2407,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves only \"Rebuild the current EFI/raw image and reverify the narrowly scoped Gate 2 path under real QEMU/OVMF.\" This revalidates only the narrowly scoped firmware-visible Gate 2 marker path; it does not prove real ExitBootServices, owned diagnostics, live devices, applications, Kestrel, or cloud readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-EPIC",

@@ -31,13 +31,18 @@ dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 
 Offline validation and failure-injection self-tests pass. The live tracker was
 created with exactly one issue per manifest key and is reverified after every
-apply. Final live convergence and state counts are recorded in Step 846.
+apply. Final live convergence is verified only after this durable closure
+intent is committed and all 23 M00 evidence-review comments are present;
+tracker state is administrative evidence and is not part of the Step 846
+QEMU/kernel evidence boundary.
 
 ## Failures
 
 The first live tracker was empty. Partial-failure, duplicate-key, dependency
 cycle, stale-target, manual-closure, and collision-readiness cases are now
-covered without storing credentials.
+covered without storing credentials. Closure updates are ordered
+topologically, and recursive dependency/epic checks keep descendants blocked
+if a prerequisite update fails partway through an apply.
 
 ## Deferred work
 

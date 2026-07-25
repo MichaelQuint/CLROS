@@ -136,20 +136,31 @@ Current evidence from 2026-07-25:
 
 - .NET SDK `10.0.302` selected ILCompiler `10.0.8`; the resolved x64 MSVC
   linker reports file version `14.51.36252.0`.
-- Candidate builds emitted `TEST_PASS efi.shell.publish`, and
+- Clean, pushed source commit
+  `32a8f3b91e17e1fc7e4b296730a5ea6565c38369` emitted
+  `TEST_PASS efi.shell.publish`, and
   `scripts/test-efi-artifact.ps1` emitted `TEST_PASS efi.artifact.verify` for a
   PE32+ machine `0x8664`, EFI application subsystem `10`, executable/file-backed
-  `.managed` entrypoint with same-build `EfiMain` association, and absent
-  ordinary, bound, IAT, and delay-import directories.
-- The superseded dirty-worktree artifact hash is retained only in historical
-  logs. Step 846 is reserved for the replacement EFI SHA-256 and its immutable
-  source-bound QEMU tuple.
+  `.managed` entrypoint at RVA `0x00003730` with same-build `EfiMain`
+  association, and absent ordinary, bound, IAT, and delay-import directories.
+- The accepted EFI has 54,272 bytes and SHA-256
+  `0580A45FC10B93C7C218CAB9BA179549C278B4CA970C82420CE74684EDA6036F`.
+  The same-build link-map and response hashes are respectively
+  `64375B6CC0C2A900289FE97F7C7013E3356F22003B9B7011AAC04C631A9FDFEE`
+  and
+  `0108286539031918F3576A3C9759803740D9E2DCB1A26E3E244E882C56E82F1F`.
 - QEMU `11.0.50` with
-  `C:\Program Files\qemu\share\edk2-x86_64-code.fd` has booted the candidate raw
-  image to `TEST_PASS qemu.smoke` plus `OS_SMOKE_PASS`; the final run is
-  repeated after the implementation commit is frozen.
+  `C:\Program Files\qemu\share\edk2-x86_64-code.fd` booted the source-bound raw
+  image to `TEST_PASS qemu.smoke` plus every required marker and no forbidden
+  marker. The accepted raw-image SHA-256 is
+  `484A7B8D2C9E9C01BFF6AAA63633E3CEC3406A0FBAC487100DFB40B0A463428A`.
 - The OVMF file SHA-256 is
   `33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`.
+- The schema-version-1 evidence manifest binds clean source state, command
+  bytes, exact tool versions, EFI/link inputs, image, serial log, host
+  baseline, markers, and UTC timestamps. Its SHA-256 is
+  `D398F73FF5051D138D5F2A77CE4EF51277BD2DE289F58BA5383FC6FC74D02E65`;
+  `done/step846.md` is the canonical human-readable ledger.
 - This run revalidates only the firmware-visible Gate 2 path. It does not prove
   real `ExitBootServices`, owned COM1, owned descriptor tables, live paging,
   drivers, storage, networking, app execution, hosted .NET, Kestrel, provider
