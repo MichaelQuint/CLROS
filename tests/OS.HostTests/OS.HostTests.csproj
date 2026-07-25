@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net10.0</TargetFramework>
+		<LangVersion>14.0</LangVersion>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\src\OS.Kernel\OS.Kernel.csproj" />
+		<ProjectReference Include="..\..\std\no-runtime\shared\OS.Std.NoRuntime.Shared.csproj" />
+		<ProjectReference Include="..\..\tools\OS.ImageBuilder\OS.ImageBuilder.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
+		<ProjectReference Include="..\..\tools\OS.LibvirtRunner\OS.LibvirtRunner.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
+		<ProjectReference Include="..\..\tools\OS.ManifestTool\OS.ManifestTool.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
+		<ProjectReference Include="..\..\tools\OS.QemuRunner\OS.QemuRunner.csproj" />
+	</ItemGroup>
+
+</Project>

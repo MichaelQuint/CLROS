@@ -1,0 +1,117 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<AssemblyName>OS</AssemblyName>
+		<RootNamespace>OS</RootNamespace>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net10.0</TargetFramework>
+		<LangVersion>14.0</LangVersion>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		<SelfContained>true</SelfContained>
+		<PublishAot>true</PublishAot>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<ImplicitUsings>disable</ImplicitUsings>
+		<Nullable>disable</Nullable>
+		<EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+		<NoStdLib>true</NoStdLib>
+		<NoConfig>true</NoConfig>
+		<DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+		<ComputeNETCoreBuildOutputFiles>false</ComputeNETCoreBuildOutputFiles>
+		<RuntimeMetadataVersion>v4.0.30319</RuntimeMetadataVersion>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+		<IlcSystemModule>OS</IlcSystemModule>
+		<IlcDisableReflection>true</IlcDisableReflection>
+		<IlcExportUnmanagedEntrypoints>false</IlcExportUnmanagedEntrypoints>
+		<IlcGenerateWin32Resources>false</IlcGenerateWin32Resources>
+		<DebuggerSupport>false</DebuggerSupport>
+		<NativeDebugSymbols>false</NativeDebugSymbols>
+		<EnableSourceLink>false</EnableSourceLink>
+		<SuppressGenerateILCompilerExplicitPackageReferenceWarning>true</SuppressGenerateILCompilerExplicitPackageReferenceWarning>
+		<EntryPointSymbol>EfiMain</EntryPointSymbol>
+		<LinkerSubsystem>EFI_APPLICATION</LinkerSubsystem>
+		<DefineConstants>$(DefineConstants);NOSTDLIB_EFI</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableUefiGoneSimulationProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);UEFI_GONE_SIMULATION_PROBE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableExitBootServicesFreshMapProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);EXIT_BOOT_SERVICES_FRESH_MAP_PROBE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);ACPI_PHYSICAL_DISCOVERY_PROBE</DefineConstants>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Compile Include="..\OS.Kernel\Boot\BootHandoffRecord.cs" Link="Boot\BootHandoffRecord.cs" />
+		<Compile Include="..\OS.Kernel\Boot\BootMemoryRegionMaterializer.cs" Link="Boot\BootMemoryRegionMaterializer.cs" />
+		<Compile Include="..\OS.Kernel\Boot\BootMemoryMapAcceptance.cs" Link="Boot\BootMemoryMapAcceptance.cs" />
+		<Compile Include="..\OS.Kernel\Boot\EfiConfigurationTableScanner.cs" Link="Boot\EfiConfigurationTableScanner.cs" />
+		<Compile Include="..\OS.Kernel\Boot\EfiBootHandoffValidator.cs" Link="Boot\EfiBootHandoffValidator.cs" />
+		<Compile Include="..\OS.Kernel\Boot\EfiMemoryMapNormalizer.cs" Link="Boot\EfiMemoryMapNormalizer.cs" />
+		<Compile Include="..\OS.Kernel\Boot\UefiExitBootServicesPlan.cs" Link="Boot\UefiExitBootServicesPlan.cs" />
+		<Compile Include="..\OS.Kernel\Boot\UefiMemoryMapCapture.cs" Link="Boot\UefiMemoryMapCapture.cs" />
+		<Compile Include="..\OS.Kernel\Boot\UefiMemoryMapCopyPlan.cs" Link="Boot\UefiMemoryMapCopyPlan.cs" />
+		<Compile Include="..\OS.Kernel\Boot\BootSequencePlan.cs" Link="Boot\BootSequencePlan.cs" />
+		<Compile Include="Boot\EfiConsoleAdapter.cs" />
+		<Compile Include="Boot\EfiEntry.cs" />
+		<Compile Include="Runtime\MinimalRuntime.cs" />
+		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
+		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
+		<ResolvedILCompilerPack Include="runtime.win-x64.Microsoft.DotNet.ILCompiler">
+			<PackageDirectory>$(UserProfile)\.nuget\packages\runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.8\</PackageDirectory>
+		</ResolvedILCompilerPack>
+		<ResolvedTargetILCompilerPack Include="Microsoft.NETCore.App.Runtime.NativeAOT.win-x64">
+			<PackageDirectory>$(UserProfile)\.nuget\packages\microsoft.netcore.app.runtime.nativeaot.win-x64\10.0.8\</PackageDirectory>
+		</ResolvedTargetILCompilerPack>
+	</ItemGroup>
+
+	<Target Name="CustomizeReferences"
+			BeforeTargets="BeforeCompile"
+			AfterTargets="FindReferenceAssembliesForReferences">
+		<ItemGroup>
+			<ReferencePathWithRefAssemblies Remove="@(ReferencePathWithRefAssemblies)" />
+			<ReferencePath Remove="@(ReferencePath)" />
+		</ItemGroup>
+	</Target>
+
+	<Target Name="RemoveHostConfigurationOptions"
+			BeforeTargets="WriteIlcRspFileForCompilation"
+			DependsOnTargets="PrepareForILLink">
+		<ItemGroup>
+			<RuntimeHostConfigurationOption Remove="@(RuntimeHostConfigurationOption)" />
+		</ItemGroup>
+	</Target>
+
+	<Target Name="RemoveEfiExports"
+			BeforeTargets="WriteIlcRspFileForCompilation;LinkNative">
+		<PropertyGroup>
+			<ExportsFile></ExportsFile>
+		</PropertyGroup>
+	</Target>
+
+	<Target Name="RemoveNativeAotRuntimeLibraries"
+			AfterTargets="SetupOSSpecificProps"
+			BeforeTargets="LinkNative">
+		<ItemGroup>
+			<NativeLibrary Remove="@(NativeLibrary)" />
+			<NetCoreAppNativeLibrary Remove="@(NetCoreAppNativeLibrary)" />
+			<SdkNativeLibrary Remove="@(SdkNativeLibrary)" />
+			<DirectPInvoke Remove="@(DirectPInvoke)" />
+			<DirectPInvokeList Remove="@(DirectPInvokeList)" />
+			<LinkerArg Remove="@(LinkerArg)" />
+			<LinkerArg Include="/NOLOGO" />
+			<LinkerArg Include="/MANIFEST:NO" />
+			<LinkerArg Include="/INCREMENTAL:NO" />
+			<LinkerArg Include="/SUBSYSTEM:$(LinkerSubsystem)" />
+			<LinkerArg Include="/ENTRY:$(EntryPointSymbol)" />
+			<LinkerArg Include="/NODEFAULTLIB" />
+			<LinkerArg Include="/OPT:REF" />
+			<LinkerArg Include="/OPT:ICF" />
+		</ItemGroup>
+	</Target>
+
+</Project>
