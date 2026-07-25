@@ -25,12 +25,6 @@ $firstPartySourceRoots = @(
     "apps"
 )
 
-$firstPartyProjectRoots = @(
-    "src",
-    "std",
-    "apps"
-)
-
 $forbiddenSourceExtensions = @(
     ".c",
     ".cpp",
@@ -42,8 +36,12 @@ $forbiddenSourceExtensions = @(
 $disallowedPatterns = @(
     @{ Pattern = 'SHARPOS_BOOT_OK'; Reason = "Use OS_BOOT_OK for first-party smoke markers." },
     @{ Pattern = 'sharpos\.raw'; Reason = "Use artifacts/images/os.raw for first-party image defaults." },
-    @{ Pattern = 'SharpOS\s+(project|workspace|core|kernel|release|completion|gate|gates)'; Reason = "Use OS for first-party project naming; SharpOS is a reference only." },
-    @{ Pattern = 'first-party\s+SharpOS'; Reason = "Use first-party OS; SharpOS is a reference only." },
+    @{
+        Pattern = 'SharpOS\s+(project|workspace|core|kernel|release|completion|gate|gates)'
+        Reason = "Use CLROS for first-party project naming; SharpOS is a reference only."
+        AllowReferenceDiscussion = $true
+    },
+    @{ Pattern = 'first-party\s+SharpOS'; Reason = "Use first-party CLROS; SharpOS is a reference only." },
     @{ Pattern = '`src/Boot/BootSequence\.cs`'; Reason = "Use src/OS.Kernel/Boot/BootSequence.cs." },
     @{ Pattern = '`src/Kernel/Diagnostics/Probes\.cs`'; Reason = "Use src/OS.Kernel/Diagnostics/Probes.cs." }
 )
@@ -90,6 +88,12 @@ function Test-ContainsReferencePath {
     return $Value -match '(^|["''\s=]|[\\/])references([\\/]|$)'
 }
 
+function Test-IsExplicitSharpOsReferenceDiscussion {
+    param([string] $Value)
+
+    return $Value -match '(?i)(\breference(d|s)?\b|\bsnapshots?\b|\bupstream\b|\bprovenance\b|\blicense\b|SharpOS-(main|master)|references[\\/].*SharpOS)'
+}
+
 $files = Get-ChildItem -LiteralPath $root -Recurse -File |
     Where-Object {
         -not (Test-IsExcludedPath $_.FullName) -and
@@ -107,7 +111,12 @@ foreach ($file in $files) {
         $lineNumber++
 
         foreach ($entry in $disallowedPatterns) {
-            if ($line -match $entry.Pattern) {
+            $isAllowedReferenceDiscussion =
+                $entry.ContainsKey("AllowReferenceDiscussion") -and
+                $entry.AllowReferenceDiscussion -and
+                (Test-IsExplicitSharpOsReferenceDiscussion $line)
+
+            if ($line -match $entry.Pattern -and -not $isAllowedReferenceDiscussion) {
                 $failures.Add("${relative}:${lineNumber}: $($entry.Reason)")
             }
         }
@@ -127,29 +136,55 @@ foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File) {
     }
 }
 
-$solutionPath = Join-Path $root "OS.slnx"
-if (Test-Path -LiteralPath $solutionPath) {
+$solutionFileName = "CLROS.slnx"
+$solutionPath = Join-Path $root $solutionFileName
+if (-not (Test-Path -LiteralPath $solutionPath -PathType Leaf)) {
+    $sourceFailures.Add("${solutionFileName}: required_solution_missing")
+}
+else {
     $lineNumber = 0
     foreach ($line in [System.IO.File]::ReadLines($solutionPath)) {
         $lineNumber++
         if (Test-ContainsReferencePath $line) {
-            $sourceFailures.Add("OS.slnx:${lineNumber}: reference_project_in_solution")
+            $sourceFailures.Add("${solutionFileName}:${lineNumber}: reference_project_in_solution")
         }
     }
 }
 
-$projectFiles = Get-ChildItem -LiteralPath $root -Recurse -File -Include *.csproj,*.vbproj,*.fsproj |
+$legacySolutionPath = Join-Path $root "OS.slnx"
+if (Test-Path -LiteralPath $legacySolutionPath -PathType Leaf) {
+    $sourceFailures.Add("OS.slnx: legacy_solution_sentinel_present")
+}
+
+$buildInputExtensions = @(
+    ".csproj",
+    ".vbproj",
+    ".fsproj",
+    ".props",
+    ".targets"
+)
+
+$buildInputFiles = Get-ChildItem -LiteralPath $root -Recurse -File |
     Where-Object {
         -not (Test-IsExcludedPath $_.FullName) -and
-        (Test-IsUnderFirstPartyRoot $_.FullName $firstPartyProjectRoots)
+        ($buildInputExtensions -contains [System.IO.Path]::GetExtension($_.Name).ToLowerInvariant())
     }
 
-foreach ($projectFile in $projectFiles) {
+foreach ($buildInputFile in $buildInputFiles) {
+    $extension = [System.IO.Path]::GetExtension($buildInputFile.Name).ToLowerInvariant()
+    $failureReason = if ($extension -eq ".props" -or $extension -eq ".targets") {
+        "reference_import_in_first_party_build_input"
+    }
+    else {
+        "reference_project_in_first_party_project"
+    }
+
     $lineNumber = 0
-    foreach ($line in [System.IO.File]::ReadLines($projectFile.FullName)) {
+    foreach ($line in [System.IO.File]::ReadLines($buildInputFile.FullName)) {
         $lineNumber++
         if (Test-ContainsReferencePath $line) {
-            $sourceFailures.Add((Get-RelativePath $projectFile.FullName) + ":${lineNumber}: reference_project_in_first_party_project")
+            $sourceFailures.Add(
+                (Get-RelativePath $buildInputFile.FullName) + ":${lineNumber}: " + $failureReason)
         }
     }
 }

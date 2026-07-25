@@ -11,7 +11,7 @@ Security is policy baseline only.
 - `OS.ManifestTool validate --manifest <path>` rejects malformed, oversized, unknown-version, unsafe-path, and duplicate-env-key manifests in host tests.
 - `scripts/check-naming.ps1` now includes a source firewall:
   - rejects committed first-party `.c`, `.cpp`, `.h`, `.asm`, and `.s` files under `src/`, `std/`, and `apps/`;
-  - rejects `references/` project paths in `OS.slnx`;
+  - rejects `references/` project paths in `CLROS.slnx`;
   - rejects `references/` project paths from first-party `src/`, `std/`, and `apps/` project files;
   - emits `TEST_START source.firewall`, `TEST_PASS source.firewall`, and `TEST_FAIL source.firewall <path>: <reason>` markers.
 - `ExecutableStubMemoryPlan` defines the first host-tested W^X policy contract for future C#-emitted executable stubs. It accepts write-then-execute layout planning, rejects accidental RWX page intent by default, calculates page-aligned caller-owned layout metadata, validates page size/alignment/payload inputs, and rejects default/zero result-success cases without allocating memory or changing page protections.
@@ -38,7 +38,7 @@ or per-app runtime permission path yet.
 
 Manifest validation has host tests in `tests/OS.HostTests/ManifestToolTests.cs`. No in-kernel hardening tests exist.
 
-`tests/OS.HostTests/SourceFirewallTests.cs` verifies that the guard accepts the current tree, rejects a temporary first-party `.c` file, ignores forbidden extensions inside `references/`, rejects `references/` entries in `OS.slnx`, and rejects `references/` project references from first-party project files.
+`tests/OS.HostTests/SourceFirewallTests.cs` verifies that the guard accepts the current tree, rejects a temporary first-party `.c` file, ignores forbidden extensions inside `references/`, rejects `references/` entries in `CLROS.slnx`, and rejects `references/` project references from first-party project files.
 
 `tests/OS.HostTests/NativeAppPayloadMappingPlanTests.cs` verifies only deterministic native payload range planning. It does not prove W^X/NX enforcement, executable page permission transitions, relocation safety, or native app entry invocation.
 

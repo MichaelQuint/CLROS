@@ -42,8 +42,9 @@ internal static class NoStdLibShimBoundaryTests
 
     private static bool TestEfiProjectIncludedExplicitly()
     {
-        string root = FindRepositoryRoot();
-        string solution = File.ReadAllText(Path.Combine(root, "OS.slnx"));
+        string root = HostToolProcess.FindRepositoryRoot();
+        string solution = File.ReadAllText(
+            Path.Combine(root, HostToolProcess.RepositorySolutionFileName));
 
         return solution.Contains("src/OS/OS.csproj", StringComparison.OrdinalIgnoreCase)
             || solution.Contains("src\\OS\\OS.csproj", StringComparison.OrdinalIgnoreCase);
@@ -51,7 +52,7 @@ internal static class NoStdLibShimBoundaryTests
 
     private static bool TestEfiProjectExplicitShimBoundary()
     {
-        string root = FindRepositoryRoot();
+        string root = HostToolProcess.FindRepositoryRoot();
         XDocument project = XDocument.Load(Path.Combine(root, "src", "OS", "OS.csproj"));
 
         return HasProperty(project, "NoStdLib", "true")
@@ -64,7 +65,7 @@ internal static class NoStdLibShimBoundaryTests
 
     private static bool TestHostProjectsDoNotCompileMinimalRuntime()
     {
-        string root = FindRepositoryRoot();
+        string root = HostToolProcess.FindRepositoryRoot();
         string[] projectPaths =
         [
             Path.Combine(root, "src", "OS.Kernel", "OS.Kernel.csproj"),
@@ -106,19 +107,4 @@ internal static class NoStdLibShimBoundaryTests
             .Any(value => string.Equals(value, include, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static string FindRepositoryRoot()
-    {
-        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "OS.slnx")))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Could not find repository root containing OS.slnx.");
-    }
 }

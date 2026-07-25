@@ -61,7 +61,7 @@ If new boot phases are added, host tests must prove marker order or presence bef
 Relevant commands:
 
 ```powershell
-dotnet build .\OS.slnx --nologo -m:1
+dotnet build .\CLROS.slnx --nologo -m:1
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 ```
 

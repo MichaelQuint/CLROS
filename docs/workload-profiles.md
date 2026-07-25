@@ -47,7 +47,7 @@ or change runtime behavior.
 Default build:
 
 ```powershell
-dotnet build .\OS.slnx --nologo -m:1
+dotnet build .\CLROS.slnx --nologo -m:1
 ```
 
 The default is `SingleMinimalApi` and emits the compile symbol
@@ -56,7 +56,7 @@ The default is `SingleMinimalApi` and emits the compile symbol
 Explicit multi-profile build:
 
 ```powershell
-dotnet build .\OS.slnx --nologo -m:1 /p:OSWorkloadProfile=MultiMinimalApi
+dotnet build .\CLROS.slnx --nologo -m:1 /p:OSWorkloadProfile=MultiMinimalApi
 ```
 
 This emits `OS_PROFILE_MULTI_MINIMAL_API`, sets the kernel-facing profile

@@ -45,7 +45,7 @@ internal static class CiWorkflowTests
     {
         return Contains(workflow, "runs-on: windows")
             && Contains(workflow, "uses: actions/checkout@v4")
-            && Contains(workflow, @"dotnet build .\OS.slnx --nologo -m:1")
+            && Contains(workflow, @"dotnet build .\CLROS.slnx --nologo -m:1")
             && Contains(workflow, @".\scripts\build-efi-shell.ps1 -PreflightOnly")
             && Contains(workflow, @".\scripts\run-ci-smoke.ps1 -DryRun")
             && Contains(workflow, @".\scripts\run-baseline-evidence.ps1 -PlanOnly")
@@ -65,7 +65,7 @@ internal static class CiWorkflowTests
     private static bool TestUploadsSmokeLogs(string workflow)
     {
         return Contains(workflow, "uses: actions/upload-artifact@v4")
-            && Contains(workflow, "name: os-ci-smoke-logs")
+            && Contains(workflow, "name: clros-ci-smoke-logs")
             && Contains(workflow, "path: artifacts/logs/**");
     }
 
@@ -83,24 +83,8 @@ internal static class CiWorkflowTests
 
     private static string ReadWorkflow()
     {
-        string root = FindRepositoryRoot();
+        string root = HostToolProcess.FindRepositoryRoot();
         string path = Path.Combine(root, ".gitea", "workflows", "ci-smoke.yml");
         return File.ReadAllText(path);
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        string? current = Directory.GetCurrentDirectory();
-        while (!string.IsNullOrWhiteSpace(current))
-        {
-            if (File.Exists(Path.Combine(current, "OS.slnx")))
-            {
-                return current;
-            }
-
-            current = Directory.GetParent(current)?.FullName;
-        }
-
-        throw new InvalidOperationException("Repository root not found.");
     }
 }

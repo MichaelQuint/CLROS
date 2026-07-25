@@ -59,7 +59,7 @@ Add or update host tests when changing:
 Normal test pass:
 
 ```powershell
-dotnet build .\OS.slnx --nologo -m:1
+dotnet build .\CLROS.slnx --nologo -m:1
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 ```
 

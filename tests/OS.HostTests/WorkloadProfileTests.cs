@@ -92,7 +92,7 @@ internal static class WorkloadProfileTests
 
     private static bool TestSingleMinimalApiProviderGateBoundaries()
     {
-        string root = FindRepositoryRoot();
+        string root = HostToolProcess.FindRepositoryRoot();
         string workloadProfiles = File.ReadAllText(
             Path.Combine(root, "docs", "workload-profiles.md"));
         string completionGates = File.ReadAllText(
@@ -122,7 +122,7 @@ internal static class WorkloadProfileTests
 
     private static bool TestKestrelProviderScope()
     {
-        string root = FindRepositoryRoot();
+        string root = HostToolProcess.FindRepositoryRoot();
         string kestrel = File.ReadAllText(Path.Combine(root, "docs", "kestrel.md"));
         string aws = File.ReadAllText(Path.Combine(root, "docs", "aws-cloud-requirements.md"));
         string azure = File.ReadAllText(Path.Combine(root, "docs", "azure-cloud-requirements.md"));
@@ -175,19 +175,4 @@ internal static class WorkloadProfileTests
         return true;
     }
 
-    private static string FindRepositoryRoot()
-    {
-        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "OS.slnx")))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Could not find repository root containing OS.slnx.");
-    }
 }

@@ -1,4 +1,4 @@
-# OS AI Agent Guide
+# CLROS AI Agent Guide
 
 This is the root operating contract for agents working in this repository. Keep
 it concise. Put subsystem detail in the relevant `docs/*.md` file and use
@@ -6,13 +6,14 @@ it concise. Put subsystem detail in the relevant `docs/*.md` file and use
 
 ## Project Identity
 
-The project name is `OS`.
+The project name is `CLROS`.
 
-Do not call this project `SharpOS`. SharpOS is a reference project under
+Do not call this project `OS` or `SharpOS`. `OS` remains the stable assembly,
+namespace, source-path, and hosted-ABI prefix. SharpOS is a reference project under
 `references/`, not the name or architecture of this repository.
 
-`OS` is a C#-first, NativeAOT-based CloudReady operating system. The intended
-deployment model is a minimal single-workload cloud appliance:
+`CLROS` targets a C#-first, NativeAOT-based CloudReady operating system. The
+intended deployment model is a minimal single-workload cloud appliance:
 
 - Freestanding C# kernel and boot path.
 - NativeAOT-based first-party boot/runtime boundary.
@@ -69,7 +70,8 @@ differ from this root guide.
 
 ## Repository Layout
 
-- `src/OS`: explicit no-stdlib NativeAOT EFI shell project, outside `OS.slnx`.
+- `src/OS`: explicit no-stdlib NativeAOT EFI shell project included in
+  `CLROS.slnx` under stricter directory-local build rules.
 - `src/OS.Kernel`: host-testable kernel, boot, diagnostics, platform, PAL,
   storage, networking, and app-model contracts.
 - `std/no-runtime/shared`: no-runtime-compatible shared utility/BCL-like
@@ -115,10 +117,10 @@ differ from this root guide.
 
 ## Build And Test Commands
 
-Run from `C:\Projects\OS`.
+Run from `C:\Projects\CLROS`.
 
 ```powershell
-dotnet build .\OS.slnx --nologo -m:1
+dotnet build .\CLROS.slnx --nologo -m:1
 dotnet build .\tests\OS.HostTests\OS.HostTests.csproj --nologo
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 .\scripts\check-naming.ps1
@@ -180,8 +182,8 @@ creating a new step file.
 
 Use the Gitea API when instructed or when doing backlog maintenance.
 
-- Repository: `http://192.168.2.42:3000/michael.quint/OS`
-- API base: `http://192.168.2.42:3000/api/v1/repos/michael.quint/OS`
+- Repository: `http://localhost:3000/admin/CLROS`
+- API base: `http://localhost:3000/api/v1/repos/admin/CLROS`
 
 Rules:
 

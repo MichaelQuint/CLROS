@@ -237,7 +237,7 @@ internal static class HttpResponseParserTests
 
     private static bool TestUsesSharedMemoryIndexHelper()
     {
-        string root = FindRepositoryRoot();
+        string root = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(Path.Combine(root, "src", "OS.Kernel", "Net", "HttpResponseParser.cs"));
 
         return CountOccurrences(source, "OS.Std.MemoryExtensions.IndexOf") >= 2
@@ -254,7 +254,7 @@ internal static class HttpResponseParserTests
 
     private static bool TestUsesSharedAsciiEqualityHelper()
     {
-        string root = FindRepositoryRoot();
+        string root = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(Path.Combine(root, "src", "OS.Kernel", "Net", "HttpResponseParser.cs"));
 
         return CountOccurrences(source, "AsciiString.EqualsIgnoreCase") >= 5
@@ -270,7 +270,7 @@ internal static class HttpResponseParserTests
 
     private static bool TestUsesSharedMemoryProtocolPrefixHelper()
     {
-        string root = FindRepositoryRoot();
+        string root = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(Path.Combine(root, "src", "OS.Kernel", "Net", "HttpResponseParser.cs"));
 
         return source.Contains(
@@ -285,7 +285,7 @@ internal static class HttpResponseParserTests
 
     private static bool TestUsesSharedAsciiDigitHelper()
     {
-        string root = FindRepositoryRoot();
+        string root = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(Path.Combine(root, "src", "OS.Kernel", "Net", "HttpResponseParser.cs"));
 
         return source.Contains("OS.Std.Ascii.IsDigit(c)", StringComparison.Ordinal)
@@ -311,19 +311,4 @@ internal static class HttpResponseParserTests
         return count;
     }
 
-    private static string FindRepositoryRoot()
-    {
-        string? current = Directory.GetCurrentDirectory();
-        while (!string.IsNullOrEmpty(current))
-        {
-            if (File.Exists(Path.Combine(current, "OS.slnx")))
-            {
-                return current;
-            }
-
-            current = Directory.GetParent(current)?.FullName;
-        }
-
-        throw new InvalidOperationException("Could not locate repository root.");
-    }
 }

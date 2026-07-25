@@ -2,9 +2,14 @@
 
 ## Current Status
 
-An explicit EFI NativeAOT project shell exists at `src/OS/OS.csproj`. It is intentionally outside `OS.slnx` so normal host builds remain stable while the freestanding path is developed.
+An explicit EFI NativeAOT project shell exists at `src/OS/OS.csproj`. It is
+included in `CLROS.slnx`, but its directory-local rules keep the freestanding
+no-stdlib build explicit and separate from ordinary managed runtime policy.
 
-As of 2026-05-21, this host has the required Visual Studio Build Tools C++ toolchain and Windows SDK installed. `scripts/build-efi-shell.ps1` publishes a NativeAOT x64 PE with EFI application subsystem and stages it as `artifacts/efi/BOOTX64.EFI`.
+As of 2026-07-25, this host has the required Visual Studio C++ toolchain,
+Windows SDK, QEMU, and OVMF installed. `scripts/build-efi-shell.ps1` publishes a
+NativeAOT x64 PE with EFI application subsystem and stages it as
+`artifacts/efi/BOOTX64.EFI`.
 
 The staged artifact emits firmware-visible markers from `EfiMain`, captures the UEFI memory map on the tested QEMU/OVMF host, copies descriptor bytes into an OS-owned static buffer, validates the live owned handoff record, normalizes a compact owned-map summary, materializes compact boot memory-region records into OS-owned static storage, and emits the ordered boot marker plan through the raw image path.
 
@@ -31,23 +36,58 @@ The staged artifact emits firmware-visible markers from `EfiMain`, captures the 
 - `EfiMain` source-links `BootSequencePlan.cs` and emits the ordered `boot.sequence` marker plan without referencing the normal `OS.Kernel` assembly.
 - Firmware console output is preferred. UEFI Serial I/O is used only as a fallback to avoid duplicate serial output when OVMF maps console output to the serial sink. Both paths are now called through `EfiConsoleAdapter`.
 - `Runtime/MinimalRuntime.cs` contains the compiler-required primitive stubs, throw helpers, memory helpers, fail-fast type-cast placeholders, and reverse-P/Invoke exports needed to produce the EFI PE.
-- `scripts/build-efi-shell.ps1` runs the explicit publish command and writes a log under `artifacts/logs/`. Before `dotnet publish`, it runs a host-toolchain preflight that resolves the MSVC x64 `link.exe` (`Hostx64\x64`) and the Windows SDK UM x64 `kernel32.lib` (`um\x64`), emits `EFI_PREFLIGHT_START`, `EFI_PREFLIGHT_MSVC_LINKER <path>`, `EFI_PREFLIGHT_WINDOWS_SDK <path>`, and `EFI_PREFLIGHT_OK`, and short-circuits with a deterministic `TEST_FAIL efi.shell.publish` reason when a prerequisite is missing. Search roots are injectable through `-MsvcLinkerSearchRoot`, `-WindowsSdkLibSearchRoot`, and `-VsWherePath`, and `-PreflightOnly` stops after the checks without publishing.
+- `scripts/build-efi-shell.ps1` runs the explicit publish command and writes a
+  log under `artifacts/logs/`. Before `dotnet publish`, its preflight resolves
+  the MSVC x64 `link.exe`, Windows SDK UM x64 `kernel32.lib`, selected
+  ILCompiler and NativeAOT runtime pack, QEMU x64 executable, `qemu-img`, and
+  OVMF code image. Successful discovery emits exact quoted paths plus linker,
+  SDK, package, and executable versions; OVMF evidence includes byte length
+  and SHA-256. The stable lines are `EFI_PREFLIGHT_START`,
+  `EFI_PREFLIGHT_MSVC_LINKER`, `EFI_PREFLIGHT_WINDOWS_SDK`,
+  `EFI_PREFLIGHT_ILCOMPILER`, `EFI_PREFLIGHT_NATIVEAOT_RUNTIME_PACK`,
+  `EFI_PREFLIGHT_QEMU`, `EFI_PREFLIGHT_QEMU_IMG`,
+  `EFI_PREFLIGHT_OVMF`, and finally `EFI_PREFLIGHT_OK`.
+- Preflight inputs are injectable through `-MsvcLinkerSearchRoot`,
+  `-WindowsSdkLibSearchRoot`, `-VsWherePath`, `-IlCompilerPath` or
+  `-IlCompilerSearchRoot`, `-NativeAotRuntimePackPath` or
+  `-NativeAotRuntimePackSearchRoot`, `-QemuPath` or `-QemuSearchRoot`,
+  `-QemuImgPath` or `-QemuImgSearchRoot`, and `-OvmfCodePath` or
+  `-OvmfSearchRoot`. An explicitly requested missing path does not fall back
+  to a host default. `-PreflightOnly` stops after the checks without publishing
+  or emitting `TEST_PASS efi.shell.publish`.
 - `scripts/build-efi-shell.ps1 -EnableUefiGoneSimulationProbe` defines `UEFI_GONE_SIMULATION_PROBE`, prints `EFI_PROBE UEFI_GONE_SIMULATION`, and publishes a variant that emits `UEFI_GONE_SIM_START`, `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, and `UEFI_GONE_SIM_PASS`.
 - `scripts/build-efi-shell.ps1 -EnableAcpiPhysicalDiscoveryProbe` defines `ACPI_PHYSICAL_DISCOVERY_PROBE`, prints `EFI_PROBE ACPI_PHYSICAL_DISCOVERY`, and publishes a variant that reads firmware-provided ACPI physical addresses before `ExitBootServices`, validates RSDP/root SDT/MCFG bytes into fixed scratch storage, and emits `ACPI_RSDP_SNAPSHOT_READY`, `ACPI_RSDP_VALIDATED`, `ACPI_ROOT_SDT_SNAPSHOT_READY`, `ACPI_ROOT_SDT_VALIDATED`, and `ACPI_MCFG_DISCOVERY_READY`.
 - On success, the publish script copies `src/OS/bin/Release/net10.0/win-x64/publish/OS.exe` to `artifacts/efi/BOOTX64.EFI`.
+- `scripts/test-efi-artifact.ps1` parses the staged PE directly and rejects
+  missing, empty, truncated, malformed, non-AMD64, non-PE32+, non-EFI,
+  zero-entrypoint, non-executable-entrypoint, virtual-only-entrypoint, import,
+  bound-import, IAT, delay-import, and missing-`EfiMain`-contract cases. It
+  proves binary entrypoint properties and the checked-in build/source binding;
+  a stripped release PE does not independently preserve the `EfiMain` symbol
+  name.
 
 ## Unsupported Behavior
 
-The project is not yet a functional kernel. `ExitBootServices`, owned drivers, a full firmware abstraction layer, owned descriptor normalization, and panic-safe diagnostics are pending. `UefiExitBootServicesLiveWiringPlan` documents and host-tests the future live call order, and `PlatformFirmwareExitBootServicesResult` documents the future firmware-call result mapping, but the live `EfiEntry` path keeps firmware shutdown disabled until owned serial diagnostics and the real retry loop are implemented and proven.
+The project is not yet a functional kernel. `ExitBootServices`, owned drivers,
+a full firmware abstraction layer, reservation-subtracted allocator-owned
+memory state, post-firmware physical mappings, and panic-safe diagnostics are
+pending. `UefiExitBootServicesLiveWiringPlan` documents and host-tests the
+future live call order, and `PlatformFirmwareExitBootServicesResult` documents
+the future firmware-call result mapping, but the live `EfiEntry` path keeps
+firmware shutdown disabled until the owned stack/serial/data prerequisites,
+typed call adapter, and real bounded stale-key retry are implemented and
+proven.
 
 ## Tests
 
 Expected commands:
 
 ```powershell
-dotnet build .\OS.slnx --nologo -m:1
+dotnet build .\CLROS.slnx --nologo -m:1
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
+.\scripts\build-efi-shell.ps1 -PreflightOnly
 .\scripts\build-efi-shell.ps1
+.\scripts\test-efi-artifact.ps1
 .\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -RequireMarker OS_SMOKE_PASS,UEFI_MEMORY_MAP_OWNED,BOOT_HANDOFF_READY,UEFI_MEMORY_MAP_NORMALIZED,BOOT_MEMORY_MAP_ACCEPTED,BOOT_MEMORY_REGIONS_READY,BOOT_MEMORY_REGION_COUNT
 .\scripts\build-efi-shell.ps1 -EnableUefiGoneSimulationProbe -EfiOutputPath artifacts/efi/BOOTX64-SIM.EFI -LogPath artifacts/logs/efi-shell-publish-sim.log
 .\scripts\run-qemu-smoke.ps1 -EfiArtifact artifacts/efi/BOOTX64-SIM.EFI -Image artifacts/images/os-sim.raw -SerialLog artifacts/logs/qemu-smoke-sim.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -MarkerPreset uefi-gone
@@ -92,9 +132,52 @@ Current evidence from 2026-05-22:
 - `artifacts/logs/qemu-smoke-acpi.log` contains `ACPI_RSDP_SNAPSHOT_READY`, `ACPI_RSDP_VALIDATED`, `ACPI_ROOT_SDT_SNAPSHOT_READY`, `ACPI_ROOT_SDT_VALIDATED`, and `ACPI_MCFG_DISCOVERY_READY` before `OS_SMOKE_PASS`.
 - `artifacts/logs/qemu-smoke-acpi.summary.log` records `MISSING_MARKERS none` for the default boot markers plus the five ACPI discovery markers.
 
-On hosts without the Visual Studio C++ NativeAOT linker prerequisites, the publish script now fails in the preflight before `dotnet publish`. It reports `TEST_FAIL efi.shell.publish platform_linker_missing` when the MSVC x64 `link.exe` cannot be resolved and `TEST_FAIL efi.shell.publish windows_sdk_um_x64_missing` when the Windows SDK UM x64 `kernel32.lib` cannot be resolved, and it records the log path in both cases. The post-publish `platform_linker_missing` detection remains as a backstop for linker failures that only surface during the real publish. These failures are host toolchain setup problems, not a Hyper-V limitation.
+Current evidence from 2026-07-25:
 
-The preflight is host-toolchain evidence only. `EFI_PREFLIGHT_OK` proves that the MSVC linker and Windows SDK library files are discoverable on the host; it does not prove a successful publish, a staged `artifacts/efi/BOOTX64.EFI`, QEMU boot, `ExitBootServices`, or any runtime behavior. `tests/OS.HostTests/BuildEfiShellPreflightTests.cs` covers the missing-linker, missing-SDK, and discoverable-toolchain contracts using injected fake search roots and `-PreflightOnly`, so the contract is verified without uninstalling host toolchains.
+- .NET SDK `10.0.302` selected ILCompiler `10.0.8`; the resolved x64 MSVC
+  linker reports file version `14.51.36252.0`.
+- Candidate builds emitted `TEST_PASS efi.shell.publish`, and
+  `scripts/test-efi-artifact.ps1` emitted `TEST_PASS efi.artifact.verify` for a
+  PE32+ machine `0x8664`, EFI application subsystem `10`, executable/file-backed
+  `.managed` entrypoint with same-build `EfiMain` association, and absent
+  ordinary, bound, IAT, and delay-import directories.
+- The superseded dirty-worktree artifact hash is retained only in historical
+  logs. Step 846 is reserved for the replacement EFI SHA-256 and its immutable
+  source-bound QEMU tuple.
+- QEMU `11.0.50` with
+  `C:\Program Files\qemu\share\edk2-x86_64-code.fd` has booted the candidate raw
+  image to `TEST_PASS qemu.smoke` plus `OS_SMOKE_PASS`; the final run is
+  repeated after the implementation commit is frozen.
+- The OVMF file SHA-256 is
+  `33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`.
+- This run revalidates only the firmware-visible Gate 2 path. It does not prove
+  real `ExitBootServices`, owned COM1, owned descriptor tables, live paging,
+  drivers, storage, networking, app execution, hosted .NET, Kestrel, provider
+  support, or production readiness.
+- The complete host-tool preflight reported MSVC linker file version
+  `14.51.36252.0`, Windows SDK `10.0.28000.0`, ILCompiler and NativeAOT runtime
+  pack `10.0.8`, QEMU and qemu-img `11.0.50`, and the OVMF byte length and
+  SHA-256 before emitting `EFI_PREFLIGHT_OK`. These are discovery facts, not a
+  substitute for the publish, PE verification, or QEMU boot evidence above.
+
+The preflight stops before `dotnet publish`, saves all evidence accumulated so
+far, and reports a distinct `TEST_FAIL efi.shell.publish` reason:
+`platform_linker_missing`, `windows_sdk_um_x64_missing`,
+`ilcompiler_missing`, `nativeaot_runtime_pack_missing`, `qemu_not_found`,
+`qemu_img_not_found`, or `ovmf_not_found`. It also rejects QEMU executables
+whose `--version` output cannot be captured and OVMF files whose hash evidence
+cannot be read. The post-publish `platform_linker_missing` detection remains a
+backstop for linker failures that surface only during a real publish. These
+failures identify host prerequisites; they are not a Hyper-V limitation.
+
+The preflight is host-toolchain evidence only. `EFI_PREFLIGHT_OK` proves that
+the reported files and versions were discoverable; it does not prove a
+successful publish, a staged `artifacts/efi/BOOTX64.EFI`, QEMU boot,
+`ExitBootServices`, or any runtime behavior.
+`tests/OS.HostTests/BuildEfiShellPreflightTests.cs` covers every missing-tool
+reason, exact injected-path evidence, injected search-root discovery, version
+markers, the OVMF hash/length record, and the rule that unrelated environment
+values are not printed.
 
 ## Known Limitations
 
@@ -117,6 +200,12 @@ Any next-step EFI build work must keep the freestanding constraints explicit. If
 1. Move UEFI structs behind platform interfaces.
    - Keep the low-level UEFI table pointers isolated to the EFI boundary.
    - Expose only the narrow operations required for console diagnostics, memory-map ownership, firmware shutdown state, and optional filesystem/protocol discovery.
-2. Add a deterministic `ExitBootServices` retry-plan contract before any real firmware shutdown.
-3. Route additional platform interfaces through the UEFI-gone simulation path as they are introduced.
-4. Replace permissive shell-only runtime placeholders with audited runtime helpers as subsystems require them.
+2. Implement the owned boot stack and post-firmware COM1 path before enabling
+   any real firmware shutdown.
+3. Copy required firmware data, add the typed `ExitBootServices` call adapter,
+   and implement the bounded stale-map-key retry only after its M01/M02
+   dependencies pass.
+4. Route additional platform interfaces through the UEFI-gone simulation path
+   as they are introduced.
+5. Replace permissive shell-only runtime placeholders with audited runtime
+   helpers as subsystems require them.

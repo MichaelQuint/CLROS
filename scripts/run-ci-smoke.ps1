@@ -12,6 +12,11 @@ param(
 $ErrorActionPreference = "Stop"
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).ProviderPath
+$solutionPath = Join-Path $root "CLROS.slnx"
+if (-not (Test-Path -LiteralPath $solutionPath -PathType Leaf)) {
+    throw "Required solution not found: $solutionPath"
+}
+
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $powerShellExe = (Get-Process -Id $PID).Path
 
@@ -560,7 +565,7 @@ $steps = @(
     (New-CiSmokeStep `
         -Name "ci.smoke.build" `
         -Executable $DotNet `
-        -Arguments @("build", ".\OS.slnx", "--nologo", "-m:1", $msbuildProfileArgument) `
+        -Arguments @("build", ".\CLROS.slnx", "--nologo", "-m:1", $msbuildProfileArgument) `
         -LogFileName "dotnet-build.log"),
     (New-CiSmokeStep `
         -Name "ci.smoke.host.tests" `

@@ -1,10 +1,11 @@
-# OS Completion Gates
+# CLROS Completion Gates
 
 ## Current Status
 
-No CloudReady release is complete as of 2026-05-25. The repository has an
-early EFI/QEMU smoke proof and broad host-tested planning contracts, but it is
-not a functional kernel, not cloud-ready, and not production-ready.
+No CloudReady release is complete as of 2026-07-25. The repository has a
+historical EFI/QEMU smoke proof, a pending immutable-source re-verification,
+and broad host-tested planning contracts, but it is not a functional kernel,
+not cloud-ready, and not production-ready.
 
 Gate status is explicit:
 
@@ -17,6 +18,15 @@ firmware-visible QEMU/OVMF boot-smoke boundary. It is not `ExitBootServices`,
 owned-driver, storage, networking, app-launch, hosted-.NET, Kestrel, cloud, or
 production evidence.
 
+The earlier 2026-07-25 M00 candidate was produced from the imported base commit
+plus an explicitly dirty recovery worktree, and its documented raw-image bytes
+were later replaced at the working artifact path. It remains useful historical
+diagnostic evidence but is not the source-bound current Gate 2 tuple. Step 846
+is reserved for a fresh run from the immutable M00 implementation commit; the
+following evidence commit must bind that exact source, command, tools, EFI,
+image, serial log, markers, timestamps, and hashes before the new tuple is
+called current. This does not change Gate 1.
+
 `docs/workload-profiles.md` defines `SingleMinimalApi` as the near-term hosted
 workload profile and `MultiMinimalApi` as a later process/isolation/supervisor
 profile. Those hosted-tier and Kestrel claim boundaries are tracked under Gate
@@ -26,8 +36,8 @@ any gate status or prove runtime behavior.
 
 | Gate | Status | Preserved current evidence | Missing before pass |
 | --- | --- | --- | --- |
-| 1. Clean build | Fail | Local `dotnet build .\OS.slnx --nologo -m:1` and focused host builds have passed; `scripts/build-efi-shell.ps1` publishes the EFI shell; naming/source-firewall and `git diff --check` checks exist | Preserve clean-checkout logs for the documented build/test commands, confirm no untracked generated source is required, and confirm no forbidden first-party `.c/.cpp/.h/.asm/.s` files or secrets were added |
-| 2. Boot | Pass | QEMU/OVMF boots `artifacts/images/os.raw`; serial output reaches ordered boot markers including `TEST_START efi.main`, UEFI memory-map markers, `BOOT_HANDOFF_READY`, `BOOT_MEMORY_MAP_ACCEPTED`, `BOOT_MEMORY_REGIONS_READY`, `BOOT_MEMORY_REGION_COUNT`, `BOOT_PAGE_ALLOCATOR_READY`, `BOOT_ACPI_RSDP_HANDOFF_READY`, ordered `boot.sequence` phase markers, `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and `OS_SMOKE_PASS`; opt-in ACPI and UEFI-gone probe artifacts have separate QEMU marker evidence | Keep this scoped to EFI smoke until later gates prove `ExitBootServices`, owned drivers, storage, networking, app launch, or hosted workload behavior |
+| 1. Clean build | Fail | Local `dotnet build .\CLROS.slnx --nologo -m:1`, the complete host harness ending in `TEST_PASS host.tests`, focused host builds, naming/source-firewall checks, and `git diff --check` pass in the M00 recovery worktree; `scripts/build-efi-shell.ps1` publishes the EFI shell | Preserve the same commands from a clean checkout, confirm no untracked source is required, and preserve release evidence proving no forbidden first-party `.c/.cpp/.h/.asm/.s` files or secrets were added |
+| 2. Boot | Pass | Historical real QEMU/OVMF evidence proves the firmware-visible EFI path reaches `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and `OS_SMOKE_PASS`; the superseded dirty-worktree M00 tuple is not called current, and Step 846 is reserved for its immutable-source replacement; opt-in ACPI and UEFI-gone probe artifacts remain separate historical marker evidence | Preserve the new source-bound tuple before calling it current, and keep this scoped to EFI smoke until later gates prove `ExitBootServices`, owned drivers, storage, networking, app launch, or hosted workload behavior |
 | 3. Fault diagnostics | Fail | Host-tested boot-event ring, panic formatter, panic serial reporter, COM1 configuration/writer contracts, GDT/TSS/IST/IDT descriptor plans, fault-vector metadata, fault-entry/fault-probe stub plans, and readiness markers exist | Install real IDT/GDT/TSS/IST, implement handlers and register capture, prove null-pointer and invalid-opcode panic probes in QEMU without triple fault or silent reboot |
 | 4. std/runtime | Fail | Host-tested `OS.Std.*` helper slices exist for ASCII/text formatting, memory operations, endian primitives, native integer helpers, integer math, array helpers, CRC32, and internet checksums; host-tested caller-owned boot page allocator mutation, class-constructor state-table transitions, cctor state diagnostic formatting, cctor runner preflight metadata validation, and BootSequence cctor preflight readiness markers now exist below the live runtime-helper boundary; `NativeAotHelperLedger` tracks runtime gaps | Complete the supported BCL subset, object/array/string allocation helpers, GC/root scanning, interface dispatch, full cctor runner/metadata execution, exceptions/finally/catch, thread statics, and runtime-helper QEMU/host tests |
 | 5. UEFI encapsulation | Fail | `EfiMain` uses no-stdlib adapters to capture/copy UEFI memory-map bytes, validate handoff, normalize compact records, carry ACPI RSDP provenance, and emit probe markers; host tests cover guarded platform interfaces including read-only filesystem denial under UEFI-gone simulation | Finish platform interfaces, own post-firmware serial/framebuffer/physical-memory/MMIO rules, simulate forbidden firmware calls broadly, and implement real `ExitBootServices` only after diagnostics and drivers can continue |
@@ -518,7 +528,15 @@ isolation, supervisor, restart, port-conflict, and crash-isolation evidence.
 - Manifest v0 host validation and libvirt XML dry-run generation have host tests; libvirt diagnostics now record required and forbidden serial marker contracts for future real smoke runs; `tools/OS.LibvirtRunner plan-lifecycle` and `scripts/run-libvirt-smoke.ps1 -PlanLifecycle` record the future generate/create/start/poll/timeout/destroy/undefine/cleanup order without starting a domain; `tools/OS.LibvirtRunner check-serial` and `scripts/run-libvirt-smoke.ps1 -CheckSerialOnly` validate an existing serial log against the shared runner marker parser without starting a domain; `scripts/run-libvirt-smoke.ps1` records raw/qcow2 smoke intent and missing-`virsh` evidence without claiming boot proof.
 - `docs/pal.md` defines the design-only Kestrel-critical `OSHost_*` ABI surface for sockets, timers, thread/sync, and package file/config access.
 - `BootInfo` and diagnostics/panic formatting have host tests.
-- `scripts/run-baseline-evidence.ps1` saves build, host-test, naming guard, QEMU dry-run, qcow2 intent, and libvirt intent logs under `artifacts/logs/`, with workload-profile propagation now wired through the QEMU, qcow2, and libvirt host-tool lanes. Baseline and CI smoke summaries now record qemu-img discovery and qcow2 conversion intent so missing host conversion tooling is visible before real qcow2 smoke attempts.
+- `scripts/run-baseline-evidence.ps1` saves explicit solution-build,
+  host-test-build, no-build host execution, naming guard, QEMU dry-run, qcow2
+  intent, libvirt intent, diff-check, and status logs under a fresh
+  `artifacts/logs/` directory. It rejects stale/nonempty evidence roots and
+  will not pass unless the host log has exactly one `TEST_PASS host.tests` and
+  no terminal host failure. Workload-profile propagation remains wired through
+  build, QEMU, qcow2, and libvirt host-tool lanes. Baseline and CI summaries
+  record qemu-img discovery and qcow2 conversion intent so missing host
+  conversion tooling is visible before real qcow2 smoke attempts.
 - `scripts/run-ci-smoke.ps1` now records separate dry-run artifact lanes for the `app-args`, `app-exit`, `cctor-preflight`, `cctor-work-items`, `fetch-http`, `fetch-http-endpoint`, `http-static-tcp-response`, `manifest-env`, `nativeaot-heap`, and `pal-export` QEMU marker presets, including per-lane command, log, serial-log, summary-log, and marker-preset metadata. These lanes prove only the CI artifact contract and required-marker wiring. They are not real QEMU boot, native app argument-vector materialization, guest app-exit, class-constructor execution, NativeAOT heap bootstrap, PAL export consumption, NativeAOT runtime-helper completion, FetchApp, manifest loading from disk, process environment materialization, networking, HTTP GET, HTTP static TCP response, hosted .NET, Minimal API, or Kestrel evidence.
 - `scripts/build-efi-shell.ps1` publishes the no-stdlib EFI shell and stages `artifacts/efi/BOOTX64.EFI`.
 
@@ -533,7 +551,7 @@ Hardware fault diagnostics, allocator-owned mutable free-list installation from 
 Current tests passed:
 
 ```powershell
-dotnet build .\OS.slnx --nologo -m:1
+dotnet build .\CLROS.slnx --nologo -m:1
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build *> .\artifacts\logs\host-tests-integrated-177-183.log
 .\scripts\run-qemu-smoke.ps1 -DryRun
@@ -982,5 +1000,3 @@ The `kestrel.smoke.package.v0` contract is documentation evidence only. It defin
 2. Add post-firmware diagnostic output paths before a real `ExitBootServices` probe.
 3. Start diagnostics-first IDT/fault panic infrastructure after post-UEFI diagnostics requirements are represented by tests.
 4. Add libvirt real boot once local raw/qcow2 QEMU smoke remains stable.
-
-

@@ -394,7 +394,7 @@ internal static class NativeAotHelperLedgerTests
     private static string[] ExtractRuntimeExportSymbols()
     {
         string runtimeSource = File.ReadAllText(
-            Path.Combine(FindRepositoryRoot(), "src", "OS", "Runtime", "MinimalRuntime.cs"));
+            Path.Combine(HostToolProcess.FindRepositoryRoot(), "src", "OS", "Runtime", "MinimalRuntime.cs"));
         List<string> symbols = new List<string>();
         const string marker = "[RuntimeExport(\"";
         int searchStart = 0;
@@ -419,22 +419,6 @@ internal static class NativeAotHelperLedgerTests
         }
 
         return symbols.ToArray();
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "OS.slnx")))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Could not find repository root containing OS.slnx.");
     }
 
     private static void ExpectEqual(string scenario, int expected, int actual)

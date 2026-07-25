@@ -12,11 +12,11 @@ This is an EFI application smoke, not a complete OS boot. It proves OVMF can loa
 - `tools/OS.QemuRunner` accepts `--disk-format raw|qcow2`, defaults to `raw`, and passes the selected format into the QEMU ESP drive argument.
 - `tools/OS.QemuRunner` accepts `--workload-profile SingleMinimalApi|MultiMinimalApi`, defaults to `SingleMinimalApi` for direct CLI runs, and emits `WORKLOAD_PROFILE <value>` in dry-run, real-run console output, and real-run summary logs. Scripts still pass the selected workload profile explicitly.
 - `tools/OS.QemuRunner` discovers QEMU and OVMF from explicit arguments, environment variables, and common install paths.
-- Real mode fails with machine-readable reasons for missing image, missing QEMU, missing OVMF, timeout, or missing serial marker.
+- Real mode fails with machine-readable reasons for missing image, missing QEMU, missing OVMF, timeout, missing serial marker, `OS_SMOKE_FAIL`, any `TEST_FAIL ...` marker, conflicting terminal state, cleanup failure, or a spontaneous nonzero QEMU exit.
 - `scripts/run-qemu-smoke.ps1` preserves dry-run behavior without requiring QEMU, OVMF, or an image. Real mode now runs a script-level host preflight before optional EFI/image build and before launching `OS.QemuRunner`. The preflight resolves QEMU and OVMF, emits `TEST_START qemu.smoke.preflight`, `QEMU_SCRIPT_PREFLIGHT_QEMU`, `QEMU_SCRIPT_PREFLIGHT_OVMF`, and `TEST_PASS qemu.smoke.preflight`, or fails early with `TEST_FAIL qemu.smoke qemu_not_found` or `TEST_FAIL qemu.smoke ovmf_not_found`.
 - Before launching the runner in real mode, `scripts/run-qemu-smoke.ps1` validates the selected image artifact and disk format, emits `QEMU_SCRIPT_PREFLIGHT_IMAGE` and `QEMU_SCRIPT_PREFLIGHT_DISK_FORMAT`, and fails with `TEST_FAIL qemu.smoke image_not_found`, `image_empty`, or `disk_format_mismatch` when the artifact cannot be used.
-- The runner polls the serial log while QEMU runs and terminates QEMU after all required markers appear. If an HTTP probe is configured, the runner keeps QEMU alive until the probe completes.
-- `tools/OS.QemuRunner` accepts repeatable `--require-marker <marker>` arguments. If none are supplied, the required marker remains `OS_SMOKE_PASS`.
+- The runner polls the serial log while QEMU runs and terminates QEMU after all required markers appear. The boot timeout is a hard deadline checked before marker/drain completion on every poll. If an HTTP probe is configured, the runner keeps QEMU alive until the probe completes under the probe's separately bounded timeout.
+- `tools/OS.QemuRunner` always requires the baseline markers `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and `OS_SMOKE_PASS`. Repeatable `--require-marker <marker>` arguments append requirements; they cannot replace the baseline or remove the success terminal.
 - `tools/OS.QemuRunner` accepts repeatable `--marker-preset baseline|acpi|app-args|app-exit|app-lifecycle|app-selection|cctor-preflight|cctor-work-items|diagnostics|fetch-http|fetch-http-endpoint|fetch-http-tcp-exchange|http-static-response|http-static-tcp-response|manifest-env|nativeaot-heap|pal-export|uefi-gone|virtio-rx-tcp-dispatch` arguments. Presets append opt-in required serial markers for probe images without changing default smoke behavior.
 - The `acpi` marker preset requires `ACPI_RSDP_SNAPSHOT_READY`, `ACPI_RSDP_VALIDATED`, `ACPI_ROOT_SDT_SNAPSHOT_READY`, `ACPI_ROOT_SDT_VALIDATED`, and `ACPI_MCFG_DISCOVERY_READY` in addition to `OS_SMOKE_PASS`, and enforces that five-marker ACPI sequence in serial order.
 - The `app-args` marker preset requires `APP_ARGS_VECTOR_READY` in addition to the baseline boot markers. It is targeted contract tooling for future native app argument-vector smoke images and does not change default smoke behavior.
@@ -36,9 +36,48 @@ This is an EFI application smoke, not a complete OS boot. It proves OVMF can loa
 - The `nativeaot-heap` marker preset requires `NATIVEAOT_HEAP_BOOTSTRAP_READY` in addition to the baseline boot markers. It is targeted contract tooling for future NativeAOT heap-bootstrap smoke images and does not change default smoke behavior.
 - The `pal-export` marker preset requires `PAL_EXPORT_CATALOG_READY` in addition to the baseline boot markers. It is targeted contract tooling for future PAL export smoke images and does not change default smoke behavior.
 - The `uefi-gone` marker preset requires `UEFI_GONE_SIM_START`, `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, and `UEFI_GONE_SIM_PASS` in addition to `OS_SMOKE_PASS`.
-- `tools/OS.QemuRunner` accepts repeatable `--forbid-marker <marker>` arguments. Forbidden markers are checked independently from required markers and fail the smoke with `OS_SMOKE_FAIL forbidden-marker=<marker>` plus `TEST_FAIL qemu.smoke forbidden_marker marker=<marker>`.
+- `tools/OS.QemuRunner` forbids `OS_SMOKE_FAIL` and `TEST_FAIL` by default and accepts repeatable `--forbid-marker <marker>` arguments that append further exclusions. Exact marker or `marker + " " + metadata` matching makes every `TEST_FAIL <name> ...` line fatal. Forbidden markers are checked independently from required markers and fail the smoke with `OS_SMOKE_FAIL forbidden-marker=<marker>` plus `TEST_FAIL qemu.smoke forbidden_marker marker=<marker>`.
 - `tools/OS.QemuRunner` accepts optional `--summary-log <path>` for real-mode runs. The summary is best-effort; write failures emit `SUMMARY_LOG_WRITE_FAILED ...` without changing the smoke exit code.
+- Runner option validation occurs before any summary or serial artifact can be written and is repeated after QEMU/OVMF discovery. Canonical image, requested/resolved QEMU, requested/resolved OVMF, serial-log, and summary-log paths must be distinct, including case-insensitive aliases on Windows, so failure reporting cannot overwrite a tool, firmware, captured log, or input artifact.
+- QEMU output is inherited rather than accumulated in unbounded redirected strings. Every post-launch path has a process-cleanup `finally`; runner-requested tree termination waits at most two seconds and a failed bounded cleanup is a smoke failure. The classifier records whether a kill was actually issued, rather than merely intended. `QEMU_PROCESS_RESULT disposition=<...> exitCode=<...>` therefore distinguishes runner termination, an exit observed before a kill, and cleanup failure; a spontaneous nonzero QEMU exit fails even when valid markers were emitted first.
 - Real-mode summary files use stable fields: `QEMU_SMOKE_STATUS`, `IMAGE_ARTIFACT`, `SERIAL_LOG`, `WORKLOAD_PROFILE`, `REQUIRED_MARKERS`, `ORDERED_MARKERS`, `FORBIDDEN_MARKERS`, `OBSERVED_MARKER`, `APP_EXIT_RESULT`, `APP_EXIT_MALFORMED`, `MISSING_MARKERS`, `OUT_OF_ORDER_MARKERS`, `FORBIDDEN_MARKER_HIT`, `FAIL_REASON`, `SERIAL_TAIL_LIMIT`, and `SERIAL_TAIL_LINE`.
+- `EvidenceManifestWriter` is a host-side deterministic JSON evidence writer
+  for a completed run. It queries the supplied Git repository for `HEAD` and
+  porcelain dirty state, compares those independently derived values with the
+  expected commit/dirty assertions, captures and verifies all artifact bytes,
+  then queries Git again before serialization. The manifest records the
+  derived source state, UTC start/completion timestamps, command, exit
+  classification, sorted tool versions, sorted artifact/config/serial-log
+  paths with nonzero byte lengths and verified SHA-256 values, plus required,
+  forbidden, and serial-derived observed markers.
+- The `evidence-manifest` CLI requires `--repository`,
+  `--expected-source-commit`, and `--expected-source-dirty`; it does not accept
+  a caller-supplied observed source commit or dirty flag. It also requires
+  `--output`, `--started-utc`, `--completed-utc`, `--command-file`,
+  `--exit-code`, `--classification`, at least one `--tool`, and exactly one
+  artifact in each required role (`config`, `efi`, `image`, and
+  `serial-log`). Repeatable `--require-marker`, `--forbid-marker`, and
+  `--observed-marker` values are claims checked against the serial-log bytes,
+  not independent evidence.
+- The serial log is read once under the same handle used to calculate its
+  SHA-256, decoded as strict UTF-8, and parsed for marker lines. Required and
+  forbidden marker claims are evaluated directly against that content;
+  caller-reported observed marker lines must occur exactly in it; and the
+  manifest writes marker lines derived from it. A passing record additionally
+  requires exit code zero, `OS_SMOKE_PASS`, every required marker, no forbidden
+  marker, no `TEST_FAIL`, no `OS_SMOKE_FAIL`, and no conflicting terminal
+  markers. Failed and timed-out records remain preservable with nonzero exit
+  codes and do not become passing evidence.
+- The evidence writer rejects missing/default fields, malformed commit/hash
+  values, non-UTC or reversed timestamps, a missing/non-Git repository,
+  expected-versus-derived commit or dirty-state mismatches, source changes
+  during capture, unreadable/empty inputs, artifact hash mismatches, duplicate
+  markers/artifact names, missing or ambiguous required artifact roles,
+  output/input overlap, marker claims not present in the hashed serial log,
+  inconsistent pass records, invalid serial UTF-8, and simultaneous
+  `OS_SMOKE_PASS`/`OS_SMOKE_FAIL`. Successful output remains deterministic
+  UTF-8 without BOM, is installed through an atomic temporary-file
+  replacement, and returns the manifest SHA-256.
 - The summary includes a bounded tail of the serial log for triage. It records
   the last eight non-empty serial lines, trimming each line to 240 characters.
   This is diagnostic context for pass/fail analysis only; it does not expand
@@ -69,7 +108,12 @@ This is an EFI application smoke, not a complete OS boot. It proves OVMF can loa
 - `scripts/run-qemu-smoke.ps1` accepts `-WorkloadProfile SingleMinimalApi|MultiMinimalApi`, validates it before invoking tools, passes it to MSBuild-backed `dotnet run` calls as `/p:OSWorkloadProfile=<value>`, and passes it to `OS.QemuRunner` as `--workload-profile <value>`.
 - `scripts/run-qemu-smoke.ps1` defaults to `artifacts/efi/BOOTX64.EFI`, builds `artifacts/images/os.raw`, captures serial output to `artifacts/logs/qemu-smoke.log`, writes `artifacts/logs/qemu-smoke.summary.log`, and forwards one or more `-RequireMarker` values to the runner.
 - `scripts/run-qemu-smoke.ps1` accepts `-DiskFormat raw|qcow2`, defaults to `raw`, validates the value before invoking the runner, and supports comma-delimited marker lists in script-level `-RequireMarker` and `-ForbidMarker` arguments.
-- Script defaults require `OS_SMOKE_PASS`, `UEFI_MEMORY_MAP_OWNED`, `BOOT_HANDOFF_READY`, `UEFI_MEMORY_MAP_NORMALIZED`, `BOOT_MEMORY_MAP_ACCEPTED`, `BOOT_MEMORY_REGIONS_READY`, `BOOT_MEMORY_REGION_COUNT`, `BOOT_ACPI_RSDP_HANDOFF_READY`, and `UEFI_ACPI_RSDP_READY`.
+- Script defaults require `OS_BOOT_OK`, `TEST_PASS boot.sequence`,
+  `OS_SMOKE_PASS`, `UEFI_MEMORY_MAP_OWNED`, `BOOT_HANDOFF_READY`,
+  `UEFI_MEMORY_MAP_NORMALIZED`, `BOOT_MEMORY_MAP_ACCEPTED`,
+  `BOOT_MEMORY_REGIONS_READY`, `BOOT_MEMORY_REGION_COUNT`,
+  `BOOT_PAGE_ALLOCATOR_READY`, `BOOT_ACPI_RSDP_HANDOFF_READY`, and
+  `UEFI_ACPI_RSDP_READY`.
 - `scripts/run-qemu-smoke.ps1` accepts `-MarkerPreset baseline|acpi|app-args|app-exit|app-lifecycle|app-selection|cctor-preflight|cctor-work-items|diagnostics|fetch-http|fetch-http-endpoint|fetch-http-tcp-exchange|http-static-response|http-static-tcp-response|manifest-env|nativeaot-heap|pal-export|uefi-gone|virtio-rx-tcp-dispatch` and forwards the selected preset to the runner. It supports repeated or comma-delimited preset values and emits `QEMU_MARKER_PRESETS <list>` before runner dry-run output.
 - `app-args` also accepts aliases `app_args`, `app-arguments`, and `native-app-args`; these normalize to the canonical `app-args` preset before the runner receives them.
 - `app-lifecycle` also accepts aliases `app_lifecycle`, `native-app-lifecycle`, and `applifecycle`; these normalize to the canonical `app-lifecycle` preset before the runner receives them.
@@ -87,7 +131,15 @@ This is an EFI application smoke, not a complete OS boot. It proves OVMF can loa
 - Passing `-ForbidMarker` adds negative marker assertions without changing required marker behavior. Use it to prove disabled firmware probes remain inactive on the default smoke path.
 - `scripts/build-efi-shell.ps1 -EnableUefiGoneSimulationProbe` builds an explicit simulation artifact that emits `UEFI_GONE_SIM_START`, `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, and `UEFI_GONE_SIM_PASS`.
 - `scripts/build-efi-shell.ps1 -EnableAcpiPhysicalDiscoveryProbe` builds an explicit ACPI physical discovery artifact that emits the five `ACPI_*` validation markers before the normal boot marker plan.
-- `scripts/run-baseline-evidence.ps1` saves QEMU dry-run logs with the rest of the baseline evidence, passes `-WorkloadProfile` through its QEMU, qcow2, and libvirt intent lanes, and records `qemu-img` discovery before the qcow2 lane.
+- `scripts/run-baseline-evidence.ps1` requires a new or empty evidence
+  directory, runs the solution build, explicit host-test build, `--no-build`
+  host execution, naming/source firewall, QEMU dry runs, qcow2/libvirt intent,
+  `git diff --check`, and `git status --short`, and records `qemu-img`
+  discovery before the qcow2 lane. An executed summary is accepted only when
+  the fresh host log contains exactly one `TEST_PASS host.tests`, contains no
+  terminal `TEST_FAIL host.tests`, and round-trips to a consistent summary.
+  `-WorkloadProfile` remains propagated through the build, QEMU, qcow2, and
+  libvirt lanes.
 - `scripts/run-baseline-evidence.ps1 -PlanOnly` writes a plan-only `os.baseline.evidence.summary.v0` summary without executing build, QEMU, qcow2, or libvirt commands. The summary records stable artifact fields for `baseline.qemu.diagnostics.dryrun`, `baseline.qemu.qcow2.*`, and libvirt intent lanes, including serial logs, summary logs, qcow2 image/disk-format intent, `qemuImgDiscovery`, `qcow2ConversionIntent`, libvirt domain XML, and the diagnostics marker preset.
 - `scripts/run-ci-smoke.ps1` creates a timestamped `artifacts/logs/ci-smoke-*` evidence directory, writes `ci-smoke.artifacts.json` and `ci-smoke.summary.json`, captures managed build and host-test logs, captures the default QEMU dry-run log, captures a native-app marker dry-run, captures diagnostics, app-args, app-exit, cctor-preflight, cctor-work-items, fetch-http, fetch-http-endpoint, fetch-http-tcp-exchange, http-static-response, http-static-tcp-response, virtio-rx-tcp-dispatch, manifest-env, nativeaot-heap, and pal-export marker-preset dry-run lanes, captures qcow2 smoke intent through `scripts/run-qemu-qcow2-smoke.ps1 -DryRun`, records `qemu-img` discovery and qcow2 conversion intent for the qcow2 lane, records libvirt dry-run/missing-tool intent artifacts, and records a `git diff --check` lane. These CI marker-preset lanes are artifact-contract dry-runs only and do not launch real QEMU.
 - `scripts/run-ci-smoke.ps1` passes `-WorkloadProfile` through QEMU, qcow2,
@@ -625,6 +677,24 @@ If `-OvmfCode` is omitted, the runner checks `OS_OVMF_CODE`, `OVMF_CODE`, `QEMU_
 
 Host tests validate the extracted QEMU command builder and runner contracts through dry-run output, including base command construction, serial log arguments, OVMF pflash arguments, default/custom required marker reporting, the script-level native app marker preset, currently supported virtio-net arguments, default raw disk format, qcow2 disk format, invalid disk format arguments, preflight pass/fail validation for raw image artifacts, missing images, and raw/qcow2 format mismatches, HTTP probe dry-run output, invalid HTTP probe arguments, real-mode local-loopback HTTP probe pass/fail/timeout behavior, app-exit summary output, and missing-image failure. Script-level host tests now also invoke `scripts/run-qemu-smoke.ps1` with fake paths to prove dry-run remains QEMU-free and real mode fails before the runner for missing QEMU, missing OVMF, and missing images. The QEMU runner CLI tests execute the already-built `tools/OS.QemuRunner/bin/<configuration>/net10.0/OS.QemuRunner.dll` with `dotnet <dll>`, not nested `dotnet run --project`. Host tests also validate `--summary-log` without requiring real QEMU by using deterministic fake QEMU command scripts that write serial markers, including app-exit summary artifact coverage. Focused parser tests validate that `SerialMarkerSummary` passes required markers, reports missing markers, rejects marker-substring false positives, reports forbidden markers, preserves observed marker order including `ACPI_` lines, reports ordered marker failures, observes `APP_EXIT` marker lines, extracts app-exit status records, reports absent app-exit status, reports malformed app-exit markers with reasons, and keeps required-marker behavior unchanged. QEMU preset host tests now cover the `app-args` preset and aliases `app_args`, `app-arguments`, and `native-app-args`, the `app-lifecycle` preset and aliases `app_lifecycle`, `native-app-lifecycle`, and `applifecycle`, the `fetch-http-endpoint` preset and aliases `fetch_endpoint`, `fetchhttp-endpoint`, and `fetchapp-http-endpoint`, the `fetch-http-tcp-exchange` preset and aliases `fetch_http_tcp_exchange`, `fetch-http-exchange`, and `fetchapp-http-tcp-exchange`, the `http-static-response` preset and aliases `http_static_response`, `tiny-http-static`, and `tinyhttp-static`, the `http-static-tcp-response` preset and aliases `http_static_tcp_response`, `tiny-http-tcp-static`, and `tinyhttp-tcp-static`, the `virtio-rx-tcp-dispatch` preset and aliases `virtio_rx_tcp_dispatch`, `virtio-net-rx-tcp-dispatch`, and `virtionet-rx-tcp-dispatch`, the `cctor-work-items` preset and aliases `cctor_work_items`, `cctor-workitem`, and `cctor-work-item`, and the `manifest-env` preset and aliases `native-manifest-env`, `manifest_environment`, and `manifestenv`, without claiming live argument-vector materialization, native app lifecycle execution, FetchApp, networking, TCP exchange, HTTP static response service, HTTP static TCP response service, virtio-net RX/TCP dispatch, manifest loading, environment materialization, app execution, or class-constructor execution proof. CI smoke host tests validate that `scripts/run-ci-smoke.ps1 -DryRun` writes the artifact plan and includes planned serial, summary, image, marker preset, and domain XML artifacts for raw QEMU dry-run, native-app marker dry-run, diagnostics marker-preset dry-run, app-args marker-preset dry-run, app-exit marker-preset dry-run, cctor-preflight marker-preset dry-run, fetch-http marker-preset dry-run, fetch-http-endpoint marker-preset dry-run, fetch-http-tcp-exchange marker-preset dry-run, http-static-response marker-preset dry-run, http-static-tcp-response marker-preset dry-run, virtio-rx-tcp-dispatch marker-preset dry-run, qcow2 smoke intent, and libvirt smoke intent. CI smoke tests also cover found and missing fake `qemu-img` discovery paths, including `CI_SMOKE_QEMU_IMG_DISCOVERY`, top-level `qemuImgDiscovery`/`qcow2ConversionIntent`, and matching qcow2-step fields without executing conversion. The executed CI failure-path test also verifies the diagnostics dry-run log contains `QEMU_MARKER_PRESETS diagnostics`, `MARKER_PRESETS diagnostics`, `DIAGNOSTICS_CHAIN_READY`, `DIAGNOSTIC_STUB_INVOCATION_READY`, and the ordered diagnostics marker chain; verifies the app-args dry-run log contains `QEMU_MARKER_PRESETS app-args`, `MARKER_PRESETS app-args`, and `APP_ARGS_VECTOR_READY`; verifies the app-exit dry-run log contains `QEMU_MARKER_PRESETS app-exit`, `MARKER_PRESETS app-exit`, and `APP_EXIT_OBSERVER_READY`; verifies the cctor-preflight dry-run log contains `QEMU_MARKER_PRESETS cctor-preflight`, `MARKER_PRESETS cctor-preflight`, and `NATIVEAOT_CCTOR_RUNNER_PREFLIGHT_READY`; verifies the fetch-http dry-run log contains `QEMU_MARKER_PRESETS fetch-http`, `MARKER_PRESETS fetch-http`, and `FETCH_APP_HTTP_COMPLETION_READY`; verifies the fetch-http-endpoint dry-run log contains `QEMU_MARKER_PRESETS fetch-http-endpoint`, `MARKER_PRESETS fetch-http-endpoint`, and `FETCHAPP_HTTP_ENDPOINT_READY`; verifies the fetch-http-tcp-exchange dry-run log contains `QEMU_MARKER_PRESETS fetch-http-tcp-exchange`, `MARKER_PRESETS fetch-http-tcp-exchange`, and `FETCH_APP_HTTP_TCP_EXCHANGE_READY`; verifies the http-static-response dry-run log contains `QEMU_MARKER_PRESETS http-static-response`, `MARKER_PRESETS http-static-response`, `HTTP_STATIC_RESPONSE_READY`, and `HTTP_STATIC_RESPONSE`; verifies the http-static-tcp-response dry-run log contains `QEMU_MARKER_PRESETS http-static-tcp-response`, `MARKER_PRESETS http-static-tcp-response`, `HTTP_STATIC_TCP_RESPONSE_READY`, and `HTTP_STATIC_TCP_RESPONSE`; verifies the virtio-rx-tcp-dispatch dry-run log contains `QEMU_MARKER_PRESETS virtio-rx-tcp-dispatch`, `MARKER_PRESETS virtio-rx-tcp-dispatch`, `VIRTIO_NET_RX_TCP_DISPATCH_READY`, and `VIRTIO_NET_RX_TCP_DISPATCH`; and verifies the execute summary records a passing `ci.smoke.git.diffcheck` lane. Baseline evidence script host tests verify qcow2 and libvirt intent lanes keep workload-profile propagation wired, execute `run-baseline-evidence.ps1 -PlanOnly` to validate the artifact-summary shape for diagnostics, qcow2, and libvirt intent lanes, and cover found/missing fake `qemu-img` discovery paths without executing conversion.
 
+Baseline evidence host tests also verify the explicit host build/no-build and
+Git lanes, terminal-marker enforcement, overall success marker, and rejection
+of a nonempty log root so stale output cannot be appended into a new record.
+The script's `-SelfTest` mode dynamically rejects a missing host log, duplicate
+pass terminals, a pass/fail conflict, a summary status mismatch, and malformed
+summary JSON without launching builds or QEMU.
+
+Evidence-manifest host tests emit `TEST_START evidence.manifest` and
+`TEST_PASS evidence.manifest`. They cover deterministic byte-for-byte output,
+UTF-8 without BOM, sorted fields, directly derived clean and dirty Git state,
+verified nonempty artifact/config/serial hashes, failed- and timed-out-run
+recording, CLI repository-state derivation, missing/malformed fields,
+missing/unreadable/empty inputs, malformed/stale/mismatched hashes, stale commit
+and dirty-state mismatches, forged observed-marker claims, required/forbidden
+marker checks against hashed serial bytes, strict serial UTF-8, conflicting
+terminal markers, inconsistent pass records, invalid timestamps, and output
+overlap with an input.
+
 Host tool project-boundary tests emit:
 
 ```text
@@ -688,7 +758,10 @@ QEMU evidence from 2026-05-21:
 - OVMF path: `C:\Program Files\qemu\share\edk2-x86_64-code.fd`.
 - Real smoke emitted `TEST_PASS qemu.smoke`.
 - Simulation smoke emitted `TEST_PASS qemu.smoke` with the `uefi-gone` marker preset.
-- Summary artifacts are supported by the runner, but the latest documented real QEMU evidence predates the summary-log field. Re-run `scripts/run-qemu-smoke.ps1` to produce `artifacts/logs/qemu-smoke.summary.log` on this host.
+- This 2026-05-21 record predates the summary-log field. The later dated
+  entries below preserve summary artifacts; current evidence is recorded in
+  `docs/completion-gates.md` and the latest `done/stepNN.md`, not inferred from
+  this historical bullet.
 - `artifacts/logs/qemu-smoke.log` contains:
   - `TEST_START efi.main`
   - `EFI_CONSOLE_READY`
@@ -735,6 +808,76 @@ QEMU evidence from 2026-05-21:
 - QEMU launch uses `-display none`; serial output is the evidence channel.
 - The first smoke exits by terminating QEMU after the marker is observed because the EFI app returns to firmware UI after `EfiMain`.
 - OVMF discovery is best-effort. Pass `-OvmfCode <path>` for deterministic runs.
+
+### Streaming serial-marker state machine
+
+`tools/OS.QemuRunner/SerialMarkerStateMachine.cs` is the bounded streaming
+parser contract for M00-019. It accepts arbitrary `ReadOnlySpan<byte>` chunks,
+retains an incomplete line across calls, recognizes marker lines only at line
+boundaries, and supports LF, CRLF, and a final unterminated complete line.
+Required and forbidden markers use the same exact-line or
+`marker + " " + metadata` shape as the snapshot summary parser.
+
+The parser has explicit line and total-byte capacities. Overflow, strict
+invalid-byte rejection, timeout, partial marker EOF, missing required markers,
+missing success terminal, failure terminals, duplicate terminals, conflicting
+success/failure terminals, and forbidden markers are distinct completion
+statuses. A successful result always requires exactly one `OS_SMOKE_PASS`,
+even if callers append custom required markers. Forbidden markers take
+precedence over terminal conflicts, timeout, partial EOF, and missing-marker
+classification after structural parser failures have been ruled out. Default
+result structs never report success.
+
+Marker text is printable ASCII. The default byte-noise policy treats a line
+containing control or non-ASCII bytes as opaque noise, counts the invalid bytes
+and line, and never recognizes a marker embedded in that line. This permits
+firmware escape/binary noise without accepting a corrupted marker. If such a
+noise line exceeds the ordinary line buffer, the parser stays in a bounded
+discard-until-newline state; it does not reset mid-line and therefore cannot
+accept a marker hidden after the invalid prefix. The independent total-byte
+capacity still terminates an unbounded stream. The strict policy rejects the
+first invalid byte and finalizes as `InvalidByteSequence`.
+
+`tests/OS.HostTests/SerialMarkerStateMachineTests.cs` feeds required and
+forbidden markers across every possible byte split and also covers one-byte and
+irregular chunks, surrounding noise, CRLF/LF, substring lookalikes, partial
+EOF, final unterminated markers, duplicate/conflicting terminals, forbidden
+precedence, timeout, invalid-byte policies, line/total capacity exhaustion,
+configuration bounds, default results, and repeated finalization. The group
+emits:
+
+```text
+TEST_START serial.marker.state_machine
+TEST_PASS serial.marker.state_machine
+TEST_FAIL serial.marker.state_machine <reason>
+```
+
+`OS.QemuRunner/Program.cs` feeds only newly appended serial-log bytes into this
+state machine while QEMU runs. The streaming result now controls early required
+and forbidden marker detection and rejects capacity exhaustion, invalid bytes
+under the strict policy, duplicate or conflicting terminals, a failure
+terminal, serial-log truncation/read failure, and a partial marker at EOF before
+the existing snapshot summary can report success. The runner emits
+`SERIAL_MARKER_STREAM status=<status> terminal=<state> ...` for the completed
+stream. After the required markers first appear, a non-HTTP smoke keeps reading
+until the serial stream is quiet for 750 milliseconds (or QEMU exits) before it
+terminates QEMU. That bounded drain catches a delayed duplicate or failure
+terminal; the smoke can pass only when both the byte-stream result and final
+text summary agree. The final serial read is capped at the same 16 MiB total
+capacity as the streaming parser before allocation. `SerialMarkerSummary`
+remains the bounded final-reporting layer for observed lines, marker ordering,
+application-exit records, and the serial tail.
+
+The live integration is host-tested with fake QEMU processes for passing,
+custom-marker-without-terminal rejection, delayed duplicate terminals,
+generic `TEST_FAIL` rejection, spontaneous nonzero exit both immediately and
+inside the drain window, hard-timeout precedence over late markers, pre-launch
+invalid-marker rejection, explicit QEMU/output alias rejection, and
+auto-discovered OVMF/output alias rejection with unchanged input bytes. The
+state-machine group supplies the exhaustive chunk-boundary and malformed-input
+cases. These tests prove runner/parser behavior only. A real QEMU run is still
+required to prove that a guest emitted the required markers, and the markers
+prove only the completion boundary defined by the corresponding gate.
 
 ## Next Steps
 

@@ -1648,7 +1648,7 @@ internal static class ImageBuilderTests
 
     private static ToolResult RunKestrelPublishScript(string outputRoot)
     {
-        string repositoryRoot = FindRepositoryRoot();
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string scriptPath = Path.Combine(
             repositoryRoot,
             "apps",
@@ -2638,7 +2638,7 @@ internal static class ImageBuilderTests
 
     private static ToolResult RunImageBuilder(params string[] args)
     {
-        string repositoryRoot = FindRepositoryRoot();
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string toolPath = GetBuiltImageBuilderPath(repositoryRoot);
         if (!File.Exists(toolPath))
         {
@@ -2714,22 +2714,6 @@ internal static class ImageBuilderTests
     {
         DirectoryInfo directory = new DirectoryInfo(AppContext.BaseDirectory);
         return string.IsNullOrWhiteSpace(directory.Name) ? "net10.0" : directory.Name;
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "OS.slnx")))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new InvalidOperationException("Could not locate repository root.");
     }
 
     private static byte[] CreateEfiBytes()

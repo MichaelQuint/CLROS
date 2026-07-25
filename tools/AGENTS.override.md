@@ -74,7 +74,7 @@ Add tests in `tests/OS.HostTests` for every manifest behavior change.
 Run the relevant host tests:
 
 ```powershell
-dotnet build .\OS.slnx --nologo -m:1
+dotnet build .\CLROS.slnx --nologo -m:1
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 .\scripts\run-qemu-smoke.ps1 -DryRun
 ```

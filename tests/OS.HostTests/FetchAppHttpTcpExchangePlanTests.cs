@@ -886,18 +886,7 @@ internal static class FetchAppHttpTcpExchangePlanTests
 
     private static string RepositoryRoot()
     {
-        string? directory = AppContext.BaseDirectory;
-        while (directory is not null)
-        {
-            if (File.Exists(Path.Combine(directory, "OS.slnx")))
-            {
-                return directory;
-            }
-
-            directory = Directory.GetParent(directory)?.FullName;
-        }
-
-        throw new InvalidOperationException("Unable to locate repository root.");
+        return HostToolProcess.FindRepositoryRoot();
     }
 
     private static MacAddress LocalMac()

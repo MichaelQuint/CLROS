@@ -79,7 +79,7 @@ Evidence from 2026-05-24 for libvirt image-format preflight:
 
 Evidence from 2026-05-22:
 
-- `dotnet build .\OS.slnx --nologo -m:1` built `OS.LibvirtRunner.dll` with 0 warnings/errors.
+- `dotnet build .\CLROS.slnx --nologo -m:1` built `OS.LibvirtRunner.dll` with 0 warnings/errors.
 - The integrated host-test run emitted `TEST_PASS libvirt generate-xml emits deterministic network-none XML`, `TEST_PASS libvirt --dry-run emits OVMF and default-network XML`, `TEST_PASS libvirt diagnostics emit marker requirements`, and `TEST_PASS libvirt validate-paths rejects missing image` through the built-DLL process path.
 
 Evidence from 2026-05-22 for issue #302:

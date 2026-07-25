@@ -1,4 +1,4 @@
-# OS Claude Agent Guide
+# CLROS Claude Agent Guide
 
 This file is a compact guide for Claude agents working in this repository. The
 root operating contract remains `AGENTS.md`; use this file as a quick handoff,
@@ -6,15 +6,18 @@ not as a replacement for canonical repo docs.
 
 ## Project Identity
 
-Project name is `OS`.
+Project name is `CLROS`.
 
-Do not call this project `SharpOS`. Reference repositories under `references/`
-are study material only; do not treat them as first-party architecture or source
-to copy.
+Do not call this project `OS` or `SharpOS`. `OS` remains the stable assembly,
+namespace, source-path, and `OSHost_*` ABI prefix. Reference repositories under
+`references/` are not drop-in first-party architecture. Selective source
+adaptation is allowed only under the provenance, permission, license, and
+file-hash rules in `references/AGENTS.override.md` and
+`docs/license-audit.md`.
 
-`OS` is a C#-first NativeAOT operating system targeting a minimal CloudReady
-single-workload appliance model. Hosted .NET 10 applications and ASP.NET
-Minimal API/Kestrel support are mandatory milestones, but they are not
+`CLROS` is a C#-first NativeAOT operating-system project targeting a minimal
+CloudReady single-workload appliance model. Hosted .NET 10 applications and
+ASP.NET Minimal API/Kestrel support are mandatory milestones, but they are not
 implemented yet.
 
 Do not claim hosted .NET, Kestrel, Azure/AWS readiness, cloud readiness,
@@ -85,7 +88,7 @@ claim boundaries.
 
 ## Workflow
 
-1. Start in `C:\Projects\OS`.
+1. Start in `C:\Projects\CLROS`.
 2. Run `git status --short`.
 3. Inspect code and docs before editing.
 4. Query live Gitea open issues before choosing work.
@@ -105,13 +108,13 @@ revert user or other-agent changes.
 Repository:
 
 ```text
-http://192.168.2.42:3000/michael.quint/OS
+http://localhost:3000/admin/CLROS
 ```
 
 API base:
 
 ```text
-http://192.168.2.42:3000/api/v1/repos/michael.quint/OS
+http://localhost:3000/api/v1/repos/admin/CLROS
 ```
 
 Use Basic Auth only from the active task context or secure environment. Do not
@@ -129,12 +132,12 @@ Issue hygiene:
 
 ## Evidence Commands
 
-Common commands from `C:\Projects\OS`:
+Common commands from `C:\Projects\CLROS`:
 
 ```powershell
 dotnet build .\tests\OS.HostTests\OS.HostTests.csproj --nologo
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
-dotnet build .\OS.slnx --nologo -m:1
+dotnet build .\CLROS.slnx --nologo -m:1
 .\scripts\check-naming.ps1
 .\scripts\run-qemu-smoke.ps1 -DryRun
 .\scripts\build-efi-shell.ps1

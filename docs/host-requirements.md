@@ -12,7 +12,9 @@ Required for all current host builds:
 
 - Windows 10 or Windows 11 x64.
 - PowerShell 5.1 or newer.
-- .NET SDK 10.0.300 or newer compatible .NET 10 SDK.
+- A stable .NET SDK in the `10.0.300` feature band. `global.json` requests
+  `10.0.300`, permits latest-patch roll-forward, and rejects prerelease SDKs;
+  the current host resolves that contract to `10.0.302`.
 - NuGet access to restore .NET 10 packages.
 
 Required for `scripts/build-efi-shell.ps1`:
@@ -69,7 +71,7 @@ Verify the .NET SDK:
 
 ```powershell
 dotnet --info
-dotnet build .\OS.slnx --nologo -m:1
+dotnet build .\CLROS.slnx --nologo -m:1
 ```
 
 Verify Visual Studio Build Tools are installed:
@@ -241,7 +243,7 @@ Minimum non-boot CI agent validation:
 
 ```powershell
 dotnet --info
-dotnet build .\OS.slnx --nologo -m:1
+dotnet build .\CLROS.slnx --nologo -m:1
 .\scripts\build-efi-shell.ps1 -PreflightOnly
 .\scripts\run-qemu-smoke.ps1 -DryRun
 .\scripts\run-ci-smoke.ps1 -DryRun
@@ -300,7 +302,7 @@ Linux/macOS hosts are not documented for the EFI publish path yet. A future cros
 Current host validation commands:
 
 ```powershell
-dotnet build .\OS.slnx --nologo -m:1
+dotnet build .\CLROS.slnx --nologo -m:1
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 .\scripts\check-naming.ps1
 .\scripts\run-qemu-smoke.ps1 -DryRun
@@ -309,7 +311,7 @@ dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 
 Current evidence from 2026-05-21:
 
-- `dotnet build .\OS.slnx --nologo -m:1` passed with 0 warnings and 0 errors.
+- `dotnet build .\CLROS.slnx --nologo -m:1` passed with 0 warnings and 0 errors.
 - Host tests emitted `TEST_PASS host.tests`.
 - Naming guard emitted `TEST_PASS naming.guard`.
 - QEMU dry-run emitted `TEST_PASS qemu.runner.dryrun`.

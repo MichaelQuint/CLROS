@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="img/clros_logo.png" alt="OS logo" width="500">
+  <img src="img/clros_logo.png" alt="CLROS logo" width="500">
 </p>
 
 <h1 align="center">CLROS</h1>
@@ -19,21 +19,10 @@
 
 ## Progress
 
-```text
-[############--------------------------------------] 24%
-```
-
-Progress is measured against the full product goal: a production-ready
-CloudReady C# NativeAOT operating system that can run on Azure Virtual Machines
-and AWS EC2/Nitro instances with first-class hosted .NET 10 Minimal API app
-support.
-
-The estimate is now **24%**. That reflects meaningful progress since the last
-checkpoint: the repository has moved beyond a bare bootstrap into a broad set of
-boot, diagnostics, PAL, storage, networking, image, app-model, EFI preflight,
-QEMU preflight, and dry-run CI smoke contracts with machine-readable evidence.
-The percentage is still conservative because most of that work is host-tested
-contract, planning, and workflow-scaffolding evidence, not live kernel behavior.
+Progress is gate-based; the repository does not publish a subjective completion
+percentage. The full goal is a production-ready CloudReady C# NativeAOT
+operating system that can run on Azure Virtual Machines and AWS EC2/Nitro
+instances with first-class hosted .NET 10 Minimal API app support.
 
 `docs/completion-gates.md` remains the source of truth for claims. As of this
 snapshot, only Gate 2 passes, and that pass is limited to the documented
@@ -47,7 +36,7 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 | Area | Current evidence |
 | --- | --- |
 | Build baseline | `CLROS.slnx` builds locally with .NET 10/C# 14.0 project settings. Host tests emit stable `TEST_START`, `TEST_PASS`, and `TEST_FAIL` markers. Source naming and source-firewall scripts exist. |
-| EFI boot artifact | `src/OS` publishes a minimal explicit no-stdlib NativeAOT EFI application. It is intentionally outside the normal managed solution. |
+| EFI boot artifact | `src/OS` publishes a minimal explicit no-stdlib NativeAOT EFI application. It is included in `CLROS.slnx` but retains stricter no-stdlib build rules. |
 | QEMU/OVMF smoke path | The raw GPT/FAT32 ESP image boots under QEMU/OVMF to firmware-visible markers including `OS_BOOT_OK` and `OS_SMOKE_PASS`. |
 | Boot ordering | `src/OS.Kernel/Boot/BootSequence.cs` is the boot-order source of truth. Host tests verify ordered boot phases and marker emission. |
 | UEFI handoff | The EFI path captures UEFI memory-map metadata, copies descriptor bytes into OS-owned storage, normalizes compact boot-region records, and carries ACPI RSDP provenance into the handoff. |
@@ -60,6 +49,7 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 | App model groundwork | Native app manifest parsing, package selection, payload header validation, executable mapping/planning, invocation metadata, lifecycle readiness, stdout/stderr log tables, and app status marker formatting are host-tested. |
 | Image tooling | Raw GPT/FAT32 image generation exists. QEMU smoke tooling, diagnostics marker presets, qcow2 conversion wrappers, libvirt intent/dry-run/preflight paths, baseline artifact summaries, and cloud-provider requirement docs are present. |
 | CI smoke scaffolding | A Gitea workflow skeleton and host-tested CI smoke wrapper dry-run path exist for Windows agents, including qemu-img discovery, baseline evidence planning, artifact upload metadata, and `git diff --check` coverage. Completion Gate 11 is guarded to remain failed until executed Gitea runner evidence is preserved. |
+| Recoverable backlog | `.gitea/backlog/clros-issues.json` preserves 16 milestones, 68 managed labels, 16 epics, and 303 small child issues. `scripts/sync-gitea-backlog.ps1` previews by default and idempotently synchronizes the local `admin/CLROS` tracker only with explicit `-Apply`. |
 | Documentation | Repository docs define the canonical architecture, host requirements, completion gates, boot flow, PAL boundary, Kestrel milestone, cloud-provider requirements, and immutable `done/stepNN.md` evidence history. |
 
 ## What Is Not Complete
@@ -68,7 +58,7 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 | --- | --- |
 | Real firmware transition | No live `ExitBootServices` transition has completed. Fresh-map and transition planning exist, but the real firmware shutdown path is still future work. |
 | Owned post-firmware diagnostics | COM1 and panic paths are host-tested/planned, but the live boot path does not yet own serial output after firmware services are gone. |
-| Allocator and paging | Boot memory-region materialization exists, but the live path does not yet install allocator-owned mutable state, configure page tables, enforce NX/W^X, or provide a real heap. |
+| Allocator and paging | The live EFI path initializes bounded static free-list state from conventional-memory records and emits `BOOT_PAGE_ALLOCATOR_READY`, but it does not yet subtract every reservation, execute a live allocation/free/coalesce cycle, configure page tables, enforce NX/W^X, or provide a managed heap. |
 | CPU fault handling | Descriptor and fault plans exist, but real IDT/GDT/TSS loading, handlers, register capture, and QEMU fault probes are not implemented. |
 | Runtime correctness | GC, exceptions, interface dispatch, reflection policy, thread/runtime helpers, and hosted-runtime integration are not complete. |
 | Scheduler and synchronization | Wait/event/timer mock tables exist, but there is no scheduler, blocking wait, thread parking, hardware timer interrupt path, ThreadPool, `Monitor`, or `Task` runtime support. |
@@ -82,7 +72,11 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 | Cloud provider proof | No Azure VM or AWS EC2/Nitro boot/import evidence exists. Local QEMU/OVMF evidence is not a cloud-provider claim. |
 | Production readiness | No production hardening, supervisor, app isolation, update story, release logging policy, or full security gate evidence exists. |
 
-## Completion Gate Snapshot
+## Informal Subsystem Summary
+
+This table is navigation context, not a second gate ledger. Its descriptive
+states do not override `docs/completion-gates.md`, where Gate 2 is `Pass` and
+every other gate is currently `Fail`.
 
 | Gate | Current state | Plain-language meaning |
 | --- | --- | --- |
@@ -151,7 +145,7 @@ OVMF/QEMU execution, captured serial logs, and expected markers.
 
 | Path | Purpose |
 | --- | --- |
-| `src/OS` | Explicit no-stdlib NativeAOT EFI shell project. It is intentionally outside `CLROS.slnx`. |
+| `src/OS` | Explicit no-stdlib NativeAOT EFI shell project included in `CLROS.slnx` under stricter build rules. |
 | `src/OS.Kernel` | Host-testable kernel, boot, diagnostics, platform, PAL, storage, networking, and app-model contracts. |
 | `std/no-runtime/shared` | No-runtime-compatible shared utility and BCL-like surface. Shared helpers go here before kernel/app usage. |
 | `apps` | App fixtures and workload placeholders. |

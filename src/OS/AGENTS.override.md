@@ -10,7 +10,9 @@ This directory contains the freestanding no-stdlib NativeAOT EFI shell. Root `AG
 artifacts/efi/BOOTX64.EFI
 ```
 
-This project is not the normal managed kernel library and is intentionally outside `OS.slnx`.
+This project is not the normal managed kernel library. It is included in
+`CLROS.slnx`, but its explicit no-stdlib project settings and this override keep
+the freestanding publish boundary separate from normal managed projects.
 
 ## Project Rules
 
@@ -26,7 +28,8 @@ This project is not the normal managed kernel library and is intentionally outsi
 - Keep `LangVersion=14.0`.
 - Do not reference `OS.Kernel` or normal managed projects until a documented handoff boundary exists.
 - Do not add normal framework assembly dependencies to make compiler errors go away.
-- Do not add this project to `OS.slnx` unless the no-stdlib publish path is stable in CI.
+- Keep this project in `CLROS.slnx`; do not weaken its no-stdlib settings to
+  make solution builds resemble normal managed builds.
 
 ## Source Rules
 

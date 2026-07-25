@@ -37,7 +37,7 @@ Canonical repository docs:
 | Cloud provider requirements | `docs/cloud-provider-requirements.md`, `docs/aws-cloud-requirements.md`, `docs/azure-cloud-requirements.md` | Provider-specific device, image, metadata, networking, or Kestrel claim scope changes |
 | Security and license | `docs/security.md`, `docs/license-audit.md` | Secret handling, W^X/NX, metadata policy, release diagnostics, or license/provenance changes |
 | Reference repositories | `docs/reference-map.md`, `docs/fork-diff.md` | Reference inventory, allowed use, provenance, or comparison notes change |
-| Issue taxonomy | `docs/issue-labels.md` | Label dimensions or backlog workflow change |
+| Issue taxonomy and synchronization | `.gitea/backlog/clros-issues.json`, `scripts/sync-gitea-backlog.ps1`, `docs/issue-labels.md` | Issue intent, dependencies, labels, desired state, or backlog workflow changes |
 | Evidence history | `done/stepNN.md` | Every meaningful implementation, test, evidence, or documentation milestone |
 
 Directory-local guides:
@@ -47,7 +47,7 @@ Directory-local guides:
 | `apps/AGENTS.override.md` | App fixture and workload-example rules | App projects need local rules for host-only fixtures, manifest behavior, or Kestrel claim boundaries |
 | `references/AGENTS.override.md` | Reference repository safety rules | References remain read-mostly and excluded from first-party implementation edits |
 | `scripts/AGENTS.override.md` | PowerShell automation and evidence-marker rules | Scripts remain the developer/CI command surface |
-| `src/OS/AGENTS.override.md` | Freestanding no-stdlib EFI artifact rules | The EFI project remains outside the normal managed solution with stricter runtime/link rules |
+| `src/OS/AGENTS.override.md` | Freestanding no-stdlib EFI artifact rules | The EFI project remains subject to stricter runtime/link rules while included in `CLROS.slnx` |
 | `src/OS.Kernel/AGENTS.override.md` | Kernel-contract implementation rules | Kernel-facing code needs constrained NativeAOT/status-code/marker guidance |
 | `std/no-runtime/shared/AGENTS.override.md` | Shared no-runtime utility rules | Shared BCL-like work needs stricter compatibility and no-runtime guidance |
 | `tests/AGENTS.override.md` | Host test marker and determinism rules | Host tests remain the first evidence layer for contract behavior |
