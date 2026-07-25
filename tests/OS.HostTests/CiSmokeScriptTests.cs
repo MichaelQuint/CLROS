@@ -8,7 +8,7 @@ internal static class CiSmokeScriptTests
     internal static void Run()
     {
         int failures = 0;
-        string repositoryRoot = FindRepositoryRoot();
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string tempRoot = Path.Combine(
             repositoryRoot,
             "artifacts",
@@ -45,7 +45,10 @@ internal static class CiSmokeScriptTests
             Run("ci.smoke rejects invalid workload profile", ref failures, () => TestRejectsInvalidWorkloadProfile(repositoryRoot, tempRoot));
             Run("ci.smoke returns nonzero on failed command", ref failures, () => TestReturnsNonzeroOnFailedCommand(repositoryRoot, tempRoot));
             Run("baseline evidence script wires qcow2 and libvirt intent", ref failures, () => TestBaselineEvidenceScriptWiresQcow2AndLibvirt(repositoryRoot));
+            Run("baseline evidence script enforces complete host gate", ref failures, () => TestBaselineEvidenceScriptEnforcesCompleteHostGate(repositoryRoot));
+            Run("baseline evidence self-test rejects malformed terminals and summary", ref failures, () => TestBaselineEvidenceSelfTest(repositoryRoot, tempRoot));
             Run("baseline evidence script records artifact summary lanes", ref failures, () => TestBaselineEvidenceScriptRecordsArtifactSummary(repositoryRoot, tempRoot));
+            Run("baseline evidence script rejects nonempty log root", ref failures, () => TestBaselineEvidenceScriptRejectsNonEmptyLogRoot(repositoryRoot, tempRoot));
             Run("baseline evidence plan records missing qemu-img discovery", ref failures, () => TestBaselineEvidencePlanRecordsMissingQemuImg(repositoryRoot, tempRoot));
             Run("baseline evidence plan records found qemu-img discovery", ref failures, () => TestBaselineEvidencePlanRecordsFoundQemuImg(repositoryRoot, tempRoot));
         }
@@ -110,7 +113,7 @@ internal static class CiSmokeScriptTests
             && root.GetProperty("mode").GetString() == "dry-run"
             && root.GetProperty("workloadProfile").GetString() == "SingleMinimalApi"
             && root.GetProperty("logDirectory").GetString()!.Contains("artifacts", StringComparison.Ordinal)
-            && HasStep(root, "ci.smoke.build", "dotnet build .\\OS.slnx --nologo -m:1")
+            && HasStep(root, "ci.smoke.build", "dotnet build .\\CLROS.slnx --nologo -m:1")
             && HasStep(root, "ci.smoke.host.tests", "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build")
             && HasStep(root, "ci.smoke.qemu.dryrun", "-DryRun")
             && HasStep(root, "ci.smoke.nativeapp.dryrun", "-RequireNativeAppMarkers")
@@ -824,6 +827,86 @@ internal static class CiSmokeScriptTests
             && script.Contains("-Virsh", StringComparison.Ordinal);
     }
 
+    private static bool TestBaselineEvidenceScriptEnforcesCompleteHostGate(
+        string repositoryRoot)
+    {
+        string script = File.ReadAllText(
+            Path.Combine(repositoryRoot, "scripts", "run-baseline-evidence.ps1"));
+
+        return script.Contains("baseline.host.build", StringComparison.Ordinal)
+            && script.Contains("\"--nologo\"", StringComparison.Ordinal)
+            && script.Contains("\"-m:1\"", StringComparison.Ordinal)
+            && script.Contains("\"--no-build\"", StringComparison.Ordinal)
+            && script.Contains("baseline.git.diffcheck", StringComparison.Ordinal)
+            && script.Contains(
+                "(?m)^TEST_PASS host\\.tests\\r?$",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "(?m)^TEST_FAIL host\\.tests(?:\\s.*)?\\r?$",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "TEST_PASS baseline.host.tests.terminal",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "TEST_PASS baseline.evidence",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestBaselineEvidenceSelfTest(
+        string repositoryRoot,
+        string tempRoot)
+    {
+        string selfTestRoot = Path.Combine(tempRoot, "baseline-selftest");
+        Directory.CreateDirectory(selfTestRoot);
+
+        BaselineEvidencePlanResult result = RunBaselineEvidenceSelfTest(
+            repositoryRoot,
+            selfTestRoot);
+
+        string[] requiredMarkers =
+        [
+            "TEST_START baseline.evidence.selftest",
+            "TEST_PASS baseline.evidence.selftest missing_host_log",
+            "TEST_PASS baseline.evidence.selftest single_host_pass",
+            "TEST_PASS baseline.evidence.selftest duplicate_host_pass",
+            "TEST_PASS baseline.evidence.selftest conflicting_host_terminal",
+            "TEST_PASS baseline.evidence.selftest summary_mismatch",
+            "TEST_PASS baseline.evidence.selftest malformed_summary",
+            "TEST_PASS baseline.evidence.selftest"
+        ];
+
+        if (result.ExitCode != 0
+            || result.Output.Contains(
+                "TEST_FAIL baseline.evidence.selftest",
+                StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        string[] outputLines = result.Output.Split(
+            ['\r', '\n'],
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        foreach (string marker in requiredMarkers)
+        {
+            int count = 0;
+            foreach (string line in outputLines)
+            {
+                if (line.Equals(marker, StringComparison.Ordinal))
+                {
+                    count++;
+                }
+            }
+
+            if (count != 1)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private static bool TestBaselineEvidenceScriptRecordsArtifactSummary(string repositoryRoot, string tempRoot)
     {
         string baselineRoot = Path.Combine(tempRoot, "baseline-plan");
@@ -851,6 +934,26 @@ internal static class CiSmokeScriptTests
             && root.GetProperty("mode").GetString() == "plan-only"
             && root.GetProperty("workloadProfile").GetString() == "MultiMinimalApi"
             && AllStepsHaveWorkloadProfile(root, "MultiMinimalApi")
+            && HasStep(
+                root,
+                "baseline.build",
+                "dotnet build .\\CLROS.slnx --nologo -m:1")
+            && HasStep(
+                root,
+                "baseline.host.build",
+                "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo")
+            && HasStep(
+                root,
+                "baseline.host.tests",
+                "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build")
+            && HasStep(
+                root,
+                "baseline.git.diffcheck",
+                "git diff --check")
+            && HasStep(
+                root,
+                "baseline.git.status",
+                "git status --short")
             && HasStep(root, "baseline.qemu.diagnostics.dryrun", "-MarkerPreset diagnostics")
             && StepHasSerialAndSummaryArtifact(root, "baseline.qemu.diagnostics.dryrun")
             && StepHasMarkerPreset(root, "baseline.qemu.diagnostics.dryrun", "diagnostics")
@@ -868,6 +971,24 @@ internal static class CiSmokeScriptTests
             && StepHasSerialAndSummaryArtifact(root, "baseline.libvirt.missingtool")
             && StepHasDomainXml(root, "baseline.libvirt.dryrun")
             && StepHasDomainXml(root, "baseline.libvirt.missingtool");
+    }
+
+    private static bool TestBaselineEvidenceScriptRejectsNonEmptyLogRoot(
+        string repositoryRoot,
+        string tempRoot)
+    {
+        string baselineRoot = Path.Combine(tempRoot, "baseline-nonempty");
+        Directory.CreateDirectory(baselineRoot);
+        File.WriteAllText(Path.Combine(baselineRoot, "stale.log"), "stale");
+
+        BaselineEvidencePlanResult result = RunBaselineEvidencePlanOnly(
+            repositoryRoot,
+            baselineRoot);
+
+        return result.ExitCode != 0
+            && result.Output.Contains(
+                "Evidence log directory must be new or empty:",
+                StringComparison.Ordinal);
     }
 
     private static bool TestBaselineEvidencePlanRecordsMissingQemuImg(string repositoryRoot, string tempRoot)
@@ -905,7 +1026,9 @@ internal static class CiSmokeScriptTests
     {
         string baselineRoot = Path.Combine(tempRoot, "baseline-found-qemu-img");
         Directory.CreateDirectory(baselineRoot);
-        string fakeQemuImg = Path.Combine(baselineRoot, "qemu-img.exe");
+        string toolRoot = Path.Combine(tempRoot, "baseline-found-qemu-img-tool");
+        Directory.CreateDirectory(toolRoot);
+        string fakeQemuImg = Path.Combine(toolRoot, "qemu-img.exe");
         string expectedResolvedPath = Path.GetRelativePath(repositoryRoot, fakeQemuImg);
         File.WriteAllText(fakeQemuImg, string.Empty);
 
@@ -1328,20 +1451,52 @@ internal static class CiSmokeScriptTests
         return new BaselineEvidencePlanResult(process.ExitCode, output, summaryPath);
     }
 
-    private static string FindRepositoryRoot()
+    private static BaselineEvidencePlanResult RunBaselineEvidenceSelfTest(
+        string repositoryRoot,
+        string tempRoot)
     {
-        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "OS.slnx")))
-            {
-                return directory.FullName;
-            }
+        string scriptPath = Path.Combine(
+            repositoryRoot,
+            "scripts",
+            "run-baseline-evidence.ps1");
+        string summaryPath = Path.Combine(tempRoot, "summary.json");
 
-            directory = directory.Parent;
+        ProcessStartInfo start = new ProcessStartInfo("powershell.exe")
+        {
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            WorkingDirectory = repositoryRoot
+        };
+
+        start.ArgumentList.Add("-NoProfile");
+        start.ArgumentList.Add("-ExecutionPolicy");
+        start.ArgumentList.Add("Bypass");
+        start.ArgumentList.Add("-File");
+        start.ArgumentList.Add(scriptPath);
+        start.ArgumentList.Add("-SelfTest");
+        start.ArgumentList.Add("-LogRoot");
+        start.ArgumentList.Add(tempRoot);
+
+        using Process process = Process.Start(start)
+            ?? throw new InvalidOperationException("Failed to start PowerShell.");
+
+        Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
+        Task<string> standardError = process.StandardError.ReadToEndAsync();
+        bool exited = process.WaitForExit(60000);
+        if (!exited)
+        {
+            process.Kill(entireProcessTree: true);
+            throw new TimeoutException(
+                "run-baseline-evidence.ps1 -SelfTest did not exit within 60 seconds.");
         }
 
-        throw new DirectoryNotFoundException("Could not find repository root containing OS.slnx.");
+        string output = standardOutput.GetAwaiter().GetResult()
+            + standardError.GetAwaiter().GetResult();
+        return new BaselineEvidencePlanResult(
+            process.ExitCode,
+            output,
+            summaryPath);
     }
 
     private static void PrintDryRunFailure(CiSmokeDryRunResult result)

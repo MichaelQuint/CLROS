@@ -9,10 +9,17 @@ internal static class SourceFirewallTests
         int failures = 0;
 
         Run("source firewall accepts current tree", TestCurrentTree, ref failures);
+        Run("naming guard permits explicit SharpOS reference discussion", TestSharpOsReferenceDiscussion, ref failures);
+        Run("naming guard rejects SharpOS as first-party identity", TestSharpOsFirstPartyIdentity, ref failures);
         Run("source firewall rejects forbidden first-party source", TestForbiddenFirstPartySource, ref failures);
         Run("source firewall ignores reference source files", TestReferenceSourceFilesAreIgnored, ref failures);
+        Run("source firewall requires CLROS solution sentinel", TestMissingSolution, ref failures);
+        Run("source firewall rejects legacy OS solution sentinel", TestLegacySolutionSentinel, ref failures);
         Run("source firewall rejects references in solution", TestReferenceProjectInSolution, ref failures);
         Run("source firewall rejects references in first-party project", TestReferenceProjectInFirstPartyProject, ref failures);
+        Run("source firewall accepts clean props and targets", TestCleanBuildInputs, ref failures);
+        Run("source firewall rejects reference imports in props", TestReferenceImportInProps, ref failures);
+        Run("source firewall rejects reference imports in targets", TestReferenceImportInTargets, ref failures);
 
         if (failures != 0)
         {
@@ -44,7 +51,7 @@ internal static class SourceFirewallTests
 
     private static bool TestCurrentTree()
     {
-        ProcessResult result = RunGuard(FindRepositoryRoot());
+        ProcessResult result = RunGuard(HostToolProcess.FindRepositoryRoot());
 
         return result.ExitCode == 0
             && result.Output.Contains("TEST_PASS naming.guard", StringComparison.Ordinal)
@@ -62,6 +69,32 @@ internal static class SourceFirewallTests
             && result.Output.Contains("TEST_FAIL source.firewall src\\Kernel\\Bad.c: forbidden_source_language extension=.c", StringComparison.Ordinal);
     }
 
+    private static bool TestSharpOsReferenceDiscussion()
+    {
+        using TemporaryRepository repository = TemporaryRepository.Create();
+        repository.WriteFile(
+            "docs/reference-note.md",
+            "`SharpOS-main` is a SharpOS project snapshot retained as a reference.");
+
+        ProcessResult result = RunGuard(repository.Root);
+
+        return result.ExitCode == 0
+            && result.Output.Contains("TEST_PASS naming.guard", StringComparison.Ordinal);
+    }
+
+    private static bool TestSharpOsFirstPartyIdentity()
+    {
+        using TemporaryRepository repository = TemporaryRepository.Create();
+        repository.WriteFile("README.md", "Sharp" + "OS project completion gates");
+
+        ProcessResult result = RunGuard(repository.Root);
+
+        return result.ExitCode == 1
+            && result.Output.Contains(
+                "TEST_FAIL naming.guard README.md:1: Use CLROS for first-party project naming",
+                StringComparison.Ordinal);
+    }
+
     private static bool TestReferenceSourceFilesAreIgnored()
     {
         using TemporaryRepository repository = TemporaryRepository.Create();
@@ -76,12 +109,24 @@ internal static class SourceFirewallTests
     private static bool TestReferenceProjectInSolution()
     {
         using TemporaryRepository repository = TemporaryRepository.Create();
-        repository.WriteFile("OS.slnx", "<Solution><Project Path=\"references/bad/Bad.csproj\" /></Solution>");
+        repository.WriteFile("CLROS.slnx", "<Solution><Project Path=\"references/bad/Bad.csproj\" /></Solution>");
 
         ProcessResult result = RunGuard(repository.Root);
 
         return result.ExitCode == 1
-            && result.Output.Contains("TEST_FAIL source.firewall OS.slnx:1: reference_project_in_solution", StringComparison.Ordinal);
+            && result.Output.Contains("TEST_FAIL source.firewall CLROS.slnx:1: reference_project_in_solution", StringComparison.Ordinal);
+    }
+
+    private static bool TestMissingSolution()
+    {
+        using TemporaryRepository repository = TemporaryRepository.Create(includeSolution: false);
+
+        ProcessResult result = RunGuard(repository.Root);
+
+        return result.ExitCode == 1
+            && result.Output.Contains(
+                "TEST_FAIL source.firewall CLROS.slnx: required_solution_missing",
+                StringComparison.Ordinal);
     }
 
     private static bool TestReferenceProjectInFirstPartyProject()
@@ -99,9 +144,71 @@ internal static class SourceFirewallTests
                 StringComparison.Ordinal);
     }
 
+    private static bool TestLegacySolutionSentinel()
+    {
+        using TemporaryRepository repository = TemporaryRepository.Create();
+        repository.WriteFile("OS.slnx", "<Solution />");
+
+        ProcessResult result = RunGuard(repository.Root);
+
+        return result.ExitCode == 1
+            && result.Output.Contains(
+                "TEST_FAIL source.firewall OS.slnx: legacy_solution_sentinel_present",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestCleanBuildInputs()
+    {
+        using TemporaryRepository repository = TemporaryRepository.Create();
+        repository.WriteFile(
+            "Directory.Build.props",
+            "<Project><PropertyGroup><LangVersion>14.0</LangVersion></PropertyGroup></Project>");
+        repository.WriteFile(
+            "build/FirstParty.targets",
+            "<Project><Target Name=\"Validate\" /></Project>");
+
+        ProcessResult result = RunGuard(repository.Root);
+
+        return result.ExitCode == 0
+            && result.Output.Contains("TEST_PASS source.firewall", StringComparison.Ordinal);
+    }
+
+    private static bool TestReferenceImportInProps()
+    {
+        using TemporaryRepository repository = TemporaryRepository.Create();
+        repository.WriteFile(
+            "Directory.Build.props",
+            "<Project><Import Project=\"references\\bad\\Bad.props\" /></Project>");
+
+        ProcessResult result = RunGuard(repository.Root);
+
+        return result.ExitCode == 1
+            && result.Output.Contains(
+                "TEST_FAIL source.firewall Directory.Build.props:1: reference_import_in_first_party_build_input",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestReferenceImportInTargets()
+    {
+        using TemporaryRepository repository = TemporaryRepository.Create();
+        repository.WriteFile(
+            "build/FirstParty.targets",
+            "<Project><Import Project=\"..\\references\\bad\\Bad.targets\" /></Project>");
+
+        ProcessResult result = RunGuard(repository.Root);
+
+        return result.ExitCode == 1
+            && result.Output.Contains(
+                "TEST_FAIL source.firewall build\\FirstParty.targets:1: reference_import_in_first_party_build_input",
+                StringComparison.Ordinal);
+    }
+
     private static ProcessResult RunGuard(string root)
     {
-        string scriptPath = Path.Combine(FindRepositoryRoot(), "scripts", "check-naming.ps1");
+        string scriptPath = Path.Combine(
+            HostToolProcess.FindRepositoryRoot(),
+            "scripts",
+            "check-naming.ps1");
         ProcessStartInfo start = new ProcessStartInfo
         {
             FileName = "powershell.exe",
@@ -126,22 +233,6 @@ internal static class SourceFirewallTests
         return new ProcessResult(process.ExitCode, standardOutput + standardError);
     }
 
-    private static string FindRepositoryRoot()
-    {
-        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "OS.slnx")))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Could not find repository root containing OS.slnx.");
-    }
-
     private readonly struct ProcessResult(int exitCode, string output)
     {
         public int ExitCode { get; } = exitCode;
@@ -158,11 +249,17 @@ internal static class SourceFirewallTests
 
         public string Root { get; }
 
-        public static TemporaryRepository Create()
+        public static TemporaryRepository Create(bool includeSolution = true)
         {
-            string root = Path.Combine(Path.GetTempPath(), "os-source-firewall-" + Guid.NewGuid().ToString("N"));
+            string root = Path.Combine(Path.GetTempPath(), "clros-source-firewall-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
-            return new TemporaryRepository(root);
+            TemporaryRepository repository = new TemporaryRepository(root);
+            if (includeSolution)
+            {
+                repository.WriteFile("CLROS.slnx", "<Solution />");
+            }
+
+            return repository;
         }
 
         public void WriteFile(string relativePath, string content)

@@ -42,7 +42,7 @@ internal static class CompletionGateTests
 
     private static bool TestCiGateRemainsFailedWithoutRunnerEvidence()
     {
-        string root = FindRepositoryRoot();
+        string root = HostToolProcess.FindRepositoryRoot();
         string completionGates = File.ReadAllText(
             Path.Combine(root, "docs", "completion-gates.md"));
 
@@ -66,21 +66,5 @@ internal static class CompletionGateTests
         }
 
         return true;
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory != null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "OS.slnx")))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Could not find repository root containing OS.slnx.");
     }
 }

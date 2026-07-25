@@ -558,7 +558,7 @@ failure and does not block default dry-run intent evidence.
 Relevant commands:
 
 ```powershell
-dotnet build .\OS.slnx --nologo -m:1
+dotnet build .\CLROS.slnx --nologo -m:1
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 dotnet run --project .\tools\OS.ImageBuilder\OS.ImageBuilder.csproj -- plan-raw --efi .\artifacts\efi\BOOTX64.EFI --manifest .\manifest.json --package .\app.pkg --output .\artifacts\images\os.raw
 dotnet run --project .\tools\OS.ImageBuilder\OS.ImageBuilder.csproj -- build-package --input .\artifacts\app-root --output .\artifacts\packages\app.pkg
@@ -587,7 +587,7 @@ Evidence from 2026-05-22 for issue #298:
 
 Evidence from 2026-05-22 for issue #224:
 
-- `dotnet build .\OS.slnx --nologo -m:1` passed with 0 warnings/errors.
+- `dotnet build .\CLROS.slnx --nologo -m:1` passed with 0 warnings/errors.
 - A temporary focused harness that compiled only `tests/OS.HostTests/ImageBuilderTests.cs` emitted `TEST_PASS imagebuilder.gpt-parser-readback`.
 - The focused run also emitted the existing image-builder package, manifest, native-app, and qcow2 host markers.
 - Integrated host-harness evidence is tracked in the current batch log after the GPT CRC integration landed; earlier focused evidence is retained only as the issue-local proof recorded before integration.
@@ -595,7 +595,7 @@ Evidence from 2026-05-22 for issue #224:
 
 Evidence from 2026-05-22:
 
-- `dotnet build .\OS.slnx --nologo -m:1` passed with 0 warnings/errors.
+- `dotnet build .\CLROS.slnx --nologo -m:1` passed with 0 warnings/errors.
 - `dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build *> .\artifacts\logs\host-tests-integrated-177-183.log` emitted `TEST_PASS host.tests`.
 - The same host-test run emitted `TEST_PASS imagebuilder.package validation rejects missing app file` while running ImageBuilder through the built `OS.ImageBuilder.dll` path.
 - `.\scripts\check-naming.ps1` emitted `TEST_PASS naming.guard` and `TEST_PASS source.firewall`.
@@ -607,7 +607,7 @@ Evidence from 2026-05-22:
 - `dotnet build .\tools\OS.ImageBuilder\OS.ImageBuilder.csproj --nologo` passed with 0 warnings/errors.
 - A focused `build-native-app-image` run emitted `TEST_START imagebuilder.native-app-image`, `NATIVE_APP_IMAGE_PACKAGE_PATH <temp>\native-app-image.raw.app.pkg`, `NATIVE_APP_IMAGE_RAW_PATH <temp>\native-app-image.raw`, and `TEST_PASS imagebuilder.native-app-image`.
 - Focused negative runs emitted `TEST_FAIL imagebuilder.native-app-image efi_not_found` with exit code 3 and `TEST_FAIL imagebuilder.native-app-image manifest_malformed` with exit code 23.
-- `dotnet build .\OS.slnx --nologo -m:1` was attempted but is currently blocked by an out-of-scope `NativeAppInvocationPlanTests.cs` compile error in the app-invocation planning area.
+- `dotnet build .\CLROS.slnx --nologo -m:1` was attempted but is currently blocked by an out-of-scope `NativeAppInvocationPlanTests.cs` compile error in the app-invocation planning area.
 - No QEMU smoke was run for this step, and no boot or app-execution claim is made.
 
 Evidence from 2026-05-22:
@@ -621,7 +621,7 @@ Evidence from 2026-05-22:
 
 Evidence from 2026-05-22:
 
-- `dotnet build .\OS.slnx --nologo -m:1` passed with 0 warnings/errors.
+- `dotnet build .\CLROS.slnx --nologo -m:1` passed with 0 warnings/errors.
 - `dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build` emitted `TEST_PASS host.tests`.
 - The host test run emitted `TEST_PASS imagebuilder.native-app-package builds validated package`.
 - The same run emitted `TEST_PASS imagebuilder.native-app-package preserves manifest app path`.
@@ -630,7 +630,7 @@ Evidence from 2026-05-22:
 
 Evidence from 2026-05-22:
 
-- `dotnet build .\OS.slnx --nologo -m:1` passed with 0 warnings/errors.
+- `dotnet build .\CLROS.slnx --nologo -m:1` passed with 0 warnings/errors.
 - `dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build` emitted `TEST_PASS host.tests`.
 - The host test run emitted `TEST_PASS imagebuilder.package validates manifest app payload`.
 - The same run emitted `TEST_PASS imagebuilder.package validation rejects missing manifest`.
@@ -641,7 +641,7 @@ Evidence from 2026-05-22:
 
 Evidence from 2026-05-22:
 
-- `dotnet build .\OS.slnx --nologo -m:1` passed with 0 warnings/errors.
+- `dotnet build .\CLROS.slnx --nologo -m:1` passed with 0 warnings/errors.
 - A full host-test run emitted `TEST_PASS host.tests`.
 - The host-test run emitted `TEST_PASS imagebuilder.package-builds-directory`.
 - The same run emitted `TEST_PASS imagebuilder.package-builds-deterministically`.
@@ -651,14 +651,14 @@ Evidence from 2026-05-22:
 
 Evidence from 2026-05-22:
 
-- `dotnet build .\OS.slnx --nologo -m:1` passed with 0 warnings/errors.
+- `dotnet build .\CLROS.slnx --nologo -m:1` passed with 0 warnings/errors.
 - `dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build` emitted `TEST_PASS host.tests`.
 - The host test run emitted `TEST_PASS imagebuilder.manifest-file`.
 - The generated default manifest was loaded through `NativeManifestLoader.LoadFromPrimaryGptEsp`.
 
 Evidence from 2026-05-22:
 
-- `dotnet build .\OS.slnx --nologo -m:1` passed with 0 warnings/errors.
+- `dotnet build .\CLROS.slnx --nologo -m:1` passed with 0 warnings/errors.
 - `dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build` emitted `TEST_PASS host.tests`.
 - The host test run emitted `TEST_PASS imagebuilder emits dry-run package placement plan without writing image`.
 - The same run emitted `TEST_PASS imagebuilder creates raw ESP with manifest and APP.PKG`.
@@ -667,7 +667,7 @@ Evidence from 2026-05-22:
 Evidence from 2026-05-22:
 
 - `dotnet build .\tools\OS.ImageBuilder\OS.ImageBuilder.csproj --nologo` passed with 0 warnings/errors.
-- `dotnet build .\OS.slnx --nologo -m:1` passed with 0 warnings/errors.
+- `dotnet build .\CLROS.slnx --nologo -m:1` passed with 0 warnings/errors.
 - `dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build` emitted `TEST_PASS host.tests`.
 - The host test run emitted `TEST_PASS imagebuilder emits dry-run qcow2 conversion without qemu-img`.
 - The same run emitted `TEST_PASS imagebuilder rejects missing qcow2 input`, `TEST_PASS imagebuilder rejects empty qcow2 input`, and `TEST_PASS imagebuilder rejects missing qemu-img in real qcow2 mode`.

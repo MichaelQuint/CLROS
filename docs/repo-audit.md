@@ -2,22 +2,42 @@
 
 ## Current Status
 
-Audit date: 2026-05-22.
+Audit date: 2026-07-25.
 
-The first-party workspace began as an empty baseline: `OS.slnx` contained only `<Solution />`, `docs/` was empty, and `C:\Projects\OS` was not a Git worktree. The Gitea repository at `michael.quint/OS` reported `empty: true` through the API during the Phase A audit. The local `references/` directory contains reference repositories but they are not build inputs.
+The first-party workspace began as an empty baseline under the former `OS`
+solution/repository identity. The current canonical solution is `CLROS.slnx`,
+the current worktree is `C:\Projects\CLROS`, and the current Gitea repository is
+`admin/CLROS`. The local `references/` directory contains reference snapshots
+but they are not build inputs.
 
-The modern SharpOS reference and libvirt reference are now present:
+All 29 supplied reference snapshots are inventoried and classified in
+`docs/reference-map.md`; detailed SharpOS adaptation decisions live in
+`docs/fork-diff.md`, and provenance/license/reuse limits live in
+`docs/license-audit.md`. SharpOS's DOOM and PowerShell done files and media are
+historical engineering evidence only. They are not independently reproduced
+CLROS evidence.
 
-- `references/daniilvaino-SharpOS-main`
-- `references/libvirt-csharp-main`
+The lost implementation backlog has been reconstructed in both the repository
+and the reachable local Gitea tracker:
+
+- `.gitea/backlog/clros-issues.json` is the version-controlled intent ledger.
+- `scripts/sync-gitea-backlog.ps1` previews by default and requires `-Apply`
+  before it can mutate `http://localhost:3000/admin/CLROS`.
+- The applied tracker contains 16 open milestones, 68 managed labels, 16
+  milestone epics, and 303 child issues. Every manifest key is present exactly
+  once across open and closed issues.
+- The post-apply verification reported `SYNC_VERIFY_PASS milestones=16
+  labels=68 issues=319`; a second read-only run reported 403 unchanged managed
+  objects and no create, update, or failure action.
 
 ## Implemented Behavior
 
-- `OS.slnx` now contains first-party project slots for kernel, std/no-runtime shared code, host tests, host QEMU runner, and native-tier example apps.
+- `CLROS.slnx` now contains first-party project slots for kernel, std/no-runtime shared code, host tests, host QEMU runner, and native-tier example apps.
 - `src/OS.Kernel/Boot/BootSequence.cs` is the first source-of-truth boot ordering file.
 - `src/OS.Kernel/Diagnostics/Probes.cs` exposes compile-time probe toggles.
 - `SerialSmokeMarkers` defines `TEST_START`, `TEST_PASS`, `TEST_FAIL`, `OS_BOOT_OK`, `OS_SMOKE_PASS`, and `OS_SMOKE_FAIL`.
-- `src/OS/OS.csproj` is an explicit no-stdlib NativeAOT EFI project shell kept outside the normal solution build.
+- `src/OS/OS.csproj` is an explicit no-stdlib NativeAOT EFI project included in
+  `CLROS.slnx` under stricter directory-local build rules.
 - `src/OS.Kernel/Boot/BootInfo.cs` defines the host-tested boot information and capability contract.
 - `src/OS.Kernel/Boot/BootHandoffInfo.cs` defines the host-tested firmware handoff metadata contract for boot mode, capabilities, firmware-services mode, and memory-map metadata.
 - `src/OS.Kernel/Memory` defines the host-tested first-party memory-map conversion contracts.
@@ -28,20 +48,42 @@ The modern SharpOS reference and libvirt reference are now present:
 - `tools/OS.LibvirtRunner` generates deterministic host-side domain XML in dry-run mode without requiring libvirt.
 - `tools/OS.ImageBuilder` creates a deterministic raw GPT/FAT32 EFI System Partition image containing `\EFI\BOOT\BOOTX64.EFI`.
 - `scripts/new-done-step.ps1` allocates the next `done/stepNNN.md` path with machine-readable markers and can reserve a template file for parallel-agent work without overwriting an existing path.
+- `.gitea/backlog/clros-issues.json`,
+  `scripts/sync-gitea-backlog.ps1`, and
+  `tests/OS.HostTests/GiteaBacklogManifestTests.cs` preserve and verify the
+  milestone, label, issue, parent, dependency, readiness, and additive
+  synchronization contracts without storing Gitea credentials.
 
 ## Build Status
 
-- SDK observed locally: .NET SDK `10.0.300`.
-- Before scaffolding, `dotnet build OS.slnx` was a no-op because the solution had no projects.
+- Stable SDK installed for the current baseline: .NET SDK `10.0.302`,
+  selected by `global.json` from the `10.0.300` feature band.
+- Before scaffolding, `dotnet build CLROS.slnx` was a no-op because the solution had no projects.
 - The current baseline build command passes with 0 warnings and 0 errors:
 
 ```powershell
-dotnet build .\OS.slnx
+dotnet build .\CLROS.slnx
 ```
 
 ## Boot Status
 
-The first firmware-visible boot smoke exists. `scripts/build-efi-shell.ps1` publishes `artifacts/efi/BOOTX64.EFI`; `OS.ImageBuilder` wraps it into `artifacts/images/os.raw`; and `scripts/run-qemu-smoke.ps1` boots that image through QEMU/OVMF. The serial log reaches `TEST_START efi.main`, `EFI_CONSOLE_READY`, `UEFI_MEMORY_MAP_READY`, `UEFI_MEMORY_MAP_DESCRIPTOR_COUNT <count>`, `UEFI_MEMORY_MAP_OWNED`, `BOOT_HANDOFF_READY`, `UEFI_MEMORY_MAP_NORMALIZED`, `BOOT_MEMORY_MAP_ACCEPTED`, `BOOT_MEMORY_REGIONS_READY`, `BOOT_MEMORY_REGION_COUNT <count>`, `BOOT_ACPI_RSDP_HANDOFF_READY`, `UEFI_ACPI_RSDP_READY`, ordered `boot.sequence` phase markers, `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and `OS_SMOKE_PASS`. An explicit opt-in ACPI physical discovery EFI artifact also boots under QEMU/OVMF and emits `ACPI_RSDP_SNAPSHOT_READY`, `ACPI_RSDP_VALIDATED`, `ACPI_ROOT_SDT_SNAPSHOT_READY`, `ACPI_ROOT_SDT_VALIDATED`, and `ACPI_MCFG_DISCOVERY_READY`.
+The first firmware-visible boot smoke exists and its default path was rebuilt
+and reverified on 2026-07-25 from clean, pushed implementation commit
+`32a8f3b91e17e1fc7e4b296730a5ea6565c38369`.
+`scripts/build-efi-shell.ps1` published the source-bound
+`BOOTX64.EFI`; `OS.ImageBuilder` wrapped it into a 64 MiB raw image; and
+`scripts/run-qemu-smoke.ps1` booted that image through QEMU/OVMF. The serial
+log reaches `TEST_START efi.main`,
+`EFI_CONSOLE_READY`, `UEFI_MEMORY_MAP_READY`,
+`UEFI_MEMORY_MAP_DESCRIPTOR_COUNT <count>`, `UEFI_MEMORY_MAP_OWNED`,
+`BOOT_HANDOFF_READY`, `UEFI_MEMORY_MAP_NORMALIZED`,
+`BOOT_MEMORY_MAP_ACCEPTED`, `BOOT_MEMORY_REGIONS_READY`,
+`BOOT_MEMORY_REGION_COUNT <count>`, `BOOT_PAGE_ALLOCATOR_READY`,
+`BOOT_ACPI_RSDP_HANDOFF_READY`, `UEFI_ACPI_RSDP_READY`, ordered
+`boot.sequence` phase markers, `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and
+`OS_SMOKE_PASS`. The opt-in ACPI physical-discovery and UEFI-gone variant
+records are historical May evidence; those variants were not rerun on
+2026-07-25.
 
 This is not a full kernel boot. `EfiMain` emits the shared ordered boot marker plan, captures raw UEFI memory-map metadata, copies descriptor bytes into OS-owned static storage, normalizes a compact owned-map summary for the boot boundary, materializes compact boot memory-region records into static storage, carries ACPI RSDP provenance into a no-stdlib-safe `BootHandoffRecord`, and reaches `BOOT_MEMORY_REGIONS_READY` plus `BOOT_ACPI_RSDP_HANDOFF_READY`. The ACPI physical discovery probe proves only pre-`ExitBootServices` table bytes on the tested QEMU/OVMF host. It does not call `ExitBootServices`, run owned drivers, map ECAM, enumerate PCI, read storage through virtio-blk, move packets through virtio-net, or launch an app.
 
@@ -98,11 +140,58 @@ Evidence:
 - `artifacts/logs/qemu-smoke-acpi.log` additionally contains the five ordered ACPI physical discovery markers.
 - `dumpbin /headers src/OS/bin/Release/net10.0/win-x64/publish/OS.exe` reports `machine (x64)`, `entry point`, and `subsystem (EFI Application)`.
 
+Current M00 recovery evidence from 2026-07-25:
+
+- The implementation source was committed and pushed as
+  `32a8f3b91e17e1fc7e4b296730a5ea6565c38369`; Git porcelain was empty
+  before and after source-bound capture.
+- `scripts/run-baseline-evidence.ps1` executed 11 steps from that source:
+  solution build, host build/run, naming/source firewall, two QEMU dry-run
+  lanes, qcow2/libvirt intent, `git diff --check`, and `git status --short`.
+  Every step exited zero. The host log has exactly one
+  `TEST_PASS host.tests` and no `TEST_FAIL host.tests`; summary SHA-256 is
+  `C6835020F4DF780806C8DEFBDE43F91853299E03E08FBBEE46E5AAC523F26783`.
+  `done/step845.md` records the full host tuple.
+- `scripts/test-efi-artifact.ps1` accepted the emitted PE32+ x64 EFI
+  application, associated entry RVA `0x00003730` with the same-build
+  `EfiMain` contract, and found the import, bound-import, IAT, and
+  delay-import directories absent. EFI SHA-256 is
+  `0580A45FC10B93C7C218CAB9BA179549C278B4CA970C82420CE74684EDA6036F`.
+- Real QEMU/OVMF boot observed all 12 required markers, including
+  `BOOT_PAGE_ALLOCATOR_READY`, `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and
+  `OS_SMOKE_PASS`; neither `TEST_FAIL` nor `OS_SMOKE_FAIL` appeared. The raw
+  image SHA-256 is
+  `484A7B8D2C9E9C01BFF6AAA63633E3CEC3406A0FBAC487100DFB40B0A463428A`
+  and serial SHA-256 is
+  `C190355FB48902635AB4BC7EBD4BAEBD3E029619C851407A599D3BC9FB412BC7`.
+- The authoritative schema-version-1 evidence manifest has source dirty
+  `false`, classification `pass`, exit code `0`, 10 tool records, and 23
+  hashed inputs. Its SHA-256 is
+  `D398F73FF5051D138D5F2A77CE4EF51277BD2DE289F58BA5383FC6FC74D02E65`.
+  `done/step846.md` records the command, timestamps, markers, artifacts,
+  superseded manifest attempts, and exact non-claims.
+- Generated evidence is under
+  `artifacts/logs/m00-final/32a8f3b91e17-20260725T213702Z/` and is not
+  committed as first-party source.
+- The live Gitea tracker contains the manifest's 68 labels, 16 milestones, and
+  319 uniquely keyed issues. All 22 M00 children and the M00 epic are closed
+  with 23 reviewed-evidence comments and `agent:done`; `M01-001` is the sole
+  `agent:ready` issue, 295 issues remain `agent:blocked`, and no issue remains
+  claimed or under review. A zero-change follow-up preview reported all 403
+  managed tracker objects unchanged. Only `M15-013`, the isolated optional
+  DOOM/WAD boundary, retains `reference:license-blocked`. The M00 milestone
+  object remains open by policy with zero open and 23 closed issues. This is
+  administrative tracker evidence, not additional kernel capability evidence.
+
 ## Known Limitations
 
 - This audit cannot claim runtime, live driver, live storage, live network, app execution, or hosted-workload readiness.
 - The default solution projects are plain `net10.0` scaffolds. The explicit `src/OS` EFI shell is no-stdlib and now has first-marker QEMU proof, but it is not a functional kernel artifact.
-- Modern SharpOS behavior in `references/daniilvaino-SharpOS-main` is reference evidence only until it is adapted into first-party source and tested here.
+- SharpOS-authored source in `references/SharpOS-main` is eligible for
+  selective adaptation under the recorded owner permission and public CC0
+  evidence, but each adaptation still requires exact local path/hash,
+  provenance, boundary, first-party review, and CLROS tests. File-local vendor,
+  GPL, CoreCLR, WAD, and media rights remain separate.
 
 ## Next Steps
 

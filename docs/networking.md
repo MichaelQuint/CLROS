@@ -1272,7 +1272,7 @@ TEST_PASS net.udp.tx default result is not success
 Evidence from the current local run:
 
 ```text
-dotnet build .\OS.slnx --nologo -m:1
+dotnet build .\CLROS.slnx --nologo -m:1
 Build succeeded. 0 Warning(s), 0 Error(s)
 
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build

@@ -2,12 +2,14 @@ using System.Diagnostics;
 
 internal static class HostToolProcess
 {
+    public const string RepositorySolutionFileName = "CLROS.slnx";
+
     public static string FindRepositoryRoot()
     {
         DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
         {
-            if (File.Exists(Path.Combine(directory.FullName, "OS.slnx")))
+            if (File.Exists(Path.Combine(directory.FullName, RepositorySolutionFileName)))
             {
                 return directory.FullName;
             }
@@ -15,7 +17,8 @@ internal static class HostToolProcess
             directory = directory.Parent;
         }
 
-        throw new DirectoryNotFoundException("Could not find repository root containing OS.slnx.");
+        throw new DirectoryNotFoundException(
+            "Could not find repository root containing " + RepositorySolutionFileName + ".");
     }
 
     public static string GetBuiltToolPath(string repositoryRoot, string toolProjectName)

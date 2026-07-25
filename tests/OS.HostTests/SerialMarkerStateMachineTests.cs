@@ -1,0 +1,508 @@
+using System.Runtime.CompilerServices;
+using System.Text;
+using OS.Tools.QemuRunner;
+
+internal static class SerialMarkerStateMachineTests
+{
+    [ModuleInitializer]
+    internal static void Run()
+    {
+        Console.WriteLine("TEST_START serial.marker.state_machine");
+        int failures = 0;
+
+        RunCase("required marker every split", TestRequiredMarkersAtEverySplit, ref failures);
+        RunCase("forbidden marker every split", TestForbiddenMarkerAtEverySplit, ref failures);
+        RunCase("arbitrary chunks noise and line endings", TestArbitraryChunksAndNoise, ref failures);
+        RunCase("line boundaries reject substring lookalikes", TestRejectsSubstringLookalikes, ref failures);
+        RunCase("partial EOF and complete unterminated line", TestPartialAndCompleteEndOfStream, ref failures);
+        RunCase("missing timeout and forbidden precedence", TestMissingTimeoutAndForbiddenPrecedence, ref failures);
+        RunCase("duplicate and conflicting terminal markers", TestDuplicateAndConflictingTerminalMarkers, ref failures);
+        RunCase("invalid byte noise policy", TestInvalidByteNoisePolicy, ref failures);
+        RunCase("line and total capacity failures", TestCapacityFailures, ref failures);
+        RunCase("configuration overflow and defaults", TestConfigurationAndDefaultResults, ref failures);
+        RunCase("finalization is stable", TestFinalizationIsStable, ref failures);
+
+        if (failures != 0)
+        {
+            Console.WriteLine("TEST_FAIL serial.marker.state_machine failures=" + failures);
+            throw new InvalidOperationException(
+                "Serial marker state-machine tests failed: " + failures);
+        }
+
+        Console.WriteLine("TEST_PASS serial.marker.state_machine");
+    }
+
+    private static void RunCase(string name, Func<bool> test, ref int failures)
+    {
+        try
+        {
+            if (test())
+            {
+                return;
+            }
+
+            failures++;
+            Console.WriteLine(
+                "TEST_FAIL serial.marker.state_machine case=" + NormalizeCase(name));
+        }
+        catch (Exception ex)
+        {
+            failures++;
+            Console.WriteLine(
+                "TEST_FAIL serial.marker.state_machine case="
+                + NormalizeCase(name)
+                + " exception="
+                + ex.GetType().Name);
+        }
+    }
+
+    private static bool TestRequiredMarkersAtEverySplit()
+    {
+        byte[] serial = Encoding.ASCII.GetBytes(
+            "firmware noise\r\n"
+            + "  OS_BOOT_OK detail=ready  \n"
+            + "OS_SMOKE_PASS\r\n");
+
+        for (int split = 0; split <= serial.Length; split++)
+        {
+            SerialMarkerStateMachine parser = CreateDefaultParser();
+            SerialMarkerFeedResult first = parser.Feed(serial.AsSpan(0, split));
+            SerialMarkerFeedResult second = parser.Feed(serial.AsSpan(split));
+            SerialMarkerCompletionResult result = parser.Complete();
+            if (!first.Succeeded ||
+                !second.Succeeded ||
+                !result.Passed ||
+                result.RequiredSeenCount != 2 ||
+                result.TerminalState != SerialMarkerTerminalState.Success ||
+                result.SuccessTerminalCount != 1)
+            {
+                return false;
+            }
+        }
+
+        SerialMarkerStateMachine oneByteParser = CreateDefaultParser();
+        for (int index = 0; index < serial.Length; index++)
+        {
+            if (!oneByteParser.Feed(serial.AsSpan(index, 1)).Succeeded)
+            {
+                return false;
+            }
+        }
+
+        return oneByteParser.Complete().Passed;
+    }
+
+    private static bool TestForbiddenMarkerAtEverySplit()
+    {
+        byte[] serial = Encoding.ASCII.GetBytes(
+            "OS_BOOT_OK\n"
+            + "UEFI_FORBIDDEN_CALL operation=GetMemoryMap\r\n"
+            + "OS_SMOKE_PASS\n");
+
+        for (int split = 0; split <= serial.Length; split++)
+        {
+            SerialMarkerStateMachine parser = new SerialMarkerStateMachine(
+                ["OS_BOOT_OK", "OS_SMOKE_PASS"],
+                ["UEFI_FORBIDDEN_CALL"]);
+            parser.Feed(serial.AsSpan(0, split));
+            parser.Feed(serial.AsSpan(split));
+            SerialMarkerCompletionResult result = parser.Complete();
+            if (result.Status != SerialMarkerCompletionStatus.ForbiddenMarker ||
+                result.ForbiddenMarkerHits is not { Count: 1 } ||
+                result.ForbiddenMarkerHits[0] != "UEFI_FORBIDDEN_CALL" ||
+                result.ForbiddenOccurrenceCount != 1)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TestArbitraryChunksAndNoise()
+    {
+        byte[] prefix = [0x1b, (byte)'[', (byte)'2', (byte)'J', 0xff, (byte)'\n'];
+        byte[] text = Encoding.ASCII.GetBytes(
+            "BdsDxe: firmware chatter\r\n"
+            + "\tOS_BOOT_OK\t\n"
+            + "OS_SMOKE_PASS");
+        byte[] serial = [.. prefix, .. text];
+        int[] chunkSizes = [1, 7, 2, 9, 3, 5, 11];
+
+        SerialMarkerStateMachine parser = CreateDefaultParser();
+        int offset = 0;
+        int chunkIndex = 0;
+        while (offset < serial.Length)
+        {
+            int size = Math.Min(chunkSizes[chunkIndex++ % chunkSizes.Length], serial.Length - offset);
+            if (!parser.Feed(serial.AsSpan(offset, size)).Succeeded)
+            {
+                return false;
+            }
+
+            offset += size;
+        }
+
+        SerialMarkerCompletionResult result = parser.Complete();
+        return result.Passed
+            && result.InvalidByteCount == 2
+            && result.InvalidNoiseLineCount == 1
+            && result.LinesProcessed == 4
+            && result.TotalBytes == serial.Length;
+    }
+
+    private static bool TestRejectsSubstringLookalikes()
+    {
+        byte[] serial = Encoding.ASCII.GetBytes(
+            "prefixOS_BOOT_OK\n"
+            + "OS_BOOT_OK_EXTRA\n"
+            + "OS_SMOKE_PASS_EXTRA\n"
+            + "OS_SMOKE_PASSX\n");
+
+        SerialMarkerStateMachine parser = CreateDefaultParser();
+        parser.Feed(serial);
+        SerialMarkerCompletionResult result = parser.Complete();
+
+        return result.Status == SerialMarkerCompletionStatus.MissingRequiredMarker
+            && result.RequiredSeenCount == 0
+            && result.SuccessTerminalCount == 0
+            && result.MissingRequiredMarkers is { Count: 2 }
+            && result.MissingRequiredMarkers[0] == "OS_BOOT_OK"
+            && result.MissingRequiredMarkers[1] == "OS_SMOKE_PASS";
+    }
+
+    private static bool TestPartialAndCompleteEndOfStream()
+    {
+        SerialMarkerStateMachine partialParser = new SerialMarkerStateMachine(
+            ["OS_SMOKE_PASS"],
+            ["OS_SMOKE_FAIL"]);
+        partialParser.Feed("OS_SMOKE_PA"u8);
+        SerialMarkerCompletionResult partial = partialParser.Complete();
+
+        SerialMarkerStateMachine fullParser = new SerialMarkerStateMachine(
+            ["OS_SMOKE_PASS"],
+            ["OS_SMOKE_FAIL"]);
+        fullParser.Feed("OS_SMOKE_PASS"u8);
+        SerialMarkerCompletionResult full = fullParser.Complete();
+
+        SerialMarkerStateMachine carriageReturnParser = new SerialMarkerStateMachine(
+            ["OS_SMOKE_PASS"],
+            ["OS_SMOKE_FAIL"]);
+        carriageReturnParser.Feed("OS_SMOKE_PASS\r"u8);
+        SerialMarkerCompletionResult carriageReturn = carriageReturnParser.Complete();
+
+        return partial.Status == SerialMarkerCompletionStatus.PartialMarkerAtEndOfStream
+            && partial.PartialMarkerAtEndOfStream
+            && partial.MissingRequiredMarkers is { Count: 1 }
+            && full.Passed
+            && full.LinesProcessed == 1
+            && carriageReturn.Passed
+            && carriageReturn.LinesProcessed == 1;
+    }
+
+    private static bool TestMissingTimeoutAndForbiddenPrecedence()
+    {
+        SerialMarkerStateMachine missingParser = CreateDefaultParser();
+        missingParser.Feed("noise only\n"u8);
+        SerialMarkerCompletionResult missing = missingParser.Complete();
+
+        SerialMarkerStateMachine timeoutParser = CreateDefaultParser();
+        timeoutParser.Feed("OS_BOOT_OK\n"u8);
+        SerialMarkerCompletionResult timeout = timeoutParser.Complete(timedOut: true);
+
+        SerialMarkerStateMachine forbiddenParser = new SerialMarkerStateMachine(
+            ["OS_BOOT_OK", "OS_SMOKE_PASS"],
+            ["UEFI_FORBIDDEN_CALL"]);
+        forbiddenParser.Feed(
+            "UEFI_FORBIDDEN_CALL\nOS_SMOKE_PASS\nOS_SMOKE_FAIL\n"u8);
+        SerialMarkerCompletionResult forbidden = forbiddenParser.Complete(timedOut: true);
+
+        return missing.Status == SerialMarkerCompletionStatus.MissingRequiredMarker
+            && timeout.Status == SerialMarkerCompletionStatus.Timeout
+            && forbidden.Status == SerialMarkerCompletionStatus.ForbiddenMarker
+            && forbidden.TerminalState == SerialMarkerTerminalState.Conflicting
+            && forbidden.ForbiddenMarkerHits is { Count: 1 };
+    }
+
+    private static bool TestDuplicateAndConflictingTerminalMarkers()
+    {
+        SerialMarkerStateMachine duplicateParser = new SerialMarkerStateMachine(
+            ["OS_SMOKE_PASS"],
+            []);
+        duplicateParser.Feed("OS_SMOKE_PASS\nOS_SMOKE_PASS\n"u8);
+        SerialMarkerCompletionResult duplicate = duplicateParser.Complete();
+
+        SerialMarkerStateMachine conflictParser = new SerialMarkerStateMachine(
+            ["OS_SMOKE_PASS"],
+            []);
+        conflictParser.Feed("OS_SMOKE_PASS\nOS_SMOKE_FAIL reason=panic\n"u8);
+        SerialMarkerCompletionResult conflict = conflictParser.Complete();
+
+        SerialMarkerStateMachine failureParser = new SerialMarkerStateMachine([], []);
+        failureParser.Feed("OS_SMOKE_FAIL reason=panic\n"u8);
+        SerialMarkerCompletionResult failure = failureParser.Complete();
+
+        SerialMarkerStateMachine missingSuccessParser =
+            new SerialMarkerStateMachine(["CUSTOM_READY"], []);
+        missingSuccessParser.Feed("CUSTOM_READY\n"u8);
+        SerialMarkerCompletionResult missingSuccess =
+            missingSuccessParser.Complete();
+
+        SerialMarkerStateMachine duplicateFailureParser = new SerialMarkerStateMachine(
+            [],
+            []);
+        duplicateFailureParser.Feed(
+            "OS_SMOKE_FAIL reason=first\nOS_SMOKE_FAIL reason=second\n"u8);
+        SerialMarkerCompletionResult duplicateFailure = duplicateFailureParser.Complete();
+
+        return duplicate.Status == SerialMarkerCompletionStatus.DuplicateTerminalMarker
+            && duplicate.SuccessTerminalCount == 2
+            && conflict.Status == SerialMarkerCompletionStatus.ConflictingTerminalMarkers
+            && conflict.TerminalState == SerialMarkerTerminalState.Conflicting
+            && conflict.SuccessTerminalCount == 1
+            && conflict.FailureTerminalCount == 1
+            && failure.Status == SerialMarkerCompletionStatus.FailureTerminal
+            && failure.TerminalState == SerialMarkerTerminalState.Failure
+            && missingSuccess.Status
+                == SerialMarkerCompletionStatus.MissingSuccessTerminal
+            && missingSuccess.TerminalState == SerialMarkerTerminalState.None
+            && !missingSuccess.Passed
+            && duplicateFailure.Status
+                == SerialMarkerCompletionStatus.DuplicateTerminalMarker
+            && duplicateFailure.TerminalState == SerialMarkerTerminalState.Failure
+            && duplicateFailure.FailureTerminalCount == 2;
+    }
+
+    private static bool TestInvalidByteNoisePolicy()
+    {
+        byte[] ignoredNoise =
+        [
+            0xff,
+            0xfe,
+            (byte)'\n',
+            .. "OS_BOOT_OK\nOS_SMOKE_PASS\n"u8
+        ];
+        SerialMarkerStateMachine ignoredParser = CreateDefaultParser();
+        SerialMarkerFeedResult ignoredFeed = ignoredParser.Feed(ignoredNoise);
+        SerialMarkerCompletionResult ignored = ignoredParser.Complete();
+
+        byte[] corruptedMarker =
+        [
+            .. "OS_BOOT_"u8,
+            0xff,
+            .. "OK\nOS_SMOKE_PASS\n"u8
+        ];
+        SerialMarkerStateMachine corruptedParser = CreateDefaultParser();
+        corruptedParser.Feed(corruptedMarker);
+        SerialMarkerCompletionResult corrupted = corruptedParser.Complete();
+
+        SerialMarkerStateMachine strictParser = new SerialMarkerStateMachine(
+            ["OS_SMOKE_PASS"],
+            ["OS_SMOKE_FAIL"],
+            byteNoisePolicy: SerialMarkerByteNoisePolicy.RejectInvalidBytes);
+        SerialMarkerFeedResult strictFeed = strictParser.Feed([0xff]);
+        SerialMarkerCompletionResult strict = strictParser.Complete();
+
+        return ignoredFeed.Succeeded
+            && ignored.Passed
+            && ignored.InvalidByteCount == 2
+            && ignored.InvalidNoiseLineCount == 1
+            && corrupted.Status == SerialMarkerCompletionStatus.MissingRequiredMarker
+            && corrupted.InvalidByteCount == 1
+            && corrupted.RequiredSeenCount == 1
+            && strictFeed.Status == SerialMarkerFeedStatus.InvalidByteRejected
+            && !strictFeed.Succeeded
+            && strict.Status == SerialMarkerCompletionStatus.InvalidByteSequence
+            && !strict.Passed;
+    }
+
+    private static bool TestCapacityFailures()
+    {
+        SerialMarkerStateMachine lineParser = new SerialMarkerStateMachine(
+            [],
+            [],
+            successTerminalMarker: "PASS",
+            failureTerminalMarker: "FAIL",
+            lineCapacity: 8);
+        SerialMarkerFeedResult lineFeed = lineParser.Feed("123456789"u8);
+        SerialMarkerCompletionResult line = lineParser.Complete();
+
+        SerialMarkerStateMachine totalParser = new SerialMarkerStateMachine(
+            [],
+            [],
+            successTerminalMarker: "PASS",
+            failureTerminalMarker: "FAIL",
+            lineCapacity: 8,
+            byteCapacity: 4);
+        SerialMarkerFeedResult first = totalParser.Feed("1234"u8);
+        SerialMarkerFeedResult totalFeed = totalParser.Feed("5"u8);
+        SerialMarkerCompletionResult total = totalParser.Complete();
+
+        SerialMarkerStateMachine exactParser = new SerialMarkerStateMachine(
+            ["PASSMARK"],
+            [],
+            successTerminalMarker: "PASSMARK",
+            failureTerminalMarker: "FAILURE",
+            lineCapacity: 8,
+            byteCapacity: 10);
+        SerialMarkerFeedResult exactFeed = exactParser.Feed("PASSMARK\r\n"u8);
+        SerialMarkerCompletionResult exact = exactParser.Complete();
+
+        SerialMarkerStateMachine noiseParser = new SerialMarkerStateMachine(
+            ["PASS"],
+            [],
+            successTerminalMarker: "PASS",
+            failureTerminalMarker: "FAIL",
+            lineCapacity: 8,
+            byteCapacity: 64);
+        SerialMarkerFeedResult noiseFeed = noiseParser.Feed(
+        [
+            0x1b,
+            (byte)'1', (byte)'2', (byte)'3', (byte)'4',
+            (byte)'5', (byte)'6', (byte)'7', (byte)'8',
+            (byte)'9', (byte)'0', (byte)'1', (byte)'2',
+            (byte)'\n',
+            (byte)'P', (byte)'A', (byte)'S', (byte)'S', (byte)'\n'
+        ]);
+        SerialMarkerCompletionResult noise = noiseParser.Complete();
+
+        return lineFeed.Status == SerialMarkerFeedStatus.LineCapacityExceeded
+            && lineFeed.BytesConsumed == 9
+            && line.Status == SerialMarkerCompletionStatus.CapacityExceeded
+            && first.Succeeded
+            && totalFeed.Status == SerialMarkerFeedStatus.TotalCapacityExceeded
+            && totalFeed.BytesConsumed == 0
+            && total.TotalBytes == 4
+            && total.Status == SerialMarkerCompletionStatus.CapacityExceeded
+            && exactFeed.Succeeded
+            && exact.Passed
+            && noiseFeed.Succeeded
+            && noise.Passed
+            && noise.InvalidNoiseLineCount == 1
+            && noise.InvalidByteCount == 1;
+    }
+
+    private static bool TestConfigurationAndDefaultResults()
+    {
+        string[] tooManyMarkers = new string[SerialMarkerStateMachine.MaximumMarkerCount + 1];
+        for (int index = 0; index < tooManyMarkers.Length; index++)
+        {
+            tooManyMarkers[index] = "MARKER_" + index;
+        }
+
+        bool nullRejected = Throws<ArgumentNullException>(
+            () => new SerialMarkerStateMachine(null!, []));
+        bool zeroLineRejected = Throws<ArgumentOutOfRangeException>(
+            () => new SerialMarkerStateMachine([], [], lineCapacity: 0));
+        bool excessiveLineRejected = Throws<ArgumentOutOfRangeException>(
+            () => new SerialMarkerStateMachine(
+                [],
+                [],
+                lineCapacity: SerialMarkerStateMachine.MaximumLineCapacity + 1));
+        bool zeroTotalRejected = Throws<ArgumentOutOfRangeException>(
+            () => new SerialMarkerStateMachine([], [], byteCapacity: 0));
+        bool countRejected = Throws<ArgumentOutOfRangeException>(
+            () => new SerialMarkerStateMachine(tooManyMarkers, []));
+        bool duplicateRejected = Throws<ArgumentException>(
+            () => new SerialMarkerStateMachine(["MARKER", "MARKER"], []));
+        bool overlapRejected = Throws<ArgumentException>(
+            () => new SerialMarkerStateMachine(["MARKER"], ["MARKER"]));
+        bool emptyMarkerRejected = Throws<ArgumentException>(
+            () => new SerialMarkerStateMachine([" \t "], []));
+        bool nonAsciiRejected = Throws<ArgumentException>(
+            () => new SerialMarkerStateMachine(["M\u00c4RKER"], []));
+        bool excessiveMarkerRejected = Throws<ArgumentOutOfRangeException>(
+            () => new SerialMarkerStateMachine(
+                [new string('A', SerialMarkerStateMachine.MaximumMarkerLength + 1)],
+                []));
+        bool markerBeyondLineRejected = Throws<ArgumentOutOfRangeException>(
+            () => new SerialMarkerStateMachine(
+                ["12345"],
+                [],
+                successTerminalMarker: "OK",
+                failureTerminalMarker: "NO",
+                lineCapacity: 4));
+        bool terminalOverlapRejected = Throws<ArgumentException>(
+            () => new SerialMarkerStateMachine(
+                [],
+                [],
+                successTerminalMarker: "TERMINAL",
+                failureTerminalMarker: "TERMINAL"));
+        bool invalidPolicyRejected = Throws<ArgumentOutOfRangeException>(
+            () => new SerialMarkerStateMachine(
+                [],
+                [],
+                byteNoisePolicy: (SerialMarkerByteNoisePolicy)99));
+
+        SerialMarkerFeedResult defaultFeed = default;
+        SerialMarkerCompletionResult defaultCompletion = default;
+        return nullRejected
+            && zeroLineRejected
+            && excessiveLineRejected
+            && zeroTotalRejected
+            && countRejected
+            && duplicateRejected
+            && overlapRejected
+            && emptyMarkerRejected
+            && nonAsciiRejected
+            && excessiveMarkerRejected
+            && markerBeyondLineRejected
+            && terminalOverlapRejected
+            && invalidPolicyRejected
+            && defaultFeed.Status == SerialMarkerFeedStatus.Uninitialized
+            && !defaultFeed.Succeeded
+            && defaultCompletion.Status == SerialMarkerCompletionStatus.Uninitialized
+            && defaultCompletion.MissingRequiredMarkers is null
+            && defaultCompletion.ForbiddenMarkerHits is null
+            && !defaultCompletion.Passed;
+    }
+
+    private static bool TestFinalizationIsStable()
+    {
+        SerialMarkerStateMachine parser = new SerialMarkerStateMachine(
+            ["OS_SMOKE_PASS"],
+            ["OS_SMOKE_FAIL"]);
+        SerialMarkerFeedResult empty = parser.Feed([]);
+        parser.Feed("OS_SMOKE_PASS\n"u8);
+        SerialMarkerCompletionResult first = parser.Complete();
+        SerialMarkerCompletionResult second = parser.Complete(timedOut: true);
+        SerialMarkerFeedResult after = parser.Feed("OS_SMOKE_FAIL\n"u8);
+
+        return empty.Succeeded
+            && empty.BytesConsumed == 0
+            && first.Passed
+            && second.Passed
+            && second.Status == first.Status
+            && second.TotalBytes == first.TotalBytes
+            && parser.IsFinalized
+            && after.Status == SerialMarkerFeedStatus.AlreadyFinalized
+            && after.BytesConsumed == 0
+            && !after.Succeeded;
+    }
+
+    private static SerialMarkerStateMachine CreateDefaultParser()
+    {
+        return new SerialMarkerStateMachine(
+            ["OS_BOOT_OK", "OS_SMOKE_PASS"],
+            ["OS_SMOKE_FAIL"]);
+    }
+
+    private static bool Throws<TException>(Action action)
+        where TException : Exception
+    {
+        try
+        {
+            action();
+            return false;
+        }
+        catch (TException)
+        {
+            return true;
+        }
+    }
+
+    private static string NormalizeCase(string name)
+    {
+        return name.Replace(' ', '_');
+    }
+}

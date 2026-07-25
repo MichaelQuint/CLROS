@@ -221,7 +221,7 @@ Image-builder placement validates that a caller-provided source manifest exists,
 
 Evidence from 2026-05-22:
 
-- `dotnet build .\OS.slnx --nologo -m:1` built `OS.ManifestTool.dll` with 0 warnings/errors.
+- `dotnet build .\CLROS.slnx --nologo -m:1` built `OS.ManifestTool.dll` with 0 warnings/errors.
 - The integrated host-test run emitted `TEST_PASS manifesttool validates schema v0`, `TEST_PASS manifesttool validates reserved dotnet10 kestrel contract`, `TEST_PASS manifesttool rejects malformed json`, and `TEST_PASS manifesttool rejects invalid kestrel listen endpoints` through the built-DLL process path.
 - The profile-aware host-test run emitted `TEST_PASS manifesttool validates default single minimal api profile`, `TEST_PASS manifesttool rejects multiple apps under single minimal api`, `TEST_PASS manifesttool rejects multi app restart policy under single minimal api`, `TEST_PASS manifesttool rejects isolation resources under single minimal api`, `TEST_PASS manifesttool rejects multi minimal api until process model exists`, and `TEST_PASS manifesttool rejects workload profile mismatch`.
 

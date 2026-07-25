@@ -100,6 +100,14 @@ internal static class QemuRunnerTests
             Run("qemu rejects invalid HTTP probe timeout", () => TestRejectsInvalidHttpProbeTimeout(tempRoot), ref failures);
             Run("qemu rejects incomplete HTTP probe", () => TestRejectsIncompleteHttpProbe(tempRoot), ref failures);
             Run("qemu real mode writes passing summary artifact", () => TestRealModeWritesPassingSummary(tempRoot), ref failures);
+            Run("qemu real mode rejects duplicate success terminals", () => TestRealModeRejectsDuplicateSuccessTerminals(tempRoot), ref failures);
+            Run("qemu real mode requires success terminal with custom marker", () => TestRealModeRequiresSuccessTerminalWithCustomMarker(tempRoot), ref failures);
+            Run("qemu real mode rejects nonzero qemu exit", () => TestRealModeRejectsNonzeroQemuExit(tempRoot), ref failures);
+            Run("qemu real mode rejects TEST_FAIL before success", () => TestRealModeRejectsTestFailBeforeSuccess(tempRoot), ref failures);
+            Run("qemu drain classifies nonzero exit before kill", () => TestDrainClassifiesNonzeroExitBeforeKill(tempRoot), ref failures);
+            Run("qemu boot timeout takes precedence over late markers", () => TestBootTimeoutPrecedesLateMarkers(tempRoot), ref failures);
+            Run("qemu invalid marker configuration does not launch child", () => TestInvalidMarkerConfigurationDoesNotLaunchChild(tempRoot), ref failures);
+            Run("qemu rejects output and input path aliases", () => TestRejectsArtifactPathAliases(tempRoot), ref failures);
             Run("qemu.runner app exit summary emitted", () => TestRealModeWritesAppExitSummary(tempRoot), ref failures);
             Run("qemu runner fails when forbidden marker appears", () => TestRealModeFailsForbiddenMarker(tempRoot), ref failures);
             Run("qemu real mode writes missing marker summary artifact", () => TestRealModeWritesMissingMarkerSummary(tempRoot), ref failures);
@@ -243,7 +251,7 @@ internal static class QemuRunnerTests
             && output.Contains("QEMU_PREFLIGHT_OVMF configured=true exists=true path=" + ovmfPath, StringComparison.Ordinal)
             && output.Contains("QEMU_PREFLIGHT_COMMAND_ARGUMENTS count=", StringComparison.Ordinal)
             && output.Contains("if=none,id=esp,format=raw,file=" + imagePath, StringComparison.Ordinal)
-            && output.Contains("FORBIDDEN_MARKERS OS_SMOKE_FAIL", StringComparison.Ordinal)
+            && output.Contains("FORBIDDEN_MARKERS OS_SMOKE_FAIL;TEST_FAIL", StringComparison.Ordinal)
             && output.Contains("TEST_PASS qemu.runner.preflight", StringComparison.Ordinal)
             && !File.Exists(serialLog);
     }
@@ -313,8 +321,11 @@ internal static class QemuRunnerTests
             && customResult.ExitCode == 0
             && defaultOutput.Contains("REQUIRED_MARKERS " + DefaultBootRequiredMarkers, StringComparison.Ordinal)
             && customOutput.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal)
-            && customOutput.Contains("REQUIRED_MARKERS UEFI_GONE_SIM_PASS;OS_BOOT_OK", StringComparison.Ordinal)
-            && !customOutput.Contains("REQUIRED_MARKERS " + DefaultBootRequiredMarkers, StringComparison.Ordinal);
+            && customOutput.Contains(
+                "REQUIRED_MARKERS " +
+                DefaultBootRequiredMarkers +
+                ";UEFI_GONE_SIM_PASS",
+                StringComparison.Ordinal);
     }
 
     private static bool TestDryRunMarkerPresetDefault(string tempRoot)
@@ -1083,7 +1094,7 @@ internal static class QemuRunnerTests
         string output = result.Output;
         return result.ExitCode == 0
             && output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal)
-            && output.Contains("FORBIDDEN_MARKERS OS_SMOKE_FAIL;UEFI_EBS_FRESH_MAP_PROBE_START;UEFI_EBS_CALL_SKIPPED", StringComparison.Ordinal);
+            && output.Contains("FORBIDDEN_MARKERS OS_SMOKE_FAIL;TEST_FAIL;UEFI_EBS_FRESH_MAP_PROBE_START;UEFI_EBS_CALL_SKIPPED", StringComparison.Ordinal);
     }
 
     private static bool TestDryRunDefaultWorkloadProfile(string tempRoot)
@@ -2156,6 +2167,9 @@ internal static class QemuRunnerTests
         string summary = File.ReadAllText(summaryLog);
         return result.ExitCode == 0
             && result.Output.Contains("TEST_PASS qemu.smoke", StringComparison.Ordinal)
+            && result.Output.Contains(
+                "SERIAL_MARKER_STREAM status=Passed terminal=Success",
+                StringComparison.Ordinal)
             && result.Output.Contains("SUMMARY_LOG " + summaryLog, StringComparison.Ordinal)
             && summary.Contains("QEMU_SMOKE_STATUS pass", StringComparison.Ordinal)
             && summary.Contains("IMAGE_ARTIFACT " + imagePath, StringComparison.Ordinal)
@@ -2167,9 +2181,421 @@ internal static class QemuRunnerTests
             && summary.Contains("APP_EXIT_RESULT none", StringComparison.Ordinal)
             && summary.Contains("APP_EXIT_MALFORMED none", StringComparison.Ordinal)
             && summary.Contains("MISSING_MARKERS none", StringComparison.Ordinal)
-            && summary.Contains("FORBIDDEN_MARKERS OS_SMOKE_FAIL", StringComparison.Ordinal)
+            && summary.Contains("FORBIDDEN_MARKERS OS_SMOKE_FAIL;TEST_FAIL", StringComparison.Ordinal)
             && summary.Contains("FORBIDDEN_MARKER_HIT none", StringComparison.Ordinal)
             && summary.Contains("FAIL_REASON none", StringComparison.Ordinal);
+    }
+
+    private static bool TestRealModeRejectsDuplicateSuccessTerminals(string tempRoot)
+    {
+        string imagePath = CreateEmptyFile(tempRoot, "duplicate-terminal.raw");
+        string ovmfPath = CreateEmptyFile(tempRoot, "duplicate-terminal-OVMF_CODE.fd");
+        string qemuPath = CreateDelayedTerminalFakeQemuScript(
+            tempRoot,
+            "OS_SMOKE_PASS");
+        string serialLog = Path.Combine(tempRoot, "duplicate-terminal-serial.log");
+        string summaryLog = Path.Combine(tempRoot, "duplicate-terminal-summary.log");
+
+        ProcessResult result = RunQemuRunner(
+            "--qemu",
+            qemuPath,
+            "--ovmf-code",
+            ovmfPath,
+            "--image",
+            imagePath,
+            "--serial-log",
+            serialLog,
+            "--summary-log",
+            summaryLog,
+            "--timeout",
+            "3");
+
+        string summary = File.ReadAllText(summaryLog);
+        return result.ExitCode == 13
+            && result.Output.Contains(
+                "SERIAL_MARKER_STREAM status=DuplicateTerminalMarker terminal=Success",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "TEST_FAIL qemu.smoke serial_marker_stream status=DuplicateTerminalMarker",
+                StringComparison.Ordinal)
+            && summary.Contains("QEMU_SMOKE_STATUS fail", StringComparison.Ordinal)
+            && summary.Contains(
+                "FAIL_REASON serial_marker_stream_duplicateterminalmarker",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestRealModeRequiresSuccessTerminalWithCustomMarker(
+        string tempRoot)
+    {
+        string imagePath = CreateEmptyFile(tempRoot, "custom-no-terminal.raw");
+        string ovmfPath = CreateEmptyFile(
+            tempRoot,
+            "custom-no-terminal-OVMF_CODE.fd");
+        string qemuPath = CreateFakeQemuScript(
+            tempRoot,
+            "OS_BOOT_OK",
+            "TEST_PASS boot.sequence",
+            "CUSTOM_READY");
+        string serialLog = Path.Combine(
+            tempRoot,
+            "custom-no-terminal-serial.log");
+        string summaryLog = Path.Combine(
+            tempRoot,
+            "custom-no-terminal-summary.log");
+
+        ProcessResult result = RunQemuRunner(
+            "--qemu",
+            qemuPath,
+            "--ovmf-code",
+            ovmfPath,
+            "--image",
+            imagePath,
+            "--serial-log",
+            serialLog,
+            "--summary-log",
+            summaryLog,
+            "--require-marker",
+            "CUSTOM_READY",
+            "--timeout",
+            "3");
+
+        string summary = File.ReadAllText(summaryLog);
+        return result.ExitCode == 5
+            && result.Output.Contains(
+                "REQUIRED_MARKERS " +
+                DefaultBootRequiredMarkers +
+                ";CUSTOM_READY",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "TEST_FAIL qemu.smoke missing_marker",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "missing=OS_SMOKE_PASS",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "TEST_PASS qemu.smoke",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "MISSING_MARKERS OS_SMOKE_PASS",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestRealModeRejectsNonzeroQemuExit(string tempRoot)
+    {
+        string imagePath = CreateEmptyFile(tempRoot, "nonzero-exit.raw");
+        string ovmfPath = CreateEmptyFile(
+            tempRoot,
+            "nonzero-exit-OVMF_CODE.fd");
+        string qemuPath = CreateFakeQemuScriptWithExitCode(
+            tempRoot,
+            42,
+            "OS_BOOT_OK",
+            "TEST_PASS boot.sequence",
+            "OS_SMOKE_PASS");
+        string serialLog = Path.Combine(tempRoot, "nonzero-exit-serial.log");
+        string summaryLog = Path.Combine(tempRoot, "nonzero-exit-summary.log");
+
+        ProcessResult result = RunQemuRunner(
+            "--qemu",
+            qemuPath,
+            "--ovmf-code",
+            ovmfPath,
+            "--image",
+            imagePath,
+            "--serial-log",
+            serialLog,
+            "--summary-log",
+            summaryLog,
+            "--timeout",
+            "3");
+
+        string summary = File.ReadAllText(summaryLog);
+        return result.ExitCode == 14
+            && result.Output.Contains(
+                "QEMU_PROCESS_RESULT disposition=exited exitCode=42",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "TEST_FAIL qemu.smoke qemu_exit_nonzero code=42",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "TEST_PASS qemu.smoke",
+                StringComparison.Ordinal)
+             && summary.Contains(
+                 "FAIL_REASON qemu_exit_nonzero",
+                 StringComparison.Ordinal);
+    }
+
+    private static bool TestRealModeRejectsTestFailBeforeSuccess(string tempRoot)
+    {
+        string imagePath = CreateEmptyFile(tempRoot, "test-fail.raw");
+        string ovmfPath = CreateEmptyFile(
+            tempRoot,
+            "test-fail-OVMF_CODE.fd");
+        string qemuPath = CreateFakeQemuScript(
+            tempRoot,
+            "OS_BOOT_OK",
+            "TEST_FAIL boot.sequence deliberate",
+            "TEST_PASS boot.sequence",
+            "OS_SMOKE_PASS");
+        string serialLog = Path.Combine(tempRoot, "test-fail-serial.log");
+        string summaryLog = Path.Combine(tempRoot, "test-fail-summary.log");
+
+        ProcessResult result = RunQemuRunner(
+            "--qemu",
+            qemuPath,
+            "--ovmf-code",
+            ovmfPath,
+            "--image",
+            imagePath,
+            "--serial-log",
+            serialLog,
+            "--summary-log",
+            summaryLog,
+            "--timeout",
+            "3");
+
+        string summary = File.ReadAllText(summaryLog);
+        return result.ExitCode == 8
+            && result.Output.Contains(
+                "TEST_FAIL qemu.smoke forbidden_marker marker=TEST_FAIL",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "TEST_PASS qemu.smoke",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "FORBIDDEN_MARKER_HIT TEST_FAIL",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "FAIL_REASON forbidden_marker",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestDrainClassifiesNonzeroExitBeforeKill(string tempRoot)
+    {
+        string imagePath = CreateEmptyFile(tempRoot, "drain-exit.raw");
+        string ovmfPath = CreateEmptyFile(
+            tempRoot,
+            "drain-exit-OVMF_CODE.fd");
+        string qemuPath = CreateDelayedExitFakeQemuScript(
+            tempRoot,
+            42,
+            100);
+        string serialLog = Path.Combine(tempRoot, "drain-exit-serial.log");
+        string summaryLog = Path.Combine(tempRoot, "drain-exit-summary.log");
+
+        ProcessResult result = RunQemuRunner(
+            "--qemu",
+            qemuPath,
+            "--ovmf-code",
+            ovmfPath,
+            "--image",
+            imagePath,
+            "--serial-log",
+            serialLog,
+            "--summary-log",
+            summaryLog,
+            "--timeout",
+            "3");
+
+        string summary = File.ReadAllText(summaryLog);
+        return result.ExitCode == 14
+            && result.Output.Contains(
+                "QEMU_PROCESS_RESULT disposition=exited exitCode=42",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "TEST_FAIL qemu.smoke qemu_exit_nonzero code=42",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "TEST_PASS qemu.smoke",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "FAIL_REASON qemu_exit_nonzero",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestBootTimeoutPrecedesLateMarkers(string tempRoot)
+    {
+        string imagePath = CreateEmptyFile(tempRoot, "late-markers.raw");
+        string ovmfPath = CreateEmptyFile(
+            tempRoot,
+            "late-markers-OVMF_CODE.fd");
+        string qemuPath = CreateLateMarkerFakeQemuScript(tempRoot, 1500);
+        string serialLog = Path.Combine(tempRoot, "late-markers-serial.log");
+        string summaryLog = Path.Combine(tempRoot, "late-markers-summary.log");
+
+        ProcessResult result = RunQemuRunner(
+            "--qemu",
+            qemuPath,
+            "--ovmf-code",
+            ovmfPath,
+            "--image",
+            imagePath,
+            "--serial-log",
+            serialLog,
+            "--summary-log",
+            summaryLog,
+            "--timeout",
+            "1");
+
+        string summary = File.ReadAllText(summaryLog);
+        return result.ExitCode == 4
+            && result.Output.Contains(
+                "TEST_FAIL qemu.smoke timeout",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "TEST_PASS qemu.smoke",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "QEMU_SMOKE_STATUS fail",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "FAIL_REASON timeout",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestInvalidMarkerConfigurationDoesNotLaunchChild(
+        string tempRoot)
+    {
+        string imagePath = CreateEmptyFile(tempRoot, "invalid-marker.raw");
+        string ovmfPath = CreateEmptyFile(
+            tempRoot,
+            "invalid-marker-OVMF_CODE.fd");
+        string launchSentinel = Path.Combine(
+            tempRoot,
+            "invalid-marker-launched.txt");
+        string qemuPath = CreateLaunchSentinelFakeQemuScript(
+            tempRoot,
+            launchSentinel);
+        string serialLog = Path.Combine(tempRoot, "invalid-marker-serial.log");
+
+        ProcessResult result = RunQemuRunner(
+            "--qemu",
+            qemuPath,
+            "--ovmf-code",
+            ovmfPath,
+            "--image",
+            imagePath,
+            "--serial-log",
+            serialLog,
+            "--require-marker",
+            "OS_SMOKE_FAIL");
+
+        return result.ExitCode == 1
+            && result.Output.Contains(
+                "TEST_FAIL qemu.runner.invalid_args",
+                StringComparison.Ordinal)
+            && !File.Exists(launchSentinel)
+            && !File.Exists(serialLog);
+    }
+
+    private static bool TestRejectsArtifactPathAliases(string tempRoot)
+    {
+        string imagePath = Path.Combine(tempRoot, "alias-image.raw");
+        File.WriteAllBytes(imagePath, new byte[] { 0x45, 0x46, 0x49, 0x20 });
+        string serialPath = Path.Combine(tempRoot, "alias-serial.log");
+        string relativeAlias = Path.Combine(
+            tempRoot,
+            ".",
+            "alias-serial.log");
+
+        ProcessResult serialSummary = RunQemuRunner(
+            "--dry-run",
+            "--image",
+            imagePath,
+            "--serial-log",
+            serialPath,
+            "--summary-log",
+            relativeAlias);
+        ProcessResult imageSummary = RunQemuRunner(
+            "--dry-run",
+            "--image",
+            imagePath,
+            "--summary-log",
+            imagePath);
+
+        string qemuPath = CreateFakeQemuScript(
+            tempRoot,
+            "OS_BOOT_OK",
+            "TEST_PASS boot.sequence",
+            "OS_SMOKE_PASS");
+        byte[] qemuBytesBefore = File.ReadAllBytes(qemuPath);
+        ProcessResult qemuSummary = RunQemuRunner(
+            "--qemu",
+            qemuPath,
+            "--image",
+            imagePath,
+            "--summary-log",
+            qemuPath);
+        bool qemuUnchanged = qemuBytesBefore.SequenceEqual(
+            File.ReadAllBytes(qemuPath));
+
+        string discoveredOvmfPath = Path.Combine(
+            tempRoot,
+            "alias-discovered-OVMF_CODE.fd");
+        byte[] ovmfBytesBefore = { 0x4F, 0x56, 0x4D, 0x46 };
+        File.WriteAllBytes(discoveredOvmfPath, ovmfBytesBefore);
+        ProcessResult discoveredOvmfSerial;
+        string? previousOvmf = Environment.GetEnvironmentVariable(
+            "OS_OVMF_CODE");
+        try
+        {
+            Environment.SetEnvironmentVariable(
+                "OS_OVMF_CODE",
+                discoveredOvmfPath);
+            discoveredOvmfSerial = RunQemuRunner(
+                "--qemu",
+                qemuPath,
+                "--image",
+                imagePath,
+                "--serial-log",
+                discoveredOvmfPath);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(
+                "OS_OVMF_CODE",
+                previousOvmf);
+        }
+
+        bool discoveredOvmfUnchanged = ovmfBytesBefore.SequenceEqual(
+            File.ReadAllBytes(discoveredOvmfPath));
+
+        bool caseAliasRejected = true;
+        if (OperatingSystem.IsWindows())
+        {
+            ProcessResult windowsCaseAlias = RunQemuRunner(
+                "--dry-run",
+                "--image",
+                imagePath,
+                "--serial-log",
+                serialPath,
+                "--summary-log",
+                serialPath.ToUpperInvariant());
+            caseAliasRejected = windowsCaseAlias.ExitCode == 1
+                && windowsCaseAlias.Output.Contains(
+                    "Artifact paths must be distinct",
+                    StringComparison.Ordinal);
+        }
+
+        return serialSummary.ExitCode == 1
+            && imageSummary.ExitCode == 1
+            && qemuSummary.ExitCode == 1
+            && discoveredOvmfSerial.ExitCode == 1
+            && qemuUnchanged
+            && discoveredOvmfUnchanged
+            && caseAliasRejected
+            && serialSummary.Output.Contains(
+                "Artifact paths must be distinct",
+                StringComparison.Ordinal)
+            && imageSummary.Output.Contains(
+                "Artifact paths must be distinct",
+                StringComparison.Ordinal)
+            && qemuSummary.Output.Contains(
+                "Artifact paths must be distinct",
+                StringComparison.Ordinal)
+            && discoveredOvmfSerial.Output.Contains(
+                "Resolved runtime paths must be distinct",
+                StringComparison.Ordinal);
     }
 
     private static bool TestRealModeWritesAppExitSummary(string tempRoot)
@@ -2241,7 +2667,7 @@ internal static class QemuRunnerTests
             && result.Output.Contains("OS_SMOKE_FAIL forbidden-marker=" + forbiddenMarker, StringComparison.Ordinal)
             && result.Output.Contains("TEST_FAIL qemu.smoke forbidden_marker marker=" + forbiddenMarker, StringComparison.Ordinal)
             && summary.Contains("QEMU_SMOKE_STATUS fail", StringComparison.Ordinal)
-            && summary.Contains("FORBIDDEN_MARKERS OS_SMOKE_FAIL;" + forbiddenMarker, StringComparison.Ordinal)
+            && summary.Contains("FORBIDDEN_MARKERS OS_SMOKE_FAIL;TEST_FAIL;" + forbiddenMarker, StringComparison.Ordinal)
             && summary.Contains("FORBIDDEN_MARKER_HIT " + forbiddenMarker, StringComparison.Ordinal)
             && summary.Contains("SERIAL_TAIL_LINE " + forbiddenMarker, StringComparison.Ordinal)
             && summary.Contains("FAIL_REASON forbidden_marker", StringComparison.Ordinal);
@@ -2358,7 +2784,7 @@ internal static class QemuRunnerTests
             && !result.Output.Contains("forbidden_marker", StringComparison.Ordinal)
             && summary.Contains("QEMU_SMOKE_STATUS fail", StringComparison.Ordinal)
             && summary.Contains("MISSING_MARKERS " + DefaultBootRequiredMarkers, StringComparison.Ordinal)
-            && summary.Contains("FORBIDDEN_MARKERS OS_SMOKE_FAIL;UEFI_EBS_FRESH_MAP_PROBE_START", StringComparison.Ordinal)
+            && summary.Contains("FORBIDDEN_MARKERS OS_SMOKE_FAIL;TEST_FAIL;UEFI_EBS_FRESH_MAP_PROBE_START", StringComparison.Ordinal)
             && summary.Contains("FORBIDDEN_MARKER_HIT none", StringComparison.Ordinal)
             && summary.Contains("FAIL_REASON missing_marker", StringComparison.Ordinal);
     }
@@ -2404,6 +2830,17 @@ internal static class QemuRunnerTests
 
     private static string CreateFakeQemuScript(string tempRoot, params string[] serialLines)
     {
+        return CreateFakeQemuScriptWithExitCode(
+            tempRoot,
+            0,
+            serialLines);
+    }
+
+    private static string CreateFakeQemuScriptWithExitCode(
+        string tempRoot,
+        int exitCode,
+        params string[] serialLines)
+    {
         string path = Path.Combine(tempRoot, "fake-qemu-" + Guid.NewGuid().ToString("N") + ".cmd");
         List<string> script =
         [
@@ -2429,7 +2866,130 @@ internal static class QemuRunnerTests
             firstLine = false;
         }
 
-        script.Add("exit /b 0");
+        script.Add("exit /b " + exitCode);
+        File.WriteAllLines(path, script);
+        return path;
+    }
+
+    private static string CreateLaunchSentinelFakeQemuScript(
+        string tempRoot,
+        string launchSentinel)
+    {
+        string path = Path.Combine(
+            tempRoot,
+            "fake-qemu-sentinel-" + Guid.NewGuid().ToString("N") + ".cmd");
+        string[] script =
+        [
+            "@echo off",
+            "> \"" + launchSentinel + "\" echo launched",
+            "exit /b 0"
+        ];
+
+        File.WriteAllLines(path, script);
+        return path;
+    }
+
+    private static string CreateDelayedTerminalFakeQemuScript(
+        string tempRoot,
+        string delayedTerminal)
+    {
+        string path = Path.Combine(
+            tempRoot,
+            "fake-qemu-delayed-" + Guid.NewGuid().ToString("N") + ".cmd");
+        string[] script =
+        [
+            "@echo off",
+            "set \"serial=\"",
+            ":scan",
+            "if \"%~1\"==\"\" goto write",
+            "if not \"%~1\"==\"-serial\" goto next",
+            "shift",
+            "set \"serial=%~1\"",
+            ":next",
+            "shift",
+            "goto scan",
+            ":write",
+            "if \"%serial:~0,5%\"==\"file:\" set \"serial=%serial:~5%\"",
+            "if \"%serial%\"==\"\" exit /b 12",
+            "> \"%serial%\" echo OS_BOOT_OK",
+            ">> \"%serial%\" echo TEST_PASS boot.sequence",
+            ">> \"%serial%\" echo OS_SMOKE_PASS",
+            "powershell.exe -NoProfile -Command \"Start-Sleep -Milliseconds 200\"",
+            ">> \"%serial%\" echo " + delayedTerminal,
+            "exit /b 0"
+        ];
+
+        File.WriteAllLines(path, script);
+        return path;
+    }
+
+    private static string CreateDelayedExitFakeQemuScript(
+        string tempRoot,
+        int exitCode,
+        int delayMilliseconds)
+    {
+        string path = Path.Combine(
+            tempRoot,
+            "fake-qemu-exit-" + Guid.NewGuid().ToString("N") + ".cmd");
+        string[] script =
+        [
+            "@echo off",
+            "set \"serial=\"",
+            ":scan",
+            "if \"%~1\"==\"\" goto write",
+            "if not \"%~1\"==\"-serial\" goto next",
+            "shift",
+            "set \"serial=%~1\"",
+            ":next",
+            "shift",
+            "goto scan",
+            ":write",
+            "if \"%serial:~0,5%\"==\"file:\" set \"serial=%serial:~5%\"",
+            "if \"%serial%\"==\"\" exit /b 12",
+            "> \"%serial%\" echo OS_BOOT_OK",
+            ">> \"%serial%\" echo TEST_PASS boot.sequence",
+            ">> \"%serial%\" echo OS_SMOKE_PASS",
+            "powershell.exe -NoProfile -Command \"Start-Sleep -Milliseconds " +
+                delayMilliseconds +
+                "\"",
+            "exit /b " + exitCode
+        ];
+
+        File.WriteAllLines(path, script);
+        return path;
+    }
+
+    private static string CreateLateMarkerFakeQemuScript(
+        string tempRoot,
+        int delayMilliseconds)
+    {
+        string path = Path.Combine(
+            tempRoot,
+            "fake-qemu-late-" + Guid.NewGuid().ToString("N") + ".cmd");
+        string[] script =
+        [
+            "@echo off",
+            "set \"serial=\"",
+            ":scan",
+            "if \"%~1\"==\"\" goto write",
+            "if not \"%~1\"==\"-serial\" goto next",
+            "shift",
+            "set \"serial=%~1\"",
+            ":next",
+            "shift",
+            "goto scan",
+            ":write",
+            "if \"%serial:~0,5%\"==\"file:\" set \"serial=%serial:~5%\"",
+            "if \"%serial%\"==\"\" exit /b 12",
+            "powershell.exe -NoProfile -Command \"Start-Sleep -Milliseconds " +
+                delayMilliseconds +
+                "\"",
+            "> \"%serial%\" echo OS_BOOT_OK",
+            ">> \"%serial%\" echo TEST_PASS boot.sequence",
+            ">> \"%serial%\" echo OS_SMOKE_PASS",
+            "exit /b 0"
+        ];
+
         File.WriteAllLines(path, script);
         return path;
     }
@@ -2478,16 +3038,20 @@ internal static class QemuRunnerTests
         using Process process = Process.Start(startInfo)
             ?? throw new InvalidOperationException("Failed to start powershell.exe.");
 
+        Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
+        Task<string> standardError = process.StandardError.ReadToEndAsync();
         bool exited = process.WaitForExit(120000);
         if (!exited)
         {
             process.Kill(entireProcessTree: true);
+            process.WaitForExit(5000);
             throw new TimeoutException("run-qemu-smoke.ps1 did not exit within 120 seconds.");
         }
 
         return new ProcessResult(
             process.ExitCode,
-            process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd());
+            standardOutput.GetAwaiter().GetResult()
+                + standardError.GetAwaiter().GetResult());
     }
 
     private static ProcessResult RunQemuRunner(params string[] args)
@@ -2509,16 +3073,20 @@ internal static class QemuRunnerTests
         using Process process = Process.Start(startInfo)
             ?? throw new InvalidOperationException("Failed to start dotnet.");
 
+        Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
+        Task<string> standardError = process.StandardError.ReadToEndAsync();
         bool exited = process.WaitForExit(30000);
         if (!exited)
         {
             process.Kill(entireProcessTree: true);
+            process.WaitForExit(5000);
             throw new TimeoutException("OS.QemuRunner did not exit within 30 seconds.");
         }
 
         return new ProcessResult(
             process.ExitCode,
-            process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd());
+            standardOutput.GetAwaiter().GetResult()
+                + standardError.GetAwaiter().GetResult());
     }
 
     private readonly struct ProcessResult

@@ -436,7 +436,12 @@ and `TEST_PASS runtime.cctor work item layouts contain no managed references`.
 
 ## Known Limitations
 
-The default solution projects currently reference normal `net10.0` libraries to keep Phase A buildable. `src/OS/OS.csproj` is explicit no-stdlib work and stays outside `OS.slnx`; it now produces a minimal EFI PE artifact, but that artifact is not yet a boot-proven kernel. Canonical `System.*` replacement types must not be imported into the normal host build path.
+Most solution projects reference normal `net10.0` libraries to keep host
+contracts buildable. `src/OS/OS.csproj` is included in `CLROS.slnx` as explicit
+no-stdlib work under stricter directory-local rules; it produces a minimal EFI
+PE artifact, but that artifact is not yet a boot-proven kernel. Canonical
+`System.*` replacement types must not be imported into the normal host build
+path.
 
 The current `OS.Std.MemoryExtensions` type intentionally lives under `OS.Std`, not `System`, because only partial byte-span and char-span subsets are implemented. Do not expose it as canonical `System.MemoryExtensions` until the signatures and behavior are compatible with the public BCL contract and documented as such. The `CopyTo` helper follows the BCL-shaped throwing contract in the host-testable subset; kernel-facing callers that cannot depend on exceptions should use the OS-specific `TryCopyTo` helper so too-small destinations are reported as `false` without modifying the destination.
 

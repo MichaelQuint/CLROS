@@ -7,6 +7,11 @@ using OS.Tools.QemuRunner;
 
 try
 {
+    if (EvidenceManifestCommand.TryRun(args, out int evidenceManifestExitCode))
+    {
+        return evidenceManifestExitCode;
+    }
+
     RunnerOptions options = RunnerOptions.Parse(args);
 
     if (options.ShowHelp)
@@ -38,6 +43,13 @@ try
         return 0;
     }
 
+    DiscoveryResult qemu = ResolveExecutable(options.QemuPath);
+    DiscoveryResult ovmf = ResolveOvmfCode(options.OvmfCodePath, qemu.Path);
+
+    WriteDiscovery("QEMU_DISCOVERY", qemu);
+    WriteDiscovery("OVMF_DISCOVERY", ovmf);
+    ValidateResolvedPathSeparation(options, qemu.Path, ovmf.Path);
+
     if (string.IsNullOrWhiteSpace(options.ImagePath) || !File.Exists(options.ImagePath))
     {
         Console.Error.WriteLine("TEST_FAIL qemu.smoke image_not_found");
@@ -51,12 +63,6 @@ try
             "image_not_found");
         return 2;
     }
-
-    DiscoveryResult qemu = ResolveExecutable(options.QemuPath);
-    DiscoveryResult ovmf = ResolveOvmfCode(options.OvmfCodePath, qemu.Path);
-
-    WriteDiscovery("QEMU_DISCOVERY", qemu);
-    WriteDiscovery("OVMF_DISCOVERY", ovmf);
 
     if (qemu.Path is null || ovmf.Path is null)
     {
@@ -98,49 +104,117 @@ try
     Console.WriteLine("ORDERED_MARKERS " + FormatSummaryList(options.OrderedMarkers));
     Console.WriteLine("FORBIDDEN_MARKERS " + FormatSummaryList(options.ForbiddenMarkers));
 
+    SerialMarkerStateMachine streamingMarkers = new SerialMarkerStateMachine(
+        options.RequiredMarkers,
+        options.ForbiddenMarkers);
+
     using Process process = new Process();
     process.StartInfo.FileName = qemu.Path;
     process.StartInfo.UseShellExecute = false;
-    process.StartInfo.RedirectStandardError = true;
-    process.StartInfo.RedirectStandardOutput = true;
+    process.StartInfo.CreateNoWindow = true;
 
     foreach (string argument in QemuCommandBuilder.BuildArguments(options, ovmf.Path))
     {
         process.StartInfo.ArgumentList.Add(argument);
     }
 
+    bool processStarted = false;
+    bool processTerminationRequested = false;
+    bool processCleanupFailed = false;
+    bool qemuExitedSpontaneously = false;
+    int? qemuExitCode = null;
+    try
+    {
     process.Start();
-    Task<string> stdout = process.StandardOutput.ReadToEndAsync();
-    Task<string> stderr = process.StandardError.ReadToEndAsync();
+    processStarted = true;
 
+    long serialReadOffset = 0;
+    string? serialReadFailure = null;
     bool markerSeen = false;
     bool forbiddenMarkerSeen = false;
     bool timedOut = false;
+    const long terminalDrainMilliseconds = 750;
     Stopwatch stopwatch = Stopwatch.StartNew();
+    long lastSerialActivityMilliseconds = stopwatch.ElapsedMilliseconds;
     while (true)
     {
-        string currentSerial = ReadSerialLog(options.SerialLogPath);
-        SerialMarkerSummary currentSummary = SerialMarkerSummary.Parse(
-            currentSerial,
-            options.RequiredMarkers,
-            options.ForbiddenMarkers,
-            options.OrderedMarkers);
-        if (currentSummary.HasForbiddenMarkers)
+        long previousSerialReadOffset = serialReadOffset;
+        if (!TryFeedSerialLogDelta(
+                options.SerialLogPath,
+                streamingMarkers,
+                ref serialReadOffset,
+                out SerialMarkerFeedResult feedResult,
+                out serialReadFailure))
         {
-            forbiddenMarkerSeen = true;
-            KillProcess(process);
+            TerminateProcessAndClassify(
+                process,
+                ref processTerminationRequested,
+                ref processCleanupFailed,
+                ref qemuExitedSpontaneously,
+                ref qemuExitCode);
             break;
         }
 
-        if (currentSummary.HasAllRequiredMarkers)
+        if (!feedResult.Succeeded)
+        {
+            TerminateProcessAndClassify(
+                process,
+                ref processTerminationRequested,
+                ref processCleanupFailed,
+                ref qemuExitedSpontaneously,
+                ref qemuExitCode);
+            break;
+        }
+
+        if (serialReadOffset != previousSerialReadOffset)
+        {
+            lastSerialActivityMilliseconds = stopwatch.ElapsedMilliseconds;
+        }
+
+        if (stopwatch.ElapsedMilliseconds >= options.TimeoutSeconds * 1000L)
+        {
+            timedOut = true;
+            TerminateProcessAndClassify(
+                process,
+                ref processTerminationRequested,
+                ref processCleanupFailed,
+                ref qemuExitedSpontaneously,
+                ref qemuExitCode);
+            break;
+        }
+
+        if (streamingMarkers.ForbiddenOccurrenceCount != 0)
+        {
+            forbiddenMarkerSeen = true;
+            TerminateProcessAndClassify(
+                process,
+                ref processTerminationRequested,
+                ref processCleanupFailed,
+                ref qemuExitedSpontaneously,
+                ref qemuExitCode);
+            break;
+        }
+
+        if (streamingMarkers.RequiredSeenCount ==
+            streamingMarkers.RequiredMarkerCount)
         {
             markerSeen = true;
-            if (options.HttpProbe is null)
+            if (options.HttpProbe is not null)
             {
-                KillProcess(process);
+                break;
             }
 
-            break;
+            if (stopwatch.ElapsedMilliseconds - lastSerialActivityMilliseconds >=
+                terminalDrainMilliseconds)
+            {
+                TerminateProcessAndClassify(
+                    process,
+                    ref processTerminationRequested,
+                    ref processCleanupFailed,
+                    ref qemuExitedSpontaneously,
+                    ref qemuExitCode);
+                break;
+            }
         }
 
         if (process.HasExited)
@@ -148,18 +222,31 @@ try
             break;
         }
 
-        if (stopwatch.ElapsedMilliseconds >= options.TimeoutSeconds * 1000L)
-        {
-            timedOut = true;
-            KillProcess(process);
-            break;
-        }
-
         Thread.Sleep(100);
     }
 
+    if (process.HasExited)
+    {
+        qemuExitCode = process.ExitCode;
+        qemuExitedSpontaneously |= !processTerminationRequested;
+    }
+
     HttpProbeResult? httpProbeResult = null;
-    string preProbeSerial = ReadSerialLog(options.SerialLogPath);
+    string preProbeSerial = string.Empty;
+    if (serialReadFailure is null &&
+        !TryReadSerialLogBounded(
+            options.SerialLogPath,
+            out preProbeSerial,
+            out serialReadFailure))
+    {
+        TerminateProcessAndClassify(
+            process,
+            ref processTerminationRequested,
+            ref processCleanupFailed,
+            ref qemuExitedSpontaneously,
+            ref qemuExitCode);
+    }
+
     SerialMarkerSummary preProbeSummary = SerialMarkerSummary.Parse(
         preProbeSerial,
         options.RequiredMarkers,
@@ -170,18 +257,64 @@ try
         && !preProbeSummary.HasForbiddenMarkers)
     {
         httpProbeResult = ExecuteHttpProbe(options.HttpProbe.Value);
-        KillProcess(process);
+        TerminateProcessAndClassify(
+            process,
+            ref processTerminationRequested,
+            ref processCleanupFailed,
+            ref qemuExitedSpontaneously,
+            ref qemuExitCode);
+        if (process.HasExited)
+        {
+            qemuExitCode = process.ExitCode;
+        }
     }
 
-    string qemuOutput = stdout.GetAwaiter().GetResult() + stderr.GetAwaiter().GetResult();
-    if (!string.IsNullOrWhiteSpace(qemuOutput))
+    if (serialReadFailure is null)
     {
-        Console.Error.WriteLine("QEMU_OUTPUT_BEGIN");
-        Console.Error.Write(qemuOutput);
-        Console.Error.WriteLine("QEMU_OUTPUT_END");
+        TryFeedSerialLogDelta(
+            options.SerialLogPath,
+            streamingMarkers,
+            ref serialReadOffset,
+            out _,
+            out serialReadFailure);
     }
 
-    string serial = ReadSerialLog(options.SerialLogPath);
+    markerSeen =
+        streamingMarkers.RequiredSeenCount ==
+        streamingMarkers.RequiredMarkerCount;
+
+    SerialMarkerCompletionResult streamingResult =
+        streamingMarkers.Complete(timedOut);
+    Console.WriteLine(
+        "SERIAL_MARKER_STREAM status=" + streamingResult.Status +
+        " terminal=" + streamingResult.TerminalState +
+        " bytes=" + streamingResult.TotalBytes +
+        " lines=" + streamingResult.LinesProcessed +
+        " invalidBytes=" + streamingResult.InvalidByteCount +
+        " invalidLines=" + streamingResult.InvalidNoiseLineCount);
+    Console.WriteLine(
+        "SERIAL_MARKER_DRAIN milliseconds=" + terminalDrainMilliseconds);
+    Console.WriteLine(
+        "QEMU_PROCESS_RESULT disposition=" +
+        (processCleanupFailed
+            ? "cleanup-failed"
+            : processTerminationRequested
+                ? "runner-terminated"
+                : qemuExitedSpontaneously
+                    ? "exited"
+                    : "running") +
+        " exitCode=" +
+        (qemuExitCode.HasValue ? qemuExitCode.Value.ToString() : "none"));
+
+    string serial = string.Empty;
+    if (serialReadFailure is null)
+    {
+        TryReadSerialLogBounded(
+            options.SerialLogPath,
+            out serial,
+            out serialReadFailure);
+    }
+
     SerialMarkerSummary summary = SerialMarkerSummary.Parse(
         serial,
         options.RequiredMarkers,
@@ -190,7 +323,33 @@ try
     IReadOnlyList<string> observedMarkerLines = summary.ObservedMarkerLines;
     IReadOnlyList<string> forbiddenMarkers = summary.ForbiddenMarkerHits;
     IReadOnlyList<string> outOfOrderMarkers = summary.OutOfOrderMarkers;
-    if (forbiddenMarkerSeen || forbiddenMarkers.Count != 0)
+    if (serialReadFailure is not null ||
+        IsStreamingStructuralFailure(streamingResult.Status))
+    {
+        string failureReason = serialReadFailure ??
+            "serial_marker_stream_" +
+            streamingResult.Status.ToString().ToLowerInvariant();
+        WriteSummaryLogBestEffort(
+            options,
+            "fail",
+            observedMarkerLines,
+            summary.MissingMarkers,
+            forbiddenMarkers,
+            failureReason,
+            httpProbeResult,
+            summary.AppExitResults,
+            summary.MalformedAppExitMarkers,
+            outOfOrderMarkers);
+        Console.Error.WriteLine(
+            "TEST_FAIL qemu.smoke serial_marker_stream status=" +
+            streamingResult.Status +
+            " reason=" + failureReason);
+        return 13;
+    }
+
+    if (forbiddenMarkerSeen ||
+        streamingResult.Status == SerialMarkerCompletionStatus.ForbiddenMarker ||
+        forbiddenMarkers.Count != 0)
     {
         WriteSummaryLogBestEffort(
             options,
@@ -225,12 +384,57 @@ try
         return 10;
     }
 
-    if (markerSeen || summary.HasAllRequiredMarkers)
+    if (processCleanupFailed)
+    {
+        WriteSummaryLogBestEffort(
+            options,
+            "fail",
+            observedMarkerLines,
+            summary.MissingMarkers,
+            forbiddenMarkers,
+            "qemu_cleanup_failed",
+            httpProbeResult,
+            summary.AppExitResults,
+            summary.MalformedAppExitMarkers,
+            outOfOrderMarkers);
+        Console.Error.WriteLine("TEST_FAIL qemu.smoke qemu_cleanup_failed");
+        return 15;
+    }
+
+    if (qemuExitedSpontaneously && qemuExitCode is not null and not 0)
+    {
+        WriteSummaryLogBestEffort(
+            options,
+            "fail",
+            observedMarkerLines,
+            summary.MissingMarkers,
+            forbiddenMarkers,
+            "qemu_exit_nonzero",
+            httpProbeResult,
+            summary.AppExitResults,
+            summary.MalformedAppExitMarkers,
+            outOfOrderMarkers);
+        Console.Error.WriteLine(
+            "TEST_FAIL qemu.smoke qemu_exit_nonzero code=" +
+            qemuExitCode.Value);
+        return 14;
+    }
+
+    if (markerSeen &&
+        streamingResult.Passed &&
+        streamingResult.TerminalState == SerialMarkerTerminalState.Success &&
+        streamingResult.SuccessTerminalCount == 1 &&
+        summary.HasAllRequiredMarkers)
     {
         if (options.HttpProbe is not null)
         {
             httpProbeResult ??= ExecuteHttpProbe(options.HttpProbe.Value);
-            KillProcess(process);
+            TerminateProcessAndClassify(
+                process,
+                ref processTerminationRequested,
+                ref processCleanupFailed,
+                ref qemuExitedSpontaneously,
+                ref qemuExitCode);
 
             if (!httpProbeResult.Value.Passed)
             {
@@ -251,6 +455,44 @@ try
             }
         }
 
+        if (processCleanupFailed)
+        {
+            WriteSummaryLogBestEffort(
+                options,
+                "fail",
+                observedMarkerLines,
+                summary.MissingMarkers,
+                forbiddenMarkers,
+                "qemu_cleanup_failed",
+                httpProbeResult,
+                summary.AppExitResults,
+                summary.MalformedAppExitMarkers,
+                outOfOrderMarkers);
+            Console.Error.WriteLine(
+                "TEST_FAIL qemu.smoke qemu_cleanup_failed");
+            return 15;
+        }
+
+        if (qemuExitedSpontaneously &&
+            qemuExitCode is not null and not 0)
+        {
+            WriteSummaryLogBestEffort(
+                options,
+                "fail",
+                observedMarkerLines,
+                summary.MissingMarkers,
+                forbiddenMarkers,
+                "qemu_exit_nonzero",
+                httpProbeResult,
+                summary.AppExitResults,
+                summary.MalformedAppExitMarkers,
+                outOfOrderMarkers);
+            Console.Error.WriteLine(
+                "TEST_FAIL qemu.smoke qemu_exit_nonzero code=" +
+                qemuExitCode.Value);
+            return 14;
+        }
+
         WriteSummaryLogBestEffort(
             options,
             "pass",
@@ -266,7 +508,32 @@ try
         return 0;
     }
 
-    IReadOnlyList<string> missingMarkers = summary.MissingMarkers;
+    if (streamingResult.Status ==
+        SerialMarkerCompletionStatus.MissingSuccessTerminal)
+    {
+        WriteSummaryLogBestEffort(
+            options,
+            "fail",
+            observedMarkerLines,
+            summary.MissingMarkers,
+            Array.Empty<string>(),
+            "missing_success_terminal",
+            httpProbeResult,
+            summary.AppExitResults,
+            summary.MalformedAppExitMarkers,
+            outOfOrderMarkers);
+        Console.Error.WriteLine(
+            "TEST_FAIL qemu.smoke missing_success_terminal marker=" +
+            SerialMarkerStateMachine.DefaultSuccessTerminalMarker);
+        return 16;
+    }
+
+    IReadOnlyList<string> missingMarkers =
+        streamingResult.Status ==
+            SerialMarkerCompletionStatus.MissingRequiredMarker &&
+        streamingResult.MissingRequiredMarkers is not null
+            ? streamingResult.MissingRequiredMarkers
+            : summary.MissingMarkers;
     if (timedOut)
     {
         WriteSummaryLogBestEffort(
@@ -297,6 +564,19 @@ try
         outOfOrderMarkers);
     Console.Error.WriteLine("TEST_FAIL qemu.smoke missing_marker required=" + FormatMarkers(options.RequiredMarkers) + " missing=" + FormatMarkers(missingMarkers));
     return 5;
+    }
+    finally
+    {
+        if (processStarted && !process.HasExited)
+        {
+            var terminationResult = TerminateProcessBounded(process);
+            if (!terminationResult.Succeeded)
+            {
+                Console.Error.WriteLine(
+                    "QEMU_PROCESS_CLEANUP_FAILED timeout_ms=2000");
+            }
+        }
+    }
 }
 catch (ArgumentException ex)
 {
@@ -304,19 +584,192 @@ catch (ArgumentException ex)
     return 1;
 }
 
-static void KillProcess(Process process)
+static void TerminateProcessAndClassify(
+    Process process,
+    ref bool runnerTerminationIssued,
+    ref bool cleanupFailed,
+    ref bool qemuExitedSpontaneously,
+    ref int? qemuExitCode)
 {
+    bool runnerTerminationWasAlreadyIssued = runnerTerminationIssued;
+    (
+        bool succeeded,
+        bool killIssued,
+        bool exitedBeforeKill,
+        int? exitCode) = TerminateProcessBounded(process);
+
+    runnerTerminationIssued |= killIssued;
+    cleanupFailed |= !succeeded;
+    qemuExitedSpontaneously |=
+        exitedBeforeKill && !runnerTerminationWasAlreadyIssued;
+    if (exitCode.HasValue)
+    {
+        qemuExitCode = exitCode;
+    }
+}
+
+static void ValidateResolvedPathSeparation(
+    RunnerOptions options,
+    string? qemuPath,
+    string? ovmfPath)
+{
+    List<(string Name, string Path)> paths =
+    [
+        ("image", options.ImagePath),
+        ("serial-log", options.SerialLogPath)
+    ];
+
+    if (!string.IsNullOrWhiteSpace(qemuPath))
+    {
+        paths.Add(("qemu", qemuPath));
+    }
+
+    if (!string.IsNullOrWhiteSpace(ovmfPath))
+    {
+        paths.Add(("ovmf-code", ovmfPath));
+    }
+
+    if (!string.IsNullOrWhiteSpace(options.SummaryLogPath))
+    {
+        paths.Add(("summary-log", options.SummaryLogPath));
+    }
+
+    StringComparer comparer = OperatingSystem.IsWindows()
+        ? StringComparer.OrdinalIgnoreCase
+        : StringComparer.Ordinal;
+    Dictionary<string, string> nameByPath =
+        new Dictionary<string, string>(comparer);
+    foreach ((string name, string path) in paths)
+    {
+        string fullPath = Path.GetFullPath(path);
+        if (nameByPath.TryGetValue(fullPath, out string? existing))
+        {
+            throw new ArgumentException(
+                "Resolved runtime paths must be distinct: "
+                + existing
+                + " and "
+                + name
+                + " resolve to "
+                + fullPath
+                + ".");
+        }
+
+        nameByPath.Add(fullPath, name);
+    }
+}
+
+static (
+    bool Succeeded,
+    bool KillIssued,
+    bool ExitedBeforeKill,
+    int? ExitCode) TerminateProcessBounded(Process process)
+{
+    const int waitMilliseconds = 2000;
+
     try
     {
-        if (!process.HasExited)
+        if (process.HasExited)
+        {
+            return (true, false, true, process.ExitCode);
+        }
+
+        bool killIssued = false;
+        try
         {
             process.Kill(entireProcessTree: true);
+            killIssued = true;
         }
+        catch (InvalidOperationException) when (process.HasExited)
+        {
+            return (true, false, true, process.ExitCode);
+        }
+
+        bool exited = process.WaitForExit(waitMilliseconds);
+        int? exitCode = exited ? process.ExitCode : null;
+
+        return (exited, killIssued, false, exitCode);
     }
     catch
     {
-        // Process cleanup failure should not hide smoke status.
+        return (false, false, false, null);
     }
+}
+
+static bool TryFeedSerialLogDelta(
+    string path,
+    SerialMarkerStateMachine stateMachine,
+    ref long offset,
+    out SerialMarkerFeedResult feedResult,
+    out string? failureReason)
+{
+    feedResult = stateMachine.Feed(ReadOnlySpan<byte>.Empty);
+    failureReason = null;
+    if (!feedResult.Succeeded || !File.Exists(path))
+    {
+        return feedResult.Succeeded;
+    }
+
+    try
+    {
+        using FileStream stream = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete);
+        if (stream.Length < offset)
+        {
+            failureReason = "serial_log_truncated";
+            return false;
+        }
+
+        stream.Position = offset;
+        byte[] buffer = new byte[4096];
+        while (true)
+        {
+            int bytesRead = stream.Read(buffer, 0, buffer.Length);
+            if (bytesRead == 0)
+            {
+                return true;
+            }
+
+            feedResult = stateMachine.Feed(buffer.AsSpan(0, bytesRead));
+            offset += feedResult.BytesConsumed;
+            if (!feedResult.Succeeded)
+            {
+                return true;
+            }
+        }
+    }
+    catch (FileNotFoundException)
+    {
+        return true;
+    }
+    catch (DirectoryNotFoundException)
+    {
+        return true;
+    }
+    catch (UnauthorizedAccessException)
+    {
+        failureReason = "serial_log_unreadable";
+        return false;
+    }
+    catch (IOException)
+    {
+        failureReason = "serial_log_read_failed";
+        return false;
+    }
+}
+
+static bool IsStreamingStructuralFailure(SerialMarkerCompletionStatus status)
+{
+    return status is
+        SerialMarkerCompletionStatus.CapacityExceeded or
+        SerialMarkerCompletionStatus.InvalidByteSequence or
+        SerialMarkerCompletionStatus.ConflictingTerminalMarkers or
+        SerialMarkerCompletionStatus.DuplicateTerminalMarker or
+        SerialMarkerCompletionStatus.FailureTerminal or
+        SerialMarkerCompletionStatus.PartialMarkerAtEndOfStream or
+        SerialMarkerCompletionStatus.Uninitialized;
 }
 
 static string FormatMarkers(IReadOnlyList<string> markers)
@@ -492,7 +945,19 @@ static void WriteSummaryLogBestEffort(
         builder.Append("OUT_OF_ORDER_MARKERS ").AppendLine(FormatSummaryList(outOfOrderMarkers ?? Array.Empty<string>()));
         builder.Append("FORBIDDEN_MARKER_HIT ").AppendLine(FormatSummaryList(forbiddenMarkers));
         builder.Append("FAIL_REASON ").AppendLine(failReason);
-        AppendSerialTailSummary(builder, ReadSerialLog(options.SerialLogPath));
+        if (TryReadSerialLogBounded(
+                options.SerialLogPath,
+                out string serial,
+                out string? serialTailFailure))
+        {
+            AppendSerialTailSummary(builder, serial);
+        }
+        else
+        {
+            builder.Append("SERIAL_TAIL_READ_ERROR ")
+                .AppendLine(serialTailFailure ?? "unknown");
+            AppendSerialTailSummary(builder, string.Empty);
+        }
 
         File.WriteAllText(options.SummaryLogPath, builder.ToString(), Encoding.UTF8);
         Console.WriteLine("SUMMARY_LOG " + options.SummaryLogPath);
@@ -856,22 +1321,63 @@ static string FormatProbeEndpoint(string url)
     return uri.Scheme + "://" + host + ":" + uri.Port;
 }
 
-static string ReadSerialLog(string path)
+static bool TryReadSerialLogBounded(
+    string path,
+    out string serial,
+    out string? failureReason)
 {
+    serial = string.Empty;
+    failureReason = null;
     if (!File.Exists(path))
     {
-        return string.Empty;
+        return true;
     }
 
     try
     {
-        using FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-        using StreamReader reader = new StreamReader(stream);
-        return reader.ReadToEnd();
+        using FileStream stream = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete);
+        if (stream.Length > SerialMarkerStateMachine.DefaultByteCapacity)
+        {
+            failureReason = "serial_log_capacity_exceeded";
+            return false;
+        }
+
+        int byteCount = checked((int)stream.Length);
+        byte[] bytes = new byte[byteCount];
+        int offset = 0;
+        while (offset < bytes.Length)
+        {
+            int read = stream.Read(bytes, offset, bytes.Length - offset);
+            if (read == 0)
+            {
+                failureReason = "serial_log_short_read";
+                return false;
+            }
+
+            offset += read;
+        }
+
+        serial = Encoding.UTF8.GetString(bytes);
+        return true;
+    }
+    catch (UnauthorizedAccessException)
+    {
+        failureReason = "serial_log_unreadable";
+        return false;
     }
     catch (IOException)
     {
-        return string.Empty;
+        failureReason = "serial_log_read_failed";
+        return false;
+    }
+    catch (OverflowException)
+    {
+        failureReason = "serial_log_capacity_exceeded";
+        return false;
     }
 }
 
@@ -1020,9 +1526,11 @@ readonly struct DiscoveryResult
 sealed class RunnerOptions
 {
     private static readonly string[] DefaultRequiredMarkers = { "OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS" };
-    private static readonly string[] DefaultForbiddenMarkers = { "OS_SMOKE_FAIL" };
+    private static readonly string[] DefaultForbiddenMarkers =
+        { "OS_SMOKE_FAIL", "TEST_FAIL" };
     private const string DefaultWorkloadProfile = OS.Kernel.Build.WorkloadProfile.SingleMinimalApiName;
-    private readonly List<string> requiredMarkers = new List<string>();
+    private readonly List<string> requiredMarkers =
+        new List<string>(DefaultRequiredMarkers);
     private readonly List<string> forbiddenMarkers = new List<string>(DefaultForbiddenMarkers);
     private readonly List<string> markerPresets = new List<string>();
     private readonly List<string> orderedMarkers = new List<string>();
@@ -1043,15 +1551,7 @@ sealed class RunnerOptions
 
     public string WorkloadProfile { get; private set; } = DefaultWorkloadProfile;
 
-    public IReadOnlyList<string> RequiredMarkers
-    {
-        get
-        {
-            return requiredMarkers.Count == 0
-                ? DefaultRequiredMarkers
-                : requiredMarkers;
-        }
-    }
+    public IReadOnlyList<string> RequiredMarkers => requiredMarkers;
 
     public IReadOnlyList<string> ForbiddenMarkers => forbiddenMarkers;
 
@@ -1255,6 +1755,13 @@ sealed class RunnerOptions
             throw new ArgumentException("--dry-run and preflight are mutually exclusive.");
         }
 
+        ValidateArtifactPathSeparation();
+
+        // Constructing the parser validates marker counts, lengths, ASCII,
+        // duplicates, and required/forbidden overlap before any process can
+        // be launched.
+        _ = new SerialMarkerStateMachine(RequiredMarkers, ForbiddenMarkers);
+
         if (!httpProbeConfigured)
         {
             return;
@@ -1271,6 +1778,49 @@ sealed class RunnerOptions
             httpProbeExpectedBody,
             httpProbeExpectedBodyConfigured,
             httpProbeTimeoutSeconds);
+    }
+
+    private void ValidateArtifactPathSeparation()
+    {
+        List<(string Name, string Path)> paths =
+        [
+            ("image", ImagePath),
+            ("serial-log", SerialLogPath),
+            ("qemu-requested", QemuPath)
+        ];
+
+        if (!string.IsNullOrWhiteSpace(OvmfCodePath))
+        {
+            paths.Add(("ovmf-code", OvmfCodePath));
+        }
+
+        if (!string.IsNullOrWhiteSpace(SummaryLogPath))
+        {
+            paths.Add(("summary-log", SummaryLogPath));
+        }
+
+        StringComparer comparer = OperatingSystem.IsWindows()
+            ? StringComparer.OrdinalIgnoreCase
+            : StringComparer.Ordinal;
+        Dictionary<string, string> nameByPath =
+            new Dictionary<string, string>(comparer);
+        foreach ((string name, string path) in paths)
+        {
+            string fullPath = Path.GetFullPath(path);
+            if (nameByPath.TryGetValue(fullPath, out string? existing))
+            {
+                throw new ArgumentException(
+                    "Artifact paths must be distinct: "
+                    + existing
+                    + " and "
+                    + name
+                    + " resolve to "
+                    + fullPath
+                    + ".");
+            }
+
+            nameByPath.Add(fullPath, name);
+        }
     }
 
     private static string NormalizeWorkloadProfile(string value)

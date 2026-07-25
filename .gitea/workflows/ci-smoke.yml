@@ -1,0 +1,50 @@
+name: CLROS CI smoke
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows-smoke:
+    runs-on: windows
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: powershell
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Build solution
+        run: dotnet build .\CLROS.slnx --nologo -m:1
+
+      - name: Build host tests
+        run: dotnet build .\tests\OS.HostTests\OS.HostTests.csproj --nologo
+
+      - name: Run host tests
+        run: dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
+
+      - name: Check naming and source firewall
+        run: .\scripts\check-naming.ps1
+
+      - name: Preflight EFI toolchain
+        run: .\scripts\build-efi-shell.ps1 -PreflightOnly
+
+      - name: Plan CI smoke lanes
+        run: .\scripts\run-ci-smoke.ps1 -DryRun
+
+      - name: Plan baseline evidence
+        run: .\scripts\run-baseline-evidence.ps1 -PlanOnly
+
+      - name: Check whitespace
+        run: git diff --check
+
+      - name: Upload smoke logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clros-ci-smoke-logs
+          path: artifacts/logs/**
+          if-no-files-found: warn

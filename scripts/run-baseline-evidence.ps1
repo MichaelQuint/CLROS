@@ -5,12 +5,18 @@ param(
     [string] $QemuImg = "",
     [string] $OvmfCode = "",
     [switch] $PlanOnly,
+    [switch] $SelfTest,
     [string] $LogRoot = ""
 )
 
 $ErrorActionPreference = "Stop"
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).ProviderPath
+$solutionPath = Join-Path $root "CLROS.slnx"
+if (-not (Test-Path -LiteralPath $solutionPath -PathType Leaf)) {
+    throw "Required solution not found: $solutionPath"
+}
+
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 if ([string]::IsNullOrWhiteSpace($LogRoot)) {
     $logRoot = Join-Path $root (Join-Path "artifacts/logs" $timestamp)
@@ -26,7 +32,16 @@ else {
 $summaryPath = Join-Path $logRoot "summary.json"
 $powerShellExe = (Get-Process -Id $PID).Path
 
-New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
+if (Test-Path -LiteralPath $logRoot) {
+    $existingEntry = Get-ChildItem -LiteralPath $logRoot -Force |
+        Select-Object -First 1
+    if ($null -ne $existingEntry) {
+        throw "Evidence log directory must be new or empty: $logRoot"
+    }
+}
+else {
+    New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
+}
 
 function Assert-WorkloadProfile {
     param([string] $Profile)
@@ -53,6 +68,10 @@ function Write-WorkloadProfileEvidence {
 
 Assert-WorkloadProfile -Profile $WorkloadProfile
 $msbuildProfileArgument = "/p:OSWorkloadProfile=$WorkloadProfile"
+$msbuildProfileArguments = @()
+if ($WorkloadProfile -ne "SingleMinimalApi") {
+    $msbuildProfileArguments = @($msbuildProfileArgument)
+}
 Write-WorkloadProfileEvidence -Profile $WorkloadProfile
 
 function ConvertTo-RelativePath {
@@ -378,6 +397,168 @@ function Invoke-EvidenceStep {
         -Qcow2ConversionIntent $Qcow2ConversionIntent
 }
 
+function Get-HostTerminalValidation {
+    param([string] $Path)
+
+    $result = [ordered]@{
+        valid = $false
+        reason = "missing_log"
+        passCount = 0
+        failCount = 0
+    }
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return [PSCustomObject]$result
+    }
+
+    try {
+        $text = Get-Content -LiteralPath $Path -Raw
+    }
+    catch {
+        $result.reason = "read_failed"
+        return [PSCustomObject]$result
+    }
+
+    $result.passCount = [regex]::Matches(
+        $text,
+        "(?m)^TEST_PASS host\.tests\r?$").Count
+    $result.failCount = [regex]::Matches(
+        $text,
+        "(?m)^TEST_FAIL host\.tests(?:\s.*)?\r?$").Count
+    if ($result.passCount -eq 1 -and $result.failCount -eq 0) {
+        $result.valid = $true
+        $result.reason = "valid"
+    }
+    else {
+        $result.reason = "terminal_marker_cardinality"
+    }
+
+    return [PSCustomObject]$result
+}
+
+function Test-BaselineSummaryRoundTrip {
+    param(
+        [string] $Path,
+        [string] $ExpectedStatus,
+        [string] $ExpectedMode,
+        [int] $ExpectedStepCount
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return $false
+    }
+
+    try {
+        $roundTrip = Get-Content -LiteralPath $Path -Raw |
+            ConvertFrom-Json
+    }
+    catch {
+        return $false
+    }
+
+    return $roundTrip.schema -eq "os.baseline.evidence.summary.v0" `
+        -and $roundTrip.status -eq $ExpectedStatus `
+        -and $roundTrip.mode -eq $ExpectedMode `
+        -and @($roundTrip.steps).Count -eq $ExpectedStepCount
+}
+
+if ($SelfTest) {
+    if ($PlanOnly) {
+        throw "-SelfTest cannot be combined with -PlanOnly."
+    }
+
+    Write-Host "TEST_START baseline.evidence.selftest"
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    $caseRoot = Join-Path $logRoot "selftest"
+    New-Item -ItemType Directory -Path $caseRoot -Force | Out-Null
+
+    $missing = Get-HostTerminalValidation `
+        -Path (Join-Path $caseRoot "missing.log")
+    if ($missing.valid -or $missing.reason -ne "missing_log") {
+        throw "Host-terminal self-test accepted a missing log."
+    }
+    Write-Host "TEST_PASS baseline.evidence.selftest missing_host_log"
+
+    $validPath = Join-Path $caseRoot "valid.log"
+    [System.IO.File]::WriteAllText(
+        $validPath,
+        "TEST_START host.tests`r`nTEST_PASS host.tests`r`n",
+        $utf8NoBom)
+    $valid = Get-HostTerminalValidation -Path $validPath
+    if (-not $valid.valid -or
+        $valid.passCount -ne 1 -or
+        $valid.failCount -ne 0) {
+        throw "Host-terminal self-test rejected the single valid terminal."
+    }
+    Write-Host "TEST_PASS baseline.evidence.selftest single_host_pass"
+
+    $duplicatePath = Join-Path $caseRoot "duplicate.log"
+    [System.IO.File]::WriteAllText(
+        $duplicatePath,
+        "TEST_PASS host.tests`r`nTEST_PASS host.tests`r`n",
+        $utf8NoBom)
+    $duplicate = Get-HostTerminalValidation -Path $duplicatePath
+    if ($duplicate.valid -or $duplicate.passCount -ne 2) {
+        throw "Host-terminal self-test accepted duplicate pass terminals."
+    }
+    Write-Host "TEST_PASS baseline.evidence.selftest duplicate_host_pass"
+
+    $conflictPath = Join-Path $caseRoot "conflict.log"
+    [System.IO.File]::WriteAllText(
+        $conflictPath,
+        "TEST_PASS host.tests`r`nTEST_FAIL host.tests failures=1`r`n",
+        $utf8NoBom)
+    $conflict = Get-HostTerminalValidation -Path $conflictPath
+    if ($conflict.valid -or
+        $conflict.passCount -ne 1 -or
+        $conflict.failCount -ne 1) {
+        throw "Host-terminal self-test accepted conflicting terminals."
+    }
+    Write-Host "TEST_PASS baseline.evidence.selftest conflicting_host_terminal"
+
+    $summaryPathSelfTest = Join-Path $caseRoot "summary.json"
+    $validSummary = [ordered]@{
+        schema = "os.baseline.evidence.summary.v0"
+        status = "passed"
+        mode = "execute"
+        steps = @([ordered]@{ name = "one" })
+    }
+    [System.IO.File]::WriteAllText(
+        $summaryPathSelfTest,
+        (($validSummary | ConvertTo-Json -Depth 4) + "`n"),
+        $utf8NoBom)
+    if (-not (Test-BaselineSummaryRoundTrip `
+            -Path $summaryPathSelfTest `
+            -ExpectedStatus "passed" `
+            -ExpectedMode "execute" `
+            -ExpectedStepCount 1)) {
+        throw "Summary self-test rejected matching JSON."
+    }
+    if (Test-BaselineSummaryRoundTrip `
+            -Path $summaryPathSelfTest `
+            -ExpectedStatus "failed" `
+            -ExpectedMode "execute" `
+            -ExpectedStepCount 1) {
+        throw "Summary self-test accepted a status mismatch."
+    }
+    Write-Host "TEST_PASS baseline.evidence.selftest summary_mismatch"
+
+    [System.IO.File]::WriteAllText(
+        $summaryPathSelfTest,
+        "{not-json",
+        $utf8NoBom)
+    if (Test-BaselineSummaryRoundTrip `
+            -Path $summaryPathSelfTest `
+            -ExpectedStatus "passed" `
+            -ExpectedMode "execute" `
+            -ExpectedStepCount 1) {
+        throw "Summary self-test accepted malformed JSON."
+    }
+    Write-Host "TEST_PASS baseline.evidence.selftest malformed_summary"
+    Write-Host "TEST_PASS baseline.evidence.selftest"
+    exit 0
+}
+
 $qemuSerialLog = Join-Path $logRoot "qemu-smoke-serial.log"
 $qemuSummaryLog = Join-Path $logRoot "qemu-smoke.summary.log"
 $diagnosticsSerialLog = Join-Path $logRoot "qemu-diagnostics-serial.log"
@@ -471,13 +652,33 @@ $steps = @(
     @{
         Name = "baseline.build"
         Executable = "dotnet"
-        Arguments = @("build", ".\OS.slnx", $msbuildProfileArgument)
+        Arguments = @(
+            "build",
+            ".\CLROS.slnx",
+            "--nologo",
+            "-m:1"
+        ) + $msbuildProfileArguments
         LogFileName = "dotnet-build.log"
+    },
+    @{
+        Name = "baseline.host.build"
+        Executable = "dotnet"
+        Arguments = @(
+            "build",
+            ".\tests\OS.HostTests\OS.HostTests.csproj",
+            "--nologo"
+        ) + $msbuildProfileArguments
+        LogFileName = "host-tests-build.log"
     },
     @{
         Name = "baseline.host.tests"
         Executable = "dotnet"
-        Arguments = @("run", "--project", ".\tests\OS.HostTests\OS.HostTests.csproj", $msbuildProfileArgument)
+        Arguments = @(
+            "run",
+            "--project",
+            ".\tests\OS.HostTests\OS.HostTests.csproj",
+            "--no-build"
+        ) + $msbuildProfileArguments
         LogFileName = "host-tests.log"
     },
     @{
@@ -597,6 +798,18 @@ $steps = @(
         SerialLog = $libvirtMissingToolSerialLog
         SummaryLog = $libvirtMissingToolSummaryLog
         DomainXml = $libvirtMissingToolDomainXml
+    },
+    @{
+        Name = "baseline.git.diffcheck"
+        Executable = "git"
+        Arguments = @("diff", "--check")
+        LogFileName = "git-diff-check.log"
+    },
+    @{
+        Name = "baseline.git.status"
+        Executable = "git"
+        Arguments = @("status", "--short")
+        LogFileName = "git-status-short.log"
     }
 )
 
@@ -669,6 +882,30 @@ foreach ($step in $steps) {
     $results.Add($result)
 }
 
+$hostTestResult = $results |
+    Where-Object { $_.name -eq "baseline.host.tests" } |
+    Select-Object -First 1
+$hostTestLog = Join-Path $logRoot "host-tests.log"
+$hostTerminalValidation = Get-HostTerminalValidation -Path $hostTestLog
+
+if ($null -eq $hostTestResult -or
+    -not $hostTerminalValidation.valid) {
+    Write-Host (
+        "TEST_FAIL baseline.host.tests.terminal reason=" +
+        $hostTerminalValidation.reason +
+        " passCount=" +
+        $hostTerminalValidation.passCount +
+        " failCount=" +
+        $hostTerminalValidation.failCount)
+    if ($null -ne $hostTestResult -and $hostTestResult.exitCode -eq 0) {
+        $hostTestResult.exitCode = 90
+        $hostTestResult.status = "failed"
+    }
+}
+else {
+    Write-Host "TEST_PASS baseline.host.tests.terminal"
+}
+
 $failedCount = ($results | Where-Object { $_.exitCode -ne 0 }).Count
 $summary = [ordered]@{
     schema = "os.baseline.evidence.summary.v0"
@@ -688,6 +925,21 @@ $summary | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $summaryPath -Enco
 
 Write-Host ("SUMMARY " + (ConvertTo-RelativePath $summaryPath))
 
-if ($failedCount -gt 0) {
+$summaryMatches = Test-BaselineSummaryRoundTrip `
+    -Path $summaryPath `
+    -ExpectedStatus $summary.status `
+    -ExpectedMode "execute" `
+    -ExpectedStepCount $results.Count
+if (-not $summaryMatches) {
+    Write-Host "TEST_FAIL baseline.artifact_summary mismatch"
     exit 1
 }
+
+Write-Host "TEST_PASS baseline.artifact_summary"
+
+if ($failedCount -gt 0) {
+    Write-Host ("TEST_FAIL baseline.evidence failures=" + $failedCount)
+    exit 1
+}
+
+Write-Host "TEST_PASS baseline.evidence"
