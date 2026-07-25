@@ -252,7 +252,7 @@ function Get-ApiHeaders {
 
 function Invoke-GiteaApi {
     param(
-        [ValidateSet("GET", "POST", "PATCH")]
+        [ValidateSet("GET", "POST", "PUT", "PATCH")]
         [string]$Method,
         [string]$Path,
         [object]$Body = $null
@@ -1597,6 +1597,10 @@ function Update-Issues {
             $desiredBody = Merge-ManagedIssueBody -ExistingBody $existingBody -Key $key -ManagedBody $managedBody
             $desiredLabelNames = @(Get-DesiredIssueLabelNames -ManifestIssue $issue -ManifestIssueByKey $ManifestIssueByKey -RemoteIssueByKey $RemoteState.issueByKey -ClosureEvidenceByKey $RemoteState.closureEvidenceByKey -ManagedLabelNames $ManagedLabelNames)
             $currentLabelNames = @(Get-RemoteLabelNames -RemoteIssue $remote)
+            $labelsNeedUpdate = -not (
+                Test-StringSetEqual `
+                    -Left $currentLabelNames `
+                    -Right $desiredLabelNames)
             $milestoneTitle = [string]$ManifestMilestoneByKey[[string]$issue.milestone].title
             if (-not $RemoteState.milestoneByTitle.ContainsKey($milestoneTitle)) {
                 throw "Milestone '$milestoneTitle' is unavailable."
@@ -1613,11 +1617,12 @@ function Update-Issues {
                 $desiredStateValue = "open"
             }
 
-            $needsUpdate = [string](Get-ObjectProperty -Object $remote -Name "title" -DefaultValue "") -cne [string]$issue.title -or
+            $issueFieldsNeedUpdate =
+                [string](Get-ObjectProperty -Object $remote -Name "title" -DefaultValue "") -cne [string]$issue.title -or
                 $existingBody -cne $desiredBody -or
-                -not (Test-StringSetEqual -Left $currentLabelNames -Right $desiredLabelNames) -or
                 $currentMilestoneId -ne $desiredMilestoneId -or
                 $null -ne $desiredStateValue
+            $needsUpdate = $issueFieldsNeedUpdate -or $labelsNeedUpdate
             if (-not $needsUpdate) {
                 Record-SyncAction -Action unchanged -Key "issue:$key"
                 continue
@@ -1627,17 +1632,45 @@ function Update-Issues {
                 continue
             }
 
-            $payload = @{
-                title = [string]$issue.title
-                body = $desiredBody
-                labels = @(Get-LabelIds -Names $desiredLabelNames -RemoteLabelByName $RemoteState.labelByName)
-                milestone = $desiredMilestoneId
-            }
-            if ($null -ne $desiredStateValue) {
-                $payload.state = $desiredStateValue
-            }
             $number = [int](Get-ObjectProperty -Object $remote -Name "number" -DefaultValue 0)
-            $updated = Invoke-GiteaApi -Method PATCH -Path "$($RemoteState.repositoryPath)/issues/$number" -Body $payload
+            $updated = $remote
+            if ($issueFieldsNeedUpdate) {
+                # Gitea's EditIssueOption does not accept labels. Replacing
+                # them through the issue PATCH is silently ignored by current
+                # Gitea releases, so issue fields and labels must cross their
+                # documented API boundaries separately.
+                $payload = @{
+                    title = [string]$issue.title
+                    body = $desiredBody
+                    milestone = $desiredMilestoneId
+                }
+                if ($null -ne $desiredStateValue) {
+                    $payload.state = $desiredStateValue
+                }
+                $updated = Invoke-GiteaApi `
+                    -Method PATCH `
+                    -Path "$($RemoteState.repositoryPath)/issues/$number" `
+                    -Body $payload
+            }
+            if ($labelsNeedUpdate) {
+                $desiredLabelIds = @(
+                    Get-LabelIds `
+                        -Names $desiredLabelNames `
+                        -RemoteLabelByName $RemoteState.labelByName)
+                $replacedLabels = Invoke-GiteaApi `
+                    -Method PUT `
+                    -Path "$($RemoteState.repositoryPath)/issues/$number/labels" `
+                    -Body @{ labels = $desiredLabelIds }
+                if (@(ConvertTo-NormalizedArray $replacedLabels).Count -ne
+                    $desiredLabelIds.Count) {
+                    throw (
+                        "Gitea returned an unexpected label count after " +
+                        "replacing labels for '$key'.")
+                }
+                $updated = Invoke-GiteaApi `
+                    -Method GET `
+                    -Path "$($RemoteState.repositoryPath)/issues/$number"
+            }
             $RemoteState.issueByKey[$key] = $updated
             Record-SyncAction -Action updated -Key "issue:$key"
         }

@@ -44,6 +44,15 @@ covered without storing credentials. Closure updates are ordered
 topologically, and recursive dependency/epic checks keep descendants blocked
 if a prerequisite update fails partway through an apply.
 
+The first M00 closure apply exposed a Gitea 1.26.2 API-boundary mismatch:
+`EditIssueOption` silently ignored label IDs sent through the general issue
+`PATCH`, even though it accepted body and state changes. Convergence failed
+closed with 38 label mismatches. The synchronizer now patches issue fields
+without labels, replaces the complete label set through
+`PUT /issues/{number}/labels`, validates the returned label count, and
+re-reads the issue before continuing. The failed apply created no duplicates;
+a rerun is additive and idempotent.
+
 ## Deferred work
 
 Later issue content remains intentionally open and is gated by its dependencies.

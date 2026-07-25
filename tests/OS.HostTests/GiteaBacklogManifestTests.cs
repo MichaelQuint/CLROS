@@ -43,6 +43,7 @@ internal static class GiteaBacklogManifestTests
             RunTest("gitea backlog manifest is complete UTF-8 without BOM", () => TestManifestShape(manifestPath), ref failures);
             RunTest("gitea backlog offline preview validates without writes", () => TestOfflinePreview(scriptPath, manifestPath), ref failures);
             RunTest("gitea backlog managed body preserves human notes", () => TestManagedBodySelfTest(scriptPath), ref failures);
+            RunTest("gitea backlog replaces labels through the dedicated endpoint", () => TestDedicatedIssueLabelEndpoint(scriptPath), ref failures);
             RunTest("gitea backlog sync refuses noncanonical target", () => TestCanonicalTargetRefusal(scriptPath), ref failures);
             RunTest("gitea backlog validation rejects missing required field", () => TestInvalidManifest(scriptPath, manifestPath, tempRoot, "missing", RemoveRequiredField, "missing required field 'summary'"), ref failures);
             RunTest("gitea backlog validation rejects duplicate key", () => TestInvalidManifest(scriptPath, manifestPath, tempRoot, "duplicate", DuplicateIssueKey, "Duplicate issue key"), ref failures);
@@ -490,6 +491,23 @@ internal static class GiteaBacklogManifestTests
             result.Output.Contains("SYNC_SELF_TEST_MANAGED_BODY_PASS", StringComparison.Ordinal) &&
             result.Output.Contains("SYNC_SELF_TEST_STATE_POLICY_PASS", StringComparison.Ordinal) &&
             result.Output.Contains("TEST_PASS gitea.backlog.sync", StringComparison.Ordinal);
+    }
+
+    private static bool TestDedicatedIssueLabelEndpoint(string scriptPath)
+    {
+        string script = File.ReadAllText(scriptPath);
+        return script.Contains(
+                "[ValidateSet(\"GET\", \"POST\", \"PUT\", \"PATCH\")]",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "-Path \"$($RemoteState.repositoryPath)/issues/$number/labels\"",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "-Body @{ labels = $desiredLabelIds }",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "Gitea's EditIssueOption does not accept labels.",
+                StringComparison.Ordinal);
     }
 
     private static bool TestCanonicalTargetRefusal(string scriptPath)
