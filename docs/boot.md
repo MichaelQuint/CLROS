@@ -12,6 +12,9 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 - `BootSequence.Run(BootHandoffRecord, ...)` validates the no-stdlib-safe handoff record before later managed boot phases and emits `BOOT_HANDOFF_READY` when the handoff passes.
 - `BootSequence.Run(BootHandoffRecord, EfiMemoryMapSummary, ...)` adds a host-tested normalized memory-map precondition and emits `BOOT_MEMORY_MAP_ACCEPTED` only after the summary passes deterministic validation.
 - `BootSequencePlan` is an allocation-free byte-indexed marker plan that can be source-linked into the no-stdlib EFI project.
+- `BootSequencePlan` also carries a separate exact 11-line M01 stage-one
+  success plan. It does not change the existing five non-smoke lines, eight
+  default lines, or any default boot byte.
 - `OS_BOOT_OK` and `OS_SMOKE_PASS` are defined, host-tested, and QEMU-tested.
 - `src/OS/OS.csproj` defines an explicit no-stdlib NativeAOT EFI publish boundary with exported `EfiMain`.
 - `EfiMain` writes machine-readable firmware-console markers through the
@@ -589,6 +592,126 @@ run under QEMU, or prove a live owned-stack transition. It does not change a
 completion-gate state. M01-017 owns authoritative cross-leaf serialization,
 M01-020 owns explicit EFI linkage, M01-021 owns live allocation/wiring, and
 M01-022 owns real-QEMU evidence.
+
+### Loaded-image and owned-stack stage-one marker contract (M01-017)
+
+M01-017 defines a host-tested stage-one composition boundary over the reviewed
+M01-003 loaded-image, M01-004 owned-stack layout, and M01-005 stack-switch
+leaves. The no-stdlib-compatible marker portion is deliberately separate from
+the default boot plan. `BootSequencePlan.M01StageOneSuccessLineCount`,
+`GetM01StageOneSuccessLineLength`, and `GetM01StageOneSuccessLineByte` expose
+this exact success order:
+
+`M01LoadedImageStackIntegration` is the value-only core of that boundary. Its
+`Prepare`, `RecordTransfer`, `ObserveContinuationRsp`, and
+`ReportUnexpectedReturn` calls serialize the reviewed leaves without invoking
+firmware or the switch entry. `M01StageOneAllocationEvidence` binds exactly one
+LoaderCode page and one separate LoaderData guard-plus-stack arena to ordered,
+successful caller observations. `M01StageOneMapLedgerEvidence` requires a
+changed opaque map key, an exactly advanced CLROS-owned generation, a
+well-formed owned map copy, and later map-capture and ledger-build ordinals.
+Those values are attestations supplied by the future live adapter; they are
+not proof that firmware performed either allocation or map capture.
+
+`M01LoadedImageVirtualMappingEvidence` keeps the loaded-image address domains
+explicit. `M01StageOneAddressMappingEvidence` separately binds the LoaderCode,
+LoaderData, and owned-map destination physical ranges to caller-attested
+pre-hierarchy identity mappings before physical reservations are compared with
+dereferenceable virtual pointers. Physical loaded-image bounds remain the
+reservation-ledger authority; static-state and continuation containment
+compares only virtual addresses against the attested virtual image range.
+Full code and data virtual ranges must be disjoint from the loaded image,
+owned map, allocation table, and ledger. The owned map destination must be
+disjoint from its source, code, data, static state, continuation, allocation
+table, and ledger; the table and ledger must also be disjoint. The map must be
+covered by the exact loaded-image extent or by one canonical `OwnedMemoryMap`
+reservation in the attested physical domain. The LoaderData arena contains
+exactly one guard page followed by the usable stack.
+
+The canonical path emits and reads back the exact 14-byte M01-005 stub before
+arming one caller-owned `M01LoadedImageStackStaticState`. A separate
+`VerifyExisting` audit mode permits deterministic rejection of a malformed
+caller-materialized page without a callback or test-only production flag.
+Handoff and one-shot state fields, plus the nonreturning continuation address,
+must lie inside the exact loaded-image extent. `RecordTransfer` returns a
+checked value-only target descriptor but does not turn its address into a
+function pointer. Only an exact continuation `RSP` audit permits the
+caller-attested stack layout to move from `Ready` to `Active`; a reported
+return is terminal failure.
+
+The large `M01LoadedImageStackIntegrationResult` is a pre-transfer
+audit/report POD and must be discarded before a live transfer. The convenience
+`RecordTransfer`, `ObserveContinuationRsp`, and `ReportUnexpectedReturn`
+overloads that carry that aggregate are compiled only when
+`NOSTDLIB_EFI` is absent. The live-facing transition
+surface is the caller-owned `M01LoadedImageStackStaticState` pointer plus
+`RecordTransferFromStaticState`, `ObserveContinuationRspFromStaticState`, and
+`ReportUnexpectedReturnFromStaticState`. That static context contains copied
+plan, layout, handoff, and one-shot state only; it does not contain transient
+allocation-table or reservation-ledger addresses.
+
+```text
+TEST_START m01.stage1
+M01_LOADED_IMAGE_CAPTURED
+M01_STACK_SWITCH_STUB_READY
+M01_STACK_ARENA_ALLOCATED
+M01_STACK_GUARD_RESERVED
+M01_STAGE1_MAP_RECAPTURED
+M01_STAGE1_RESERVATIONS_VALIDATED
+M01_OWNED_STACK_READY
+M01_OWNED_STACK_SWITCHED
+M01_RSP_CONTAINED
+TEST_PASS m01.stage1
+```
+
+The plan contains fixed success bytes only. In M01-017 those lines are a
+host-contract presentation emitted only after the final modeled result; their
+names are reserved for the later live adapter and are not guest observations.
+A host orchestration failure uses the separate status-bearing
+`TEST_FAIL m01.stage1 status=<status> checkpoint=<checkpoint>` and
+`M01_STAGE1_FAIL status=<status> checkpoint=<checkpoint>` paths and must
+suppress every later checkpoint and the success terminal. A non-final
+coordinator result whose operation status is `Success` is classified as
+`IllegalCoordinatorState`; the failure path never emits `status=Success`.
+The existing default
+`BootSequencePlan.NonSmokeLineCount == 5` and `LineCount == 8` remain
+byte-for-byte stable. `BootSequence.Run` does not emit any M01 stage-one line
+on its default path.
+
+Focused host coverage locks every success-line length and byte, invalid line
+and offset behavior, default boot-plan stability, and the explicit EFI project
+boundary. The EFI project currently links `BootSequencePlan.cs` because it
+already consumes the default plan, but continues to exclude the managed
+`BootSequence.cs` orchestration surface and compile globs. The aggregate
+M01-017 host evidence markers are:
+
+```text
+TEST_START m01.017
+CLROS_M01_017_READY
+TEST_PASS m01.017
+```
+
+The M01-017 sequencing model was independently authored after selectively
+reviewing owner-authorized
+`references/SharpOS-main/OS/src/Boot/BootStackSwitch.cs` as a
+`reference:adapt` influence. The local snapshot SHA-256 is
+`637DCFC91E3B9647A0F8FBD4800E6C973ED78C6E5F73E2F7C10770C000234808`.
+Only one-shot ordering, static handoff state, a nonreturning continuation, and
+post-switch stack-bound validation informed the CLROS design. The mutable
+global completion flag, raw-pointer interface, fixed-pool assumptions,
+direct invocation/platform coupling, and return-to-zero behavior were not
+copied. The canonical upstream is
+`https://github.com/daniilvaino/SharpOS`; the owner grant and upstream license
+evidence are tracked separately from this local snapshot, whose exact upstream
+revision remains unknown.
+
+This is synthetic host evidence only. It does not call UEFI `AllocatePages`,
+prove allocation or memory-map provenance, recapture a live map, perform a
+stack switch, inspect live `RSP`, leave a guard page unmapped, change
+protections, enforce W^X/NX, wire `EfiEntry`, build or execute an M01 guest
+probe, run QEMU/OVMF, or change a completion-gate state. M01-020 owns explicit
+EFI core linkage, M01-021 owns live allocation and entry wiring, and M01-022
+owns real-QEMU evidence.
 
 Platform configuration-table guard coverage:
 
@@ -2310,6 +2433,14 @@ Evidence from 2026-05-22:
 ## Known Limitations
 
 The QEMU proof only proves OVMF can load and run the EFI application, the tested firmware path can return a memory map, and firmware-visible output reaches the serial log. It is not completion-gate proof for `ExitBootServices`, owned drivers, memory management, storage, networking, app loading, hosted .NET 10, Minimal API, Kestrel, cloud readiness, or production readiness; use `docs/completion-gates.md` for the full claim boundary.
+
+The M01-017 stage-one success plan and coordinator contract are host-tested
+only. The source-linked `BootSequencePlan` bytes are not consumed by
+`EfiEntry`; `BootSequence.cs` remains excluded from the explicit EFI project.
+No live LoaderCode or LoaderData allocation, refreshed memory map, canonical
+guest reservation ledger, switch-stub execution, stack transfer, `RSP`
+observation, guard-page absence, protection transition, or QEMU marker evidence
+has been established.
 
 The M01-011 page-table entry contract is host-tested only. Its synthetic
 no-stdlib compiler fixture proves source compatibility while the evaluated EFI

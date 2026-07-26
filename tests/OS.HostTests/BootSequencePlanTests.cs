@@ -12,6 +12,9 @@ internal static class BootSequencePlanTests
         int failures = 0;
 
         Run("boot.sequence plan exposes ordered marker bytes", TestOrderedMarkerBytes, ref failures);
+        Run("boot.sequence M01 stage-one plan exposes exact success bytes", TestM01StageOneSuccessMarkerBytes, ref failures);
+        Run("boot.sequence M01 stage-one plan preserves default bytes", TestM01StageOnePlanPreservesDefaultBytes, ref failures);
+        Run("boot.sequence M01 stage-one plan preserves EFI linkage boundary", TestM01StageOnePlanPreservesEfiLinkageBoundary, ref failures);
         Run("boot.phase catalog documents implemented phases", TestBootPhaseCatalog, ref failures);
         Run("boot.phase catalog marker text matches plan", TestBootPhaseMarkersMatchPlan, ref failures);
         Run("boot.sequence run emits plan lines in order", TestBootSequenceUsesPlan, ref failures);
@@ -104,6 +107,176 @@ internal static class BootSequencePlanTests
         }
 
         return BootSequence.CreatePlanLine(BootSequencePlan.LineCount).Length == 0;
+    }
+
+    private static bool TestM01StageOneSuccessMarkerBytes()
+    {
+        string[] expected =
+        [
+            "TEST_START m01.stage1",
+            "M01_LOADED_IMAGE_CAPTURED",
+            "M01_STACK_SWITCH_STUB_READY",
+            "M01_STACK_ARENA_ALLOCATED",
+            "M01_STACK_GUARD_RESERVED",
+            "M01_STAGE1_MAP_RECAPTURED",
+            "M01_STAGE1_RESERVATIONS_VALIDATED",
+            "M01_OWNED_STACK_READY",
+            "M01_OWNED_STACK_SWITCHED",
+            "M01_RSP_CONTAINED",
+            "TEST_PASS m01.stage1"
+        ];
+
+        if (BootSequencePlan.M01StageOneSuccessLineCount != expected.Length)
+        {
+            return false;
+        }
+
+        for (int lineIndex = 0; lineIndex < expected.Length; lineIndex++)
+        {
+            string expectedLine = expected[lineIndex];
+            if (BootSequencePlan.GetM01StageOneSuccessLineLength(lineIndex) != expectedLine.Length
+                || BootSequencePlan.GetM01StageOneSuccessLineByte(lineIndex, -1) != 0)
+            {
+                return false;
+            }
+
+            for (int offset = 0; offset < expectedLine.Length; offset++)
+            {
+                if (BootSequencePlan.GetM01StageOneSuccessLineByte(lineIndex, offset)
+                    != (byte)expectedLine[offset])
+                {
+                    return false;
+                }
+            }
+
+            if (BootSequencePlan.GetM01StageOneSuccessLineByte(lineIndex, expectedLine.Length) != 0)
+            {
+                return false;
+            }
+        }
+
+        return BootSequencePlan.GetM01StageOneSuccessLineLength(-1) == 0
+            && BootSequencePlan.GetM01StageOneSuccessLineLength(expected.Length) == 0
+            && BootSequencePlan.GetM01StageOneSuccessLineByte(-1, 0) == 0
+            && BootSequencePlan.GetM01StageOneSuccessLineByte(expected.Length, 0) == 0;
+    }
+
+    private static bool TestM01StageOnePlanPreservesDefaultBytes()
+    {
+        string[] expected =
+        [
+            "TEST_START boot.sequence",
+            "BOOT_PHASE PhaseA.Audit START",
+            "BOOT_PHASE PhaseA.Audit PASS",
+            "BOOT_PHASE PhaseA.Diagnostics START",
+            "BOOT_PHASE PhaseA.Diagnostics PASS",
+            "OS_BOOT_OK",
+            "TEST_PASS boot.sequence",
+            "OS_SMOKE_PASS"
+        ];
+
+        if (BootSequencePlan.NonSmokeLineCount != 5
+            || BootSequencePlan.LineCount != expected.Length)
+        {
+            return false;
+        }
+
+        for (int lineIndex = 0; lineIndex < expected.Length; lineIndex++)
+        {
+            string expectedLine = expected[lineIndex];
+            if (BootSequencePlan.GetLineLength(lineIndex) != expectedLine.Length)
+            {
+                return false;
+            }
+
+            for (int offset = 0; offset < expectedLine.Length; offset++)
+            {
+                if (BootSequencePlan.GetLineByte(lineIndex, offset) != (byte)expectedLine[offset])
+                {
+                    return false;
+                }
+            }
+        }
+
+        SequenceTestSerialSink serial = new SequenceTestSerialSink();
+        BootEventRingBuffer events = new BootEventRingBuffer(16);
+        BootResult result = BootSequence.Run(serial, events);
+
+        return result.Succeeded
+            && serial.Count == expected.Length
+            && !serial.Contains("TEST_START m01.stage1")
+            && !serial.Contains("TEST_PASS m01.stage1")
+            && !serial.ContainsPrefix("M01_");
+    }
+
+    private static bool TestM01StageOnePlanPreservesEfiLinkageBoundary()
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string projectPath = Path.Combine(repositoryRoot, "src", "OS", "OS.csproj");
+        System.Xml.Linq.XDocument project = System.Xml.Linq.XDocument.Load(projectPath);
+
+        bool defaultCompileItemsDisabled = project
+            .Descendants("EnableDefaultCompileItems")
+            .Any(element => string.Equals(element.Value.Trim(), "false", StringComparison.OrdinalIgnoreCase));
+        bool planLinked = false;
+        bool integrationLinked = false;
+
+        foreach (System.Xml.Linq.XElement compile in project.Descendants("Compile"))
+        {
+            string? include = compile.Attribute("Include")?.Value;
+            if (string.IsNullOrWhiteSpace(include))
+            {
+                continue;
+            }
+
+            string normalized = include.Replace('/', '\\');
+            if (normalized.Contains('*'))
+            {
+                return false;
+            }
+
+            if (string.Equals(
+                Path.GetFileName(normalized),
+                "BootSequence.cs",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (string.Equals(
+                Path.GetFileName(normalized),
+                "M01LoadedImageStackIntegration.cs",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                integrationLinked = true;
+            }
+
+            if (string.Equals(
+                normalized,
+                @"..\OS.Kernel\Boot\BootSequencePlan.cs",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                planLinked = true;
+            }
+        }
+
+        string efiEntryPath = Path.Combine(
+            repositoryRoot,
+            "src",
+            "OS",
+            "Boot",
+            "EfiEntry.cs");
+        string efiEntrySource = File.ReadAllText(efiEntryPath);
+
+        return defaultCompileItemsDisabled
+            && planLinked
+            && !integrationLinked
+            && !efiEntrySource.Contains(
+                "RunM01LoadedImageStackIntegration",
+                StringComparison.Ordinal)
+            && !efiEntrySource.Contains(
+                "M01LoadedImageStackIntegration.Prepare",
+                StringComparison.Ordinal);
     }
 
     private static bool TestBootSequenceUsesPlan()
