@@ -324,6 +324,14 @@ internal static class GiteaBacklogManifestTests
             JsonElementContains(
                 repair.GetProperty("acceptanceCriteria"),
                 "creates exactly 11 issues, updates exactly 24 existing issues") &&
+            string.Equals(
+                repair.GetProperty("desiredState").GetString(),
+                "closed",
+                StringComparison.Ordinal) &&
+            string.Equals(
+                issueByKey["M00-EPIC"].GetProperty("desiredState").GetString(),
+                "closed",
+                StringComparison.Ordinal) &&
             HasOwnedPath(
                 issueByKey["M00-001"],
                 "tests/OS.HostTests/RepositoryRecoveryTests.cs") &&

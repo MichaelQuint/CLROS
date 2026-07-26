@@ -11,16 +11,16 @@ The 2026-07-25 reconstruction initially created 68 managed labels, 16
 milestones, 16 epics, and 303 child issues. The additive M00-023 evidence-model
 repair keeps those labels and milestones, adds M00-023, and replaces the
 impossible per-leaf QEMU closure model with the serialized M01-016 through
-M01-026 one-live-boundary-at-a-time chain. The durable inventory therefore
-defines 315 children, 331 keyed issues, and 415 managed objects. The existing
-tracker already contains claimed M00-023 as issue #321; a guarded
-synchronization must recognize that hidden key, create only M01-016 through
-M01-026, update the exact 24 existing managed issues identified by M00-023
-(including the substantive M03-007 post-EBS permanent-CR3 handoff and its
-generated M03-EPIC child-checklist update), and then
-verify every milestone assignment, managed label, parent link, dependency link,
-and desired state. The expected pre-apply preview is therefore
-`wouldCreate=11` and `wouldUpdate=24`.
+M01-026 one-live-boundary-at-a-time chain. The durable and live inventories now
+contain 315 children, 331 keyed issues, and 415 managed objects. The guarded
+apply recognized existing M00-023 as issue #321, created only M01-016 through
+M01-026 as issues #323 through #333, updated exactly 24 existing managed issues,
+and emitted `SYNC_VERIFY_PASS milestones=16 labels=68 issues=331`. The 24
+updates include the substantive M03-007 post-EBS permanent-CR3 handoff and its
+generated M03-EPIC child-checklist update. A final no-write preview reported all
+415 objects unchanged with no create, update, skip, or failure action. Reviewed
+closure leaves M00-023 and the M00 epic closed while M01-001 remains separately
+claimed.
 
 ## Implemented Behavior
 

@@ -506,7 +506,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M00: Repository Recovery and Reference Trust.",
-      "currentEvidence": "The original 22 M00 recovery slices are implemented and reviewed in done/step825.md through done/step846.md; M00-023 is the active additive repair that separates host-leaf evidence from serialized live-QEMU integration without changing kernel behavior.",
+      "currentEvidence": "All 23 M00 recovery slices are implemented and reviewed in done/step825.md through done/step847.md. M00-023 converged the live tracker to 331 keyed issues and a serialized M01 integration chain without changing kernel behavior or completion-gate status.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -537,7 +537,7 @@
         "docs/license-audit.md"
       ],
       "evidenceBoundary": "The epic records coordination only; it proves none of Repository Recovery and Reference Trust until every child and exit criterion passes.",
-      "desiredState": "reopen"
+      "desiredState": "closed"
     },
     {
       "key": "M00-001",
@@ -2446,7 +2446,7 @@
       ],
       "collisionLane": "lane:solution-baseline",
       "summary": "Repair the backlog evidence contract so host-only M01 leaves feed an 11-step, one-live-boundary-at-a-time integration and QEMU evidence chain.",
-      "currentEvidence": "The original M01-001 through M01-015 contracts demanded per-leaf real-QEMU markers even though their owned paths could not link or invoke those leaves from the EFI guest. Gitea issue #321 records the claimed repair and preserves the original issue bodies and comments; no guarded apply of this 331-issue manifest is claimed yet.",
+      "currentEvidence": "Implementation commit 66d789c repaired the durable contract. The guarded live apply recognized issue #321, created only M01-016 through M01-026 as issues #323 through #333, updated the exact 24 managed issues, preserved the M01-001 and M00-023 claims, and emitted SYNC_VERIFY_PASS milestones=16 labels=68 issues=331. A subsequent no-write preview reported all 415 managed objects unchanged. The complete host harness ended with TEST_PASS host.tests, zero failure markers, and zero stderr; done/step847.md records the exact evidence and non-claims.",
       "implementationNotes": [
         "Change only the version-controlled backlog, synchronizer, its owned host tests, and the two canonical backlog-status documents.",
         "The proposed owned paths are exact for this slice: .gitea/backlog/clros-issues.json, scripts/sync-gitea-backlog.ps1, tests/OS.HostTests/GiteaBacklogManifestTests.cs, tests/OS.HostTests/RepositoryRecoveryTests.cs, docs/issue-labels.md, docs/repo-audit.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -2494,7 +2494,7 @@
         "docs/repo-audit.md"
       ],
       "evidenceBoundary": "This tooling issue proves only a coherent, recoverable issue-ownership and evidence model. It does not implement M01 memory or paging behavior and does not prove a live guest, ExitBootServices, devices, applications, hosted .NET, Kestrel, cloud support, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-EPIC",
