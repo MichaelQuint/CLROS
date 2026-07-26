@@ -3655,7 +3655,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only host-tested PageProtection/PageCachePolicy contracts and x64 page-table entry encoding/validation. The code is not linked into or executed by the canonical EFI artifact. It does not prove IA32_EFER.NXE or CR0.WP is enabled, allocate tables, write live entries, load CR3, invalidate a TLB, or define DmaMapping (deferred to M05-010).",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-012",
