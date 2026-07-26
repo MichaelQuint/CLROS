@@ -3154,7 +3154,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only host-tested materialization of allocator metadata from supplied region/free-list data. The code is not linked into or executed by the canonical EFI artifact and does not mutate EfiEntry, install a live allocator, or allocate physical memory.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-007",
