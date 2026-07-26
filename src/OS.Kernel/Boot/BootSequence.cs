@@ -299,6 +299,10 @@ public static class BootSequence
         "TEST_FAIL m01.stage1 status=";
     public const string M01StageOneFailurePrefix =
         "M01_STAGE1_FAIL status=";
+    public const string M01StageTwoTestFailurePrefix =
+        "TEST_FAIL m01.stage2 status=";
+    public const string M01StageTwoFailurePrefix =
+        "M01_STAGE2_FAIL status=";
 
     /// <summary>
     /// Presents already-completed M01 stage-one host evidence through the
@@ -357,6 +361,69 @@ public static class BootSequence
                 serial,
                 events,
                 CreateM01StageOneSuccessLine(lineIndex));
+        }
+
+        return BootResult.Pass();
+    }
+
+    /// <summary>
+    /// Presents already-completed M01 stage-two host evidence through the
+    /// frozen byte plan. Success markers are retrospective: no stage-two
+    /// success line is emitted until the supplied result reports the complete
+    /// alloc/free/double-free-rejection cycle as successful. This helper does
+    /// not call firmware, allocate memory, or mutate allocator state, and the
+    /// default Run overloads never call it.
+    /// </summary>
+    public static BootResult RunM01LiveAllocatorIntegration(
+        M01LiveAllocatorIntegrationResult integration,
+        ISerialSink serial,
+        BootEventRingBuffer events)
+    {
+        if (serial is null)
+        {
+            return BootResult.Fail("serial sink is required");
+        }
+
+        if (events is null)
+        {
+            return BootResult.Fail("boot event ring buffer is required");
+        }
+
+        if (!integration.Succeeded)
+        {
+            M01LiveAllocatorStatus failureStatus =
+                integration.Status == M01LiveAllocatorStatus.Success
+                    ? M01LiveAllocatorStatus.IllegalCoordinatorState
+                    : integration.Status;
+            string failureDetail =
+                ((byte)failureStatus)
+                + " checkpoint="
+                + (byte)integration.LastCompletedCheckpoint;
+            Emit(
+                serial,
+                events,
+                CreateM01StageTwoSuccessLine(0));
+            Emit(
+                serial,
+                events,
+                M01StageTwoTestFailurePrefix + failureDetail);
+            Emit(
+                serial,
+                events,
+                M01StageTwoFailurePrefix + failureDetail);
+            return BootResult.Fail(
+                "M01 stage two failed: status=" + failureDetail);
+        }
+
+        for (int lineIndex = 0;
+            lineIndex
+                < BootSequencePlan.M01StageTwoSuccessLineCount;
+            lineIndex++)
+        {
+            Emit(
+                serial,
+                events,
+                CreateM01StageTwoSuccessLine(lineIndex));
         }
 
         return BootResult.Pass();
@@ -1936,6 +2003,33 @@ public static class BootSequence
                 {
                     buffer[offset] = (char)BootSequencePlan
                         .GetM01StageOneSuccessLineByte(
+                            planLineIndex,
+                            offset);
+                }
+            });
+    }
+
+    public static string CreateM01StageTwoSuccessLine(int lineIndex)
+    {
+        int lineLength =
+            BootSequencePlan.GetM01StageTwoSuccessLineLength(
+                lineIndex);
+        if (lineLength == 0)
+        {
+            return string.Empty;
+        }
+
+        return string.Create(
+            lineLength,
+            lineIndex,
+            static (buffer, planLineIndex) =>
+            {
+                for (int offset = 0;
+                    offset < buffer.Length;
+                    offset++)
+                {
+                    buffer[offset] = (char)BootSequencePlan
+                        .GetM01StageTwoSuccessLineByte(
                             planLineIndex,
                             offset);
                 }

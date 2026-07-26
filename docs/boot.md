@@ -15,6 +15,10 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 - `BootSequencePlan` also carries a separate exact 11-line M01 stage-one
   success plan. It does not change the existing five non-smoke lines, eight
   default lines, or any default boot byte.
+- `BootSequencePlan` carries a second independent exact nine-line M01
+  stage-two success plan. `BootSequence.RunM01LiveAllocatorIntegration`
+  presents it only for a completed host result; it is not part of the default
+  boot path.
 - `OS_BOOT_OK` and `OS_SMOKE_PASS` are defined, host-tested, and QEMU-tested.
 - `src/OS/OS.csproj` defines an explicit no-stdlib NativeAOT EFI publish boundary with exported `EfiMain`.
 - `EfiMain` writes machine-readable firmware-console markers through the
@@ -72,6 +76,14 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 - The one-page core treats every active-free-range/canonical-reservation overlap as a contract failure; reservations must already have been removed by the M01-007 subtraction boundary rather than skipped during allocation. A successful first aligned fit consumes, shortens, or splits one free node, mutates only the declared logical node prefix, leaves the reservation table and capacity tail unchanged, and returns a `BootPageAllocatorOnePageResult` with typed `PhysicalAddress` start/end, exact one-page/4096-byte metadata, before/after allocator states and free/allocated accounting, capacities, indexes, and nested range/address evidence. A middle split may consume only an exact default/all-zero inactive logical slot; stale nondefault unlinked metadata is never overwritten and instead produces atomic metadata-exhaustion failure. Every failure leaves caller storage byte-identical.
 - A successful real `AllocateOnePage` result is also the only accepted evidence for `FreeOnePage`: it has `CanRestore=true` and embeds an initialized `BootPageAllocatorOnePageRestoreReceipt`. The receipt retains the exact pre-allocation source node, source-free-segment and source-usable-range provenance, and predecessor evidence; the enclosing allocation result retains the before/after allocator states, node and reservation counts/capacities, typed physical range, indexes, and other status evidence. `FreeOnePage` accepts no independent raw physical address and is deliberately an exact inverse rather than a general free-list insertion operation. It requires the caller's current state and node/reservation counts/capacities to match the allocation result's exact post-allocation snapshot, revalidates the current chain and receipt, and restores the original logical node topology byte-for-byte. Exact-node consumption reports `None`; a tail allocation reports `Previous`; a head allocation reports `Next`; and a middle split reports `PreviousAndNext`.
 - This receipt-bound free contract rejects default or unsuccessful evidence, inconsistent forged evidence, foreign receipts whose recorded evidence does not match, altered source/provenance/predecessor evidence, replay and double free, stale or out-of-order state, mismatched count/capacity, malformed current chains, and arithmetic or pointer-span failures before mutation. The caller must keep the declared node storage mapped and stable, exclusively serialize every allocation/free transition, and publish each returned state exactly once. Consequently, successful freeing is limited to immediate restoration or caller-managed LIFO order; arbitrary-order freeing requires a later allocation ledger or generation-bearing authority. The copyable receipt is not an unforgeable capability: byte-identical receipts from indistinguishable allocator copies cannot be rejected, and the current contract cannot solve ABA after an address is freed and reallocated.
+- `M01LiveAllocatorIntegration` composes the final M01-017 static state,
+  explicit LoaderData arena allocation evidence, refreshed owned-map/canonical
+  ledger evidence, reservation validation, arena-source subtraction,
+  allocator-state materialization, one contained 4 KiB allocation, exact
+  receipt-bound restoration, and deterministic double-free rejection. It
+  writes caller-owned completion state only after the full host-modeled cycle
+  succeeds. It does not call firmware or dereference the reported physical
+  page.
 - Unsafe pointer validation cannot prove that caller-supplied addresses are mapped or stable. `BootPageAllocatorMutator.PerformsLiveAllocation=false` remains explicit: allocation and exact-inverse restoration mutate caller-owned metadata only and neither operation owns, frees, maps, zeros, protects, or accesses a physical page. The pre-existing Span-shaped general `Allocate`/`Free` compatibility API and result compile only under `#if !NOSTDLIB_EFI`; they remain historical host-test compatibility helpers, are not interoperable authoritative transitions for the pointer core, and do not establish safe or live free semantics.
 - `BootPageAllocatorStressTests` is the host-harness-only deterministic oracle over that existing pointer API. It drives a bounded synthetic arena through fixed-seed one-page allocation and strict-LIFO restoration, independently derives provenance-aware ownership and free extents, compares allocator metadata after every operation, preserves full node/reservation byte snapshots and capacity canaries, and verifies separate host-owned content tags for every live synthetic allocation. The content store is never passed to the allocator, so its corruption self-test proves the oracle can detect a bad host canary rather than proving physical-page access. This test source is not production or `NOSTDLIB_EFI` code and is excluded from the canonical EFI project.
 - `PageProtection`, `PageCachePolicy`, and `X64PageTableEntry` define the host-tested, no-stdlib-compatible x64 entry-value boundary. Leaf mappings accept only R, RW, or RX; reject W-only, X-only, unknown, and every W+X combination; encode NX whenever execute is absent; bind WB/UC/WC to an explicitly validated IA32_PAT value and selected index; and validate PTE, 2 MiB PDE, and capability-gated 1 GiB PDPTE address widths, alignments, reserved bits, and PAT-bit placement. Nonleaf PML4E/PDPTE/PDE table pointers are a distinct kind with canonical supervisor `P|RW, NX=0` bits and validated WB at raw PAT index zero, independent of the selected leaf-WB index. An explicit protection-only rewrite either preserves or clears caller-supplied Accessed/Dirty observations without writing live memory. The bounded two-pass batch encoder validates POD sizes, complete caller-owned source/destination spans, and every request before writing any destination byte.
@@ -152,7 +164,26 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 
 ## Unsupported Behavior
 
-- Live page allocator/free-list ownership over planned boot memory ranges. `BootMemoryRegionPlanner` classifies compact records into usable conventional ranges and reserved/unusable metadata, `BootPageAllocatorPlanner` produces host-tested initial free-segment metadata from those selected ranges, `BootPageFreeListBuilder` constructs caller-owned free-list node metadata from the successful plan, `BootPageAllocatorStateInitializer` validates that node chain through its host-friendly adapter, and `BootPageAllocatorStateMaterializer` independently validates supplied caller-owned POD storage through a pointer/count/capacity contract. `BootPageAllocatorMutator.AllocateOnePage` performs one reservation-aware mutation of caller-owned metadata, while its strict serialized `FreeOnePage` exact inverse accepts only the matching successful allocation receipt and exact current post-allocation state plus node/reservation counts/capacities. `BootPageAllocatorReadinessComposer` composes the older host adapters over caller-owned scratch buffers, and `BootSequence.RunBootPageAllocatorReadiness` emits a host-tested readiness marker from initialized allocator-state metadata. The extracted PODs, materializer, and one-page allocate/free core compile in isolated `NOSTDLIB_EFI`/no-framework-reference closures, but they are not source-linked into `src/OS/OS.csproj`, invoked by `EfiEntry`, or exercised by QEMU. None of these pieces establish allocator ownership, reserve a page against firmware or another allocator, zero/map/access the typed result, allocate or free a live page, support arbitrary-order frees, prevent receipt ABA, configure paging, or enforce NX/W^X.
+- Live page allocator/free-list ownership over planned boot memory ranges.
+  `BootMemoryRegionPlanner` classifies compact records into usable conventional
+  ranges and reserved/unusable metadata, `BootPageAllocatorPlanner` produces
+  host-tested initial free-segment metadata, `BootPageFreeListBuilder`
+  constructs caller-owned node metadata, and
+  `BootPageAllocatorStateMaterializer` validates supplied POD storage through
+  a pointer/count/capacity contract. `BootPageAllocatorMutator.AllocateOnePage`
+  performs one reservation-aware metadata mutation, and its strict serialized
+  `FreeOnePage` exact inverse accepts only the matching successful receipt and
+  exact post-allocation state. `M01LiveAllocatorIntegration` now composes one
+  host-modeled arena-confined cycle, while
+  `BootPageAllocatorReadinessComposer` and
+  `BootSequence.RunBootPageAllocatorReadiness` retain the older host readiness
+  path. The extracted PODs, materializer, mutator, and M01-018 coordinator
+  compile in isolated `NOSTDLIB_EFI`/no-framework-reference closures, but they
+  are not source-linked into `src/OS/OS.csproj`, invoked by `EfiEntry`, or
+  exercised by QEMU. None establishes live allocator ownership, reserves a
+  page against firmware or another allocator, zeroes/maps/accesses the typed
+  result, allocates or frees a physical guest page, supports arbitrary-order
+  frees, prevents receipt ABA, configures paging, or enforces NX/W^X.
 - Live use of the typed address domains, loaded-image capture plan, or canonical reservation ledger. The exact typed-address, reservation-record, pointer-validator, loaded-image range, and capture-plan sources have retained isolated `NOSTDLIB_EFI` compiler tests, but they are not source-linked into `src/OS/OS.csproj`, invoked by `EfiMain`, or applied retroactively to existing raw-`ulong` memory, MMIO, PCI, and DMA interfaces. Named boundary methods make raw-value intent auditable; they are not a capability boundary. The loaded-image planner validates one caller-owned compact transcript; it does not call `HandleProtocol`/`OpenProtocol`, dereference the observed protocol address, or prove that the transcript came from the running image. The host validator proves range shape, rounding, canonical reservation construction, ordering, overlap, capacity, totals, and modeled guard/stack-union policy only for supplied values. It does not populate the ledger, prove that omitted metadata is actually contained in the loaded image, prove EFI `LoaderCode`/`LoaderData` allocation provenance or a refreshed map generation, reserve/subtract/reclaim live memory, establish allocator ownership, switch stacks, map pages, load CR3, or enforce cache, NX, or W^X policy.
 - Live page-table allocation, population, mutation, ownership, or processor enforcement. The M01-011 codec validates and encodes only caller-supplied values. Its precondition POD does not read or prove IA32_EFER.NXE, CR0.WP, CR4.LA57, CPUID physical width or 1 GiB-page capability, or IA32_PAT; its permissive nonleaf pointers do not by themselves prove effective descendant permissions; and its Accessed/Dirty decoder and protection-only re-encoder do not read or write a live table. No code in this slice installs a table hierarchy, maps the table arena RW+NX, proves page zero absent, performs a live RW-to-RX transition, loads CR3, executes `invlpg`, handles a page fault, or establishes the NX/W^X completion gate.
 - Live boot identity mappings or table construction. M01-012 consumes caller-attested range, role, protection, cache, PAT, and processor-precondition values and emits caller-owned planning records only. It does not discover the executing-image sections, allocate table pages, assign table-page addresses, write a PML4/PDPT/PD/PT entry, map its own table arena, protect the stack guard in hardware, establish framebuffer MMIO cache correctness, read CR0/CR4/EFER/CPUID/IA32_PAT, load CR3, invalidate a TLB, or execute under EFI or QEMU/OVMF.
@@ -712,6 +743,125 @@ protections, enforce W^X/NX, wire `EfiEntry`, build or execute an M01 guest
 probe, run QEMU/OVMF, or change a completion-gate state. M01-020 owns explicit
 EFI core linkage, M01-021 owns live allocation and entry wiring, and M01-022
 owns real-QEMU evidence.
+
+### Firmware-arena allocator stage-two marker contract (M01-018)
+
+M01-018 adds the second host-tested M01 coordinator boundary. It accepts only
+the final live-facing M01-017 static state: the stage-one checkpoint must be
+`ContinuationRspContained`, its one-shot switch state must be
+`ContinuationObserved`, and the owned stack lifetime must be `Active`. A
+prepared or transfer-recorded state is insufficient. The coordinator then
+binds exactly one caller-attested successful EFI `LoaderData` allocation to a
+changed owned-map key, an exactly incremented CLROS map generation, and
+strictly ordered allocation, map-capture, and ledger-build ordinals.
+The previous key/generation and the association between the refreshed map and
+ledger remain caller attestations: M01-017 intentionally excludes transient
+map/ledger pointers and epoch values from its post-switch static state, and
+M01-018 does not parse the refreshed descriptor bytes. The future live adapter
+must derive these values from one serialized capture; this host contract
+detects malformed, stale, nonincrementing, reordered, or mismatched supplied
+evidence but does not independently observe firmware.
+
+`M01LiveAllocatorIntegration.Execute` is an unmanaged, no-stdlib-compatible
+unsafe pointer/count/capacity core. Before dereferencing or writing, it checks
+the complete declared spans of the stage-one state, one-record allocation
+table, canonical reservation ledger, refreshed map source and owned-copy
+buffers, and caller-owned stage-two output. Those metadata regions must be
+pairwise disjoint and must not lie inside the arena. The arena is bounded to
+2 through 4096 aligned 4 KiB pages, carries exact redundant byte/end
+accounting, and is accepted only when the canonical sorted ledger contains
+one matching `AllocatorArena`, one loaded-image record, and the exact
+switch-stub, guard, and active stack ownership records retained by stage one.
+The unique loaded-image record must contain both the complete self-bound
+stage-one static state and its planned continuation address, preventing an
+unrelated replacement image range from authorizing arena reuse.
+
+For the two single-record static-state pointers, the declared capacity is part
+of the alias contract rather than a minimum-size hint: the full capacity tail
+must be representable and disjoint from every other metadata span, map buffer,
+and arena. A wrapping capacity is rejected before dereference. This prevents a
+valid first record from concealing an overlapping or unaddressable declared
+tail.
+
+The `AllocatorArena` record is ownership metadata, not an operational
+exclusion. Passing it back to `BootReservationSubtractor` or
+`BootPageAllocatorMutator` would subtract or reject the allocator's entire
+source. The coordinator therefore validates the complete canonical ledger
+first, proves every other reservation is disjoint from the sole exact arena,
+then synthesizes one source range from that arena and calls the reviewed
+subtractor with an empty exclusion table. `M01_RESERVATIONS_APPLIED` means
+that this canonical ownership validation and exact arena selection succeeded;
+it does not mean the arena self-excluded itself.
+
+The identity subtraction must report one unchanged arena range, zero removed
+pages/bytes, and exact remaining totals. From that result the coordinator
+materializes one bounded free-list node, performs one first-fit 4 KiB metadata
+allocation, verifies the complete returned range is inside the arena, frees
+the exact allocation receipt, verifies byte-for-byte accounting restoration,
+and requires a second free to fail specifically with
+`FreeRangeNotAllocated` without mutating state. Caller-owned stage-two state
+is written atomically only after this complete cycle passes. A second
+execution against the completed state is rejected as a duplicate phase.
+
+Five value-only phase auditors expose the same source/subtraction,
+materialization, allocation/containment, free/accounting, and double-free
+postconditions used by `Execute`. Host tests feed them real leaf-operation
+results, including failed results and a successful allocation produced from a
+different arena. They make late failure and cross-arena rejection directly
+testable without fault injection. Allocation and free audits bind the exact
+one-node, zero-reservation call metadata and restore receipt; the terminal
+double-free audit additionally binds the original allocation, arena, unchanged
+restored state/node, and exact rejection metadata. The auditors perform no
+mutation themselves and do not widen this issue's host-only evidence boundary.
+
+The independent packed success plan is:
+
+```text
+TEST_START m01.stage2
+M01_ALLOCATOR_ARENA_ALLOCATED
+M01_STAGE2_MAP_RECAPTURED
+M01_RESERVATIONS_APPLIED
+M01_LIVE_ALLOCATED_4K
+M01_LIVE_PAGE_WITHIN_ARENA
+M01_LIVE_FREED_4K
+M01_DOUBLE_FREE_REJECTED
+TEST_PASS m01.stage2
+```
+
+`BootSequence.RunM01LiveAllocatorIntegration` presents those lines
+retrospectively only after the complete result reports success. Failure emits
+only the stage-two start plus
+`TEST_FAIL m01.stage2 status=<status> checkpoint=<checkpoint>` and
+`M01_STAGE2_FAIL status=<status> checkpoint=<checkpoint>`. A non-final result
+whose status is `Success` is reclassified as `IllegalCoordinatorState`.
+The default five non-smoke/eight total boot lines remain byte-for-byte
+unchanged, and `BootSequence.Run` never invokes this presenter.
+
+The aggregate host-harness markers are:
+
+```text
+TEST_START m01.018
+CLROS_M01_018_READY
+TEST_PASS m01.018
+```
+
+The ordering model was independently authored after selectively reviewing
+the owner-authorized local
+`references/SharpOS-main/OS/src/Boot/ExitBootServicesProbe.cs` snapshot
+(SHA-256
+`65B892A8BD752C95077E17386FD127F040A3A7F013E968485ACCB2EC4FF24DA1`)
+as a test-only influence. Only its allocation-before-map-recapture ordering
+informed this host contract. No firmware call adapter, map retry loop,
+platform coupling, console routing, or post-EBS behavior was copied.
+
+This remains host evidence over caller-supplied pre-EBS metadata. It does not
+call EFI `AllocatePages`, recapture a firmware map, execute allocator-backed
+physical memory access, transfer ownership of arbitrary conventional pages,
+wire or link the coordinator into `src/OS`, change `EfiEntry`, execute a guest
+phase, establish a post-EBS allocator, configure paging, enforce NX/W^X, run
+QEMU/OVMF, or change a completion-gate state. M01-020 owns explicit EFI core
+linkage, M01-021 owns live allocation and entry wiring, and M01-022 owns
+real-QEMU evidence.
 
 Platform configuration-table guard coverage:
 

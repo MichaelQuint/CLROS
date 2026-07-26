@@ -8,6 +8,8 @@ public static class BootSequencePlan
 
     public const int M01StageOneSuccessLineCount = 11;
 
+    public const int M01StageTwoSuccessLineCount = 9;
+
     public static int GetM01StageOneSuccessLineLength(int lineIndex)
     {
         return lineIndex switch
@@ -133,6 +135,118 @@ public static class BootSequencePlan
                 0x5341505F54534554UL,
                 0x74732E31306D2053UL,
                 0x0000000031656761UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            _ => 0
+        };
+    }
+
+    public static int GetM01StageTwoSuccessLineLength(int lineIndex)
+    {
+        return lineIndex switch
+        {
+            0 => 21,
+            1 => 29,
+            2 => 25,
+            3 => 24,
+            4 => 21,
+            5 => 26,
+            6 => 17,
+            7 => 24,
+            8 => 20,
+            _ => 0
+        };
+    }
+
+    public static byte GetM01StageTwoSuccessLineByte(int lineIndex, int offset)
+    {
+        int lineLength = GetM01StageTwoSuccessLineLength(lineIndex);
+        if (offset < 0 || offset >= lineLength)
+        {
+            return 0;
+        }
+
+        return lineIndex switch
+        {
+            // TEST_START m01.stage2
+            0 => GetPackedAsciiByte(
+                offset,
+                0x4154535F54534554UL,
+                0x732E31306D205452UL,
+                0x0000003265676174UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            // M01_ALLOCATOR_ARENA_ALLOCATED
+            1 => GetPackedAsciiByte(
+                offset,
+                0x4F4C4C415F31304DUL,
+                0x52415F524F544143UL,
+                0x4F4C4C415F414E45UL,
+                0x0000004445544143UL,
+                0x0000000000000000UL),
+
+            // M01_STAGE2_MAP_RECAPTURED
+            2 => GetPackedAsciiByte(
+                offset,
+                0x474154535F31304DUL,
+                0x525F50414D5F3245UL,
+                0x4552555450414345UL,
+                0x0000000000000044UL,
+                0x0000000000000000UL),
+
+            // M01_RESERVATIONS_APPLIED
+            3 => GetPackedAsciiByte(
+                offset,
+                0x455345525F31304DUL,
+                0x534E4F4954415652UL,
+                0x4445494C5050415FUL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            // M01_LIVE_ALLOCATED_4K
+            4 => GetPackedAsciiByte(
+                offset,
+                0x4556494C5F31304DUL,
+                0x5441434F4C4C415FUL,
+                0x0000004B345F4445UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            // M01_LIVE_PAGE_WITHIN_ARENA
+            5 => GetPackedAsciiByte(
+                offset,
+                0x4556494C5F31304DUL,
+                0x49575F454741505FUL,
+                0x4552415F4E494854UL,
+                0x000000000000414EUL,
+                0x0000000000000000UL),
+
+            // M01_LIVE_FREED_4K
+            6 => GetPackedAsciiByte(
+                offset,
+                0x4556494C5F31304DUL,
+                0x345F44454552465FUL,
+                0x000000000000004BUL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            // M01_DOUBLE_FREE_REJECTED
+            7 => GetPackedAsciiByte(
+                offset,
+                0x42554F445F31304DUL,
+                0x5F454552465F454CUL,
+                0x44455443454A4552UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            // TEST_PASS m01.stage2
+            8 => GetPackedAsciiByte(
+                offset,
+                0x5341505F54534554UL,
+                0x74732E31306D2053UL,
+                0x0000000032656761UL,
                 0x0000000000000000UL,
                 0x0000000000000000UL),
 
