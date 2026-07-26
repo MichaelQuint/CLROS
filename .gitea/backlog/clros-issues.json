@@ -2943,7 +2943,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only a host-tested owned boot-stack layout and lifetime contract. The code is not linked into or executed by the canonical EFI artifact and does not allocate a stack, map a guard page, switch RSP, or prove live stack ownership.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-005",
