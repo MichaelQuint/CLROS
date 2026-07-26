@@ -71,6 +71,7 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 - This receipt-bound free contract rejects default or unsuccessful evidence, inconsistent forged evidence, foreign receipts whose recorded evidence does not match, altered source/provenance/predecessor evidence, replay and double free, stale or out-of-order state, mismatched count/capacity, malformed current chains, and arithmetic or pointer-span failures before mutation. The caller must keep the declared node storage mapped and stable, exclusively serialize every allocation/free transition, and publish each returned state exactly once. Consequently, successful freeing is limited to immediate restoration or caller-managed LIFO order; arbitrary-order freeing requires a later allocation ledger or generation-bearing authority. The copyable receipt is not an unforgeable capability: byte-identical receipts from indistinguishable allocator copies cannot be rejected, and the current contract cannot solve ABA after an address is freed and reallocated.
 - Unsafe pointer validation cannot prove that caller-supplied addresses are mapped or stable. `BootPageAllocatorMutator.PerformsLiveAllocation=false` remains explicit: allocation and exact-inverse restoration mutate caller-owned metadata only and neither operation owns, frees, maps, zeros, protects, or accesses a physical page. The pre-existing Span-shaped general `Allocate`/`Free` compatibility API and result compile only under `#if !NOSTDLIB_EFI`; they remain historical host-test compatibility helpers, are not interoperable authoritative transitions for the pointer core, and do not establish safe or live free semantics.
 - `BootPageAllocatorStressTests` is the host-harness-only deterministic oracle over that existing pointer API. It drives a bounded synthetic arena through fixed-seed one-page allocation and strict-LIFO restoration, independently derives provenance-aware ownership and free extents, compares allocator metadata after every operation, preserves full node/reservation byte snapshots and capacity canaries, and verifies separate host-owned content tags for every live synthetic allocation. The content store is never passed to the allocator, so its corruption self-test proves the oracle can detect a bad host canary rather than proving physical-page access. This test source is not production or `NOSTDLIB_EFI` code and is excluded from the canonical EFI project.
+- `PageProtection`, `PageCachePolicy`, and `X64PageTableEntry` define the host-tested, no-stdlib-compatible x64 entry-value boundary. Leaf mappings accept only R, RW, or RX; reject W-only, X-only, unknown, and every W+X combination; encode NX whenever execute is absent; bind WB/UC/WC to an explicitly validated IA32_PAT value and selected index; and validate PTE, 2 MiB PDE, and capability-gated 1 GiB PDPTE address widths, alignments, reserved bits, and PAT-bit placement. Nonleaf PML4E/PDPTE/PDE table pointers are a distinct kind with canonical supervisor `P|RW, NX=0` bits and validated WB at raw PAT index zero, independent of the selected leaf-WB index. An explicit protection-only rewrite either preserves or clears caller-supplied Accessed/Dirty observations without writing live memory. The bounded two-pass batch encoder validates POD sizes, complete caller-owned source/destination spans, and every request before writing any destination byte.
 - `BootPageAllocatorReadinessComposer` is the host-tested aggregate boundary from compact boot memory-region records through usable/reserved range planning, free-segment planning, caller-owned free-list node construction, allocator-state initialization, and `BootSequence.RunBootPageAllocatorReadiness`. It returns nested status and capacity metadata and emits the ordered readiness marker only after the region-planning precondition succeeds.
 - `NativeAotHeapBootstrapPlanner` is the host-tested runtime-facing boundary after allocator-state initialization. It consumes `BootPageAllocatorState` metadata, validates a future managed-heap page budget and object alignment, and keeps object allocation helper completion false; it does not reserve pages, install a heap, run GC root scanning, or perform write barriers.
 - `BootSequence.RunNativeAotHeapBootstrapReadiness` is the host-tested ordered-boot marker boundary after heap bootstrap planning. It consumes `NativeAotHeapBootstrapPlanResult`; emits `NATIVEAOT_HEAP_BOOTSTRAP_READY status=Ready ... satisfiesObjectAllocationHelpers=false` only when the plan succeeds; and emits `NATIVEAOT_HEAP_BOOTSTRAP_NOT_READY status=<reason> ...` for default/uninitialized or failed plans while preserving allocator, requested-heap, remaining-free, alignment, GC-root, write-barrier, and object-allocation-helper metadata. It does not install a heap or implement allocation helpers.
@@ -149,6 +150,7 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 
 - Live page allocator/free-list ownership over planned boot memory ranges. `BootMemoryRegionPlanner` classifies compact records into usable conventional ranges and reserved/unusable metadata, `BootPageAllocatorPlanner` produces host-tested initial free-segment metadata from those selected ranges, `BootPageFreeListBuilder` constructs caller-owned free-list node metadata from the successful plan, `BootPageAllocatorStateInitializer` validates that node chain through its host-friendly adapter, and `BootPageAllocatorStateMaterializer` independently validates supplied caller-owned POD storage through a pointer/count/capacity contract. `BootPageAllocatorMutator.AllocateOnePage` performs one reservation-aware mutation of caller-owned metadata, while its strict serialized `FreeOnePage` exact inverse accepts only the matching successful allocation receipt and exact current post-allocation state plus node/reservation counts/capacities. `BootPageAllocatorReadinessComposer` composes the older host adapters over caller-owned scratch buffers, and `BootSequence.RunBootPageAllocatorReadiness` emits a host-tested readiness marker from initialized allocator-state metadata. The extracted PODs, materializer, and one-page allocate/free core compile in isolated `NOSTDLIB_EFI`/no-framework-reference closures, but they are not source-linked into `src/OS/OS.csproj`, invoked by `EfiEntry`, or exercised by QEMU. None of these pieces establish allocator ownership, reserve a page against firmware or another allocator, zero/map/access the typed result, allocate or free a live page, support arbitrary-order frees, prevent receipt ABA, configure paging, or enforce NX/W^X.
 - Live use of the typed address domains, loaded-image capture plan, or canonical reservation ledger. The exact typed-address, reservation-record, pointer-validator, loaded-image range, and capture-plan sources have retained isolated `NOSTDLIB_EFI` compiler tests, but they are not source-linked into `src/OS/OS.csproj`, invoked by `EfiMain`, or applied retroactively to existing raw-`ulong` memory, MMIO, PCI, and DMA interfaces. Named boundary methods make raw-value intent auditable; they are not a capability boundary. The loaded-image planner validates one caller-owned compact transcript; it does not call `HandleProtocol`/`OpenProtocol`, dereference the observed protocol address, or prove that the transcript came from the running image. The host validator proves range shape, rounding, canonical reservation construction, ordering, overlap, capacity, totals, and modeled guard/stack-union policy only for supplied values. It does not populate the ledger, prove that omitted metadata is actually contained in the loaded image, prove EFI `LoaderCode`/`LoaderData` allocation provenance or a refreshed map generation, reserve/subtract/reclaim live memory, establish allocator ownership, switch stacks, map pages, load CR3, or enforce cache, NX, or W^X policy.
+- Live page-table allocation, population, mutation, ownership, or processor enforcement. The M01-011 codec validates and encodes only caller-supplied values. Its precondition POD does not read or prove IA32_EFER.NXE, CR0.WP, CR4.LA57, CPUID physical width or 1 GiB-page capability, or IA32_PAT; its permissive nonleaf pointers do not by themselves prove effective descendant permissions; and its Accessed/Dirty decoder and protection-only re-encoder do not read or write a live table. No code in this slice installs a table hierarchy, maps the table arena RW+NX, proves page zero absent, performs a live RW-to-RX transition, loads CR3, executes `invlpg`, handles a page fault, or establishes the NX/W^X completion gate.
 - Real `ExitBootServices`.
 - Complete platform implementations for console, memory map, keyboard, hardware timer, firmware, filesystem, physical-memory mapping, framebuffer/GOP binding, and post-firmware RNG.
 - IDT/GDT/TSS/IST setup.
@@ -159,7 +161,7 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 
 ## Tests
 
-Host tests verify the marker plan, `BootSequence.Run`, handoff-aware `BOOT_HANDOFF_READY` validation, `BOOT_MEMORY_MAP_ACCEPTED` validation, boot capability contract, typed handoff metadata including owned-map and ACPI RSDP records, typed physical/virtual/device address POD layout and checked arithmetic, UEFI memory-map contract, memory-map capture-helper success/failure paths, memory-map copy-plan validation, raw descriptor decoding, normalized memory-map conversion, caller-owned `MemoryMapInfo` region writing, no-stdlib boot memory-region materialization, allocator-facing boot memory-region planning, typed reservation subtraction with exact provenance/accounting and atomic failures, boot free-list segment planning, caller-owned boot free-list node construction, boot page allocator-state initialization, bounded pointer/count/capacity allocator-state materialization with explicit source-range cardinality and atomic failure behavior, caller-owned boot page allocator allocation plus receipt-bound exact-inverse restoration, deterministic seeded shadow ownership/provenance/content-tag replay, replay/double-free/nonmatching-foreign/stale/out-of-order rejection, aggregate boot page allocator-readiness composition, boot page-allocator readiness markers, NativeAOT heap bootstrap readiness markers, NativeAOT cctor runner preflight readiness markers, PAL export catalog readiness markers, app package-file staging preflight markers, app argument-vector readiness markers, app argument-handoff readiness markers, app-exit observer readiness markers, ACPI RSDP configuration-table scanning and byte validation, guarded platform configuration-table scanning, guarded physical-memory-backed RSDP snapshot validation, caller-owned ACPI RSDT/XSDT pointer-list parsing, caller-provided ACPI table directory selection, ACPI MCFG discovery composition, ACPI physical discovery probe metadata, firmware guard contract, guarded platform adapter denial, and UEFI-gone simulation markers:
+Host tests verify the marker plan, `BootSequence.Run`, handoff-aware `BOOT_HANDOFF_READY` validation, `BOOT_MEMORY_MAP_ACCEPTED` validation, boot capability contract, typed handoff metadata including owned-map and ACPI RSDP records, typed physical/virtual/device address POD layout and checked arithmetic, UEFI memory-map contract, memory-map capture-helper success/failure paths, memory-map copy-plan validation, raw descriptor decoding, normalized memory-map conversion, caller-owned `MemoryMapInfo` region writing, no-stdlib boot memory-region materialization, allocator-facing boot memory-region planning, typed reservation subtraction with exact provenance/accounting and atomic failures, boot free-list segment planning, caller-owned boot free-list node construction, boot page allocator-state initialization, bounded pointer/count/capacity allocator-state materialization with explicit source-range cardinality and atomic failure behavior, caller-owned boot page allocator allocation plus receipt-bound exact-inverse restoration, deterministic seeded shadow ownership/provenance/content-tag replay, replay/double-free/nonmatching-foreign/stale/out-of-order rejection, exact x64 page-entry enum/POD layouts, all protection-byte combinations, level-aware 4 KiB/2 MiB/capability-gated 1 GiB encoding and strict decode, explicit PAT-index WB/UC/WC binding, NXE/WP/LA57/physical-width/1 GiB-capability precondition rejection, reserved-bit and malformed-POD rejection, Accessed/Dirty classification and explicit protection-rewrite preservation policy, failure-atomic two-pass pointer/count/capacity batch encoding, aggregate boot page allocator-readiness composition, boot page-allocator readiness markers, NativeAOT heap bootstrap readiness markers, NativeAOT cctor runner preflight readiness markers, PAL export catalog readiness markers, app package-file staging preflight markers, app argument-vector readiness markers, app argument-handoff readiness markers, app-exit observer readiness markers, ACPI RSDP configuration-table scanning and byte validation, guarded platform configuration-table scanning, guarded physical-memory-backed RSDP snapshot validation, caller-owned ACPI RSDT/XSDT pointer-list parsing, caller-provided ACPI table directory selection, ACPI MCFG discovery composition, ACPI physical discovery probe metadata, firmware guard contract, guarded platform adapter denial, and UEFI-gone simulation markers:
 
 ```powershell
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
@@ -930,6 +932,185 @@ free, allocator identity, generation authority, indistinguishable-copy
 rejection, ABA safety, EFI execution, QEMU/OVMF execution, or any completion
 gate.
 
+M01-011 defines a value-only x64 page-table entry contract; it does not build
+or touch a page table. The stable one-byte policy values are:
+
+| Type | Value | Meaning |
+|---|---:|---|
+| `PageProtection.None` | 0 | Only an explicit unmapped entry, or the not-applicable protection field of a table pointer |
+| `PageProtection.Read` | 1 | Supervisor read-only, non-executable leaf |
+| `PageProtection.Write` | 2 | Bit value only; never a valid leaf state without `Read` |
+| `PageProtection.Execute` | 4 | Bit value only; never a valid leaf state without `Read` |
+| `PageCachePolicy.Uninitialized` | 0 | No present leaf cache policy; required for an explicit unmapped request |
+| `PageCachePolicy.WriteBack` | 1 | WB at the explicitly selected PAT index |
+| `PageCachePolicy.Uncached` | 2 | UC at the explicitly selected PAT index |
+| `PageCachePolicy.WriteCombining` | 3 | WC at the explicitly selected PAT index |
+
+`PageProtection` is deliberately a plain enum without
+`System.FlagsAttribute`; the no-stdlib closure does not supply that attribute.
+The codec validates combinations manually. Present leaves accept exactly
+`Read`, `Read|Write`, or `Read|Execute`. `Write`, `Execute`,
+`Write|Execute`, `Read|Write|Execute`, and values containing any unknown bit
+fail closed. `None` plus a valid level and otherwise default fields encodes an
+explicit `Unmapped` entry as raw zero. A default request is not the same thing
+and fails as uninitialized.
+
+The canonical level and kind values are append-only:
+
+| Token | Value | Form | Physical alignment | Leaf size |
+|---|---:|---|---:|---:|
+| `X64PageTableLevel.Pte` | 1 | `Leaf` only | 4 KiB | 4 KiB |
+| `X64PageTableLevel.Pde` | 2 | `TablePointer` or large `Leaf` | 4 KiB or 2 MiB | 2 MiB when a leaf |
+| `X64PageTableLevel.Pdpte` | 3 | `TablePointer` or capability-gated large `Leaf` | 4 KiB or 1 GiB | 1 GiB only when the supplied CPUID observation reports support |
+| `X64PageTableLevel.Pml4e` | 4 | `TablePointer` only | 4 KiB | none |
+| `X64PageTableEntryKind.Unmapped` | 1 | Raw zero at any valid level | none | none |
+| `X64PageTableEntryKind.TablePointer` | 2 | Nonleaf hierarchy pointer | 4 KiB | none |
+| `X64PageTableEntryKind.Leaf` | 3 | Final mapping | level-specific | level-specific |
+
+Table-pointer bits deliberately are not forced through the leaf
+`PageProtection` contract. A nonleaf entry must allow writable and executable
+descendants to coexist under leaf-level policy, so the canonical table pointer
+is supervisor `P|RW, NX=0`, `PS=0`, with raw IA32_PAT entry zero explicitly
+validated as WB. This page-walk selection is independent of which duplicate WB
+entry the caller selected for leaf mappings. It reports `PageProtection.None`
+because it does not map its table page as a leaf. The page-table arena itself
+must later receive a separate RW+NX leaf mapping. UC/WC page-walk encodings are
+rejected rather than silently conflating leaf PAT semantics with paging-
+structure caching.
+
+The encoder emits only the following architectural bits:
+
+| Bit | PML4E/nonlarge PDPTE/PDE | 4 KiB PTE leaf | 2 MiB/1 GiB leaf |
+|---:|---|---|---|
+| 0 | Present | Present | Present |
+| 1 | Writable descendant permission, always set | Set only for `Read|Write` | Set only for `Read|Write` |
+| 2 | Clear; supervisor only | Clear; supervisor only | Clear; supervisor only |
+| 3 | Clear for the WB table-pointer contract | PAT-index PWT selector | PAT-index PWT selector |
+| 4 | Clear for the WB table-pointer contract | PAT-index PCD selector | PAT-index PCD selector |
+| 5 | Encoder clears; decoder reports hardware Accessed | Encoder clears; decoder reports hardware Accessed | Encoder clears; decoder reports hardware Accessed |
+| 6 | Rejected | Encoder clears; decoder reports hardware Dirty | Encoder clears; decoder reports hardware Dirty |
+| 7 | Clear | PAT selector | Page-size (`PS`) selector |
+| 8 | Clear; global mappings are deferred | Clear | Clear |
+| 9-11 | Rejected CLROS software bits | Rejected | Rejected |
+| 12 | Physical-address bit | Physical-address bit | PAT selector |
+| 13 through address-width minus one | Physical address | Physical address | Physical address above the level-specific alignment |
+| 52-58 | Rejected CLROS software bits | Rejected | Rejected |
+| 59-62 | Rejected protection-key bits | Rejected | Rejected |
+| 63 | Clear for permissive table pointers | NX when `Execute` is absent | NX when `Execute` is absent |
+
+The caller supplies a `X64PageTableEncodingPreconditions` POD containing an
+observed CPUID physical-address width and 1 GiB-page capability, NXE
+observation, CR0.WP observation, LA57 observation, and
+`X64PatMappingToken`. Present-entry encoding and decoding accept only
+four-level paging, a physical width from 36 through 52, NXE=true, WP=true, and
+an initialized PAT token. A PDPTE leaf additionally requires the observed
+1 GiB-page capability; PDE 2 MiB leaves do not. Every byte-backed flag and
+reserved byte is revalidated on every use. These are caller-supplied value
+observations: the codec does not execute CPUID, read or write CR0/CR4/EFER,
+read IA32_PAT, or prove those fields match live processor state.
+
+`X64PatMappingToken.TryCreate` validates all eight bytes of one supplied raw
+IA32_PAT value, rejects reserved bits and reserved memory-type encodings, and
+binds WB to one required index plus optional UC and WC indexes. The token's raw
+value, selected indices, initialization byte, and explicit reserved field are
+revalidated whenever it is consumed, so an unsafe-copied malformed POD cannot
+silently alias an out-of-range index. Index bits map to entry bits as
+`index[0] -> PWT`, `index[1] -> PCD`, and
+`index[2] -> PAT`. The PAT bit is bit 7 for a 4 KiB PTE and bit 12 for a large
+PDE/PDPTE. Missing UC/WC selection returns `CachePolicyNotSupported`; a bare
+boolean or silent assumption about firmware PAT programming is not accepted.
+
+The codec never masks a bad physical address into apparent validity. It
+rejects zero, level misalignment, a supplied physical-width value outside
+36-52, and any address at or above `1 << physicalAddressWidth`. Strict decode
+accepts hardware Accessed on every present entry and Dirty only on leaves,
+exposes those observations separately, and rejects user/global/software/key,
+level-reserved, large-page-reserved-low, and above-width bits. Newly encoded
+entries keep Accessed and Dirty clear. Re-encoding an accessed/dirty decoded
+leaf therefore produces the canonical entry with those hardware observations
+cleared. `TryReencodeLeafProtection` is the explicit exception: it validates
+an existing strict leaf, changes only its protection, and requires
+`X64HardwareStatePolicy.Clear` or `Preserve` to determine whether the supplied
+Accessed/Dirty observations remain in the returned value. It still performs no
+live read, write, synchronization, or TLB invalidation.
+
+`X64PageTableEntry.TryEncodeMany` is the unsafe no-allocation core. It accepts
+a request pointer, logical request count, full declared source capacity,
+destination pointer, full declared destination capacity, and one encoding
+context. It bounds both capacities at 512 records; rejects zero or excessive
+count, insufficient capacity, null or non-8-byte-aligned pointers, wrapping
+compiler-sized spans, a declared/actual POD layout mismatch, and any overlap
+between complete declared source and destination spans before dereferencing
+caller data. Its first pass validates every logical request without writing;
+only then does a second deterministic pass encode directly to the destination.
+There is no fixed page-sized stack scratch. An invalid final request leaves the
+whole destination byte-identical, while source bytes and destination capacity
+tails are never modified. As with every unsafe pointer contract, arithmetic
+validation cannot prove that a supplied address is mapped or stable; callers
+must own and exclusively stabilize the immutable source and destination spans
+for both passes.
+
+`X64PageTableEntryStatus` is a one-byte append-only result contract:
+
+```text
+0 Uninitialized                         20 InvalidPhysicalAddress
+1 Success                               21 MisalignedPhysicalAddress
+2 RequestNotInitialized                 22 PhysicalAddressOutsideWidth
+3 InvalidLevel                          23 NonCanonicalUnmappedEntry
+4 InvalidEntryKind                      24 UnsupportedEntryBits
+5 InvalidUnmappedEntry                  25 InvalidLargePage
+6 InvalidTablePointer                   26 DirtyBitOnTablePointer
+7 InvalidProtection                     27 NonCanonicalTablePointer
+8 WritableExecutableRejected            28 InvalidBatchCount
+9 InvalidCachePolicy                    29 TooManyEntries
+10 CachePolicyNotSupported              30 SourceCapacityTooSmall
+11 PatMappingNotInitialized             31 DestinationCapacityTooSmall
+12 InvalidPatEntry                      32 CapacityExceedsLimit
+13 PatIndexOutOfRange                   33 MissingSource
+14 PatMemoryTypeMismatch                34 MissingDestination
+15 PreconditionsNotInitialized          35 MisalignedSource
+16 NxeNotEnabled                        36 MisalignedDestination
+17 WriteProtectNotEnabled               37 SourceSpanOverflow
+18 FiveLevelPagingNotSupported          38 DestinationSpanOverflow
+19 UnsupportedPhysicalAddressWidth      39 SourceDestinationOverlap
+40 ContractLayoutMismatch               44 InvalidRequestState
+41 InvalidPatMappingState               45 InvalidHardwareStatePolicy
+42 InvalidPreconditionState             46 ExistingEntryNotLeaf
+43 OneGiBPagesNotSupported
+```
+
+The retained reference use is architectural/test influence, not imported
+implementation. The snapshot has no recoverable Git revision:
+
+- `references/SharpOS-main/OS/src/Kernel/Paging/PageFlags.cs`, SHA-256 `DC565A4B8BFA38CDACFBDB5B53B2D5616BB9C1057DEDE7A1673956D6F3198652`, cross-checks x64 flag positions.
+- `references/SharpOS-main/OS/src/Kernel/Paging/X64PageTable.cs`, SHA-256 `35503B543628E5A462073D498704050EEEF7D79DEB2B84F01CACA29714200BAC`, cross-checks 4 KiB/2 MiB/1 GiB address masks and level structure. CLROS does not copy its live ownership, blind masking, permissive leaf, or TLB behavior.
+- `references/SharpOS-main/OS/src/Kernel/Paging/PagingValidation.cs`, SHA-256 `B1699D328E49D5FC68B8CF8979B366D72CCA2E3B4AA5B982F91F0A2C9A1C40F6`, supplies only independently recreated round-trip, duplicate, neighbor, and malformed-entry test categories.
+
+Successful host evidence is:
+
+```text
+TEST_START m01.011
+CLROS_M01_011_READY
+TEST_PASS m01.011
+```
+
+Any numbered-group failure emits `TEST_FAIL m01.011 <reason>` and reaches an
+aggregate `TEST_FAIL m01.011 failures=<count>` plus a throw before the
+ready/pass pair. The exact address/policy/entry sources compile in a synthetic
+`NoStdLib=true`, `NOSTDLIB_EFI`, zero-framework-reference closure with zero PE
+assembly references. Separate evaluated `SingleMinimalApi` and
+`MultiMinimalApi` project closures prove those sources and the test are not
+currently linked into `src/OS/OS.csproj`.
+
+This is host-only value-model evidence. It does not allocate table pages, own
+or populate a page-table arena, read or write a live entry, enable NXE or WP,
+read or program live PAT state, prove effective mixed-subtree permissions,
+load CR3, invalidate a TLB, trigger a page fault, define `DmaMapping`, execute
+inside EFI, run under QEMU/OVMF, or change the NX/W^X completion gate. M01-014
+and M01-019 must consume these exact policy, level, context, entry, and result
+types; they may not introduce a second level token or treat the observation
+POD as processor proof.
+
 Boot page allocator-readiness composition coverage is host-test only. It proves existing planner/state contracts can be composed over caller-owned scratch buffers and forwarded into the ordered boot readiness marker boundary. It does not reserve kernel-owned ranges, mutate allocator-owned state, allocate pages, configure paging, or run in `EfiMain`:
 
 ```text
@@ -1359,6 +1540,15 @@ Evidence from 2026-05-22:
 ## Known Limitations
 
 The QEMU proof only proves OVMF can load and run the EFI application, the tested firmware path can return a memory map, and firmware-visible output reaches the serial log. It is not completion-gate proof for `ExitBootServices`, owned drivers, memory management, storage, networking, app loading, hosted .NET 10, Minimal API, Kestrel, cloud readiness, or production readiness; use `docs/completion-gates.md` for the full claim boundary.
+
+The M01-011 page-table entry contract is host-tested only. Its synthetic
+no-stdlib compiler fixture proves source compatibility while the evaluated EFI
+closure proves the same source is not yet linked. The precondition and PAT
+tokens are caller observations, not live register evidence; the codec has no
+table storage, virtual-address walk, page ownership, live read/write, CR3/TLB
+effect, page-fault path, or QEMU execution. Its canonical table pointers are
+permissive ancestor masks for future mixed leaf policy, not proof that a
+complete hierarchy has effective W^X/NX enforcement.
 
 The memory-map snapshot is now copied from the firmware-allocated buffer into a fixed static OS-owned buffer before the smoke marker is emitted. The firmware source pointer is still retained only as provenance in `BootHandoffRecord`.
 
