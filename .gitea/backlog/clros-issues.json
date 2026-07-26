@@ -2596,7 +2596,7 @@
       ],
       "collisionLane": null,
       "summary": "Define typed physical, virtual, and device-address POD wrappers.",
-      "currentEvidence": "Typed PhysicalAddress, VirtualAddress, and DeviceAddress wrappers were implemented and host-tested in implementation commit 75c11c94 and merged to master by PR #322 at 04f2bc09c07f23b9e9c2a4cbc5be2a80823d4e34. They are not linked into or executed by the canonical EFI artifact, and the issue remains open/claimed until its evidence comment is reviewed and closure is explicit.",
+      "currentEvidence": "PhysicalAddress, VirtualAddress, and DeviceAddress are implemented as readonly sequential unmanaged one-ulong PODs. The original implementation was committed at 75c11c94eef7f4f146ed061deb06959f972a64c7 and merged by PR #322 at 04f2bc09c07f23b9e9c2a4cbc5be2a80823d4e34. Evidence-closure commit 9464b1872cb2adbf34a476a30754da4b705c3d4a removes generic raw Value/TryCreate escape points, limits raw ingress and egress to status-coded UEFI or hardware-register boundary methods, adds deterministic same-domain TryCompareTo/default-failing extraction, and retains host tests that compile the exact production source with NoStdLib=true, framework references disabled, NOSTDLIB_EFI defined, and zero assembly references while requiring stable compiler rejection of unnamed raw and cross-domain expressions. PR #335 merged the reviewed evidence record as 792849585d1f0d830becc4c16e0c0f1a0dc9b233; done/step848.md and issue comment marker clros-evidence-reviewed:M01-001 preserve the exact commands, hashes, failures, and non-claims. The complete host harness emitted TEST_START m01.001, CLROS_M01_001_READY, TEST_PASS m01.001, and TEST_PASS host.tests with zero failure markers and zero stderr. This is host-only evidence: the source is not linked into src/OS/OS.csproj or invoked by EfiMain/QEMU, and live reservations, mappings, paging, ownership, and M01 exit evidence remain deferred to M01-002 and M01-017 through M01-026.",
       "implementationNotes": [
         "Implement PhysicalAddress, VirtualAddress, and DeviceAddress as readonly sequential unmanaged one-ulong PODs with exact 8-byte size, field offset, equality, and no hidden padding.",
         "Provide status-coded checked factory, add, end/range, and align-up operations only where domain-appropriate; raw ulong construction/access is permitted only at explicitly named UEFI and hardware-register boundaries.",
@@ -2651,7 +2651,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only host-tested C# POD layout and checked address-domain behavior for PhysicalAddress, VirtualAddress, and DeviceAddress. The code is not linked into or executed by the canonical EFI artifact and does not prove live physical or virtual mappings, CR3 loading, page allocation, W^X/NX, ExitBootServices, owned diagnostics, Kestrel, cloud support, or production readiness. Guest integration and the M01 milestone proof are serialized in M01-017 through M01-026.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-002",
