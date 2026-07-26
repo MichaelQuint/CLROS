@@ -4322,7 +4322,7 @@
         "docs/boot.md"
       ],
       "evidenceBoundary": "This issue proves only host-tested stage-two ordering, arena confinement, accounting, and marker suppression over supplied pre-EBS firmware-allocation metadata. It does not call AllocatePages, wire EfiEntry, establish a post-EBS allocator, transfer ownership of arbitrary conventional pages, allocate physical memory in a guest, or provide QEMU evidence.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-019",
