@@ -26,6 +26,7 @@ The architecture is a staged CloudReady NativeAOT OS plan. The first-class appli
 - `BootPageAllocatorMutator.FreeOnePage` is the corresponding host-tested strict serialized exact inverse. It accepts only a successful real `AllocateOnePage` result and embedded receipt plus the exact current post-allocation state and node/reservation counts/capacities; it accepts no independent raw address and does not implement general free-list insertion. It revalidates the receipt and current chain, then restores the original state and logical node topology byte-for-byte. Whole-node, tail, head, and middle allocation shapes deterministically report `None`, `Previous`, `Next`, and `PreviousAndNext`. Default, unsuccessful, inconsistent forged, nonmatching foreign, replayed, stale, double-free, or out-of-order evidence and altered state/count/capacity/provenance/predecessor metadata fail before mutation. This permits immediate or caller-managed LIFO restoration only. It has no allocator identity, generation, or arbitrary-order allocation ledger; its copyable receipt is not an unforgeable capability, so a byte-identical receipt from an indistinguishable allocator copy cannot be rejected and ABA after free/reallocation cannot be eliminated. `PerformsLiveAllocation=false` remains explicit for both transitions: they mutate caller-owned metadata and do not own, free, map, zero, protect, or access physical memory. The legacy Span-shaped `Allocate`/`Free` API and result remain host-only behind `#if !NOSTDLIB_EFI`; they are historical non-authoritative compatibility helpers.
 - `tests/OS.HostTests/BootPageAllocatorStressTests.cs` adds a deterministic host-only oracle over the existing one-page allocator and exact-inverse free boundary without modifying production code. Fixed-seed generated churn and scripted whole/head/tail/middle cases independently model page ownership, source provenance, free extents, strict-LIFO receipts, and separate host-owned content tags. Every transition validates active-chain shape and fields, accounting, ownership/content, inactive slots, reservation bytes, and capacity-tail canaries, then contributes to a platform-independent transcript whose final hash is frozen; failed transitions and matching inverse frees additionally require byte-identical full snapshots. The synthetic content store never crosses into the allocator, so this verifies test-oracle sensitivity rather than physical-page contents or live ownership.
 - `src/OS.Kernel/Memory/PageProtection.cs`, `PageCachePolicy.cs`, and `X64PageTableEntry.cs` define one no-stdlib-compatible x64 entry-value contract for later paging work. The canonical `X64PageTableLevel` distinguishes PTE/PDE/PDPTE/PML4E once; leaf mappings accept only R, RW, or RX and bind WB/UC/WC to an explicitly validated IA32_PAT value/index; nonleaf table pointers use a separate canonical supervisor `P|RW, NX=0` kind and validate raw PAT index zero as WB independently of the selected leaf-WB index. Level-specific encode/decode validates 4 KiB/2 MiB/capability-gated 1 GiB alignment, supplied 36-52-bit physical width, NX, PAT placement, large-page/reserved bits, malformed POD state, and hardware Accessed/Dirty observations. A protection-only value rewrite explicitly preserves or clears A/D without live mutation. The two-pass unsafe batch core validates actual POD sizes, complete stable caller-owned pointer/count/capacity spans, and every request before any destination write, without fixed page-sized stack scratch.
+- `src/OS.Kernel/Boot/X64BootIdentityMappingPlan.cs` defines a caller-owned, no-allocation identity-mapping planner for the M01-011 4 KiB leaf policy. It requires explicit executing-image, owned-stack, boot-handoff, owned-serial-stub, ACPI-scratch, and framebuffer-metadata mappings plus a validated non-emitted stack guard; permits explicit additional required mappings for later owned arenas; preserves split image permissions; excludes page zero and the high/noncanonical identity half; deterministically unions only compatible policy ranges; and calculates exact fresh PML4/PDPT/PD/PT page capacity. The result contains typed physical-equals-virtual ranges and value evidence only.
 - `FirmwareServicesGuard` and the `UEFI_GONE_SIM_*` host tests establish the first UEFI-gone simulation boundary.
 - The EFI build can produce an explicit QEMU-tested UEFI-gone simulation artifact that reaches `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, and `UEFI_GONE_SIM_PASS`.
 - `tools/OS.ImageBuilder` creates a raw GPT/FAT32 EFI System Partition image.
@@ -48,6 +49,16 @@ EFI project items prove the source is not currently linked or executed.
 Consequently it does not advance the NX/W^X completion gate and does not define
 the M05 `DmaMapping` contract.
 
+The M01-012 identity planner is likewise metadata-only. Its range roles,
+processor/PAT preconditions, and table-page capacity are caller attestations.
+It does not inspect PE sections, firmware mappings, linker output, ACPI
+ownership, framebuffer MMIO, or current CR3; allocate/zero/assign table pages;
+write a table image; install an inaccessible guard; map the table arena;
+source-link or run inside EFI; or change processor state. Its deterministic
+plan therefore does not prove live page-zero absence, NX/W^X enforcement,
+cache correctness, identity reachability after CR3 load, TLB behavior, or a
+completion gate.
+
 ## Tests
 
 Host tests verify boot marker emission, boot event ring-buffer behavior, typed handoff metadata validation, typed physical/virtual/device address POD layout, named raw-boundary API allowlists, same-domain ordering, checked arithmetic, default-failing raw extraction, explicit boot-reservation kind values, typed reservation POD layout, malformed range rejection, bounded pointer/count/capacity handling, sorted/disjoint/adjacent table validation, deterministic overlap indexes and totals, loaded-image duplicate-coverage rejection, guard/stack union accounting, typed reservation-subtraction PODs and statuses, exact source-ordinal provenance, source/reservation containment, identity and complete-cover behavior, head/tail/middle/multiple fragmentation, exact removed/remaining accounting, declared-span alias and overflow rejection, output-capacity preflight, atomic failure behavior, typed one-page allocator results, exact before/after free and allocated accounting, first-fit head/tail/exact/split mutations, strict receipt-bound exact-inverse restoration with `None`/`Previous`/`Next`/`PreviousAndNext` classifications, original topology and provenance restoration, replay/double-free/nonmatching-foreign/stale/out-of-order rejection, logical-prefix and canary preservation, canonical reservation exclusion, stable pointer/count/capacity preflight, corrupt-chain and arithmetic rejection, failure atomicity, legacy host Span compatibility, loaded-image transcript validation and deterministic error precedence, exact and outward-rounded image extents, canonical loaded-image reservation construction, owned-stack backing/guard/usable accounting, explicit physical-top alignment, nested ledger failure propagation, immutable lifetime transitions, exact LoaderCode/LoaderData switch allocation binding, full-page/stub-offset byte materialization and readback, complete-plan evidence binding, storage-address-bound caller-owned one-shot state, repeated-transition rejection, exact continuation-entry RSP containment, malformed-layout revalidation, high-address and overflow boundaries, transient pointer nonretention, nonmutation and allocation-free validation, exact `NOSTDLIB_EFI`/no-framework-reference compile closures with zero assembly references, compiler rejection of unnamed raw access and cross-domain expressions, memory-map copy planning, raw descriptor decoding, allocated memory-map conversion, caller-owned memory-region writing, no-stdlib boot memory-region materialization, allocator-facing compact region planning, boot free-list segment planning, caller-owned free-list node construction, boot page allocator-state initialization, exact allocator POD layouts, bounded allocator-state materialization with explicit `sourceRangeCount`, exact 4096-byte page policy, pointer alignment/span/non-overlap validation, malformed node/index/chain/order rejection, capacity and arithmetic-overflow rejection, exact totals, unchanged source order, default-result failure, caller-owned boot page allocator mutation, deterministic fixed-seed allocator replay against an independent ownership/provenance/content-tag oracle, scripted restore-shape coverage, golden transcript hashes, full exhaustion, and corruption-sensitivity self-tests, boot page-allocator readiness markers, UEFI-gone simulation behavior, host-tool command contracts, ACPI marker preset ordering, and the current parser/planning contracts. `CLROS_M01_009_READY` and `CLROS_M01_010_READY` are host-harness markers only. QEMU smoke verifies the firmware-visible EFI marker path, UEFI memory-map readiness marker, owned-map copy marker, compact boot-region materialization marker/count, ACPI RSDP handoff marker, ordered boot marker plan, and the opt-in ACPI physical discovery marker chain. It does not execute the typed-address, canonical-reservation, M01-007 reservation-subtractor, M01-008 one-page allocator allocation, M01-009 exact-inverse free, M01-010 seeded stress oracle, loaded-image capture-plan, owned-stack-layout, owned-stack-switch-plan, or M01-006 allocator-state materializer sources.
@@ -65,6 +76,21 @@ exact sources also compile with `NOSTDLIB_EFI` and zero assembly references;
 both canonical workload-profile evaluations prove they are absent from the
 current EFI closure. `CLROS_M01_011_READY` is a host-harness marker only and is
 not guest, EFI, QEMU, live-paging, or completion-gate evidence.
+
+M01-012 host tests additionally cover every required mapped purpose, the
+required non-emitted guard, split executing-image policies, additional required
+resources, input-order-independent normalized output and accounting with
+caller-order-relative diagnostic indexes, compatible overlap and adjacency
+unions without permission/cache promotion, incompatible overlap,
+page-zero and low-canonical bounds, exact fresh four-level table counts at
+hierarchy boundaries, destination and table-page capacity, malformed/default
+POD state, unsafe pointer/span/alias/overflow cases, whole-destination failure
+atomicity, and the inherited M01-011 PAT[0], NXE, WP, physical-width,
+protection, and cache preconditions. The exact source also compiles with
+`NOSTDLIB_EFI` and zero assembly references; evaluated `SingleMinimalApi` and
+`MultiMinimalApi` project closures prove it and its test are absent from the
+current EFI build. `CLROS_M01_012_READY` is a host-harness marker only, not
+guest, EFI, QEMU, live-mapping, or completion-gate evidence.
 
 ## Known Limitations
 
@@ -84,6 +110,18 @@ bits, LA57, PCID, live table synchronization, TLB shootdown, and `DmaMapping`.
 M01-014 owns caller-owned table-image mutation and invalidation planning;
 M01-019 owns the coordinated reversible paging phase; later EFI-link and QEMU
 issues own any live claim.
+
+The `X64BootIdentityMappingPlan` boundary remains host-tested only. Its exact
+fresh-hierarchy count cannot assign physical table pages, prove they are
+available, reuse firmware tables, or account for a later implementation that
+chooses large pages. Caller-provided ranges can be semantically wrong even
+after their geometry passes, and the planner cannot prove that executable
+image segments match linker output, the serial stub is immutable, ACPI scratch
+is owned, framebuffer metadata excludes MMIO bytes, the guard is inaccessible,
+or the eventual page-table arena is represented. Unsafe arithmetic checks
+cannot prove caller pointers are mapped or stable. Live construction and
+integration remain serialized in M01-019/M01-020/M01-025, with cumulative real
+QEMU evidence deferred to M01-026.
 
 ## Next Steps
 
