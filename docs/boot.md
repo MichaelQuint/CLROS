@@ -46,6 +46,8 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 - `BootInfo` records boot mode, firmware vendor/revision, and initial capability flags for text output, shutdown, and memory map availability.
 - `BootHandoffInfo` defines a host-tested typed metadata contract for boot mode, capabilities, firmware-services mode, memory-map metadata, and ACPI RSDP pointer provenance.
 - `PhysicalAddress`, `VirtualAddress`, and `DeviceAddress` define three distinct host-tested address domains backed by one private `ulong` each and treat zero/default as invalid. Raw ingress and egress exist only through status-coded methods whose names identify a UEFI or hardware-register boundary; there is no generic `Value`, `TryCreate`, cast, or conversion escape. Checked arithmetic, alignment, range-end, and same-domain comparison operations reject default/zero input, zero-length ranges, invalid or unmet power-of-two alignment, and addition/align-up wrap while leaving every failure output deterministic.
+- `BootReservationKind` and `BootReservedRange` define a separate host-tested CLROS ownership ledger rather than reusing `BootMemoryReservedRange`, which classifies non-conventional UEFI descriptors and may legitimately describe page zero. The new 40-byte readonly unmanaged record stores an explicit append-only kind value, zeroed reserved bytes, typed nonzero `PhysicalAddress` start/end values, page count, and byte length. Its status-coded factory and structural validator require 4 KiB alignment, checked page-to-byte multiplication, and a nonwrapping half-open end.
+- `BootReservationTableValidator` is the host-tested, no-stdlib-compatible pointer/count/capacity core for an already-sorted caller-owned ownership ledger. It bounds the table at 256 records and rejects insufficient declared capacity, missing or misaligned pointers, and a wrapping full table-address span before dereferencing. It then validates every redundant range field, preserves the source byte-for-byte, permits adjacency, and reports unsorted, exact-duplicate, nested, partial-overlap, and loaded-image duplicate-coverage failures with deterministic invalid/conflicting indexes and prefix totals. If either `BootStackGuard` or `BootStack` is present, exactly one of each is required, the guard must immediately precede an adjacent stack, and their checked union is reported as the modeled arena. A table with neither record remains valid for earlier partial-ledger stages.
 - `BootSequenceHandoffValidator` validates the boot source, required text-output and memory-map capabilities, firmware-services mode, owned memory-map copy flag, source-buffer provenance, descriptor size, descriptor count, map-size arithmetic, descriptor-count limits, and ACPI RSDP metadata consistency without exceptions.
 - `EfiBootHandoffValidator` is the source-linked no-stdlib-safe numeric validator used by the live EFI artifact before it emits `BOOT_HANDOFF_READY`.
 - `EfiMemoryMapNormalizer` is the source-linked no-stdlib-safe live normalizer that walks owned raw descriptor bytes by pointer, validates page/address arithmetic, and records a compact summary without allocating.
@@ -133,7 +135,7 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 ## Unsupported Behavior
 
 - Live page allocator/free-list ownership over planned boot memory ranges. `BootMemoryRegionPlanner` classifies compact records into usable conventional ranges and reserved/unusable metadata, `BootPageAllocatorPlanner` produces host-tested initial free-segment metadata from those selected ranges, `BootPageFreeListBuilder` constructs caller-owned free-list node metadata from the successful plan, `BootPageAllocatorStateInitializer` validates that node chain into value-type allocator state metadata, `BootPageAllocatorMutation` mutates caller-owned free-list metadata in host tests, `BootPageAllocatorReadinessComposer` composes those existing pieces over caller-owned scratch buffers, and `BootSequence.RunBootPageAllocatorReadiness` emits a host-tested readiness marker from initialized allocator-state metadata. None of those pieces reserve kernel ranges, allocate or free live pages, configure paging, enforce NX/W^X, or run in the live EFI path.
-- Live use of the typed address domains. The exact production source has a retained isolated `NOSTDLIB_EFI` compiler test, but the wrappers are not source-linked into `src/OS/OS.csproj`, invoked by `EfiMain`, or applied retroactively to existing raw-`ulong` memory, MMIO, PCI, and DMA interfaces. Named boundary methods make raw-value intent auditable; they are not a capability boundary. The leaf does not prove range overlap policy, reservations, allocator capacity/ownership, stale or double release detection, page mappings, canonical virtual addresses, cache policy, or W^X/NX behavior.
+- Live use of the typed address domains or canonical reservation ledger. The exact typed-address, reservation-record, and pointer-validator sources have retained isolated `NOSTDLIB_EFI` compiler tests, but they are not source-linked into `src/OS/OS.csproj`, invoked by `EfiMain`, or applied retroactively to existing raw-`ulong` memory, MMIO, PCI, and DMA interfaces. Named boundary methods make raw-value intent auditable; they are not a capability boundary. The host validator proves range-shape, ordering, overlap, capacity, totals, and modeled guard/stack-union policy only for supplied records. It does not populate the ledger, prove that omitted metadata is actually contained in the loaded image, prove EFI `LoaderCode`/`LoaderData` allocation provenance or a refreshed map generation, reserve/subtract/reclaim live memory, establish allocator ownership, switch stacks, map pages, load CR3, or enforce cache, NX, or W^X policy.
 - Real `ExitBootServices`.
 - Complete platform implementations for console, memory map, keyboard, hardware timer, firmware, filesystem, physical-memory mapping, framebuffer/GOP binding, and post-firmware RNG.
 - IDT/GDT/TSS/IST setup.
@@ -192,6 +194,52 @@ used only for the architectural lesson that owned stack bounds and alignment
 must be explicit before a switch. Its raw-pointer API was not copied. RoseOS
 was used only as a negative-test reminder for later range sizing, reservation,
 and reclamation issues; those policies are outside M01-001.
+
+M01-002 canonical reservation coverage is also host-only.
+`CLROS_M01_002_READY` is emitted only after the focused factory, layout,
+malformed-record, capacity, ordering, overlap, loaded-image, guard/stack,
+immutability, allocation, source-firewall, and exact-source compiler checks
+pass. The isolated compiler fixture links the reviewed typed-address source and
+both new reservation sources with `NoStdLib=true`, framework references
+removed, and `NOSTDLIB_EFI` defined, then verifies that the emitted PE has zero
+assembly references:
+
+```text
+TEST_START m01.002
+TEST_PASS m01.002 reservation kinds are stable and append only
+TEST_PASS m01.002 reservation records and results are unmanaged pods
+TEST_PASS m01.002 range factory creates typed half-open ranges
+TEST_PASS m01.002 range factory rejects default alignment and overflow
+TEST_PASS m01.002 validator rejects malformed reservation records
+TEST_PASS m01.002 validator accepts canonical sorted disjoint table
+TEST_PASS m01.002 validator classifies ordering and overlap conflicts
+TEST_PASS m01.002 loaded image rejects duplicate metadata coverage
+TEST_PASS m01.002 guard and stack exactly account for modeled arena
+TEST_PASS m01.002 pointer count and capacity fail before dereference
+TEST_PASS m01.002 validator is deterministic nonmutating and allocation free
+TEST_PASS m01.002 source excludes hosted runtime dependencies
+TEST_PASS m01.002 exact sources compile under nostdlib efi
+CLROS_M01_002_READY
+TEST_PASS m01.002
+```
+
+The enum values are explicitly fixed from `Uninitialized=0` through
+`PageProtectionProbe=14`; later values may only append. Metadata that is
+actually covered by `LoadedImage` is omitted from the canonical ledger, while a
+separate contained `OwnedMemoryMap`, `AcpiSnapshot`, `AcpiScratch`,
+`DiagnosticState`, `BootHandoff`, or `FramebufferMetadata` record is rejected
+as duplicate coverage. M01-002 cannot infer the location of omitted metadata,
+so later live integration must prove containment before relying on image
+coverage.
+
+`references/RoseOS-master/Loader/src/MemoryMap.cs` (local snapshot SHA-256
+`CE90AE629B538E558B57B0BD315ED8B11DD559ED1A841368D109DE28D70B8B28`) was
+used only as a test-only reminder for unchecked size growth, narrowing,
+failure-continuation, and ownership hazards. No RoseOS source, API, string,
+status name, raw-pointer design, or EFI call was copied. Those hazards were
+independently represented as zero/default, overflow, capacity, arbitrary-range,
+ordering, and overlap tests. Firmware map acquisition, retry, reclamation, and
+`ExitBootServices` remain outside M01-002.
 
 Platform configuration-table guard coverage:
 
