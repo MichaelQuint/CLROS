@@ -6,6 +6,140 @@ public static class BootSequencePlan
 
     public const int LineCount = 8;
 
+    public const int M01StageOneSuccessLineCount = 11;
+
+    public static int GetM01StageOneSuccessLineLength(int lineIndex)
+    {
+        return lineIndex switch
+        {
+            0 => 21,
+            1 => 25,
+            2 => 27,
+            3 => 25,
+            4 => 24,
+            5 => 25,
+            6 => 33,
+            7 => 21,
+            8 => 24,
+            9 => 17,
+            10 => 20,
+            _ => 0
+        };
+    }
+
+    public static byte GetM01StageOneSuccessLineByte(int lineIndex, int offset)
+    {
+        int lineLength = GetM01StageOneSuccessLineLength(lineIndex);
+        if (offset < 0 || offset >= lineLength)
+        {
+            return 0;
+        }
+
+        return lineIndex switch
+        {
+            // TEST_START m01.stage1
+            0 => GetPackedAsciiByte(
+                offset,
+                0x4154535F54534554UL,
+                0x732E31306D205452UL,
+                0x0000003165676174UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            // M01_LOADED_IMAGE_CAPTURED
+            1 => GetPackedAsciiByte(
+                offset,
+                0x44414F4C5F31304DUL,
+                0x4547414D495F4445UL,
+                0x455255545041435FUL,
+                0x0000000000000044UL,
+                0x0000000000000000UL),
+
+            // M01_STACK_SWITCH_STUB_READY
+            2 => GetPackedAsciiByte(
+                offset,
+                0x434154535F31304DUL,
+                0x4843544957535F4BUL,
+                0x45525F425554535FUL,
+                0x0000000000594441UL,
+                0x0000000000000000UL),
+
+            // M01_STACK_ARENA_ALLOCATED
+            3 => GetPackedAsciiByte(
+                offset,
+                0x434154535F31304DUL,
+                0x5F414E4552415F4BUL,
+                0x455441434F4C4C41UL,
+                0x0000000000000044UL,
+                0x0000000000000000UL),
+
+            // M01_STACK_GUARD_RESERVED
+            4 => GetPackedAsciiByte(
+                offset,
+                0x434154535F31304DUL,
+                0x5F44524155475F4BUL,
+                0x4445565245534552UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            // M01_STAGE1_MAP_RECAPTURED
+            5 => GetPackedAsciiByte(
+                offset,
+                0x474154535F31304DUL,
+                0x525F50414D5F3145UL,
+                0x4552555450414345UL,
+                0x0000000000000044UL,
+                0x0000000000000000UL),
+
+            // M01_STAGE1_RESERVATIONS_VALIDATED
+            6 => GetPackedAsciiByte(
+                offset,
+                0x474154535F31304DUL,
+                0x52455345525F3145UL,
+                0x5F534E4F49544156UL,
+                0x45544144494C4156UL,
+                0x0000000000000044UL),
+
+            // M01_OWNED_STACK_READY
+            7 => GetPackedAsciiByte(
+                offset,
+                0x454E574F5F31304DUL,
+                0x5F4B434154535F44UL,
+                0x0000005944414552UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            // M01_OWNED_STACK_SWITCHED
+            8 => GetPackedAsciiByte(
+                offset,
+                0x454E574F5F31304DUL,
+                0x5F4B434154535F44UL,
+                0x4445484354495753UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            // M01_RSP_CONTAINED
+            9 => GetPackedAsciiByte(
+                offset,
+                0x5F5053525F31304DUL,
+                0x454E4941544E4F43UL,
+                0x0000000000000044UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            // TEST_PASS m01.stage1
+            10 => GetPackedAsciiByte(
+                offset,
+                0x5341505F54534554UL,
+                0x74732E31306D2053UL,
+                0x0000000031656761UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            _ => 0
+        };
+    }
+
     public static int GetLineLength(int lineIndex)
     {
         return lineIndex switch
@@ -36,6 +170,27 @@ public static class BootSequencePlan
             7 => GetOsSmokePassByte(offset),
             _ => 0
         };
+    }
+
+    private static byte GetPackedAsciiByte(
+        int offset,
+        ulong bytes0To7,
+        ulong bytes8To15,
+        ulong bytes16To23,
+        ulong bytes24To31,
+        ulong bytes32To39)
+    {
+        ulong bytes = (offset >> 3) switch
+        {
+            0 => bytes0To7,
+            1 => bytes8To15,
+            2 => bytes16To23,
+            3 => bytes24To31,
+            4 => bytes32To39,
+            _ => 0
+        };
+
+        return (byte)(bytes >> ((offset & 7) * 8));
     }
 
     private static byte GetTestStartBootSequenceByte(int offset)

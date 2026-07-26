@@ -295,6 +295,72 @@ public static class BootSequence
     public const string UefiGoneSimulationStart = "UEFI_GONE_SIM_START";
     public const string UefiGoneSimulationPlatformDenied = "UEFI_GONE_SIM_PLATFORM_DENIED";
     public const string UefiGoneSimulationPass = "UEFI_GONE_SIM_PASS";
+    public const string M01StageOneTestFailurePrefix =
+        "TEST_FAIL m01.stage1 status=";
+    public const string M01StageOneFailurePrefix =
+        "M01_STAGE1_FAIL status=";
+
+    /// <summary>
+    /// Presents already-completed M01 stage-one host evidence through the
+    /// frozen byte plan. This helper does not prepare the coordinator, invoke
+    /// firmware, or execute the stack-switch target, and the default Run
+    /// overloads never call it.
+    /// </summary>
+    public static BootResult RunM01LoadedImageStackIntegration(
+        M01LoadedImageStackIntegrationResult integration,
+        ISerialSink serial,
+        BootEventRingBuffer events)
+    {
+        if (serial is null)
+        {
+            return BootResult.Fail("serial sink is required");
+        }
+
+        if (events is null)
+        {
+            return BootResult.Fail("boot event ring buffer is required");
+        }
+
+        if (!integration.Succeeded)
+        {
+            M01LoadedImageStackStatus failureStatus =
+                integration.Status == M01LoadedImageStackStatus.Success
+                    ? M01LoadedImageStackStatus
+                        .IllegalCoordinatorState
+                    : integration.Status;
+            string failureDetail =
+                failureStatus
+                + " checkpoint="
+                + integration.LastCompletedCheckpoint;
+            Emit(
+                serial,
+                events,
+                CreateM01StageOneSuccessLine(0));
+            Emit(
+                serial,
+                events,
+                M01StageOneTestFailurePrefix + failureDetail);
+            Emit(
+                serial,
+                events,
+                M01StageOneFailurePrefix + failureDetail);
+            return BootResult.Fail(
+                "M01 stage one failed: " + failureDetail);
+        }
+
+        for (int lineIndex = 0;
+            lineIndex
+                < BootSequencePlan.M01StageOneSuccessLineCount;
+            lineIndex++)
+        {
+            Emit(
+                serial,
+                events,
+                CreateM01StageOneSuccessLine(lineIndex));
+        }
+
+        return BootResult.Pass();
+    }
 
     public static BootResult Run(ISerialSink serial)
     {
@@ -1845,6 +1911,33 @@ public static class BootSequence
                 for (int offset = 0; offset < buffer.Length; offset++)
                 {
                     buffer[offset] = (char)BootSequencePlan.GetLineByte(planLineIndex, offset);
+                }
+            });
+    }
+
+    public static string CreateM01StageOneSuccessLine(int lineIndex)
+    {
+        int lineLength =
+            BootSequencePlan.GetM01StageOneSuccessLineLength(
+                lineIndex);
+        if (lineLength == 0)
+        {
+            return string.Empty;
+        }
+
+        return string.Create(
+            lineLength,
+            lineIndex,
+            static (buffer, planLineIndex) =>
+            {
+                for (int offset = 0;
+                    offset < buffer.Length;
+                    offset++)
+                {
+                    buffer[offset] = (char)BootSequencePlan
+                        .GetM01StageOneSuccessLineByte(
+                            planLineIndex,
+                            offset);
                 }
             });
     }
