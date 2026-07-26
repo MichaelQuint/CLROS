@@ -10,8 +10,8 @@ internal static class GiteaBacklogManifestTests
     private static readonly IReadOnlyDictionary<string, int> ExpectedChildren =
         new Dictionary<string, int>(StringComparer.Ordinal)
         {
-            ["M00"] = 22,
-            ["M01"] = 15,
+            ["M00"] = 23,
+            ["M01"] = 26,
             ["M02"] = 16,
             ["M03"] = 11,
             ["M04"] = 23,
@@ -113,6 +113,11 @@ internal static class GiteaBacklogManifestTests
             return false;
         }
 
+        if (json.Contains('\uFFFD') || json.Contains('\u00E2'))
+        {
+            return false;
+        }
+
         using JsonDocument document = JsonDocument.Parse(json);
         JsonElement root = document.RootElement;
         if (root.GetProperty("schemaVersion").GetInt32() != 1 ||
@@ -128,7 +133,7 @@ internal static class GiteaBacklogManifestTests
         JsonElement milestones = root.GetProperty("milestones");
         JsonElement labels = root.GetProperty("labels");
         JsonElement issues = root.GetProperty("issues");
-        if (milestones.GetArrayLength() != 16 || labels.GetArrayLength() != 68 || issues.GetArrayLength() != 319)
+        if (milestones.GetArrayLength() != 16 || labels.GetArrayLength() != 68 || issues.GetArrayLength() != 331)
         {
             return false;
         }
@@ -168,7 +173,9 @@ internal static class GiteaBacklogManifestTests
                 return false;
             }
 
-            if (!key.EndsWith("-EPIC", StringComparison.Ordinal))
+            if (!key.EndsWith("-EPIC", StringComparison.Ordinal) &&
+                !key.StartsWith("M01-", StringComparison.Ordinal) &&
+                !string.Equals(key, "M03-007", StringComparison.Ordinal))
             {
                 string ownedPathList = string.Join(
                     ", ",
@@ -224,6 +231,9 @@ internal static class GiteaBacklogManifestTests
         return ValidateM00Contracts(issueByKey) &&
             ValidateM00ExitGate(issueByKey) &&
             ValidateM00OwnedPathSerialization(issueByKey) &&
+            ValidateSyncVerifyRequiresApply(issueByKey) &&
+            ValidateM01ContractsV2(issues, issueByKey) &&
+            ValidateM03PermanentCr3Handoff(issueByKey) &&
             DependenciesEqual(issueByKey["M06-001"], "M05-019") &&
             DependenciesEqual(issueByKey["M06-019"], "M06-018", "M05-021") &&
             DependenciesEqual(issueByKey["M07-001"], "M05-019") &&
@@ -275,7 +285,54 @@ internal static class GiteaBacklogManifestTests
             }
         }
 
-        return HasOwnedPath(
+        JsonElement originalBacklog = issueByKey["M00-001"];
+        JsonElement repair = issueByKey["M00-023"];
+        return JsonElementContains(
+                originalBacklog.GetProperty("requiredMarkers"),
+                "children=303 issues=319") &&
+            JsonElementContains(
+                originalBacklog.GetProperty("acceptanceCriteria"),
+                "16-milestone/319-issue manifest") &&
+            !JsonElementContains(
+                originalBacklog.GetProperty("requiredMarkers"),
+                "issues=331") &&
+            DependenciesEqual(repair, "M00-022") &&
+            JsonElementContains(
+                repair.GetProperty("requiredMarkers"),
+                "children=315 issues=331") &&
+            JsonElementContains(
+                repair.GetProperty("requiredMarkers"),
+                "SYNC_VERIFY_PASS milestones=16 labels=68 issues=331") &&
+            JsonElementContains(
+                repair.GetProperty("requiredCommands"),
+                "sync-gitea-backlog.ps1 -Apply") &&
+            CountExact(
+                repair.GetProperty("requiredCommands"),
+                "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\sync-gitea-backlog.ps1") == 2 &&
+            JsonElementContains(
+                repair.GetProperty("acceptanceCriteria"),
+                "final no-write preview reports all 415 managed objects unchanged") &&
+            JsonElementContains(
+                repair.GetProperty("acceptanceCriteria"),
+                "guarded pre-apply no-write preview reports exactly wouldCreate=11 and wouldUpdate=24") &&
+            JsonElementContains(
+                repair.GetProperty("implementationNotes"),
+                "M03-007 gains the post-ExitBootServices permanent-CR3 handoff contract") &&
+            JsonElementContains(
+                repair.GetProperty("implementationNotes"),
+                "M03-EPIC is consequently updated") &&
+            JsonElementContains(
+                repair.GetProperty("acceptanceCriteria"),
+                "creates exactly 11 issues, updates exactly 24 existing issues") &&
+            string.Equals(
+                repair.GetProperty("desiredState").GetString(),
+                "closed",
+                StringComparison.Ordinal) &&
+            string.Equals(
+                issueByKey["M00-EPIC"].GetProperty("desiredState").GetString(),
+                "closed",
+                StringComparison.Ordinal) &&
+            HasOwnedPath(
                 issueByKey["M00-001"],
                 "tests/OS.HostTests/RepositoryRecoveryTests.cs") &&
             HasOwnedPath(
@@ -326,10 +383,792 @@ internal static class GiteaBacklogManifestTests
     private static bool ValidateM00ExitGate(
         IReadOnlyDictionary<string, JsonElement> issueByKey)
     {
-        for (int number = 1; number <= 22; number++)
+        for (int number = 1; number <= 23; number++)
         {
             string requiredKey = "M00-" + number.ToString("000");
             if (!DependsTransitively(issueByKey, "M01-001", requiredKey))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool ValidateM01ContractsV2(
+        JsonElement issues,
+        IReadOnlyDictionary<string, JsonElement> issueByKey)
+    {
+        string[] expectedOrder = Enumerable.Range(1, 26)
+            .Select(number => "M01-" + number.ToString("000"))
+            .ToArray();
+        string[] actualOrder = issues.EnumerateArray()
+            .Select(issue => issue.GetProperty("key").GetString() ?? string.Empty)
+            .Where(key =>
+                key.StartsWith("M01-", StringComparison.Ordinal) &&
+                !key.EndsWith("-EPIC", StringComparison.Ordinal))
+            .ToArray();
+        if (!actualOrder.SequenceEqual(expectedOrder, StringComparer.Ordinal))
+        {
+            return false;
+        }
+
+        IReadOnlyDictionary<string, string> expectedTitles =
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["M01-001"] = "[M01-001] Define typed physical, virtual, and device-address POD wrappers.",
+                ["M01-002"] = "[M01-002] Define BootReservationKind/BootReservedRange and validate canonical reservation table.",
+                ["M01-003"] = "[M01-003] Define and host-test loaded-image range capture/validation contract.",
+                ["M01-004"] = "[M01-004] Define owned boot-stack layout/guard/alignment/lifetime.",
+                ["M01-005"] = "[M01-005] Plan/audit x64 owned-stack switch and RSP containment.",
+                ["M01-006"] = "[M01-006] Refactor allocator prerequisites and materialize caller-owned state.",
+                ["M01-007"] = "[M01-007] Define self-contained bounded reservation subtraction over typed ranges.",
+                ["M01-008"] = "[M01-008] Adapt BootPageAllocatorMutation for typed one-page metadata allocation results.",
+                ["M01-009"] = "[M01-009] Adapt BootPageAllocatorMutation for typed free/double-free/coalescing metadata results.",
+                ["M01-010"] = "[M01-010] Add deterministic seeded boot-page allocator shadow-model stress tests.",
+                ["M01-011"] = "[M01-011] Define PageProtection/PageCachePolicy and encode x64 page-table entries.",
+                ["M01-012"] = "[M01-012] Plan required boot identity mappings.",
+                ["M01-013"] = "[M01-013] Plan/audit a reversible opt-in CR3 probe and firmware-CR3 restoration.",
+                ["M01-014"] = "[M01-014] Plan live RW-to-RX, checked invlpg, and constant-return protection probe.",
+                ["M01-015"] = "[M01-015] Define page-zero absence policy and disabled null-page-fault probe contract."
+            };
+        IReadOnlyDictionary<string, string[]> expectedLeafPaths =
+            new Dictionary<string, string[]>(StringComparer.Ordinal)
+            {
+                ["M01-001"] =
+                [
+                    "src/OS.Kernel/Boot/TypedPhysicalVirtualDeviceAddressPODWrappers.cs",
+                    "tests/OS.HostTests/TypedPhysicalVirtualDeviceAddressPODWrappersTests.cs",
+                    "docs/boot.md",
+                    "docs/architecture.md"
+                ],
+                ["M01-002"] =
+                [
+                    "src/OS.Kernel/Memory/BootReservedRange.cs",
+                    "src/OS.Kernel/Memory/BootReservationTableValidator.cs",
+                    "tests/OS.HostTests/BootReservationTableValidatorTests.cs",
+                    "docs/boot.md",
+                    "docs/architecture.md"
+                ],
+                ["M01-003"] =
+                [
+                    "src/OS.Kernel/Boot/EfiLoadedImageRange.cs",
+                    "src/OS.Kernel/Boot/EfiLoadedImageRangeCapturePlan.cs",
+                    "tests/OS.HostTests/EfiLoadedImageRangeCapturePlanTests.cs",
+                    "docs/boot.md",
+                    "docs/architecture.md"
+                ],
+                ["M01-004"] =
+                [
+                    "src/OS.Kernel/Boot/OwnedBootStackLayout.cs",
+                    "tests/OS.HostTests/OwnedBootStackLayoutTests.cs",
+                    "docs/boot.md",
+                    "docs/architecture.md"
+                ],
+                ["M01-005"] =
+                [
+                    "src/OS.Kernel/Boot/OwnedBootStackSwitchPlan.cs",
+                    "tests/OS.HostTests/OwnedBootStackSwitchPlanTests.cs",
+                    "docs/boot.md",
+                    "docs/architecture.md"
+                ],
+                ["M01-006"] =
+                [
+                    "src/OS.Kernel/Memory/BootPageAllocatorCoreContracts.cs",
+                    "src/OS.Kernel/Memory/BootPageAllocatorState.cs",
+                    "src/OS.Kernel/Memory/BootPageFreeListPlan.cs",
+                    "src/OS.Kernel/Memory/BootPageAllocatorStateMaterializer.cs",
+                    "tests/OS.HostTests/BootPageAllocatorStateMaterializerTests.cs",
+                    "docs/boot.md",
+                    "docs/architecture.md"
+                ],
+                ["M01-007"] =
+                [
+                    "src/OS.Kernel/Memory/BootReservationSubtractor.cs",
+                    "tests/OS.HostTests/BootReservationSubtractorTests.cs",
+                    "docs/boot.md",
+                    "docs/architecture.md"
+                ],
+                ["M01-008"] =
+                [
+                    "src/OS.Kernel/Memory/BootPageAllocatorMutation.cs",
+                    "tests/OS.HostTests/BootPageAllocatorOnePageAllocationTests.cs",
+                    "docs/boot.md",
+                    "docs/architecture.md"
+                ],
+                ["M01-009"] =
+                [
+                    "src/OS.Kernel/Memory/BootPageAllocatorMutation.cs",
+                    "tests/OS.HostTests/BootPageAllocatorFreeCoalescingTests.cs",
+                    "docs/boot.md",
+                    "docs/architecture.md"
+                ],
+                ["M01-010"] =
+                [
+                    "tests/OS.HostTests/BootPageAllocatorStressTests.cs",
+                    "docs/boot.md",
+                    "docs/architecture.md"
+                ],
+                ["M01-011"] =
+                [
+                    "src/OS.Kernel/Memory/PageProtection.cs",
+                    "src/OS.Kernel/Memory/PageCachePolicy.cs",
+                    "src/OS.Kernel/Memory/X64PageTableEntry.cs",
+                    "tests/OS.HostTests/X64PageTableEntryTests.cs",
+                    "docs/boot.md",
+                    "docs/architecture.md"
+                ],
+                ["M01-012"] =
+                [
+                    "src/OS.Kernel/Boot/X64BootIdentityMappingPlan.cs",
+                    "tests/OS.HostTests/X64BootIdentityMappingPlanTests.cs",
+                    "docs/boot.md",
+                    "docs/architecture.md"
+                ],
+                ["M01-013"] =
+                [
+                    "src/OS.Kernel/Memory/X64Cr3LoadStubPlan.cs",
+                    "src/OS.Kernel/Memory/X64PagingModePreflightStubPlan.cs",
+                    "src/OS.Kernel/Memory/X64ReversibleCr3TransitionStubPlan.cs",
+                    "tests/OS.HostTests/X64Cr3LoadStubPlanTests.cs",
+                    "tests/OS.HostTests/X64PagingModePreflightStubPlanTests.cs",
+                    "tests/OS.HostTests/X64ReversibleCr3TransitionStubPlanTests.cs",
+                    "docs/boot.md",
+                    "docs/architecture.md"
+                ],
+                ["M01-014"] =
+                [
+                    "src/OS.Kernel/Memory/X64PageMap.cs",
+                    "src/OS.Kernel/Memory/X64TlbInvalidationPlan.cs",
+                    "src/OS.Kernel/Memory/X64InvlpgStubPlan.cs",
+                    "src/OS.Kernel/Memory/X64ProtectionProbeStubPlan.cs",
+                    "tests/OS.HostTests/X64PageMapTests.cs",
+                    "tests/OS.HostTests/X64InvlpgStubPlanTests.cs",
+                    "tests/OS.HostTests/X64ProtectionProbeStubPlanTests.cs",
+                    "docs/boot.md",
+                    "docs/architecture.md"
+                ],
+                ["M01-015"] =
+                [
+                    "src/OS.Kernel/Memory/PageZeroMappingPolicy.cs",
+                    "src/OS.Kernel/Diagnostics/NullPageFaultProbePlan.cs",
+                    "tests/OS.HostTests/PageZeroMappingPolicyTests.cs",
+                    "docs/boot.md",
+                    "docs/architecture.md",
+                    "docs/diagnostics.md"
+                ]
+            };
+        string[] staleTemplates =
+        [
+            "Complete the valid packet or socket transition",
+            "retransmission timeout, reset, half-close",
+            "Read or validate the exact well-formed storage object",
+            "missing file/tool, duplicate key",
+            "repository/evidence behavior required by",
+            "TestsTests.cs",
+            "PDPTPDPT",
+            "LiveN4KiBPage",
+            "src/OS/EfiEntry.cs"
+        ];
+
+        for (int number = 1; number <= 15; number++)
+        {
+            string key = "M01-" + number.ToString("000");
+            string marker = "CLROS_M01_" + number.ToString("000") + "_READY";
+            string expectedType = number == 10
+                ? "type:test"
+                : "type:implementation";
+            string[] expectedMarkers =
+            [
+                "TEST_START m01." + number.ToString("000"),
+                "TEST_PASS m01." + number.ToString("000"),
+                "TEST_FAIL m01." + number.ToString("000") + " <reason>",
+                marker
+            ];
+            JsonElement issue = issueByKey[key];
+            string combined = string.Join(
+                "\n",
+                issue.GetProperty("implementationNotes").EnumerateArray()
+                    .Concat(issue.GetProperty("acceptanceCriteria").EnumerateArray())
+                    .Select(value => value.GetString() ?? string.Empty));
+            if (!string.Equals(
+                    issue.GetProperty("title").GetString(),
+                    expectedTitles[key],
+                    StringComparison.Ordinal) ||
+                !JsonElementContains(issue.GetProperty("labels"), "evidence:host") ||
+                JsonElementContains(issue.GetProperty("labels"), "evidence:qemu") ||
+                CountPrefix(issue.GetProperty("labels"), "type:") != 1 ||
+                !JsonArrayContainsExact(issue.GetProperty("labels"), expectedType) ||
+                issue.GetProperty("collisionLane").ValueKind != JsonValueKind.Null ||
+                !JsonStringArrayEquals(
+                    issue.GetProperty("requiredMarkers"),
+                    expectedMarkers) ||
+                JsonElementContains(issue.GetProperty("requiredCommands"), " -Qemu \"") ||
+                !(issue.GetProperty("evidenceBoundary").GetString() ?? string.Empty).Contains(
+                    "not linked into or executed by the canonical EFI artifact",
+                    StringComparison.Ordinal) ||
+                combined.Contains("#if NOSTDLIB ", StringComparison.Ordinal) ||
+                combined.Contains("when NOSTDLIB is defined", StringComparison.Ordinal) ||
+                combined.Contains("non-NOSTDLIB", StringComparison.Ordinal) ||
+                staleTemplates.Any(template =>
+                    combined.Contains(template, StringComparison.Ordinal)) ||
+                !combined.Contains(
+                    marker + " is a host-harness readiness marker",
+                    StringComparison.Ordinal) ||
+                (number != 10 &&
+                    !combined.Contains("NOSTDLIB_EFI", StringComparison.Ordinal)))
+            {
+                return false;
+            }
+
+            if (!OwnedPathsEqual(issue, expectedLeafPaths[key]))
+            {
+                return false;
+            }
+        }
+
+        if (!ValidateM01ReferenceLabels(issueByKey) ||
+            !ReferencePathExists(
+                issueByKey["M01-EPIC"],
+                "references/RoseOS-master/Loader/src/MemoryMap.cs") ||
+            !ReferencePathExists(
+                issueByKey["M01-001"],
+                "references/RoseOS-master/Loader/src/MemoryMap.cs") ||
+            !ReferencePathExists(
+                issueByKey["M01-020"],
+                "references/zerosharp-master/efi-no-runtime/efinoruntime.csproj"))
+        {
+            return false;
+        }
+
+        string leaf001Evidence =
+            issueByKey["M01-001"].GetProperty("currentEvidence").GetString() ?? string.Empty;
+        string leaf002 = JsonArrayText(issueByKey["M01-002"].GetProperty("implementationNotes"));
+        string leaf006 = JsonArrayText(issueByKey["M01-006"].GetProperty("implementationNotes"));
+        string leaf007 = JsonArrayText(issueByKey["M01-007"].GetProperty("implementationNotes"));
+        string leaf011 = JsonArrayText(issueByKey["M01-011"].GetProperty("implementationNotes"));
+        string leaf013 = JsonArrayText(issueByKey["M01-013"].GetProperty("implementationNotes"));
+        string leaf014 = JsonArrayText(issueByKey["M01-014"].GetProperty("implementationNotes"));
+        if (!leaf001Evidence.Contains(
+                "04f2bc09c07f23b9e9c2a4cbc5be2a80823d4e34",
+                StringComparison.Ordinal) ||
+            !leaf001Evidence.Contains(
+                "not linked into or executed by the canonical EFI artifact",
+                StringComparison.Ordinal) ||
+            !leaf002.Contains("PageProtectionProbe=14", StringComparison.Ordinal) ||
+            !leaf002.Contains("future values append only", StringComparison.Ordinal) ||
+            !leaf006.Contains("BootPageAllocatorCoreContracts", StringComparison.Ordinal) ||
+            !leaf006.Contains("BootPageAllocatorStateMaterializer", StringComparison.Ordinal) ||
+            !leaf007.Contains("BootReservationSubtractor", StringComparison.Ordinal) ||
+            !leaf011.Contains(
+                "plain explicit-valued enum",
+                StringComparison.Ordinal) ||
+            !leaf011.Contains("do not use System.FlagsAttribute", StringComparison.Ordinal) ||
+            !leaf011.Contains(
+                "None=0, Read=1, Write=2, Execute=4",
+                StringComparison.Ordinal) ||
+            !leaf011.Contains(
+                "Uninitialized=0, WriteBack=1, Uncached=2, WriteCombining=3",
+                StringComparison.Ordinal) ||
+            !leaf013.Contains("exact raw firmware CR3 and CR4", StringComparison.Ordinal) ||
+            !leaf013.Contains("clear CR4.PGE", StringComparison.Ordinal) ||
+            !leaf013.Contains("CR4.PCIDE=0", StringComparison.Ordinal) ||
+            !leaf013.Contains("CR4.LA57=0", StringComparison.Ordinal) ||
+            !leaf014.Contains(
+                "BootReservationKind.PageProtectionProbe",
+                StringComparison.Ordinal) ||
+            !leaf014.Contains("separate nonoverlapping EfiLoaderCode", StringComparison.Ordinal) ||
+            !JsonElementContains(
+                issueByKey["M01-015"].GetProperty("implementationNotes"),
+                "M02-014"))
+        {
+            return false;
+        }
+
+        return ValidateM01IntegrationContractsV2(issueByKey);
+    }
+
+    private static bool ValidateM01ReferenceLabels(
+        IReadOnlyDictionary<string, JsonElement> issueByKey)
+    {
+        for (int number = 1; number <= 26; number++)
+        {
+            string key = "M01-" + number.ToString("000");
+            JsonElement issue = issueByKey[key];
+            JsonElement[] external = issue.GetProperty("referenceInfluences")
+                .EnumerateArray()
+                .Where(reference =>
+                    (reference.GetProperty("path").GetString() ?? string.Empty).StartsWith(
+                        "references/",
+                        StringComparison.Ordinal))
+                .ToArray();
+            bool hasAdapt = external.Any(reference =>
+                string.Equals(
+                    reference.GetProperty("use").GetString(),
+                    "adapt",
+                    StringComparison.Ordinal));
+            bool hasTestOnly = external.Any(reference =>
+                string.Equals(
+                    reference.GetProperty("use").GetString(),
+                    "test-only",
+                    StringComparison.Ordinal));
+            string? expected = hasAdapt
+                ? "reference:adapt"
+                : hasTestOnly
+                    ? "reference:test-only"
+                    : null;
+            JsonElement labels = issue.GetProperty("labels");
+            if (CountPrefix(labels, "reference:") != (expected is null ? 0 : 1) ||
+                (expected is not null && !JsonArrayContainsExact(labels, expected)) ||
+                external.Any(reference =>
+                    string.Equals(
+                        reference.GetProperty("use").GetString(),
+                        "license-blocked",
+                        StringComparison.Ordinal)))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool ValidateM01IntegrationContractsV2(
+        IReadOnlyDictionary<string, JsonElement> issueByKey)
+    {
+        IReadOnlyDictionary<string, string> lanes =
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["M01-016"] = "lane:probes",
+                ["M01-017"] = "lane:boot-sequence",
+                ["M01-018"] = "lane:boot-sequence",
+                ["M01-019"] = "lane:boot-sequence",
+                ["M01-020"] = "lane:os-project",
+                ["M01-021"] = "lane:efi-entry",
+                ["M01-022"] = "lane:central-docs",
+                ["M01-023"] = "lane:efi-entry",
+                ["M01-024"] = "lane:central-docs",
+                ["M01-025"] = "lane:efi-entry",
+                ["M01-026"] = "lane:central-docs"
+            };
+        IReadOnlyDictionary<string, string> types =
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["M01-016"] = "type:tooling",
+                ["M01-017"] = "type:implementation",
+                ["M01-018"] = "type:implementation",
+                ["M01-019"] = "type:implementation",
+                ["M01-020"] = "type:tooling",
+                ["M01-021"] = "type:implementation",
+                ["M01-022"] = "type:test",
+                ["M01-023"] = "type:implementation",
+                ["M01-024"] = "type:test",
+                ["M01-025"] = "type:implementation",
+                ["M01-026"] = "type:test"
+            };
+        IReadOnlyDictionary<string, string[]> ownedPaths =
+            new Dictionary<string, string[]>(StringComparer.Ordinal)
+            {
+                ["M01-016"] =
+                [
+                    "src/OS.Kernel/Diagnostics/Probes.cs",
+                    "tests/OS.HostTests/DiagnosticsTests.cs",
+                    "docs/diagnostics.md"
+                ],
+                ["M01-017"] =
+                [
+                    "src/OS.Kernel/Boot/M01LoadedImageStackIntegration.cs",
+                    "src/OS.Kernel/Boot/BootSequence.cs",
+                    "src/OS.Kernel/Boot/BootSequencePlan.cs",
+                    "tests/OS.HostTests/M01LoadedImageStackIntegrationTests.cs",
+                    "tests/OS.HostTests/BootSequencePlanTests.cs"
+                ],
+                ["M01-018"] =
+                [
+                    "src/OS.Kernel/Boot/M01LiveAllocatorIntegration.cs",
+                    "src/OS.Kernel/Boot/BootSequence.cs",
+                    "src/OS.Kernel/Boot/BootSequencePlan.cs",
+                    "tests/OS.HostTests/M01LiveAllocatorIntegrationTests.cs",
+                    "tests/OS.HostTests/BootSequencePlanTests.cs"
+                ],
+                ["M01-019"] =
+                [
+                    "src/OS.Kernel/Boot/M01LivePagingIntegration.cs",
+                    "src/OS.Kernel/Boot/BootSequence.cs",
+                    "src/OS.Kernel/Boot/BootSequencePlan.cs",
+                    "tests/OS.HostTests/M01LivePagingIntegrationTests.cs",
+                    "tests/OS.HostTests/BootSequencePlanTests.cs"
+                ],
+                ["M01-020"] =
+                [
+                    "src/OS/OS.csproj",
+                    "scripts/build-efi-shell.ps1",
+                    "tests/OS.HostTests/BuildEfiShellPreflightTests.cs",
+                    "docs/efi-build.md"
+                ],
+                ["M01-021"] =
+                [
+                    "src/OS/Boot/EfiEntry.cs",
+                    "tests/OS.HostTests/M01LoadedImageStackEfiEntryTests.cs"
+                ],
+                ["M01-022"] =
+                [
+                    "scripts/run-qemu-smoke.ps1",
+                    "tools/OS.QemuRunner/Program.cs",
+                    "tools/OS.QemuRunner/SerialMarkerStateMachine.cs",
+                    "tests/OS.HostTests/QemuRunnerTests.cs",
+                    "docs/qemu.md",
+                    "docs/boot.md",
+                    "docs/architecture.md"
+                ],
+                ["M01-023"] =
+                [
+                    "src/OS/Boot/EfiEntry.cs",
+                    "tests/OS.HostTests/M01LiveAllocatorEfiEntryTests.cs"
+                ],
+                ["M01-024"] =
+                [
+                    "scripts/run-qemu-smoke.ps1",
+                    "tests/OS.HostTests/QemuRunnerTests.cs",
+                    "docs/qemu.md",
+                    "docs/boot.md",
+                    "docs/architecture.md"
+                ],
+                ["M01-025"] =
+                [
+                    "src/OS/Boot/EfiEntry.cs",
+                    "tests/OS.HostTests/M01LivePagingEfiEntryTests.cs"
+                ],
+                ["M01-026"] =
+                [
+                    "scripts/run-qemu-smoke.ps1",
+                    "tests/OS.HostTests/QemuRunnerTests.cs",
+                    "docs/qemu.md",
+                    "docs/boot.md",
+                    "docs/architecture.md",
+                    "docs/diagnostics.md",
+                    "docs/completion-gates.md"
+                ]
+            };
+        string[] qemuIssues = ["M01-022", "M01-024", "M01-026"];
+        string[] efiIssues = ["M01-021", "M01-023", "M01-025"];
+        string[] hostOnlyIssues =
+        [
+            "M01-016", "M01-017", "M01-018", "M01-019", "M01-020",
+            "M01-021", "M01-023", "M01-025"
+        ];
+
+        for (int number = 16; number <= 26; number++)
+        {
+            string key = "M01-" + number.ToString("000");
+            string dependency = number == 16
+                ? "M01-015"
+                : "M01-" + (number - 1).ToString("000");
+            JsonElement issue = issueByKey[key];
+            string lane = lanes[key];
+            bool qemu = qemuIssues.Contains(key, StringComparer.Ordinal);
+            if (!DependenciesEqual(issue, dependency) ||
+                !string.Equals(
+                    issue.GetProperty("collisionLane").GetString(),
+                    lane,
+                    StringComparison.Ordinal) ||
+                !JsonArrayContainsExact(issue.GetProperty("labels"), lane) ||
+                !JsonArrayContainsExact(issue.GetProperty("labels"), types[key]) ||
+                CountPrefix(issue.GetProperty("labels"), "lane:") != 1 ||
+                CountPrefix(issue.GetProperty("labels"), "type:") != 1 ||
+                !OwnedPathsEqual(issue, ownedPaths[key]) ||
+                (qemu && !JsonArrayContainsExact(
+                    issue.GetProperty("labels"),
+                    "evidence:qemu")) ||
+                (!qemu && !JsonArrayContainsExact(
+                    issue.GetProperty("labels"),
+                    "evidence:host")))
+            {
+                return false;
+            }
+        }
+
+        foreach (string key in hostOnlyIssues)
+        {
+            string suffix = key[4..];
+            string[] expected =
+            [
+                "TEST_START m01." + suffix,
+                "CLROS_M01_" + suffix + "_READY",
+                "TEST_PASS m01." + suffix,
+                "TEST_FAIL m01." + suffix + " <reason>"
+            ];
+            if (!JsonStringArrayEquals(
+                    issueByKey[key].GetProperty("requiredMarkers"),
+                    expected) ||
+                JsonElementContains(
+                    issueByKey[key].GetProperty("requiredCommands"),
+                    " -Qemu \""))
+            {
+                return false;
+            }
+        }
+
+        string[] stage1Segment =
+        [
+            "TEST_START m01.stage1",
+            "M01_LOADED_IMAGE_CAPTURED",
+            "M01_STACK_SWITCH_STUB_READY",
+            "M01_STACK_ARENA_ALLOCATED",
+            "M01_STACK_GUARD_RESERVED",
+            "M01_STAGE1_MAP_RECAPTURED",
+            "M01_STAGE1_RESERVATIONS_VALIDATED",
+            "M01_OWNED_STACK_READY",
+            "M01_OWNED_STACK_SWITCHED",
+            "M01_RSP_CONTAINED",
+            "TEST_PASS m01.stage1"
+        ];
+        string[] stage2Segment =
+        [
+            "TEST_START m01.stage2",
+            "M01_ALLOCATOR_ARENA_ALLOCATED",
+            "M01_STAGE2_MAP_RECAPTURED",
+            "M01_RESERVATIONS_APPLIED",
+            "M01_LIVE_ALLOCATED_4K",
+            "M01_LIVE_PAGE_WITHIN_ARENA",
+            "M01_LIVE_FREED_4K",
+            "M01_DOUBLE_FREE_REJECTED",
+            "TEST_PASS m01.stage2"
+        ];
+        string[] stage3Segment =
+        [
+            "TEST_START m01.stage3",
+            "M01_CR3_STUB_PAGE_ALLOCATED",
+            "M01_PROTECTION_PROBE_PAGE_ALLOCATED",
+            "M01_PAGE_TABLE_STATE_ARENA_ALLOCATED",
+            "M01_STAGE3_MAP_RECAPTURED",
+            "M01_CR3_STUB_MATERIALIZED",
+            "M01_PAGE_TABLES_BUILT",
+            "M01_PAGING_MODE_VALIDATED",
+            "M01_PRE_CR3",
+            "M01_FIRMWARE_CR3_RESTORED",
+            "M01_RFLAGS_RESTORED",
+            "M01_PGE_CYCLE_VERIFIED",
+            "M01_OWNED_CR3_CANARY_VERIFIED",
+            "M01_POST_CR3",
+            "M01_RW_TO_RX_VERIFIED",
+            "M01_TLB_INVALIDATION_COMPLETE",
+            "M01_RX_PROBE_EXECUTED",
+            "M01_PAGE_ZERO_ABSENT",
+            "TEST_PASS m01.stage3",
+            "CLROS_M01_LIVE_BOOT_MEMORY_READY"
+        ];
+        IReadOnlyDictionary<string, string[]> guestMarkers =
+            new Dictionary<string, string[]>(StringComparer.Ordinal)
+            {
+                ["M01-022"] = stage1Segment
+                    .Append("OS_SMOKE_PASS")
+                    .ToArray(),
+                ["M01-024"] = stage1Segment
+                    .Concat(stage2Segment)
+                    .Append("OS_SMOKE_PASS")
+                    .ToArray(),
+                ["M01-026"] = stage1Segment
+                    .Concat(stage2Segment)
+                    .Concat(stage3Segment)
+                    .Append("OS_SMOKE_PASS")
+                    .ToArray()
+            };
+        IReadOnlyDictionary<string, string> guestFailureMarkers =
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["M01-022"] = "TEST_FAIL m01.stage1 <reason>",
+                ["M01-024"] = "TEST_FAIL m01.stage2 <reason>",
+                ["M01-026"] = "TEST_FAIL m01.stage3 <reason>"
+            };
+
+        foreach (string key in qemuIssues)
+        {
+            JsonElement issue = issueByKey[key];
+            string commands = JsonArrayText(issue.GetProperty("requiredCommands"));
+            string notes = JsonArrayText(issue.GetProperty("implementationNotes"));
+            string suffix = key[4..];
+            if (!commands.Contains(" -BuildEfi", StringComparison.Ordinal) ||
+                !commands.Contains(" -Qemu \"", StringComparison.Ordinal) ||
+                !commands.Contains("-RequireMarker", StringComparison.Ordinal) ||
+                !commands.Contains("-RequireOrderedMarker", StringComparison.Ordinal) ||
+                !commands.Contains("-RequireUniqueMarker", StringComparison.Ordinal) ||
+                commands.Contains("TEST_PASS m01." + suffix, StringComparison.Ordinal) ||
+                JsonArrayContainsExact(
+                    issue.GetProperty("requiredMarkers"),
+                    "TEST_START m01." + suffix) ||
+                JsonArrayContainsExact(
+                    issue.GetProperty("requiredMarkers"),
+                    "TEST_PASS m01." + suffix) ||
+                JsonArrayContainsExact(
+                    issue.GetProperty("requiredMarkers"),
+                    "TEST_FAIL m01." + suffix + " <reason>") ||
+                !notes.Contains(
+                    "host-harness markers",
+                    StringComparison.Ordinal) ||
+                !notes.Contains(
+                    "runner-process markers",
+                    StringComparison.Ordinal) ||
+                !notes.Contains(
+                    "guest serial output",
+                    StringComparison.Ordinal) ||
+                !ValidateQemuMarkerContract(
+                    issue,
+                    guestMarkers[key],
+                    guestFailureMarkers[key]))
+            {
+                return false;
+            }
+        }
+
+        string stage1Commands =
+            JsonArrayText(issueByKey["M01-022"].GetProperty("requiredCommands"));
+        string stage2Commands =
+            JsonArrayText(issueByKey["M01-024"].GetProperty("requiredCommands"));
+        string stage3Commands =
+            JsonArrayText(issueByKey["M01-026"].GetProperty("requiredCommands"));
+        if (stage1Commands.Contains(
+                "LIVE_ALLOCATOR_NOT_INSTALLED",
+                StringComparison.Ordinal) ||
+            stage1Commands.Contains(
+                "BOOT_PAGE_ALLOCATOR_NOT_READY",
+                StringComparison.Ordinal) ||
+            !stage2Commands.Contains(
+                "LIVE_ALLOCATOR_NOT_INSTALLED",
+                StringComparison.Ordinal) ||
+            !stage2Commands.Contains(
+                "BOOT_PAGE_ALLOCATOR_NOT_READY",
+                StringComparison.Ordinal) ||
+            !stage3Commands.Contains(
+                "M01_PROTECTION_PROBE_PAGE_ALLOCATED",
+                StringComparison.Ordinal) ||
+            !stage3Commands.Contains(
+                "M01_PAGING_MODE_VALIDATED",
+                StringComparison.Ordinal) ||
+            !stage3Commands.Contains(
+                "M01_FIRMWARE_CR3_RESTORED,M01_RFLAGS_RESTORED,M01_PGE_CYCLE_VERIFIED",
+                StringComparison.Ordinal) ||
+            !stage3Commands.Contains(
+                "M01_RW_TO_RX_VERIFIED,M01_TLB_INVALIDATION_COMPLETE,M01_RX_PROBE_EXECUTED",
+                StringComparison.Ordinal) ||
+            !stage3Commands.Contains("M01_PGE_CLEAR_FAILED", StringComparison.Ordinal) ||
+            !stage3Commands.Contains("M01_PGE_RESTORE_FAILED", StringComparison.Ordinal) ||
+            !stage3Commands.Contains("M01_RX_PROBE_FAILED", StringComparison.Ordinal) ||
+            stage3Commands.Contains("M01_OWNED_CR3_ENTERED", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        string linkNotes =
+            JsonArrayText(issueByKey["M01-020"].GetProperty("implementationNotes"));
+        string[] requiredCompileNames =
+        [
+            "BootPageAllocatorCoreContracts.cs",
+            "PageProtection.cs",
+            "PageCachePolicy.cs",
+            "X64PagingModePreflightStubPlan.cs",
+            "X64ReversibleCr3TransitionStubPlan.cs",
+            "X64InvlpgStubPlan.cs",
+            "X64ProtectionProbeStubPlan.cs",
+            "M01LoadedImageStackIntegration.cs",
+            "M01LiveAllocatorIntegration.cs",
+            "M01LivePagingIntegration.cs",
+            "BootSequencePlan.cs"
+        ];
+        string[] excludedCompileNames =
+        [
+            "M01-010",
+            "NullPageFaultProbePlan.cs",
+            "BootSequence.cs",
+            "BootPageAllocatorState.cs",
+            "BootPageFreeListPlan.cs",
+            "BootPageAllocatorPlan.cs",
+            "BootMemoryRegionPlan.cs"
+        ];
+        if (requiredCompileNames.Any(name =>
+                !linkNotes.Contains(name, StringComparison.Ordinal)) ||
+            excludedCompileNames.Any(name =>
+                !linkNotes.Contains(name, StringComparison.Ordinal)) ||
+            !linkNotes.Contains("NOSTDLIB_EFI", StringComparison.Ordinal) ||
+            !linkNotes.Contains("System.FlagsAttribute", StringComparison.Ordinal) ||
+            linkNotes.Contains("only if its audited POD surface", StringComparison.Ordinal) ||
+            !JsonElementContains(
+                issueByKey["M01-020"].GetProperty("requiredCommands"),
+                "-EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe"))
+        {
+            return false;
+        }
+
+        return efiIssues.All(key =>
+                JsonElementContains(
+                    issueByKey[key].GetProperty("requiredCommands"),
+                    "build-efi-shell.ps1") &&
+                !JsonElementContains(
+                    issueByKey[key].GetProperty("requiredCommands"),
+                    "run-qemu-smoke.ps1")) &&
+            HasOwnedPath(issueByKey["M01-026"], "docs/completion-gates.md") &&
+            JsonElementContains(
+                issueByKey["M01-026"].GetProperty("acceptanceCriteria"),
+                "M02-014") &&
+            DependenciesEqual(issueByKey["M02-EPIC"], "M01-026") &&
+            DependenciesEqual(issueByKey["M02-001"], "M01-026") &&
+            DependenciesEqual(issueByKey["M04-EPIC"], "M01-026") &&
+            DependenciesEqual(issueByKey["M04-001"], "M01-026");
+    }
+
+    private static bool ValidateM03PermanentCr3Handoff(
+        IReadOnlyDictionary<string, JsonElement> issueByKey)
+    {
+        JsonElement issue = issueByKey["M03-007"];
+        string notes = JsonArrayText(issue.GetProperty("implementationNotes"));
+        string acceptance = JsonArrayText(issue.GetProperty("acceptanceCriteria"));
+        string commands = JsonArrayText(issue.GetProperty("requiredCommands"));
+        string evidence = issue.GetProperty("evidenceBoundary").GetString() ?? string.Empty;
+        return DependenciesEqual(issue, "M01-026", "M02-016", "M03-006") &&
+            string.Equals(
+                issue.GetProperty("collisionLane").GetString(),
+                "lane:efi-entry",
+                StringComparison.Ordinal) &&
+            JsonArrayContainsExact(issue.GetProperty("labels"), "lane:efi-entry") &&
+            HasOwnedPath(issue, "src/OS/Boot/EfiEntry.cs") &&
+            HasOwnedPath(
+                issue,
+                "tests/OS.HostTests/M03PermanentCr3AfterExitEfiEntryTests.cs") &&
+            notes.Contains(
+                "Permanent owned-CR3 adoption before a successful ExitBootServices return is forbidden",
+                StringComparison.Ordinal) &&
+            notes.Contains(
+                "make no firmware call ever again",
+                StringComparison.Ordinal) &&
+            notes.Contains(
+                "M03_PERMANENT_CR3_ADOPTED",
+                StringComparison.Ordinal) &&
+            acceptance.Contains(
+                "no permanent adoption occurs before successful EBS",
+                StringComparison.Ordinal) &&
+            commands.Contains(
+                "M03_EBS_RETURNED_SUCCESS,M03_PERMANENT_CR3_ADOPTED,M03_POST_EBS_OWNED_DIAGNOSTIC",
+                StringComparison.Ordinal) &&
+            commands.Contains(
+                "M03_FIRMWARE_CALL_AFTER_EBS",
+                StringComparison.Ordinal) &&
+            evidence.Contains(
+                "adopted permanently before owned post-EBS diagnostics",
+                StringComparison.Ordinal) &&
+            evidence.Contains("M03-008", StringComparison.Ordinal);
+    }
+
+    private static bool ValidateSyncVerifyRequiresApply(
+        IReadOnlyDictionary<string, JsonElement> issueByKey)
+    {
+        foreach (JsonElement issue in issueByKey.Values)
+        {
+            if (JsonElementContains(
+                    issue.GetProperty("requiredMarkers"),
+                    "SYNC_VERIFY_PASS") &&
+                !JsonElementContains(
+                    issue.GetProperty("requiredCommands"),
+                    "sync-gitea-backlog.ps1 -Apply"))
             {
                 return false;
             }
@@ -442,6 +1281,12 @@ internal static class GiteaBacklogManifestTests
             (value.GetString() ?? string.Empty).StartsWith(prefix, StringComparison.Ordinal));
     }
 
+    private static int CountExact(JsonElement array, string expected)
+    {
+        return array.EnumerateArray().Count(value =>
+            string.Equals(value.GetString(), expected, StringComparison.Ordinal));
+    }
+
     private static bool HasOwnedPath(JsonElement issue, string path)
     {
         return issue.GetProperty("ownedPaths")
@@ -449,10 +1294,92 @@ internal static class GiteaBacklogManifestTests
             .Any(value => string.Equals(value.GetString(), path, StringComparison.Ordinal));
     }
 
+    private static bool OwnedPathsEqual(JsonElement issue, params string[] expected)
+    {
+        string[] actual = issue.GetProperty("ownedPaths")
+            .EnumerateArray()
+            .Select(value => value.GetString() ?? string.Empty)
+            .ToArray();
+        return actual.SequenceEqual(expected, StringComparer.Ordinal);
+    }
+
+    private static string JsonArrayText(JsonElement array)
+    {
+        return string.Join(
+            "\n",
+            array.EnumerateArray().Select(value => value.GetString() ?? string.Empty));
+    }
+
+    private static bool ReferencePathExists(JsonElement issue, string expected)
+    {
+        return issue.GetProperty("referenceInfluences")
+            .EnumerateArray()
+            .Any(reference =>
+                string.Equals(
+                    reference.GetProperty("path").GetString(),
+                    expected,
+                    StringComparison.Ordinal));
+    }
+
     private static bool JsonElementContains(JsonElement array, string value)
     {
         return array.EnumerateArray().Any(element =>
             (element.GetString() ?? string.Empty).Contains(value, StringComparison.Ordinal));
+    }
+
+    private static bool JsonArrayContainsExact(JsonElement array, string value)
+    {
+        return array.EnumerateArray().Any(element =>
+            string.Equals(element.GetString(), value, StringComparison.Ordinal));
+    }
+
+    private static bool JsonStringArrayEquals(JsonElement array, params string[] expected)
+    {
+        string[] actual = array.EnumerateArray()
+            .Select(element => element.GetString() ?? string.Empty)
+            .ToArray();
+        return actual.SequenceEqual(expected, StringComparer.Ordinal);
+    }
+
+    private static bool ValidateQemuMarkerContract(
+        JsonElement issue,
+        string[] guestSuccessMarkers,
+        string guestFailureMarker)
+    {
+        string[] expectedRequiredMarkers =
+            ["TEST_START qemu.smoke", .. guestSuccessMarkers,
+             "TEST_PASS qemu.smoke", guestFailureMarker,
+             "TEST_FAIL qemu.smoke <reason>"];
+        if (!JsonStringArrayEquals(
+                issue.GetProperty("requiredMarkers"),
+                expectedRequiredMarkers))
+        {
+            return false;
+        }
+
+        string commands = JsonArrayText(issue.GetProperty("requiredCommands"));
+        string expectedGuestList = string.Join(",", guestSuccessMarkers);
+        foreach (string option in
+            new[] { "-RequireMarker", "-RequireOrderedMarker", "-RequireUniqueMarker" })
+        {
+            System.Text.RegularExpressions.MatchCollection matches =
+                System.Text.RegularExpressions.Regex.Matches(
+                    commands,
+                    System.Text.RegularExpressions.Regex.Escape(option) +
+                        " \"([^\"]*)\"",
+                    System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+            if (matches.Count != 2 ||
+                matches.Cast<System.Text.RegularExpressions.Match>().Any(match =>
+                    !string.Equals(
+                        match.Groups[1].Value,
+                        expectedGuestList,
+                        StringComparison.Ordinal)))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static bool DependenciesEqual(JsonElement issue, params string[] expected)
@@ -474,11 +1401,11 @@ internal static class GiteaBacklogManifestTests
         byte[] after = SHA256.HashData(File.ReadAllBytes(manifestPath));
         DateTime afterWriteTime = File.GetLastWriteTimeUtc(manifestPath);
         return result.ExitCode == 0 &&
-            result.Output.Contains("SYNC_MANIFEST_VALID milestones=16 labels=68 epics=16 children=303 issues=319", StringComparison.Ordinal) &&
+            result.Output.Contains("SYNC_MANIFEST_VALID milestones=16 labels=68 epics=16 children=315 issues=331", StringComparison.Ordinal) &&
             result.Output.Contains("SYNC_MODE preview", StringComparison.Ordinal) &&
             result.Output.Contains("SYNC_OFFLINE manifest_only", StringComparison.Ordinal) &&
-            result.Output.Contains("SYNC_KEYS action=skipped count=403", StringComparison.Ordinal) &&
-            result.Output.Contains("SYNC_SUMMARY created=0 updated=0 unchanged=0 skipped=403 failed=0 wouldCreate=0 wouldUpdate=0", StringComparison.Ordinal) &&
+            result.Output.Contains("SYNC_KEYS action=skipped count=415", StringComparison.Ordinal) &&
+            result.Output.Contains("SYNC_SUMMARY created=0 updated=0 unchanged=0 skipped=415 failed=0 wouldCreate=0 wouldUpdate=0", StringComparison.Ordinal) &&
             result.Output.Contains("TEST_PASS gitea.backlog.sync", StringComparison.Ordinal) &&
             before.AsSpan().SequenceEqual(after) &&
             beforeWriteTime == afterWriteTime;
