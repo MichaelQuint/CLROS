@@ -3052,7 +3052,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only a host-audited stack-switch byte plan and RSP-containment contract. The code is not linked into or executed by the canonical EFI artifact, mov rsp is not executed, and no live owned-stack transition is proven.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-006",
