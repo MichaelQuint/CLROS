@@ -54,6 +54,7 @@ Diagnostics are host-testable only. No real IDT load, fault handlers, GDT/TSS/IS
 - `DescriptorTableInstructionPlan` emits deterministic x64 `lidt [rip+disp32]`, `lgdt [rip+disp32]`, and `ltr ax` instruction bytes into caller-owned storage for future descriptor-table installation stubs.
 - `DescriptorTableInstallStubPlan` emits deterministic callable x64 `lidt`, `lgdt`, and `ltr` stubs into caller-owned storage. `lidt` and `lgdt` stubs embed the 10-byte descriptor payload after the executable bytes and use RIP-relative addressing; the `ltr` stub loads a caller-provided TSS selector into `AX`. The descriptor payload copy path uses the shared `OS.Std.Memory.BufferOperations.MemoryCopy` helper after validation and maps unexpected copy-helper failure to the existing output-buffer-too-small status.
 - `FaultProbeStubPlan` emits deterministic non-executed destructive fault probe bytes for future QEMU tests: `ud2; ret` and a null-address byte write followed by `ret`. Its metadata is tied to the disabled-by-default destructive probe toggles, and it rejects default/zero result values or incomplete byte-count metadata as successful evidence.
+- `NullPageFaultProbePlan` is a separate no-stdlib-compatible, value-only contract for a future supervisor null read. It accepts only successful page-zero absence evidence from a caller-owned four-level image, remains disabled, fixes expected `#PF` vector 14/error-code-zero/CR2-zero intent, requires caller-attested owned diagnostics and handler prerequisites, and rejects default-on, requested-execution, or attempted-execution states. It emits no fault bytes, does not reuse the older null-write plan, dereferences no address, and explicitly defers execution to M02-014.
 - `ExecutableStubMemoryPlan` defines the W^X policy and caller-owned layout contract that future executable COM1, descriptor-table, and fault-probe stubs must satisfy before any execution is attempted. It rejects default/zero result values as successful evidence.
 - `ExecutableStubBundlePlan` packs stable generated-stub slots for future COM1 port I/O, descriptor-table install, invalid-opcode probe, and null-write probe payloads inside the executable-stub memory plan without allocating, copying, mapping, or executing bytes. It rejects default/zero result values and does not expose slot offsets from uninitialized results as valid evidence.
 - `ExecutableStubBundleMaterializer` copies already-planned diagnostic stub bytes into caller-owned payload or full memory-region buffers, applies the executable payload offset when requested, validates failed plans, undersized source/destination buffers, and default/zero result values, and does not allocate executable memory, change page protections, flush instruction caches, or execute bytes.
@@ -364,6 +365,23 @@ TEST_PASS boot.sequence diagnostics chain leaves default markers unchanged
 
 `tests/OS.HostTests/UefiGoneSimulationTests.cs` covers the current host-side `UEFI_GONE_SIM_START`, `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, `UEFI_GONE_SIM_PASS`, and status-coded diagnostics-blocked marker behavior.
 
+`tests/OS.HostTests/PageZeroMappingPolicyTests.cs` covers the M01-015
+page-zero image audit and disabled supervisor-read fault intent. It
+cross-checks the production literal vector against
+`FaultVectorCatalog.PageFault` in host code only, verifies error-code mask
+`0x1f` with expected value zero and expected CR2 zero, rejects missing
+page-zero evidence, default-on state, missing caller-attested prerequisites,
+requested execution, and attempted execution, and proves that neither
+production file nor the host test belongs to either evaluated EFI compile
+closure. No EFI binary was inspected or executed. Current aggregate markers
+are:
+
+```text
+TEST_START m01.015
+CLROS_M01_015_READY
+TEST_PASS m01.015
+```
+
 `artifacts/logs/qemu-smoke-sim.log` is the current firmware-visible simulation evidence and contains `UEFI_GONE_SIM_START`, `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, and `UEFI_GONE_SIM_PASS`.
 
 `tests/OS.HostTests/CpuFaultPanicReadinessTests.cs` covers the host-only
@@ -442,6 +460,16 @@ The current managed formatter and guard contracts allocate managed strings and a
 
 `FaultProbeStubPlan` is a byte-plan contract only. It intentionally does not execute `ud2` or write to address zero, and it is not QEMU fault evidence.
 
+`NullPageFaultProbePlan` is metadata only and is distinct from
+`FaultProbeStubPlan.NullWrite`: it models a supervisor read, not a write, and
+contains no executable stream. Its diagnostics-ready and handler-ready fields
+are caller attestations, not loaded IDT/COM1 evidence. It is excluded from the
+evaluated `SingleMinimalApi` and `MultiMinimalApi` EFI compile closures; no EFI
+binary was inspected or executed. It cannot trigger or observe `#PF`, read
+CR2, capture an error code, report a panic, or establish QEMU evidence. Actual
+null-read execution and captured state remain M02-014 work after owned
+diagnostics exist.
+
 `ExecutableStubMemoryPlan` is a policy and layout contract only. It does not allocate executable memory, change page protections, flush instruction caches, or execute generated bytes.
 
 `ExecutableStubBundlePlan` is a layout contract only. It does not copy, map, protect, or execute generated stub bytes.
@@ -493,5 +521,7 @@ the managed `BootSequence` marker path.
 4. Add real executable-stub page transitions using the W^X layout, materialization, and page-transition plan contracts.
 5. Add live diagnostic-stub invocation only after generated stubs can be safely mapped executable, range-checked, callable-binding metadata has been consumed by a real unmanaged binding path, cache-flushed if required, and called through unmanaged function pointers.
 6. Wire the COM1 backend contract into an owned serial writer only after generated stubs can be safely mapped executable and invoked.
-7. Add controlled null dereference and invalid opcode probes behind `Probes.cs` toggles.
+7. Add the controlled null-read and invalid-opcode probes behind `Probes.cs`
+   toggles only in their dedicated issues; M02-014 must consume the disabled
+   M01-015 intent after owned diagnostics exist.
 8. Wire real handler register capture into `CpuFaultFrame` through the deterministic fault-entry layout.
