@@ -1800,6 +1800,87 @@ QEMU/OVMF, or advance a completion gate. M01-019 owns coordinated live
 preparation/invocation, M01-020 owns explicit EFI source linking, M01-025 owns
 default boot wiring, and M01-026 owns cumulative real-QEMU evidence.
 
+### Page-zero absence and disabled fault-probe contract (M01-015)
+
+`PageZeroMappingPolicy` separates two claims that must not be conflated:
+
+1. `ValidateMappingIntent` validates one raw mapping-boundary interval. The raw
+   start is intentional because the typed `VirtualAddress` contract correctly
+   rejects zero. A present range that intersects page zero is rejected before
+   ordinary alignment classification; zero length, wraparound through zero,
+   misalignment, and low-canonical overflow also fail. A valid non-present
+   page-zero intent is policy-valid, but it does not prove any table state.
+2. `AuditTableImage` performs a read-only index-zero walk over caller-owned
+   `X64PageTableImagePage` and raw-entry arrays. It validates exact cardinality,
+   full declared pointer spans, alignment, non-overlap, page-record order,
+   physical uniqueness, root membership, M01-011 preconditions, and each child
+   table before reading the next entry. Canonical raw zero at PML4E, PDPTE,
+   PDE, or PTE proves absence only in that supplied image. A nonzero
+   present-clear value is malformed; a present 1 GiB, 2 MiB, or 4 KiB leaf
+   covering zero is rejected, including raw present encodings whose physical
+   base is zero.
+
+The audit writes no caller byte. Its constants state
+`PerformsLiveMutation=false`, `WritesTableImage=false`,
+`ReadsLivePageTables=false`, and `ProvesInstalledRoot=false`. The caller still
+must ensure every declared pointer remains mapped, stable, exclusively owned,
+and immutable for the call; the contract cannot establish those properties.
+
+`NullPageFaultProbePlan` consumes only a successful table-image audit, never a
+successful range intent alone. A ready-disabled result additionally requires
+caller-attested owned-diagnostics and page-fault-handler prerequisites, keeps
+the probe disabled, and fixes the future architectural intent as:
+
+```text
+access=supervisor read
+vector=14
+hasHardwareErrorCode=true
+checkedErrorCodeMask=0x1f
+expectedErrorCode=0
+expectedCR2=0
+```
+
+The zero error-code intent means non-present, read, supervisor, no reserved-bit
+violation, and not an instruction fetch for the checked architectural bits. It
+is not an observed CPU value. Default-on, requested-execution, and
+attempted-execution inputs are rejected even when the caller attests that
+diagnostics are ready. The plan has no byte emitter, pointer target, delegate,
+or invocation API and states `PerformsLiveFault=false`,
+`DereferencesPageZero=false`, `ExecutesProbe=false`, and
+`IsGuestEvidence=false`.
+
+The stable host-only aggregate evidence is:
+
+```text
+TEST_START m01.015
+CLROS_M01_015_READY
+TEST_PASS m01.015
+```
+
+Any case failure emits `M01_015_CASE_FAIL <case>` and
+`TEST_FAIL m01.015 failures=<count>`, throws, and suppresses the ready/pass
+pair. The exact production union compiles under `NOSTDLIB_EFI`,
+`NoStdLib=true`, without framework or assembly references. Evaluated
+`SingleMinimalApi` and `MultiMinimalApi` EFI compile closures exclude both
+production files and the test. No EFI binary inspection or execution occurred.
+
+The SharpOS `PageFlags.cs` snapshot (SHA-256
+`DC565A4B8BFA38CDACFBDB5B53B2D5616BB9C1057DEDE7A1673956D6F3198652`)
+was used only to cross-check Present/NX bit meaning.
+`PagingValidation.cs` (SHA-256
+`B1699D328E49D5FC68B8CF8979B366D72CCA2E3B4AA5B982F91F0A2C9A1C40F6`)
+contributed missing-map and malformed-entry test categories. CLROS does not
+import its live allocator, global pager, panic/log path, raw-`ulong`
+architecture, or skip-on-no-free-slot behavior.
+
+This is not live page-zero proof. The supplied image may be stale or unrelated
+to CR3, and no null read, page fault, CR2/error-code capture, handler dispatch,
+panic report, EFI link, QEMU run, or completion-gate transition occurs.
+M01-026 owns cumulative QEMU proof that page zero is absent during the
+owned-root interval. M02-014 owns the separately disabled actual null-read
+`#PF` probe after owned IDT and diagnostics exist. `Probes.cs`,
+`BootSequence.cs`, `EfiEntry.cs`, and `completion-gates.md` are unchanged.
+
 Boot page allocator-readiness composition coverage is host-test only. It proves existing planner/state contracts can be composed over caller-owned scratch buffers and forwarded into the ordered boot readiness marker boundary. It does not reserve kernel-owned ranges, mutate allocator-owned state, allocate pages, configure paging, or run in `EfiMain`:
 
 ```text
