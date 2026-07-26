@@ -3861,7 +3861,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only host-audited default-off paging-preflight and reversible CR3/PGE-cycle byte-plan contracts. The code is not linked into or executed by the canonical EFI artifact; no privileged instruction runs; NXE/WP/four-level mode is not live-proven; PCID/LA57 remains unsupported; NMI/SMI remains a residual risk; and neither permanent CR3 adoption nor diagnostics while owned CR3 is active is proven.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-014",
