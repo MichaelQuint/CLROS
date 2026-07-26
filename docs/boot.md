@@ -45,6 +45,7 @@ This is still an EFI application smoke, not a functional kernel. The current evi
   through the same no-stdlib console adapter.
 - `BootInfo` records boot mode, firmware vendor/revision, and initial capability flags for text output, shutdown, and memory map availability.
 - `BootHandoffInfo` defines a host-tested typed metadata contract for boot mode, capabilities, firmware-services mode, memory-map metadata, and ACPI RSDP pointer provenance.
+- `PhysicalAddress`, `VirtualAddress`, and `DeviceAddress` define three distinct host-tested address domains backed by one `ulong` each and treat zero/default as invalid. Their status-coded factories and checked arithmetic/alignment operations reject default/zero input, zero-length ranges, invalid or unmet power-of-two alignment, and addition/align-up wrap while leaving every failure output at its default value. They do not expose implicit or explicit conversions between domains.
 - `BootSequenceHandoffValidator` validates the boot source, required text-output and memory-map capabilities, firmware-services mode, owned memory-map copy flag, source-buffer provenance, descriptor size, descriptor count, map-size arithmetic, descriptor-count limits, and ACPI RSDP metadata consistency without exceptions.
 - `EfiBootHandoffValidator` is the source-linked no-stdlib-safe numeric validator used by the live EFI artifact before it emits `BOOT_HANDOFF_READY`.
 - `EfiMemoryMapNormalizer` is the source-linked no-stdlib-safe live normalizer that walks owned raw descriptor bytes by pointer, validates page/address arithmetic, and records a compact summary without allocating.
@@ -132,6 +133,7 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 ## Unsupported Behavior
 
 - Live page allocator/free-list ownership over planned boot memory ranges. `BootMemoryRegionPlanner` classifies compact records into usable conventional ranges and reserved/unusable metadata, `BootPageAllocatorPlanner` produces host-tested initial free-segment metadata from those selected ranges, `BootPageFreeListBuilder` constructs caller-owned free-list node metadata from the successful plan, `BootPageAllocatorStateInitializer` validates that node chain into value-type allocator state metadata, `BootPageAllocatorMutation` mutates caller-owned free-list metadata in host tests, `BootPageAllocatorReadinessComposer` composes those existing pieces over caller-owned scratch buffers, and `BootSequence.RunBootPageAllocatorReadiness` emits a host-tested readiness marker from initialized allocator-state metadata. None of those pieces reserve kernel ranges, allocate or free live pages, configure paging, enforce NX/W^X, or run in the live EFI path.
+- Live use of the typed address domains. The wrappers are not source-linked into `src/OS/OS.csproj`, invoked by `EfiMain`, or applied retroactively to existing raw-`ulong` memory, MMIO, PCI, and DMA interfaces. They do not prove range overlap policy, reservations, allocator capacity/ownership, stale or double release detection, page mappings, canonical virtual addresses, cache policy, or W^X/NX behavior.
 - Real `ExitBootServices`.
 - Complete platform implementations for console, memory map, keyboard, hardware timer, firmware, filesystem, physical-memory mapping, framebuffer/GOP binding, and post-firmware RNG.
 - IDT/GDT/TSS/IST setup.
@@ -142,11 +144,42 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 
 ## Tests
 
-Host tests verify the marker plan, `BootSequence.Run`, handoff-aware `BOOT_HANDOFF_READY` validation, `BOOT_MEMORY_MAP_ACCEPTED` validation, boot capability contract, typed handoff metadata including owned-map and ACPI RSDP records, UEFI memory-map contract, memory-map capture-helper success/failure paths, memory-map copy-plan validation, raw descriptor decoding, normalized memory-map conversion, caller-owned `MemoryMapInfo` region writing, no-stdlib boot memory-region materialization, allocator-facing boot memory-region planning, boot free-list segment planning, caller-owned boot free-list node construction, boot page allocator-state initialization, caller-owned boot page allocator mutation, aggregate boot page allocator-readiness composition, boot page-allocator readiness markers, NativeAOT heap bootstrap readiness markers, NativeAOT cctor runner preflight readiness markers, PAL export catalog readiness markers, app package-file staging preflight markers, app argument-vector readiness markers, app argument-handoff readiness markers, app-exit observer readiness markers, ACPI RSDP configuration-table scanning and byte validation, guarded platform configuration-table scanning, guarded physical-memory-backed RSDP snapshot validation, caller-owned ACPI RSDT/XSDT pointer-list parsing, caller-provided ACPI table directory selection, ACPI MCFG discovery composition, ACPI physical discovery probe metadata, firmware guard contract, guarded platform adapter denial, and UEFI-gone simulation markers:
+Host tests verify the marker plan, `BootSequence.Run`, handoff-aware `BOOT_HANDOFF_READY` validation, `BOOT_MEMORY_MAP_ACCEPTED` validation, boot capability contract, typed handoff metadata including owned-map and ACPI RSDP records, typed physical/virtual/device address POD layout and checked arithmetic, UEFI memory-map contract, memory-map capture-helper success/failure paths, memory-map copy-plan validation, raw descriptor decoding, normalized memory-map conversion, caller-owned `MemoryMapInfo` region writing, no-stdlib boot memory-region materialization, allocator-facing boot memory-region planning, boot free-list segment planning, caller-owned boot free-list node construction, boot page allocator-state initialization, caller-owned boot page allocator mutation, aggregate boot page allocator-readiness composition, boot page-allocator readiness markers, NativeAOT heap bootstrap readiness markers, NativeAOT cctor runner preflight readiness markers, PAL export catalog readiness markers, app package-file staging preflight markers, app argument-vector readiness markers, app argument-handoff readiness markers, app-exit observer readiness markers, ACPI RSDP configuration-table scanning and byte validation, guarded platform configuration-table scanning, guarded physical-memory-backed RSDP snapshot validation, caller-owned ACPI RSDT/XSDT pointer-list parsing, caller-provided ACPI table directory selection, ACPI MCFG discovery composition, ACPI physical discovery probe metadata, firmware guard contract, guarded platform adapter denial, and UEFI-gone simulation markers:
 
 ```powershell
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 ```
+
+M01-001 typed-address coverage is host-only. `CLROS_M01_001_READY` is emitted by
+the host harness only after every focused layout, domain, default-value,
+alignment, range-end, and overflow check passes:
+
+```text
+TEST_START m01.001
+TEST_PASS m01.001 wrappers are stable pods
+TEST_PASS m01.001 wrappers reject default and zero
+TEST_PASS m01.001 wrappers preserve raw values
+TEST_PASS m01.001 equality is domain local
+TEST_PASS m01.001 wrappers prohibit cross-domain conversion
+TEST_PASS m01.001 offsets accept nonoverflowing boundaries
+TEST_PASS m01.001 offsets reject wrap
+TEST_PASS m01.001 end-exclusive arithmetic succeeds
+TEST_PASS m01.001 end-exclusive arithmetic rejects invalid ranges
+TEST_PASS m01.001 alignment validates inputs
+TEST_PASS m01.001 align-up succeeds
+TEST_PASS m01.001 align-up rejects wrap
+TEST_PASS m01.001 failures leave deterministic default outputs
+CLROS_M01_001_READY
+TEST_PASS m01.001
+```
+
+The wrapper API was independently authored. SharpOS
+`OS/src/Boot/BootStackSwitch.cs` (local snapshot SHA-256
+`637DCFC91E3B9647A0F8FBD4800E6C973ED78C6E5F73E2F7C10770C000234808`) was
+used only for the architectural lesson that owned stack bounds and alignment
+must be explicit before a switch. Its raw-pointer API was not copied. RoseOS
+was used only as a negative-test reminder for later range sizing, reservation,
+and reclamation issues; those policies are outside M01-001.
 
 Platform configuration-table guard coverage:
 
