@@ -3753,7 +3753,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only a host-tested identity-mapping plan and table-page capacity calculation. The code is not linked into or executed by the canonical EFI artifact and no live mapping, table allocation, CR3 load, or TLB effect occurs.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-013",
