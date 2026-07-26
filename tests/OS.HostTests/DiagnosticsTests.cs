@@ -1,9 +1,13 @@
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using OS.Kernel.Diagnostics;
 
 internal static class DiagnosticsTests
 {
+    private const string M01016TestName = "m01.016";
+    private const string M01016ReadyMarker = "CLROS_M01_016_READY";
+
     [ModuleInitializer]
     internal static void RunAll()
     {
@@ -21,6 +25,7 @@ internal static class DiagnosticsTests
         Run("probes catalog formatter reports destination capacity", TestProbeCatalogFormatterReportsDestinationCapacity, ref failures);
         Run("probes catalog formatter keeps dangerous probes disabled", TestProbeCatalogFormatterKeepsDangerousProbesDisabled, ref failures);
         Run("probes keep dangerous toggles disabled", TestDangerousProbeDefaults, ref failures);
+        failures += RunM01016();
 
         if (failures != 0)
         {
@@ -48,6 +53,363 @@ internal static class DiagnosticsTests
             failures++;
             Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
         }
+    }
+
+    private static int RunM01016()
+    {
+        int failures = 0;
+        Console.WriteLine("TEST_START " + M01016TestName);
+
+        Run(
+            "m01.016 switches are exact compile-time false catalog entries",
+            TestM01016SwitchesAndCatalog,
+            ref failures);
+        Run(
+            "m01.016 stage policy rejects impossible combinations",
+            TestM01016StagePolicy,
+            ref failures);
+        Run(
+            "m01.016 null fault remains deferred to m02.014",
+            TestM01016NullFaultDeferral,
+            ref failures);
+        Run(
+            "m01.016 marker is host-only and initializer remains unique",
+            TestM01016HostOnlyMarker,
+            ref failures);
+
+        if (failures != 0)
+        {
+            Console.WriteLine(
+                "TEST_FAIL "
+                + M01016TestName
+                + " failures="
+                + failures);
+            return failures;
+        }
+
+        Console.WriteLine(M01016ReadyMarker);
+        Console.WriteLine("TEST_PASS " + M01016TestName);
+        return 0;
+    }
+
+    private static bool TestM01016SwitchesAndCatalog()
+    {
+        if (nameof(Probes.EnableM01LoadedImageStackProbe) !=
+                "EnableM01LoadedImageStackProbe" ||
+            nameof(Probes.EnableM01LiveAllocatorProbe) !=
+                "EnableM01LiveAllocatorProbe" ||
+            nameof(Probes.EnableM01OwnedPagingProbe) !=
+                "EnableM01OwnedPagingProbe" ||
+            !IsCompileTimeFalseProbe(
+                nameof(Probes.EnableM01LoadedImageStackProbe)) ||
+            !IsCompileTimeFalseProbe(
+                nameof(Probes.EnableM01LiveAllocatorProbe)) ||
+            !IsCompileTimeFalseProbe(
+                nameof(Probes.EnableM01OwnedPagingProbe)) ||
+            Probes.ProbeCatalogCount != 16)
+        {
+            return false;
+        }
+
+        if (!Probes.TryGetProbe(
+                13,
+                out ProbeDefinition loadedImageStack) ||
+            !Probes.TryGetProbe(
+                14,
+                out ProbeDefinition liveAllocator) ||
+            !Probes.TryGetProbe(
+                15,
+                out ProbeDefinition ownedPaging))
+        {
+            return false;
+        }
+
+        ProbeDefinition[] definitions =
+        [
+            loadedImageStack,
+            liveAllocator,
+            ownedPaging
+        ];
+        string[] expectedNames =
+        [
+            nameof(Probes.EnableM01LoadedImageStackProbe),
+            nameof(Probes.EnableM01LiveAllocatorProbe),
+            nameof(Probes.EnableM01OwnedPagingProbe)
+        ];
+        for (int index = 0; index < definitions.Length; index++)
+        {
+            ProbeDefinition definition = definitions[index];
+            if (definition.Name != expectedNames[index] ||
+                definition.Group != Probes.M01LiveMemoryGroup ||
+                definition.EnabledByDefault ||
+                definition.Risk != ProbeRisk.Destructive ||
+                definition.Description.Length == 0)
+            {
+                return false;
+            }
+        }
+
+        ProbeDefinition[] catalog =
+            new ProbeDefinition[Probes.ProbeCatalogCount];
+        ProbeCatalogCopyResult copy =
+            Probes.CopyProbeCatalog(catalog);
+        return copy.Succeeded
+            && CatalogNameCount(
+                catalog,
+                nameof(Probes.EnableM01LoadedImageStackProbe)) == 1
+            && CatalogNameCount(
+                catalog,
+                nameof(Probes.EnableM01LiveAllocatorProbe)) == 1
+            && CatalogNameCount(
+                catalog,
+                nameof(Probes.EnableM01OwnedPagingProbe)) == 1
+            && Probes.GetConfiguredM01LiveProbePolicyStatus() ==
+                M01LiveProbePolicyStatus.Success;
+    }
+
+    private static bool TestM01016StagePolicy()
+    {
+        return (byte)M01LiveProbePolicyStatus.Uninitialized == 0
+            && (byte)M01LiveProbePolicyStatus.Success == 1
+            && (byte)M01LiveProbePolicyStatus
+                .LiveAllocatorRequiresLoadedImageStack == 2
+            && (byte)M01LiveProbePolicyStatus
+                .OwnedPagingRequiresLiveAllocator == 3
+            && default(M01LiveProbePolicyStatus) ==
+                M01LiveProbePolicyStatus.Uninitialized
+            && default(M01LiveProbePolicyStatus) !=
+                M01LiveProbePolicyStatus.Success
+            && Probes.ValidateM01LiveProbePolicy(
+                false,
+                false,
+                false) == M01LiveProbePolicyStatus.Success
+            && Probes.ValidateM01LiveProbePolicy(
+                true,
+                false,
+                false) == M01LiveProbePolicyStatus.Success
+            && Probes.ValidateM01LiveProbePolicy(
+                true,
+                true,
+                false) == M01LiveProbePolicyStatus.Success
+            && Probes.ValidateM01LiveProbePolicy(
+                true,
+                true,
+                true) == M01LiveProbePolicyStatus.Success
+            && Probes.ValidateM01LiveProbePolicy(
+                false,
+                true,
+                false) ==
+                    M01LiveProbePolicyStatus
+                        .LiveAllocatorRequiresLoadedImageStack
+            && Probes.ValidateM01LiveProbePolicy(
+                false,
+                true,
+                true) ==
+                    M01LiveProbePolicyStatus
+                        .LiveAllocatorRequiresLoadedImageStack
+            && Probes.ValidateM01LiveProbePolicy(
+                false,
+                false,
+                true) ==
+                    M01LiveProbePolicyStatus
+                        .OwnedPagingRequiresLiveAllocator
+            && Probes.ValidateM01LiveProbePolicy(
+                true,
+                false,
+                true) ==
+                    M01LiveProbePolicyStatus
+                        .OwnedPagingRequiresLiveAllocator;
+    }
+
+    private static bool TestM01016NullFaultDeferral()
+    {
+        return !Probes.EnableNullPointerPanicProbe
+            && !NullPageFaultProbePlan.EnabledByDefault
+            && !NullPageFaultProbePlan.PerformsLiveFault
+            && !NullPageFaultProbePlan.DereferencesPageZero
+            && !NullPageFaultProbePlan.EmitsExecutableBytes
+            && !NullPageFaultProbePlan.ExecutesProbe
+            && !NullPageFaultProbePlan.IsGuestEvidence
+            && NullPageFaultProbePlan.ExecutionDeferredToM02014;
+    }
+
+    private static bool TestM01016HostOnlyMarker()
+    {
+        string repositoryRoot =
+            HostToolProcess.FindRepositoryRoot();
+        string testPath = Path.GetFullPath(
+            Path.Combine(
+                repositoryRoot,
+                @"tests\OS.HostTests\DiagnosticsTests.cs"));
+        string testSource = File.ReadAllText(testPath);
+        string initializer =
+            "[" + "ModuleInitializer]";
+        string readyMarker =
+            "CLROS_" + "M01_016_READY";
+        string aggregateSignature =
+            "private static int RunM01016()";
+        string nextMethodSignature =
+            "private static bool TestM01016SwitchesAndCatalog()";
+        int aggregateStart = testSource.IndexOf(
+            aggregateSignature,
+            StringComparison.Ordinal);
+        int aggregateEnd = testSource.IndexOf(
+            nextMethodSignature,
+            StringComparison.Ordinal);
+        if (CountOccurrences(testSource, initializer) != 1 ||
+            CountOccurrences(testSource, readyMarker) != 1 ||
+            aggregateStart < 0 ||
+            aggregateEnd <= aggregateStart)
+        {
+            return false;
+        }
+
+        string aggregateSource = testSource.Substring(
+            aggregateStart,
+            aggregateEnd - aggregateStart);
+        string startEmission =
+            "Console.WriteLine(\"TEST_" +
+            "START \" + M01016TestName);";
+        string failureEmission =
+            "\"TEST_" + "FAIL \"";
+        string failureReturn =
+            "return failures;";
+        string readyEmission =
+            "Console.WriteLine(M01016ReadyMarker);";
+        string passEmission =
+            "Console.WriteLine(\"TEST_" +
+            "PASS \" + M01016TestName);";
+        int startIndex = aggregateSource.IndexOf(
+            startEmission,
+            StringComparison.Ordinal);
+        int failureIndex = aggregateSource.IndexOf(
+            failureEmission,
+            StringComparison.Ordinal);
+        int returnIndex = aggregateSource.IndexOf(
+            failureReturn,
+            StringComparison.Ordinal);
+        int readyIndex = aggregateSource.IndexOf(
+            readyEmission,
+            StringComparison.Ordinal);
+        int passIndex = aggregateSource.IndexOf(
+            passEmission,
+            StringComparison.Ordinal);
+        if (CountOccurrences(aggregateSource, startEmission) != 1 ||
+            CountOccurrences(aggregateSource, failureEmission) != 1 ||
+            CountOccurrences(aggregateSource, failureReturn) != 1 ||
+            CountOccurrences(aggregateSource, readyEmission) != 1 ||
+            CountOccurrences(aggregateSource, passEmission) != 1 ||
+            startIndex >= failureIndex ||
+            failureIndex >= returnIndex ||
+            returnIndex >= readyIndex ||
+            readyIndex >= passIndex)
+        {
+            return false;
+        }
+
+        string[] roots =
+        [
+            "src",
+            "std",
+            "apps",
+            "tools",
+            "tests",
+            "scripts"
+        ];
+        foreach (string rootName in roots)
+        {
+            string rootPath = Path.Combine(
+                repositoryRoot,
+                rootName);
+            if (!Directory.Exists(rootPath))
+                continue;
+
+            foreach (string file in Directory.EnumerateFiles(
+                rootPath,
+                "*",
+                SearchOption.AllDirectories))
+            {
+                string fullPath = Path.GetFullPath(file);
+                if (fullPath.Equals(
+                        testPath,
+                        StringComparison.OrdinalIgnoreCase) ||
+                    IsGeneratedBuildPath(fullPath))
+                {
+                    continue;
+                }
+
+                if (!IsMarkerSearchSource(fullPath))
+                    continue;
+
+                if (File.ReadAllText(fullPath).Contains(
+                    readyMarker,
+                    StringComparison.Ordinal))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsMarkerSearchSource(string fullPath)
+    {
+        string extension = Path.GetExtension(fullPath);
+        return extension.Equals(
+                ".cs",
+                StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(
+                ".ps1",
+                StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(
+                ".psm1",
+                StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(
+                ".psd1",
+                StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(
+                ".cmd",
+                StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(
+                ".bat",
+                StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(
+                ".sh",
+                StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(
+                ".csproj",
+                StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(
+                ".props",
+                StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(
+                ".targets",
+                StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsCompileTimeFalseProbe(string fieldName)
+    {
+        FieldInfo? field = typeof(Probes).GetField(
+            fieldName,
+            BindingFlags.Public | BindingFlags.Static);
+        return field is not null
+            && field.FieldType == typeof(bool)
+            && field.IsLiteral
+            && !field.IsInitOnly
+            && field.GetRawConstantValue() is bool enabled
+            && !enabled;
+    }
+
+    private static bool IsGeneratedBuildPath(string fullPath)
+    {
+        string separator = Path.DirectorySeparatorChar.ToString();
+        return fullPath.Contains(
+                separator + "bin" + separator,
+                StringComparison.OrdinalIgnoreCase)
+            || fullPath.Contains(
+                separator + "obj" + separator,
+                StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool TestDiagnosticLogPrefixes()
@@ -178,6 +540,12 @@ internal static class DiagnosticsTests
         ProbeDefinition packetDump = Probes.GetPacketDumpProbe();
         ProbeDefinition network = Probes.GetVirtioNetworkProbe();
         ProbeDefinition fetchExchange = Probes.GetFetchAppHttpTcpExchangeProbe();
+        ProbeDefinition loadedImageStack =
+            Probes.GetM01LoadedImageStackProbe();
+        ProbeDefinition liveAllocator =
+            Probes.GetM01LiveAllocatorProbe();
+        ProbeDefinition ownedPaging =
+            Probes.GetM01OwnedPagingProbe();
 
         return !nullPointer.EnabledByDefault
             && nullPointer.Group == Probes.PanicSmokeGroup
@@ -198,7 +566,22 @@ internal static class DiagnosticsTests
             && fetchExchange.Group == Probes.NetworkSmokeGroup
             && fetchExchange.Name == nameof(Probes.EnableFetchAppHttpTcpExchangeProbe)
             && fetchExchange.Risk == ProbeRisk.DeviceIo
-            && fetchExchange.Description.Contains("FetchApp", StringComparison.Ordinal);
+            && fetchExchange.Description.Contains("FetchApp", StringComparison.Ordinal)
+            && !loadedImageStack.EnabledByDefault
+            && loadedImageStack.Group == Probes.M01LiveMemoryGroup
+            && loadedImageStack.Name ==
+                nameof(Probes.EnableM01LoadedImageStackProbe)
+            && loadedImageStack.Risk == ProbeRisk.Destructive
+            && !liveAllocator.EnabledByDefault
+            && liveAllocator.Group == Probes.M01LiveMemoryGroup
+            && liveAllocator.Name ==
+                nameof(Probes.EnableM01LiveAllocatorProbe)
+            && liveAllocator.Risk == ProbeRisk.Destructive
+            && !ownedPaging.EnabledByDefault
+            && ownedPaging.Group == Probes.M01LiveMemoryGroup
+            && ownedPaging.Name ==
+                nameof(Probes.EnableM01OwnedPagingProbe)
+            && ownedPaging.Risk == ProbeRisk.Destructive;
     }
 
     private static bool TestProbeCatalogEnumeratesAllDefinitions()
@@ -229,7 +612,10 @@ internal static class DiagnosticsTests
             && CatalogContains(catalog, nameof(Probes.EmitBootSmokeMarkers), ProbeRisk.Safe, enabled: true)
             && CatalogContains(catalog, nameof(Probes.EnableInvalidOpcodePanicProbe), ProbeRisk.Destructive, enabled: false)
             && CatalogContains(catalog, nameof(Probes.EnableVirtioBlockReadProbe), ProbeRisk.DeviceIo, enabled: false)
-            && CatalogContains(catalog, nameof(Probes.EnableFetchAppHttpTcpExchangeProbe), ProbeRisk.DeviceIo, enabled: false);
+            && CatalogContains(catalog, nameof(Probes.EnableFetchAppHttpTcpExchangeProbe), ProbeRisk.DeviceIo, enabled: false)
+            && CatalogContains(catalog, nameof(Probes.EnableM01LoadedImageStackProbe), ProbeRisk.Destructive, enabled: false)
+            && CatalogContains(catalog, nameof(Probes.EnableM01LiveAllocatorProbe), ProbeRisk.Destructive, enabled: false)
+            && CatalogContains(catalog, nameof(Probes.EnableM01OwnedPagingProbe), ProbeRisk.Destructive, enabled: false);
     }
 
     private static bool TestProbeCatalogReportsDestinationCapacity()
@@ -385,6 +771,15 @@ internal static class DiagnosticsTests
                 StringComparison.Ordinal)
             && formatted.Contains(
                 "PROBE_CATALOG name=EnableFetchAppHttpTcpExchangeProbe group=network.smoke enabled=false risk=device-io requires=device-io destructive=false",
+                StringComparison.Ordinal)
+            && formatted.Contains(
+                "PROBE_CATALOG name=EnableM01LoadedImageStackProbe group=m01.live-memory enabled=false risk=destructive requires=destructive-probe destructive=true",
+                StringComparison.Ordinal)
+            && formatted.Contains(
+                "PROBE_CATALOG name=EnableM01LiveAllocatorProbe group=m01.live-memory enabled=false risk=destructive requires=destructive-probe destructive=true",
+                StringComparison.Ordinal)
+            && formatted.Contains(
+                "PROBE_CATALOG name=EnableM01OwnedPagingProbe group=m01.live-memory enabled=false risk=destructive requires=destructive-probe destructive=true",
                 StringComparison.Ordinal);
     }
 
@@ -406,6 +801,20 @@ internal static class DiagnosticsTests
         }
 
         return false;
+    }
+
+    private static int CatalogNameCount(
+        ReadOnlySpan<ProbeDefinition> catalog,
+        string name)
+    {
+        int count = 0;
+        for (int index = 0; index < catalog.Length; index++)
+        {
+            if (catalog[index].Name == name)
+                count++;
+        }
+
+        return count;
     }
 
     private static bool FormattedCatalogContainsDefinition(

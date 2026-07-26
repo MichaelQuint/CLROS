@@ -2,7 +2,7 @@ namespace OS.Kernel.Diagnostics;
 
 public static class Probes
 {
-    public const int ProbeCatalogCount = 13;
+    public const int ProbeCatalogCount = 16;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -13,6 +13,8 @@ public static class Probes
     public const string PanicSmokeGroup = "panic.smoke";
 
     public const string MemoryMapSmokeGroup = "memory-map.smoke";
+
+    public const string M01LiveMemoryGroup = "m01.live-memory";
 
     public const string UefiExitBootServicesGroup = "uefi.exitbootservices";
 
@@ -29,6 +31,12 @@ public static class Probes
     public const bool EnableEfiSmokeProbe = true;
 
     public const bool EnableMemoryMapSmokeProbe = true;
+
+    public const bool EnableM01LoadedImageStackProbe = false;
+
+    public const bool EnableM01LiveAllocatorProbe = false;
+
+    public const bool EnableM01OwnedPagingProbe = false;
 
     public const bool EnableUefiGoneSimulationProbe = false;
 
@@ -86,6 +94,36 @@ public static class Probes
             EnableMemoryMapSmokeProbe,
             ProbeRisk.Safe,
             "Confirms the UEFI memory-map smoke marker path is enabled.");
+    }
+
+    public static ProbeDefinition GetM01LoadedImageStackProbe()
+    {
+        return new ProbeDefinition(
+            M01LiveMemoryGroup,
+            nameof(EnableM01LoadedImageStackProbe),
+            EnableM01LoadedImageStackProbe,
+            ProbeRisk.Destructive,
+            "Opts into future M01 stage-one loaded-image and owned-stack integration.");
+    }
+
+    public static ProbeDefinition GetM01LiveAllocatorProbe()
+    {
+        return new ProbeDefinition(
+            M01LiveMemoryGroup,
+            nameof(EnableM01LiveAllocatorProbe),
+            EnableM01LiveAllocatorProbe,
+            ProbeRisk.Destructive,
+            "Opts into future M01 stage-two live-allocator integration.");
+    }
+
+    public static ProbeDefinition GetM01OwnedPagingProbe()
+    {
+        return new ProbeDefinition(
+            M01LiveMemoryGroup,
+            nameof(EnableM01OwnedPagingProbe),
+            EnableM01OwnedPagingProbe,
+            ProbeRisk.Destructive,
+            "Opts into future M01 stage-three owned-paging integration.");
     }
 
     public static ProbeDefinition GetUefiGoneSimulationProbe()
@@ -178,6 +216,37 @@ public static class Probes
             "Exercises future FetchApp HTTP-over-TCP exchange readiness marker behavior.");
     }
 
+    public static M01LiveProbePolicyStatus
+        GetConfiguredM01LiveProbePolicyStatus()
+    {
+        return ValidateM01LiveProbePolicy(
+            EnableM01LoadedImageStackProbe,
+            EnableM01LiveAllocatorProbe,
+            EnableM01OwnedPagingProbe);
+    }
+
+    public static M01LiveProbePolicyStatus ValidateM01LiveProbePolicy(
+        bool loadedImageStackEnabled,
+        bool liveAllocatorEnabled,
+        bool ownedPagingEnabled)
+    {
+        if (liveAllocatorEnabled &&
+            !loadedImageStackEnabled)
+        {
+            return M01LiveProbePolicyStatus
+                .LiveAllocatorRequiresLoadedImageStack;
+        }
+
+        if (ownedPagingEnabled &&
+            !liveAllocatorEnabled)
+        {
+            return M01LiveProbePolicyStatus
+                .OwnedPagingRequiresLiveAllocator;
+        }
+
+        return M01LiveProbePolicyStatus.Success;
+    }
+
     public static bool TryGetProbe(int index, out ProbeDefinition definition)
     {
         switch (index)
@@ -221,6 +290,15 @@ public static class Probes
             case 12:
                 definition = GetFetchAppHttpTcpExchangeProbe();
                 return true;
+            case 13:
+                definition = GetM01LoadedImageStackProbe();
+                return true;
+            case 14:
+                definition = GetM01LiveAllocatorProbe();
+                return true;
+            case 15:
+                definition = GetM01OwnedPagingProbe();
+                return true;
             default:
                 definition = default;
                 return false;
@@ -257,6 +335,14 @@ public static class Probes
             destination.Length,
             ProbeCatalogCount);
     }
+}
+
+public enum M01LiveProbePolicyStatus : byte
+{
+    Uninitialized = 0,
+    Success = 1,
+    LiveAllocatorRequiresLoadedImageStack = 2,
+    OwnedPagingRequiresLiveAllocator = 3
 }
 
 public enum ProbeRisk

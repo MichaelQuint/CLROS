@@ -112,7 +112,12 @@ Diagnostics are host-testable only. No real IDT load, fault handlers, GDT/TSS/IS
   `OS.Std.Text.AsciiTextBuilder` helpers for byte-counting and marker writes.
   This is host-tested formatter evidence only; it does not bind delegates,
   invoke generated stubs, perform CPU port I/O, or write serial output.
-- `Probes.cs` groups probe definitions by boot smoke, serial smoke, EFI smoke, panic smoke, memory-map smoke, UEFI `ExitBootServices`, ACPI discovery, storage smoke, and network smoke. It now exposes a caller-buffer probe catalog (`ProbeCatalogCount`, `TryGetProbe`, and `CopyProbeCatalog`) so diagnostics tooling can enumerate the compile-time probe surface without allocating or duplicating individual getter calls.
+- `Probes.cs` groups probe definitions by boot smoke, serial smoke, EFI smoke,
+  panic smoke, memory-map smoke, staged M01 live memory, UEFI
+  `ExitBootServices`, ACPI discovery, storage smoke, and network smoke. It
+  exposes a caller-buffer probe catalog (`ProbeCatalogCount`, `TryGetProbe`,
+  and `CopyProbeCatalog`) so diagnostics tooling can enumerate the compile-time
+  probe surface without allocating or duplicating individual getter calls.
 - `ProbeCatalogDiagnosticFormatter` formats initialized probe definitions and caller-provided probe catalogs into stable caller-owned ASCII `PROBE_CATALOG` marker bytes. It reports required-byte counts for undersized destinations, rejects default/invalid definitions, keeps dangerous probe metadata explicit, and uses `OS.Std.Text.AsciiTextBuilder` for marker writes instead of allocating formatter-owned strings.
 - Safe smoke probes are enabled by default only where they are part of the existing marker path:
   - `EmitBootSmokeMarkers`
@@ -129,6 +134,22 @@ Diagnostics are host-testable only. No real IDT load, fault handlers, GDT/TSS/IS
   - `EnableVirtioBlockReadProbe`
   - `EnableVirtioNetworkProbe`
   - `EnableFetchAppHttpTcpExchangeProbe`
+  - `EnableM01LoadedImageStackProbe`
+  - `EnableM01LiveAllocatorProbe`
+  - `EnableM01OwnedPagingProbe`
+- Loaded-image and owned-stack integration is stage one, live allocator
+  integration is stage two, and owned paging is stage three.
+  `ValidateM01LiveProbePolicy` recognizes only the ordered prefixes `000`,
+  `100`, `110`, and `111`; it rejects allocator-without-stage-one as
+  `LiveAllocatorRequiresLoadedImageStack` and paging-without-allocator as
+  `OwnedPagingRequiresLiveAllocator`. The byte-valued
+  `M01LiveProbePolicyStatus` keeps zero reserved for `Uninitialized` and uses
+  `Success = 1`, `LiveAllocatorRequiresLoadedImageStack = 2`, and
+  `OwnedPagingRequiresLiveAllocator = 3`.
+- The M01 switches are catalog policy only. They do not link M01 sources into
+  the EFI project or change `OS.csproj`, `BootSequence`, `EfiEntry`, build
+  scripts, boot order, memory, page tables, or CR3. The page-zero fault trigger
+  remains disabled and deferred to M02-014.
 - `BootSequence.RunUefiGoneSimulation` emits host-tested `UEFI_GONE_SIM_*` markers without enabling real `ExitBootServices`.
 - `EnableFetchAppHttpTcpExchangeProbe` is a disabled-by-default network-smoke
   catalog entry for future boot wiring of
@@ -143,7 +164,30 @@ Real IDT/GDT/TSS/IST setup, page-fault and invalid-opcode handlers, real CR2/CR3
 
 ## Tests
 
-`tests/OS.HostTests/DiagnosticsTests.cs` covers log prefixes, boot-event mirroring, panic formatting, page-fault and invalid-opcode register dump formatting, invalid-opcode/null-dereference probe reason strings, return-to-kernel panic mode, probe group metadata, safe probe defaults, probe catalog enumeration/capacity reporting, caller-owned probe catalog diagnostic formatting, and dangerous probe defaults. Probe catalog formatter markers include `TEST_PASS probes catalog formatter formats all definitions`, `TEST_PASS probes catalog formatter reports destination capacity`, and `TEST_PASS probes catalog formatter keeps dangerous probes disabled`.
+`tests/OS.HostTests/DiagnosticsTests.cs` covers log prefixes, boot-event
+mirroring, panic formatting, page-fault and invalid-opcode register dump
+formatting, invalid-opcode/null-dereference probe reason strings,
+return-to-kernel panic mode, probe group metadata, safe probe defaults, probe
+catalog enumeration/capacity reporting, caller-owned probe catalog diagnostic
+formatting, and dangerous probe defaults. It also verifies the exact M01 probe
+field names and literal-false compile-time values, fixed catalog indexes
+13 through 15, unique catalog membership, the complete eight-row staged-policy
+truth table, continued M02-014 null-fault ownership, and host-only marker
+ownership. Probe catalog formatter markers include
+`TEST_PASS probes catalog formatter formats all definitions`,
+`TEST_PASS probes catalog formatter reports destination capacity`, and
+`TEST_PASS probes catalog formatter keeps dangerous probes disabled`.
+
+The M01-016 host-policy aggregate emits:
+
+```text
+TEST_START m01.016
+CLROS_M01_016_READY
+TEST_PASS m01.016
+```
+
+Any aggregate failure emits `TEST_FAIL m01.016 failures=<count>` and suppresses
+the ready/pass markers.
 
 `tests/OS.HostTests/BootEventRecordRingBufferTests.cs` covers the caller-owned
 boot-event record ring. Current markers:
@@ -511,6 +555,14 @@ the managed `BootSequence` marker path.
 
 `ProbeCatalogDiagnosticFormatter` is caller-owned marker-format evidence only. It does not execute probes, install fault handlers, trigger destructive probes, perform live device I/O, write to serial, or prove QEMU panic behavior.
 
+The M01 live-memory probe switches and
+`ValidateM01LiveProbePolicy` are host-tested compile-time policy only. They do
+not establish EFI compile closure, guest marker ownership, QEMU execution,
+loaded-image capture, an owned stack, allocator state, page-table storage,
+W^X/NX transitions, TLB invalidation, or a CR3 load. The
+`CLROS_M01_016_READY` marker is emitted only by the host test initializer and
+must not be interpreted as guest evidence.
+
 `SerialDiagnosticsGuard` is a readiness contract only. `SerialPortConfiguration`, `Com1SerialWriter`, `Com1PlatformSerialTransport`, `PortIoOperationPlan`, `PortIoStubPlan`, and owned-serial readiness derivation are configuration, polling, abstract backend, status, adapter, and instruction-byte contracts only. They do not execute CPU port I/O instructions or prove serial output survives real firmware shutdown.
 
 ## Next Steps
@@ -525,3 +577,7 @@ the managed `BootSequence` marker path.
    toggles only in their dedicated issues; M02-014 must consume the disabled
    M01-015 intent after owned diagnostics exist.
 8. Wire real handler register capture into `CpuFaultFrame` through the deterministic fault-entry layout.
+9. Implement the serialized M01-017 through M01-026 path: add host-tested
+   stage coordinators, link only reviewed sources into the EFI project, wire
+   each stage behind its corresponding default-off switch, and preserve fresh
+   cumulative QEMU evidence before changing any completion gate.
