@@ -19,41 +19,6 @@ public enum BootPageFreeListPlanStatus
     TotalByteCountMismatch = 14
 }
 
-public readonly struct BootPageFreeListNode
-{
-    public BootPageFreeListNode(
-        int sourceFreeSegmentIndex,
-        int sourceUsableRangeIndex,
-        ulong physicalStart,
-        ulong physicalEndExclusive,
-        ulong pageCount,
-        ulong byteLength,
-        int nextNodeIndex)
-    {
-        SourceFreeSegmentIndex = sourceFreeSegmentIndex;
-        SourceUsableRangeIndex = sourceUsableRangeIndex;
-        PhysicalStart = physicalStart;
-        PhysicalEndExclusive = physicalEndExclusive;
-        PageCount = pageCount;
-        ByteLength = byteLength;
-        NextNodeIndex = nextNodeIndex;
-    }
-
-    public int SourceFreeSegmentIndex { get; }
-
-    public int SourceUsableRangeIndex { get; }
-
-    public ulong PhysicalStart { get; }
-
-    public ulong PhysicalEndExclusive { get; }
-
-    public ulong PageCount { get; }
-
-    public ulong ByteLength { get; }
-
-    public int NextNodeIndex { get; }
-}
-
 public readonly struct BootPageFreeListPlanResult
 {
     private BootPageFreeListPlanResult(
