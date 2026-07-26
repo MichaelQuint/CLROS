@@ -1619,6 +1619,187 @@ fault diagnostics. M01-019 owns coordinated live preparation/invocation,
 M01-020 owns EFI linking, M01-025 owns default wiring, and M01-026 owns
 cumulative real-QEMU proof.
 
+### Caller-owned protection transition contract (M01-014)
+
+M01-014 adds four no-stdlib-compatible, host-audited boundaries for one future
+4 KiB RW+NX-to-RX transition:
+
+1. `X64PageMap.Apply` performs one transactional leaf mutation in an existing
+   caller-owned four-level table image.
+2. `X64TlbInvalidationPlan` describes and materializes the exact page-aligned
+   virtual targets invalidated by a successful mutation.
+3. `X64InvlpgStubPlan` materializes and reads back a checked
+   `invlpg [rcx]; ret` stream and creates a one-shot RX-only invocation plan.
+4. `X64ProtectionProbeStubPlan` materializes and reads back a constant-return
+   stream and audits its complete modeled protection transcript.
+
+The page-map core receives a flat array of raw 64-bit entries and a separate
+array of `X64PageTableImagePage` records that bind each 512-entry slice to one
+typed physical table-page address. It validates the complete declared
+pointer/count/capacity spans, their alignment and non-overlap, record order,
+physical uniqueness, exact entry cardinality, root membership, and every child
+table pointer encountered by the PML4/PDPT/PD/PT walk. The caller must keep all
+declared storage mapped, stable, exclusively serialized, and owned for the
+whole call; arithmetic validation cannot establish those unsafe properties.
+
+Each request targets one nonzero, 4 KiB-aligned, low-canonical virtual page and
+uses the exact M01-011 `PageProtection`, `PageCachePolicy`, and
+`X64PageTableEncodingPreconditions` contracts. The supported operations are:
+
+| Operation | Required prior leaf | Result |
+| --- | --- | --- |
+| `Map` | Unmapped | One new 4 KiB leaf with the requested typed physical page, R/RW/RX protection, and WB/UC/WC policy |
+| `Unmap` | Mapped 4 KiB leaf | One zero leaf and one exact invalidation range |
+| `Protect` | Mapped 4 KiB leaf | Same physical page and cache policy with protection rewritten through the M01-011 preserve-or-clear A/D policy |
+
+All request, storage, table-walk, essential-range, encoding, and invalidation
+conditions succeed before the sole 64-bit leaf store. Therefore a failed
+operation changes no table byte. A successful operation changes exactly one
+leaf, retains the validated page-image set's typed first-to-last physical
+envelope, and returns one initialized `X64TlbInvalidationRange` for the exact
+target page. Materialization into `X64TlbInvalidationRecord` is separately
+capacity-checked and emits exactly one record per page in ordinal order.
+
+This first mutation slice intentionally requires all intermediate tables to
+exist. It returns a distinct status for a missing table, an out-of-image child
+pointer, a malformed entry, or a 1 GiB/2 MiB large-page collision. It does not
+allocate an intermediate table or split a large mapping. Duplicate map,
+double/unmapped unmap or protect, unchanged protection, page zero,
+unaligned/noncanonical/overflowing input, W+X, malformed or aliased storage,
+and mutation of a caller-declared essential mapping all fail before the store.
+
+The audited invlpg stream is four bytes and two instructions:
+
+```text
+0F 01 39 C3
+```
+
+Its SHA-256 identity is:
+
+```text
+FEF29CD9A7B4B2A9C53BC69C7893BC37FFFACECF2093CD943C5F43139C2CF53F
+```
+
+The stream uses the Windows-x64 first integer argument register RCX as the
+target address, touches no nonvolatile register, and returns directly. Its
+entry must be 16-byte aligned and wholly inside one modeled 4 KiB page;
+the aggregate audit separately requires that modeled page to correspond
+exactly to its caller-supplied one-page `LoaderCode` allocation. Emission and
+readback bind the exact modeled page address, entry offset, capacity, bytes,
+and instruction count. An invocation plan succeeds only when the readback was
+verified, the code page is RX and non-writable, and exactly one initialized
+invalidation record matches both the requested target and the expected entry.
+The plan reports `PerformsLiveInvalidation=false`, `ReloadsCr3=false`, and
+`InvokesStub=false`.
+
+The separate protection probe is six bytes and two instructions:
+
+```text
+B8 4B 4F 53 4F C3
+```
+
+This is `mov eax, 0x4F534F4B; ret`; the fixed return value spells the little
+endian evidence word `KOSO` in memory order and has SHA-256:
+
+```text
+BBA15FCF0EEE9F4112C1ABB203EB833D44A09E9BCEDB29456ACAE9B466EBA374
+```
+
+The probe must occupy a separate, identity-mapped, one-page `LoaderCode`
+allocation with an exact canonical `BootReservedRange` of kind
+`PageProtectionProbe`. The invlpg/transition-code allocation is another
+one-page `LoaderCode` record, while the page-table/state arena is a disjoint
+nonempty `LoaderData` record. All three allocations must be pairwise
+nonoverlapping. The table/state record's physical range must contain the
+complete page-image physical envelope retained by the successful mutation;
+an otherwise-valid unrelated or truncated `LoaderData` record is rejected.
+The aggregate accepts only:
+
+- verified probe and invlpg byte readbacks bound to their allocation starts;
+- one successful `Protect` result whose previous leaf is RW+NX+WB and whose
+  replacement is RX+WB over the same physical probe page;
+- exact replacement-leaf readback;
+- one exact target-only invalidation record and matching RX-only invlpg
+  invocation plan;
+- one modeled probe invocation at the protected entry, the expected return,
+  and one unchanged nonzero caller canary; and
+- exactly nine zero-based events in this order:
+
+```text
+StubMaterialized
+StubReadBackVerified
+InitialReadWriteNoExecuteVerified
+ProtectionChangedReadExecute
+LeafReadBackVerified
+TargetInvalidationPlanned
+InvlpgInvocationPlanned
+ProbeInvocationPlanned
+ConstantReturnAndCanaryObserved
+```
+
+A writable execution stub, executable table/state data, overlapping,
+unrelated, truncated, or mis-typed allocation, wrong reservation,
+execute-before-protect ordering,
+wrong target/opcode/entry/readback, multiple invocation, unexpected return,
+changed/zero canary, missing/reordered/extra event, malformed/truncated or
+oversized buffer, and default POD all fail closed. The observation exposes
+`IsLiveEvidence=false`, and the aggregate carries no field that can promote
+modeled host data to guest evidence.
+
+The stable aggregate host evidence is:
+
+```text
+TEST_START m01.014
+TEST_START m01.014.01.map
+TEST_PASS m01.014.01.map
+TEST_START m01.014.02.invlpg
+TEST_PASS m01.014.02.invlpg
+TEST_START m01.014.03.protection
+TEST_PASS m01.014.03.protection
+CLROS_M01_014_READY
+TEST_PASS m01.014
+```
+
+Any child failure emits its child `TEST_FAIL` plus
+`TEST_FAIL m01.014 failures=<count>`, throws from the sole aggregate
+coordinator, and suppresses the ready/pass pair. The exact production-source
+union compiles in the retained `NoStdLib=true`, `NOSTDLIB_EFI`,
+zero-framework-reference fixture with zero assembly references.
+
+The retained SharpOS paths are owner-authorized architectural or test
+influences, not imported live behavior or CLROS execution evidence:
+
+- `references/SharpOS-main/OS/src/Kernel/Paging/X64PageTable.cs`, SHA-256
+  `35503B543628E5A462073D498704050EEEF7D79DEB2B84F01CACA29714200BAC`,
+  supplied the four-level index/walk cross-check and large-page collision
+  category. CLROS rejects its global state, blind physical-pointer casts,
+  partial mutations, permissive protection handling, and CR3-wide flushing.
+- `references/SharpOS-main/OS/src/Kernel/Paging/PageFlags.cs`, SHA-256
+  `DC565A4B8BFA38CDACFBDB5B53B2D5616BB9C1057DEDE7A1673956D6F3198652`,
+  was a protection-bit cross-check; CLROS instead consumes the strict M01-011
+  R/RW/RX and PAT-bound cache vocabulary and rejects every W+X state.
+- `references/SharpOS-main/OS/src/Kernel/Paging/PagingValidation.cs`, SHA-256
+  `B1699D328E49D5FC68B8CF8979B366D72CCA2E3B4AA5B982F91F0A2C9A1C40F6`,
+  supplied test-only duplicate-map, double-unmap, missing-table, and
+  large-page scenarios that were independently recreated against the CLROS
+  contract.
+
+The canonical upstream is `https://github.com/daniilvaino/SharpOS`.
+Owner-supplied permission authorizes reuse of SharpOS-authored source and the
+upstream independently corroborates CC0-1.0 at evidence commit
+`b80ee3a4175e1522d1a12ba7fe371a49da3207f5`; the supplied snapshot itself has
+no recoverable revision, so the exact local paths and hashes remain its source
+identity. No file-local third-party term is overridden.
+
+This issue proves only host mutation of caller-owned table bytes and audited
+byte/transcript identity. It does not allocate or populate live table pages,
+perform a processor-owned PTE store, execute either stream, reload CR3,
+invalidate a CPU TLB, prove effective parent permissions or page-zero absence,
+provide SMP shootdown, link into the canonical EFI artifact, run under
+QEMU/OVMF, or advance a completion gate. M01-019 owns coordinated live
+preparation/invocation, M01-020 owns explicit EFI source linking, M01-025 owns
+default boot wiring, and M01-026 owns cumulative real-QEMU evidence.
+
 Boot page allocator-readiness composition coverage is host-test only. It proves existing planner/state contracts can be composed over caller-owned scratch buffers and forwarded into the ordered boot readiness marker boundary. It does not reserve kernel-owned ranges, mutate allocator-owned state, allocate pages, configure paging, or run in `EfiMain`:
 
 ```text
