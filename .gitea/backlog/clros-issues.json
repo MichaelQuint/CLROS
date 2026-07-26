@@ -3254,7 +3254,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only host-tested reservation-subtraction planning over caller-owned ranges. The code is not linked into or executed by the canonical EFI artifact and does not subtract the live firmware map or install allocator state.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-008",
