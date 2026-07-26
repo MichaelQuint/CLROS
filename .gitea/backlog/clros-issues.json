@@ -2690,7 +2690,7 @@
       ],
       "collisionLane": null,
       "summary": "Define typed canonical boot reservations and a deterministic caller-owned table validator.",
-      "currentEvidence": "BootMemoryReservedRange currently models non-conventional UEFI descriptors and can validly begin at zero; CLROS has no distinct BootReservationKind/BootReservedRange ledger for owned image, stack, map, ACPI, diagnostics, and page-table reservations.",
+      "currentEvidence": "BootReservationKind, the 40-byte readonly unmanaged BootReservedRange POD, and the bounded nonmutating BootReservationTableValidator pointer/count/capacity core are implemented in commit 503e4941db34a4a2aa557f1e3d519c3c2774f477. PR #338 merged the implementation and done/step849.md evidence as 316358ca53ed47baae2d261e56dfcab2fea63176. The validator rejects invalid count, excessive count, insufficient capacity, null/misaligned pointers, and a wrapping full table span before dereference; validates typed half-open range metadata, sorted/disjoint order, adjacency, deterministic conflicts, loaded-image duplicate coverage, checked totals, and optional exact guard-plus-stack accounting; and remains allocation-free and byte-preserving on warmed success and failure paths. Host tests lock explicit append-only reservation-kind values 0-14, exercise the accepted 256-record maximum, every reserved byte, malformed/default/alignment/overflow/ordering/coverage/arena case, exact managed-source metadata allowlists, and an exact-source NoStdLib=true/NOSTDLIB_EFI compile closure whose PE has zero assembly references. The complete host harness emitted CLROS_M01_002_READY, TEST_PASS m01.002, and TEST_PASS host.tests exactly once with 2873 TEST_PASS markers and zero TEST_FAIL/OS_SMOKE_FAIL markers; issue comment marker clros-evidence-reviewed:M01-002 records two independent reviews. This is host-only evidence: the code is not linked into or executed by the canonical EFI artifact or src/OS/OS.csproj, no live ledger is populated, and loaded-image capture, boot-stack ownership, reservation subtraction, allocation, paging, CR3, W^X/NX, ExitBootServices, QEMU guest execution, and later completion gates remain unproven.",
       "implementationNotes": [
         "Implement BootReservationKind and BootReservedRange as readonly unmanaged POD contracts distinct from BootMemoryReservedRange.",
         "Assign exact stable append-only BootReservationKind values: Uninitialized=0, LoadedImage=1, BootStackSwitchStub=2, BootStackGuard=3, BootStack=4, OwnedMemoryMap=5, AcpiSnapshot=6, AcpiScratch=7, DiagnosticState=8, AllocatorArena=9, PageTableArena=10, Cr3TransitionStub=11, BootHandoff=12, FramebufferMetadata=13, and PageProtectionProbe=14; future values append only and existing numbers never change or get reused.",
@@ -2746,7 +2746,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only host-tested typed canonical reservation records and table validation. The code is not linked into or executed by the canonical EFI artifact and does not prove live reservation subtraction, allocation, paging, CR3, W^X, ExitBootServices, or the M01 exit criterion.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-003",
