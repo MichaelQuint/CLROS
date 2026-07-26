@@ -4151,7 +4151,7 @@
         "docs/diagnostics.md"
       ],
       "evidenceBoundary": "This issue proves only the host-tested default-off central M01 probe policy. It does not link sources, build EFI, change boot order, invoke EfiEntry, execute QEMU, mutate memory, load CR3, or prove any live M01 behavior.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-017",
