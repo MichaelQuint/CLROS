@@ -3967,7 +3967,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only host mutation of caller-owned page-table images and audited invlpg/protection-probe byte plans. The code is not linked into or executed by the canonical EFI artifact; no live mapping, protection, invlpg, probe execution, CR3 transition, or CPU TLB effect is proven.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-015",
