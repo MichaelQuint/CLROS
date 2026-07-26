@@ -3352,7 +3352,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only host-tested mutation of caller-owned allocator metadata for one typed 4 KiB result. The code is not linked into or executed by the canonical EFI artifact and does not allocate, reserve, zero, map, or access a live physical page.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-009",
