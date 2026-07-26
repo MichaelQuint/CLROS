@@ -15,6 +15,9 @@ internal static class BootSequencePlanTests
         Run("boot.sequence M01 stage-one plan exposes exact success bytes", TestM01StageOneSuccessMarkerBytes, ref failures);
         Run("boot.sequence M01 stage-one plan preserves default bytes", TestM01StageOnePlanPreservesDefaultBytes, ref failures);
         Run("boot.sequence M01 stage-one plan preserves EFI linkage boundary", TestM01StageOnePlanPreservesEfiLinkageBoundary, ref failures);
+        Run("boot.sequence M01 stage-two plan exposes exact success bytes", TestM01StageTwoSuccessMarkerBytes, ref failures);
+        Run("boot.sequence M01 stage-two plan preserves default bytes", TestM01StageTwoPlanPreservesDefaultBytes, ref failures);
+        Run("boot.sequence M01 stage-two plan preserves EFI linkage boundary", TestM01StageTwoPlanPreservesEfiLinkageBoundary, ref failures);
         Run("boot.phase catalog documents implemented phases", TestBootPhaseCatalog, ref failures);
         Run("boot.phase catalog marker text matches plan", TestBootPhaseMarkersMatchPlan, ref failures);
         Run("boot.sequence run emits plan lines in order", TestBootSequenceUsesPlan, ref failures);
@@ -161,6 +164,73 @@ internal static class BootSequencePlanTests
             && BootSequencePlan.GetM01StageOneSuccessLineByte(expected.Length, 0) == 0;
     }
 
+    private static bool TestM01StageTwoSuccessMarkerBytes()
+    {
+        string[] expected =
+        [
+            "TEST_START m01.stage2",
+            "M01_ALLOCATOR_ARENA_ALLOCATED",
+            "M01_STAGE2_MAP_RECAPTURED",
+            "M01_RESERVATIONS_APPLIED",
+            "M01_LIVE_ALLOCATED_4K",
+            "M01_LIVE_PAGE_WITHIN_ARENA",
+            "M01_LIVE_FREED_4K",
+            "M01_DOUBLE_FREE_REJECTED",
+            "TEST_PASS m01.stage2"
+        ];
+
+        if (BootSequencePlan.M01StageTwoSuccessLineCount != expected.Length)
+        {
+            return false;
+        }
+
+        for (int lineIndex = 0; lineIndex < expected.Length; lineIndex++)
+        {
+            string expectedLine = expected[lineIndex];
+            if (BootSequencePlan.GetM01StageTwoSuccessLineLength(lineIndex)
+                    != expectedLine.Length
+                || BootSequencePlan.GetM01StageTwoSuccessLineByte(
+                    lineIndex,
+                    -1) != 0
+                || !string.Equals(
+                    BootSequence.CreateM01StageTwoSuccessLine(lineIndex),
+                    expectedLine,
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            for (int offset = 0; offset < expectedLine.Length; offset++)
+            {
+                if (BootSequencePlan.GetM01StageTwoSuccessLineByte(
+                        lineIndex,
+                        offset)
+                    != (byte)expectedLine[offset])
+                {
+                    return false;
+                }
+            }
+
+            if (BootSequencePlan.GetM01StageTwoSuccessLineByte(
+                    lineIndex,
+                    expectedLine.Length) != 0)
+            {
+                return false;
+            }
+        }
+
+        return BootSequencePlan.GetM01StageTwoSuccessLineLength(-1) == 0
+            && BootSequencePlan.GetM01StageTwoSuccessLineLength(
+                expected.Length) == 0
+            && BootSequencePlan.GetM01StageTwoSuccessLineByte(-1, 0) == 0
+            && BootSequencePlan.GetM01StageTwoSuccessLineByte(
+                expected.Length,
+                0) == 0
+            && BootSequence.CreateM01StageTwoSuccessLine(-1).Length == 0
+            && BootSequence.CreateM01StageTwoSuccessLine(
+                expected.Length).Length == 0;
+    }
+
     private static bool TestM01StageOnePlanPreservesDefaultBytes()
     {
         string[] expected =
@@ -207,6 +277,70 @@ internal static class BootSequencePlanTests
             && !serial.Contains("TEST_START m01.stage1")
             && !serial.Contains("TEST_PASS m01.stage1")
             && !serial.ContainsPrefix("M01_");
+    }
+
+    private static bool TestM01StageTwoPlanPreservesDefaultBytes()
+    {
+        string[] expected =
+        [
+            "TEST_START boot.sequence",
+            "BOOT_PHASE PhaseA.Audit START",
+            "BOOT_PHASE PhaseA.Audit PASS",
+            "BOOT_PHASE PhaseA.Diagnostics START",
+            "BOOT_PHASE PhaseA.Diagnostics PASS",
+            "OS_BOOT_OK",
+            "TEST_PASS boot.sequence",
+            "OS_SMOKE_PASS"
+        ];
+
+        if (BootSequencePlan.NonSmokeLineCount != 5
+            || BootSequencePlan.LineCount != expected.Length)
+        {
+            return false;
+        }
+
+        for (int lineIndex = 0; lineIndex < expected.Length; lineIndex++)
+        {
+            if (!string.Equals(
+                    BootSequence.CreatePlanLine(lineIndex),
+                    expected[lineIndex],
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        SequenceTestSerialSink serial = new SequenceTestSerialSink();
+        BootEventRingBuffer events = new BootEventRingBuffer(16);
+        BootResult result = BootSequence.Run(serial, events);
+        string[] eventSnapshot = events.Snapshot();
+
+        if (!result.Succeeded
+            || serial.Count != expected.Length
+            || eventSnapshot.Length != expected.Length
+            || serial.Contains("TEST_START m01.stage2")
+            || serial.Contains("TEST_PASS m01.stage2")
+            || serial.ContainsPrefix("M01_"))
+        {
+            return false;
+        }
+
+        for (int lineIndex = 0; lineIndex < expected.Length; lineIndex++)
+        {
+            if (!string.Equals(
+                    serial.LineAt(lineIndex),
+                    expected[lineIndex],
+                    StringComparison.Ordinal)
+                || !string.Equals(
+                    eventSnapshot[lineIndex],
+                    expected[lineIndex],
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static bool TestM01StageOnePlanPreservesEfiLinkageBoundary()
@@ -276,6 +410,85 @@ internal static class BootSequencePlanTests
                 StringComparison.Ordinal)
             && !efiEntrySource.Contains(
                 "M01LoadedImageStackIntegration.Prepare",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestM01StageTwoPlanPreservesEfiLinkageBoundary()
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string projectPath = Path.Combine(
+            repositoryRoot,
+            "src",
+            "OS",
+            "OS.csproj");
+        System.Xml.Linq.XDocument project =
+            System.Xml.Linq.XDocument.Load(projectPath);
+
+        bool defaultCompileItemsDisabled = project
+            .Descendants("EnableDefaultCompileItems")
+            .Any(element => string.Equals(
+                element.Value.Trim(),
+                "false",
+                StringComparison.OrdinalIgnoreCase));
+        bool planLinked = false;
+        bool integrationLinked = false;
+
+        foreach (System.Xml.Linq.XElement compile
+            in project.Descendants("Compile"))
+        {
+            string? include = compile.Attribute("Include")?.Value;
+            if (string.IsNullOrWhiteSpace(include))
+            {
+                continue;
+            }
+
+            string normalized = include.Replace('/', '\\');
+            if (normalized.Contains('*'))
+            {
+                return false;
+            }
+
+            if (string.Equals(
+                Path.GetFileName(normalized),
+                "BootSequence.cs",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (string.Equals(
+                Path.GetFileName(normalized),
+                "M01LiveAllocatorIntegration.cs",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                integrationLinked = true;
+            }
+
+            if (string.Equals(
+                normalized,
+                @"..\OS.Kernel\Boot\BootSequencePlan.cs",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                planLinked = true;
+            }
+        }
+
+        string efiEntryPath = Path.Combine(
+            repositoryRoot,
+            "src",
+            "OS",
+            "Boot",
+            "EfiEntry.cs");
+        string efiEntrySource = File.ReadAllText(efiEntryPath);
+
+        return defaultCompileItemsDisabled
+            && planLinked
+            && !integrationLinked
+            && !efiEntrySource.Contains(
+                "RunM01LiveAllocatorIntegration",
+                StringComparison.Ordinal)
+            && !efiEntrySource.Contains(
+                "M01LiveAllocatorIntegration.Execute",
                 StringComparison.Ordinal);
     }
 
