@@ -23,12 +23,16 @@ and the reachable local Gitea tracker:
 - `.gitea/backlog/clros-issues.json` is the version-controlled intent ledger.
 - `scripts/sync-gitea-backlog.ps1` previews by default and requires `-Apply`
   before it can mutate `http://localhost:3000/admin/CLROS`.
-- The applied tracker contains 16 open milestones, 68 managed labels, 16
-  milestone epics, and 303 child issues. Every manifest key is present exactly
-  once across open and closed issues.
-- The post-apply verification reported `SYNC_VERIFY_PASS milestones=16
-  labels=68 issues=319`; a second read-only run reported 403 unchanged managed
-  objects and no create, update, or failure action.
+- The original applied tracker contained 16 open milestones, 68 managed
+  labels, 16 milestone epics, and 303 child issues. M00-023 now extends the
+  canonical manifest to 315 children and 331 keyed issues by recording the
+  claimed repair itself and the serialized M01-016 through M01-026
+  one-live-boundary-at-a-time integration/evidence chain.
+- The original post-apply verification reported `SYNC_VERIFY_PASS
+  milestones=16 labels=68 issues=319`. The repaired offline contract expects
+  415 managed objects and `SYNC_VERIFY_PASS milestones=16 labels=68
+  issues=331` after a guarded apply; this documentation does not claim that
+  apply has occurred.
 
 ## Implemented Behavior
 
@@ -173,15 +177,24 @@ Current M00 recovery evidence from 2026-07-25:
 - Generated evidence is under
   `artifacts/logs/m00-final/32a8f3b91e17-20260725T213702Z/` and is not
   committed as first-party source.
-- The live Gitea tracker contains the manifest's 68 labels, 16 milestones, and
-  319 uniquely keyed issues. All 22 M00 children and the M00 epic are closed
-  with 23 reviewed-evidence comments and `agent:done`; `M01-001` is the sole
-  `agent:ready` issue, 295 issues remain `agent:blocked`, and no issue remains
-  claimed or under review. A zero-change follow-up preview reported all 403
-  managed tracker objects unchanged. Only `M15-013`, the isolated optional
-  DOOM/WAD boundary, retains `reference:license-blocked`. The M00 milestone
-  object remains open by policy with zero open and 23 closed issues. This is
-  administrative tracker evidence, not additional kernel capability evidence.
+- The live Gitea tracker contains the original 319 keyed backlog issues plus
+  claimed M00-023 as issue #321. M01-001 remains separately claimed as issue
+  #25, and M01-016 through M01-026 do not exist remotely until the guarded
+  synchronizer apply. The canonical manifest requests that M00-EPIC reopen
+  while M00-023 is active, classifies M01-001 through M01-015 as host-evidence
+  leaves, and serializes probe policy, three BootSequence coordinator stages,
+  one reviewed OS-project/source-link integration, then alternating
+  EfiEntry/fresh-QEMU boundaries through M01-026. M02 and M04 entry work
+  depends on the final M01-026 cumulative paging proof. The guarded pre-apply
+  preview is expected to report exactly 11 creates and 24 updates: the new
+  M01-016 through M01-026 issues and the explicit existing-key set recorded by
+  M00-023, including the substantive M03-007 post-ExitBootServices
+  permanent-CR3 handoff plus the generated M03-EPIC child-checklist update.
+  After apply, the intended converged inventory is 68
+  labels, 16 milestones, 315 children, 331 keyed issues, and 415 managed
+  objects. Only `M15-013`, the isolated optional DOOM/WAD boundary, retains
+  `reference:license-blocked`. This is administrative tracker evidence, not
+  additional kernel capability evidence.
 
 ## Known Limitations
 

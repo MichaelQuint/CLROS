@@ -7,9 +7,20 @@ The canonical backlog taxonomy and desired issue state are version-controlled in
 `http://localhost:3000/admin/CLROS` is synchronized additively by
 `scripts/sync-gitea-backlog.ps1`.
 
-The 2026-07-25 reconstruction created 68 managed labels, 16 milestones, 16
-epics, and 303 child issues. The synchronizer verified all 319 hidden issue keys,
-milestone assignments, managed labels, parent links, and dependency links.
+The 2026-07-25 reconstruction initially created 68 managed labels, 16
+milestones, 16 epics, and 303 child issues. The additive M00-023 evidence-model
+repair keeps those labels and milestones, adds M00-023, and replaces the
+impossible per-leaf QEMU closure model with the serialized M01-016 through
+M01-026 one-live-boundary-at-a-time chain. The durable inventory therefore
+defines 315 children, 331 keyed issues, and 415 managed objects. The existing
+tracker already contains claimed M00-023 as issue #321; a guarded
+synchronization must recognize that hidden key, create only M01-016 through
+M01-026, update the exact 24 existing managed issues identified by M00-023
+(including the substantive M03-007 post-EBS permanent-CR3 handoff and its
+generated M03-EPIC child-checklist update), and then
+verify every milestone assignment, managed label, parent link, dependency link,
+and desired state. The expected pre-apply preview is therefore
+`wouldCreate=11` and `wouldUpdate=24`.
 
 ## Implemented Behavior
 
@@ -28,11 +39,17 @@ milestone assignments, managed labels, parent links, and dependency links.
 - Collision lanes serialize the shared solution baseline, EFI entry,
   freestanding project, boot sequence, probes, central docs, common virtio, and
   PAL ABI integration files.
+- M01-001 through M01-015 are host-only leaf contracts. Their
+  `CLROS_M01_NNN_READY` markers are host-harness markers, not guest evidence.
+  M01-016 through M01-026 serialize probe policy, three BootSequence
+  coordinator stages, one reviewed OS-project/source-link integration, and
+  alternating EfiEntry/fresh-`-BuildEfi` QEMU boundaries so each issue owns
+  exactly one collision-lane surface.
 - One `phase:mxx-*` label identifies each milestone from M00 through M15.
 
 Only issues whose complete transitive dependency tree is manifest-closed,
-tracker-closed, and backed by exact evidence-review comments—and which have no
-claimed collision-scope peer—are `agent:ready`. Epics are never implementation
+tracker-closed, and backed by exact evidence-review comments, and which have no
+claimed collision-scope peer, are `agent:ready`. Epics are never implementation
 assignments. Closed manifest-controlled issues carry `agent:done`; an open
 issue is not considered complete merely because somebody applied that label
 manually.

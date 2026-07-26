@@ -509,8 +509,8 @@ function Test-Manifest {
     if ($milestones.Count -ne 16) {
         throw "Manifest must contain exactly 16 milestones; found $($milestones.Count)."
     }
-    if ($issues.Count -ne 319) {
-        throw "Manifest must contain 16 epics plus 303 children; found $($issues.Count)."
+    if ($issues.Count -ne 331) {
+        throw "Manifest must contain 16 epics plus 315 children; found $($issues.Count)."
     }
 
     $milestoneByKey = @{}
@@ -621,7 +621,7 @@ function Test-Manifest {
     }
 
     $expectedChildren = @{
-        M00 = 22; M01 = 15; M02 = 16; M03 = 11; M04 = 23; M05 = 21; M06 = 19; M07 = 25
+        M00 = 23; M01 = 26; M02 = 16; M03 = 11; M04 = 23; M05 = 21; M06 = 19; M07 = 25
         M08 = 20; M09 = 30; M10 = 14; M11 = 18; M12 = 18; M13 = 18; M14 = 18; M15 = 15
     }
     foreach ($milestoneKey in $expectedChildren.Keys) {
@@ -737,7 +737,7 @@ function Test-Manifest {
     if (-not $issueByKey.ContainsKey("M01-001")) {
         throw "Manifest is missing M01-001 milestone entry gate."
     }
-    for ($number = 1; $number -le 22; $number++) {
+    for ($number = 1; $number -le 23; $number++) {
         $requiredRecoveryKey = "M00-{0:D3}" -f $number
         if (-not $dependencyClosureByKey["M01-001"].ContainsKey($requiredRecoveryKey)) {
             throw "M01-001 must remain transitively blocked by recovery issue '$requiredRecoveryKey'."
@@ -1874,7 +1874,7 @@ try {
     }
     $manifest = Get-Content -LiteralPath $resolvedManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $validated = Test-Manifest -Manifest $manifest
-    Write-SyncLine "SYNC_MANIFEST_VALID milestones=$($validated.milestones.Count) labels=$($validated.labels.Count) epics=16 children=303 issues=$($validated.issues.Count)"
+    Write-SyncLine "SYNC_MANIFEST_VALID milestones=$($validated.milestones.Count) labels=$($validated.labels.Count) epics=16 children=315 issues=$($validated.issues.Count)"
 
     if ($SelfTest) {
         if ($Apply) {
