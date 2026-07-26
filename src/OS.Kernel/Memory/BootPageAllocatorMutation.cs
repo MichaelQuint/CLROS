@@ -44,6 +44,50 @@ public enum BootPageAllocatorMutationStatus
     AllocationAddressConstructionFailed = 39
 }
 
+public readonly struct BootPageAllocatorOnePageRestoreReceipt
+{
+    private readonly byte _isInitialized;
+
+    private BootPageAllocatorOnePageRestoreReceipt(
+        BootPageFreeListNode sourceNodeBefore,
+        int previousNodeIndexBefore,
+        BootPageFreeListNode previousNodeBefore)
+    {
+        _isInitialized = 1;
+        SourceNodeBefore = sourceNodeBefore;
+        PreviousNodeIndexBefore = previousNodeIndexBefore;
+        PreviousNodeBefore = previousNodeBefore;
+    }
+
+    public bool IsInitialized => _isInitialized == 1;
+
+    public BootPageFreeListNode SourceNodeBefore { get; }
+
+    public int PreviousNodeIndexBefore { get; }
+
+    public BootPageFreeListNode PreviousNodeBefore { get; }
+
+    internal static BootPageAllocatorOnePageRestoreReceipt Create(
+        BootPageFreeListNode sourceNodeBefore,
+        int previousNodeIndexBefore,
+        BootPageFreeListNode previousNodeBefore)
+    {
+        return new BootPageAllocatorOnePageRestoreReceipt(
+            sourceNodeBefore,
+            previousNodeIndexBefore,
+            previousNodeBefore);
+    }
+}
+
+public enum BootPageAllocatorOnePageCoalescingKind : byte
+{
+    Uninitialized = 0,
+    None = 1,
+    Previous = 2,
+    Next = 3,
+    PreviousAndNext = 4
+}
+
 public readonly struct BootPageAllocatorOnePageResult
 {
     private readonly byte _isInitialized;
@@ -66,7 +110,8 @@ public readonly struct BootPageAllocatorOnePageResult
         int insertedNodeIndex,
         ulong visitedNodeCount,
         ulong invalidReservationIndex,
-        ulong conflictingIndex)
+        ulong conflictingIndex,
+        BootPageAllocatorOnePageRestoreReceipt restoreReceipt)
     {
         _isInitialized = 1;
         Status = status;
@@ -87,6 +132,7 @@ public readonly struct BootPageAllocatorOnePageResult
         VisitedNodeCount = visitedNodeCount;
         InvalidReservationIndex = invalidReservationIndex;
         ConflictingIndex = conflictingIndex;
+        RestoreReceipt = restoreReceipt;
     }
 
     public bool IsInitialized => _isInitialized == 1;
@@ -149,6 +195,10 @@ public readonly struct BootPageAllocatorOnePageResult
 
     public ulong ConflictingIndex { get; }
 
+    public BootPageAllocatorOnePageRestoreReceipt RestoreReceipt { get; }
+
+    public bool CanRestore => Succeeded && RestoreReceipt.IsInitialized;
+
     public int BeforeFreeNodeCount => BeforeState.FreeNodeCount;
 
     public int AfterFreeNodeCount => AfterState.FreeNodeCount;
@@ -200,7 +250,50 @@ public readonly struct BootPageAllocatorOnePageResult
             insertedNodeIndex,
             visitedNodeCount,
             BootPageAllocatorMutator.NoIndex,
-            BootPageAllocatorMutator.NoIndex);
+            BootPageAllocatorMutator.NoIndex,
+            default);
+    }
+
+    internal static BootPageAllocatorOnePageResult
+        SuccessWithRestoreReceipt(
+            BootPageAllocatorState beforeState,
+            BootPageAllocatorState afterState,
+            OS.Boot.PhysicalAddress physicalStart,
+            OS.Boot.PhysicalAddress physicalEndExclusive,
+            ulong nodeCount,
+            ulong nodeCapacity,
+            ulong reservationCount,
+            ulong reservationCapacity,
+            int nodeIndex,
+            int insertedNodeIndex,
+            ulong visitedNodeCount,
+            BootPageFreeListNode sourceNodeBefore,
+            int previousNodeIndexBefore,
+            BootPageFreeListNode previousNodeBefore)
+    {
+        return new BootPageAllocatorOnePageResult(
+            BootPageAllocatorMutationStatus.Success,
+            BootReservedRangeStatus.Success,
+            OS.Boot.AddressValueStatus.Success,
+            beforeState,
+            afterState,
+            physicalStart,
+            physicalEndExclusive,
+            BootPageAllocatorMutator.RequiredPageCount,
+            BootPageAllocatorMutator.RequiredPageSize,
+            nodeCount,
+            nodeCapacity,
+            reservationCount,
+            reservationCapacity,
+            nodeIndex,
+            insertedNodeIndex,
+            visitedNodeCount,
+            BootPageAllocatorMutator.NoIndex,
+            BootPageAllocatorMutator.NoIndex,
+            BootPageAllocatorOnePageRestoreReceipt.Create(
+                sourceNodeBefore,
+                previousNodeIndexBefore,
+                previousNodeBefore));
     }
 
     internal static BootPageAllocatorOnePageResult Fail(
@@ -236,6 +329,213 @@ public readonly struct BootPageAllocatorOnePageResult
             reservationCapacity,
             nodeIndex,
             insertedNodeIndex,
+            visitedNodeCount,
+            invalidReservationIndex,
+            conflictingIndex,
+            default);
+    }
+}
+
+public readonly struct BootPageAllocatorOnePageFreeResult
+{
+    private readonly byte _isInitialized;
+
+    private BootPageAllocatorOnePageFreeResult(
+        BootPageAllocatorMutationStatus status,
+        BootReservedRangeStatus reservationStatus,
+        OS.Boot.AddressValueStatus addressStatus,
+        BootPageAllocatorState beforeState,
+        BootPageAllocatorState afterState,
+        BootPageAllocatorOnePageResult allocation,
+        BootPageAllocatorOnePageCoalescingKind coalescingKind,
+        ulong nodeCount,
+        ulong nodeCapacity,
+        ulong reservationCount,
+        ulong reservationCapacity,
+        int restoredNodeIndex,
+        int previousNodeIndex,
+        int removedSuffixNodeIndex,
+        ulong visitedNodeCount,
+        ulong invalidReservationIndex,
+        ulong conflictingIndex)
+    {
+        _isInitialized = 1;
+        Status = status;
+        ReservationStatus = reservationStatus;
+        AddressStatus = addressStatus;
+        BeforeState = beforeState;
+        AfterState = afterState;
+        Allocation = allocation;
+        CoalescingKind = coalescingKind;
+        NodeCount = nodeCount;
+        NodeCapacity = nodeCapacity;
+        ReservationCount = reservationCount;
+        ReservationCapacity = reservationCapacity;
+        RestoredNodeIndex = restoredNodeIndex;
+        PreviousNodeIndex = previousNodeIndex;
+        RemovedSuffixNodeIndex = removedSuffixNodeIndex;
+        VisitedNodeCount = visitedNodeCount;
+        InvalidReservationIndex = invalidReservationIndex;
+        ConflictingIndex = conflictingIndex;
+    }
+
+    public bool IsInitialized => _isInitialized == 1;
+
+    public BootPageAllocatorMutationStatus Status { get; }
+
+    public BootReservedRangeStatus ReservationStatus { get; }
+
+    public OS.Boot.AddressValueStatus AddressStatus { get; }
+
+    public bool Succeeded =>
+        IsInitialized
+        && Status == BootPageAllocatorMutationStatus.Success
+        && ReservationStatus == BootReservedRangeStatus.Success
+        && AddressStatus == OS.Boot.AddressValueStatus.Success
+        && InvalidReservationIndex == BootPageAllocatorMutator.NoIndex
+        && ConflictingIndex == BootPageAllocatorMutator.NoIndex
+        && BootPageAllocatorMutator.IsRepresentableFreeSuccessSummary(
+            BeforeState,
+            AfterState,
+            Allocation,
+            CoalescingKind,
+            NodeCount,
+            NodeCapacity,
+            ReservationCount,
+            ReservationCapacity,
+            RestoredNodeIndex,
+            PreviousNodeIndex,
+            RemovedSuffixNodeIndex,
+            VisitedNodeCount);
+
+    public BootPageAllocatorState BeforeState { get; }
+
+    public BootPageAllocatorState AfterState { get; }
+
+    public BootPageAllocatorOnePageResult Allocation { get; }
+
+    public BootPageAllocatorOnePageCoalescingKind CoalescingKind { get; }
+
+    public OS.Boot.PhysicalAddress PhysicalStart =>
+        Allocation.PhysicalStart;
+
+    public OS.Boot.PhysicalAddress PhysicalEndExclusive =>
+        Allocation.PhysicalEndExclusive;
+
+    public ulong PageCount => Allocation.PageCount;
+
+    public ulong ByteLength => Allocation.ByteLength;
+
+    public ulong NodeCount { get; }
+
+    public ulong NodeCapacity { get; }
+
+    public ulong ReservationCount { get; }
+
+    public ulong ReservationCapacity { get; }
+
+    public int RestoredNodeIndex { get; }
+
+    public int PreviousNodeIndex { get; }
+
+    public int RemovedSuffixNodeIndex { get; }
+
+    public ulong VisitedNodeCount { get; }
+
+    public ulong InvalidReservationIndex { get; }
+
+    public ulong ConflictingIndex { get; }
+
+    public int BeforeFreeNodeCount => BeforeState.FreeNodeCount;
+
+    public int AfterFreeNodeCount => AfterState.FreeNodeCount;
+
+    public ulong BeforeFreePageCount => BeforeState.FreePageCount;
+
+    public ulong AfterFreePageCount => AfterState.FreePageCount;
+
+    public ulong BeforeFreeByteCount => BeforeState.FreeByteCount;
+
+    public ulong AfterFreeByteCount => AfterState.FreeByteCount;
+
+    public ulong BeforeAllocatedPageCount =>
+        BeforeState.AllocatedPageCount;
+
+    public ulong AfterAllocatedPageCount =>
+        AfterState.AllocatedPageCount;
+
+    public ulong BeforeAllocatedByteCount =>
+        BeforeState.AllocatedByteCount;
+
+    public ulong AfterAllocatedByteCount =>
+        AfterState.AllocatedByteCount;
+
+    internal static BootPageAllocatorOnePageFreeResult Success(
+        BootPageAllocatorState beforeState,
+        BootPageAllocatorState afterState,
+        BootPageAllocatorOnePageResult allocation,
+        BootPageAllocatorOnePageCoalescingKind coalescingKind,
+        ulong nodeCount,
+        ulong nodeCapacity,
+        ulong reservationCount,
+        ulong reservationCapacity,
+        int restoredNodeIndex,
+        int previousNodeIndex,
+        int removedSuffixNodeIndex,
+        ulong visitedNodeCount)
+    {
+        return new BootPageAllocatorOnePageFreeResult(
+            BootPageAllocatorMutationStatus.Success,
+            BootReservedRangeStatus.Success,
+            OS.Boot.AddressValueStatus.Success,
+            beforeState,
+            afterState,
+            allocation,
+            coalescingKind,
+            nodeCount,
+            nodeCapacity,
+            reservationCount,
+            reservationCapacity,
+            restoredNodeIndex,
+            previousNodeIndex,
+            removedSuffixNodeIndex,
+            visitedNodeCount,
+            BootPageAllocatorMutator.NoIndex,
+            BootPageAllocatorMutator.NoIndex);
+    }
+
+    internal static BootPageAllocatorOnePageFreeResult Fail(
+        BootPageAllocatorMutationStatus status,
+        BootReservedRangeStatus reservationStatus,
+        OS.Boot.AddressValueStatus addressStatus,
+        BootPageAllocatorState state,
+        BootPageAllocatorOnePageResult allocation,
+        ulong nodeCount,
+        ulong nodeCapacity,
+        ulong reservationCount,
+        ulong reservationCapacity,
+        int restoredNodeIndex,
+        int previousNodeIndex,
+        int removedSuffixNodeIndex,
+        ulong visitedNodeCount,
+        ulong invalidReservationIndex,
+        ulong conflictingIndex)
+    {
+        return new BootPageAllocatorOnePageFreeResult(
+            status,
+            reservationStatus,
+            addressStatus,
+            state,
+            state,
+            allocation,
+            BootPageAllocatorOnePageCoalescingKind.Uninitialized,
+            nodeCount,
+            nodeCapacity,
+            reservationCount,
+            reservationCapacity,
+            restoredNodeIndex,
+            previousNodeIndex,
+            removedSuffixNodeIndex,
             visitedNodeCount,
             invalidReservationIndex,
             conflictingIndex);
@@ -343,6 +643,7 @@ public readonly struct BootPageAllocatorMutationResult
 public static unsafe class BootPageAllocatorMutator
 {
     public const bool PerformsLiveAllocation = false;
+    public const bool PerformsLiveFree = false;
     public const bool MutatesCallerOwnedFreeList = true;
     public const bool ConfiguresPaging = false;
     public const bool EnforcesNxOrWx = false;
@@ -747,6 +1048,10 @@ public static unsafe class BootPageAllocatorMutator
                             addressStatus: addressStatus);
                     }
 
+                    BootPageFreeListNode previousNodeBefore =
+                        previousNodeIndex >= 0
+                            ? nodes[previousNodeIndex]
+                            : default;
                     BootPageAllocatorState afterState =
                         ApplyOnePageAllocation(
                             state,
@@ -760,7 +1065,8 @@ public static unsafe class BootPageAllocatorMutator
                             hasPrefix,
                             hasSuffix);
 
-                    return BootPageAllocatorOnePageResult.Success(
+                    return BootPageAllocatorOnePageResult
+                        .SuccessWithRestoreReceipt(
                         state,
                         afterState,
                         physicalStart,
@@ -771,7 +1077,10 @@ public static unsafe class BootPageAllocatorMutator
                         reservationCapacity,
                         currentNodeIndex,
                         insertedNodeIndex,
-                        visitedNodeCount);
+                        visitedNodeCount,
+                        node,
+                        previousNodeIndex,
+                        previousNodeBefore);
                 }
             }
 
@@ -789,6 +1098,335 @@ public static unsafe class BootPageAllocatorMutator
             reservationCount,
             reservationCapacity,
             visitedNodeCount: visitedNodeCount);
+    }
+
+    public static BootPageAllocatorOnePageFreeResult FreeOnePage(
+        BootPageAllocatorState state,
+        BootPageFreeListNode* nodes,
+        ulong nodeCount,
+        ulong nodeCapacity,
+        BootReservedRange* reservations,
+        ulong reservationCount,
+        ulong reservationCapacity,
+        BootPageAllocatorOnePageResult allocation)
+    {
+        if (BootPageFreeListNode.StructureSize != ActualNodeStructureSize
+            || BootPageAllocatorState.StructureSize != ActualStateStructureSize
+            || ExpectedBootReservedRangeStructureSize
+                != ActualReservationStructureSize)
+        {
+            return FailFreeOnePage(
+                BootPageAllocatorMutationStatus.ContractLayoutMismatch,
+                state,
+                allocation,
+                nodeCount,
+                nodeCapacity,
+                reservationCount,
+                reservationCapacity);
+        }
+
+        if (!state.IsInitialized)
+        {
+            return FailFreeOnePage(
+                BootPageAllocatorMutationStatus.StateNotInitialized,
+                state,
+                allocation,
+                nodeCount,
+                nodeCapacity,
+                reservationCount,
+                reservationCapacity);
+        }
+
+        if (state.PageSize != RequiredPageSize)
+        {
+            return FailFreeOnePage(
+                BootPageAllocatorMutationStatus.InvalidPageSize,
+                state,
+                allocation,
+                nodeCount,
+                nodeCapacity,
+                reservationCount,
+                reservationCapacity);
+        }
+
+        BootPageAllocatorMutationStatus storageStatus =
+            ValidateOnePageNodeStorage(
+                nodes,
+                nodeCount,
+                nodeCapacity,
+                out ulong nodeTableStart,
+                out ulong nodeTableEndExclusive);
+        if (storageStatus != BootPageAllocatorMutationStatus.Success)
+        {
+            return FailFreeOnePage(
+                storageStatus,
+                state,
+                allocation,
+                nodeCount,
+                nodeCapacity,
+                reservationCount,
+                reservationCapacity);
+        }
+
+        storageStatus = ValidateOnePageReservationStorage(
+            reservations,
+            reservationCount,
+            reservationCapacity,
+            out ulong reservationTableStart,
+            out ulong reservationTableEndExclusive);
+        if (storageStatus != BootPageAllocatorMutationStatus.Success)
+        {
+            return FailFreeOnePage(
+                storageStatus,
+                state,
+                allocation,
+                nodeCount,
+                nodeCapacity,
+                reservationCount,
+                reservationCapacity);
+        }
+
+        if (OnePageStorageRangesOverlap(
+                nodeTableStart,
+                nodeTableEndExclusive,
+                reservationTableStart,
+                reservationTableEndExclusive))
+        {
+            return FailFreeOnePage(
+                BootPageAllocatorMutationStatus
+                    .NodeReservationTablesOverlap,
+                state,
+                allocation,
+                nodeCount,
+                nodeCapacity,
+                reservationCount,
+                reservationCapacity);
+        }
+
+        BootPageAllocatorMutationStatus stateStatus =
+            ValidateOnePageState(state, nodeCount);
+        if (stateStatus != BootPageAllocatorMutationStatus.Success)
+        {
+            return FailFreeOnePage(
+                stateStatus,
+                state,
+                allocation,
+                nodeCount,
+                nodeCapacity,
+                reservationCount,
+                reservationCapacity);
+        }
+
+        BootPageAllocatorMutationStatus reservationStatus =
+            ValidateOnePageReservations(
+                reservations,
+                reservationCount,
+                out BootReservedRangeStatus invalidReservationStatus,
+                out ulong invalidReservationIndex,
+                out ulong conflictingReservationIndex);
+        if (reservationStatus != BootPageAllocatorMutationStatus.Success)
+        {
+            return FailFreeOnePage(
+                reservationStatus,
+                state,
+                allocation,
+                nodeCount,
+                nodeCapacity,
+                reservationCount,
+                reservationCapacity,
+                reservationStatus: invalidReservationStatus,
+                invalidReservationIndex: invalidReservationIndex,
+                conflictingIndex: conflictingReservationIndex);
+        }
+
+        BootPageAllocatorMutationStatus freeListStatus =
+            ValidateOnePageFreeList(
+                state,
+                nodes,
+                nodeCount,
+                out ulong visitedNodeCount,
+                out int invalidNodeIndex,
+                out int conflictingNodeIndex);
+        if (freeListStatus != BootPageAllocatorMutationStatus.Success)
+        {
+            return FailFreeOnePage(
+                freeListStatus,
+                state,
+                allocation,
+                nodeCount,
+                nodeCapacity,
+                reservationCount,
+                reservationCapacity,
+                restoredNodeIndex: invalidNodeIndex,
+                visitedNodeCount: visitedNodeCount,
+                conflictingIndex: conflictingNodeIndex < 0
+                    ? NoIndex
+                    : (ulong)conflictingNodeIndex);
+        }
+
+        BootPageAllocatorMutationStatus exclusionStatus =
+            ValidateOnePageReservationExclusion(
+                state,
+                nodes,
+                reservations,
+                reservationCount,
+                out invalidReservationIndex,
+                out conflictingNodeIndex);
+        if (exclusionStatus != BootPageAllocatorMutationStatus.Success)
+        {
+            return FailFreeOnePage(
+                exclusionStatus,
+                state,
+                allocation,
+                nodeCount,
+                nodeCapacity,
+                reservationCount,
+                reservationCapacity,
+                reservationStatus: BootReservedRangeStatus.Success,
+                visitedNodeCount: visitedNodeCount,
+                invalidReservationIndex: invalidReservationIndex,
+                conflictingIndex: conflictingNodeIndex < 0
+                    ? NoIndex
+                    : (ulong)conflictingNodeIndex);
+        }
+
+        if (!allocation.CanRestore
+            || !IsValidOnePageRestoreReceipt(allocation)
+            || allocation.NodeCount != nodeCount
+            || allocation.NodeCapacity != nodeCapacity
+            || allocation.ReservationCount != reservationCount
+            || allocation.ReservationCapacity != reservationCapacity
+            || !OnePageStatesEqual(state, allocation.AfterState)
+            || state.AllocatedPageCount < RequiredPageCount
+            || state.AllocatedByteCount < RequiredPageSize)
+        {
+            return FailFreeOnePage(
+                BootPageAllocatorMutationStatus.FreeRangeNotAllocated,
+                state,
+                allocation,
+                nodeCount,
+                nodeCapacity,
+                reservationCount,
+                reservationCapacity,
+                reservationStatus: allocation.ReservationStatus,
+                addressStatus: allocation.AddressStatus,
+                restoredNodeIndex: allocation.NodeIndex,
+                previousNodeIndex:
+                    allocation.RestoreReceipt.PreviousNodeIndexBefore,
+                removedSuffixNodeIndex: allocation.InsertedNodeIndex,
+                visitedNodeCount: visitedNodeCount);
+        }
+
+        exclusionStatus =
+            ValidateOnePageCandidateReservationExclusion(
+                allocation,
+                reservations,
+                reservationCount,
+                out invalidReservationIndex);
+        if (exclusionStatus != BootPageAllocatorMutationStatus.Success)
+        {
+            return FailFreeOnePage(
+                exclusionStatus,
+                state,
+                allocation,
+                nodeCount,
+                nodeCapacity,
+                reservationCount,
+                reservationCapacity,
+                reservationStatus: BootReservedRangeStatus.Success,
+                restoredNodeIndex: allocation.NodeIndex,
+                previousNodeIndex:
+                    allocation.RestoreReceipt.PreviousNodeIndexBefore,
+                removedSuffixNodeIndex: allocation.InsertedNodeIndex,
+                visitedNodeCount: visitedNodeCount,
+                invalidReservationIndex: invalidReservationIndex);
+        }
+
+        BootPageAllocatorMutationStatus overlapStatus =
+            ValidateOnePageCandidateFreeListExclusion(
+                state,
+                nodes,
+                allocation,
+                out conflictingNodeIndex);
+        if (overlapStatus != BootPageAllocatorMutationStatus.Success)
+        {
+            return FailFreeOnePage(
+                overlapStatus,
+                state,
+                allocation,
+                nodeCount,
+                nodeCapacity,
+                reservationCount,
+                reservationCapacity,
+                restoredNodeIndex: allocation.NodeIndex,
+                previousNodeIndex:
+                    allocation.RestoreReceipt.PreviousNodeIndexBefore,
+                removedSuffixNodeIndex: allocation.InsertedNodeIndex,
+                visitedNodeCount: visitedNodeCount,
+                conflictingIndex: conflictingNodeIndex < 0
+                    ? NoIndex
+                    : (ulong)conflictingNodeIndex);
+        }
+
+        BootPageAllocatorMutationStatus topologyStatus =
+            ValidateOnePagePostAllocationTopology(
+                state,
+                nodes,
+                nodeCount,
+                allocation,
+                out BootPageAllocatorOnePageCoalescingKind
+                    coalescingKind,
+                out int removedSuffixNodeIndex);
+        if (topologyStatus != BootPageAllocatorMutationStatus.Success)
+        {
+            return FailFreeOnePage(
+                topologyStatus,
+                state,
+                allocation,
+                nodeCount,
+                nodeCapacity,
+                reservationCount,
+                reservationCapacity,
+                restoredNodeIndex: allocation.NodeIndex,
+                previousNodeIndex:
+                    allocation.RestoreReceipt.PreviousNodeIndexBefore,
+                removedSuffixNodeIndex: removedSuffixNodeIndex,
+                visitedNodeCount: visitedNodeCount);
+        }
+
+        BootPageAllocatorOnePageFreeResult result =
+            BootPageAllocatorOnePageFreeResult.Success(
+                state,
+                allocation.BeforeState,
+                allocation,
+                coalescingKind,
+                nodeCount,
+                nodeCapacity,
+                reservationCount,
+                reservationCapacity,
+                allocation.NodeIndex,
+                allocation.RestoreReceipt.PreviousNodeIndexBefore,
+                removedSuffixNodeIndex,
+                visitedNodeCount);
+        if (!result.Succeeded)
+        {
+            return FailFreeOnePage(
+                BootPageAllocatorMutationStatus.FreeRangeNotAllocated,
+                state,
+                allocation,
+                nodeCount,
+                nodeCapacity,
+                reservationCount,
+                reservationCapacity,
+                restoredNodeIndex: allocation.NodeIndex,
+                previousNodeIndex:
+                    allocation.RestoreReceipt.PreviousNodeIndexBefore,
+                removedSuffixNodeIndex: removedSuffixNodeIndex,
+                visitedNodeCount: visitedNodeCount);
+        }
+
+        ApplyOnePageFree(nodes, allocation, coalescingKind);
+        return result;
     }
 
     internal static bool IsRepresentableSuccessSummary(
@@ -930,6 +1568,117 @@ public static unsafe class BootPageAllocatorMutator
             && beforeTotalBytes == afterTotalBytes;
     }
 
+    internal static bool IsRepresentableFreeSuccessSummary(
+        BootPageAllocatorState beforeState,
+        BootPageAllocatorState afterState,
+        BootPageAllocatorOnePageResult allocation,
+        BootPageAllocatorOnePageCoalescingKind coalescingKind,
+        ulong nodeCount,
+        ulong nodeCapacity,
+        ulong reservationCount,
+        ulong reservationCapacity,
+        int restoredNodeIndex,
+        int previousNodeIndex,
+        int removedSuffixNodeIndex,
+        ulong visitedNodeCount)
+    {
+        if (!allocation.CanRestore
+            || !IsValidOnePageRestoreReceipt(allocation)
+            || !OnePageStatesEqual(beforeState, allocation.AfterState)
+            || !OnePageStatesEqual(afterState, allocation.BeforeState)
+            || allocation.NodeCount != nodeCount
+            || allocation.NodeCapacity != nodeCapacity
+            || allocation.ReservationCount != reservationCount
+            || allocation.ReservationCapacity != reservationCapacity
+            || nodeCount == 0
+            || nodeCount > MaximumNodeCount
+            || nodeCapacity < nodeCount
+            || nodeCapacity > MaximumNodeCount
+            || reservationCount > MaximumReservationCount
+            || reservationCapacity < reservationCount
+            || reservationCapacity > MaximumReservationCount
+            || restoredNodeIndex != allocation.NodeIndex
+            || previousNodeIndex
+                != allocation.RestoreReceipt.PreviousNodeIndexBefore
+            || visitedNodeCount != (ulong)beforeState.FreeNodeCount
+            || beforeState.AllocatedPageCount < RequiredPageCount
+            || beforeState.AllocatedByteCount < RequiredPageSize
+            || !TryGetOnePageCoalescingKind(
+                allocation,
+                out BootPageAllocatorOnePageCoalescingKind
+                    expectedCoalescingKind)
+            || coalescingKind != expectedCoalescingKind)
+        {
+            return false;
+        }
+
+        int expectedRemovedSuffixNodeIndex =
+            coalescingKind
+                == BootPageAllocatorOnePageCoalescingKind
+                    .PreviousAndNext
+                ? allocation.InsertedNodeIndex
+                : -1;
+        if (removedSuffixNodeIndex != expectedRemovedSuffixNodeIndex)
+        {
+            return false;
+        }
+
+        int expectedAfterFreeNodeCount =
+            coalescingKind switch
+            {
+                BootPageAllocatorOnePageCoalescingKind.None =>
+                    beforeState.FreeNodeCount + 1,
+                BootPageAllocatorOnePageCoalescingKind.PreviousAndNext =>
+                    beforeState.FreeNodeCount - 1,
+                _ => beforeState.FreeNodeCount
+            };
+        if (afterState.FreeNodeCount != expectedAfterFreeNodeCount)
+        {
+            return false;
+        }
+
+        if (!TryAddOnePage(
+                beforeState.FreePageCount,
+                RequiredPageCount,
+                out ulong expectedFreePages)
+            || !TryAddOnePage(
+                beforeState.FreeByteCount,
+                RequiredPageSize,
+                out ulong expectedFreeBytes)
+            || afterState.FreePageCount != expectedFreePages
+            || afterState.FreeByteCount != expectedFreeBytes
+            || afterState.AllocatedPageCount
+                != beforeState.AllocatedPageCount - RequiredPageCount
+            || afterState.AllocatedByteCount
+                != beforeState.AllocatedByteCount - RequiredPageSize)
+        {
+            return false;
+        }
+
+        if (!TryAddOnePage(
+                beforeState.FreePageCount,
+                beforeState.AllocatedPageCount,
+                out ulong beforeTotalPages)
+            || !TryAddOnePage(
+                afterState.FreePageCount,
+                afterState.AllocatedPageCount,
+                out ulong afterTotalPages)
+            || !TryAddOnePage(
+                beforeState.FreeByteCount,
+                beforeState.AllocatedByteCount,
+                out ulong beforeTotalBytes)
+            || !TryAddOnePage(
+                afterState.FreeByteCount,
+                afterState.AllocatedByteCount,
+                out ulong afterTotalBytes))
+        {
+            return false;
+        }
+
+        return beforeTotalPages == afterTotalPages
+            && beforeTotalBytes == afterTotalBytes;
+    }
+
     private static BootPageAllocatorOnePageResult FailOnePage(
         BootPageAllocatorMutationStatus status,
         BootPageAllocatorState state,
@@ -962,6 +1711,43 @@ public static unsafe class BootPageAllocatorMutator
             reservationCapacity,
             nodeIndex,
             insertedNodeIndex,
+            visitedNodeCount,
+            invalidReservationIndex,
+            conflictingIndex);
+    }
+
+    private static BootPageAllocatorOnePageFreeResult FailFreeOnePage(
+        BootPageAllocatorMutationStatus status,
+        BootPageAllocatorState state,
+        BootPageAllocatorOnePageResult allocation,
+        ulong nodeCount,
+        ulong nodeCapacity,
+        ulong reservationCount,
+        ulong reservationCapacity,
+        BootReservedRangeStatus reservationStatus =
+            BootReservedRangeStatus.Success,
+        OS.Boot.AddressValueStatus addressStatus =
+            OS.Boot.AddressValueStatus.Success,
+        int restoredNodeIndex = -1,
+        int previousNodeIndex = -1,
+        int removedSuffixNodeIndex = -1,
+        ulong visitedNodeCount = 0,
+        ulong invalidReservationIndex = NoIndex,
+        ulong conflictingIndex = NoIndex)
+    {
+        return BootPageAllocatorOnePageFreeResult.Fail(
+            status,
+            reservationStatus,
+            addressStatus,
+            state,
+            allocation,
+            nodeCount,
+            nodeCapacity,
+            reservationCount,
+            reservationCapacity,
+            restoredNodeIndex,
+            previousNodeIndex,
+            removedSuffixNodeIndex,
             visitedNodeCount,
             invalidReservationIndex,
             conflictingIndex);
@@ -1583,13 +2369,31 @@ public static unsafe class BootPageAllocatorMutator
         for (ulong index = 0; index < nodeCount; index++)
         {
             if ((int)index != currentNodeIndex
-                && IsDefaultOnePageNode(nodes[index]))
+                && IsZeroedOnePageNodeSlot(nodes, index))
             {
                 return (int)index;
             }
         }
 
         return -1;
+    }
+
+    private static bool IsZeroedOnePageNodeSlot(
+        BootPageFreeListNode* nodes,
+        ulong index)
+    {
+        byte* bytes = (byte*)&nodes[index];
+        for (int byteIndex = 0;
+            byteIndex < (int)BootPageFreeListNode.StructureSize;
+            byteIndex++)
+        {
+            if (bytes[byteIndex] != 0)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static bool IsDefaultOnePageNode(
@@ -1602,6 +2406,513 @@ public static unsafe class BootPageAllocatorMutator
             && node.PageCount == 0
             && node.ByteLength == 0
             && node.NextNodeIndex == 0;
+    }
+
+    private static bool IsValidOnePageRestoreReceipt(
+        BootPageAllocatorOnePageResult allocation)
+    {
+        if (!allocation.CanRestore
+            || allocation.NodeIndex < 0
+            || (ulong)allocation.NodeIndex >= allocation.NodeCount
+            || !ValidateOnePageNodeShape(
+                allocation.RestoreReceipt.SourceNodeBefore)
+            || !TryGetOnePageCoalescingKind(
+                allocation,
+                out BootPageAllocatorOnePageCoalescingKind
+                    coalescingKind))
+        {
+            return false;
+        }
+
+        BootPageAllocatorOnePageRestoreReceipt receipt =
+            allocation.RestoreReceipt;
+        BootPageFreeListNode sourceNode = receipt.SourceNodeBefore;
+        int previousNodeIndex = receipt.PreviousNodeIndexBefore;
+
+        if (sourceNode.NextNodeIndex != -1
+            && (sourceNode.NextNodeIndex < 0
+                || (ulong)sourceNode.NextNodeIndex
+                    >= allocation.NodeCount
+                || sourceNode.NextNodeIndex == allocation.NodeIndex))
+        {
+            return false;
+        }
+
+        if (previousNodeIndex < -1
+            || (previousNodeIndex >= 0
+                && ((ulong)previousNodeIndex >= allocation.NodeCount
+                    || previousNodeIndex == allocation.NodeIndex
+                    || previousNodeIndex
+                        == allocation.InsertedNodeIndex)))
+        {
+            return false;
+        }
+
+        if (previousNodeIndex == -1)
+        {
+            if (!IsDefaultOnePageNode(receipt.PreviousNodeBefore)
+                || allocation.BeforeState.HeadNodeIndex
+                    != allocation.NodeIndex)
+            {
+                return false;
+            }
+        }
+        else
+        {
+            BootPageFreeListNode previousNode =
+                receipt.PreviousNodeBefore;
+            if (!ValidateOnePageNodeShape(previousNode)
+                || previousNode.NextNodeIndex
+                    != allocation.NodeIndex
+                || previousNode.PhysicalEndExclusive
+                    > sourceNode.PhysicalStart
+                || allocation.BeforeState.HeadNodeIndex
+                    == allocation.NodeIndex)
+            {
+                return false;
+            }
+        }
+
+        bool hasInsertedSuffix =
+            coalescingKind
+                == BootPageAllocatorOnePageCoalescingKind
+                    .PreviousAndNext;
+        if (hasInsertedSuffix)
+        {
+            if (allocation.InsertedNodeIndex < 0
+                || (ulong)allocation.InsertedNodeIndex
+                    >= allocation.NodeCount
+                || allocation.InsertedNodeIndex
+                    == allocation.NodeIndex
+                || allocation.InsertedNodeIndex
+                    == sourceNode.NextNodeIndex)
+            {
+                return false;
+            }
+        }
+        else if (allocation.InsertedNodeIndex != -1)
+        {
+            return false;
+        }
+
+        int expectedAfterFreeNodeCount =
+            coalescingKind switch
+            {
+                BootPageAllocatorOnePageCoalescingKind.None =>
+                    allocation.BeforeState.FreeNodeCount - 1,
+                BootPageAllocatorOnePageCoalescingKind
+                    .PreviousAndNext =>
+                    allocation.BeforeState.FreeNodeCount + 1,
+                _ => allocation.BeforeState.FreeNodeCount
+            };
+        if (allocation.AfterState.FreeNodeCount
+                != expectedAfterFreeNodeCount
+            || (coalescingKind
+                    == BootPageAllocatorOnePageCoalescingKind.None
+                && previousNodeIndex == -1
+                && allocation.AfterState.HeadNodeIndex
+                    != sourceNode.NextNodeIndex)
+            || (coalescingKind
+                    == BootPageAllocatorOnePageCoalescingKind.None
+                && previousNodeIndex >= 0
+                && allocation.AfterState.HeadNodeIndex
+                    != allocation.BeforeState.HeadNodeIndex)
+            || (coalescingKind
+                    != BootPageAllocatorOnePageCoalescingKind.None
+                && allocation.AfterState.HeadNodeIndex
+                    != allocation.BeforeState.HeadNodeIndex))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool TryGetOnePageCoalescingKind(
+        BootPageAllocatorOnePageResult allocation,
+        out BootPageAllocatorOnePageCoalescingKind coalescingKind)
+    {
+        coalescingKind =
+            BootPageAllocatorOnePageCoalescingKind.Uninitialized;
+        BootPageFreeListNode sourceNode =
+            allocation.RestoreReceipt.SourceNodeBefore;
+        if (allocation.PhysicalStart.TryGetRawValueForUefiBoundary(
+                out ulong physicalStart)
+                != OS.Boot.AddressValueStatus.Success
+            || allocation.PhysicalEndExclusive
+                .TryGetRawValueForUefiBoundary(
+                    out ulong physicalEndExclusive)
+                != OS.Boot.AddressValueStatus.Success
+            || physicalStart < sourceNode.PhysicalStart
+            || physicalEndExclusive
+                > sourceNode.PhysicalEndExclusive
+            || physicalStart >= physicalEndExclusive)
+        {
+            return false;
+        }
+
+        bool hasPrefix = physicalStart > sourceNode.PhysicalStart;
+        bool hasSuffix =
+            physicalEndExclusive < sourceNode.PhysicalEndExclusive;
+        coalescingKind = hasPrefix
+            ? hasSuffix
+                ? BootPageAllocatorOnePageCoalescingKind
+                    .PreviousAndNext
+                : BootPageAllocatorOnePageCoalescingKind.Previous
+            : hasSuffix
+                ? BootPageAllocatorOnePageCoalescingKind.Next
+                : BootPageAllocatorOnePageCoalescingKind.None;
+        return true;
+    }
+
+    private static BootPageAllocatorMutationStatus
+        ValidateOnePageCandidateReservationExclusion(
+            BootPageAllocatorOnePageResult allocation,
+            BootReservedRange* reservations,
+            ulong reservationCount,
+            out ulong invalidReservationIndex)
+    {
+        invalidReservationIndex = NoIndex;
+        if (!TryGetOnePageAllocationBounds(
+                allocation,
+                out ulong physicalStart,
+                out ulong physicalEndExclusive))
+        {
+            return BootPageAllocatorMutationStatus
+                .FreeRangeNotAllocated;
+        }
+
+        for (ulong index = 0; index < reservationCount; index++)
+        {
+            TryGetOnePageReservationBounds(
+                reservations[index],
+                out ulong reservationStart,
+                out ulong reservationEndExclusive);
+            if (reservationStart < physicalEndExclusive
+                && physicalStart < reservationEndExclusive)
+            {
+                invalidReservationIndex = index;
+                return BootPageAllocatorMutationStatus
+                    .ReservationOverlapsFreeRange;
+            }
+        }
+
+        return BootPageAllocatorMutationStatus.Success;
+    }
+
+    private static BootPageAllocatorMutationStatus
+        ValidateOnePageCandidateFreeListExclusion(
+            BootPageAllocatorState state,
+            BootPageFreeListNode* nodes,
+            BootPageAllocatorOnePageResult allocation,
+            out int conflictingNodeIndex)
+    {
+        conflictingNodeIndex = -1;
+        if (!TryGetOnePageAllocationBounds(
+                allocation,
+                out ulong physicalStart,
+                out ulong physicalEndExclusive))
+        {
+            return BootPageAllocatorMutationStatus
+                .FreeRangeNotAllocated;
+        }
+
+        int nodeIndex = state.HeadNodeIndex;
+        for (int visited = 0;
+            visited < state.FreeNodeCount;
+            visited++)
+        {
+            BootPageFreeListNode node = nodes[nodeIndex];
+            if (physicalStart < node.PhysicalEndExclusive
+                && node.PhysicalStart < physicalEndExclusive)
+            {
+                conflictingNodeIndex = nodeIndex;
+                return BootPageAllocatorMutationStatus
+                    .FreeRangeOverlaps;
+            }
+
+            nodeIndex = node.NextNodeIndex;
+        }
+
+        return BootPageAllocatorMutationStatus.Success;
+    }
+
+    private static BootPageAllocatorMutationStatus
+        ValidateOnePagePostAllocationTopology(
+            BootPageAllocatorState state,
+            BootPageFreeListNode* nodes,
+            ulong nodeCount,
+            BootPageAllocatorOnePageResult allocation,
+            out BootPageAllocatorOnePageCoalescingKind
+                coalescingKind,
+            out int removedSuffixNodeIndex)
+    {
+        coalescingKind =
+            BootPageAllocatorOnePageCoalescingKind.Uninitialized;
+        removedSuffixNodeIndex = -1;
+        if (!IsValidOnePageRestoreReceipt(allocation)
+            || allocation.NodeIndex < 0
+            || (ulong)allocation.NodeIndex >= nodeCount
+            || !TryGetOnePageCoalescingKind(
+                allocation,
+                out coalescingKind)
+            || !TryGetOnePageAllocationBounds(
+                allocation,
+                out ulong physicalStart,
+                out ulong physicalEndExclusive))
+        {
+            return BootPageAllocatorMutationStatus
+                .FreeRangeNotAllocated;
+        }
+
+        BootPageAllocatorOnePageRestoreReceipt receipt =
+            allocation.RestoreReceipt;
+        BootPageFreeListNode sourceNode = receipt.SourceNodeBefore;
+        int previousNodeIndex = receipt.PreviousNodeIndexBefore;
+        bool sourceNodeIsActive = IsOnePageNodeActive(
+            state,
+            nodes,
+            allocation.NodeIndex);
+        bool previousNodeIsActive =
+            previousNodeIndex < 0
+            || IsOnePageNodeActive(
+                state,
+                nodes,
+                previousNodeIndex);
+        int successorNodeIndex = sourceNode.NextNodeIndex;
+        if (successorNodeIndex != -1
+            && (!IsOnePageNodeActive(
+                    state,
+                    nodes,
+                    successorNodeIndex)
+                || sourceNode.PhysicalEndExclusive
+                    > nodes[successorNodeIndex].PhysicalStart))
+        {
+            return BootPageAllocatorMutationStatus
+                .FreeRangeNotAllocated;
+        }
+
+        if (coalescingKind
+            == BootPageAllocatorOnePageCoalescingKind.None)
+        {
+            if (sourceNodeIsActive
+                || !previousNodeIsActive
+                || !IsZeroedOnePageNodeSlot(
+                    nodes,
+                    (ulong)allocation.NodeIndex))
+            {
+                return BootPageAllocatorMutationStatus
+                    .FreeRangeNotAllocated;
+            }
+
+            if (previousNodeIndex < 0)
+            {
+                return state.HeadNodeIndex
+                        == sourceNode.NextNodeIndex
+                    ? BootPageAllocatorMutationStatus.Success
+                    : BootPageAllocatorMutationStatus
+                        .FreeRangeNotAllocated;
+            }
+
+            BootPageFreeListNode expectedPrevious =
+                ReplaceOnePageNext(
+                    receipt.PreviousNodeBefore,
+                    sourceNode.NextNodeIndex);
+            return OnePageNodesEqual(
+                    nodes[previousNodeIndex],
+                    expectedPrevious)
+                ? BootPageAllocatorMutationStatus.Success
+                : BootPageAllocatorMutationStatus
+                    .FreeRangeNotAllocated;
+        }
+
+        if (!sourceNodeIsActive || !previousNodeIsActive)
+        {
+            return BootPageAllocatorMutationStatus
+                .FreeRangeNotAllocated;
+        }
+
+        if (previousNodeIndex < 0)
+        {
+            if (state.HeadNodeIndex != allocation.NodeIndex)
+            {
+                return BootPageAllocatorMutationStatus
+                    .FreeRangeNotAllocated;
+            }
+        }
+        else if (!OnePageNodesEqual(
+                nodes[previousNodeIndex],
+                receipt.PreviousNodeBefore))
+        {
+            return BootPageAllocatorMutationStatus
+                .FreeRangeNotAllocated;
+        }
+
+        if (coalescingKind
+            == BootPageAllocatorOnePageCoalescingKind.Next)
+        {
+            BootPageFreeListNode expectedSuffix =
+                CreateOnePageNode(
+                    sourceNode,
+                    physicalEndExclusive,
+                    sourceNode.PhysicalEndExclusive,
+                    sourceNode.NextNodeIndex);
+            return OnePageNodesEqual(
+                    nodes[allocation.NodeIndex],
+                    expectedSuffix)
+                ? BootPageAllocatorMutationStatus.Success
+                : BootPageAllocatorMutationStatus
+                    .FreeRangeNotAllocated;
+        }
+
+        if (coalescingKind
+            == BootPageAllocatorOnePageCoalescingKind.Previous)
+        {
+            BootPageFreeListNode expectedPrefix =
+                CreateOnePageNode(
+                    sourceNode,
+                    sourceNode.PhysicalStart,
+                    physicalStart,
+                    sourceNode.NextNodeIndex);
+            return OnePageNodesEqual(
+                    nodes[allocation.NodeIndex],
+                    expectedPrefix)
+                ? BootPageAllocatorMutationStatus.Success
+                : BootPageAllocatorMutationStatus
+                    .FreeRangeNotAllocated;
+        }
+
+        int insertedNodeIndex = allocation.InsertedNodeIndex;
+        if (insertedNodeIndex < 0
+            || (ulong)insertedNodeIndex >= nodeCount
+            || !IsOnePageNodeActive(
+                state,
+                nodes,
+                insertedNodeIndex))
+        {
+            return BootPageAllocatorMutationStatus
+                .FreeRangeNotAllocated;
+        }
+
+        BootPageFreeListNode expectedPrefixNode =
+            CreateOnePageNode(
+                sourceNode,
+                sourceNode.PhysicalStart,
+                physicalStart,
+                insertedNodeIndex);
+        BootPageFreeListNode expectedSuffixNode =
+            CreateOnePageNode(
+                sourceNode,
+                physicalEndExclusive,
+                sourceNode.PhysicalEndExclusive,
+                sourceNode.NextNodeIndex);
+        if (!OnePageNodesEqual(
+                nodes[allocation.NodeIndex],
+                expectedPrefixNode)
+            || !OnePageNodesEqual(
+                nodes[insertedNodeIndex],
+                expectedSuffixNode))
+        {
+            return BootPageAllocatorMutationStatus
+                .FreeRangeNotAllocated;
+        }
+
+        removedSuffixNodeIndex = insertedNodeIndex;
+        return BootPageAllocatorMutationStatus.Success;
+    }
+
+    private static bool IsOnePageNodeActive(
+        BootPageAllocatorState state,
+        BootPageFreeListNode* nodes,
+        int candidateNodeIndex)
+    {
+        int nodeIndex = state.HeadNodeIndex;
+        for (int visited = 0;
+            visited < state.FreeNodeCount && nodeIndex != -1;
+            visited++)
+        {
+            if (nodeIndex == candidateNodeIndex)
+            {
+                return true;
+            }
+
+            nodeIndex = nodes[nodeIndex].NextNodeIndex;
+        }
+
+        return false;
+    }
+
+    private static void ApplyOnePageFree(
+        BootPageFreeListNode* nodes,
+        BootPageAllocatorOnePageResult allocation,
+        BootPageAllocatorOnePageCoalescingKind coalescingKind)
+    {
+        BootPageAllocatorOnePageRestoreReceipt receipt =
+            allocation.RestoreReceipt;
+        nodes[allocation.NodeIndex] = receipt.SourceNodeBefore;
+
+        if (coalescingKind
+                == BootPageAllocatorOnePageCoalescingKind.None
+            && receipt.PreviousNodeIndexBefore >= 0)
+        {
+            nodes[receipt.PreviousNodeIndexBefore] =
+                receipt.PreviousNodeBefore;
+        }
+        else if (coalescingKind
+            == BootPageAllocatorOnePageCoalescingKind
+                .PreviousAndNext)
+        {
+            nodes[allocation.InsertedNodeIndex] = default;
+        }
+    }
+
+    private static bool TryGetOnePageAllocationBounds(
+        BootPageAllocatorOnePageResult allocation,
+        out ulong physicalStart,
+        out ulong physicalEndExclusive)
+    {
+        physicalStart = 0;
+        physicalEndExclusive = 0;
+        return allocation.PhysicalStart
+                .TryGetRawValueForUefiBoundary(out physicalStart)
+                == OS.Boot.AddressValueStatus.Success
+            && allocation.PhysicalEndExclusive
+                .TryGetRawValueForUefiBoundary(
+                    out physicalEndExclusive)
+                == OS.Boot.AddressValueStatus.Success
+            && physicalStart <= MaximumUnsignedLong - RequiredPageSize
+            && physicalEndExclusive
+                == physicalStart + RequiredPageSize;
+    }
+
+    private static bool OnePageStatesEqual(
+        BootPageAllocatorState left,
+        BootPageAllocatorState right)
+    {
+        return left.IsInitialized == right.IsInitialized
+            && left.PageSize == right.PageSize
+            && left.HeadNodeIndex == right.HeadNodeIndex
+            && left.FreeNodeCount == right.FreeNodeCount
+            && left.FreePageCount == right.FreePageCount
+            && left.FreeByteCount == right.FreeByteCount
+            && left.AllocatedPageCount == right.AllocatedPageCount
+            && left.AllocatedByteCount == right.AllocatedByteCount;
+    }
+
+    private static bool OnePageNodesEqual(
+        BootPageFreeListNode left,
+        BootPageFreeListNode right)
+    {
+        return left.SourceFreeSegmentIndex
+                == right.SourceFreeSegmentIndex
+            && left.SourceUsableRangeIndex
+                == right.SourceUsableRangeIndex
+            && left.PhysicalStart == right.PhysicalStart
+            && left.PhysicalEndExclusive
+                == right.PhysicalEndExclusive
+            && left.PageCount == right.PageCount
+            && left.ByteLength == right.ByteLength
+            && left.NextNodeIndex == right.NextNodeIndex;
     }
 
     private static BootPageAllocatorState ApplyOnePageAllocation(
