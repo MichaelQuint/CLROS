@@ -49,6 +49,7 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 - `BootReservationKind` and `BootReservedRange` define a separate host-tested CLROS ownership ledger rather than reusing `BootMemoryReservedRange`, which classifies non-conventional UEFI descriptors and may legitimately describe page zero. The new 40-byte readonly unmanaged record stores an explicit append-only kind value, zeroed reserved bytes, typed nonzero `PhysicalAddress` start/end values, page count, and byte length. Its status-coded factory and structural validator require 4 KiB alignment, checked page-to-byte multiplication, and a nonwrapping half-open end.
 - `BootReservationTableValidator` is the host-tested, no-stdlib-compatible pointer/count/capacity core for an already-sorted caller-owned ownership ledger. It bounds the table at 256 records and rejects insufficient declared capacity, missing or misaligned pointers, and a wrapping full table-address span before dereferencing. It then validates every redundant range field, preserves the source byte-for-byte, permits adjacency, and reports unsorted, exact-duplicate, nested, partial-overlap, and loaded-image duplicate-coverage failures with deterministic invalid/conflicting indexes and prefix totals. If either `BootStackGuard` or `BootStack` is present, exactly one of each is required, the guard must immediately precede an adjacent stack, and their checked union is reported as the modeled arena. A table with neither record remains valid for earlier partial-ledger stages.
 - `EfiLoadedImageProtocolObservation`, `EfiLoadedImageRange`, and `EfiLoadedImageRangeCapturePlan` define a host-tested, no-stdlib-compatible loaded-image capture contract. One 40-byte observation atomically records the firmware status, input image handle, transient protocol address, image base, and image size. The exact-one pointer/count/capacity evaluator rejects malformed metadata and an invalid 4 KiB page-size contract before its single observation read, then validates handle/status/pointer/base/size in deterministic order, checks exact-end and outward-rounding arithmetic, and constructs the canonical `LoadedImage` reservation. Its 144-byte value result contains an 80-byte exact range and canonical reservation but does not retain the protocol pointer. This compact observation is not ABI-compatible with the native x64 `EFI_LOADED_IMAGE_PROTOCOL` and must never be cast over firmware memory.
+- `OwnedBootStackLayout` and `OwnedBootStackLayoutResult` define a host-tested, no-stdlib-compatible ownership and lifetime contract for one future boot stack. The factory checks an exact-two pointer/count/capacity table before dereference, validates typed backing and physical-top scalars, delegates canonical record/topology checks to `BootReservationTableValidator`, and accepts only a guard plus usable-stack union that exactly covers the backing arena. Guard and usable extents may each occupy one or more pages; the physical exclusive top must be 16-byte aligned and must equal the usable reservation end. The immutable `Reserved -> Ready -> Active` transition planner rejects same-state requests, skips, reversal, default targets, and malformed source layouts. These states are caller attestations, not page-table or processor observations; because layouts are copyable values, a serialized live coordinator must reject replay from a stale snapshot.
 - `BootSequenceHandoffValidator` validates the boot source, required text-output and memory-map capabilities, firmware-services mode, owned memory-map copy flag, source-buffer provenance, descriptor size, descriptor count, map-size arithmetic, descriptor-count limits, and ACPI RSDP metadata consistency without exceptions.
 - `EfiBootHandoffValidator` is the source-linked no-stdlib-safe numeric validator used by the live EFI artifact before it emits `BOOT_HANDOFF_READY`.
 - `EfiMemoryMapNormalizer` is the source-linked no-stdlib-safe live normalizer that walks owned raw descriptor bytes by pointer, validates page/address arithmetic, and records a compact summary without allocating.
@@ -307,6 +308,102 @@ pointer is readable, link the leaf into `src/OS`, reserve the running EFI
 image, populate a live reservation table, prove memory-map allocation types,
 run under QEMU, or change a completion-gate state. M01-021 owns the future
 live loaded-image protocol adapter and M01-022 owns guest proof.
+
+M01-004 owned boot-stack layout coverage is host-only.
+`OwnedBootStackLayout.Create` consumes exactly two caller-owned canonical
+reservation records through an unsafe pointer/count/capacity boundary. It
+checks count, capacity, null, alignment, and the complete table-address span
+before dereference; validates an explicit typed physical backing start, page
+count, checked byte length/end, and an explicit typed physical stack top; and
+then delegates structural, ordering, overlap, adjacency, and arena accounting
+to `BootReservationTableValidator`. A successful 128-byte layout contains the
+exact backing extent, canonical `BootStackGuard` and `BootStack` records, the
+exclusive physical top, and an initial `Reserved` lifetime. The 176-byte result
+also retains nested table/range statuses, capacity, invalid/conflicting
+indexes, and previous/requested/current lifetime evidence, but never retains
+the caller's table pointer.
+
+The guard is the lower extent because the stack will grow downward. Both guard
+and usable extents may contain one or more pages in this generic contract.
+Their checked union must equal the entire backing extent; the guard end must
+equal the usable start; and the supplied exclusive physical top must equal the
+usable/backing end and be 16-byte aligned. This is deliberately a
+`PhysicalAddress`, not a `VirtualAddress` or a call-ready `RSP`.
+
+The immutable lifetime model permits only `Reserved -> Ready -> Active`.
+`Reserved` means the supplied physical ownership geometry passed this value
+contract. `Ready` and `Active` are higher-layer caller attestations. A
+same-state request is classified as `RepeatedLifetimeTransition`, while skips
+and reversals are rejected. Because the layout is an immutable, copyable value,
+the pure leaf cannot detect two callers replaying the same stale `Reserved`
+snapshot; M01-017 must place transitions behind authoritative serialized
+coordination. This leaf does not inspect whether allocation, mapping, guard
+protection, switch-stub installation, or a processor transition actually
+occurred, so `Active` is not live stack proof.
+
+`CLROS_M01_004_READY` is emitted only after the focused layout, malformed
+input, nested-ledger, transition, purity, source-firewall, and exact compiler
+closure tests pass:
+
+```text
+TEST_START m01.004
+TEST_PASS m01.004 lifetime statuses and pod layouts are stable
+TEST_PASS m01.004 default values fail closed
+TEST_PASS m01.004 minimum representative and multi guard layouts succeed
+TEST_PASS m01.004 high address layout remains checked
+TEST_PASS m01.004 pointer count and capacity fail before dereference
+TEST_PASS m01.004 backing range and stack top failures are classified
+TEST_PASS m01.004 canonical table failures retain nested evidence
+TEST_PASS m01.004 backing topology and accounting are exact
+TEST_PASS m01.004 canonical reservations remain ledger compatible
+TEST_PASS m01.004 reserved ready active transitions succeed
+TEST_PASS m01.004 repeated and illegal transitions fail closed
+TEST_PASS m01.004 malformed layouts and results cannot report success
+TEST_PASS m01.004 validation precedence is deterministic
+TEST_PASS m01.004 evaluation is nonmutating deterministic and allocation free
+TEST_PASS m01.004 source excludes hosted live memory and stack switch dependencies
+TEST_PASS m01.004 exact sources compile under nostdlib efi
+CLROS_M01_004_READY
+TEST_PASS m01.004
+```
+
+The isolated compiler fixture includes only the typed-address source,
+`BootReservedRange`, `BootReservationTableValidator`, the owned-stack source,
+a minimal primitive shim, and a positive pointer-core/lifetime probe. It
+defines `NOSTDLIB_EFI`, removes all framework references, and verifies that the
+emitted PE contains zero assembly references.
+
+The implementation was independently authored after selectively reviewing the
+following local reference evidence:
+
+- `references/SharpOS-main/OS/src/Boot/BootStackPool.cs` (local snapshot
+  SHA-256
+  `B7C80FDD76BB0D17CF87AB358CCC50F413601D8A1B8C0A6ABB22EE8D40D90E7C`)
+  influenced the need for explicit owned backing before old firmware stack
+  memory can eventually be abandoned. Its static 4 MiB pool, raw pointers,
+  implicit image ownership, and missing guard/lifetime model were not copied.
+- `references/SharpOS-main/OS/src/Boot/BootStackSwitch.cs` (local snapshot
+  SHA-256
+  `637DCFC91E3B9647A0F8FBD4800E6C973ED78C6E5F73E2F7C10770C000234808`)
+  influenced the one-shot ordering and 16-byte exclusive-top requirements.
+  Its mutable global flag, raw stack pointers, live switch, unmanaged function
+  pointer, continuation, and silently masked alignment were not copied.
+- `references/RoseOS-master/Loader/src/MemoryMap.cs` (local snapshot SHA-256
+  `CE90AE629B538E558B57B0BD315ED8B11DD559ED1A841368D109DE28D70B8B28`)
+  was used only as a test-only reminder for fixed-capacity, overflow,
+  ownership, and failure-continuation hazards. No RoseOS source or API was
+  copied.
+
+This evidence does not allocate EFI pages, establish `LoaderData` or
+loaded-image provenance, insert records into a live ledger, map or unmap the
+guard, construct page tables, enforce NX/W^X, derive a virtual switch target,
+reserve the Windows x64 home space, read or write `RSP`, emit or invoke a
+switch stub, preserve a continuation, abandon the firmware stack, link the
+leaf into `src/OS/OS.csproj`, call it from `EfiEntry`, coordinate it through
+`BootSequence`, run it under QEMU/OVMF, or change a completion-gate state.
+M01-005 owns the switch contract; M01-017 owns cross-leaf coordination;
+M01-020 owns explicit EFI linkage; M01-021 owns live allocation/wiring; and
+M01-022 owns real-QEMU evidence.
 
 Platform configuration-table guard coverage:
 
