@@ -4235,7 +4235,7 @@
         "docs/boot.md"
       ],
       "evidenceBoundary": "This issue proves only host-tested stage-one ordering and validation for loader-owned image metadata, separate pre-EBS EfiLoaderCode stub and EfiLoaderData guard/stack allocation records, refreshed map/ledger, audited C# byte-plan materialization, and nonreturning-transfer contracts. It neither calls AllocatePages nor wires EfiEntry, executes a stack switch, proves the later stub RX/guard absent/stack RW+NX owned-hierarchy policy, exits boot services, or provides QEMU evidence.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-018",
