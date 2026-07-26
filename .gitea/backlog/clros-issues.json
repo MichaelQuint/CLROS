@@ -3509,7 +3509,12 @@
         {
           "path": "references/abanu-master/src/Abanu.Lib/Tests/BinaryBuddyAllocator_TestImplementation.cs",
           "use": "test-only",
-          "notes": "Independently recreate seeded allocator/shadow-content scenarios without copying allocator implementation."
+          "notes": "Cross-check split/merge allocator behavior only; this file does not contain the seeded shadow-content test pattern."
+        },
+        {
+          "path": "references/abanu-master/src/Abanu.Test.Console/Alloc6Test.cs",
+          "use": "test-only",
+          "notes": "Independently recreate the fixed-seed churn and live-allocation content-checking test pattern without copying allocator implementation."
         },
         {
           "path": "references/nativeaot-patcher-main/src/Cosmos.Kernel.Core/Memory/PageAllocator.cs",
@@ -3547,7 +3552,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only deterministic host stress coverage of caller-owned allocator metadata. The test code is not linked into or executed by the canonical EFI artifact and does not prove live allocation, page contents, DMA ownership, or paging.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-011",
