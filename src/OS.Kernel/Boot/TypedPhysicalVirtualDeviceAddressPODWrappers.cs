@@ -19,6 +19,8 @@ public enum AddressValueStatus : byte
 /// <summary>
 /// Identifies a nonzero physical address without implying that it is mapped,
 /// owned, reserved, or valid for the current processor's address width.
+/// Named raw-value boundary methods record audit intent; they do not authorize
+/// a caller or establish ownership.
 /// </summary>
 public readonly struct PhysicalAddress
 {
@@ -29,11 +31,51 @@ public readonly struct PhysicalAddress
         _value = value;
     }
 
-    public ulong Value => _value;
-
     public bool IsValid => _value != 0;
 
-    public static AddressValueStatus TryCreate(ulong value, out PhysicalAddress address)
+    public static AddressValueStatus TryCreateFromUefiBoundary(
+        ulong value,
+        out PhysicalAddress address)
+    {
+        return TryCreateBoundary(value, out address);
+    }
+
+    public static AddressValueStatus TryCreateAlignedFromUefiBoundary(
+        ulong value,
+        ulong alignment,
+        out PhysicalAddress address)
+    {
+        return TryCreateAlignedBoundary(value, alignment, out address);
+    }
+
+    public static AddressValueStatus TryCreateFromHardwareRegisterBoundary(
+        ulong value,
+        out PhysicalAddress address)
+    {
+        return TryCreateBoundary(value, out address);
+    }
+
+    public static AddressValueStatus TryCreateAlignedFromHardwareRegisterBoundary(
+        ulong value,
+        ulong alignment,
+        out PhysicalAddress address)
+    {
+        return TryCreateAlignedBoundary(value, alignment, out address);
+    }
+
+    public AddressValueStatus TryGetRawValueForUefiBoundary(out ulong value)
+    {
+        return AddressValueOperations.TryGetRawValue(_value, out value);
+    }
+
+    public AddressValueStatus TryGetRawValueForHardwareRegisterBoundary(out ulong value)
+    {
+        return AddressValueOperations.TryGetRawValue(_value, out value);
+    }
+
+    private static AddressValueStatus TryCreateBoundary(
+        ulong value,
+        out PhysicalAddress address)
     {
         address = default;
 
@@ -47,7 +89,7 @@ public readonly struct PhysicalAddress
         return AddressValueStatus.Success;
     }
 
-    public static AddressValueStatus TryCreateAligned(
+    private static AddressValueStatus TryCreateAlignedBoundary(
         ulong value,
         ulong alignment,
         out PhysicalAddress address)
@@ -124,6 +166,13 @@ public readonly struct PhysicalAddress
         return AddressValueStatus.Success;
     }
 
+    public AddressValueStatus TryCompareTo(
+        PhysicalAddress other,
+        out int comparison)
+    {
+        return AddressValueOperations.TryCompare(_value, other._value, out comparison);
+    }
+
     public bool Equals(PhysicalAddress other)
     {
         return _value == other._value;
@@ -133,6 +182,8 @@ public readonly struct PhysicalAddress
 /// <summary>
 /// Identifies a nonzero virtual address without implying that it is canonical,
 /// mapped, owned, or accessible with a particular page protection.
+/// Named raw-value boundary methods record audit intent; they do not authorize
+/// a caller or establish ownership.
 /// </summary>
 public readonly struct VirtualAddress
 {
@@ -143,11 +194,51 @@ public readonly struct VirtualAddress
         _value = value;
     }
 
-    public ulong Value => _value;
-
     public bool IsValid => _value != 0;
 
-    public static AddressValueStatus TryCreate(ulong value, out VirtualAddress address)
+    public static AddressValueStatus TryCreateFromUefiBoundary(
+        ulong value,
+        out VirtualAddress address)
+    {
+        return TryCreateBoundary(value, out address);
+    }
+
+    public static AddressValueStatus TryCreateAlignedFromUefiBoundary(
+        ulong value,
+        ulong alignment,
+        out VirtualAddress address)
+    {
+        return TryCreateAlignedBoundary(value, alignment, out address);
+    }
+
+    public static AddressValueStatus TryCreateFromHardwareRegisterBoundary(
+        ulong value,
+        out VirtualAddress address)
+    {
+        return TryCreateBoundary(value, out address);
+    }
+
+    public static AddressValueStatus TryCreateAlignedFromHardwareRegisterBoundary(
+        ulong value,
+        ulong alignment,
+        out VirtualAddress address)
+    {
+        return TryCreateAlignedBoundary(value, alignment, out address);
+    }
+
+    public AddressValueStatus TryGetRawValueForUefiBoundary(out ulong value)
+    {
+        return AddressValueOperations.TryGetRawValue(_value, out value);
+    }
+
+    public AddressValueStatus TryGetRawValueForHardwareRegisterBoundary(out ulong value)
+    {
+        return AddressValueOperations.TryGetRawValue(_value, out value);
+    }
+
+    private static AddressValueStatus TryCreateBoundary(
+        ulong value,
+        out VirtualAddress address)
     {
         address = default;
 
@@ -161,7 +252,7 @@ public readonly struct VirtualAddress
         return AddressValueStatus.Success;
     }
 
-    public static AddressValueStatus TryCreateAligned(
+    private static AddressValueStatus TryCreateAlignedBoundary(
         ulong value,
         ulong alignment,
         out VirtualAddress address)
@@ -238,6 +329,13 @@ public readonly struct VirtualAddress
         return AddressValueStatus.Success;
     }
 
+    public AddressValueStatus TryCompareTo(
+        VirtualAddress other,
+        out int comparison)
+    {
+        return AddressValueOperations.TryCompare(_value, other._value, out comparison);
+    }
+
     public bool Equals(VirtualAddress other)
     {
         return _value == other._value;
@@ -247,6 +345,8 @@ public readonly struct VirtualAddress
 /// <summary>
 /// Identifies a nonzero device-visible address without implying that a DMA
 /// mapping, device ownership record, or IOMMU translation exists.
+/// Named raw-value boundary methods record audit intent; they do not authorize
+/// a caller or establish ownership.
 /// </summary>
 public readonly struct DeviceAddress
 {
@@ -257,11 +357,31 @@ public readonly struct DeviceAddress
         _value = value;
     }
 
-    public ulong Value => _value;
-
     public bool IsValid => _value != 0;
 
-    public static AddressValueStatus TryCreate(ulong value, out DeviceAddress address)
+    public static AddressValueStatus TryCreateFromHardwareRegisterBoundary(
+        ulong value,
+        out DeviceAddress address)
+    {
+        return TryCreateBoundary(value, out address);
+    }
+
+    public static AddressValueStatus TryCreateAlignedFromHardwareRegisterBoundary(
+        ulong value,
+        ulong alignment,
+        out DeviceAddress address)
+    {
+        return TryCreateAlignedBoundary(value, alignment, out address);
+    }
+
+    public AddressValueStatus TryGetRawValueForHardwareRegisterBoundary(out ulong value)
+    {
+        return AddressValueOperations.TryGetRawValue(_value, out value);
+    }
+
+    private static AddressValueStatus TryCreateBoundary(
+        ulong value,
+        out DeviceAddress address)
     {
         address = default;
 
@@ -275,7 +395,7 @@ public readonly struct DeviceAddress
         return AddressValueStatus.Success;
     }
 
-    public static AddressValueStatus TryCreateAligned(
+    private static AddressValueStatus TryCreateAlignedBoundary(
         ulong value,
         ulong alignment,
         out DeviceAddress address)
@@ -352,6 +472,13 @@ public readonly struct DeviceAddress
         return AddressValueStatus.Success;
     }
 
+    public AddressValueStatus TryCompareTo(
+        DeviceAddress other,
+        out int comparison)
+    {
+        return AddressValueOperations.TryCompare(_value, other._value, out comparison);
+    }
+
     public bool Equals(DeviceAddress other)
     {
         return _value == other._value;
@@ -367,6 +494,43 @@ internal static class AddressValueOperations
         return value == 0
             ? AddressValueStatus.ZeroAddress
             : AddressValueStatus.Success;
+    }
+
+    public static AddressValueStatus TryGetRawValue(ulong value, out ulong result)
+    {
+        result = 0;
+
+        if (value == 0)
+        {
+            return AddressValueStatus.InvalidAddress;
+        }
+
+        result = value;
+        return AddressValueStatus.Success;
+    }
+
+    public static AddressValueStatus TryCompare(
+        ulong left,
+        ulong right,
+        out int comparison)
+    {
+        comparison = 0;
+
+        if (left == 0 || right == 0)
+        {
+            return AddressValueStatus.InvalidAddress;
+        }
+
+        if (left < right)
+        {
+            comparison = -1;
+        }
+        else if (left > right)
+        {
+            comparison = 1;
+        }
+
+        return AddressValueStatus.Success;
     }
 
     public static AddressValueStatus ValidateAlignedAddress(ulong value, ulong alignment)

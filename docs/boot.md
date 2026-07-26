@@ -45,7 +45,7 @@ This is still an EFI application smoke, not a functional kernel. The current evi
   through the same no-stdlib console adapter.
 - `BootInfo` records boot mode, firmware vendor/revision, and initial capability flags for text output, shutdown, and memory map availability.
 - `BootHandoffInfo` defines a host-tested typed metadata contract for boot mode, capabilities, firmware-services mode, memory-map metadata, and ACPI RSDP pointer provenance.
-- `PhysicalAddress`, `VirtualAddress`, and `DeviceAddress` define three distinct host-tested address domains backed by one `ulong` each and treat zero/default as invalid. Their status-coded factories and checked arithmetic/alignment operations reject default/zero input, zero-length ranges, invalid or unmet power-of-two alignment, and addition/align-up wrap while leaving every failure output at its default value. They do not expose implicit or explicit conversions between domains.
+- `PhysicalAddress`, `VirtualAddress`, and `DeviceAddress` define three distinct host-tested address domains backed by one private `ulong` each and treat zero/default as invalid. Raw ingress and egress exist only through status-coded methods whose names identify a UEFI or hardware-register boundary; there is no generic `Value`, `TryCreate`, cast, or conversion escape. Checked arithmetic, alignment, range-end, and same-domain comparison operations reject default/zero input, zero-length ranges, invalid or unmet power-of-two alignment, and addition/align-up wrap while leaving every failure output deterministic.
 - `BootSequenceHandoffValidator` validates the boot source, required text-output and memory-map capabilities, firmware-services mode, owned memory-map copy flag, source-buffer provenance, descriptor size, descriptor count, map-size arithmetic, descriptor-count limits, and ACPI RSDP metadata consistency without exceptions.
 - `EfiBootHandoffValidator` is the source-linked no-stdlib-safe numeric validator used by the live EFI artifact before it emits `BOOT_HANDOFF_READY`.
 - `EfiMemoryMapNormalizer` is the source-linked no-stdlib-safe live normalizer that walks owned raw descriptor bytes by pointer, validates page/address arithmetic, and records a compact summary without allocating.
@@ -133,7 +133,7 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 ## Unsupported Behavior
 
 - Live page allocator/free-list ownership over planned boot memory ranges. `BootMemoryRegionPlanner` classifies compact records into usable conventional ranges and reserved/unusable metadata, `BootPageAllocatorPlanner` produces host-tested initial free-segment metadata from those selected ranges, `BootPageFreeListBuilder` constructs caller-owned free-list node metadata from the successful plan, `BootPageAllocatorStateInitializer` validates that node chain into value-type allocator state metadata, `BootPageAllocatorMutation` mutates caller-owned free-list metadata in host tests, `BootPageAllocatorReadinessComposer` composes those existing pieces over caller-owned scratch buffers, and `BootSequence.RunBootPageAllocatorReadiness` emits a host-tested readiness marker from initialized allocator-state metadata. None of those pieces reserve kernel ranges, allocate or free live pages, configure paging, enforce NX/W^X, or run in the live EFI path.
-- Live use of the typed address domains. The wrappers are not source-linked into `src/OS/OS.csproj`, invoked by `EfiMain`, or applied retroactively to existing raw-`ulong` memory, MMIO, PCI, and DMA interfaces. They do not prove range overlap policy, reservations, allocator capacity/ownership, stale or double release detection, page mappings, canonical virtual addresses, cache policy, or W^X/NX behavior.
+- Live use of the typed address domains. The exact production source has a retained isolated `NOSTDLIB_EFI` compiler test, but the wrappers are not source-linked into `src/OS/OS.csproj`, invoked by `EfiMain`, or applied retroactively to existing raw-`ulong` memory, MMIO, PCI, and DMA interfaces. Named boundary methods make raw-value intent auditable; they are not a capability boundary. The leaf does not prove range overlap policy, reservations, allocator capacity/ownership, stale or double release detection, page mappings, canonical virtual addresses, cache policy, or W^X/NX behavior.
 - Real `ExitBootServices`.
 - Complete platform implementations for console, memory map, keyboard, hardware timer, firmware, filesystem, physical-memory mapping, framebuffer/GOP binding, and post-firmware RNG.
 - IDT/GDT/TSS/IST setup.
@@ -151,16 +151,28 @@ dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 ```
 
 M01-001 typed-address coverage is host-only. `CLROS_M01_001_READY` is emitted by
-the host harness only after every focused layout, domain, default-value,
-alignment, range-end, and overflow check passes:
+the host harness only after every focused layout, named-boundary, domain,
+default-value, ordering, alignment, range-end, overflow, source-surface, and
+compiler-closure check passes. The compiler fixture links the exact production
+source into a temporary project with `NoStdLib=true`, framework references
+removed, and `NOSTDLIB_EFI` defined. A minimal core shim deliberately omits
+strings, spans, exceptions, reflection, arrays, and runtime helpers; a separate
+negative compile requires stable C# diagnostics for unnamed raw access,
+raw/typed casts, cross-domain assignment, addition, subtraction, comparison,
+and wrong-domain out parameters:
 
 ```text
 TEST_START m01.001
 TEST_PASS m01.001 wrappers are stable pods
 TEST_PASS m01.001 wrappers reject default and zero
-TEST_PASS m01.001 wrappers preserve raw values
+TEST_PASS m01.001 named boundaries preserve raw values
+TEST_PASS m01.001 default raw extraction fails closed
 TEST_PASS m01.001 equality is domain local
-TEST_PASS m01.001 wrappers prohibit cross-domain conversion
+TEST_PASS m01.001 ordering is domain local
+TEST_PASS m01.001 wrappers expose only named raw boundaries
+TEST_PASS m01.001 source excludes managed runtime dependencies
+TEST_PASS m01.001 exact source compiles under nostdlib efi
+TEST_PASS m01.001 prohibited expressions fail compilation
 TEST_PASS m01.001 offsets accept nonoverflowing boundaries
 TEST_PASS m01.001 offsets reject wrap
 TEST_PASS m01.001 end-exclusive arithmetic succeeds
