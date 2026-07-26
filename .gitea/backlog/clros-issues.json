@@ -2845,7 +2845,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only a host-tested loaded-image observation and range-validation contract. The code is not linked into or executed by the canonical EFI artifact, does not call a live loaded-image protocol, and does not prove that the running EFI image is reserved.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-004",
