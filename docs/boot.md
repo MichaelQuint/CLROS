@@ -72,6 +72,7 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 - Unsafe pointer validation cannot prove that caller-supplied addresses are mapped or stable. `BootPageAllocatorMutator.PerformsLiveAllocation=false` remains explicit: allocation and exact-inverse restoration mutate caller-owned metadata only and neither operation owns, frees, maps, zeros, protects, or accesses a physical page. The pre-existing Span-shaped general `Allocate`/`Free` compatibility API and result compile only under `#if !NOSTDLIB_EFI`; they remain historical host-test compatibility helpers, are not interoperable authoritative transitions for the pointer core, and do not establish safe or live free semantics.
 - `BootPageAllocatorStressTests` is the host-harness-only deterministic oracle over that existing pointer API. It drives a bounded synthetic arena through fixed-seed one-page allocation and strict-LIFO restoration, independently derives provenance-aware ownership and free extents, compares allocator metadata after every operation, preserves full node/reservation byte snapshots and capacity canaries, and verifies separate host-owned content tags for every live synthetic allocation. The content store is never passed to the allocator, so its corruption self-test proves the oracle can detect a bad host canary rather than proving physical-page access. This test source is not production or `NOSTDLIB_EFI` code and is excluded from the canonical EFI project.
 - `PageProtection`, `PageCachePolicy`, and `X64PageTableEntry` define the host-tested, no-stdlib-compatible x64 entry-value boundary. Leaf mappings accept only R, RW, or RX; reject W-only, X-only, unknown, and every W+X combination; encode NX whenever execute is absent; bind WB/UC/WC to an explicitly validated IA32_PAT value and selected index; and validate PTE, 2 MiB PDE, and capability-gated 1 GiB PDPTE address widths, alignments, reserved bits, and PAT-bit placement. Nonleaf PML4E/PDPTE/PDE table pointers are a distinct kind with canonical supervisor `P|RW, NX=0` bits and validated WB at raw PAT index zero, independent of the selected leaf-WB index. An explicit protection-only rewrite either preserves or clears caller-supplied Accessed/Dirty observations without writing live memory. The bounded two-pass batch encoder validates POD sizes, complete caller-owned source/destination spans, and every request before writing any destination byte.
+- `X64BootIdentityMappingPlan` defines the next host-tested, no-stdlib-compatible value-planning boundary over those entry policies. It accepts explicit caller-owned boot mapping requirements, requires the executing image, owned boot stack, boot handoff, owned serial stub, ACPI scratch, and framebuffer-metadata purposes, requires a boot-stack guard as a non-emitted exclusion, and permits an `AdditionalRequired` purpose for future caller-owned page-table-arena and boot resources. It emits only typed physical-equals-virtual 4 KiB mapping ranges, sorted deterministically and unioned only when protection/cache policies are identical, while separately calculating the exact fresh four-level table-page requirement. This is a plan over supplied metadata; it allocates, populates, installs, and activates nothing.
 - `BootPageAllocatorReadinessComposer` is the host-tested aggregate boundary from compact boot memory-region records through usable/reserved range planning, free-segment planning, caller-owned free-list node construction, allocator-state initialization, and `BootSequence.RunBootPageAllocatorReadiness`. It returns nested status and capacity metadata and emits the ordered readiness marker only after the region-planning precondition succeeds.
 - `NativeAotHeapBootstrapPlanner` is the host-tested runtime-facing boundary after allocator-state initialization. It consumes `BootPageAllocatorState` metadata, validates a future managed-heap page budget and object alignment, and keeps object allocation helper completion false; it does not reserve pages, install a heap, run GC root scanning, or perform write barriers.
 - `BootSequence.RunNativeAotHeapBootstrapReadiness` is the host-tested ordered-boot marker boundary after heap bootstrap planning. It consumes `NativeAotHeapBootstrapPlanResult`; emits `NATIVEAOT_HEAP_BOOTSTRAP_READY status=Ready ... satisfiesObjectAllocationHelpers=false` only when the plan succeeds; and emits `NATIVEAOT_HEAP_BOOTSTRAP_NOT_READY status=<reason> ...` for default/uninitialized or failed plans while preserving allocator, requested-heap, remaining-free, alignment, GC-root, write-barrier, and object-allocation-helper metadata. It does not install a heap or implement allocation helpers.
@@ -151,6 +152,7 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 - Live page allocator/free-list ownership over planned boot memory ranges. `BootMemoryRegionPlanner` classifies compact records into usable conventional ranges and reserved/unusable metadata, `BootPageAllocatorPlanner` produces host-tested initial free-segment metadata from those selected ranges, `BootPageFreeListBuilder` constructs caller-owned free-list node metadata from the successful plan, `BootPageAllocatorStateInitializer` validates that node chain through its host-friendly adapter, and `BootPageAllocatorStateMaterializer` independently validates supplied caller-owned POD storage through a pointer/count/capacity contract. `BootPageAllocatorMutator.AllocateOnePage` performs one reservation-aware mutation of caller-owned metadata, while its strict serialized `FreeOnePage` exact inverse accepts only the matching successful allocation receipt and exact current post-allocation state plus node/reservation counts/capacities. `BootPageAllocatorReadinessComposer` composes the older host adapters over caller-owned scratch buffers, and `BootSequence.RunBootPageAllocatorReadiness` emits a host-tested readiness marker from initialized allocator-state metadata. The extracted PODs, materializer, and one-page allocate/free core compile in isolated `NOSTDLIB_EFI`/no-framework-reference closures, but they are not source-linked into `src/OS/OS.csproj`, invoked by `EfiEntry`, or exercised by QEMU. None of these pieces establish allocator ownership, reserve a page against firmware or another allocator, zero/map/access the typed result, allocate or free a live page, support arbitrary-order frees, prevent receipt ABA, configure paging, or enforce NX/W^X.
 - Live use of the typed address domains, loaded-image capture plan, or canonical reservation ledger. The exact typed-address, reservation-record, pointer-validator, loaded-image range, and capture-plan sources have retained isolated `NOSTDLIB_EFI` compiler tests, but they are not source-linked into `src/OS/OS.csproj`, invoked by `EfiMain`, or applied retroactively to existing raw-`ulong` memory, MMIO, PCI, and DMA interfaces. Named boundary methods make raw-value intent auditable; they are not a capability boundary. The loaded-image planner validates one caller-owned compact transcript; it does not call `HandleProtocol`/`OpenProtocol`, dereference the observed protocol address, or prove that the transcript came from the running image. The host validator proves range shape, rounding, canonical reservation construction, ordering, overlap, capacity, totals, and modeled guard/stack-union policy only for supplied values. It does not populate the ledger, prove that omitted metadata is actually contained in the loaded image, prove EFI `LoaderCode`/`LoaderData` allocation provenance or a refreshed map generation, reserve/subtract/reclaim live memory, establish allocator ownership, switch stacks, map pages, load CR3, or enforce cache, NX, or W^X policy.
 - Live page-table allocation, population, mutation, ownership, or processor enforcement. The M01-011 codec validates and encodes only caller-supplied values. Its precondition POD does not read or prove IA32_EFER.NXE, CR0.WP, CR4.LA57, CPUID physical width or 1 GiB-page capability, or IA32_PAT; its permissive nonleaf pointers do not by themselves prove effective descendant permissions; and its Accessed/Dirty decoder and protection-only re-encoder do not read or write a live table. No code in this slice installs a table hierarchy, maps the table arena RW+NX, proves page zero absent, performs a live RW-to-RX transition, loads CR3, executes `invlpg`, handles a page fault, or establishes the NX/W^X completion gate.
+- Live boot identity mappings or table construction. M01-012 consumes caller-attested range, role, protection, cache, PAT, and processor-precondition values and emits caller-owned planning records only. It does not discover the executing-image sections, allocate table pages, assign table-page addresses, write a PML4/PDPT/PD/PT entry, map its own table arena, protect the stack guard in hardware, establish framebuffer MMIO cache correctness, read CR0/CR4/EFER/CPUID/IA32_PAT, load CR3, invalidate a TLB, or execute under EFI or QEMU/OVMF.
 - Real `ExitBootServices`.
 - Complete platform implementations for console, memory map, keyboard, hardware timer, firmware, filesystem, physical-memory mapping, framebuffer/GOP binding, and post-firmware RNG.
 - IDT/GDT/TSS/IST setup.
@@ -1110,6 +1112,292 @@ inside EFI, run under QEMU/OVMF, or change the NX/W^X completion gate. M01-014
 and M01-019 must consume these exact policy, level, context, entry, and result
 types; they may not introduce a second level token or treat the observation
 POD as processor proof.
+
+### Boot identity-mapping plan contract (M01-012)
+
+M01-012 adds a caller-owned, value-only planner for the exact identity ranges
+that a later owned four-level x64 page-table image must cover. The planner
+does not infer ranges from the canonical boot-reservation ledger alone:
+`BootReservedRange` has no owned-serial-stub kind and a single loaded-image
+reservation cannot describe executable and writable image sections with
+different leaf policies. The caller therefore supplies explicit mapping
+requirements with typed physical half-open bounds, purpose, protection, and
+cache policy. Each emitted record carries equal typed physical and virtual
+bounds; the raw integer exists only inside the already-audited typed-address
+and M01-011 encoding boundaries.
+
+The complete input must contain all six emitted boot purposes:
+
+- `ExecutingImage`; multiple disjoint records are allowed so code, read-only
+  data, and writable data can retain different policies.
+- `OwnedStack`.
+- `BootHandoff`.
+- `SerialStub`.
+- `AcpiScratch`.
+- `FramebufferMetadata`.
+
+One `BootStackGuard` requirement is also mandatory, but it is an exclusion:
+the planner validates it and rejects every mapped overlap, then emits no
+mapping for it. `AdditionalRequired` is an explicitly mapped role for later
+caller-owned resources such as the page-table arena; it does not weaken the
+six-purpose completeness check or turn an unknown purpose into a valid one.
+
+`X64BootIdentityMappingPurpose` is a one-byte append-only contract:
+
+| Value | Purpose | Plan rule |
+|---:|---|---|
+| 0 | `Uninitialized` | Invalid/default |
+| 1 | `ExecutingImage` | Required and emitted; may appear more than once |
+| 2 | `OwnedStack` | Required and emitted |
+| 3 | `BootHandoff` | Required and emitted |
+| 4 | `SerialStub` | Required and emitted |
+| 5 | `AcpiScratch` | Required and emitted |
+| 6 | `FramebufferMetadata` | Required and emitted |
+| 7 | `BootStackGuard` | Exactly one required; validated but never emitted |
+| 8 | `AdditionalRequired` | Optional, repeatable, and emitted |
+
+The exact public constants are:
+
+| Constant | Value | Meaning |
+|---|---:|---|
+| `X64BootIdentityMappingRequirement.StructureSize` | 40 | Frozen requirement POD size in bytes |
+| `X64BootIdentityMappingRange.StructureSize` | 64 | Frozen normalized-range POD size in bytes |
+| `X64BootIdentityMappingPlanResult.StructureSize` | 176 | Frozen result POD size in bytes |
+| `PageSize` | 4096 | The only leaf size emitted by this plan |
+| `MaximumSourceCount` | 256 | Maximum source logical count and capacity |
+| `MaximumDestinationCount` | 512 | Maximum destination capacity/output count |
+| `RequiredPointerAlignment` | 8 | Required source/destination pointer alignment |
+| `LowCanonicalEndExclusive` | `0x0000800000000000` | Exclusive identity-address ceiling |
+| `RequiredPurposeMask` | `0x7e` | Bits 1 through 6; the six emitted required purposes |
+| `UsesOnly4KiBLeaves` | `true` | The planner accounts for and validates only 4 KiB leaf mappings |
+| `PerformsLiveMapping` | `false` | The planner never changes a live address space |
+| `AllocatesPageTables` | `false` | The planner only reports required table capacity |
+| `PopulatesPageTables` | `false` | The planner emits mapping records, not page-table entries |
+| `X64BootIdentityMappingPlanResult.NoIndex` | `~0UL` | Initialized result sentinel for no source index |
+
+The sole production entry point is:
+
+```text
+X64BootIdentityMappingPlan.Create(
+    X64BootIdentityMappingRequirement* source,
+    ulong sourceCount,
+    ulong sourceCapacity,
+    X64BootIdentityMappingRange* destination,
+    ulong destinationCapacity,
+    ulong availableTablePageCapacity,
+    X64PageTableEncodingPreconditions preconditions)
+```
+
+Its three readonly sequential unmanaged POD layouts are frozen exactly:
+
+| POD | Size | Offset | Field |
+|---|---:|---:|---|
+| `X64BootIdentityMappingRequirement` | 40 | 0 | `PhysicalAddress PhysicalStart` |
+|  |  | 8 | `PhysicalAddress PhysicalEndExclusive` |
+|  |  | 16 | `ulong PageCount` |
+|  |  | 24 | `ulong ByteLength` |
+|  |  | 32 | one-byte initialization state |
+|  |  | 33 | one-byte `Purpose` |
+|  |  | 34 | one-byte `Protection` |
+|  |  | 35 | one-byte `CachePolicy` |
+|  |  | 36 | four reserved zero bytes |
+| `X64BootIdentityMappingRange` | 64 | 0 | `PhysicalAddress PhysicalStart` |
+|  |  | 8 | `PhysicalAddress PhysicalEndExclusive` |
+|  |  | 16 | `VirtualAddress VirtualStart` |
+|  |  | 24 | `VirtualAddress VirtualEndExclusive` |
+|  |  | 32 | `ulong PageCount` |
+|  |  | 40 | `ulong ByteLength` |
+|  |  | 48 | `ulong ContributingPurposeMask` |
+|  |  | 56 | one-byte initialization state |
+|  |  | 57 | one-byte `Protection` |
+|  |  | 58 | one-byte `CachePolicy` |
+|  |  | 59 | one reserved zero byte |
+|  |  | 60 | four reserved zero bytes |
+| `X64BootIdentityMappingPlanResult` | 176 | 0 | one-byte initialization state |
+|  |  | 1 | one-byte `Status` |
+|  |  | 2 | one-byte nested `AddressStatus` |
+|  |  | 3 | one-byte nested `PageTableEntryStatus` |
+|  |  | 4 | four reserved zero bytes |
+|  |  | 8 | `ulong SourceCount` |
+|  |  | 16 | `ulong ValidatedSourceCount` |
+|  |  | 24 | `ulong SourceCapacity` |
+|  |  | 32 | `ulong DestinationCapacity` |
+|  |  | 40 | `ulong RequiredDestinationCapacity` |
+|  |  | 48 | `ulong OutputRangeCount` |
+|  |  | 56 | `ulong AvailableTablePageCapacity` |
+|  |  | 64 | `ulong RequiredPurposeMask` |
+|  |  | 72 | `ulong ObservedPurposeMask` |
+|  |  | 80 | `ulong MissingPurposeMask` |
+|  |  | 88 | `ulong InvalidSourceIndex` |
+|  |  | 96 | `ulong ConflictingSourceIndex` |
+|  |  | 104 | `ulong GuardSourceIndex` |
+|  |  | 112 | `ulong UnionPageCount` |
+|  |  | 120 | `ulong UnionByteLength` |
+|  |  | 128 | `ulong Pml4PageCount` |
+|  |  | 136 | `ulong PdptPageCount` |
+|  |  | 144 | `ulong PdPageCount` |
+|  |  | 152 | `ulong PtPageCount` |
+|  |  | 160 | `ulong TotalTablePageCount` |
+|  |  | 168 | `ulong TotalTableByteLength` |
+
+All explicit initialization and reserved bytes are revalidated. Default PODs
+remain deterministic failure values; only an initialized result with
+`Status=Success` has `Succeeded=true`. Initialized success and non-indexed
+failure results use `NoIndex`, while a default result retains zero fields and
+must not be mistaken for initialized no-index evidence.
+
+`X64BootIdentityMappingStatus` is a one-byte append-only result contract:
+
+```text
+ 0 Uninitialized                       24 InvalidCachePolicy
+ 1 Success                             25 InvalidGuardPolicy
+ 2 InvalidSourceCount                  26 MultipleGuards
+ 3 TooManySources                      27 MissingGuard
+ 4 SourceCapacityTooSmall              28 GuardOverlap
+ 5 CapacityExceedsLimit                29 MissingRequiredPurpose
+ 6 MissingSource                       30 PageZeroMappingRejected
+ 7 MissingDestination                  31 NonCanonicalIdentityRange
+ 8 MisalignedSource                    32 PhysicalAddressOutsideWidth
+ 9 MisalignedDestination               33 IncompatibleProtectionOverlap
+10 SourceSpanOverflow                  34 IncompatibleCacheOverlap
+11 DestinationSpanOverflow             35 DestinationCapacityTooSmall
+12 SourceDestinationOverlap             36 TooManyOutputRanges
+13 ContractLayoutMismatch               37 UnionPageCountOverflow
+14 InvalidRequirementState              38 UnionByteCountOverflow
+15 InvalidPurpose                       39 TablePageCountOverflow
+16 InvalidPhysicalStart                 40 TableByteCountOverflow
+17 InvalidPhysicalEnd                   41 TableCapacityTooSmall
+18 EmptyOrReversedRange                 42 InvalidPreconditions
+19 MisalignedRange                      43 PageWalkCacheNotWriteBack
+20 GeometryOverflow                     44 LeafEncodingRejected
+21 GeometryMismatch                     45 OutputConstructionFailure
+22 InvalidProtection                    46 AccountingMismatch
+23 WritableExecutableRejected
+```
+
+Every emitted mapping uses 4 KiB PTE leaves. Page zero is forbidden both as a
+requirement and as an emitted mapping, and every identity address must remain
+below the exclusive low-canonical boundary
+`0x0000_8000_0000_0000`. Requirements are sorted independently of caller
+order. Overlapping or adjacent requirements are unioned only when their
+protection and cache policies are identical; the planner never promotes an
+overlap to broader permissions or a different cache type. Incompatible
+overlap fails, while adjacent ranges with different policy remain distinct.
+Normalized output bytes and aggregate accounting are deterministic for
+equivalent input orderings. Diagnostic source indexes intentionally remain
+relative to caller order. A range's `ContributingPurposeMask` summarizes every
+source purpose that contributed any bytes to that normalized union; it does not
+claim that every page in the range serves every recorded purpose.
+
+For a fresh four-level hierarchy that uses only 4 KiB leaves, table-page
+accounting is exact:
+
+```text
+PML4 pages = 1
+PDPT pages = number of distinct (virtualAddress >> 39) regions
+PD pages   = number of distinct (virtualAddress >> 30) regions
+PT pages   = number of distinct (virtualAddress >> 21) regions
+total      = 1 + PDPT pages + PD pages + PT pages
+```
+
+The supplied table-page capacity must cover that total before any destination
+record is written. This is a fresh-hierarchy calculation, not a promise that a
+later builder can reuse firmware tables or allocate those pages at any
+particular address.
+
+`RequiredDestinationCapacity`, union accounting, and table accounting remain
+available when analysis reaches a destination- or table-capacity failure.
+`OutputRangeCount` counts records actually emitted and therefore remains zero
+on every failure, including those capacity failures.
+
+The unsafe planning core is a bounded, no-allocation, multi-pass operation with
+two phases: complete preflight followed by emission. Before its first
+caller-data read it validates count/capacity relationships, actual POD layouts,
+pointer alignment, full compiler-sized span arithmetic, and
+source/destination disjointness. Preflight validates every requirement, all
+required-purpose and guard rules, page-zero and canonical bounds, policy
+conflicts, exact union count, exact table-page requirements, and a separate
+output reconstruction without writing. Only after every fallible preflight
+step succeeds does a write-only pass emit the deterministically ordered plan.
+A malformed final source record or either capacity failure leaves the full
+destination byte-identical; callers must keep all unsafe spans mapped,
+exclusively owned, and stable for the entire call.
+
+The planner consumes the exact M01-011
+`X64PageTableEncodingPreconditions`/`X64PatMappingToken` context and validates
+WB at raw IA32_PAT index zero for paging-structure walks. It does not create a
+second level, protection, cache, or PAT vocabulary. Its output policies are
+checked through the M01-011 4 KiB leaf codec, so W+X, missing NXE/WP,
+five-level paging, invalid physical width, malformed PAT state, unsupported
+cache selection, and noncanonical physical inputs fail instead of being
+normalized.
+
+The retained SharpOS sources are owner-authorized architectural and test
+influences, not imported live behavior or CLROS evidence:
+
+- `references/SharpOS-main/OS/src/Kernel/Paging/PageFlags.cs`, SHA-256
+  `DC565A4B8BFA38CDACFBDB5B53B2D5616BB9C1057DEDE7A1673956D6F3198652`,
+  was used to cross-check x64 flag semantics while CLROS independently keeps
+  page zero absent and rejects writable-executable leaves.
+- `references/SharpOS-main/OS/src/Kernel/Paging/X64PageTable.cs`, SHA-256
+  `35503B543628E5A462073D498704050EEEF7D79DEB2B84F01CACA29714200BAC`,
+  influenced hierarchy and table-sharing analysis. CLROS does not adopt its
+  live table cloning, physical allocation, direct pointer writes, permissive
+  user/global mappings, large-page mutation, CR3/TLB operations, or protection
+  loosening.
+- `references/SharpOS-main/OS/src/Kernel/Paging/PagingValidation.cs`, SHA-256
+  `B1699D328E49D5FC68B8CF8979B366D72CCA2E3B4AA5B982F91F0A2C9A1C40F6`,
+  supplies test-only missing/duplicate/neighbor/conflict categories that CLROS
+  recreates independently over synthetic caller-owned values.
+
+The canonical upstream is `https://github.com/daniilvaino/SharpOS`.
+Owner-supplied permission authorizes reuse of SharpOS-authored source and the
+current upstream independently corroborates CC0-1.0 at license-evidence commit
+`b80ee3a4175e1522d1a12ba7fe371a49da3207f5`. That commit is not asserted to be
+the local snapshot revision: the supplied snapshot has no recoverable
+revision, so the exact local paths and hashes above remain the source identity.
+File-local third-party terms still remain separate.
+
+Successful host evidence uses:
+
+```text
+TEST_START m01.012
+CLROS_M01_012_READY
+TEST_PASS m01.012
+```
+
+The self-registering host suite contains exactly fourteen ordered groups:
+
+| Group | Stable test name |
+|---:|---|
+| 1 | `m01.012 01 type values layouts and defaults are stable` |
+| 2 | `m01.012 02 required roles and the guard are complete` |
+| 3 | `m01.012 03 realistic plans are exact and deterministic` |
+| 4 | `m01.012 04 compatible ranges merge with exact union accounting` |
+| 5 | `m01.012 05 policy conflicts report deterministic source indexes` |
+| 6 | `m01.012 06 protection cache and PAT policy fail closed` |
+| 7 | `m01.012 07 page zero and guard overlap are excluded` |
+| 8 | `m01.012 08 address geometry and physical widths are bounded` |
+| 9 | `m01.012 09 four-level table-page accounting is exact` |
+| 10 | `m01.012 10 pointer count capacity and aliasing are bounded` |
+| 11 | `m01.012 11 hostile POD bytes and failure atomicity hold` |
+| 12 | `m01.012 12 source and nostdlib efi firewalls hold` |
+| 13 | `m01.012 13 current evaluated efi closures exclude the planner` |
+| 14 | `m01.012 14 marker ownership and ordering are stable` |
+
+Any aggregate failure emits `TEST_FAIL m01.012 <reason>` and prevents the
+ready/pass pair. Group 12 compiles the exact production source in the retained
+`NoStdLib=true`, `NOSTDLIB_EFI`, zero-framework-reference fixture. Group 13
+evaluates both `SingleMinimalApi` and `MultiMinimalApi` project closures and
+proves the source and its host test are excluded from the current EFI build.
+
+This is host-only plan evidence. It does not discover or own live boot ranges,
+allocate or zero table pages, assign physical table addresses, populate a
+table image, protect a real guard, map page zero or prove its hardware absence,
+perform a live RW-to-RX transition, load CR3, invalidate a TLB, run under EFI
+or QEMU/OVMF, or advance any completion gate. M01-019 owns the first
+coordinated reversible paging phase, M01-020 owns explicit EFI source linking,
+M01-025 owns default boot wiring, and M01-026 owns cumulative QEMU evidence.
 
 Boot page allocator-readiness composition coverage is host-test only. It proves existing planner/state contracts can be composed over caller-owned scratch buffers and forwarded into the ordered boot readiness marker boundary. It does not reserve kernel-owned ranges, mutate allocator-owned state, allocate pages, configure paging, or run in `EfiMain`:
 
