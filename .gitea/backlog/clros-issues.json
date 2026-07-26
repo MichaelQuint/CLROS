@@ -4064,7 +4064,7 @@
         "docs/diagnostics.md"
       ],
       "evidenceBoundary": "This issue proves only a host-tested page-zero absence policy and default-off fault-probe plan. The code is not linked into or executed by the canonical EFI artifact; no null dereference or page fault occurs, and controlled #PF execution remains deferred to M02-014.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-016",
