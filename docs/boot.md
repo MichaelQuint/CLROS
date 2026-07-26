@@ -1399,6 +1399,226 @@ or QEMU/OVMF, or advance any completion gate. M01-019 owns the first
 coordinated reversible paging phase, M01-020 owns explicit EFI source linking,
 M01-025 owns default boot wiring, and M01-026 owns cumulative QEMU evidence.
 
+### Reversible CR3 probe plan contract (M01-013)
+
+M01-013 adds three no-stdlib-compatible, caller-owned boundaries for a future
+one-shot paging probe:
+
+1. `X64PagingModePreflightStubPlan` materializes and validates an exact
+   read-only processor-observation stub and evaluates its POD.
+2. `X64ReversibleCr3TransitionStubPlan` materializes and validates an exact
+   callback-free recovery stub and evaluates a caller-supplied execution
+   transcript. Host code never invokes the bytes.
+3. `X64Cr3LoadStubPlan.Create` binds those exact sibling results to the M01-012
+   identity map, the M01-005 owned stack, explicit firmware allocation records,
+   state/canary storage, and post-restoration marker order.
+
+The composite policy is off by default and accepts only an explicit one-shot
+opt-in with a nonzero timeout. It requires exactly two physical allocation
+records:
+
+- one 4 KiB `EfiLoaderCode` page containing nonoverlapping, 16-byte-aligned
+  preflight and transition byte ranges;
+- one disjoint `EfiLoaderData` arena containing exactly the table-page capacity
+  reported by M01-012 followed by one 4 KiB state page.
+
+The first table page is the owned PML4 root. The final data page begins with
+the 184-byte transition state and contains a later disjoint aligned 8-byte
+canary. The actual M01-013 host fixture places the 111-byte preflight stream at
+code-page offset 0 and the transition stream at offset 256, but the production
+composite accepts other aligned nonoverlapping offsets that fit completely
+inside the single code page. Materialization and validation results are bound
+to the exact virtual entry, declared byte count, audited instruction count,
+and remaining code-page capacity; a success POD from another span cannot be
+rebound.
+
+The probe LoaderCode and LoaderData allocations must also be pairwise disjoint
+from both allocations in the M01-005 stack-switch plan. The modeled transition
+state address is carried in the 216-byte transition-evidence POD, must equal the
+composite storage layout's exact state address, and is independently
+revalidated by the 1,016-byte composite plan and 1,072-byte result. A copied
+success result cannot be rebound to another otherwise valid state page.
+
+The M01-012 ranges supplied to the composite must reproduce their successful
+result exactly and collectively provide:
+
+- RX+WB identity coverage carrying `AdditionalRequired` for the LoaderCode
+  page;
+- RW+NX+WB identity coverage carrying `AdditionalRequired` for the complete
+  LoaderData table/state arena;
+- writable, nonexecutable WB identity coverage carrying `OwnedStack` for the
+  complete usable stack.
+
+No accepted range may be writable and executable. The composite also retains
+the required M01-012 executing-image, handoff, serial, ACPI, framebuffer,
+and non-emitted guard evidence. It rejects missing, stale, reordered,
+overlapping, aliased, misaligned, overflowing, capacity-rebound, or
+accounting-inconsistent caller storage.
+
+The preflight stream is exactly 111 bytes and 32 decoded instructions with
+SHA-256:
+
+```text
+71993B5134F7A4936718FD406EBF68CDA7E82476EE15B3F9824A5B6600FF9171
+```
+
+Its Windows-x64 entry receives one aligned caller-owned 56-byte observation
+record. Before any flag-changing instruction, flag-preserving MOVs clear the
+completion/reserved fields and PUSHFQ records entry RFLAGS. The stream then
+records raw CR0, raw CR3, raw CR4, IA32_EFER, CPUID leaf `0x80000000`, and
+CPUID leaf `0x80000008`; the `PLF1` completion signature is its final
+observation write. It writes no control register and calls no function.
+
+The host evaluator accepts only:
+
+- CR0.PG and CR0.WP set;
+- CR4.PAE set, with CR4.LA57 and CR4.PCIDE clear;
+- IA32_EFER.LME, LMA, and NXE set;
+- CPUID address-size leaf present and physical width from 36 through 52;
+- architectural RFLAGS bit 1 set;
+- raw firmware CR3 with only page-aligned address bits plus PWT/PCD low bits;
+- a nonzero 4 KiB-aligned owned root inside a nonempty, aligned table arena,
+  with the complete root page inside that arena and every address inside the
+  reported physical width.
+
+Default, partial, conflicting-completion, missing-bit, unsupported-width,
+invalid-low-bit, above-width, null, unaligned, reversed, overflowing, or
+out-of-arena observations fail without becoming successful evidence.
+
+The transition stream is exactly 1,981 bytes and 485 decoded instructions with
+SHA-256:
+
+```text
+F1D94771DE8C8436CCDA1358A15F51DDE683AC3C77CBB0DC4A85B084888CA484
+```
+
+It contains no external relocation or patch, call, indirect control transfer,
+STI, nonvolatile GPR touch, or XMM6-15 touch. It uses only volatile
+RAX/RCX/RDX/R8/R9/R10/R11 plus balanced eight-byte PUSH/POP pairs, preserves
+the caller shadow space, requires Win64 entry alignment (`RSP % 16 == 8`), and
+returns the append-only runtime status in EAX.
+
+The exact modeled execution order is:
+
+1. PUSHFQ/POP R8 captures caller-entry flags before any TEST/CMP. The stub then
+   validates the aligned 184-byte state span, reserved bytes, zero callback
+   count, every zeroed output, uninitialized status/checkpoint, owned-root
+   geometry, aligned stack range, nonzero distinct canary values, entry RSP,
+   and one-shot state. State, canary, and stack spans must be overflow-safe,
+   low-canonical, and mutually disjoint; the canary follows the state record.
+   No runtime-state byte is written until this preflight succeeds. A null,
+   malformed, or overlapping pre-CLI path restores the captured RFLAGS before
+   returning its status.
+2. The captured entry flags are stored, CLI executes once, and an immediate
+   PUSHFQ readback must have IF clear and architectural bit 1 set. Arithmetic
+   and status flags may legitimately differ because preflight TEST/CMP
+   instructions ran after entry capture.
+3. Raw CR3 and raw CR4 are read without normalizing their values. LA57 or PCIDE
+   returns `NotSupported` through the recovery tail before any CR3 write. The
+   masked firmware root must differ from the owned root, preventing a no-op
+   transition from reporting success.
+4. CR4.PGE is cleared, written, and read back. The owned aligned CR3 is then
+   written and read back while PGE is clear.
+5. Through the owned root, the identity-mapped canary must contain the expected
+   value, is replaced, and must read back as the replacement.
+6. A shared recovery epilogue writes and reads back the exact raw firmware CR3
+   while PGE remains clear. Only after a matching firmware-root readback does
+   it read the replacement canary again through the restored root.
+7. The exact raw CR4 is restored and read back, followed by POPFQ and an
+   immediate full-RFLAGS readback that must exactly equal the entry capture.
+   Firmware-CR3, CR4, and RFLAGS restoration
+   failures override an earlier operational status; a post-restoration canary
+   mismatch replaces only an otherwise-successful status, retaining the first
+   useful operational failure.
+8. The stub records exit RSP, requires exact entry/exit equality, writes the
+   final runtime status/checkpoint, restores the captured flags a final time,
+   moves the retained status to EAX with a flag-preserving MOV, and returns.
+
+Every control-flow path after the owned CR3 write crosses the firmware-CR3
+restore; every path after the PGE write crosses the CR4 restore; and all 51
+reachable returns restore the entry RFLAGS, with only a flag-neutral status MOV
+permitted after the final POPFQ. The emitted code never invokes a firmware
+callback. The composite additionally requires actual transition RSP
+to retain 64 bytes below it, the 40-byte return-address/shadow-space caller
+frame above it, and all transcript RSP values inside the M01-005 usable stack.
+
+The caller-owned transcript uses exactly nine successful events:
+
+```text
+PreMarkerEmitted
+TransitionEntered
+OwnedRootLoaded
+OwnedRootReadBack
+CanaryUpdated
+FirmwareRootRestored
+FirmwareRootReadBack
+CanaryValidated
+PostMarkerEmitted
+```
+
+`M01_POST_CR3` is accepted only after exact raw firmware-root readback and
+canary validation. Callback attempts, interrupt re-enable, early/missing
+markers, raw-root mismatch, RSP escape, unchanged/corrupt canary, timeout,
+reset, triple fault, extra/reordered events, elapsed-time regression, or
+timeout overflow fail deterministically.
+
+The stable aggregate host evidence is:
+
+```text
+TEST_START m01.013
+TEST_START m01.013.01.load
+TEST_PASS m01.013.01.load
+TEST_START m01.013.02.preflight
+TEST_PASS m01.013.02.preflight
+TEST_START m01.013.03.transition
+TEST_PASS m01.013.03.transition
+CLROS_M01_013_READY
+TEST_PASS m01.013
+```
+
+Any child failure emits its child `TEST_FAIL` plus
+`TEST_FAIL m01.013 failures=<count>`, throws from the sole aggregate
+coordinator, and suppresses both the ready marker and aggregate pass marker.
+The exact union of address, mapping, stack, preflight, transition, and
+composite sources compiles in the retained `NoStdLib=true`, `NOSTDLIB_EFI`,
+zero-framework-reference fixture with zero assembly references. Evaluated
+`SingleMinimalApi` and `MultiMinimalApi` project closures prove the new
+production and test sources are absent from the current EFI build.
+
+The retained SharpOS files are owner-authorized architectural/test influences,
+not imported live behavior or CLROS execution evidence:
+
+- `references/SharpOS-main/OS/src/Kernel/Paging/Cr3Accessor.cs`, SHA-256
+  `088D73C1BF807B652CD2F7ED795C1507C1F28884DD4184A2A28A574CF01E9E47`,
+  was used to cross-check the minimal CR3 opcode and the requirement to retain
+  the exact raw register value rather than reconstructing it from an address.
+- `references/SharpOS-main/bootasm/BootAsm.Generator/BootAsmGenerator.cs`,
+  SHA-256
+  `B24C79DCD38757DCBE243DC6C4C63C1AF628525F06C4F5D296B6AFB0C9387500`,
+  influenced deterministic generate/materialize/readback auditing. CLROS uses
+  independently authored first-party bytes and its own bounded encoder.
+- `references/SharpOS-main/OS/src/Kernel/Paging/PagingValidation.cs`, SHA-256
+  `B1699D328E49D5FC68B8CF8979B366D72CCA2E3B4AA5B982F91F0A2C9A1C40F6`,
+  supplied test-only missing-map, alignment, and readback failure categories.
+
+The canonical upstream is `https://github.com/daniilvaino/SharpOS`.
+Owner-supplied permission authorizes reuse of SharpOS-authored source and the
+upstream independently corroborates CC0-1.0 at evidence commit
+`b80ee3a4175e1522d1a12ba7fe371a49da3207f5`; the supplied snapshot itself has
+no recoverable revision, so the exact local paths and hashes remain its source
+identity. No file-local third-party term is overridden.
+
+This issue proves host-audited, default-off planning and byte identity only.
+Neither byte stream is invoked by host tests, source-linked into `src/OS`, or
+executed by EFI/QEMU. It does not allocate/zero/populate page tables, change a
+live protection, prove page zero absent in hardware, load CR3, execute under an
+owned root, prove a TLB effect, establish firmware reachability of recovery
+state, or advance a completion gate. PCID and LA57 remain unsupported. NMI/SMI
+behavior remains an explicit residual risk until M02 owns descriptors and
+fault diagnostics. M01-019 owns coordinated live preparation/invocation,
+M01-020 owns EFI linking, M01-025 owns default wiring, and M01-026 owns
+cumulative real-QEMU proof.
+
 Boot page allocator-readiness composition coverage is host-test only. It proves existing planner/state contracts can be composed over caller-owned scratch buffers and forwarded into the ordered boot readiness marker boundary. It does not reserve kernel-owned ranges, mutate allocator-owned state, allocate pages, configure paging, or run in `EfiMain`:
 
 ```text
