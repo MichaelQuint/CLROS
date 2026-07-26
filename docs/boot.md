@@ -48,6 +48,7 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 - `PhysicalAddress`, `VirtualAddress`, and `DeviceAddress` define three distinct host-tested address domains backed by one private `ulong` each and treat zero/default as invalid. Raw ingress and egress exist only through status-coded methods whose names identify a UEFI or hardware-register boundary; there is no generic `Value`, `TryCreate`, cast, or conversion escape. Checked arithmetic, alignment, range-end, and same-domain comparison operations reject default/zero input, zero-length ranges, invalid or unmet power-of-two alignment, and addition/align-up wrap while leaving every failure output deterministic.
 - `BootReservationKind` and `BootReservedRange` define a separate host-tested CLROS ownership ledger rather than reusing `BootMemoryReservedRange`, which classifies non-conventional UEFI descriptors and may legitimately describe page zero. The new 40-byte readonly unmanaged record stores an explicit append-only kind value, zeroed reserved bytes, typed nonzero `PhysicalAddress` start/end values, page count, and byte length. Its status-coded factory and structural validator require 4 KiB alignment, checked page-to-byte multiplication, and a nonwrapping half-open end.
 - `BootReservationTableValidator` is the host-tested, no-stdlib-compatible pointer/count/capacity core for an already-sorted caller-owned ownership ledger. It bounds the table at 256 records and rejects insufficient declared capacity, missing or misaligned pointers, and a wrapping full table-address span before dereferencing. It then validates every redundant range field, preserves the source byte-for-byte, permits adjacency, and reports unsorted, exact-duplicate, nested, partial-overlap, and loaded-image duplicate-coverage failures with deterministic invalid/conflicting indexes and prefix totals. If either `BootStackGuard` or `BootStack` is present, exactly one of each is required, the guard must immediately precede an adjacent stack, and their checked union is reported as the modeled arena. A table with neither record remains valid for earlier partial-ledger stages.
+- `EfiLoadedImageProtocolObservation`, `EfiLoadedImageRange`, and `EfiLoadedImageRangeCapturePlan` define a host-tested, no-stdlib-compatible loaded-image capture contract. One 40-byte observation atomically records the firmware status, input image handle, transient protocol address, image base, and image size. The exact-one pointer/count/capacity evaluator rejects malformed metadata and an invalid 4 KiB page-size contract before its single observation read, then validates handle/status/pointer/base/size in deterministic order, checks exact-end and outward-rounding arithmetic, and constructs the canonical `LoadedImage` reservation. Its 144-byte value result contains an 80-byte exact range and canonical reservation but does not retain the protocol pointer. This compact observation is not ABI-compatible with the native x64 `EFI_LOADED_IMAGE_PROTOCOL` and must never be cast over firmware memory.
 - `BootSequenceHandoffValidator` validates the boot source, required text-output and memory-map capabilities, firmware-services mode, owned memory-map copy flag, source-buffer provenance, descriptor size, descriptor count, map-size arithmetic, descriptor-count limits, and ACPI RSDP metadata consistency without exceptions.
 - `EfiBootHandoffValidator` is the source-linked no-stdlib-safe numeric validator used by the live EFI artifact before it emits `BOOT_HANDOFF_READY`.
 - `EfiMemoryMapNormalizer` is the source-linked no-stdlib-safe live normalizer that walks owned raw descriptor bytes by pointer, validates page/address arithmetic, and records a compact summary without allocating.
@@ -135,7 +136,7 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 ## Unsupported Behavior
 
 - Live page allocator/free-list ownership over planned boot memory ranges. `BootMemoryRegionPlanner` classifies compact records into usable conventional ranges and reserved/unusable metadata, `BootPageAllocatorPlanner` produces host-tested initial free-segment metadata from those selected ranges, `BootPageFreeListBuilder` constructs caller-owned free-list node metadata from the successful plan, `BootPageAllocatorStateInitializer` validates that node chain into value-type allocator state metadata, `BootPageAllocatorMutation` mutates caller-owned free-list metadata in host tests, `BootPageAllocatorReadinessComposer` composes those existing pieces over caller-owned scratch buffers, and `BootSequence.RunBootPageAllocatorReadiness` emits a host-tested readiness marker from initialized allocator-state metadata. None of those pieces reserve kernel ranges, allocate or free live pages, configure paging, enforce NX/W^X, or run in the live EFI path.
-- Live use of the typed address domains or canonical reservation ledger. The exact typed-address, reservation-record, and pointer-validator sources have retained isolated `NOSTDLIB_EFI` compiler tests, but they are not source-linked into `src/OS/OS.csproj`, invoked by `EfiMain`, or applied retroactively to existing raw-`ulong` memory, MMIO, PCI, and DMA interfaces. Named boundary methods make raw-value intent auditable; they are not a capability boundary. The host validator proves range-shape, ordering, overlap, capacity, totals, and modeled guard/stack-union policy only for supplied records. It does not populate the ledger, prove that omitted metadata is actually contained in the loaded image, prove EFI `LoaderCode`/`LoaderData` allocation provenance or a refreshed map generation, reserve/subtract/reclaim live memory, establish allocator ownership, switch stacks, map pages, load CR3, or enforce cache, NX, or W^X policy.
+- Live use of the typed address domains, loaded-image capture plan, or canonical reservation ledger. The exact typed-address, reservation-record, pointer-validator, loaded-image range, and capture-plan sources have retained isolated `NOSTDLIB_EFI` compiler tests, but they are not source-linked into `src/OS/OS.csproj`, invoked by `EfiMain`, or applied retroactively to existing raw-`ulong` memory, MMIO, PCI, and DMA interfaces. Named boundary methods make raw-value intent auditable; they are not a capability boundary. The loaded-image planner validates one caller-owned compact transcript; it does not call `HandleProtocol`/`OpenProtocol`, dereference the observed protocol address, or prove that the transcript came from the running image. The host validator proves range shape, rounding, canonical reservation construction, ordering, overlap, capacity, totals, and modeled guard/stack-union policy only for supplied values. It does not populate the ledger, prove that omitted metadata is actually contained in the loaded image, prove EFI `LoaderCode`/`LoaderData` allocation provenance or a refreshed map generation, reserve/subtract/reclaim live memory, establish allocator ownership, switch stacks, map pages, load CR3, or enforce cache, NX, or W^X policy.
 - Real `ExitBootServices`.
 - Complete platform implementations for console, memory map, keyboard, hardware timer, firmware, filesystem, physical-memory mapping, framebuffer/GOP binding, and post-firmware RNG.
 - IDT/GDT/TSS/IST setup.
@@ -240,6 +241,72 @@ status name, raw-pointer design, or EFI call was copied. Those hazards were
 independently represented as zero/default, overflow, capacity, arbitrary-range,
 ordering, and overlap tests. Firmware map acquisition, retry, reclamation, and
 `ExitBootServices` remain outside M01-002.
+
+M01-003 loaded-image range capture coverage is host-only.
+`CLROS_M01_003_READY` is emitted only after the exact status/POD layouts,
+default-value behavior, aligned and unaligned range vectors, high-address and
+overflow boundaries, pointer/count/capacity validation order, firmware
+transcript classification, canonical reservation integration, malformed-result
+revalidation, nonmutation, zero-allocation hot path, protocol-pointer
+nonretention, source firewall, and isolated compiler closure all pass. The
+40-byte observation binds one acquisition transcript so status, input handle,
+returned protocol address, image base, and image size cannot be mixed between
+calls. The 144-byte plan never retains the protocol address; its 80-byte range
+embeds the exact canonical `BootReservedRange` created with kind
+`LoadedImage`:
+
+```text
+TEST_START m01.003
+TEST_PASS m01.003 statuses and pod layouts are stable
+TEST_PASS m01.003 default values fail closed
+TEST_PASS m01.003 aligned image produces canonical reservation
+TEST_PASS m01.003 outward rounding preserves exact extent
+TEST_PASS m01.003 boundary sized image remains checked
+TEST_PASS m01.003 pointer count and capacity fail before dereference
+TEST_PASS m01.003 invalid page sizes fail before observation use
+TEST_PASS m01.003 firmware transcript failures are classified
+TEST_PASS m01.003 image range failures are classified
+TEST_PASS m01.003 validation precedence is deterministic
+TEST_PASS m01.003 canonical reservation is accepted by ledger validator
+TEST_PASS m01.003 malformed result values cannot report success
+TEST_PASS m01.003 evaluation is nonmutating deterministic and allocation free
+TEST_PASS m01.003 result does not retain firmware protocol pointer
+TEST_PASS m01.003 sources exclude hosted and live firmware dependencies
+TEST_PASS m01.003 exact sources compile under nostdlib efi
+CLROS_M01_003_READY
+TEST_PASS m01.003
+```
+
+The isolated compiler fixture includes only the typed-address source,
+`BootReservedRange`, both M01-003 production files, a minimal primitive shim,
+and a positive pointer-core probe. It defines `NOSTDLIB_EFI`, removes all
+framework references, and verifies that the emitted PE has zero assembly
+references.
+
+The implementation was independently authored after reviewing only the
+relevant boundary behavior and field semantics:
+
+- `references/SharpOS-main/OS/src/Boot/UefiFile.cs` (local snapshot SHA-256
+  `4A2FC2739DDF294142787A5ED730CA268449B4BF31F153666AB50A69C766C7CB`)
+  influenced status, handle, and returned-pointer validation order. No
+  filesystem behavior or source was copied.
+- `references/SharpOS-main/OS/src/Boot/UefiTypes.cs` (local snapshot SHA-256
+  `BE363A53F6DBDE47BAA92EFB67F14A693CDEFA9025BA52B49D1C331323194A87`)
+  was used to cross-check that the real x64 loaded-image protocol is a
+  96-byte firmware structure whose `ImageBase` and `ImageSize` fields are at
+  offsets 64 and 72. The compact CLROS observation is deliberately a
+  different type and must be populated only after future live-adapter checks.
+- `references/RoseOS-master/Loader/src/EFI.cs` (local snapshot SHA-256
+  `1C9EFF3980F370FA008CF7BC50A1D79D1969E7C7D1FBDEEBCAC611B9885CCD1D`)
+  supplied test-only reminders for raw handle/protocol outputs and unchecked
+  image bounds. No API, wrapper, call machinery, status name, or source was
+  copied, and this file is not cited as proof of a reclamation defect.
+
+This evidence does not open a firmware protocol, establish that a supplied
+pointer is readable, link the leaf into `src/OS`, reserve the running EFI
+image, populate a live reservation table, prove memory-map allocation types,
+run under QEMU, or change a completion-gate state. M01-021 owns the future
+live loaded-image protocol adapter and M01-022 owns guest proof.
 
 Platform configuration-table guard coverage:
 
