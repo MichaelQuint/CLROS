@@ -405,6 +405,176 @@ M01-005 owns the switch contract; M01-017 owns cross-leaf coordination;
 M01-020 owns explicit EFI linkage; M01-021 owns live allocation/wiring; and
 M01-022 owns real-QEMU evidence.
 
+M01-005 owned boot-stack switch planning and audit coverage is host-only.
+`OwnedBootStackSwitchPlan.Create` consumes exactly two checked
+`BootMemoryRegionRecord` values after validating count, capacity, pointer
+alignment, and the complete allocation-table address span. Record zero must be
+one page of `LoaderCode`; it is also represented by a canonical
+`BootReservedRange` of kind `BootStackSwitchStub`. Record one must be
+`LoaderData` and must match the complete physical backing range of an M01-004
+layout in `Ready`. The physical and virtual allocations must be disjoint.
+The data allocation's virtual prefix is the guard and its remaining exact
+extent is the usable downward-growing stack. The plan rejects a continuation
+inside either allocation or the handoff range, and rejects handoff storage
+that overlaps the code page, guard, or usable stack.
+
+The handoff is an exact 88-byte, versioned, sequential unmanaged value. Its
+storage is 8-byte aligned and is accepted only with
+`CallerAttestedStaticOwnedData` provenance. Likewise,
+`StaticNonReturningRspAndHandoff` records the only accepted continuation
+contract. Both properties are caller attestations: this leaf cannot inspect
+whether either address is really static, owned, executable, or nonreturning.
+M01-017 must serialize the live ownership decision.
+
+The first switch byte plan is the following fixed 14-byte C# sequence:
+
+```text
+48 89 CC       mov rsp, rcx
+48 31 ED       xor rbp, rbp
+6A 00          push 0
+48 89 E1       mov rcx, rsp
+41 FF E0       jmp r8
+```
+
+The future caller supplies the aligned pre-transfer stack pointer in `RCX`,
+the static handoff pointer in `RDX`, and the nonreturning continuation in
+`R8`. The stub moves to the owned stack, clears the abandoned frame pointer,
+pushes a zero fake return, publishes the actual continuation-entry `RSP` back
+through `RCX`, and jumps rather than calls. `RDX` is unchanged. An actual
+return therefore targets address zero; it faults only when the later
+null-page-unmapped policy is live, which M01-005 does not prove.
+`ReportUnexpectedReturn` is consequently only a host-side
+state-classification model. It does not prove that a live return can be
+intercepted.
+
+Emission and verification are materialization-bound. They accept the base
+pointer and capacity for the complete code page, require that pointer to be
+4 KiB aligned and numerically identical to the plan's virtual code-page
+start, require a materialized length equal to the complete one-page
+allocation, and derive the write/read address as
+`pageBase + StubEntryOffset`. The fixed bytes never operate on a detached
+14-byte buffer. Successful evidence preserves the actual page-buffer address,
+page length, capacity, stub offset, stub length, byte count, mismatch offset,
+operation, and the complete immutable plan snapshot. Arming accepts only
+successful `Verify` evidence whose exact plan snapshot matches; `Emit`
+evidence, an alternate page, a different offset, or another plan fails
+closed.
+
+For a page-aligned usable-stack end `E`, the ABI arithmetic is:
+
+```text
+pre-transfer RSP       = E - 32
+continuation-entry RSP = E - 40
+fake return slot       = [E - 40, E - 32)
+32-byte home space     = [E - 32, E)
+```
+
+The pre-transfer value is `0 mod 16`. After the eight-byte push, the
+continuation-entry value is `8 mod 16`, as required by the Windows x64
+function-entry contract. Both the fake return and all 32 home-space bytes
+remain inside the usable stack. The continuation audit requires the observed
+value to equal exactly `E - 40`; an address merely somewhere inside the stack
+is insufficient.
+
+The immutable plan carries no transition state. Instead it binds exactly one
+caller-attested static 536-byte state-storage range. That range must be
+8-byte aligned and disjoint from the code page, guard, usable stack, handoff,
+and continuation. Every state API validates null, byte capacity, alignment,
+the complete pointer span, and equality with the plan's canonical address
+before its first dereference. Initialization then verifies all 536 bytes are
+zero before writing an `OwnedBootStackSwitchStateRecord`. The record stores
+`Size`, `Version`, its initialized storage address, the complete plan, a
+transition count, the observed `RSP`, the current state, a terminal
+cause/status, and reserved-zero bytes. Its stored address must continue to
+equal both the actual pointer and the plan address, so copying valid state
+bytes elsewhere or initializing a second record for the same plan is
+rejected while the canonical bytes remain intact. All copies of a plan using
+that intact canonical record therefore observe one authoritative host-mode
+sequence:
+
+```text
+Uninitialized -> Planned -> Armed -> TransferRecorded
+TransferRecorded -> ContinuationObserved
+TransferRecorded -> Failed
+```
+
+Repeated arm, transfer, observation, and synthetic unexpected-return reports
+are rejected. A malformed RSP audit moves the record to `Failed` with
+`ContinuationRspAuditFailed` and the precise audit status, while a synthetic
+return report records `UnexpectedReturnReported`; the two terminal cases are
+not conflated. The leaf is designed for serialized early-boot use and
+intentionally has no hidden static state or runtime lock. Restoring stale
+bytes over the same canonical address, concurrent mutation, and live
+cross-leaf ordering remain M01-017 responsibilities.
+
+Some defensive status values describe invariant-corruption fallbacks that a
+valid current page-granular M01-004 layout cannot normally reach, including
+guard/ABI arithmetic failure, reservation-factory rejection, and
+shadow-space overflow after containment. They remain fail-closed
+revalidation outcomes, not claims that ordinary valid factory inputs exercise
+those paths.
+
+`CLROS_M01_005_READY` is a host-harness marker only. The focused suite covers
+stable values and exact POD layouts; defaults; pointer-before-dereference
+preflight; malformed LoaderCode/LoaderData records; physical and virtual
+overlap; continuation/handoff aliasing; exact arena accounting; nonzero
+stub-offset page materialization with untouched surrounding bytes; corrupted
+readback; cross-page and cross-plan evidence rejection; state-record
+self-binding; repeat and illegal transitions; exact RSP containment;
+allocation-free deterministic behavior; live-execution source firewalls; and
+the retained no-stdlib compiler closure:
+
+```text
+TEST_START m01.005
+CLROS_M01_005_READY
+TEST_PASS m01.005
+```
+
+The isolated compiler fixture includes the typed-address source,
+`BootReservedRange`, `BootReservationTableValidator`,
+`OwnedBootStackLayout`, `UefiMemoryType`,
+`BootMemoryRegionMaterializer`, this switch-plan source, a minimal primitive
+shim, and a positive pointer/state/page-evidence probe. It defines
+`NOSTDLIB_EFI`, removes every framework reference, and verifies that the
+emitted PE contains zero assembly references.
+
+The implementation was independently authored after selectively reviewing
+the following owner-authorized local SharpOS reference evidence:
+
+- `references/SharpOS-main/OS/src/Boot/BootStackSwitch.cs` (local snapshot
+  SHA-256
+  `637DCFC91E3B9647A0F8FBD4800E6C973ED78C6E5F73E2F7C10770C000234808`)
+  informed one-shot ordering, ABI alignment, and a nonreturning continuation.
+- `references/SharpOS-main/OS/src/Boot/BootStackSwitchStub.cs` (local snapshot
+  SHA-256
+  `82BD871E197F5666E97B7A6124E360E9FDFBAD478E8579CBA2993700E96A3B02`)
+  and
+  `references/SharpOS-main/OS/src/Boot/BootStackSwitchPatcher.cs` (local
+  snapshot SHA-256
+  `4D889735C1507FB7F4DE53E616AB96929F49348531559BFD967A14F585063315`)
+  informed the minimal stub shape and the need for exact byte/bounds
+  readback. No in-place method-body patching or writable-executable assumption
+  was adopted.
+- `references/SharpOS-main/bootasm/BootAsm.Generator/BootAsmGenerator.cs`
+  (local snapshot SHA-256
+  `B24C79DCD38757DCBE243DC6C4C63C1AF628525F06C4F5D296B6AFB0C9387500`)
+  informed deterministic byte validation only. CLROS does not import their
+  generator, Iced dependency, patcher, or generated assembly.
+- `references/SharpOS-main/OS/src/Boot/BootStackPool.cs` (local snapshot
+  SHA-256
+  `B7C80FDD76BB0D17CF87AB358CCC50F413601D8A1B8C0A6ABB22EE8D40D90E7C`)
+  supplied guard/containment test ideas. Its mutable global state, fixed 4 MiB
+  pool, raw pointers, and implicit ownership were not copied.
+
+This proves only a host-audited stack-switch byte plan and RSP-containment
+contract. It does not execute `mov rsp`, call or jump to the continuation,
+alter the processor stack, materialize or protect a guest code page, prove
+the handoff/continuation attestations, link the source into the EFI artifact,
+run under QEMU, or prove a live owned-stack transition. It does not change a
+completion-gate state. M01-017 owns authoritative cross-leaf serialization,
+M01-020 owns explicit EFI linkage, M01-021 owns live allocation/wiring, and
+M01-022 owns real-QEMU evidence.
+
 Platform configuration-table guard coverage:
 
 ```text
