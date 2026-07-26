@@ -70,6 +70,7 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 - A successful real `AllocateOnePage` result is also the only accepted evidence for `FreeOnePage`: it has `CanRestore=true` and embeds an initialized `BootPageAllocatorOnePageRestoreReceipt`. The receipt retains the exact pre-allocation source node, source-free-segment and source-usable-range provenance, and predecessor evidence; the enclosing allocation result retains the before/after allocator states, node and reservation counts/capacities, typed physical range, indexes, and other status evidence. `FreeOnePage` accepts no independent raw physical address and is deliberately an exact inverse rather than a general free-list insertion operation. It requires the caller's current state and node/reservation counts/capacities to match the allocation result's exact post-allocation snapshot, revalidates the current chain and receipt, and restores the original logical node topology byte-for-byte. Exact-node consumption reports `None`; a tail allocation reports `Previous`; a head allocation reports `Next`; and a middle split reports `PreviousAndNext`.
 - This receipt-bound free contract rejects default or unsuccessful evidence, inconsistent forged evidence, foreign receipts whose recorded evidence does not match, altered source/provenance/predecessor evidence, replay and double free, stale or out-of-order state, mismatched count/capacity, malformed current chains, and arithmetic or pointer-span failures before mutation. The caller must keep the declared node storage mapped and stable, exclusively serialize every allocation/free transition, and publish each returned state exactly once. Consequently, successful freeing is limited to immediate restoration or caller-managed LIFO order; arbitrary-order freeing requires a later allocation ledger or generation-bearing authority. The copyable receipt is not an unforgeable capability: byte-identical receipts from indistinguishable allocator copies cannot be rejected, and the current contract cannot solve ABA after an address is freed and reallocated.
 - Unsafe pointer validation cannot prove that caller-supplied addresses are mapped or stable. `BootPageAllocatorMutator.PerformsLiveAllocation=false` remains explicit: allocation and exact-inverse restoration mutate caller-owned metadata only and neither operation owns, frees, maps, zeros, protects, or accesses a physical page. The pre-existing Span-shaped general `Allocate`/`Free` compatibility API and result compile only under `#if !NOSTDLIB_EFI`; they remain historical host-test compatibility helpers, are not interoperable authoritative transitions for the pointer core, and do not establish safe or live free semantics.
+- `BootPageAllocatorStressTests` is the host-harness-only deterministic oracle over that existing pointer API. It drives a bounded synthetic arena through fixed-seed one-page allocation and strict-LIFO restoration, independently derives provenance-aware ownership and free extents, compares allocator metadata after every operation, preserves full node/reservation byte snapshots and capacity canaries, and verifies separate host-owned content tags for every live synthetic allocation. The content store is never passed to the allocator, so its corruption self-test proves the oracle can detect a bad host canary rather than proving physical-page access. This test source is not production or `NOSTDLIB_EFI` code and is excluded from the canonical EFI project.
 - `BootPageAllocatorReadinessComposer` is the host-tested aggregate boundary from compact boot memory-region records through usable/reserved range planning, free-segment planning, caller-owned free-list node construction, allocator-state initialization, and `BootSequence.RunBootPageAllocatorReadiness`. It returns nested status and capacity metadata and emits the ordered readiness marker only after the region-planning precondition succeeds.
 - `NativeAotHeapBootstrapPlanner` is the host-tested runtime-facing boundary after allocator-state initialization. It consumes `BootPageAllocatorState` metadata, validates a future managed-heap page budget and object alignment, and keeps object allocation helper completion false; it does not reserve pages, install a heap, run GC root scanning, or perform write barriers.
 - `BootSequence.RunNativeAotHeapBootstrapReadiness` is the host-tested ordered-boot marker boundary after heap bootstrap planning. It consumes `NativeAotHeapBootstrapPlanResult`; emits `NATIVEAOT_HEAP_BOOTSTRAP_READY status=Ready ... satisfiesObjectAllocationHelpers=false` only when the plan succeeds; and emits `NATIVEAOT_HEAP_BOOTSTRAP_NOT_READY status=<reason> ...` for default/uninitialized or failed plans while preserving allocator, requested-heap, remaining-free, alignment, GC-root, write-barrier, and object-allocation-helper metadata. It does not install a heap or implement allocation helpers.
@@ -158,7 +159,7 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 
 ## Tests
 
-Host tests verify the marker plan, `BootSequence.Run`, handoff-aware `BOOT_HANDOFF_READY` validation, `BOOT_MEMORY_MAP_ACCEPTED` validation, boot capability contract, typed handoff metadata including owned-map and ACPI RSDP records, typed physical/virtual/device address POD layout and checked arithmetic, UEFI memory-map contract, memory-map capture-helper success/failure paths, memory-map copy-plan validation, raw descriptor decoding, normalized memory-map conversion, caller-owned `MemoryMapInfo` region writing, no-stdlib boot memory-region materialization, allocator-facing boot memory-region planning, typed reservation subtraction with exact provenance/accounting and atomic failures, boot free-list segment planning, caller-owned boot free-list node construction, boot page allocator-state initialization, bounded pointer/count/capacity allocator-state materialization with explicit source-range cardinality and atomic failure behavior, caller-owned boot page allocator allocation plus receipt-bound exact-inverse restoration, replay/double-free/nonmatching-foreign/stale/out-of-order rejection, aggregate boot page allocator-readiness composition, boot page-allocator readiness markers, NativeAOT heap bootstrap readiness markers, NativeAOT cctor runner preflight readiness markers, PAL export catalog readiness markers, app package-file staging preflight markers, app argument-vector readiness markers, app argument-handoff readiness markers, app-exit observer readiness markers, ACPI RSDP configuration-table scanning and byte validation, guarded platform configuration-table scanning, guarded physical-memory-backed RSDP snapshot validation, caller-owned ACPI RSDT/XSDT pointer-list parsing, caller-provided ACPI table directory selection, ACPI MCFG discovery composition, ACPI physical discovery probe metadata, firmware guard contract, guarded platform adapter denial, and UEFI-gone simulation markers:
+Host tests verify the marker plan, `BootSequence.Run`, handoff-aware `BOOT_HANDOFF_READY` validation, `BOOT_MEMORY_MAP_ACCEPTED` validation, boot capability contract, typed handoff metadata including owned-map and ACPI RSDP records, typed physical/virtual/device address POD layout and checked arithmetic, UEFI memory-map contract, memory-map capture-helper success/failure paths, memory-map copy-plan validation, raw descriptor decoding, normalized memory-map conversion, caller-owned `MemoryMapInfo` region writing, no-stdlib boot memory-region materialization, allocator-facing boot memory-region planning, typed reservation subtraction with exact provenance/accounting and atomic failures, boot free-list segment planning, caller-owned boot free-list node construction, boot page allocator-state initialization, bounded pointer/count/capacity allocator-state materialization with explicit source-range cardinality and atomic failure behavior, caller-owned boot page allocator allocation plus receipt-bound exact-inverse restoration, deterministic seeded shadow ownership/provenance/content-tag replay, replay/double-free/nonmatching-foreign/stale/out-of-order rejection, aggregate boot page allocator-readiness composition, boot page-allocator readiness markers, NativeAOT heap bootstrap readiness markers, NativeAOT cctor runner preflight readiness markers, PAL export catalog readiness markers, app package-file staging preflight markers, app argument-vector readiness markers, app argument-handoff readiness markers, app-exit observer readiness markers, ACPI RSDP configuration-table scanning and byte validation, guarded platform configuration-table scanning, guarded physical-memory-backed RSDP snapshot validation, caller-owned ACPI RSDT/XSDT pointer-list parsing, caller-provided ACPI table directory selection, ACPI MCFG discovery composition, ACPI physical discovery probe metadata, firmware guard contract, guarded platform adapter denial, and UEFI-gone simulation markers:
 
 ```powershell
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
@@ -827,6 +828,107 @@ accesses a physical page. The exact-inverse source is not linked into
 `src/OS/OS.csproj`, is not invoked from `EfiEntry`, has no QEMU/OVMF evidence,
 and changes no completion gate. M01-024 exclusively owns guest evidence for
 the pre-EBS arena allocation/free/double-free-rejection cycle.
+
+M01-010 adds a deterministic host-only shadow-model stress oracle without
+changing the production allocator. The canonical arena represents 128
+synthetic physical page ordinals at base `0x00200000`: four provenance-distinct
+free extents contain 10, 32, 40, and 32 pages, while three canonical
+reservations cover the 14 intervening pages. Active nodes begin at logical
+indexes 0, 7, 19, and 31 in a 40-slot table with a 44-slot declared capacity;
+the four capacity-tail nodes are nondefault byte canaries. The independent
+model records usable/allocated ownership, source-free-segment and
+source-usable-range provenance, ordered free extents, a receipt stack, and
+separate expected/actual 64-bit content tags for every synthetic page.
+Expected first fit is derived from the page model, never from the allocator's
+mutated node chain. After every operation, the test separately traverses the
+active chain and validates chain shape, active geometry/order/provenance,
+node/page/byte totals, ownership, content tags, reservation bytes, inactive
+logical slots, and capacity-tail bytes. Failed operations and matching
+exact-inverse frees additionally require byte-identical full storage
+snapshots.
+
+The generated stream uses a test-local xorshift64-star PRNG with fixed unsigned
+64-bit seeds. Bounded choices use rejection sampling instead of modulo-biased
+selection. Each churn step consumes a selector, alignment input, and content
+word before applying a documented 65-percent allocate / 35-percent strict-LIFO
+free mix. State-dependent fallback allocates when the stack is empty and frees
+when depth reaches 24. Alignments are powers of two from 4 KiB through 256 KiB.
+After each generated phase the receipt stack drains, every modeled free page is
+then allocated at 4 KiB alignment, one extra allocation proves
+`NoSuitableRange`, and the complete stack drains back to the byte-identical
+baseline. Successful free operations pop only the newest receipt because the
+production boundary is an exact inverse, not an arbitrary-order allocator.
+
+The canonical replay uses seed `0x6A09E667F3BCC909` and 1,024 generated churn
+steps. Including initial/final transcript records and the forced
+exhaustion/unwind phase, it produces 1,278 canonical records, 549 successful
+allocations, 549 successful frees, and 178 expected no-range failures. Two
+fresh replays must match the checked-in SHA-256 transcript:
+
+```text
+12F1D263FC34D423E628574705A22F426BF43BACBAA38F53BEF886F5AB5D8D96
+```
+
+Three additional 384-step streams freeze independent seed control and
+cross-seed diversity:
+
+```text
+seed=0x3C6EF372FE94F82B stream=2 hash=A74D2B2234A669DE8FDD7A478A3D12BF6601378E3557961B4EE1ADAAD20DB4D7
+seed=0xA54FF53A5F1D36F1 stream=3 hash=83AD88944AC8DB83A235E41A981F99EE02B652BC8DB2D596A0CF8AF585FC88B9
+seed=0x510E527FADE682D1 stream=4 hash=767149D6F2EEC88CDC524E96C5C2F2E2024B92B90E1D92A200C353E1EB1231C8
+```
+
+Transcript fields use explicit little-endian fixed-width encoding and include
+the seed/stream, generated words, operation and outcome, typed raw page
+address, allocator state, normalized node/reservation fields, receipt depth,
+coverage counters, and every page's ownership, provenance, and content tags.
+Host pointers, timestamps, process data, object hashes, unordered collection
+enumeration, culture-sensitive text, and raw padding are excluded.
+
+Scripted cases guarantee whole/head/tail/middle allocation and the corresponding
+`None`/`Next`/`Previous`/`PreviousAndNext` exact-inverse classifications rather
+than relying on random chance. Positive coverage also locks nested LIFO churn,
+fragmentation, exact pre-allocation table restoration, full exhaustion, first
+and last synthetic boundary pages, the valid high page
+`[0xFFFFFFFFFFFFE000,0xFFFFFFFFFFFFF000)`, complete baseline restoration, and
+golden replay hashes. Negative coverage locks default and initialized-empty
+state, zero/multiple-page and malformed alignment requests, high-address
+alignment overflow, logical-slot metadata exhaustion despite spare capacity,
+node/accounting corruption, out-of-order receipt use, nonmatching foreign
+evidence, replay/double free, and byte-for-byte failure atomicity. Deliberately
+flipping one ownership mirror bit and one actual content tag proves that the
+independent oracle detects both corruptions; the production allocator cannot
+see or reject those host-owned buffers.
+
+Reference use is behavioral/test-only. The CLROS generator, model, transcript,
+and assertions were independently authored; no reference source was copied,
+built, linked, imported, or used as completion evidence. The local archives
+have no recoverable Git revision:
+
+- `references/abanu-master/src/Abanu.Lib/Tests/BinaryBuddyAllocator_TestImplementation.cs`, SHA-256 `22AF15CD46CBAEB28E4C8C1C18FF624C98B1EBFAA3ED0904D187263ACB2AFF7A`, is only a split/merge behavioral cross-check; despite the original manifest note, it does not contain the seeded content-oracle loop.
+- `references/abanu-master/src/Abanu.Test.Console/Alloc6Test.cs`, SHA-256 `5FFC32601255779DA00A01503BD4DF08D0516C09424344A9FDB2ABF01D6443E5`, supplies only the fixed-seed churn and live-allocation content-checking test pattern. CLROS does not copy its allocator, `System.Random`, dictionary-order, biased-selection, unchecked-null, or unmanaged-lifetime behavior.
+- `references/nativeaot-patcher-main/src/Cosmos.Kernel.Core/Memory/PageAllocator.cs`, SHA-256 `EC216B54C61765DC83F7CD6945614C2D97BFBDA6D2925668B12C4239D2E2368B`, supplies only independently recreated 4 KiB, exhaustion, boundary, ownership, and double-use failure categories; its RAT/HHDM/pointer/exception implementation is not imported.
+
+The successful host transcript boundary is:
+
+```text
+TEST_START m01.010
+M01_010_REPLAY seed=0x6A09E667F3BCC909 churn=1024 records=1278 allocations=549 frees=549 expected_failures=178 hash=12F1D263FC34D423E628574705A22F426BF43BACBAA38F53BEF886F5AB5D8D96
+CLROS_M01_010_READY
+TEST_PASS m01.010
+```
+
+Any group failure reaches `TEST_FAIL m01.010 <reason>` and throws before the
+ready/pass pair. `BootPageAllocatorStressTests.cs` remains under
+`tests/OS.HostTests`; the EFI project keeps default compile discovery disabled
+and does not include that file or the host-test project. This finite corpus
+proves reproducible host agreement between caller-owned metadata and an
+independent logical oracle only. It does not prove live physical
+allocation/free/ownership, real page contents or zeroing, firmware arena
+provenance, mapping, paging, CR3, NX/W^X, DMA, concurrency, arbitrary-order
+free, allocator identity, generation authority, indistinguishable-copy
+rejection, ABA safety, EFI execution, QEMU/OVMF execution, or any completion
+gate.
 
 Boot page allocator-readiness composition coverage is host-test only. It proves existing planner/state contracts can be composed over caller-owned scratch buffers and forwarded into the ordered boot readiness marker boundary. It does not reserve kernel-owned ranges, mutate allocator-owned state, allocate pages, configure paging, or run in `EfiMain`:
 
