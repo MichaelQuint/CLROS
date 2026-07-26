@@ -3450,7 +3450,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only host-tested free, double-free rejection, and coalescing of caller-owned allocator metadata. The code is not linked into or executed by the canonical EFI artifact and does not free or access live physical memory.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-010",
