@@ -27,6 +27,7 @@ The architecture is a staged CloudReady NativeAOT OS plan. The first-class appli
 - `tests/OS.HostTests/BootPageAllocatorStressTests.cs` adds a deterministic host-only oracle over the existing one-page allocator and exact-inverse free boundary without modifying production code. Fixed-seed generated churn and scripted whole/head/tail/middle cases independently model page ownership, source provenance, free extents, strict-LIFO receipts, and separate host-owned content tags. Every transition validates active-chain shape and fields, accounting, ownership/content, inactive slots, reservation bytes, and capacity-tail canaries, then contributes to a platform-independent transcript whose final hash is frozen; failed transitions and matching inverse frees additionally require byte-identical full snapshots. The synthetic content store never crosses into the allocator, so this verifies test-oracle sensitivity rather than physical-page contents or live ownership.
 - `src/OS.Kernel/Memory/PageProtection.cs`, `PageCachePolicy.cs`, and `X64PageTableEntry.cs` define one no-stdlib-compatible x64 entry-value contract for later paging work. The canonical `X64PageTableLevel` distinguishes PTE/PDE/PDPTE/PML4E once; leaf mappings accept only R, RW, or RX and bind WB/UC/WC to an explicitly validated IA32_PAT value/index; nonleaf table pointers use a separate canonical supervisor `P|RW, NX=0` kind and validate raw PAT index zero as WB independently of the selected leaf-WB index. Level-specific encode/decode validates 4 KiB/2 MiB/capability-gated 1 GiB alignment, supplied 36-52-bit physical width, NX, PAT placement, large-page/reserved bits, malformed POD state, and hardware Accessed/Dirty observations. A protection-only value rewrite explicitly preserves or clears A/D without live mutation. The two-pass unsafe batch core validates actual POD sizes, complete stable caller-owned pointer/count/capacity spans, and every request before any destination write, without fixed page-sized stack scratch.
 - `src/OS.Kernel/Boot/X64BootIdentityMappingPlan.cs` defines a caller-owned, no-allocation identity-mapping planner for the M01-011 4 KiB leaf policy. It requires explicit executing-image, owned-stack, boot-handoff, owned-serial-stub, ACPI-scratch, and framebuffer-metadata mappings plus a validated non-emitted stack guard; permits explicit additional required mappings for later owned arenas; preserves split image permissions; excludes page zero and the high/noncanonical identity half; deterministically unions only compatible policy ranges; and calculates exact fresh PML4/PDPT/PD/PT page capacity. The result contains typed physical-equals-virtual ranges and value evidence only.
+- `src/OS.Kernel/Memory/X64PagingModePreflightStubPlan.cs`, `X64ReversibleCr3TransitionStubPlan.cs`, and `X64Cr3LoadStubPlan.cs` define the host-audited M01-013 reversible-paging contract. The 111-byte observation stub records entry RFLAGS plus raw CR0, CR3, CR4, IA32_EFER, and CPUID physical-width values into caller-owned POD without writing a control register. Its evaluator requires paging and write protection, PAE, long-mode enable/active, NXE, a 36-52-bit physical width, four-level non-PCID mode, and an aligned owned root wholly inside the supplied table arena. The separate 1,981-byte transition plan is an independently encoded, relocation-free Windows-x64 byte stream: it captures entry RFLAGS before flag-changing validation; validates low-canonical, overflow-safe, mutually disjoint state/canary/stack storage before its first state write; restores entry RFLAGS on every pre-CLI failure; executes CLI; requires IF clear while permitting validation-induced arithmetic-flag changes; preserves exact raw firmware CR3/CR4; rejects a no-op same-root transition; clears and reads back CR4.PGE; loads and reads back the owned root; updates a shared nonzero canary; restores and reads back firmware CR3 while PGE remains clear; checks the canary again through the restored firmware root; restores and reads back CR4; restores exact entry RFLAGS; records status/RSP; and performs a final flag restoration immediately before returning the status. Every post-owned failure uses the same recovery path. The composite requires explicit one-shot opt-in, one distinct LoaderCode page, a nonoverlapping LoaderData table/state arena, physical disjointness from the M01-005 stack-switch code/backing allocations, exact modeled state-address binding, RX code and RW+NX data/stack mappings, exact sibling materialization/readback/evidence, 64 bytes of lower stack headroom, a 40-byte caller frame above the observed RSP, callback-free transcript ordering, raw-register/canary/RSP agreement, and timeout/reset/triple-fault classification. All three boundaries are host-only and execute no privileged byte in tests.
 - `FirmwareServicesGuard` and the `UEFI_GONE_SIM_*` host tests establish the first UEFI-gone simulation boundary.
 - The EFI build can produce an explicit QEMU-tested UEFI-gone simulation artifact that reaches `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, and `UEFI_GONE_SIM_PASS`.
 - `tools/OS.ImageBuilder` creates a raw GPT/FAT32 EFI System Partition image.
@@ -58,6 +59,21 @@ source-link or run inside EFI; or change processor state. Its deterministic
 plan therefore does not prove live page-zero absence, NX/W^X enforcement,
 cache correctness, identity reachability after CR3 load, TLB behavior, or a
 completion gate.
+
+The M01-013 preflight, transition, and composite plans remain host-audited
+contracts rather than a live paging transition. The exact x64 bytes are
+materialized and decoded as ordinary data only; no host test calls them. The
+plans do not allocate firmware pages, populate the M01-012 table hierarchy,
+change a live page protection, prove page zero absent in hardware, load CR3,
+execute a TLB flush, or run in EFI/QEMU. LoaderCode/LoaderData provenance,
+identity reachability, firmware-root reachability of the recovery code/state,
+and callback exclusion are validated caller evidence rather than processor
+observations. PCID and LA57 fail closed. Maskable interrupts are disabled only
+inside the modeled transition; NMI/SMI safety is not claimed before the M02
+descriptor/fault work. The source is deliberately absent from the evaluated
+`src/OS` closure. M01-019 owns coordinated live preparation/invocation,
+M01-020 owns explicit EFI source linking, M01-025 owns default wiring, and
+M01-026 owns cumulative real-QEMU evidence.
 
 ## Tests
 
@@ -91,6 +107,30 @@ protection, and cache preconditions. The exact source also compiles with
 `MultiMinimalApi` project closures prove it and its test are absent from the
 current EFI build. `CLROS_M01_012_READY` is a host-harness marker only, not
 guest, EFI, QEMU, live-mapping, or completion-gate evidence.
+
+M01-013 host tests freeze every status value and POD size/offset; independently
+decode the exact 111-byte/32-instruction preflight stream and
+1,981-byte/485-instruction transition stream; validate every internal branch
+target; reject calls, indirect control flow, nonvolatile-register use, XMM6-15,
+STI, external patches, malformed/truncated/oversized bytes, and storage-span
+errors; and verify deterministic SHA-256 identities
+`71993B5134F7A4936718FD406EBF68CDA7E82476EE15B3F9824A5B6600FF9171`
+and
+`F1D94771DE8C8436CCDA1358A15F51DDE683AC3C77CBB0DC4A85B084888CA484`.
+Positive and negative value tests cover CR0/CR4/EFER/CPUID prerequisites,
+all permitted firmware CR3 PWT/PCD combinations, physical-width and
+root/arena bounds, PGE initially clear or set, same-root rejection, exact
+CR3/CR4/final-RFLAGS restoration, IF-only post-CLI validation with fixed
+RFLAGS bit 1, all-return pre-CLI RFLAGS restoration, modeled state-address
+rebinding, low-canonical and disjoint state/canary/stack storage, stack-switch
+allocation collisions, one-shot stale state, zero/unchanged/corrupt canaries,
+callback evidence, stack/RSP bounds, timeout/reset/triple-fault terminals,
+marker order, capacity rebinding, hostile POD bytes, and write-free failure
+behavior. The
+combined exact source closure compiles with `NOSTDLIB_EFI`, `NoStdLib=true`,
+zero framework references, and zero assembly references; both canonical
+workload-profile evaluations prove the sources/tests are excluded from the
+current EFI artifact. `CLROS_M01_013_READY` is a host-harness marker only.
 
 ## Known Limitations
 
