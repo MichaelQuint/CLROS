@@ -11,14 +11,14 @@ Windows SDK, QEMU, and OVMF installed. `scripts/build-efi-shell.ps1` publishes a
 NativeAOT x64 PE with EFI application subsystem and stages it as
 `artifacts/efi/BOOTX64.EFI`.
 
-The most recent staged artifact is an explicit
-`M01_LOADED_IMAGE_STACK_PROBE` build. It contains the M01-021 loaded-image,
-page-allocation, map/ledger, stack-probe, and owned-stack-switch wiring, but it
-has build and PE-verification evidence only. The accepted QEMU/OVMF Gate 2
-evidence remains the earlier default artifact: it emits firmware-visible
-markers from `EfiMain`, captures and owns the UEFI memory map, validates the
-handoff, normalizes and materializes the map, and emits the ordered boot marker
-plan through the raw-image path.
+The most recent staged artifact enables both `M01_LOADED_IMAGE_STACK_PROBE` and
+`M01_LIVE_ALLOCATOR_PROBE`. It contains the M01-021 loaded-image,
+page-allocation, map/ledger, stack-probe, and owned-stack-switch wiring plus the
+M01-023 allocator-arena/map-recapture/five-record-ledger/coordinator adapter.
+The M01-023 stage-two portion has build and PE-verification evidence only. The
+accepted QEMU/OVMF evidence includes the earlier default Gate 2 path and the
+separately gated M01-022 owned-stack run; it does not include stage-two guest
+execution.
 
 ## Implemented Behavior
 
@@ -27,6 +27,11 @@ plan through the raw-image path.
 - `EfiEntry` contains one opt-in `M01_LOADED_IMAGE_STACK_PROBE` adapter. It is
   entered only after the ordinary owned handoff is available; the all-false
   build retains the previous path and marker order.
+- When `M01_LIVE_ALLOCATOR_PROBE` is enabled with the required stage-one probe,
+  the owned-stack continuation enters one additional default-off adapter. It
+  allocates a two-page loader-data arena, performs a fresh static map recapture,
+  builds an exact five-record ledger, and calls the reviewed M01 allocator
+  coordinator before emitting the packed stage-two success plan.
 - `EfiMain` uses minimal UEFI system-table, console-output, boot-services, and Serial I/O protocol structs.
 - `src/OS/Boot/EfiConsoleAdapter.cs` is a no-stdlib byte-output adapter for the live EFI artifact. It encapsulates UEFI console and Serial I/O fallback writes without using managed interface dispatch.
 - `OS.Kernel` has a host-tested `IPlatformConsole` guard contract for future firmware-console marker writes. The live EFI artifact now has a separate no-stdlib adapter boundary, but it is still not a full `IPlatformConsole` implementation.
@@ -282,6 +287,63 @@ enforcement, `ExitBootServices`, or any completion-gate advancement. M01-022
 owns real guest proof and failure classification. This issue's accepted
 build/source evidence does not change a completion-gate state.
 
+### M01 live allocator stage-two EFI wiring (M01-023 build evidence)
+
+The dual-probe artifact is built explicitly with:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-efi-shell.ps1 -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe
+```
+
+The allocator-only combination is invalid. Both the publish preflight and
+MSBuild reject it with
+`reason=live_allocator_requires_loaded_image_stack`; the ordinary build and
+the M01-022 stage-one-only profile remain valid.
+
+After the owned-stack continuation has completed M01-022's final observation,
+the M01-023 adapter requests one two-page `EfiLoaderData` arena, performs one
+fresh map recapture using the existing static buffers, requires a changed map
+key and matching allocation descriptor, extends the canonical ledger from four
+to five records, and invokes the M01-018 no-stdlib coordinator exactly once.
+The adapter requires an initially zero 312-byte durable state before the
+firmware allocation and byte-compares the complete returned and persisted
+states before success. Any failure after EFI grants ownership reaches one
+matching `FreePages` attempt; no success marker after the stage-two start can
+be emitted on a failed result.
+
+The fresh build reported both probe markers, `TEST_PASS efi.artifact.verify`,
+and `TEST_PASS efi.shell.publish`. The artifact verifier accepted PE32+ AMD64
+machine `0x8664`, EFI application subsystem `10`, an executable/file-backed
+entrypoint associated with the same-build `EfiMain`, and absent ordinary,
+bound, IAT, and delay-import directories. The accepted build products were:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `BOOTX64.EFI` | 208,384 | `620C37CC6CF517668A84F760CAC19241EB2FFBB6BB8A81B97B2CDA95AC063B44` |
+| `BOOTX64.EFI.link.json` | 1,817 | `4D2486A4F3E48FC66480B82B591ACBE0604A41144896FAFFC06FD1AE227A288B` |
+| `BOOTX64.EFI.link.map` | 93,728 | `97FD2283DA9C62AFEE4CB02B17B8BF340DC7827299D279866F688C4C86E4DBD9` |
+| `BOOTX64.EFI.link.rsp` | 217 | `0108286539031918F3576A3C9759803740D9E2DCB1A26E3E244E882C56E82F1F` |
+| `OS.obj` | 710,442 | `55BCEEDBA5DCD8A1F9057BB5787FD3CDF153783149D7CA16BE8CC3AA378C9358` |
+
+The emitted `RunAfterStageOne` frame reserves `0xF38` bytes plus eight saved
+nonvolatile registers, and `ValidateCompletedResult` reserves `0xED8` bytes
+plus its saved registers. Both remain within the already proven 33-page owned
+stack. This is binary-specific evidence and must be repeated when source,
+ILCompiler, runtime pack, linker inputs, or the artifact changes.
+
+Focused source-contract and mutation tests emit `TEST_START m01.023`,
+`CLROS_M01_023_READY`, and `TEST_PASS m01.023`. The accepted complete host
+harness exited zero with one `TEST_PASS host.tests`, zero `TEST_FAIL` lines,
+and an 819,024-byte stdout log whose SHA-256 is
+`4ECD25E46DB2EB41CC36944165EF67EE9EF1B74CEBB0797E59DF4DCC4BEDA60C`.
+The build does not prove that stage two executed in a guest, that firmware
+granted or reclaimed the arena, that the live allocator cycle completed, or
+that the allocated physical page was accessed. It does not establish a
+post-EBS allocator, paging, NX/W^X, owned COM1, descriptor loads, PCI, storage,
+networking, app execution, hosted .NET, Kestrel, cloud support, or any
+completion-gate promotion. M01-024 owns the separate QEMU/OVMF execution and
+serial evidence.
+
 ## Unsupported Behavior
 
 The project is not yet a functional kernel. `ExitBootServices`, owned drivers,
@@ -424,9 +486,11 @@ They are not a complete firmware abstraction layer.
 The memory-map source buffer is firmware-allocated by the source-linked capture helper, but the descriptor bytes are copied into a static OS-owned buffer before `UEFI_MEMORY_MAP_OWNED` is emitted, the owned handoff validates before `BOOT_HANDOFF_READY` is emitted, the compact live summary normalizes before `UEFI_MEMORY_MAP_NORMALIZED` is emitted, and compact boot-region records materialize before `BOOT_MEMORY_REGIONS_READY` is emitted. A later step must still keep a valid map-key retry path for `ExitBootServices` and turn the compact records into allocator-owned usable/reserved page ranges.
 
 The logged default-path memory-map metadata proves the map captured at that
-point in the EFI path. The M01-021 opt-in source adds a post-allocation
-static recapture, but that path has no accepted guest log. Neither record
-proves that its map key remains valid after later boot-services calls.
+point in the EFI path. M01-022 provides one accepted guest log for the
+M01-021 post-allocation static recapture and owned-stack transfer. M01-023 adds
+a second recapture after allocating the allocator arena, but that stage-two
+path has source/build evidence only. None of these records proves that its map
+key remains valid after later boot-services calls.
 
 The ACPI physical discovery probe proves only pre-`ExitBootServices` table bytes on the tested QEMU/OVMF host. It does not map ECAM, enumerate PCI, size BARs, bind drivers, discover APIC/HPET for use, or prove post-firmware physical-memory access.
 
@@ -437,9 +501,9 @@ Any next-step EFI build work must keep the freestanding constraints explicit. If
 1. Move UEFI structs behind platform interfaces.
    - Keep the low-level UEFI table pointers isolated to the EFI boundary.
    - Expose only the narrow operations required for console diagnostics, memory-map ownership, firmware shutdown state, and optional filesystem/protocol discovery.
-2. Obtain the M01-022 QEMU/OVMF owned-stack proof using the accepted,
-   audited low-firmware-stack M01-021 preparation path.
-   Implement post-firmware COM1 before enabling any real firmware shutdown.
+2. Obtain the M01-024 QEMU/OVMF stage-two proof using the accepted M01-022
+   owned-stack path and audited M01-023 allocator adapter. Implement
+   post-firmware COM1 before enabling any real firmware shutdown.
 3. Copy required firmware data, add the typed `ExitBootServices` call adapter,
    and implement the bounded stale-map-key retry only after its M01/M02
    dependencies pass.
