@@ -4727,7 +4727,7 @@
         "docs/nativeaot-nostdlib-limits.md"
       ],
       "evidenceBoundary": "This issue proves source wiring and a fresh canonical EFI build only. The designed ownership uses separate pre-EBS EfiLoaderCode stub and EfiLoaderData guard/stack allocations followed by map/ledger recapture; the guard is reserved/not used but not yet inaccessible, and no W^X claim is made. It does not prove the firmware calls succeeded, stub bytes executed, RSP changed, a guest continued on the stack, post-EBS ownership exists, or any QEMU marker was observed.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-022",
