@@ -22,6 +22,8 @@ param(
         "BOOT_ACPI_RSDP_HANDOFF_READY",
         "UEFI_ACPI_RSDP_READY"
     ),
+    [string[]] $RequireOrderedMarker = @(),
+    [string[]] $RequireUniqueMarker = @(),
     [string[]] $MarkerPreset = @(),
     [string[]] $ForbidMarker = @(
         "OS_SMOKE_FAIL"
@@ -32,6 +34,7 @@ param(
     [switch] $EnableUefiGoneSimulationProbe,
     [switch] $EnableExitBootServicesFreshMapProbe,
     [switch] $EnableAcpiPhysicalDiscoveryProbe,
+    [switch] $EnableM01LoadedImageStackProbe,
     [switch] $SkipImageBuild
 )
 
@@ -333,6 +336,55 @@ function Write-WorkloadProfileEvidence {
     Write-Host "TEST_PASS workload.profile.tooling propagates multi"
 }
 
+function ConvertTo-QemuSmokeMarkerList {
+    param(
+        [AllowNull()] [string[]] $Values
+    )
+
+    $markers = New-Object System.Collections.Generic.List[string]
+    $seen = New-Object "System.Collections.Generic.HashSet[string]" ([System.StringComparer]::Ordinal)
+    foreach ($markerValue in $Values) {
+        if ([string]::IsNullOrWhiteSpace($markerValue)) {
+            continue
+        }
+
+        foreach ($marker in ($markerValue -split ",")) {
+            if ([string]::IsNullOrWhiteSpace($marker)) {
+                continue
+            }
+
+            $normalized = $marker.Trim()
+            if ($seen.Add($normalized)) {
+                $markers.Add($normalized)
+            }
+        }
+    }
+
+    return $markers.ToArray()
+}
+
+function Format-QemuSmokeMarkerList {
+    param(
+        [AllowNull()] [string[]] $Markers
+    )
+
+    if ($null -eq $Markers -or $Markers.Count -eq 0) {
+        return "none"
+    }
+
+    return $Markers -join ";"
+}
+
+function Format-QemuSmokeBoolean {
+    param([bool] $Value)
+
+    if ($Value) {
+        return "true"
+    }
+
+    return "false"
+}
+
 function Normalize-MarkerPreset {
     param([string] $Preset)
 
@@ -429,14 +481,15 @@ try {
 
     Write-WorkloadProfileEvidence -Profile $WorkloadProfile
 
-    $requiredMarkers = @()
-    foreach ($markerValue in $RequireMarker) {
-        foreach ($marker in ($markerValue -split ",")) {
-            if (-not [string]::IsNullOrWhiteSpace($marker)) {
-                $requiredMarkers += $marker.Trim()
-            }
-        }
-    }
+    $requiredMarkers = @(
+        ConvertTo-QemuSmokeMarkerList -Values $RequireMarker
+    )
+    $orderedMarkers = @(
+        ConvertTo-QemuSmokeMarkerList -Values $RequireOrderedMarker
+    )
+    $uniqueMarkers = @(
+        ConvertTo-QemuSmokeMarkerList -Values $RequireUniqueMarker
+    )
 
     if ($RequireNativeAppMarkers) {
         foreach ($marker in $nativeAppRequiredMarkers) {
@@ -448,6 +501,36 @@ try {
 
     if ($requiredMarkers.Count -eq 0) {
         throw "At least one required marker must be specified."
+    }
+
+    Write-Host (
+        "QEMU_SCRIPT_M01_LOADED_IMAGE_STACK_PROBE enabled=" +
+        (Format-QemuSmokeBoolean $EnableM01LoadedImageStackProbe.IsPresent) +
+        " buildEfi=" +
+        (Format-QemuSmokeBoolean $BuildEfi.IsPresent) +
+        " skipImageBuild=" +
+        (Format-QemuSmokeBoolean $SkipImageBuild.IsPresent) +
+        " dryRun=" +
+        (Format-QemuSmokeBoolean $DryRun.IsPresent))
+    Write-Host (
+        "QEMU_SCRIPT_REQUIRE_ORDERED_MARKERS " +
+        (Format-QemuSmokeMarkerList $orderedMarkers))
+    Write-Host (
+        "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS " +
+        (Format-QemuSmokeMarkerList $uniqueMarkers))
+
+    if ($EnableM01LoadedImageStackProbe -and -not $BuildEfi) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m01_loaded_image_stack_probe_requires_build_efi")
+        exit 1
+    }
+
+    if ($EnableM01LoadedImageStackProbe -and $SkipImageBuild) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m01_loaded_image_stack_probe_forbids_skip_image_build")
+        exit 1
     }
 
     $markerPresets = @()
@@ -466,14 +549,9 @@ try {
         Write-Host ("QEMU_MARKER_PRESETS " + ($markerPresets -join ";"))
     }
 
-    $forbiddenMarkers = @()
-    foreach ($markerValue in $ForbidMarker) {
-        foreach ($marker in ($markerValue -split ",")) {
-            if (-not [string]::IsNullOrWhiteSpace($marker)) {
-                $forbiddenMarkers += $marker.Trim()
-            }
-        }
-    }
+    $forbiddenMarkers = @(
+        ConvertTo-QemuSmokeMarkerList -Values $ForbidMarker
+    )
 
     if (-not $DryRun) {
         $hostPreflight = Invoke-QemuSmokeHostPreflight -RequestedQemu $Qemu -RequestedOvmfCode $OvmfCode
@@ -502,6 +580,10 @@ try {
 
         if ($EnableAcpiPhysicalDiscoveryProbe) {
             $buildArguments += "-EnableAcpiPhysicalDiscoveryProbe"
+        }
+
+        if ($EnableM01LoadedImageStackProbe) {
+            $buildArguments += "-EnableM01LoadedImageStackProbe"
         }
 
         Invoke-NativeCommand {
@@ -539,6 +621,14 @@ try {
 
     foreach ($marker in $requiredMarkers) {
         $arguments += @("--require-marker", $marker)
+    }
+
+    foreach ($marker in $orderedMarkers) {
+        $arguments += @("--require-ordered-marker", $marker)
+    }
+
+    foreach ($marker in $uniqueMarkers) {
+        $arguments += @("--require-unique-marker", $marker)
     }
 
     foreach ($preset in $markerPresets) {

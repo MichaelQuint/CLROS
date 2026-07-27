@@ -14,8 +14,13 @@ public sealed class SerialMarkerStateMachine
 
     private readonly string[] _requiredMarkers;
     private readonly string[] _forbiddenMarkers;
+    private readonly string[] _orderedMarkers;
+    private readonly string[] _uniqueMarkers;
     private readonly bool[] _requiredSeen;
     private readonly bool[] _forbiddenSeen;
+    private readonly bool[] _outOfOrderSeen;
+    private readonly bool[] _uniqueSeen;
+    private readonly bool[] _duplicateUniqueSeen;
     private readonly string _successTerminalMarker;
     private readonly string _failureTerminalMarker;
     private readonly byte[] _lineBuffer;
@@ -38,6 +43,10 @@ public sealed class SerialMarkerStateMachine
     private long _invalidNoiseLineCount;
     private int _requiredSeenCount;
     private int _forbiddenOccurrenceCount;
+    private int _orderedNextIndex;
+    private int _outOfOrderOccurrenceCount;
+    private int _uniqueSeenCount;
+    private int _duplicateUniqueOccurrenceCount;
     private int _successTerminalCount;
     private int _failureTerminalCount;
 
@@ -49,7 +58,9 @@ public sealed class SerialMarkerStateMachine
         int lineCapacity = DefaultLineCapacity,
         long byteCapacity = DefaultByteCapacity,
         SerialMarkerByteNoisePolicy byteNoisePolicy =
-            SerialMarkerByteNoisePolicy.IgnoreInvalidLines)
+            SerialMarkerByteNoisePolicy.IgnoreInvalidLines,
+        IReadOnlyList<string>? orderedMarkers = null,
+        IReadOnlyList<string>? uniqueMarkers = null)
     {
         ArgumentNullException.ThrowIfNull(requiredMarkers);
         ArgumentNullException.ThrowIfNull(forbiddenMarkers);
@@ -73,10 +84,22 @@ public sealed class SerialMarkerStateMachine
             throw new ArgumentOutOfRangeException(nameof(byteNoisePolicy));
         }
 
-        _requiredMarkers = CopyAndValidateMarkers(
+        string[] required = CopyAndValidateMarkers(
             requiredMarkers,
             nameof(requiredMarkers),
             lineCapacity);
+        _orderedMarkers = CopyAndValidateMarkers(
+            orderedMarkers ?? [],
+            nameof(orderedMarkers),
+            lineCapacity);
+        _uniqueMarkers = CopyAndValidateMarkers(
+            uniqueMarkers ?? [],
+            nameof(uniqueMarkers),
+            lineCapacity);
+        _requiredMarkers = MergeRequiredMarkers(
+            required,
+            _orderedMarkers,
+            _uniqueMarkers);
         _forbiddenMarkers = CopyAndValidateMarkers(
             forbiddenMarkers,
             nameof(forbiddenMarkers),
@@ -103,6 +126,9 @@ public sealed class SerialMarkerStateMachine
 
         _requiredSeen = new bool[_requiredMarkers.Length];
         _forbiddenSeen = new bool[_forbiddenMarkers.Length];
+        _outOfOrderSeen = new bool[_orderedMarkers.Length];
+        _uniqueSeen = new bool[_uniqueMarkers.Length];
+        _duplicateUniqueSeen = new bool[_uniqueMarkers.Length];
         _lineBuffer = new byte[lineCapacity];
         _byteCapacity = byteCapacity;
         _byteNoisePolicy = byteNoisePolicy;
@@ -121,6 +147,19 @@ public sealed class SerialMarkerStateMachine
     public int RequiredMarkerCount => _requiredMarkers.Length;
 
     public int ForbiddenOccurrenceCount => _forbiddenOccurrenceCount;
+
+    public int OrderedMarkerCount => _orderedMarkers.Length;
+
+    public int OrderedSeenCount => _orderedNextIndex;
+
+    public int OutOfOrderOccurrenceCount => _outOfOrderOccurrenceCount;
+
+    public int UniqueMarkerCount => _uniqueMarkers.Length;
+
+    public int UniqueSeenCount => _uniqueSeenCount;
+
+    public int DuplicateUniqueOccurrenceCount =>
+        _duplicateUniqueOccurrenceCount;
 
     public int SuccessTerminalCount => _successTerminalCount;
 
@@ -216,11 +255,19 @@ public sealed class SerialMarkerStateMachine
 
         string[] missingMarkers = FindMissingMarkers();
         string[] forbiddenMarkerHits = FindForbiddenMarkerHits();
+        string[] outOfOrderMarkerHits = FindMarkerHits(
+            _orderedMarkers,
+            _outOfOrderSeen);
+        string[] duplicateUniqueMarkerHits = FindMarkerHits(
+            _uniqueMarkers,
+            _duplicateUniqueSeen);
         SerialMarkerTerminalState terminalState = GetTerminalState();
         SerialMarkerCompletionStatus status = SelectCompletionStatus(
             timedOut,
             missingMarkers.Length,
             forbiddenMarkerHits.Length,
+            outOfOrderMarkerHits.Length,
+            duplicateUniqueMarkerHits.Length,
             terminalState);
 
         _completionResult = SerialMarkerCompletionResult.Create(
@@ -228,12 +275,18 @@ public sealed class SerialMarkerStateMachine
             terminalState,
             missingMarkers,
             forbiddenMarkerHits,
+            outOfOrderMarkerHits,
+            duplicateUniqueMarkerHits,
             _totalBytes,
             _linesProcessed,
             _invalidByteCount,
             _invalidNoiseLineCount,
             _requiredSeenCount,
             _forbiddenOccurrenceCount,
+            _orderedNextIndex,
+            _outOfOrderOccurrenceCount,
+            _uniqueSeenCount,
+            _duplicateUniqueOccurrenceCount,
             _successTerminalCount,
             _failureTerminalCount,
             _partialMarkerAtEndOfStream);
@@ -368,6 +421,9 @@ public sealed class SerialMarkerStateMachine
             _forbiddenSeen[index] = true;
         }
 
+        ProcessOrderedMarkers(line);
+        ProcessUniqueMarkers(line);
+
         if (LineMatchesMarker(line, _successTerminalMarker))
         {
             _successTerminalCount++;
@@ -379,6 +435,53 @@ public sealed class SerialMarkerStateMachine
         }
 
         ResetLine();
+    }
+
+    private void ProcessOrderedMarkers(string line)
+    {
+        int expectedIndex = _orderedNextIndex;
+        bool advanced = false;
+        for (int index = 0; index < _orderedMarkers.Length; index++)
+        {
+            if (!LineMatchesMarker(line, _orderedMarkers[index]))
+            {
+                continue;
+            }
+
+            if (index > expectedIndex)
+            {
+                _outOfOrderOccurrenceCount++;
+                _outOfOrderSeen[index] = true;
+                continue;
+            }
+
+            if (index == expectedIndex && !advanced)
+            {
+                _orderedNextIndex++;
+                advanced = true;
+            }
+        }
+    }
+
+    private void ProcessUniqueMarkers(string line)
+    {
+        for (int index = 0; index < _uniqueMarkers.Length; index++)
+        {
+            if (!LineMatchesMarker(line, _uniqueMarkers[index]))
+            {
+                continue;
+            }
+
+            if (!_uniqueSeen[index])
+            {
+                _uniqueSeen[index] = true;
+                _uniqueSeenCount++;
+                continue;
+            }
+
+            _duplicateUniqueOccurrenceCount++;
+            _duplicateUniqueSeen[index] = true;
+        }
     }
 
     private string GetTrimmedBufferedLine()
@@ -426,6 +529,8 @@ public sealed class SerialMarkerStateMachine
         bool timedOut,
         int missingMarkerCount,
         int forbiddenMarkerHitCount,
+        int outOfOrderMarkerHitCount,
+        int duplicateUniqueMarkerHitCount,
         SerialMarkerTerminalState terminalState)
     {
         if (_hasFeedFailure)
@@ -453,6 +558,16 @@ public sealed class SerialMarkerStateMachine
         if (terminalState == SerialMarkerTerminalState.Failure)
         {
             return SerialMarkerCompletionStatus.FailureTerminal;
+        }
+
+        if (outOfOrderMarkerHitCount != 0)
+        {
+            return SerialMarkerCompletionStatus.OutOfOrderMarker;
+        }
+
+        if (duplicateUniqueMarkerHitCount != 0)
+        {
+            return SerialMarkerCompletionStatus.DuplicateUniqueMarker;
         }
 
         if (timedOut)
@@ -545,6 +660,37 @@ public sealed class SerialMarkerStateMachine
         return hits;
     }
 
+    private static string[] FindMarkerHits(
+        IReadOnlyList<string> markers,
+        IReadOnlyList<bool> seen)
+    {
+        int count = 0;
+        for (int index = 0; index < seen.Count; index++)
+        {
+            if (seen[index])
+            {
+                count++;
+            }
+        }
+
+        if (count == 0)
+        {
+            return [];
+        }
+
+        string[] hits = new string[count];
+        int writeIndex = 0;
+        for (int index = 0; index < seen.Count; index++)
+        {
+            if (seen[index])
+            {
+                hits[writeIndex++] = markers[index];
+            }
+        }
+
+        return hits;
+    }
+
     private void ResetLine()
     {
         _lineLength = 0;
@@ -588,6 +734,40 @@ public sealed class SerialMarkerStateMachine
         }
 
         return result;
+    }
+
+    private static string[] MergeRequiredMarkers(
+        IReadOnlyList<string> requiredMarkers,
+        IReadOnlyList<string> orderedMarkers,
+        IReadOnlyList<string> uniqueMarkers)
+    {
+        List<string> merged = new List<string>(requiredMarkers.Count);
+        AddDistinctMarkers(merged, requiredMarkers);
+        AddDistinctMarkers(merged, orderedMarkers);
+        AddDistinctMarkers(merged, uniqueMarkers);
+        if (merged.Count > MaximumMarkerCount)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(requiredMarkers),
+                "Combined required marker count cannot exceed "
+                    + MaximumMarkerCount
+                    + ".");
+        }
+
+        return merged.ToArray();
+    }
+
+    private static void AddDistinctMarkers(
+        List<string> destination,
+        IReadOnlyList<string> source)
+    {
+        for (int index = 0; index < source.Count; index++)
+        {
+            if (!destination.Contains(source[index], StringComparer.Ordinal))
+            {
+                destination.Add(source[index]);
+            }
+        }
     }
 
     private static string NormalizeMarker(
@@ -697,7 +877,9 @@ public enum SerialMarkerCompletionStatus
     Timeout = 8,
     PartialMarkerAtEndOfStream = 9,
     MissingRequiredMarker = 10,
-    MissingSuccessTerminal = 11
+    MissingSuccessTerminal = 11,
+    OutOfOrderMarker = 12,
+    DuplicateUniqueMarker = 13
 }
 
 public enum SerialMarkerTerminalState
@@ -753,12 +935,18 @@ public readonly struct SerialMarkerCompletionResult
         SerialMarkerTerminalState terminalState,
         string[] missingRequiredMarkers,
         string[] forbiddenMarkerHits,
+        string[] outOfOrderMarkerHits,
+        string[] duplicateUniqueMarkerHits,
         long totalBytes,
         long linesProcessed,
         long invalidByteCount,
         long invalidNoiseLineCount,
         int requiredSeenCount,
         int forbiddenOccurrenceCount,
+        int orderedSeenCount,
+        int outOfOrderOccurrenceCount,
+        int uniqueSeenCount,
+        int duplicateUniqueOccurrenceCount,
         int successTerminalCount,
         int failureTerminalCount,
         bool partialMarkerAtEndOfStream)
@@ -768,12 +956,18 @@ public readonly struct SerialMarkerCompletionResult
         TerminalState = terminalState;
         MissingRequiredMarkers = missingRequiredMarkers;
         ForbiddenMarkerHits = forbiddenMarkerHits;
+        OutOfOrderMarkerHits = outOfOrderMarkerHits;
+        DuplicateUniqueMarkerHits = duplicateUniqueMarkerHits;
         TotalBytes = totalBytes;
         LinesProcessed = linesProcessed;
         InvalidByteCount = invalidByteCount;
         InvalidNoiseLineCount = invalidNoiseLineCount;
         RequiredSeenCount = requiredSeenCount;
         ForbiddenOccurrenceCount = forbiddenOccurrenceCount;
+        OrderedSeenCount = orderedSeenCount;
+        OutOfOrderOccurrenceCount = outOfOrderOccurrenceCount;
+        UniqueSeenCount = uniqueSeenCount;
+        DuplicateUniqueOccurrenceCount = duplicateUniqueOccurrenceCount;
         SuccessTerminalCount = successTerminalCount;
         FailureTerminalCount = failureTerminalCount;
         PartialMarkerAtEndOfStream = partialMarkerAtEndOfStream;
@@ -787,6 +981,10 @@ public readonly struct SerialMarkerCompletionResult
 
     public IReadOnlyList<string>? ForbiddenMarkerHits { get; }
 
+    public IReadOnlyList<string>? OutOfOrderMarkerHits { get; }
+
+    public IReadOnlyList<string>? DuplicateUniqueMarkerHits { get; }
+
     public long TotalBytes { get; }
 
     public long LinesProcessed { get; }
@@ -798,6 +996,14 @@ public readonly struct SerialMarkerCompletionResult
     public int RequiredSeenCount { get; }
 
     public int ForbiddenOccurrenceCount { get; }
+
+    public int OrderedSeenCount { get; }
+
+    public int OutOfOrderOccurrenceCount { get; }
+
+    public int UniqueSeenCount { get; }
+
+    public int DuplicateUniqueOccurrenceCount { get; }
 
     public int SuccessTerminalCount { get; }
 
@@ -812,19 +1018,27 @@ public readonly struct SerialMarkerCompletionResult
         SuccessTerminalCount == 1 &&
         FailureTerminalCount == 0 &&
         MissingRequiredMarkers is { Count: 0 } &&
-        ForbiddenMarkerHits is { Count: 0 };
+        ForbiddenMarkerHits is { Count: 0 } &&
+        OutOfOrderMarkerHits is { Count: 0 } &&
+        DuplicateUniqueMarkerHits is { Count: 0 };
 
     internal static SerialMarkerCompletionResult Create(
         SerialMarkerCompletionStatus status,
         SerialMarkerTerminalState terminalState,
         string[] missingRequiredMarkers,
         string[] forbiddenMarkerHits,
+        string[] outOfOrderMarkerHits,
+        string[] duplicateUniqueMarkerHits,
         long totalBytes,
         long linesProcessed,
         long invalidByteCount,
         long invalidNoiseLineCount,
         int requiredSeenCount,
         int forbiddenOccurrenceCount,
+        int orderedSeenCount,
+        int outOfOrderOccurrenceCount,
+        int uniqueSeenCount,
+        int duplicateUniqueOccurrenceCount,
         int successTerminalCount,
         int failureTerminalCount,
         bool partialMarkerAtEndOfStream)
@@ -834,12 +1048,18 @@ public readonly struct SerialMarkerCompletionResult
             terminalState,
             missingRequiredMarkers,
             forbiddenMarkerHits,
+            outOfOrderMarkerHits,
+            duplicateUniqueMarkerHits,
             totalBytes,
             linesProcessed,
             invalidByteCount,
             invalidNoiseLineCount,
             requiredSeenCount,
             forbiddenOccurrenceCount,
+            orderedSeenCount,
+            outOfOrderOccurrenceCount,
+            uniqueSeenCount,
+            duplicateUniqueOccurrenceCount,
             successTerminalCount,
             failureTerminalCount,
             partialMarkerAtEndOfStream);
