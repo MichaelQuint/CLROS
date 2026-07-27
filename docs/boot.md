@@ -2256,11 +2256,118 @@ preflight/CR3/invlpg/probe bytes, change CR3 or page protections, perform a CPU
 TLB invalidation, prove page zero absent in hardware, wire `EfiEntry`, link the
 coordinator into `src/OS`, run QEMU/OVMF, or advance a completion gate.
 PCID/LA57 remain unsupported, NMI/SMI remains an M02 residual risk, and null
-dereference/#PF evidence remains M02-014. M01-020 owns explicit EFI source
-linkage, M01-025 owns live allocation and `EfiEntry` wiring, and M01-026 owns
-cumulative real-QEMU evidence. Until M01-026, even
+dereference/#PF evidence remains M02-014. M01-027 owns the reviewed composite
+byte stream, M01-020 owns explicit EFI source linkage, M01-025 owns live
+allocation and `EfiEntry` wiring, and M01-026 owns cumulative real-QEMU
+evidence. Until M01-026, even
 `CLROS_M01_LIVE_BOOT_MEMORY_READY` is a reserved host-tested contract line,
 not live boot-memory evidence.
+
+### Composite owned-CR3 interval contract (M01-027)
+
+M01-027 closes only the host-model temporal gap left by M01-019. Its new
+no-stdlib-compatible source materializes and reads back one relocation-free
+Windows-x64 byte stream containing the complete future owned-root interval:
+
+```text
+validate caller-owned state, address ranges, and architectural mode
+capture exact entry RFLAGS plus raw CR3 and CR4
+cli; verify IF clear
+clear CR4.PGE; verify readback
+load the exact owned CR3; verify raw readback
+read, update, and verify the continuation canary
+verify the exact probe PTE is present RW+NX
+write the same physical/cache leaf as the RO+X candidate
+invlpg the exact probe virtual page once
+verify committed PTE readback
+verify and invoke the exact six-byte constant-return probe
+verify its return value and canary
+audit page zero through a bounded owned-root hierarchy walk
+restore and verify exact firmware CR3 and CR4
+prepare the exact saved RFLAGS operand for the final popfq; ret
+return a status only after the common recovery tail
+```
+
+The probe transfer is the one permitted internal transfer in the stream. Its
+entry, six bytes, PTE, virtual page, and return value are fixed and
+cross-checked before use; it is not an arbitrary callback. The stream contains
+no firmware, console, SerialIo, COM1, allocator, ACPI, framebuffer,
+diagnostic, caller-selected, or other external call. It has no external
+relocation or absolute address patch.
+
+Before materialization, the host planner requires exact typed bindings for the
+composite code page, owned stack, loaded-image continuation page,
+protection-probe page, complete page-table/state arena, separate runtime-state
+and canary storage, and owned root. Each dereferenced range must agree with its
+allocation geometry, canonical reservation, and identity-map permissions; a
+purpose label alone is insufficient. Composite code and the continuation are
+RX, the stack and complete table/state arena are RW+NX, the probe begins
+RW+NX, and no accepted mapping is writable and executable. The owned root and
+every page-zero child table must remain within the arena. The frozen
+`SerialStub` role remains only the M01-019 stage-one switch-stub compatibility
+alias: `CrossBindsOwnedSerialStub`, `CrossBindsOwnedMapIdentity`, and
+`CrossBindsDiagnosticState` remain false.
+
+The success path commits the probe leaf from RW+NX to RO+X and leaves it RO+X.
+A recoverable failure after exact committed-PTE readback also leaves that
+inactive owned hierarchy's probe leaf RO+X. A failure between the write attempt
+and committed readback, including `ProbePteAfterMismatch`, makes no final-leaf
+protection claim. This fail-safe policy permits exactly one target `invlpg`; it
+does not reopen a verified RO+X code page during recovery. Canary,
+PTE-readback, probe-return, and page-zero failures converge on best-effort
+firmware-CR3, CR4, and RFLAGS restoration. CR3 and CR4 restoration have
+explicit hardware readbacks; a mismatch has a degraded failure status and
+cannot be described as proven recovery. RFLAGS is different: while IF remains
+clear, the transcript records the exact saved restoration operand, then the
+frozen epilogue restores all nonvolatile state and places `popfq` immediately
+before `ret`. No instruction after `popfq` reads hardware RFLAGS, and M01-027
+does not claim such a readback. One indivisible interval means one stream with
+no post-`cli` escape before the appropriate recovery tail; it does not claim
+branch-free execution or immunity from NMI/SMI.
+
+The entered stream rejects a captured Trap Flag and an active CR4.CET bit as
+unsupported defense-in-depth. Those checks cannot establish safe entry:
+single-step or supervisor CET/IBT can fault on the indirect transfer before
+the stream reaches either guard, and the frozen six-byte indirect probe target
+does not begin with `endbr64`. M01-025 therefore owns the caller-side
+pre-transfer proof that TF is clear and supervisor CET/IBT is inactive.
+M01-027 explicitly does not establish that prerequisite by itself.
+
+Host materialization preflight is failure-atomic over caller storage, and
+readback validation is read-only. The in-stream pre-`cli` checks return a
+status without claiming an owned-root entry. Host tests freeze the byte plan,
+internal branch targets and critical-operation order, Windows-x64 stack and
+shadow-space discipline, nonvolatile/XMM policy, pointer/count/capacity and
+alias rejection, provenance and permission failures, PTE/invalidation/probe
+relationships, page-zero walk cases, recovery classification, malformed
+readback behavior, and an exact zero-reference `NOSTDLIB_EFI` compilation
+closure.
+
+The frozen plan contains 3,830 instruction bytes and 732 audited instructions
+inside one deterministically zero-filled 4 KiB page. Its 16 semantic records
+bind the full-page FNV-1a64 value `F00446F61BE13CDD`. The independently frozen
+SHA-256 values are
+`C70C7BDD0B4E5F877074C2C881F67B079B5165D6F7D48EA1B8E3E2011B1F24BC`
+for the complete page and
+`12CADD81A9C5EFB9D47AAFEA49988D271656216140B87FF1AE3E0224567F5387`
+for the instruction prefix.
+
+The aggregate host-harness markers are:
+
+```text
+TEST_START m01.027
+CLROS_M01_027_READY
+TEST_PASS m01.027
+```
+
+These markers prove only materialization, exact readback, range binding, and
+host structural audit. M01-027 does not add the leaf to `OS.csproj`, wire
+`EfiEntry`, enable `Probes`, call firmware allocation, invoke any generated
+byte, change CR3/CR4/RFLAGS/PTE/TLB state, execute the probe, prove hardware
+page-zero absence, run QEMU/OVMF, provide owned serial, or advance
+`docs/completion-gates.md`. M01-020 owns explicit EFI source linkage, M01-025
+owns live allocation, default-off wiring, and the pre-transfer TF/CET
+precondition, and M01-026 owns cumulative real-QEMU execution evidence.
 
 Boot page allocator-readiness composition coverage is host-test only. It proves existing planner/state contracts can be composed over caller-owned scratch buffers and forwarded into the ordered boot readiness marker boundary. It does not reserve kernel-owned ranges, mutate allocator-owned state, allocate pages, configure paging, or run in `EfiMain`:
 
