@@ -1,0 +1,7965 @@
+using System.Diagnostics;
+using System.Reflection;
+using System.Reflection.Metadata;
+using System.Reflection.Metadata.Ecma335;
+using System.Reflection.PortableExecutable;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
+using OS.Boot;
+using OS.Kernel.Boot;
+using OS.Kernel.Memory;
+
+internal static unsafe class M01OwnedCr3CompositeTransitionTests
+{
+    private const string IssueTestName = "m01.027";
+    private const int BuildTimeoutMilliseconds = 90_000;
+    private const ulong ExpectedRequiredByteLength = 3830;
+    private const ulong ExpectedInstructionCount = 732;
+    private const ulong ExpectedFullPageFnv1a64 =
+        0xf004_46f6_1be1_3cddUL;
+    private const string ExpectedFullPageSha256 =
+        "C70C7BDD0B4E5F877074C2C881F67B079B5165D6F7D48EA1B8E3E2011B1F24BC";
+    private const string ExpectedInstructionPrefixSha256 =
+        "12CADD81A9C5EFB9D47AAFEA49988D271656216140B87FF1AE3E0224567F5387";
+    private const ulong RflagsTrapFlag = 1UL << 8;
+    private const ulong RflagsAlwaysOneBit = 1UL << 1;
+    private const ulong RflagsAlignmentCheckFlag = 1UL << 18;
+    private const ulong RflagsArithmeticMask =
+        (1UL << 0)
+        | (1UL << 2)
+        | (1UL << 4)
+        | (1UL << 6)
+        | (1UL << 7)
+        | (1UL << 11);
+    private const ulong Cr4ControlFlowEnforcementBit = 1UL << 23;
+    private const ulong OwnedCr3 = 0x0000_0000_0020_0000UL;
+    private const ulong TablePageArenaStart = OwnedCr3;
+    private const ulong TablePageArenaEnd = 0x0000_0000_0020_5000UL;
+    private const ulong TableStateArenaStart = 0x0000_0000_0020_4000UL;
+    private const ulong TableStateArenaEnd = 0x0000_0000_0020_5000UL;
+    private const ulong CompositeCodeStart = 0x0000_0000_0040_0000UL;
+    private const ulong CompositeCodeEnd = CompositeCodeStart + 0x1000;
+    private const ulong ContinuationPageStart = 0x0000_0000_0060_0000UL;
+    private const ulong ContinuationPageEnd =
+        ContinuationPageStart + 0x1000;
+    private const ulong ExpectedReturnAddress =
+        ContinuationPageStart + 0x100;
+    private const ulong StackStart = 0x0000_0000_0080_0000UL;
+    private const ulong StackEnd = StackStart + 0x1000;
+    private const ulong ProbePageStart = 0x0000_0000_0090_0000UL;
+    private const ulong ProbePageEnd = ProbePageStart + 0x1000;
+    private const ulong ProbeEntry = ProbePageStart;
+    private const ulong ProbePteAddress =
+        TablePageArenaStart + 0x3800;
+    private const ulong InitialProbePte =
+        ProbePageStart
+        | M01OwnedCr3CompositeTransition.PagePresentBit
+        | M01OwnedCr3CompositeTransition.PageWritableBit
+        | M01OwnedCr3CompositeTransition.PageNoExecuteBit;
+    private const ulong FinalProbePte =
+        ProbePageStart
+        | M01OwnedCr3CompositeTransition.PagePresentBit;
+    private const ulong CanaryAddress =
+        TableStateArenaStart
+        + M01OwnedCr3CompositeTransitionRuntimeState.StructureSize;
+    private const ulong ExpectedCanary = 0x434c_524f_535f_494eUL;
+    private const ulong ReplacementCanary = 0x434c_524f_535f_4f4bUL;
+
+    [ModuleInitializer]
+    internal static void RunAll()
+    {
+        int failures = 0;
+
+        Console.WriteLine("TEST_START " + IssueTestName);
+
+        Run(
+            "m01.027 stable enums pod layouts defaults and capabilities",
+            TestStableSurfaceAndDefaults,
+            ref failures);
+        Run(
+            "m01.027 canonical range binding and adversarial inputs",
+            TestRangeBindingAndAdversarialInputs,
+            ref failures);
+        Run(
+            "m01.027 materialization readback corruption and atomicity",
+            TestMaterializationReadbackAndAtomicity,
+            ref failures);
+        Run(
+            "m01.027 independent byte decode control flow and abi",
+            TestIndependentBytePlanAndAbi,
+            ref failures);
+        Run(
+            "m01.027 observed runtime audit and recovery classification",
+            TestObservedRuntimeAuditAndRecovery,
+            ref failures);
+        Run(
+            "m01.027 production source and test marker firewall",
+            TestSourceAndMarkerFirewall,
+            ref failures);
+        Run(
+            "m01.027 exact nostdlib efi compile closure",
+            TestNoStdLibEfiCompileClosure,
+            ref failures);
+
+        if (failures != 0)
+        {
+            Console.WriteLine(
+                "TEST_FAIL " + IssueTestName + " failures=" + failures);
+            throw new InvalidOperationException(
+                "M01-027 composite transition tests failed: "
+                + failures);
+        }
+
+        Console.WriteLine("CLROS_M01_027_READY");
+        Console.WriteLine("TEST_PASS " + IssueTestName);
+    }
+
+    private static bool TestStableSurfaceAndDefaults()
+    {
+        (string Name, byte Value)[] statuses =
+        [
+            ("Uninitialized", 0),
+            ("Success", 1),
+            ("MissingDestination", 2),
+            ("DestinationCapacityTooSmall", 3),
+            ("CapacityExceedsLimit", 4),
+            ("MisalignedDestination", 5),
+            ("InvalidEntryAddress", 6),
+            ("MisalignedEntryAddress", 7),
+            ("EntryAddressOverflow", 8),
+            ("MissingSemanticDestination", 9),
+            ("SemanticCapacityTooSmall", 10),
+            ("MisalignedSemanticDestination", 11),
+            ("DestinationSemanticOverlap", 12),
+            ("InternalEncodingFailure", 13),
+            ("MissingSource", 14),
+            ("InvalidSourceCount", 15),
+            ("SourceCapacityTooSmall", 16),
+            ("MisalignedSource", 17),
+            ("SourceSpanOverflow", 18),
+            ("ByteMismatch", 19),
+            ("MissingSemanticSource", 20),
+            ("InvalidSemanticCount", 21),
+            ("SemanticSourceCapacityTooSmall", 22),
+            ("MisalignedSemanticSource", 23),
+            ("SemanticSpanOverflow", 24),
+            ("SemanticMismatch", 25),
+            ("MissingAllocationRecords", 26),
+            ("InvalidAllocationRecordCount", 27),
+            ("AllocationRecordCapacityTooSmall", 28),
+            ("MissingReservationRecords", 29),
+            ("InvalidReservationRecordCount", 30),
+            ("ReservationRecordCapacityTooSmall", 31),
+            ("MissingIdentityMappings", 32),
+            ("InvalidIdentityMappingCount", 33),
+            ("IdentityMappingCapacityTooSmall", 34),
+            ("MissingRangeBindings", 35),
+            ("InvalidRangeBindingCount", 36),
+            ("RangeBindingCapacityTooSmall", 37),
+            ("MisalignedInputTable", 38),
+            ("InputTableSpanOverflow", 39),
+            ("InputOutputAlias", 40),
+            ("InvalidRangeBinding", 41),
+            ("DuplicateRangeRole", 42),
+            ("MissingRangeRole", 43),
+            ("AllocationProvenanceMismatch", 44),
+            ("ReservationProvenanceMismatch", 45),
+            ("IdentityMappingProvenanceMismatch", 46),
+            ("InvalidProtection", 47),
+            ("WritableExecutableRejected", 48),
+            ("InvalidOwnedCr3", 49),
+            ("InvalidProbePte", 50),
+            ("InvalidCanary", 51),
+            ("InvalidProbeContract", 52),
+            ("MissingObservedState", 53),
+            ("InvalidObservedStateCount", 54),
+            ("ObservedStateCapacityTooSmall", 55),
+            ("MisalignedObservedState", 56),
+            ("InvalidTerminalKind", 57),
+            ("Timeout", 58),
+            ("Reset", 59),
+            ("TripleFault", 60),
+            ("DefaultRuntimeResult", 61),
+            ("RuntimeReportedFailure", 62),
+            ("ModePrerequisiteMismatch", 63),
+            ("FirmwareCallbackObserved", 64),
+            ("InterruptStateMismatch", 65),
+            ("RawCr3BitLoss", 66),
+            ("RawCr4BitLoss", 67),
+            ("StackEscape", 68),
+            ("ReturnAddressMismatch", 69),
+            ("CanaryMismatch", 70),
+            ("ProbePteAddressMismatch", 71),
+            ("ProbePteReadbackMismatch", 72),
+            ("InvlpgMismatch", 73),
+            ("ProbeMismatch", 74),
+            ("PageZeroPresent", 75),
+            ("PageZeroMalformed", 76),
+            ("CheckpointMismatch", 77),
+            ("FirmwareCr3ReadbackMismatch", 78),
+            ("Cr4RestoreReadbackMismatch", 79),
+            ("RflagsRestoreReadbackMismatch", 80),
+            ("SeparateLeavesNotCompositeEvidence", 81),
+            ("ReservedStateNonzero", 82),
+            ("MissingPageImages", 83),
+            ("InvalidPageImageCount", 84),
+            ("PageImageCapacityTooSmall", 85),
+            ("MissingPageEntries", 86),
+            ("InvalidPageEntryCount", 87),
+            ("PageEntryCapacityTooSmall", 88),
+            ("InvalidPageImage", 89),
+            ("PageImageEntryMismatch", 90),
+            ("MissingStateDestination", 91),
+            ("InvalidStateDestinationCount", 92),
+            ("StateDestinationCapacityTooSmall", 93),
+            ("MisalignedStateDestination", 94),
+            ("StateDestinationSpanOverflow", 95),
+            ("StateAddressMismatch", 96),
+            ("MissingPriorPlanningEvidence", 97),
+            ("InvalidPriorPlanningEvidence", 98),
+            ("MissingCanaryDestination", 99),
+            ("InvalidCanaryDestinationCount", 100),
+            ("CanaryDestinationCapacityTooSmall", 101),
+            ("MisalignedCanaryDestination", 102),
+            ("CanaryDestinationSpanOverflow", 103),
+            ("RflagsRestoreIntentMismatch", 104)
+        ];
+        (string Name, byte Value)[] runtimeStatuses =
+        [
+            ("Uninitialized", 0),
+            ("Success", 1),
+            ("InvalidState", 2),
+            ("FirmwareCallbackForbidden", 3),
+            ("InvalidCodeRange", 4),
+            ("InvalidStackRange", 5),
+            ("InvalidReturnAddress", 6),
+            ("InvalidTableArena", 7),
+            ("InvalidOwnedCr3", 8),
+            ("InvalidProbeContract", 9),
+            ("InvalidCanary", 10),
+            ("InvalidMode", 11),
+            ("PhysicalAddressWidthUnsupported", 12),
+            ("InterruptDisableReadbackMismatch", 13),
+            ("PgeClearReadbackMismatch", 14),
+            ("OwnedCr3ReadbackMismatch", 15),
+            ("CanaryBeforeMismatch", 16),
+            ("CanaryAfterMismatch", 17),
+            ("ProbeHierarchyMalformed", 18),
+            ("ProbePteAddressMismatch", 19),
+            ("ProbePteBeforeMismatch", 20),
+            ("ProbePteAfterMismatch", 21),
+            ("ProbeReturnMismatch", 22),
+            ("PageZeroPresent", 23),
+            ("PageZeroMalformed", 24),
+            ("FirmwareCr3ReadbackMismatch", 25),
+            ("Cr4RestoreReadbackMismatch", 26),
+            ("RflagsRestoreReadbackMismatch", 27),
+            ("RspRestoreMismatch", 28),
+            ("PostRestoreCanaryMismatch", 29)
+        ];
+        (string Name, byte Value)[] checkpoints =
+        [
+            ("Uninitialized", 0),
+            ("EntryValidated", 1),
+            ("ModeValidated", 2),
+            ("InterruptsDisabled", 3),
+            ("PgeCleared", 4),
+            ("OwnedCr3Loaded", 5),
+            ("CanaryUpdated", 6),
+            ("ProbePteLocated", 7),
+            ("ProbePteCommitted", 8),
+            ("ProbeInvalidated", 9),
+            ("ProbePteVerified", 10),
+            ("ProbeReturned", 11),
+            ("PageZeroAbsent", 12),
+            ("FirmwareCr3Restored", 13),
+            ("Cr4Restored", 14),
+            ("RflagsRestored", 15),
+            ("Returned", 16),
+            ("ReturnPrepared", 17)
+        ];
+        (string Name, byte Value)[] terminals =
+        [
+            ("Uninitialized", 0),
+            ("Returned", 1),
+            ("Timeout", 2),
+            ("Reset", 3),
+            ("TripleFault", 4)
+        ];
+        (string Name, byte Value)[] phases =
+        [
+            ("Uninitialized", 0),
+            ("StatePrepared", 1),
+            ("Materialized", 2),
+            ("ReadbackVerified", 3),
+            ("ObservedAudit", 4)
+        ];
+        (string Name, byte Value)[] pageZeroLevels =
+        [
+            ("Uninitialized", 0),
+            ("AbsentAtPml4", 1),
+            ("AbsentAtPdpt", 2),
+            ("AbsentAtPd", 3),
+            ("AbsentAtPt", 4),
+            ("Present", 5),
+            ("Malformed", 6)
+        ];
+        (string Name, byte Value)[] roles =
+        [
+            ("Uninitialized", 0),
+            ("CompositeCode", 1),
+            ("OwnedStack", 2),
+            ("LoadedImageContinuationPage", 3),
+            ("ProbePage", 4),
+            ("CompleteTableArena", 5),
+            ("RuntimeStateAndCanary", 6),
+            ("OwnedRoot", 7)
+        ];
+        (string Name, byte Value)[] provenances =
+        [
+            ("Uninitialized", 0),
+            ("AllocationReservationAndIdentityMapping", 1),
+            ("ReservationAndIdentityMapping", 2),
+            ("ContainedInAllocationReservationAndIdentityMapping", 3)
+        ];
+        (string Name, byte Value)[] operations =
+        [
+            ("Uninitialized", 0),
+            ("ValidateState", 1),
+            ("ValidateMode", 2),
+            ("DisableInterrupts", 3),
+            ("ClearPge", 4),
+            ("LoadOwnedCr3", 5),
+            ("UpdateCanary", 6),
+            ("WalkProbeHierarchy", 7),
+            ("CommitProbePte", 8),
+            ("InvalidateProbePage", 9),
+            ("VerifyProbePte", 10),
+            ("InvokeExactProbe", 11),
+            ("AuditPageZero", 12),
+            ("RestoreFirmwareCr3", 13),
+            ("RestoreCr4", 14),
+            ("RestoreRflags", 15),
+            ("Return", 16)
+        ];
+        (string Name, byte Value)[] recoveryClasses =
+        [
+            ("Uninitialized", 0),
+            ("PreCliNoStateMutation", 1),
+            ("RestoreRflags", 2),
+            ("RestoreCr4ThenRflags", 3),
+            ("RestoreCr3ThenCr4ThenRflags", 4),
+            ("CommittedProbeRemainsReadOnlyExecutableThenRestoreRegisters", 5),
+            ("SuccessRestoreRegisters", 6),
+            ("MutationAttemptedThenRestoreRegisters", 7)
+        ];
+
+        M01OwnedCr3CompositeTransitionResult emptyResult = default;
+        M01OwnedCr3CompositeTransitionRuntimeState emptyState = default;
+        M01OwnedCr3CompositeTransitionRangeBinding emptyBinding = default;
+        M01OwnedCr3CompositeTransitionSemanticRecord emptySemantic = default;
+
+        return EnumContractMatches<
+                M01OwnedCr3CompositeTransitionStatus>(statuses)
+            && EnumContractMatches<
+                M01OwnedCr3CompositeTransitionRuntimeStatus>(
+                    runtimeStatuses)
+            && EnumContractMatches<
+                M01OwnedCr3CompositeTransitionCheckpoint>(
+                    checkpoints)
+            && EnumContractMatches<
+                M01OwnedCr3CompositeTransitionTerminalKind>(
+                    terminals)
+            && EnumContractMatches<
+                M01OwnedCr3CompositeTransitionResultPhase>(phases)
+            && EnumContractMatches<
+                M01OwnedCr3CompositeTransitionPageZeroLevel>(
+                    pageZeroLevels)
+            && EnumContractMatches<
+                M01OwnedCr3CompositeTransitionRangeRole>(roles)
+            && EnumContractMatches<
+                M01OwnedCr3CompositeTransitionRangeProvenance>(
+                    provenances)
+            && EnumContractMatches<
+                M01OwnedCr3CompositeTransitionOperation>(
+                    operations)
+            && EnumContractMatches<
+                M01OwnedCr3CompositeTransitionRecoveryClass>(
+                    recoveryClasses)
+            && (ulong)Unsafe.SizeOf<
+                M01OwnedCr3CompositeTransitionRangeBinding>()
+                == M01OwnedCr3CompositeTransitionRangeBinding
+                    .StructureSize
+            && (ulong)Unsafe.SizeOf<
+                M01OwnedCr3CompositeTransitionSemanticRecord>()
+                == M01OwnedCr3CompositeTransitionSemanticRecord
+                    .StructureSize
+            && Unsafe.SizeOf<
+                M01OwnedCr3CompositeTransitionRuntimeState>()
+                == M01OwnedCr3CompositeTransitionRuntimeState
+                    .StructureSize
+            && Unsafe.SizeOf<
+                M01OwnedCr3CompositeTransitionResult>() == 560
+            && Offset<
+                M01OwnedCr3CompositeTransitionRuntimeState>(
+                    "_ownedCr3Raw")
+                == M01OwnedCr3CompositeTransition
+                    .StateOwnedCr3RawOffset
+            && Offset<
+                M01OwnedCr3CompositeTransitionRuntimeState>(
+                    "_expectedProbePteAddress")
+                == M01OwnedCr3CompositeTransition
+                    .StateExpectedProbePteAddressOffset
+            && Offset<
+                M01OwnedCr3CompositeTransitionRuntimeState>(
+                    "_expectedSelfAddress")
+                == M01OwnedCr3CompositeTransition
+                    .StateExpectedSelfAddressOffset
+            && Offset<
+                M01OwnedCr3CompositeTransitionRuntimeState>(
+                    "_expectedProbeHierarchyIdentity")
+                == M01OwnedCr3CompositeTransition
+                    .StateExpectedProbeHierarchyIdentityOffset
+            && Offset<
+                M01OwnedCr3CompositeTransitionRuntimeState>(
+                    "_originalRflags")
+                == M01OwnedCr3CompositeTransition
+                    .StateOriginalRflagsOffset
+            && Offset<
+                M01OwnedCr3CompositeTransitionRuntimeState>(
+                    "_committedProbePteReadback")
+                == M01OwnedCr3CompositeTransition
+                    .StateCommittedProbePteReadbackOffset
+            && Offset<
+                M01OwnedCr3CompositeTransitionRuntimeState>(
+                    "_runtimeStatus")
+                == M01OwnedCr3CompositeTransition
+                    .StateRuntimeStatusOffset
+            && Offset<
+                M01OwnedCr3CompositeTransitionRuntimeState>(
+                    "_progressCheckpoint")
+                == M01OwnedCr3CompositeTransition
+                    .StateProgressCheckpointOffset
+            && Offset<
+                M01OwnedCr3CompositeTransitionRuntimeState>(
+                    "_reservedOutput1")
+                == M01OwnedCr3CompositeTransition
+                    .StateReservedOutput1Offset
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<
+                M01OwnedCr3CompositeTransitionRangeBinding>()
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<
+                M01OwnedCr3CompositeTransitionSemanticRecord>()
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<
+                M01OwnedCr3CompositeTransitionRuntimeState>()
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<
+                M01OwnedCr3CompositeTransitionResult>()
+            && emptyResult.Status
+                == M01OwnedCr3CompositeTransitionStatus
+                    .Uninitialized
+            && !emptyResult.IsSuccess
+            && emptyResult.Phase
+                == M01OwnedCr3CompositeTransitionResultPhase.Uninitialized
+            && !emptyResult.IsStatePrepared
+            && !emptyResult.IsMaterialized
+            && !emptyResult.IsReadbackVerified
+            && !emptyResult.IsObservedAudit
+            && !emptyResult.ProvesCompositeEncodingReadback
+            && emptyResult.InvalidIndex == 0
+            && emptyResult.DefinesSingleCompositeOwnedCr3Interval
+            && !emptyResult.ExecutesCompositeOwnedCr3Interval
+            && !emptyResult.IsGuestEvidence
+            && !emptyState.IsInitialized
+            && emptyState.Size == 0
+            && emptyState.Version == 0
+            && emptyBinding.Role
+                == M01OwnedCr3CompositeTransitionRangeRole
+                    .Uninitialized
+            && emptySemantic.Operation
+                == M01OwnedCr3CompositeTransitionOperation
+                    .Uninitialized
+            && M01OwnedCr3CompositeTransition
+                .DefinesSingleCompositeOwnedCr3Interval
+            && !M01OwnedCr3CompositeTransition
+                .ExecutesCompositeOwnedCr3Interval
+            && !M01OwnedCr3CompositeTransition.IsGuestEvidence
+            && !M01OwnedCr3CompositeTransition
+                .CrossBindsOwnedSerialStub
+            && !M01OwnedCr3CompositeTransition
+                .CrossBindsOwnedMapIdentity
+            && !M01OwnedCr3CompositeTransition
+                .CrossBindsDiagnosticState
+            && M01OwnedCr3CompositeTransition
+                .SerialPurposeIsCompatibilityAliasOnly
+            && !M01OwnedCr3CompositeTransition
+                .InvokesFirmwareCallbacks
+            && !M01OwnedCr3CompositeTransition
+                .InvokesArbitraryCallbacks
+            && !M01OwnedCr3CompositeTransition.CallsFirmware
+            && !M01OwnedCr3CompositeTransition.CallsConsole
+            && !M01OwnedCr3CompositeTransition.CallsSerialIo
+            && !M01OwnedCr3CompositeTransition.CallsCom1
+            && !M01OwnedCr3CompositeTransition
+                .AllocatesFirmwarePages
+            && !M01OwnedCr3CompositeTransition
+                .PerformsLiveCr3Load
+            && !M01OwnedCr3CompositeTransition
+                .PerformsLivePageProtection
+            && !M01OwnedCr3CompositeTransition
+                .PerformsLiveTlbInvalidation
+            && !M01OwnedCr3CompositeTransition
+                .PerformsLiveProbeExecution
+            && !M01OwnedCr3CompositeTransition
+                .DereferencesPageZero
+            && !M01OwnedCr3CompositeTransition
+                .CrossBindsAcpiProvenance
+            && !M01OwnedCr3CompositeTransition
+                .CrossBindsFramebufferProvenance
+            && !M01OwnedCr3CompositeTransition.SupportsPcide
+            && !M01OwnedCr3CompositeTransition
+                .SupportsFiveLevelPaging
+            && !M01OwnedCr3CompositeTransition
+                .EliminatesNmiOrSmiRisk
+            && !M01OwnedCr3CompositeTransition
+                .ProvesAcpiOrFramebufferSourceProvenance
+            && !M01OwnedCr3CompositeTransition
+                .AcceptsSeparateLeavesAsCompositeEvidence
+            && !M01OwnedCr3CompositeTransition
+                .IsEfiExecutionEvidence
+            && !M01OwnedCr3CompositeTransition.IsQemuEvidence
+            && M01OwnedCr3CompositeTransition
+                .ExactProbeIsSoleInternalTransfer
+            && M01OwnedCr3CompositeTransition
+                .RetainsCommittedProbePteOnRecoverableFailure
+            && M01OwnedCr3CompositeTransition.PreservesRbp
+            && M01OwnedCr3CompositeTransition.PreservesRdi
+            && M01OwnedCr3CompositeTransition.PreservesR12
+            && M01OwnedCr3CompositeTransition.PreservesR13
+            && M01OwnedCr3CompositeTransition.PreservesR14
+            && M01OwnedCr3CompositeTransition.PreservesR15
+            && M01OwnedCr3CompositeTransition.PreservesRsp
+            && M01OwnedCr3CompositeTransition.PreservesRbx
+            && M01OwnedCr3CompositeTransition.PreservesRsi
+            && !M01OwnedCr3CompositeTransition
+                .TouchesXmm6ThroughXmm15
+            && M01OwnedCr3CompositeTransition.ExactInvlpgCount
+                == 1
+            && M01OwnedCr3CompositeTransition
+                .ExactProbeInvocationCount == 1
+            && M01OwnedCr3CompositeTransition
+                .RequiredCallerShadowSpaceBytes == 32
+            && M01OwnedCr3CompositeTransition
+                .RequiredStackHeadroomBytes >= 40
+            && M01OwnedCr3CompositeTransition.ExternalPatchCount
+                == 0
+            && M01OwnedCr3CompositeTransition
+                .MaterializedPageByteLength
+                == M01OwnedCr3CompositeTransition.PageSize
+            && M01OwnedCr3CompositeTransition.RequiredByteLength
+                == ExpectedRequiredByteLength
+            && M01OwnedCr3CompositeTransition
+                .AuditedInstructionCount == ExpectedInstructionCount
+            && M01OwnedCr3CompositeTransition.RequiredFnv1a64
+                == ExpectedFullPageFnv1a64
+            && !M01OwnedCr3CompositeTransition
+                .HasExternalRelocations
+            && M01OwnedCr3CompositeTransition
+                .UsesWindowsX64Abi;
+    }
+
+    private static bool TestRangeBindingAndAdversarialInputs()
+    {
+        using CompositeFixture fixture = CompositeFixture.Create();
+        M01OwnedCr3CompositeTransitionResult canonical =
+            fixture.Execute();
+        ulong fullPhysicalMask =
+            fixture.PriorEvidence.Evidence.Preflight
+                .PhysicalAddressMask;
+        ulong pagePhysicalMask =
+            fullPhysicalMask & ~0xfffUL;
+        X64PageMapResult priorMutation =
+            fixture.PriorEvidence.Evidence.ProtectionMutation;
+        (ulong probePml4, ulong probePdpt, ulong probePd, _) =
+            fixture.ProbeWalkEntryIndexes();
+        ulong expectedPdptOrdinal =
+            ((fixture.PageEntries[probePml4] & pagePhysicalMask)
+                - canonical.State.TablePageArenaStart)
+            / M01OwnedCr3CompositeTransition.PageSize;
+        ulong expectedPdOrdinal =
+            ((fixture.PageEntries[probePdpt] & pagePhysicalMask)
+                - canonical.State.TablePageArenaStart)
+            / M01OwnedCr3CompositeTransition.PageSize;
+        ulong expectedPtOrdinal =
+            ((fixture.PageEntries[probePd] & pagePhysicalMask)
+                - canonical.State.TablePageArenaStart)
+            / M01OwnedCr3CompositeTransition.PageSize;
+        if (!canonical.IsSuccess
+            || canonical.Status
+                != M01OwnedCr3CompositeTransitionStatus.Success
+            || canonical.InvalidIndex
+                != M01OwnedCr3CompositeTransitionResult.NoIndex
+            || !canonical.State.IsInitialized
+            || canonical.State.OwnedCr3Raw
+                != fixture.OwnedCr3Value
+            || canonical.State.ExpectedProbePteAddress
+                != fixture.ExpectedProbePteAddressValue
+            || canonical.State.InitialProbePteRaw
+                != fixture.InitialProbePteValue
+            || canonical.State.FinalProbePteRaw
+                != fixture.FinalProbePteValue
+            || canonical.State.ProbeEntry
+                != fixture.ProbeStartValue
+            || canonical.State.TableStateArenaStart
+                != fixture.RuntimeStateAddress
+            || canonical.State.ExpectedSelfAddress
+                != fixture.RuntimeStateAddress
+            || canonical.State.CanaryAddress
+                != fixture.CanaryAddressValue
+            || canonical.State.ExpectedProbeHierarchyIdentity == 0
+            || canonical.State.ExpectedCriticalMappingPageCount == 0
+            || canonical.State.ExpectedCriticalMappingPageCount
+                > M01OwnedCr3CompositeTransition
+                    .MaximumCriticalMappingPageCount
+            || canonical.State.ExpectedProbePdptPageOrdinal
+                != expectedPdptOrdinal
+            || canonical.State.ExpectedProbePdPageOrdinal
+                != expectedPdOrdinal
+            || canonical.State.ExpectedProbePtPageOrdinal
+                != expectedPtOrdinal
+            || canonical.Phase
+                != M01OwnedCr3CompositeTransitionResultPhase
+                    .StatePrepared
+            || !canonical.IsStatePrepared
+            || canonical.IsMaterialized
+            || canonical.IsReadbackVerified
+            || canonical.IsObservedAudit
+            || canonical.ProvesCompositeEncodingReadback
+            || *fixture.CanaryDestination != ExpectedCanary
+            || (fullPhysicalMask & 0xfffUL) != 0xfffUL
+            || pagePhysicalMask == 0
+            || (fixture.OwnedCr3Value & ~pagePhysicalMask) != 0
+            || priorMutation.PageImageCount
+                != fixture.PageImageCount
+            || priorMutation.PageImageCapacity
+                != (ulong)fixture.PageImages.Length
+            || priorMutation.EntryCount
+                != fixture.PageEntryCount
+            || priorMutation.EntryCapacity
+                != (ulong)fixture.PageEntries.Length
+            || priorMutation.TargetEntryIndex
+                != fixture.PriorEvidence.Evidence.TableBuild
+                    .ProbeLeafEntryIndex)
+        {
+            Console.WriteLine(
+                "M01_027_RANGE_CANONICAL"
+                + " status=" + canonical.Status
+                + " phase=" + canonical.Phase
+                + " invalidIndex=" + canonical.InvalidIndex
+                + " hierarchy=0x"
+                + canonical.State.ExpectedProbeHierarchyIdentity
+                    .ToString("X16")
+                + " pdpt="
+                + canonical.State.ExpectedProbePdptPageOrdinal
+                + "/" + expectedPdptOrdinal
+                + " pd=" + canonical.State.ExpectedProbePdPageOrdinal
+                + "/" + expectedPdOrdinal
+                + " pt=" + canonical.State.ExpectedProbePtPageOrdinal
+                + "/" + expectedPtOrdinal
+                + " state=0x"
+                + canonical.State.ExpectedSelfAddress.ToString("X16")
+                + "/0x" + fixture.RuntimeStateAddress.ToString("X16"));
+            return false;
+        }
+
+        if (ExecuteMissingAllocationTable(fixture).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .MissingAllocationRecords
+            || fixture.Execute(allocationCount: 0).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InvalidAllocationRecordCount
+            || fixture.Execute(
+                    allocationCapacity:
+                        fixture.AllocationCount - 1).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .AllocationRecordCapacityTooSmall
+            || ExecuteMissingReservationTable(fixture).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .MissingReservationRecords
+            || fixture.Execute(reservationCount: 0).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InvalidReservationRecordCount
+            || fixture.Execute(
+                    reservationCapacity:
+                        fixture.ReservationCount - 1).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .ReservationRecordCapacityTooSmall
+            || ExecuteMissingMappingTable(fixture).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .MissingIdentityMappings
+            || fixture.Execute(mappingCount: 0).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InvalidIdentityMappingCount
+            || fixture.Execute(mappingCapacity:
+                    fixture.MappingCount - 1).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .IdentityMappingCapacityTooSmall
+            || fixture.Execute(pageImageCount: 0).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InvalidPageImageCount
+            || fixture.Execute(
+                    pageImageCapacity:
+                        fixture.PageImageCount - 1).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .PageImageCapacityTooSmall
+            || fixture.Execute(
+                    pageEntryCount:
+                        fixture.PageEntryCount - 1).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InvalidPageEntryCount
+            || fixture.Execute(
+                    pageEntryCapacity:
+                        fixture.PageEntryCount - 1).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .PageEntryCapacityTooSmall
+            || ExecuteMissingBindingTable(fixture).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .MissingRangeBindings
+            || fixture.Execute(bindingCount: 6).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InvalidRangeBindingCount
+            || fixture.Execute(bindingCapacity: 6).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .RangeBindingCapacityTooSmall
+            || fixture.Execute(stateDestinationCount: 0).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InvalidStateDestinationCount
+            || fixture.Execute(
+                    stateDestinationCapacity: 0).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .StateDestinationCapacityTooSmall
+            || fixture.Execute(
+                    useNullStateDestination: true).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .MissingStateDestination
+            || fixture.Execute(
+                    stateDestination:
+                        (M01OwnedCr3CompositeTransitionRuntimeState*)
+                            ((byte*)fixture.StateDestination + 1)).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .MisalignedStateDestination
+            || fixture.Execute(
+                    stateDestination:
+                        (M01OwnedCr3CompositeTransitionRuntimeState*)
+                            (~0UL - 7)).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .StateDestinationSpanOverflow
+            || fixture.Execute(canaryDestinationCount: 0).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InvalidCanaryDestinationCount
+            || fixture.Execute(
+                    canaryDestinationCapacity: 0).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .CanaryDestinationCapacityTooSmall
+            || fixture.Execute(
+                    useNullCanaryDestination: true).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .MissingCanaryDestination
+            || fixture.Execute(
+                    canaryDestination:
+                        (ulong*)((byte*)fixture.CanaryDestination + 1))
+                    .Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .MisalignedCanaryDestination
+            || fixture.Execute(
+                    canaryDestination: (ulong*)(~0UL - 7)).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .CanaryDestinationSpanOverflow
+            || ExecuteMisalignedAllocationTable(fixture).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .MisalignedInputTable
+            || ExecuteOverflowingAllocationTable(fixture).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InputTableSpanOverflow
+            || ExecuteAliasedTables(fixture).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InputOutputAlias
+            || ExecuteCapacityTailAliasedTables(fixture).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InputOutputAlias)
+        {
+            Console.WriteLine(
+                "M01_027_RANGE_STAGE input-preflight-matrix");
+            return false;
+        }
+
+        if ((ulong)fixture.PageImages.Length
+                > fixture.PageImageCount
+            && fixture.Execute(
+                    pageImageCapacity:
+                        fixture.PageImageCount).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InvalidPriorPlanningEvidence)
+        {
+            Console.WriteLine(
+                "M01_027_RANGE_STAGE page-image-capacity");
+            return false;
+        }
+        if ((ulong)fixture.PageEntries.Length
+                > fixture.PageEntryCount
+            && fixture.Execute(
+                    pageEntryCapacity:
+                        fixture.PageEntryCount).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InvalidPriorPlanningEvidence)
+        {
+            Console.WriteLine(
+                "M01_027_RANGE_STAGE page-entry-capacity");
+            return false;
+        }
+
+        using CompositeFixture wrongType = CompositeFixture.Create();
+        BootMemoryRegionRecord codeAllocation =
+            wrongType.AllocationPointer[0];
+        wrongType.SetAllocation(
+            0,
+            Record(
+                UefiMemoryType.LoaderData,
+                codeAllocation.PhysicalStart,
+                codeAllocation.PageCount));
+        if (wrongType.Execute().Status
+            != M01OwnedCr3CompositeTransitionStatus
+                .AllocationProvenanceMismatch)
+        {
+            Console.WriteLine(
+                "M01_027_RANGE_STAGE wrong-allocation-type status="
+                + wrongType.Execute().Status);
+            return false;
+        }
+
+        using CompositeFixture writableCode =
+            CompositeFixture.Create();
+        writableCode.SetMappingProtection(
+            writableCode.CodeMappingIndex,
+            PageProtection.Read
+                | PageProtection.Write
+                | PageProtection.Execute);
+        if (writableCode.Execute().Status
+            != M01OwnedCr3CompositeTransitionStatus
+                .WritableExecutableRejected)
+        {
+            Console.WriteLine(
+                "M01_027_RANGE_STAGE writable-code status="
+                + writableCode.Execute().Status);
+            return false;
+        }
+
+        using CompositeFixture executableTables =
+            CompositeFixture.Create();
+        executableTables.SetMappingProtection(
+            executableTables.TableMappingIndex,
+            PageProtection.Read | PageProtection.Execute);
+        if (executableTables.Execute().Status
+            != M01OwnedCr3CompositeTransitionStatus
+                .InvalidProtection)
+        {
+            Console.WriteLine(
+                "M01_027_RANGE_STAGE executable-tables status="
+                + executableTables.Execute().Status);
+            return false;
+        }
+
+        using CompositeFixture wrongMappingPages =
+            CompositeFixture.Create();
+        X64BootIdentityMappingRange tableMapping =
+            wrongMappingPages.Mappings[
+                wrongMappingPages.TableMappingIndex];
+        wrongMappingPages.SetMappingUlong(
+            wrongMappingPages.TableMappingIndex,
+            "_pageCount",
+            tableMapping.PageCount + 1);
+        using CompositeFixture wrongMappingBytes =
+            CompositeFixture.Create();
+        tableMapping = wrongMappingBytes.Mappings[
+            wrongMappingBytes.TableMappingIndex];
+        wrongMappingBytes.SetMappingUlong(
+            wrongMappingBytes.TableMappingIndex,
+            "_byteLength",
+            tableMapping.ByteLength + 4096);
+        using CompositeFixture unknownMappingPurpose =
+            CompositeFixture.Create();
+        tableMapping = unknownMappingPurpose.Mappings[
+            unknownMappingPurpose.TableMappingIndex];
+        unknownMappingPurpose.SetMappingUlong(
+            unknownMappingPurpose.TableMappingIndex,
+            "_contributingPurposeMask",
+            tableMapping.ContributingPurposeMask | (1UL << 63));
+        if (wrongMappingPages.Execute().Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .IdentityMappingProvenanceMismatch
+            || wrongMappingBytes.Execute().Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .IdentityMappingProvenanceMismatch
+            || unknownMappingPurpose.Execute().Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .IdentityMappingProvenanceMismatch)
+        {
+            Console.WriteLine(
+                "M01_027_RANGE_STAGE malformed-mapping-metadata");
+            return false;
+        }
+
+        using CompositeFixture missingMapping =
+            CompositeFixture.Create();
+        M01OwnedCr3CompositeTransitionRangeBinding probeBinding =
+            missingMapping.Bindings[3];
+        missingMapping.Bindings[3] = Binding(
+            probeBinding.Role,
+            probeBinding.Provenance,
+            Raw(probeBinding.PhysicalStart),
+            Raw(probeBinding.PhysicalEndExclusive),
+            probeBinding.AllocationIndex,
+            probeBinding.ReservationIndex,
+            M01OwnedCr3CompositeTransitionRangeBinding.NoIndex);
+        if (missingMapping.Execute().Status
+            != M01OwnedCr3CompositeTransitionStatus
+                .IdentityMappingProvenanceMismatch)
+        {
+            Console.WriteLine(
+                "M01_027_RANGE_STAGE missing-mapping status="
+                + missingMapping.Execute().Status);
+            return false;
+        }
+
+        using CompositeFixture duplicateRole =
+            CompositeFixture.Create();
+        duplicateRole.Bindings[6] = duplicateRole.Bindings[5];
+        if (duplicateRole.Execute().Status
+            != M01OwnedCr3CompositeTransitionStatus
+                .DuplicateRangeRole)
+        {
+            Console.WriteLine(
+                "M01_027_RANGE_STAGE duplicate-role status="
+                + duplicateRole.Execute().Status);
+            return false;
+        }
+
+        using CompositeFixture wrongCodeIndex =
+            CompositeFixture.Create();
+        M01OwnedCr3CompositeTransitionRangeBinding codeBinding =
+            wrongCodeIndex.Bindings[0];
+        wrongCodeIndex.Bindings[0] = Binding(
+            codeBinding.Role,
+            codeBinding.Provenance,
+            Raw(codeBinding.PhysicalStart),
+            Raw(codeBinding.PhysicalEndExclusive),
+            1,
+            codeBinding.ReservationIndex,
+            codeBinding.IdentityMappingIndex);
+        if (wrongCodeIndex.Execute().Status
+            != M01OwnedCr3CompositeTransitionStatus
+                .AllocationProvenanceMismatch)
+        {
+            Console.WriteLine(
+                "M01_027_RANGE_STAGE wrong-code-index status="
+                + wrongCodeIndex.Execute().Status);
+            return false;
+        }
+
+        using CompositeFixture wrongProbeIndex =
+            CompositeFixture.Create();
+        M01OwnedCr3CompositeTransitionRangeBinding wrongProbe =
+            wrongProbeIndex.Bindings[3];
+        wrongProbeIndex.ReplaceBinding(
+            3,
+            wrongProbe.Provenance,
+            2,
+            wrongProbe.ReservationIndex,
+            wrongProbe.IdentityMappingIndex);
+        using CompositeFixture wrongArenaReservation =
+            CompositeFixture.Create();
+        M01OwnedCr3CompositeTransitionRangeBinding wrongArena =
+            wrongArenaReservation.Bindings[4];
+        ulong probeReservationIndex =
+            wrongArenaReservation.Bindings[3].ReservationIndex;
+        wrongArenaReservation.ReplaceBinding(
+            4,
+            wrongArena.Provenance,
+            wrongArena.AllocationIndex,
+            probeReservationIndex,
+            wrongArena.IdentityMappingIndex);
+        using CompositeFixture allocationBackedStack =
+            CompositeFixture.Create();
+        M01OwnedCr3CompositeTransitionRangeBinding stackBinding =
+            allocationBackedStack.Bindings[1];
+        allocationBackedStack.ReplaceBinding(
+            1,
+            M01OwnedCr3CompositeTransitionRangeProvenance
+                .AllocationReservationAndIdentityMapping,
+            0,
+            stackBinding.ReservationIndex,
+            stackBinding.IdentityMappingIndex);
+        using CompositeFixture exactState =
+            CompositeFixture.Create();
+        M01OwnedCr3CompositeTransitionRangeBinding stateBinding =
+            exactState.Bindings[5];
+        exactState.ReplaceBinding(
+            5,
+            M01OwnedCr3CompositeTransitionRangeProvenance
+                .AllocationReservationAndIdentityMapping,
+            stateBinding.AllocationIndex,
+            stateBinding.ReservationIndex,
+            stateBinding.IdentityMappingIndex);
+        if (wrongProbeIndex.Execute().Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .AllocationProvenanceMismatch
+            || wrongArenaReservation.Execute().Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .ReservationProvenanceMismatch
+            || allocationBackedStack.Execute().Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .AllocationProvenanceMismatch
+            || exactState.Execute().Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .AllocationProvenanceMismatch)
+        {
+            Console.WriteLine(
+                "M01_027_RANGE_STAGE binding-provenance-matrix");
+            return false;
+        }
+
+        int[] dereferencedBindings = [0, 1, 2, 4, 5, 6];
+        for (int index = 0;
+            index < dereferencedBindings.Length;
+            index++)
+        {
+            if (ExecuteWithMutatedDereferencedLeaf(
+                    dereferencedBindings[index],
+                    remove: true).IsSuccess
+                || ExecuteWithMutatedDereferencedLeaf(
+                    dereferencedBindings[index],
+                    remove: false).IsSuccess)
+            {
+                Console.WriteLine(
+                    "M01_027_RANGE_STAGE dereferenced-binding index="
+                    + dereferencedBindings[index]);
+                return false;
+            }
+        }
+
+        using CompositeFixture wrongPteBase =
+            CompositeFixture.Create();
+        wrongPteBase.SetProbeLeaf(
+            (wrongPteBase.InitialProbePteValue
+                & ~M01OwnedCr3CompositeTransition
+                    .Cr3ArchitecturalBaseMask)
+            | ((wrongPteBase.ProbeStartValue + 4096)
+                & M01OwnedCr3CompositeTransition
+                    .Cr3ArchitecturalBaseMask));
+        Span<byte> atomicState = new(
+            wrongPteBase.StateDestination,
+            checked((int)
+                M01OwnedCr3CompositeTransitionRuntimeState
+                    .StructureSize
+                + sizeof(ulong)));
+        atomicState.Fill(0xa5);
+        byte[] atomicBefore = atomicState.ToArray();
+        M01OwnedCr3CompositeTransitionResult wrongBaseResult =
+            wrongPteBase.Execute();
+        using CompositeFixture wrongPteCache =
+            CompositeFixture.Create();
+        wrongPteCache.SetProbeLeaf(
+            wrongPteCache.InitialProbePteValue | (1UL << 3));
+        using CompositeFixture wrongPteReserved =
+            CompositeFixture.Create();
+        wrongPteReserved.SetProbeLeaf(
+            wrongPteReserved.InitialProbePteValue | (1UL << 52));
+        if (wrongBaseResult.Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InvalidProbePte
+            || !atomicState.SequenceEqual(atomicBefore)
+            || wrongPteCache.Execute().Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InvalidProbePte
+            || wrongPteReserved.Execute().Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InvalidProbePte)
+        {
+            Console.WriteLine(
+                "M01_027_RANGE_STAGE malformed-probe-pte");
+            return false;
+        }
+
+        ulong[] forbiddenLeafBits =
+        [
+            1UL << 2,
+            1UL << 3,
+            1UL << 4,
+            1UL << 7,
+            1UL << 8,
+            1UL << 9,
+            1UL << 48
+        ];
+        for (int index = 0;
+            index < forbiddenLeafBits.Length;
+            index++)
+        {
+            if (ExecuteWithProbeWalkBit(
+                    level: 3,
+                    forbiddenLeafBits[index]).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InvalidProbePte)
+            {
+                Console.WriteLine(
+                    "M01_027_RANGE_STAGE forbidden-leaf-bit bit=0x"
+                    + forbiddenLeafBits[index].ToString("X16"));
+                return false;
+            }
+        }
+
+        ulong[] forbiddenParentBits =
+        [
+            1UL << 2,
+            1UL << 3,
+            1UL << 4,
+            1UL << 6,
+            1UL << 7,
+            1UL << 8,
+            1UL << 9,
+            1UL << 63,
+            1UL << 48
+        ];
+        for (int level = 0; level < 3; level++)
+        {
+            for (int index = 0;
+                index < forbiddenParentBits.Length;
+                index++)
+            {
+                if (ExecuteWithProbeWalkBit(
+                        level,
+                        forbiddenParentBits[index]).Status
+                    != M01OwnedCr3CompositeTransitionStatus
+                        .InvalidProbePte)
+                {
+                    Console.WriteLine(
+                        "M01_027_RANGE_STAGE forbidden-parent-bit"
+                        + " level=" + level
+                        + " bit=0x"
+                        + forbiddenParentBits[index].ToString("X16"));
+                    return false;
+                }
+            }
+        }
+
+        for (int level = 0; level < 3; level++)
+        {
+            if (!ExecuteWithProbeWalkBit(
+                    level,
+                    1UL << 5).IsSuccess)
+            {
+                Console.WriteLine(
+                    "M01_027_RANGE_STAGE parent-accessed"
+                    + " level=" + level);
+                return false;
+            }
+        }
+
+        using CompositeFixture accessedDirty =
+            CompositeFixture.Create();
+        accessedDirty.SetProbeLeaf(
+            accessedDirty.InitialProbePteValue
+                | (1UL << 5)
+                | (1UL << 6));
+        M01OwnedCr3CompositeTransitionResult accessedDirtyResult =
+            accessedDirty.Execute();
+        if (!accessedDirtyResult.IsSuccess
+            || accessedDirtyResult.State.FinalProbePteRaw
+                != ((accessedDirty.InitialProbePteValue
+                        | (1UL << 5)
+                        | (1UL << 6))
+                    & ~(M01OwnedCr3CompositeTransition
+                            .PageWritableBit
+                        | M01OwnedCr3CompositeTransition
+                            .PageNoExecuteBit)))
+        {
+            Console.WriteLine(
+                "M01_027_RANGE_STAGE accessed-dirty-leaf status="
+                + accessedDirtyResult.Status);
+            return false;
+        }
+
+        M01OwnedCr3CompositeTransitionStatus invalidCr3Status =
+            fixture.Execute(
+                ownedCr3Raw:
+                    fixture.OwnedCr3Value | (1UL << 7)).Status;
+        M01OwnedCr3CompositeTransitionStatus returnAddressStatus =
+            fixture.Execute(
+                expectedReturnAddress:
+                    fixture.ExpectedReturnAddressValue
+                    + 4096).Status;
+        M01OwnedCr3CompositeTransitionStatus canaryAddressStatus =
+            fixture.Execute(
+                canaryAddress:
+                    fixture.CanaryAddressValue + 8).Status;
+        M01OwnedCr3CompositeTransitionStatus duplicateCanaryStatus =
+            fixture.Execute(
+                expectedCanary: ExpectedCanary,
+                replacementCanary: ExpectedCanary).Status;
+        M01OwnedCr3CompositeTransitionStatus zeroExpectedCanaryStatus =
+            fixture.Execute(expectedCanary: 0).Status;
+        M01OwnedCr3CompositeTransitionStatus zeroReplacementCanaryStatus =
+            fixture.Execute(replacementCanary: 0).Status;
+        bool finalBoundaryMatrix =
+            invalidCr3Status
+                == M01OwnedCr3CompositeTransitionStatus.InvalidOwnedCr3
+            && returnAddressStatus
+                == M01OwnedCr3CompositeTransitionStatus
+                    .InvalidProbeContract
+            && canaryAddressStatus
+                == M01OwnedCr3CompositeTransitionStatus
+                    .StateAddressMismatch
+            && duplicateCanaryStatus
+                == M01OwnedCr3CompositeTransitionStatus.InvalidCanary
+            && zeroExpectedCanaryStatus
+                == M01OwnedCr3CompositeTransitionStatus.InvalidCanary
+            && zeroReplacementCanaryStatus
+                == M01OwnedCr3CompositeTransitionStatus.InvalidCanary;
+        if (!finalBoundaryMatrix)
+        {
+            Console.WriteLine(
+                "M01_027_RANGE_STAGE final-boundary-matrix"
+                + " cr3=" + invalidCr3Status
+                + " return=" + returnAddressStatus
+                + " canaryAddress=" + canaryAddressStatus
+                + " duplicateCanary=" + duplicateCanaryStatus
+                + " zeroExpected=" + zeroExpectedCanaryStatus
+                + " zeroReplacement=" + zeroReplacementCanaryStatus);
+        }
+
+        return finalBoundaryMatrix;
+    }
+
+    private static M01OwnedCr3CompositeTransitionResult
+        ExecuteWithProbeWalkBit(int level, ulong bit)
+    {
+        using CompositeFixture fixture = CompositeFixture.Create();
+        (ulong pml4, ulong pdpt, ulong pd, ulong pt) =
+            fixture.ProbeWalkEntryIndexes();
+        ulong[] indexes = [pml4, pdpt, pd, pt];
+        fixture.PageEntries[indexes[level]] |= bit;
+        return fixture.Execute();
+    }
+
+    private static M01OwnedCr3CompositeTransitionResult
+        ExecuteWithMutatedDereferencedLeaf(
+            int bindingIndex,
+            bool remove)
+    {
+        using CompositeFixture fixture = CompositeFixture.Create();
+        M01OwnedCr3CompositeTransitionRangeBinding binding =
+            fixture.Bindings[bindingIndex];
+        ulong leafIndex = fixture.LeafEntryIndex(
+            Raw(binding.VirtualStart));
+        if (remove)
+        {
+            fixture.PageEntries[leafIndex] = 0;
+        }
+        else if (binding.Role
+            == M01OwnedCr3CompositeTransitionRangeRole.CompositeCode
+            || binding.Role
+                == M01OwnedCr3CompositeTransitionRangeRole
+                    .LoadedImageContinuationPage)
+        {
+            fixture.PageEntries[leafIndex] |=
+                M01OwnedCr3CompositeTransition.PageWritableBit
+                | M01OwnedCr3CompositeTransition.PageNoExecuteBit;
+        }
+        else
+        {
+            fixture.PageEntries[leafIndex] &=
+                ~M01OwnedCr3CompositeTransition.PageNoExecuteBit;
+        }
+
+        return fixture.Execute();
+    }
+
+    private static bool TestMaterializationReadbackAndAtomicity()
+    {
+        using CompositeFixture fixture = CompositeFixture.Create();
+        M01OwnedCr3CompositeTransitionResult prepared =
+            fixture.Execute();
+        if (!prepared.IsSuccess)
+        {
+            Console.WriteLine(
+                "M01_027_MATERIALIZE_PREPARE status="
+                + prepared.Status
+                + " phase=" + prepared.Phase
+                + " invalidIndex=" + prepared.InvalidIndex
+                + " expected=" + prepared.ExpectedValue
+                + " observed=" + prepared.ObservedValue);
+            return false;
+        }
+
+        using CompositePlanStorage storage = new(
+            (byte*)prepared.State.CompositeCodeStart);
+        storage.Fill(0xa5);
+        ulong entryAddress = prepared.State.CompositeCodeStart;
+        byte[] bytesBefore = storage.CopyAllBytes();
+        byte[] semanticsBefore = storage.CopyAllSemantics();
+        if (!RejectsForgedPreparedStateBeforeWriting(
+                fixture,
+                storage,
+                entryAddress,
+                bytesBefore,
+                semanticsBefore))
+        {
+            Console.WriteLine(
+                "M01_027_MATERIALIZE_STAGE forged-prepared-state");
+            return false;
+        }
+
+        M01OwnedCr3CompositeTransitionResult missingDestination =
+            M01OwnedCr3CompositeTransition.TryMaterialize(
+                fixture.StateDestination,
+                1,
+                1,
+                null,
+                M01OwnedCr3CompositeTransition.MaximumByteCapacity,
+                entryAddress,
+                storage.Semantics,
+                M01OwnedCr3CompositeTransition
+                    .AuditedSemanticRecordCount);
+        if (missingDestination.Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .MissingDestination
+            || !storage.AllStorageEquals(
+                bytesBefore,
+                semanticsBefore))
+        {
+            Console.WriteLine(
+                "M01_027_MATERIALIZE_STAGE missing-destination"
+                + " status=" + missingDestination.Status);
+            return false;
+        }
+
+        M01OwnedCr3CompositeTransitionResult missingSemantics =
+            M01OwnedCr3CompositeTransition.TryMaterialize(
+                fixture.StateDestination,
+                1,
+                1,
+                storage.Bytes,
+                M01OwnedCr3CompositeTransition.MaximumByteCapacity,
+                entryAddress,
+                null,
+                M01OwnedCr3CompositeTransition
+                    .AuditedSemanticRecordCount);
+        if (missingSemantics.Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .MissingSemanticDestination
+            || !storage.AllStorageEquals(
+                bytesBefore,
+                semanticsBefore))
+        {
+            Console.WriteLine(
+                "M01_027_MATERIALIZE_STAGE missing-semantics"
+                + " status=" + missingSemantics.Status);
+            return false;
+        }
+
+        M01OwnedCr3CompositeTransitionResult shortSemantics =
+            M01OwnedCr3CompositeTransition.TryMaterialize(
+                fixture.StateDestination,
+                1,
+                1,
+                storage.Bytes,
+                M01OwnedCr3CompositeTransition.MaximumByteCapacity,
+                entryAddress,
+                storage.Semantics,
+                M01OwnedCr3CompositeTransition
+                    .AuditedSemanticRecordCount - 1);
+        if (shortSemantics.Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .SemanticCapacityTooSmall
+            || !storage.AllStorageEquals(
+                bytesBefore,
+                semanticsBefore))
+        {
+            Console.WriteLine(
+                "M01_027_MATERIALIZE_STAGE short-semantics"
+                + " status=" + shortSemantics.Status);
+            return false;
+        }
+
+        M01OwnedCr3CompositeTransitionResult materialized =
+            M01OwnedCr3CompositeTransition.TryMaterialize(
+                fixture.StateDestination,
+                1,
+                1,
+                storage.Bytes,
+                M01OwnedCr3CompositeTransition.MaximumByteCapacity,
+                entryAddress,
+                storage.Semantics,
+                M01OwnedCr3CompositeTransition
+                    .AuditedSemanticRecordCount);
+        if (!materialized.IsSuccess
+            || materialized.Phase
+                != M01OwnedCr3CompositeTransitionResultPhase.Materialized
+            || !materialized.IsMaterialized
+            || materialized.IsStatePrepared
+            || materialized.IsReadbackVerified
+            || materialized.IsObservedAudit
+            || materialized.ProvesCompositeEncodingReadback
+            || materialized.ByteCount
+                != M01OwnedCr3CompositeTransition
+                    .MaterializedPageByteLength
+            || materialized.RequiredByteCount
+                != M01OwnedCr3CompositeTransition
+                    .MaterializedPageByteLength
+            || materialized.RequiredMaterializedPageByteLength
+                != M01OwnedCr3CompositeTransition
+                    .MaterializedPageByteLength
+            || materialized.RequiredInstructionByteLength
+                != M01OwnedCr3CompositeTransition.RequiredByteLength
+            || M01OwnedCr3CompositeTransition.RequiredByteLength == 0
+            || M01OwnedCr3CompositeTransition.RequiredByteLength
+                >= M01OwnedCr3CompositeTransition
+                    .MaterializedPageByteLength
+            || materialized.ByteCount
+                > M01OwnedCr3CompositeTransition.MaximumByteCapacity
+            || materialized.SemanticCount
+                != M01OwnedCr3CompositeTransition
+                    .AuditedSemanticRecordCount
+            || materialized.ExpectedValue
+                != M01OwnedCr3CompositeTransition
+                    .AuditedInstructionCount
+            || materialized.ObservedValue
+                != M01OwnedCr3CompositeTransition
+                    .AuditedInstructionCount
+            || materialized.Fnv1a64 == 0
+            || !storage.ZeroFilledPageTail(
+                M01OwnedCr3CompositeTransition.RequiredByteLength)
+            || !storage.TailsEqual(0xa5))
+        {
+            Console.WriteLine(
+                "M01_027_MATERIALIZE_STAGE canonical"
+                + " status=" + materialized.Status
+                + " phase=" + materialized.Phase
+                + " bytes=" + materialized.ByteCount
+                + " semantics=" + materialized.SemanticCount
+                + " expected=" + materialized.ExpectedValue
+                + " observed=" + materialized.ObservedValue);
+            return false;
+        }
+
+        byte[] exactBytes = storage.CopyBytes(
+            materialized.ByteCount);
+        byte[] exactSemantics = storage.CopySemantics(
+            materialized.SemanticCount);
+        M01OwnedCr3CompositeTransitionResult readback =
+            M01OwnedCr3CompositeTransition.ValidateReadback(
+                fixture.StateDestination,
+                1,
+                1,
+                storage.Bytes,
+                materialized.ByteCount,
+                M01OwnedCr3CompositeTransition.MaximumByteCapacity,
+                entryAddress,
+                storage.Semantics,
+                materialized.SemanticCount,
+                M01OwnedCr3CompositeTransition
+                    .AuditedSemanticRecordCount);
+        if (!readback.IsSuccess
+            || readback.Phase
+                != M01OwnedCr3CompositeTransitionResultPhase
+                    .ReadbackVerified
+            || !readback.IsReadbackVerified
+            || !readback.ProvesCompositeEncodingReadback
+            || readback.IsStatePrepared
+            || readback.IsMaterialized
+            || readback.IsObservedAudit
+            || readback.Fnv1a64 != materialized.Fnv1a64
+            || !storage.ExactPrefixesEqual(
+                exactBytes,
+                exactSemantics))
+        {
+            Console.WriteLine(
+                "M01_027_MATERIALIZE_STAGE readback"
+                + " status=" + readback.Status
+                + " phase=" + readback.Phase
+                + " invalidIndex=" + readback.InvalidIndex);
+            return false;
+        }
+
+        M01OwnedCr3CompositeTransitionResult shortDestination =
+            M01OwnedCr3CompositeTransition.TryMaterialize(
+                fixture.StateDestination,
+                1,
+                1,
+                storage.Bytes,
+                materialized.ByteCount - 1,
+                entryAddress,
+                storage.Semantics,
+                M01OwnedCr3CompositeTransition
+                    .AuditedSemanticRecordCount);
+        if (shortDestination.Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .DestinationCapacityTooSmall
+            || !storage.ExactPrefixesEqual(
+                exactBytes,
+                exactSemantics))
+        {
+            Console.WriteLine(
+                "M01_027_MATERIALIZE_STAGE short-destination"
+                + " status=" + shortDestination.Status);
+            return false;
+        }
+
+        M01OwnedCr3CompositeTransitionResult alias =
+            M01OwnedCr3CompositeTransition.TryMaterialize(
+                fixture.StateDestination,
+                1,
+                1,
+                storage.Bytes,
+                M01OwnedCr3CompositeTransition.MaximumByteCapacity,
+                entryAddress,
+                (M01OwnedCr3CompositeTransitionSemanticRecord*)
+                    storage.Bytes,
+                M01OwnedCr3CompositeTransition
+                    .AuditedSemanticRecordCount);
+        if (alias.Status
+            != M01OwnedCr3CompositeTransitionStatus
+                .DestinationSemanticOverlap)
+        {
+            Console.WriteLine(
+                "M01_027_MATERIALIZE_STAGE alias"
+                + " status=" + alias.Status);
+            return false;
+        }
+
+        for (ulong index = 0;
+            index < materialized.ByteCount;
+            index++)
+        {
+            storage.Bytes[index] ^= 0x80;
+            M01OwnedCr3CompositeTransitionResult corrupt =
+                M01OwnedCr3CompositeTransition.ValidateReadback(
+                    fixture.StateDestination,
+                    1,
+                    1,
+                    storage.Bytes,
+                    materialized.ByteCount,
+                    M01OwnedCr3CompositeTransition.MaximumByteCapacity,
+                    entryAddress,
+                    storage.Semantics,
+                    materialized.SemanticCount,
+                    M01OwnedCr3CompositeTransition
+                        .AuditedSemanticRecordCount);
+            storage.Bytes[index] ^= 0x80;
+            if (corrupt.Status
+                    != M01OwnedCr3CompositeTransitionStatus
+                        .ByteMismatch
+                || !IsExpectedByteMismatchLocation(
+                    storage.Bytes,
+                    materialized.ByteCount,
+                    index,
+                    corrupt.InvalidIndex))
+            {
+                Console.WriteLine(
+                    "M01_027_MATERIALIZE_STAGE byte-corruption"
+                    + " index=" + index
+                    + " status=" + corrupt.Status
+                    + " invalidIndex=" + corrupt.InvalidIndex);
+                return false;
+            }
+        }
+
+        for (ulong index = 0;
+            index < materialized.SemanticCount;
+            index++)
+        {
+            M01OwnedCr3CompositeTransitionSemanticRecord original =
+                storage.Semantics[index];
+            storage.Semantics[index] = default;
+            M01OwnedCr3CompositeTransitionResult corrupt =
+                M01OwnedCr3CompositeTransition.ValidateReadback(
+                    fixture.StateDestination,
+                    1,
+                    1,
+                    storage.Bytes,
+                    materialized.ByteCount,
+                    M01OwnedCr3CompositeTransition.MaximumByteCapacity,
+                    entryAddress,
+                    storage.Semantics,
+                    materialized.SemanticCount,
+                    M01OwnedCr3CompositeTransition
+                        .AuditedSemanticRecordCount);
+            storage.Semantics[index] = original;
+            if (corrupt.Status
+                    != M01OwnedCr3CompositeTransitionStatus
+                        .SemanticMismatch
+                || corrupt.InvalidIndex != index)
+            {
+                Console.WriteLine(
+                    "M01_027_MATERIALIZE_STAGE semantic-corruption"
+                    + " index=" + index
+                    + " status=" + corrupt.Status
+                    + " invalidIndex=" + corrupt.InvalidIndex);
+                return false;
+            }
+        }
+
+        M01OwnedCr3CompositeTransitionStatus missingSourceStatus =
+            M01OwnedCr3CompositeTransition.ValidateReadback(
+                    fixture.StateDestination,
+                    1,
+                    1,
+                    null,
+                    materialized.ByteCount,
+                    M01OwnedCr3CompositeTransition
+                        .MaximumByteCapacity,
+                    entryAddress,
+                    storage.Semantics,
+                    materialized.SemanticCount,
+                    M01OwnedCr3CompositeTransition
+                        .AuditedSemanticRecordCount).Status;
+        M01OwnedCr3CompositeTransitionStatus invalidSourceCountStatus =
+            M01OwnedCr3CompositeTransition.ValidateReadback(
+                    fixture.StateDestination,
+                    1,
+                    1,
+                    storage.Bytes,
+                    materialized.ByteCount - 1,
+                    M01OwnedCr3CompositeTransition
+                        .MaximumByteCapacity,
+                    entryAddress,
+                    storage.Semantics,
+                    materialized.SemanticCount,
+                    M01OwnedCr3CompositeTransition
+                        .AuditedSemanticRecordCount).Status;
+        M01OwnedCr3CompositeTransitionStatus shortSourceCapacityStatus =
+            M01OwnedCr3CompositeTransition.ValidateReadback(
+                    fixture.StateDestination,
+                    1,
+                    1,
+                    storage.Bytes,
+                    materialized.ByteCount,
+                    materialized.ByteCount - 1,
+                    entryAddress,
+                    storage.Semantics,
+                    materialized.SemanticCount,
+                    M01OwnedCr3CompositeTransition
+                        .AuditedSemanticRecordCount).Status;
+        bool prefixesEqual = storage.ExactPrefixesEqual(
+            exactBytes,
+            exactSemantics);
+        bool finalReadbackMatrix =
+            missingSourceStatus
+                == M01OwnedCr3CompositeTransitionStatus.MissingSource
+            && invalidSourceCountStatus
+                == M01OwnedCr3CompositeTransitionStatus
+                    .InvalidSourceCount
+            && shortSourceCapacityStatus
+                == M01OwnedCr3CompositeTransitionStatus
+                    .SourceCapacityTooSmall
+            && prefixesEqual;
+        if (!finalReadbackMatrix)
+        {
+            Console.WriteLine(
+                "M01_027_MATERIALIZE_STAGE final-readback-matrix"
+                + " missing=" + missingSourceStatus
+                + " count=" + invalidSourceCountStatus
+                + " capacity=" + shortSourceCapacityStatus
+                + " prefixes=" + prefixesEqual);
+        }
+
+        return finalReadbackMatrix;
+    }
+
+    private static bool RejectsForgedPreparedStateBeforeWriting(
+        CompositeFixture fixture,
+        CompositePlanStorage storage,
+        ulong entryAddress,
+        byte[] expectedBytes,
+        byte[] expectedSemantics)
+    {
+        Span<byte> stateBytes = new(
+            fixture.StateDestination,
+            checked((int)
+                M01OwnedCr3CompositeTransitionRuntimeState
+                    .StructureSize));
+        byte[] canonicalState = stateBytes.ToArray();
+
+        fixture.SetStateUlong(
+            M01OwnedCr3CompositeTransition.StateCompositeCodeEndOffset,
+            entryAddress - 1);
+        M01OwnedCr3CompositeTransitionResult underflow =
+            M01OwnedCr3CompositeTransition.TryMaterialize(
+                fixture.StateDestination,
+                1,
+                1,
+                storage.Bytes,
+                M01OwnedCr3CompositeTransition
+                    .MaterializedPageByteLength,
+                entryAddress,
+                storage.Semantics,
+                M01OwnedCr3CompositeTransition
+                    .AuditedSemanticRecordCount);
+        canonicalState.CopyTo(stateBytes);
+        if (underflow.IsSuccess
+            || !storage.AllStorageEquals(
+                expectedBytes,
+                expectedSemantics))
+        {
+            Console.WriteLine(
+                "M01_027_MATERIALIZE_STAGE pointer-underflow"
+                + " status=" + underflow.Status);
+            return false;
+        }
+
+        const ulong LastAlignedPage = 0xffff_ffff_ffff_f000UL;
+        fixture.SetStateUlong(
+            M01OwnedCr3CompositeTransition.StateCompositeCodeStartOffset,
+            LastAlignedPage);
+        fixture.SetStateUlong(
+            M01OwnedCr3CompositeTransition.StateCompositeCodeEndOffset,
+            0);
+        M01OwnedCr3CompositeTransitionResult wrapped =
+            M01OwnedCr3CompositeTransition.TryMaterialize(
+                fixture.StateDestination,
+                1,
+                1,
+                (byte*)LastAlignedPage,
+                M01OwnedCr3CompositeTransition
+                    .MaterializedPageByteLength,
+                LastAlignedPage,
+                storage.Semantics,
+                M01OwnedCr3CompositeTransition
+                    .AuditedSemanticRecordCount);
+        canonicalState.CopyTo(stateBytes);
+
+        return !wrapped.IsSuccess
+            && storage.AllStorageEquals(
+                expectedBytes,
+                expectedSemantics);
+    }
+
+    private static bool TestIndependentBytePlanAndAbi()
+    {
+        using CompositeFixture fixture = CompositeFixture.Create();
+        M01OwnedCr3CompositeTransitionResult prepared =
+            fixture.Execute();
+        if (!prepared.IsStatePrepared)
+        {
+            Console.WriteLine(
+                "M01_027_DECODE_PREPARE status="
+                + prepared.Status
+                + " phase=" + prepared.Phase
+                + " invalidIndex=" + prepared.InvalidIndex);
+            return false;
+        }
+
+        using CompositePlanStorage storage = new(
+            (byte*)prepared.State.CompositeCodeStart);
+        storage.Fill(0xa5);
+        M01OwnedCr3CompositeTransitionResult materialized =
+            M01OwnedCr3CompositeTransition.TryMaterialize(
+                fixture.StateDestination,
+                1,
+                1,
+                storage.Bytes,
+                M01OwnedCr3CompositeTransition
+                    .MaterializedPageByteLength,
+                (ulong)storage.Bytes,
+                storage.Semantics,
+                M01OwnedCr3CompositeTransition
+                    .AuditedSemanticRecordCount);
+        if (!materialized.IsMaterialized
+            || materialized.Fnv1a64
+                != ExpectedFullPageFnv1a64
+            || M01OwnedCr3CompositeTransition.RequiredFnv1a64
+                != ExpectedFullPageFnv1a64)
+        {
+            Console.WriteLine(
+                "M01_027_DECODE_STAGE materialize"
+                + " status=" + materialized.Status
+                + " phase=" + materialized.Phase
+                + " fnv=0x" + materialized.Fnv1a64.ToString("X16"));
+            return false;
+        }
+
+        byte[] fullPage = storage.CopyBytes(
+            M01OwnedCr3CompositeTransition
+                .MaterializedPageByteLength);
+        byte[] prefix = storage.CopyBytes(
+            M01OwnedCr3CompositeTransition.RequiredByteLength);
+        ulong observedFullPageFnv = ComputeFnv1a64(fullPage);
+        string observedFullPageSha =
+            Convert.ToHexString(SHA256.HashData(fullPage));
+        string observedPrefixSha =
+            Convert.ToHexString(SHA256.HashData(prefix));
+        bool decoded = TryDecodeComposite(
+            prefix,
+            out List<CompositeDecodedInstruction> instructions);
+        if (observedFullPageFnv != ExpectedFullPageFnv1a64
+            || observedFullPageSha != ExpectedFullPageSha256
+            || observedPrefixSha
+                != ExpectedInstructionPrefixSha256
+            || !decoded
+            || (ulong)instructions.Count
+                != M01OwnedCr3CompositeTransition
+                    .AuditedInstructionCount)
+        {
+            Console.WriteLine(
+                "M01_027_FREEZE_HASH"
+                + " length=" + prefix.Length
+                + " instructions=" + instructions.Count
+                + " fnv=0x"
+                + observedFullPageFnv.ToString("X16")
+                + " fullSha256=" + observedFullPageSha
+                + " prefixSha256=" + observedPrefixSha
+                + " decoded=" + decoded);
+            return false;
+        }
+
+        using CompositeFixture secondFixture =
+            CompositeFixture.Create();
+        M01OwnedCr3CompositeTransitionResult secondPrepared =
+            secondFixture.Execute();
+        if (!secondPrepared.IsStatePrepared)
+        {
+            Console.WriteLine(
+                "M01_027_DECODE_STAGE second-prepare");
+            return false;
+        }
+        using CompositePlanStorage secondStorage = new(
+            (byte*)secondPrepared.State.CompositeCodeStart);
+        secondStorage.Fill(0x3c);
+        M01OwnedCr3CompositeTransitionResult secondMaterialized =
+            M01OwnedCr3CompositeTransition.TryMaterialize(
+                secondFixture.StateDestination,
+                1,
+                1,
+                secondStorage.Bytes,
+                M01OwnedCr3CompositeTransition
+                    .MaterializedPageByteLength,
+                (ulong)secondStorage.Bytes,
+                secondStorage.Semantics,
+                M01OwnedCr3CompositeTransition
+                    .AuditedSemanticRecordCount);
+        if (!secondMaterialized.IsMaterialized
+            || secondFixture.StateDestination
+                == fixture.StateDestination
+            || secondStorage.Bytes == storage.Bytes
+            || !new ReadOnlySpan<byte>(
+                    secondStorage.Bytes,
+                    checked((int)
+                        M01OwnedCr3CompositeTransition
+                            .MaterializedPageByteLength))
+                .SequenceEqual(fullPage)
+            || !new ReadOnlySpan<byte>(
+                    secondStorage.Semantics,
+                    checked((int)(
+                        M01OwnedCr3CompositeTransition
+                            .AuditedSemanticRecordCount
+                        * M01OwnedCr3CompositeTransitionSemanticRecord
+                            .StructureSize)))
+                .SequenceEqual(storage.CopySemantics(
+                    M01OwnedCr3CompositeTransition
+                        .AuditedSemanticRecordCount)))
+        {
+            Console.WriteLine(
+                "M01_027_DECODE_STAGE relocation-freedom");
+            return false;
+        }
+
+        HashSet<int> boundaries =
+            instructions.Select(item => item.Offset).ToHashSet();
+        boundaries.Add(prefix.Length);
+        if (instructions.Any(item =>
+                item.BranchTarget is int target
+                && (!boundaries.Contains(target)
+                    || target < 0
+                    || target > prefix.Length)))
+        {
+            Console.WriteLine(
+                "M01_027_DECODE_STAGE branch-boundaries");
+            return false;
+        }
+
+        uint semanticEnd = 0;
+        ExpectedSemanticRecord[] expectedSemantics =
+        [
+            new(
+                M01OwnedCr3CompositeTransitionOperation.ValidateState,
+                M01OwnedCr3CompositeTransitionRecoveryClass
+                    .PreCliNoStateMutation,
+                0,
+                1104,
+                184),
+            new(
+                M01OwnedCr3CompositeTransitionOperation.ValidateMode,
+                M01OwnedCr3CompositeTransitionRecoveryClass
+                    .PreCliNoStateMutation,
+                1104,
+                335,
+                208),
+            new(
+                M01OwnedCr3CompositeTransitionOperation
+                    .DisableInterrupts,
+                M01OwnedCr3CompositeTransitionRecoveryClass
+                    .RestoreRflags,
+                1439,
+                132,
+                272),
+            new(
+                M01OwnedCr3CompositeTransitionOperation.ClearPge,
+                M01OwnedCr3CompositeTransitionRecoveryClass
+                    .RestoreCr4ThenRflags,
+                1571,
+                89,
+                280),
+            new(
+                M01OwnedCr3CompositeTransitionOperation.LoadOwnedCr3,
+                M01OwnedCr3CompositeTransitionRecoveryClass
+                    .RestoreCr3ThenCr4ThenRflags,
+                1660,
+                70,
+                288),
+            new(
+                M01OwnedCr3CompositeTransitionOperation.UpdateCanary,
+                M01OwnedCr3CompositeTransitionRecoveryClass
+                    .RestoreCr3ThenCr4ThenRflags,
+                1730,
+                105,
+                304),
+            new(
+                M01OwnedCr3CompositeTransitionOperation
+                    .WalkProbeHierarchy,
+                M01OwnedCr3CompositeTransitionRecoveryClass
+                    .RestoreCr3ThenCr4ThenRflags,
+                1835,
+                871,
+                128),
+            new(
+                M01OwnedCr3CompositeTransitionOperation.CommitProbePte,
+                M01OwnedCr3CompositeTransitionRecoveryClass
+                    .MutationAttemptedThenRestoreRegisters,
+                2706,
+                16,
+                0x8000_0000_0000_0002UL),
+            new(
+                M01OwnedCr3CompositeTransitionOperation
+                    .InvalidateProbePage,
+                M01OwnedCr3CompositeTransitionRecoveryClass
+                    .MutationAttemptedThenRestoreRegisters,
+                2722,
+                51,
+                1),
+            new(
+                M01OwnedCr3CompositeTransitionOperation.VerifyProbePte,
+                M01OwnedCr3CompositeTransitionRecoveryClass
+                    .MutationAttemptedThenRestoreRegisters,
+                2773,
+                58,
+                344),
+            new(
+                M01OwnedCr3CompositeTransitionOperation.InvokeExactProbe,
+                M01OwnedCr3CompositeTransitionRecoveryClass
+                    .CommittedProbeRemainsReadOnlyExecutableThenRestoreRegisters,
+                2831,
+                93,
+                1_330_859_851UL),
+            new(
+                M01OwnedCr3CompositeTransitionOperation.AuditPageZero,
+                M01OwnedCr3CompositeTransitionRecoveryClass
+                    .CommittedProbeRemainsReadOnlyExecutableThenRestoreRegisters,
+                2924,
+                663,
+                368),
+            new(
+                M01OwnedCr3CompositeTransitionOperation
+                    .RestoreFirmwareCr3,
+                M01OwnedCr3CompositeTransitionRecoveryClass
+                    .SuccessRestoreRegisters,
+                3587,
+                108,
+                408),
+            new(
+                M01OwnedCr3CompositeTransitionOperation.RestoreCr4,
+                M01OwnedCr3CompositeTransitionRecoveryClass
+                    .SuccessRestoreRegisters,
+                3695,
+                56,
+                424),
+            new(
+                M01OwnedCr3CompositeTransitionOperation.RestoreRflags,
+                M01OwnedCr3CompositeTransitionRecoveryClass
+                    .SuccessRestoreRegisters,
+                3751,
+                48,
+                432),
+            new(
+                M01OwnedCr3CompositeTransitionOperation.Return,
+                M01OwnedCr3CompositeTransitionRecoveryClass
+                    .SuccessRestoreRegisters,
+                3799,
+                31,
+                464)
+        ];
+        bool semanticFreezeMismatch = false;
+        for (ulong index = 0;
+            index < M01OwnedCr3CompositeTransition
+                .AuditedSemanticRecordCount;
+            index++)
+        {
+            M01OwnedCr3CompositeTransitionSemanticRecord observed =
+                storage.Semantics[index];
+            ExpectedSemanticRecord expected =
+                expectedSemantics[index];
+            if (observed.Operation != expected.Operation
+                || observed.RecoveryClass
+                    != expected.RecoveryClass
+                || observed.ByteOffset != expected.ByteOffset
+                || observed.ByteLength != expected.ByteLength
+                || observed.StateOffsetOrConstant
+                    != expected.StateOffsetOrConstant
+                || observed.BranchTargetOffset
+                    != M01OwnedCr3CompositeTransitionSemanticRecord
+                        .NoBranchTarget)
+            {
+                semanticFreezeMismatch = true;
+            }
+        }
+
+        if (semanticFreezeMismatch)
+        {
+            for (ulong index = 0;
+                index < M01OwnedCr3CompositeTransition
+                    .AuditedSemanticRecordCount;
+                index++)
+            {
+                M01OwnedCr3CompositeTransitionSemanticRecord observed =
+                    storage.Semantics[index];
+                Console.WriteLine(
+                    "M01_027_FREEZE_SEMANTIC"
+                    + " index=" + index
+                    + " operation=" + observed.Operation
+                    + " recovery=" + observed.RecoveryClass
+                    + " offset=" + observed.ByteOffset
+                    + " length=" + observed.ByteLength
+                    + " stateOrConstant="
+                    + observed.StateOffsetOrConstant
+                    + " branch=" + observed.BranchTargetOffset);
+            }
+
+            return false;
+        }
+
+        for (ulong index = 0;
+            index < M01OwnedCr3CompositeTransition
+                .AuditedSemanticRecordCount;
+            index++)
+        {
+            M01OwnedCr3CompositeTransitionSemanticRecord semantic =
+                storage.Semantics[index];
+            ExpectedSemanticRecord expected =
+                expectedSemantics[index];
+            if (semantic.Operation
+                    != expected.Operation
+                || semantic.RecoveryClass
+                    != expected.RecoveryClass
+                || semantic.ByteOffset != expected.ByteOffset
+                || semantic.ByteLength != expected.ByteLength
+                || semantic.StateOffsetOrConstant
+                    != expected.StateOffsetOrConstant
+                || semantic.BranchTargetOffset
+                    != M01OwnedCr3CompositeTransitionSemanticRecord
+                        .NoBranchTarget
+                || semantic.ByteOffset != semanticEnd
+                || !boundaries.Contains(
+                    checked((int)semantic.ByteOffset))
+                || !boundaries.Contains(
+                    checked((int)(
+                        semantic.ByteOffset + semantic.ByteLength)))
+                || (semantic.BranchTargetOffset
+                        != M01OwnedCr3CompositeTransitionSemanticRecord
+                            .NoBranchTarget
+                    && !boundaries.Contains(
+                        checked((int)semantic.BranchTargetOffset))))
+            {
+                Console.WriteLine(
+                    "M01_027_DECODE_STAGE semantic-structure"
+                    + " index=" + index);
+                return false;
+            }
+
+            semanticEnd = checked(
+                semantic.ByteOffset + semantic.ByteLength);
+        }
+
+        if (semanticEnd
+            != M01OwnedCr3CompositeTransition.RequiredByteLength)
+        {
+            Console.WriteLine(
+                "M01_027_DECODE_STAGE semantic-end"
+                + " observed=" + semanticEnd);
+            return false;
+        }
+
+        if (instructions.Count(item =>
+                item.Kind == CompositeInstructionKind.Cli) != 1
+            || instructions.Any(item =>
+                item.Kind == CompositeInstructionKind.Sti)
+            || instructions.Count(item =>
+                item.Kind == CompositeInstructionKind.Invlpg) != 1
+            || instructions.Count(item =>
+                item.Kind == CompositeInstructionKind.IndirectCall) != 1
+            || instructions.Any(item =>
+                item.Kind == CompositeInstructionKind.DirectCall
+                || item.Kind
+                    == CompositeInstructionKind.OtherIndirectControl)
+            || instructions.Count(item =>
+                item.Kind == CompositeInstructionKind.ReadCr0) != 1
+            || instructions.Count(item =>
+                item.Kind == CompositeInstructionKind.ReadCr3) != 3
+            || instructions.Count(item =>
+                item.Kind == CompositeInstructionKind.WriteCr3) != 2
+            || instructions.Count(item =>
+                item.Kind == CompositeInstructionKind.ReadCr4) != 3
+            || instructions.Count(item =>
+                item.Kind == CompositeInstructionKind.WriteCr4) != 2
+            || instructions.Count(item =>
+                item.Kind == CompositeInstructionKind.Cpuid) != 2
+            || instructions.Count(item =>
+                item.Kind == CompositeInstructionKind.Rdmsr) != 1)
+        {
+            Console.WriteLine(
+                "M01_027_DECODE_STAGE opcode-census");
+            return false;
+        }
+
+        int cliIndex = instructions.FindIndex(item =>
+            item.Kind == CompositeInstructionKind.Cli);
+        bool hasPreCliTrapFlagGuard = instructions
+            .Take(cliIndex)
+            .Any(item =>
+                (item.RegisterMask & (1UL << 8)) != 0
+                && (item.Immediate & RflagsTrapFlag) != 0);
+        bool hasPreCliCetGuard = instructions
+            .Take(cliIndex)
+            .Any(item =>
+                (item.RegisterMask & (1UL << 11)) != 0
+                && (item.Immediate
+                    & Cr4ControlFlowEnforcementBit) != 0);
+        if (cliIndex <= 0
+            || !hasPreCliTrapFlagGuard
+            || !hasPreCliCetGuard
+            || !HasPreCliSameRootComparison(
+                instructions,
+                cliIndex))
+        {
+            Console.WriteLine(
+                "M01_027_DECODE_STAGE pre-cli-guards"
+                + " cliIndex=" + cliIndex
+                + " tf=" + hasPreCliTrapFlagGuard
+                + " cet=" + hasPreCliCetGuard
+                + " sameRoot="
+                + HasPreCliSameRootComparison(
+                    instructions,
+                    cliIndex));
+            return false;
+        }
+
+        HashSet<ulong> reachableRuntimeFailures = instructions
+            .Where(item =>
+                item.Kind
+                    == CompositeInstructionKind.MoveRegisterImmediate
+                && item.Register is 0 or 12)
+            .Select(item => item.Immediate)
+            .ToHashSet();
+        for (ulong status =
+            (ulong)M01OwnedCr3CompositeTransitionRuntimeStatus
+                .InvalidState;
+            status <=
+                (ulong)M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .PostRestoreCanaryMismatch;
+            status++)
+        {
+            if (status
+                == (ulong)M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .RflagsRestoreReadbackMismatch)
+            {
+                continue;
+            }
+            if (!reachableRuntimeFailures.Contains(status))
+            {
+                Console.WriteLine(
+                    "M01_027_DECODE_STAGE unreachable-runtime-status"
+                    + " status=" + status);
+                return false;
+            }
+        }
+        if (reachableRuntimeFailures.Contains(
+            (ulong)M01OwnedCr3CompositeTransitionRuntimeStatus
+                .RflagsRestoreReadbackMismatch))
+        {
+            Console.WriteLine(
+                "M01_027_DECODE_STAGE impossible-rflags-status");
+            return false;
+        }
+
+        int callIndex = instructions.FindIndex(item =>
+            item.Kind == CompositeInstructionKind.IndirectCall);
+        if (callIndex <= 0
+            || callIndex + 1 >= instructions.Count
+            || instructions[callIndex - 1].Kind
+                != CompositeInstructionKind.SubRsp
+            || instructions[callIndex - 1].Immediate !=
+                M01OwnedCr3CompositeTransition
+                    .RequiredCallerShadowSpaceBytes
+            || instructions[callIndex + 1].Kind
+                != CompositeInstructionKind.AddRsp
+            || instructions[callIndex + 1].Immediate !=
+                M01OwnedCr3CompositeTransition
+                    .RequiredCallerShadowSpaceBytes)
+        {
+            Console.WriteLine(
+                "M01_027_DECODE_STAGE call-shadow-space");
+            return false;
+        }
+
+        if (instructions.Count < 3
+            || instructions[0].Kind != CompositeInstructionKind.Push
+            || instructions[0].Register != 3
+            || instructions[1].Kind != CompositeInstructionKind.Push
+            || instructions[1].Register != 6
+            || instructions[2].Kind != CompositeInstructionKind.Push
+            || instructions[2].Register != 12)
+        {
+            Console.WriteLine(
+                "M01_027_DECODE_STAGE prologue");
+            return false;
+        }
+
+        ulong forbiddenRegisterMask =
+            (1UL << 5)
+            | (1UL << 7)
+            | (1UL << 13)
+            | (1UL << 14)
+            | (1UL << 15);
+        if (instructions.Any(item =>
+                (item.RegisterMask & forbiddenRegisterMask) != 0))
+        {
+            Console.WriteLine(
+                "M01_027_DECODE_STAGE forbidden-register");
+            return false;
+        }
+
+        if (!ValidateRflagsRestorationAndPreCliReturns(instructions))
+        {
+            Console.WriteLine(
+                "M01_027_DECODE_STAGE rflags-return-paths");
+            return false;
+        }
+
+        int rdmsrIndex = instructions.FindIndex(item =>
+            item.Kind == CompositeInstructionKind.Rdmsr);
+        if (rdmsrIndex < 0
+            || rdmsrIndex + 2 >= instructions.Count
+            || !instructions[rdmsrIndex + 1].IsShiftLeftRdx32
+            || !instructions[rdmsrIndex + 2].IsOrRaxRdx
+            || !instructions.Any(item => item.IsCr4PaeTest))
+        {
+            Console.WriteLine(
+                "M01_027_DECODE_STAGE mode-reconstruction");
+            return false;
+        }
+
+        HashSet<uint> stateStores = instructions
+            .Where(item => item.StateStoreOffset.HasValue)
+            .Select(item => item.StateStoreOffset!.Value)
+            .ToHashSet();
+        uint[] requiredStores =
+        [
+            M01OwnedCr3CompositeTransition.StateOriginalRflagsOffset,
+            M01OwnedCr3CompositeTransition.StateOriginalCr0Offset,
+            M01OwnedCr3CompositeTransition.StateOriginalCr3RawOffset,
+            M01OwnedCr3CompositeTransition.StateOriginalCr4RawOffset,
+            M01OwnedCr3CompositeTransition.StateOriginalEferOffset,
+            M01OwnedCr3CompositeTransition.StatePhysicalAddressMaskOffset,
+            M01OwnedCr3CompositeTransition.StateEntryRspOffset,
+            M01OwnedCr3CompositeTransition
+                .StateObservedReturnAddressOffset,
+            M01OwnedCr3CompositeTransition.StateObservedRipOffset,
+            M01OwnedCr3CompositeTransition.StateCliRflagsReadbackOffset,
+            M01OwnedCr3CompositeTransition.StateClearedCr4ReadbackOffset,
+            M01OwnedCr3CompositeTransition.StateOwnedCr3ReadbackOffset,
+            M01OwnedCr3CompositeTransition.StateCanaryBeforeOffset,
+            M01OwnedCr3CompositeTransition.StateCanaryAfterOffset,
+            M01OwnedCr3CompositeTransition.StateProbePml4eOffset,
+            M01OwnedCr3CompositeTransition.StateProbePdpteOffset,
+            M01OwnedCr3CompositeTransition.StateProbePdeOffset,
+            M01OwnedCr3CompositeTransition.StateProbePteBeforeOffset,
+            M01OwnedCr3CompositeTransition.StateProbePteAfterOffset,
+            M01OwnedCr3CompositeTransition.StateInvlpgTargetOffset,
+            M01OwnedCr3CompositeTransition.StateProbeReturnOffset,
+            M01OwnedCr3CompositeTransition.StatePageZeroPml4eOffset,
+            M01OwnedCr3CompositeTransition.StatePageZeroPdpteOffset,
+            M01OwnedCr3CompositeTransition.StatePageZeroPdeOffset,
+            M01OwnedCr3CompositeTransition.StatePageZeroPteOffset,
+            M01OwnedCr3CompositeTransition
+                .StateCommittedProbePteReadbackOffset,
+            M01OwnedCr3CompositeTransition.StateFirmwareCr3ReadbackOffset,
+            M01OwnedCr3CompositeTransition.StatePostRestoreCanaryOffset,
+            M01OwnedCr3CompositeTransition.StateRestoredCr4Offset,
+            M01OwnedCr3CompositeTransition
+                .StateRestoredRflagsIntentOffset,
+            M01OwnedCr3CompositeTransition.StateExitRspOffset,
+            M01OwnedCr3CompositeTransition.StateInvlpgCountOffset,
+            M01OwnedCr3CompositeTransition.StateProbeInvocationCountOffset,
+            M01OwnedCr3CompositeTransition.StateRuntimeStatusOffset,
+            M01OwnedCr3CompositeTransition.StateCheckpointOffset,
+            M01OwnedCr3CompositeTransition.StatePageZeroLevelOffset,
+            M01OwnedCr3CompositeTransition.StateMutationCommittedOffset,
+            M01OwnedCr3CompositeTransition.StateOriginalPgeWasSetOffset,
+            M01OwnedCr3CompositeTransition.StateOwnedRootWasLoadedOffset,
+            M01OwnedCr3CompositeTransition.StateProbeReturnedOffset,
+            M01OwnedCr3CompositeTransition.StateProgressCheckpointOffset
+        ];
+
+        return requiredStores.All(stateStores.Contains);
+    }
+
+    private static bool TestObservedRuntimeAuditAndRecovery()
+    {
+        using CompositeFixture fixture = CompositeFixture.Create();
+        M01OwnedCr3CompositeTransitionResult prepared =
+            fixture.Execute();
+        if (!prepared.IsStatePrepared)
+        {
+            Console.WriteLine(
+                "M01_027_AUDIT_PREPARE status="
+                + prepared.Status
+                + " phase=" + prepared.Phase
+                + " invalidIndex=" + prepared.InvalidIndex);
+            return false;
+        }
+
+        using CompositePlanStorage storage = new(
+            (byte*)prepared.State.CompositeCodeStart);
+        storage.Fill(0xa5);
+        ulong entryAddress = prepared.State.CompositeCodeStart;
+        M01OwnedCr3CompositeTransitionResult materialized =
+            M01OwnedCr3CompositeTransition.TryMaterialize(
+                fixture.StateDestination,
+                1,
+                1,
+                storage.Bytes,
+                M01OwnedCr3CompositeTransition
+                    .MaterializedPageByteLength,
+                entryAddress,
+                storage.Semantics,
+                M01OwnedCr3CompositeTransition
+                    .AuditedSemanticRecordCount);
+        if (!materialized.IsMaterialized)
+        {
+            Console.WriteLine(
+                "M01_027_AUDIT_STAGE materialize"
+                + " status=" + materialized.Status
+                + " phase=" + materialized.Phase
+                + " invalidIndex=" + materialized.InvalidIndex
+                + " expected=" + materialized.ExpectedValue
+                + " observed=" + materialized.ObservedValue);
+            return false;
+        }
+
+        M01OwnedCr3CompositeTransitionResult readback =
+            M01OwnedCr3CompositeTransition.ValidateReadback(
+                fixture.StateDestination,
+                1,
+                1,
+                storage.Bytes,
+                M01OwnedCr3CompositeTransition
+                    .MaterializedPageByteLength,
+                M01OwnedCr3CompositeTransition
+                    .MaterializedPageByteLength,
+                entryAddress,
+                storage.Semantics,
+                M01OwnedCr3CompositeTransition
+                    .AuditedSemanticRecordCount,
+                M01OwnedCr3CompositeTransition
+                    .AuditedSemanticRecordCount);
+        if (!readback.IsReadbackVerified)
+        {
+            Console.WriteLine(
+                "M01_027_AUDIT_STAGE readback"
+                + " status=" + readback.Status
+                + " phase=" + readback.Phase
+                + " invalidIndex=" + readback.InvalidIndex
+                + " expected=" + readback.ExpectedValue
+                + " observed=" + readback.ObservedValue);
+            return false;
+        }
+
+        M01OwnedCr3CompositeTransitionRuntimeState observed =
+            CreateCanonicalObservedState(fixture, readback.State);
+        *fixture.StateDestination = observed;
+        M01OwnedCr3CompositeTransitionResult success =
+            AuditObserved(
+                &readback,
+                fixture.StateDestination,
+                M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .Success);
+        if (!success.IsSuccess
+            || success.Phase
+                != M01OwnedCr3CompositeTransitionResultPhase
+                    .ObservedAudit
+            || !success.IsObservedAudit
+            || success.IsStatePrepared
+            || success.IsMaterialized
+            || success.IsReadbackVerified
+            || success.ProvesCompositeEncodingReadback
+            || success.TerminalKind
+                != M01OwnedCr3CompositeTransitionTerminalKind.Returned)
+        {
+            Console.WriteLine(
+                "M01_027_AUDIT_STAGE canonical-success"
+                + " status=" + success.Status
+                + " phase=" + success.Phase
+                + " terminal=" + success.TerminalKind
+                + " success=" + success.IsSuccess
+                + " audit=" + success.IsObservedAudit
+                + " checkpoint=" + success.State.Checkpoint
+                + " progress=" + success.State.ProgressCheckpoint
+                + " expected=" + success.ExpectedValue
+                + " observed=" + success.ObservedValue
+                + " rflags=0x"
+                + success.State.OriginalRflags.ToString("X16")
+                + " cr0=0x"
+                + success.State.OriginalCr0.ToString("X16")
+                + " cr3=0x"
+                + success.State.OriginalCr3Raw.ToString("X16")
+                + " ownedCr3=0x"
+                + success.State.OwnedCr3Raw.ToString("X16")
+                + " cr4=0x"
+                + success.State.OriginalCr4Raw.ToString("X16")
+                + " efer=0x"
+                + success.State.OriginalEfer.ToString("X16")
+                + " physicalMask=0x"
+                + success.State.PhysicalAddressMask.ToString("X16"));
+            return false;
+        }
+
+        M01OwnedCr3CompositeTransitionRuntimeState interruptFailure =
+            CreateInterruptDisableFailureState(
+                fixture,
+                readback.State);
+        *fixture.StateDestination = interruptFailure;
+        M01OwnedCr3CompositeTransitionResult interruptFailureAudit =
+            AuditObserved(
+                &readback,
+                fixture.StateDestination,
+                M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .InterruptDisableReadbackMismatch);
+        if (interruptFailureAudit.Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InterruptStateMismatch
+            || interruptFailureAudit.State.ProgressCheckpoint
+                != M01OwnedCr3CompositeTransitionCheckpoint
+                    .Uninitialized
+            || interruptFailureAudit.State.Checkpoint
+                != M01OwnedCr3CompositeTransitionCheckpoint
+                    .ReturnPrepared
+            || interruptFailureAudit.State.ClearedCr4Readback != 0
+            || interruptFailureAudit.State.RestoredCr4Readback != 0
+            || interruptFailureAudit.State.RestoredRflagsIntent
+                != interruptFailureAudit.State.OriginalRflags)
+        {
+            Console.WriteLine(
+                "M01_027_AUDIT_STAGE interrupt-disable-failure"
+                + " status=" + interruptFailureAudit.Status
+                + " checkpoint="
+                + interruptFailureAudit.State.Checkpoint
+                + " progress="
+                + interruptFailureAudit.State.ProgressCheckpoint
+                + " clearedCr4=0x"
+                + interruptFailureAudit.State.ClearedCr4Readback
+                    .ToString("X16")
+                + " restoredCr4=0x"
+                + interruptFailureAudit.State.RestoredCr4Readback
+                    .ToString("X16")
+                + " rflagsIntent=0x"
+                + interruptFailureAudit.State.RestoredRflagsIntent
+                    .ToString("X16"));
+            return false;
+        }
+        if (!TestAllPostCliFailureTranscripts(
+                fixture,
+                &readback))
+        {
+            Console.WriteLine(
+                "M01_027_AUDIT_STAGE post-cli-failure-transcripts");
+            return false;
+        }
+        if (!TestCleanupOverrideStages(
+                fixture,
+                &readback))
+        {
+            Console.WriteLine(
+                "M01_027_AUDIT_STAGE cleanup-override-stages");
+            return false;
+        }
+        if (!TestSuccessfulTranscriptHostileMutations(
+                fixture,
+                &readback,
+                observed))
+        {
+            Console.WriteLine(
+                "M01_027_AUDIT_STAGE hostile-success-mutations");
+            return false;
+        }
+        *fixture.StateDestination = observed;
+
+        M01OwnedCr3CompositeTransitionResult defaultProof = default;
+        M01OwnedCr3CompositeTransitionResult forgedHash = readback;
+        OverwriteUlong(
+            ref forgedHash,
+            checked((int)Offset<
+                M01OwnedCr3CompositeTransitionResult>("_fnv1a64")),
+            readback.Fnv1a64 ^ 1);
+        M01OwnedCr3CompositeTransitionRuntimeState baseline =
+            readback.State;
+        M01OwnedCr3CompositeTransitionResult legacy =
+            M01OwnedCr3CompositeTransition.AuditObservedState(
+                &baseline,
+                1,
+                1,
+                fixture.StateDestination,
+                1,
+                1,
+                M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .Success);
+        if (legacy.Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .SeparateLeavesNotCompositeEvidence
+            || legacy.IsSuccess
+            || legacy.IsObservedAudit
+            || AuditObserved(
+                    &defaultProof,
+                    fixture.StateDestination,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                    (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .Success).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .SeparateLeavesNotCompositeEvidence
+            || AuditObserved(
+                    &prepared,
+                    fixture.StateDestination,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                    (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .Success).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .SeparateLeavesNotCompositeEvidence
+            || AuditObserved(
+                    &materialized,
+                    fixture.StateDestination,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                    (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .Success).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .SeparateLeavesNotCompositeEvidence
+            || AuditObserved(
+                    &forgedHash,
+                    fixture.StateDestination,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                    (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .Success).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .SeparateLeavesNotCompositeEvidence)
+        {
+            Console.WriteLine(
+                "M01_027_AUDIT_STAGE evidence-provenance-matrix"
+                + " legacy=" + legacy.Status);
+            return false;
+        }
+
+        byte* observedStorage = stackalloc byte[
+            checked((int)
+                M01OwnedCr3CompositeTransitionRuntimeState
+                    .StructureSize + 8)];
+        M01OwnedCr3CompositeTransitionRuntimeState*
+            misalignedObserved =
+                (M01OwnedCr3CompositeTransitionRuntimeState*)
+                    (observedStorage + 1);
+
+        bool invalidBoundaryMatrix =
+            AuditObserved(
+                    &readback,
+                    null,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                    (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .Success).Status
+                == M01OwnedCr3CompositeTransitionStatus
+                    .MissingObservedState
+            && AuditObserved(
+                    &readback,
+                    fixture.StateDestination,
+                    M01OwnedCr3CompositeTransitionTerminalKind
+                        .Uninitialized,
+                    (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .Success).Status
+                == M01OwnedCr3CompositeTransitionStatus
+                    .InvalidTerminalKind
+            && AuditObserved(
+                    &readback,
+                    fixture.StateDestination,
+                    (M01OwnedCr3CompositeTransitionTerminalKind)0xff,
+                    (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .Success).Status
+                == M01OwnedCr3CompositeTransitionStatus
+                    .InvalidTerminalKind
+            && AuditObserved(
+                    &readback,
+                    fixture.StateDestination,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Timeout,
+                    M01OwnedCr3CompositeTransition
+                        .NoObservedRuntimeReturnValue).Status
+                == M01OwnedCr3CompositeTransitionStatus.Timeout
+            && AuditObserved(
+                    &readback,
+                    fixture.StateDestination,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Reset,
+                    M01OwnedCr3CompositeTransition
+                        .NoObservedRuntimeReturnValue).Status
+                == M01OwnedCr3CompositeTransitionStatus.Reset
+            && AuditObserved(
+                    &readback,
+                    fixture.StateDestination,
+                    M01OwnedCr3CompositeTransitionTerminalKind.TripleFault,
+                    M01OwnedCr3CompositeTransition
+                        .NoObservedRuntimeReturnValue).Status
+                == M01OwnedCr3CompositeTransitionStatus.TripleFault
+            && AuditObserved(
+                    &readback,
+                    fixture.StateDestination,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                    M01OwnedCr3CompositeTransition
+                        .NoObservedRuntimeReturnValue).Status
+                == M01OwnedCr3CompositeTransitionStatus
+                    .DefaultRuntimeResult
+            && M01OwnedCr3CompositeTransition.AuditObservedState(
+                    &readback,
+                    0,
+                    1,
+                    fixture.StateDestination,
+                    1,
+                    1,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                    (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .Success).Status
+                == M01OwnedCr3CompositeTransitionStatus
+                    .SeparateLeavesNotCompositeEvidence
+            && M01OwnedCr3CompositeTransition.AuditObservedState(
+                    &readback,
+                    1,
+                    0,
+                    fixture.StateDestination,
+                    1,
+                    1,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                    (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .Success).Status
+                == M01OwnedCr3CompositeTransitionStatus
+                    .SeparateLeavesNotCompositeEvidence
+            && M01OwnedCr3CompositeTransition.AuditObservedState(
+                    &readback,
+                    1,
+                    1,
+                    fixture.StateDestination,
+                    0,
+                    1,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                    (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .Success).Status
+                == M01OwnedCr3CompositeTransitionStatus
+                    .InvalidObservedStateCount
+            && M01OwnedCr3CompositeTransition.AuditObservedState(
+                    &readback,
+                    1,
+                    1,
+                    fixture.StateDestination,
+                    1,
+                    0,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                    (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .Success).Status
+                == M01OwnedCr3CompositeTransitionStatus
+                    .ObservedStateCapacityTooSmall
+            && M01OwnedCr3CompositeTransition.AuditObservedState(
+                    &readback,
+                    1,
+                    1,
+                    misalignedObserved,
+                    1,
+                    1,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                    (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .Success).Status
+                == M01OwnedCr3CompositeTransitionStatus
+                    .MisalignedObservedState;
+        if (!invalidBoundaryMatrix)
+        {
+            Console.WriteLine(
+                "M01_027_AUDIT_STAGE invalid-boundary-matrix");
+        }
+
+        return invalidBoundaryMatrix;
+    }
+
+    private static bool IsExpectedByteMismatchLocation(
+        byte* canonicalBytes,
+        ulong byteCount,
+        ulong mutatedIndex,
+        ulong invalidIndex)
+    {
+        if (invalidIndex == mutatedIndex)
+        {
+            return true;
+        }
+
+        if (invalidIndex > mutatedIndex
+            || mutatedIndex - invalidIndex >= sizeof(uint)
+            || invalidIndex > byteCount - sizeof(uint))
+        {
+            return false;
+        }
+
+        bool directBranchDisplacement =
+            invalidIndex >= 1
+            && canonicalBytes[invalidIndex - 1] is 0xe8 or 0xe9;
+        bool conditionalBranchDisplacement =
+            invalidIndex >= 2
+            && canonicalBytes[invalidIndex - 2] == 0x0f
+            && (canonicalBytes[invalidIndex - 1] & 0xf0) == 0x80;
+        return directBranchDisplacement
+            || conditionalBranchDisplacement;
+    }
+
+    private static M01OwnedCr3CompositeTransitionResult AuditObserved(
+        M01OwnedCr3CompositeTransitionResult* readbackEvidence,
+        M01OwnedCr3CompositeTransitionRuntimeState* observed,
+        M01OwnedCr3CompositeTransitionTerminalKind terminalKind,
+        uint observedRuntimeReturnValue)
+    {
+        return M01OwnedCr3CompositeTransition.AuditObservedState(
+            readbackEvidence,
+            1,
+            1,
+            observed,
+            observed == null ? 0UL : 1UL,
+            observed == null ? 0UL : 1UL,
+            terminalKind,
+            observedRuntimeReturnValue);
+    }
+
+    private static M01OwnedCr3CompositeTransitionRuntimeState
+        CreateCanonicalObservedState(
+            CompositeFixture fixture,
+            M01OwnedCr3CompositeTransitionRuntimeState prepared)
+    {
+        X64PagingModePreflightResult preflight =
+            fixture.PriorEvidence.Evidence.Preflight;
+        (ulong probePml4, ulong probePdpt, ulong probePd, ulong probePt) =
+            fixture.ProbeWalkEntryIndexes();
+        (
+            ulong pageZeroPml4e,
+            ulong pageZeroPdpte,
+            ulong pageZeroPde,
+            ulong pageZeroPte,
+            M01OwnedCr3CompositeTransitionPageZeroLevel
+                pageZeroLevel) = fixture.PageZeroObservation();
+        ulong entryRsp = fixture.Bindings[1].VirtualEndExclusive
+            .TryGetRawValueForUefiBoundary(out ulong stackEnd)
+                == AddressValueStatus.Success
+            ? stackEnd - 72
+            : 0;
+        ulong clearedCr4 =
+            preflight.RawCr4
+            & ~M01OwnedCr3CompositeTransition
+                .Cr4PageGlobalEnableBit;
+        ulong cliRflags =
+            preflight.Rflags
+            & ~M01OwnedCr3CompositeTransition
+                .RflagsInterruptEnableBit;
+
+        return M01OwnedCr3CompositeTransitionRuntimeState
+            .CreateObserved(
+                prepared,
+                preflight.Rflags,
+                preflight.Cr0 | 1UL,
+                preflight.RawFirmwareCr3,
+                preflight.RawCr4,
+                preflight.Ia32Efer,
+                preflight.PhysicalAddressMask,
+                entryRsp,
+                prepared.ExpectedReturnAddress,
+                prepared.CompositeCodeStart,
+                cliRflags,
+                clearedCr4,
+                prepared.OwnedCr3Raw,
+                prepared.ExpectedCanary,
+                prepared.ReplacementCanary,
+                fixture.PageEntries[probePml4],
+                fixture.PageEntries[probePdpt],
+                fixture.PageEntries[probePd],
+                fixture.PageEntries[probePt],
+                prepared.FinalProbePteRaw,
+                prepared.ProbeEntry,
+                prepared.ExpectedProbeReturn,
+                pageZeroPml4e,
+                pageZeroPdpte,
+                pageZeroPde,
+                pageZeroPte,
+                prepared.FinalProbePteRaw,
+                preflight.RawFirmwareCr3,
+                prepared.ReplacementCanary,
+                preflight.RawCr4,
+                preflight.Rflags,
+                entryRsp,
+                1,
+                1,
+                0,
+                M01OwnedCr3CompositeTransitionRuntimeStatus.Success,
+                M01OwnedCr3CompositeTransitionCheckpoint
+                    .ReturnPrepared,
+                pageZeroLevel,
+                mutationCommitted: true,
+                pgeWasCleared: true,
+                ownedRootWasLoaded: true,
+                probeReturned: true,
+                progressCheckpoint:
+                    M01OwnedCr3CompositeTransitionCheckpoint
+                        .PageZeroAbsent);
+    }
+
+    private static M01OwnedCr3CompositeTransitionRuntimeState
+        CreateInterruptDisableFailureState(
+            CompositeFixture fixture,
+            M01OwnedCr3CompositeTransitionRuntimeState prepared)
+    {
+        X64PagingModePreflightResult preflight =
+            fixture.PriorEvidence.Evidence.Preflight;
+        ulong entryRsp = fixture.Bindings[1].VirtualEndExclusive
+            .TryGetRawValueForUefiBoundary(out ulong stackEnd)
+                == AddressValueStatus.Success
+            ? stackEnd - 72
+            : 0;
+
+        return M01OwnedCr3CompositeTransitionRuntimeState
+            .CreateObserved(
+                initializedState: prepared,
+                originalRflags: preflight.Rflags,
+                originalCr0: preflight.Cr0 | 1UL,
+                originalCr3Raw: preflight.RawFirmwareCr3,
+                originalCr4Raw: preflight.RawCr4,
+                originalEfer: preflight.Ia32Efer,
+                physicalAddressMask: preflight.PhysicalAddressMask,
+                entryRsp: entryRsp,
+                observedReturnAddress:
+                    prepared.ExpectedReturnAddress,
+                observedRip: prepared.CompositeCodeStart,
+                // A set IF bit is the exact failed CLI readback.
+                cliRflagsReadback: preflight.Rflags,
+                clearedCr4Readback: 0,
+                ownedCr3Readback: 0,
+                canaryBefore: 0,
+                canaryAfter: 0,
+                probePml4e: 0,
+                probePdpte: 0,
+                probePde: 0,
+                probePteBefore: 0,
+                probePteAfter: 0,
+                invlpgTarget: 0,
+                probeReturn: 0,
+                pageZeroPml4e: 0,
+                pageZeroPdpte: 0,
+                pageZeroPde: 0,
+                pageZeroPte: 0,
+                committedProbePteReadback: 0,
+                firmwareCr3Readback: 0,
+                postRestoreCanaryReadback: 0,
+                restoredCr4Readback: 0,
+                restoredRflagsIntent: preflight.Rflags,
+                exitRsp: entryRsp,
+                invlpgCount: 0,
+                probeInvocationCount: 0,
+                firmwareCallbackCount: 0,
+                runtimeStatus:
+                    M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .InterruptDisableReadbackMismatch,
+                checkpoint:
+                    M01OwnedCr3CompositeTransitionCheckpoint
+                    .ReturnPrepared,
+                pageZeroLevel:
+                    M01OwnedCr3CompositeTransitionPageZeroLevel
+                    .Uninitialized,
+                mutationCommitted: false,
+                pgeWasCleared: false,
+                ownedRootWasLoaded: false,
+                probeReturned: false,
+                progressCheckpoint:
+                    M01OwnedCr3CompositeTransitionCheckpoint
+                        .Uninitialized);
+    }
+
+    private static bool TestAllPostCliFailureTranscripts(
+        CompositeFixture fixture,
+        M01OwnedCr3CompositeTransitionResult* readback)
+    {
+        FailureExpectation[] expectations =
+        [
+            new(
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .InterruptDisableReadbackMismatch,
+                M01OwnedCr3CompositeTransitionStatus
+                    .InterruptStateMismatch),
+            new(
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .PgeClearReadbackMismatch,
+                M01OwnedCr3CompositeTransitionStatus.RawCr4BitLoss),
+            new(
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .OwnedCr3ReadbackMismatch,
+                M01OwnedCr3CompositeTransitionStatus.RawCr3BitLoss),
+            new(
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .CanaryBeforeMismatch,
+                M01OwnedCr3CompositeTransitionStatus.CanaryMismatch),
+            new(
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .CanaryAfterMismatch,
+                M01OwnedCr3CompositeTransitionStatus.CanaryMismatch),
+            new(
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .ProbeHierarchyMalformed,
+                M01OwnedCr3CompositeTransitionStatus
+                    .ProbePteAddressMismatch),
+            new(
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .ProbePteAddressMismatch,
+                M01OwnedCr3CompositeTransitionStatus
+                    .ProbePteAddressMismatch),
+            new(
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .ProbePteBeforeMismatch,
+                M01OwnedCr3CompositeTransitionStatus
+                    .ProbePteReadbackMismatch),
+            new(
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .ProbePteAfterMismatch,
+                M01OwnedCr3CompositeTransitionStatus
+                    .ProbePteReadbackMismatch),
+            new(
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .ProbeReturnMismatch,
+                M01OwnedCr3CompositeTransitionStatus.ProbeMismatch),
+            new(
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .PageZeroPresent,
+                M01OwnedCr3CompositeTransitionStatus.PageZeroPresent),
+            new(
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .PageZeroMalformed,
+                M01OwnedCr3CompositeTransitionStatus
+                    .PageZeroMalformed),
+            new(
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .FirmwareCr3ReadbackMismatch,
+                M01OwnedCr3CompositeTransitionStatus
+                    .FirmwareCr3ReadbackMismatch),
+            new(
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .Cr4RestoreReadbackMismatch,
+                M01OwnedCr3CompositeTransitionStatus
+                    .Cr4RestoreReadbackMismatch),
+            new(
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .RspRestoreMismatch,
+                M01OwnedCr3CompositeTransitionStatus.StackEscape),
+            new(
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .PostRestoreCanaryMismatch,
+                M01OwnedCr3CompositeTransitionStatus.CanaryMismatch)
+        ];
+
+        foreach (FailureExpectation expectation in expectations)
+        {
+            M01OwnedCr3CompositeTransitionRuntimeState transcript =
+                CreatePostCliFailureState(
+                    fixture,
+                    readback->State,
+                    expectation.RuntimeStatus);
+            *fixture.StateDestination = transcript;
+            M01OwnedCr3CompositeTransitionResult audit =
+                AuditObserved(
+                    readback,
+                    fixture.StateDestination,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                    (uint)expectation.RuntimeStatus);
+            if (audit.Status != expectation.ExpectedStatus)
+            {
+                Console.WriteLine(
+                    "M01_027_FAILURE_TRANSCRIPT "
+                    + expectation.RuntimeStatus
+                    + " observed="
+                    + audit.Status
+                    + " expected="
+                    + expectation.ExpectedStatus);
+                return false;
+            }
+
+            M01OwnedCr3CompositeTransitionRuntimeState forgedCause =
+                transcript;
+            RemoveReportedFailureCause(
+                fixture,
+                ref forgedCause,
+                expectation.RuntimeStatus);
+            *fixture.StateDestination = forgedCause;
+            M01OwnedCr3CompositeTransitionResult forgedCauseAudit =
+                AuditObserved(
+                    readback,
+                    fixture.StateDestination,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                    (uint)expectation.RuntimeStatus);
+            if (forgedCauseAudit.Status == expectation.ExpectedStatus)
+            {
+                Console.WriteLine(
+                    "M01_027_FORGED_FAILURE_ACCEPTED "
+                    + expectation.RuntimeStatus);
+                return false;
+            }
+
+            M01OwnedCr3CompositeTransitionRuntimeState wrongProgress =
+                transcript;
+            SetStateByte(
+                ref wrongProgress,
+                M01OwnedCr3CompositeTransition
+                    .StateProgressCheckpointOffset,
+                0xff);
+            *fixture.StateDestination = wrongProgress;
+            if (AuditObserved(
+                    readback,
+                    fixture.StateDestination,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                    (uint)expectation.RuntimeStatus).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .CheckpointMismatch)
+            {
+                return false;
+            }
+
+            M01OwnedCr3CompositeTransitionRuntimeState wrongIntent =
+                transcript;
+            OverwriteUlong(
+                ref wrongIntent,
+                checked((int)M01OwnedCr3CompositeTransition
+                    .StateRestoredRflagsIntentOffset),
+                0);
+            *fixture.StateDestination = wrongIntent;
+            if (AuditObserved(
+                    readback,
+                    fixture.StateDestination,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                    (uint)expectation.RuntimeStatus).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .RflagsRestoreIntentMismatch)
+            {
+                return false;
+            }
+
+            M01OwnedCr3CompositeTransitionRuntimeState wrongStatus =
+                transcript;
+            SetStateByte(
+                ref wrongStatus,
+                M01OwnedCr3CompositeTransition.StateRuntimeStatusOffset,
+                (byte)M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .Success);
+            *fixture.StateDestination = wrongStatus;
+            if (AuditObserved(
+                    readback,
+                    fixture.StateDestination,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                    (uint)expectation.RuntimeStatus).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .RuntimeReportedFailure)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TestCleanupOverrideStages(
+        CompositeFixture fixture,
+        M01OwnedCr3CompositeTransitionResult* readback)
+    {
+        (
+            string Name,
+            M01OwnedCr3CompositeTransitionRuntimeStatus Primary,
+            M01OwnedCr3CompositeTransitionRuntimeStatus Override,
+            M01OwnedCr3CompositeTransitionStatus Expected,
+            bool IsLate
+        )[] cases =
+        [
+            (
+                "firmware-cr3-early",
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .OwnedCr3ReadbackMismatch,
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .FirmwareCr3ReadbackMismatch,
+                M01OwnedCr3CompositeTransitionStatus
+                    .FirmwareCr3ReadbackMismatch,
+                false),
+            (
+                "firmware-cr3-late",
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .FirmwareCr3ReadbackMismatch,
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .FirmwareCr3ReadbackMismatch,
+                M01OwnedCr3CompositeTransitionStatus
+                    .FirmwareCr3ReadbackMismatch,
+                true),
+            (
+                "cr4-early",
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .PgeClearReadbackMismatch,
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .Cr4RestoreReadbackMismatch,
+                M01OwnedCr3CompositeTransitionStatus
+                    .Cr4RestoreReadbackMismatch,
+                false),
+            (
+                "cr4-late",
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .Cr4RestoreReadbackMismatch,
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .Cr4RestoreReadbackMismatch,
+                M01OwnedCr3CompositeTransitionStatus
+                    .Cr4RestoreReadbackMismatch,
+                true),
+            (
+                "rsp-early",
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .InterruptDisableReadbackMismatch,
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .RspRestoreMismatch,
+                M01OwnedCr3CompositeTransitionStatus.StackEscape,
+                false),
+            (
+                "rsp-late",
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .RspRestoreMismatch,
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .RspRestoreMismatch,
+                M01OwnedCr3CompositeTransitionStatus.StackEscape,
+                true)
+        ];
+
+        foreach (var cleanupCase in cases)
+        {
+            M01OwnedCr3CompositeTransitionRuntimeState transcript =
+                CreatePostCliFailureState(
+                    fixture,
+                    readback->State,
+                    cleanupCase.Primary);
+            SetStateByte(
+                ref transcript,
+                M01OwnedCr3CompositeTransition
+                    .StateRuntimeStatusOffset,
+                (byte)cleanupCase.Override);
+
+            if (!cleanupCase.IsLate)
+            {
+                switch (cleanupCase.Override)
+                {
+                    case M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .FirmwareCr3ReadbackMismatch:
+                        OverwriteUlong(
+                            ref transcript,
+                            checked((int)
+                                M01OwnedCr3CompositeTransition
+                                    .StateFirmwareCr3ReadbackOffset),
+                            transcript.OwnedCr3Raw);
+                        OverwriteUlong(
+                            ref transcript,
+                            checked((int)
+                                M01OwnedCr3CompositeTransition
+                                    .StatePostRestoreCanaryOffset),
+                            0);
+                        break;
+                    case M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .Cr4RestoreReadbackMismatch:
+                        OverwriteUlong(
+                            ref transcript,
+                            checked((int)
+                                M01OwnedCr3CompositeTransition
+                                    .StateRestoredCr4Offset),
+                            transcript.OriginalCr4Raw ^ 1UL);
+                        break;
+                    case M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .RspRestoreMismatch:
+                        OverwriteUlong(
+                            ref transcript,
+                            checked((int)
+                                M01OwnedCr3CompositeTransition
+                                    .StateExitRspOffset),
+                            transcript.EntryRsp + 8);
+                        break;
+                }
+            }
+
+            *fixture.StateDestination = transcript;
+            M01OwnedCr3CompositeTransitionResult audit =
+                AuditObserved(
+                    readback,
+                    fixture.StateDestination,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                    (uint)cleanupCase.Override);
+            if (audit.Status != cleanupCase.Expected)
+            {
+                Console.WriteLine(
+                    "M01_027_CLEANUP_OVERRIDE name="
+                    + cleanupCase.Name
+                    + " observed=" + audit.Status
+                    + " expected=" + cleanupCase.Expected);
+                return false;
+            }
+
+            // Keep this a single-defect checkpoint test. RSP restore
+            // transcripts intentionally retain ExitRsp != EntryRsp, and
+            // StackEscape has precedence over a simultaneous checkpoint
+            // mismatch.
+            if (cleanupCase.Override
+                != M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .RspRestoreMismatch)
+            {
+                M01OwnedCr3CompositeTransitionRuntimeState
+                    wrongFinalCheckpoint = transcript;
+                SetStateByte(
+                    ref wrongFinalCheckpoint,
+                    M01OwnedCr3CompositeTransition
+                        .StateCheckpointOffset,
+                    (byte)M01OwnedCr3CompositeTransitionCheckpoint
+                        .Cr4Restored);
+                *fixture.StateDestination = wrongFinalCheckpoint;
+                M01OwnedCr3CompositeTransitionStatus
+                    wrongFinalCheckpointStatus = AuditObserved(
+                        readback,
+                        fixture.StateDestination,
+                        M01OwnedCr3CompositeTransitionTerminalKind
+                            .Returned,
+                        (uint)cleanupCase.Override).Status;
+                if (wrongFinalCheckpointStatus
+                    != M01OwnedCr3CompositeTransitionStatus
+                        .CheckpointMismatch)
+                {
+                    Console.WriteLine(
+                        "M01_027_CLEANUP_CHECKPOINT name="
+                        + cleanupCase.Name
+                        + " observed=" + wrongFinalCheckpointStatus
+                        + " expected="
+                        + M01OwnedCr3CompositeTransitionStatus
+                            .CheckpointMismatch);
+                    return false;
+                }
+            }
+
+            M01OwnedCr3CompositeTransitionRuntimeState junk =
+                transcript;
+            uint junkOffset;
+            ulong junkValue;
+            if (cleanupCase.IsLate
+                && cleanupCase.Override
+                    == M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .FirmwareCr3ReadbackMismatch)
+            {
+                junkOffset = M01OwnedCr3CompositeTransition
+                    .StatePostRestoreCanaryOffset;
+                junkValue = transcript.ReplacementCanary;
+            }
+            else if (cleanupCase.IsLate)
+            {
+                junkOffset = M01OwnedCr3CompositeTransition
+                    .StateProbeInvocationCountOffset;
+                junkValue = 2;
+            }
+            else if (cleanupCase.Override
+                == M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .FirmwareCr3ReadbackMismatch)
+            {
+                junkOffset = M01OwnedCr3CompositeTransition
+                    .StateCanaryBeforeOffset;
+                junkValue = transcript.ExpectedCanary;
+            }
+            else if (cleanupCase.Override
+                == M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .Cr4RestoreReadbackMismatch)
+            {
+                junkOffset = M01OwnedCr3CompositeTransition
+                    .StateOwnedCr3ReadbackOffset;
+                junkValue = transcript.OwnedCr3Raw;
+            }
+            else
+            {
+                junkOffset = M01OwnedCr3CompositeTransition
+                    .StateClearedCr4ReadbackOffset;
+                junkValue = transcript.OriginalCr4Raw;
+            }
+
+            OverwriteUlong(
+                ref junk,
+                checked((int)junkOffset),
+                junkValue);
+            *fixture.StateDestination = junk;
+            if (AuditObserved(
+                    readback,
+                    fixture.StateDestination,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                    (uint)cleanupCase.Override).Status
+                == cleanupCase.Expected)
+            {
+                Console.WriteLine(
+                    "M01_027_CLEANUP_JUNK_ACCEPTED name="
+                    + cleanupCase.Name
+                    + " offset=" + junkOffset);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TestSuccessfulTranscriptHostileMutations(
+        CompositeFixture fixture,
+        M01OwnedCr3CompositeTransitionResult* readback,
+        M01OwnedCr3CompositeTransitionRuntimeState canonical)
+    {
+        (uint Offset, ulong Value,
+            M01OwnedCr3CompositeTransitionStatus Expected)[] mutations =
+        [
+            (
+                M01OwnedCr3CompositeTransition.StateOwnedCr3RawOffset,
+                canonical.OwnedCr3Raw + M01OwnedCr3CompositeTransition
+                    .PageSize,
+                M01OwnedCr3CompositeTransitionStatus
+                    .InvalidProbeContract),
+            (
+                M01OwnedCr3CompositeTransition.StateOriginalRflagsOffset,
+                0,
+                M01OwnedCr3CompositeTransitionStatus
+                    .ModePrerequisiteMismatch),
+            (
+                M01OwnedCr3CompositeTransition
+                    .StateRestoredRflagsIntentOffset,
+                0,
+                M01OwnedCr3CompositeTransitionStatus
+                    .RflagsRestoreIntentMismatch),
+            (
+                M01OwnedCr3CompositeTransition
+                    .StateFirmwareCr3ReadbackOffset,
+                canonical.OriginalCr3Raw ^ 0x1000,
+                M01OwnedCr3CompositeTransitionStatus
+                    .FirmwareCr3ReadbackMismatch),
+            (
+                M01OwnedCr3CompositeTransition.StateRestoredCr4Offset,
+                canonical.OriginalCr4Raw ^ 1,
+                M01OwnedCr3CompositeTransitionStatus
+                    .Cr4RestoreReadbackMismatch),
+            (
+                M01OwnedCr3CompositeTransition.StateOriginalCr0Offset,
+                0,
+                M01OwnedCr3CompositeTransitionStatus
+                    .ModePrerequisiteMismatch),
+            (
+                M01OwnedCr3CompositeTransition
+                    .StateOwnedCr3ReadbackOffset,
+                canonical.OwnedCr3Raw ^ 0x1000,
+                M01OwnedCr3CompositeTransitionStatus.RawCr3BitLoss),
+            (
+                M01OwnedCr3CompositeTransition
+                    .StateClearedCr4ReadbackOffset,
+                canonical.OriginalCr4Raw,
+                M01OwnedCr3CompositeTransitionStatus.RawCr4BitLoss),
+            (
+                M01OwnedCr3CompositeTransition
+                    .StateCliRflagsReadbackOffset,
+                canonical.CliRflagsReadback
+                    | M01OwnedCr3CompositeTransition
+                        .RflagsInterruptEnableBit,
+                M01OwnedCr3CompositeTransitionStatus
+                    .InterruptStateMismatch),
+            (
+                M01OwnedCr3CompositeTransition.StateExitRspOffset,
+                canonical.EntryRsp + 8,
+                M01OwnedCr3CompositeTransitionStatus.StackEscape),
+            (
+                M01OwnedCr3CompositeTransition
+                    .StateObservedReturnAddressOffset,
+                canonical.ExpectedReturnAddress + 8,
+                M01OwnedCr3CompositeTransitionStatus
+                    .ReturnAddressMismatch),
+            (
+                M01OwnedCr3CompositeTransition.StateCanaryBeforeOffset,
+                canonical.ExpectedCanary ^ 1,
+                M01OwnedCr3CompositeTransitionStatus.CanaryMismatch),
+            (
+                M01OwnedCr3CompositeTransition.StateCanaryAfterOffset,
+                canonical.ReplacementCanary ^ 1,
+                M01OwnedCr3CompositeTransitionStatus.CanaryMismatch),
+            (
+                M01OwnedCr3CompositeTransition
+                    .StatePostRestoreCanaryOffset,
+                canonical.ReplacementCanary ^ 1,
+                M01OwnedCr3CompositeTransitionStatus.CanaryMismatch),
+            (
+                M01OwnedCr3CompositeTransition.StateProbePml4eOffset,
+                1,
+                M01OwnedCr3CompositeTransitionStatus
+                    .ProbePteAddressMismatch),
+            (
+                M01OwnedCr3CompositeTransition
+                    .StateProbePteBeforeOffset,
+                canonical.InitialProbePteRaw ^ 0x1000,
+                M01OwnedCr3CompositeTransitionStatus
+                    .ProbePteReadbackMismatch),
+            (
+                M01OwnedCr3CompositeTransition.StateProbePteAfterOffset,
+                canonical.FinalProbePteRaw
+                    | M01OwnedCr3CompositeTransition.PageWritableBit,
+                M01OwnedCr3CompositeTransitionStatus
+                    .ProbePteReadbackMismatch),
+            (
+                M01OwnedCr3CompositeTransition
+                    .StateCommittedProbePteReadbackOffset,
+                canonical.FinalProbePteRaw
+                    | M01OwnedCr3CompositeTransition.PageNoExecuteBit,
+                M01OwnedCr3CompositeTransitionStatus
+                    .ProbePteReadbackMismatch),
+            (
+                M01OwnedCr3CompositeTransition.StateInvlpgTargetOffset,
+                canonical.ProbeEntry + M01OwnedCr3CompositeTransition
+                    .PageSize,
+                M01OwnedCr3CompositeTransitionStatus.InvlpgMismatch),
+            (
+                M01OwnedCr3CompositeTransition.StateInvlpgCountOffset,
+                2,
+                M01OwnedCr3CompositeTransitionStatus.InvlpgMismatch),
+            (
+                M01OwnedCr3CompositeTransition.StateProbeReturnOffset,
+                canonical.ExpectedProbeReturn ^ 1UL,
+                M01OwnedCr3CompositeTransitionStatus.ProbeMismatch),
+            (
+                M01OwnedCr3CompositeTransition
+                    .StateProbeInvocationCountOffset,
+                2,
+                M01OwnedCr3CompositeTransitionStatus.ProbeMismatch)
+        ];
+
+        foreach (var mutation in mutations)
+        {
+            M01OwnedCr3CompositeTransitionRuntimeState hostile =
+                canonical;
+            OverwriteUlong(
+                ref hostile,
+                checked((int)mutation.Offset),
+                mutation.Value);
+            *fixture.StateDestination = hostile;
+            M01OwnedCr3CompositeTransitionResult audit =
+                AuditObserved(
+                    readback,
+                    fixture.StateDestination,
+                    M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                    (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .Success);
+            if (audit.Status != mutation.Expected)
+            {
+                Console.WriteLine(
+                    "M01_027_HOSTILE_FIELD offset="
+                    + mutation.Offset
+                    + " observed="
+                    + audit.Status
+                    + " expected="
+                    + mutation.Expected);
+                return false;
+            }
+        }
+
+        M01OwnedCr3CompositeTransitionRuntimeState
+            arithmeticFlagsChanged = canonical;
+        ulong realisticCliRflags =
+            canonical.CliRflagsReadback ^ RflagsArithmeticMask;
+        OverwriteUlong(
+            ref arithmeticFlagsChanged,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateCliRflagsReadbackOffset),
+            realisticCliRflags);
+        *fixture.StateDestination = arithmeticFlagsChanged;
+        if (realisticCliRflags == canonical.CliRflagsReadback
+            || (realisticCliRflags
+                    & ~RflagsArithmeticMask)
+                != (canonical.CliRflagsReadback
+                    & ~RflagsArithmeticMask)
+            || (realisticCliRflags
+                    & M01OwnedCr3CompositeTransition
+                        .RflagsInterruptEnableBit) != 0
+            || !AuditObserved(
+                    readback,
+                    fixture.StateDestination,
+                    M01OwnedCr3CompositeTransitionTerminalKind
+                        .Returned,
+                    (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .Success).IsSuccess)
+        {
+            return false;
+        }
+
+        (ulong Value, string Name)[] invalidCliReadbacks =
+        [
+            (
+                canonical.CliRflagsReadback
+                    & ~RflagsAlwaysOneBit,
+                "reserved-bit-one-cleared"),
+            (
+                canonical.CliRflagsReadback | RflagsTrapFlag,
+                "trap-flag-set"),
+            (
+                canonical.CliRflagsReadback
+                    ^ RflagsAlignmentCheckFlag,
+                "stable-alignment-check-mutated")
+        ];
+        foreach (var invalidCli in invalidCliReadbacks)
+        {
+            M01OwnedCr3CompositeTransitionRuntimeState hostile =
+                canonical;
+            OverwriteUlong(
+                ref hostile,
+                checked((int)M01OwnedCr3CompositeTransition
+                    .StateCliRflagsReadbackOffset),
+                invalidCli.Value);
+            *fixture.StateDestination = hostile;
+            M01OwnedCr3CompositeTransitionResult audit =
+                AuditObserved(
+                    readback,
+                    fixture.StateDestination,
+                    M01OwnedCr3CompositeTransitionTerminalKind
+                        .Returned,
+                    (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .Success);
+            if (audit.Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InterruptStateMismatch)
+            {
+                Console.WriteLine(
+                    "M01_027_CLI_INVARIANT_ACCEPTED name="
+                    + invalidCli.Name
+                    + " observed=" + audit.Status);
+                return false;
+            }
+        }
+
+        M01OwnedCr3CompositeTransitionRuntimeState callback =
+            canonical;
+        SetStateUInt32(
+            ref callback,
+            M01OwnedCr3CompositeTransition
+                .StateFirmwareCallbackCountOffset,
+            1);
+        *fixture.StateDestination = callback;
+        if (AuditObserved(
+                readback,
+                fixture.StateDestination,
+                M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .Success).Status
+            != M01OwnedCr3CompositeTransitionStatus
+                .FirmwareCallbackObserved)
+        {
+            return false;
+        }
+
+        M01OwnedCr3CompositeTransitionRuntimeState reserved =
+            canonical;
+        OverwriteUlong(
+            ref reserved,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateReservedOutput1Offset),
+            1);
+        *fixture.StateDestination = reserved;
+        if (AuditObserved(
+                readback,
+                fixture.StateDestination,
+                M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .Success).Status
+            != M01OwnedCr3CompositeTransitionStatus
+                .ReservedStateNonzero)
+        {
+            return false;
+        }
+
+        M01OwnedCr3CompositeTransitionRuntimeState invalidBoolean =
+            canonical;
+        SetStateByte(
+            ref invalidBoolean,
+            M01OwnedCr3CompositeTransition
+                .StateMutationCommittedOffset,
+            2);
+        *fixture.StateDestination = invalidBoolean;
+        if (AuditObserved(
+                readback,
+                fixture.StateDestination,
+                M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .Success).Status
+            != M01OwnedCr3CompositeTransitionStatus
+                .ReservedStateNonzero)
+        {
+            return false;
+        }
+
+        M01OwnedCr3CompositeTransitionRuntimeState monotonicAd =
+            canonical;
+        const ulong AccessedDirty =
+            M01OwnedCr3CompositeTransition.PageAccessedBit
+            | M01OwnedCr3CompositeTransition.PageDirtyBit;
+        OverwriteUlong(
+            ref monotonicAd,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateProbePteBeforeOffset),
+            canonical.ProbePteBefore | AccessedDirty);
+        OverwriteUlong(
+            ref monotonicAd,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateProbePteAfterOffset),
+            canonical.ProbePteAfter | AccessedDirty);
+        OverwriteUlong(
+            ref monotonicAd,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateCommittedProbePteReadbackOffset),
+            canonical.CommittedProbePteReadback | AccessedDirty);
+        *fixture.StateDestination = monotonicAd;
+        if (!AuditObserved(
+                readback,
+                fixture.StateDestination,
+                M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .Success).IsSuccess)
+        {
+            return false;
+        }
+
+        if ((canonical.FinalProbePteRaw & AccessedDirty) != 0)
+        {
+            return false;
+        }
+
+        M01OwnedCr3CompositeTransitionRuntimeState
+            independentlyToleratedButUnequalPte = canonical;
+        OverwriteUlong(
+            ref independentlyToleratedButUnequalPte,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateProbePteAfterOffset),
+            canonical.FinalProbePteRaw
+                | M01OwnedCr3CompositeTransition.PageAccessedBit);
+        OverwriteUlong(
+            ref independentlyToleratedButUnequalPte,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateCommittedProbePteReadbackOffset),
+            canonical.FinalProbePteRaw
+                | M01OwnedCr3CompositeTransition.PageDirtyBit);
+        *fixture.StateDestination =
+            independentlyToleratedButUnequalPte;
+        if (AuditObserved(
+                readback,
+                fixture.StateDestination,
+                M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .Success).Status
+            != M01OwnedCr3CompositeTransitionStatus
+                .ProbePteReadbackMismatch)
+        {
+            return false;
+        }
+
+        M01OwnedCr3CompositeTransitionResult adBaselineProof =
+            *readback;
+        int resultStateOffset = checked((int)Offset<
+            M01OwnedCr3CompositeTransitionResult>("_state"));
+        ulong initialWithAd =
+            canonical.InitialProbePteRaw | AccessedDirty;
+        ulong finalWithAd =
+            canonical.FinalProbePteRaw | AccessedDirty;
+        OverwriteUlong(
+            ref adBaselineProof,
+            checked(resultStateOffset
+                + (int)M01OwnedCr3CompositeTransition
+                    .StateInitialProbePteRawOffset),
+            initialWithAd);
+        OverwriteUlong(
+            ref adBaselineProof,
+            checked(resultStateOffset
+                + (int)M01OwnedCr3CompositeTransition
+                    .StateFinalProbePteRawOffset),
+            finalWithAd);
+        M01OwnedCr3CompositeTransitionRuntimeState clearedAd =
+            canonical;
+        OverwriteUlong(
+            ref clearedAd,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateInitialProbePteRawOffset),
+            initialWithAd);
+        OverwriteUlong(
+            ref clearedAd,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateFinalProbePteRawOffset),
+            finalWithAd);
+        OverwriteUlong(
+            ref clearedAd,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateProbePteBeforeOffset),
+            initialWithAd
+                & ~M01OwnedCr3CompositeTransition.PageAccessedBit);
+        OverwriteUlong(
+            ref clearedAd,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateProbePteAfterOffset),
+            finalWithAd
+                & ~M01OwnedCr3CompositeTransition.PageAccessedBit);
+        OverwriteUlong(
+            ref clearedAd,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateCommittedProbePteReadbackOffset),
+            finalWithAd
+                & ~M01OwnedCr3CompositeTransition.PageAccessedBit);
+        *fixture.StateDestination = clearedAd;
+        if (AuditObserved(
+                &adBaselineProof,
+                fixture.StateDestination,
+                M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .Success).Status
+            != M01OwnedCr3CompositeTransitionStatus
+                .ProbePteReadbackMismatch)
+        {
+            return false;
+        }
+
+        M01OwnedCr3CompositeTransitionRuntimeState trapFlag =
+            canonical;
+        ulong trapRflags = canonical.OriginalRflags
+            | RflagsTrapFlag;
+        OverwriteUlong(
+            ref trapFlag,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateOriginalRflagsOffset),
+            trapRflags);
+        OverwriteUlong(
+            ref trapFlag,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateCliRflagsReadbackOffset),
+            trapRflags
+                & ~M01OwnedCr3CompositeTransition
+                    .RflagsInterruptEnableBit);
+        OverwriteUlong(
+            ref trapFlag,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateRestoredRflagsIntentOffset),
+            trapRflags);
+        *fixture.StateDestination = trapFlag;
+        if (AuditObserved(
+                readback,
+                fixture.StateDestination,
+                M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .Success).Status
+            != M01OwnedCr3CompositeTransitionStatus
+                .ModePrerequisiteMismatch)
+        {
+            return false;
+        }
+
+        M01OwnedCr3CompositeTransitionRuntimeState cetEnabled =
+            canonical;
+        ulong cetCr4 = canonical.OriginalCr4Raw
+            | Cr4ControlFlowEnforcementBit;
+        OverwriteUlong(
+            ref cetEnabled,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateOriginalCr4RawOffset),
+            cetCr4);
+        OverwriteUlong(
+            ref cetEnabled,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateClearedCr4ReadbackOffset),
+            cetCr4
+                & ~M01OwnedCr3CompositeTransition
+                    .Cr4PageGlobalEnableBit);
+        OverwriteUlong(
+            ref cetEnabled,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateRestoredCr4Offset),
+            cetCr4);
+        *fixture.StateDestination = cetEnabled;
+        if (AuditObserved(
+                readback,
+                fixture.StateDestination,
+                M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .Success).Status
+            != M01OwnedCr3CompositeTransitionStatus
+                .ModePrerequisiteMismatch)
+        {
+            return false;
+        }
+
+        ulong physicalPageMask =
+            canonical.PhysicalAddressMask
+            & M01OwnedCr3CompositeTransition.Cr3ArchitecturalBaseMask;
+        ulong sameRootFirmwareCr3 =
+            (canonical.OwnedCr3Raw & physicalPageMask)
+            | (canonical.OriginalCr3Raw
+                & M01OwnedCr3CompositeTransition
+                    .Cr3PermittedLowBitsMask);
+        M01OwnedCr3CompositeTransitionRuntimeState sameRoot =
+            canonical;
+        OverwriteUlong(
+            ref sameRoot,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateOriginalCr3RawOffset),
+            sameRootFirmwareCr3);
+        OverwriteUlong(
+            ref sameRoot,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateFirmwareCr3ReadbackOffset),
+            sameRootFirmwareCr3);
+        *fixture.StateDestination = sameRoot;
+        if (AuditObserved(
+                readback,
+                fixture.StateDestination,
+                M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .Success).Status
+            != M01OwnedCr3CompositeTransitionStatus
+                .ModePrerequisiteMismatch)
+        {
+            return false;
+        }
+
+        ulong pageMask =
+            canonical.PhysicalAddressMask
+            & M01OwnedCr3CompositeTransition.Cr3ArchitecturalBaseMask;
+        ulong currentPdpt = canonical.ProbePml4e & pageMask;
+        ulong alternatePdpt = canonical.TablePageArenaStart;
+        if (alternatePdpt == currentPdpt)
+        {
+            alternatePdpt += M01OwnedCr3CompositeTransition.PageSize;
+        }
+        M01OwnedCr3CompositeTransitionRuntimeState unrelatedChain =
+            canonical;
+        OverwriteUlong(
+            ref unrelatedChain,
+            checked((int)M01OwnedCr3CompositeTransition
+                .StateProbePml4eOffset),
+            alternatePdpt
+                | M01OwnedCr3CompositeTransition.PagePresentBit
+                | M01OwnedCr3CompositeTransition.PageWritableBit);
+        *fixture.StateDestination = unrelatedChain;
+        if (AuditObserved(
+                readback,
+                fixture.StateDestination,
+                M01OwnedCr3CompositeTransitionTerminalKind.Returned,
+                (uint)M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .Success).IsSuccess)
+        {
+            Console.WriteLine(
+                "M01_027_UNRELATED_PARENT_CHAIN_ACCEPTED");
+            return false;
+        }
+
+        return true;
+    }
+
+    private static M01OwnedCr3CompositeTransitionRuntimeState
+        CreatePostCliFailureState(
+            CompositeFixture fixture,
+            M01OwnedCr3CompositeTransitionRuntimeState prepared,
+            M01OwnedCr3CompositeTransitionRuntimeStatus status)
+    {
+        X64PagingModePreflightResult preflight =
+            fixture.PriorEvidence.Evidence.Preflight;
+        (ulong probePml4, ulong probePdpt, ulong probePd, ulong probePt) =
+            fixture.ProbeWalkEntryIndexes();
+        ulong pml4e = fixture.PageEntries[probePml4];
+        ulong pdpte = fixture.PageEntries[probePdpt];
+        ulong pde = fixture.PageEntries[probePd];
+        ulong initialPte = fixture.PageEntries[probePt];
+        ulong entryRsp = fixture.Bindings[1].VirtualEndExclusive
+            .TryGetRawValueForUefiBoundary(out ulong stackEnd)
+                == AddressValueStatus.Success
+            ? stackEnd - 72
+            : 0;
+        ulong cliRflags =
+            preflight.Rflags
+            & ~M01OwnedCr3CompositeTransition
+                .RflagsInterruptEnableBit;
+        ulong clearedCr4 =
+            preflight.RawCr4
+            & ~M01OwnedCr3CompositeTransition
+                .Cr4PageGlobalEnableBit;
+
+        bool pgeAttempted = status
+            != M01OwnedCr3CompositeTransitionRuntimeStatus
+                .InterruptDisableReadbackMismatch;
+        bool pgeSucceeded = pgeAttempted
+            && status
+                != M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .PgeClearReadbackMismatch;
+        bool ownedAttempted = pgeSucceeded;
+        bool ownedSucceeded = ownedAttempted
+            && status
+                != M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .OwnedCr3ReadbackMismatch;
+        bool canaryRead = ownedSucceeded;
+        bool canaryUpdated = canaryRead
+            && status
+                != M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .CanaryBeforeMismatch;
+        bool canarySucceeded = canaryUpdated
+            && status
+                != M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .CanaryAfterMismatch;
+        bool hierarchyAttempted = canarySucceeded;
+        bool hierarchySucceeded = hierarchyAttempted
+            && status
+                != M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .ProbeHierarchyMalformed;
+        bool pteLocated = hierarchySucceeded
+            && status
+                != M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .ProbePteAddressMismatch;
+        bool pteBeforeValidated = pteLocated
+            && status
+                != M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .ProbePteBeforeMismatch;
+        bool invalidated = pteBeforeValidated;
+        bool pteVerified = invalidated
+            && status
+                != M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .ProbePteAfterMismatch;
+        bool probeInvoked = pteVerified;
+        bool probeSucceeded = probeInvoked
+            && status
+                != M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .ProbeReturnMismatch;
+        bool pageZeroAttempted = probeSucceeded;
+        bool pageZeroAbsent = status
+                == M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .FirmwareCr3ReadbackMismatch
+            || status
+                == M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .Cr4RestoreReadbackMismatch
+            || status
+                == M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .RspRestoreMismatch
+            || status
+                == M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .PostRestoreCanaryMismatch;
+
+        M01OwnedCr3CompositeTransitionCheckpoint progress =
+            status switch
+            {
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .InterruptDisableReadbackMismatch =>
+                        M01OwnedCr3CompositeTransitionCheckpoint
+                            .Uninitialized,
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .PgeClearReadbackMismatch =>
+                        M01OwnedCr3CompositeTransitionCheckpoint
+                            .InterruptsDisabled,
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .OwnedCr3ReadbackMismatch =>
+                        M01OwnedCr3CompositeTransitionCheckpoint
+                            .PgeCleared,
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .CanaryBeforeMismatch
+                or M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .CanaryAfterMismatch =>
+                        M01OwnedCr3CompositeTransitionCheckpoint
+                            .OwnedCr3Loaded,
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .ProbeHierarchyMalformed
+                or M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .ProbePteAddressMismatch =>
+                        M01OwnedCr3CompositeTransitionCheckpoint
+                            .CanaryUpdated,
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .ProbePteBeforeMismatch =>
+                        M01OwnedCr3CompositeTransitionCheckpoint
+                            .ProbePteLocated,
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .ProbePteAfterMismatch =>
+                        M01OwnedCr3CompositeTransitionCheckpoint
+                            .ProbeInvalidated,
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .ProbeReturnMismatch =>
+                        M01OwnedCr3CompositeTransitionCheckpoint
+                            .ProbePteVerified,
+                M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .PageZeroPresent
+                or M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .PageZeroMalformed =>
+                        M01OwnedCr3CompositeTransitionCheckpoint
+                            .ProbeReturned,
+                _ => M01OwnedCr3CompositeTransitionCheckpoint
+                    .PageZeroAbsent
+            };
+
+        ulong observedPml4e = 0;
+        ulong observedPdpte = 0;
+        ulong observedPde = 0;
+        if (hierarchyAttempted)
+        {
+            if (status
+                == M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .ProbeHierarchyMalformed)
+            {
+                observedPml4e = 1;
+            }
+            else
+            {
+                observedPml4e = pml4e;
+                observedPdpte = pdpte;
+                observedPde = pde;
+            }
+        }
+        if (status
+            == M01OwnedCr3CompositeTransitionRuntimeStatus
+                .ProbePteAddressMismatch)
+        {
+            ulong pageMask =
+                preflight.PhysicalAddressMask
+                & M01OwnedCr3CompositeTransition
+                    .Cr3ArchitecturalBaseMask;
+            ulong canonicalPt = pde & pageMask;
+            ulong alternatePt = prepared.TablePageArenaStart;
+            if (alternatePt == canonicalPt)
+            {
+                alternatePt += M01OwnedCr3CompositeTransition.PageSize;
+            }
+            observedPde = alternatePt
+                | M01OwnedCr3CompositeTransition.PagePresentBit
+                | M01OwnedCr3CompositeTransition.PageWritableBit;
+        }
+
+        ulong canaryBefore = canaryRead
+            ? status
+                    == M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .CanaryBeforeMismatch
+                ? prepared.ExpectedCanary ^ 1
+                : prepared.ExpectedCanary
+            : 0;
+        ulong canaryAfter = canaryUpdated
+            ? status
+                    == M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .CanaryAfterMismatch
+                ? prepared.ReplacementCanary ^ 1
+                : prepared.ReplacementCanary
+            : 0;
+        ulong postRestoreCanary = 0;
+        if (ownedAttempted
+            && status
+                != M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .FirmwareCr3ReadbackMismatch)
+        {
+            postRestoreCanary = canaryUpdated
+                ? canaryAfter
+                : canaryRead
+                    ? canaryBefore
+                    : prepared.ExpectedCanary;
+        }
+        if (status
+            == M01OwnedCr3CompositeTransitionRuntimeStatus
+                .PostRestoreCanaryMismatch)
+        {
+            postRestoreCanary = prepared.ReplacementCanary ^ 1;
+        }
+
+        ulong pageZeroPml4e = 0;
+        ulong pageZeroPdpte = 0;
+        ulong pageZeroPde = 0;
+        ulong pageZeroPte = 0;
+        M01OwnedCr3CompositeTransitionPageZeroLevel pageZeroLevel =
+            M01OwnedCr3CompositeTransitionPageZeroLevel
+                .Uninitialized;
+        if (status
+            == M01OwnedCr3CompositeTransitionRuntimeStatus
+                .PageZeroPresent)
+        {
+            pageZeroPml4e = pml4e;
+            pageZeroPdpte = pdpte;
+            pageZeroPde = pde;
+            pageZeroPte = prepared.FinalProbePteRaw;
+            pageZeroLevel =
+                M01OwnedCr3CompositeTransitionPageZeroLevel.Present;
+        }
+        else if (status
+            == M01OwnedCr3CompositeTransitionRuntimeStatus
+                .PageZeroMalformed)
+        {
+            pageZeroPml4e = 1;
+            pageZeroLevel =
+                M01OwnedCr3CompositeTransitionPageZeroLevel.Malformed;
+        }
+        else if (pageZeroAbsent)
+        {
+            (
+                pageZeroPml4e,
+                pageZeroPdpte,
+                pageZeroPde,
+                pageZeroPte,
+                pageZeroLevel) = fixture.PageZeroObservation();
+        }
+
+        ulong firmwareCr3 = ownedAttempted
+            ? status
+                    == M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .FirmwareCr3ReadbackMismatch
+                ? prepared.OwnedCr3Raw
+                : preflight.RawFirmwareCr3
+            : 0;
+        ulong restoredCr4 = pgeAttempted
+            ? status
+                    == M01OwnedCr3CompositeTransitionRuntimeStatus
+                        .Cr4RestoreReadbackMismatch
+                ? clearedCr4
+                : preflight.RawCr4
+            : 0;
+
+        return M01OwnedCr3CompositeTransitionRuntimeState
+            .CreateObserved(
+                initializedState: prepared,
+                originalRflags: preflight.Rflags,
+                originalCr0: preflight.Cr0 | 1UL,
+                originalCr3Raw: preflight.RawFirmwareCr3,
+                originalCr4Raw: preflight.RawCr4,
+                originalEfer: preflight.Ia32Efer,
+                physicalAddressMask: preflight.PhysicalAddressMask,
+                entryRsp: entryRsp,
+                observedReturnAddress:
+                    prepared.ExpectedReturnAddress,
+                observedRip: prepared.CompositeCodeStart,
+                cliRflagsReadback: status
+                        == M01OwnedCr3CompositeTransitionRuntimeStatus
+                            .InterruptDisableReadbackMismatch
+                    ? preflight.Rflags
+                    : cliRflags,
+                clearedCr4Readback: pgeAttempted
+                    ? status
+                            == M01OwnedCr3CompositeTransitionRuntimeStatus
+                                .PgeClearReadbackMismatch
+                        ? preflight.RawCr4
+                        : clearedCr4
+                    : 0,
+                ownedCr3Readback: ownedAttempted
+                    ? status
+                            == M01OwnedCr3CompositeTransitionRuntimeStatus
+                                .OwnedCr3ReadbackMismatch
+                        ? preflight.RawFirmwareCr3
+                        : prepared.OwnedCr3Raw
+                    : 0,
+                canaryBefore: canaryBefore,
+                canaryAfter: canaryAfter,
+                probePml4e: observedPml4e,
+                probePdpte: observedPdpte,
+                probePde: observedPde,
+                probePteBefore: pteLocated
+                    ? status
+                            == M01OwnedCr3CompositeTransitionRuntimeStatus
+                                .ProbePteBeforeMismatch
+                        ? initialPte ^ 0x1000
+                        : initialPte
+                    : 0,
+                probePteAfter: invalidated
+                    ? status
+                            == M01OwnedCr3CompositeTransitionRuntimeStatus
+                                .ProbePteAfterMismatch
+                        ? prepared.FinalProbePteRaw
+                            | M01OwnedCr3CompositeTransition
+                                .PageWritableBit
+                        : prepared.FinalProbePteRaw
+                    : 0,
+                invlpgTarget: invalidated
+                    ? prepared.ProbeEntry
+                    : 0,
+                probeReturn: probeInvoked
+                    ? status
+                            == M01OwnedCr3CompositeTransitionRuntimeStatus
+                                .ProbeReturnMismatch
+                        ? prepared.ExpectedProbeReturn ^ 1UL
+                        : prepared.ExpectedProbeReturn
+                    : 0,
+                pageZeroPml4e: pageZeroPml4e,
+                pageZeroPdpte: pageZeroPdpte,
+                pageZeroPde: pageZeroPde,
+                pageZeroPte: pageZeroPte,
+                committedProbePteReadback: pteVerified
+                    ? prepared.FinalProbePteRaw
+                    : 0,
+                firmwareCr3Readback: firmwareCr3,
+                postRestoreCanaryReadback: postRestoreCanary,
+                restoredCr4Readback: restoredCr4,
+                restoredRflagsIntent: preflight.Rflags,
+                exitRsp: status
+                        == M01OwnedCr3CompositeTransitionRuntimeStatus
+                            .RspRestoreMismatch
+                    ? entryRsp + 8
+                    : entryRsp,
+                invlpgCount: invalidated ? 1UL : 0,
+                probeInvocationCount: probeInvoked ? 1UL : 0,
+                firmwareCallbackCount: 0,
+                runtimeStatus: status,
+                checkpoint:
+                    M01OwnedCr3CompositeTransitionCheckpoint
+                        .ReturnPrepared,
+                pageZeroLevel: pageZeroLevel,
+                mutationCommitted: pteVerified,
+                pgeWasCleared: pgeSucceeded
+                    && (preflight.RawCr4
+                        & M01OwnedCr3CompositeTransition
+                            .Cr4PageGlobalEnableBit) != 0,
+                ownedRootWasLoaded: ownedSucceeded,
+                probeReturned: probeInvoked,
+                progressCheckpoint: progress);
+    }
+
+    private static void RemoveReportedFailureCause(
+        CompositeFixture fixture,
+        ref M01OwnedCr3CompositeTransitionRuntimeState state,
+        M01OwnedCr3CompositeTransitionRuntimeStatus status)
+    {
+        X64PagingModePreflightResult preflight =
+            fixture.PriorEvidence.Evidence.Preflight;
+        (ulong probePml4, ulong probePdpt, ulong probePd, _) =
+            fixture.ProbeWalkEntryIndexes();
+        switch (status)
+        {
+            case M01OwnedCr3CompositeTransitionRuntimeStatus
+                .InterruptDisableReadbackMismatch:
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StateCliRflagsReadbackOffset),
+                    preflight.Rflags
+                        & ~M01OwnedCr3CompositeTransition
+                            .RflagsInterruptEnableBit);
+                break;
+            case M01OwnedCr3CompositeTransitionRuntimeStatus
+                .PgeClearReadbackMismatch:
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StateClearedCr4ReadbackOffset),
+                    preflight.RawCr4
+                        & ~M01OwnedCr3CompositeTransition
+                            .Cr4PageGlobalEnableBit);
+                break;
+            case M01OwnedCr3CompositeTransitionRuntimeStatus
+                .OwnedCr3ReadbackMismatch:
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StateOwnedCr3ReadbackOffset),
+                    state.OwnedCr3Raw);
+                break;
+            case M01OwnedCr3CompositeTransitionRuntimeStatus
+                .CanaryBeforeMismatch:
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StateCanaryBeforeOffset),
+                    state.ExpectedCanary);
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StatePostRestoreCanaryOffset),
+                    state.ExpectedCanary);
+                break;
+            case M01OwnedCr3CompositeTransitionRuntimeStatus
+                .CanaryAfterMismatch:
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StateCanaryAfterOffset),
+                    state.ReplacementCanary);
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StatePostRestoreCanaryOffset),
+                    state.ReplacementCanary);
+                break;
+            case M01OwnedCr3CompositeTransitionRuntimeStatus
+                .ProbeHierarchyMalformed:
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StateProbePml4eOffset),
+                    fixture.PageEntries[probePml4]);
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StateProbePdpteOffset),
+                    fixture.PageEntries[probePdpt]);
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StateProbePdeOffset),
+                    fixture.PageEntries[probePd]);
+                break;
+            case M01OwnedCr3CompositeTransitionRuntimeStatus
+                .ProbePteAddressMismatch:
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StateProbePdeOffset),
+                    fixture.PageEntries[probePd]);
+                break;
+            case M01OwnedCr3CompositeTransitionRuntimeStatus
+                .ProbePteBeforeMismatch:
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StateProbePteBeforeOffset),
+                    state.InitialProbePteRaw);
+                break;
+            case M01OwnedCr3CompositeTransitionRuntimeStatus
+                .ProbePteAfterMismatch:
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StateProbePteAfterOffset),
+                    state.FinalProbePteRaw);
+                break;
+            case M01OwnedCr3CompositeTransitionRuntimeStatus
+                .ProbeReturnMismatch:
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StateProbeReturnOffset),
+                    state.ExpectedProbeReturn);
+                break;
+            case M01OwnedCr3CompositeTransitionRuntimeStatus
+                .PageZeroPresent:
+            case M01OwnedCr3CompositeTransitionRuntimeStatus
+                .PageZeroMalformed:
+                (
+                    ulong pml4e,
+                    ulong pdpte,
+                    ulong pde,
+                    ulong pte,
+                    M01OwnedCr3CompositeTransitionPageZeroLevel level) =
+                        fixture.PageZeroObservation();
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StatePageZeroPml4eOffset),
+                    pml4e);
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StatePageZeroPdpteOffset),
+                    pdpte);
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StatePageZeroPdeOffset),
+                    pde);
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StatePageZeroPteOffset),
+                    pte);
+                SetStateByte(
+                    ref state,
+                    M01OwnedCr3CompositeTransition
+                        .StatePageZeroLevelOffset,
+                    (byte)level);
+                break;
+            case M01OwnedCr3CompositeTransitionRuntimeStatus
+                .FirmwareCr3ReadbackMismatch:
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StateFirmwareCr3ReadbackOffset),
+                    state.OriginalCr3Raw);
+                break;
+            case M01OwnedCr3CompositeTransitionRuntimeStatus
+                .Cr4RestoreReadbackMismatch:
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StateRestoredCr4Offset),
+                    state.OriginalCr4Raw);
+                break;
+            case M01OwnedCr3CompositeTransitionRuntimeStatus
+                .RspRestoreMismatch:
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StateExitRspOffset),
+                    state.EntryRsp);
+                break;
+            case M01OwnedCr3CompositeTransitionRuntimeStatus
+                .PostRestoreCanaryMismatch:
+                OverwriteUlong(
+                    ref state,
+                    checked((int)M01OwnedCr3CompositeTransition
+                        .StatePostRestoreCanaryOffset),
+                    state.ReplacementCanary);
+                break;
+        }
+    }
+
+    private static M01OwnedCr3CompositeTransitionResult
+        ExecuteMissingAllocationTable(CompositeFixture fixture)
+    {
+        fixed (BootReservedRange* reservations =
+            fixture.Reservations)
+        fixed (X64BootIdentityMappingRange* mappings =
+            fixture.Mappings)
+        fixed (M01OwnedCr3CompositeTransitionRangeBinding* bindings =
+            fixture.Bindings)
+        {
+            return ExecuteRaw(
+                fixture,
+                null,
+                fixture.AllocationCount,
+                fixture.AllocationCapacity,
+                fixture.ReservationPointer,
+                fixture.ReservationCount,
+                fixture.ReservationCapacity,
+                mappings,
+                fixture.MappingCount,
+                (ulong)fixture.Mappings.Length,
+                bindings,
+                (ulong)fixture.Bindings.Length,
+                (ulong)fixture.Bindings.Length);
+        }
+    }
+
+    private static M01OwnedCr3CompositeTransitionResult
+        ExecuteMissingReservationTable(CompositeFixture fixture)
+    {
+        fixed (BootMemoryRegionRecord* allocations =
+            fixture.Allocations)
+        fixed (X64BootIdentityMappingRange* mappings =
+            fixture.Mappings)
+        fixed (M01OwnedCr3CompositeTransitionRangeBinding* bindings =
+            fixture.Bindings)
+        {
+            return ExecuteRaw(
+                fixture,
+                fixture.AllocationPointer,
+                fixture.AllocationCount,
+                fixture.AllocationCapacity,
+                null,
+                fixture.ReservationCount,
+                fixture.ReservationCapacity,
+                mappings,
+                fixture.MappingCount,
+                (ulong)fixture.Mappings.Length,
+                bindings,
+                (ulong)fixture.Bindings.Length,
+                (ulong)fixture.Bindings.Length);
+        }
+    }
+
+    private static M01OwnedCr3CompositeTransitionResult
+        ExecuteMissingMappingTable(CompositeFixture fixture)
+    {
+        fixed (BootMemoryRegionRecord* allocations =
+            fixture.Allocations)
+        fixed (BootReservedRange* reservations =
+            fixture.Reservations)
+        fixed (M01OwnedCr3CompositeTransitionRangeBinding* bindings =
+            fixture.Bindings)
+        {
+            return ExecuteRaw(
+                fixture,
+                fixture.AllocationPointer,
+                fixture.AllocationCount,
+                fixture.AllocationCapacity,
+                fixture.ReservationPointer,
+                fixture.ReservationCount,
+                fixture.ReservationCapacity,
+                null,
+                fixture.MappingCount,
+                (ulong)fixture.Mappings.Length,
+                bindings,
+                (ulong)fixture.Bindings.Length,
+                (ulong)fixture.Bindings.Length);
+        }
+    }
+
+    private static M01OwnedCr3CompositeTransitionResult
+        ExecuteMissingBindingTable(CompositeFixture fixture)
+    {
+        fixed (BootMemoryRegionRecord* allocations =
+            fixture.Allocations)
+        fixed (BootReservedRange* reservations =
+            fixture.Reservations)
+        fixed (X64BootIdentityMappingRange* mappings =
+            fixture.Mappings)
+        {
+            return ExecuteRaw(
+                fixture,
+                fixture.AllocationPointer,
+                fixture.AllocationCount,
+                fixture.AllocationCapacity,
+                fixture.ReservationPointer,
+                fixture.ReservationCount,
+                fixture.ReservationCapacity,
+                mappings,
+                fixture.MappingCount,
+                (ulong)fixture.Mappings.Length,
+                null,
+                (ulong)fixture.Bindings.Length,
+                (ulong)fixture.Bindings.Length);
+        }
+    }
+
+    private static M01OwnedCr3CompositeTransitionResult
+        ExecuteMisalignedAllocationTable(CompositeFixture fixture)
+    {
+        fixed (BootReservedRange* reservations =
+            fixture.Reservations)
+        fixed (X64BootIdentityMappingRange* mappings =
+            fixture.Mappings)
+        fixed (M01OwnedCr3CompositeTransitionRangeBinding* bindings =
+            fixture.Bindings)
+        {
+            return ExecuteRaw(
+                fixture,
+                (BootMemoryRegionRecord*)1,
+                1,
+                1,
+                fixture.ReservationPointer,
+                fixture.ReservationCount,
+                fixture.ReservationCapacity,
+                mappings,
+                fixture.MappingCount,
+                (ulong)fixture.Mappings.Length,
+                bindings,
+                (ulong)fixture.Bindings.Length,
+                (ulong)fixture.Bindings.Length);
+        }
+    }
+
+    private static M01OwnedCr3CompositeTransitionResult
+        ExecuteOverflowingAllocationTable(CompositeFixture fixture)
+    {
+        fixed (BootReservedRange* reservations =
+            fixture.Reservations)
+        fixed (X64BootIdentityMappingRange* mappings =
+            fixture.Mappings)
+        fixed (M01OwnedCr3CompositeTransitionRangeBinding* bindings =
+            fixture.Bindings)
+        {
+            return ExecuteRaw(
+                fixture,
+                (BootMemoryRegionRecord*)(~0UL - 7),
+                1,
+                1,
+                fixture.ReservationPointer,
+                fixture.ReservationCount,
+                fixture.ReservationCapacity,
+                mappings,
+                fixture.MappingCount,
+                (ulong)fixture.Mappings.Length,
+                bindings,
+                (ulong)fixture.Bindings.Length,
+                (ulong)fixture.Bindings.Length);
+        }
+    }
+
+    private static M01OwnedCr3CompositeTransitionResult
+        ExecuteAliasedTables(CompositeFixture fixture)
+    {
+        fixed (BootMemoryRegionRecord* allocations =
+            fixture.Allocations)
+        fixed (X64BootIdentityMappingRange* mappings =
+            fixture.Mappings)
+        fixed (M01OwnedCr3CompositeTransitionRangeBinding* bindings =
+            fixture.Bindings)
+        {
+            return ExecuteRaw(
+                fixture,
+                allocations,
+                1,
+                1,
+                (BootReservedRange*)allocations,
+                1,
+                1,
+                mappings,
+                fixture.MappingCount,
+                (ulong)fixture.Mappings.Length,
+                bindings,
+                (ulong)fixture.Bindings.Length,
+                (ulong)fixture.Bindings.Length);
+        }
+    }
+
+    private static M01OwnedCr3CompositeTransitionResult
+        ExecuteCapacityTailAliasedTables(CompositeFixture fixture)
+    {
+        void* storage = NativeMemory.AlignedAlloc(256, 8);
+        if (storage == null)
+        {
+            throw new OutOfMemoryException();
+        }
+
+        try
+        {
+            fixed (X64BootIdentityMappingRange* mappings =
+                fixture.Mappings)
+            fixed (M01OwnedCr3CompositeTransitionRangeBinding*
+                bindings = fixture.Bindings)
+            {
+                byte* bytes = (byte*)storage;
+                return ExecuteRaw(
+                    fixture,
+                    (BootMemoryRegionRecord*)bytes,
+                    1,
+                    2,
+                    (BootReservedRange*)(bytes + 64),
+                    1,
+                    1,
+                    mappings,
+                    fixture.MappingCount,
+                    (ulong)fixture.Mappings.Length,
+                    bindings,
+                    (ulong)fixture.Bindings.Length,
+                    (ulong)fixture.Bindings.Length);
+            }
+        }
+        finally
+        {
+            NativeMemory.AlignedFree(storage);
+        }
+    }
+
+    private static M01OwnedCr3CompositeTransitionResult ExecuteRaw(
+        CompositeFixture fixture,
+        BootMemoryRegionRecord* allocations,
+        ulong allocationCount,
+        ulong allocationCapacity,
+        BootReservedRange* reservations,
+        ulong reservationCount,
+        ulong reservationCapacity,
+        X64BootIdentityMappingRange* mappings,
+        ulong mappingCount,
+        ulong mappingCapacity,
+        M01OwnedCr3CompositeTransitionRangeBinding* bindings,
+        ulong bindingCount,
+        ulong bindingCapacity,
+        ulong? ownedCr3Raw = null,
+        ulong? expectedReturnAddress = null,
+        ulong? canaryAddress = null,
+        ulong expectedCanary = ExpectedCanary,
+        ulong replacementCanary = ReplacementCanary,
+        ulong? pageImageCount = null,
+        ulong? pageImageCapacity = null,
+        ulong? pageEntryCount = null,
+        ulong? pageEntryCapacity = null,
+        ulong stateDestinationCount = 1,
+        ulong stateDestinationCapacity = 1,
+        M01OwnedCr3CompositeTransitionRuntimeState*
+            stateDestination = null,
+        bool useNullStateDestination = false,
+        ulong* canaryDestination = null,
+        bool useNullCanaryDestination = false,
+        ulong canaryDestinationCount = 1,
+        ulong canaryDestinationCapacity = 1)
+    {
+        M01LivePagingIntegrationResult prior =
+            fixture.PriorEvidence;
+        fixed (X64PageTableImagePage* pageImages =
+            fixture.PageImages)
+        fixed (ulong* pageEntries = fixture.PageEntries)
+        {
+            return M01OwnedCr3CompositeTransition.CreateRuntimeState(
+                &prior,
+                1,
+                1,
+                allocations,
+                allocationCount,
+                allocationCapacity,
+                reservations,
+                reservationCount,
+                reservationCapacity,
+                mappings,
+                mappingCount,
+                mappingCapacity,
+                pageImages,
+                pageImageCount ?? fixture.PageImageCount,
+                pageImageCapacity
+                    ?? (ulong)fixture.PageImages.Length,
+                pageEntries,
+                pageEntryCount ?? fixture.PageEntryCount,
+                pageEntryCapacity
+                    ?? (ulong)fixture.PageEntries.Length,
+                bindings,
+                bindingCount,
+                bindingCapacity,
+                useNullStateDestination
+                    ? null
+                    : stateDestination == null
+                        ? fixture.StateDestination
+                        : stateDestination,
+                stateDestinationCount,
+                stateDestinationCapacity,
+                useNullCanaryDestination
+                    ? null
+                    : canaryDestination == null
+                        ? fixture.CanaryDestination
+                        : canaryDestination,
+                canaryDestinationCount,
+                canaryDestinationCapacity,
+                Virtual(fixture.RuntimeStateAddress),
+                ownedCr3Raw ?? fixture.OwnedCr3Value,
+                Virtual(
+                    expectedReturnAddress
+                    ?? fixture.ExpectedReturnAddressValue),
+                Virtual(
+                    canaryAddress
+                    ?? fixture.CanaryAddressValue),
+                expectedCanary,
+                replacementCanary);
+        }
+    }
+
+    private static BootMemoryRegionRecord Record(
+        UefiMemoryType type,
+        ulong start,
+        ulong pages)
+    {
+        ulong length = checked(pages * 4096);
+        return new BootMemoryRegionRecord(
+            (uint)type,
+            start,
+            start,
+            pages,
+            0,
+            length,
+            checked(start + length));
+    }
+
+    private static BootReservedRange Reservation(
+        BootReservationKind kind,
+        ulong start,
+        ulong pages)
+    {
+        BootReservedRangeStatus status =
+            BootReservedRange.TryCreate(
+                kind,
+                Physical(start),
+                pages,
+                out BootReservedRange range);
+        if (status != BootReservedRangeStatus.Success)
+        {
+            throw new InvalidOperationException(
+                "Invalid canonical reservation: " + status);
+        }
+
+        return range;
+    }
+
+    private static M01OwnedCr3CompositeTransitionRangeBinding
+        Binding(
+            M01OwnedCr3CompositeTransitionRangeRole role,
+            M01OwnedCr3CompositeTransitionRangeProvenance provenance,
+            ulong start,
+            ulong end,
+            ulong allocationIndex,
+            ulong reservationIndex,
+            ulong mappingIndex)
+    {
+        return new M01OwnedCr3CompositeTransitionRangeBinding(
+            role,
+            provenance,
+            Physical(start),
+            Physical(end),
+            Virtual(start),
+            Virtual(end),
+            allocationIndex,
+            reservationIndex,
+            mappingIndex);
+    }
+
+    private static X64BootIdentityMappingRequirement Requirement(
+        X64BootIdentityMappingPurpose purpose,
+        ulong start,
+        ulong end,
+        PageProtection protection,
+        PageCachePolicy cachePolicy = PageCachePolicy.WriteBack)
+    {
+        ulong length = checked(end - start);
+        return new X64BootIdentityMappingRequirement(
+            purpose,
+            Physical(start),
+            Physical(end),
+            length / 4096,
+            length,
+            protection,
+            cachePolicy);
+    }
+
+    private static PhysicalAddress Physical(ulong value)
+    {
+        AddressValueStatus status =
+            PhysicalAddress.TryCreateFromHardwareRegisterBoundary(
+                value,
+                out PhysicalAddress address);
+        if (status != AddressValueStatus.Success)
+        {
+            throw new InvalidOperationException(
+                "Invalid test physical address.");
+        }
+
+        return address;
+    }
+
+    private static VirtualAddress Virtual(ulong value)
+    {
+        AddressValueStatus status =
+            VirtualAddress.TryCreateFromHardwareRegisterBoundary(
+                value,
+                out VirtualAddress address);
+        if (status != AddressValueStatus.Success)
+        {
+            throw new InvalidOperationException(
+                "Invalid test virtual address.");
+        }
+
+        return address;
+    }
+
+    private static ulong Raw(PhysicalAddress address)
+    {
+        if (address.TryGetRawValueForHardwareRegisterBoundary(
+                out ulong value) != AddressValueStatus.Success)
+        {
+            throw new InvalidOperationException(
+                "Invalid test physical address.");
+        }
+
+        return value;
+    }
+
+    private static ulong Raw(VirtualAddress address)
+    {
+        if (address.TryGetRawValueForHardwareRegisterBoundary(
+                out ulong value) != AddressValueStatus.Success)
+        {
+            throw new InvalidOperationException(
+                "Invalid test virtual address.");
+        }
+
+        return value;
+    }
+
+    private static X64PageTableEncodingPreconditions
+        EncodingPreconditions()
+    {
+        const ulong PatFixture = 0x0006_0501_0007_0406UL;
+        X64PageTableEntryStatus status =
+            X64PatMappingToken.TryCreate(
+                PatFixture,
+                writeBackIndex: 0,
+                uncachedIndex: 3,
+                writeCombiningIndex: 4,
+                out X64PatMappingToken token);
+        if (status != X64PageTableEntryStatus.Success)
+        {
+            throw new InvalidOperationException(
+                "Invalid canonical PAT fixture.");
+        }
+
+        return X64PageTableEncodingPreconditions.CreateObserved(
+            physicalAddressWidth: 48,
+            nxeEnabled: true,
+            writeProtectEnabled: true,
+            fiveLevelPagingEnabled: false,
+            oneGiBPagesSupported: false,
+            token);
+    }
+
+    private sealed unsafe class CompositePlanStorage : IDisposable
+    {
+        private const int ByteTailLength = 32;
+        private const int SemanticTailRecords = 2;
+        private readonly int _byteStorageLength;
+        private readonly int _semanticStorageLength;
+        private readonly bool _ownsBytes;
+
+        internal CompositePlanStorage()
+        {
+            _byteStorageLength = checked((int)
+                M01OwnedCr3CompositeTransition.MaximumByteCapacity
+                + ByteTailLength);
+            _semanticStorageLength = checked((int)(
+                M01OwnedCr3CompositeTransition
+                    .AuditedSemanticRecordCount
+                + SemanticTailRecords)
+                * sizeof(
+                    M01OwnedCr3CompositeTransitionSemanticRecord));
+            _ownsBytes = true;
+            Bytes = (byte*)NativeMemory.AlignedAlloc(
+                (nuint)_byteStorageLength,
+                16);
+            Semantics =
+                (M01OwnedCr3CompositeTransitionSemanticRecord*)
+                    NativeMemory.AlignedAlloc(
+                        (nuint)_semanticStorageLength,
+                        16);
+            if (Bytes == null || Semantics == null)
+            {
+                Dispose();
+                throw new OutOfMemoryException();
+            }
+        }
+
+        internal CompositePlanStorage(byte* canonicalCodePage)
+        {
+            if (canonicalCodePage == null
+                || ((ulong)canonicalCodePage
+                    & (M01OwnedCr3CompositeTransition
+                        .EntryAlignment - 1)) != 0)
+            {
+                throw new ArgumentException(
+                    "Canonical composite code page is missing or misaligned.",
+                    nameof(canonicalCodePage));
+            }
+
+            _byteStorageLength = checked((int)
+                M01OwnedCr3CompositeTransition
+                    .MaterializedPageByteLength);
+            _semanticStorageLength = checked((int)(
+                M01OwnedCr3CompositeTransition
+                    .AuditedSemanticRecordCount
+                + SemanticTailRecords)
+                * sizeof(
+                    M01OwnedCr3CompositeTransitionSemanticRecord));
+            _ownsBytes = false;
+            Bytes = canonicalCodePage;
+            Semantics =
+                (M01OwnedCr3CompositeTransitionSemanticRecord*)
+                    NativeMemory.AlignedAlloc(
+                        (nuint)_semanticStorageLength,
+                        16);
+            if (Semantics == null)
+            {
+                Bytes = null;
+                throw new OutOfMemoryException();
+            }
+        }
+
+        internal byte* Bytes { get; private set; }
+
+        internal M01OwnedCr3CompositeTransitionSemanticRecord*
+            Semantics
+        {
+            get;
+            private set;
+        }
+
+        internal void Fill(byte value)
+        {
+            new Span<byte>(Bytes, _byteStorageLength).Fill(value);
+            new Span<byte>(
+                Semantics,
+                _semanticStorageLength).Fill(value);
+        }
+
+        internal byte[] CopyAllBytes()
+        {
+            return new ReadOnlySpan<byte>(
+                Bytes,
+                _byteStorageLength).ToArray();
+        }
+
+        internal byte[] CopyAllSemantics()
+        {
+            return new ReadOnlySpan<byte>(
+                Semantics,
+                _semanticStorageLength).ToArray();
+        }
+
+        internal byte[] CopyBytes(ulong count)
+        {
+            return new ReadOnlySpan<byte>(
+                Bytes,
+                checked((int)count)).ToArray();
+        }
+
+        internal byte[] CopySemantics(ulong count)
+        {
+            return new ReadOnlySpan<byte>(
+                Semantics,
+                checked((int)(count
+                    * M01OwnedCr3CompositeTransitionSemanticRecord
+                        .StructureSize))).ToArray();
+        }
+
+        internal bool AllStorageEquals(
+            byte[] bytes,
+            byte[] semantics)
+        {
+            return new ReadOnlySpan<byte>(
+                    Bytes,
+                    _byteStorageLength).SequenceEqual(bytes)
+                && new ReadOnlySpan<byte>(
+                    Semantics,
+                    _semanticStorageLength).SequenceEqual(semantics);
+        }
+
+        internal bool ExactPrefixesEqual(
+            byte[] bytes,
+            byte[] semantics)
+        {
+            return new ReadOnlySpan<byte>(
+                    Bytes,
+                    bytes.Length).SequenceEqual(bytes)
+                && new ReadOnlySpan<byte>(
+                    Semantics,
+                    semantics.Length).SequenceEqual(semantics);
+        }
+
+        internal bool TailsEqual(byte value)
+        {
+            ReadOnlySpan<byte> byteTail =
+                (ulong)_byteStorageLength
+                    > M01OwnedCr3CompositeTransition
+                        .MaximumByteCapacity
+                ? new ReadOnlySpan<byte>(
+                    Bytes
+                        + M01OwnedCr3CompositeTransition
+                            .MaximumByteCapacity,
+                    checked(_byteStorageLength
+                        - (int)M01OwnedCr3CompositeTransition
+                            .MaximumByteCapacity))
+                : ReadOnlySpan<byte>.Empty;
+            ReadOnlySpan<byte> semanticTail = new(
+                (byte*)Semantics
+                    + M01OwnedCr3CompositeTransition
+                        .AuditedSemanticRecordCount
+                        * M01OwnedCr3CompositeTransitionSemanticRecord
+                            .StructureSize,
+                SemanticTailRecords
+                    * checked((int)
+                        M01OwnedCr3CompositeTransitionSemanticRecord
+                            .StructureSize));
+            for (int index = 0; index < byteTail.Length; index++)
+            {
+                if (byteTail[index] != value)
+                {
+                    return false;
+                }
+            }
+            for (int index = 0;
+                index < semanticTail.Length;
+                index++)
+            {
+                if (semanticTail[index] != value)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        internal bool ZeroFilledPageTail(ulong instructionByteLength)
+        {
+            if (instructionByteLength == 0
+                || instructionByteLength
+                    > M01OwnedCr3CompositeTransition
+                        .MaterializedPageByteLength)
+            {
+                return false;
+            }
+
+            ReadOnlySpan<byte> tail = new(
+                Bytes + instructionByteLength,
+                checked((int)(
+                    M01OwnedCr3CompositeTransition
+                        .MaterializedPageByteLength
+                    - instructionByteLength)));
+            for (int index = 0; index < tail.Length; index++)
+            {
+                if (tail[index] != 0)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        public void Dispose()
+        {
+            byte* bytes = Bytes;
+            Bytes = null;
+            if (_ownsBytes && bytes != null)
+            {
+                NativeMemory.AlignedFree(bytes);
+            }
+
+            M01OwnedCr3CompositeTransitionSemanticRecord*
+                semantics = Semantics;
+            Semantics = null;
+            if (semantics != null)
+            {
+                NativeMemory.AlignedFree(semantics);
+            }
+        }
+    }
+
+    private sealed unsafe class CompositeFixture : IDisposable
+    {
+        private object? _priorFixture;
+
+        private CompositeFixture()
+        {
+        }
+
+        internal required BootMemoryRegionRecord[] Allocations
+        {
+            get;
+            init;
+        }
+
+        internal required BootReservedRange[] Reservations
+        {
+            get;
+            init;
+        }
+
+        internal required X64BootIdentityMappingRange[] Mappings
+        {
+            get;
+            init;
+        }
+
+        internal required ulong MappingCount { get; init; }
+
+        internal required M01OwnedCr3CompositeTransitionRangeBinding[]
+            Bindings
+        {
+            get;
+            init;
+        }
+
+        internal required ulong CodeMappingIndex { get; init; }
+
+        internal required ulong TableMappingIndex { get; init; }
+
+        internal M01LivePagingIntegrationResult PriorEvidence;
+
+        internal BootMemoryRegionRecord* AllocationPointer;
+
+        internal ulong AllocationCount;
+
+        internal ulong AllocationCapacity;
+
+        internal BootReservedRange* ReservationPointer;
+
+        internal ulong ReservationCount;
+
+        internal ulong ReservationCapacity;
+
+        internal X64PageTableImagePage[] PageImages
+        {
+            get;
+            init;
+        } = [];
+
+        internal ulong[] PageEntries { get; init; } = [];
+
+        internal ulong PageImageCount;
+
+        internal ulong PageEntryCount;
+
+        internal M01OwnedCr3CompositeTransitionRuntimeState*
+            StateDestination;
+
+        internal ulong RuntimeStateAddress;
+
+        internal ulong ExpectedReturnAddressValue;
+
+        internal ulong CanaryAddressValue;
+
+        internal ulong* CanaryDestination;
+
+        internal ulong OwnedCr3Value;
+
+        internal ulong ProbeStartValue;
+
+        internal ulong ProbeEndValue;
+
+        internal ulong ExpectedProbePteAddressValue;
+
+        internal ulong InitialProbePteValue;
+
+        internal ulong FinalProbePteValue;
+
+        internal static CompositeFixture Create()
+        {
+            const BindingFlags Flags =
+                BindingFlags.Instance
+                | BindingFlags.Public
+                | BindingFlags.NonPublic;
+            Type fixtureType = typeof(M01LivePagingIntegrationTests)
+                .GetNestedType(
+                    "CanonicalFixture",
+                    BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException(
+                    "M01-019 canonical fixture type is unavailable.");
+            object inner = Activator.CreateInstance(
+                fixtureType,
+                Flags,
+                binder: null,
+                args: null,
+                culture: null)
+                ?? throw new InvalidOperationException(
+                    "M01-019 canonical fixture construction failed.");
+            try
+            {
+                MethodInfo execute = fixtureType.GetMethod(
+                    "ExecuteCurrent",
+                    Flags)
+                    ?? throw new InvalidOperationException(
+                        "M01-019 fixture executor is unavailable.");
+                object? boxedPrior = execute.Invoke(
+                    inner,
+                    [M01LivePagingByteMode.EmitAndVerify]);
+                if (boxedPrior
+                        is not M01LivePagingIntegrationResult prior
+                    || !prior.Succeeded)
+                {
+                    throw new InvalidOperationException(
+                        "M01-019 canonical evidence was not successful.");
+                }
+
+                BootMemoryRegionRecord* records =
+                    (BootMemoryRegionRecord*)UnboxPointer(
+                        GetProperty(inner, fixtureType, "Records"));
+                BootReservedRange* ledger =
+                    (BootReservedRange*)UnboxPointer(
+                        GetProperty(inner, fixtureType, "Ledger"));
+                ulong ledgerCount = (ulong)GetProperty(
+                    inner,
+                    fixtureType,
+                    "LedgerCount");
+                ulong ledgerCapacity = (ulong)GetProperty(
+                    inner,
+                    fixtureType,
+                    "LedgerCapacity");
+                X64BootIdentityMappingRange[] mappings =
+                    (X64BootIdentityMappingRange[])GetProperty(
+                        inner,
+                        fixtureType,
+                        "MappingRanges");
+                X64PageTableImagePage[] pageImages =
+                    (X64PageTableImagePage[])GetProperty(
+                        inner,
+                        fixtureType,
+                        "PageImages");
+                ulong[] entries = (ulong[])GetProperty(
+                    inner,
+                    fixtureType,
+                    "Entries");
+
+                ulong allocationCount =
+                    prior.Evidence.AllocationEvidence
+                        .AllocationRecordCount;
+                ulong allocationCapacity =
+                    prior.Evidence.AllocationEvidence
+                        .AllocationRecordCapacity;
+                ulong mappingCount =
+                    prior.Evidence.MappingPlan.OutputRangeCount;
+                ulong pageImageCount =
+                    prior.Evidence.TableBuild.TablePageCount;
+                ulong pageEntryCount =
+                    prior.Evidence.TableBuild.EntryCount;
+                ulong codeStart = records[0].PhysicalStart;
+                ulong codeEnd = records[0].PhysicalEndExclusive;
+                ulong probeStart = records[1].PhysicalStart;
+                ulong probeEnd = records[1].PhysicalEndExclusive;
+                ulong tableStart = records[2].PhysicalStart;
+                ulong tableEnd = records[2].PhysicalEndExclusive;
+                ulong stateStart = checked(
+                    tableStart + pageImageCount * 4096);
+
+                ulong codeReservation = FindReservation(
+                    ledger,
+                    ledgerCount,
+                    BootReservationKind.Cr3TransitionStub,
+                    codeStart,
+                    codeEnd,
+                    exact: true);
+                ulong probeReservation = FindReservation(
+                    ledger,
+                    ledgerCount,
+                    BootReservationKind.PageProtectionProbe,
+                    probeStart,
+                    probeEnd,
+                    exact: true);
+                ulong tableReservation = FindReservation(
+                    ledger,
+                    ledgerCount,
+                    BootReservationKind.PageTableArena,
+                    tableStart,
+                    tableEnd,
+                    exact: true);
+                ulong stackReservation = FindReservationByKind(
+                    ledger,
+                    ledgerCount,
+                    BootReservationKind.BootStack);
+                ulong stackStart = Raw(
+                    ledger[stackReservation].PhysicalStart);
+                ulong stackEnd = Raw(
+                    ledger[stackReservation].PhysicalEndExclusive);
+                ulong continuationReservation =
+                    FindReservationByKind(
+                        ledger,
+                        ledgerCount,
+                        BootReservationKind.LoadedImage);
+                ulong loadedStart = Raw(
+                    ledger[continuationReservation].PhysicalStart);
+                ulong loadedEnd = Raw(
+                    ledger[continuationReservation]
+                        .PhysicalEndExclusive);
+
+                ulong codeMapping = FindMapping(
+                    mappings,
+                    mappingCount,
+                    codeStart,
+                    codeEnd);
+                ulong probeMapping = FindMapping(
+                    mappings,
+                    mappingCount,
+                    probeStart,
+                    probeEnd);
+                ulong tableMapping = FindMapping(
+                    mappings,
+                    mappingCount,
+                    tableStart,
+                    tableEnd);
+                ulong stackMapping = FindMapping(
+                    mappings,
+                    mappingCount,
+                    stackStart,
+                    stackEnd);
+                ulong continuationMapping =
+                    FindMappingForPurpose(
+                        mappings,
+                        mappingCount,
+                        loadedStart,
+                        loadedEnd,
+                        X64BootIdentityMappingPurpose.ExecutingImage,
+                        PageProtection.Read
+                            | PageProtection.Execute,
+                        out ulong continuationStart,
+                        out ulong continuationEnd);
+
+                ulong root = Raw(
+                    prior.Evidence.TableBuild.RootTable);
+                ulong probeLeafIndex =
+                    prior.Evidence.TableBuild.ProbeLeafEntryIndex;
+                ulong probePteAddress = checked(
+                    Raw(pageImages[probeLeafIndex / 512]
+                        .PhysicalStart)
+                    + (probeLeafIndex % 512) * sizeof(ulong));
+                ulong initialProbePte =
+                    entries[probeLeafIndex];
+                ulong finalProbePte =
+                    initialProbePte
+                    & ~(M01OwnedCr3CompositeTransition
+                            .PageWritableBit
+                        | M01OwnedCr3CompositeTransition
+                            .PageNoExecuteBit);
+
+                M01OwnedCr3CompositeTransitionRangeBinding[]
+                    bindings =
+                [
+                    Binding(
+                        M01OwnedCr3CompositeTransitionRangeRole
+                            .CompositeCode,
+                        M01OwnedCr3CompositeTransitionRangeProvenance
+                            .AllocationReservationAndIdentityMapping,
+                        codeStart,
+                        codeEnd,
+                        0,
+                        codeReservation,
+                        codeMapping),
+                    Binding(
+                        M01OwnedCr3CompositeTransitionRangeRole
+                            .OwnedStack,
+                        M01OwnedCr3CompositeTransitionRangeProvenance
+                            .ReservationAndIdentityMapping,
+                        stackStart,
+                        stackEnd,
+                        M01OwnedCr3CompositeTransitionRangeBinding
+                            .NoIndex,
+                        stackReservation,
+                        stackMapping),
+                    Binding(
+                        M01OwnedCr3CompositeTransitionRangeRole
+                            .LoadedImageContinuationPage,
+                        M01OwnedCr3CompositeTransitionRangeProvenance
+                            .ReservationAndIdentityMapping,
+                        continuationStart,
+                        continuationEnd,
+                        M01OwnedCr3CompositeTransitionRangeBinding
+                            .NoIndex,
+                        continuationReservation,
+                        continuationMapping),
+                    Binding(
+                        M01OwnedCr3CompositeTransitionRangeRole
+                            .ProbePage,
+                        M01OwnedCr3CompositeTransitionRangeProvenance
+                            .AllocationReservationAndIdentityMapping,
+                        probeStart,
+                        probeEnd,
+                        1,
+                        probeReservation,
+                        probeMapping),
+                    Binding(
+                        M01OwnedCr3CompositeTransitionRangeRole
+                            .CompleteTableArena,
+                        M01OwnedCr3CompositeTransitionRangeProvenance
+                            .AllocationReservationAndIdentityMapping,
+                        tableStart,
+                        tableEnd,
+                        2,
+                        tableReservation,
+                        tableMapping),
+                    Binding(
+                        M01OwnedCr3CompositeTransitionRangeRole
+                            .RuntimeStateAndCanary,
+                        M01OwnedCr3CompositeTransitionRangeProvenance
+                            .ContainedInAllocationReservationAndIdentityMapping,
+                        stateStart,
+                        tableEnd,
+                        2,
+                        tableReservation,
+                        tableMapping),
+                    Binding(
+                        M01OwnedCr3CompositeTransitionRangeRole
+                            .OwnedRoot,
+                        M01OwnedCr3CompositeTransitionRangeProvenance
+                            .ContainedInAllocationReservationAndIdentityMapping,
+                        root,
+                        root + 4096,
+                        2,
+                        tableReservation,
+                        tableMapping)
+                ];
+
+                BootMemoryRegionRecord[] allocationMirror =
+                    new BootMemoryRegionRecord[
+                        checked((int)allocationCount)];
+                for (int index = 0;
+                    index < allocationMirror.Length;
+                    index++)
+                {
+                    allocationMirror[index] = records[index];
+                }
+                BootReservedRange[] reservationMirror =
+                    new BootReservedRange[checked((int)ledgerCount)];
+                for (int index = 0;
+                    index < reservationMirror.Length;
+                    index++)
+                {
+                    reservationMirror[index] = ledger[index];
+                }
+
+                return new CompositeFixture
+                {
+                    _priorFixture = inner,
+                    PriorEvidence = prior,
+                    AllocationPointer = records,
+                    AllocationCount = allocationCount,
+                    AllocationCapacity = allocationCapacity,
+                    ReservationPointer = ledger,
+                    ReservationCount = ledgerCount,
+                    ReservationCapacity = ledgerCapacity,
+                    Allocations = allocationMirror,
+                    Reservations = reservationMirror,
+                    Mappings = mappings,
+                    MappingCount = mappingCount,
+                    PageImages = pageImages,
+                    PageEntries = entries,
+                    PageImageCount = pageImageCount,
+                    PageEntryCount = pageEntryCount,
+                    Bindings = bindings,
+                    StateDestination =
+                        (M01OwnedCr3CompositeTransitionRuntimeState*)
+                            stateStart,
+                    RuntimeStateAddress = stateStart,
+                    ExpectedReturnAddressValue =
+                        continuationStart + 0x100,
+                    CanaryAddressValue =
+                        stateStart
+                        + M01OwnedCr3CompositeTransitionRuntimeState
+                            .StructureSize,
+                    CanaryDestination =
+                        (ulong*)(stateStart
+                            + M01OwnedCr3CompositeTransitionRuntimeState
+                                .StructureSize),
+                    OwnedCr3Value = root,
+                    ProbeStartValue = probeStart,
+                    ProbeEndValue = probeEnd,
+                    ExpectedProbePteAddressValue = probePteAddress,
+                    InitialProbePteValue = initialProbePte,
+                    FinalProbePteValue = finalProbePte,
+                    CodeMappingIndex = codeMapping,
+                    TableMappingIndex = tableMapping
+                };
+            }
+            catch
+            {
+                ((IDisposable)inner).Dispose();
+                throw;
+            }
+        }
+
+        private static CompositeFixture CreateSynthetic()
+        {
+            X64BootIdentityMappingRequirement[] requirements =
+            [
+                Requirement(
+                    X64BootIdentityMappingPurpose.BootStackGuard,
+                    0x1000,
+                    0x2000,
+                    PageProtection.None,
+                    PageCachePolicy.Uninitialized),
+                Requirement(
+                    X64BootIdentityMappingPurpose.AdditionalRequired,
+                    TablePageArenaStart,
+                    TablePageArenaEnd,
+                    PageProtection.Read | PageProtection.Write),
+                Requirement(
+                    X64BootIdentityMappingPurpose.BootHandoff,
+                    0x0030_0000,
+                    0x0030_1000,
+                    PageProtection.Read),
+                Requirement(
+                    X64BootIdentityMappingPurpose.AdditionalRequired,
+                    CompositeCodeStart,
+                    CompositeCodeEnd,
+                    PageProtection.Read | PageProtection.Execute),
+                Requirement(
+                    X64BootIdentityMappingPurpose.ExecutingImage,
+                    CompositeCodeStart,
+                    CompositeCodeEnd,
+                    PageProtection.Read | PageProtection.Execute),
+                Requirement(
+                    X64BootIdentityMappingPurpose.SerialStub,
+                    0x0050_0000,
+                    0x0050_1000,
+                    PageProtection.Read | PageProtection.Execute),
+                Requirement(
+                    X64BootIdentityMappingPurpose.ExecutingImage,
+                    ContinuationPageStart,
+                    ContinuationPageEnd,
+                    PageProtection.Read | PageProtection.Execute),
+                Requirement(
+                    X64BootIdentityMappingPurpose.OwnedStack,
+                    StackStart,
+                    StackEnd,
+                    PageProtection.Read | PageProtection.Write),
+                Requirement(
+                    X64BootIdentityMappingPurpose.AdditionalRequired,
+                    ProbePageStart,
+                    ProbePageEnd,
+                    PageProtection.Read | PageProtection.Write),
+                Requirement(
+                    X64BootIdentityMappingPurpose.AcpiScratch,
+                    0x00a0_0000,
+                    0x00a0_1000,
+                    PageProtection.Read),
+                Requirement(
+                    X64BootIdentityMappingPurpose.FramebufferMetadata,
+                    0x00b0_0000,
+                    0x00b0_1000,
+                    PageProtection.Read)
+            ];
+            X64BootIdentityMappingRange[] mappings =
+                new X64BootIdentityMappingRange[32];
+            X64BootIdentityMappingPlanResult plan;
+            fixed (X64BootIdentityMappingRequirement* source =
+                requirements)
+            fixed (X64BootIdentityMappingRange* destination =
+                mappings)
+            {
+                plan = X64BootIdentityMappingPlan.Create(
+                    source,
+                    (ulong)requirements.Length,
+                    (ulong)requirements.Length,
+                    destination,
+                    (ulong)mappings.Length,
+                    64,
+                    EncodingPreconditions());
+            }
+            if (!plan.Succeeded)
+            {
+                throw new InvalidOperationException(
+                    "Canonical identity plan failed: "
+                    + plan.Status);
+            }
+
+            BootMemoryRegionRecord[] allocations =
+            [
+                Record(UefiMemoryType.LoaderCode, CompositeCodeStart, 1),
+                Record(UefiMemoryType.LoaderData, StackStart, 1),
+                Record(
+                    UefiMemoryType.LoaderCode,
+                    ContinuationPageStart,
+                    1),
+                Record(UefiMemoryType.LoaderCode, ProbePageStart, 1),
+                Record(
+                    UefiMemoryType.LoaderData,
+                    TablePageArenaStart,
+                    5)
+            ];
+            BootReservedRange[] reservations =
+            [
+                Reservation(
+                    BootReservationKind.Cr3TransitionStub,
+                    CompositeCodeStart,
+                    1),
+                Reservation(
+                    BootReservationKind.BootStack,
+                    StackStart,
+                    1),
+                Reservation(
+                    BootReservationKind.LoadedImage,
+                    ContinuationPageStart,
+                    1),
+                Reservation(
+                    BootReservationKind.PageProtectionProbe,
+                    ProbePageStart,
+                    1),
+                Reservation(
+                    BootReservationKind.PageTableArena,
+                    TablePageArenaStart,
+                    5)
+            ];
+
+            ulong codeMapping = FindMapping(
+                mappings,
+                plan.OutputRangeCount,
+                CompositeCodeStart,
+                CompositeCodeEnd);
+            ulong continuationMapping = FindMapping(
+                mappings,
+                plan.OutputRangeCount,
+                ContinuationPageStart,
+                ContinuationPageEnd);
+            ulong stackMapping = FindMapping(
+                mappings,
+                plan.OutputRangeCount,
+                StackStart,
+                StackEnd);
+            ulong probeMapping = FindMapping(
+                mappings,
+                plan.OutputRangeCount,
+                ProbePageStart,
+                ProbePageEnd);
+            ulong tableMapping = FindMapping(
+                mappings,
+                plan.OutputRangeCount,
+                TablePageArenaStart,
+                TablePageArenaEnd);
+
+            M01OwnedCr3CompositeTransitionRangeBinding[] bindings =
+            [
+                Binding(
+                    M01OwnedCr3CompositeTransitionRangeRole
+                        .CompositeCode,
+                    M01OwnedCr3CompositeTransitionRangeProvenance
+                        .AllocationReservationAndIdentityMapping,
+                    CompositeCodeStart,
+                    CompositeCodeEnd,
+                    0,
+                    0,
+                    codeMapping),
+                Binding(
+                    M01OwnedCr3CompositeTransitionRangeRole
+                        .OwnedStack,
+                    M01OwnedCr3CompositeTransitionRangeProvenance
+                        .AllocationReservationAndIdentityMapping,
+                    StackStart,
+                    StackEnd,
+                    1,
+                    1,
+                    stackMapping),
+                Binding(
+                    M01OwnedCr3CompositeTransitionRangeRole
+                        .LoadedImageContinuationPage,
+                    M01OwnedCr3CompositeTransitionRangeProvenance
+                        .AllocationReservationAndIdentityMapping,
+                    ContinuationPageStart,
+                    ContinuationPageEnd,
+                    2,
+                    2,
+                    continuationMapping),
+                Binding(
+                    M01OwnedCr3CompositeTransitionRangeRole.ProbePage,
+                    M01OwnedCr3CompositeTransitionRangeProvenance
+                        .AllocationReservationAndIdentityMapping,
+                    ProbePageStart,
+                    ProbePageEnd,
+                    3,
+                    3,
+                    probeMapping),
+                Binding(
+                    M01OwnedCr3CompositeTransitionRangeRole
+                        .CompleteTableArena,
+                    M01OwnedCr3CompositeTransitionRangeProvenance
+                        .AllocationReservationAndIdentityMapping,
+                    TablePageArenaStart,
+                    TablePageArenaEnd,
+                    4,
+                    4,
+                    tableMapping),
+                Binding(
+                    M01OwnedCr3CompositeTransitionRangeRole
+                        .RuntimeStateAndCanary,
+                    M01OwnedCr3CompositeTransitionRangeProvenance
+                        .ContainedInAllocationReservationAndIdentityMapping,
+                    TableStateArenaStart,
+                    TableStateArenaEnd,
+                    4,
+                    4,
+                    tableMapping),
+                Binding(
+                    M01OwnedCr3CompositeTransitionRangeRole.OwnedRoot,
+                    M01OwnedCr3CompositeTransitionRangeProvenance
+                        .ContainedInAllocationReservationAndIdentityMapping,
+                    TablePageArenaStart,
+                    TablePageArenaStart + 4096,
+                    4,
+                    4,
+                    tableMapping)
+            ];
+
+            return new CompositeFixture
+            {
+                Allocations = allocations,
+                Reservations = reservations,
+                Mappings = mappings,
+                MappingCount = plan.OutputRangeCount,
+                Bindings = bindings,
+                CodeMappingIndex = codeMapping,
+                TableMappingIndex = tableMapping
+            };
+        }
+
+        internal void SetMappingProtection(
+            ulong mappingIndex,
+            PageProtection protection)
+        {
+            if (mappingIndex >= (ulong)Mappings.Length)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(mappingIndex));
+            }
+
+            int fieldOffset = checked((int)Marshal.OffsetOf<
+                X64BootIdentityMappingRange>("_protection"));
+            fixed (X64BootIdentityMappingRange* mappings =
+                Mappings)
+            {
+                byte* field = (byte*)(mappings + mappingIndex)
+                    + fieldOffset;
+                *field = (byte)protection;
+            }
+        }
+
+        internal void SetMappingUlong(
+            ulong mappingIndex,
+            string fieldName,
+            ulong value)
+        {
+            if (mappingIndex >= (ulong)Mappings.Length)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(mappingIndex));
+            }
+
+            int fieldOffset = checked((int)Marshal.OffsetOf<
+                X64BootIdentityMappingRange>(fieldName));
+            fixed (X64BootIdentityMappingRange* mappings =
+                Mappings)
+            {
+                *(ulong*)((byte*)(mappings + mappingIndex)
+                    + fieldOffset) = value;
+            }
+        }
+
+        internal M01OwnedCr3CompositeTransitionResult Execute(
+            ulong? allocationCount = null,
+            ulong? allocationCapacity = null,
+            ulong? reservationCount = null,
+            ulong? reservationCapacity = null,
+            ulong? mappingCount = null,
+            ulong? mappingCapacity = null,
+            ulong? pageImageCount = null,
+            ulong? pageImageCapacity = null,
+            ulong? pageEntryCount = null,
+            ulong? pageEntryCapacity = null,
+            ulong? bindingCount = null,
+            ulong? bindingCapacity = null,
+            ulong? stateDestinationCount = null,
+            ulong? stateDestinationCapacity = null,
+            M01OwnedCr3CompositeTransitionRuntimeState*
+                stateDestination = null,
+            bool useNullStateDestination = false,
+            ulong* canaryDestination = null,
+            bool useNullCanaryDestination = false,
+            ulong? canaryDestinationCount = null,
+            ulong? canaryDestinationCapacity = null,
+            ulong? ownedCr3Raw = null,
+            ulong? expectedReturnAddress = null,
+            ulong? canaryAddress = null,
+            ulong expectedCanary = ExpectedCanary,
+            ulong replacementCanary = ReplacementCanary)
+        {
+            fixed (X64BootIdentityMappingRange* mappings = Mappings)
+            fixed (M01OwnedCr3CompositeTransitionRangeBinding*
+                bindings = Bindings)
+            {
+                return ExecuteRaw(
+                    this,
+                    AllocationPointer,
+                    allocationCount ?? AllocationCount,
+                    allocationCapacity
+                        ?? AllocationCapacity,
+                    ReservationPointer,
+                    reservationCount ?? ReservationCount,
+                    reservationCapacity
+                        ?? ReservationCapacity,
+                    mappings,
+                    mappingCount ?? MappingCount,
+                    mappingCapacity ?? (ulong)Mappings.Length,
+                    bindings,
+                    bindingCount ?? (ulong)Bindings.Length,
+                    bindingCapacity ?? (ulong)Bindings.Length,
+                    ownedCr3Raw ?? OwnedCr3Value,
+                    expectedReturnAddress
+                        ?? ExpectedReturnAddressValue,
+                    canaryAddress ?? CanaryAddressValue,
+                    expectedCanary,
+                    replacementCanary,
+                    pageImageCount ?? PageImageCount,
+                    pageImageCapacity
+                        ?? (ulong)PageImages.Length,
+                    pageEntryCount ?? PageEntryCount,
+                    pageEntryCapacity
+                        ?? (ulong)PageEntries.Length,
+                    stateDestinationCount ?? 1,
+                    stateDestinationCapacity ?? 1,
+                    stateDestination,
+                    useNullStateDestination,
+                    canaryDestination == null
+                        ? CanaryDestination
+                        : canaryDestination,
+                    useNullCanaryDestination,
+                    canaryDestinationCount ?? 1,
+                    canaryDestinationCapacity ?? 1);
+            }
+        }
+
+        internal void SetAllocation(
+            ulong index,
+            BootMemoryRegionRecord value)
+        {
+            if (index >= AllocationCount)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index));
+            }
+
+            AllocationPointer[index] = value;
+        }
+
+        internal void SetStateUlong(uint byteOffset, ulong value)
+        {
+            if (byteOffset
+                    > M01OwnedCr3CompositeTransitionRuntimeState
+                        .StructureSize - sizeof(ulong)
+                || (byteOffset & (sizeof(ulong) - 1)) != 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(byteOffset));
+            }
+
+            *(ulong*)((byte*)StateDestination + byteOffset) = value;
+        }
+
+        internal void SetProbeLeaf(ulong value)
+        {
+            ulong index =
+                PriorEvidence.Evidence.TableBuild.ProbeLeafEntryIndex;
+            PageEntries[index] = value;
+        }
+
+        internal void ReplaceBinding(
+            int index,
+            M01OwnedCr3CompositeTransitionRangeProvenance provenance,
+            ulong allocationIndex,
+            ulong reservationIndex,
+            ulong mappingIndex)
+        {
+            M01OwnedCr3CompositeTransitionRangeBinding current =
+                Bindings[index];
+            Bindings[index] = Binding(
+                current.Role,
+                provenance,
+                Raw(current.PhysicalStart),
+                Raw(current.PhysicalEndExclusive),
+                allocationIndex,
+                reservationIndex,
+                mappingIndex);
+        }
+
+        internal (
+            ulong Pml4,
+            ulong Pdpt,
+            ulong Pd,
+            ulong Pt) ProbeWalkEntryIndexes()
+        {
+            ulong virtualAddress = ProbeStartValue;
+            ulong rootPage = FindPageByPhysical(OwnedCr3Value);
+            ulong pml4 = checked(
+                PageImages[rootPage].EntryStartIndex
+                + ((virtualAddress >> 39) & 0x1ff));
+            ulong pdptPage = FindPageByPhysical(
+                PageEntries[pml4]
+                & M01OwnedCr3CompositeTransition
+                    .Cr3ArchitecturalBaseMask);
+            ulong pdpt = checked(
+                PageImages[pdptPage].EntryStartIndex
+                + ((virtualAddress >> 30) & 0x1ff));
+            ulong pdPage = FindPageByPhysical(
+                PageEntries[pdpt]
+                & M01OwnedCr3CompositeTransition
+                    .Cr3ArchitecturalBaseMask);
+            ulong pd = checked(
+                PageImages[pdPage].EntryStartIndex
+                + ((virtualAddress >> 21) & 0x1ff));
+            ulong ptPage = FindPageByPhysical(
+                PageEntries[pd]
+                & M01OwnedCr3CompositeTransition
+                    .Cr3ArchitecturalBaseMask);
+            ulong pt = checked(
+                PageImages[ptPage].EntryStartIndex
+                + ((virtualAddress >> 12) & 0x1ff));
+            return (pml4, pdpt, pd, pt);
+        }
+
+        internal (
+            ulong Pml4e,
+            ulong Pdpte,
+            ulong Pde,
+            ulong Pte,
+            M01OwnedCr3CompositeTransitionPageZeroLevel Level)
+            PageZeroObservation()
+        {
+            ulong rootPage = FindPageByPhysical(OwnedCr3Value);
+            ulong pml4Index = PageImages[rootPage].EntryStartIndex;
+            ulong pml4e = PageEntries[pml4Index];
+            if ((pml4e
+                    & M01OwnedCr3CompositeTransition.PagePresentBit)
+                == 0)
+            {
+                return (
+                    pml4e,
+                    0,
+                    0,
+                    0,
+                    M01OwnedCr3CompositeTransitionPageZeroLevel
+                        .AbsentAtPml4);
+            }
+
+            ulong pdptPage = FindPageByPhysical(
+                pml4e
+                & M01OwnedCr3CompositeTransition
+                    .Cr3ArchitecturalBaseMask);
+            ulong pdpte =
+                PageEntries[PageImages[pdptPage].EntryStartIndex];
+            if ((pdpte
+                    & M01OwnedCr3CompositeTransition.PagePresentBit)
+                == 0)
+            {
+                return (
+                    pml4e,
+                    pdpte,
+                    0,
+                    0,
+                    M01OwnedCr3CompositeTransitionPageZeroLevel
+                        .AbsentAtPdpt);
+            }
+
+            ulong pdPage = FindPageByPhysical(
+                pdpte
+                & M01OwnedCr3CompositeTransition
+                    .Cr3ArchitecturalBaseMask);
+            ulong pde =
+                PageEntries[PageImages[pdPage].EntryStartIndex];
+            if ((pde
+                    & M01OwnedCr3CompositeTransition.PagePresentBit)
+                == 0)
+            {
+                return (
+                    pml4e,
+                    pdpte,
+                    pde,
+                    0,
+                    M01OwnedCr3CompositeTransitionPageZeroLevel
+                        .AbsentAtPd);
+            }
+
+            ulong ptPage = FindPageByPhysical(
+                pde
+                & M01OwnedCr3CompositeTransition
+                    .Cr3ArchitecturalBaseMask);
+            ulong pte =
+                PageEntries[PageImages[ptPage].EntryStartIndex];
+            return (
+                pml4e,
+                pdpte,
+                pde,
+                pte,
+                (pte
+                    & M01OwnedCr3CompositeTransition.PagePresentBit)
+                    == 0
+                    ? M01OwnedCr3CompositeTransitionPageZeroLevel
+                        .AbsentAtPt
+                    : M01OwnedCr3CompositeTransitionPageZeroLevel
+                        .Present);
+        }
+
+        internal ulong LeafEntryIndex(ulong virtualAddress)
+        {
+            ulong rootPage = FindPageByPhysical(OwnedCr3Value);
+            ulong pml4 = checked(
+                PageImages[rootPage].EntryStartIndex
+                + ((virtualAddress >> 39) & 0x1ff));
+            ulong pdptPage = FindPageByPhysical(
+                PageEntries[pml4]
+                & M01OwnedCr3CompositeTransition
+                    .Cr3ArchitecturalBaseMask);
+            ulong pdpt = checked(
+                PageImages[pdptPage].EntryStartIndex
+                + ((virtualAddress >> 30) & 0x1ff));
+            ulong pdPage = FindPageByPhysical(
+                PageEntries[pdpt]
+                & M01OwnedCr3CompositeTransition
+                    .Cr3ArchitecturalBaseMask);
+            ulong pd = checked(
+                PageImages[pdPage].EntryStartIndex
+                + ((virtualAddress >> 21) & 0x1ff));
+            ulong ptPage = FindPageByPhysical(
+                PageEntries[pd]
+                & M01OwnedCr3CompositeTransition
+                    .Cr3ArchitecturalBaseMask);
+            return checked(
+                PageImages[ptPage].EntryStartIndex
+                + ((virtualAddress >> 12) & 0x1ff));
+        }
+
+        private ulong FindPageByPhysical(ulong address)
+        {
+            for (ulong index = 0; index < PageImageCount; index++)
+            {
+                if (Raw(PageImages[index].PhysicalStart) == address)
+                {
+                    return index;
+                }
+            }
+
+            throw new InvalidOperationException(
+                "Walk referenced a page outside the canonical image.");
+        }
+
+        public void Dispose()
+        {
+            object? inner = _priorFixture;
+            _priorFixture = null;
+            if (inner is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
+        }
+
+        private static object GetProperty(
+            object instance,
+            Type type,
+            string name)
+        {
+            return type.GetProperty(
+                    name,
+                    BindingFlags.Instance
+                        | BindingFlags.Public
+                        | BindingFlags.NonPublic)
+                ?.GetValue(instance)
+                ?? throw new InvalidOperationException(
+                    "M01-019 fixture property is unavailable: "
+                    + name);
+        }
+
+        private static void* UnboxPointer(object boxedPointer)
+        {
+            return Pointer.Unbox(boxedPointer);
+        }
+
+        private static ulong FindReservationByKind(
+            BootReservedRange* ledger,
+            ulong count,
+            BootReservationKind kind)
+        {
+            for (ulong index = 0; index < count; index++)
+            {
+                if (ledger[index].Kind == kind)
+                {
+                    return index;
+                }
+            }
+
+            throw new InvalidOperationException(
+                "Canonical reservation is unavailable: " + kind);
+        }
+
+        private static ulong FindReservation(
+            BootReservedRange* ledger,
+            ulong count,
+            BootReservationKind kind,
+            ulong start,
+            ulong end,
+            bool exact)
+        {
+            for (ulong index = 0; index < count; index++)
+            {
+                if (ledger[index].Kind != kind)
+                {
+                    continue;
+                }
+
+                ulong candidateStart = Raw(
+                    ledger[index].PhysicalStart);
+                ulong candidateEnd = Raw(
+                    ledger[index].PhysicalEndExclusive);
+                if (exact
+                    ? candidateStart == start
+                        && candidateEnd == end
+                    : start >= candidateStart
+                        && end <= candidateEnd)
+                {
+                    return index;
+                }
+            }
+
+            throw new InvalidOperationException(
+                "Canonical reservation geometry is unavailable.");
+        }
+
+        private static ulong FindMappingForPurpose(
+            X64BootIdentityMappingRange[] mappings,
+            ulong count,
+            ulong outerStart,
+            ulong outerEnd,
+            X64BootIdentityMappingPurpose purpose,
+            PageProtection protection,
+            out ulong pageStart,
+            out ulong pageEnd)
+        {
+            ulong purposeBit = 1UL << (byte)purpose;
+            for (ulong index = 0; index < count; index++)
+            {
+                X64BootIdentityMappingRange mapping =
+                    mappings[index];
+                ulong mappingStart = Raw(mapping.PhysicalStart);
+                ulong mappingEnd = Raw(
+                    mapping.PhysicalEndExclusive);
+                ulong candidateStart =
+                    mappingStart > outerStart
+                    ? mappingStart
+                    : outerStart;
+                ulong candidateEnd =
+                    mappingEnd < outerEnd ? mappingEnd : outerEnd;
+                if ((mapping.ContributingPurposeMask & purposeBit) != 0
+                    && mapping.Protection == protection
+                    && mapping.CachePolicy
+                        == PageCachePolicy.WriteBack
+                    && candidateStart < candidateEnd
+                    && (candidateStart & 4095) == 0
+                    && candidateEnd - candidateStart >= 4096)
+                {
+                    pageStart = candidateStart;
+                    pageEnd = candidateStart + 4096;
+                    return index;
+                }
+            }
+
+            throw new InvalidOperationException(
+                "Canonical purpose mapping is unavailable.");
+        }
+
+        private static ulong FindMapping(
+            X64BootIdentityMappingRange[] mappings,
+            ulong count,
+            ulong start,
+            ulong end)
+        {
+            for (ulong index = 0; index < count; index++)
+            {
+                X64BootIdentityMappingRange mapping =
+                    mappings[index];
+                ulong mappingStart = Raw(mapping.PhysicalStart);
+                ulong mappingEnd = Raw(
+                    mapping.PhysicalEndExclusive);
+                if (start >= mappingStart && end <= mappingEnd)
+                {
+                    return index;
+                }
+            }
+
+            throw new InvalidOperationException(
+                "Canonical identity mapping was absent.");
+        }
+    }
+
+    private static bool EnumContractMatches<T>(
+        (string Name, byte Value)[] expected)
+        where T : struct, Enum
+    {
+        if (Enum.GetUnderlyingType(typeof(T)) != typeof(byte))
+        {
+            return false;
+        }
+
+        string[] names = Enum.GetNames<T>();
+        T[] values = Enum.GetValues<T>();
+        if (names.Length != expected.Length
+            || values.Length != expected.Length)
+        {
+            return false;
+        }
+
+        for (int index = 0; index < expected.Length; index++)
+        {
+            if (!string.Equals(
+                    names[index],
+                    expected[index].Name,
+                    StringComparison.Ordinal)
+                || Convert.ToByte(values[index])
+                    != expected[index].Value)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static long Offset<T>(string fieldName)
+        where T : struct
+    {
+        return Marshal.OffsetOf<T>(fieldName).ToInt64();
+    }
+
+    private static void OverwriteUlong<T>(
+        ref T value,
+        int byteOffset,
+        ulong replacement)
+        where T : unmanaged
+    {
+        if (byteOffset < 0
+            || byteOffset > sizeof(T) - sizeof(ulong)
+            || (byteOffset & (sizeof(ulong) - 1)) != 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(byteOffset));
+        }
+
+        fixed (T* pointer = &value)
+        {
+            *(ulong*)((byte*)pointer + byteOffset) = replacement;
+        }
+    }
+
+    private static void SetStateByte(
+        ref M01OwnedCr3CompositeTransitionRuntimeState state,
+        uint byteOffset,
+        byte replacement)
+    {
+        if (byteOffset
+            >= M01OwnedCr3CompositeTransitionRuntimeState
+                .StructureSize)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(byteOffset));
+        }
+
+        fixed (M01OwnedCr3CompositeTransitionRuntimeState* pointer =
+            &state)
+        {
+            *((byte*)pointer + byteOffset) = replacement;
+        }
+    }
+
+    private static void SetStateUInt32(
+        ref M01OwnedCr3CompositeTransitionRuntimeState state,
+        uint byteOffset,
+        uint replacement)
+    {
+        if (byteOffset
+            > M01OwnedCr3CompositeTransitionRuntimeState
+                .StructureSize - sizeof(uint)
+            || (byteOffset & (sizeof(uint) - 1)) != 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(byteOffset));
+        }
+
+        fixed (M01OwnedCr3CompositeTransitionRuntimeState* pointer =
+            &state)
+        {
+            *(uint*)((byte*)pointer + byteOffset) = replacement;
+        }
+    }
+
+    private static void Run(
+        string name,
+        Func<bool> test,
+        ref int failures)
+    {
+        Console.WriteLine("TEST_START " + name);
+
+        try
+        {
+            if (test())
+            {
+                Console.WriteLine("TEST_PASS " + name);
+                return;
+            }
+
+            failures++;
+            Console.WriteLine("TEST_FAIL " + name);
+        }
+        catch (Exception ex)
+        {
+            failures++;
+            Console.WriteLine(
+                "TEST_FAIL "
+                + name
+                + " "
+                + ex.GetType().Name
+                + ": "
+                + ex.Message);
+        }
+    }
+
+    private static bool TestSourceAndMarkerFirewall()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        string productionPath = Path.Combine(
+            root,
+            "src",
+            "OS.Kernel",
+            "Boot",
+            "M01OwnedCr3CompositeTransition.cs");
+        string testPath = Path.Combine(
+            root,
+            "tests",
+            "OS.HostTests",
+            "M01OwnedCr3CompositeTransitionTests.cs");
+        if (!File.Exists(productionPath) || !File.Exists(testPath))
+        {
+            return false;
+        }
+
+        string production = RemoveComments(
+            File.ReadAllText(productionPath));
+        string tests = RemoveComments(File.ReadAllText(testPath));
+        string[] forbiddenProduction =
+        [
+            "Span<",
+            "ReadOnlySpan<",
+            "string ",
+            "throw ",
+            "System.",
+            "Reflection",
+            "Dynamic" + "Method",
+            "Create" + "Delegate",
+            "GetDelegateFor" + "FunctionPointer",
+            "DllImport",
+            "LibraryImport",
+            "RuntimeImport",
+            "NativeLibrary",
+            "Marshal.",
+            "delegate*",
+            "List<",
+            "IEnumerable<",
+            "Task<",
+            "new byte[",
+            "Console.",
+            "SerialIo.",
+            "AllocatePages(",
+            "FreePages(",
+            "EfiEntry",
+            "BootSequence.",
+            "Probes."
+        ];
+        string[] forbiddenHostExecution =
+        [
+            "GetDelegateFor" + "FunctionPointer",
+            "delegate* " + "unmanaged",
+            "Dynamic" + "Method",
+            "Create" + "Delegate",
+            "cal" + "li"
+        ];
+
+        return forbiddenProduction.All(value =>
+                !production.Contains(
+                    value,
+                    StringComparison.Ordinal))
+            && forbiddenHostExecution.All(value =>
+                !tests.Contains(value, StringComparison.Ordinal))
+            && !Regex.IsMatch(
+                production,
+                @"\*\s*\(\s*(?:byte|sbyte|short|ushort|int|uint|long|ulong|nint|nuint)\s*\*\s*\)\s*0(?:UL|U|L)?\b",
+                RegexOptions.CultureInvariant)
+            && CountOccurrences(
+                tests,
+                "TEST_START \" + IssueTestName") == 1
+            && CountOccurrences(
+                tests,
+                "CLROS_" + "M01_027_READY") == 1
+            && CountOccurrences(
+                tests,
+                "TEST_PASS \" + IssueTestName") == 1
+            && CountOccurrences(
+                tests,
+                "TEST_FAIL \" + IssueTestName") == 1;
+    }
+
+    private static bool TestNoStdLibEfiCompileClosure()
+    {
+        string repositoryRoot =
+            HostToolProcess.FindRepositoryRoot();
+        string[] sources =
+            CreateNoStdLibSourceClosure(repositoryRoot);
+        if (!IsExactNoStdLibSourceClosure(
+                repositoryRoot,
+                sources))
+        {
+            return false;
+        }
+
+        string workspace =
+            CreateNoStdLibWorkspace(repositoryRoot, sources);
+        try
+        {
+            NoStdLibBuildResult result =
+                RunNoStdLibBuild(workspace);
+            string outputAssembly = Path.Combine(
+                workspace,
+                "out",
+                "CLROS.M01.CompositeTransitionCompileClosure.dll");
+            bool succeeded =
+                !result.TimedOut
+                && result.ExitCode == 0
+                && !ContainsInfrastructureFailure(result.Output)
+                && HasNoExternalMetadata(outputAssembly);
+            if (!succeeded)
+            {
+                Console.WriteLine(
+                    "M01_027_NOSTDLIB_COMPILE_DIAGNOSTIC "
+                    + NormalizeCompilerOutput(result.Output));
+            }
+
+            return succeeded;
+        }
+        finally
+        {
+            DeleteNoStdLibWorkspace(workspace);
+        }
+    }
+
+    private static string[] CreateNoStdLibSourceClosure(
+        string repositoryRoot)
+    {
+        string[] relativeSources =
+        [
+            "src/OS.Kernel/Boot/"
+                + "TypedPhysicalVirtualDeviceAddressPODWrappers.cs",
+            "src/OS.Kernel/Memory/BootReservedRange.cs",
+            "src/OS.Kernel/Memory/"
+                + "BootReservationTableValidator.cs",
+            "src/OS.Kernel/Boot/EfiLoadedImageRange.cs",
+            "src/OS.Kernel/Boot/"
+                + "EfiLoadedImageRangeCapturePlan.cs",
+            "src/OS.Kernel/Boot/BootHandoffRecord.cs",
+            "src/OS.Kernel/Boot/OwnedBootStackLayout.cs",
+            "src/OS.Kernel/Boot/UefiMemoryType.cs",
+            "src/OS.Kernel/Boot/"
+                + "BootMemoryRegionMaterializer.cs",
+            "src/OS.Kernel/Boot/OwnedBootStackSwitchPlan.cs",
+            "src/OS.Kernel/Boot/"
+                + "M01LoadedImageStackIntegration.cs",
+            "src/OS.Kernel/Memory/BootReservationSubtractor.cs",
+            "src/OS.Kernel/Memory/"
+                + "BootPageAllocatorCoreContracts.cs",
+            "src/OS.Kernel/Memory/"
+                + "BootPageAllocatorStateMaterializer.cs",
+            "src/OS.Kernel/Memory/BootPageAllocatorMutation.cs",
+            "src/OS.Kernel/Boot/M01LiveAllocatorIntegration.cs",
+            "src/OS.Kernel/Memory/PageProtection.cs",
+            "src/OS.Kernel/Memory/PageCachePolicy.cs",
+            "src/OS.Kernel/Memory/X64PageTableEntry.cs",
+            "src/OS.Kernel/Memory/X64TlbInvalidationPlan.cs",
+            "src/OS.Kernel/Memory/X64PageMap.cs",
+            "src/OS.Kernel/Memory/X64InvlpgStubPlan.cs",
+            "src/OS.Kernel/Memory/"
+                + "X64ProtectionProbeStubPlan.cs",
+            "src/OS.Kernel/Boot/X64BootIdentityMappingPlan.cs",
+            "src/OS.Kernel/Memory/PageZeroMappingPolicy.cs",
+            "src/OS.Kernel/Memory/X64Cr3LoadStubPlan.cs",
+            "src/OS.Kernel/Memory/"
+                + "X64PagingModePreflightStubPlan.cs",
+            "src/OS.Kernel/Memory/"
+                + "X64ReversibleCr3TransitionStubPlan.cs",
+            "src/OS.Kernel/Boot/M01LivePagingIntegration.cs",
+            "src/OS.Kernel/Boot/"
+                + "M01OwnedCr3CompositeTransition.cs"
+        ];
+
+        string[] absoluteSources =
+            new string[relativeSources.Length];
+        for (int index = 0;
+            index < relativeSources.Length;
+            index++)
+        {
+            absoluteSources[index] = Path.GetFullPath(
+                Path.Combine(
+                    repositoryRoot,
+                    relativeSources[index].Replace(
+                        '/',
+                        Path.DirectorySeparatorChar)));
+        }
+
+        return absoluteSources;
+    }
+
+    private static bool IsExactNoStdLibSourceClosure(
+        string repositoryRoot,
+        string[] sources)
+    {
+        if (sources.Length != 30
+            || sources.Distinct(
+                StringComparer.OrdinalIgnoreCase).Count()
+                != sources.Length)
+        {
+            return false;
+        }
+
+        string productionRoot = Path.GetFullPath(
+            Path.Combine(repositoryRoot, "src"))
+            + Path.DirectorySeparatorChar;
+        bool hasComposite = false;
+        bool hasIntegration = false;
+        for (int index = 0; index < sources.Length; index++)
+        {
+            string source = Path.GetFullPath(sources[index]);
+            string fileName = Path.GetFileName(source);
+            if (!source.StartsWith(
+                    productionRoot,
+                    StringComparison.OrdinalIgnoreCase)
+                || !File.Exists(source)
+                || string.Equals(
+                    fileName,
+                    "BootSequence.cs",
+                    StringComparison.OrdinalIgnoreCase)
+                || string.Equals(
+                    fileName,
+                    "EfiEntry.cs",
+                    StringComparison.OrdinalIgnoreCase)
+                || string.Equals(
+                    fileName,
+                    "Probes.cs",
+                    StringComparison.OrdinalIgnoreCase)
+                || string.Equals(
+                    fileName,
+                    "NullPageFaultProbePlan.cs",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            hasComposite |= string.Equals(
+                fileName,
+                "M01OwnedCr3CompositeTransition.cs",
+                StringComparison.Ordinal);
+            hasIntegration |= string.Equals(
+                fileName,
+                "M01LivePagingIntegration.cs",
+                StringComparison.Ordinal);
+        }
+
+        return hasComposite && hasIntegration;
+    }
+
+    private static string CreateNoStdLibWorkspace(
+        string repositoryRoot,
+        string[] sources)
+    {
+        string workspace = Path.Combine(
+            Path.GetTempPath(),
+            "clros-m01-027-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(workspace);
+
+        try
+        {
+            string globalJson = Path.Combine(
+                repositoryRoot,
+                "global.json");
+            if (File.Exists(globalJson))
+            {
+                File.Copy(
+                    globalJson,
+                    Path.Combine(workspace, "global.json"));
+            }
+
+            File.WriteAllText(
+                Path.Combine(workspace, "NoStdLibShim.cs"),
+                """
+                namespace System
+                {
+                    public class Object { }
+                    public abstract class ValueType : Object { }
+                    public abstract class Enum : ValueType { }
+                    public abstract class Delegate : Object { }
+                    public abstract class MulticastDelegate : Delegate { }
+                    public class Attribute : Object { }
+                    public struct Void { }
+                    public struct Boolean { }
+                    public struct Byte { }
+                    public struct SByte { }
+                    public struct Int16 { }
+                    public struct UInt16 { }
+                    public struct Int32 { }
+                    public struct UInt32 { }
+                    public struct Int64 { }
+                    public struct UInt64 { }
+                    public struct IntPtr { }
+                    public struct UIntPtr { }
+                    public enum AttributeTargets { }
+                    public sealed class AttributeUsageAttribute : Attribute
+                    {
+                        public AttributeUsageAttribute(
+                            AttributeTargets validOn) { }
+                        public bool AllowMultiple { get; set; }
+                        public bool Inherited { get; set; }
+                    }
+                }
+
+                namespace System.Runtime.CompilerServices
+                {
+                    public sealed class IsReadOnlyAttribute
+                        : System.Attribute { }
+                }
+                """,
+                new UTF8Encoding(
+                    encoderShouldEmitUTF8Identifier: false));
+
+            File.WriteAllText(
+                Path.Combine(workspace, "Probe.cs"),
+                """
+                #if !NOSTDLIB_EFI
+                #error NOSTDLIB_EFI must be defined.
+                #endif
+
+                namespace CLROS.M01
+                {
+                    internal static class CompositeCompileProbe
+                    {
+                        public static ulong Exercise()
+                        {
+                            return OS.Boot
+                                .M01OwnedCr3CompositeTransition
+                                .RequiredByteLength;
+                        }
+                    }
+                }
+                """,
+                new UTF8Encoding(
+                    encoderShouldEmitUTF8Identifier: false));
+
+            StringBuilder compileItems = new StringBuilder();
+            for (int index = 0; index < sources.Length; index++)
+            {
+                compileItems.Append(
+                    "    <Compile Include=\"");
+                compileItems.Append(EscapeXml(sources[index]));
+                compileItems.Append("\" Link=\"Closure\\");
+                compileItems.Append(index.ToString("D2"));
+                compileItems.Append('-');
+                compileItems.Append(EscapeXml(
+                    Path.GetFileName(sources[index])));
+                compileItems.AppendLine("\" />");
+            }
+
+            string projectText =
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <AssemblyName>CLROS.M01.CompositeTransitionCompileClosure</AssemblyName>
+                <TargetFramework>net10.0</TargetFramework>
+                <LangVersion>14.0</LangVersion>
+                <OutputType>Library</OutputType>
+                <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+                <ImplicitUsings>disable</ImplicitUsings>
+                <Nullable>disable</Nullable>
+                <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+                <NoStdLib>true</NoStdLib>
+                <NoConfig>true</NoConfig>
+                <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+                <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+                <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+                <ComputeNETCoreBuildOutputFiles>false</ComputeNETCoreBuildOutputFiles>
+                <RuntimeMetadataVersion>v4.0.30319</RuntimeMetadataVersion>
+                <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+                <EnableNETAnalyzers>false</EnableNETAnalyzers>
+                <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
+                <DefineConstants>NOSTDLIB_EFI</DefineConstants>
+                <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+                <Deterministic>true</Deterministic>
+                <DebugType>none</DebugType>
+                <DebugSymbols>false</DebugSymbols>
+                <RestoreIgnoreFailedSources>true</RestoreIgnoreFailedSources>
+                <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+                <OutputPath>$(MSBuildProjectDirectory)\out\</OutputPath>
+              </PropertyGroup>
+              <ItemGroup>
+                <Compile Include="NoStdLibShim.cs" />
+            __SOURCE_ITEMS__
+                <Compile Include="Probe.cs" />
+              </ItemGroup>
+              <Target Name="CustomizeReferences"
+                      BeforeTargets="BeforeCompile"
+                      AfterTargets="FindReferenceAssembliesForReferences">
+                <ItemGroup>
+                  <ReferencePathWithRefAssemblies Remove="@(ReferencePathWithRefAssemblies)" />
+                  <ReferencePath Remove="@(ReferencePath)" />
+                </ItemGroup>
+              </Target>
+            </Project>
+            """
+            .Replace(
+                "__SOURCE_ITEMS__",
+                compileItems.ToString().TrimEnd(),
+                StringComparison.Ordinal);
+            File.WriteAllText(
+                Path.Combine(workspace, "M01.027.NoStdLib.csproj"),
+                projectText,
+                new UTF8Encoding(
+                    encoderShouldEmitUTF8Identifier: false));
+            return workspace;
+        }
+        catch
+        {
+            try
+            {
+                DeleteNoStdLibWorkspace(workspace);
+            }
+            catch
+            {
+            }
+
+            throw;
+        }
+    }
+
+    private static NoStdLibBuildResult RunNoStdLibBuild(
+        string workspace)
+    {
+        ProcessStartInfo start = new ProcessStartInfo("dotnet")
+        {
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+            WorkingDirectory = workspace
+        };
+        foreach (string argument in new[]
+        {
+            "build",
+            "M01.027.NoStdLib.csproj",
+            "--nologo",
+            "-m:1",
+            "--no-dependencies",
+            "--no-incremental",
+            "--disable-build-servers",
+            "-v:minimal",
+            "-p:RestoreIgnoreFailedSources=true",
+            "-p:NuGetAudit=false"
+        })
+        {
+            start.ArgumentList.Add(argument);
+        }
+
+        start.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
+        start.Environment["DOTNET_NOLOGO"] = "1";
+        start.Environment["DOTNET_CLI_UI_LANGUAGE"] = "en-US";
+        start.Environment["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1";
+        start.Environment["NUGET_XMLDOC_MODE"] = "skip";
+
+        using Process process = new Process { StartInfo = start };
+        if (!process.Start())
+        {
+            return new NoStdLibBuildResult(
+                -1,
+                timedOut: false,
+                "dotnet process did not start");
+        }
+
+        Task<string> standardOutput =
+            process.StandardOutput.ReadToEndAsync();
+        Task<string> standardError =
+            process.StandardError.ReadToEndAsync();
+        bool exited =
+            process.WaitForExit(BuildTimeoutMilliseconds);
+        if (!exited)
+        {
+            try
+            {
+                process.Kill(entireProcessTree: true);
+            }
+            catch
+            {
+            }
+
+            process.WaitForExit(5_000);
+        }
+
+        string output = standardOutput.Wait(5_000)
+            ? standardOutput.Result
+            : "stdout did not close";
+        string error = standardError.Wait(5_000)
+            ? standardError.Result
+            : "stderr did not close";
+        return new NoStdLibBuildResult(
+            exited ? process.ExitCode : -1,
+            timedOut: !exited,
+            output + Environment.NewLine + error);
+    }
+
+    private static bool HasNoExternalMetadata(string assemblyPath)
+    {
+        if (!File.Exists(assemblyPath))
+        {
+            return false;
+        }
+
+        using FileStream stream = File.OpenRead(assemblyPath);
+        using PEReader reader = new PEReader(stream);
+        if (!reader.HasMetadata)
+        {
+            return false;
+        }
+
+        MetadataReader metadata = reader.GetMetadataReader();
+        if (metadata.AssemblyReferences.Count != 0
+            || metadata.GetTableRowCount(TableIndex.ModuleRef) != 0
+            || metadata.GetTableRowCount(TableIndex.ImplMap) != 0)
+        {
+            return false;
+        }
+
+        bool hasComposite = false;
+        foreach (TypeDefinitionHandle handle
+            in metadata.TypeDefinitions)
+        {
+            TypeDefinition type = metadata.GetTypeDefinition(handle);
+            if (string.Equals(
+                    metadata.GetString(type.Namespace),
+                    "OS.Boot",
+                    StringComparison.Ordinal)
+                && string.Equals(
+                    metadata.GetString(type.Name),
+                    "M01OwnedCr3CompositeTransition",
+                    StringComparison.Ordinal))
+            {
+                hasComposite = true;
+            }
+
+            foreach (MethodDefinitionHandle methodHandle
+                in type.GetMethods())
+            {
+                MethodDefinition method =
+                    metadata.GetMethodDefinition(methodHandle);
+                if ((method.Attributes
+                        & MethodAttributes.PinvokeImpl) != 0)
+                {
+                    return false;
+                }
+            }
+        }
+
+        return hasComposite;
+    }
+
+    private static bool ContainsInfrastructureFailure(string output)
+    {
+        return output.Contains(
+                "MSB1009",
+                StringComparison.OrdinalIgnoreCase)
+            || output.Contains(
+                "NU1301",
+                StringComparison.OrdinalIgnoreCase)
+            || output.Contains(
+                "A compatible .NET SDK was not found",
+                StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeCompilerOutput(string output)
+    {
+        string normalized = Regex.Replace(
+            output,
+            @"\s+",
+            " ",
+            RegexOptions.CultureInvariant).Trim();
+        return normalized.Length <= 1500
+            ? normalized
+            : normalized[..1500] + "...";
+    }
+
+    private static string EscapeXml(string value)
+    {
+        return value
+            .Replace("&", "&amp;", StringComparison.Ordinal)
+            .Replace("\"", "&quot;", StringComparison.Ordinal)
+            .Replace("<", "&lt;", StringComparison.Ordinal)
+            .Replace(">", "&gt;", StringComparison.Ordinal);
+    }
+
+    private static void DeleteNoStdLibWorkspace(string workspace)
+    {
+        string fullWorkspace = Path.GetFullPath(workspace);
+        string tempRoot = Path.GetFullPath(Path.GetTempPath());
+        string? parent = Directory.GetParent(fullWorkspace)?.FullName;
+        string leafName = Path.GetFileName(fullWorkspace);
+        if (parent is null
+            || !Path.TrimEndingDirectorySeparator(parent).Equals(
+                Path.TrimEndingDirectorySeparator(tempRoot),
+                StringComparison.OrdinalIgnoreCase)
+            || !Regex.IsMatch(
+                leafName,
+                @"\Aclros-m01-027-[0-9a-f]{32}\z",
+                RegexOptions.CultureInvariant))
+        {
+            throw new InvalidOperationException(
+                "Refusing to delete an unexpected M01-027 workspace.");
+        }
+
+        if (!Directory.Exists(fullWorkspace))
+        {
+            return;
+        }
+
+        if ((File.GetAttributes(fullWorkspace)
+                & FileAttributes.ReparsePoint) != 0)
+        {
+            throw new InvalidOperationException(
+                "Refusing to delete a reparse-point M01-027 workspace.");
+        }
+
+        Directory.Delete(fullWorkspace, recursive: true);
+    }
+
+    private static string RemoveComments(string source)
+    {
+        return Regex.Replace(
+            source,
+            @"/\*.*?\*/|//[^\r\n]*",
+            "",
+            RegexOptions.Singleline | RegexOptions.CultureInvariant);
+    }
+
+    private static int CountOccurrences(
+        string source,
+        string value)
+    {
+        int count = 0;
+        int offset = 0;
+        while ((offset = source.IndexOf(
+            value,
+            offset,
+            StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            offset += value.Length;
+        }
+
+        return count;
+    }
+
+    private static bool HasPreCliSameRootComparison(
+        List<CompositeDecodedInstruction> instructions,
+        int cliIndex)
+    {
+        const byte Unknown = 0;
+        const byte FirmwareRoot = 1;
+        const byte OwnedRoot = 2;
+        byte[] provenance = new byte[16];
+        for (int index = 0; index < cliIndex; index++)
+        {
+            CompositeDecodedInstruction instruction =
+                instructions[index];
+            if (instruction.Kind
+                    == CompositeInstructionKind
+                        .CompareRegisterRegister
+                && instruction.Register >= 0
+                && instruction.SourceRegister >= 0)
+            {
+                byte left = provenance[instruction.Register];
+                byte right =
+                    provenance[instruction.SourceRegister];
+                if (((left == FirmwareRoot && right == OwnedRoot)
+                        || (left == OwnedRoot
+                            && right == FirmwareRoot))
+                    && index + 3 < cliIndex
+                    && instructions[index + 1].Kind
+                        == CompositeInstructionKind
+                            .ConditionalBranch
+                    && instructions[index + 2].Kind
+                        == CompositeInstructionKind
+                            .MoveRegisterImmediate
+                    && instructions[index + 2].Register == 0
+                    && instructions[index + 2].Immediate
+                        == (ulong)
+                            M01OwnedCr3CompositeTransitionRuntimeStatus
+                                .InvalidOwnedCr3
+                    && instructions[index + 3].Kind
+                        == CompositeInstructionKind.Jump)
+                {
+                    return true;
+                }
+            }
+
+            if (instruction.Kind
+                    is CompositeInstructionKind.AndRegisterRegister
+                    or CompositeInstructionKind.AndRegisterImmediate)
+            {
+                continue;
+            }
+
+            int destination = instruction.DestinationRegister;
+            if (destination < 0)
+            {
+                continue;
+            }
+
+            if (instruction.Kind
+                    == CompositeInstructionKind.ReadCr3)
+            {
+                provenance[destination] = FirmwareRoot;
+            }
+            else if (instruction.StateLoadOffset
+                == M01OwnedCr3CompositeTransition
+                    .StateOwnedCr3RawOffset)
+            {
+                provenance[destination] = OwnedRoot;
+            }
+            else if (instruction.Kind
+                    == CompositeInstructionKind.MoveRegisterRegister
+                && instruction.SourceRegister >= 0)
+            {
+                provenance[destination] =
+                    provenance[instruction.SourceRegister];
+            }
+            else
+            {
+                provenance[destination] = Unknown;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ValidateRflagsRestorationAndPreCliReturns(
+        List<CompositeDecodedInstruction> instructions)
+    {
+        int[] returnIndexes = instructions
+            .Select((instruction, index) => (instruction, index))
+            .Where(item =>
+                item.instruction.Kind == CompositeInstructionKind.Ret)
+            .Select(item => item.index)
+            .ToArray();
+        if (returnIndexes.Length != 2)
+        {
+            return false;
+        }
+
+        bool sawRegisterSavedFlagsReturn = false;
+        bool sawStateSavedFlagsReturn = false;
+        foreach (int returnIndex in returnIndexes)
+        {
+            // POPFQ must be the instruction immediately before RET. Merely
+            // finding POPFQ somewhere in the epilogue does not prove that a
+            // later instruction could not alter RFLAGS.
+            if (returnIndex < 7
+                || instructions[returnIndex - 1].Kind
+                    != CompositeInstructionKind.Popfq
+                || instructions[returnIndex - 2].Kind
+                    != CompositeInstructionKind.Push
+                || instructions[returnIndex - 3].Kind
+                    != CompositeInstructionKind.Pop
+                || instructions[returnIndex - 3].Register != 3
+                || instructions[returnIndex - 4].Kind
+                    != CompositeInstructionKind.Pop
+                || instructions[returnIndex - 4].Register != 6
+                || instructions[returnIndex - 5].Kind
+                    != CompositeInstructionKind.Pop
+                || instructions[returnIndex - 5].Register != 12)
+            {
+                return false;
+            }
+
+            int flagsRegister =
+                instructions[returnIndex - 2].Register;
+            int sourceIndex = -1;
+            for (int index = returnIndex - 3; index >= 0; index--)
+            {
+                if (instructions[index].DestinationRegister
+                    == flagsRegister)
+                {
+                    sourceIndex = index;
+                    break;
+                }
+            }
+            if (sourceIndex < 0)
+            {
+                return false;
+            }
+
+            CompositeDecodedInstruction source =
+                instructions[sourceIndex];
+            if (source.StateLoadOffset
+                == M01OwnedCr3CompositeTransition
+                    .StateOriginalRflagsOffset)
+            {
+                sawStateSavedFlagsReturn = true;
+            }
+            else if (source.Kind
+                    == CompositeInstructionKind.MoveRegisterRegister
+                && source.SourceRegister == 8)
+            {
+                int savedFlagsIndex = instructions.FindIndex(
+                    instruction =>
+                        instruction.Kind
+                            == CompositeInstructionKind.Pushfq);
+                if (savedFlagsIndex < 0
+                    || savedFlagsIndex + 1 >= sourceIndex
+                    || instructions[savedFlagsIndex + 1].Kind
+                        != CompositeInstructionKind.Pop
+                    || instructions[savedFlagsIndex + 1].Register != 8
+                    || instructions
+                        .Skip(savedFlagsIndex + 2)
+                        .Take(sourceIndex - savedFlagsIndex - 2)
+                        .Any(instruction =>
+                            instruction.DestinationRegister == 8))
+                {
+                    return false;
+                }
+
+                sawRegisterSavedFlagsReturn = true;
+            }
+            else
+            {
+                return false;
+            }
+
+            if (instructions
+                .Skip(sourceIndex + 1)
+                .Take(returnIndex - sourceIndex - 3)
+                .Any(instruction =>
+                    instruction.DestinationRegister == flagsRegister))
+            {
+                return false;
+            }
+        }
+
+        if (!sawRegisterSavedFlagsReturn || !sawStateSavedFlagsReturn)
+        {
+            return false;
+        }
+
+        Dictionary<int, int> indexesByOffset = instructions
+            .Select((instruction, index) => (instruction.Offset, index))
+            .ToDictionary(item => item.Offset, item => item.index);
+        for (ulong status =
+            (ulong)M01OwnedCr3CompositeTransitionRuntimeStatus
+                .InvalidState;
+            status <=
+                (ulong)M01OwnedCr3CompositeTransitionRuntimeStatus
+                    .PhysicalAddressWidthUnsupported;
+            status++)
+        {
+            bool hasRestoringPreCliPath = false;
+            for (int index = 0;
+                index + 1 < instructions.Count;
+                index++)
+            {
+                CompositeDecodedInstruction candidate =
+                    instructions[index];
+                if (candidate.Kind
+                        != CompositeInstructionKind
+                            .MoveRegisterImmediate
+                    || candidate.Register != 0
+                    || candidate.Immediate != status
+                    || instructions[index + 1].Kind
+                        != CompositeInstructionKind.Jump)
+                {
+                    continue;
+                }
+
+                if (CanReachRetWithoutCli(
+                        instructions,
+                        indexesByOffset,
+                        index + 1))
+                {
+                    hasRestoringPreCliPath = true;
+                    break;
+                }
+            }
+
+            if (!hasRestoringPreCliPath)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool CanReachRetWithoutCli(
+        List<CompositeDecodedInstruction> instructions,
+        Dictionary<int, int> indexesByOffset,
+        int startIndex)
+    {
+        Queue<int> pending = new();
+        HashSet<int> visited = [];
+        pending.Enqueue(startIndex);
+        while (pending.Count != 0)
+        {
+            int index = pending.Dequeue();
+            if (index < 0
+                || index >= instructions.Count
+                || !visited.Add(index))
+            {
+                continue;
+            }
+
+            CompositeDecodedInstruction instruction =
+                instructions[index];
+            if (instruction.Kind == CompositeInstructionKind.Cli)
+            {
+                continue;
+            }
+            if (instruction.Kind == CompositeInstructionKind.Ret)
+            {
+                return true;
+            }
+
+            if (instruction.BranchTarget is int branchTarget
+                && indexesByOffset.TryGetValue(
+                    branchTarget,
+                    out int targetIndex))
+            {
+                pending.Enqueue(targetIndex);
+            }
+            if (instruction.Kind
+                != CompositeInstructionKind.Jump)
+            {
+                pending.Enqueue(index + 1);
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryDecodeComposite(
+        byte[] bytes,
+        out List<CompositeDecodedInstruction> instructions)
+    {
+        instructions = [];
+        int offset = 0;
+        while (offset < bytes.Length)
+        {
+            if (!TryDecodeCompositeInstruction(
+                    bytes,
+                    offset,
+                    out CompositeDecodedInstruction instruction))
+            {
+                return false;
+            }
+
+            instructions.Add(instruction);
+            offset += instruction.Length;
+        }
+
+        return offset == bytes.Length;
+    }
+
+    private static bool TryDecodeCompositeInstruction(
+        byte[] bytes,
+        int offset,
+        out CompositeDecodedInstruction instruction)
+    {
+        instruction = default;
+        int index = offset;
+        bool operand16 = false;
+        byte rex = 0;
+        if (index < bytes.Length && bytes[index] == 0x66)
+        {
+            operand16 = true;
+            index++;
+        }
+        if (index < bytes.Length
+            && bytes[index] >= 0x40
+            && bytes[index] <= 0x4f)
+        {
+            rex = bytes[index++];
+        }
+        if (index >= bytes.Length)
+        {
+            return false;
+        }
+
+        byte opcode = bytes[index++];
+        CompositeInstructionKind kind =
+            CompositeInstructionKind.Other;
+        int? branchTarget = null;
+        int register = -1;
+        ulong registerMask = 0;
+        uint? stateStoreOffset = null;
+        uint? stateLoadOffset = null;
+        int sourceRegister = -1;
+        int destinationRegister = -1;
+        ulong immediate = 0;
+        bool shiftLeftRdx32 = false;
+        bool orRaxRdx = false;
+        bool cr4PaeTest = false;
+
+        if (opcode == 0xe9 || opcode == 0xe8)
+        {
+            if (!TryReadInt32(bytes, index, out int displacement))
+            {
+                return false;
+            }
+            index += 4;
+            branchTarget = index + displacement;
+            kind = opcode == 0xe9
+                ? CompositeInstructionKind.Jump
+                : CompositeInstructionKind.DirectCall;
+        }
+        else if (opcode == 0x0f)
+        {
+            if (index >= bytes.Length)
+            {
+                return false;
+            }
+
+            byte second = bytes[index++];
+            if (second >= 0x80 && second <= 0x8f)
+            {
+                if (!TryReadInt32(
+                        bytes,
+                        index,
+                        out int displacement))
+                {
+                    return false;
+                }
+                index += 4;
+                branchTarget = index + displacement;
+                kind = CompositeInstructionKind.ConditionalBranch;
+            }
+            else if (second == 0xa2)
+            {
+                kind = CompositeInstructionKind.Cpuid;
+                registerMask = 0x0f;
+            }
+            else if (second == 0x32)
+            {
+                kind = CompositeInstructionKind.Rdmsr;
+                registerMask = (1UL << 0)
+                    | (1UL << 1)
+                    | (1UL << 2);
+            }
+            else if (second == 0xae)
+            {
+                if (index >= bytes.Length || bytes[index++] != 0xf0)
+                {
+                    return false;
+                }
+                kind = CompositeInstructionKind.Mfence;
+            }
+            else if (second == 0x01)
+            {
+                if (index >= bytes.Length || bytes[index++] != 0x39)
+                {
+                    return false;
+                }
+                kind = CompositeInstructionKind.Invlpg;
+                registerMask = 1UL << 1;
+            }
+            else if (second == 0x20 || second == 0x22)
+            {
+                if (index >= bytes.Length)
+                {
+                    return false;
+                }
+                byte modrm = bytes[index++];
+                if ((modrm >> 6) != 3)
+                {
+                    return false;
+                }
+                int controlRegister = (modrm >> 3) & 7;
+                register = (modrm & 7)
+                    + ((rex & 1) != 0 ? 8 : 0);
+                registerMask = 1UL << register;
+                bool read = second == 0x20;
+                if (read)
+                {
+                    destinationRegister = register;
+                }
+                else
+                {
+                    sourceRegister = register;
+                }
+                kind = (read, controlRegister) switch
+                {
+                    (true, 0) => CompositeInstructionKind.ReadCr0,
+                    (true, 3) => CompositeInstructionKind.ReadCr3,
+                    (true, 4) => CompositeInstructionKind.ReadCr4,
+                    (false, 3) => CompositeInstructionKind.WriteCr3,
+                    (false, 4) => CompositeInstructionKind.WriteCr4,
+                    _ => CompositeInstructionKind.OtherControlRegister
+                };
+            }
+            else if (second == 0xb6)
+            {
+                if (!TryConsumeModRm(
+                        bytes,
+                        ref index,
+                        rex,
+                        out _,
+                        out _,
+                        out _,
+                        out ulong operandMask,
+                        out _))
+                {
+                    return false;
+                }
+                registerMask = operandMask;
+            }
+            else if (second == 0xba)
+            {
+                if (!TryConsumeModRm(
+                        bytes,
+                        ref index,
+                        rex,
+                        out byte bitModrm,
+                        out _,
+                        out _,
+                        out ulong operandMask,
+                        out _)
+                    || index >= bytes.Length)
+                {
+                    return false;
+                }
+                immediate = bytes[index++];
+                registerMask = operandMask;
+                int extensionRegister =
+                    ((bitModrm >> 3) & 7)
+                    + ((rex & 4) != 0 ? 8 : 0);
+                registerMask &= ~(1UL << extensionRegister);
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else if (opcode == 0xc3)
+        {
+            kind = CompositeInstructionKind.Ret;
+        }
+        else if (opcode == 0x9c)
+        {
+            kind = CompositeInstructionKind.Pushfq;
+        }
+        else if (opcode == 0x9d)
+        {
+            kind = CompositeInstructionKind.Popfq;
+        }
+        else if (opcode == 0xfa)
+        {
+            kind = CompositeInstructionKind.Cli;
+        }
+        else if (opcode == 0xfb)
+        {
+            kind = CompositeInstructionKind.Sti;
+        }
+        else if (opcode >= 0x50 && opcode <= 0x57)
+        {
+            register = (opcode & 7)
+                + ((rex & 1) != 0 ? 8 : 0);
+            registerMask = 1UL << register;
+            kind = CompositeInstructionKind.Push;
+            sourceRegister = register;
+        }
+        else if (opcode >= 0x58 && opcode <= 0x5f)
+        {
+            register = (opcode & 7)
+                + ((rex & 1) != 0 ? 8 : 0);
+            registerMask = 1UL << register;
+            kind = CompositeInstructionKind.Pop;
+            destinationRegister = register;
+        }
+        else if (opcode >= 0xb8 && opcode <= 0xbf)
+        {
+            register = (opcode & 7)
+                + ((rex & 1) != 0 ? 8 : 0);
+            registerMask = 1UL << register;
+            int immediateLength = (rex & 8) != 0 ? 8 : 4;
+            if (index + immediateLength > bytes.Length)
+            {
+                return false;
+            }
+            immediate = ReadUnsigned(bytes, index, immediateLength);
+            index += immediateLength;
+            kind = CompositeInstructionKind.MoveRegisterImmediate;
+            destinationRegister = register;
+        }
+        else if (opcode is 0x01 or 0x09 or 0x21 or 0x39
+            or 0x80 or 0x81 or 0x83 or 0x85 or 0x88
+            or 0x89 or 0x8b or 0x8d or 0xc1 or 0xc6
+            or 0xd3 or 0xf7 or 0xff)
+        {
+            if (!TryConsumeModRm(
+                    bytes,
+                    ref index,
+                    rex,
+                    out byte modrm,
+                    out int mod,
+                    out int rmRegister,
+                    out ulong operandMask,
+                    out uint? displacement))
+            {
+                return false;
+            }
+            registerMask = operandMask;
+            int group = (modrm >> 3) & 7;
+            int regRegister =
+                group + ((rex & 4) != 0 ? 8 : 0);
+            if (opcode is 0x80 or 0x81 or 0x83 or 0xc1
+                or 0xc6 or 0xf7 or 0xff)
+            {
+                int extensionRegister =
+                    group + ((rex & 4) != 0 ? 8 : 0);
+                registerMask &= ~(1UL << extensionRegister);
+                if (mod == 3)
+                {
+                    registerMask |= 1UL << rmRegister;
+                }
+            }
+            int immediateLength = opcode switch
+            {
+                0x80 or 0x83 or 0xc1 or 0xc6 => 1,
+                0x81 or 0xf7 => operand16 ? 2 : 4,
+                _ => 0
+            };
+            if (index + immediateLength > bytes.Length)
+            {
+                return false;
+            }
+            if (immediateLength != 0)
+            {
+                immediate = ReadUnsigned(
+                    bytes,
+                    index,
+                    immediateLength);
+                index += immediateLength;
+            }
+
+            if (mod == 2
+                && rmRegister == 3
+                && displacement.HasValue
+                && opcode is 0x88 or 0x89 or 0xc6)
+            {
+                stateStoreOffset = displacement.Value;
+            }
+            if (mod == 2
+                && rmRegister == 3
+                && displacement.HasValue
+                && opcode == 0x8b)
+            {
+                stateLoadOffset = displacement.Value;
+                sourceRegister = 3;
+                destinationRegister = regRegister;
+            }
+
+            if (opcode == 0x89 && mod == 3)
+            {
+                sourceRegister = regRegister;
+                destinationRegister = rmRegister;
+                kind = CompositeInstructionKind.MoveRegisterRegister;
+            }
+            else if (opcode == 0x8b && mod == 3)
+            {
+                sourceRegister = rmRegister;
+                destinationRegister = regRegister;
+                kind = CompositeInstructionKind.MoveRegisterRegister;
+            }
+            else if (opcode == 0x8d)
+            {
+                destinationRegister = regRegister;
+            }
+            else if (opcode == 0x21 && mod == 3)
+            {
+                sourceRegister = regRegister;
+                destinationRegister = rmRegister;
+                register = rmRegister;
+                kind = CompositeInstructionKind.AndRegisterRegister;
+            }
+            else if (opcode is 0x81 or 0x83
+                && mod == 3
+                && group == 4)
+            {
+                destinationRegister = rmRegister;
+                register = rmRegister;
+                kind = CompositeInstructionKind.AndRegisterImmediate;
+            }
+            else if (opcode == 0x39 && mod == 3)
+            {
+                sourceRegister = regRegister;
+                register = rmRegister;
+                kind =
+                    CompositeInstructionKind.CompareRegisterRegister;
+            }
+
+            if (opcode == 0xff && mod == 3 && group == 2)
+            {
+                kind = CompositeInstructionKind.IndirectCall;
+                register = rmRegister;
+            }
+            else if (opcode == 0xff
+                && mod == 3
+                && group is 4 or 5)
+            {
+                kind =
+                    CompositeInstructionKind.OtherIndirectControl;
+                register = rmRegister;
+            }
+            else if (opcode == 0x83
+                && mod == 3
+                && rmRegister == 4
+                && group == 5)
+            {
+                kind = CompositeInstructionKind.SubRsp;
+            }
+            else if (opcode == 0x83
+                && mod == 3
+                && rmRegister == 4
+                && group == 0)
+            {
+                kind = CompositeInstructionKind.AddRsp;
+            }
+
+            shiftLeftRdx32 =
+                opcode == 0xc1
+                && mod == 3
+                && group == 4
+                && rmRegister == 2
+                && immediate == 32;
+            orRaxRdx =
+                opcode == 0x09
+                && mod == 3
+                && rmRegister == 0
+                && (((modrm >> 3) & 7)
+                    + ((rex & 4) != 0 ? 8 : 0)) == 2;
+            cr4PaeTest =
+                opcode == 0xf7
+                && mod == 3
+                && group == 0
+                && immediate == 0x20;
+        }
+        else
+        {
+            return false;
+        }
+
+        instruction = new CompositeDecodedInstruction(
+            offset,
+            index - offset,
+            kind,
+            branchTarget,
+            register,
+            registerMask,
+            stateStoreOffset,
+            stateLoadOffset,
+            sourceRegister,
+            destinationRegister,
+            immediate,
+            shiftLeftRdx32,
+            orRaxRdx,
+            cr4PaeTest);
+        return instruction.Length > 0;
+    }
+
+    private static bool TryConsumeModRm(
+        byte[] bytes,
+        ref int index,
+        byte rex,
+        out byte modrm,
+        out int mod,
+        out int rmRegister,
+        out ulong registerMask,
+        out uint? displacement)
+    {
+        modrm = 0;
+        mod = 0;
+        rmRegister = -1;
+        registerMask = 0;
+        displacement = null;
+        if (index >= bytes.Length)
+        {
+            return false;
+        }
+
+        modrm = bytes[index++];
+        mod = modrm >> 6;
+        int reg = ((modrm >> 3) & 7)
+            + ((rex & 4) != 0 ? 8 : 0);
+        int rmLow = modrm & 7;
+        rmRegister = rmLow + ((rex & 1) != 0 ? 8 : 0);
+        registerMask |= 1UL << reg;
+        if (mod == 3)
+        {
+            registerMask |= 1UL << rmRegister;
+            return true;
+        }
+
+        bool hasSib = rmLow == 4;
+        int baseLow = rmLow;
+        if (hasSib)
+        {
+            if (index >= bytes.Length)
+            {
+                return false;
+            }
+            byte sib = bytes[index++];
+            int indexLow = (sib >> 3) & 7;
+            baseLow = sib & 7;
+            if (indexLow != 4)
+            {
+                int indexRegister =
+                    indexLow + ((rex & 2) != 0 ? 8 : 0);
+                registerMask |= 1UL << indexRegister;
+            }
+            if (!(mod == 0 && baseLow == 5))
+            {
+                int baseRegister =
+                    baseLow + ((rex & 1) != 0 ? 8 : 0);
+                registerMask |= 1UL << baseRegister;
+            }
+        }
+        else if (!(mod == 0 && rmLow == 5))
+        {
+            registerMask |= 1UL << rmRegister;
+        }
+
+        if (mod == 1)
+        {
+            if (index >= bytes.Length)
+            {
+                return false;
+            }
+            displacement = unchecked((uint)(sbyte)bytes[index++]);
+        }
+        else if (mod == 2 || (mod == 0 && baseLow == 5))
+        {
+            if (!TryReadUInt32(bytes, index, out uint value))
+            {
+                return false;
+            }
+            displacement = value;
+            index += 4;
+        }
+
+        return true;
+    }
+
+    private static bool TryReadUInt32(
+        byte[] bytes,
+        int offset,
+        out uint value)
+    {
+        value = 0;
+        if (offset < 0 || offset + 4 > bytes.Length)
+        {
+            return false;
+        }
+
+        value = (uint)(
+            bytes[offset]
+            | (bytes[offset + 1] << 8)
+            | (bytes[offset + 2] << 16)
+            | (bytes[offset + 3] << 24));
+        return true;
+    }
+
+    private static bool TryReadInt32(
+        byte[] bytes,
+        int offset,
+        out int value)
+    {
+        bool success = TryReadUInt32(bytes, offset, out uint raw);
+        value = unchecked((int)raw);
+        return success;
+    }
+
+    private static ulong ReadUnsigned(
+        byte[] bytes,
+        int offset,
+        int length)
+    {
+        ulong value = 0;
+        for (int index = 0; index < length; index++)
+        {
+            value |= (ulong)bytes[offset + index] << (index * 8);
+        }
+        return value;
+    }
+
+    private static ulong ComputeFnv1a64(ReadOnlySpan<byte> bytes)
+    {
+        ulong hash = 0xcbf2_9ce4_8422_2325UL;
+        foreach (byte value in bytes)
+        {
+            hash ^= value;
+            hash *= 0x0000_0100_0000_01b3UL;
+        }
+
+        return hash;
+    }
+
+    private enum CompositeInstructionKind
+    {
+        Other,
+        Jump,
+        ConditionalBranch,
+        DirectCall,
+        IndirectCall,
+        OtherIndirectControl,
+        Ret,
+        Cli,
+        Sti,
+        Pushfq,
+        Popfq,
+        Push,
+        Pop,
+        Cpuid,
+        Rdmsr,
+        Mfence,
+        Invlpg,
+        ReadCr0,
+        ReadCr3,
+        WriteCr3,
+        ReadCr4,
+        WriteCr4,
+        OtherControlRegister,
+        SubRsp,
+        AddRsp,
+        MoveRegisterImmediate,
+        MoveRegisterRegister,
+        AndRegisterRegister,
+        AndRegisterImmediate,
+        CompareRegisterRegister
+    }
+
+    private readonly record struct CompositeDecodedInstruction(
+        int Offset,
+        int Length,
+        CompositeInstructionKind Kind,
+        int? BranchTarget,
+        int Register,
+        ulong RegisterMask,
+        uint? StateStoreOffset,
+        uint? StateLoadOffset,
+        int SourceRegister,
+        int DestinationRegister,
+        ulong Immediate,
+        bool IsShiftLeftRdx32,
+        bool IsOrRaxRdx,
+        bool IsCr4PaeTest);
+
+    private readonly record struct ExpectedSemanticRecord(
+        M01OwnedCr3CompositeTransitionOperation Operation,
+        M01OwnedCr3CompositeTransitionRecoveryClass RecoveryClass,
+        uint ByteOffset,
+        uint ByteLength,
+        ulong StateOffsetOrConstant);
+
+    private readonly record struct FailureExpectation(
+        M01OwnedCr3CompositeTransitionRuntimeStatus RuntimeStatus,
+        M01OwnedCr3CompositeTransitionStatus ExpectedStatus);
+
+    private readonly struct NoStdLibBuildResult
+    {
+        internal NoStdLibBuildResult(
+            int exitCode,
+            bool timedOut,
+            string output)
+        {
+            ExitCode = exitCode;
+            TimedOut = timedOut;
+            Output = output;
+        }
+
+        internal int ExitCode { get; }
+
+        internal bool TimedOut { get; }
+
+        internal string Output { get; }
+    }
+}
