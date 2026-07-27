@@ -11,7 +11,7 @@ internal static class GiteaBacklogManifestTests
         new Dictionary<string, int>(StringComparer.Ordinal)
         {
             ["M00"] = 23,
-            ["M01"] = 27,
+            ["M01"] = 32,
             ["M02"] = 16,
             ["M03"] = 11,
             ["M04"] = 23,
@@ -47,6 +47,7 @@ internal static class GiteaBacklogManifestTests
             RunTest("gitea backlog sync refuses noncanonical target", () => TestCanonicalTargetRefusal(scriptPath), ref failures);
             RunTest("gitea backlog validation rejects missing required field", () => TestInvalidManifest(scriptPath, manifestPath, tempRoot, "missing", RemoveRequiredField, "missing required field 'summary'"), ref failures);
             RunTest("gitea backlog validation rejects duplicate key", () => TestInvalidManifest(scriptPath, manifestPath, tempRoot, "duplicate", DuplicateIssueKey, "Duplicate issue key"), ref failures);
+            RunTest("gitea backlog validation requires every M01 child through 032", () => TestInvalidManifest(scriptPath, manifestPath, tempRoot, "missing-m01-032", ReplaceLastM01ChildWithExtra, "Manifest is missing child 'M01-032'"), ref failures);
             RunTest("gitea backlog validation rejects unknown dependency", () => TestInvalidManifest(scriptPath, manifestPath, tempRoot, "dependency", AddUnknownDependency, "references unknown dependency"), ref failures);
             RunTest("gitea backlog validation rejects dependency cycle", () => TestInvalidManifest(scriptPath, manifestPath, tempRoot, "cycle", AddDependencyCycle, "dependency graph contains a cycle"), ref failures);
             RunTest("gitea backlog validation rejects unserialized M00 ownership", () => TestInvalidManifest(scriptPath, manifestPath, tempRoot, "overlap", AddUnserializedM00Overlap, "unserialized owned-path overlap"), ref failures);
@@ -133,7 +134,7 @@ internal static class GiteaBacklogManifestTests
         JsonElement milestones = root.GetProperty("milestones");
         JsonElement labels = root.GetProperty("labels");
         JsonElement issues = root.GetProperty("issues");
-        if (milestones.GetArrayLength() != 16 || labels.GetArrayLength() != 68 || issues.GetArrayLength() != 332)
+        if (milestones.GetArrayLength() != 16 || labels.GetArrayLength() != 68 || issues.GetArrayLength() != 337)
         {
             return false;
         }
@@ -402,6 +403,9 @@ internal static class GiteaBacklogManifestTests
         string[] expectedOrder = Enumerable.Range(1, 19)
             .Select(number => "M01-" + number.ToString("000"))
             .Append("M01-027")
+            .Concat(
+                Enumerable.Range(28, 5)
+                    .Select(number => "M01-" + number.ToString("000")))
             .Concat(
                 Enumerable.Range(20, 7)
                     .Select(number => "M01-" + number.ToString("000")))
@@ -695,7 +699,7 @@ internal static class GiteaBacklogManifestTests
     private static bool ValidateM01ReferenceLabels(
         IReadOnlyDictionary<string, JsonElement> issueByKey)
     {
-        for (int number = 1; number <= 27; number++)
+        for (int number = 1; number <= 32; number++)
         {
             string key = "M01-" + number.ToString("000");
             JsonElement issue = issueByKey[key];
@@ -894,7 +898,8 @@ internal static class GiteaBacklogManifestTests
         string[] hostOnlyIssues =
         [
             "M01-016", "M01-017", "M01-018", "M01-019", "M01-020",
-            "M01-021", "M01-023", "M01-025", "M01-027"
+            "M01-021", "M01-023", "M01-025", "M01-027", "M01-028",
+            "M01-029", "M01-030", "M01-031", "M01-032"
         ];
 
         for (int number = 16; number <= 26; number++)
@@ -908,7 +913,18 @@ internal static class GiteaBacklogManifestTests
             JsonElement issue = issueByKey[key];
             string lane = lanes[key];
             bool qemu = qemuIssues.Contains(key, StringComparer.Ordinal);
-            if (!DependenciesEqual(issue, dependency) ||
+            bool dependencyContractSatisfied =
+                key == "M01-025"
+                    ? DependenciesEqual(
+                        issue,
+                        "M01-024",
+                        "M01-027",
+                        "M01-029",
+                        "M01-030",
+                        "M01-031",
+                        "M01-032")
+                    : DependenciesEqual(issue, dependency);
+            if (!dependencyContractSatisfied ||
                 !string.Equals(
                     issue.GetProperty("collisionLane").GetString(),
                     lane,
@@ -1176,7 +1192,8 @@ internal static class GiteaBacklogManifestTests
             return false;
         }
 
-        return efiIssues.All(key =>
+        return ValidateM01PrerequisiteRepairContracts(issueByKey) &&
+            efiIssues.All(key =>
                 JsonElementContains(
                     issueByKey[key].GetProperty("requiredCommands"),
                     "build-efi-shell.ps1") &&
@@ -1191,6 +1208,162 @@ internal static class GiteaBacklogManifestTests
             DependenciesEqual(issueByKey["M02-001"], "M01-026") &&
             DependenciesEqual(issueByKey["M04-EPIC"], "M01-026") &&
             DependenciesEqual(issueByKey["M04-001"], "M01-026");
+    }
+
+    private static bool ValidateM01PrerequisiteRepairContracts(
+        IReadOnlyDictionary<string, JsonElement> issueByKey)
+    {
+        string[] repairKeys =
+        [
+            "M01-028",
+            "M01-029",
+            "M01-030",
+            "M01-031",
+            "M01-032"
+        ];
+        if (repairKeys.Any(key => !issueByKey.ContainsKey(key)) ||
+            !DependenciesEqual(
+                issueByKey["M01-029"],
+                "M01-028",
+                "M01-027") ||
+            !DependenciesEqual(issueByKey["M01-030"], "M01-029") ||
+            !DependenciesEqual(issueByKey["M01-031"], "M01-030") ||
+            !DependenciesEqual(issueByKey["M01-032"], "M01-031") ||
+            !DependenciesEqual(
+                issueByKey["M01-025"],
+                "M01-024",
+                "M01-027",
+                "M01-029",
+                "M01-030",
+                "M01-031",
+                "M01-032") ||
+            !DependenciesEqual(issueByKey["M01-026"], "M01-025"))
+        {
+            return false;
+        }
+
+        foreach (string key in repairKeys)
+        {
+            JsonElement issue = issueByKey[key];
+            string lane = issue.GetProperty("collisionLane").GetString()
+                ?? string.Empty;
+            string commands = JsonArrayText(
+                issue.GetProperty("requiredCommands"));
+            if (string.IsNullOrWhiteSpace(lane) ||
+                !lane.StartsWith("lane:", StringComparison.Ordinal) ||
+                CountPrefix(issue.GetProperty("labels"), "lane:") != 1 ||
+                !JsonArrayContainsExact(issue.GetProperty("labels"), lane) ||
+                !JsonArrayContainsExact(
+                    issue.GetProperty("labels"),
+                    "evidence:host") ||
+                commands.Contains(" -Qemu \"", StringComparison.Ordinal) ||
+                commands.Contains(
+                    " -OvmfCode \"",
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        if (!JsonArrayContainsExact(
+                issueByKey["M01-028"].GetProperty("labels"),
+                "type:research") ||
+            !HasOwnedPath(
+                issueByKey["M01-028"],
+                ".gitea/backlog/clros-issues.json") ||
+            !HasOwnedPath(
+                issueByKey["M01-028"],
+                "scripts/sync-gitea-backlog.ps1") ||
+            !HasOwnedPath(
+                issueByKey["M01-028"],
+                "tests/OS.HostTests/GiteaBacklogManifestTests.cs") ||
+            !HasOwnedPath(
+                issueByKey["M01-028"],
+                "tests/OS.HostTests/M01LivePagingPrerequisiteManifestTests.cs") ||
+            !HasOwnedPath(
+                issueByKey["M01-028"],
+                "tests/OS.HostTests/RepositoryRecoveryTests.cs") ||
+            !HasOwnedPath(issueByKey["M01-028"], "docs/boot.md") ||
+            !HasOwnedPath(issueByKey["M01-028"], "docs/architecture.md") ||
+            !HasOwnedPath(issueByKey["M01-028"], "docs/repo-audit.md") ||
+            !HasOwnedPath(issueByKey["M01-028"], "docs/issue-labels.md") ||
+            !HasOwnedPath(
+                issueByKey["M01-029"],
+                "src/OS.Kernel/Boot/M01LivePagingIntegration.cs") ||
+            !HasOwnedPath(
+                issueByKey["M01-029"],
+                "tests/OS.HostTests/M01LivePagingIntegrationTests.cs") ||
+            !HasOwnedPath(
+                issueByKey["M01-030"],
+                "src/OS.Kernel/Boot/M01LivePagingIntegration.cs") ||
+            !HasOwnedPath(
+                issueByKey["M01-030"],
+                "src/OS.Kernel/Boot/X64BootIdentityMappingPlan.cs") ||
+            !HasOwnedPath(
+                issueByKey["M01-030"],
+                "tests/OS.HostTests/M01LivePagingIntegrationTests.cs") ||
+            !HasOwnedPath(
+                issueByKey["M01-030"],
+                "tests/OS.HostTests/X64BootIdentityMappingPlanTests.cs") ||
+            !HasOwnedPath(
+                issueByKey["M01-031"],
+                "src/OS.Kernel/Boot/M01LivePagingIntegration.cs") ||
+            !HasOwnedPath(
+                issueByKey["M01-031"],
+                "tests/OS.HostTests/M01LivePagingIntegrationTests.cs") ||
+            !HasOwnedPath(
+                issueByKey["M01-032"],
+                "src/OS.Kernel/Boot/M01OwnedCr3CompositeTransition.cs") ||
+            !HasOwnedPath(
+                issueByKey["M01-032"],
+                "tests/OS.HostTests/M01OwnedCr3CompositeTransitionTests.cs"))
+        {
+            return false;
+        }
+
+        for (int left = 0; left < repairKeys.Length; left++)
+        {
+            JsonElement leftIssue = issueByKey[repairKeys[left]];
+            HashSet<string> leftPaths = leftIssue.GetProperty("ownedPaths")
+                .EnumerateArray()
+                .Select(path => path.GetString() ?? string.Empty)
+                .ToHashSet(StringComparer.Ordinal);
+            string leftLane =
+                leftIssue.GetProperty("collisionLane").GetString()
+                ?? string.Empty;
+            for (int right = left + 1;
+                right < repairKeys.Length;
+                right++)
+            {
+                JsonElement rightIssue = issueByKey[repairKeys[right]];
+                string rightLane =
+                    rightIssue.GetProperty("collisionLane").GetString()
+                    ?? string.Empty;
+                bool overlaps =
+                    rightIssue.GetProperty("ownedPaths")
+                        .EnumerateArray()
+                        .Select(path => path.GetString() ?? string.Empty)
+                        .Any(leftPaths.Contains) ||
+                    string.Equals(
+                        leftLane,
+                        rightLane,
+                        StringComparison.Ordinal);
+                if (overlaps &&
+                    !DependsTransitively(
+                        issueByKey,
+                        repairKeys[left],
+                        repairKeys[right]) &&
+                    !DependsTransitively(
+                        issueByKey,
+                        repairKeys[right],
+                        repairKeys[left]))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     private static bool ValidateM03PermanentCr3Handoff(
@@ -1478,11 +1651,11 @@ internal static class GiteaBacklogManifestTests
         byte[] after = SHA256.HashData(File.ReadAllBytes(manifestPath));
         DateTime afterWriteTime = File.GetLastWriteTimeUtc(manifestPath);
         return result.ExitCode == 0 &&
-            result.Output.Contains("SYNC_MANIFEST_VALID milestones=16 labels=68 epics=16 children=316 issues=332", StringComparison.Ordinal) &&
+            result.Output.Contains("SYNC_MANIFEST_VALID milestones=16 labels=68 epics=16 children=321 issues=337", StringComparison.Ordinal) &&
             result.Output.Contains("SYNC_MODE preview", StringComparison.Ordinal) &&
             result.Output.Contains("SYNC_OFFLINE manifest_only", StringComparison.Ordinal) &&
-            result.Output.Contains("SYNC_KEYS action=skipped count=416", StringComparison.Ordinal) &&
-            result.Output.Contains("SYNC_SUMMARY created=0 updated=0 unchanged=0 skipped=416 failed=0 wouldCreate=0 wouldUpdate=0", StringComparison.Ordinal) &&
+            result.Output.Contains("SYNC_KEYS action=skipped count=421", StringComparison.Ordinal) &&
+            result.Output.Contains("SYNC_SUMMARY created=0 updated=0 unchanged=0 skipped=421 failed=0 wouldCreate=0 wouldUpdate=0", StringComparison.Ordinal) &&
             result.Output.Contains("TEST_PASS gitea.backlog.sync", StringComparison.Ordinal) &&
             before.AsSpan().SequenceEqual(after) &&
             beforeWriteTime == afterWriteTime;
@@ -1574,6 +1747,26 @@ internal static class GiteaBacklogManifestTests
             .First(node => node?["key"]?.GetValue<string>() == "M00-002")
             ?? throw new InvalidOperationException("M00-002 missing");
         target["dependencyKeys"] = new JsonArray("M99-999");
+    }
+
+    private static void ReplaceLastM01ChildWithExtra(JsonObject root)
+    {
+        JsonObject child = FindIssue(root, "M01-032");
+        child["key"] = "M01-999";
+
+        JsonObject dependent = FindIssue(root, "M01-025");
+        JsonArray dependencyKeys = dependent["dependencyKeys"]?.AsArray()
+            ?? throw new InvalidOperationException("M01-025 dependencyKeys missing");
+        for (int index = 0; index < dependencyKeys.Count; index++)
+        {
+            if (dependencyKeys[index]?.GetValue<string>() == "M01-032")
+            {
+                dependencyKeys[index] = "M01-999";
+                return;
+            }
+        }
+
+        throw new InvalidOperationException("M01-025 dependency on M01-032 missing");
     }
 
     private static void AddDependencyCycle(JsonObject root)
