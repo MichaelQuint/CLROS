@@ -1867,14 +1867,21 @@ internal static class X64PageTableEntryTests
             return false;
         }
 
-        if (!EvaluatedEfiClosure(
+        if (!BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Memory\PageProtection.cs",
+                @"Memory\PageProtection.cs")
+            || !BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Memory\PageCachePolicy.cs",
+                @"Memory\PageCachePolicy.cs")
+            || !BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Memory\X64PageTableEntry.cs",
+                @"Memory\X64PageTableEntry.cs")
+            || !EvaluatedEfiClosure(
                 root,
                 efiProject,
                 "SingleMinimalApi",
-                protectionPath,
-                cachePath,
-                entryPath,
-                ownerPath))
+                [protectionPath, cachePath, entryPath],
+                [ownerPath]))
         {
             Console.WriteLine(
                 "M01_011_BOUNDARY_DIAGNOSTIC efi_single");
@@ -1885,10 +1892,8 @@ internal static class X64PageTableEntryTests
                 root,
                 efiProject,
                 "MultiMinimalApi",
-                protectionPath,
-                cachePath,
-                entryPath,
-                ownerPath))
+                [protectionPath, cachePath, entryPath],
+                [ownerPath]))
         {
             Console.WriteLine(
                 "M01_011_BOUNDARY_DIAGNOSTIC efi_multi");
@@ -2560,7 +2565,8 @@ internal static class X64PageTableEntryTests
         string repositoryRoot,
         string projectPath,
         string workloadProfile,
-        params string[] forbiddenPaths)
+        IReadOnlyList<string> requiredPaths,
+        IReadOnlyList<string> forbiddenPaths)
     {
         ProcessStartInfo start = DotnetStart(repositoryRoot);
         start.ArgumentList.Add("msbuild");
@@ -2611,6 +2617,11 @@ internal static class X64PageTableEntryTests
 
             bool efiEntry = false;
             bool minimalRuntime = false;
+            HashSet<string> required = new(
+                requiredPaths.Select(Path.GetFullPath),
+                StringComparer.OrdinalIgnoreCase);
+            HashSet<string> foundRequired =
+                new(StringComparer.OrdinalIgnoreCase);
             foreach (JsonElement item in compile.EnumerateArray())
             {
                 string identity =
@@ -2628,15 +2639,19 @@ internal static class X64PageTableEntryTests
                     return false;
                 }
 
+                string canonicalPath = Path.GetFullPath(fullPath);
                 efiEntry |= fullPath.EndsWith(
                     Path.Combine("Boot", "EfiEntry.cs"),
                     StringComparison.OrdinalIgnoreCase);
                 minimalRuntime |= fullPath.EndsWith(
                     Path.Combine("Runtime", "MinimalRuntime.cs"),
                     StringComparison.OrdinalIgnoreCase);
+                if (required.Contains(canonicalPath))
+                    foundRequired.Add(canonicalPath);
+
                 foreach (string forbiddenPath in forbiddenPaths)
                 {
-                    if (Path.GetFullPath(fullPath).Equals(
+                    if (canonicalPath.Equals(
                             Path.GetFullPath(forbiddenPath),
                             StringComparison.OrdinalIgnoreCase))
                     {
@@ -2650,7 +2665,9 @@ internal static class X64PageTableEntryTests
                 }
             }
 
-            if (!efiEntry || !minimalRuntime)
+            if (!efiEntry
+                || !minimalRuntime
+                || foundRequired.Count != required.Count)
             {
                 Console.WriteLine(
                     "M01_011_EFI_EVAL_DIAGNOSTIC profile="

@@ -817,6 +817,20 @@ internal static class GiteaBacklogManifestTests
                     "src/OS/OS.csproj",
                     "scripts/build-efi-shell.ps1",
                     "tests/OS.HostTests/BuildEfiShellPreflightTests.cs",
+                    "tests/OS.HostTests/BootPageAllocatorFreeCoalescingTests.cs",
+                    "tests/OS.HostTests/BootPageAllocatorOnePageAllocationTests.cs",
+                    "tests/OS.HostTests/BootPageAllocatorStateMaterializerTests.cs",
+                    "tests/OS.HostTests/BootReservationSubtractorTests.cs",
+                    "tests/OS.HostTests/BootSequencePlanTests.cs",
+                    "tests/OS.HostTests/M01LoadedImageStackIntegrationTests.cs",
+                    "tests/OS.HostTests/M01LiveAllocatorIntegrationTests.cs",
+                    "tests/OS.HostTests/OwnedBootStackLayoutTests.cs",
+                    "tests/OS.HostTests/OwnedBootStackSwitchPlanTests.cs",
+                    "tests/OS.HostTests/PageZeroMappingPolicyTests.cs",
+                    "tests/OS.HostTests/X64BootIdentityMappingPlanTests.cs",
+                    "tests/OS.HostTests/X64PageTableEntryTests.cs",
+                    "tests/OS.HostTests/GiteaBacklogManifestTests.cs",
+                    ".gitea/backlog/clros-issues.json",
                     "docs/efi-build.md"
                 ],
                 ["M01-021"] =
@@ -910,11 +924,11 @@ internal static class GiteaBacklogManifestTests
                 StringComparison.Ordinal) ||
             !string.Equals(
                 composite.GetProperty("desiredState").GetString(),
-                "open",
+                "closed",
                 StringComparison.Ordinal) ||
             !string.Equals(
                 issueByKey["M01-020"].GetProperty("desiredState").GetString(),
-                "open",
+                "closed",
                 StringComparison.Ordinal) ||
             !DependenciesEqual(composite, "M01-019") ||
             !string.Equals(
@@ -1113,6 +1127,7 @@ internal static class GiteaBacklogManifestTests
         string[] requiredCompileNames =
         [
             "BootPageAllocatorCoreContracts.cs",
+            "UefiMemoryType.cs",
             "PageProtection.cs",
             "PageCachePolicy.cs",
             "X64PagingModePreflightStubPlan.cs",

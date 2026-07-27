@@ -1433,19 +1433,12 @@ internal static class BootPageAllocatorStateMaterializerTests
             "OS",
             "Boot",
             "EfiEntry.cs");
-        string efiProjectPath = Path.Combine(
-            repositoryRoot,
-            "src",
-            "OS",
-            "OS.csproj");
-
         string core = RemoveComments(File.ReadAllText(corePath));
         string materializer =
             RemoveComments(File.ReadAllText(materializerPath));
         string state = RemoveComments(File.ReadAllText(statePath));
         string freeList = RemoveComments(File.ReadAllText(freeListPath));
         string efiEntry = RemoveComments(File.ReadAllText(efiEntryPath));
-        string efiProject = File.ReadAllText(efiProjectPath);
         string combined = core + Environment.NewLine + materializer;
 
         string[] forbiddenPatterns =
@@ -1621,12 +1614,12 @@ internal static class BootPageAllocatorStateMaterializerTests
         return !efiEntry.Contains(
                 nameof(BootPageAllocatorStateMaterializer),
                 StringComparison.Ordinal)
-            && !efiProject.Contains(
-                "BootPageAllocatorCoreContracts.cs",
-                StringComparison.Ordinal)
-            && !efiProject.Contains(
-                "BootPageAllocatorStateMaterializer.cs",
-                StringComparison.Ordinal);
+            && BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Memory\BootPageAllocatorCoreContracts.cs",
+                @"Memory\BootPageAllocatorCoreContracts.cs")
+            && BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Memory\BootPageAllocatorStateMaterializer.cs",
+                @"Memory\BootPageAllocatorStateMaterializer.cs");
     }
 
     private static bool TestMarkerUniqueness()

@@ -31,6 +31,21 @@
 		<EntryPointSymbol>EfiMain</EntryPointSymbol>
 		<LinkerSubsystem>EFI_APPLICATION</LinkerSubsystem>
 		<DefineConstants>$(DefineConstants);NOSTDLIB_EFI</DefineConstants>
+		<EnableM01LoadedImageStackProbe Condition="'$(EnableM01LoadedImageStackProbe)' == ''">false</EnableM01LoadedImageStackProbe>
+		<EnableM01LiveAllocatorProbe Condition="'$(EnableM01LiveAllocatorProbe)' == ''">false</EnableM01LiveAllocatorProbe>
+		<EnableM01OwnedPagingProbe Condition="'$(EnableM01OwnedPagingProbe)' == ''">false</EnableM01OwnedPagingProbe>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM01LoadedImageStackProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M01_LOADED_IMAGE_STACK_PROBE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM01LiveAllocatorProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M01_LIVE_ALLOCATOR_PROBE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM01OwnedPagingProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M01_OWNED_PAGING_PROBE</DefineConstants>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableUefiGoneSimulationProbe)' == 'true'">
@@ -56,6 +71,34 @@
 		<Compile Include="..\OS.Kernel\Boot\UefiMemoryMapCapture.cs" Link="Boot\UefiMemoryMapCapture.cs" />
 		<Compile Include="..\OS.Kernel\Boot\UefiMemoryMapCopyPlan.cs" Link="Boot\UefiMemoryMapCopyPlan.cs" />
 		<Compile Include="..\OS.Kernel\Boot\BootSequencePlan.cs" Link="Boot\BootSequencePlan.cs" />
+		<Compile Include="..\OS.Kernel\Boot\TypedPhysicalVirtualDeviceAddressPODWrappers.cs" Link="Boot\TypedPhysicalVirtualDeviceAddressPODWrappers.cs" />
+		<Compile Include="..\OS.Kernel\Memory\BootReservedRange.cs" Link="Memory\BootReservedRange.cs" />
+		<Compile Include="..\OS.Kernel\Memory\BootReservationTableValidator.cs" Link="Memory\BootReservationTableValidator.cs" />
+		<Compile Include="..\OS.Kernel\Boot\EfiLoadedImageRange.cs" Link="Boot\EfiLoadedImageRange.cs" />
+		<Compile Include="..\OS.Kernel\Boot\EfiLoadedImageRangeCapturePlan.cs" Link="Boot\EfiLoadedImageRangeCapturePlan.cs" />
+		<Compile Include="..\OS.Kernel\Boot\OwnedBootStackLayout.cs" Link="Boot\OwnedBootStackLayout.cs" />
+		<Compile Include="..\OS.Kernel\Boot\UefiMemoryType.cs" Link="Boot\UefiMemoryType.cs" />
+		<Compile Include="..\OS.Kernel\Boot\OwnedBootStackSwitchPlan.cs" Link="Boot\OwnedBootStackSwitchPlan.cs" />
+		<Compile Include="..\OS.Kernel\Memory\BootPageAllocatorCoreContracts.cs" Link="Memory\BootPageAllocatorCoreContracts.cs" />
+		<Compile Include="..\OS.Kernel\Memory\BootPageAllocatorStateMaterializer.cs" Link="Memory\BootPageAllocatorStateMaterializer.cs" />
+		<Compile Include="..\OS.Kernel\Memory\BootReservationSubtractor.cs" Link="Memory\BootReservationSubtractor.cs" />
+		<Compile Include="..\OS.Kernel\Memory\BootPageAllocatorMutation.cs" Link="Memory\BootPageAllocatorMutation.cs" />
+		<Compile Include="..\OS.Kernel\Memory\PageProtection.cs" Link="Memory\PageProtection.cs" />
+		<Compile Include="..\OS.Kernel\Memory\PageCachePolicy.cs" Link="Memory\PageCachePolicy.cs" />
+		<Compile Include="..\OS.Kernel\Memory\X64PageTableEntry.cs" Link="Memory\X64PageTableEntry.cs" />
+		<Compile Include="..\OS.Kernel\Boot\X64BootIdentityMappingPlan.cs" Link="Boot\X64BootIdentityMappingPlan.cs" />
+		<Compile Include="..\OS.Kernel\Memory\X64Cr3LoadStubPlan.cs" Link="Memory\X64Cr3LoadStubPlan.cs" />
+		<Compile Include="..\OS.Kernel\Memory\X64PagingModePreflightStubPlan.cs" Link="Memory\X64PagingModePreflightStubPlan.cs" />
+		<Compile Include="..\OS.Kernel\Memory\X64ReversibleCr3TransitionStubPlan.cs" Link="Memory\X64ReversibleCr3TransitionStubPlan.cs" />
+		<Compile Include="..\OS.Kernel\Memory\X64PageMap.cs" Link="Memory\X64PageMap.cs" />
+		<Compile Include="..\OS.Kernel\Memory\X64TlbInvalidationPlan.cs" Link="Memory\X64TlbInvalidationPlan.cs" />
+		<Compile Include="..\OS.Kernel\Memory\X64InvlpgStubPlan.cs" Link="Memory\X64InvlpgStubPlan.cs" />
+		<Compile Include="..\OS.Kernel\Memory\X64ProtectionProbeStubPlan.cs" Link="Memory\X64ProtectionProbeStubPlan.cs" />
+		<Compile Include="..\OS.Kernel\Memory\PageZeroMappingPolicy.cs" Link="Memory\PageZeroMappingPolicy.cs" />
+		<Compile Include="..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs" Link="Boot\M01LoadedImageStackIntegration.cs" />
+		<Compile Include="..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs" Link="Boot\M01LiveAllocatorIntegration.cs" />
+		<Compile Include="..\OS.Kernel\Boot\M01LivePagingIntegration.cs" Link="Boot\M01LivePagingIntegration.cs" />
+		<Compile Include="..\OS.Kernel\Boot\M01OwnedCr3CompositeTransition.cs" Link="Boot\M01OwnedCr3CompositeTransition.cs" />
 		<Compile Include="Boot\EfiConsoleAdapter.cs" />
 		<Compile Include="Boot\EfiEntry.cs" />
 		<Compile Include="Runtime\MinimalRuntime.cs" />
@@ -68,6 +111,16 @@
 			<PackageDirectory>$(UserProfile)\.nuget\packages\microsoft.netcore.app.runtime.nativeaot.win-x64\10.0.8\</PackageDirectory>
 		</ResolvedTargetILCompilerPack>
 	</ItemGroup>
+
+	<Target Name="ValidateM01ProbeSwitches"
+			BeforeTargets="BeforeCompile">
+		<Error
+			Condition="'$(EnableM01LiveAllocatorProbe)' == 'true' and '$(EnableM01LoadedImageStackProbe)' != 'true'"
+			Text="EnableM01LiveAllocatorProbe requires EnableM01LoadedImageStackProbe=true." />
+		<Error
+			Condition="'$(EnableM01OwnedPagingProbe)' == 'true' and '$(EnableM01LiveAllocatorProbe)' != 'true'"
+			Text="EnableM01OwnedPagingProbe requires EnableM01LiveAllocatorProbe=true." />
+	</Target>
 
 	<Target Name="CustomizeReferences"
 			BeforeTargets="BeforeCompile"

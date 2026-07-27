@@ -4535,6 +4535,20 @@
         "src/OS/OS.csproj",
         "scripts/build-efi-shell.ps1",
         "tests/OS.HostTests/BuildEfiShellPreflightTests.cs",
+        "tests/OS.HostTests/BootPageAllocatorFreeCoalescingTests.cs",
+        "tests/OS.HostTests/BootPageAllocatorOnePageAllocationTests.cs",
+        "tests/OS.HostTests/BootPageAllocatorStateMaterializerTests.cs",
+        "tests/OS.HostTests/BootReservationSubtractorTests.cs",
+        "tests/OS.HostTests/BootSequencePlanTests.cs",
+        "tests/OS.HostTests/M01LoadedImageStackIntegrationTests.cs",
+        "tests/OS.HostTests/M01LiveAllocatorIntegrationTests.cs",
+        "tests/OS.HostTests/OwnedBootStackLayoutTests.cs",
+        "tests/OS.HostTests/OwnedBootStackSwitchPlanTests.cs",
+        "tests/OS.HostTests/PageZeroMappingPolicyTests.cs",
+        "tests/OS.HostTests/X64BootIdentityMappingPlanTests.cs",
+        "tests/OS.HostTests/X64PageTableEntryTests.cs",
+        "tests/OS.HostTests/GiteaBacklogManifestTests.cs",
+        ".gitea/backlog/clros-issues.json",
         "docs/efi-build.md"
       ],
       "forbiddenPaths": [
@@ -4553,16 +4567,18 @@
       ],
       "collisionLane": "lane:os-project",
       "summary": "Make the canonical no-stdlib EFI project and build preflight recognize reviewed M01 leaf/coordinator source sets and three explicit opt-in stage switches.",
-      "currentEvidence": "No current canonical EFI compile-closure proof covers the reviewed M01 production cores or a single composite owned-CR3 transition leaf. M01-027 must first close with reviewed host evidence for one indivisible callback-free transition stream before this issue may link the M01 source set into the canonical EFI project.",
+      "currentEvidence": "Accepted in done/step868.md: the canonical EFI project contains the exact 41-item no-stdlib closure with 28 reviewed M01 entries, three explicit prerequisites, and all three staged switches default-off. Independent adversarial review found and drove regression coverage for the omitted UefiMemoryType prerequisite, 14 stale historical source-absence assertions, legacy-probe forwarding, caller-selected Debug/Release evaluation, canonical project/build-customization fingerprints, duplicate packages, target-time mutation, and hostile managed-reference source forms. The frozen repository-wide host log is 808582 bytes with SHA-256 8E648352AAC0C020D22FC0FA623B6176F3C480EF1AFD9E298DEFF5570064597B, contains CLROS_M01_020_READY and TEST_PASS m01.020, has zero TEST_FAIL markers, and ends with TEST_PASS host.tests. The all-three NativeAOT artifact is PE32+ x64 EFI subsystem 10, has no ordinary import directories, and has SHA-256 9F9A33DCCD2C3B1A7988414B969711F19BDA3672E3058FA74EF492BEED34B850. This remains host/build evidence only: EfiEntry, boot order, live memory, CR3/PTE/TLB state, QEMU execution, firmware exit, and completion gates are unchanged.",
       "implementationNotes": [
         "Own only the lane:os-project surface and its build/preflight support.",
         "Use one exact reviewed compile list of already-existing NOSTDLIB_EFI cores: TypedPhysicalVirtualDeviceAddressPODWrappers.cs; BootReservedRange.cs; BootReservationTableValidator.cs; EfiLoadedImageRange.cs; EfiLoadedImageRangeCapturePlan.cs; OwnedBootStackLayout.cs; OwnedBootStackSwitchPlan.cs; BootPageAllocatorCoreContracts.cs; BootPageAllocatorStateMaterializer.cs; BootReservationSubtractor.cs; BootPageAllocatorMutation.cs; PageProtection.cs; PageCachePolicy.cs; X64PageTableEntry.cs; X64BootIdentityMappingPlan.cs; X64Cr3LoadStubPlan.cs; X64PagingModePreflightStubPlan.cs; X64ReversibleCr3TransitionStubPlan.cs; X64PageMap.cs; X64TlbInvalidationPlan.cs; X64InvlpgStubPlan.cs; X64ProtectionProbeStubPlan.cs; PageZeroMappingPolicy.cs; M01LoadedImageStackIntegration.cs; M01LiveAllocatorIntegration.cs; M01LivePagingIntegration.cs; M01OwnedCr3CompositeTransition.cs; and the existing explicitly linked BootSequencePlan.cs.",
+        "The reviewed list additionally requires explicit prerequisite UefiMemoryType.cs; the original 28-file catalog omitted it, and the exact compile fails with 18 unresolved-type diagnostics without it. BootHandoffRecord.cs and BootMemoryRegionMaterializer.cs remain explicit pre-existing prerequisites.",
         "Never link M01-010, NullPageFaultProbePlan.cs, BootSequence.cs, BootPageAllocatorState.cs, BootPageFreeListPlan.cs, BootPageAllocatorPlan.cs, BootMemoryRegionPlan.cs, tests/docs, or any Span/ReadOnlySpan host wrapper into src/OS; BootSequence.cs remains host orchestration and source-of-truth validation, not EFI source.",
         "Do not use source globs, Exists(...) conditions, or preauthorized future file slots.",
         "Add explicit reviewed M01 compile items to src/OS/OS.csproj; do not use an alternate EFI project.",
         "Plumb EnableM01LoadedImageStackProbe, EnableM01LiveAllocatorProbe, and EnableM01OwnedPagingProbe through build-efi-shell.ps1 and fail preflight for missing/inconsistent stage prerequisites.",
         "Source/preflight tests must confirm every linked production/prerequisite/coordinator file is already present, explicitly listed, compiles with the exact NOSTDLIB_EFI symbol, contains no unguarded Span/string/exception/reflection/managed-reference/System.FlagsAttribute dependency, uses ~0UL instead of unavailable ulong.MaxValue where required, and retains checked three-allocation/map/arena/callback/restoration/canary prerequisites.",
         "The ordinary default EFI build remains unchanged with all M01 switches disabled.",
+        "Historical M01 host firewalls may change only from requiring these newly reviewed sources absent to requiring their exact canonical Include/Link; every exclusion for host tests, legacy planners, EfiEntry/BootSequence/Probes invocation, firmware calls, live execution, and host-only markers remains in force.",
         "Do not edit Probes.cs, BootSequence, EfiEntry, QEMU runner, or completion gates.",
         "CLROS_M01_020_READY is host build/preflight evidence only."
       ],
@@ -4576,8 +4592,8 @@
       "acceptanceCriteria": [
         "OS.csproj matches the exact reviewed NOSTDLIB_EFI compile list and excludes M01-010, NullPageFaultProbePlan, BootSequence, every Span-bearing state/free-list/allocator/region planner, tests, host wrappers, reference projects, globs, and conditional future-file preauthorization.",
         "Build preflight propagates each stage switch, rejects invalid combinations and missing sources, and preserves the all-false default build.",
-        "Host tests cover exact source closure; all-three-switch compile; positive propagation; false defaults; unknown switch; later-stage-without-prerequisite; missing/unowned/Span-bearing source; unguarded host API or System.FlagsAttribute; ambiguous #if NOSTDLIB or non-NOSTDLIB wording; missing exact NOSTDLIB_EFI exclusion; unavailable BCL constant; BootSequence/M01-010/test inclusion; duplicate compile item; noncanonical project; source glob; conditional future-file slot; missing distinct protection-probe allocation/arena/map prerequisite; missing callback exclusion; and missing CR3 restoration/canary contract.",
-        "Only lane:os-project, build preflight, its focused test, and efi-build documentation are changed.",
+        "Host tests cover exact source closure; all-three-switch compile; positive propagation; false defaults; unknown switch; supported Debug/Release and rejected custom configuration; legacy probe propagation; later-stage-without-prerequisite; missing/unowned/Span-bearing source; unguarded host API or System.FlagsAttribute; using aliases; nameof; records; non-static classes; arrays; anonymous objects; attributes; ambiguous #if NOSTDLIB or non-NOSTDLIB wording; missing exact NOSTDLIB_EFI exclusion; unavailable BCL constant; BootSequence/M01-010/test inclusion; duplicate compile/package item; noncanonical project/build customization; source glob; conditional future-file slot; target-time source mutation; missing distinct protection-probe allocation/arena/map prerequisite; missing callback exclusion; and missing CR3 restoration/canary contract.",
+        "Only lane:os-project, build preflight, its focused test, the narrowly superseded source-presence predicates in the listed historical M01 host tests, the durable backlog contract/test, and efi-build documentation are changed.",
         "CLROS_M01_020_READY is host-only and proves no guest execution."
       ],
       "requiredMarkers": [
@@ -4597,8 +4613,8 @@
       "documentationPaths": [
         "docs/efi-build.md"
       ],
-      "evidenceBoundary": "This issue proves only canonical EFI project/source-selection and build-switch preflight for already-existing reviewed M01 leaves/coordinators. It does not allocate firmware pages, add boot ordering, wire EfiEntry, build a successful opt-in stage, execute QEMU, exit boot services, or prove any live memory or CR3 behavior.",
-      "desiredState": "open"
+      "evidenceBoundary": "This issue proves only canonical EFI project/source-selection and build-switch preflight for already-existing reviewed M01 leaves/coordinators. It builds the opt-in variant but does not allocate firmware pages, add boot ordering, wire or execute a successful live opt-in stage, execute QEMU, exit boot services, or prove any live memory or CR3 behavior.",
+      "desiredState": "closed"
     },
     {
       "key": "M01-021",

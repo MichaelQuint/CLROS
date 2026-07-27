@@ -1660,11 +1660,6 @@ internal static class BootReservationSubtractorTests
                 HostToolProcess.FindRepositoryRoot(),
                 "src",
                 "OS",
-                "OS.csproj"),
-            Path.Combine(
-                HostToolProcess.FindRepositoryRoot(),
-                "src",
-                "OS",
                 "Boot",
                 "EfiEntry.cs"),
             Path.Combine(
@@ -1709,10 +1704,13 @@ internal static class BootReservationSubtractorTests
             && RuntimeHelpers
                 .IsReferenceOrContainsReferences<BootReservationSubtractionResult>()
                 == false
-            && EvaluatedEfiCompileClosureExcludesSubtractor();
+            && BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Memory\BootReservationSubtractor.cs",
+                @"Memory\BootReservationSubtractor.cs")
+            && EvaluatedEfiCompileClosureExcludesLegacySubtractorSources();
     }
 
-    private static bool EvaluatedEfiCompileClosureExcludesSubtractor()
+    private static bool EvaluatedEfiCompileClosureExcludesLegacySubtractorSources()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string projectPath = Path.Combine(
@@ -1754,8 +1752,6 @@ internal static class BootReservationSubtractorTests
                 return SourceFailure("efi-compile-json-shape");
             }
 
-            string forbiddenProductionPath = Path.GetFullPath(
-                GetSubtractorSourcePath());
             string forbiddenRegionPlanPath = Path.GetFullPath(
                 Path.Combine(
                     repositoryRoot,
@@ -1790,18 +1786,11 @@ internal static class BootReservationSubtractorTests
                 bool forbidden =
                     string.Equals(
                         canonicalFullPath,
-                        forbiddenProductionPath,
-                        StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(
-                        canonicalFullPath,
                         forbiddenRegionPlanPath,
                         StringComparison.OrdinalIgnoreCase)
                     || string.Equals(
                         canonicalFullPath,
                         forbiddenAllocatorPlanPath,
-                        StringComparison.OrdinalIgnoreCase)
-                    || identity.EndsWith(
-                        "BootReservationSubtractor.cs",
                         StringComparison.OrdinalIgnoreCase)
                     || identity.EndsWith(
                         "BootReservationSourceRange.cs",

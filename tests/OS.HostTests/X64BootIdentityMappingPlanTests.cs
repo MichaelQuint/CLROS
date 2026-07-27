@@ -36,7 +36,7 @@ internal static class X64BootIdentityMappingPlanTests
         Run("m01.012 10 pointer count capacity and aliasing are bounded", TestPointerCore, ref failures);
         Run("m01.012 11 hostile POD bytes and failure atomicity hold", TestHostilePodAndAtomicity, ref failures);
         Run("m01.012 12 source and nostdlib efi firewalls hold", TestSourceAndNoStdLibBoundary, ref failures);
-        Run("m01.012 13 current evaluated efi closures exclude the planner", TestEvaluatedEfiBoundary, ref failures);
+        Run("m01.012 13 canonical efi closures include the planner and exclude host tests", TestEvaluatedEfiBoundary, ref failures);
         Run("m01.012 14 marker ownership and ordering are stable", TestMarkerBoundary, ref failures);
 
         if (failures != 0)
@@ -1872,6 +1872,24 @@ internal static class X64BootIdentityMappingPlanTests
             "OS.Kernel",
             "Boot",
             "X64BootIdentityMappingPlan.cs");
+        string protectionPath = Path.Combine(
+            root,
+            "src",
+            "OS.Kernel",
+            "Memory",
+            "PageProtection.cs");
+        string cachePath = Path.Combine(
+            root,
+            "src",
+            "OS.Kernel",
+            "Memory",
+            "PageCachePolicy.cs");
+        string entryPath = Path.Combine(
+            root,
+            "src",
+            "OS.Kernel",
+            "Memory",
+            "X64PageTableEntry.cs");
         string ownerPath = Path.Combine(
             root,
             "tests",
@@ -1883,6 +1901,9 @@ internal static class X64BootIdentityMappingPlanTests
             "OS",
             "OS.csproj");
         if (!File.Exists(productionPath)
+            || !File.Exists(protectionPath)
+            || !File.Exists(cachePath)
+            || !File.Exists(entryPath)
             || !File.Exists(ownerPath)
             || !File.Exists(efiProject))
         {
@@ -1891,12 +1912,24 @@ internal static class X64BootIdentityMappingPlanTests
             return false;
         }
 
-        if (!EvaluatedEfiClosure(
+        if (!BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Memory\PageProtection.cs",
+                @"Memory\PageProtection.cs")
+            || !BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Memory\PageCachePolicy.cs",
+                @"Memory\PageCachePolicy.cs")
+            || !BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Memory\X64PageTableEntry.cs",
+                @"Memory\X64PageTableEntry.cs")
+            || !BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Boot\X64BootIdentityMappingPlan.cs",
+                @"Boot\X64BootIdentityMappingPlan.cs")
+            || !EvaluatedEfiClosure(
                 root,
                 efiProject,
                 "SingleMinimalApi",
-                productionPath,
-                ownerPath))
+                [protectionPath, cachePath, entryPath, productionPath],
+                [ownerPath]))
         {
             Console.WriteLine(
                 "M01_012_EFI_BOUNDARY_DIAGNOSTIC efi_single");
@@ -1907,8 +1940,8 @@ internal static class X64BootIdentityMappingPlanTests
                 root,
                 efiProject,
                 "MultiMinimalApi",
-                productionPath,
-                ownerPath))
+                [protectionPath, cachePath, entryPath, productionPath],
+                [ownerPath]))
         {
             Console.WriteLine(
                 "M01_012_EFI_BOUNDARY_DIAGNOSTIC efi_multi");
@@ -2643,7 +2676,8 @@ internal static class X64BootIdentityMappingPlanTests
         string repositoryRoot,
         string projectPath,
         string workloadProfile,
-        params string[] forbiddenPaths)
+        IReadOnlyList<string> requiredPaths,
+        IReadOnlyList<string> forbiddenPaths)
     {
         ProcessStartInfo start = DotnetStart(repositoryRoot);
         start.ArgumentList.Add("msbuild");
@@ -2694,6 +2728,11 @@ internal static class X64BootIdentityMappingPlanTests
 
             bool efiEntry = false;
             bool minimalRuntime = false;
+            HashSet<string> required = new(
+                requiredPaths.Select(Path.GetFullPath),
+                StringComparer.OrdinalIgnoreCase);
+            HashSet<string> foundRequired =
+                new(StringComparer.OrdinalIgnoreCase);
             foreach (JsonElement item in compile.EnumerateArray())
             {
                 string identity =
@@ -2711,15 +2750,19 @@ internal static class X64BootIdentityMappingPlanTests
                     return false;
                 }
 
+                string canonicalPath = Path.GetFullPath(fullPath);
                 efiEntry |= fullPath.EndsWith(
                     Path.Combine("Boot", "EfiEntry.cs"),
                     StringComparison.OrdinalIgnoreCase);
                 minimalRuntime |= fullPath.EndsWith(
                     Path.Combine("Runtime", "MinimalRuntime.cs"),
                     StringComparison.OrdinalIgnoreCase);
+                if (required.Contains(canonicalPath))
+                    foundRequired.Add(canonicalPath);
+
                 foreach (string forbiddenPath in forbiddenPaths)
                 {
-                    if (Path.GetFullPath(fullPath).Equals(
+                    if (canonicalPath.Equals(
                             Path.GetFullPath(forbiddenPath),
                             StringComparison.OrdinalIgnoreCase))
                     {
@@ -2733,7 +2776,9 @@ internal static class X64BootIdentityMappingPlanTests
                 }
             }
 
-            if (!efiEntry || !minimalRuntime)
+            if (!efiEntry
+                || !minimalRuntime
+                || foundRequired.Count != required.Count)
             {
                 Console.WriteLine(
                     "M01_012_EFI_EVAL_DIAGNOSTIC profile="

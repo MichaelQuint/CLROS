@@ -3055,7 +3055,6 @@ internal static class BootPageAllocatorFreeCoalescingTests
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string[] integrationPaths =
         [
-            Path.Combine(repositoryRoot, "src", "OS", "OS.csproj"),
             Path.Combine(
                 repositoryRoot,
                 "src",
@@ -3102,10 +3101,16 @@ internal static class BootPageAllocatorFreeCoalescingTests
                 BootPageAllocatorOnePageRestoreReceipt>()
             && IsReadOnlySequentialUnmanaged<
                 BootPageAllocatorOnePageFreeResult>()
-            && EvaluatedReleaseEfiClosureExcludesAllocator();
+            && BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Memory\BootPageAllocatorCoreContracts.cs",
+                @"Memory\BootPageAllocatorCoreContracts.cs")
+            && BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Memory\BootPageAllocatorMutation.cs",
+                @"Memory\BootPageAllocatorMutation.cs")
+            && EvaluatedReleaseEfiClosureExcludesLegacyAllocatorSources();
     }
 
-    private static bool EvaluatedReleaseEfiClosureExcludesAllocator()
+    private static bool EvaluatedReleaseEfiClosureExcludesLegacyAllocatorSources()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string projectPath = Path.Combine(
@@ -3179,8 +3184,6 @@ internal static class BootPageAllocatorFreeCoalescingTests
 
             string[] forbiddenNames =
             [
-                "BootPageAllocatorMutation.cs",
-                "BootPageAllocatorCoreContracts.cs",
                 "BootPageAllocatorState.cs",
                 "BootPageFreeListPlan.cs",
                 "BootPageAllocatorPlan.cs",

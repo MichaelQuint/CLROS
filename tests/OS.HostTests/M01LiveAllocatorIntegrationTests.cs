@@ -2246,9 +2246,9 @@ internal static unsafe class M01LiveAllocatorIntegrationTests
         if (!efiProject.Contains(
                 "<EnableDefaultCompileItems>false</EnableDefaultCompileItems>",
                 StringComparison.Ordinal)
-            || efiProject.Contains(
-                "M01LiveAllocatorIntegration.cs",
-                StringComparison.Ordinal)
+            || !BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs",
+                @"Boot\M01LiveAllocatorIntegration.cs")
             || efiProject.Contains(
                 "BootSequence.cs",
                 StringComparison.Ordinal)
