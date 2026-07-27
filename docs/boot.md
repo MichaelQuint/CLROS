@@ -2154,6 +2154,114 @@ owned-root interval. M02-014 owns the separately disabled actual null-read
 `#PF` probe after owned IDT and diagnostics exist. `Probes.cs`,
 `BootSequence.cs`, `EfiEntry.cs`, and `completion-gates.md` are unchanged.
 
+### Reversible owned-CR3 stage-three coordinator contract (M01-019)
+
+M01-019 adds the third host-tested M01 coordinator and fixed marker plan. It
+accepts only a complete M01-018 static state and binds three disjoint
+caller-attested allocation records: one `EfiLoaderCode` CR3/invlpg page, one
+distinct `EfiLoaderCode` protection-probe page represented by
+`BootReservationKind.PageProtectionProbe`, and one `EfiLoaderData`
+page-table/state arena. It composes the reviewed M01-011 through M01-015 value,
+table-image, and byte-plan results without invoking privileged bytes.
+The coordinator accepts one identity-map requirement per loaded-image page
+plus ten non-image requirements and cross-binds every range instead of trusting
+its caller-supplied purpose label. The image requirements must form an exact
+one-page, gap-free, duplicate-free tiling of the loaded-image reservation; only
+the page containing the continuation is RX, and every other current image page
+is read-only/NX. The boot-handoff range is the exact page-aligned envelope of
+the handoff POD and must remain contained by that reservation with the same
+policy as its overlapping image tile. Stack, guard, stage-one stub, ACPI
+scratch, framebuffer metadata, CR3/invlpg code, protection-probe, complete
+table/state arena, and stage-two allocator arena must each match their
+corresponding ledger reservation and exact protection.
+The ACPI-scratch and framebuffer bindings prove only reservation-ledger
+coherence at this boundary, not firmware discovery or copied-table provenance.
+Every page of the table/state allocation is audited RW+NX in the constructed
+image, not merely its root page.
+
+The existing identity-map planner still requires its historical `SerialStub`
+purpose even though owned port I/O and COM1 belong to M02. M01-019 binds that
+slot to the already reviewed RX `BootStackSwitchStub` reservation only so an
+arbitrary executable range cannot enter the model. It is a compatibility
+binding, not evidence of a serial stub or owned diagnostics;
+`ProvesOwnedSerialDiagnostics` remains `false`, and a dedicated follow-up must
+replace the alias before any live owned-CR3 issue can close. These are
+role-based page permissions, not PE-section permissions;
+`EnforcesPerSectionLoadedImageProtections` remains `false`.
+
+The fixed stage-three success order is:
+
+```text
+TEST_START m01.stage3
+M01_CR3_STUB_PAGE_ALLOCATED
+M01_PROTECTION_PROBE_PAGE_ALLOCATED
+M01_PAGE_TABLE_STATE_ARENA_ALLOCATED
+M01_STAGE3_MAP_RECAPTURED
+M01_CR3_STUB_MATERIALIZED
+M01_PAGE_TABLES_BUILT
+M01_PAGING_MODE_VALIDATED
+M01_PRE_CR3
+M01_FIRMWARE_CR3_RESTORED
+M01_RFLAGS_RESTORED
+M01_PGE_CYCLE_VERIFIED
+M01_OWNED_CR3_CANARY_VERIFIED
+M01_POST_CR3
+M01_RW_TO_RX_VERIFIED
+M01_TLB_INVALIDATION_COMPLETE
+M01_RX_PROBE_EXECUTED
+M01_PAGE_ZERO_ABSENT
+TEST_PASS m01.stage3
+CLROS_M01_LIVE_BOOT_MEMORY_READY
+```
+
+`BootSequence.RunM01LivePagingIntegration` is a retrospective host presenter.
+It emits the fixed success plan only after the complete supplied result is
+final and successful. A failed or non-final result emits only the stage-three
+start plus
+`TEST_FAIL m01.stage3 status=<status> checkpoint=<checkpoint>` and
+`M01_STAGE3_FAIL status=<status> checkpoint=<checkpoint>`. It suppresses every
+later restoration, canary, post, protection, TLB, probe, page-zero, pass, and
+cumulative-ready line. A non-final result whose status is `Success` is
+reclassified as `IllegalCoordinatorState`. The ordinary
+`BootSequence.Run` path and its five non-smoke/eight total lines remain
+byte-for-byte unchanged.
+
+No line is emitted while owned CR3 is modeled active.
+`M01_OWNED_CR3_ENTERED` remains caller-owned POD state rather than serial
+output. The protection, invalidation, constant-return-probe, and page-zero
+lines occur after `M01_POST_CR3` because they retrospectively report separate,
+mutually cross-checked host models intended for a future composite interval.
+They are not temporal evidence that the current reversible-transition bytes
+contained those operations, nor should their presentation order be
+interpreted as those operations occurring after the firmware root was
+restored. `ProvesCompositeOwnedCr3MachineCodeInterval` is explicitly `false`.
+The modeled probe leaf is restored to its initial RW+NX value after the
+RW+NX-to-RO+X audit, including on a rejected aggregate. The rest of the
+caller-owned output image is the newly constructed table model, so
+`RestoresCallerOwnedInitialTableImage` is deliberately `false` while
+`RestoresModeledProbeLeafToInitialProtection` is `true`.
+
+The aggregate host-harness markers are:
+
+```text
+TEST_START m01.019
+CLROS_M01_019_READY
+TEST_PASS m01.019
+```
+
+This is host evidence over caller-supplied allocations, map/ledger
+generations, table bytes, register observations, and execution transcripts. It
+does not call EFI `AllocatePages`, populate processor-owned tables, execute
+preflight/CR3/invlpg/probe bytes, change CR3 or page protections, perform a CPU
+TLB invalidation, prove page zero absent in hardware, wire `EfiEntry`, link the
+coordinator into `src/OS`, run QEMU/OVMF, or advance a completion gate.
+PCID/LA57 remain unsupported, NMI/SMI remains an M02 residual risk, and null
+dereference/#PF evidence remains M02-014. M01-020 owns explicit EFI source
+linkage, M01-025 owns live allocation and `EfiEntry` wiring, and M01-026 owns
+cumulative real-QEMU evidence. Until M01-026, even
+`CLROS_M01_LIVE_BOOT_MEMORY_READY` is a reserved host-tested contract line,
+not live boot-memory evidence.
+
 Boot page allocator-readiness composition coverage is host-test only. It proves existing planner/state contracts can be composed over caller-owned scratch buffers and forwarded into the ordered boot readiness marker boundary. It does not reserve kernel-owned ranges, mutate allocator-owned state, allocate pages, configure paging, or run in `EfiMain`:
 
 ```text

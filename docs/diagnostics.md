@@ -189,6 +189,28 @@ TEST_PASS m01.016
 Any aggregate failure emits `TEST_FAIL m01.016 failures=<count>` and suppresses
 the ready/pass markers.
 
+The M01-019 stage-three coordinator host aggregate emits:
+
+```text
+TEST_START m01.019
+CLROS_M01_019_READY
+TEST_PASS m01.019
+```
+
+Any aggregate failure emits `TEST_FAIL m01.019 failures=<count>` and suppresses
+the ready/pass pair. The fixed stage-three transcript presented by
+`BootSequence.RunM01LivePagingIntegration` is host-contract output only. The
+default boot sequence remains unchanged and all three M01 `Probes.cs` switches
+remain disabled. No marker is emitted from inside the modeled owned-CR3
+interval; `M01_OWNED_CR3_ENTERED` is deliberately caller-owned POD state rather
+than a serial marker. The post-restoration protection, TLB, constant-return
+probe, and page-zero lines report separate, mutually cross-checked host models
+intended for a future composite interval. They do not prove that one current
+machine-code interval performed those operations, and they are not guest or
+processor observations.
+`CLROS_M01_LIVE_BOOT_MEMORY_READY` does not become live evidence until M01-026
+preserves a fresh cumulative real-QEMU run.
+
 `tests/OS.HostTests/BootEventRecordRingBufferTests.cs` covers the caller-owned
 boot-event record ring. Current markers:
 
@@ -561,7 +583,9 @@ not establish EFI compile closure, guest marker ownership, QEMU execution,
 loaded-image capture, an owned stack, allocator state, page-table storage,
 W^X/NX transitions, TLB invalidation, or a CR3 load. The
 `CLROS_M01_016_READY` marker is emitted only by the host test initializer and
-must not be interpreted as guest evidence.
+must not be interpreted as guest evidence. Likewise, M01-019 freezes and
+presents a host-only stage-three result without enabling any probe or emitting
+from the ordinary boot path.
 
 `SerialDiagnosticsGuard` is a readiness contract only. `SerialPortConfiguration`, `Com1SerialWriter`, `Com1PlatformSerialTransport`, `PortIoOperationPlan`, `PortIoStubPlan`, and owned-serial readiness derivation are configuration, polling, abstract backend, status, adapter, and instruction-byte contracts only. They do not execute CPU port I/O instructions or prove serial output survives real firmware shutdown.
 
