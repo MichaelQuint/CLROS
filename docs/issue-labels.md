@@ -11,16 +11,19 @@ The 2026-07-25 reconstruction initially created 68 managed labels, 16
 milestones, 16 epics, and 303 child issues. The additive M00-023 evidence-model
 repair keeps those labels and milestones, adds M00-023, and replaces the
 impossible per-leaf QEMU closure model with the serialized M01-016 through
-M01-026 one-live-boundary-at-a-time chain. The durable and live inventories now
-contain 315 children, 331 keyed issues, and 415 managed objects. The guarded
-apply recognized existing M00-023 as issue #321, created only M01-016 through
-M01-026 as issues #323 through #333, updated exactly 24 existing managed issues,
-and emitted `SYNC_VERIFY_PASS milestones=16 labels=68 issues=331`. The 24
-updates include the substantive M03-007 post-EBS permanent-CR3 handoff and its
-generated M03-EPIC child-checklist update. A final no-write preview reported all
-415 objects unchanged with no create, update, skip, or failure action. Reviewed
-closure leaves M00-023 and the M00 epic closed while M01-001 remains separately
-claimed.
+M01-026 one-live-boundary-at-a-time chain. M01-019 review subsequently exposed
+the need for M01-027, a host-audited single composite owned-CR3 transition leaf
+that must close before M01-020 may link the live chain. The durable inventory
+now contains 316 children, 332 keyed issues, and 416 managed objects. The guarded
+earlier apply recognized existing M00-023 as issue #321, created only M01-016
+through M01-026 as issues #323 through #333, updated exactly 24 existing managed
+issues, and emitted `SYNC_VERIFY_PASS milestones=16 labels=68 issues=331`. The
+24 updates included the substantive M03-007 post-EBS permanent-CR3 handoff and
+its generated M03-EPIC child-checklist update. Its final 415-object no-write
+preview is preserved historical evidence, not the current inventory. This
+revision records reviewed M01-019 closure, inserts M01-027, and keeps M01-020
+blocked on M01-027; a converged post-apply preview must report all 416 managed
+objects unchanged.
 
 ## Implemented Behavior
 
@@ -41,10 +44,12 @@ claimed.
   PAL ABI integration files.
 - M01-001 through M01-015 are host-only leaf contracts. Their
   `CLROS_M01_NNN_READY` markers are host-harness markers, not guest evidence.
-  M01-016 through M01-026 serialize probe policy, three BootSequence
-  coordinator stages, one reviewed OS-project/source-link integration, and
-  alternating EfiEntry/fresh-`-BuildEfi` QEMU boundaries so each issue owns
-  exactly one collision-lane surface.
+  M01-016 through M01-027 serialize probe policy, three BootSequence
+  coordinator stages, the composite transition leaf, one reviewed
+  OS-project/source-link integration, and alternating
+  EfiEntry/fresh-`-BuildEfi` QEMU boundaries so each issue owns exactly one
+  collision-lane surface. M01-027 depends on M01-019; M01-020 depends on
+  M01-027, preserving the later M01-020 through M01-026 chain.
 - One `phase:mxx-*` label identifies each milestone from M00 through M15.
 
 Only issues whose complete transitive dependency tree is manifest-closed,

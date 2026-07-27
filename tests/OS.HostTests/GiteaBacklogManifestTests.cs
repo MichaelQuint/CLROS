@@ -11,7 +11,7 @@ internal static class GiteaBacklogManifestTests
         new Dictionary<string, int>(StringComparer.Ordinal)
         {
             ["M00"] = 23,
-            ["M01"] = 26,
+            ["M01"] = 27,
             ["M02"] = 16,
             ["M03"] = 11,
             ["M04"] = 23,
@@ -133,7 +133,7 @@ internal static class GiteaBacklogManifestTests
         JsonElement milestones = root.GetProperty("milestones");
         JsonElement labels = root.GetProperty("labels");
         JsonElement issues = root.GetProperty("issues");
-        if (milestones.GetArrayLength() != 16 || labels.GetArrayLength() != 68 || issues.GetArrayLength() != 331)
+        if (milestones.GetArrayLength() != 16 || labels.GetArrayLength() != 68 || issues.GetArrayLength() != 332)
         {
             return false;
         }
@@ -399,8 +399,12 @@ internal static class GiteaBacklogManifestTests
         JsonElement issues,
         IReadOnlyDictionary<string, JsonElement> issueByKey)
     {
-        string[] expectedOrder = Enumerable.Range(1, 26)
+        string[] expectedOrder = Enumerable.Range(1, 19)
             .Select(number => "M01-" + number.ToString("000"))
+            .Append("M01-027")
+            .Concat(
+                Enumerable.Range(20, 7)
+                    .Select(number => "M01-" + number.ToString("000")))
             .ToArray();
         string[] actualOrder = issues.EnumerateArray()
             .Select(issue => issue.GetProperty("key").GetString() ?? string.Empty)
@@ -691,7 +695,7 @@ internal static class GiteaBacklogManifestTests
     private static bool ValidateM01ReferenceLabels(
         IReadOnlyDictionary<string, JsonElement> issueByKey)
     {
-        for (int number = 1; number <= 26; number++)
+        for (int number = 1; number <= 27; number++)
         {
             string key = "M01-" + number.ToString("000");
             JsonElement issue = issueByKey[key];
@@ -743,6 +747,7 @@ internal static class GiteaBacklogManifestTests
                 ["M01-017"] = "lane:boot-sequence",
                 ["M01-018"] = "lane:boot-sequence",
                 ["M01-019"] = "lane:boot-sequence",
+                ["M01-027"] = "lane:probes",
                 ["M01-020"] = "lane:os-project",
                 ["M01-021"] = "lane:efi-entry",
                 ["M01-022"] = "lane:central-docs",
@@ -758,6 +763,7 @@ internal static class GiteaBacklogManifestTests
                 ["M01-017"] = "type:implementation",
                 ["M01-018"] = "type:implementation",
                 ["M01-019"] = "type:implementation",
+                ["M01-027"] = "type:implementation",
                 ["M01-020"] = "type:tooling",
                 ["M01-021"] = "type:implementation",
                 ["M01-022"] = "type:test",
@@ -798,6 +804,13 @@ internal static class GiteaBacklogManifestTests
                     "src/OS.Kernel/Boot/BootSequencePlan.cs",
                     "tests/OS.HostTests/M01LivePagingIntegrationTests.cs",
                     "tests/OS.HostTests/BootSequencePlanTests.cs"
+                ],
+                ["M01-027"] =
+                [
+                    "src/OS.Kernel/Boot/M01OwnedCr3CompositeTransition.cs",
+                    "tests/OS.HostTests/M01OwnedCr3CompositeTransitionTests.cs",
+                    "docs/boot.md",
+                    "docs/architecture.md"
                 ],
                 ["M01-020"] =
                 [
@@ -855,7 +868,7 @@ internal static class GiteaBacklogManifestTests
         string[] hostOnlyIssues =
         [
             "M01-016", "M01-017", "M01-018", "M01-019", "M01-020",
-            "M01-021", "M01-023", "M01-025"
+            "M01-021", "M01-023", "M01-025", "M01-027"
         ];
 
         for (int number = 16; number <= 26; number++)
@@ -863,7 +876,9 @@ internal static class GiteaBacklogManifestTests
             string key = "M01-" + number.ToString("000");
             string dependency = number == 16
                 ? "M01-015"
-                : "M01-" + (number - 1).ToString("000");
+                : number == 20
+                    ? "M01-027"
+                    : "M01-" + (number - 1).ToString("000");
             JsonElement issue = issueByKey[key];
             string lane = lanes[key];
             bool qemu = qemuIssues.Contains(key, StringComparer.Ordinal);
@@ -886,6 +901,40 @@ internal static class GiteaBacklogManifestTests
             {
                 return false;
             }
+        }
+
+        JsonElement composite = issueByKey["M01-027"];
+        if (!string.Equals(
+                issueByKey["M01-019"].GetProperty("desiredState").GetString(),
+                "closed",
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                composite.GetProperty("desiredState").GetString(),
+                "open",
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                issueByKey["M01-020"].GetProperty("desiredState").GetString(),
+                "open",
+                StringComparison.Ordinal) ||
+            !DependenciesEqual(composite, "M01-019") ||
+            !string.Equals(
+                composite.GetProperty("collisionLane").GetString(),
+                lanes["M01-027"],
+                StringComparison.Ordinal) ||
+            !JsonArrayContainsExact(
+                composite.GetProperty("labels"),
+                lanes["M01-027"]) ||
+            !JsonArrayContainsExact(
+                composite.GetProperty("labels"),
+                types["M01-027"]) ||
+            CountPrefix(composite.GetProperty("labels"), "lane:") != 1 ||
+            CountPrefix(composite.GetProperty("labels"), "type:") != 1 ||
+            !OwnedPathsEqual(composite, ownedPaths["M01-027"]) ||
+            !JsonArrayContainsExact(
+                composite.GetProperty("labels"),
+                "evidence:host"))
+        {
+            return false;
         }
 
         foreach (string key in hostOnlyIssues)
@@ -1073,6 +1122,7 @@ internal static class GiteaBacklogManifestTests
             "M01LoadedImageStackIntegration.cs",
             "M01LiveAllocatorIntegration.cs",
             "M01LivePagingIntegration.cs",
+            "M01OwnedCr3CompositeTransition.cs",
             "BootSequencePlan.cs"
         ];
         string[] excludedCompileNames =
@@ -1401,11 +1451,11 @@ internal static class GiteaBacklogManifestTests
         byte[] after = SHA256.HashData(File.ReadAllBytes(manifestPath));
         DateTime afterWriteTime = File.GetLastWriteTimeUtc(manifestPath);
         return result.ExitCode == 0 &&
-            result.Output.Contains("SYNC_MANIFEST_VALID milestones=16 labels=68 epics=16 children=315 issues=331", StringComparison.Ordinal) &&
+            result.Output.Contains("SYNC_MANIFEST_VALID milestones=16 labels=68 epics=16 children=316 issues=332", StringComparison.Ordinal) &&
             result.Output.Contains("SYNC_MODE preview", StringComparison.Ordinal) &&
             result.Output.Contains("SYNC_OFFLINE manifest_only", StringComparison.Ordinal) &&
-            result.Output.Contains("SYNC_KEYS action=skipped count=415", StringComparison.Ordinal) &&
-            result.Output.Contains("SYNC_SUMMARY created=0 updated=0 unchanged=0 skipped=415 failed=0 wouldCreate=0 wouldUpdate=0", StringComparison.Ordinal) &&
+            result.Output.Contains("SYNC_KEYS action=skipped count=416", StringComparison.Ordinal) &&
+            result.Output.Contains("SYNC_SUMMARY created=0 updated=0 unchanged=0 skipped=416 failed=0 wouldCreate=0 wouldUpdate=0", StringComparison.Ordinal) &&
             result.Output.Contains("TEST_PASS gitea.backlog.sync", StringComparison.Ordinal) &&
             before.AsSpan().SequenceEqual(after) &&
             beforeWriteTime == afterWriteTime;
