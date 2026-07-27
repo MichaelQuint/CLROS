@@ -49,6 +49,42 @@ The ignored evidence tuple is under
 is `done/step870.md`. This opt-in pre-`ExitBootServices` proof does not replace
 the default Gate 2 tuple and does not change a completion-gate state.
 
+A separate opt-in M01-024 proof was captured on 2026-07-27 from clean
+implementation commit
+`f7437521799e9fe974a9de4560db248f94addf6b`. From
+`2026-07-27T21:21:20.2271722Z` through
+`2026-07-27T21:21:43.5137043Z`, QEMU `11.0.50` and the same
+3,653,632-byte OVMF file (SHA-256
+`33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`)
+freshly rebuilt and booted an artifact with both
+`M01_LOADED_IMAGE_STACK_PROBE` and `M01_LIVE_ALLOCATOR_PROBE` enabled.
+The streaming runner reported
+`status=Passed terminal=Success bytes=1511 lines=43 invalidBytes=15
+invalidLines=1 orderedSeen=21 outOfOrder=0 uniqueSeen=21
+duplicateUnique=0`; the invalid-byte/line counts were firmware noise and
+contained no accepted marker. All 21 configured stage-one/stage-two markers
+were observed exactly once and in order, and the summary reported
+`MISSING_MARKERS none`, `OUT_OF_ORDER_MARKERS none`,
+`DUPLICATE_UNIQUE_MARKERS none`, `FORBIDDEN_MARKER_HIT none`, and
+`FAIL_REASON none`.
+
+The EFI, raw image, serial log, summary, runner output, and evidence-manifest
+SHA-256 values are, respectively,
+`ED1FDD62FF50ABE9AB30BBFAC85EBB7C095D3F31720C2571F31C5413726EFA13`,
+`51D00F4B3302461C0FFF2466BAA26A7909C891B9E5434A3B2CE78374D9F6FF4B`,
+`2C74EE4CC10475D85EAA090A1382BEF08F9C114FD213A5AEB6E487F4405BD1EC`,
+`19925845684DBBEA93962C762B2653BFA2224BBFF9707B3E4C38D882F6E46FF5`,
+`BC7D34774F8029BABC713E3AB19B0615E5BF9C896A2072965F53B74BDC76739C`,
+and
+`9FDB9B72EB708B2A1184725E009A168FBD0BC3FEA3B8FCB0EA93C7F416031A58`.
+The ignored evidence tuple is under
+`artifacts/logs/m01-024/f7437521799e-20260727T210930Z/`; the durable ledger
+is `done/step872.md`. This source-bound result proves only the explicit
+pre-`ExitBootServices` two-page loader-owned arena and one metadata
+allocation/free/double-free-rejection cycle. It does not replace the default
+Gate 2 tuple, satisfy the M01 exit criterion, or change a completion-gate
+state.
+
 ## Implemented Behavior
 
 - `tools/OS.QemuRunner` builds a QEMU command line for a raw or qcow2 GPT/FAT32 image, OVMF pflash, serial-file capture, AHCI disk attachment, and user-mode virtio networking.
@@ -172,6 +208,12 @@ the default Gate 2 tuple and does not change a completion-gate state.
   requires `-BuildEfi`, rejects `-SkipImageBuild`, and forwards the probe only
   to the fresh EFI build; an old image cannot be silently accepted as
   M01-022 evidence.
+- `-EnableM01LiveAllocatorProbe` is the stricter nested M01-024 evidence
+  selector. It requires `-EnableM01LoadedImageStackProbe` and `-BuildEfi`,
+  rejects `-SkipImageBuild`, emits
+  `QEMU_SCRIPT_M01_LIVE_ALLOCATOR_PROBE`, and forwards both probe switches
+  only to the fresh EFI build. A stage-two-only, stale-EFI, or stale-image
+  selection fails before QEMU launch.
 - Script defaults require `OS_BOOT_OK`, `TEST_PASS boot.sequence`,
   `OS_SMOKE_PASS`, `UEFI_MEMORY_MAP_OWNED`, `BOOT_HANDOFF_READY`,
   `UEFI_MEMORY_MAP_NORMALIZED`, `BOOT_MEMORY_MAP_ACCEPTED`,
@@ -796,6 +838,38 @@ TEST_PASS qemu M01 conflicting terminals are rejected
 TEST_PASS host.tests
 ```
 
+M01-024 adds a second focused fake-QEMU group for the cumulative stage-one and
+stage-two transcript. It covers both-switch forwarding and invalid selector
+combinations, the complete ordered/unique chain, cross-stage and in-stage
+reordering, duplicate start/pass/operation markers, each missing stage-two
+checkpoint, structured EFI/map/reservation/coordinator failures, every
+forbidden boundary marker, timeout, reset, and conflicting terminals. The
+arbitrary read-chunk boundary coverage remains supplied by the shared
+streaming-parser suite. The accepted host run emitted:
+
+```text
+TEST_PASS qemu smoke script forwards M01 stage-two evidence controls
+TEST_PASS qemu smoke script rejects invalid M01 stage-two probe selection
+TEST_PASS qemu M01 stage-two ordered and unique evidence succeeds
+TEST_PASS qemu M01 stage-two rejects cross-stage and operation reordering
+TEST_PASS qemu M01 stage-two rejects duplicate start pass and operation markers
+TEST_PASS qemu M01 stage-two rejects every missing stage-two marker
+TEST_PASS qemu M01 stage-two rejects adapter failure classifications
+TEST_PASS qemu M01 stage-two rejects every forbidden boundary marker
+TEST_PASS qemu M01 stage-two timeout is deterministic
+TEST_PASS qemu M01 stage-two reset is rejected
+TEST_PASS qemu M01 stage-two conflicting terminal is rejected
+TEST_PASS host.tests
+```
+
+The adapter-failure corpus distinguishes EFI arena-allocation failure, arena
+geometry rejection, memory-map recapture growth/overflow, unchanged map key,
+arena descriptor mismatch, reservation and map/ledger evidence failures, page
+allocation or confinement failure, inverse-free failure, and absent
+double-free rejection. These are evidence-runner classification tests; the
+M01-023 source/mutation suite remains the contract proof that the guest
+adapter maps those conditions to fail-closed diagnostics.
+
 The fake-QEMU HTTP probe fixture writes `TEST_START fake.qemu` and `OS_SMOKE_PASS` through one `FileStream` opened with `FileShare.ReadWrite | FileShare.Delete`. This mirrors the runner's permissive serial-log reader and avoids Windows-only file sharing races while the runner polls the serial log and the fake guest keeps serving the loopback HTTP endpoint.
 
 QEMU marker-preset host tests emit:
@@ -901,9 +975,10 @@ QEMU evidence from 2026-05-21:
 
 - QEMU launch uses `-display none`; serial output is the evidence channel.
 - The default EFI smoke still returns to firmware UI after `EfiMain`. The
-  M01-022 opt-in continuation intentionally does not return after the stack
-  transfer; after its validated transcript becomes quiet, the runner
-  terminates QEMU. Neither behavior is `ExitBootServices` evidence.
+  M01-022 stage-one and M01-024 dual-stage continuations intentionally do not
+  return after the owned-stack transfer; after each validated transcript
+  becomes quiet, the runner terminates QEMU. None of these behaviors is
+  `ExitBootServices` evidence.
 - OVMF discovery is best-effort. Pass `-OvmfCode <path>` for deterministic runs.
 
 ### Streaming serial-marker state machine
