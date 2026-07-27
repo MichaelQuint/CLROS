@@ -5032,7 +5032,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only stage-one continuity plus a pre-EBS loader-owned EFI allocator arena, post-allocation map recapture, arena-confined metadata accounting, and exactly one within-arena 4 KiB alloc/free/double-free-rejection cycle under the recorded local QEMU/OVMF configuration. Firmware still owns arbitrary conventional pages, and this is not post-EBS allocator proof. It does not prove paging, CR3, W^X, page-zero policy, or the M01 exit criterion.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-025",
