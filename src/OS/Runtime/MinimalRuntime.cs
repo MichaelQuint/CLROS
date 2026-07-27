@@ -201,6 +201,51 @@ namespace System
             }
         }
 
+        internal static unsafe class X64StackProbeRuntime
+        {
+            private static ulong s_probeEntry;
+
+            public static bool TryInstall(ulong probeEntry)
+            {
+                if (probeEntry == 0
+                    || (probeEntry & 15) != 0
+                    || s_probeEntry != 0)
+                {
+                    return false;
+                }
+
+                s_probeEntry = probeEntry;
+                return true;
+            }
+
+            public static bool TryClear(ulong expectedProbeEntry)
+            {
+                if (expectedProbeEntry == 0
+                    || (s_probeEntry != 0
+                        && s_probeEntry != expectedProbeEntry))
+                {
+                    return false;
+                }
+
+                s_probeEntry = 0;
+                return true;
+            }
+
+            [RuntimeExport("RhpStackProbe")]
+            private static void RhpStackProbe()
+            {
+                ulong probeEntry = s_probeEntry;
+                if (probeEntry == 0)
+                {
+                    while (true)
+                    {
+                    }
+                }
+
+                ((delegate* managed<void>)(void*)probeEntry)();
+            }
+        }
+
         internal static unsafe class TypeCast
         {
             [RuntimeExport("RhTypeCast_IsInstanceOfClass")]
@@ -301,6 +346,13 @@ namespace System
 
 namespace System.Runtime.InteropServices
 {
+    public sealed class UnmanagedCallersOnlyAttribute : System.Attribute
+    {
+        public UnmanagedCallersOnlyAttribute()
+        {
+        }
+    }
+
     public interface IDynamicInterfaceCastable
     {
         bool IsInterfaceImplemented(System.RuntimeTypeHandle interfaceType, bool throwIfNotImplemented);

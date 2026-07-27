@@ -116,6 +116,14 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
             TestDeterminismAndPreflightNonMutation,
             ref failures);
         Run(
+            "m01.021 static scratch preparation is compact exact and nonmutating on rejection",
+            TestStaticScratchPreparationAndRejectionNonMutation,
+            ref failures);
+        Run(
+            "m01.021 rich and static preparation share one low-stack core",
+            TestSharedLowStackCoreSourceTopology,
+            ref failures);
+        Run(
             "m01.017 source api marker and efi linkage firewalls hold",
             TestSourceAndApiFirewalls,
             ref failures);
@@ -192,7 +200,8 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
             ("IllegalCoordinatorState", 20),
             ("StubByteModeRejected", 21),
             ("LoadedImageVirtualMappingRejected", 22),
-            ("StageOneAddressMappingRejected", 23)
+            ("StageOneAddressMappingRejected", 23),
+            ("EvidenceScratchRejected", 24)
         ];
         (string Name, byte Value)[] checkpoints =
         [
@@ -244,6 +253,8 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
         M01LoadedImageStackTransferTarget defaultTarget = default;
         M01LoadedImageStackStaticTransitionResult
             defaultStaticTransition = default;
+        M01LoadedImageStackStaticPreparationResult
+            defaultStaticPreparation = default;
 
         M01LoadedImageStackIntegrationResult recordDefault =
             M01LoadedImageStackIntegration.RecordTransfer(
@@ -359,6 +370,16 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
                 == M01LoadedImageStackCheckpoint.Uninitialized
             && !defaultStaticTransition.TransferRecorded
             && !defaultStaticTransition.ContinuationRspContained
+            && Unsafe.SizeOf<
+                M01LoadedImageStackStaticPreparationResult>() == 8
+            && !RuntimeHelpers
+                .IsReferenceOrContainsReferences<
+                    M01LoadedImageStackStaticPreparationResult>()
+            && defaultStaticPreparation.Status
+                == M01LoadedImageStackStatus.Uninitialized
+            && defaultStaticPreparation.Checkpoint
+                == M01LoadedImageStackCheckpoint.Uninitialized
+            && !defaultStaticPreparation.IsPrepared
             && IsFailure(
                 recordDefault,
                 M01LoadedImageStackStatus.IllegalCoordinatorState,
@@ -375,6 +396,13 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
                 == 2
             && M01LoadedImageStackIntegration.CodeAllocationRecordIndex == 0
             && M01LoadedImageStackIntegration.DataAllocationRecordIndex == 1
+            && M01LoadedImageStackIntegration
+                    .RequiredEvidenceScratchAlignment
+                == 8
+            && M01LoadedImageStackIntegration
+                    .RequiredEvidenceScratchBytes
+                == (ulong)Unsafe.SizeOf<
+                    M01LoadedImageStackEvidence>()
             && !M01LoadedImageStackIntegration
                 .CallsFirmwarePageAllocator
             && !M01LoadedImageStackIntegration.InvokesFirmware
@@ -2357,6 +2385,491 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
             && IsAllocationTableFailure(measured);
     }
 
+    private static bool
+        TestStaticScratchPreparationAndRejectionNonMutation()
+    {
+        using CanonicalFixture richFixture = new CanonicalFixture();
+        M01LoadedImageStackIntegrationResult rich =
+            richFixture.PrepareCurrent();
+        byte[] richCode = richFixture.CopyCodePage();
+
+        using CanonicalFixture fixture = new CanonicalFixture();
+        M01LoadedImageStackStaticPreparationResult compact =
+            fixture.PrepareFromStaticScratchCurrent();
+        M01LoadedImageStackEvidence compactEvidence =
+            *fixture.EvidenceScratch;
+        if (!rich.IsPrepared
+            || !compact.IsPrepared
+            || compact.Status != M01LoadedImageStackStatus.Success
+            || compact.Checkpoint
+                != M01LoadedImageStackCheckpoint.SwitchArmed
+            || !fixture.StaticState->IsInitialized
+            || compactEvidence.StaticStateAddress
+                != (ulong)fixture.StaticState
+            || compactEvidence.StaticStateCapacity
+                != M01LoadedImageStackStaticState.RequiredStorageBytes
+            || !compactEvidence.SwitchPlanResult.Succeeded
+            || !compactEvidence.StubEmission.Succeeded
+            || !compactEvidence.StubVerification.Succeeded
+            || compactEvidence.StubByteMode
+                != M01StageOneStubByteMode.EmitAndVerify
+            || compactEvidence.SwitchPlanResult.Plan.StackLayout
+                    .StackReservation.PageCount
+                != rich.Evidence.SwitchPlanResult.Plan.StackLayout
+                    .StackReservation.PageCount
+            || !richCode.AsSpan().SequenceEqual(
+                fixture.CopyCodePage()))
+        {
+            return CaseFailure("static-scratch-canonical-success");
+        }
+
+        M01LoadedImageStackStaticPreparationResult Invoke(
+            M01LoadedImageStackEvidence* scratch,
+            ulong scratchCapacity,
+            BootMemoryRegionRecord* records = null,
+            BootReservedRange* ledger = null,
+            byte* codePage = null,
+            M01LoadedImageStackStaticState* staticState = null,
+            VirtualAddress continuation = default,
+            M01StageOneMapLedgerEvidence mapEvidence = default)
+        {
+            BootMemoryRegionRecord* selectedRecords =
+                records == null ? fixture.Records : records;
+            BootReservedRange* selectedLedger =
+                ledger == null ? fixture.Ledger : ledger;
+            byte* selectedCodePage =
+                codePage == null ? fixture.CodePage : codePage;
+            M01LoadedImageStackStaticState* selectedStaticState =
+                staticState == null
+                    ? fixture.StaticState
+                    : staticState;
+            VirtualAddress selectedContinuation =
+                continuation.IsValid
+                    ? continuation
+                    : fixture.Continuation;
+            M01StageOneAllocationEvidence allocations =
+                fixture.CreateAllocationEvidence();
+            M01StageOneMapLedgerEvidence selectedMap =
+                mapEvidence.Size == 0
+                    ? fixture.CreateMapEvidence(allocations)
+                    : mapEvidence;
+
+            return fixture.InvokeStatic(
+                fixture.LoadedImage,
+                fixture.CreateVirtualMapping(),
+                fixture.CreateAddressMapping(),
+                selectedRecords,
+                2,
+                2,
+                allocations,
+                selectedMap,
+                selectedLedger,
+                fixture.LedgerCount,
+                fixture.LedgerCapacity,
+                selectedCodePage,
+                PageSize,
+                PageSize,
+                StubEntryOffset,
+                OwnedBootStackSwitchPlan.RequiredStubByteLength,
+                selectedContinuation,
+                selectedStaticState,
+                M01LoadedImageStackStaticState.RequiredStorageBytes,
+                scratch,
+                scratchCapacity);
+        }
+
+        bool RejectsWithoutMutation(
+            Func<M01LoadedImageStackStaticPreparationResult> action,
+            string scenario)
+        {
+            byte[] before = fixture.CopyBackingMemory();
+            M01LoadedImageStackStaticPreparationResult result =
+                action();
+            if (result.Status
+                    != M01LoadedImageStackStatus
+                        .EvidenceScratchRejected
+                || result.Checkpoint
+                    != M01LoadedImageStackCheckpoint.Uninitialized
+                || result.IsPrepared
+                || !before.AsSpan().SequenceEqual(
+                    fixture.CopyBackingMemory()))
+            {
+                return CaseFailure(
+                    "static-scratch-rejection-"
+                    + scenario
+                    + " status="
+                    + result.Status
+                    + " checkpoint="
+                    + result.Checkpoint);
+            }
+
+            return true;
+        }
+
+        ulong required =
+            M01LoadedImageStackIntegration
+                .RequiredEvidenceScratchBytes;
+
+        fixture.ResetCanonical();
+        if (!RejectsWithoutMutation(
+                () => Invoke(null, required),
+                "null"))
+        {
+            return false;
+        }
+
+        fixture.ResetCanonical();
+        if (!RejectsWithoutMutation(
+                () => Invoke(fixture.EvidenceScratch, 0),
+                "zero-capacity"))
+        {
+            return false;
+        }
+
+        fixture.ResetCanonical();
+        if (!RejectsWithoutMutation(
+                () => Invoke(fixture.EvidenceScratch, required - 1),
+                "undersized"))
+        {
+            return false;
+        }
+
+        fixture.ResetCanonical();
+        if (!RejectsWithoutMutation(
+                () => Invoke(fixture.EvidenceScratch, required + 1),
+                "oversized"))
+        {
+            return false;
+        }
+
+        fixture.ResetCanonical();
+        M01LoadedImageStackEvidence* misaligned =
+            (M01LoadedImageStackEvidence*)(
+                (byte*)fixture.EvidenceScratch + 1);
+        if (!RejectsWithoutMutation(
+                () => Invoke(misaligned, required),
+                "misaligned"))
+        {
+            return false;
+        }
+
+        fixture.ResetCanonical();
+        ((byte*)fixture.EvidenceScratch)[required - 1] = 0xa5;
+        if (!RejectsWithoutMutation(
+                () => Invoke(fixture.EvidenceScratch, required),
+                "nonzero"))
+        {
+            return false;
+        }
+
+        fixture.ResetCanonical();
+        if (!RejectsWithoutMutation(
+                () => Invoke(
+                    (M01LoadedImageStackEvidence*)fixture.CodePage,
+                    required),
+                "outside-loaded-image"))
+        {
+            return false;
+        }
+
+        fixture.ResetCanonical();
+        if (!RejectsWithoutMutation(
+                () => Invoke(
+                    fixture.EvidenceScratch,
+                    required,
+                    codePage: (byte*)fixture.EvidenceScratch),
+                "code-alias"))
+        {
+            return false;
+        }
+
+        fixture.ResetCanonical();
+        if (!RejectsWithoutMutation(
+                () => Invoke(
+                    fixture.EvidenceScratch,
+                    required,
+                    staticState:
+                        (M01LoadedImageStackStaticState*)
+                            fixture.EvidenceScratch),
+                "static-state-alias"))
+        {
+            return false;
+        }
+
+        fixture.ResetCanonical();
+        if (!RejectsWithoutMutation(
+                () => Invoke(
+                    fixture.EvidenceScratch,
+                    required,
+                    records:
+                        (BootMemoryRegionRecord*)
+                            fixture.EvidenceScratch),
+                "allocation-table-alias"))
+        {
+            return false;
+        }
+
+        fixture.ResetCanonical();
+        if (!RejectsWithoutMutation(
+                () => Invoke(
+                    fixture.EvidenceScratch,
+                    required,
+                    ledger:
+                        (BootReservedRange*)
+                            fixture.EvidenceScratch),
+                "reservation-ledger-alias"))
+        {
+            return false;
+        }
+
+        fixture.ResetCanonical();
+        M01StageOneAllocationEvidence mapAllocations =
+            fixture.CreateAllocationEvidence();
+        FirmwareMemoryMapRecord destinationAlias =
+            fixture.RefreshedMap;
+        destinationAlias.BufferAddress =
+            (ulong)fixture.EvidenceScratch;
+        destinationAlias.BufferSize = required;
+        M01StageOneMapLedgerEvidence destinationAliasEvidence =
+            fixture.CreateMapEvidence(
+                mapAllocations,
+                refreshedMap: destinationAlias);
+        if (!RejectsWithoutMutation(
+                () => Invoke(
+                    fixture.EvidenceScratch,
+                    required,
+                    mapEvidence: destinationAliasEvidence),
+                "owned-map-alias"))
+        {
+            return false;
+        }
+
+        fixture.ResetCanonical();
+        mapAllocations = fixture.CreateAllocationEvidence();
+        FirmwareMemoryMapRecord sourceAlias = fixture.RefreshedMap;
+        sourceAlias.SourceBufferAddress =
+            (ulong)fixture.EvidenceScratch;
+        sourceAlias.SourceBufferSize = required;
+        M01StageOneMapLedgerEvidence sourceAliasEvidence =
+            fixture.CreateMapEvidence(
+                mapAllocations,
+                refreshedMap: sourceAlias);
+        if (!RejectsWithoutMutation(
+                () => Invoke(
+                    fixture.EvidenceScratch,
+                    required,
+                    mapEvidence: sourceAliasEvidence),
+                "source-map-alias"))
+        {
+            return false;
+        }
+
+        fixture.ResetCanonical();
+        if (!RejectsWithoutMutation(
+                () => Invoke(
+                    fixture.EvidenceScratch,
+                    required,
+                    continuation: Virtual(
+                        (ulong)fixture.EvidenceScratch)),
+                "continuation-alias"))
+        {
+            return false;
+        }
+
+        fixture.ResetCanonical();
+        ulong dataAliasStart =
+            fixture.ImageBase + BootReservedRange.PageSize;
+        ulong relocatedCodeStart =
+            fixture.ImageBase
+            + 14 * BootReservedRange.PageSize;
+        fixture.Records[0] = new BootMemoryRegionRecord(
+            (uint)UefiMemoryType.LoaderCode,
+            relocatedCodeStart,
+            relocatedCodeStart,
+            1,
+            0,
+            BootMemoryRegionRecord.PageSize,
+            relocatedCodeStart
+                + BootMemoryRegionRecord.PageSize);
+        fixture.Records[1] = new BootMemoryRegionRecord(
+            (uint)UefiMemoryType.LoaderData,
+            dataAliasStart,
+            dataAliasStart,
+            ArenaPages,
+            0,
+            ArenaPages * BootMemoryRegionRecord.PageSize,
+            dataAliasStart
+                + ArenaPages * BootMemoryRegionRecord.PageSize);
+        M01LoadedImageStackEvidence* dataScratch =
+            (M01LoadedImageStackEvidence*)dataAliasStart;
+        if (!RejectsWithoutMutation(
+                () => Invoke(
+                    dataScratch,
+                    required,
+                    continuation: Virtual(fixture.ImageBase + 64)),
+                "data-allocation-alias"))
+        {
+            return false;
+        }
+
+        fixture.ResetCanonical();
+        ulong ledgerRecordSize =
+            (ulong)Unsafe.SizeOf<BootReservedRange>();
+        ulong countLength =
+            fixture.LedgerCount * ledgerRecordSize;
+        ulong nearMaximumLedgerAddress =
+            (~0UL - countLength)
+            & ~(M01LoadedImageStackIntegration
+                .RequiredEvidenceScratchAlignment - 1);
+        byte[] overflowBefore = fixture.CopyBackingMemory();
+        M01LoadedImageStackStaticPreparationResult ledgerOverflow =
+            Invoke(
+                fixture.EvidenceScratch,
+                required,
+                ledger:
+                    (BootReservedRange*)nearMaximumLedgerAddress);
+        if (ledgerOverflow.Status
+                != M01LoadedImageStackStatus
+                    .MapLedgerEvidenceRejected
+            || ledgerOverflow.Checkpoint
+                != M01LoadedImageStackCheckpoint.Uninitialized
+            || ledgerOverflow.IsPrepared
+            || !overflowBefore.AsSpan().SequenceEqual(
+                fixture.CopyBackingMemory()))
+        {
+            return CaseFailure(
+                "static-scratch-ledger-capacity-overflow");
+        }
+
+        return true;
+    }
+
+    private static bool TestSharedLowStackCoreSourceTopology()
+    {
+        string source = RemoveComments(
+            File.ReadAllText(
+                IntegrationSourcePath(
+                    HostToolProcess.FindRepositoryRoot())));
+        if (!ValidateEvidenceScratchSourceContract(source))
+        {
+            return CaseFailure(
+                "evidence-scratch-source-contract");
+        }
+
+        Regex overflowGuard = new(
+            @"scratchAddress\s*>\s*"
+                + @"MaximumUnsignedLong\s*-\s*requiredBytes",
+            RegexOptions.CultureInvariant);
+        string overflowMutated =
+            overflowGuard.Replace(
+                source,
+                "false",
+                1);
+        if (string.Equals(
+                overflowMutated,
+                source,
+                StringComparison.Ordinal)
+            || ValidateEvidenceScratchSourceContract(
+                overflowMutated))
+        {
+            return CaseFailure(
+                "evidence-scratch-overflow-mutation");
+        }
+
+        const string coreName =
+            "PrepareWithCallerOwnedEvidenceScratch";
+        string? richBody = FindStaticMethodBody(
+            source,
+            "PrepareWithStubByteMode");
+        string? staticBody = FindStaticMethodBody(
+            source,
+            "PrepareFromStaticScratch");
+        string? coreBody = FindStaticMethodBody(
+            source,
+            coreName);
+        if (richBody is null
+            || staticBody is null
+            || coreBody is null)
+        {
+            return CaseFailure("shared-low-stack-core-method");
+        }
+
+        int declarationCount = Regex.Matches(
+            source,
+            @"\bprivate\s+static\s+"
+                + @"M01LoadedImageStackStaticPreparationResult\s+"
+                + coreName
+                + @"\s*\(",
+            RegexOptions.CultureInvariant).Count;
+        int totalTokenCount = Regex.Matches(
+            source,
+            @"\b" + coreName + @"\s*\(",
+            RegexOptions.CultureInvariant).Count;
+        int richCallCount = Regex.Matches(
+            richBody,
+            @"\b" + coreName + @"\s*\(",
+            RegexOptions.CultureInvariant).Count;
+        int staticCallCount = Regex.Matches(
+            staticBody,
+            @"\b" + coreName + @"\s*\(",
+            RegexOptions.CultureInvariant).Count;
+        int recursiveCallCount = Regex.Matches(
+            coreBody,
+            @"\b" + coreName + @"\s*\(",
+            RegexOptions.CultureInvariant).Count;
+
+        return declarationCount == 1
+            && totalTokenCount == 3
+            && richCallCount == 1
+            && staticCallCount == 1
+            && recursiveCallCount == 0
+            || CaseFailure("shared-low-stack-core-topology");
+    }
+
+    private static bool
+        ValidateEvidenceScratchSourceContract(string source)
+    {
+        string? body = FindStaticMethodBody(
+            source,
+            "ValidateEvidenceScratch");
+        if (body is null)
+        {
+            return false;
+        }
+
+        const string expected =
+            "ulongrequiredBytes=(ulong)sizeof("
+            + "M01LoadedImageStackEvidence);"
+            + "ulongscratchAddress=(ulong)evidenceScratch;"
+            + "if(evidenceScratch==null"
+            + "||evidenceScratchCapacity!=requiredBytes"
+            + "||(scratchAddress"
+            + "&(RequiredEvidenceScratchAlignment-1))!=0"
+            + "||scratchAddress"
+            + ">MaximumUnsignedLong-requiredBytes)"
+            + "{returnfalse;}"
+            + "if(requireEvidenceScratchInLoadedImage"
+            + "&&(loadedImageMapping.VirtualImageBase"
+            + ".TryGetRawValueForUefiBoundary(outulongimageBase)"
+            + "!=AddressValueStatus.Success"
+            + "||loadedImageMapping.VirtualImageEndExclusive"
+            + ".TryGetRawValueForUefiBoundary(outulongimageEnd)"
+            + "!=AddressValueStatus.Success"
+            + "||scratchAddress<imageBase"
+            + "||scratchAddress+requiredBytes>imageEnd))"
+            + "{returnfalse;}"
+            + "returnIsZeroed((byte*)evidenceScratch,"
+            + "requiredBytes);";
+        return string.Equals(
+            Regex.Replace(
+                body,
+                @"\s+",
+                string.Empty,
+                RegexOptions.CultureInvariant),
+            expected,
+            StringComparison.Ordinal);
+    }
+
     private static bool TestSourceAndApiFirewalls()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -2468,6 +2981,9 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
                 "PrepareWithStubByteMode(",
                 StringComparison.Ordinal)
             || !stripped.Contains(
+                "PrepareFromStaticScratch(",
+                StringComparison.Ordinal)
+            || !stripped.Contains(
                 "M01StageOneStubByteMode.VerifyExisting",
                 StringComparison.Ordinal)
             || !stripped.Contains(
@@ -2491,6 +3007,7 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
             typeof(M01StageOneAddressMappingEvidence),
             typeof(M01LoadedImageStackStaticState),
             typeof(M01LoadedImageStackTransferTarget),
+            typeof(M01LoadedImageStackStaticPreparationResult),
             typeof(M01LoadedImageStackStaticTransitionResult),
             typeof(M01LoadedImageStackEvidence),
             typeof(M01LoadedImageStackIntegrationResult)
@@ -2576,11 +3093,96 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
                 "OS",
                 "Boot",
                 "EfiEntry.cs"));
-        if (efiEntry.Contains(
-                nameof(M01LoadedImageStackIntegration),
+        const string probeStart =
+            "#if M01_LOADED_IMAGE_STACK_PROBE";
+        const string probeElse = "#else";
+        const string probeEnd = "#endif";
+        int probeStartIndex = efiEntry.IndexOf(
+            probeStart,
+            StringComparison.Ordinal);
+        int probeElseIndex = probeStartIndex < 0
+            ? -1
+            : efiEntry.IndexOf(
+                probeElse,
+                probeStartIndex + probeStart.Length,
+                StringComparison.Ordinal);
+        int probeEndIndex = probeElseIndex < 0
+            ? -1
+            : efiEntry.IndexOf(
+                probeEnd,
+                probeElseIndex + probeElse.Length,
+                StringComparison.Ordinal);
+        int duplicateProbeIndex = probeStartIndex < 0
+            ? -1
+            : efiEntry.IndexOf(
+                probeStart,
+                probeStartIndex + probeStart.Length,
+                StringComparison.Ordinal);
+        if (probeStartIndex < 0
+            || probeElseIndex < 0
+            || probeEndIndex < 0
+            || duplicateProbeIndex >= 0)
+        {
+            return SourceFailure("efi-entry-probe-boundary");
+        }
+
+        string probeImplementation = efiEntry[
+            probeStartIndex..probeElseIndex];
+        string defaultImplementation = efiEntry[
+            probeElseIndex..(probeEndIndex + probeEnd.Length)];
+        string outsideProbe = string.Concat(
+            efiEntry.AsSpan(0, probeStartIndex),
+            efiEntry.AsSpan(probeEndIndex + probeEnd.Length));
+        string compactProbe = Regex.Replace(
+            probeImplementation,
+            @"\s+",
+            string.Empty,
+            RegexOptions.CultureInvariant);
+        string compactDefault = Regex.Replace(
+            defaultImplementation,
+            @"\s+",
+            string.Empty,
+            RegexOptions.CultureInvariant);
+        string compactOutside = Regex.Replace(
+            outsideProbe,
+            @"\s+",
+            string.Empty,
+            RegexOptions.CultureInvariant);
+        string[] requiredProbeCalls =
+        [
+            "M01LoadedImageStackIntegration.PrepareFromStaticScratch(",
+            "RecordTransferFromStaticState",
+            "ObserveContinuationRspFromStaticState",
+            "ReportUnexpectedReturnFromStaticState"
+        ];
+        foreach (string requiredProbeCall in requiredProbeCalls)
+        {
+            if (!compactProbe.Contains(
+                    requiredProbeCall,
+                    StringComparison.Ordinal)
+                || compactOutside.Contains(
+                    requiredProbeCall,
+                    StringComparison.Ordinal)
+                || compactDefault.Contains(
+                    requiredProbeCall,
+                    StringComparison.Ordinal))
+            {
+                return SourceFailure(
+                    "efi-entry-probe-call=" + requiredProbeCall);
+            }
+        }
+
+        if (compactProbe.Contains(
+                "M01LoadedImageStackIntegration.Prepare(",
+                StringComparison.Ordinal)
+            || compactProbe.Contains(
+                "M01LoadedImageStackIntegration.PrepareWithStubByteMode(",
+                StringComparison.Ordinal)
+            || !defaultImplementation.Contains(
+                "return false;",
                 StringComparison.Ordinal)
             || efiEntry.Contains(
-                "M01LoadedImageStack",
+                "RunM01LoadedImageStackIntegration",
                 StringComparison.Ordinal)
             || efiEntry.Contains(
                 "RecordTransfer(",
@@ -3114,6 +3716,51 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
             string.Empty,
             RegexOptions.Multiline
                 | RegexOptions.CultureInvariant);
+    }
+
+    private static string? FindStaticMethodBody(
+        string source,
+        string methodName)
+    {
+        Match declaration = Regex.Match(
+            source,
+            @"\b(?:private|public|internal)\s+static\s+"
+                + @"(?:unsafe\s+)?"
+                + @"[A-Za-z_][A-Za-z_0-9.]*\s*\*?\s+"
+                + Regex.Escape(methodName)
+                + @"\s*\([^;{}]*\)\s*\{",
+            RegexOptions.CultureInvariant);
+        if (!declaration.Success)
+        {
+            return null;
+        }
+
+        int open = source.IndexOf(
+            '{',
+            declaration.Index + declaration.Length - 1);
+        if (open < 0)
+        {
+            return null;
+        }
+
+        int depth = 0;
+        for (int index = open; index < source.Length; index++)
+        {
+            if (source[index] == '{')
+            {
+                depth++;
+            }
+            else if (source[index] == '}')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    return source[(open + 1)..index];
+                }
+            }
+        }
+
+        return null;
     }
 
     private static bool IsGeneratedOrReferencePath(string fullPath)
@@ -3659,6 +4306,7 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
 
         bool prepare = false;
         bool prepareWithStubByteMode = false;
+        bool prepareFromStaticScratch = false;
         bool staticRecord = false;
         bool staticObserve = false;
         bool staticUnexpectedReturn = false;
@@ -3678,6 +4326,10 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
             prepareWithStubByteMode |= string.Equals(
                 name,
                 "PrepareWithStubByteMode",
+                StringComparison.Ordinal);
+            prepareFromStaticScratch |= string.Equals(
+                name,
+                "PrepareFromStaticScratch",
                 StringComparison.Ordinal);
             staticRecord |= string.Equals(
                 name,
@@ -3711,6 +4363,7 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
 
         return prepare
             && prepareWithStubByteMode
+            && prepareFromStaticScratch
             && staticRecord
             && staticObserve
             && staticUnexpectedReturn
@@ -3820,6 +4473,7 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
             BackingPages * BootReservedRange.PageSize;
         private const ulong LedgerSlotCapacity = 8;
         private const ulong StaticStateOffset = 128;
+        private const ulong EvidenceScratchOffset = 1024;
         private const ulong ContinuationOffset =
             BootReservedRange.PageSize + 256;
         private const ulong CodePageOffset =
@@ -3861,6 +4515,8 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
                     _backingMemory + LedgerOffset);
                 StaticState = (M01LoadedImageStackStaticState*)(
                     _imageMemory + StaticStateOffset);
+                EvidenceScratch = (M01LoadedImageStackEvidence*)(
+                    _imageMemory + EvidenceScratchOffset);
                 ResetCanonical();
             }
             catch
@@ -3877,6 +4533,12 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
         public BootReservedRange* Ledger { get; private set; }
 
         public M01LoadedImageStackStaticState* StaticState
+        {
+            get;
+            private set;
+        }
+
+        public M01LoadedImageStackEvidence* EvidenceScratch
         {
             get;
             private set;
@@ -4081,6 +4743,85 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
                 StaticState,
                 M01LoadedImageStackStaticState.RequiredStorageBytes,
                 M01StageOneStubByteMode.EmitAndVerify);
+        }
+
+        public M01LoadedImageStackStaticPreparationResult
+            PrepareFromStaticScratchCurrent()
+        {
+            M01StageOneAllocationEvidence allocations =
+                CreateAllocationEvidence();
+            return InvokeStatic(
+                LoadedImage,
+                CreateVirtualMapping(),
+                CreateAddressMapping(),
+                Records,
+                2,
+                2,
+                allocations,
+                CreateMapEvidence(allocations),
+                Ledger,
+                LedgerCount,
+                LedgerCapacity,
+                CodePage,
+                PageSize,
+                PageSize,
+                StubEntryOffset,
+                OwnedBootStackSwitchPlan.RequiredStubByteLength,
+                Continuation,
+                StaticState,
+                M01LoadedImageStackStaticState.RequiredStorageBytes,
+                EvidenceScratch,
+                M01LoadedImageStackIntegration
+                    .RequiredEvidenceScratchBytes);
+        }
+
+        public M01LoadedImageStackStaticPreparationResult
+            InvokeStatic(
+                EfiLoadedImageRangeCapturePlan loadedImage,
+                M01LoadedImageVirtualMappingEvidence virtualMapping,
+                M01StageOneAddressMappingEvidence addressMapping,
+                BootMemoryRegionRecord* records,
+                ulong recordCount,
+                ulong recordCapacity,
+                M01StageOneAllocationEvidence allocations,
+                M01StageOneMapLedgerEvidence mapLedger,
+                BootReservedRange* ledger,
+                ulong ledgerCount,
+                ulong ledgerCapacity,
+                byte* codePage,
+                ulong codeCapacity,
+                ulong materializedLength,
+                ulong stubOffset,
+                ulong declaredLength,
+                VirtualAddress continuation,
+                M01LoadedImageStackStaticState* staticState,
+                ulong staticCapacity,
+                M01LoadedImageStackEvidence* evidenceScratch,
+                ulong evidenceScratchCapacity)
+        {
+            return M01LoadedImageStackIntegration
+                .PrepareFromStaticScratch(
+                    loadedImage,
+                    virtualMapping,
+                    addressMapping,
+                    records,
+                    recordCount,
+                    recordCapacity,
+                    allocations,
+                    mapLedger,
+                    ledger,
+                    ledgerCount,
+                    ledgerCapacity,
+                    codePage,
+                    codeCapacity,
+                    materializedLength,
+                    stubOffset,
+                    declaredLength,
+                    continuation,
+                    staticState,
+                    staticCapacity,
+                    evidenceScratch,
+                    evidenceScratchCapacity);
         }
 
         public M01LoadedImageStackIntegrationResult
@@ -4467,6 +5208,11 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
                 M01LoadedImageStackStaticState.RequiredStorageBytes);
         }
 
+        public byte[] CopyBackingMemory()
+        {
+            return CopyBytes(_backingMemory, BackingBytes);
+        }
+
         public BootMemoryRegionRecord[] CopyAllocationRecords()
         {
             return [Records[0], Records[1]];
@@ -4498,6 +5244,7 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
             Records = null;
             Ledger = null;
             StaticState = null;
+            EvidenceScratch = null;
         }
 
         private static M01LoadedImageStackIntegrationResult Invoke(

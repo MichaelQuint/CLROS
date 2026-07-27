@@ -28,7 +28,8 @@ public enum NativeAotHelperArea
     TypeManagerRtrScans = 10,
     GcStackRoots = 11,
     EfiReversePInvoke = 12,
-    EfiFailFastTypeCasts = 13
+    EfiFailFastTypeCasts = 13,
+    EfiStackProbe = 14
 }
 
 public enum NativeAotHelperStatus
@@ -37,7 +38,8 @@ public enum NativeAotHelperStatus
     Deferred = 1,
     EfiOnlyLinkStub = 2,
     EfiOnlyFailFastStub = 3,
-    Complete = 4
+    Complete = 4,
+    EfiOnlyStackProbe = 5
 }
 
 public readonly struct NativeAotHelperLedgerEntry
@@ -104,7 +106,7 @@ public readonly struct NativeAotHelperLedgerEntry
 
 public static class NativeAotHelperLedger
 {
-    public const int EntryCount = 13;
+    public const int EntryCount = 14;
 
     private const NativeAotCompletionGate RuntimeGates =
         NativeAotCompletionGate.StdRuntime |
@@ -312,6 +314,20 @@ public static class NativeAotHelperLedger
                 "Host ledger tests verify every current EFI RuntimeExport symbol is represented exactly once.",
                 "efi-runtime-shim",
                 "Implement real type-cast and interface-dispatch helpers before using these paths outside the EFI shell."),
+
+            13 => new NativeAotHelperLedgerEntry(
+                NativeAotHelperArea.EfiStackProbe,
+                NativeAotHelperStatus.EfiOnlyStackProbe,
+                EfiOnlyGates,
+                isEfiOnly: true,
+                satisfiesKernelRuntimeCompletion: false,
+                "RhpStackProbe",
+                "M01-021 source/readback tests lock the exact 27-byte page-probe plan, and the emitted-object audit verifies the fail-closed bridge shape and pre-transfer frame budget; no guest execution is claimed.",
+                "Honor the pinned .NET 10 x64 RhpStackProbe special ABI: consume the target in R11, touch each crossed page downward, preserve R11 and RSP until tail dispatch, and fail closed before an audited target is installed.",
+                "An audited fail-closed bridge plus exact read-back-verified first-party byte plan is allowed for the EFI stage only; never use a no-op or ordinary-argument approximation.",
+                "M01-021 focused source, mutation, readback, static-scratch, and generated-object frame/bridge audits cover the current build boundary.",
+                "efi-runtime-shim",
+                "M01-022 must prove the enabled stack-probe and owned-stack path in a real QEMU guest; re-audit the bridge and frame chain after any source or toolchain change."),
 
             _ => InvalidEntry()
         };

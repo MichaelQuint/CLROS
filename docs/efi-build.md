@@ -6,17 +6,27 @@ An explicit EFI NativeAOT project shell exists at `src/OS/OS.csproj`. It is
 included in `CLROS.slnx`, but its directory-local rules keep the freestanding
 no-stdlib build explicit and separate from ordinary managed runtime policy.
 
-As of 2026-07-25, this host has the required Visual Studio C++ toolchain,
+As of 2026-07-27, this host has the required Visual Studio C++ toolchain,
 Windows SDK, QEMU, and OVMF installed. `scripts/build-efi-shell.ps1` publishes a
 NativeAOT x64 PE with EFI application subsystem and stages it as
 `artifacts/efi/BOOTX64.EFI`.
 
-The staged artifact emits firmware-visible markers from `EfiMain`, captures the UEFI memory map on the tested QEMU/OVMF host, copies descriptor bytes into an OS-owned static buffer, validates the live owned handoff record, normalizes a compact owned-map summary, materializes compact boot memory-region records into OS-owned static storage, and emits the ordered boot marker plan through the raw image path.
+The most recent staged artifact is an explicit
+`M01_LOADED_IMAGE_STACK_PROBE` build. It contains the M01-021 loaded-image,
+page-allocation, map/ledger, stack-probe, and owned-stack-switch wiring, but it
+has build and PE-verification evidence only. The accepted QEMU/OVMF Gate 2
+evidence remains the earlier default artifact: it emits firmware-visible
+markers from `EfiMain`, captures and owns the UEFI memory map, validates the
+handoff, normalizes and materializes the map, and emits the ordered boot marker
+plan through the raw-image path.
 
 ## Implemented Behavior
 
 - The project uses `NoStdLib`, `PublishAot`, `EntryPointSymbol=EfiMain`, and `LinkerSubsystem=EFI_APPLICATION`.
 - `EfiEntry` exports `EfiMain`.
+- `EfiEntry` contains one opt-in `M01_LOADED_IMAGE_STACK_PROBE` adapter. It is
+  entered only after the ordinary owned handoff is available; the all-false
+  build retains the previous path and marker order.
 - `EfiMain` uses minimal UEFI system-table, console-output, boot-services, and Serial I/O protocol structs.
 - `src/OS/Boot/EfiConsoleAdapter.cs` is a no-stdlib byte-output adapter for the live EFI artifact. It encapsulates UEFI console and Serial I/O fallback writes without using managed interface dispatch.
 - `OS.Kernel` has a host-tested `IPlatformConsole` guard contract for future firmware-console marker writes. The live EFI artifact now has a separate no-stdlib adapter boundary, but it is still not a full `IPlatformConsole` implementation.
@@ -35,7 +45,12 @@ The staged artifact emits firmware-visible markers from `EfiMain`, captures the 
 - `OS.Kernel` has a host-tested `UefiMemoryDescriptorReader` contract that decodes owned raw descriptor bytes with 40-byte and 48-byte descriptor strides into caller-provided storage.
 - `EfiMain` source-links `BootSequencePlan.cs` and emits the ordered `boot.sequence` marker plan without referencing the normal `OS.Kernel` assembly.
 - Firmware console output is preferred. UEFI Serial I/O is used only as a fallback to avoid duplicate serial output when OVMF maps console output to the serial sink. Both paths are now called through `EfiConsoleAdapter`.
-- `Runtime/MinimalRuntime.cs` contains the compiler-required primitive stubs, throw helpers, memory helpers, fail-fast type-cast placeholders, and reverse-P/Invoke exports needed to produce the EFI PE.
+- `Runtime/MinimalRuntime.cs` contains the compiler-required primitive stubs,
+  throw helpers, memory helpers, fail-fast type-cast placeholders, and
+  reverse-P/Invoke exports needed to produce the EFI PE. It also contains the
+  minimal compiler-recognized `UnmanagedCallersOnlyAttribute` contract and the
+  fail-closed `RhpStackProbe` dispatch bridge required by the M01-021 opt-in
+  build.
 - `scripts/build-efi-shell.ps1` runs the explicit publish command and writes a
   log under `artifacts/logs/`. Before `dotnet publish`, its preflight resolves
   the MSVC x64 `link.exe`, Windows SDK UM x64 `kernel32.lib`, selected
@@ -158,11 +173,114 @@ CLROS_M01_020_READY
 TEST_PASS m01.020
 ```
 
-This is compile-closure and build-switch evidence only. The linked sources are
-not invoked by `EfiEntry`, all switches remain disabled in the ordinary build,
-and no boot order or completion-gate status changes. M01-020 does not allocate
-firmware pages, switch stacks, load CR3, modify a live PTE or TLB, execute
-QEMU/OVMF, establish owned diagnostics, or call `ExitBootServices`.
+This remains M01-020 compile-closure and build-switch evidence. At that issue's
+boundary the linked sources were not invoked by `EfiEntry`; M01-021 now invokes
+the loaded-image/owned-stack subset only under its explicit probe symbol. All
+switches remain disabled in the ordinary build, and no boot order or
+completion-gate status changes. M01-020 itself does not prove firmware page
+allocation, stack switching, CR3 load, live PTE/TLB mutation, QEMU/OVMF
+execution, owned diagnostics, or `ExitBootServices`.
+
+### M01 loaded-image and owned-stack EFI wiring (build evidence)
+
+`scripts/build-efi-shell.ps1 -EnableM01LoadedImageStackProbe` maps the explicit
+build property to `M01_LOADED_IMAGE_STACK_PROBE`. In that configuration,
+`EfiEntry` uses the incoming EFI image handle to capture and validate the
+loader-owned image range, then performs exactly two `AllocateAnyPages` calls:
+
+- one page with memory type `EfiLoaderCode`; and
+- 34 pages with memory type `EfiLoaderData`, divided into one reserved guard
+  page followed by 33 usable stack pages.
+
+The resulting sizes are 4,096 code bytes, 139,264 data-arena bytes, and
+135,168 usable-stack bytes. Status, type, nonzero address, alignment, checked
+end, image/allocation non-overlap, map membership, and exact arena accounting
+are validated before the adapter can transfer. The loaded image remains
+loader-owned and is never freed by the adapter.
+
+After both allocations, the adapter recaptures the firmware map into static
+source storage, validates and copies it into the existing static owned-map
+destination, requires a changed opaque map key and the exact next CLROS
+generation, and then builds a sorted/disjoint four-record ledger for
+`LoadedImage`, `BootStackSwitchStub`, `BootStackGuard`, and `BootStack`.
+Static metadata already contained by the loaded image is intentionally not
+duplicated. A pre-transfer failure clears an installed stack-probe target and
+attempts `FreePages` for the data arena and then the code page. Allocation
+ownership follows the returned `EFI_STATUS`, so an EFI-success/address-zero
+allocation is still reclaimed after the CLROS address policy rejects it.
+Loaded-image protocol and map-recapture failures preserve the exact firmware
+status independently from the stable adapter status.
+
+The single code page carries two disjoint first-party plans: the existing
+14-byte stack-switch plan at byte offset 16 and a 27-byte `RhpStackProbe` page
+plan at byte offset 64. Both are copied and read back before use. The latter
+starts with an indirect-branch landing prefix, rounds the current stack down to
+a page, touches pages downward in 4 KiB increments until it reaches the target
+held in `R11`, and returns without modifying `R11`. The runtime export fails
+closed until the page plan is installed. The complete code page is first
+filled with `0xCC` and read back before either executable slice is written.
+
+The live-facing adapter calls only `PrepareFromStaticScratch`. It validates an
+exact 3,264-byte, 8-byte-aligned, initially zero scratch aggregate inside the
+loaded image and proves that aggregate disjoint from every caller-owned input
+range before its first write. The shared low-stack core places large POD
+diagnostics in that static storage and returns an 8-byte status/checkpoint
+value. The legacy rich host API is a wrapper over the same core.
+
+This special ABI was independently implemented after reviewing the official
+MIT-licensed
+[.NET runtime v10.0.8 `MiscStubs.asm`](https://github.com/dotnet/runtime/blob/v10.0.8/src/coreclr/nativeaot/Runtime/amd64/MiscStubs.asm).
+The emitted binary
+disassembly, not an assumption about the C# source, is binding. Manual
+disassembly of the accepted artifact showed a frameless `RhpStackProbe`
+bridge: it loads and tests the installed target through `RAX`, follows the
+compiler's aligned direct branch, tail-jumps through `RAX`, and loops when no
+target is installed. The valid direct path writes neither `RSP`, `R11`, nor
+the argument registers before dispatch. This is binary-specific evidence and
+must be repeated whenever the source, ILCompiler, runtime pack, linker inputs,
+or generated artifact changes.
+
+The stack-switch target calls a directly bound
+`[UnmanagedCallersOnly]` static continuation through
+`delegate* unmanaged`. The continuation validates the exact static handoff,
+converts the observed raw stack pointer through the typed UEFI boundary, and
+calls `ObserveContinuationRspFromStaticState`. Apart from the initial
+`TEST_START m01.stage1`, all canonical success/checkpoint markers are emitted
+retrospectively only after that observation proves `RSP` is contained by the
+33-page usable-stack range. Failure uses two allocation-free numeric lines:
+
+```text
+TEST_FAIL m01.stage1 status=<number> adapter=<number> checkpoint=<number> free_data=<number> free_code=<number>
+M01_STAGE1_FAIL status=<number> adapter=<number> checkpoint=<number> free_data=<number> free_code=<number>
+```
+
+The accepted opt-in build on 2026-07-27 produced a 131,584-byte PE32+ AMD64 EFI
+application. `scripts/test-efi-artifact.ps1` reported executable/file-backed
+`.managed` entrypoint RVA `0x00010BD0`, same-build `EfiMain` association,
+absent ordinary/bound/IAT/delay-import directories, and
+`TEST_PASS efi.artifact.verify`. Artifact SHA-256 is
+`42DC4647AC3EC1B0CAF2A86863834C186E8A0E324DBEE37B879FC401F1E7930F`;
+the NativeAOT object, linker-map, and response hashes are
+`D3E31151A51ABE783F2638674C8A7A897BDE8A4064A04FA9D9E29446896F8F22`,
+`81BABEFFD51033B42014AD5356C11F00A81C503BE1BA50EB668EDD0903AE8323`,
+and
+`0108286539031918F3576A3C9759803740D9E2DCB1A26E3E244E882C56E82F1F`.
+
+This proves a fresh opt-in NativeAOT build, the PE contract, helper linkage,
+the source-wiring contract, and the binary-specific bridge shape. Generated
+disassembly places the conservative deepest direct pre-transfer chain at
+`0xA268`, or 41,576 bytes, which is 23,960 bytes below the 64 KiB issue budget
+and replaces the former 135,632-byte blocker. The emitted bridge remains
+frameless, and a post-unpublish call-graph audit found no path that can invoke
+`RhpStackProbe` after its target is cleared. The measurement must be repeated
+after a relevant compiler, runtime-pack, source, or code-generation change.
+
+No QEMU/OVMF execution or serial evidence was accepted. This implementation does not
+prove a live firmware allocation, map recapture, stub or stack-probe execution,
+`RSP` transfer/containment, a faulting guard, RW-to-RX transition, NX/W^X
+enforcement, `ExitBootServices`, or any completion-gate advancement. M01-022
+owns real guest proof and failure classification. This issue's accepted
+build/source evidence does not change a completion-gate state.
 
 ## Unsupported Behavior
 
@@ -184,6 +302,7 @@ Expected commands:
 dotnet build .\CLROS.slnx --nologo -m:1
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 .\scripts\build-efi-shell.ps1 -PreflightOnly
+.\scripts\build-efi-shell.ps1 -EnableM01LoadedImageStackProbe
 .\scripts\build-efi-shell.ps1 -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe
 .\scripts\build-efi-shell.ps1
 .\scripts\test-efi-artifact.ps1
@@ -293,13 +412,21 @@ values are not printed.
 
 The current type-cast helpers are fail-fast placeholders for the shell only; real type safety belongs with later runtime/interface-dispatch work. The EFI shim must not return successful type-check results for unsupported runtime behavior.
 
-The current UEFI protocol structs are intentionally minimal and only cover the fields needed for early console output, Serial I/O fallback, `LocateProtocol`, `GetMemoryMap`, and `AllocatePool`. They are not a complete firmware abstraction layer.
+The current UEFI protocol structs are intentionally minimal. The default path
+covers the fields needed for early console output, Serial I/O fallback,
+`LocateProtocol`, `GetMemoryMap`, and `AllocatePool`; the opt-in M01-021
+adapter additionally types only the required `HandleProtocol`,
+`AllocatePages`, and `FreePages` slots plus the loaded-image fields it reads.
+They are not a complete firmware abstraction layer.
 
 `IPlatformConsole` is host-tested as a guardable platform contract only. `EfiEntry` now routes byte writes through a no-stdlib `EfiConsoleAdapter`, but this is still not the full managed `IPlatformConsole` implementation and it does not prove post-ExitBootServices owned serial output.
 
 The memory-map source buffer is firmware-allocated by the source-linked capture helper, but the descriptor bytes are copied into a static OS-owned buffer before `UEFI_MEMORY_MAP_OWNED` is emitted, the owned handoff validates before `BOOT_HANDOFF_READY` is emitted, the compact live summary normalizes before `UEFI_MEMORY_MAP_NORMALIZED` is emitted, and compact boot-region records materialize before `BOOT_MEMORY_REGIONS_READY` is emitted. A later step must still keep a valid map-key retry path for `ExitBootServices` and turn the compact records into allocator-owned usable/reserved page ranges.
 
-The logged memory-map metadata proves the map captured at that point in the EFI path. It does not prove that the map key remains valid after later boot-services calls.
+The logged default-path memory-map metadata proves the map captured at that
+point in the EFI path. The M01-021 opt-in source adds a post-allocation
+static recapture, but that path has no accepted guest log. Neither record
+proves that its map key remains valid after later boot-services calls.
 
 The ACPI physical discovery probe proves only pre-`ExitBootServices` table bytes on the tested QEMU/OVMF host. It does not map ECAM, enumerate PCI, size BARs, bind drivers, discover APIC/HPET for use, or prove post-firmware physical-memory access.
 
@@ -310,8 +437,9 @@ Any next-step EFI build work must keep the freestanding constraints explicit. If
 1. Move UEFI structs behind platform interfaces.
    - Keep the low-level UEFI table pointers isolated to the EFI boundary.
    - Expose only the narrow operations required for console diagnostics, memory-map ownership, firmware shutdown state, and optional filesystem/protocol discovery.
-2. Implement the owned boot stack and post-firmware COM1 path before enabling
-   any real firmware shutdown.
+2. Obtain the M01-022 QEMU/OVMF owned-stack proof using the accepted,
+   audited low-firmware-stack M01-021 preparation path.
+   Implement post-firmware COM1 before enabling any real firmware shutdown.
 3. Copy required firmware data, add the typed `ExitBootServices` call adapter,
    and implement the bounded stale-map-key retry only after its M01/M02
    dependencies pass.

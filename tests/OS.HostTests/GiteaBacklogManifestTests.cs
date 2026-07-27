@@ -836,7 +836,19 @@ internal static class GiteaBacklogManifestTests
                 ["M01-021"] =
                 [
                     "src/OS/Boot/EfiEntry.cs",
-                    "tests/OS.HostTests/M01LoadedImageStackEfiEntryTests.cs"
+                    "src/OS/Runtime/MinimalRuntime.cs",
+                    "src/OS.Kernel/Boot/M01LoadedImageStackIntegration.cs",
+                    "src/OS.Kernel/Runtime/NativeAotHelperLedger.cs",
+                    "tests/OS.HostTests/M01LoadedImageStackEfiEntryTests.cs",
+                    "tests/OS.HostTests/M01LoadedImageStackIntegrationTests.cs",
+                    "tests/OS.HostTests/BootSequencePlanTests.cs",
+                    "tests/OS.HostTests/NativeAotHelperLedgerTests.cs",
+                    "tests/OS.HostTests/GiteaBacklogManifestTests.cs",
+                    ".gitea/backlog/clros-issues.json",
+                    "docs/boot.md",
+                    "docs/efi-build.md",
+                    "docs/nativeaot-nostdlib-limits.md",
+                    "done/step869.md"
                 ],
                 ["M01-022"] =
                 [
