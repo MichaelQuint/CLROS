@@ -746,7 +746,10 @@ internal static class BootSequencePlanTests
             .Descendants("EnableDefaultCompileItems")
             .Any(element => string.Equals(element.Value.Trim(), "false", StringComparison.OrdinalIgnoreCase));
         bool planLinked = false;
-        bool integrationLinked = false;
+        bool integrationLinked =
+            BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs",
+                @"Boot\M01LoadedImageStackIntegration.cs");
 
         foreach (System.Xml.Linq.XElement compile in project.Descendants("Compile"))
         {
@@ -771,14 +774,6 @@ internal static class BootSequencePlanTests
             }
 
             if (string.Equals(
-                Path.GetFileName(normalized),
-                "M01LoadedImageStackIntegration.cs",
-                StringComparison.OrdinalIgnoreCase))
-            {
-                integrationLinked = true;
-            }
-
-            if (string.Equals(
                 normalized,
                 @"..\OS.Kernel\Boot\BootSequencePlan.cs",
                 StringComparison.OrdinalIgnoreCase))
@@ -797,7 +792,7 @@ internal static class BootSequencePlanTests
 
         return defaultCompileItemsDisabled
             && planLinked
-            && !integrationLinked
+            && integrationLinked
             && !efiEntrySource.Contains(
                 "RunM01LoadedImageStackIntegration",
                 StringComparison.Ordinal)
@@ -824,7 +819,10 @@ internal static class BootSequencePlanTests
                 "false",
                 StringComparison.OrdinalIgnoreCase));
         bool planLinked = false;
-        bool integrationLinked = false;
+        bool integrationLinked =
+            BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs",
+                @"Boot\M01LiveAllocatorIntegration.cs");
 
         foreach (System.Xml.Linq.XElement compile
             in project.Descendants("Compile"))
@@ -850,14 +848,6 @@ internal static class BootSequencePlanTests
             }
 
             if (string.Equals(
-                Path.GetFileName(normalized),
-                "M01LiveAllocatorIntegration.cs",
-                StringComparison.OrdinalIgnoreCase))
-            {
-                integrationLinked = true;
-            }
-
-            if (string.Equals(
                 normalized,
                 @"..\OS.Kernel\Boot\BootSequencePlan.cs",
                 StringComparison.OrdinalIgnoreCase))
@@ -876,7 +866,7 @@ internal static class BootSequencePlanTests
 
         return defaultCompileItemsDisabled
             && planLinked
-            && !integrationLinked
+            && integrationLinked
             && !efiEntrySource.Contains(
                 "RunM01LiveAllocatorIntegration",
                 StringComparison.Ordinal)
@@ -903,7 +893,10 @@ internal static class BootSequencePlanTests
                 "false",
                 StringComparison.OrdinalIgnoreCase));
         bool planLinked = false;
-        bool integrationLinked = false;
+        bool integrationLinked =
+            BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Boot\M01LivePagingIntegration.cs",
+                @"Boot\M01LivePagingIntegration.cs");
 
         foreach (System.Xml.Linq.XElement compile
             in project.Descendants("Compile"))
@@ -929,14 +922,6 @@ internal static class BootSequencePlanTests
             }
 
             if (string.Equals(
-                Path.GetFileName(normalized),
-                "M01LivePagingIntegration.cs",
-                StringComparison.OrdinalIgnoreCase))
-            {
-                integrationLinked = true;
-            }
-
-            if (string.Equals(
                 normalized,
                 @"..\OS.Kernel\Boot\BootSequencePlan.cs",
                 StringComparison.OrdinalIgnoreCase))
@@ -955,7 +940,7 @@ internal static class BootSequencePlanTests
 
         return defaultCompileItemsDisabled
             && planLinked
-            && !integrationLinked
+            && integrationLinked
             && !efiEntrySource.Contains(
                 "RunM01LivePagingIntegration",
                 StringComparison.Ordinal)

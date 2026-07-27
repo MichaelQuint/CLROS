@@ -1509,18 +1509,9 @@ internal static class OwnedBootStackLayoutTests
         }
 
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string efiProjectPath = Path.Combine(
-            repositoryRoot,
-            "src",
-            "OS",
-            "OS.csproj");
-        string efiProject = File.ReadAllText(efiProjectPath);
-        if (efiProject.Contains(
-                nameof(OwnedBootStackLayout),
-                StringComparison.Ordinal)
-            || efiProject.Contains(
-                "OwnedBootStackLayout.cs",
-                StringComparison.Ordinal)
+        if (!BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Boot\OwnedBootStackLayout.cs",
+                @"Boot\OwnedBootStackLayout.cs")
             || source.Contains(
                 "CLROS_M01_004_READY",
                 StringComparison.Ordinal))

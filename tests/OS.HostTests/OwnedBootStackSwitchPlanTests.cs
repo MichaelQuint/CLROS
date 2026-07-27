@@ -2593,11 +2593,9 @@ internal static class OwnedBootStackSwitchPlanTests
             }
         }
 
-        string efiProject = File.ReadAllText(
-            Path.Combine(repositoryRoot, "src", "OS", "OS.csproj"));
-        if (efiProject.Contains(
-                nameof(OwnedBootStackSwitchPlan),
-                StringComparison.Ordinal)
+        if (!BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Boot\OwnedBootStackSwitchPlan.cs",
+                @"Boot\OwnedBootStackSwitchPlan.cs")
             || source.Contains(
                 "CLROS_M01_005_READY",
                 StringComparison.Ordinal))

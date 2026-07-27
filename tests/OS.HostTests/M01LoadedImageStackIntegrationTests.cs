@@ -2555,9 +2555,9 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
         if (!efiProject.Contains(
                 "<EnableDefaultCompileItems>false</EnableDefaultCompileItems>",
                 StringComparison.Ordinal)
-            || efiProject.Contains(
-                "M01LoadedImageStackIntegration.cs",
-                StringComparison.Ordinal)
+            || !BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs",
+                @"Boot\M01LoadedImageStackIntegration.cs")
             || efiProject.Contains(
                 "BootSequence.cs",
                 StringComparison.Ordinal)

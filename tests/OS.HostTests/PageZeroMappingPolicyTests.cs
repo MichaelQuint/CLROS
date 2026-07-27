@@ -1362,20 +1362,21 @@ internal static unsafe class PageZeroMappingPolicyTests
             root,
             @"src\OS\OS.csproj");
 
-        if (!EvaluatedEfiClosure(
+        if (!BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Memory\PageZeroMappingPolicy.cs",
+                @"Memory\PageZeroMappingPolicy.cs") ||
+            !EvaluatedEfiClosure(
                 root,
                 efiProject,
                 "SingleMinimalApi",
-                policyPath,
-                planPath,
-                testPath) ||
+                [policyPath],
+                [planPath, testPath]) ||
             !EvaluatedEfiClosure(
                 root,
                 efiProject,
                 "MultiMinimalApi",
-                policyPath,
-                planPath,
-                testPath))
+                [policyPath],
+                [planPath, testPath]))
         {
             return false;
         }
@@ -2251,7 +2252,8 @@ internal static unsafe class PageZeroMappingPolicyTests
         string repositoryRoot,
         string projectPath,
         string workloadProfile,
-        params string[] forbiddenPaths)
+        IReadOnlyList<string> requiredPaths,
+        IReadOnlyList<string> forbiddenPaths)
     {
         ProcessStartInfo start = new("dotnet")
         {
@@ -2313,6 +2315,11 @@ internal static unsafe class PageZeroMappingPolicyTests
 
             bool efiEntry = false;
             bool minimalRuntime = false;
+            HashSet<string> required = new(
+                requiredPaths.Select(Path.GetFullPath),
+                StringComparer.OrdinalIgnoreCase);
+            HashSet<string> foundRequired =
+                new(StringComparer.OrdinalIgnoreCase);
             foreach (JsonElement item in compile.EnumerateArray())
             {
                 string fullPath =
@@ -2320,16 +2327,20 @@ internal static unsafe class PageZeroMappingPolicyTests
                 if (!Path.IsPathFullyQualified(fullPath))
                     return false;
 
+                string canonicalPath = Path.GetFullPath(fullPath);
                 efiEntry |= fullPath.EndsWith(
                     Path.Combine("Boot", "EfiEntry.cs"),
                     StringComparison.OrdinalIgnoreCase);
                 minimalRuntime |= fullPath.EndsWith(
                     Path.Combine("Runtime", "MinimalRuntime.cs"),
                     StringComparison.OrdinalIgnoreCase);
+                if (required.Contains(canonicalPath))
+                    foundRequired.Add(canonicalPath);
+
                 foreach (string forbiddenPath in forbiddenPaths)
                 {
-                    if (Path.GetFullPath(fullPath).Equals(
-                            forbiddenPath,
+                    if (canonicalPath.Equals(
+                            Path.GetFullPath(forbiddenPath),
                             StringComparison.OrdinalIgnoreCase))
                     {
                         return false;
@@ -2337,7 +2348,9 @@ internal static unsafe class PageZeroMappingPolicyTests
                 }
             }
 
-            return efiEntry && minimalRuntime;
+            return efiEntry
+                && minimalRuntime
+                && foundRequired.Count == required.Count;
         }
         catch (Exception ex)
         {

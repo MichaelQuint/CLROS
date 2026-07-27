@@ -2131,7 +2131,6 @@ internal static class BootPageAllocatorOnePageAllocationTests
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string[] integrationPaths =
         [
-            Path.Combine(repositoryRoot, "src", "OS", "OS.csproj"),
             Path.Combine(
                 repositoryRoot,
                 "src",
@@ -2182,10 +2181,16 @@ internal static class BootPageAllocatorOnePageAllocationTests
             && !RuntimeHelpers
                 .IsReferenceOrContainsReferences<
                     BootPageAllocatorOnePageResult>()
-            && EvaluatedEfiCompileClosureExcludesOnePageAllocator();
+            && BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Memory\BootPageAllocatorCoreContracts.cs",
+                @"Memory\BootPageAllocatorCoreContracts.cs")
+            && BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Memory\BootPageAllocatorMutation.cs",
+                @"Memory\BootPageAllocatorMutation.cs")
+            && EvaluatedEfiCompileClosureExcludesLegacyOnePageAllocatorSources();
     }
 
-    private static bool EvaluatedEfiCompileClosureExcludesOnePageAllocator()
+    private static bool EvaluatedEfiCompileClosureExcludesLegacyOnePageAllocatorSources()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string projectPath = Path.Combine(
@@ -2249,8 +2254,6 @@ internal static class BootPageAllocatorOnePageAllocationTests
 
             string[] forbiddenNames =
             [
-                "BootPageAllocatorMutation.cs",
-                "BootPageAllocatorCoreContracts.cs",
                 "BootPageAllocatorState.cs",
                 "BootPageFreeListPlan.cs",
                 "BootPageAllocatorPlan.cs",

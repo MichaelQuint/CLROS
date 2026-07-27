@@ -66,6 +66,104 @@ The staged artifact emits firmware-visible markers from `EfiMain`, captures the 
   a stripped release PE does not independently preserve the `EfiMain` symbol
   name.
 
+### M01 reviewed EFI source closure (host-only)
+
+M01-020 promotes the already host-reviewed M01 leaf and coordinator sources
+into the canonical `src/OS/OS.csproj` no-stdlib compilation. The project now
+has exactly 41 direct compile items: 38 linked `OS.Kernel` sources and the
+three local EFI sources `EfiConsoleAdapter.cs`, `EfiEntry.cs`, and
+`MinimalRuntime.cs`. There are no source globs, conditional future slots,
+alternate EFI projects, generated compile items, or managed project/assembly
+references.
+
+The issue-reviewed set has these 28 explicit entries:
+
+- `TypedPhysicalVirtualDeviceAddressPODWrappers.cs`
+- `BootReservedRange.cs`
+- `BootReservationTableValidator.cs`
+- `EfiLoadedImageRange.cs`
+- `EfiLoadedImageRangeCapturePlan.cs`
+- `OwnedBootStackLayout.cs`
+- `OwnedBootStackSwitchPlan.cs`
+- `BootPageAllocatorCoreContracts.cs`
+- `BootPageAllocatorStateMaterializer.cs`
+- `BootReservationSubtractor.cs`
+- `BootPageAllocatorMutation.cs`
+- `PageProtection.cs`
+- `PageCachePolicy.cs`
+- `X64PageTableEntry.cs`
+- `X64BootIdentityMappingPlan.cs`
+- `X64Cr3LoadStubPlan.cs`
+- `X64PagingModePreflightStubPlan.cs`
+- `X64ReversibleCr3TransitionStubPlan.cs`
+- `X64PageMap.cs`
+- `X64TlbInvalidationPlan.cs`
+- `X64InvlpgStubPlan.cs`
+- `X64ProtectionProbeStubPlan.cs`
+- `PageZeroMappingPolicy.cs`
+- `M01LoadedImageStackIntegration.cs`
+- `M01LiveAllocatorIntegration.cs`
+- `M01LivePagingIntegration.cs`
+- `M01OwnedCr3CompositeTransition.cs`
+- the previously linked `BootSequencePlan.cs`
+
+Three explicit prerequisite sources complete that set:
+`BootHandoffRecord.cs`, `BootMemoryRegionMaterializer.cs`, and
+`UefiMemoryType.cs`. The original M01-020 catalog omitted
+`UefiMemoryType.cs`. A direct exact-list compile failed with 18 unresolved
+`UefiMemoryType` diagnostics; adding only that prerequisite made the same
+no-stdlib build pass. The project, preflight marker, issue evidence, and
+durable backlog record therefore preserve this discovered prerequisite rather
+than repeating the incomplete 28-file claim.
+
+`scripts/build-efi-shell.ps1` validates the direct XML and evaluated MSBuild
+closure for both workload profiles and the caller-selected `Debug` or `Release`
+configuration before tool discovery. Canonicalized XML fingerprints bind the
+complete EFI project and root `Directory.Build.props`/`Directory.Build.targets`
+shapes, while structural checks produce narrower diagnostics. The preflight
+rejects missing, extra, duplicate, conditional, expanded, imported,
+target-injected, target-time-mutated, build-customization-injected,
+analyzer/package-injected, or outside-repository sources. It also checks exact
+`NOSTDLIB_EFI` exclusions; legacy-probe property propagation; active no-runtime
+source for managed strings, arrays, records, classes, aliases, attributes, and
+anonymous objects; the three-allocation/map/arena contracts; callback
+exclusion; and the owned-CR3 restoration/canary contracts. Successful
+validation emits:
+
+```text
+EFI_PREFLIGHT_M01_SWITCHES status=ok loadedImageStack=<true|false> liveAllocator=<true|false> ownedPaging=<true|false>
+EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=28 prerequisites=3 compileItems=41 prerequisiteGap=UefiMemoryType
+```
+
+The opt-in build switches form a strict dependency chain:
+
+```text
+EnableM01LoadedImageStackProbe
+  -> EnableM01LiveAllocatorProbe
+    -> EnableM01OwnedPagingProbe
+```
+
+All three default to `false`. Stack-only, stack-plus-allocator, and all-three
+configurations are valid. Allocator without stack and paging without allocator
+fail both preflight and MSBuild validation. The build script passes enabled
+values as exact `-p:EnableM01...=true` properties and the project maps them to
+`M01_LOADED_IMAGE_STACK_PROBE`, `M01_LIVE_ALLOCATOR_PROBE`, and
+`M01_OWNED_PAGING_PROBE`.
+
+Focused host evidence uses:
+
+```text
+TEST_START m01.020
+CLROS_M01_020_READY
+TEST_PASS m01.020
+```
+
+This is compile-closure and build-switch evidence only. The linked sources are
+not invoked by `EfiEntry`, all switches remain disabled in the ordinary build,
+and no boot order or completion-gate status changes. M01-020 does not allocate
+firmware pages, switch stacks, load CR3, modify a live PTE or TLB, execute
+QEMU/OVMF, establish owned diagnostics, or call `ExitBootServices`.
+
 ## Unsupported Behavior
 
 The project is not yet a functional kernel. `ExitBootServices`, owned drivers,
@@ -86,6 +184,7 @@ Expected commands:
 dotnet build .\CLROS.slnx --nologo -m:1
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 .\scripts\build-efi-shell.ps1 -PreflightOnly
+.\scripts\build-efi-shell.ps1 -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe
 .\scripts\build-efi-shell.ps1
 .\scripts\test-efi-artifact.ps1
 .\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -RequireMarker OS_SMOKE_PASS,UEFI_MEMORY_MAP_OWNED,BOOT_HANDOFF_READY,UEFI_MEMORY_MAP_NORMALIZED,BOOT_MEMORY_MAP_ACCEPTED,BOOT_MEMORY_REGIONS_READY,BOOT_MEMORY_REGION_COUNT
