@@ -4460,7 +4460,7 @@
       ],
       "collisionLane": "lane:probes",
       "summary": "Create one no-stdlib-compatible C# x64 byte plan and unmanaged POD contract for the complete callback-free owned-CR3 interval, replacing the temporal gap between the separately modeled reversible-CR3, page-protection, invlpg, probe, page-zero, and restoration leaves before any EFI linkage or live claim.",
-      "currentEvidence": "M01-019 is merged with reviewed host evidence for strict composition of separate paging leaves, but ProvesCompositeOwnedCr3MachineCodeInterval remains false. No current byte stream performs CR3 entry, canary update, PTE rewrite, exact invlpg, probe, page-zero audit, and CR3/CR4/RFLAGS restoration as one indivisible callback-free interval. The frozen SerialStub purpose is only a compatibility alias and is not owned-COM1 evidence.",
+      "currentEvidence": "Merged implementation commit d4c1960926bbeb8a020fa2f0af1ea88c08a34b4e, merge commit 89123d73ac988dd4df8f113962c6cd2159da8de9, PR #376, issue #374 evidence review, and done/step867.md preserve reviewed host evidence for one 3,830-byte, 732-instruction composite owned-CR3 transition plan, exact full-page materialization/readback, independent x64 control-flow and ABI decoding, typed range/provenance binding, exact probe PTE write/invlpg/readback ordering, page-zero audit, phase anti-promotion, and complete recovery classification. The full host harness exited 0 with CLROS_M01_027_READY, TEST_PASS m01.027, and terminal TEST_PASS host.tests. The source remains unlinked and uninvoked; no privileged byte, live CR3/PTE/TLB effect, QEMU/OVMF guest run, owned-serial proof, or completion-gate change is claimed. M01-020 owns linkage, M01-025 owns live allocation/wiring plus caller-side TF/CET preconditions, and M01-026 owns real-QEMU proof.",
       "implementationNotes": [
         "Own only the new composite leaf, its focused host tests, and the two canonical paging architecture sections; do not wire or execute the stream.",
         "Expose a NOSTDLIB_EFI-compatible unmanaged POD plus unsafe pointer/count/capacity core with no Span, string, arrays, exceptions, reflection, managed references, callbacks, imports, or native source.",
@@ -4509,7 +4509,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue may prove only that one composite owned-CR3 transition stream is encoded, exactly read back, range-bound, and host-audited. It does not link or invoke the stream, allocate firmware pages, wire EfiEntry, change CR3/PTE/TLB state, execute a probe, prove page zero absent in hardware, provide QEMU evidence, establish owned serial diagnostics, or advance a completion gate.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-020",
