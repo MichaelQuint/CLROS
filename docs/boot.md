@@ -2,7 +2,7 @@
 
 ## Current Status
 
-Boot has a firmware-visible QEMU/OVMF smoke proof. `src/OS` publishes a no-stdlib NativeAOT EFI application, `tools/OS.ImageBuilder` wraps it in a raw GPT/FAT32 EFI System Partition image, and `scripts/run-qemu-smoke.ps1` boots that image in QEMU/OVMF and captures serial markers. A separate `M01_LOADED_IMAGE_STACK_PROBE` build now has source-bound opt-in QEMU proof that the M01-021 adapter captures the live loaded-image range, allocates and validates the stack-switch resources, refreshes the map, validates its four-record reservation ledger, transfers to the owned stack, observes a contained live `RSP`, and then emits the unchanged default boot plan. The default EFI path remains unchanged.
+Boot has a firmware-visible QEMU/OVMF smoke proof. `src/OS` publishes a no-stdlib NativeAOT EFI application, `tools/OS.ImageBuilder` wraps it in a raw GPT/FAT32 EFI System Partition image, and `scripts/run-qemu-smoke.ps1` boots that image in QEMU/OVMF and captures serial markers. A separate `M01_LOADED_IMAGE_STACK_PROBE` build now has source-bound opt-in QEMU proof that the M01-021 adapter captures the live loaded-image range, allocates and validates the stack-switch resources, refreshes the map, validates its four-record reservation ledger, transfers to the owned stack, observes a contained live `RSP`, and then emits the unchanged default boot plan. M01-023 adds a further `M01_LIVE_ALLOCATOR_PROBE` stage-two adapter with source, host-test, and EFI build evidence only; it does not yet have guest execution evidence. The default EFI path remains unchanged.
 
 This is still an EFI application smoke, not a functional kernel. The current evidence proves that firmware reaches `EfiMain`, that `EfiMain` can capture the UEFI memory map on the tested QEMU host, copy the raw descriptor bytes into an OS-owned static buffer, validate the live owned handoff record, normalize and accept a live owned-map summary, materialize compact boot memory-region records into OS-owned static storage, carry a discovered ACPI RSDP pointer into the typed handoff record, optionally validate live ACPI RSDP/root SDT/MCFG bytes before `ExitBootServices` in an explicit probe build, and emit the ordered boot phase marker plan.
 
@@ -20,6 +20,13 @@ This is still an EFI application smoke, not a functional kernel. The current evi
   memory-map recapture, a four-record ownership ledger, the audited stage-one
   coordinator, and a direct unmanaged continuation. The ordinary all-false
   build retains the previous marker order and does not enter this adapter.
+- Behind the additional `M01_LIVE_ALLOCATOR_PROBE`, the final owned-stack
+  continuation now performs the M01-023 stage-two source/build boundary. It
+  requests one two-page `EfiLoaderData` allocator arena, recaptures the map,
+  extends the retained stage-one ledger with exactly one `AllocatorArena`,
+  invokes the audited M01-018 coordinator over caller-owned static buffers, and
+  emits the nine-line stage-two plan only after exact persisted-state and
+  accounting validation. This nested probe is also off by default.
 - `BootSequencePlan` carries a second independent exact nine-line M01
   stage-two success plan. `BootSequence.RunM01LiveAllocatorIntegration`
   presents it only for a completed host result; it is not part of the default
@@ -169,26 +176,19 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 
 ## Unsupported Behavior
 
-- Live page allocator/free-list ownership over planned boot memory ranges.
-  `BootMemoryRegionPlanner` classifies compact records into usable conventional
-  ranges and reserved/unusable metadata, `BootPageAllocatorPlanner` produces
-  host-tested initial free-segment metadata, `BootPageFreeListBuilder`
-  constructs caller-owned node metadata, and
-  `BootPageAllocatorStateMaterializer` validates supplied POD storage through
-  a pointer/count/capacity contract. `BootPageAllocatorMutator.AllocateOnePage`
-  performs one reservation-aware metadata mutation, and its strict serialized
-  `FreeOnePage` exact inverse accepts only the matching successful receipt and
-  exact post-allocation state. `M01LiveAllocatorIntegration` now composes one
-  host-modeled arena-confined cycle, while
-  `BootPageAllocatorReadinessComposer` and
-  `BootSequence.RunBootPageAllocatorReadiness` retain the older host readiness
-  path. The extracted PODs, materializer, mutator, and M01-018 coordinator
-  compile in isolated `NOSTDLIB_EFI`/no-framework-reference closures, but they
-  are not source-linked into `src/OS/OS.csproj`, invoked by `EfiEntry`, or
-  exercised by QEMU. None establishes live allocator ownership, reserves a
-  page against firmware or another allocator, zeroes/maps/accesses the typed
-  result, allocates or frees a physical guest page, supports arbitrary-order
-  frees, prevents receipt ABA, configures paging, or enforces NX/W^X.
+- Default-path live page allocator/free-list ownership over planned boot
+  memory ranges. `BootMemoryRegionPlanner`, `BootPageAllocatorPlanner`,
+  `BootPageFreeListBuilder`, `BootPageAllocatorStateMaterializer`, and the
+  strict serialized `AllocateOnePage`/`FreeOnePage` exact inverse remain the
+  reviewed leaf contracts. M01-023 source-links their M01-018 coordinator and
+  invokes one arena-confined metadata cycle only when both M01 probe symbols
+  are enabled. The accepted M01-023 evidence is source, host-test, and EFI
+  build evidence; the new stage-two path has not run under QEMU/OVMF. It does
+  not yet prove that firmware granted the arena, that guest execution performed
+  the alloc/free/double-free cycle, that ownership survives
+  `ExitBootServices`, that the returned physical page is zeroed, mapped, or
+  accessed, that arbitrary-order frees or receipt ABA are supported, or that
+  paging and NX/W^X are enforced. M01-024 owns the separate guest proof.
 - Default-build live use of the typed address domains, loaded-image capture
   plan, and canonical reservation ledger remains disabled. The exact
   typed-address, reservation-record, pointer-validator, loaded-image range,
@@ -661,8 +661,10 @@ LoaderCode page and one separate LoaderData guard-plus-stack arena to ordered,
 successful caller observations. `M01StageOneMapLedgerEvidence` requires a
 changed opaque map key, an exactly advanced CLROS-owned generation, a
 well-formed owned map copy, and later map-capture and ledger-build ordinals.
-Those values are attestations supplied by the future live adapter; they are
-not proof that firmware performed either allocation or map capture.
+Those values remain caller attestations at this host-contract layer. M01-021
+now supplies them from its separately gated live adapter, and M01-022 records
+one guest observation; the M01-017 values alone are not proof that firmware
+performed either allocation or map capture.
 
 `M01LoadedImageVirtualMappingEvidence` keeps the loaded-image address domains
 explicit. `M01StageOneAddressMappingEvidence` separately binds the LoaderCode,
@@ -977,10 +979,10 @@ strictly ordered allocation, map-capture, and ledger-build ordinals.
 The previous key/generation and the association between the refreshed map and
 ledger remain caller attestations: M01-017 intentionally excludes transient
 map/ledger pointers and epoch values from its post-switch static state, and
-M01-018 does not parse the refreshed descriptor bytes. The future live adapter
-must derive these values from one serialized capture; this host contract
-detects malformed, stale, nonincrementing, reordered, or mismatched supplied
-evidence but does not independently observe firmware.
+M01-018 does not parse the refreshed descriptor bytes. M01-023 now derives
+these values from one separately gated serialized capture; the M01-018 host
+contract detects malformed, stale, nonincrementing, reordered, or mismatched
+supplied evidence but does not independently observe firmware.
 
 `M01LiveAllocatorIntegration.Execute` is an unmanaged, no-stdlib-compatible
 unsafe pointer/count/capacity core. Before dereferencing or writing, it checks
@@ -1079,9 +1081,98 @@ call EFI `AllocatePages`, recapture a firmware map, execute allocator-backed
 physical memory access, transfer ownership of arbitrary conventional pages,
 wire or link the coordinator into `src/OS`, change `EfiEntry`, execute a guest
 phase, establish a post-EBS allocator, configure paging, enforce NX/W^X, run
-QEMU/OVMF, or change a completion-gate state. M01-020 owns explicit EFI core
-linkage, M01-021 owns live allocation and entry wiring, and M01-022 owns
-real-QEMU evidence.
+QEMU/OVMF, or change a completion-gate state. Those statements describe the
+M01-018 issue boundary; M01-023 now supplies the separately gated EFI
+source/build wiring described below.
+
+### Opt-in live allocator stage-two EFI adapter (M01-023, build evidence)
+
+M01-023 adds a second, nested opt-in boundary. The stage-two adapter is compiled
+only when `M01_LIVE_ALLOCATOR_PROBE` is enabled, and the project and publish
+preflight require `M01_LOADED_IMAGE_STACK_PROBE` at the same time. The
+all-false build and the stage-one-only M01-022 profile retain their prior source
+flow and marker order.
+
+The stage-one preparation path captures the live boot-services pointer in
+static state immediately before transferring to the owned stack. After the
+continuation has observed a contained `RSP` and retrospectively emitted every
+stage-one success line, it passes the exact self-bound final stage-one state,
+boot-services boundary, console/serial boundaries, and retained four-record
+ledger to stage two. Stage two rejects the input before any new firmware call
+unless the state has exact size/alignment and is the canonical static state
+whose status is `Success`, checkpoint is `ContinuationRspContained`, switch
+state is `ContinuationObserved`, and stack lifetime is `Active`.
+
+Before acquiring firmware ownership, the adapter validates its static storage
+and requires every byte of the 312-byte durable M01 output state to be zero.
+This makes the adapter one-shot: a completed or partially initialized state is
+rejected without allocating a second arena or erasing the first arena's
+ownership record. It then makes exactly one `AllocateAnyPages` request for two
+4 KiB `EfiLoaderData` pages. Ownership follows the returned EFI success status,
+while the returned address is independently checked for nonzero value,
+alignment, multiplication/addition overflow, exact byte length, and
+end-exclusive accounting.
+
+After the allocation, the adapter reuses the audited stage-one static
+memory-map source and owned-copy buffers. It performs one fresh recapture,
+rejects every non-success result including a grown/too-small buffer, requires a
+changed map key, and verifies that the new descriptor set contains the complete
+arena with type `EfiLoaderData`. M01-023 intentionally does not retry map
+capture; the bounded stale-key retry belongs to the later
+`ExitBootServices` work. The adapter copies the four retained canonical
+reservations, adds one exact `AllocatorArena`, sorts by physical start, and
+validates an exact five-record count and capacity before producing allocation
+and map/ledger evidence with ordinals 5, 6, and 7 and map generations 2 and 3.
+
+The live-facing bridge calls `M01LiveAllocatorIntegration.Execute` exactly once
+with the final stage-one state, one allocation record, the allocation and
+refreshed-map evidence, the five-record ledger, and one caller-owned static
+output. Before any stage-two success line after `TEST_START m01.stage2`, the
+adapter requires the terminal `DoubleFreeRejected` checkpoint; exact
+stage-one/output addresses and capacities; complete arena, map, and ledger
+binding; final free-page/byte restoration; zero allocated pages/bytes; an
+arena-confined 4 KiB allocation; and the precise `FreeRangeNotAllocated`
+double-free rejection. It byte-compares the complete returned and persisted
+312-byte states, so a stale or corrupted caller-owned result cannot authorize
+success.
+
+All failures converge on these allocation-free numeric diagnostics:
+
+```text
+TEST_FAIL m01.stage2 status=<number> adapter=<number> checkpoint=<number> firmware=<number> free_arena=<number>
+M01_STAGE2_FAIL status=<number> adapter=<number> checkpoint=<number> firmware=<number> free_arena=<number>
+```
+
+If EFI granted the arena, the common failure path makes exactly one matching
+`FreePages` attempt and reports its status. Pre-allocation failures do not
+free, and success retains the arena for later allocator consumers. A false
+stage-two result causes the continuation to spin before the default boot plan,
+so `OS_SMOKE_PASS` cannot leak through a failed stage-two probe.
+
+Focused source-contract, mutation, no-stdlib closure, and full host-harness
+coverage uses:
+
+```text
+TEST_START m01.023
+CLROS_M01_023_READY
+TEST_PASS m01.023
+```
+
+The post-allocation failure cases were independently authored after reviewing
+`references/RoseOS-master/Loader/src/MemoryMap.cs` (SHA-256
+`CE90AE629B538E558B57B0BD315ED8B11DD559ED1A841368D109DE28D70B8B28`)
+as an owner-authorized test-only negative influence. Its exact-size allocation,
+single-slack attempt, continue-after-error behavior, unchecked narrowing, and
+cleanup hazards became rejection cases; no implementation source was copied.
+
+M01-023 accepts source, host-test, and fresh NativeAOT EFI build evidence only.
+It does not claim that the stage-two adapter executed under QEMU/OVMF, that
+firmware granted or reclaimed the arena, that the guest completed the
+alloc/free/double-free sequence, that page contents were accessed, that the map
+key remains valid for firmware exit, or that a post-EBS allocator exists. It
+does not prove paging, NX/W^X, owned COM1, descriptors, PCI, storage,
+networking, application execution, hosted .NET, Kestrel, cloud support, or any
+completion-gate promotion. M01-024 owns the separate real-QEMU proof.
 
 Platform configuration-table guard coverage:
 
@@ -3080,9 +3171,12 @@ The `APP_PACKAGE_READY`, `APP_LAUNCH_READY`, `APP_PAYLOAD_READY`, `APP_EXEC_MAPP
 
 ## Next Steps
 
-1. Keep extending the QEMU UEFI-gone simulation as new firmware-guarded platform interfaces are added, keeping real `ExitBootServices` blocked until post-firmware diagnostics are implemented.
-2. Add a real `ExitBootServices` probe only after the retry plan, diagnostics, and owned output paths have evidence.
-3. Begin diagnostics-first IDT/fault panic work after post-UEFI diagnostics requirements are represented by tests and evidence.
+1. Run the dual M01 probe under QEMU/OVMF for M01-024 and preserve the exact
+   stage-one/stage-two marker order, failure classification, artifact hashes,
+   and evidence boundary.
+2. Keep extending the QEMU UEFI-gone simulation as new firmware-guarded platform interfaces are added, keeping real `ExitBootServices` blocked until post-firmware diagnostics are implemented.
+3. Add a real `ExitBootServices` probe only after the retry plan, diagnostics, and owned output paths have evidence.
+4. Begin diagnostics-first IDT/fault panic work after post-UEFI diagnostics requirements are represented by tests and evidence.
    - The host-tested `CpuFaultFrame`, `PanicFormatter.FormatFault`,
      `CpuFaultEntryFrameLayout`, and `CpuFaultPanicReadiness` contracts now
      define the expected register dump field order and caller-owned
