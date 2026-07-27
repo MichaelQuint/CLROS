@@ -4520,7 +4520,7 @@
         "M01-024"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p0",
         "type:research",
         "evidence:host",
@@ -4553,7 +4553,7 @@
       ],
       "collisionLane": "lane:central-docs",
       "summary": "Preserve the read-only API audit that found M01-025 could not be implemented honestly against the current first-party contracts, and split the missing preparation, exact live-interval binding, physical table-arena, and audited call-gate work into four serial host-only prerequisites.",
-      "currentEvidence": "M01-024 preserves reviewed stage-two QEMU evidence and M01-027 preserves reviewed host evidence for one unlinked composite transition byte plan. A source audit found that M01LivePagingIntegration still consumes synthetic CR3/protection transcripts, requires historical identity aliases that are not dereferenced in the live interval, produces table images without a physical-arena sizing/materialization contract, and gives EfiEntry no audited way to supply the composite leaf's exact return address or observe RFLAGS after return. No durable prerequisite chain currently prevents M01-025 from being claimed against those unresolved contracts.",
+      "currentEvidence": "Implementation commit 22e179f and done/step873.md preserve reviewed host evidence for the M01-028 recovery: the durable catalog contains 321 children and 337 keyed issues; M01-029 through M01-032 are serialized before M01-025; the synchronizer independently requires every M01 child through M01-032; and focused tests preserve the blocker ledger without brittle source-state coupling. That ledger records that M01LivePagingIntegration accepts synthetic execution transcripts, retains historical identity aliases, lacks physical arena materialization/readback, and cannot supply the composite's exact return address or post-return RFLAGS observation. The accepted 411,215-byte host log has SHA-256 EB94E3962B79ED401B6B96DB2DA9974E96A662FA2AAF4C70525819C3A3661D6B, contains 3,222 TEST_PASS lines, zero TEST_FAIL lines, exactly one CLROS_M01_028_READY and TEST_PASS m01.028, and ends with exactly one TEST_PASS host.tests. Independent manifest, test, and documentation reviews found no remaining defect after corrections. The guarded apply created issues #384 through #387, updated only #332, #383, and M01 epic #24, verified 337 issues, and converged with all 421 managed objects unchanged. Issue #383 comment #5971 carries clros-evidence-reviewed:M01-028. This is synchronized host/backlog evidence only and does not prove live QEMU/OVMF paging execution, physical table installation, generated-code invocation, CR3/CR4/RFLAGS/PTE/TLB effects, or any completion-gate advancement.",
       "implementationNotes": [
         "Record four smallest serial implementation prerequisites: M01-029 splits preparation from synthetic execution transcripts; M01-030 replaces historical identity aliases with exact live-interval bindings; M01-031 defines exact candidate-base sizing/capacity and physical table-arena materialization/readback; M01-032 defines one audited composite call gate with an exact return site and post-return RFLAGS observation.",
         "Keep M01-029 explicitly dependent on both this issue and reviewed M01-027. Serialize M01-030 after M01-029, M01-031 after M01-030, and M01-032 after M01-031.",
@@ -4600,7 +4600,7 @@
         "done/step873.md"
       ],
       "evidenceBoundary": "This research/meta issue proves through focused host tests, canonical documentation, done evidence, and additive tracker synchronization only that the live-paging blockers and their serial ownership/dependency graph are durably represented. It does not implement production paging behavior, allocate firmware pages, materialize or execute machine code, or change CR3/PTE/TLB/RFLAGS state. It does not prove live QEMU/OVMF execution or advance an M01 completion gate.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-029",

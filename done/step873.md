@@ -115,6 +115,14 @@ completion-gate, or reference source was changed.
     `EB94E3962B79ED401B6B96DB2DA9974E96A662FA2AAF4C70525819C3A3661D6B`;
   - produced an empty stderr log with SHA-256
     `E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855`.
+- A post-closure run over the final manifest state (`desiredState=closed`,
+  `agent:done`, reviewed current evidence) ran from
+  `2026-07-27T23:15:00.7833994Z` through
+  `2026-07-27T23:22:18.8773869Z` and independently produced the same 6,470
+  lines, 3,222 `TEST_PASS` lines, zero `TEST_FAIL` lines, exactly one
+  `TEST_PASS m01.028`, exactly one final `TEST_PASS host.tests`, and zero
+  stderr bytes. Its 411,215-byte stdout SHA-256 is
+  `A1CAF0131C06004415308B2F32E033A3176D79E772E249B7B531E1FD92B1893F`.
 - `dotnet build .\CLROS.slnx --nologo -m:1 --disable-build-servers`
   - passed with zero warnings and zero errors.
 - `powershell -NoProfile -ExecutionPolicy Bypass -File
@@ -149,8 +157,24 @@ bind the durable issue ledger to the audited blocker taxonomy and prevent any
 of M01-028 through M01-032 from carrying a real-QEMU/provider evidence label or
 real-QEMU command.
 
-Tracker synchronization and reviewed-closure details are recorded in the
-follow-up evidence commit after the implementation commit is available.
+The reviewed implementation commit is
+`22e179f3c0d8a27e5b755acefbb6370afd75c52b`. Guarded live synchronization then:
+
+- created M01-029 through M01-032 as Gitea issues #384 through #387;
+- updated only M01-025 #332, M01-028 #383, and M01 epic #24 during graph
+  insertion;
+- reported `SYNC_VERIFY_PASS milestones=16 labels=68 issues=337`;
+- converged with `keyedIssues=337`, `unchanged=421`, `wouldCreate=0`,
+  `wouldUpdate=0`, and `failed=0`;
+- moved #383 through `agent:review`;
+- recorded independent manifest/test/documentation review plus
+  `<!-- clros-evidence-reviewed:M01-028 -->` in comment #5971;
+- closed #383 with `agent:done`; and
+- recomputed #384 as the sole `agent:ready` leaf while #385 through #387 and
+  #332 remain `agent:blocked`.
+
+The final post-closure no-write preview again reported all 421 managed objects
+unchanged with zero create, update, skip, or failure action.
 
 ## Failures
 
