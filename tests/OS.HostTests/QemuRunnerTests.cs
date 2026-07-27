@@ -7,6 +7,21 @@ internal static class QemuRunnerTests
     private const string SmokeScriptDefaultRequiredMarkers =
         DefaultBootRequiredMarkers
         + ";UEFI_MEMORY_MAP_OWNED;BOOT_HANDOFF_READY;UEFI_MEMORY_MAP_NORMALIZED;BOOT_MEMORY_MAP_ACCEPTED;BOOT_MEMORY_REGIONS_READY;BOOT_MEMORY_REGION_COUNT;BOOT_PAGE_ALLOCATOR_READY;BOOT_ACPI_RSDP_HANDOFF_READY;UEFI_ACPI_RSDP_READY";
+    private static readonly string[] M01StageOneGuestMarkers =
+    [
+        "TEST_START m01.stage1",
+        "M01_LOADED_IMAGE_CAPTURED",
+        "M01_STACK_SWITCH_STUB_READY",
+        "M01_STACK_ARENA_ALLOCATED",
+        "M01_STACK_GUARD_RESERVED",
+        "M01_STAGE1_MAP_RECAPTURED",
+        "M01_STAGE1_RESERVATIONS_VALIDATED",
+        "M01_OWNED_STACK_READY",
+        "M01_OWNED_STACK_SWITCHED",
+        "M01_RSP_CONTAINED",
+        "TEST_PASS m01.stage1",
+        "OS_SMOKE_PASS"
+    ];
 
     [ModuleInitializer]
     public static void Initialize()
@@ -62,6 +77,8 @@ internal static class QemuRunnerTests
             Run("qemu rejects invalid workload profile", () => TestRejectsInvalidWorkloadProfile(tempRoot), ref failures);
             Run("qemu smoke script defaults require boot boundary markers", TestSmokeScriptDefaultMarkers, ref failures);
             Run("qemu smoke script forwards ACPI physical discovery EFI probe", TestSmokeScriptForwardsAcpiPhysicalDiscoveryProbe, ref failures);
+            Run("qemu smoke script forwards M01 stage-one evidence controls", () => TestSmokeScriptForwardsM01StageOneEvidenceControls(tempRoot), ref failures);
+            Run("qemu smoke script rejects stale M01 probe artifact selection", () => TestSmokeScriptRejectsStaleM01ProbeArtifactSelection(tempRoot), ref failures);
             Run("qemu smoke script native app preset includes app markers", TestSmokeScriptNativeAppPresetMarkers, ref failures);
             Run("qemu smoke script dry-run propagates workload profile", () => TestSmokeScriptDryRunWorkloadProfile(tempRoot), ref failures);
             Run("qemu smoke script dry-run propagates qcow2 disk format", () => TestSmokeScriptDryRunQcow2DiskFormat(tempRoot), ref failures);
@@ -89,6 +106,20 @@ internal static class QemuRunnerTests
             Run("qemu.smoke.preset real mode passes selected markers", () => TestRealModeMarkerPresetSummary(tempRoot), ref failures);
             Run("qemu.smoke.preset acpi fails when MCFG marker is missing", () => TestRealModeAcpiPresetFailsMissingMcfgMarker(tempRoot), ref failures);
             Run("qemu.smoke.preset acpi fails when markers are out of order", () => TestRealModeAcpiPresetFailsOutOfOrderMarkers(tempRoot), ref failures);
+            Run("qemu M01 ordered and unique dry-run evidence", () => TestM01OrderedAndUniqueDryRunEvidence(tempRoot), ref failures);
+            Run("qemu M01 ordered markers reject reordering", () => TestM01OrderedMarkersRejectReordering(tempRoot), ref failures);
+            Run("qemu M01 unique markers reject duplicate stage start", () => TestM01UniqueMarkersRejectDuplicateStageStart(tempRoot), ref failures);
+            Run("qemu M01 unique markers reject duplicate stage pass", () => TestM01UniqueMarkersRejectDuplicateStagePass(tempRoot), ref failures);
+            Run("qemu M01 unique markers reject duplicate semantic checkpoint", () => TestM01UniqueMarkersRejectDuplicateSemanticCheckpoint(tempRoot), ref failures);
+            Run("qemu legacy required markers remain presence-only", () => TestLegacyRequiredMarkersRemainPresenceOnly(tempRoot), ref failures);
+            Run("qemu M01 missing checkpoint markers are rejected", () => TestM01MissingCheckpointMarkersAreRejected(tempRoot), ref failures);
+            Run("qemu M01 partial marker EOF is rejected", () => TestM01PartialMarkerEofIsRejected(tempRoot), ref failures);
+            Run("qemu M01 chunked marker stream succeeds", () => TestM01ChunkedMarkerStreamSucceeds(tempRoot), ref failures);
+            Run("qemu M01 allocation cleanup failure is rejected", () => TestM01AllocationCleanupFailureIsRejected(tempRoot), ref failures);
+            Run("qemu M01 unexpected switch return is rejected", () => TestM01UnexpectedSwitchReturnIsRejected(tempRoot), ref failures);
+            Run("qemu M01 timeout is deterministic", () => TestM01TimeoutIsDeterministic(tempRoot), ref failures);
+            Run("qemu M01 reboot signature is rejected", () => TestM01RebootSignatureIsRejected(tempRoot), ref failures);
+            Run("qemu M01 conflicting terminals are rejected", () => TestM01ConflictingTerminalsAreRejected(tempRoot), ref failures);
             Run("qemu dry-run emits virtio network arguments", () => TestDryRunVirtioNetworkArguments(tempRoot), ref failures);
             Run("qemu dry-run uses raw disk format by default", () => TestDryRunDefaultRawDiskFormat(tempRoot), ref failures);
             Run("qemu dry-run uses qcow2 disk format", () => TestDryRunQcow2DiskFormat(tempRoot), ref failures);
@@ -1175,6 +1206,117 @@ internal static class QemuRunnerTests
             && script.Contains("$buildArguments += \"-EnableAcpiPhysicalDiscoveryProbe\"", StringComparison.Ordinal);
     }
 
+    private static bool TestSmokeScriptForwardsM01StageOneEvidenceControls(
+        string tempRoot)
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string script = File.ReadAllText(
+            Path.Combine(repositoryRoot, "scripts", "run-qemu-smoke.ps1"));
+        string imagePath = Path.Combine(tempRoot, "m01-script-dry-run.raw");
+        string serialLog = Path.Combine(
+            tempRoot,
+            "m01-script-dry-run-serial.log");
+        string summaryLog = Path.Combine(
+            tempRoot,
+            "m01-script-dry-run-summary.log");
+        const string markers =
+            "TEST_START m01.stage1,M01_STACK_SWITCH_STUB_READY,OS_SMOKE_PASS";
+
+        ProcessResult result = RunQemuSmokeScript(
+            "-DryRun",
+            "-BuildEfi",
+            "-EnableM01LoadedImageStackProbe",
+            "-Image",
+            imagePath,
+            "-SerialLog",
+            serialLog,
+            "-SummaryLog",
+            summaryLog,
+            "-RequireMarker",
+            markers,
+            "-RequireOrderedMarker",
+            markers,
+            "-RequireUniqueMarker",
+            markers);
+
+        return result.ExitCode == 0
+            && script.Contains(
+                "[string[]] $RequireOrderedMarker",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "[string[]] $RequireUniqueMarker",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "[switch] $EnableM01LoadedImageStackProbe",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "$buildArguments += \"-EnableM01LoadedImageStackProbe\"",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "$arguments += @(\"--require-ordered-marker\", $marker)",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "$arguments += @(\"--require-unique-marker\", $marker)",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "QEMU_SCRIPT_M01_LOADED_IMAGE_STACK_PROBE enabled=true buildEfi=true skipImageBuild=false dryRun=true",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "QEMU_SCRIPT_REQUIRE_ORDERED_MARKERS TEST_START m01.stage1;M01_STACK_SWITCH_STUB_READY;OS_SMOKE_PASS",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS TEST_START m01.stage1;M01_STACK_SWITCH_STUB_READY;OS_SMOKE_PASS",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "ORDERED_MARKERS TEST_START m01.stage1;M01_STACK_SWITCH_STUB_READY;OS_SMOKE_PASS",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "UNIQUE_MARKERS TEST_START m01.stage1;M01_STACK_SWITCH_STUB_READY;OS_SMOKE_PASS",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal)
+            && !File.Exists(serialLog)
+            && !File.Exists(summaryLog);
+    }
+
+    private static bool TestSmokeScriptRejectsStaleM01ProbeArtifactSelection(
+        string tempRoot)
+    {
+        string staleEfi = Path.Combine(tempRoot, "stale-BOOTX64.EFI");
+        File.WriteAllBytes(staleEfi, [0x4D, 0x5A, 0x00, 0x00]);
+        byte[] before = File.ReadAllBytes(staleEfi);
+
+        ProcessResult noBuild = RunQemuSmokeScript(
+            "-DryRun",
+            "-EnableM01LoadedImageStackProbe",
+            "-EfiArtifact",
+            staleEfi);
+        ProcessResult skippedImage = RunQemuSmokeScript(
+            "-DryRun",
+            "-BuildEfi",
+            "-EnableM01LoadedImageStackProbe",
+            "-SkipImageBuild",
+            "-EfiArtifact",
+            staleEfi);
+
+        return noBuild.ExitCode == 1
+            && skippedImage.ExitCode == 1
+            && noBuild.Output.Contains(
+                "TEST_FAIL qemu.smoke.invalid_args m01_loaded_image_stack_probe_requires_build_efi",
+                StringComparison.Ordinal)
+            && skippedImage.Output.Contains(
+                "TEST_FAIL qemu.smoke.invalid_args m01_loaded_image_stack_probe_forbids_skip_image_build",
+                StringComparison.Ordinal)
+            && !noBuild.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal)
+            && !skippedImage.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal)
+            && before.AsSpan().SequenceEqual(File.ReadAllBytes(staleEfi));
+    }
+
     private static bool TestSmokeScriptNativeAppPresetMarkers()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -1961,6 +2103,546 @@ internal static class QemuRunnerTests
             && summary.Contains("MISSING_MARKERS none", StringComparison.Ordinal)
             && summary.Contains("OUT_OF_ORDER_MARKERS ACPI_ROOT_SDT_SNAPSHOT_READY;ACPI_ROOT_SDT_VALIDATED;ACPI_MCFG_DISCOVERY_READY", StringComparison.Ordinal)
             && summary.Contains("FAIL_REASON out_of_order_marker", StringComparison.Ordinal);
+    }
+
+    private static bool TestM01OrderedAndUniqueDryRunEvidence(string tempRoot)
+    {
+        string imagePath = Path.Combine(tempRoot, "m01-marker-evidence.raw");
+        string serialLog = Path.Combine(
+            tempRoot,
+            "m01-marker-evidence-serial.log");
+        string summaryLog = Path.Combine(
+            tempRoot,
+            "m01-marker-evidence-summary.log");
+
+        ProcessResult result = RunQemuRunner(
+            "--dry-run",
+            "--image",
+            imagePath,
+            "--serial-log",
+            serialLog,
+            "--summary-log",
+            summaryLog,
+            "--require-marker",
+            "TEST_START m01.stage1",
+            "--require-marker",
+            "M01_STACK_SWITCH_STUB_READY",
+            "--require-ordered-marker",
+            "TEST_START m01.stage1",
+            "--require-ordered-marker",
+            "M01_STACK_SWITCH_STUB_READY",
+            "--require-unique-marker",
+            "TEST_START m01.stage1",
+            "--require-unique-marker",
+            "M01_STACK_SWITCH_STUB_READY");
+
+        return result.ExitCode == 0
+            && result.Output.Contains(
+                "REQUIRED_MARKERS "
+                    + DefaultBootRequiredMarkers
+                    + ";TEST_START m01.stage1;M01_STACK_SWITCH_STUB_READY",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "ORDERED_MARKERS TEST_START m01.stage1;M01_STACK_SWITCH_STUB_READY",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "UNIQUE_MARKERS TEST_START m01.stage1;M01_STACK_SWITCH_STUB_READY",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal)
+            && !File.Exists(serialLog)
+            && !File.Exists(summaryLog);
+    }
+
+    private static bool TestM01OrderedMarkersRejectReordering(string tempRoot)
+    {
+        List<string> serialLines = CreateM01StageOneSerialLines();
+        int imageIndex = serialLines.IndexOf("M01_LOADED_IMAGE_CAPTURED");
+        int stubIndex = serialLines.IndexOf("M01_STACK_SWITCH_STUB_READY");
+        (serialLines[imageIndex], serialLines[stubIndex]) =
+            (serialLines[stubIndex], serialLines[imageIndex]);
+        string qemuPath = CreatePersistentFakeQemuScript(
+            tempRoot,
+            serialLines);
+
+        ProcessResult result = RunM01StageOneQemu(
+            tempRoot,
+            "reordered",
+            qemuPath,
+            includeOrdered: true,
+            includeUnique: true,
+            timeoutSeconds: 5,
+            out string summary);
+
+        return result.ExitCode == 10
+            && result.Output.Contains(
+                "TEST_FAIL qemu.smoke out_of_order_marker",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "M01_LOADED_IMAGE_CAPTURED",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "QEMU_SMOKE_STATUS fail",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "OUT_OF_ORDER_MARKERS",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "FAIL_REASON out_of_order_marker",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "TEST_PASS qemu.smoke",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestM01UniqueMarkersRejectDuplicateStageStart(
+        string tempRoot)
+    {
+        return TestM01DuplicateUniqueMarker(
+            tempRoot,
+            "duplicate-start",
+            "TEST_START m01.stage1");
+    }
+
+    private static bool TestM01UniqueMarkersRejectDuplicateStagePass(
+        string tempRoot)
+    {
+        return TestM01DuplicateUniqueMarker(
+            tempRoot,
+            "duplicate-pass",
+            "TEST_PASS m01.stage1");
+    }
+
+    private static bool TestM01UniqueMarkersRejectDuplicateSemanticCheckpoint(
+        string tempRoot)
+    {
+        return TestM01DuplicateUniqueMarker(
+            tempRoot,
+            "duplicate-checkpoint",
+            "M01_STAGE1_MAP_RECAPTURED");
+    }
+
+    private static bool TestM01DuplicateUniqueMarker(
+        string tempRoot,
+        string scenario,
+        string duplicatedMarker)
+    {
+        List<string> serialLines = CreateM01StageOneSerialLines();
+        int markerIndex = serialLines.IndexOf(duplicatedMarker);
+        serialLines.Insert(markerIndex + 1, duplicatedMarker);
+        string qemuPath = CreatePersistentFakeQemuScript(
+            tempRoot,
+            serialLines);
+
+        ProcessResult result = RunM01StageOneQemu(
+            tempRoot,
+            scenario,
+            qemuPath,
+            includeOrdered: true,
+            includeUnique: true,
+            timeoutSeconds: 5,
+            out string summary);
+
+        return result.ExitCode == 17
+            && result.Output.Contains(
+                "TEST_FAIL qemu.smoke duplicate_unique_marker",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                duplicatedMarker,
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "QEMU_SMOKE_STATUS fail",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "DUPLICATE_UNIQUE_MARKERS",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                duplicatedMarker,
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "FAIL_REASON duplicate_unique_marker",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "TEST_PASS qemu.smoke",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestLegacyRequiredMarkersRemainPresenceOnly(
+        string tempRoot)
+    {
+        const string legacyMarker = "M01_LEGACY_PRESENCE_ONLY";
+        string imagePath = CreateEmptyFile(
+            tempRoot,
+            "m01-legacy-presence-only.raw");
+        string ovmfPath = CreateEmptyFile(
+            tempRoot,
+            "m01-legacy-presence-only-OVMF_CODE.fd");
+        string serialLog = Path.Combine(
+            tempRoot,
+            "m01-legacy-presence-only-serial.log");
+        string summaryLog = Path.Combine(
+            tempRoot,
+            "m01-legacy-presence-only-summary.log");
+        string qemuPath = CreatePersistentFakeQemuScript(
+            tempRoot,
+            [
+                legacyMarker,
+                legacyMarker,
+                "OS_BOOT_OK",
+                "TEST_PASS boot.sequence",
+                "OS_SMOKE_PASS"
+            ]);
+
+        ProcessResult result = RunQemuRunner(
+            "--qemu",
+            qemuPath,
+            "--ovmf-code",
+            ovmfPath,
+            "--image",
+            imagePath,
+            "--serial-log",
+            serialLog,
+            "--summary-log",
+            summaryLog,
+            "--timeout",
+            "5",
+            "--require-marker",
+            legacyMarker);
+
+        string summary = File.ReadAllText(summaryLog);
+        return result.ExitCode == 0
+            && result.Output.Contains(
+                "TEST_PASS qemu.smoke",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "QEMU_SMOKE_STATUS pass",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "UNIQUE_MARKERS none",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "DUPLICATE_UNIQUE_MARKERS none",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "FAIL_REASON none",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestM01MissingCheckpointMarkersAreRejected(
+        string tempRoot)
+    {
+        string[] missingCases =
+        [
+            "TEST_START m01.stage1",
+            "M01_STACK_SWITCH_STUB_READY",
+            "M01_STACK_ARENA_ALLOCATED",
+            "M01_STACK_GUARD_RESERVED",
+            "M01_STAGE1_MAP_RECAPTURED",
+            "M01_STAGE1_RESERVATIONS_VALIDATED",
+            "TEST_PASS m01.stage1"
+        ];
+
+        foreach (string missingMarker in missingCases)
+        {
+            List<string> serialLines = CreateM01StageOneSerialLines();
+            serialLines.Remove(missingMarker);
+            string qemuPath = CreateFakeQemuScript(
+                tempRoot,
+                serialLines.ToArray());
+
+            ProcessResult result = RunM01StageOneQemu(
+                tempRoot,
+                "missing-" + SanitizeFileName(missingMarker),
+                qemuPath,
+                includeOrdered: true,
+                includeUnique: false,
+                timeoutSeconds: 5,
+                out string summary);
+
+            if (result.ExitCode != 5
+                || !result.Output.Contains(
+                    "TEST_FAIL qemu.smoke missing_marker",
+                    StringComparison.Ordinal)
+                || !result.Output.Contains(
+                    missingMarker,
+                    StringComparison.Ordinal)
+                || !summary.Contains(
+                    "MISSING_MARKERS",
+                    StringComparison.Ordinal)
+                || !summary.Contains(
+                    missingMarker,
+                    StringComparison.Ordinal)
+                || !summary.Contains(
+                    "FAIL_REASON missing_marker",
+                    StringComparison.Ordinal)
+                || result.Output.Contains(
+                    "TEST_PASS qemu.smoke",
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TestM01PartialMarkerEofIsRejected(string tempRoot)
+    {
+        string qemuPath = CreatePartialMarkerFakeQemuScript(
+            tempRoot,
+            [
+                "OS_BOOT_OK",
+                "TEST_PASS boot.sequence",
+                "OS_SMOKE_PASS"
+            ],
+            "TEST_START m01.sta");
+
+        ProcessResult result = RunM01StageOneQemu(
+            tempRoot,
+            "partial-marker",
+            qemuPath,
+            includeOrdered: false,
+            includeUnique: false,
+            timeoutSeconds: 5,
+            out string summary);
+
+        return result.ExitCode == 13
+            && result.Output.Contains(
+                "TEST_FAIL qemu.smoke serial_marker_stream status=PartialMarkerAtEndOfStream",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "QEMU_SMOKE_STATUS fail",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "FAIL_REASON serial_marker_stream_partialmarkeratendofstream",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "TEST_PASS qemu.smoke",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestM01ChunkedMarkerStreamSucceeds(string tempRoot)
+    {
+        string qemuPath = CreateChunkedPersistentFakeQemuScript(
+            tempRoot,
+            CreateM01StageOneSerialLines(),
+            "M01_STACK_SWITCH_STUB_READY");
+
+        ProcessResult result = RunM01StageOneQemu(
+            tempRoot,
+            "chunked-marker",
+            qemuPath,
+            includeOrdered: true,
+            includeUnique: true,
+            timeoutSeconds: 8,
+            out string summary);
+
+        return result.ExitCode == 0
+            && result.Output.Contains(
+                "SERIAL_MARKER_STREAM status=Passed",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "TEST_PASS qemu.smoke",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "QEMU_SMOKE_STATUS pass",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "MISSING_MARKERS none",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "OUT_OF_ORDER_MARKERS none",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "DUPLICATE_UNIQUE_MARKERS none",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "FAIL_REASON none",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestM01AllocationCleanupFailureIsRejected(
+        string tempRoot)
+    {
+        const string testFailure =
+            "TEST_FAIL m01.stage1 status=9 adapter=7 checkpoint=1 free_data=0 free_code=9223372036854775807";
+        const string stageFailure =
+            "M01_STAGE1_FAIL status=9 adapter=7 checkpoint=1 free_data=0 free_code=9223372036854775807";
+        string qemuPath = CreatePersistentFakeQemuScript(
+            tempRoot,
+            [
+                "TEST_START m01.stage1",
+                testFailure,
+                stageFailure
+            ]);
+
+        ProcessResult result = RunM01StageOneQemu(
+            tempRoot,
+            "cleanup-failure",
+            qemuPath,
+            includeOrdered: false,
+            includeUnique: false,
+            timeoutSeconds: 5,
+            out string summary);
+
+        return result.ExitCode == 8
+            && result.Output.Contains(
+                "TEST_FAIL qemu.smoke forbidden_marker",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "marker=TEST_FAIL",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "FORBIDDEN_MARKER_HIT TEST_FAIL;M01_STAGE1_FAIL",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                testFailure,
+                StringComparison.Ordinal)
+            && summary.Contains(
+                stageFailure,
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "TEST_PASS qemu.smoke",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestM01UnexpectedSwitchReturnIsRejected(
+        string tempRoot)
+    {
+        const string testFailure =
+            "TEST_FAIL m01.stage1 status=20 adapter=29 checkpoint=8 free_data=18446744073709551615 free_code=18446744073709551615";
+        const string stageFailure =
+            "M01_STAGE1_FAIL status=20 adapter=29 checkpoint=8 free_data=18446744073709551615 free_code=18446744073709551615";
+        string qemuPath = CreatePersistentFakeQemuScript(
+            tempRoot,
+            [
+                "TEST_START m01.stage1",
+                testFailure,
+                stageFailure
+            ]);
+
+        ProcessResult result = RunM01StageOneQemu(
+            tempRoot,
+            "unexpected-switch-return",
+            qemuPath,
+            includeOrdered: false,
+            includeUnique: false,
+            timeoutSeconds: 5,
+            out string summary);
+
+        return result.ExitCode == 8
+            && result.Output.Contains(
+                "TEST_FAIL qemu.smoke forbidden_marker",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "FORBIDDEN_MARKER_HIT TEST_FAIL;M01_STAGE1_FAIL",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "adapter=29",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "TEST_PASS qemu.smoke",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestM01TimeoutIsDeterministic(string tempRoot)
+    {
+        string qemuPath = CreatePersistentFakeQemuScript(
+            tempRoot,
+            ["TEST_START m01.stage1"]);
+
+        ProcessResult result = RunM01StageOneQemu(
+            tempRoot,
+            "timeout",
+            qemuPath,
+            includeOrdered: true,
+            includeUnique: true,
+            timeoutSeconds: 1,
+            out string summary);
+
+        return result.ExitCode == 4
+            && result.Output.Contains(
+                "TEST_FAIL qemu.smoke timeout",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "QEMU_SMOKE_STATUS fail",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "FAIL_REASON timeout",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "TEST_PASS qemu.smoke",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestM01RebootSignatureIsRejected(string tempRoot)
+    {
+        string qemuPath = CreateFakeQemuScript(
+            tempRoot,
+            CreateM01StageOneSerialLines().ToArray());
+
+        ProcessResult result = RunM01StageOneQemu(
+            tempRoot,
+            "reboot-signature",
+            qemuPath,
+            includeOrdered: true,
+            includeUnique: true,
+            timeoutSeconds: 5,
+            out string summary);
+
+        return result.ExitCode != 0
+            && result.Output.Contains(
+                "TEST_FAIL qemu.smoke qemu_reboot_or_shutdown",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "QEMU_SMOKE_STATUS fail",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "FAIL_REASON qemu_reboot_or_shutdown",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "TEST_PASS qemu.smoke",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestM01ConflictingTerminalsAreRejected(
+        string tempRoot)
+    {
+        List<string> serialLines = CreateM01StageOneSerialLines();
+        serialLines.Add("OS_SMOKE_FAIL");
+        string qemuPath = CreatePersistentFakeQemuScript(
+            tempRoot,
+            serialLines);
+
+        ProcessResult result = RunM01StageOneQemu(
+            tempRoot,
+            "conflicting-terminals",
+            qemuPath,
+            includeOrdered: true,
+            includeUnique: true,
+            timeoutSeconds: 5,
+            out string summary);
+
+        return result.ExitCode != 0
+            && result.Output.Contains(
+                "TEST_FAIL qemu.smoke",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "forbidden_marker",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "QEMU_SMOKE_STATUS fail",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "FORBIDDEN_MARKER_HIT OS_SMOKE_FAIL",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "SERIAL_TAIL_LINE OS_SMOKE_FAIL",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "TEST_PASS qemu.smoke",
+                StringComparison.Ordinal);
     }
 
     private static bool TestDryRunVirtioNetworkArguments(string tempRoot)
@@ -2869,6 +3551,234 @@ internal static class QemuRunnerTests
         script.Add("exit /b " + exitCode);
         File.WriteAllLines(path, script);
         return path;
+    }
+
+    private static List<string> CreateM01StageOneSerialLines()
+    {
+        List<string> serialLines = [];
+        foreach (string marker in M01StageOneGuestMarkers)
+        {
+            if (marker == "OS_SMOKE_PASS")
+            {
+                serialLines.Add("OS_BOOT_OK");
+                serialLines.Add("TEST_PASS boot.sequence");
+            }
+
+            serialLines.Add(marker);
+        }
+
+        return serialLines;
+    }
+
+    private static ProcessResult RunM01StageOneQemu(
+        string tempRoot,
+        string scenario,
+        string qemuPath,
+        bool includeOrdered,
+        bool includeUnique,
+        int timeoutSeconds,
+        out string summary)
+    {
+        string suffix =
+            SanitizeFileName(scenario) + "-" + Guid.NewGuid().ToString("N");
+        string imagePath = CreateEmptyFile(
+            tempRoot,
+            "m01-" + suffix + ".raw");
+        string ovmfPath = CreateEmptyFile(
+            tempRoot,
+            "m01-" + suffix + "-OVMF_CODE.fd");
+        string serialLog = Path.Combine(
+            tempRoot,
+            "m01-" + suffix + "-serial.log");
+        string summaryLog = Path.Combine(
+            tempRoot,
+            "m01-" + suffix + "-summary.log");
+        List<string> arguments =
+        [
+            "--qemu",
+            qemuPath,
+            "--ovmf-code",
+            ovmfPath,
+            "--image",
+            imagePath,
+            "--serial-log",
+            serialLog,
+            "--summary-log",
+            summaryLog,
+            "--timeout",
+            timeoutSeconds.ToString()
+        ];
+
+        foreach (string marker in M01StageOneGuestMarkers)
+        {
+            arguments.Add("--require-marker");
+            arguments.Add(marker);
+        }
+
+        if (includeOrdered)
+        {
+            foreach (string marker in M01StageOneGuestMarkers)
+            {
+                arguments.Add("--require-ordered-marker");
+                arguments.Add(marker);
+            }
+        }
+
+        if (includeUnique)
+        {
+            foreach (string marker in M01StageOneGuestMarkers)
+            {
+                arguments.Add("--require-unique-marker");
+                arguments.Add(marker);
+            }
+        }
+
+        arguments.Add("--forbid-marker");
+        arguments.Add("M01_INTEGRATION_FAIL");
+        arguments.Add("--forbid-marker");
+        arguments.Add("M01_STAGE1_FAIL");
+
+        ProcessResult result = RunQemuRunner(arguments.ToArray());
+        summary = File.Exists(summaryLog)
+            ? File.ReadAllText(summaryLog)
+            : string.Empty;
+        return result;
+    }
+
+    private static string SanitizeFileName(string value)
+    {
+        char[] characters = value.ToCharArray();
+        for (int index = 0; index < characters.Length; index++)
+        {
+            if (!char.IsLetterOrDigit(characters[index]))
+            {
+                characters[index] = '-';
+            }
+        }
+
+        return new string(characters).Trim('-');
+    }
+
+    private static string CreatePersistentFakeQemuScript(
+        string tempRoot,
+        IReadOnlyList<string> serialLines)
+    {
+        string path = Path.Combine(
+            tempRoot,
+            "fake-qemu-persistent-" + Guid.NewGuid().ToString("N") + ".cmd");
+        List<string> script = CreateFakeQemuScriptPreamble();
+        AddSerialLines(script, serialLines);
+        script.Add(":hold");
+        script.Add(
+            "powershell.exe -NoProfile -Command \"Start-Sleep -Seconds 30\"");
+        script.Add("goto hold");
+        File.WriteAllLines(path, script);
+        return path;
+    }
+
+    private static string CreatePartialMarkerFakeQemuScript(
+        string tempRoot,
+        IReadOnlyList<string> completeLines,
+        string partialMarker)
+    {
+        string path = Path.Combine(
+            tempRoot,
+            "fake-qemu-partial-" + Guid.NewGuid().ToString("N") + ".cmd");
+        List<string> script = CreateFakeQemuScriptPreamble();
+        AddSerialLines(script, completeLines);
+        script.Add(
+            (completeLines.Count == 0 ? ">" : ">>")
+                + " \"%serial%\" <nul set /p \"="
+                + partialMarker
+                + "\"");
+        script.Add("exit /b 0");
+        File.WriteAllLines(path, script);
+        return path;
+    }
+
+    private static string CreateChunkedPersistentFakeQemuScript(
+        string tempRoot,
+        IReadOnlyList<string> serialLines,
+        string chunkedMarker)
+    {
+        string path = Path.Combine(
+            tempRoot,
+            "fake-qemu-chunked-" + Guid.NewGuid().ToString("N") + ".cmd");
+        List<string> script = CreateFakeQemuScriptPreamble();
+        bool firstLine = true;
+        foreach (string serialLine in serialLines)
+        {
+            if (serialLine == chunkedMarker)
+            {
+                int splitIndex = serialLine.Length / 2;
+                string prefix = serialLine[..splitIndex];
+                string suffix = serialLine[splitIndex..];
+                script.Add(
+                    (firstLine ? ">" : ">>")
+                        + " \"%serial%\" <nul set /p \"="
+                        + prefix
+                        + "\"");
+                script.Add(
+                    "powershell.exe -NoProfile -Command "
+                        + "\"Start-Sleep -Milliseconds 250\"");
+                script.Add(
+                    ">> \"%serial%\" <nul set /p \"="
+                        + suffix
+                        + "\"");
+                script.Add(">> \"%serial%\" echo(");
+            }
+            else
+            {
+                script.Add(
+                    (firstLine ? ">" : ">>")
+                        + " \"%serial%\" echo "
+                        + serialLine);
+            }
+
+            firstLine = false;
+        }
+
+        script.Add(":hold");
+        script.Add(
+            "powershell.exe -NoProfile -Command \"Start-Sleep -Seconds 30\"");
+        script.Add("goto hold");
+        File.WriteAllLines(path, script);
+        return path;
+    }
+
+    private static List<string> CreateFakeQemuScriptPreamble()
+    {
+        return
+        [
+            "@echo off",
+            "set \"serial=\"",
+            ":scan",
+            "if \"%~1\"==\"\" goto write",
+            "if not \"%~1\"==\"-serial\" goto next",
+            "shift",
+            "set \"serial=%~1\"",
+            ":next",
+            "shift",
+            "goto scan",
+            ":write",
+            "if \"%serial:~0,5%\"==\"file:\" set \"serial=%serial:~5%\"",
+            "if \"%serial%\"==\"\" exit /b 12"
+        ];
+    }
+
+    private static void AddSerialLines(
+        List<string> script,
+        IReadOnlyList<string> serialLines)
+    {
+        bool firstLine = true;
+        foreach (string serialLine in serialLines)
+        {
+            script.Add(
+                (firstLine ? ">" : ">>")
+                    + " \"%serial%\" echo "
+                    + serialLine);
+            firstLine = false;
+        }
     }
 
     private static string CreateLaunchSentinelFakeQemuScript(

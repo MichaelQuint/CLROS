@@ -2,7 +2,7 @@
 
 ## Current Status
 
-Boot has a firmware-visible QEMU/OVMF smoke proof. `src/OS` publishes a no-stdlib NativeAOT EFI application, `tools/OS.ImageBuilder` wraps it in a raw GPT/FAT32 EFI System Partition image, and `scripts/run-qemu-smoke.ps1` boots that image in QEMU/OVMF and captures serial markers. A separate `M01_LOADED_IMAGE_STACK_PROBE` build now compiles the M01-021 loaded-image/owned-stack adapter into `EfiEntry`; that opt-in artifact has build and PE evidence only and is not part of the current QEMU/OVMF proof.
+Boot has a firmware-visible QEMU/OVMF smoke proof. `src/OS` publishes a no-stdlib NativeAOT EFI application, `tools/OS.ImageBuilder` wraps it in a raw GPT/FAT32 EFI System Partition image, and `scripts/run-qemu-smoke.ps1` boots that image in QEMU/OVMF and captures serial markers. A separate `M01_LOADED_IMAGE_STACK_PROBE` build now has source-bound opt-in QEMU proof that the M01-021 adapter captures the live loaded-image range, allocates and validates the stack-switch resources, refreshes the map, validates its four-record reservation ledger, transfers to the owned stack, observes a contained live `RSP`, and then emits the unchanged default boot plan. The default EFI path remains unchanged.
 
 This is still an EFI application smoke, not a functional kernel. The current evidence proves that firmware reaches `EfiMain`, that `EfiMain` can capture the UEFI memory map on the tested QEMU host, copy the raw descriptor bytes into an OS-owned static buffer, validate the live owned handoff record, normalize and accept a live owned-map summary, materialize compact boot memory-region records into OS-owned static storage, carry a discovered ACPI RSDP pointer into the typed handoff record, optionally validate live ACPI RSDP/root SDT/MCFG bytes before `ExitBootServices` in an explicit probe build, and emit the ordered boot phase marker plan.
 
@@ -192,17 +192,19 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 - Default-build live use of the typed address domains, loaded-image capture
   plan, and canonical reservation ledger remains disabled. The exact
   typed-address, reservation-record, pointer-validator, loaded-image range,
-  and capture-plan sources are now source-linked into `src/OS/OS.csproj`.
-  M01-021 additionally wires them into `EfiEntry` only under
+  and capture-plan sources are source-linked into `src/OS/OS.csproj`.
+  M01-021 wires them into `EfiEntry` only under
   `M01_LOADED_IMAGE_STACK_PROBE`, where the adapter calls `HandleProtocol`,
   requests one `EfiLoaderCode` page and one 34-page `EfiLoaderData` arena,
-  recaptures the map, and constructs a four-record ledger. The current
-  evidence for that path is source/build/PE evidence, not guest execution.
-  It does not prove that firmware returned the modeled allocations or map,
-  that the stub ran, that `RSP` changed, that the reserved guard faults, that
-  ownership survives `ExitBootServices`, or that cache, NX, or W^X policy is
-  enforced. The typed wrappers are still not applied retroactively to every
-  raw-`ulong` memory, MMIO, PCI, and DMA interface.
+  recaptures the map, and constructs a four-record ledger. M01-022 now supplies
+  one source-bound guest observation that those firmware calls returned
+  successfully, the ledger validated, the first-party switch path ran, and
+  continuation `RSP` was contained in the usable stack. It does not prove that
+  the reserved guard faults, that the switch page transitions RW-to-RX, that
+  cache, NX, or W^X policy is enforced, that ownership survives
+  `ExitBootServices`, or that these allocations form a reusable allocator.
+  The typed wrappers are still not applied retroactively to every raw-`ulong`
+  memory, MMIO, PCI, and DMA interface.
 - Live page-table allocation, population, mutation, ownership, or processor enforcement. The M01-011 codec validates and encodes only caller-supplied values. Its precondition POD does not read or prove IA32_EFER.NXE, CR0.WP, CR4.LA57, CPUID physical width or 1 GiB-page capability, or IA32_PAT; its permissive nonleaf pointers do not by themselves prove effective descendant permissions; and its Accessed/Dirty decoder and protection-only re-encoder do not read or write a live table. No code in this slice installs a table hierarchy, maps the table arena RW+NX, proves page zero absent, performs a live RW-to-RX transition, loads CR3, executes `invlpg`, handles a page fault, or establishes the NX/W^X completion gate.
 - Live boot identity mappings or table construction. M01-012 consumes caller-attested range, role, protection, cache, PAT, and processor-precondition values and emits caller-owned planning records only. It does not discover the executing-image sections, allocate table pages, assign table-page addresses, write a PML4/PDPT/PD/PT entry, map its own table arena, protect the stack guard in hardware, establish framebuffer MMIO cache correctness, read CR0/CR4/EFER/CPUID/IA32_PAT, load CR3, invalidate a TLB, or execute under EFI or QEMU/OVMF.
 - Real `ExitBootServices`.
@@ -884,15 +886,83 @@ another `RhpStackProbe` call before failure return. These measurements are
 binary-specific and must be repeated after relevant source or toolchain
 changes.
 
-No M01-021 QEMU/OVMF run or serial log was accepted, so this implementation does not
-prove that firmware protocol calls or allocations succeed, that the generated
-helper or byte plans execute, that live `RSP` changes or remains contained,
-that the reserved guard page faults, that the code page transitions from
-writable to executable, that NX/W^X is enforced, that execution survives
-`ExitBootServices`, or that any completion gate advances. M01-022 exclusively
-owns real guest execution, serial-marker, live-`RSP`, and
-failure-classification proof. This build/source evidence does not change a
-completion-gate state.
+M01-021 itself accepted build/source evidence only. The following M01-022
+record supplies the separately gated guest execution, serial-marker,
+live-`RSP`, and failure-classification proof. Neither record proves that the
+guard page is inaccessible, that the code page transitions from writable to
+executable, that NX/W^X is enforced, that execution survives
+`ExitBootServices`, or that any completion gate advances.
+
+### Fresh loaded-image and owned-stack QEMU proof (M01-022)
+
+The authoritative run rebuilt the opt-in artifact from clean commit
+`198be8ad12db388fec44d76f9270c8d754430940`, built a fresh 64 MiB raw image,
+and booted it with QEMU/OVMF from
+`2026-07-27T19:03:19.7090684Z` through
+`2026-07-27T19:03:39.0168910Z`. The runner required this exact sequence both
+in order and exactly once:
+
+```text
+TEST_START m01.stage1
+M01_LOADED_IMAGE_CAPTURED
+M01_STACK_SWITCH_STUB_READY
+M01_STACK_ARENA_ALLOCATED
+M01_STACK_GUARD_RESERVED
+M01_STAGE1_MAP_RECAPTURED
+M01_STAGE1_RESERVATIONS_VALIDATED
+M01_OWNED_STACK_READY
+M01_OWNED_STACK_SWITCHED
+M01_RSP_CONTAINED
+TEST_PASS m01.stage1
+OS_SMOKE_PASS
+```
+
+The streaming result was
+`status=Passed terminal=Success bytes=1286 lines=34 invalidBytes=15
+invalidLines=1 orderedSeen=12 outOfOrder=0 uniqueSeen=12
+duplicateUnique=0`. The invalid-byte count is one bounded OVMF noise line; it
+did not contain or corrupt a marker. The final summary records
+`MISSING_MARKERS none`, `OUT_OF_ORDER_MARKERS none`,
+`DUPLICATE_UNIQUE_MARKERS none`, `FORBIDDEN_MARKER_HIT none`, and
+`FAIL_REASON none`. `TEST_FAIL`, `OS_SMOKE_FAIL`,
+`M01_INTEGRATION_FAIL`, and `M01_STAGE1_FAIL` were absent.
+
+The artifact verifier independently reported PE32+ AMD64 machine `0x8664`,
+EFI application subsystem `10`, executable/file-backed `.managed` entrypoint
+RVA `0x00010BD0`, same-build `EfiMain` association, and absent ordinary,
+bound, IAT, and delay-import directories. The accepted tools were .NET SDK
+`10.0.302`, MSVC linker `14.51.36252.0`, Windows SDK `10.0.28000.0`,
+ILCompiler and NativeAOT runtime pack `10.0.8`, QEMU/qemu-img `11.0.50`
+(`v11.0.0-12631-g54e84cdc7a`), and OVMF SHA-256
+`33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `BOOTX64.EFI` | 131,584 | `62BCD4902A55DDDACCA8C490C6B5615C1BEEF78BA7DF96038FA1687FD2B8DC60` |
+| `BOOTX64.EFI.link.json` | 1,817 | `9011F437D1C108D951E44ED4A4E02D26F059A3F4BA86FEC7585E065FFC0898EB` |
+| `BOOTX64.EFI.link.map` | 60,905 | `8836CA390BC6409FD96E966E7FCFF5E9DA013FB6230D1D4D27CF12F859297821` |
+| `BOOTX64.EFI.link.rsp` | 217 | `0108286539031918F3576A3C9759803740D9E2DCB1A26E3E244E882C56E82F1F` |
+| `clros.raw` | 67,108,864 | `0186D6B11DD31480B42F2ED3013E283ADEF7E425E5281872E58F9921E6F9CC02` |
+| `serial.log` | 1,286 | `BF775826807B4B3E61B6E26C1DDD7101E0E16F141AC17384ADBC94C54CD1B1B9` |
+| `qemu-smoke.summary.log` | 3,333 | `3EBDC0BCAAC146E2B8BEDBEE5B6C3ADA11413720558E874140975DF16186726A` |
+| `qemu-smoke.stdout.log` | 15,056 | `6CCF99739FB05CDAA0FA6F2A15C5ED0A14B156DAE48A8F30C56052F22C481F54` |
+| `evidence-manifest.json` | 9,805 | `2EC0D45A229CA749C5F238ED7156DBB29E70F4BBAAA563C9AB6D260B02742968` |
+
+The ignored evidence root is
+`artifacts/logs/m01-022/198be8ad12db-20260727T190237Z/`. The manifest is
+schema version 1, UTF-8 without BOM, source-dirty `false`, classification
+`pass`, exit code `0`, and binds 10 tools, 19 nonempty hashed inputs, 14
+required markers, four forbidden markers, and 31 serial-derived observed
+markers.
+
+This is a narrow pre-`ExitBootServices` proof. It establishes successful
+firmware protocol/allocation calls on this run, refreshed-map/ledger
+validation, execution of the first-party switch path, continuation on the
+owned stack, and contained `RSP`. It does not establish guard-page
+inaccessibility, RW-to-RX transition, NX/W^X, a general live page allocator,
+owned COM1, installed CR3/descriptors, firmware exit, PCI, storage,
+networking, application execution, hosted .NET, Kestrel, cloud support, or a
+completion-gate promotion.
 
 ### Firmware-arena allocator stage-two marker contract (M01-018)
 
@@ -2947,19 +3017,27 @@ Evidence from 2026-05-22:
 
 ## Known Limitations
 
-The QEMU proof only proves OVMF can load and run the EFI application, the tested firmware path can return a memory map, and firmware-visible output reaches the serial log. It is not completion-gate proof for `ExitBootServices`, owned drivers, memory management, storage, networking, app loading, hosted .NET 10, Minimal API, Kestrel, cloud readiness, or production readiness; use `docs/completion-gates.md` for the full claim boundary.
+The default Gate 2 QEMU tuple proves only that OVMF can load and run the EFI
+application, the tested firmware path can return a memory map, and
+firmware-visible output reaches the serial log. The separate opt-in M01-022
+tuple adds only the loaded-image/owned-stack facts below. Neither tuple is
+completion-gate proof for `ExitBootServices`, owned drivers, a general memory
+manager, storage, networking, app loading, hosted .NET 10, Minimal API,
+Kestrel, cloud readiness, or production readiness; use
+`docs/completion-gates.md` for the full claim boundary.
 
-The M01-017 stage-one plan and coordinator remain host-tested contracts.
-M01-021 now consumes their source-linked bytes and static transition surface
-from `EfiEntry`, but only in an explicit `M01_LOADED_IMAGE_STACK_PROBE` build;
-`BootSequence.cs` remains excluded from the EFI project and the default path
-is unchanged. The accepted opt-in artifact proves compilation, PE shape,
-helper linkage, and binary-specific `RhpStackProbe` disassembly only. No
-QEMU/OVMF run has established live `LoaderCode`/`LoaderData` allocation,
-refreshed-map provenance, a guest reservation ledger, switch-stub execution,
-stack transfer, contained `RSP`, guard-page inaccessibility, a protection
-transition, NX/W^X, post-`ExitBootServices` ownership, or stage-one serial
-markers. M01-022 owns that guest evidence.
+The M01-017 stage-one plan and coordinator retain extensive host-tested
+coverage. M01-021 consumes their source-linked bytes and static transition
+surface from `EfiEntry`, but only in an explicit
+`M01_LOADED_IMAGE_STACK_PROBE` build; `BootSequence.cs` remains excluded from
+the EFI project and the default path is unchanged. M01-022 now adds one
+source-bound QEMU/OVMF observation of live `LoaderCode`/`LoaderData`
+allocation, refreshed-map and four-record ledger validation, switch-stub
+execution, stack transfer, contained `RSP`, stage-one markers, and continuation
+into the unchanged boot marker plan. It still does not prove guard-page
+inaccessibility, a writable-to-executable protection transition, NX/W^X,
+post-`ExitBootServices` ownership, a reusable allocator, or behavior on
+firmware other than the recorded OVMF tuple.
 
 The M01-011 page-table entry contract is host-tested only. Its synthetic
 no-stdlib compiler fixture proves source compatibility while the evaluated EFI

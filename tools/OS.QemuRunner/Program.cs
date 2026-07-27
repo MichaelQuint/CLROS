@@ -32,6 +32,7 @@ try
         Console.WriteLine("MARKER_PRESETS " + FormatSummaryList(options.MarkerPresets));
         Console.WriteLine("REQUIRED_MARKERS " + FormatMarkers(options.RequiredMarkers));
         Console.WriteLine("ORDERED_MARKERS " + FormatSummaryList(options.OrderedMarkers));
+        Console.WriteLine("UNIQUE_MARKERS " + FormatSummaryList(options.UniqueMarkers));
         Console.WriteLine("FORBIDDEN_MARKERS " + FormatSummaryList(options.ForbiddenMarkers));
         if (options.HttpProbe is not null)
         {
@@ -102,11 +103,14 @@ try
     Console.WriteLine("MARKER_PRESETS " + FormatSummaryList(options.MarkerPresets));
     Console.WriteLine("REQUIRED_MARKERS " + FormatMarkers(options.RequiredMarkers));
     Console.WriteLine("ORDERED_MARKERS " + FormatSummaryList(options.OrderedMarkers));
+    Console.WriteLine("UNIQUE_MARKERS " + FormatSummaryList(options.UniqueMarkers));
     Console.WriteLine("FORBIDDEN_MARKERS " + FormatSummaryList(options.ForbiddenMarkers));
 
     SerialMarkerStateMachine streamingMarkers = new SerialMarkerStateMachine(
         options.RequiredMarkers,
-        options.ForbiddenMarkers);
+        options.ForbiddenMarkers,
+        orderedMarkers: options.OrderedMarkers,
+        uniqueMarkers: options.UniqueMarkers);
 
     using Process process = new Process();
     process.StartInfo.FileName = qemu.Path;
@@ -186,6 +190,17 @@ try
         if (streamingMarkers.ForbiddenOccurrenceCount != 0)
         {
             forbiddenMarkerSeen = true;
+            TerminateProcessAndClassify(
+                process,
+                ref processTerminationRequested,
+                ref processCleanupFailed,
+                ref qemuExitedSpontaneously,
+                ref qemuExitCode);
+            break;
+        }
+
+        if (streamingMarkers.DuplicateUniqueOccurrenceCount != 0)
+        {
             TerminateProcessAndClassify(
                 process,
                 ref processTerminationRequested,
@@ -291,7 +306,12 @@ try
         " bytes=" + streamingResult.TotalBytes +
         " lines=" + streamingResult.LinesProcessed +
         " invalidBytes=" + streamingResult.InvalidByteCount +
-        " invalidLines=" + streamingResult.InvalidNoiseLineCount);
+        " invalidLines=" + streamingResult.InvalidNoiseLineCount +
+        " orderedSeen=" + streamingResult.OrderedSeenCount +
+        " outOfOrder=" + streamingResult.OutOfOrderOccurrenceCount +
+        " uniqueSeen=" + streamingResult.UniqueSeenCount +
+        " duplicateUnique=" +
+        streamingResult.DuplicateUniqueOccurrenceCount);
     Console.WriteLine(
         "SERIAL_MARKER_DRAIN milliseconds=" + terminalDrainMilliseconds);
     Console.WriteLine(
@@ -320,9 +340,16 @@ try
         options.RequiredMarkers,
         options.ForbiddenMarkers,
         options.OrderedMarkers);
-    IReadOnlyList<string> observedMarkerLines = summary.ObservedMarkerLines;
+    IReadOnlyList<string> observedMarkerLines =
+        FindObservedRunnerMarkerLines(serial, options);
     IReadOnlyList<string> forbiddenMarkers = summary.ForbiddenMarkerHits;
-    IReadOnlyList<string> outOfOrderMarkers = summary.OutOfOrderMarkers;
+    IReadOnlyList<string> streamingOutOfOrderMarkers =
+        streamingResult.OutOfOrderMarkerHits ?? Array.Empty<string>();
+    IReadOnlyList<string> outOfOrderMarkers = MergeDistinctMarkers(
+        summary.OutOfOrderMarkers,
+        streamingOutOfOrderMarkers);
+    IReadOnlyList<string> duplicateUniqueMarkers =
+        streamingResult.DuplicateUniqueMarkerHits ?? Array.Empty<string>();
     if (serialReadFailure is not null ||
         IsStreamingStructuralFailure(streamingResult.Status))
     {
@@ -339,7 +366,8 @@ try
             httpProbeResult,
             summary.AppExitResults,
             summary.MalformedAppExitMarkers,
-            outOfOrderMarkers);
+            outOfOrderMarkers,
+            duplicateUniqueMarkers);
         Console.Error.WriteLine(
             "TEST_FAIL qemu.smoke serial_marker_stream status=" +
             streamingResult.Status +
@@ -360,28 +388,59 @@ try
             "forbidden_marker",
             httpProbeResult,
             summary.AppExitResults,
-            summary.MalformedAppExitMarkers);
+            summary.MalformedAppExitMarkers,
+            outOfOrderMarkers,
+            duplicateUniqueMarkers);
         string firstForbiddenMarker = forbiddenMarkers.Count == 0 ? "unknown" : forbiddenMarkers[0];
         Console.Error.WriteLine("OS_SMOKE_FAIL forbidden-marker=" + firstForbiddenMarker);
         Console.Error.WriteLine("TEST_FAIL qemu.smoke forbidden_marker marker=" + firstForbiddenMarker);
         return 8;
     }
 
-    if (outOfOrderMarkers.Count != 0 && summary.MissingMarkers.Count == 0)
+    bool hasStreamingOrderViolation =
+        streamingResult.Status ==
+            SerialMarkerCompletionStatus.OutOfOrderMarker ||
+        streamingOutOfOrderMarkers.Count != 0;
+    if (summary.MissingMarkers.Count == 0 &&
+        (hasStreamingOrderViolation ||
+            summary.OutOfOrderMarkers.Count != 0))
     {
         WriteSummaryLogBestEffort(
             options,
             "fail",
             observedMarkerLines,
-            Array.Empty<string>(),
+            summary.MissingMarkers,
             Array.Empty<string>(),
             "out_of_order_marker",
             httpProbeResult,
             summary.AppExitResults,
             summary.MalformedAppExitMarkers,
-            outOfOrderMarkers);
+            outOfOrderMarkers,
+            duplicateUniqueMarkers);
         Console.Error.WriteLine("TEST_FAIL qemu.smoke out_of_order_marker markers=" + FormatMarkers(outOfOrderMarkers));
         return 10;
+    }
+
+    if (streamingResult.Status ==
+            SerialMarkerCompletionStatus.DuplicateUniqueMarker ||
+        duplicateUniqueMarkers.Count != 0)
+    {
+        WriteSummaryLogBestEffort(
+            options,
+            "fail",
+            observedMarkerLines,
+            summary.MissingMarkers,
+            Array.Empty<string>(),
+            "duplicate_unique_marker",
+            httpProbeResult,
+            summary.AppExitResults,
+            summary.MalformedAppExitMarkers,
+            outOfOrderMarkers,
+            duplicateUniqueMarkers);
+        Console.Error.WriteLine(
+            "TEST_FAIL qemu.smoke duplicate_unique_marker markers=" +
+            FormatMarkers(duplicateUniqueMarkers));
+        return 17;
     }
 
     if (processCleanupFailed)
@@ -396,7 +455,8 @@ try
             httpProbeResult,
             summary.AppExitResults,
             summary.MalformedAppExitMarkers,
-            outOfOrderMarkers);
+            outOfOrderMarkers,
+            duplicateUniqueMarkers);
         Console.Error.WriteLine("TEST_FAIL qemu.smoke qemu_cleanup_failed");
         return 15;
     }
@@ -413,11 +473,37 @@ try
             httpProbeResult,
             summary.AppExitResults,
             summary.MalformedAppExitMarkers,
-            outOfOrderMarkers);
+            outOfOrderMarkers,
+            duplicateUniqueMarkers);
         Console.Error.WriteLine(
             "TEST_FAIL qemu.smoke qemu_exit_nonzero code=" +
             qemuExitCode.Value);
         return 14;
+    }
+
+    bool uniqueEvidenceMode = options.UniqueMarkers.Count != 0;
+    if (uniqueEvidenceMode &&
+        qemuExitedSpontaneously &&
+        qemuExitCode == 0 &&
+        markerSeen &&
+        streamingResult.Passed &&
+        summary.HasAllRequiredMarkers)
+    {
+        WriteSummaryLogBestEffort(
+            options,
+            "fail",
+            observedMarkerLines,
+            summary.MissingMarkers,
+            Array.Empty<string>(),
+            "qemu_reboot_or_shutdown",
+            httpProbeResult,
+            summary.AppExitResults,
+            summary.MalformedAppExitMarkers,
+            outOfOrderMarkers,
+            duplicateUniqueMarkers);
+        Console.Error.WriteLine(
+            "TEST_FAIL qemu.smoke qemu_reboot_or_shutdown exitCode=0");
+        return 18;
     }
 
     if (markerSeen &&
@@ -448,7 +534,8 @@ try
                     httpProbeResult,
                     summary.AppExitResults,
                     summary.MalformedAppExitMarkers,
-                    outOfOrderMarkers);
+                    outOfOrderMarkers,
+                    duplicateUniqueMarkers);
                 Console.Error.WriteLine("OS_SMOKE_FAIL http-probe=" + httpProbeResult.Value.Reason);
                 Console.Error.WriteLine("TEST_FAIL qemu.runner.http_probe reason=" + httpProbeResult.Value.Reason);
                 return 9;
@@ -467,7 +554,8 @@ try
                 httpProbeResult,
                 summary.AppExitResults,
                 summary.MalformedAppExitMarkers,
-                outOfOrderMarkers);
+                outOfOrderMarkers,
+                duplicateUniqueMarkers);
             Console.Error.WriteLine(
                 "TEST_FAIL qemu.smoke qemu_cleanup_failed");
             return 15;
@@ -486,7 +574,8 @@ try
                 httpProbeResult,
                 summary.AppExitResults,
                 summary.MalformedAppExitMarkers,
-                outOfOrderMarkers);
+                outOfOrderMarkers,
+                duplicateUniqueMarkers);
             Console.Error.WriteLine(
                 "TEST_FAIL qemu.smoke qemu_exit_nonzero code=" +
                 qemuExitCode.Value);
@@ -503,7 +592,8 @@ try
             httpProbeResult,
             summary.AppExitResults,
             summary.MalformedAppExitMarkers,
-            outOfOrderMarkers);
+            outOfOrderMarkers,
+            duplicateUniqueMarkers);
         Console.WriteLine("TEST_PASS qemu.smoke");
         return 0;
     }
@@ -521,7 +611,8 @@ try
             httpProbeResult,
             summary.AppExitResults,
             summary.MalformedAppExitMarkers,
-            outOfOrderMarkers);
+            outOfOrderMarkers,
+            duplicateUniqueMarkers);
         Console.Error.WriteLine(
             "TEST_FAIL qemu.smoke missing_success_terminal marker=" +
             SerialMarkerStateMachine.DefaultSuccessTerminalMarker);
@@ -546,7 +637,8 @@ try
             httpProbeResult,
             summary.AppExitResults,
             summary.MalformedAppExitMarkers,
-            outOfOrderMarkers);
+            outOfOrderMarkers,
+            duplicateUniqueMarkers);
         Console.Error.WriteLine("TEST_FAIL qemu.smoke timeout");
         return 4;
     }
@@ -561,7 +653,8 @@ try
         httpProbeResult,
         summary.AppExitResults,
         summary.MalformedAppExitMarkers,
-        outOfOrderMarkers);
+        outOfOrderMarkers,
+        duplicateUniqueMarkers);
     Console.Error.WriteLine("TEST_FAIL qemu.smoke missing_marker required=" + FormatMarkers(options.RequiredMarkers) + " missing=" + FormatMarkers(missingMarkers));
     return 5;
     }
@@ -772,6 +865,95 @@ static bool IsStreamingStructuralFailure(SerialMarkerCompletionStatus status)
         SerialMarkerCompletionStatus.Uninitialized;
 }
 
+static IReadOnlyList<string> MergeDistinctMarkers(
+    IReadOnlyList<string> first,
+    IReadOnlyList<string> second)
+{
+    if (first.Count == 0)
+    {
+        return second;
+    }
+
+    if (second.Count == 0)
+    {
+        return first;
+    }
+
+    List<string> merged = new List<string>(first.Count + second.Count);
+    foreach (string marker in first)
+    {
+        if (!merged.Contains(marker, StringComparer.Ordinal))
+        {
+            merged.Add(marker);
+        }
+    }
+
+    foreach (string marker in second)
+    {
+        if (!merged.Contains(marker, StringComparer.Ordinal))
+        {
+            merged.Add(marker);
+        }
+    }
+
+    return merged;
+}
+
+static IReadOnlyList<string> FindObservedRunnerMarkerLines(
+    string serial,
+    RunnerOptions options)
+{
+    List<string> observed = new List<string>();
+    using StringReader reader = new StringReader(serial);
+    while (reader.ReadLine() is { } line)
+    {
+        string trimmed = line.Trim();
+        if (trimmed.Length == 0)
+        {
+            continue;
+        }
+
+        if (IsStandardObservedMarkerLine(trimmed) ||
+            LineMatchesAnyMarker(trimmed, options.RequiredMarkers) ||
+            LineMatchesAnyMarker(trimmed, options.OrderedMarkers) ||
+            LineMatchesAnyMarker(trimmed, options.UniqueMarkers) ||
+            LineMatchesAnyMarker(trimmed, options.ForbiddenMarkers))
+        {
+            observed.Add(trimmed);
+        }
+    }
+
+    return observed;
+}
+
+static bool IsStandardObservedMarkerLine(string line)
+{
+    return line.StartsWith("TEST_", StringComparison.Ordinal)
+        || line.StartsWith("BOOT_", StringComparison.Ordinal)
+        || line.StartsWith("OS_", StringComparison.Ordinal)
+        || line.StartsWith("UEFI_", StringComparison.Ordinal)
+        || line.StartsWith("ACPI_", StringComparison.Ordinal)
+        || string.Equals(line, "APP_EXIT", StringComparison.Ordinal)
+        || line.StartsWith("APP_EXIT ", StringComparison.Ordinal);
+}
+
+static bool LineMatchesAnyMarker(
+    string line,
+    IReadOnlyList<string> markers)
+{
+    for (int index = 0; index < markers.Count; index++)
+    {
+        string marker = markers[index];
+        if (string.Equals(line, marker, StringComparison.Ordinal) ||
+            line.StartsWith(marker + " ", StringComparison.Ordinal))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static string FormatMarkers(IReadOnlyList<string> markers)
 {
     return string.Join(";", markers);
@@ -790,6 +972,8 @@ static int RunPreflight(RunnerOptions options)
     Console.WriteLine("WORKLOAD_PROFILE " + options.WorkloadProfile);
     Console.WriteLine("MARKER_PRESETS " + FormatSummaryList(options.MarkerPresets));
     Console.WriteLine("REQUIRED_MARKERS " + FormatMarkers(options.RequiredMarkers));
+    Console.WriteLine("ORDERED_MARKERS " + FormatSummaryList(options.OrderedMarkers));
+    Console.WriteLine("UNIQUE_MARKERS " + FormatSummaryList(options.UniqueMarkers));
     Console.WriteLine("FORBIDDEN_MARKERS " + FormatSummaryList(options.ForbiddenMarkers));
 
     if (!File.Exists(options.ImagePath))
@@ -917,7 +1101,8 @@ static void WriteSummaryLogBestEffort(
     HttpProbeResult? httpProbeResult = null,
     IReadOnlyList<AppExitMarkerResult>? appExitResults = null,
     IReadOnlyList<string>? malformedAppExitMarkers = null,
-    IReadOnlyList<string>? outOfOrderMarkers = null)
+    IReadOnlyList<string>? outOfOrderMarkers = null,
+    IReadOnlyList<string>? duplicateUniqueMarkers = null)
 {
     if (string.IsNullOrWhiteSpace(options.SummaryLogPath))
     {
@@ -937,12 +1122,14 @@ static void WriteSummaryLogBestEffort(
         builder.Append("MARKER_PRESETS ").AppendLine(FormatSummaryList(options.MarkerPresets));
         builder.Append("REQUIRED_MARKERS ").AppendLine(FormatMarkers(options.RequiredMarkers));
         builder.Append("ORDERED_MARKERS ").AppendLine(FormatSummaryList(options.OrderedMarkers));
+        builder.Append("UNIQUE_MARKERS ").AppendLine(FormatSummaryList(options.UniqueMarkers));
         builder.Append("FORBIDDEN_MARKERS ").AppendLine(FormatSummaryList(options.ForbiddenMarkers));
         AppendHttpProbeSummary(builder, options, httpProbeResult);
         AppendObservedMarkerLines(builder, observedMarkers);
         AppendAppExitSummary(builder, appExitResults, malformedAppExitMarkers);
         builder.Append("MISSING_MARKERS ").AppendLine(FormatSummaryList(missingMarkers));
         builder.Append("OUT_OF_ORDER_MARKERS ").AppendLine(FormatSummaryList(outOfOrderMarkers ?? Array.Empty<string>()));
+        builder.Append("DUPLICATE_UNIQUE_MARKERS ").AppendLine(FormatSummaryList(duplicateUniqueMarkers ?? Array.Empty<string>()));
         builder.Append("FORBIDDEN_MARKER_HIT ").AppendLine(FormatSummaryList(forbiddenMarkers));
         builder.Append("FAIL_REASON ").AppendLine(failReason);
         if (TryReadSerialLogBounded(
@@ -1534,6 +1721,7 @@ sealed class RunnerOptions
     private readonly List<string> forbiddenMarkers = new List<string>(DefaultForbiddenMarkers);
     private readonly List<string> markerPresets = new List<string>();
     private readonly List<string> orderedMarkers = new List<string>();
+    private readonly List<string> uniqueMarkers = new List<string>();
 
     public string QemuPath { get; private set; } = "qemu-system-x86_64";
 
@@ -1558,6 +1746,8 @@ sealed class RunnerOptions
     public IReadOnlyList<string> MarkerPresets => markerPresets;
 
     public IReadOnlyList<string> OrderedMarkers => orderedMarkers;
+
+    public IReadOnlyList<string> UniqueMarkers => uniqueMarkers;
 
     public int TimeoutSeconds { get; private set; } = 30;
 
@@ -1628,6 +1818,12 @@ sealed class RunnerOptions
                 case "--require-marker":
                     options.AddRequiredMarker(RequireNonEmpty(ReadValue(args, ref i, arg), arg));
                     break;
+                case "--require-ordered-marker":
+                    options.AddOrderedMarker(RequireNonEmpty(ReadValue(args, ref i, arg), arg));
+                    break;
+                case "--require-unique-marker":
+                    options.AddUniqueMarker(RequireNonEmpty(ReadValue(args, ref i, arg), arg));
+                    break;
                 case "--marker-preset":
                     options.AddMarkerPreset(RequireNonEmpty(ReadValue(args, ref i, arg), arg));
                     break;
@@ -1660,13 +1856,25 @@ sealed class RunnerOptions
 
     public static void PrintHelp()
     {
-        Console.WriteLine("OS.QemuRunner [preflight|--preflight] --image <raw|qcow2 image> [--disk-format raw|qcow2] [--workload-profile SingleMinimalApi|MultiMinimalApi] [--ovmf-code <OVMF_CODE.fd>] [--serial-log <path>] [--summary-log <path>] [--timeout <seconds>] [--require-marker <marker>]... [--marker-preset " + SmokeMarkerPreset.SupportedValues + "]... [--forbid-marker <marker>]... [--http-probe-url <http-url>] [--http-probe-expected-status <100-599>] [--http-probe-expected-body <text>] [--http-probe-timeout <seconds>] [--dry-run]");
+        Console.WriteLine("OS.QemuRunner [preflight|--preflight] --image <raw|qcow2 image> [--disk-format raw|qcow2] [--workload-profile SingleMinimalApi|MultiMinimalApi] [--ovmf-code <OVMF_CODE.fd>] [--serial-log <path>] [--summary-log <path>] [--timeout <seconds>] [--require-marker <marker>]... [--require-ordered-marker <marker>]... [--require-unique-marker <marker>]... [--marker-preset " + SmokeMarkerPreset.SupportedValues + "]... [--forbid-marker <marker>]... [--http-probe-url <http-url>] [--http-probe-expected-status <100-599>] [--http-probe-expected-body <text>] [--http-probe-timeout <seconds>] [--dry-run]");
         Console.WriteLine("preflight validates local runner inputs and image format hints without launching QEMU or requiring libvirt.");
     }
 
     private void AddRequiredMarker(string marker)
     {
         AddDistinct(requiredMarkers, marker);
+    }
+
+    private void AddOrderedMarker(string marker)
+    {
+        AddDistinct(orderedMarkers, marker);
+        AddRequiredMarker(marker);
+    }
+
+    private void AddUniqueMarker(string marker)
+    {
+        AddDistinct(uniqueMarkers, marker);
+        AddRequiredMarker(marker);
     }
 
     private void AddMarkerPreset(string preset)
@@ -1681,7 +1889,7 @@ sealed class RunnerOptions
 
         foreach (string marker in SmokeMarkerPreset.GetOrderedMarkers(normalized))
         {
-            AddDistinct(orderedMarkers, marker);
+            AddOrderedMarker(marker);
         }
     }
 
@@ -1760,7 +1968,11 @@ sealed class RunnerOptions
         // Constructing the parser validates marker counts, lengths, ASCII,
         // duplicates, and required/forbidden overlap before any process can
         // be launched.
-        _ = new SerialMarkerStateMachine(RequiredMarkers, ForbiddenMarkers);
+        _ = new SerialMarkerStateMachine(
+            RequiredMarkers,
+            ForbiddenMarkers,
+            orderedMarkers: OrderedMarkers,
+            uniqueMarkers: UniqueMarkers);
 
         if (!httpProbeConfigured)
         {
