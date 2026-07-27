@@ -2,7 +2,7 @@
 
 ## Current Status
 
-Audit date: 2026-07-25.
+Audit date: 2026-07-26.
 
 The first-party workspace began as an empty baseline under the former `OS`
 solution/repository identity. The current canonical solution is `CLROS.slnx`,
@@ -32,6 +32,10 @@ and the reachable local Gitea tracker:
   reported `SYNC_VERIFY_PASS milestones=16 labels=68 issues=331`. A subsequent
   no-write preview reported all 415 managed objects unchanged and no create,
   update, skip, or failure action.
+- Reviewed M01-019 evidence exposed a missing single-stream boundary between
+  the separate host models and EFI linkage. M01-027 now records that composite
+  transition leaf, M01-020 depends on it, and the current durable/live
+  inventory contains 316 children, 332 keyed issues, and 416 managed objects.
 
 ## Implemented Behavior
 
@@ -176,19 +180,21 @@ Current M00 recovery evidence from 2026-07-25:
 - Generated evidence is under
   `artifacts/logs/m00-final/32a8f3b91e17-20260725T213702Z/` and is not
   committed as first-party source.
-- The live Gitea tracker contains 68 labels, 16 milestones, 315 children, and
-  331 uniquely keyed issues. The guarded M00-023 apply recognized issue #321,
-  created only M01-016 through M01-026 as issues #323 through #333, updated
-  exactly 24 existing managed issues, preserved claimed M01-001 as issue #25,
-  and emitted `SYNC_VERIFY_PASS milestones=16 labels=68 issues=331`.
-  M01-001 through M01-015 are host-evidence leaves; probe policy, three
-  BootSequence coordinator stages, one reviewed OS-project/source-link
-  integration, and alternating EfiEntry/fresh-QEMU boundaries are serialized
-  through M01-026. M02 and M04 entry work depends on the final M01-026
-  cumulative paging proof. Reviewed closure leaves all 23 M00 children and the
-  M00 epic closed. A final no-write preview reported all 415 managed objects
-  unchanged with no create, update, skip, or failure action. Only `M15-013`,
-  the isolated optional DOOM/WAD boundary, retains
+- The live Gitea tracker contains 68 labels, 16 milestones, 316 children, and
+  332 uniquely keyed issues. The earlier guarded M00-023 apply recognized issue
+  #321, created only M01-016 through M01-026 as issues #323 through #333,
+  updated exactly 24 existing managed issues, and emitted
+  `SYNC_VERIFY_PASS milestones=16 labels=68 issues=331`; those counts are
+  preserved historical evidence. M01-001 through M01-015 are host-evidence
+  leaves. Probe policy, three BootSequence coordinator stages, the reviewed
+  M01-027 composite-transition leaf, one OS-project/source-link integration,
+  and alternating EfiEntry/fresh-QEMU boundaries are serialized through the
+  final M01-026 cumulative paging proof. M01-019 is closed with reviewed
+  `done/step866.md` evidence, M01-027 is the next dependency-ready host leaf,
+  and M01-020 remains blocked on it. The converged no-write preview reports all
+  416 managed objects unchanged. M02 and M04 entry work still depends on the
+  final M01-026 cumulative paging proof. Only `M15-013`, the isolated optional
+  DOOM/WAD boundary, retains
   `reference:license-blocked`. This is administrative tracker evidence, not
   additional kernel capability evidence.
 

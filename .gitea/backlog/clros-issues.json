@@ -2524,7 +2524,7 @@
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
-        "M01-001 through M01-015 are host-evidence leaves; M01-016 through M01-026 serialize probe, project, boot-sequence, EFI-entry, and QEMU evidence boundaries one at a time.",
+        "M01-001 through M01-015 are host-evidence leaves; M01-016 through M01-027 serialize probe, composite-transition, project, boot-sequence, EFI-entry, and QEMU evidence boundaries one at a time.",
         "Close only after every child issue is closed with accepted evidence and the milestone exit criterion is satisfied."
       ],
       "referenceInfluences": [
@@ -2540,7 +2540,7 @@
         }
       ],
       "acceptanceCriteria": [
-        "All 26 keyed child issues are closed with reviewed evidence.",
+        "All 27 keyed child issues are closed with reviewed evidence.",
         "Prove owned reservations, allocation, paging, CR3, and W^X under real QEMU.",
         "Canonical documentation and completion gates state only what current first-party evidence proves."
       ],
@@ -4364,7 +4364,7 @@
       ],
       "collisionLane": "lane:boot-sequence",
       "summary": "Add the third ordered M01 coordinator phase for separate EfiLoaderCode CR3/invlpg-stub and protection-probe pages plus an EfiLoaderData page-table/state arena, exact audited-byte materialization, and a reversible callback-free owned-CR3 interval with scoped checks, continuation canary, and verified firmware-CR3 restoration.",
-      "currentEvidence": "No current live guest evidence proves stage three. Page-table entries, identity maps, reversible CR3 stubs, page mutations, TLB plans, callback exclusion, continuation canary, restoration, and page-zero policy remain host-only leaves. M01-018 must first close with reviewed stage-two coordinator evidence before this issue may be claimed.",
+      "currentEvidence": "Merged implementation commit d76516f05b7f6c45d8e6711d81a744c38a424abc and done/step866.md preserve reviewed host evidence for the third M01 coordinator, exact NOSTDLIB_EFI closure, reservation-bound identity-map construction, audited byte plans, reversible-CR3/protection/page-zero model composition, marker suppression, and the complete host harness ending in TEST_PASS host.tests. The source explicitly denies privileged execution, a single composite machine-code interval, EFI linkage, QEMU evidence, owned serial provenance, and any completion-gate change; M01-027 is therefore required before the live chain proceeds.",
       "implementationNotes": [
         "Require successful stage-two state before constructing tables from the reviewed M01-011 through M01-015 contracts.",
         "M01LivePagingIntegration.cs must expose a NOSTDLIB_EFI-linkable unmanaged POD plus unsafe pointer/count/capacity core with no Span, string, exceptions, reflection, or managed references; any host wrapper is behind #if !NOSTDLIB_EFI (or equivalent). BootSequence.cs remains host orchestration and must never be linked into src/OS.",
@@ -4416,6 +4416,99 @@
         "docs/diagnostics.md"
       ],
       "evidenceBoundary": "This issue proves only host-tested stage-three ordering for supplied separate pre-EBS EfiLoaderCode CR3/invlpg and protection-probe pages plus EfiLoaderData page-table/state storage, architectural preflight, interrupt/ABI discipline, audited PGE clear/restore and byte materialization, a live-protection/invlpg/probe plan, and reversible callback-free CR3 restoration. It does not call AllocatePages, execute privileged instructions, prove permanent CR3 adoption, prove firmware diagnostics under owned CR3, establish post-EBS ownership, characterize restored firmware mappings, support PCID/LA57, eliminate NMI/SMI risk, trigger #PF, or provide QEMU evidence.",
+      "desiredState": "closed"
+    },
+    {
+      "key": "M01-027",
+      "title": "[M01-027] Replace separate paging models with one audited composite owned-CR3 transition leaf.",
+      "milestone": "M01",
+      "parentKey": "M01-EPIC",
+      "dependencyKeys": [
+        "M01-019"
+      ],
+      "labels": [
+        "agent:blocked",
+        "priority:p1",
+        "type:implementation",
+        "evidence:host",
+        "component:boot",
+        "component:memory",
+        "phase:m01-memory",
+        "lane:probes",
+        "reference:adapt"
+      ],
+      "priority": "priority:p1",
+      "ownedPaths": [
+        "src/OS.Kernel/Boot/M01OwnedCr3CompositeTransition.cs",
+        "tests/OS.HostTests/M01OwnedCr3CompositeTransitionTests.cs",
+        "docs/boot.md",
+        "docs/architecture.md"
+      ],
+      "forbiddenPaths": [
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/M01LivePagingIntegration.cs",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Boot/BootSequencePlan.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "scripts/build-efi-shell.ps1",
+        "scripts/run-qemu-smoke.ps1",
+        "docs/completion-gates.md",
+        "README.md",
+        "references/** (read-only)",
+        "done/** (reserve a new step only after implementation evidence exists)"
+      ],
+      "collisionLane": "lane:probes",
+      "summary": "Create one no-stdlib-compatible C# x64 byte plan and unmanaged POD contract for the complete callback-free owned-CR3 interval, replacing the temporal gap between the separately modeled reversible-CR3, page-protection, invlpg, probe, page-zero, and restoration leaves before any EFI linkage or live claim.",
+      "currentEvidence": "M01-019 is merged with reviewed host evidence for strict composition of separate paging leaves, but ProvesCompositeOwnedCr3MachineCodeInterval remains false. No current byte stream performs CR3 entry, canary update, PTE rewrite, exact invlpg, probe, page-zero audit, and CR3/CR4/RFLAGS restoration as one indivisible callback-free interval. The frozen SerialStub purpose is only a compatibility alias and is not owned-COM1 evidence.",
+      "implementationNotes": [
+        "Own only the new composite leaf, its focused host tests, and the two canonical paging architecture sections; do not wire or execute the stream.",
+        "Expose a NOSTDLIB_EFI-compatible unmanaged POD plus unsafe pointer/count/capacity core with no Span, string, arrays, exceptions, reflection, managed references, callbacks, imports, or native source.",
+        "Materialize and read back one relocation-free Windows-x64 stream that validates mode prerequisites, saves exact raw CR3/CR4/RFLAGS, executes cli, clears and verifies PGE, enters/verifies the owned root, updates the continuation canary, rewrites the exact probe PTE RW+NX to RO+X, executes one exact invlpg, verifies PTE readback, invokes the constant-return probe, audits page zero absent, and restores/verifies firmware CR3, CR4, and RFLAGS on success and every recoverable post-entry failure.",
+        "Cross-bind every dereferenced range to typed allocation, reservation, and identity provenance: composite code, owned stack, loaded-image continuation page, protection-probe page, complete table/state arena, runtime state/canary storage, and owned root.",
+        "Perform no firmware, console, SerialIo, COM1, allocator, ACPI, framebuffer, diagnostic, or other callback in the interval. Do not add unused ranges merely to satisfy historical purpose labels.",
+        "Keep SerialStub explicitly classified as a compatibility alias only. Actual owned serial allocation, bytes, invocation, and evidence remain M02 work.",
+        "Set design/execution flags honestly: DefinesSingleCompositeOwnedCr3Interval=true, ExecutesCompositeOwnedCr3Interval=false, IsGuestEvidence=false, CrossBindsOwnedSerialStub=false, CrossBindsOwnedMapIdentity=false, and CrossBindsDiagnosticState=false.",
+        "M01-020 may link the reviewed leaf only after this issue closes; M01-025 may wire it and M01-026 may prove execution."
+      ],
+      "referenceInfluences": [
+        {
+          "path": "references/SharpOS-main/bootasm/BootAsm.Generator/BootAsmGenerator.cs",
+          "use": "adapt",
+          "notes": "Study C#-authored x64 generation structure while independently enforcing the CLROS no-native-source and exact-readback boundary."
+        },
+        {
+          "path": "references/SharpOS-main/OS/src/Kernel/Paging/X64PageTable.cs",
+          "use": "adapt",
+          "notes": "Cross-check transition sequencing and hierarchy access without importing permanent mappings or live claims."
+        }
+      ],
+      "acceptanceCriteria": [
+        "The exact production source compiles under NOSTDLIB_EFI with no framework, assembly, module, PInvoke, callback, native-source, managed-reference, exception, string, Span, reflection, or dynamic dependency.",
+        "The audited byte stream is one indivisible Windows-x64 interval covering mode validation, raw register save, cli/PGE discipline, owned-root entry, canary update, exact RW+NX-to-RO+X PTE rewrite, one target invlpg, readback, constant-return probe, page-zero audit, and exact CR3/CR4/RFLAGS restoration.",
+        "Host tests cover exact bytes/offsets, relocation freedom, ABI alignment/shadow space, nonvolatile and XMM discipline, all pointer/count/capacity/overflow/alias failures, wrong provenance, missing mappings, writable code, executable data/tables, wrong PTE/invlpg target, execute-before-protect, callback attempts, IF/PGE/restoration failures, corrupt canaries, raw-CR3 low bits, malformed readback, every recovery branch, default values, and unchanged caller storage on preflight failure.",
+        "Separate successful M01-019 transition/protection/invalidation/probe transcripts are explicitly rejected as composite evidence, and owned serial/map/diagnostic/ACPI/framebuffer provenance remains an explicit nonclaim.",
+        "No OS.csproj, EfiEntry, Probes, build/QEMU script, completion-gate, guest-execution, or live-CR3 claim is changed."
+      ],
+      "requiredMarkers": [
+        "TEST_START m01.027",
+        "CLROS_M01_027_READY",
+        "TEST_PASS m01.027",
+        "TEST_FAIL m01.027 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build .\\CLROS.slnx --nologo -m:1",
+        "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check-naming.ps1",
+        "git diff --check",
+        "git status --short"
+      ],
+      "documentationPaths": [
+        "docs/boot.md",
+        "docs/architecture.md"
+      ],
+      "evidenceBoundary": "This issue may prove only that one composite owned-CR3 transition stream is encoded, exactly read back, range-bound, and host-audited. It does not link or invoke the stream, allocate firmware pages, wire EfiEntry, change CR3/PTE/TLB state, execute a probe, prove page zero absent in hardware, provide QEMU evidence, establish owned serial diagnostics, or advance a completion gate.",
       "desiredState": "open"
     },
     {
@@ -4424,7 +4517,7 @@
       "milestone": "M01",
       "parentKey": "M01-EPIC",
       "dependencyKeys": [
-        "M01-019"
+        "M01-027"
       ],
       "labels": [
         "agent:blocked",
@@ -4460,10 +4553,10 @@
       ],
       "collisionLane": "lane:os-project",
       "summary": "Make the canonical no-stdlib EFI project and build preflight recognize reviewed M01 leaf/coordinator source sets and three explicit opt-in stage switches.",
-      "currentEvidence": "No current canonical EFI compile-closure proof covers the reviewed M01 production cores. M01-019 must first close with reviewed host evidence for all three NOSTDLIB_EFI coordinator cores before this issue may be claimed.",
+      "currentEvidence": "No current canonical EFI compile-closure proof covers the reviewed M01 production cores or a single composite owned-CR3 transition leaf. M01-027 must first close with reviewed host evidence for one indivisible callback-free transition stream before this issue may link the M01 source set into the canonical EFI project.",
       "implementationNotes": [
         "Own only the lane:os-project surface and its build/preflight support.",
-        "Use one exact reviewed compile list of already-existing NOSTDLIB_EFI cores: TypedPhysicalVirtualDeviceAddressPODWrappers.cs; BootReservedRange.cs; BootReservationTableValidator.cs; EfiLoadedImageRange.cs; EfiLoadedImageRangeCapturePlan.cs; OwnedBootStackLayout.cs; OwnedBootStackSwitchPlan.cs; BootPageAllocatorCoreContracts.cs; BootPageAllocatorStateMaterializer.cs; BootReservationSubtractor.cs; BootPageAllocatorMutation.cs; PageProtection.cs; PageCachePolicy.cs; X64PageTableEntry.cs; X64BootIdentityMappingPlan.cs; X64Cr3LoadStubPlan.cs; X64PagingModePreflightStubPlan.cs; X64ReversibleCr3TransitionStubPlan.cs; X64PageMap.cs; X64TlbInvalidationPlan.cs; X64InvlpgStubPlan.cs; X64ProtectionProbeStubPlan.cs; PageZeroMappingPolicy.cs; M01LoadedImageStackIntegration.cs; M01LiveAllocatorIntegration.cs; M01LivePagingIntegration.cs; and the existing explicitly linked BootSequencePlan.cs.",
+        "Use one exact reviewed compile list of already-existing NOSTDLIB_EFI cores: TypedPhysicalVirtualDeviceAddressPODWrappers.cs; BootReservedRange.cs; BootReservationTableValidator.cs; EfiLoadedImageRange.cs; EfiLoadedImageRangeCapturePlan.cs; OwnedBootStackLayout.cs; OwnedBootStackSwitchPlan.cs; BootPageAllocatorCoreContracts.cs; BootPageAllocatorStateMaterializer.cs; BootReservationSubtractor.cs; BootPageAllocatorMutation.cs; PageProtection.cs; PageCachePolicy.cs; X64PageTableEntry.cs; X64BootIdentityMappingPlan.cs; X64Cr3LoadStubPlan.cs; X64PagingModePreflightStubPlan.cs; X64ReversibleCr3TransitionStubPlan.cs; X64PageMap.cs; X64TlbInvalidationPlan.cs; X64InvlpgStubPlan.cs; X64ProtectionProbeStubPlan.cs; PageZeroMappingPolicy.cs; M01LoadedImageStackIntegration.cs; M01LiveAllocatorIntegration.cs; M01LivePagingIntegration.cs; M01OwnedCr3CompositeTransition.cs; and the existing explicitly linked BootSequencePlan.cs.",
         "Never link M01-010, NullPageFaultProbePlan.cs, BootSequence.cs, BootPageAllocatorState.cs, BootPageFreeListPlan.cs, BootPageAllocatorPlan.cs, BootMemoryRegionPlan.cs, tests/docs, or any Span/ReadOnlySpan host wrapper into src/OS; BootSequence.cs remains host orchestration and source-of-truth validation, not EFI source.",
         "Do not use source globs, Exists(...) conditions, or preauthorized future file slots.",
         "Add explicit reviewed M01 compile items to src/OS/OS.csproj; do not use an alternate EFI project.",
