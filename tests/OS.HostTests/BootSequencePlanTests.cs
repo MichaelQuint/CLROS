@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using OS.Boot;
 using OS.Kernel.Diagnostics;
 using OS.Kernel.Platform;
@@ -789,15 +790,95 @@ internal static class BootSequencePlanTests
             "Boot",
             "EfiEntry.cs");
         string efiEntrySource = File.ReadAllText(efiEntryPath);
+        const string probeStart =
+            "#if M01_LOADED_IMAGE_STACK_PROBE";
+        int probeStartIndex = efiEntrySource.IndexOf(
+            probeStart,
+            StringComparison.Ordinal);
+        int probeElseIndex = probeStartIndex < 0
+            ? -1
+            : efiEntrySource.IndexOf(
+                "#else",
+                probeStartIndex + probeStart.Length,
+                StringComparison.Ordinal);
+        int probeEndIndex = probeElseIndex < 0
+            ? -1
+            : efiEntrySource.IndexOf(
+                "#endif",
+                probeElseIndex + "#else".Length,
+                StringComparison.Ordinal);
+        bool singleProbeRegion = probeStartIndex >= 0
+            && probeElseIndex > probeStartIndex
+            && probeEndIndex > probeElseIndex
+            && efiEntrySource.IndexOf(
+                probeStart,
+                probeStartIndex + probeStart.Length,
+                StringComparison.Ordinal) < 0;
+        string probeImplementation = singleProbeRegion
+            ? efiEntrySource[probeStartIndex..probeElseIndex]
+            : string.Empty;
+        string defaultImplementation = singleProbeRegion
+            ? efiEntrySource[probeElseIndex..probeEndIndex]
+            : string.Empty;
+        string outsideProbe = singleProbeRegion
+            ? string.Concat(
+                efiEntrySource.AsSpan(0, probeStartIndex),
+                efiEntrySource.AsSpan(probeEndIndex + "#endif".Length))
+            : efiEntrySource;
+        string compactProbe = Regex.Replace(
+            probeImplementation,
+            @"\s+",
+            string.Empty,
+            RegexOptions.CultureInvariant);
+        string compactDefault = Regex.Replace(
+            defaultImplementation,
+            @"\s+",
+            string.Empty,
+            RegexOptions.CultureInvariant);
+        string compactOutside = Regex.Replace(
+            outsideProbe,
+            @"\s+",
+            string.Empty,
+            RegexOptions.CultureInvariant);
+        string[] requiredProbeCalls =
+        [
+            "M01LoadedImageStackIntegration.PrepareFromStaticScratch(",
+            "RecordTransferFromStaticState",
+            "ObserveContinuationRspFromStaticState",
+            "ReportUnexpectedReturnFromStaticState"
+        ];
+        bool probeCallsConfined = singleProbeRegion;
+        foreach (string requiredProbeCall in requiredProbeCalls)
+        {
+            probeCallsConfined &= compactProbe.Contains(
+                    requiredProbeCall,
+                    StringComparison.Ordinal)
+                && !compactDefault.Contains(
+                    requiredProbeCall,
+                    StringComparison.Ordinal)
+                && !compactOutside.Contains(
+                    requiredProbeCall,
+                    StringComparison.Ordinal);
+        }
 
         return defaultCompileItemsDisabled
             && planLinked
             && integrationLinked
+            && probeCallsConfined
+            && !compactProbe.Contains(
+                "M01LoadedImageStackIntegration.Prepare(",
+                StringComparison.Ordinal)
+            && !compactProbe.Contains(
+                "M01LoadedImageStackIntegration.PrepareWithStubByteMode(",
+                StringComparison.Ordinal)
             && !efiEntrySource.Contains(
                 "RunM01LoadedImageStackIntegration",
                 StringComparison.Ordinal)
             && !efiEntrySource.Contains(
-                "M01LoadedImageStackIntegration.Prepare",
+                "RecordTransfer(",
+                StringComparison.Ordinal)
+            && !efiEntrySource.Contains(
+                "ObserveContinuationRsp(",
                 StringComparison.Ordinal);
     }
 

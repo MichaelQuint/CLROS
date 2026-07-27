@@ -30,7 +30,8 @@ public enum M01LoadedImageStackStatus : byte
     IllegalCoordinatorState = 20,
     StubByteModeRejected = 21,
     LoadedImageVirtualMappingRejected = 22,
-    StageOneAddressMappingRejected = 23
+    StageOneAddressMappingRejected = 23,
+    EvidenceScratchRejected = 24
 }
 
 /// <summary>
@@ -1099,6 +1100,69 @@ public readonly struct M01LoadedImageStackStaticTransitionResult
 }
 
 /// <summary>
+/// Compact preparation status returned by the firmware-facing path while
+/// the large diagnostic evidence is written to caller-owned static scratch.
+/// This value may remain on the firmware stack.
+/// </summary>
+public readonly struct M01LoadedImageStackStaticPreparationResult
+{
+    private readonly M01LoadedImageStackStatus _status;
+    private readonly M01LoadedImageStackCheckpoint _checkpoint;
+    private readonly byte _reserved0;
+    private readonly byte _reserved1;
+    private readonly byte _reserved2;
+    private readonly byte _reserved3;
+    private readonly byte _reserved4;
+    private readonly byte _reserved5;
+
+    private M01LoadedImageStackStaticPreparationResult(
+        M01LoadedImageStackStatus status,
+        M01LoadedImageStackCheckpoint checkpoint)
+    {
+        _status = status;
+        _checkpoint = checkpoint;
+        _reserved0 = 0;
+        _reserved1 = 0;
+        _reserved2 = 0;
+        _reserved3 = 0;
+        _reserved4 = 0;
+        _reserved5 = 0;
+    }
+
+    public M01LoadedImageStackStatus Status => _status;
+
+    public M01LoadedImageStackCheckpoint Checkpoint => _checkpoint;
+
+    public bool IsPrepared =>
+        _status == M01LoadedImageStackStatus.Success
+        && _checkpoint
+            == M01LoadedImageStackCheckpoint.SwitchArmed
+        && _reserved0 == 0
+        && _reserved1 == 0
+        && _reserved2 == 0
+        && _reserved3 == 0
+        && _reserved4 == 0
+        && _reserved5 == 0;
+
+    internal static M01LoadedImageStackStaticPreparationResult
+        Success(M01LoadedImageStackCheckpoint checkpoint)
+    {
+        return new M01LoadedImageStackStaticPreparationResult(
+            M01LoadedImageStackStatus.Success,
+            checkpoint);
+    }
+
+    internal static M01LoadedImageStackStaticPreparationResult Fail(
+        M01LoadedImageStackStatus status,
+        M01LoadedImageStackCheckpoint checkpoint)
+    {
+        return new M01LoadedImageStackStaticPreparationResult(
+            status,
+            checkpoint);
+    }
+}
+
+/// <summary>
 /// Value-only evidence retained across the split prepare, transfer-record,
 /// and continuation-audit host calls. Raw binding addresses are pre-transfer
 /// diagnostic evidence only and this aggregate must not cross the stack
@@ -1459,6 +1523,7 @@ public static unsafe class M01LoadedImageStackIntegration
     public const ulong RequiredAllocationRecordCount = 2;
     public const ulong CodeAllocationRecordIndex = 0;
     public const ulong DataAllocationRecordIndex = 1;
+    public const ulong RequiredEvidenceScratchAlignment = 8;
 
     public const bool CallsFirmwarePageAllocator = false;
     public const bool InvokesFirmware = false;
@@ -1475,6 +1540,9 @@ public static unsafe class M01LoadedImageStackIntegration
     // closure does not acquire the host-side UefiMemoryType catalog.
     private const uint EfiLoaderCodeMemoryType = 1;
     private const uint EfiLoaderDataMemoryType = 2;
+
+    public static ulong RequiredEvidenceScratchBytes =>
+        (ulong)sizeof(M01LoadedImageStackEvidence);
 
     public static M01LoadedImageStackIntegrationResult Prepare(
         EfiLoadedImageRangeCapturePlan loadedImage,
@@ -1546,6 +1614,158 @@ public static unsafe class M01LoadedImageStackIntegration
             M01StageOneStubByteMode stubByteMode)
     {
         M01LoadedImageStackEvidence evidence = default;
+        M01LoadedImageStackStaticPreparationResult preparation =
+            PrepareWithCallerOwnedEvidenceScratch(
+                loadedImage,
+                loadedImageVirtualMapping,
+                stageOneAddressMapping,
+                allocationRecords,
+                allocationRecordCount,
+                allocationRecordCapacity,
+                allocationEvidence,
+                mapLedgerEvidence,
+                reservationLedger,
+                reservationCount,
+                reservationCapacity,
+                codePage,
+                codePageCapacity,
+                materializedPageByteLength,
+                stubEntryOffset,
+                declaredStubByteLength,
+                continuationAddress,
+                staticState,
+                staticStateCapacity,
+                &evidence,
+                (ulong)sizeof(M01LoadedImageStackEvidence),
+                false,
+                stubByteMode);
+        return preparation.IsPrepared
+            ? M01LoadedImageStackIntegrationResult.Success(
+                preparation.Checkpoint,
+                evidence)
+            : M01LoadedImageStackIntegrationResult.Fail(
+                preparation.Status,
+                preparation.Checkpoint,
+                evidence);
+    }
+
+    public static M01LoadedImageStackStaticPreparationResult
+        PrepareFromStaticScratch(
+            EfiLoadedImageRangeCapturePlan loadedImage,
+            M01LoadedImageVirtualMappingEvidence
+                loadedImageVirtualMapping,
+            M01StageOneAddressMappingEvidence
+                stageOneAddressMapping,
+            BootMemoryRegionRecord* allocationRecords,
+            ulong allocationRecordCount,
+            ulong allocationRecordCapacity,
+            M01StageOneAllocationEvidence allocationEvidence,
+            M01StageOneMapLedgerEvidence mapLedgerEvidence,
+            OS.Kernel.Memory.BootReservedRange* reservationLedger,
+            ulong reservationCount,
+            ulong reservationCapacity,
+            byte* codePage,
+            ulong codePageCapacity,
+            ulong materializedPageByteLength,
+            ulong stubEntryOffset,
+            ulong declaredStubByteLength,
+            VirtualAddress continuationAddress,
+            M01LoadedImageStackStaticState* staticState,
+            ulong staticStateCapacity,
+            M01LoadedImageStackEvidence* evidenceScratch,
+            ulong evidenceScratchCapacity)
+    {
+        if (!ValidateFirmwareEvidenceScratchPreflight(
+                loadedImage,
+                loadedImageVirtualMapping,
+                allocationRecords,
+                allocationRecordCount,
+                allocationRecordCapacity,
+                mapLedgerEvidence,
+                reservationLedger,
+                reservationCount,
+                reservationCapacity,
+                codePage,
+                codePageCapacity,
+                continuationAddress,
+                staticState,
+                staticStateCapacity,
+                evidenceScratch,
+                evidenceScratchCapacity,
+                out M01LoadedImageStackStatus preflightStatus))
+        {
+            return M01LoadedImageStackStaticPreparationResult.Fail(
+                preflightStatus,
+                M01LoadedImageStackCheckpoint.Uninitialized);
+        }
+
+        return PrepareWithCallerOwnedEvidenceScratch(
+            loadedImage,
+            loadedImageVirtualMapping,
+            stageOneAddressMapping,
+            allocationRecords,
+            allocationRecordCount,
+            allocationRecordCapacity,
+            allocationEvidence,
+            mapLedgerEvidence,
+            reservationLedger,
+            reservationCount,
+            reservationCapacity,
+            codePage,
+            codePageCapacity,
+            materializedPageByteLength,
+            stubEntryOffset,
+            declaredStubByteLength,
+            continuationAddress,
+            staticState,
+            staticStateCapacity,
+            evidenceScratch,
+            evidenceScratchCapacity,
+            true,
+            M01StageOneStubByteMode.EmitAndVerify);
+    }
+
+    private static M01LoadedImageStackStaticPreparationResult
+        PrepareWithCallerOwnedEvidenceScratch(
+            EfiLoadedImageRangeCapturePlan loadedImage,
+            M01LoadedImageVirtualMappingEvidence
+                loadedImageVirtualMapping,
+            M01StageOneAddressMappingEvidence
+                stageOneAddressMapping,
+            BootMemoryRegionRecord* allocationRecords,
+            ulong allocationRecordCount,
+            ulong allocationRecordCapacity,
+            M01StageOneAllocationEvidence allocationEvidence,
+            M01StageOneMapLedgerEvidence mapLedgerEvidence,
+            OS.Kernel.Memory.BootReservedRange* reservationLedger,
+            ulong reservationCount,
+            ulong reservationCapacity,
+            byte* codePage,
+            ulong codePageCapacity,
+            ulong materializedPageByteLength,
+            ulong stubEntryOffset,
+            ulong declaredStubByteLength,
+            VirtualAddress continuationAddress,
+            M01LoadedImageStackStaticState* staticState,
+            ulong staticStateCapacity,
+            M01LoadedImageStackEvidence* evidenceScratch,
+            ulong evidenceScratchCapacity,
+            bool requireEvidenceScratchInLoadedImage,
+            M01StageOneStubByteMode stubByteMode)
+    {
+        if (!ValidateEvidenceScratch(
+                loadedImageVirtualMapping,
+                evidenceScratch,
+                evidenceScratchCapacity,
+                requireEvidenceScratchInLoadedImage))
+        {
+            return M01LoadedImageStackStaticPreparationResult.Fail(
+                M01LoadedImageStackStatus.EvidenceScratchRejected,
+                M01LoadedImageStackCheckpoint.Uninitialized);
+        }
+
+        ref M01LoadedImageStackEvidence evidence =
+            ref *evidenceScratch;
         evidence.LoadedImageCaptureValue = loadedImage;
         evidence.LoadedImageVirtualMappingValue =
             loadedImageVirtualMapping;
@@ -1558,27 +1778,24 @@ public static unsafe class M01LoadedImageStackIntegration
             && stubByteMode
                 != M01StageOneStubByteMode.VerifyExisting)
         {
-            return M01LoadedImageStackIntegrationResult.Fail(
+            return M01LoadedImageStackStaticPreparationResult.Fail(
                 M01LoadedImageStackStatus.StubByteModeRejected,
-                M01LoadedImageStackCheckpoint.Uninitialized,
-                evidence);
+                M01LoadedImageStackCheckpoint.Uninitialized);
         }
 
         if (!loadedImage.Succeeded)
         {
-            return M01LoadedImageStackIntegrationResult.Fail(
+            return M01LoadedImageStackStaticPreparationResult.Fail(
                 M01LoadedImageStackStatus.LoadedImageRejected,
-                M01LoadedImageStackCheckpoint.Uninitialized,
-                evidence);
+                M01LoadedImageStackCheckpoint.Uninitialized);
         }
 
         if (!loadedImageVirtualMapping.IsValidFor(loadedImage))
         {
-            return M01LoadedImageStackIntegrationResult.Fail(
+            return M01LoadedImageStackStaticPreparationResult.Fail(
                 M01LoadedImageStackStatus
                     .LoadedImageVirtualMappingRejected,
-                M01LoadedImageStackCheckpoint.Uninitialized,
-                evidence);
+                M01LoadedImageStackCheckpoint.Uninitialized);
         }
 
         M01LoadedImageStackCheckpoint checkpoint =
@@ -1607,10 +1824,9 @@ public static unsafe class M01LoadedImageStackIntegration
             invalidAllocationIndex;
         if (allocationStatus != OwnedBootStackSwitchStatus.Success)
         {
-            return M01LoadedImageStackIntegrationResult.Fail(
+            return M01LoadedImageStackStaticPreparationResult.Fail(
                 M01LoadedImageStackStatus.AllocationTableRejected,
-                checkpoint,
-                evidence);
+                checkpoint);
         }
 
         evidence.CodeAllocationValue =
@@ -1624,10 +1840,9 @@ public static unsafe class M01LoadedImageStackIntegration
                 allocationRecordCount,
                 allocationRecordCapacity))
         {
-            return M01LoadedImageStackIntegrationResult.Fail(
+            return M01LoadedImageStackStaticPreparationResult.Fail(
                 M01LoadedImageStackStatus.AllocationEvidenceRejected,
-                checkpoint,
-                evidence);
+                checkpoint);
         }
 
         checkpoint =
@@ -1644,10 +1859,9 @@ public static unsafe class M01LoadedImageStackIntegration
                 reservationCount,
                 reservationCapacity))
         {
-            return M01LoadedImageStackIntegrationResult.Fail(
+            return M01LoadedImageStackStaticPreparationResult.Fail(
                 M01LoadedImageStackStatus.MapLedgerEvidenceRejected,
-                checkpoint,
-                evidence);
+                checkpoint);
         }
 
         if (!stageOneAddressMapping.IsValidFor(
@@ -1655,11 +1869,10 @@ public static unsafe class M01LoadedImageStackIntegration
                 evidence.DataAllocationValue,
                 mapLedgerEvidence.RefreshedMap))
         {
-            return M01LoadedImageStackIntegrationResult.Fail(
+            return M01LoadedImageStackStaticPreparationResult.Fail(
                 M01LoadedImageStackStatus
                     .StageOneAddressMappingRejected,
-                checkpoint,
-                evidence);
+                checkpoint);
         }
 
         OS.Kernel.Memory.BootReservationTableValidationResult
@@ -1671,10 +1884,9 @@ public static unsafe class M01LoadedImageStackIntegration
         evidence.ReservationValidationValue = reservationValidation;
         if (!reservationValidation.Succeeded)
         {
-            return M01LoadedImageStackIntegrationResult.Fail(
+            return M01LoadedImageStackStaticPreparationResult.Fail(
                 M01LoadedImageStackStatus.ReservationLedgerRejected,
-                checkpoint,
-                evidence);
+                checkpoint);
         }
 
         if (!TryBindReservationIdentities(
@@ -1689,10 +1901,9 @@ public static unsafe class M01LoadedImageStackIntegration
                 out OS.Kernel.Memory.BootReservedRange
                     stackReservation))
         {
-            return M01LoadedImageStackIntegrationResult.Fail(
+            return M01LoadedImageStackStaticPreparationResult.Fail(
                 M01LoadedImageStackStatus.ReservationIdentityRejected,
-                checkpoint,
-                evidence);
+                checkpoint);
         }
 
         if (!ValidateOwnedMapBufferReservation(
@@ -1703,10 +1914,9 @@ public static unsafe class M01LoadedImageStackIntegration
                 reservationLedger,
                 reservationCount))
         {
-            return M01LoadedImageStackIntegrationResult.Fail(
+            return M01LoadedImageStackStaticPreparationResult.Fail(
                 M01LoadedImageStackStatus.ReservationIdentityRejected,
-                checkpoint,
-                evidence);
+                checkpoint);
         }
 
         evidence.StubReservationValue = stubReservation;
@@ -1738,10 +1948,9 @@ public static unsafe class M01LoadedImageStackIntegration
         evidence.StackLayoutResultValue = layoutResult;
         if (!layoutResult.Succeeded)
         {
-            return M01LoadedImageStackIntegrationResult.Fail(
+            return M01LoadedImageStackStaticPreparationResult.Fail(
                 M01LoadedImageStackStatus.StackLayoutRejected,
-                checkpoint,
-                evidence);
+                checkpoint);
         }
 
         OwnedBootStackLayoutResult readyLayout =
@@ -1750,10 +1959,9 @@ public static unsafe class M01LoadedImageStackIntegration
         evidence.StackLayoutResultValue = readyLayout;
         if (!readyLayout.Succeeded)
         {
-            return M01LoadedImageStackIntegrationResult.Fail(
+            return M01LoadedImageStackStaticPreparationResult.Fail(
                 M01LoadedImageStackStatus.StackLifetimeRejected,
-                checkpoint,
-                evidence);
+                checkpoint);
         }
 
         checkpoint = M01LoadedImageStackCheckpoint.StackLayoutReady;
@@ -1770,12 +1978,14 @@ public static unsafe class M01LoadedImageStackIntegration
                 staticState,
                 staticStateCapacity,
                 reservationLedger,
-                reservationCount))
+                reservationCount,
+                evidenceScratch,
+                evidenceScratchCapacity,
+                requireEvidenceScratchInLoadedImage))
         {
-            return M01LoadedImageStackIntegrationResult.Fail(
+            return M01LoadedImageStackStaticPreparationResult.Fail(
                 M01LoadedImageStackStatus.StaticStateRejected,
-                checkpoint,
-                evidence);
+                checkpoint);
         }
 
         evidence.StaticStateAddressValue = (ulong)staticState;
@@ -1810,10 +2020,9 @@ public static unsafe class M01LoadedImageStackIntegration
         evidence.SwitchPlanResultValue = switchPlanResult;
         if (!switchPlanResult.Succeeded)
         {
-            return M01LoadedImageStackIntegrationResult.Fail(
+            return M01LoadedImageStackStaticPreparationResult.Fail(
                 M01LoadedImageStackStatus.SwitchPlanRejected,
-                checkpoint,
-                evidence);
+                checkpoint);
         }
 
         checkpoint = M01LoadedImageStackCheckpoint.SwitchPlanReady;
@@ -1829,10 +2038,9 @@ public static unsafe class M01LoadedImageStackIntegration
             evidence.StubEmissionValue = emission;
             if (!emission.Succeeded)
             {
-                return M01LoadedImageStackIntegrationResult.Fail(
+                return M01LoadedImageStackStaticPreparationResult.Fail(
                     M01LoadedImageStackStatus.StubEmissionRejected,
-                    checkpoint,
-                    evidence);
+                    checkpoint);
             }
         }
 
@@ -1845,19 +2053,17 @@ public static unsafe class M01LoadedImageStackIntegration
         evidence.StubVerificationValue = verification;
         if (!verification.Succeeded)
         {
-            return M01LoadedImageStackIntegrationResult.Fail(
+            return M01LoadedImageStackStaticPreparationResult.Fail(
                 M01LoadedImageStackStatus.StubVerificationRejected,
-                checkpoint,
-                evidence);
+                checkpoint);
         }
 
         if (stubByteMode
             == M01StageOneStubByteMode.VerifyExisting)
         {
-            return M01LoadedImageStackIntegrationResult.Fail(
+            return M01LoadedImageStackStaticPreparationResult.Fail(
                 M01LoadedImageStackStatus.StubByteModeRejected,
-                checkpoint,
-                evidence);
+                checkpoint);
         }
 
         checkpoint = M01LoadedImageStackCheckpoint.StubVerified;
@@ -1886,11 +2092,10 @@ public static unsafe class M01LoadedImageStackIntegration
             staticState->CoordinatorStatus =
                 M01LoadedImageStackStatus
                     .HandoffMaterializationRejected;
-            return M01LoadedImageStackIntegrationResult.Fail(
+            return M01LoadedImageStackStaticPreparationResult.Fail(
                 M01LoadedImageStackStatus
                     .HandoffMaterializationRejected,
-                checkpoint,
-                evidence);
+                checkpoint);
         }
 
         OwnedBootStackSwitchStateResult initialized =
@@ -1902,10 +2107,9 @@ public static unsafe class M01LoadedImageStackIntegration
         {
             staticState->CoordinatorStatus =
                 M01LoadedImageStackStatus.StateInitializationRejected;
-            return M01LoadedImageStackIntegrationResult.Fail(
+            return M01LoadedImageStackStaticPreparationResult.Fail(
                 M01LoadedImageStackStatus.StateInitializationRejected,
-                checkpoint,
-                evidence);
+                checkpoint);
         }
 
         OwnedBootStackSwitchStateResult armed =
@@ -1918,17 +2122,15 @@ public static unsafe class M01LoadedImageStackIntegration
         {
             staticState->CoordinatorStatus =
                 M01LoadedImageStackStatus.ArmRejected;
-            return M01LoadedImageStackIntegrationResult.Fail(
+            return M01LoadedImageStackStaticPreparationResult.Fail(
                 M01LoadedImageStackStatus.ArmRejected,
-                checkpoint,
-                evidence);
+                checkpoint);
         }
 
         checkpoint = M01LoadedImageStackCheckpoint.SwitchArmed;
         staticState->CoordinatorCheckpoint = checkpoint;
-        return M01LoadedImageStackIntegrationResult.Success(
-            checkpoint,
-            evidence);
+        return M01LoadedImageStackStaticPreparationResult.Success(
+            checkpoint);
     }
 
     public static M01LoadedImageStackStaticTransitionResult
@@ -2754,6 +2956,266 @@ public static unsafe class M01LoadedImageStackIntegration
         return ownedMapReservationCount == 1 && covered;
     }
 
+    private static bool ValidateEvidenceScratch(
+        M01LoadedImageVirtualMappingEvidence loadedImageMapping,
+        M01LoadedImageStackEvidence* evidenceScratch,
+        ulong evidenceScratchCapacity,
+        bool requireEvidenceScratchInLoadedImage)
+    {
+        ulong requiredBytes =
+            (ulong)sizeof(M01LoadedImageStackEvidence);
+        ulong scratchAddress = (ulong)evidenceScratch;
+        if (evidenceScratch == null
+            || evidenceScratchCapacity != requiredBytes
+            || (scratchAddress
+                & (RequiredEvidenceScratchAlignment - 1)) != 0
+            || scratchAddress
+                > MaximumUnsignedLong - requiredBytes)
+        {
+            return false;
+        }
+
+        if (requireEvidenceScratchInLoadedImage
+            && (loadedImageMapping.VirtualImageBase
+                        .TryGetRawValueForUefiBoundary(
+                            out ulong imageBase)
+                    != AddressValueStatus.Success
+                || loadedImageMapping.VirtualImageEndExclusive
+                        .TryGetRawValueForUefiBoundary(
+                            out ulong imageEnd)
+                    != AddressValueStatus.Success
+                || scratchAddress < imageBase
+                || scratchAddress + requiredBytes > imageEnd))
+        {
+            return false;
+        }
+
+        return IsZeroed(
+            (byte*)evidenceScratch,
+            requiredBytes);
+    }
+
+    private static bool ValidateFirmwareEvidenceScratchPreflight(
+        EfiLoadedImageRangeCapturePlan loadedImage,
+        M01LoadedImageVirtualMappingEvidence loadedImageMapping,
+        BootMemoryRegionRecord* allocations,
+        ulong allocationCount,
+        ulong allocationCapacity,
+        M01StageOneMapLedgerEvidence mapLedgerEvidence,
+        OS.Kernel.Memory.BootReservedRange* ledger,
+        ulong ledgerCount,
+        ulong ledgerCapacity,
+        byte* codePage,
+        ulong codePageCapacity,
+        VirtualAddress continuationAddress,
+        M01LoadedImageStackStaticState* staticState,
+        ulong staticStateCapacity,
+        M01LoadedImageStackEvidence* evidenceScratch,
+        ulong evidenceScratchCapacity,
+        out M01LoadedImageStackStatus failureStatus)
+    {
+        failureStatus =
+            M01LoadedImageStackStatus.EvidenceScratchRejected;
+
+        if (!loadedImage.Succeeded)
+        {
+            failureStatus =
+                M01LoadedImageStackStatus.LoadedImageRejected;
+            return false;
+        }
+
+        if (!loadedImageMapping.IsValidFor(loadedImage))
+        {
+            failureStatus = M01LoadedImageStackStatus
+                .LoadedImageVirtualMappingRejected;
+            return false;
+        }
+
+        if (!ValidateEvidenceScratch(
+                loadedImageMapping,
+                evidenceScratch,
+                evidenceScratchCapacity,
+                true))
+        {
+            return false;
+        }
+
+        ulong scratchStart = (ulong)evidenceScratch;
+        ulong scratchLength =
+            (ulong)sizeof(M01LoadedImageStackEvidence);
+        ulong scratchEnd = scratchStart + scratchLength;
+
+        OwnedBootStackSwitchStatus allocationStatus =
+            ValidateAllocationTableMetadata(
+                allocations,
+                allocationCount,
+                allocationCapacity,
+                out AddressValueStatus _,
+                out ulong _);
+        if (allocationStatus != OwnedBootStackSwitchStatus.Success)
+        {
+            failureStatus =
+                M01LoadedImageStackStatus.AllocationTableRejected;
+            return false;
+        }
+
+        ulong allocationTableStart = (ulong)allocations;
+        ulong allocationRecordSize =
+            (ulong)sizeof(BootMemoryRegionRecord);
+        if (allocationCapacity
+                > MaximumUnsignedLong / allocationRecordSize
+            || allocationTableStart
+                > MaximumUnsignedLong
+                    - allocationCapacity * allocationRecordSize)
+        {
+            failureStatus =
+                M01LoadedImageStackStatus.AllocationTableRejected;
+            return false;
+        }
+
+        ulong allocationTableEnd =
+            allocationTableStart
+            + allocationCapacity * allocationRecordSize;
+        if (RangesOverlap(
+                scratchStart,
+                scratchEnd,
+                allocationTableStart,
+                allocationTableEnd))
+        {
+            return false;
+        }
+
+        allocationStatus = ValidateAllocationRecords(
+            allocations,
+            out AddressValueStatus _,
+            out ulong _);
+        if (allocationStatus != OwnedBootStackSwitchStatus.Success)
+        {
+            failureStatus =
+                M01LoadedImageStackStatus.AllocationTableRejected;
+            return false;
+        }
+
+        BootMemoryRegionRecord code =
+            allocations[CodeAllocationRecordIndex];
+        BootMemoryRegionRecord data =
+            allocations[DataAllocationRecordIndex];
+        ulong codeEnd = code.VirtualStart + code.ByteLength;
+        ulong dataEnd = data.VirtualStart + data.ByteLength;
+        if (RangesOverlap(
+                scratchStart,
+                scratchEnd,
+                code.VirtualStart,
+                codeEnd)
+            || RangesOverlap(
+                scratchStart,
+                scratchEnd,
+                data.VirtualStart,
+                dataEnd))
+        {
+            return false;
+        }
+
+        if (!ValidateLedgerMetadata(
+                ledger,
+                ledgerCount,
+                ledgerCapacity))
+        {
+            failureStatus =
+                M01LoadedImageStackStatus.MapLedgerEvidenceRejected;
+            return false;
+        }
+
+        ulong ledgerRecordSize =
+            (ulong)sizeof(OS.Kernel.Memory.BootReservedRange);
+        ulong ledgerStart = (ulong)ledger;
+        if (ledgerCapacity
+                > OS.Kernel.Memory.BootReservationTableValidator
+                    .MaximumReservationCount
+            || ledgerCapacity
+                > MaximumUnsignedLong / ledgerRecordSize
+            || ledgerStart
+                > MaximumUnsignedLong
+                    - ledgerCapacity * ledgerRecordSize)
+        {
+            failureStatus =
+                M01LoadedImageStackStatus.MapLedgerEvidenceRejected;
+            return false;
+        }
+
+        ulong ledgerEnd =
+            ledgerStart + ledgerCapacity * ledgerRecordSize;
+        if (RangesOverlap(
+                scratchStart,
+                scratchEnd,
+                ledgerStart,
+                ledgerEnd))
+        {
+            return false;
+        }
+
+        if (!ValidateScratchAgainstOptionalRange(
+                scratchStart,
+                scratchEnd,
+                (ulong)codePage,
+                codePageCapacity)
+            || !ValidateScratchAgainstOptionalRange(
+                scratchStart,
+                scratchEnd,
+                (ulong)staticState,
+                staticStateCapacity))
+        {
+            return false;
+        }
+
+        FirmwareMemoryMapRecord ownedMap =
+            mapLedgerEvidence.RefreshedMap;
+        if (!ValidateScratchAgainstOptionalRange(
+                scratchStart,
+                scratchEnd,
+                ownedMap.BufferAddress,
+                ownedMap.BufferSize)
+            || !ValidateScratchAgainstOptionalRange(
+                scratchStart,
+                scratchEnd,
+                ownedMap.SourceBufferAddress,
+                ownedMap.SourceBufferSize))
+        {
+            return false;
+        }
+
+        if (continuationAddress.TryGetRawValueForUefiBoundary(
+                out ulong continuation)
+                == AddressValueStatus.Success
+            && continuation >= scratchStart
+            && continuation < scratchEnd)
+        {
+            return false;
+        }
+
+        failureStatus = M01LoadedImageStackStatus.Success;
+        return true;
+    }
+
+    private static bool ValidateScratchAgainstOptionalRange(
+        ulong scratchStart,
+        ulong scratchEnd,
+        ulong rangeStart,
+        ulong rangeLength)
+    {
+        if (rangeLength == 0)
+        {
+            return true;
+        }
+
+        return rangeStart <= MaximumUnsignedLong - rangeLength
+            && !RangesOverlap(
+                scratchStart,
+                scratchEnd,
+                rangeStart,
+                rangeStart + rangeLength);
+    }
+
     private static bool ValidateStaticAndCodeStorage(
         M01LoadedImageVirtualMappingEvidence loadedImageMapping,
         M01StageOneAddressMappingEvidence addressMapping,
@@ -2766,7 +3228,10 @@ public static unsafe class M01LoadedImageStackIntegration
         M01LoadedImageStackStaticState* staticState,
         ulong staticStateCapacity,
         OS.Kernel.Memory.BootReservedRange* ledger,
-        ulong ledgerCount)
+        ulong ledgerCount,
+        M01LoadedImageStackEvidence* evidenceScratch,
+        ulong evidenceScratchCapacity,
+        bool requireEvidenceScratchInLoadedImage)
     {
         BootMemoryRegionRecord code =
             allocations[CodeAllocationRecordIndex];
@@ -2787,6 +3252,10 @@ public static unsafe class M01LoadedImageStackIntegration
         ulong ledgerLength =
             ledgerCount
             * (ulong)sizeof(OS.Kernel.Memory.BootReservedRange);
+        ulong evidenceScratchAddress =
+            (ulong)evidenceScratch;
+        ulong evidenceScratchLength =
+            (ulong)sizeof(M01LoadedImageStackEvidence);
 
         if (!addressMapping.IsValidFor(code, data, ownedMap)
             || addressMapping.OwnedMapVirtualStart
@@ -2822,6 +3291,13 @@ public static unsafe class M01LoadedImageStackIntegration
                     .RequiredStorageAlignment - 1)) != 0
             || staticStateCapacity < stateLength
             || stateAddress > MaximumUnsignedLong - stateLength
+            || evidenceScratch == null
+            || evidenceScratchCapacity
+                != evidenceScratchLength
+            || (evidenceScratchAddress
+                & (RequiredEvidenceScratchAlignment - 1)) != 0
+            || evidenceScratchAddress
+                > MaximumUnsignedLong - evidenceScratchLength
             || continuation == MaximumUnsignedLong)
         {
             return false;
@@ -2835,6 +3311,8 @@ public static unsafe class M01LoadedImageStackIntegration
         ulong allocationTableEnd =
             allocationTableAddress + allocationTableLength;
         ulong ledgerEnd = ledgerAddress + ledgerLength;
+        ulong evidenceScratchEnd =
+            evidenceScratchAddress + evidenceScratchLength;
 
         if (RangesOverlap(codeAddress, codeEnd, dataAddress, dataEnd)
             || RangesOverlap(
@@ -2917,6 +3395,36 @@ public static unsafe class M01LoadedImageStackIntegration
                 stateEnd,
                 ledgerAddress,
                 ledgerEnd)
+            || RangesOverlap(
+                evidenceScratchAddress,
+                evidenceScratchEnd,
+                codeAddress,
+                codeEnd)
+            || RangesOverlap(
+                evidenceScratchAddress,
+                evidenceScratchEnd,
+                dataAddress,
+                dataEnd)
+            || RangesOverlap(
+                evidenceScratchAddress,
+                evidenceScratchEnd,
+                mapStart,
+                mapEnd)
+            || RangesOverlap(
+                evidenceScratchAddress,
+                evidenceScratchEnd,
+                stateAddress,
+                stateEnd)
+            || RangesOverlap(
+                evidenceScratchAddress,
+                evidenceScratchEnd,
+                allocationTableAddress,
+                allocationTableEnd)
+            || RangesOverlap(
+                evidenceScratchAddress,
+                evidenceScratchEnd,
+                ledgerAddress,
+                ledgerEnd)
             || (continuation >= codeAddress
                 && continuation < codeEnd)
             || (continuation >= dataAddress
@@ -2929,6 +3437,11 @@ public static unsafe class M01LoadedImageStackIntegration
                 && continuation < allocationTableEnd)
             || (continuation >= ledgerAddress
                 && continuation < ledgerEnd)
+            || (continuation >= evidenceScratchAddress
+                && continuation < evidenceScratchEnd)
+            || (requireEvidenceScratchInLoadedImage
+                && (evidenceScratchAddress < imageBase
+                    || evidenceScratchEnd > imageEnd))
             || !IsZeroed((byte*)staticState, stateLength))
         {
             return false;

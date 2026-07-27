@@ -2,7 +2,7 @@
 
 ## Current Status
 
-Boot has a firmware-visible QEMU/OVMF smoke proof. `src/OS` publishes a no-stdlib NativeAOT EFI application, `tools/OS.ImageBuilder` wraps it in a raw GPT/FAT32 EFI System Partition image, and `scripts/run-qemu-smoke.ps1` boots that image in QEMU/OVMF and captures serial markers.
+Boot has a firmware-visible QEMU/OVMF smoke proof. `src/OS` publishes a no-stdlib NativeAOT EFI application, `tools/OS.ImageBuilder` wraps it in a raw GPT/FAT32 EFI System Partition image, and `scripts/run-qemu-smoke.ps1` boots that image in QEMU/OVMF and captures serial markers. A separate `M01_LOADED_IMAGE_STACK_PROBE` build now compiles the M01-021 loaded-image/owned-stack adapter into `EfiEntry`; that opt-in artifact has build and PE evidence only and is not part of the current QEMU/OVMF proof.
 
 This is still an EFI application smoke, not a functional kernel. The current evidence proves that firmware reaches `EfiMain`, that `EfiMain` can capture the UEFI memory map on the tested QEMU host, copy the raw descriptor bytes into an OS-owned static buffer, validate the live owned handoff record, normalize and accept a live owned-map summary, materialize compact boot memory-region records into OS-owned static storage, carry a discovered ACPI RSDP pointer into the typed handoff record, optionally validate live ACPI RSDP/root SDT/MCFG bytes before `ExitBootServices` in an explicit probe build, and emit the ordered boot phase marker plan.
 
@@ -15,6 +15,11 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 - `BootSequencePlan` also carries a separate exact 11-line M01 stage-one
   success plan. It does not change the existing five non-smoke lines, eight
   default lines, or any default boot byte.
+- Behind `M01_LOADED_IMAGE_STACK_PROBE`, `EfiEntry` now binds the running EFI
+  image handle, two checked page allocations, a post-allocation static
+  memory-map recapture, a four-record ownership ledger, the audited stage-one
+  coordinator, and a direct unmanaged continuation. The ordinary all-false
+  build retains the previous marker order and does not enter this adapter.
 - `BootSequencePlan` carries a second independent exact nine-line M01
   stage-two success plan. `BootSequence.RunM01LiveAllocatorIntegration`
   presents it only for a completed host result; it is not part of the default
@@ -184,7 +189,20 @@ This is still an EFI application smoke, not a functional kernel. The current evi
   page against firmware or another allocator, zeroes/maps/accesses the typed
   result, allocates or frees a physical guest page, supports arbitrary-order
   frees, prevents receipt ABA, configures paging, or enforces NX/W^X.
-- Live use of the typed address domains, loaded-image capture plan, or canonical reservation ledger. The exact typed-address, reservation-record, pointer-validator, loaded-image range, and capture-plan sources have retained isolated `NOSTDLIB_EFI` compiler tests, but they are not source-linked into `src/OS/OS.csproj`, invoked by `EfiMain`, or applied retroactively to existing raw-`ulong` memory, MMIO, PCI, and DMA interfaces. Named boundary methods make raw-value intent auditable; they are not a capability boundary. The loaded-image planner validates one caller-owned compact transcript; it does not call `HandleProtocol`/`OpenProtocol`, dereference the observed protocol address, or prove that the transcript came from the running image. The host validator proves range shape, rounding, canonical reservation construction, ordering, overlap, capacity, totals, and modeled guard/stack-union policy only for supplied values. It does not populate the ledger, prove that omitted metadata is actually contained in the loaded image, prove EFI `LoaderCode`/`LoaderData` allocation provenance or a refreshed map generation, reserve/subtract/reclaim live memory, establish allocator ownership, switch stacks, map pages, load CR3, or enforce cache, NX, or W^X policy.
+- Default-build live use of the typed address domains, loaded-image capture
+  plan, and canonical reservation ledger remains disabled. The exact
+  typed-address, reservation-record, pointer-validator, loaded-image range,
+  and capture-plan sources are now source-linked into `src/OS/OS.csproj`.
+  M01-021 additionally wires them into `EfiEntry` only under
+  `M01_LOADED_IMAGE_STACK_PROBE`, where the adapter calls `HandleProtocol`,
+  requests one `EfiLoaderCode` page and one 34-page `EfiLoaderData` arena,
+  recaptures the map, and constructs a four-record ledger. The current
+  evidence for that path is source/build/PE evidence, not guest execution.
+  It does not prove that firmware returned the modeled allocations or map,
+  that the stub ran, that `RSP` changed, that the reserved guard faults, that
+  ownership survives `ExitBootServices`, or that cache, NX, or W^X policy is
+  enforced. The typed wrappers are still not applied retroactively to every
+  raw-`ulong` memory, MMIO, PCI, and DMA interface.
 - Live page-table allocation, population, mutation, ownership, or processor enforcement. The M01-011 codec validates and encodes only caller-supplied values. Its precondition POD does not read or prove IA32_EFER.NXE, CR0.WP, CR4.LA57, CPUID physical width or 1 GiB-page capability, or IA32_PAT; its permissive nonleaf pointers do not by themselves prove effective descendant permissions; and its Accessed/Dirty decoder and protection-only re-encoder do not read or write a live table. No code in this slice installs a table hierarchy, maps the table arena RW+NX, proves page zero absent, performs a live RW-to-RX transition, loads CR3, executes `invlpg`, handles a page fault, or establishes the NX/W^X completion gate.
 - Live boot identity mappings or table construction. M01-012 consumes caller-attested range, role, protection, cache, PAT, and processor-precondition values and emits caller-owned planning records only. It does not discover the executing-image sections, allocate table pages, assign table-page addresses, write a PML4/PDPT/PD/PT entry, map its own table arena, protect the stack guard in hardware, establish framebuffer MMIO cache correctness, read CR0/CR4/EFER/CPUID/IA32_PAT, load CR3, invalidate a TLB, or execute under EFI or QEMU/OVMF.
 - Real `ExitBootServices`.
@@ -743,6 +761,138 @@ protections, enforce W^X/NX, wire `EfiEntry`, build or execute an M01 guest
 probe, run QEMU/OVMF, or change a completion-gate state. M01-020 owns explicit
 EFI core linkage, M01-021 owns live allocation and entry wiring, and M01-022
 owns real-QEMU evidence.
+
+### Opt-in loaded-image and owned-stack EFI adapter (M01-021, build evidence)
+
+M01-021 wires the M01-017 stage-one contract into the no-stdlib EFI entry
+boundary only when `M01_LOADED_IMAGE_STACK_PROBE` is defined. The adapter runs
+after the ordinary path has captured and validated its owned memory-map
+handoff. The all-false build retains the prior `EfiEntry` flow and byte order;
+it calls a compile-time-disabled adapter that returns without emitting any
+stage-one marker.
+
+The opt-in adapter uses the incoming EFI image handle with the loaded-image
+protocol, retains the resulting image range as loader-owned, and makes exactly
+two `AllocateAnyPages` calls:
+
+- one 4 KiB `EfiLoaderCode` page for first-party executable byte plans; and
+- one 34-page (139,264-byte) `EfiLoaderData` arena comprising exactly one
+  4 KiB reserved guard page followed by 33 usable stack pages (135,168 bytes).
+
+The adapter checks EFI status, nonzero and page-aligned ranges, checked byte
+lengths and ends, allocation types, map membership, image/allocation
+non-overlap, and exact guard/stack accounting. After both allocations it calls
+`GetMemoryMap` into distinct static source storage, validates and copies the
+result into the existing static owned-map destination, requires the opaque map
+key to change, and advances the CLROS-owned generation from one to two. It then
+constructs, sorts, and validates exactly four canonical records:
+`LoadedImage`, `BootStackSwitchStub`, `BootStackGuard`, and `BootStack`.
+Static map, coordinator, handoff, allocation-table, and ledger storage already
+contained by the loaded image are not duplicated in the reservation ledger.
+Every pre-transfer failure attempts reverse-order cleanup of the data arena
+and then the code page; the installed stack-probe target must be cleared before
+the code page can be freed. Allocation ownership follows `EFI_SUCCESS`, not
+address truthiness, so an EFI-success/address-zero result is still passed back
+to `FreePages(0, pageCount)` after CLROS rejects it as an invalid address.
+`HandleProtocol` and `GetMemoryMap` failures preserve the exact returned
+`EFI_STATUS` separately from the stable adapter classification.
+
+The code page contains two disjoint, read-back-verified first-party plans. The
+existing 14-byte M01-005 stack-switch plan starts at offset 16. A 27-byte x64
+page-probe plan starts at offset 64, begins with an indirect-branch landing
+prefix, walks downward one 4 KiB page at a time, touches each page, compares
+against the special-ABI target in `R11`, and returns without modifying `R11`.
+Before either slice is written, the complete 4 KiB page is initialized to
+`0xCC` and read back.
+`System.Runtime.X64StackProbeRuntime` exports `RhpStackProbe`, fails closed
+until that page plan is installed, and clears the target before a
+pre-transfer code-page free.
+
+The firmware stack never constructs or returns the 3,264-byte diagnostic
+aggregate. `PrepareFromStaticScratch` first validates one exactly sized,
+8-byte-aligned, initially zero caller-owned scratch region inside the loaded
+image. Before its first write it proves the scratch is disjoint from the full
+allocation-table and reservation-ledger capacities, code and data
+allocations, source and owned map buffers, static switch state, and
+continuation address with checked range arithmetic. The shared preparation
+core writes the large POD evidence there and returns only the 8-byte
+status/checkpoint result. The existing rich host API wraps that same core so
+host and firmware behavior do not fork.
+
+The `RhpStackProbe` design was independently encoded in C# after reviewing the
+official MIT-licensed
+[.NET runtime v10.0.8 `MiscStubs.asm`](https://github.com/dotnet/runtime/blob/v10.0.8/src/coreclr/nativeaot/Runtime/amd64/MiscStubs.asm).
+That source defines the
+special NativeAOT x64 contract in which the generated large-frame prologue
+places its proposed stack pointer in `R11`, calls `RhpStackProbe`, and then
+commits `RSP`. C# source shape alone cannot prove that special ABI. The emitted
+bridge disassembly is therefore binding for each accepted binary. The current
+artifact was manually checked to show a frameless bridge that loads and tests
+the installed target through `RAX`, follows the compiler's aligned direct
+branch, tail-jumps through `RAX`, and loops on a null target without writing
+`RSP`, `R11`, or argument registers on the valid direct path. This observation
+is binary-specific and must be repeated after any compiler, runtime-pack,
+source, or code-generation change.
+
+The continuation is a static method marked with the compiler-recognized
+`UnmanagedCallersOnly` contract and is bound directly as
+`delegate* unmanaged`. The switch transfers only static POD state and does not
+return on the accepted path. `TEST_START m01.stage1` is emitted when the
+adapter begins. Every remaining success/checkpoint line in the canonical
+11-line plan is withheld until the continuation has called
+`ObserveContinuationRspFromStaticState` and verified that the observed `RSP`
+is inside the exact usable stack range. The continuation then emits lines 1
+through 10 retrospectively in canonical order and proceeds to the unchanged
+default boot-sequence marker plan.
+
+Failures use two numeric, allocation-free lines and never emit a success
+terminal:
+
+```text
+TEST_FAIL m01.stage1 status=<number> adapter=<number> checkpoint=<number> free_data=<number> free_code=<number>
+M01_STAGE1_FAIL status=<number> adapter=<number> checkpoint=<number> free_data=<number> free_code=<number>
+```
+
+The status fields preserve coordinator or firmware status, the append-only
+adapter status, the last coordinator checkpoint, and reverse-order cleanup
+outcomes. A continuation-side failure reports and spins because its data arena
+contains the active stack and cannot be reclaimed safely.
+
+The accepted 2026-07-27 opt-in build produced a 131,584-byte PE32+ AMD64 EFI
+application with executable `.managed` entrypoint RVA `0x00010BD0`, absent
+ordinary, bound, IAT, and delay-import directories, and same-build `EfiMain`
+association.
+The EFI SHA-256 is
+`42DC4647AC3EC1B0CAF2A86863834C186E8A0E324DBEE37B879FC401F1E7930F`;
+the NativeAOT object, same-build linker-map, and response hashes are
+`D3E31151A51ABE783F2638674C8A7A897BDE8A4064A04FA9D9E29446896F8F22`,
+`81BABEFFD51033B42014AD5356C11F00A81C503BE1BA50EB668EDD0903AE8323`,
+and
+`0108286539031918F3576A3C9759803740D9E2DCB1A26E3E244E882C56E82F1F`.
+`scripts/test-efi-artifact.ps1` emitted `TEST_PASS efi.artifact.verify`.
+
+Generated-object disassembly is part of the accepted ABI evidence. The
+conservative deepest direct pre-transfer chain consumes `0xA268`, or 41,576
+bytes, including each generated frame and saved nonvolatile-register
+contribution used by the audit. That is 23,960 bytes below the issue's 64 KiB
+half-stack ceiling, leaving the other half of the UEFI x64 128 KiB minimum for
+`EfiMain`, marker, firmware-call, and interrupt overhead. The emitted
+`RhpStackProbe` bridge remains frameless and tail-dispatches through `RAX`
+without changing `RSP`, `R11`, or argument registers on the valid path. A
+post-clear call-graph audit found no managed path from probe unpublication to
+another `RhpStackProbe` call before failure return. These measurements are
+binary-specific and must be repeated after relevant source or toolchain
+changes.
+
+No M01-021 QEMU/OVMF run or serial log was accepted, so this implementation does not
+prove that firmware protocol calls or allocations succeed, that the generated
+helper or byte plans execute, that live `RSP` changes or remains contained,
+that the reserved guard page faults, that the code page transitions from
+writable to executable, that NX/W^X is enforced, that execution survives
+`ExitBootServices`, or that any completion gate advances. M01-022 exclusively
+owns real guest execution, serial-marker, live-`RSP`, and
+failure-classification proof. This build/source evidence does not change a
+completion-gate state.
 
 ### Firmware-arena allocator stage-two marker contract (M01-018)
 
@@ -2799,13 +2949,17 @@ Evidence from 2026-05-22:
 
 The QEMU proof only proves OVMF can load and run the EFI application, the tested firmware path can return a memory map, and firmware-visible output reaches the serial log. It is not completion-gate proof for `ExitBootServices`, owned drivers, memory management, storage, networking, app loading, hosted .NET 10, Minimal API, Kestrel, cloud readiness, or production readiness; use `docs/completion-gates.md` for the full claim boundary.
 
-The M01-017 stage-one success plan and coordinator contract are host-tested
-only. The source-linked `BootSequencePlan` bytes are not consumed by
-`EfiEntry`; `BootSequence.cs` remains excluded from the explicit EFI project.
-No live LoaderCode or LoaderData allocation, refreshed memory map, canonical
-guest reservation ledger, switch-stub execution, stack transfer, `RSP`
-observation, guard-page absence, protection transition, or QEMU marker evidence
-has been established.
+The M01-017 stage-one plan and coordinator remain host-tested contracts.
+M01-021 now consumes their source-linked bytes and static transition surface
+from `EfiEntry`, but only in an explicit `M01_LOADED_IMAGE_STACK_PROBE` build;
+`BootSequence.cs` remains excluded from the EFI project and the default path
+is unchanged. The accepted opt-in artifact proves compilation, PE shape,
+helper linkage, and binary-specific `RhpStackProbe` disassembly only. No
+QEMU/OVMF run has established live `LoaderCode`/`LoaderData` allocation,
+refreshed-map provenance, a guest reservation ledger, switch-stub execution,
+stack transfer, contained `RSP`, guard-page inaccessibility, a protection
+transition, NX/W^X, post-`ExitBootServices` ownership, or stage-one serial
+markers. M01-022 owns that guest evidence.
 
 The M01-011 page-table entry contract is host-tested only. Its synthetic
 no-stdlib compiler fixture proves source compatibility while the evaluated EFI

@@ -4638,7 +4638,19 @@
       "priority": "priority:p1",
       "ownedPaths": [
         "src/OS/Boot/EfiEntry.cs",
-        "tests/OS.HostTests/M01LoadedImageStackEfiEntryTests.cs"
+        "src/OS/Runtime/MinimalRuntime.cs",
+        "src/OS.Kernel/Boot/M01LoadedImageStackIntegration.cs",
+        "src/OS.Kernel/Runtime/NativeAotHelperLedger.cs",
+        "tests/OS.HostTests/M01LoadedImageStackEfiEntryTests.cs",
+        "tests/OS.HostTests/M01LoadedImageStackIntegrationTests.cs",
+        "tests/OS.HostTests/BootSequencePlanTests.cs",
+        "tests/OS.HostTests/NativeAotHelperLedgerTests.cs",
+        "tests/OS.HostTests/GiteaBacklogManifestTests.cs",
+        ".gitea/backlog/clros-issues.json",
+        "docs/boot.md",
+        "docs/efi-build.md",
+        "docs/nativeaot-nostdlib-limits.md",
+        "done/step869.md"
       ],
       "forbiddenPaths": [
         "src/OS/OS.csproj",
@@ -4650,11 +4662,11 @@
         "docs/completion-gates.md",
         "README.md",
         "references/** (read-only)",
-        "done/** (reserve a new step only after implementation evidence exists)"
+        "done/** except done/step869.md"
       ],
       "collisionLane": "lane:efi-entry",
       "summary": "Add the minimal no-stdlib EfiEntry adapter that captures the loader-owned image, allocates a dedicated EfiLoaderCode stub page plus a separate EfiLoaderData guard/stack arena, recaptures the map/ledger, materializes the audited C# byte plan, and invokes stage one only when explicitly enabled.",
-      "currentEvidence": "No current live guest evidence proves loaded-image capture, separate stack-switch code/data allocations, map recapture, byte-plan materialization, guard reservation, or stack switching. M01-020 must first close with reviewed canonical compile-closure evidence before this issue may be claimed.",
+      "currentEvidence": "Accepted first-party source/build evidence is preserved in done/step869.md: the opt-in no-stdlib adapter captures the loaded-image range, validates separate EFI code and data allocations, recaptures the memory map, builds the exact reservation ledger, installs audited switch/probe byte plans, and routes both rich and static preparation through one low-stack core. The complete host harness exited 0 with TEST_PASS host.tests and no TEST_FAIL; its 406,123-byte log hashes to B69347A99E027CD4C736B85179322761CD9E3228FAB196C8A73E7CC0CBB2B193. The accepted OS.obj hashes to D3E31151A51ABE783F2638674C8A7A897BDE8A4064A04FA9D9E29446896F8F22; its manual generated-frame audit measured 41,576 bytes with 23,960 bytes of 64-KiB margin, and its RhpStackProbe bridge preserves the required special ABI. Real QEMU/OVMF execution, live RSP containment, guard-page faulting, and W^X/NX remain unproven and are exclusively deferred to M01-022.",
       "implementationNotes": [
         "Keep EfiEntry as a thin no-stdlib adapter; do not duplicate leaf or coordinator logic.",
         "Use two checked EFI AllocatePages calls: exactly one page of EfiLoaderCode for the stack-switch stub and a separate bounded page-aligned EfiLoaderData arena whose guard and usable-stack subranges are disjoint and exactly cover it. Retain the loaded-image range as loader-owned.",
@@ -4667,6 +4679,12 @@
         "The ordinary all-false path must preserve existing marker order byte-for-byte.",
         "Build a fresh canonical EFI artifact with the stage-one switch, but do not claim guest execution from a successful build.",
         "Any adapter/protocol/precondition failure emits M01_STAGE1_FAIL and suppresses success markers.",
+        "The checked unmanaged continuation requires the compiler-recognized System.Runtime.InteropServices.UnmanagedCallersOnlyAttribute. Add only that minimal no-stdlib attribute contract to MinimalRuntime.cs, annotate the static continuation, and bind it directly as delegate* unmanaged; RuntimeExport plus a managed-pointer cast is not an acceptable substitute.",
+        "Rooting the existing value-only coordinator exposes the pinned .NET 10 x64 RhpStackProbe special ABI. Implement a fail-closed C# RuntimeExport bridge in MinimalRuntime.cs that preserves R11 and dispatches to an exact read-back-verified C# byte plan placed at a disjoint offset in the same EfiLoaderCode page before the first large coordinator call. The byte plan must independently encode the MIT-licensed dotnet/runtime v10.0.8 amd64 page-probe algorithm, include an indirect-branch landing prefix, be cleared before any pre-transfer code-page free, and never use a no-op or ordinary-argument approximation. Verify the emitted bridge disassembly preserves R11 before dispatch.",
+        "Do not call the large host-evidence-returning Prepare/PrepareWithStubByteMode path from the firmware stack. Add a shared low-stack preparation core in M01LoadedImageStackIntegration.cs that writes its large POD evidence to validated caller-owned static loaded-image scratch and returns only compact status/checkpoint state; retain the existing host API as a wrapper over that core so host behavior and negative evidence do not fork.",
+        "Treat generated frame size as part of this ABI. The enabled EFI object must show the complete nested pre-transfer chain remains below 64 KiB, leaving at least 64 KiB of the UEFI x64 128-KiB minimum for EfiMain, marker, firmware-call, and interrupt overhead. Any ILCompiler or source change that breaches the budget fails closed pending re-audit.",
+        "Reconcile the new RhpStackProbe RuntimeExport through a dedicated append-only EFI stack-probe helper-ledger area and exact symbol test. Preserve existing enum values, classify it separately from reverse P/Invoke and type-cast helpers, and document that source/readback/build audits are not guest execution or runtime-completion evidence.",
+        "Narrowly supersede only the two historical source-absence predicates in M01LoadedImageStackIntegrationTests.cs and BootSequencePlanTests.cs: retain the default-off and host-BootSequence exclusions while requiring the direct coordinator and static-transition calls only inside the single M01_LOADED_IMAGE_STACK_PROBE region.",
         "Do not edit any other collision-lane surface."
       ],
       "referenceInfluences": [
@@ -4674,13 +4692,21 @@
           "path": "references/SharpOS-main/OS/src/Boot/UefiTypes.cs",
           "use": "adapt",
           "notes": "Cross-check no-stdlib loaded-image protocol fields and status handling."
+        },
+        {
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.8/src/coreclr/nativeaot/Runtime/amd64/MiscStubs.asm",
+          "use": "adapt",
+          "notes": "Normative pinned MIT-licensed x64 RhpStackProbe ABI and page-probe algorithm; encode an independently reviewed first-party C# byte plan without adding assembly source."
         }
       ],
       "acceptanceCriteria": [
         "Source tests prove the adapter is opt-in, preserves the default path, keeps the image loader-owned, performs exactly one EfiLoaderCode stub-page allocation and one EfiLoaderData guard/stack allocation, recaptures the map, records a sorted/disjoint ledger with exact subrange accounting, materializes/validates the byte plan, uses a checked unmanaged entry plus static POD handoff, and invokes the no-stdlib stage-one core once without returning.",
         "Negative tests cover null loaded-image/boot-services protocol, either EFI allocation error, partial-allocation cleanup, map-recapture cleanup, wrong/mixed type, zero/misaligned/undersized/wrapped/overlapping allocation, arbitrary conventional input, guard outside data arena, adjacent unallocated guard, overlapping/gapped/wrapped subranges, total page/byte mismatch, duplicate contained metadata, reservation capacity, zero image range, malformed/oversized/truncated/readback-mismatched stub bytes, stub bounds/entry alignment, stack-local handoff, ABI/shadow-space failure, unexpected return, coordinator failure, and omission/reordering/duplication/suppression of any exact planned guest marker before default-off behavior.",
         "A fresh canonical EFI build succeeds with the explicit stage-one switch.",
-        "Only EfiEntry and its focused source/integration test are changed; no QEMU or live guest claim is made."
+        "The rooted NativeAOT image has no unresolved RhpStackProbe symbol: source/readback tests lock the exact page-probe bytes, the C# RuntimeExport bridge fails closed before installation, generated amd64 disassembly proves R11 is not clobbered before dispatch, the helper is installed before the first large coordinator frame and cleared before any pre-transfer code-page free, and no no-op stack-probe implementation is accepted.",
+        "The append-only NativeAOT helper ledger gives RhpStackProbe its own EFI-only, non-completing area and status; exact tests keep the export represented once and prevent it from being counted as reverse P/Invoke or type-cast behavior.",
+        "The firmware adapter invokes only the compact static-scratch preparation API. Host tests prove the legacy rich-evidence Prepare API delegates to the same core, the scratch pointer/capacity/alignment/image-ownership and alias boundaries fail closed, and a generated-object audit shows the entire nested pre-transfer frame chain stays below 64 KiB.",
+        "Only EfiEntry, the minimal UnmanagedCallersOnly/RhpStackProbe no-stdlib runtime shim, the shared stage-one coordinator low-stack core, the append-only helper-ledger entry, their focused source/integration/ledger tests, the two narrowly superseded historical source-absence predicates, this durable ownership correction, the three canonical documentation files, and the uniquely reserved done step are changed; no QEMU or live guest claim is made."
       ],
       "requiredMarkers": [
         "TEST_START m01.021",
@@ -4697,10 +4723,11 @@
       ],
       "documentationPaths": [
         "docs/boot.md",
-        "docs/efi-build.md"
+        "docs/efi-build.md",
+        "docs/nativeaot-nostdlib-limits.md"
       ],
       "evidenceBoundary": "This issue proves source wiring and a fresh canonical EFI build only. The designed ownership uses separate pre-EBS EfiLoaderCode stub and EfiLoaderData guard/stack allocations followed by map/ledger recapture; the guard is reserved/not used but not yet inaccessible, and no W^X claim is made. It does not prove the firmware calls succeeded, stub bytes executed, RSP changed, a guest continued on the stack, post-EBS ownership exists, or any QEMU marker was observed.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-022",

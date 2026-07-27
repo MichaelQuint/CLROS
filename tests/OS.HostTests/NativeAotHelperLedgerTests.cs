@@ -11,6 +11,7 @@ internal static class NativeAotHelperLedgerTests
 
         Run("runtime.nativeaot helper ledger", TestLedger, ref failures);
         Run("runtime.nativeaot helper ledger structured columns", TestStructuredColumns, ref failures);
+        Run("runtime.nativeaot helper ledger append-only values", TestAppendOnlyValues, ref failures);
         Run("runtime.nativeaot helper ledger allocator mutation boundary", TestAllocatorMutationBoundary, ref failures);
         Run("runtime.nativeaot helper ledger symbols", TestLedgerSymbols, ref failures);
 
@@ -61,7 +62,8 @@ internal static class NativeAotHelperLedgerTests
             NativeAotHelperArea.TypeManagerRtrScans,
             NativeAotHelperArea.GcStackRoots,
             NativeAotHelperArea.EfiReversePInvoke,
-            NativeAotHelperArea.EfiFailFastTypeCasts
+            NativeAotHelperArea.EfiFailFastTypeCasts,
+            NativeAotHelperArea.EfiStackProbe
         ];
 
         ExpectEqual("ledger entry count", required.Length, NativeAotHelperLedger.EntryCount);
@@ -130,7 +132,7 @@ internal static class NativeAotHelperLedgerTests
             }
         }
 
-        ExpectEqual("EFI-only helper count", 2, efiOnlyCount);
+        ExpectEqual("EFI-only helper count", 3, efiOnlyCount);
     }
 
     private static void TestEntriesCarryEvidenceAndGateApplicability()
@@ -233,6 +235,29 @@ internal static class NativeAotHelperLedgerTests
         NativeAotHelperLedgerEntry failFastCasts = GetEntry(NativeAotHelperArea.EfiFailFastTypeCasts);
         ExpectEqual("EFI fail-fast cast owner", "efi-runtime-shim", failFastCasts.OwnerSubsystem);
         ExpectContains("EFI fail-fast cast stub", failFastCasts.AllowedMilestoneStub, "EFI fail-fast");
+
+        NativeAotHelperLedgerEntry stackProbe = GetEntry(NativeAotHelperArea.EfiStackProbe);
+        ExpectEqual("EFI stack-probe owner", "efi-runtime-shim", stackProbe.OwnerSubsystem);
+        ExpectEqual("EFI stack-probe status", (int)NativeAotHelperStatus.EfiOnlyStackProbe, (int)stackProbe.Status);
+        ExpectEqual("EFI stack-probe symbol", "RhpStackProbe", stackProbe.HelperSymbols);
+        ExpectContains("EFI stack-probe evidence", stackProbe.Evidence, "27-byte");
+        ExpectContains("EFI stack-probe evidence boundary", stackProbe.Evidence, "no guest execution");
+        ExpectContains("EFI stack-probe contract", stackProbe.RequiredContract, "R11");
+        ExpectContains("EFI stack-probe contract", stackProbe.RequiredContract, "downward");
+        ExpectContains("EFI stack-probe contract", stackProbe.RequiredContract, "RSP");
+        ExpectContains("EFI stack-probe allowed plan", stackProbe.AllowedMilestoneStub, "read-back-verified");
+        ExpectContains("EFI stack-probe prohibited approximation", stackProbe.AllowedMilestoneStub, "no-op");
+        ExpectContains("EFI stack-probe coverage", stackProbe.TestCoverage, "generated-object");
+        ExpectContains("EFI stack-probe next step", stackProbe.NextStep, "M01-022");
+    }
+
+    private static void TestAppendOnlyValues()
+    {
+        ExpectEqual("EFI reverse P/Invoke area value", 12, (int)NativeAotHelperArea.EfiReversePInvoke);
+        ExpectEqual("EFI fail-fast type-cast area value", 13, (int)NativeAotHelperArea.EfiFailFastTypeCasts);
+        ExpectEqual("EFI stack-probe area value", 14, (int)NativeAotHelperArea.EfiStackProbe);
+        ExpectEqual("complete helper status value", 4, (int)NativeAotHelperStatus.Complete);
+        ExpectEqual("EFI stack-probe status value", 5, (int)NativeAotHelperStatus.EfiOnlyStackProbe);
     }
 
     private static void TestAllocatorMutationBoundary()
@@ -309,10 +334,17 @@ internal static class NativeAotHelperLedgerTests
     {
         string[] sourceSymbols = ExtractRuntimeExportSymbols();
 
-        ExpectEqual("RuntimeExport symbol count", 16, sourceSymbols.Length);
+        ExpectEqual("RuntimeExport symbol count", 17, sourceSymbols.Length);
 
         foreach (string symbol in sourceSymbols)
         {
+            int sourceCount = CountSymbols(sourceSymbols, symbol);
+            if (sourceCount != 1)
+            {
+                throw new InvalidOperationException(
+                    "RuntimeExport symbol " + symbol + " appears " + sourceCount + " times in MinimalRuntime.cs.");
+            }
+
             int ledgerCount = CountLedgerSymbol(symbol);
             if (ledgerCount != 1)
             {
@@ -320,6 +352,33 @@ internal static class NativeAotHelperLedgerTests
                     "RuntimeExport symbol " + symbol + " appears in " + ledgerCount + " ledger entries.");
             }
         }
+
+        int efiLedgerSymbolCount = 0;
+        for (int i = 0; i < NativeAotHelperLedger.EntryCount; i++)
+        {
+            NativeAotHelperLedgerEntry entry = NativeAotHelperLedger.GetEntry(i);
+            if (!entry.IsEfiOnly)
+            {
+                continue;
+            }
+
+            string[] ledgerSymbols = SplitSymbols(entry.HelperSymbols);
+            for (int symbolIndex = 0; symbolIndex < ledgerSymbols.Length; symbolIndex++)
+            {
+                string ledgerSymbol = ledgerSymbols[symbolIndex];
+                efiLedgerSymbolCount++;
+
+                int sourceCount = CountSymbols(sourceSymbols, ledgerSymbol);
+                if (sourceCount != 1)
+                {
+                    throw new InvalidOperationException(
+                        "EFI ledger symbol " + ledgerSymbol + " appears " + sourceCount +
+                        " times in MinimalRuntime.cs.");
+                }
+            }
+        }
+
+        ExpectEqual("EFI ledger symbol count", 17, efiLedgerSymbolCount);
 
         ExpectEqual(
             "reverse p/invoke symbol count",
@@ -329,6 +388,10 @@ internal static class NativeAotHelperLedgerTests
             "fail-fast type-cast symbol count",
             12,
             SplitSymbols(GetEntry(NativeAotHelperArea.EfiFailFastTypeCasts).HelperSymbols).Length);
+        ExpectEqual(
+            "stack-probe symbol count",
+            1,
+            SplitSymbols(GetEntry(NativeAotHelperArea.EfiStackProbe).HelperSymbols).Length);
     }
 
     private static bool ContainsArea(NativeAotHelperArea area)
@@ -364,6 +427,20 @@ internal static class NativeAotHelperLedgerTests
         for (int i = 0; i < NativeAotHelperLedger.EntryCount; i++)
         {
             if (ContainsSymbol(NativeAotHelperLedger.GetEntry(i).HelperSymbols, symbol))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static int CountSymbols(string[] symbols, string symbol)
+    {
+        int count = 0;
+        for (int i = 0; i < symbols.Length; i++)
+        {
+            if (string.Equals(symbols[i], symbol, StringComparison.Ordinal))
             {
                 count++;
             }

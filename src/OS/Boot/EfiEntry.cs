@@ -53,11 +53,11 @@ public static unsafe class EfiEntry
 #endif
 
     [System.Runtime.RuntimeExport("EfiMain")]
-    private static long EfiMain(System.IntPtr imageHandle, EfiSystemTable* systemTable)
+    private static long EfiMain(void* imageHandle, EfiSystemTable* systemTable)
     {
         EfiSimpleTextOutputProtocol* console = GetFirmwareConsole(systemTable);
         EfiSerialIoProtocol* serial = console == null ? GetFirmwareSerial(systemTable) : null;
-        WriteBootMarkers(console, serial, systemTable);
+        WriteBootMarkers(imageHandle, console, serial, systemTable);
 
         return 0;
     }
@@ -113,6 +113,7 @@ public static unsafe class EfiEntry
     }
 
     private static void WriteBootMarkers(
+        void* imageHandle,
         EfiSimpleTextOutputProtocol* console,
         EfiSerialIoProtocol* serial,
         EfiSystemTable* systemTable)
@@ -181,6 +182,15 @@ public static unsafe class EfiEntry
                     return;
                 }
 #endif
+
+                if (M01StageOneAdapter.Run(
+                        imageHandle,
+                        console,
+                        serial,
+                        systemTable))
+                {
+                    return;
+                }
             }
         }
         else
@@ -2550,6 +2560,1848 @@ public static unsafe class EfiEntry
         return s_memoryMapSnapshot.DescriptorCount != 0;
     }
 
+#if M01_LOADED_IMAGE_STACK_PROBE
+    private static class M01StageOneAdapter
+    {
+        private const ulong EfiSuccess = 0;
+        private const uint AllocateAnyPages = 0;
+        private const uint EfiLoaderCode = 1;
+        private const uint EfiLoaderData = 2;
+        private const ulong PageSize = 4096;
+        private const ulong CodePageCount = 1;
+        private const ulong GuardPageCount = 1;
+        private const ulong UsableStackPageCount = 33;
+        private const ulong DataArenaPageCount =
+            GuardPageCount + UsableStackPageCount;
+        private const ulong StubEntryOffset = 16;
+        private const ulong StackProbeEntryOffset = 64;
+        private const ulong StackProbeByteLength = 27;
+        private const ulong CodeAllocationOrdinal = 1;
+        private const ulong DataAllocationOrdinal = 2;
+        private const ulong MapCaptureOrdinal = 3;
+        private const ulong LedgerBuildOrdinal = 4;
+        private const ulong InitialMapGeneration = 1;
+        private const ulong RefreshedMapGeneration = 2;
+        private const ulong ReservationCount = 4;
+        private const ulong ReservationCapacity = 4;
+        private const ulong NotAttemptedStatus = 0xffffffffffffffff;
+
+        private static EfiSimpleTextOutputProtocol* s_console;
+        private static EfiSerialIoProtocol* s_serial;
+        private static M01LoadedImageStackStaticState s_staticState;
+        private static M01LoadedImageStackEvidence s_evidenceScratch;
+        private static M01StageOneMemoryMapBuffer s_memoryMapSource;
+        private static M01StageOneAllocationRecordBuffer
+            s_allocationRecords;
+        private static M01StageOneReservationLedgerBuffer
+            s_reservationLedger;
+
+        public static bool Run(
+            void* imageHandle,
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial,
+            EfiSystemTable* systemTable)
+        {
+            WriteSuccessLine(console, serial, 0);
+
+            if (imageHandle == null
+                || systemTable == null
+                || systemTable->BootServices == null
+                || systemTable->BootServices->HandleProtocol == null
+                || systemTable->BootServices->AllocatePages == null
+                || systemTable->BootServices->FreePages == null
+                || systemTable->BootServices->GetMemoryMap == null
+                || !EfiEntry.s_bootHandoff.MemoryMap.HasOwnedCopy())
+            {
+                return FailBeforeTransfer(
+                    console,
+                    serial,
+                    systemTable == null
+                        ? null
+                        : systemTable->BootServices,
+                    M01StageOneAdapterStatus.MissingFirmwareBoundary,
+                    (ulong)M01LoadedImageStackStatus.Uninitialized,
+                    (ulong)M01LoadedImageStackCheckpoint.Uninitialized,
+                    0,
+                    false,
+                    0,
+                    false);
+            }
+
+            EfiBootServices* bootServices = systemTable->BootServices;
+            M01StageOneAdapterStatus captureStatus =
+                TryCaptureLoadedImage(
+                    imageHandle,
+                    systemTable,
+                    bootServices,
+                    out EfiLoadedImageRangeCapturePlan loadedImage,
+                    out M01LoadedImageVirtualMappingEvidence
+                        loadedImageMapping,
+                    out ulong loadedImageFirmwareStatus);
+            if (captureStatus != M01StageOneAdapterStatus.Success)
+            {
+                return FailBeforeTransfer(
+                    console,
+                    serial,
+                    bootServices,
+                    captureStatus,
+                    captureStatus
+                        == M01StageOneAdapterStatus
+                            .LoadedImageProtocolFailed
+                        ? loadedImageFirmwareStatus
+                        : (ulong)M01LoadedImageStackStatus
+                            .LoadedImageRejected,
+                    (ulong)M01LoadedImageStackCheckpoint.Uninitialized,
+                    0,
+                    false,
+                    0,
+                    false);
+            }
+
+            ulong codeAddress = 0;
+            ulong codeFirmwareStatus =
+                bootServices->AllocatePages(
+                    AllocateAnyPages,
+                    EfiLoaderCode,
+                    CodePageCount,
+                    &codeAddress);
+            bool codeAllocated =
+                codeFirmwareStatus == EfiSuccess;
+            if (codeFirmwareStatus != EfiSuccess
+                || !TryValidateAllocation(
+                    codeAddress,
+                    CodePageCount,
+                    out ulong codeByteLength,
+                    out ulong codeEndExclusive))
+            {
+                return FailBeforeTransfer(
+                    console,
+                    serial,
+                    bootServices,
+                    codeFirmwareStatus == EfiSuccess
+                        ? M01StageOneAdapterStatus
+                            .InvalidCodeAllocation
+                        : M01StageOneAdapterStatus
+                            .CodeAllocationFailed,
+                    codeFirmwareStatus,
+                    (ulong)M01LoadedImageStackCheckpoint
+                        .LoadedImageValidated,
+                    codeAddress,
+                    codeAllocated,
+                    0,
+                    false);
+            }
+
+            ulong dataAddress = 0;
+            ulong dataFirmwareStatus =
+                bootServices->AllocatePages(
+                    AllocateAnyPages,
+                    EfiLoaderData,
+                    DataArenaPageCount,
+                    &dataAddress);
+            bool dataAllocated =
+                dataFirmwareStatus == EfiSuccess;
+            if (dataFirmwareStatus != EfiSuccess
+                || !TryValidateAllocation(
+                    dataAddress,
+                    DataArenaPageCount,
+                    out ulong dataByteLength,
+                    out ulong dataEndExclusive))
+            {
+                return FailBeforeTransfer(
+                    console,
+                    serial,
+                    bootServices,
+                    dataFirmwareStatus == EfiSuccess
+                        ? M01StageOneAdapterStatus
+                            .InvalidDataAllocation
+                        : M01StageOneAdapterStatus
+                            .DataAllocationFailed,
+                    dataFirmwareStatus,
+                    (ulong)M01LoadedImageStackCheckpoint
+                        .LoadedImageValidated,
+                    codeAddress,
+                    codeAllocated,
+                    dataAddress,
+                    dataAllocated);
+            }
+
+            if (RangesOverlap(
+                    codeAddress,
+                    codeEndExclusive,
+                    dataAddress,
+                    dataEndExclusive)
+                || !TryGetReservationBounds(
+                    loadedImage.Range.Reservation,
+                    out ulong imageReservationStart,
+                    out ulong imageReservationEnd)
+                || RangesOverlap(
+                    codeAddress,
+                    codeEndExclusive,
+                    imageReservationStart,
+                    imageReservationEnd)
+                || RangesOverlap(
+                    dataAddress,
+                    dataEndExclusive,
+                    imageReservationStart,
+                    imageReservationEnd))
+            {
+                return FailBeforeTransfer(
+                    console,
+                    serial,
+                    bootServices,
+                    M01StageOneAdapterStatus.AllocationOverlap,
+                    (ulong)M01LoadedImageStackStatus
+                        .AllocationTableRejected,
+                    (ulong)M01LoadedImageStackCheckpoint
+                        .LoadedImageValidated,
+                    codeAddress,
+                    codeAllocated,
+                    dataAddress,
+                    dataAllocated);
+            }
+
+            ulong previousMapKey =
+                EfiEntry.s_bootHandoff.MemoryMap.MapKey;
+            M01StageOneAdapterStatus mapStatus =
+                TryRecaptureMemoryMap(
+                    bootServices,
+                    out FirmwareMemoryMapRecord refreshedMap,
+                    out ulong memoryMapFirmwareStatus);
+            if (mapStatus != M01StageOneAdapterStatus.Success
+                || refreshedMap.MapKey == previousMapKey)
+            {
+                return FailBeforeTransfer(
+                    console,
+                    serial,
+                    bootServices,
+                    mapStatus != M01StageOneAdapterStatus.Success
+                        ? mapStatus
+                        : M01StageOneAdapterStatus
+                            .MemoryMapKeyUnchanged,
+                    mapStatus
+                        == M01StageOneAdapterStatus
+                            .MemoryMapRecaptureFailed
+                        ? memoryMapFirmwareStatus
+                        : (ulong)M01LoadedImageStackStatus
+                            .MapLedgerEvidenceRejected,
+                    (ulong)M01LoadedImageStackCheckpoint
+                        .AllocationEvidenceValidated,
+                    codeAddress,
+                    codeAllocated,
+                    dataAddress,
+                    dataAllocated);
+            }
+
+            if (!MapContainsAllocation(
+                    refreshedMap,
+                    codeAddress,
+                    codeEndExclusive,
+                    EfiLoaderCode)
+                || !MapContainsAllocation(
+                    refreshedMap,
+                    dataAddress,
+                    dataEndExclusive,
+                    EfiLoaderData))
+            {
+                return FailBeforeTransfer(
+                    console,
+                    serial,
+                    bootServices,
+                    M01StageOneAdapterStatus
+                        .MemoryMapAllocationTypeMismatch,
+                    (ulong)M01LoadedImageStackStatus
+                        .MapLedgerEvidenceRejected,
+                    (ulong)M01LoadedImageStackCheckpoint
+                        .AllocationEvidenceValidated,
+                    codeAddress,
+                    codeAllocated,
+                    dataAddress,
+                    dataAllocated);
+            }
+
+            M01StageOneAdapterStatus stackProbeStatus =
+                MaterializeAndInstallStackProbe(
+                    codeAddress,
+                    codeByteLength);
+            if (stackProbeStatus
+                != M01StageOneAdapterStatus.Success)
+            {
+                return FailBeforeTransfer(
+                    console,
+                    serial,
+                    bootServices,
+                    stackProbeStatus,
+                    (ulong)M01LoadedImageStackStatus
+                        .SwitchPlanRejected,
+                    (ulong)M01LoadedImageStackCheckpoint
+                        .MapLedgerValidated,
+                    codeAddress,
+                    codeAllocated,
+                    dataAddress,
+                    dataAllocated);
+            }
+
+            M01StageOneAdapterStatus prepareStatus =
+                PrepareAndTransfer(
+                    console,
+                    serial,
+                    loadedImage,
+                    loadedImageMapping,
+                    refreshedMap,
+                    previousMapKey,
+                    codeAddress,
+                    codeByteLength,
+                    codeEndExclusive,
+                    codeFirmwareStatus,
+                    dataAddress,
+                    dataByteLength,
+                    dataEndExclusive,
+                    dataFirmwareStatus,
+                    out ulong coordinatorStatus,
+                    out ulong coordinatorCheckpoint);
+            if (prepareStatus
+                == M01StageOneAdapterStatus.UnexpectedSwitchReturn)
+            {
+                WriteFailure(
+                    console,
+                    serial,
+                    prepareStatus,
+                    coordinatorStatus,
+                    coordinatorCheckpoint,
+                    NotAttemptedStatus,
+                    NotAttemptedStatus);
+                Spin();
+            }
+
+            if (prepareStatus != M01StageOneAdapterStatus.Success)
+            {
+                return FailBeforeTransfer(
+                    console,
+                    serial,
+                    bootServices,
+                    prepareStatus,
+                    coordinatorStatus,
+                    coordinatorCheckpoint,
+                    codeAddress,
+                    codeAllocated,
+                    dataAddress,
+                    dataAllocated);
+            }
+
+            WriteFailure(
+                console,
+                serial,
+                M01StageOneAdapterStatus.UnexpectedSwitchReturn,
+                (ulong)M01LoadedImageStackStatus.UnexpectedReturn,
+                (ulong)M01LoadedImageStackCheckpoint
+                    .TransferRecorded,
+                NotAttemptedStatus,
+                NotAttemptedStatus);
+            Spin();
+            return true;
+        }
+
+        private static M01StageOneAdapterStatus
+            TryCaptureLoadedImage(
+                void* imageHandle,
+                EfiSystemTable* systemTable,
+                EfiBootServices* bootServices,
+                out EfiLoadedImageRangeCapturePlan loadedImage,
+                out M01LoadedImageVirtualMappingEvidence mapping,
+                out ulong firmwareStatus)
+        {
+            loadedImage = default;
+            mapping = default;
+            firmwareStatus = NotAttemptedStatus;
+
+            if (sizeof(EfiLoadedImageProtocol) != 96)
+            {
+                return M01StageOneAdapterStatus
+                    .LoadedImageProtocolLayoutRejected;
+            }
+
+            EfiGuid loadedImageGuid;
+            loadedImageGuid.Data1 = 0x5b1b31a1;
+            loadedImageGuid.Data2 = 0x9562;
+            loadedImageGuid.Data3 = 0x11d2;
+            loadedImageGuid.Data4_0 = 0x8e;
+            loadedImageGuid.Data4_1 = 0x3f;
+            loadedImageGuid.Data4_2 = 0x00;
+            loadedImageGuid.Data4_3 = 0xa0;
+            loadedImageGuid.Data4_4 = 0xc9;
+            loadedImageGuid.Data4_5 = 0x69;
+            loadedImageGuid.Data4_6 = 0x72;
+            loadedImageGuid.Data4_7 = 0x3b;
+
+            void* loadedImageInterface = null;
+            firmwareStatus = bootServices->HandleProtocol(
+                imageHandle,
+                &loadedImageGuid,
+                &loadedImageInterface);
+            ulong protocolAddress = (ulong)loadedImageInterface;
+            if (firmwareStatus != EfiSuccess
+                || loadedImageInterface == null
+                || (protocolAddress
+                    & (M01LoadedImageStackStaticState
+                        .RequiredStorageAlignment - 1)) != 0
+                || protocolAddress > ~0UL - 96)
+            {
+                return M01StageOneAdapterStatus
+                    .LoadedImageProtocolFailed;
+            }
+
+            EfiLoadedImageProtocol* protocol =
+                (EfiLoadedImageProtocol*)loadedImageInterface;
+            if (protocol->SystemTable != systemTable
+                || protocol->ImageBase == null
+                || protocol->ImageSize == 0)
+            {
+                return M01StageOneAdapterStatus
+                    .LoadedImageProtocolRejected;
+            }
+
+            EfiLoadedImageProtocolObservation observation =
+                EfiLoadedImageProtocolObservation
+                    .CaptureFromUefiBoundary(
+                        firmwareStatus,
+                        (ulong)imageHandle,
+                        protocolAddress,
+                        (ulong)protocol->ImageBase,
+                        protocol->ImageSize);
+            loadedImage =
+                EfiLoadedImageRangeCapturePlan.Create(
+                    &observation,
+                    EfiLoadedImageRangeCapturePlan
+                        .RequiredObservationCount,
+                    EfiLoadedImageRangeCapturePlan
+                        .RequiredObservationCount,
+                    EfiLoadedImageRange.PageSize);
+            if (!loadedImage.Succeeded)
+            {
+                return M01StageOneAdapterStatus
+                    .LoadedImageRangeRejected;
+            }
+
+            mapping = M01LoadedImageVirtualMappingEvidence
+                .CaptureCallerAttestedIdentity(loadedImage);
+            return mapping.IsValidFor(loadedImage)
+                ? M01StageOneAdapterStatus.Success
+                : M01StageOneAdapterStatus
+                    .LoadedImageMappingRejected;
+        }
+
+        private static bool TryValidateAllocation(
+            ulong address,
+            ulong pageCount,
+            out ulong byteLength,
+            out ulong endExclusive)
+        {
+            byteLength = 0;
+            endExclusive = 0;
+
+            if (address == 0
+                || (address & (PageSize - 1)) != 0
+                || pageCount == 0
+                || pageCount > ~0UL / PageSize)
+            {
+                return false;
+            }
+
+            byteLength = pageCount * PageSize;
+            if (address > ~0UL - byteLength)
+            {
+                byteLength = 0;
+                return false;
+            }
+
+            endExclusive = address + byteLength;
+            return endExclusive > address
+                && (endExclusive & (PageSize - 1)) == 0;
+        }
+
+        private static bool TryGetReservationBounds(
+            OS.Kernel.Memory.BootReservedRange reservation,
+            out ulong start,
+            out ulong endExclusive)
+        {
+            start = 0;
+            endExclusive = 0;
+            return reservation.IsValid
+                && reservation.PhysicalStart
+                        .TryGetRawValueForUefiBoundary(out start)
+                    == AddressValueStatus.Success
+                && reservation.PhysicalEndExclusive
+                        .TryGetRawValueForUefiBoundary(
+                            out endExclusive)
+                    == AddressValueStatus.Success
+                && start < endExclusive;
+        }
+
+        private static M01StageOneAdapterStatus
+            TryRecaptureMemoryMap(
+                EfiBootServices* bootServices,
+                out FirmwareMemoryMapRecord refreshedMap,
+                out ulong firmwareStatus)
+        {
+            refreshedMap = default;
+            firmwareStatus = NotAttemptedStatus;
+            if (bootServices == null
+                || bootServices->GetMemoryMap == null)
+            {
+                return M01StageOneAdapterStatus
+                    .MissingMemoryMapBoundary;
+            }
+
+            fixed (byte* source =
+                &s_memoryMapSource.Bytes[0])
+            fixed (byte* destination =
+                &EfiEntry.s_ownedMemoryMap.Bytes[0])
+            {
+                ulong sourceAddress = (ulong)source;
+                ulong destinationAddress = (ulong)destination;
+                ulong capacity = OwnedMemoryMapBufferSize;
+                if (sourceAddress == 0
+                    || destinationAddress == 0
+                    || sourceAddress > ~0UL - capacity
+                    || destinationAddress > ~0UL - capacity
+                    || RangesOverlap(
+                        sourceAddress,
+                        sourceAddress + capacity,
+                        destinationAddress,
+                        destinationAddress + capacity))
+                {
+                    return M01StageOneAdapterStatus
+                        .MemoryMapStorageRejected;
+                }
+
+                ulong mapSize = capacity;
+                ulong mapKey = 0;
+                ulong descriptorSize = 0;
+                uint descriptorVersion = 0;
+                firmwareStatus = bootServices->GetMemoryMap(
+                    &mapSize,
+                    source,
+                    &mapKey,
+                    &descriptorSize,
+                    &descriptorVersion);
+                if (firmwareStatus != EfiSuccess)
+                {
+                    return M01StageOneAdapterStatus
+                        .MemoryMapRecaptureFailed;
+                }
+
+                FirmwareMemoryMapRecord sourceRecord;
+                sourceRecord.BufferAddress = sourceAddress;
+                sourceRecord.BufferSize = capacity;
+                sourceRecord.SourceBufferAddress = sourceAddress;
+                sourceRecord.SourceBufferSize = capacity;
+                sourceRecord.MapSize = mapSize;
+                sourceRecord.MapKey = mapKey;
+                sourceRecord.DescriptorSize = descriptorSize;
+                sourceRecord.DescriptorVersion =
+                    descriptorVersion;
+                sourceRecord.DescriptorCount =
+                    descriptorSize == 0
+                        ? 0
+                        : mapSize / descriptorSize;
+                sourceRecord.Flags = 0;
+
+                UefiMemoryMapCopyPlanResult copyPlan =
+                    UefiMemoryMapCopyPlanResult.Create(
+                        sourceRecord,
+                        capacity);
+                if (!copyPlan.Succeeded)
+                {
+                    return M01StageOneAdapterStatus
+                        .MemoryMapMetadataRejected;
+                }
+
+                for (ulong index = 0;
+                    index
+                        < copyPlan.Plan.RequiredDestinationBytes;
+                    index++)
+                {
+                    destination[index] = source[index];
+                }
+
+                refreshedMap.BufferAddress =
+                    destinationAddress;
+                refreshedMap.BufferSize = capacity;
+                refreshedMap.SourceBufferAddress =
+                    sourceAddress;
+                refreshedMap.SourceBufferSize = capacity;
+                refreshedMap.MapSize = mapSize;
+                refreshedMap.MapKey = mapKey;
+                refreshedMap.DescriptorSize =
+                    descriptorSize;
+                refreshedMap.DescriptorVersion =
+                    descriptorVersion;
+                refreshedMap.DescriptorCount =
+                    sourceRecord.DescriptorCount;
+                refreshedMap.Flags =
+                    FirmwareMemoryMapRecord.FlagOwnedCopy;
+
+                EfiMemoryMapNormalizeResult normalized =
+                    EfiMemoryMapNormalizer.Normalize(
+                        (void*)refreshedMap.BufferAddress,
+                        refreshedMap.MapSize,
+                        refreshedMap.DescriptorSize,
+                        refreshedMap.DescriptorVersion,
+                        refreshedMap.DescriptorCount);
+                if (!normalized.Succeeded)
+                {
+                    refreshedMap = default;
+                    return M01StageOneAdapterStatus
+                        .MemoryMapMetadataRejected;
+                }
+
+                EfiEntry.s_memoryMapSummary =
+                    normalized.Summary;
+                EfiEntry.s_memoryMapSnapshot.Buffer =
+                    (void*)refreshedMap.BufferAddress;
+                EfiEntry.s_memoryMapSnapshot.BufferSize =
+                    refreshedMap.BufferSize;
+                EfiEntry.s_memoryMapSnapshot.SourceBuffer =
+                    (void*)refreshedMap
+                        .SourceBufferAddress;
+                EfiEntry.s_memoryMapSnapshot
+                    .SourceBufferSize =
+                    refreshedMap.SourceBufferSize;
+                EfiEntry.s_memoryMapSnapshot.MapSize =
+                    refreshedMap.MapSize;
+                EfiEntry.s_memoryMapSnapshot.MapKey =
+                    refreshedMap.MapKey;
+                EfiEntry.s_memoryMapSnapshot
+                    .DescriptorSize =
+                    refreshedMap.DescriptorSize;
+                EfiEntry.s_memoryMapSnapshot
+                    .DescriptorVersion =
+                    refreshedMap.DescriptorVersion;
+                EfiEntry.s_memoryMapSnapshot
+                    .DescriptorCount =
+                    refreshedMap.DescriptorCount;
+                EfiEntry.s_memoryMapSnapshot.IsOwned = true;
+                EfiEntry.s_bootHandoff.MemoryMap =
+                    refreshedMap;
+            }
+
+            return M01StageOneAdapterStatus.Success;
+        }
+
+        private static bool MapContainsAllocation(
+            FirmwareMemoryMapRecord map,
+            ulong targetStart,
+            ulong targetEndExclusive,
+            uint expectedType)
+        {
+            if (!map.HasOwnedCopy()
+                || targetStart == 0
+                || targetStart >= targetEndExclusive
+                || map.DescriptorSize
+                    < UefiMemoryMapCopyPlan
+                        .MinimumDescriptorSize
+                || map.DescriptorCount == 0
+                || map.DescriptorCount
+                    > UefiMemoryMapCopyPlan
+                        .DefaultMaximumDescriptorCount)
+            {
+                return false;
+            }
+
+            byte* mapBytes = (byte*)map.BufferAddress;
+            ulong cursor = targetStart;
+            for (ulong segment = 0;
+                segment < map.DescriptorCount
+                    && cursor < targetEndExclusive;
+                segment++)
+            {
+                ulong bestEnd = cursor;
+                for (ulong index = 0;
+                    index < map.DescriptorCount;
+                    index++)
+                {
+                    byte* descriptor =
+                        mapBytes
+                        + (index * map.DescriptorSize);
+                    uint type =
+                        ReadUInt32(descriptor);
+                    ulong physicalStart =
+                        ReadUInt64(
+                            descriptor + 8);
+                    ulong pageCount =
+                        ReadUInt64(
+                            descriptor + 24);
+                    if (type != expectedType
+                        || pageCount == 0
+                        || pageCount > ~0UL / PageSize)
+                    {
+                        continue;
+                    }
+
+                    ulong byteLength =
+                        pageCount * PageSize;
+                    if (physicalStart
+                        > ~0UL - byteLength)
+                    {
+                        return false;
+                    }
+
+                    ulong descriptorEnd =
+                        physicalStart + byteLength;
+                    if (physicalStart <= cursor
+                        && cursor < descriptorEnd
+                        && descriptorEnd > bestEnd)
+                    {
+                        bestEnd = descriptorEnd;
+                    }
+                }
+
+                if (bestEnd == cursor)
+                {
+                    return false;
+                }
+
+                cursor = bestEnd < targetEndExclusive
+                    ? bestEnd
+                    : targetEndExclusive;
+            }
+
+            return cursor == targetEndExclusive;
+        }
+
+        private static M01StageOneAdapterStatus
+            MaterializeAndInstallStackProbe(
+                ulong codeAddress,
+                ulong codeByteLength)
+        {
+            if (codeAddress == 0
+                || codeByteLength != PageSize
+                || StackProbeEntryOffset
+                    < StubEntryOffset
+                        + OwnedBootStackSwitchPlan
+                            .RequiredStubByteLength
+                || StackProbeEntryOffset
+                    > codeByteLength - StackProbeByteLength
+                || codeAddress
+                    > ~0UL - StackProbeEntryOffset
+                || ((codeAddress + StackProbeEntryOffset)
+                    & (OwnedBootStackSwitchPlan
+                        .StubEntryAlignmentBytes - 1)) != 0)
+            {
+                return M01StageOneAdapterStatus
+                    .StackProbeLayoutRejected;
+            }
+
+            byte* codePage = (byte*)codeAddress;
+            for (ulong index = 0;
+                index < codeByteLength;
+                index++)
+            {
+                codePage[index] = 0xcc;
+            }
+
+            for (ulong index = 0;
+                index < codeByteLength;
+                index++)
+            {
+                if (codePage[index] != 0xcc)
+                {
+                    return M01StageOneAdapterStatus
+                        .StackProbeReadbackRejected;
+                }
+            }
+
+            byte* probe =
+                codePage + StackProbeEntryOffset;
+            for (ulong index = 0;
+                index < StackProbeByteLength;
+                index++)
+            {
+                probe[index] = GetStackProbeByte(index);
+            }
+
+            for (ulong index = 0;
+                index < StackProbeByteLength;
+                index++)
+            {
+                if (probe[index]
+                    != GetStackProbeByte(index))
+                {
+                    return M01StageOneAdapterStatus
+                        .StackProbeReadbackRejected;
+                }
+            }
+
+            return System.Runtime.X64StackProbeRuntime
+                .TryInstall((ulong)probe)
+                ? M01StageOneAdapterStatus.Success
+                : M01StageOneAdapterStatus
+                    .StackProbeInstallRejected;
+        }
+
+        private static byte GetStackProbeByte(ulong index)
+        {
+            return index switch
+            {
+                0 => 0xf3,
+                1 => 0x0f,
+                2 => 0x1e,
+                3 => 0xfa,
+                4 => 0x48,
+                5 => 0x89,
+                6 => 0xe0,
+                7 => 0x48,
+                8 => 0x25,
+                9 => 0x00,
+                10 => 0xf0,
+                11 => 0xff,
+                12 => 0xff,
+                13 => 0x48,
+                14 => 0x2d,
+                15 => 0x00,
+                16 => 0x10,
+                17 => 0x00,
+                18 => 0x00,
+                19 => 0x85,
+                20 => 0x00,
+                21 => 0x4c,
+                22 => 0x39,
+                23 => 0xd8,
+                24 => 0x7f,
+                25 => 0xf3,
+                26 => 0xc3,
+                _ => 0
+            };
+        }
+
+        private static M01StageOneAdapterStatus
+            PrepareAndTransfer(
+                EfiSimpleTextOutputProtocol* console,
+                EfiSerialIoProtocol* serial,
+                EfiLoadedImageRangeCapturePlan loadedImage,
+                M01LoadedImageVirtualMappingEvidence
+                    loadedImageMapping,
+                FirmwareMemoryMapRecord refreshedMap,
+                ulong previousMapKey,
+                ulong codeAddress,
+                ulong codeByteLength,
+                ulong codeEndExclusive,
+                ulong codeFirmwareStatus,
+                ulong dataAddress,
+                ulong dataByteLength,
+                ulong dataEndExclusive,
+                ulong dataFirmwareStatus,
+                out ulong coordinatorStatus,
+                out ulong coordinatorCheckpoint)
+        {
+            coordinatorStatus =
+                (ulong)M01LoadedImageStackStatus
+                    .Uninitialized;
+            coordinatorCheckpoint =
+                (ulong)M01LoadedImageStackCheckpoint
+                    .Uninitialized;
+
+            fixed (M01StageOneAllocationRecordBuffer*
+                allocationStorage = &s_allocationRecords)
+            fixed (M01StageOneReservationLedgerBuffer*
+                ledgerStorage = &s_reservationLedger)
+            fixed (M01LoadedImageStackStaticState*
+                staticState = &s_staticState)
+            fixed (M01LoadedImageStackEvidence*
+                evidenceScratch = &s_evidenceScratch)
+            {
+                if ((ulong)sizeof(
+                        M01StageOneAllocationRecordBuffer)
+                        != M01LoadedImageStackIntegration
+                            .RequiredAllocationRecordCount
+                            * (ulong)sizeof(
+                                BootMemoryRegionRecord)
+                    || (ulong)sizeof(
+                        M01StageOneReservationLedgerBuffer)
+                        != ReservationCapacity
+                            * (ulong)sizeof(
+                                OS.Kernel.Memory
+                                    .BootReservedRange))
+                {
+                    return M01StageOneAdapterStatus
+                        .StaticStorageLayoutRejected;
+                }
+
+                BootMemoryRegionRecord* allocationRecords =
+                    &allocationStorage->Code;
+                allocationStorage->Code =
+                    new BootMemoryRegionRecord(
+                        EfiLoaderCode,
+                        codeAddress,
+                        codeAddress,
+                        CodePageCount,
+                        0,
+                        codeByteLength,
+                        codeEndExclusive);
+                allocationStorage->Data =
+                    new BootMemoryRegionRecord(
+                        EfiLoaderData,
+                        dataAddress,
+                        dataAddress,
+                        DataArenaPageCount,
+                        0,
+                        dataByteLength,
+                        dataEndExclusive);
+
+                M01StageOneAllocationEvidence
+                    allocationEvidence =
+                    M01StageOneAllocationEvidence
+                        .CaptureCallerAttested(
+                            allocationRecords,
+                            M01LoadedImageStackIntegration
+                                .RequiredAllocationRecordCount,
+                            M01LoadedImageStackIntegration
+                                .RequiredAllocationRecordCount,
+                            CodeAllocationOrdinal,
+                            DataAllocationOrdinal,
+                            codeFirmwareStatus,
+                            dataFirmwareStatus);
+                M01StageOneAddressMappingEvidence
+                    addressMapping =
+                    M01StageOneAddressMappingEvidence
+                        .CaptureCallerAttestedIdentity(
+                            allocationRecords,
+                            M01LoadedImageStackIntegration
+                                .RequiredAllocationRecordCount,
+                            M01LoadedImageStackIntegration
+                                .RequiredAllocationRecordCount,
+                            refreshedMap);
+                if (!allocationEvidence.IsWellFormed
+                    || !addressMapping.IsValidFor(
+                        allocationStorage->Code,
+                        allocationStorage->Data,
+                        refreshedMap))
+                {
+                    return M01StageOneAdapterStatus
+                        .AllocationEvidenceRejected;
+                }
+
+                OS.Kernel.Memory.BootReservedRange*
+                    reservationLedger =
+                    &ledgerStorage->Range0;
+                M01StageOneAdapterStatus ledgerStatus =
+                    BuildReservationLedger(
+                        loadedImage,
+                        codeAddress,
+                        dataAddress,
+                        reservationLedger);
+                if (ledgerStatus
+                    != M01StageOneAdapterStatus.Success)
+                {
+                    return ledgerStatus;
+                }
+
+                OS.Kernel.Memory
+                    .BootReservationTableValidationResult
+                    ledgerValidation =
+                    OS.Kernel.Memory
+                        .BootReservationTableValidator
+                        .Validate(
+                            reservationLedger,
+                            ReservationCount,
+                            ReservationCapacity);
+                if (!ledgerValidation.Succeeded
+                    || ledgerValidation.ReservationCount
+                        != ReservationCount
+                    || ledgerValidation
+                            .AvailableReservationCapacity
+                        != ReservationCapacity)
+                {
+                    return M01StageOneAdapterStatus
+                        .ReservationLedgerRejected;
+                }
+
+                M01StageOneMapLedgerEvidence
+                    mapLedgerEvidence =
+                    M01StageOneMapLedgerEvidence
+                        .CaptureCallerAttested(
+                            previousMapKey,
+                            InitialMapGeneration,
+                            refreshedMap,
+                            RefreshedMapGeneration,
+                            allocationEvidence,
+                            MapCaptureOrdinal,
+                            LedgerBuildOrdinal,
+                            reservationLedger,
+                            ReservationCount,
+                            ReservationCapacity);
+                if (!mapLedgerEvidence.IsValidFor(
+                    allocationEvidence,
+                    reservationLedger,
+                    ReservationCount,
+                    ReservationCapacity))
+                {
+                    return M01StageOneAdapterStatus
+                        .MapLedgerEvidenceRejected;
+                }
+
+                delegate* unmanaged<
+                    ulong,
+                    OwnedBootStackSwitchHandoff*,
+                    void> continuation =
+                    &M01StageOneContinuation;
+                ulong continuationRaw =
+                    (ulong)(void*)continuation;
+                if (VirtualAddress
+                        .TryCreateFromUefiBoundary(
+                            continuationRaw,
+                            out VirtualAddress
+                                continuationAddress)
+                    != AddressValueStatus.Success)
+                {
+                    return M01StageOneAdapterStatus
+                        .ContinuationAddressRejected;
+                }
+
+                M01LoadedImageStackStaticPreparationResult
+                    prepared =
+                    M01LoadedImageStackIntegration
+                        .PrepareFromStaticScratch(
+                        loadedImage,
+                        loadedImageMapping,
+                        addressMapping,
+                        allocationRecords,
+                        M01LoadedImageStackIntegration
+                            .RequiredAllocationRecordCount,
+                        M01LoadedImageStackIntegration
+                            .RequiredAllocationRecordCount,
+                        allocationEvidence,
+                        mapLedgerEvidence,
+                        reservationLedger,
+                        ReservationCount,
+                        ReservationCapacity,
+                        (byte*)codeAddress,
+                        codeByteLength,
+                        PageSize,
+                        StubEntryOffset,
+                        OwnedBootStackSwitchPlan
+                            .RequiredStubByteLength,
+                        continuationAddress,
+                        staticState,
+                        M01LoadedImageStackStaticState
+                            .RequiredStorageBytes,
+                        evidenceScratch,
+                        M01LoadedImageStackIntegration
+                            .RequiredEvidenceScratchBytes);
+                coordinatorStatus =
+                    (ulong)prepared.Status;
+                coordinatorCheckpoint =
+                    (ulong)prepared.Checkpoint;
+                if (!prepared.IsPrepared)
+                {
+                    return M01StageOneAdapterStatus
+                        .CoordinatorPrepareRejected;
+                }
+
+                prepared = default;
+                M01LoadedImageStackStaticTransitionResult
+                    transfer =
+                    M01LoadedImageStackIntegration
+                        .RecordTransferFromStaticState(
+                            staticState,
+                            M01LoadedImageStackStaticState
+                                .RequiredStorageBytes);
+                coordinatorStatus =
+                    (ulong)transfer.Status;
+                coordinatorCheckpoint =
+                    (ulong)transfer.Checkpoint;
+                if (!transfer.TransferRecorded)
+                {
+                    return M01StageOneAdapterStatus
+                        .TransferRecordRejected;
+                }
+
+                M01LoadedImageStackTransferTarget target =
+                    transfer.TransferTarget;
+                OwnedBootStackSwitchPlan plan =
+                    staticState->SwitchStateStorage.Plan;
+                if (!target.IsValidFor(plan)
+                    || target.Entry
+                            .TryGetRawValueForUefiBoundary(
+                                out ulong entryRaw)
+                        != AddressValueStatus.Success
+                    || target.NewRspTop
+                            .TryGetRawValueForUefiBoundary(
+                                out ulong newRspRaw)
+                        != AddressValueStatus.Success
+                    || target.HandoffAddress
+                            .TryGetRawValueForUefiBoundary(
+                                out ulong handoffRaw)
+                        != AddressValueStatus.Success
+                    || target.ContinuationAddress
+                            .TryGetRawValueForUefiBoundary(
+                                out ulong targetContinuationRaw)
+                        != AddressValueStatus.Success
+                    || plan.ExpectedContinuationStackPointer
+                            .TryGetRawValueForUefiBoundary(
+                                out ulong expectedRspRaw)
+                        != AddressValueStatus.Success
+                    || plan.UsableStackVirtualStart
+                            .TryGetRawValueForUefiBoundary(
+                                out ulong usableStartRaw)
+                        != AddressValueStatus.Success
+                    || plan.UsableStackVirtualEndExclusive
+                            .TryGetRawValueForUefiBoundary(
+                                out ulong usableEndRaw)
+                        != AddressValueStatus.Success
+                    || entryRaw != codeAddress
+                        + StubEntryOffset
+                    || (entryRaw
+                        & (OwnedBootStackSwitchPlan
+                            .StubEntryAlignmentBytes - 1)) != 0
+                    || entryRaw >= codeEndExclusive
+                    || newRspRaw
+                        != usableEndRaw
+                            - OwnedBootStackSwitchPlan
+                                .X64ShadowSpaceBytes
+                    || (newRspRaw
+                        & (OwnedBootStackSwitchPlan
+                            .X64StackAlignmentBytes - 1)) != 0
+                    || expectedRspRaw != newRspRaw
+                        - OwnedBootStackSwitchPlan
+                            .FakeReturnAddressBytes
+                    || expectedRspRaw < usableStartRaw
+                    || expectedRspRaw >= usableEndRaw
+                    || handoffRaw
+                        != (ulong)&staticState
+                            ->HandoffStorage
+                    || (handoffRaw
+                        & (M01LoadedImageStackStaticState
+                            .RequiredStorageAlignment - 1)) != 0
+                    || targetContinuationRaw
+                        != continuationRaw)
+                {
+                    return M01StageOneAdapterStatus
+                        .TransferTargetRejected;
+                }
+
+                s_console = console;
+                s_serial = serial;
+                transfer = default;
+
+                delegate* unmanaged<
+                    ulong,
+                    OwnedBootStackSwitchHandoff*,
+                    delegate* unmanaged<
+                        ulong,
+                        OwnedBootStackSwitchHandoff*,
+                        void>,
+                    void> switchEntry =
+                    (delegate* unmanaged<
+                        ulong,
+                        OwnedBootStackSwitchHandoff*,
+                        delegate* unmanaged<
+                            ulong,
+                            OwnedBootStackSwitchHandoff*,
+                            void>,
+                        void>)(void*)entryRaw;
+                switchEntry(
+                    newRspRaw,
+                    (OwnedBootStackSwitchHandoff*)
+                        handoffRaw,
+                    continuation);
+
+                M01LoadedImageStackStaticTransitionResult
+                    unexpected =
+                    M01LoadedImageStackIntegration
+                        .ReportUnexpectedReturnFromStaticState(
+                            staticState,
+                            M01LoadedImageStackStaticState
+                                .RequiredStorageBytes);
+                coordinatorStatus =
+                    (ulong)unexpected.Status;
+                coordinatorCheckpoint =
+                    (ulong)unexpected.Checkpoint;
+                return M01StageOneAdapterStatus
+                    .UnexpectedSwitchReturn;
+            }
+        }
+
+        private static uint ReadUInt32(byte* source)
+        {
+            return (uint)(
+                source[0]
+                | (source[1] << 8)
+                | (source[2] << 16)
+                | (source[3] << 24));
+        }
+
+        private static ulong ReadUInt64(byte* source)
+        {
+            return (ulong)source[0]
+                | ((ulong)source[1] << 8)
+                | ((ulong)source[2] << 16)
+                | ((ulong)source[3] << 24)
+                | ((ulong)source[4] << 32)
+                | ((ulong)source[5] << 40)
+                | ((ulong)source[6] << 48)
+                | ((ulong)source[7] << 56);
+        }
+
+        private static M01StageOneAdapterStatus
+            BuildReservationLedger(
+                EfiLoadedImageRangeCapturePlan loadedImage,
+                ulong codeAddress,
+                ulong dataAddress,
+                OS.Kernel.Memory.BootReservedRange*
+                    reservationLedger)
+        {
+            if (reservationLedger == null
+                || PhysicalAddress.TryCreateFromUefiBoundary(
+                        codeAddress,
+                        out PhysicalAddress codeStart)
+                    != AddressValueStatus.Success
+                || PhysicalAddress.TryCreateFromUefiBoundary(
+                        dataAddress,
+                        out PhysicalAddress dataStart)
+                    != AddressValueStatus.Success
+                || dataAddress > ~0UL - PageSize
+                || PhysicalAddress.TryCreateFromUefiBoundary(
+                        dataAddress + PageSize,
+                        out PhysicalAddress stackStart)
+                    != AddressValueStatus.Success)
+            {
+                return M01StageOneAdapterStatus
+                    .ReservationAddressRejected;
+            }
+
+            reservationLedger[0] =
+                loadedImage.Range.Reservation;
+            if (OS.Kernel.Memory.BootReservedRange
+                    .TryCreate(
+                        OS.Kernel.Memory.BootReservationKind
+                            .BootStackSwitchStub,
+                        codeStart,
+                        CodePageCount,
+                        out reservationLedger[1])
+                    != OS.Kernel.Memory
+                        .BootReservedRangeStatus.Success
+                || OS.Kernel.Memory.BootReservedRange
+                    .TryCreate(
+                        OS.Kernel.Memory.BootReservationKind
+                            .BootStackGuard,
+                        dataStart,
+                        GuardPageCount,
+                        out reservationLedger[2])
+                    != OS.Kernel.Memory
+                        .BootReservedRangeStatus.Success
+                || OS.Kernel.Memory.BootReservedRange
+                    .TryCreate(
+                        OS.Kernel.Memory.BootReservationKind
+                            .BootStack,
+                        stackStart,
+                        UsableStackPageCount,
+                        out reservationLedger[3])
+                    != OS.Kernel.Memory
+                        .BootReservedRangeStatus.Success)
+            {
+                return M01StageOneAdapterStatus
+                    .ReservationConstructionRejected;
+            }
+
+            for (ulong index = 1;
+                index < ReservationCount;
+                index++)
+            {
+                OS.Kernel.Memory.BootReservedRange current =
+                    reservationLedger[index];
+                ulong destination = index;
+                while (destination != 0)
+                {
+                    AddressValueStatus compareStatus =
+                        reservationLedger[destination - 1]
+                            .PhysicalStart.TryCompareTo(
+                                current.PhysicalStart,
+                                out int comparison);
+                    if (compareStatus
+                        != AddressValueStatus.Success)
+                    {
+                        return M01StageOneAdapterStatus
+                            .ReservationSortRejected;
+                    }
+
+                    if (comparison <= 0)
+                    {
+                        break;
+                    }
+
+                    reservationLedger[destination] =
+                        reservationLedger[
+                            destination - 1];
+                    destination--;
+                }
+
+                reservationLedger[destination] = current;
+            }
+
+            return M01StageOneAdapterStatus.Success;
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static void M01StageOneContinuation(
+            ulong observedRsp,
+            OwnedBootStackSwitchHandoff* handoff)
+        {
+            fixed (M01LoadedImageStackStaticState*
+                staticState = &s_staticState)
+            {
+                VirtualAddress observedRspAddress = default;
+                if (handoff == null
+                    || handoff
+                        != &staticState->HandoffStorage
+                    || VirtualAddress
+                            .TryCreateFromUefiBoundary(
+                                observedRsp,
+                                out observedRspAddress)
+                        != AddressValueStatus.Success)
+                {
+                    WriteFailure(
+                        s_console,
+                        s_serial,
+                        M01StageOneAdapterStatus
+                            .ContinuationHandoffRejected,
+                        (ulong)M01LoadedImageStackStatus
+                            .ContinuationRspRejected,
+                        (ulong)M01LoadedImageStackCheckpoint
+                            .TransferRecorded,
+                        NotAttemptedStatus,
+                        NotAttemptedStatus);
+                    Spin();
+                }
+
+                M01LoadedImageStackStaticTransitionResult
+                    observation =
+                    M01LoadedImageStackIntegration
+                        .ObserveContinuationRspFromStaticState(
+                            staticState,
+                            M01LoadedImageStackStaticState
+                                .RequiredStorageBytes,
+                            observedRspAddress);
+                if (!observation.ContinuationRspContained)
+                {
+                    WriteFailure(
+                        s_console,
+                        s_serial,
+                        M01StageOneAdapterStatus
+                            .ContinuationRspRejected,
+                        (ulong)observation.Status,
+                        (ulong)observation.Checkpoint,
+                        NotAttemptedStatus,
+                        NotAttemptedStatus);
+                    Spin();
+                }
+
+                for (int lineIndex = 1;
+                    lineIndex
+                        < BootSequencePlan
+                            .M01StageOneSuccessLineCount;
+                    lineIndex++)
+                {
+                    WriteSuccessLine(
+                        s_console,
+                        s_serial,
+                        lineIndex);
+                }
+
+                EfiEntry.WriteBootSequencePlan(
+                    s_console,
+                    s_serial);
+                Spin();
+            }
+        }
+
+        private static bool FailBeforeTransfer(
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial,
+            EfiBootServices* bootServices,
+            M01StageOneAdapterStatus adapterStatus,
+            ulong status,
+            ulong checkpoint,
+            ulong codeAddress,
+            bool codeAllocated,
+            ulong dataAddress,
+            bool dataAllocated)
+        {
+            ulong dataCleanupStatus = NotAttemptedStatus;
+            ulong codeCleanupStatus = NotAttemptedStatus;
+
+            if (bootServices != null
+                && bootServices->FreePages != null)
+            {
+                if (dataAllocated)
+                {
+                    dataCleanupStatus =
+                        bootServices->FreePages(
+                            dataAddress,
+                            DataArenaPageCount);
+                }
+
+                if (codeAllocated)
+                {
+                    bool stackProbeCleared =
+                        TryClearStackProbeBytes(
+                            codeAddress);
+                    if (stackProbeCleared)
+                    {
+                        codeCleanupStatus =
+                            bootServices->FreePages(
+                                codeAddress,
+                                CodePageCount);
+                    }
+                    else
+                    {
+                        codeCleanupStatus =
+                            NotAttemptedStatus - 1;
+                    }
+                }
+            }
+
+            WriteFailure(
+                console,
+                serial,
+                adapterStatus,
+                status,
+                checkpoint,
+                dataCleanupStatus,
+                codeCleanupStatus);
+            return true;
+        }
+
+        private static bool TryClearStackProbeBytes(
+            ulong codeAddress)
+        {
+            if (!TryValidateAllocation(
+                    codeAddress,
+                    CodePageCount,
+                    out ulong codeByteLength,
+                    out _))
+            {
+                return true;
+            }
+
+            if (StackProbeEntryOffset
+                    > codeByteLength - StackProbeByteLength
+                || codeAddress
+                    > ~0UL - StackProbeEntryOffset)
+            {
+                return false;
+            }
+
+            ulong stackProbeAddress =
+                codeAddress + StackProbeEntryOffset;
+            if (!System.Runtime.X64StackProbeRuntime
+                    .TryClear(stackProbeAddress))
+            {
+                return false;
+            }
+
+            byte* probe = (byte*)stackProbeAddress;
+            for (ulong index = 0;
+                index < StackProbeByteLength;
+                index++)
+            {
+                probe[index] = 0;
+            }
+
+            for (ulong index = 0;
+                index < StackProbeByteLength;
+                index++)
+            {
+                if (probe[index] != 0)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static void WriteSuccessLine(
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial,
+            int lineIndex)
+        {
+            int length =
+                BootSequencePlan
+                    .GetM01StageOneSuccessLineLength(
+                        lineIndex);
+            for (int offset = 0;
+                offset < length;
+                offset++)
+            {
+                EfiEntry.Write(
+                    console,
+                    serial,
+                    BootSequencePlan
+                        .GetM01StageOneSuccessLineByte(
+                            lineIndex,
+                            offset));
+            }
+
+            EfiEntry.WriteCrLf(console, serial);
+        }
+
+        private static void WriteFailure(
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial,
+            M01StageOneAdapterStatus adapterStatus,
+            ulong status,
+            ulong checkpoint,
+            ulong dataCleanupStatus,
+            ulong codeCleanupStatus)
+        {
+            WriteFailurePrefix(console, serial, false);
+            WriteFailureFields(
+                console,
+                serial,
+                adapterStatus,
+                status,
+                checkpoint,
+                dataCleanupStatus,
+                codeCleanupStatus);
+            WriteFailurePrefix(console, serial, true);
+            WriteFailureFields(
+                console,
+                serial,
+                adapterStatus,
+                status,
+                checkpoint,
+                dataCleanupStatus,
+                codeCleanupStatus);
+        }
+
+        private static void WriteFailurePrefix(
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial,
+            bool stagePrefix)
+        {
+            if (stagePrefix)
+            {
+                WriteAscii(
+                    console,
+                    serial,
+                    (byte)'M',
+                    (byte)'0',
+                    (byte)'1',
+                    (byte)'_',
+                    (byte)'S',
+                    (byte)'T',
+                    (byte)'A',
+                    (byte)'G');
+                WriteAscii(
+                    console,
+                    serial,
+                    (byte)'E',
+                    (byte)'1',
+                    (byte)'_',
+                    (byte)'F',
+                    (byte)'A',
+                    (byte)'I',
+                    (byte)'L',
+                    (byte)' ');
+                return;
+            }
+
+            WriteAscii(
+                console,
+                serial,
+                (byte)'T',
+                (byte)'E',
+                (byte)'S',
+                (byte)'T',
+                (byte)'_',
+                (byte)'F',
+                (byte)'A',
+                (byte)'I');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'L',
+                (byte)' ',
+                (byte)'m',
+                (byte)'0',
+                (byte)'1',
+                (byte)'.',
+                (byte)'s',
+                (byte)'t');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'a',
+                (byte)'g',
+                (byte)'e',
+                (byte)'1',
+                (byte)' ',
+                0,
+                0,
+                0);
+        }
+
+        private static void WriteFailureFields(
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial,
+            M01StageOneAdapterStatus adapterStatus,
+            ulong status,
+            ulong checkpoint,
+            ulong dataCleanupStatus,
+            ulong codeCleanupStatus)
+        {
+            WriteAscii(
+                console,
+                serial,
+                (byte)'s',
+                (byte)'t',
+                (byte)'a',
+                (byte)'t',
+                (byte)'u',
+                (byte)'s',
+                (byte)'=',
+                0);
+            EfiEntry.WriteUnsignedDecimal(
+                console,
+                serial,
+                status);
+            WriteAscii(
+                console,
+                serial,
+                (byte)' ',
+                (byte)'a',
+                (byte)'d',
+                (byte)'a',
+                (byte)'p',
+                (byte)'t',
+                (byte)'e',
+                (byte)'r');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'=',
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0);
+            EfiEntry.WriteUnsignedDecimal(
+                console,
+                serial,
+                (ulong)adapterStatus);
+            WriteAscii(
+                console,
+                serial,
+                (byte)' ',
+                (byte)'c',
+                (byte)'h',
+                (byte)'e',
+                (byte)'c',
+                (byte)'k',
+                (byte)'p',
+                (byte)'o');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'i',
+                (byte)'n',
+                (byte)'t',
+                (byte)'=',
+                0,
+                0,
+                0,
+                0);
+            EfiEntry.WriteUnsignedDecimal(
+                console,
+                serial,
+                checkpoint);
+            WriteAscii(
+                console,
+                serial,
+                (byte)' ',
+                (byte)'f',
+                (byte)'r',
+                (byte)'e',
+                (byte)'e',
+                (byte)'_',
+                (byte)'d',
+                (byte)'a');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'t',
+                (byte)'a',
+                (byte)'=',
+                0,
+                0,
+                0,
+                0,
+                0);
+            EfiEntry.WriteUnsignedDecimal(
+                console,
+                serial,
+                dataCleanupStatus);
+            WriteAscii(
+                console,
+                serial,
+                (byte)' ',
+                (byte)'f',
+                (byte)'r',
+                (byte)'e',
+                (byte)'e',
+                (byte)'_',
+                (byte)'c',
+                (byte)'o');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'d',
+                (byte)'e',
+                (byte)'=',
+                0,
+                0,
+                0,
+                0,
+                0);
+            EfiEntry.WriteUnsignedDecimal(
+                console,
+                serial,
+                codeCleanupStatus);
+            EfiEntry.WriteCrLf(console, serial);
+        }
+
+        private static void WriteAscii(
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial,
+            byte b0,
+            byte b1,
+            byte b2,
+            byte b3,
+            byte b4,
+            byte b5,
+            byte b6,
+            byte b7)
+        {
+            if (b0 != 0) EfiEntry.Write(console, serial, b0);
+            if (b1 != 0) EfiEntry.Write(console, serial, b1);
+            if (b2 != 0) EfiEntry.Write(console, serial, b2);
+            if (b3 != 0) EfiEntry.Write(console, serial, b3);
+            if (b4 != 0) EfiEntry.Write(console, serial, b4);
+            if (b5 != 0) EfiEntry.Write(console, serial, b5);
+            if (b6 != 0) EfiEntry.Write(console, serial, b6);
+            if (b7 != 0) EfiEntry.Write(console, serial, b7);
+        }
+
+        private static bool RangesOverlap(
+            ulong firstStart,
+            ulong firstEndExclusive,
+            ulong secondStart,
+            ulong secondEndExclusive)
+        {
+            return firstStart < secondEndExclusive
+                && secondStart < firstEndExclusive;
+        }
+
+        private static void Spin()
+        {
+            while (true)
+            {
+            }
+        }
+
+        private enum M01StageOneAdapterStatus : ulong
+        {
+            Success = 0,
+            MissingFirmwareBoundary = 1,
+            LoadedImageProtocolLayoutRejected = 2,
+            LoadedImageProtocolFailed = 3,
+            LoadedImageProtocolRejected = 4,
+            LoadedImageRangeRejected = 5,
+            LoadedImageMappingRejected = 6,
+            CodeAllocationFailed = 7,
+            InvalidCodeAllocation = 8,
+            DataAllocationFailed = 9,
+            InvalidDataAllocation = 10,
+            AllocationOverlap = 11,
+            MissingMemoryMapBoundary = 12,
+            MemoryMapStorageRejected = 13,
+            MemoryMapRecaptureFailed = 14,
+            MemoryMapMetadataRejected = 15,
+            MemoryMapKeyUnchanged = 16,
+            MemoryMapAllocationTypeMismatch = 17,
+            StaticStorageLayoutRejected = 18,
+            AllocationEvidenceRejected = 19,
+            ReservationAddressRejected = 20,
+            ReservationConstructionRejected = 21,
+            ReservationSortRejected = 22,
+            ReservationLedgerRejected = 23,
+            MapLedgerEvidenceRejected = 24,
+            ContinuationAddressRejected = 25,
+            CoordinatorPrepareRejected = 26,
+            TransferRecordRejected = 27,
+            TransferTargetRejected = 28,
+            UnexpectedSwitchReturn = 29,
+            ContinuationHandoffRejected = 30,
+            ContinuationRspRejected = 31,
+            StackProbeLayoutRejected = 32,
+            StackProbeReadbackRejected = 33,
+            StackProbeInstallRejected = 34
+        }
+
+        private unsafe struct EfiLoadedImageProtocol
+        {
+            public uint Revision;
+            public void* ParentHandle;
+            public EfiSystemTable* SystemTable;
+            public void* DeviceHandle;
+            public void* FilePath;
+            public void* Reserved;
+            public uint LoadOptionsSize;
+            public void* LoadOptions;
+            public void* ImageBase;
+            public ulong ImageSize;
+            public uint ImageCodeType;
+            public uint ImageDataType;
+            public void* Unload;
+        }
+
+        private unsafe struct M01StageOneMemoryMapBuffer
+        {
+            public fixed byte Bytes[OwnedMemoryMapBufferSize];
+        }
+
+        private struct M01StageOneAllocationRecordBuffer
+        {
+            public BootMemoryRegionRecord Code;
+            public BootMemoryRegionRecord Data;
+        }
+
+        private struct M01StageOneReservationLedgerBuffer
+        {
+            public OS.Kernel.Memory.BootReservedRange Range0;
+            public OS.Kernel.Memory.BootReservedRange Range1;
+            public OS.Kernel.Memory.BootReservedRange Range2;
+            public OS.Kernel.Memory.BootReservedRange Range3;
+        }
+    }
+#else
+    private static class M01StageOneAdapter
+    {
+        public static bool Run(
+            void* imageHandle,
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial,
+            EfiSystemTable* systemTable)
+        {
+            return false;
+        }
+    }
+#endif
+
     private static void WriteCrLf(EfiSimpleTextOutputProtocol* console, EfiSerialIoProtocol* serial)
     {
         EfiConsoleAdapter adapter = new EfiConsoleAdapter(console, serial);
@@ -2596,8 +4448,8 @@ internal unsafe struct EfiBootServices
     public EfiTableHeader Hdr;
     public void* RaiseTpl;
     public void* RestoreTpl;
-    public void* AllocatePages;
-    public void* FreePages;
+    public delegate* unmanaged<uint, uint, ulong, ulong*, ulong> AllocatePages;
+    public delegate* unmanaged<ulong, ulong, ulong> FreePages;
     public delegate* unmanaged<ulong*, void*, ulong*, ulong*, uint*, ulong> GetMemoryMap;
     public delegate* unmanaged<uint, ulong, void**, ulong> AllocatePool;
     public void* FreePool;
@@ -2610,7 +4462,7 @@ internal unsafe struct EfiBootServices
     public void* InstallProtocolInterface;
     public void* ReinstallProtocolInterface;
     public void* UninstallProtocolInterface;
-    public void* HandleProtocol;
+    public delegate* unmanaged<void*, EfiGuid*, void**, ulong> HandleProtocol;
     public void* Reserved;
     public void* RegisterProtocolNotify;
     public void* LocateHandle;
