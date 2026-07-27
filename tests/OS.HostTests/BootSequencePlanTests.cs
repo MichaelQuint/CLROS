@@ -18,6 +18,12 @@ internal static class BootSequencePlanTests
         Run("boot.sequence M01 stage-two plan exposes exact success bytes", TestM01StageTwoSuccessMarkerBytes, ref failures);
         Run("boot.sequence M01 stage-two plan preserves default bytes", TestM01StageTwoPlanPreservesDefaultBytes, ref failures);
         Run("boot.sequence M01 stage-two plan preserves EFI linkage boundary", TestM01StageTwoPlanPreservesEfiLinkageBoundary, ref failures);
+        Run("boot.sequence M01 stage-three plan exposes exact success bytes", TestM01StageThreeSuccessMarkerBytes, ref failures);
+        Run("boot.sequence M01 stage-three presenter emits exact success transcript", TestM01StageThreePresenterEmitsExactSuccessTranscript, ref failures);
+        Run("boot.sequence M01 stage-three presenter rejects default and nonfinal results", TestM01StageThreePresenterRejectsDefaultAndNonfinalResults, ref failures);
+        Run("boot.sequence M01 stage-three presenter rejects null outputs", TestM01StageThreePresenterRejectsNullOutputs, ref failures);
+        Run("boot.sequence M01 stage-three plan preserves default bytes", TestM01StageThreePlanPreservesDefaultBytes, ref failures);
+        Run("boot.sequence M01 stage-three plan preserves EFI linkage boundary", TestM01StageThreePlanPreservesEfiLinkageBoundary, ref failures);
         Run("boot.phase catalog documents implemented phases", TestBootPhaseCatalog, ref failures);
         Run("boot.phase catalog marker text matches plan", TestBootPhaseMarkersMatchPlan, ref failures);
         Run("boot.sequence run emits plan lines in order", TestBootSequenceUsesPlan, ref failures);
@@ -231,6 +237,324 @@ internal static class BootSequencePlanTests
                 expected.Length).Length == 0;
     }
 
+    private static bool TestM01StageThreeSuccessMarkerBytes()
+    {
+        string[] expected =
+        [
+            "TEST_START m01.stage3",
+            "M01_CR3_STUB_PAGE_ALLOCATED",
+            "M01_PROTECTION_PROBE_PAGE_ALLOCATED",
+            "M01_PAGE_TABLE_STATE_ARENA_ALLOCATED",
+            "M01_STAGE3_MAP_RECAPTURED",
+            "M01_CR3_STUB_MATERIALIZED",
+            "M01_PAGE_TABLES_BUILT",
+            "M01_PAGING_MODE_VALIDATED",
+            "M01_PRE_CR3",
+            "M01_FIRMWARE_CR3_RESTORED",
+            "M01_RFLAGS_RESTORED",
+            "M01_PGE_CYCLE_VERIFIED",
+            "M01_OWNED_CR3_CANARY_VERIFIED",
+            "M01_POST_CR3",
+            "M01_RW_TO_RX_VERIFIED",
+            "M01_TLB_INVALIDATION_COMPLETE",
+            "M01_RX_PROBE_EXECUTED",
+            "M01_PAGE_ZERO_ABSENT",
+            "TEST_PASS m01.stage3",
+            "CLROS_M01_LIVE_BOOT_MEMORY_READY"
+        ];
+
+        if (BootSequencePlan.M01StageThreeSuccessLineCount
+            != expected.Length)
+        {
+            return false;
+        }
+
+        for (int lineIndex = 0;
+            lineIndex < expected.Length;
+            lineIndex++)
+        {
+            string expectedLine = expected[lineIndex];
+            if (BootSequencePlan.GetM01StageThreeSuccessLineLength(
+                    lineIndex) != expectedLine.Length
+                || BootSequencePlan.GetM01StageThreeSuccessLineByte(
+                    lineIndex,
+                    -1) != 0
+                || !string.Equals(
+                    BootSequence.CreateM01StageThreeSuccessLine(
+                        lineIndex),
+                    expectedLine,
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            for (int offset = 0;
+                offset < expectedLine.Length;
+                offset++)
+            {
+                if (BootSequencePlan.GetM01StageThreeSuccessLineByte(
+                        lineIndex,
+                        offset) != (byte)expectedLine[offset])
+                {
+                    return false;
+                }
+            }
+
+            if (BootSequencePlan.GetM01StageThreeSuccessLineByte(
+                    lineIndex,
+                    expectedLine.Length) != 0)
+            {
+                return false;
+            }
+        }
+
+        return BootSequencePlan.GetM01StageThreeSuccessLineLength(-1)
+                == 0
+            && BootSequencePlan.GetM01StageThreeSuccessLineLength(
+                expected.Length) == 0
+            && BootSequencePlan.GetM01StageThreeSuccessLineByte(
+                -1,
+                0) == 0
+            && BootSequencePlan.GetM01StageThreeSuccessLineByte(
+                expected.Length,
+                0) == 0
+            && BootSequence.CreateM01StageThreeSuccessLine(-1).Length
+                == 0
+            && BootSequence.CreateM01StageThreeSuccessLine(
+                expected.Length).Length == 0;
+    }
+
+    private static bool TestM01StageThreePresenterEmitsExactSuccessTranscript()
+    {
+        M01LivePagingIntegrationResult integration =
+            M01LivePagingIntegrationTests
+                .CreateCanonicalSuccessForPresenterTests();
+        SequenceTestSerialSink serial =
+            new SequenceTestSerialSink();
+        BootEventRingBuffer events =
+            new BootEventRingBuffer(32);
+        BootResult result =
+            BootSequence.RunM01LivePagingIntegration(
+                integration,
+                serial,
+                events);
+        string[] expected =
+        [
+            "TEST_START m01.stage3",
+            "M01_CR3_STUB_PAGE_ALLOCATED",
+            "M01_PROTECTION_PROBE_PAGE_ALLOCATED",
+            "M01_PAGE_TABLE_STATE_ARENA_ALLOCATED",
+            "M01_STAGE3_MAP_RECAPTURED",
+            "M01_CR3_STUB_MATERIALIZED",
+            "M01_PAGE_TABLES_BUILT",
+            "M01_PAGING_MODE_VALIDATED",
+            "M01_PRE_CR3",
+            "M01_FIRMWARE_CR3_RESTORED",
+            "M01_RFLAGS_RESTORED",
+            "M01_PGE_CYCLE_VERIFIED",
+            "M01_OWNED_CR3_CANARY_VERIFIED",
+            "M01_POST_CR3",
+            "M01_RW_TO_RX_VERIFIED",
+            "M01_TLB_INVALIDATION_COMPLETE",
+            "M01_RX_PROBE_EXECUTED",
+            "M01_PAGE_ZERO_ABSENT",
+            "TEST_PASS m01.stage3",
+            "CLROS_M01_LIVE_BOOT_MEMORY_READY"
+        ];
+
+        if (!integration.Succeeded
+            || !result.Succeeded
+            || result.Reason.Length != 0
+            || BootSequencePlan.M01StageThreeSuccessLineCount
+                != expected.Length
+            || serial.Count != expected.Length)
+        {
+            return false;
+        }
+
+        string[] eventSnapshot = events.Snapshot();
+        if (eventSnapshot.Length != expected.Length)
+        {
+            return false;
+        }
+
+        for (int index = 0; index < expected.Length; index++)
+        {
+            if (!string.Equals(
+                    serial.LineAt(index),
+                    expected[index],
+                    StringComparison.Ordinal)
+                || !string.Equals(
+                    eventSnapshot[index],
+                    expected[index],
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool
+        TestM01StageThreePresenterRejectsDefaultAndNonfinalResults()
+    {
+        SequenceTestSerialSink defaultSerial =
+            new SequenceTestSerialSink();
+        BootEventRingBuffer defaultEvents =
+            new BootEventRingBuffer(8);
+        BootResult defaultResult =
+            BootSequence.RunM01LivePagingIntegration(
+                default,
+                defaultSerial,
+                defaultEvents);
+        string defaultDetail =
+            (byte)M01LivePagingStatus.Uninitialized
+            + " checkpoint="
+            + (byte)M01LivePagingCheckpoint.Uninitialized;
+        string[] defaultExpected =
+        [
+            "TEST_START m01.stage3",
+            BootSequence.M01StageThreeTestFailurePrefix
+                + defaultDetail,
+            BootSequence.M01StageThreeFailurePrefix
+                + defaultDetail
+        ];
+
+        if (!M01StageThreeFailureMatches(
+                defaultResult,
+                defaultSerial,
+                defaultEvents,
+                defaultExpected,
+                "M01 stage three failed: status="
+                    + defaultDetail))
+        {
+            return false;
+        }
+
+        M01LivePagingIntegrationResult forgedNonfinalSuccess =
+            WithByteAt(
+                default(M01LivePagingIntegrationResult),
+                0,
+                (byte)M01LivePagingStatus.Success);
+        SequenceTestSerialSink nonfinalSerial =
+            new SequenceTestSerialSink();
+        BootEventRingBuffer nonfinalEvents =
+            new BootEventRingBuffer(8);
+        BootResult nonfinalResult =
+            BootSequence.RunM01LivePagingIntegration(
+                forgedNonfinalSuccess,
+                nonfinalSerial,
+                nonfinalEvents);
+        string illegalDetail =
+            (byte)M01LivePagingStatus.IllegalCoordinatorState
+            + " checkpoint="
+            + (byte)M01LivePagingCheckpoint.Uninitialized;
+        string[] nonfinalExpected =
+        [
+            "TEST_START m01.stage3",
+            BootSequence.M01StageThreeTestFailurePrefix
+                + illegalDetail,
+            BootSequence.M01StageThreeFailurePrefix
+                + illegalDetail
+        ];
+
+        return forgedNonfinalSuccess.Status
+                == M01LivePagingStatus.Success
+            && !forgedNonfinalSuccess.Succeeded
+            && M01StageThreeFailureMatches(
+                nonfinalResult,
+                nonfinalSerial,
+                nonfinalEvents,
+                nonfinalExpected,
+                "M01 stage three failed: status="
+                    + illegalDetail);
+    }
+
+    private static bool TestM01StageThreePresenterRejectsNullOutputs()
+    {
+        BootEventRingBuffer nullSerialEvents =
+            new BootEventRingBuffer(4);
+        BootResult nullSerialResult =
+            BootSequence.RunM01LivePagingIntegration(
+                default,
+                null!,
+                nullSerialEvents);
+
+        SequenceTestSerialSink nullEventSerial =
+            new SequenceTestSerialSink();
+        BootResult nullEventsResult =
+            BootSequence.RunM01LivePagingIntegration(
+                default,
+                nullEventSerial,
+                null!);
+
+        return !nullSerialResult.Succeeded
+            && string.Equals(
+                nullSerialResult.Reason,
+                "serial sink is required",
+                StringComparison.Ordinal)
+            && nullSerialEvents.Count == 0
+            && !nullEventsResult.Succeeded
+            && string.Equals(
+                nullEventsResult.Reason,
+                "boot event ring buffer is required",
+                StringComparison.Ordinal)
+            && nullEventSerial.Count == 0;
+    }
+
+    private static bool M01StageThreeFailureMatches(
+        BootResult result,
+        SequenceTestSerialSink serial,
+        BootEventRingBuffer events,
+        string[] expected,
+        string expectedReason)
+    {
+        if (result.Succeeded
+            || !string.Equals(
+                result.Reason,
+                expectedReason,
+                StringComparison.Ordinal)
+            || serial.Count != expected.Length)
+        {
+            return false;
+        }
+
+        string[] eventSnapshot = events.Snapshot();
+        if (eventSnapshot.Length != expected.Length)
+        {
+            return false;
+        }
+
+        for (int index = 0; index < expected.Length; index++)
+        {
+            if (!string.Equals(
+                    serial.LineAt(index),
+                    expected[index],
+                    StringComparison.Ordinal)
+                || !string.Equals(
+                    eventSnapshot[index],
+                    expected[index],
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        for (int index = 1;
+            index < BootSequencePlan.M01StageThreeSuccessLineCount;
+            index++)
+        {
+            if (serial.Contains(
+                BootSequence.CreateM01StageThreeSuccessLine(index)))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private static bool TestM01StageOnePlanPreservesDefaultBytes()
     {
         string[] expected =
@@ -326,6 +650,75 @@ internal static class BootSequencePlanTests
         }
 
         for (int lineIndex = 0; lineIndex < expected.Length; lineIndex++)
+        {
+            if (!string.Equals(
+                    serial.LineAt(lineIndex),
+                    expected[lineIndex],
+                    StringComparison.Ordinal)
+                || !string.Equals(
+                    eventSnapshot[lineIndex],
+                    expected[lineIndex],
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TestM01StageThreePlanPreservesDefaultBytes()
+    {
+        string[] expected =
+        [
+            "TEST_START boot.sequence",
+            "BOOT_PHASE PhaseA.Audit START",
+            "BOOT_PHASE PhaseA.Audit PASS",
+            "BOOT_PHASE PhaseA.Diagnostics START",
+            "BOOT_PHASE PhaseA.Diagnostics PASS",
+            "OS_BOOT_OK",
+            "TEST_PASS boot.sequence",
+            "OS_SMOKE_PASS"
+        ];
+
+        if (BootSequencePlan.NonSmokeLineCount != 5
+            || BootSequencePlan.LineCount != expected.Length)
+        {
+            return false;
+        }
+
+        for (int lineIndex = 0;
+            lineIndex < expected.Length;
+            lineIndex++)
+        {
+            if (!string.Equals(
+                    BootSequence.CreatePlanLine(lineIndex),
+                    expected[lineIndex],
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        SequenceTestSerialSink serial = new SequenceTestSerialSink();
+        BootEventRingBuffer events = new BootEventRingBuffer(16);
+        BootResult result = BootSequence.Run(serial, events);
+        string[] eventSnapshot = events.Snapshot();
+
+        if (!result.Succeeded
+            || serial.Count != expected.Length
+            || eventSnapshot.Length != expected.Length
+            || serial.Contains("TEST_START m01.stage3")
+            || serial.Contains("TEST_PASS m01.stage3")
+            || serial.Contains("CLROS_M01_LIVE_BOOT_MEMORY_READY")
+            || serial.ContainsPrefix("M01_"))
+        {
+            return false;
+        }
+
+        for (int lineIndex = 0;
+            lineIndex < expected.Length;
+            lineIndex++)
         {
             if (!string.Equals(
                     serial.LineAt(lineIndex),
@@ -489,6 +882,85 @@ internal static class BootSequencePlanTests
                 StringComparison.Ordinal)
             && !efiEntrySource.Contains(
                 "M01LiveAllocatorIntegration.Execute",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestM01StageThreePlanPreservesEfiLinkageBoundary()
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string projectPath = Path.Combine(
+            repositoryRoot,
+            "src",
+            "OS",
+            "OS.csproj");
+        System.Xml.Linq.XDocument project =
+            System.Xml.Linq.XDocument.Load(projectPath);
+
+        bool defaultCompileItemsDisabled = project
+            .Descendants("EnableDefaultCompileItems")
+            .Any(element => string.Equals(
+                element.Value.Trim(),
+                "false",
+                StringComparison.OrdinalIgnoreCase));
+        bool planLinked = false;
+        bool integrationLinked = false;
+
+        foreach (System.Xml.Linq.XElement compile
+            in project.Descendants("Compile"))
+        {
+            string? include = compile.Attribute("Include")?.Value;
+            if (string.IsNullOrWhiteSpace(include))
+            {
+                continue;
+            }
+
+            string normalized = include.Replace('/', '\\');
+            if (normalized.Contains('*'))
+            {
+                return false;
+            }
+
+            if (string.Equals(
+                Path.GetFileName(normalized),
+                "BootSequence.cs",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (string.Equals(
+                Path.GetFileName(normalized),
+                "M01LivePagingIntegration.cs",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                integrationLinked = true;
+            }
+
+            if (string.Equals(
+                normalized,
+                @"..\OS.Kernel\Boot\BootSequencePlan.cs",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                planLinked = true;
+            }
+        }
+
+        string efiEntryPath = Path.Combine(
+            repositoryRoot,
+            "src",
+            "OS",
+            "Boot",
+            "EfiEntry.cs");
+        string efiEntrySource = File.ReadAllText(efiEntryPath);
+
+        return defaultCompileItemsDisabled
+            && planLinked
+            && !integrationLinked
+            && !efiEntrySource.Contains(
+                "RunM01LivePagingIntegration",
+                StringComparison.Ordinal)
+            && !efiEntrySource.Contains(
+                "M01LivePagingIntegration.Execute",
                 StringComparison.Ordinal);
     }
 
@@ -1404,6 +1876,21 @@ internal static class BootSequencePlanTests
             ExecutableStubMemoryPlan.Create((nuint)FaultProbeReadiness.RequiredPayloadBytes);
 
         return FaultProbeReadiness.RequireReady(invalidOpcodeBuffer, nullWriteBuffer, memoryPlan);
+    }
+
+    private static unsafe T WithByteAt<T>(
+        T value,
+        int offset,
+        byte replacement)
+        where T : unmanaged
+    {
+        if (offset < 0 || offset >= sizeof(T))
+        {
+            throw new ArgumentOutOfRangeException(nameof(offset));
+        }
+
+        *((byte*)&value + offset) = replacement;
+        return value;
     }
 
     private sealed class SequenceTestSerialSink : ISerialSink

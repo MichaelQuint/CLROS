@@ -10,6 +10,8 @@ public static class BootSequencePlan
 
     public const int M01StageTwoSuccessLineCount = 9;
 
+    public const int M01StageThreeSuccessLineCount = 20;
+
     public static int GetM01StageOneSuccessLineLength(int lineIndex)
     {
         return lineIndex switch
@@ -248,6 +250,230 @@ public static class BootSequencePlan
                 0x74732E31306D2053UL,
                 0x0000000032656761UL,
                 0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            _ => 0
+        };
+    }
+
+    public static int GetM01StageThreeSuccessLineLength(int lineIndex)
+    {
+        return lineIndex switch
+        {
+            0 => 21,
+            1 => 27,
+            2 => 35,
+            3 => 36,
+            4 => 25,
+            5 => 25,
+            6 => 21,
+            7 => 25,
+            8 => 11,
+            9 => 25,
+            10 => 19,
+            11 => 22,
+            12 => 29,
+            13 => 12,
+            14 => 21,
+            15 => 29,
+            16 => 21,
+            17 => 20,
+            18 => 20,
+            19 => 32,
+            _ => 0
+        };
+    }
+
+    public static byte GetM01StageThreeSuccessLineByte(
+        int lineIndex,
+        int offset)
+    {
+        int lineLength = GetM01StageThreeSuccessLineLength(lineIndex);
+        if (offset < 0 || offset >= lineLength)
+        {
+            return 0;
+        }
+
+        return lineIndex switch
+        {
+            // TEST_START m01.stage3
+            0 => GetPackedAsciiByte(
+                offset,
+                0x4154535F54534554UL,
+                0x732E31306D205452UL,
+                0x0000003365676174UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            // M01_CR3_STUB_PAGE_ALLOCATED
+            1 => GetPackedAsciiByte(
+                offset,
+                0x5F3352435F31304DUL,
+                0x4741505F42555453UL,
+                0x41434F4C4C415F45UL,
+                0x0000000000444554UL,
+                0x0000000000000000UL),
+
+            // M01_PROTECTION_PROBE_PAGE_ALLOCATED
+            2 => GetPackedAsciiByte(
+                offset,
+                0x544F52505F31304DUL,
+                0x505F4E4F49544345UL,
+                0x4741505F45424F52UL,
+                0x41434F4C4C415F45UL,
+                0x0000000000444554UL),
+
+            // M01_PAGE_TABLE_STATE_ARENA_ALLOCATED
+            3 => GetPackedAsciiByte(
+                offset,
+                0x454741505F31304DUL,
+                0x535F454C4241545FUL,
+                0x4552415F45544154UL,
+                0x434F4C4C415F414EUL,
+                0x0000000044455441UL),
+
+            // M01_STAGE3_MAP_RECAPTURED
+            4 => GetPackedAsciiByte(
+                offset,
+                0x474154535F31304DUL,
+                0x525F50414D5F3345UL,
+                0x4552555450414345UL,
+                0x0000000000000044UL,
+                0x0000000000000000UL),
+
+            // M01_CR3_STUB_MATERIALIZED
+            5 => GetPackedAsciiByte(
+                offset,
+                0x5F3352435F31304DUL,
+                0x54414D5F42555453UL,
+                0x455A494C41495245UL,
+                0x0000000000000044UL,
+                0x0000000000000000UL),
+
+            // M01_PAGE_TABLES_BUILT
+            6 => GetPackedAsciiByte(
+                offset,
+                0x454741505F31304DUL,
+                0x5F53454C4241545FUL,
+                0x000000544C495542UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            // M01_PAGING_MODE_VALIDATED
+            7 => GetPackedAsciiByte(
+                offset,
+                0x494741505F31304DUL,
+                0x5F45444F4D5F474EUL,
+                0x45544144494C4156UL,
+                0x0000000000000044UL,
+                0x0000000000000000UL),
+
+            // M01_PRE_CR3
+            8 => GetPackedAsciiByte(
+                offset,
+                0x5F4552505F31304DUL,
+                0x0000000000335243UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            // M01_FIRMWARE_CR3_RESTORED
+            9 => GetPackedAsciiByte(
+                offset,
+                0x4D5249465F31304DUL,
+                0x3352435F45524157UL,
+                0x45524F545345525FUL,
+                0x0000000000000044UL,
+                0x0000000000000000UL),
+
+            // M01_RFLAGS_RESTORED
+            10 => GetPackedAsciiByte(
+                offset,
+                0x414C46525F31304DUL,
+                0x4F545345525F5347UL,
+                0x0000000000444552UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            // M01_PGE_CYCLE_VERIFIED
+            11 => GetPackedAsciiByte(
+                offset,
+                0x5F4547505F31304DUL,
+                0x45565F454C435943UL,
+                0x0000444549464952UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            // M01_OWNED_CR3_CANARY_VERIFIED
+            12 => GetPackedAsciiByte(
+                offset,
+                0x454E574F5F31304DUL,
+                0x41435F3352435F44UL,
+                0x5245565F5952414EUL,
+                0x0000004445494649UL,
+                0x0000000000000000UL),
+
+            // M01_POST_CR3
+            13 => GetPackedAsciiByte(
+                offset,
+                0x54534F505F31304DUL,
+                0x000000003352435FUL,
+                0x0000000000000000UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            // M01_RW_TO_RX_VERIFIED
+            14 => GetPackedAsciiByte(
+                offset,
+                0x545F57525F31304DUL,
+                0x5245565F58525F4FUL,
+                0x0000004445494649UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            // M01_TLB_INVALIDATION_COMPLETE
+            15 => GetPackedAsciiByte(
+                offset,
+                0x5F424C545F31304DUL,
+                0x4144494C41564E49UL,
+                0x4D4F435F4E4F4954UL,
+                0x0000004554454C50UL,
+                0x0000000000000000UL),
+
+            // M01_RX_PROBE_EXECUTED
+            16 => GetPackedAsciiByte(
+                offset,
+                0x505F58525F31304DUL,
+                0x4558455F45424F52UL,
+                0x0000004445545543UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            // M01_PAGE_ZERO_ABSENT
+            17 => GetPackedAsciiByte(
+                offset,
+                0x454741505F31304DUL,
+                0x42415F4F52455A5FUL,
+                0x00000000544E4553UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            // TEST_PASS m01.stage3
+            18 => GetPackedAsciiByte(
+                offset,
+                0x5341505F54534554UL,
+                0x74732E31306D2053UL,
+                0x0000000033656761UL,
+                0x0000000000000000UL,
+                0x0000000000000000UL),
+
+            // CLROS_M01_LIVE_BOOT_MEMORY_READY
+            19 => GetPackedAsciiByte(
+                offset,
+                0x304D5F534F524C43UL,
+                0x425F4556494C5F31UL,
+                0x4F4D454D5F544F4FUL,
+                0x59444145525F5952UL,
                 0x0000000000000000UL),
 
             _ => 0

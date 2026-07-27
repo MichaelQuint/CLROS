@@ -31,6 +31,7 @@ The architecture is a staged CloudReady NativeAOT OS plan. The first-class appli
 - `src/OS.Kernel/Memory/X64PageMap.cs` and `X64TlbInvalidationPlan.cs` define the no-stdlib-compatible M01-014 mutation boundary over a flat, caller-owned image of existing four-level x64 table pages. The map core accepts explicit POD pointers, logical counts, declared capacities, a typed root, one aligned low-canonical target page, the exact M01-011 encoding preconditions, and an optional sorted list of essential virtual ranges. It validates every complete declared storage span, disjointness, page-record order and physical uniqueness, root and child-table membership, entry form, request policy, and the exact target invalidation before its sole aligned 64-bit leaf write. Every success retains the validated page-image set's typed first-to-last physical envelope. It supports one 4 KiB map, unmap, or protection-only rewrite; preserves M01-011 physical/cache and selected Accessed/Dirty state on protection change; rejects page zero, W+X, missing tables, malformed entries, 1 GiB/2 MiB collisions, duplicate map, double unmap, unchanged protection, and removal or reprotection of an essential mapping. It deliberately allocates no table page, splits no large page, reloads no CR3, and performs no live invalidation.
 - `src/OS.Kernel/Memory/X64InvlpgStubPlan.cs` and `X64ProtectionProbeStubPlan.cs` bind that value mutation to two independently authored C# byte plans for later live integration. The first materializes and reads back the exact four bytes `0F 01 39 C3` (`invlpg [rcx]; ret`) inside one modeled page, then permits a one-shot invocation plan only for the exact RX/non-writable entry and exactly one matching invalidation record; the aggregate separately binds that page to a caller-supplied one-page `LoaderCode` allocation. The second materializes and reads back the exact six bytes `B8 4B 4F 53 4F C3` (`mov eax, 0x4F534F4B; ret`) inside a caller-attested separate identity-mapped one-page `LoaderCode` allocation whose canonical reservation kind is `PageProtectionProbe`. Its aggregate audit requires caller-record coherence and disjoint transition-code, probe-code, and table/state allocations; physical containment of the mutation result's complete page-image envelope inside the caller-attested RW+NX `LoaderData` table/state allocation; an exact RW+NX-to-RX leaf mutation with unchanged physical page and WB cache policy; exact leaf readback; exact target-only invalidation and invlpg plan; a modeled single invocation, expected return, unchanged nonzero canary; and nine ordered events that make execute-before-protect impossible. Both boundaries retain explicit `false` live-evidence flags; host tests materialize bytes as data and invoke neither stream.
 - `src/OS.Kernel/Memory/PageZeroMappingPolicy.cs` defines the M01-015 no-stdlib-compatible page-zero policy over raw mapping intents and a caller-owned four-level table image. Raw intent is narrowly permitted because `VirtualAddress` deliberately cannot represent zero; present ranges intersecting `[0, 4096)`, ranges wrapping through zero, malformed alignment, and noncanonical bounds fail closed. The read-only image audit validates complete pointer/count/capacity spans, record order and physical uniqueness, walks index zero from PML4E through PTE, recognizes canonical raw-zero absence at any level, rejects nonzero non-present encodings, rejects 1 GiB, 2 MiB, or 4 KiB leaves covering zero, and requires every child table traversed by the index-zero walk to belong to the supplied image. It mutates no entry and does not claim the supplied image is the installed CR3 root.
+- `src/OS.Kernel/Boot/M01LivePagingIntegration.cs` defines the host-tested third M01 composition boundary over the final M01-018 static state and reviewed identity-map, reversible-CR3, table-image mutation, invalidation, protection-probe, and page-zero audit contracts. It requires three disjoint caller-attested allocation records, refreshed map/ledger evidence, exact four-plan materialization/readback, strict owned-hierarchy permissions, architectural preflight, separately modeled callback/interrupt and restoration discipline, an audited PGE cycle, canary validation, and retrospective host presentation. Every accepted identity-map range is cross-bound to the loaded-image page tiling, stage-one plan, stage-two allocator reservation, or an exact same-kind ledger reservation; the full table/state arena is audited RW+NX. The frozen `SerialStub` purpose is only a compatibility alias for the stage-one switch-stub reservation, and the source explicitly reports that it does not prove owned serial, map, diagnostic-state, ACPI-content, framebuffer-content, or PE-section provenance. `BootSequencePlan` freezes the corresponding 20-line stage-three order while `BootSequence.RunM01LivePagingIntegration` presents only a final successful host result. `ProvesCompositeOwnedCr3MachineCodeInterval` remains `false`: the reversible transition and protection/invalidation/probe leaves are mutually cross-checked models, not temporal proof that one executable interval contained them. These remain value/POD and byte-plan audits; no host path executes privileged instructions. Only the modeled probe-leaf rewrite is restored to its initial RW+NX value before `Execute` returns; the newly constructed caller-owned table image is retained.
 - `src/OS.Kernel/Diagnostics/NullPageFaultProbePlan.cs` defines the companion default-off metadata contract for a future supervisor read of address zero. A ready-disabled result requires successful page-zero absence evidence from the supplied table image plus caller-attested owned diagnostics and page-fault-handler prerequisites. It fixes vector 14, error-code value 0 under mask `0x1f`, CR2 value 0, supervisor privilege, and read access. Any default-on, requested-execution, or attempted-execution state is rejected. The contract emits no bytes, carries no callable address, dereferences nothing, and explicitly defers execution to M02-014.
 - `FirmwareServicesGuard` and the `UEFI_GONE_SIM_*` host tests establish the first UEFI-gone simulation boundary.
 - The EFI build can produce an explicit QEMU-tested UEFI-gone simulation artifact that reaches `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, and `UEFI_GONE_SIM_PASS`.
@@ -75,9 +76,9 @@ and callback exclusion are validated caller evidence rather than processor
 observations. PCID and LA57 fail closed. Maskable interrupts are disabled only
 inside the modeled transition; NMI/SMI safety is not claimed before the M02
 descriptor/fault work. The source is deliberately absent from the evaluated
-`src/OS` closure. M01-019 owns coordinated live preparation/invocation,
-M01-020 owns explicit EFI source linking, M01-025 owns default wiring, and
-M01-026 owns cumulative real-QEMU evidence.
+`src/OS` closure. M01-019 supplies only the host coordinator and frozen marker
+plan; M01-020 owns explicit EFI source linking, M01-025 owns live allocation
+and `EfiEntry` wiring, and M01-026 owns cumulative real-QEMU evidence.
 
 The M01-014 page-map, invalidation, and protection-probe contracts are also
 host-only. The table image is ordinary caller-owned memory, the allocation and
@@ -88,9 +89,9 @@ permissions inherited from a live parent hierarchy; split large mappings;
 perform an aligned store against processor-owned tables; execute `invlpg`;
 invoke either byte stream; reload CR3; prove page zero absent in hardware; or
 run in EFI/QEMU. The sources are intentionally absent from the evaluated
-`src/OS` closure. M01-019 owns coordinated live preparation and invocation,
-M01-020 owns explicit EFI linking, M01-025 owns default boot wiring, and
-M01-026 owns cumulative real-QEMU proof.
+`src/OS` closure. M01-019 supplies only the host coordinator and frozen marker
+plan; M01-020 owns explicit EFI linking, M01-025 owns live allocation and
+`EfiEntry` wiring, and M01-026 owns cumulative real-QEMU proof.
 
 ## Tests
 
@@ -204,8 +205,9 @@ permissions have no effective meaning until a complete hierarchy is built;
 and the current strict format intentionally defers user/global/software/key
 bits, LA57, PCID, live table synchronization, TLB shootdown, and `DmaMapping`.
 M01-014 owns caller-owned table-image mutation and invalidation planning;
-M01-019 owns the coordinated reversible paging phase; later EFI-link and QEMU
-issues own any live claim.
+M01-019 now supplies only the host coordinator and frozen stage-three marker
+plan. M01-020 owns explicit EFI source linkage, M01-025 owns live allocation
+and `EfiEntry` wiring, and M01-026 owns any cumulative QEMU claim.
 
 The `X64PageMap`, `X64TlbInvalidationPlan`, `X64InvlpgStubPlan`, and
 `X64ProtectionProbeStubPlan` boundaries remain caller-owned models. Their
@@ -217,8 +219,12 @@ collision; it neither allocates nor splits. Targeted invalidation is a returned
 record and audited byte plan, not a CPU effect, and no SMP shootdown, PCID,
 global-page, memory-ordering, or parent-effective-permission policy is proven.
 The modeled constant return/canary cannot substitute for guest execution.
-M01-019/M01-020/M01-025 must integrate these exact contracts before M01-026
-can provide the first cumulative QEMU evidence.
+M01-019 composes these contracts only as host evidence. M01-020 and M01-025
+must link and wire them before M01-026 can provide the first cumulative QEMU
+evidence. No current path proves a live table construction, CR3 write,
+`invlpg`, RW-to-RX processor mutation, restored-firmware or systemwide
+W^X/page-zero policy, PCID/LA57 support, NMI/SMI safety, or a deliberate null
+dereference.
 
 `PageZeroMappingPolicy` proves absence only in the validated caller-owned
 snapshot passed to that call. Pointer arithmetic cannot prove the snapshot is
