@@ -4876,7 +4876,7 @@
       ],
       "collisionLane": "lane:efi-entry",
       "summary": "Extend the thin EfiEntry adapter to allocate a bounded loader-owned arena through EFI AllocatePages, recapture the memory map, update reservations, build a free list only inside that arena, and invoke stage two after stage one succeeds.",
-      "currentEvidence": "No current live guest evidence proves a firmware-allocated CLROS arena, post-allocation map recapture, arena-confined free list, or alloc/free cycle. M01-022 must first close with reviewed stage-one QEMU evidence before this issue may be claimed.",
+      "currentEvidence": "Reviewed in commit ad7dd3bfa3e705a84d5424105a2c0ba7ca2385f1 and done/step871.md: the default-off dual-probe EfiEntry path makes one checked two-page EfiLoaderData allocation after final M01-022 stage-one success, performs one fresh bounded map recapture, requires a changed key and matching loader-data descriptor, validates an exact five-record ledger with one AllocatorArena, and invokes the audited no-stdlib coordinator exactly once over caller-owned static buffers. The complete host harness exited 0 with one TEST_PASS host.tests, zero TEST_FAIL, and log SHA-256 4ECD25E46DB2EB41CC36944165EF67EE9EF1B74CEBB0797E59DF4DCC4BEDA60C. The final PE32+ x64 EFI artifact has SHA-256 620C37CC6CF517668A84F760CAC19241EB2FFBB6BB8A81B97B2CDA95AC063B44, no ordinary/bound/IAT/delay imports, and linker-map evidence for the stage-two adapter and allocator coordinator. Two independent reviews found no remaining merge-blocking defect. This is source, host-test, and EFI build evidence only; M01-024 still owns guest execution, and post-EBS allocator ownership, paging, NX/W^X, firmware exit, and every later subsystem remain unproven.",
       "implementationNotes": [
         "Call checked EFI AllocatePages for a bounded page-aligned loader-owned allocator arena; never install arbitrary conventional descriptors as a CLROS arena.",
         "After the allocation, recapture the EFI memory map, update the reservation ledger/map generation, and build caller-owned free-list metadata solely from pages within the allocated arena.",
@@ -4919,7 +4919,7 @@
         "docs/efi-build.md"
       ],
       "evidenceBoundary": "This issue proves source wiring and a fresh canonical EFI build only. Its design confines metadata mutation to an explicitly firmware-allocated pre-EBS loader-owned arena after memory-map recapture; it does not prove the firmware calls ran, arbitrary conventional pages are owned, a post-EBS allocator exists, or a guest completed the alloc/free cycle.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-024",
