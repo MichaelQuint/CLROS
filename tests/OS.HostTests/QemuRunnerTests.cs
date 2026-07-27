@@ -22,6 +22,42 @@ internal static class QemuRunnerTests
         "TEST_PASS m01.stage1",
         "OS_SMOKE_PASS"
     ];
+    private static readonly string[] M01StageTwoGuestMarkers =
+    [
+        "TEST_START m01.stage1",
+        "M01_LOADED_IMAGE_CAPTURED",
+        "M01_STACK_SWITCH_STUB_READY",
+        "M01_STACK_ARENA_ALLOCATED",
+        "M01_STACK_GUARD_RESERVED",
+        "M01_STAGE1_MAP_RECAPTURED",
+        "M01_STAGE1_RESERVATIONS_VALIDATED",
+        "M01_OWNED_STACK_READY",
+        "M01_OWNED_STACK_SWITCHED",
+        "M01_RSP_CONTAINED",
+        "TEST_PASS m01.stage1",
+        "TEST_START m01.stage2",
+        "M01_ALLOCATOR_ARENA_ALLOCATED",
+        "M01_STAGE2_MAP_RECAPTURED",
+        "M01_RESERVATIONS_APPLIED",
+        "M01_LIVE_ALLOCATED_4K",
+        "M01_LIVE_PAGE_WITHIN_ARENA",
+        "M01_LIVE_FREED_4K",
+        "M01_DOUBLE_FREE_REJECTED",
+        "TEST_PASS m01.stage2",
+        "OS_SMOKE_PASS"
+    ];
+    private static readonly string[] M01StageTwoForbiddenMarkers =
+    [
+        "LIVE_ALLOCATOR_NOT_INSTALLED",
+        "BOOT_PAGE_ALLOCATOR_NOT_READY",
+        "M01_ARBITRARY_CONVENTIONAL_PAGE_USED",
+        "M01_PAGE_OUTSIDE_ALLOCATOR_ARENA",
+        "TEST_FAIL",
+        "OS_SMOKE_FAIL",
+        "M01_INTEGRATION_FAIL",
+        "M01_STAGE1_FAIL",
+        "M01_STAGE2_FAIL"
+    ];
 
     [ModuleInitializer]
     public static void Initialize()
@@ -79,6 +115,8 @@ internal static class QemuRunnerTests
             Run("qemu smoke script forwards ACPI physical discovery EFI probe", TestSmokeScriptForwardsAcpiPhysicalDiscoveryProbe, ref failures);
             Run("qemu smoke script forwards M01 stage-one evidence controls", () => TestSmokeScriptForwardsM01StageOneEvidenceControls(tempRoot), ref failures);
             Run("qemu smoke script rejects stale M01 probe artifact selection", () => TestSmokeScriptRejectsStaleM01ProbeArtifactSelection(tempRoot), ref failures);
+            Run("qemu smoke script forwards M01 stage-two evidence controls", () => TestSmokeScriptForwardsM01StageTwoEvidenceControls(tempRoot), ref failures);
+            Run("qemu smoke script rejects invalid M01 stage-two probe selection", () => TestSmokeScriptRejectsInvalidM01StageTwoProbeSelection(tempRoot), ref failures);
             Run("qemu smoke script native app preset includes app markers", TestSmokeScriptNativeAppPresetMarkers, ref failures);
             Run("qemu smoke script dry-run propagates workload profile", () => TestSmokeScriptDryRunWorkloadProfile(tempRoot), ref failures);
             Run("qemu smoke script dry-run propagates qcow2 disk format", () => TestSmokeScriptDryRunQcow2DiskFormat(tempRoot), ref failures);
@@ -120,6 +158,15 @@ internal static class QemuRunnerTests
             Run("qemu M01 timeout is deterministic", () => TestM01TimeoutIsDeterministic(tempRoot), ref failures);
             Run("qemu M01 reboot signature is rejected", () => TestM01RebootSignatureIsRejected(tempRoot), ref failures);
             Run("qemu M01 conflicting terminals are rejected", () => TestM01ConflictingTerminalsAreRejected(tempRoot), ref failures);
+            Run("qemu M01 stage-two ordered and unique evidence succeeds", () => TestM01StageTwoOrderedAndUniqueEvidenceSucceeds(tempRoot), ref failures);
+            Run("qemu M01 stage-two rejects cross-stage and operation reordering", () => TestM01StageTwoRejectsReordering(tempRoot), ref failures);
+            Run("qemu M01 stage-two rejects duplicate start pass and operation markers", () => TestM01StageTwoRejectsDuplicateMarkers(tempRoot), ref failures);
+            Run("qemu M01 stage-two rejects every missing stage-two marker", () => TestM01StageTwoRejectsMissingMarkers(tempRoot), ref failures);
+            Run("qemu M01 stage-two rejects adapter failure classifications", () => TestM01StageTwoRejectsAdapterFailures(tempRoot), ref failures);
+            Run("qemu M01 stage-two rejects every forbidden boundary marker", () => TestM01StageTwoRejectsForbiddenBoundaryMarkers(tempRoot), ref failures);
+            Run("qemu M01 stage-two timeout is deterministic", () => TestM01StageTwoTimeoutIsDeterministic(tempRoot), ref failures);
+            Run("qemu M01 stage-two reset is rejected", () => TestM01StageTwoResetIsRejected(tempRoot), ref failures);
+            Run("qemu M01 stage-two conflicting terminal is rejected", () => TestM01StageTwoConflictingTerminalIsRejected(tempRoot), ref failures);
             Run("qemu dry-run emits virtio network arguments", () => TestDryRunVirtioNetworkArguments(tempRoot), ref failures);
             Run("qemu dry-run uses raw disk format by default", () => TestDryRunDefaultRawDiskFormat(tempRoot), ref failures);
             Run("qemu dry-run uses qcow2 disk format", () => TestDryRunQcow2DiskFormat(tempRoot), ref failures);
@@ -1309,6 +1356,125 @@ internal static class QemuRunnerTests
                 "TEST_FAIL qemu.smoke.invalid_args m01_loaded_image_stack_probe_forbids_skip_image_build",
                 StringComparison.Ordinal)
             && !noBuild.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal)
+            && !skippedImage.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal)
+            && before.AsSpan().SequenceEqual(File.ReadAllBytes(staleEfi));
+    }
+
+    private static bool TestSmokeScriptForwardsM01StageTwoEvidenceControls(
+        string tempRoot)
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string script = File.ReadAllText(
+            Path.Combine(repositoryRoot, "scripts", "run-qemu-smoke.ps1"));
+        string imagePath = Path.Combine(
+            tempRoot,
+            "m01-stage-two-script-dry-run.raw");
+        string serialLog = Path.Combine(
+            tempRoot,
+            "m01-stage-two-script-dry-run-serial.log");
+        string summaryLog = Path.Combine(
+            tempRoot,
+            "m01-stage-two-script-dry-run-summary.log");
+        string markers = string.Join(",", M01StageTwoGuestMarkers);
+        string formattedMarkers = string.Join(";", M01StageTwoGuestMarkers);
+
+        ProcessResult result = RunQemuSmokeScript(
+            "-DryRun",
+            "-BuildEfi",
+            "-EnableM01LoadedImageStackProbe",
+            "-EnableM01LiveAllocatorProbe",
+            "-Image",
+            imagePath,
+            "-SerialLog",
+            serialLog,
+            "-SummaryLog",
+            summaryLog,
+            "-RequireMarker",
+            markers,
+            "-RequireOrderedMarker",
+            markers,
+            "-RequireUniqueMarker",
+            markers);
+
+        return result.ExitCode == 0
+            && CountOccurrences(
+                script,
+                "[switch] $EnableM01LiveAllocatorProbe") == 1
+            && CountOccurrences(
+                script,
+                "$buildArguments += \"-EnableM01LiveAllocatorProbe\"") == 1
+            && result.Output.Contains(
+                "QEMU_SCRIPT_M01_LIVE_ALLOCATOR_PROBE enabled=true loadedImageStack=true buildEfi=true skipImageBuild=false dryRun=true",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "QEMU_SCRIPT_REQUIRE_ORDERED_MARKERS " + formattedMarkers,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS " + formattedMarkers,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "ORDERED_MARKERS " + formattedMarkers,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "UNIQUE_MARKERS " + formattedMarkers,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal)
+            && !File.Exists(serialLog)
+            && !File.Exists(summaryLog);
+    }
+
+    private static bool TestSmokeScriptRejectsInvalidM01StageTwoProbeSelection(
+        string tempRoot)
+    {
+        string staleEfi = Path.Combine(
+            tempRoot,
+            "stale-stage-two-BOOTX64.EFI");
+        File.WriteAllBytes(staleEfi, [0x4D, 0x5A, 0x01, 0x02]);
+        byte[] before = File.ReadAllBytes(staleEfi);
+
+        ProcessResult missingStageOne = RunQemuSmokeScript(
+            "-DryRun",
+            "-BuildEfi",
+            "-EnableM01LiveAllocatorProbe",
+            "-EfiArtifact",
+            staleEfi);
+        ProcessResult missingBuild = RunQemuSmokeScript(
+            "-DryRun",
+            "-EnableM01LoadedImageStackProbe",
+            "-EnableM01LiveAllocatorProbe",
+            "-EfiArtifact",
+            staleEfi);
+        ProcessResult skippedImage = RunQemuSmokeScript(
+            "-DryRun",
+            "-BuildEfi",
+            "-EnableM01LoadedImageStackProbe",
+            "-EnableM01LiveAllocatorProbe",
+            "-SkipImageBuild",
+            "-EfiArtifact",
+            staleEfi);
+
+        return missingStageOne.ExitCode == 1
+            && missingBuild.ExitCode == 1
+            && skippedImage.ExitCode == 1
+            && missingStageOne.Output.Contains(
+                "TEST_FAIL qemu.smoke.invalid_args m01_live_allocator_probe_requires_loaded_image_stack",
+                StringComparison.Ordinal)
+            && missingBuild.Output.Contains(
+                "TEST_FAIL qemu.smoke.invalid_args m01_live_allocator_probe_requires_build_efi",
+                StringComparison.Ordinal)
+            && skippedImage.Output.Contains(
+                "TEST_FAIL qemu.smoke.invalid_args m01_live_allocator_probe_forbids_skip_image_build",
+                StringComparison.Ordinal)
+            && !missingStageOne.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal)
+            && !missingBuild.Output.Contains(
                 "TEST_PASS qemu.runner.dryrun",
                 StringComparison.Ordinal)
             && !skippedImage.Output.Contains(
@@ -2645,6 +2811,519 @@ internal static class QemuRunnerTests
                 StringComparison.Ordinal);
     }
 
+    private static bool TestM01StageTwoOrderedAndUniqueEvidenceSucceeds(
+        string tempRoot)
+    {
+        string qemuPath = CreatePersistentFakeQemuScript(
+            tempRoot,
+            CreateM01StageTwoSerialLines());
+
+        ProcessResult result = RunM01StageTwoQemu(
+            tempRoot,
+            "stage-two-complete",
+            qemuPath,
+            includeOrdered: true,
+            includeUnique: true,
+            timeoutSeconds: 8,
+            out string summary);
+
+        return result.ExitCode == 0
+            && result.Output.Contains(
+                "SERIAL_MARKER_STREAM status=Passed",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "TEST_PASS qemu.smoke",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "QEMU_SMOKE_STATUS pass",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "MISSING_MARKERS none",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "OUT_OF_ORDER_MARKERS none",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "DUPLICATE_UNIQUE_MARKERS none",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "FORBIDDEN_MARKER_HIT none",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "FAIL_REASON none",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestM01StageTwoRejectsReordering(string tempRoot)
+    {
+        List<string> crossStage = CreateM01StageTwoSerialLines();
+        int stageOnePass = crossStage.IndexOf("TEST_PASS m01.stage1");
+        int stageTwoStart = crossStage.IndexOf("TEST_START m01.stage2");
+        (crossStage[stageOnePass], crossStage[stageTwoStart]) =
+            (crossStage[stageTwoStart], crossStage[stageOnePass]);
+
+        if (!RunM01StageTwoOutOfOrderCase(
+                tempRoot,
+                "cross-stage-reordered",
+                crossStage,
+                "TEST_PASS m01.stage1"))
+        {
+            return false;
+        }
+
+        List<string> operationOrder = CreateM01StageTwoSerialLines();
+        int mapRecaptured = operationOrder.IndexOf(
+            "M01_STAGE2_MAP_RECAPTURED");
+        int reservationsApplied = operationOrder.IndexOf(
+            "M01_RESERVATIONS_APPLIED");
+        (operationOrder[mapRecaptured], operationOrder[reservationsApplied]) =
+            (operationOrder[reservationsApplied], operationOrder[mapRecaptured]);
+
+        return RunM01StageTwoOutOfOrderCase(
+            tempRoot,
+            "stage-two-operation-reordered",
+            operationOrder,
+            "M01_STAGE2_MAP_RECAPTURED");
+    }
+
+    private static bool TestM01StageTwoRejectsDuplicateMarkers(
+        string tempRoot)
+    {
+        string[] duplicatedMarkers =
+        [
+            "TEST_START m01.stage2",
+            "M01_LIVE_PAGE_WITHIN_ARENA",
+            "TEST_PASS m01.stage2"
+        ];
+
+        foreach (string duplicatedMarker in duplicatedMarkers)
+        {
+            List<string> serialLines = CreateM01StageTwoSerialLines();
+            int markerIndex = serialLines.IndexOf(duplicatedMarker);
+            serialLines.Insert(markerIndex + 1, duplicatedMarker);
+            string qemuPath = CreatePersistentFakeQemuScript(
+                tempRoot,
+                serialLines);
+
+            ProcessResult result = RunM01StageTwoQemu(
+                tempRoot,
+                "stage-two-duplicate-" + SanitizeFileName(duplicatedMarker),
+                qemuPath,
+                includeOrdered: true,
+                includeUnique: true,
+                timeoutSeconds: 5,
+                out string summary);
+
+            if (result.ExitCode != 17
+                || !result.Output.Contains(
+                    "TEST_FAIL qemu.smoke duplicate_unique_marker",
+                    StringComparison.Ordinal)
+                || !result.Output.Contains(
+                    duplicatedMarker,
+                    StringComparison.Ordinal)
+                || !summary.Contains(
+                    "DUPLICATE_UNIQUE_MARKERS",
+                    StringComparison.Ordinal)
+                || !summary.Contains(
+                    duplicatedMarker,
+                    StringComparison.Ordinal)
+                || !summary.Contains(
+                    "FAIL_REASON duplicate_unique_marker",
+                    StringComparison.Ordinal)
+                || result.Output.Contains(
+                    "TEST_PASS qemu.smoke",
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TestM01StageTwoRejectsMissingMarkers(string tempRoot)
+    {
+        string[] stageTwoMarkers =
+        [
+            "TEST_START m01.stage2",
+            "M01_ALLOCATOR_ARENA_ALLOCATED",
+            "M01_STAGE2_MAP_RECAPTURED",
+            "M01_RESERVATIONS_APPLIED",
+            "M01_LIVE_ALLOCATED_4K",
+            "M01_LIVE_PAGE_WITHIN_ARENA",
+            "M01_LIVE_FREED_4K",
+            "M01_DOUBLE_FREE_REJECTED",
+            "TEST_PASS m01.stage2"
+        ];
+
+        foreach (string missingMarker in stageTwoMarkers)
+        {
+            List<string> serialLines = CreateM01StageTwoSerialLines();
+            serialLines.Remove(missingMarker);
+            string qemuPath = CreateFakeQemuScript(
+                tempRoot,
+                serialLines.ToArray());
+
+            ProcessResult result = RunM01StageTwoQemu(
+                tempRoot,
+                "stage-two-missing-" + SanitizeFileName(missingMarker),
+                qemuPath,
+                includeOrdered: true,
+                includeUnique: true,
+                timeoutSeconds: 5,
+                out string summary);
+
+            if (result.ExitCode != 5
+                || !result.Output.Contains(
+                    "TEST_FAIL qemu.smoke missing_marker",
+                    StringComparison.Ordinal)
+                || !result.Output.Contains(
+                    missingMarker,
+                    StringComparison.Ordinal)
+                || !summary.Contains(
+                    "MISSING_MARKERS",
+                    StringComparison.Ordinal)
+                || !summary.Contains(
+                    missingMarker,
+                    StringComparison.Ordinal)
+                || !summary.Contains(
+                    "FAIL_REASON missing_marker",
+                    StringComparison.Ordinal)
+                || result.Output.Contains(
+                    "TEST_PASS qemu.smoke",
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TestM01StageTwoRejectsAdapterFailures(
+        string tempRoot)
+    {
+        (
+            string Scenario,
+            ulong CoordinatorStatus,
+            ulong AdapterStatus,
+            ulong Checkpoint,
+            ulong FirmwareStatus,
+            ulong ArenaCleanupStatus)[] failures =
+        [
+            (
+                "efi-allocation-failure",
+                0,
+                6,
+                0,
+                9223372036854775817,
+                ulong.MaxValue),
+            (
+                "arena-geometry-or-type",
+                0,
+                7,
+                0,
+                0,
+                0),
+            (
+                "map-recapture-growth-or-overflow",
+                0,
+                8,
+                0,
+                9223372036854775813,
+                0),
+            (
+                "stale-map-key",
+                0,
+                9,
+                0,
+                0,
+                0),
+            (
+                "arena-map-type-mismatch",
+                0,
+                10,
+                0,
+                0,
+                0),
+            (
+                "reservation-mismatch-or-overlap",
+                0,
+                14,
+                0,
+                0,
+                0),
+            (
+                "map-ledger-evidence-mismatch",
+                0,
+                15,
+                0,
+                0,
+                0),
+            (
+                "page-allocation-failure",
+                15,
+                16,
+                5,
+                0,
+                0),
+            (
+                "outside-arena-result",
+                16,
+                16,
+                6,
+                0,
+                0),
+            (
+                "page-free-failure",
+                17,
+                16,
+                7,
+                0,
+                0),
+            (
+                "double-free-not-rejected",
+                19,
+                16,
+                8,
+                0,
+                0)
+        ];
+
+        foreach ((
+            string scenario,
+            ulong coordinatorStatus,
+            ulong adapterStatus,
+            ulong checkpoint,
+            ulong firmwareStatus,
+            ulong arenaCleanupStatus) in failures)
+        {
+            string detail =
+                "status=" + coordinatorStatus
+                + " adapter=" + adapterStatus
+                + " checkpoint=" + checkpoint
+                + " firmware=" + firmwareStatus
+                + " free_arena=" + arenaCleanupStatus;
+            List<string> serialLines = CreateM01StageTwoFailurePrefixLines();
+            serialLines.Add("TEST_FAIL m01.stage2 " + detail);
+            serialLines.Add("M01_STAGE2_FAIL " + detail);
+            string qemuPath = CreatePersistentFakeQemuScript(
+                tempRoot,
+                serialLines);
+
+            ProcessResult result = RunM01StageTwoQemu(
+                tempRoot,
+                "stage-two-" + scenario,
+                qemuPath,
+                includeOrdered: true,
+                includeUnique: true,
+                timeoutSeconds: 5,
+                out string summary);
+
+            if (result.ExitCode != 8
+                || !result.Output.Contains(
+                    "TEST_FAIL qemu.smoke forbidden_marker",
+                    StringComparison.Ordinal)
+                || !summary.Contains(
+                    "FORBIDDEN_MARKER_HIT TEST_FAIL;M01_STAGE2_FAIL",
+                    StringComparison.Ordinal)
+                || !summary.Contains(
+                    detail,
+                    StringComparison.Ordinal)
+                || !summary.Contains(
+                    "TEST_FAIL m01.stage2 " + detail,
+                    StringComparison.Ordinal)
+                || !summary.Contains(
+                    "M01_STAGE2_FAIL " + detail,
+                    StringComparison.Ordinal)
+                || result.Output.Contains(
+                    "TEST_PASS qemu.smoke",
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TestM01StageTwoRejectsForbiddenBoundaryMarkers(
+        string tempRoot)
+    {
+        foreach (string forbiddenMarker in M01StageTwoForbiddenMarkers)
+        {
+            List<string> serialLines = CreateM01StageTwoFailurePrefixLines();
+            string serialLine = forbiddenMarker == "TEST_FAIL"
+                ? "TEST_FAIL m01.stage2 injected"
+                : forbiddenMarker;
+            serialLines.Add(serialLine);
+            string qemuPath = CreatePersistentFakeQemuScript(
+                tempRoot,
+                serialLines);
+
+            ProcessResult result = RunM01StageTwoQemu(
+                tempRoot,
+                "stage-two-forbidden-" + SanitizeFileName(forbiddenMarker),
+                qemuPath,
+                includeOrdered: true,
+                includeUnique: true,
+                timeoutSeconds: 5,
+                out string summary);
+
+            if (result.ExitCode != 8
+                || !result.Output.Contains(
+                    "TEST_FAIL qemu.smoke forbidden_marker",
+                    StringComparison.Ordinal)
+                || !summary.Contains(
+                    "FORBIDDEN_MARKER_HIT",
+                    StringComparison.Ordinal)
+                || !summary.Contains(
+                    forbiddenMarker,
+                    StringComparison.Ordinal)
+                || result.Output.Contains(
+                    "TEST_PASS qemu.smoke",
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TestM01StageTwoTimeoutIsDeterministic(string tempRoot)
+    {
+        string qemuPath = CreatePersistentFakeQemuScript(
+            tempRoot,
+            CreateM01StageTwoFailurePrefixLines());
+
+        ProcessResult result = RunM01StageTwoQemu(
+            tempRoot,
+            "stage-two-timeout",
+            qemuPath,
+            includeOrdered: true,
+            includeUnique: true,
+            timeoutSeconds: 1,
+            out string summary);
+
+        return result.ExitCode == 4
+            && result.Output.Contains(
+                "TEST_FAIL qemu.smoke timeout",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "QEMU_SMOKE_STATUS fail",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "FAIL_REASON timeout",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "TEST_PASS qemu.smoke",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestM01StageTwoResetIsRejected(string tempRoot)
+    {
+        string qemuPath = CreateFakeQemuScript(
+            tempRoot,
+            CreateM01StageTwoSerialLines().ToArray());
+
+        ProcessResult result = RunM01StageTwoQemu(
+            tempRoot,
+            "stage-two-reset",
+            qemuPath,
+            includeOrdered: true,
+            includeUnique: true,
+            timeoutSeconds: 5,
+            out string summary);
+
+        return result.ExitCode != 0
+            && result.Output.Contains(
+                "TEST_FAIL qemu.smoke qemu_reboot_or_shutdown",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "QEMU_SMOKE_STATUS fail",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "FAIL_REASON qemu_reboot_or_shutdown",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "TEST_PASS qemu.smoke",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestM01StageTwoConflictingTerminalIsRejected(
+        string tempRoot)
+    {
+        List<string> serialLines = CreateM01StageTwoSerialLines();
+        serialLines.Add("OS_SMOKE_FAIL");
+        string qemuPath = CreatePersistentFakeQemuScript(
+            tempRoot,
+            serialLines);
+
+        ProcessResult result = RunM01StageTwoQemu(
+            tempRoot,
+            "stage-two-conflicting-terminal",
+            qemuPath,
+            includeOrdered: true,
+            includeUnique: true,
+            timeoutSeconds: 5,
+            out string summary);
+
+        return result.ExitCode != 0
+            && result.Output.Contains(
+                "TEST_FAIL qemu.smoke",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "QEMU_SMOKE_STATUS fail",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "FORBIDDEN_MARKER_HIT OS_SMOKE_FAIL",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "SERIAL_TAIL_LINE OS_SMOKE_FAIL",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "TEST_PASS qemu.smoke",
+                StringComparison.Ordinal);
+    }
+
+    private static bool RunM01StageTwoOutOfOrderCase(
+        string tempRoot,
+        string scenario,
+        IReadOnlyList<string> serialLines,
+        string expectedMarker)
+    {
+        string qemuPath = CreatePersistentFakeQemuScript(
+            tempRoot,
+            serialLines);
+
+        ProcessResult result = RunM01StageTwoQemu(
+            tempRoot,
+            scenario,
+            qemuPath,
+            includeOrdered: true,
+            includeUnique: true,
+            timeoutSeconds: 5,
+            out string summary);
+
+        return result.ExitCode == 10
+            && result.Output.Contains(
+                "TEST_FAIL qemu.smoke out_of_order_marker",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                expectedMarker,
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "OUT_OF_ORDER_MARKERS",
+                StringComparison.Ordinal)
+            && summary.Contains(
+                "FAIL_REASON out_of_order_marker",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "TEST_PASS qemu.smoke",
+                StringComparison.Ordinal);
+    }
+
     private static bool TestDryRunVirtioNetworkArguments(string tempRoot)
     {
         string imagePath = Path.Combine(tempRoot, "os.raw");
@@ -3555,8 +4234,19 @@ internal static class QemuRunnerTests
 
     private static List<string> CreateM01StageOneSerialLines()
     {
+        return CreateM01SerialLines(M01StageOneGuestMarkers);
+    }
+
+    private static List<string> CreateM01StageTwoSerialLines()
+    {
+        return CreateM01SerialLines(M01StageTwoGuestMarkers);
+    }
+
+    private static List<string> CreateM01SerialLines(
+        IReadOnlyList<string> guestMarkers)
+    {
         List<string> serialLines = [];
-        foreach (string marker in M01StageOneGuestMarkers)
+        foreach (string marker in guestMarkers)
         {
             if (marker == "OS_SMOKE_PASS")
             {
@@ -3565,6 +4255,21 @@ internal static class QemuRunnerTests
             }
 
             serialLines.Add(marker);
+        }
+
+        return serialLines;
+    }
+
+    private static List<string> CreateM01StageTwoFailurePrefixLines()
+    {
+        List<string> serialLines = [];
+        foreach (string marker in M01StageTwoGuestMarkers)
+        {
+            serialLines.Add(marker);
+            if (marker == "TEST_START m01.stage2")
+            {
+                break;
+            }
         }
 
         return serialLines;
@@ -3637,6 +4342,82 @@ internal static class QemuRunnerTests
         arguments.Add("M01_INTEGRATION_FAIL");
         arguments.Add("--forbid-marker");
         arguments.Add("M01_STAGE1_FAIL");
+
+        ProcessResult result = RunQemuRunner(arguments.ToArray());
+        summary = File.Exists(summaryLog)
+            ? File.ReadAllText(summaryLog)
+            : string.Empty;
+        return result;
+    }
+
+    private static ProcessResult RunM01StageTwoQemu(
+        string tempRoot,
+        string scenario,
+        string qemuPath,
+        bool includeOrdered,
+        bool includeUnique,
+        int timeoutSeconds,
+        out string summary)
+    {
+        string suffix =
+            SanitizeFileName(scenario) + "-" + Guid.NewGuid().ToString("N");
+        string imagePath = CreateEmptyFile(
+            tempRoot,
+            "m01-stage-two-" + suffix + ".raw");
+        string ovmfPath = CreateEmptyFile(
+            tempRoot,
+            "m01-stage-two-" + suffix + "-OVMF_CODE.fd");
+        string serialLog = Path.Combine(
+            tempRoot,
+            "m01-stage-two-" + suffix + "-serial.log");
+        string summaryLog = Path.Combine(
+            tempRoot,
+            "m01-stage-two-" + suffix + "-summary.log");
+        List<string> arguments =
+        [
+            "--qemu",
+            qemuPath,
+            "--ovmf-code",
+            ovmfPath,
+            "--image",
+            imagePath,
+            "--serial-log",
+            serialLog,
+            "--summary-log",
+            summaryLog,
+            "--timeout",
+            timeoutSeconds.ToString()
+        ];
+
+        foreach (string marker in M01StageTwoGuestMarkers)
+        {
+            arguments.Add("--require-marker");
+            arguments.Add(marker);
+        }
+
+        if (includeOrdered)
+        {
+            foreach (string marker in M01StageTwoGuestMarkers)
+            {
+                arguments.Add("--require-ordered-marker");
+                arguments.Add(marker);
+            }
+        }
+
+        if (includeUnique)
+        {
+            foreach (string marker in M01StageTwoGuestMarkers)
+            {
+                arguments.Add("--require-unique-marker");
+                arguments.Add(marker);
+            }
+        }
+
+        foreach (string marker in M01StageTwoForbiddenMarkers)
+        {
+            arguments.Add("--forbid-marker");
+            arguments.Add(marker);
+        }
 
         ProcessResult result = RunQemuRunner(arguments.ToArray());
         summary = File.Exists(summaryLog)
