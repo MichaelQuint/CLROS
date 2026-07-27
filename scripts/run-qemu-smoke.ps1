@@ -35,6 +35,7 @@ param(
     [switch] $EnableExitBootServicesFreshMapProbe,
     [switch] $EnableAcpiPhysicalDiscoveryProbe,
     [switch] $EnableM01LoadedImageStackProbe,
+    [switch] $EnableM01LiveAllocatorProbe,
     [switch] $SkipImageBuild
 )
 
@@ -513,11 +514,43 @@ try {
         " dryRun=" +
         (Format-QemuSmokeBoolean $DryRun.IsPresent))
     Write-Host (
+        "QEMU_SCRIPT_M01_LIVE_ALLOCATOR_PROBE enabled=" +
+        (Format-QemuSmokeBoolean $EnableM01LiveAllocatorProbe.IsPresent) +
+        " loadedImageStack=" +
+        (Format-QemuSmokeBoolean $EnableM01LoadedImageStackProbe.IsPresent) +
+        " buildEfi=" +
+        (Format-QemuSmokeBoolean $BuildEfi.IsPresent) +
+        " skipImageBuild=" +
+        (Format-QemuSmokeBoolean $SkipImageBuild.IsPresent) +
+        " dryRun=" +
+        (Format-QemuSmokeBoolean $DryRun.IsPresent))
+    Write-Host (
         "QEMU_SCRIPT_REQUIRE_ORDERED_MARKERS " +
         (Format-QemuSmokeMarkerList $orderedMarkers))
     Write-Host (
         "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS " +
         (Format-QemuSmokeMarkerList $uniqueMarkers))
+
+    if ($EnableM01LiveAllocatorProbe -and -not $EnableM01LoadedImageStackProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m01_live_allocator_probe_requires_loaded_image_stack")
+        exit 1
+    }
+
+    if ($EnableM01LiveAllocatorProbe -and -not $BuildEfi) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m01_live_allocator_probe_requires_build_efi")
+        exit 1
+    }
+
+    if ($EnableM01LiveAllocatorProbe -and $SkipImageBuild) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m01_live_allocator_probe_forbids_skip_image_build")
+        exit 1
+    }
 
     if ($EnableM01LoadedImageStackProbe -and -not $BuildEfi) {
         Write-Host (
@@ -584,6 +617,10 @@ try {
 
         if ($EnableM01LoadedImageStackProbe) {
             $buildArguments += "-EnableM01LoadedImageStackProbe"
+        }
+
+        if ($EnableM01LiveAllocatorProbe) {
+            $buildArguments += "-EnableM01LiveAllocatorProbe"
         }
 
         Invoke-NativeCommand {
