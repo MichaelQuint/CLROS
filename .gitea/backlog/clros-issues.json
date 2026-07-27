@@ -2524,7 +2524,7 @@
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
-        "M01-001 through M01-015 are host-evidence leaves; M01-016 through M01-027 serialize probe, composite-transition, project, boot-sequence, EFI-entry, and QEMU evidence boundaries one at a time.",
+        "M01-001 through M01-015 are host-evidence leaves; M01-016 through M01-027 serialize the original probe, composite-transition, project, boot-sequence, EFI-entry, and QEMU boundaries; M01-028 through M01-032 recover and serialize the preparation, exact live-interval binding, physical table-arena, and audited call-gate prerequisites before M01-025 may resume.",
         "Close only after every child issue is closed with accepted evidence and the milestone exit criterion is satisfied."
       ],
       "referenceInfluences": [
@@ -2540,7 +2540,7 @@
         }
       ],
       "acceptanceCriteria": [
-        "All 27 keyed child issues are closed with reviewed evidence.",
+        "All 32 keyed child issues are closed with reviewed evidence.",
         "Prove owned reservations, allocation, paging, CR3, and W^X under real QEMU.",
         "Canonical documentation and completion gates state only what current first-party evidence proves."
       ],
@@ -4512,6 +4512,445 @@
       "desiredState": "closed"
     },
     {
+      "key": "M01-028",
+      "title": "[M01-028] Recover and lock the live-paging prerequisite chain before EFI wiring.",
+      "milestone": "M01",
+      "parentKey": "M01-EPIC",
+      "dependencyKeys": [
+        "M01-024"
+      ],
+      "labels": [
+        "agent:done",
+        "priority:p0",
+        "type:research",
+        "evidence:host",
+        "component:repo",
+        "component:boot",
+        "component:memory",
+        "phase:m01-memory",
+        "lane:central-docs"
+      ],
+      "priority": "priority:p0",
+      "ownedPaths": [
+        ".gitea/backlog/clros-issues.json",
+        "scripts/sync-gitea-backlog.ps1",
+        "tests/OS.HostTests/GiteaBacklogManifestTests.cs",
+        "tests/OS.HostTests/M01LivePagingPrerequisiteManifestTests.cs",
+        "tests/OS.HostTests/RepositoryRecoveryTests.cs",
+        "docs/boot.md",
+        "docs/architecture.md",
+        "docs/repo-audit.md",
+        "docs/issue-labels.md",
+        "done/step873.md"
+      ],
+      "forbiddenPaths": [
+        "src/**",
+        "std/**",
+        "apps/**",
+        "tools/**",
+        "README.md",
+        "references/** (read-only)"
+      ],
+      "collisionLane": "lane:central-docs",
+      "summary": "Preserve the read-only API audit that found M01-025 could not be implemented honestly against the current first-party contracts, and split the missing preparation, exact live-interval binding, physical table-arena, and audited call-gate work into four serial host-only prerequisites.",
+      "currentEvidence": "Implementation commit 22e179f and done/step873.md preserve reviewed host evidence for the M01-028 recovery: the durable catalog contains 321 children and 337 keyed issues; M01-029 through M01-032 are serialized before M01-025; the synchronizer independently requires every M01 child through M01-032; and focused tests preserve the blocker ledger without brittle source-state coupling. That ledger records that M01LivePagingIntegration accepts synthetic execution transcripts, retains historical identity aliases, lacks physical arena materialization/readback, and cannot supply the composite's exact return address or post-return RFLAGS observation. The accepted 411,215-byte host log has SHA-256 EB94E3962B79ED401B6B96DB2DA9974E96A662FA2AAF4C70525819C3A3661D6B, contains 3,222 TEST_PASS lines, zero TEST_FAIL lines, exactly one CLROS_M01_028_READY and TEST_PASS m01.028, and ends with exactly one TEST_PASS host.tests. Independent manifest, test, and documentation reviews found no remaining defect after corrections. The guarded apply created issues #384 through #387, updated only #332, #383, and M01 epic #24, verified 337 issues, and converged with all 421 managed objects unchanged. Issue #383 comment #5971 carries clros-evidence-reviewed:M01-028. This is synchronized host/backlog evidence only and does not prove live QEMU/OVMF paging execution, physical table installation, generated-code invocation, CR3/CR4/RFLAGS/PTE/TLB effects, or any completion-gate advancement.",
+      "implementationNotes": [
+        "Record four smallest serial implementation prerequisites: M01-029 splits preparation from synthetic execution transcripts; M01-030 replaces historical identity aliases with exact live-interval bindings; M01-031 defines exact candidate-base sizing/capacity and physical table-arena materialization/readback; M01-032 defines one audited composite call gate with an exact return site and post-return RFLAGS observation.",
+        "Keep M01-029 explicitly dependent on both this issue and reviewed M01-027. Serialize M01-030 after M01-029, M01-031 after M01-030, and M01-032 after M01-031.",
+        "Keep M01-025 blocked on M01-024, M01-027, and every implementation prerequisite M01-029 through M01-032. M01-026 remains blocked only on M01-025.",
+        "Give each child exact ownership, forbidden paths, stable host markers, minimum commands, canonical documentation paths, malformed/default/overflow/alias/capacity tests, and an evidence boundary that denies live or QEMU execution.",
+        "Update the backlog synchronization tool's exact structural contract to 16 epics, 321 children, 337 total issues, and every contiguous M01 child through M01-032 without weakening any schema, uniqueness, dependency, label, or additive-only validation.",
+        "Update only the durable manifest, backlog synchronization tool, its focused manifest/recovery host tests, canonical boot/architecture/repository/label documentation, and done/step873.md, then synchronize and verify the additive tracker state. Do not edit production source, build/QEMU scripts, references, README, or completion gates."
+      ],
+      "referenceInfluences": [],
+      "acceptanceCriteria": [
+        "The durable manifest contains unique full-contract entries M01-028 through M01-032 with the exact serial dependency chain and collision lanes, and M01-025 retains M01-024 and M01-027 while adding M01-029 through M01-032.",
+        "M01-029 through M01-032 are explicitly host-only implementation prerequisites and cannot claim EFI invocation, privileged execution, live CR3/PTE/TLB effects, QEMU/OVMF evidence, or completion-gate advancement.",
+        "M01-025 current evidence and implementation contract identify the reviewed prerequisite APIs it must consume rather than requiring fabricated transcripts or historical identity aliases.",
+        "JSON parsing, the shared repository-recovery invariant, and offline manifest validation report exactly 16 epics, 321 children, and 337 issues, require every contiguous M01 child through M01-032, and reject duplicate keys, unresolved dependencies, unsupported labels, secrets, tracker deletion, or production-source changes.",
+        "The complete host harness, naming/source firewall, and QEMU dry-run pass while canonical repository and label documentation distinguish the new 421-object inventory from prior historical counts."
+      ],
+      "requiredMarkers": [
+        "TEST_START m01.028",
+        "CLROS_M01_028_READY",
+        "TEST_PASS m01.028",
+        "TEST_FAIL m01.028 <reason>"
+      ],
+      "requiredCommands": [
+        "powershell -NoProfile -Command \"$manifest = Get-Content -Raw .\\.gitea\\backlog\\clros-issues.json | ConvertFrom-Json; if (($manifest.issues | Where-Object key -in @('M01-028','M01-029','M01-030','M01-031','M01-032')).Count -ne 5) { throw 'M01 prerequisite manifest mismatch' }\"",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\sync-gitea-backlog.ps1 -Offline",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\sync-gitea-backlog.ps1 -SelfTest",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\sync-gitea-backlog.ps1 # pre-apply preview",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\sync-gitea-backlog.ps1 -Apply",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\sync-gitea-backlog.ps1 # post-apply convergence preview",
+        "dotnet build .\\CLROS.slnx --nologo -m:1",
+        "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check-naming.ps1",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun",
+        "git diff --check",
+        "git status --short"
+      ],
+      "documentationPaths": [
+        ".gitea/backlog/clros-issues.json",
+        "docs/boot.md",
+        "docs/architecture.md",
+        "docs/repo-audit.md",
+        "docs/issue-labels.md",
+        "done/step873.md"
+      ],
+      "evidenceBoundary": "This research/meta issue proves through focused host tests, canonical documentation, done evidence, and additive tracker synchronization only that the live-paging blockers and their serial ownership/dependency graph are durably represented. It does not implement production paging behavior, allocate firmware pages, materialize or execute machine code, or change CR3/PTE/TLB/RFLAGS state. It does not prove live QEMU/OVMF execution or advance an M01 completion gate.",
+      "desiredState": "closed"
+    },
+    {
+      "key": "M01-029",
+      "title": "[M01-029] Split M01 paging preparation from synthetic execution transcripts.",
+      "milestone": "M01",
+      "parentKey": "M01-EPIC",
+      "dependencyKeys": [
+        "M01-028",
+        "M01-027"
+      ],
+      "labels": [
+        "agent:blocked",
+        "priority:p0",
+        "type:implementation",
+        "evidence:host",
+        "component:boot",
+        "component:memory",
+        "phase:m01-memory",
+        "lane:probes",
+        "reference:test-only"
+      ],
+      "priority": "priority:p0",
+      "ownedPaths": [
+        "src/OS.Kernel/Boot/M01LivePagingIntegration.cs",
+        "tests/OS.HostTests/M01LivePagingIntegrationTests.cs",
+        "docs/boot.md",
+        "docs/architecture.md"
+      ],
+      "forbiddenPaths": [
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/M01OwnedCr3CompositeTransition.cs",
+        "src/OS.Kernel/Boot/X64BootIdentityMappingPlan.cs",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Boot/BootSequencePlan.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "scripts/build-efi-shell.ps1",
+        "scripts/run-qemu-smoke.ps1",
+        "docs/completion-gates.md",
+        "README.md",
+        "references/** (read-only)",
+        "done/** (reserve a new step only after implementation evidence exists)"
+      ],
+      "collisionLane": "lane:probes",
+      "summary": "Refactor M01LivePagingIntegration into a preparation-only host contract that validates allocations, refreshed-map evidence, reservations, mapping requirements, architectural preflight, audited bytes, and table-image plans without accepting fabricated CR3-transition or page-protection execution transcripts.",
+      "currentEvidence": "The reviewed M01LivePagingIntegration host coordinator still accepts caller-supplied X64ReversibleCr3TransitionRuntimeState, X64Cr3ProbeEvent, X64ProtectionProbeObservation, and X64ProtectionProbeEvent records and can compose them into a successful model result. M01-027 separately provides the audited composite transition plan, but no preparation-only result currently prevents synthetic model events from being mistaken for executable or guest evidence.",
+      "implementationNotes": [
+        "Introduce an append-only preparation phase/result and a pointer/count/capacity API that owns only deterministic validation and construction before any generated-code call.",
+        "Remove synthetic transition-runtime-state, CR3-event, protection-observation, and protection-event inputs from the successful preparation path. If a legacy model entry point remains for historical tests, name and flag it explicitly as model-only and make it impossible to satisfy the new prepared-for-composite contract.",
+        "Return caller-owned POD evidence for the validated allocation records, refreshed map and sorted ledger, architectural preflight, exact byte plans/readback requirements, identity-map plan, page images, entry workspace, cleanup state, and inputs needed by the reviewed M01-027 composite transition.",
+        "Keep every design/execution flag honest: the preparation API does not invoke firmware, execute generated code or privileged instructions, enter CR3, mutate a live PTE, execute invlpg, run a probe, or provide guest evidence.",
+        "Preserve default-value failure, exact pointer/count/capacity checks, overlap and arithmetic guards, one-shot state, deterministic cleanup planning, and unchanged caller storage on preflight failure.",
+        "Do not change marker order, EFI linkage, EfiEntry, build switches, scripts, or completion gates."
+      ],
+      "referenceInfluences": [
+        {
+          "path": "references/SharpOS-main/OS/src/Kernel/Paging/PagingValidation.cs",
+          "use": "test-only",
+          "notes": "Use validation categories only to cross-check independently authored negative vectors; do not import its execution model."
+        }
+      ],
+      "acceptanceCriteria": [
+        "The exact production API has a preparation-only success phase and cannot consume synthetic CR3/protection execution transcripts to reach it.",
+        "Host tests prove caller-owned preparation for valid records and reject default, null, zero, short, excess, overflowed, unaligned, overlapping, aliased, stale-map, unsorted-ledger, malformed-preflight, malformed-byte-plan, undersized-workspace, and repeated-use inputs without partial promotion.",
+        "Host tests prove a legacy successful model transcript is not composite preparation or execution evidence and that corrupt supplied events are irrelevant to the new preparation API.",
+        "The complete host harness emits CLROS_M01_029_READY and TEST_PASS m01.029, with no EFI build, generated-code invocation, QEMU run, guest marker, or completion-gate change."
+      ],
+      "requiredMarkers": [
+        "TEST_START m01.029",
+        "CLROS_M01_029_READY",
+        "TEST_PASS m01.029",
+        "TEST_FAIL m01.029 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build .\\CLROS.slnx --nologo -m:1",
+        "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check-naming.ps1",
+        "git diff --check",
+        "git status --short"
+      ],
+      "documentationPaths": [
+        "docs/boot.md",
+        "docs/architecture.md"
+      ],
+      "evidenceBoundary": "This issue may prove only a host-tested preparation contract and anti-promotion boundary. It does not allocate firmware pages, install physical page tables, materialize a composite call gate, invoke generated code, change CR3/PTE/TLB/RFLAGS state, or prove W^X or page-zero policy in hardware. It does not prove live QEMU/OVMF execution or advance a completion gate.",
+      "desiredState": "open"
+    },
+    {
+      "key": "M01-030",
+      "title": "[M01-030] Replace historical paging identity aliases with exact live-interval bindings.",
+      "milestone": "M01",
+      "parentKey": "M01-EPIC",
+      "dependencyKeys": [
+        "M01-029"
+      ],
+      "labels": [
+        "agent:blocked",
+        "priority:p0",
+        "type:implementation",
+        "evidence:host",
+        "component:boot",
+        "component:memory",
+        "phase:m01-memory",
+        "lane:probes",
+        "reference:test-only"
+      ],
+      "priority": "priority:p0",
+      "ownedPaths": [
+        "src/OS.Kernel/Boot/X64BootIdentityMappingPlan.cs",
+        "src/OS.Kernel/Boot/M01LivePagingIntegration.cs",
+        "src/OS.Kernel/Boot/M01OwnedCr3CompositeTransition.cs",
+        "tests/OS.HostTests/X64BootIdentityMappingPlanTests.cs",
+        "tests/OS.HostTests/M01LivePagingIntegrationTests.cs",
+        "tests/OS.HostTests/M01OwnedCr3CompositeTransitionTests.cs",
+        "docs/boot.md",
+        "docs/architecture.md"
+      ],
+      "forbiddenPaths": [
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Boot/BootSequencePlan.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "scripts/build-efi-shell.ps1",
+        "scripts/run-qemu-smoke.ps1",
+        "docs/completion-gates.md",
+        "README.md",
+        "references/** (read-only)",
+        "done/** (reserve a new step only after implementation evidence exists)"
+      ],
+      "collisionLane": "lane:probes",
+      "summary": "Replace the M01 preparation/composite contracts' historical SerialStub, ACPI scratch, framebuffer metadata, and loaded-image-continuation identity aliases with append-only purposes and range roles for only the pages actually dereferenced while the owned root is active.",
+      "currentEvidence": "The current preparation path requires unique AcpiScratch and FramebufferMetadata reservations and maps the stage-one switch stub through the historical SerialStub purpose even though the composite interval does not dereference ACPI, framebuffer, serial, or diagnostic state. The composite range contract also treats a loaded-image continuation page as its exact return target, while a future audited call gate must own that return site. Those requirements cannot be populated truthfully by the current three-allocation M01-025 boundary.",
+      "implementationNotes": [
+        "Append, never renumber, exact X64BootIdentityMappingPurpose values and composite range roles for the composite code/call-gate page, owned stack, protection-probe page, complete table/state arena, runtime-state/canary page, and owned-root page.",
+        "Enumerate the composite byte plan's actual memory dereferences and require exactly those present identity mappings with exact RO/RW, executable/NX, cache-policy, containment, allocation, and reservation provenance.",
+        "Do not require AcpiScratch, FramebufferMetadata, SerialStub, BootHandoff, the stage-two allocator arena, or a loaded-image continuation page when the owned interval does not dereference them. Preserve those append-only enum values for other boot phases but reject them as substitutes for an exact M01 live-interval role.",
+        "Bind the composite call gate's exact post-call return site to an RX/non-writable range that remains mapped until the composite restores the firmware CR3; execution after firmware-root restoration is outside the owned-root identity requirement.",
+        "Require the owned stack RW+NX, guard absent, composite/gate code RX and non-writable, probe initially RW+NX with exact planned RO+X mutation, and all table/state pages RW+NX. Reject any present W+X leaf, ambiguous AdditionalRequired alias, duplicate role, missing role, partial containment, or cross-role alias.",
+        "Keep owned serial, ACPI, framebuffer, diagnostics, permanent firmware mappings, and post-EBS ownership as explicit nonclaims."
+      ],
+      "referenceInfluences": [
+        {
+          "path": "references/SharpOS-main/OS/src/Kernel/Paging/X64PageTable.cs",
+          "use": "test-only",
+          "notes": "Use only to cross-check independently authored page-purpose and permission vectors; current CLROS interval dereferences define the required bindings."
+        }
+      ],
+      "acceptanceCriteria": [
+        "The append-only identity-purpose and composite-role contracts name every actual owned-interval dereference without renumbering existing public values.",
+        "Preparation and composite validation succeed with exact code/gate, stack, probe, table arena, state/canary, and root bindings and no fabricated ACPI, framebuffer, serial, diagnostic, loaded-image-continuation, or allocator-arena reservation.",
+        "Negative tests cover every missing/duplicate/extra/historical-alias role, zero/default/unaligned/overflowing/overlapping range, wrong allocation or reservation, partial containment, inconsistent identity range, wrong cache/protection, guard present, writable code, executable table/state/stack, W+X leaf, probe alias, call-gate return outside its range, and ambiguous AdditionalRequired use.",
+        "The complete host harness emits CLROS_M01_030_READY and TEST_PASS m01.030 without EFI invocation, live mapping, QEMU evidence, or completion-gate change."
+      ],
+      "requiredMarkers": [
+        "TEST_START m01.030",
+        "CLROS_M01_030_READY",
+        "TEST_PASS m01.030",
+        "TEST_FAIL m01.030 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build .\\CLROS.slnx --nologo -m:1",
+        "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check-naming.ps1",
+        "git diff --check",
+        "git status --short"
+      ],
+      "documentationPaths": [
+        "docs/boot.md",
+        "docs/architecture.md"
+      ],
+      "evidenceBoundary": "This issue may prove only host validation of exact live-interval identity and provenance bindings. It does not allocate or map pages in firmware, install page tables, materialize or invoke the call gate/composite, execute privileged instructions, observe hardware restoration, or establish owned serial/ACPI/framebuffer access. It does not prove live QEMU/OVMF execution or advance a completion gate.",
+      "desiredState": "open"
+    },
+    {
+      "key": "M01-031",
+      "title": "[M01-031] Materialize and read back the owned physical page-table arena.",
+      "milestone": "M01",
+      "parentKey": "M01-EPIC",
+      "dependencyKeys": [
+        "M01-030"
+      ],
+      "labels": [
+        "agent:blocked",
+        "priority:p0",
+        "type:implementation",
+        "evidence:host",
+        "component:boot",
+        "component:memory",
+        "phase:m01-memory",
+        "lane:probes",
+        "reference:test-only"
+      ],
+      "priority": "priority:p0",
+      "ownedPaths": [
+        "src/OS.Kernel/Boot/M01LivePagingIntegration.cs",
+        "tests/OS.HostTests/M01LivePagingIntegrationTests.cs",
+        "docs/boot.md",
+        "docs/architecture.md"
+      ],
+      "forbiddenPaths": [
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/M01OwnedCr3CompositeTransition.cs",
+        "src/OS.Kernel/Boot/X64BootIdentityMappingPlan.cs",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Boot/BootSequencePlan.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "scripts/build-efi-shell.ps1",
+        "scripts/run-qemu-smoke.ps1",
+        "docs/completion-gates.md",
+        "README.md",
+        "references/** (read-only)",
+        "done/** (reserve a new step only after implementation evidence exists)"
+      ],
+      "collisionLane": "lane:probes",
+      "summary": "Add a no-stdlib-compatible host-tested sizing, placement, capacity, materialization, and exact readback contract that turns the prepared flat X64 page images/entries into the physical table pages of one exact candidate-base arena while reserving its final page for transition state and canary.",
+      "currentEvidence": "M01LivePagingIntegration currently builds X64PageTableImagePage metadata and a disjoint flat entry workspace, but it does not copy those entries into the physical table pages named by the images. It also requires the allocation record to equal TotalTablePageCount plus one state page even though AllocateAnyPages reveals the arena base only after allocation and that base participates in the self-mapping plan. Host fixtures hide this dependency by choosing a backing address in advance.",
+      "implementationNotes": [
+        "Add pointer/count/capacity POD contracts inside the already-linked M01LivePagingIntegration source; do not add a new source file that would silently bypass the explicit no-stdlib EFI compile list.",
+        "Given a caller-selected page-aligned candidate physical base inside a supplied free descriptor, iteratively compute the exact identity-map fixed point for that arena and return exact table-page count, one state-page count, total page/byte count, root address, state-page address, and required caller workspace.",
+        "Bound iteration and reject non-convergence, zero/default input, unsupported physical width, unaligned or wrapped candidate/range, descriptor escape, reservation overlap, insufficient page capacity, excessive page/image/entry capacity, and any table/state alias.",
+        "Define capacity semantics explicitly: a candidate descriptor may have more available pages, but the eventual firmware allocation request and allocation record must equal the exact planned total; the final state/canary page is not a table page and no image may target it.",
+        "Materialize every 512-entry table page from the disjoint prepared workspace into the caller-provided arena at the exact physical offset named by each page image, then independently read back and compare every entry plus deterministic aggregate evidence before success.",
+        "Reject an out-of-order, duplicate, missing, outside-arena, misaligned, aliased, truncated, or corrupt page image/entry. Preserve the state page and canary storage unchanged during table materialization.",
+        "Call no firmware allocator, install no CR3, change no page protection, execute no generated code, and make no QEMU claim."
+      ],
+      "referenceInfluences": [
+        {
+          "path": "references/SharpOS-main/OS/src/Kernel/Paging/X64PageTable.cs",
+          "use": "test-only",
+          "notes": "Use table-boundary and hierarchy cases as independent host vectors; do not copy its allocator or permanent-map assumptions."
+        }
+      ],
+      "acceptanceCriteria": [
+        "A deterministic bounded planner converges from a caller-selected candidate base to an exact table-pages-plus-one-state-page allocation request, including candidates adjacent to hierarchy boundaries.",
+        "Host tests cover available capacity below/equal/above exact demand; zero/default/unaligned/wrapped/out-of-descriptor candidates; non-convergence; physical-width overflow; count/capacity overflow; allocation-record mismatch; root/state misplacement; missing/duplicate/out-of-order/outside-arena images; source/destination alias; truncated entries; corrupt readback; and unchanged state/canary bytes.",
+        "For valid input every physical table page exactly matches the prepared 512-entry image, all page-image addresses lie in the table portion, the root is aligned and inside the arena, and the final page remains exclusively reserved for transition state/canary.",
+        "The complete host harness emits CLROS_M01_031_READY and TEST_PASS m01.031 with no firmware allocation, EFI execution, live CR3/PTE/TLB effect, QEMU evidence, or completion-gate change."
+      ],
+      "requiredMarkers": [
+        "TEST_START m01.031",
+        "CLROS_M01_031_READY",
+        "TEST_PASS m01.031",
+        "TEST_FAIL m01.031 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build .\\CLROS.slnx --nologo -m:1",
+        "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check-naming.ps1",
+        "git diff --check",
+        "git status --short"
+      ],
+      "documentationPaths": [
+        "docs/boot.md",
+        "docs/architecture.md"
+      ],
+      "evidenceBoundary": "This issue may prove only host-tested exact arena geometry, capacity semantics, table-page copying, and readback. It does not select or allocate a live firmware range, prove the refreshed EFI map, install the hierarchy into CR3, execute the composite transition, or observe RFLAGS. It does not prove live QEMU/OVMF execution or advance a completion gate.",
+      "desiredState": "open"
+    },
+    {
+      "key": "M01-032",
+      "title": "[M01-032] Add an audited composite call gate and post-return RFLAGS observer.",
+      "milestone": "M01",
+      "parentKey": "M01-EPIC",
+      "dependencyKeys": [
+        "M01-031"
+      ],
+      "labels": [
+        "agent:blocked",
+        "priority:p0",
+        "type:implementation",
+        "evidence:host",
+        "component:boot",
+        "component:memory",
+        "phase:m01-memory",
+        "lane:probes",
+        "reference:adapt"
+      ],
+      "priority": "priority:p0",
+      "ownedPaths": [
+        "src/OS.Kernel/Boot/M01OwnedCr3CompositeTransition.cs",
+        "tests/OS.HostTests/M01OwnedCr3CompositeTransitionTests.cs",
+        "docs/boot.md",
+        "docs/architecture.md"
+      ],
+      "forbiddenPaths": [
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/M01LivePagingIntegration.cs",
+        "src/OS.Kernel/Boot/X64BootIdentityMappingPlan.cs",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Boot/BootSequencePlan.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "scripts/build-efi-shell.ps1",
+        "scripts/run-qemu-smoke.ps1",
+        "docs/completion-gates.md",
+        "README.md",
+        "references/** (read-only)",
+        "done/** (reserve a new step only after implementation evidence exists)"
+      ],
+      "collisionLane": "lane:probes",
+      "summary": "Extend the reviewed composite source with one relocation-free Windows-x64 call-gate plan whose exact call-next return address is known before invocation and whose callback-free post-return observer captures raw RFLAGS after the composite restores firmware CR3, CR4, and RFLAGS.",
+      "currentEvidence": "The reviewed composite leaf compares the hardware return address at [rsp] with a caller-supplied exact expected address before cli, but an ordinary C# unmanaged function-pointer call cannot name its compiler-generated next RIP in advance. The leaf restores RFLAGS with popfq immediately before ret and records restoration intent, but cannot perform a post-pop hardware readback. No audited gate currently bridges either boundary.",
+      "implementationNotes": [
+        "Keep the call gate and observer in the already-linked M01OwnedCr3CompositeTransition source and within the same single EfiLoaderCode allocation as the composite stream; expose exact nonoverlapping offsets, lengths, entry alignment, call-next return-site address, and total required code-page capacity.",
+        "Materialize and read back one relocation-free gate that receives only caller-owned POD pointers, establishes Windows-x64 stack alignment and shadow space, calls the composite entry exactly once, resumes at the published exact return site, captures post-return raw RFLAGS and any required firmware CR3/CR4 readbacks into a separate observation record, and returns the composite uint result to the C# caller.",
+        "Perform no firmware, console, serial, allocator, exception, managed callback, or dynamic dispatch inside the gate/observer interval. Preserve every required nonvolatile GPR, do not touch XMM6-XMM15, and audit all reachable instructions independently.",
+        "Fail closed before transfer for default/malformed state, wrong code base or entry/return offset, overlap/truncation/readback mismatch, TF set, unsupported CET state, LA57 or PCIDE mismatch, invalid IF/PGE policy, wrong expected return, or a gate/composite range that is not exact RX/non-writable identity mapped.",
+        "Require a completion signature, exactly one call and one post-return observation, exact composite return value, exact raw post-return RFLAGS equality, expected IF, restored firmware CR3/CR4 readbacks, and unchanged canary outside the composite-owned mutation.",
+        "Keep execution flags false: this issue materializes and independently audits bytes on the host but does not invoke them or provide guest evidence."
+      ],
+      "referenceInfluences": [
+        {
+          "path": "references/SharpOS-main/bootasm/BootAsm.Generator/BootAsmGenerator.cs",
+          "use": "adapt",
+          "notes": "Study C#-authored x64 byte-plan structure while independently enforcing CLROS's exact return-site, ABI, readback, and no-native-source rules."
+        }
+      ],
+      "acceptanceCriteria": [
+        "The gate exposes an exact deterministic call-next return-site offset accepted by the composite state validator, and the gate/composite streams fit without overlap in one 4 KiB code allocation with exact full-range materialization/readback.",
+        "Independent host decoding proves one call to the configured composite entry, correct Windows-x64 stack/shadow/nonvolatile discipline, no XMM6-XMM15 or callback use, return only through the exact site, post-return RFLAGS capture after composite ret, and one final return to the unmanaged caller.",
+        "Negative tests cover null/default/short/excess/unaligned/overflowing/overlapping code and observation storage; wrong code base, entry, call target, return offset/address, ABI alignment, expected result, completion signature, call/observation count, post-return CR3/CR4/RFLAGS/IF, TF/CET/LA57/PCIDE/PGE policy, readback byte, canary, timeout/reset/triple-fault transcript, and repeated use.",
+        "The complete host harness emits CLROS_M01_032_READY and TEST_PASS m01.032 without executing generated code, changing hardware state, running QEMU, or advancing a completion gate."
+      ],
+      "requiredMarkers": [
+        "TEST_START m01.032",
+        "CLROS_M01_032_READY",
+        "TEST_PASS m01.032",
+        "TEST_FAIL m01.032 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build .\\CLROS.slnx --nologo -m:1",
+        "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check-naming.ps1",
+        "git diff --check",
+        "git status --short"
+      ],
+      "documentationPaths": [
+        "docs/boot.md",
+        "docs/architecture.md"
+      ],
+      "evidenceBoundary": "This issue may prove only host-tested gate/composite byte materialization, exact return-site binding, ABI/control-flow audit, and post-return observation semantics. It does not execute the gate, change CR3/CR4/RFLAGS/PTE/TLB state, call firmware, or prove restoration in hardware. It does not prove live QEMU/OVMF execution or advance a completion gate.",
+      "desiredState": "open"
+    },
+    {
       "key": "M01-020",
       "title": "[M01-020] Link reviewed M01 sources into the canonical EFI project and plumb staged build switches.",
       "milestone": "M01",
@@ -5040,7 +5479,12 @@
        "milestone": "M01",
        "parentKey": "M01-EPIC",
        "dependencyKeys": [
-         "M01-024"
+         "M01-024",
+         "M01-027",
+         "M01-029",
+         "M01-030",
+         "M01-031",
+         "M01-032"
        ],
        "labels": [
          "agent:blocked",
@@ -5060,6 +5504,9 @@
        ],
        "forbiddenPaths": [
          "src/OS/OS.csproj",
+         "src/OS.Kernel/Boot/M01LivePagingIntegration.cs",
+         "src/OS.Kernel/Boot/M01OwnedCr3CompositeTransition.cs",
+         "src/OS.Kernel/Boot/X64BootIdentityMappingPlan.cs",
          "src/OS.Kernel/Boot/BootSequence.cs",
          "src/OS.Kernel/Boot/BootSequencePlan.cs",
          "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -5071,18 +5518,21 @@
          "done/** (reserve a new step only after implementation evidence exists)"
        ],
        "collisionLane": "lane:efi-entry",
-       "summary": "Extend the thin EfiEntry adapter to allocate distinct EfiLoaderCode CR3/invlpg and protection-probe pages plus a separate EfiLoaderData page-table/state arena, recapture/update the map ledger, materialize/read back exact audited bytes, and invoke the callback-free reversible owned-CR3 probe after stages one and two.",
-       "currentEvidence": "No current live guest evidence proves distinct CR3/invlpg code, protection-probe, and table/state allocation, stage-three map recapture, audited stub materialization, architectural preflight, interrupt discipline, reversible CR3 entry/restoration, callback exclusion, or continuation-canary validation. M01-024 must first close with reviewed stage-two QEMU evidence before this issue may be claimed.",
+       "summary": "Extend the thin EfiEntry adapter to allocate distinct EfiLoaderCode composite/gate and protection-probe pages plus one exact EfiLoaderData page-table/state arena, recapture/update the map ledger, consume the reviewed preparation/binding/arena/gate contracts, and invoke the callback-free reversible owned-CR3 probe after stages one and two.",
+       "currentEvidence": "M01-024 preserves reviewed stage-two QEMU evidence and M01-027 preserves reviewed host evidence for the unlinked composite transition plan. A source audit established that M01-025 still cannot be implemented honestly because the current coordinator accepts synthetic execution transcripts, requires historical identity aliases, lacks an exact physical table-arena sizing/materialization contract, and cannot provide an audited exact return site or post-return RFLAGS observation. No current live guest evidence proves stage-three allocation, map recapture, physical table installation, composite/gate materialization, architectural preflight, interrupt discipline, reversible CR3 entry/restoration, callback exclusion, or continuation-canary validation. M01-029 through M01-032 must close with reviewed host evidence before this issue may be claimed.",
        "implementationNotes": [
-         "Require successful stage-one and stage-two tokens plus EnableM01OwnedPagingProbe.",
-         "Call checked EFI AllocatePages three times for three nonoverlapping page-aligned records: one bounded EfiLoaderCode CR3/invlpg-stub page, one distinct EfiLoaderCode protection-probe page recorded as BootReservationKind.PageProtectionProbe, and one EfiLoaderData page-table/state arena. Recapture the EFI memory map and update the sorted/disjoint reservation ledger before table construction.",
-         "Reject arbitrary conventional memory, any EFI status/type error, zero/misaligned/undersized/wrapped/overlapping allocation, mixed type, failed/stale/overflowing map recapture, missing/duplicate reservation, outside-arena table/state, probe/table aliasing, or overlap with image, stage-one stub, stack, guard, allocator arena, map, ACPI, or diagnostics.",
-         "Copy and read back the exact audited M01-013 preflight/transition and M01-014 invlpg/protection-probe first-party C# bytes into their correct LoaderCode pages; validate bounds, content, entry alignment, checked unmanaged function pointers, and one-shot state. Pass caller-owned records/canary/state to the NOSTDLIB_EFI stage-three core; do not duplicate paging logic in EfiEntry.",
+         "Require successful stage-one and stage-two tokens, EnableM01OwnedPagingProbe, the M01-029 preparation-only contract, M01-030 exact live-interval bindings, M01-031 physical arena plan/materializer, and M01-032 composite call gate/post-return observer.",
+         "Call checked EFI AllocatePages exactly three times for three nonoverlapping page-aligned records: one bounded EfiLoaderCode composite/call-gate page, one distinct EfiLoaderCode protection-probe page recorded as BootReservationKind.PageProtectionProbe, and one exact EfiLoaderData page-table/state arena.",
+         "Select a page-aligned table-arena candidate from the already captured bounded firmware map, use the M01-031 fixed-point sizing/capacity result to request that exact base and page count through checked AllocateAddress semantics, then recapture the EFI memory map and update the sorted/disjoint reservation ledger before physical table construction.",
+         "Reject arbitrary conventional memory, any EFI status/type error, zero/misaligned/undersized/wrapped/overlapping allocation, wrong allocated address, mixed type, failed/stale/overflowing map recapture, missing/duplicate reservation, outside-arena table/state, probe/table aliasing, or overlap with image, stage-one stub, stack, guard, allocator arena, or copied map storage.",
+         "Consume the M01-029 preparation-only result without constructing synthetic CR3/protection event transcripts. Require only the exact M01-030 code/gate, owned-stack, protection-probe, complete table/state, runtime-state/canary, and root live-interval bindings; do not invent ACPI, framebuffer, serial, diagnostic, allocator, or loaded-image-continuation aliases.",
+         "Use M01-031 to materialize and independently read back every physical page-table page in the allocated arena while preserving the final transition-state/canary page.",
+         "Copy and read back the exact reviewed composite/call-gate and constant-return protection-probe first-party C# bytes into their correct LoaderCode pages; validate bounds, nonoverlap, content, entry/return alignment, checked unmanaged function pointers, and one-shot state. Pass caller-owned records/canary/observation state to the NOSTDLIB_EFI stage-three core; do not duplicate paging logic in EfiEntry.",
          "Before invocation, fail closed unless audited POD preflight records CR0.PG/WP=1, CR4.PAE=1, CR4.LA57=0, CR4.PCIDE=0, IA32_EFER.LME/LMA/NXE=1, a supported CPUID physical-address width, and an aligned owned root inside the table arena. Preserve the exact raw firmware CR3 including low bits, exact raw CR4, and original RFLAGS/IF state.",
-         "Require the owned hierarchy to map the CR3/invlpg and stage-one stack-switch stubs RX/non-writable, every page-table/state page and stack page RW+NX, the guard absent, and the distinct protection-probe page initially RW+NX; reject executable table data, writable code, or any W+X present leaf.",
-         "Immediately before owned-CR3 entry save RFLAGS/IF and execute CLI, clear CR4.PGE and read it back, and keep PGE clear through owned-CR3 execution and exact firmware-CR3 restoration/readback. Restore/read back the exact original CR4, then restore original RFLAGS/IF before any post marker or firmware callback. The bounded callback-free interval may use only volatile Windows-x64 registers or must save/restore nonvolatiles, must not touch XMM6-XMM15, and must preserve ABI alignment/shadow space. NMI/SMI remains an explicit M02 residual risk.",
+         "Require the owned hierarchy to map the composite/call-gate page RX/non-writable, every page-table/state page and stack page RW+NX, the guard absent, and the distinct protection-probe page initially RW+NX; reject historical ACPI/framebuffer/serial/loaded-image aliases, executable table data, writable code, or any W+X present leaf.",
+         "Invoke only the M01-032 audited gate. Its published call-next address must equal the composite expected return, and its post-return observer must prove exact firmware CR3, original CR4, and original RFLAGS/IF readback before any post marker or firmware callback. Keep PGE clear through owned-CR3 execution and exact firmware-CR3 restoration/readback. The bounded callback-free interval must preserve Windows-x64 nonvolatiles, XMM6-XMM15, stack alignment, and shadow space. NMI/SMI remains an explicit M02 residual risk.",
          "If any of the three allocations, map recapture, ledger update, materialization, preflight, or pre-entry validation fails, clean up every completed partial firmware allocation deterministically before failure reporting.",
-         "Emit the planned guest sequence before entry: TEST_START m01.stage3, M01_CR3_STUB_PAGE_ALLOCATED, M01_PROTECTION_PROBE_PAGE_ALLOCATED, M01_PAGE_TABLE_STATE_ARENA_ALLOCATED, M01_STAGE3_MAP_RECAPTURED, M01_CR3_STUB_MATERIALIZED, M01_PAGE_TABLES_BUILT, M01_PAGING_MODE_VALIDATED, then M01_PRE_CR3. While owned CR3 is active, update only POD state for entry, atomic protection-probe RW+NX-to-RO+X transition, exact-target invlpg/PTE readback, constant-return probe execution, page-zero check, and the canary; make no firmware output/callback. After exact firmware CR3, original CR4, and original RFLAGS/IF restoration/readback, firmware serial emits M01_FIRMWARE_CR3_RESTORED, M01_RFLAGS_RESTORED, M01_PGE_CYCLE_VERIFIED, M01_OWNED_CR3_CANARY_VERIFIED, M01_POST_CR3, M01_RW_TO_RX_VERIFIED, M01_TLB_INVALIDATION_COMPLETE, M01_RX_PROBE_EXECUTED, M01_PAGE_ZERO_ABSENT, then TEST_PASS m01.stage3.",
+         "Emit the planned guest sequence before entry: TEST_START m01.stage3, M01_CR3_STUB_PAGE_ALLOCATED, M01_PROTECTION_PROBE_PAGE_ALLOCATED, M01_PAGE_TABLE_STATE_ARENA_ALLOCATED, M01_STAGE3_MAP_RECAPTURED, M01_CR3_STUB_MATERIALIZED, M01_PAGE_TABLES_BUILT, M01_PAGING_MODE_VALIDATED, then M01_PRE_CR3. While owned CR3 is active, update only POD state for entry, atomic protection-probe RW+NX-to-RO+X transition, exact-target invlpg/PTE readback, constant-return probe execution, page-zero check, and the canary; make no firmware output/callback. After the call gate returns and its observer proves exact firmware CR3, original CR4, and original RFLAGS/IF readback, firmware serial emits M01_FIRMWARE_CR3_RESTORED, M01_RFLAGS_RESTORED, M01_PGE_CYCLE_VERIFIED, M01_OWNED_CR3_CANARY_VERIFIED, M01_POST_CR3, M01_RW_TO_RX_VERIFIED, M01_TLB_INVALIDATION_COMPLETE, M01_RX_PROBE_EXECUTED, M01_PAGE_ZERO_ABSENT, then TEST_PASS m01.stage3.",
          "Source tests reject any ConOut, SerialIo, BootServices, or other firmware callback between owned-CR3 entry and firmware-CR3 restoration, including an attempted in-interval serial write for M01_OWNED_CR3_ENTERED.",
          "Preserve the disabled path and earlier marker order.",
          "Build a fresh canonical EFI artifact with all three switches, but do not infer CR3 execution from build success.",
@@ -5096,8 +5546,8 @@
          }
        ],
        "acceptanceCriteria": [
-         "Source tests prove stage three is opt-in, requires stages one/two, performs three checked allocations (CR3/invlpg LoaderCode, PageProtectionProbe LoaderCode, and table/state LoaderData), recaptures/records the changed map, copies/readbacks all exact audited bytes, validates architectural preflight, owned mappings/entries/one-shot state, audited PGE cycle, and interrupt/ABI discipline, passes exact records/canary inputs, and invokes the NOSTDLIB_EFI reversible coordinator core once.",
-         "Negative tests cover missing prior-stage tokens; every three-allocation status/type and partial-cleanup permutation; zero/misaligned/undersized/wrapped/overlapping code/probe/data allocation; arbitrary conventional input; failed/stale/grown map recapture; outside-arena table/state; probe/table aliasing; malformed/oversized/truncated/readback-mismatched bytes; entry/one-shot failure; missing PG/WP/PAE/LME/LMA/NXE, LA57/PCIDE mismatch, unsupported physical width, raw-CR3-low-bit or raw-CR4 preservation; PGE clear/readback/restore/readback failure; absent essential identity map; executable table data; writable/W+X stub; execute-before-protect; wrong invlpg target/readback/probe return; missing stage-one stub RX/guard absent/stack RW+NX mapping; firmware callback or restored IF in the owned interval; transition/readback/restoration/RFLAGS/canary failure; early/missing post; omission/reordering/duplication of any exact planned guest marker; marker suppression; default-off behavior; and any null-fault invocation.",
+         "Source tests prove stage three is opt-in, requires stages one/two, performs three checked allocations (composite/call-gate LoaderCode, PageProtectionProbe LoaderCode, and exact candidate-base table/state LoaderData), recaptures/records the changed map, consumes preparation without synthetic execution transcripts, validates only exact live-interval bindings, physically materializes/readbacks every table page, copies/readbacks the exact gate/composite/probe bytes, validates architectural preflight and one-shot state, and invokes the audited NOSTDLIB_EFI call gate exactly once.",
+         "Negative tests cover missing prior-stage or prerequisite tokens; every three-allocation status/type and partial-cleanup permutation; zero/misaligned/undersized/wrapped/overlapping or wrong-address code/probe/data allocation; candidate fixed-point/capacity failure; arbitrary conventional input; failed/stale/grown map recapture; outside-arena table/state; physical table image/readback mismatch; probe/table aliasing; historical identity alias substitution; malformed/oversized/truncated/readback-mismatched bytes; gate entry/return-site/one-shot failure; missing PG/WP/PAE/LME/LMA/NXE, LA57/PCIDE mismatch, unsupported physical width, raw-CR3-low-bit or raw-CR4 preservation; PGE clear/readback/restore/readback failure; absent essential identity map; executable table data; writable/W+X code; execute-before-protect; wrong invlpg target/readback/probe return; guard present or stack not RW+NX; firmware callback or restored IF in the owned interval; transition/readback/restoration/post-return-RFLAGS/canary failure; early/missing post; omission/reordering/duplication of any exact planned guest marker; marker suppression; default-off behavior; and any null-fault invocation.",
          "A fresh canonical EFI build succeeds with all three stage switches.",
          "Only EfiEntry and its focused source/integration test are changed; no QEMU, CR3, W^X, TLB, or page-zero guest claim is made."
        ],
@@ -5118,7 +5568,7 @@
          "docs/boot.md",
          "docs/efi-build.md"
        ],
-       "evidenceBoundary": "This issue proves source wiring and a fresh canonical EFI build only for separate pre-EBS EfiLoaderCode CR3/invlpg and protection-probe pages plus an EfiLoaderData page-table/state arena, exact audited-byte materialization/readback, architectural preflight, PGE clear/restore, interrupt/ABI discipline, and a reversible callback-free CR3 probe. It does not prove the firmware calls or bytes ran, permanent CR3 adoption, firmware diagnostics while owned CR3 is active, post-EBS ownership, restored/systemwide W^X/page-zero policy, NMI/SMI safety, or a page fault.",
+       "evidenceBoundary": "This issue proves source wiring and a fresh canonical EFI build only for separate pre-EBS EfiLoaderCode composite/call-gate and protection-probe pages plus an exact EfiLoaderData page-table/state arena, preparation without synthetic transcripts, exact live-interval bindings, physical table materialization/readback, exact audited gate/composite/probe bytes, architectural preflight, post-return CR3/CR4/RFLAGS observation, interrupt/ABI discipline, and a reversible callback-free CR3 probe. It does not prove the firmware calls or bytes ran, permanent CR3 adoption, firmware diagnostics while owned CR3 is active, post-EBS ownership, restored/systemwide W^X/page-zero policy, NMI/SMI safety, or a page fault.",
        "desiredState": "open"
      },
     {

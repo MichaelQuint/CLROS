@@ -13,17 +13,29 @@ repair keeps those labels and milestones, adds M00-023, and replaces the
 impossible per-leaf QEMU closure model with the serialized M01-016 through
 M01-026 one-live-boundary-at-a-time chain. M01-019 review subsequently exposed
 the need for M01-027, a host-audited single composite owned-CR3 transition leaf
-that must close before M01-020 may link the live chain. The durable inventory
-now contains 316 children, 332 keyed issues, and 416 managed objects. The guarded
-earlier apply recognized existing M00-023 as issue #321, created only M01-016
-through M01-026 as issues #323 through #333, updated exactly 24 existing managed
-issues, and emitted `SYNC_VERIFY_PASS milestones=16 labels=68 issues=331`. The
-24 updates included the substantive M03-007 post-EBS permanent-CR3 handoff and
-its generated M03-EPIC child-checklist update. Its final 415-object no-write
-preview is preserved historical evidence, not the current inventory. This
-revision records reviewed M01-019 closure, inserts M01-027, and keeps M01-020
-blocked on M01-027; a converged post-apply preview must report all 416 managed
-objects unchanged.
+that closed before M01-020 linked the reviewed source. The resulting 316
+children, 332 keyed issues, and 416 managed objects are preserved as a
+historical inventory snapshot; M01-027 and M01-020 are now evidence-reviewed
+and closed, not the next or blocked leaves.
+
+The M01-028 recovery adds itself and inserts M01-029 through M01-032 as four
+serialized prerequisites before M01-025. The current durable inventory
+therefore contains 321 children, 337 keyed issues, and 421 managed objects.
+M01-025 remains `agent:blocked` on M01-029 through M01-032, and M01-026 remains
+blocked on M01-025 for real-QEMU proof. Once M01-028 is evidence-reviewed and
+closed, readiness recomputation makes M01-029 the sole `agent:ready` next leaf
+in this recovery chain; M01-030, M01-031, and M01-032 remain blocked in order.
+
+The guarded earlier M00-023 apply recognized existing M00-023 as issue #321,
+created only M01-016 through M01-026 as issues #323 through #333, updated
+exactly 24 existing managed issues, and emitted
+`SYNC_VERIFY_PASS milestones=16 labels=68 issues=331`. The 24 updates included
+the substantive M03-007 post-EBS permanent-CR3 handoff and its generated
+M03-EPIC child-checklist update. Its 315-child/331-keyed/415-managed-object
+convergence is preserved historical evidence, as is the later
+316-child/332-keyed/416-managed-object snapshot. A converged M01-028 post-apply
+preview must report all 421 current managed objects unchanged. None of these
+administrative inventory changes advances a capability or completion gate.
 
 ## Implemented Behavior
 
@@ -45,11 +57,13 @@ objects unchanged.
 - M01-001 through M01-015 are host-only leaf contracts. Their
   `CLROS_M01_NNN_READY` markers are host-harness markers, not guest evidence.
   M01-016 through M01-027 serialize probe policy, three BootSequence
-  coordinator stages, the composite transition leaf, one reviewed
+  coordinator stages, the reviewed composite transition leaf, one reviewed
   OS-project/source-link integration, and alternating
   EfiEntry/fresh-`-BuildEfi` QEMU boundaries so each issue owns exactly one
-  collision-lane surface. M01-027 depends on M01-019; M01-020 depends on
-  M01-027, preserving the later M01-020 through M01-026 chain.
+  collision-lane surface. M01-027 and M01-020 are closed. M01-028 inserts the
+  serialized M01-029 preparation, M01-030 identity-binding, M01-031 physical
+  table-materialization, and M01-032 call-gate leaves before blocked M01-025;
+  M01-026 retains the later real-QEMU evidence boundary.
 - One `phase:mxx-*` label identifies each milestone from M00 through M15.
 
 Only issues whose complete transitive dependency tree is manifest-closed,
