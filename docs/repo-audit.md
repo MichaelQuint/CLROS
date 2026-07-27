@@ -186,7 +186,7 @@ Current M00 recovery evidence from 2026-07-25:
   updated exactly 24 existing managed issues, and emitted
   `SYNC_VERIFY_PASS milestones=16 labels=68 issues=331`; those counts are
   preserved historical evidence. M01-001 through M01-015 are host-evidence
-  leaves. Probe policy, three BootSequence coordinator stages, the reviewed
+  leaves. Probe policy, three BootSequence coordinator stages, the required
   M01-027 composite-transition leaf, one OS-project/source-link integration,
   and alternating EfiEntry/fresh-QEMU boundaries are serialized through the
   final M01-026 cumulative paging proof. M01-019 is closed with reviewed
