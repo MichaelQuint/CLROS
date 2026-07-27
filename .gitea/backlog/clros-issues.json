@@ -4773,7 +4773,7 @@
       ],
       "collisionLane": "lane:central-docs",
       "summary": "Build the canonical EFI artifact inside the QEMU run and preserve ordered stage-one evidence for loaded-image capture, separate LoaderCode/LoaderData allocations, map/ledger recapture, audited stub readiness, nonreturning stack transfer, and containment.",
-      "currentEvidence": "No current serial log proves live loaded-image capture, firmware-allocated stack backing, guard reservation, stack switch, or post-switch RSP containment. M01-021 must first close with reviewed source/build evidence before this issue may be claimed.",
+      "currentEvidence": "Accepted in PR #380 and done/step870.md: a clean source-bound real QEMU/OVMF boot from commit 198be8ad12db388fec44d76f9270c8d754430940 observed the 12-marker M01 stage-one guest chain in declared order exactly once, with no TEST_FAIL, OS_SMOKE_FAIL, missing, out-of-order, duplicate-unique, or forbidden marker; BOOTX64.EFI SHA-256 62BCD4902A55DDDACCA8C490C6B5615C1BEEF78BA7DF96038FA1687FD2B8DC60, raw-image SHA-256 0186D6B11DD31480B42F2ED3013E283ADEF7E425E5281872E58F9921E6F9CC02, serial-log SHA-256 BF775826807B4B3E61B6E26C1DDD7101E0E16F141AC17384ADBC94C54CD1B1B9, and evidence-manifest SHA-256 2EC0D45A229CA749C5F238ED7156DBB29E70F4BBAAA563C9AB6D260B02742968. This proves only the documented pre-EBS M01-022 boundary; guard inaccessibility, W^X/NX, arbitrary conventional-page ownership, a post-EBS allocator, paging/CR3, ExitBootServices, and the M01 exit criterion remain unproven.",
       "implementationNotes": [
         "Use -BuildEfi so stale BOOTX64.EFI artifacts cannot satisfy this issue.",
         "Add nonbreaking -RequireOrderedMarker and -RequireUniqueMarker runner/script options while preserving the existing presence-only -RequireMarker behavior. Forward exact ordered and unique lists into OS.QemuRunner; reject a reordered or duplicated nonterminal semantic marker instead of treating mere presence as proof.",
@@ -4836,7 +4836,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only pre-EBS loader-owned image capture, a dedicated EfiLoaderCode stack-switch stub page, a separate EfiLoaderData guard/usable-stack arena, post-allocation map/ledger recapture, audited stub readiness, guard reservation/not-use, and a nonreturning owned-stack transition under the recorded local QEMU/OVMF configuration. The guard is not yet proven inaccessible and stage one makes no W^X claim. It does not prove arbitrary conventional-page ownership, a post-EBS allocator, paging/CR3, ExitBootServices, or the M01 exit criterion.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-023",
