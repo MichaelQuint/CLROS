@@ -2520,11 +2520,12 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M01: Live Boot Memory and Paging.",
-      "currentEvidence": "M01-001 typed address wrappers are implemented and host-tested on merged master, but they are not linked into or executed by the canonical EFI artifact. All live reservation, stack, allocator, paging, reversible-CR3, and milestone-exit evidence remains unproven.",
+      "currentEvidence": "M01-001 typed address wrappers are implemented and host-tested on merged master, but they are not linked into or executed by the canonical EFI artifact. The current EfiEntry source publishes four generated-instruction epochs and relies on later CPUID execution rather than a separately linked immutable instruction-publication serializer; that gap is now serialized as M01-033 through M01-035 after M01-025 and before cumulative QEMU evidence. All live reservation, stack, allocator, paging, reversible-CR3, publication-serialization, and milestone-exit evidence remains unproven.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
         "M01-001 through M01-015 are host-evidence leaves; M01-016 through M01-027 serialize the original probe, composite-transition, project, boot-sequence, EFI-entry, and QEMU boundaries; M01-028 through M01-032 recover and serialize the preparation, exact live-interval binding, physical table-arena, and audited call-gate prerequisites before M01-025 may resume.",
+        "After M01-025 closes, M01-033 generates one deterministic C# AMD64 COFF serializer with exact x64 unwind metadata and a fixed post-CPUID cookie, M01-034 integrates and verifies its immutable executable text, RUNTIME_FUNCTION/unwind coverage, and exact InternalCall RuntimeImport binding in the canonical EFI artifact, and M01-035 checks the returned cookie at all four current EfiEntry publication epochs before M01-026 may collect cumulative real-QEMU evidence.",
         "Close only after every child issue is closed with accepted evidence and the milestone exit criterion is satisfied."
       ],
       "referenceInfluences": [
@@ -2540,7 +2541,7 @@
         }
       ],
       "acceptanceCriteria": [
-        "All 32 keyed child issues are closed with reviewed evidence.",
+        "All 35 keyed child issues are closed with reviewed evidence.",
         "Prove owned reservations, allocation, paging, CR3, and W^X under real QEMU.",
         "Canonical documentation and completion gates state only what current first-party evidence proves."
       ],
@@ -5502,7 +5503,7 @@
          "M01-032"
        ],
        "labels": [
-         "agent:ready",
+         "agent:done",
          "priority:p1",
          "type:implementation",
          "evidence:host",
@@ -5534,7 +5535,7 @@
        ],
        "collisionLane": "lane:efi-entry",
        "summary": "Extend the thin EfiEntry adapter to allocate distinct EfiLoaderCode composite/gate and protection-probe pages plus one exact EfiLoaderData page-table/state arena, recapture/update the map ledger, consume the reviewed preparation/binding/arena/gate contracts, and invoke the callback-free reversible owned-CR3 probe after stages one and two.",
-       "currentEvidence": "M01-024 preserves reviewed stage-two QEMU evidence and M01-027 preserves reviewed host evidence for the unlinked composite transition plan. A source audit established that M01-025 still cannot be implemented honestly because the current coordinator accepts synthetic execution transcripts, requires historical identity aliases, lacks an exact physical table-arena sizing/materialization contract, and cannot provide an audited exact return site or post-return RFLAGS observation. No current live guest evidence proves stage-three allocation, map recapture, physical table installation, composite/gate materialization, architectural preflight, interrupt discipline, reversible CR3 entry/restoration, callback exclusion, or continuation-canary validation. M01-029 through M01-032 must close with reviewed host evidence before this issue may be claimed. The implementation is preserved and pushed as commit 4b42f11dd5a8cb30d91a58f88a2f0cbb17bdbe0e on codex/M01-025-reversible-cr3-stage3. Its 16-check focused suite, solution build, HostTests build, two independent reviews, and all-three-switch EFI build passed; BOOTX64.EFI is 455,680 bytes with SHA-256 7C7F639D0864741E20C54D7CE84F3BF8526F6684509D9BA938A37DBEF3ED9005. The complete host harness then correctly blocked promotion because M01-021's global first-occurrence mutation selector changed the earlier M01_OWNED_PAGING_PROBE block and reported M01_021_DIAGNOSTIC mutation-survived=allocation-removed. M01-025 remains open and agent:blocked until the reopened M01-021 host-test repair is merged and the complete M01-025 evidence gate is rerun from the resulting source state. This parked evidence is source/build only and makes no real-QEMU or live-CR3 claim. M01-021 repair PR #407 merged at 26fdb24c74a6af089196d0759f3afcf0bdd8cb85, and focused compatibility evidence against parked M01-025 commit 4b42f11dd5a8cb30d91a58f88a2f0cbb17bdbe0e passed with zero failure or diagnostic prefixes. Tracker comment #6207 preserves that boundary. Once the reopened dependencies are reclosed, M01-025 is ready to merge current master and rerun every focused, all-switch EFI, full-host, naming, firewall, and evidence gate; no live-CR3 or new QEMU claim is made.",
+       "currentEvidence": "M01-024 preserves reviewed stage-two QEMU evidence and M01-027 preserves reviewed host evidence for the unlinked composite transition plan. A source audit established that M01-025 still cannot be implemented honestly because the current coordinator accepts synthetic execution transcripts, requires historical identity aliases, lacks an exact physical table-arena sizing/materialization contract, and cannot provide an audited exact return site or post-return RFLAGS observation. No current live guest evidence proves stage-three allocation, map recapture, physical table installation, composite/gate materialization, architectural preflight, interrupt discipline, reversible CR3 entry/restoration, callback exclusion, or continuation-canary validation. M01-029 through M01-032 must close with reviewed host evidence before this issue may be claimed. The implementation is preserved and pushed as commit 4b42f11dd5a8cb30d91a58f88a2f0cbb17bdbe0e on codex/M01-025-reversible-cr3-stage3. Its 16-check focused suite, solution build, HostTests build, two independent reviews, and all-three-switch EFI build passed; BOOTX64.EFI is 455,680 bytes with SHA-256 7C7F639D0864741E20C54D7CE84F3BF8526F6684509D9BA938A37DBEF3ED9005. The complete host harness then correctly blocked promotion because M01-021's global first-occurrence mutation selector changed the earlier M01_OWNED_PAGING_PROBE block and reported M01_021_DIAGNOSTIC mutation-survived=allocation-removed. M01-025 remains open and agent:blocked until the reopened M01-021 host-test repair is merged and the complete M01-025 evidence gate is rerun from the resulting source state. This parked evidence is source/build only and makes no real-QEMU or live-CR3 claim. M01-021 repair PR #407 merged at 26fdb24c74a6af089196d0759f3afcf0bdd8cb85, and focused compatibility evidence against parked M01-025 commit 4b42f11dd5a8cb30d91a58f88a2f0cbb17bdbe0e passed with zero failure or diagnostic prefixes. Tracker comment #6207 preserves that boundary. Once the reopened dependencies are reclosed, M01-025 is ready to merge current master and rerun every focused, all-switch EFI, full-host, naming, firewall, and evidence gate; no live-CR3 or new QEMU claim is made. Final implementation commit 21a1396ec6457549b0052e67edfb9e2142cbf12d merged through PR #409 as master commit 06131dbc5dae6b68e73a827a61407b9d60392046. Independent final review found no implementation, evidence, or forbidden-path blocker. The final integrated host harness exited zero with stdout SHA-256 E9377EECB18F71A8EC329ACAA14F049757A4FD2887B76C85F6F3065B7BE24A1F, empty stderr, each M01-025 aggregate marker exactly once, exactly one final TEST_PASS host.tests, and no terminal TEST_FAIL or named diagnostic marker. A fresh all-three-switch EFI publish exited zero and verified PE32+ x64 EFI subsystem 10, same-build EfiMain, absent ordinary imports, and BOOTX64.EFI SHA-256 0A674D1628D48C478D616F43548DA18BC9673D4BECBEC0D875C7ECDA05F646CB. Host evidence proves source/control-flow ordering, status-derived ownership through all 21 pre-entry failure sites, reverse table/probe/code cleanup, a 16-scenario by eight-free-failure-mask source oracle, one-shot state, mutation resistance, and prerequisite compatibility; it does not execute a fake EFI adapter or real firmware callback. Reviewed tracker evidence comment #6254 carries the required closure marker. M01-033 through M01-035 now own deterministic C# COFF generation, canonical immutable-text linker/artifact verification, and all current EfiEntry publication-epoch calls before M01-026 may execute the cumulative path in real QEMU. No live EFI, generated-code, CR3/PTE/TLB, W^X/NX, page-zero, ExitBootServices, completion-gate, cloud, or production claim is made.",
        "implementationNotes": [
          "Require successful stage-one and stage-two tokens, EnableM01OwnedPagingProbe, the M01-029 preparation-only contract, M01-030 exact live-interval bindings, M01-031 physical arena plan/materializer, and M01-032 composite call gate/post-return observer.",
          "Call checked EFI AllocatePages exactly three times for three nonoverlapping page-aligned records: one bounded EfiLoaderCode composite/call-gate page, one distinct EfiLoaderCode protection-probe page recorded as BootReservationKind.PageProtectionProbe, and one exact EfiLoaderData page-table/state arena.",
@@ -5551,7 +5552,8 @@
          "Source tests reject any ConOut, SerialIo, BootServices, or other firmware callback between owned-CR3 entry and firmware-CR3 restoration, including an attempted in-interval serial write for M01_OWNED_CR3_ENTERED.",
          "Preserve the disabled path and earlier marker order.",
          "Build a fresh canonical EFI artifact with all three switches, but do not infer CR3 execution from build success.",
-         "Never invoke the null-page fault plan and do not edit any other collision-lane surface."
+         "Never invoke the null-page fault plan and do not edit any other collision-lane surface.",
+         "Treat EFI_SUCCESS as authoritative ownership before validating every returned allocation address, carry that state through all 21 pre-entry failure sites, and attempt table, probe, then code cleanup without allowing an individual FreePages failure to suppress later attempts."
        ],
        "referenceInfluences": [
          {
@@ -5563,6 +5565,7 @@
        "acceptanceCriteria": [
          "Source tests prove stage three is opt-in, requires stages one/two, performs three checked allocations (composite/call-gate LoaderCode, PageProtectionProbe LoaderCode, and exact candidate-base table/state LoaderData), recaptures/records the changed map, consumes preparation without synthetic execution transcripts, validates only exact live-interval bindings, physically materializes/readbacks every table page, copies/readbacks the exact gate/composite/probe bytes, validates architectural preflight and one-shot state, and invokes the audited NOSTDLIB_EFI call gate exactly once.",
          "Negative tests cover missing prior-stage or prerequisite tokens; every three-allocation status/type and partial-cleanup permutation; zero/misaligned/undersized/wrapped/overlapping or wrong-address code/probe/data allocation; candidate fixed-point/capacity failure; arbitrary conventional input; failed/stale/grown map recapture; outside-arena table/state; physical table image/readback mismatch; probe/table aliasing; historical identity alias substitution; malformed/oversized/truncated/readback-mismatched bytes; gate entry/return-site/one-shot failure; missing PG/WP/PAE/LME/LMA/NXE, LA57/PCIDE mismatch, unsupported physical width, raw-CR3-low-bit or raw-CR4 preservation; PGE clear/readback/restore/readback failure; absent essential identity map; executable table data; writable/W+X code; execute-before-protect; wrong invlpg target/readback/probe return; guard present or stack not RW+NX; firmware callback or restored IF in the owned interval; transition/readback/restoration/post-return-RFLAGS/canary failure; early/missing post; omission/reordering/duplication of any exact planned guest marker; marker suppression; default-off behavior; and any null-fault invocation.",
+         "Source tests prove EFI_SUCCESS-derived ownership before address validation, the exact ownership tail on all 21 pre-entry failure calls, reverse table/probe/code cleanup source structure, continued cleanup after individual release failure, and 16 named terminal scenarios under all eight release-failure masks without claiming fake-EFI or live-firmware execution.",
          "A fresh canonical EFI build succeeds with all three stage switches.",
          "Only EfiEntry and its focused source/integration test are changed; no QEMU, CR3, W^X, TLB, or page-zero guest claim is made."
        ],
@@ -5573,9 +5576,11 @@
          "TEST_FAIL m01.025 <reason>"
        ],
        "requiredCommands": [
+         "dotnet build .\\CLROS.slnx --nologo -m:1",
          "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
          "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
          "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\build-efi-shell.ps1 -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe",
+         "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check-naming.ps1",
          "git diff --check",
          "git status --short"
        ],
@@ -5583,16 +5588,325 @@
          "docs/boot.md",
          "docs/efi-build.md"
        ],
-       "evidenceBoundary": "This issue proves source wiring and a fresh canonical EFI build only for separate pre-EBS EfiLoaderCode composite/call-gate and protection-probe pages plus an exact EfiLoaderData page-table/state arena, preparation without synthetic transcripts, exact live-interval bindings, physical table materialization/readback, exact audited gate/composite/probe bytes, architectural preflight, post-return CR3/CR4/RFLAGS observation, interrupt/ABI discipline, and a reversible callback-free CR3 probe. It does not prove the firmware calls or bytes ran, permanent CR3 adoption, firmware diagnostics while owned CR3 is active, post-EBS ownership, restored/systemwide W^X/page-zero policy, NMI/SMI safety, or a page fault.",
-       "desiredState": "open"
+       "evidenceBoundary": "This issue proves source/control-flow wiring and a fresh canonical EFI build only for separate pre-EBS EfiLoaderCode composite/call-gate and protection-probe pages plus an exact EfiLoaderData page-table/state arena, preparation without synthetic transcripts, exact live-interval bindings, physical table materialization/readback source contracts, exact audited gate/composite/probe bytes, architectural preflight, post-return CR3/CR4/RFLAGS observation contracts, interrupt/ABI discipline, status-derived allocation ownership, reverse cleanup, and a reversible callback-free CR3 probe plan. Its cleanup matrix is a host oracle, not fake-EFI or live-firmware execution. It does not prove the firmware calls or bytes ran, immutable-text first-publication serialization, permanent CR3 adoption, firmware diagnostics while owned CR3 is active, post-EBS ownership, restored/systemwide W^X/page-zero policy, NMI/SMI safety, a page fault, a completion gate, cloud support, or production readiness. M01-033 through M01-035 must close before M01-026 may obtain cumulative real-QEMU evidence.",
+       "desiredState": "closed"
      },
+    {
+      "key": "M01-033",
+      "title": "[M01-033] Generate a deterministic C# AMD64 COFF instruction-publication serializer.",
+      "milestone": "M01",
+      "parentKey": "M01-EPIC",
+      "dependencyKeys": [
+        "M01-025"
+      ],
+      "labels": [
+        "agent:blocked",
+        "priority:p0",
+        "type:tooling",
+        "evidence:host",
+        "component:repo",
+        "component:boot",
+        "component:security",
+        "phase:m01-memory",
+        "reference:adapt"
+      ],
+      "priority": "priority:p0",
+      "ownedPaths": [
+        "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.csproj",
+        "tools/OS.X64TextSerializerGenerator/Program.cs",
+        "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs",
+        "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs",
+        "tests/OS.HostTests/M01InstructionPublicationSerializerGeneratorTests.cs",
+        "docs/security.md"
+      ],
+      "forbiddenPaths": [
+        "CLROS.slnx",
+        "src/OS/OS.csproj",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/Boot/X64InstructionPublication.cs",
+        "src/OS/Runtime/RuntimeImportAttribute.cs",
+        "src/OS/Runtime/MethodImplAttribute.cs",
+        "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.targets",
+        "scripts/test-efi-artifact.ps1",
+        "scripts/build-efi-shell.ps1",
+        "scripts/run-qemu-smoke.ps1",
+        "docs/completion-gates.md",
+        "README.md",
+        "references/** (read-only)",
+        "done/** (reserve a new step only after implementation evidence exists)"
+      ],
+      "collisionLane": null,
+      "summary": "Create a deterministic first-party C# 14 host tool that emits one AMD64 COFF object containing one audited immutable-text instruction-publication serializer and independently parse every emitted byte and COFF field in host tests.",
+      "currentEvidence": "The EFI project currently materializes executable stub bytes into firmware-allocated LoaderCode pages. EfiEntry comments acknowledge that later CPUID execution serializes earlier publication, but the repository has no independently linked immutable serializer that can run immediately after each publication epoch. No first-party generator, deterministic COFF artifact contract, exact serializer symbol, or independent COFF/ABI byte test exists. M01-025 must close before this new chain begins.",
+      "implementationNotes": [
+        "Implement a standalone C# 14/.NET 10 host tool with no first-party C, C++, header, assembly, or checked-in object file. Generated .obj output is ephemeral under obj or an explicit caller-selected temporary output path.",
+        "Emit AMD64 COFF machine 0x8664 with timestamp zero and exactly three file-backed sections. .text$clrossm has raw size 20 and exactly the required IMAGE_SCN_CNT_CODE, IMAGE_SCN_MEM_READ, IMAGE_SCN_MEM_EXECUTE, and IMAGE_SCN_ALIGN_16BYTES characteristics with IMAGE_SCN_MEM_WRITE clear; it also lacks initialized/uninitialized-data, COMDAT, remove, discardable, and relocation-overflow flags. .xdata$clrossm has raw size 8 and .pdata$clrossm has raw size 12; each has IMAGE_SCN_CNT_INITIALIZED_DATA, IMAGE_SCN_MEM_READ, and IMAGE_SCN_ALIGN_4BYTES with IMAGE_SCN_MEM_WRITE and IMAGE_SCN_MEM_EXECUTE clear and lacks code, COMDAT, remove, discardable, and relocation-overflow flags. Every required raw-data and relocation range is nonzero, in bounds, mutually nonoverlapping, and overflow checked. Emit no imports, directives, COMDAT ambiguity, debug records, writable/executable section, or unrelated external symbol.",
+        "Export exactly one external symbol named CLROS_X64_SerializeInstructionPublication with external storage class, .text$clrossm section number, value zero, COFF function type 0x20, no auxiliary record, and no weak-external or alias fallback. Define the relocation-only .xdata$clrossm base symbol with static storage class, its exact section number, value zero, and no auxiliary/weak/alias fallback; it is not an additional external symbol. The exact 20 function bytes are 53 B8 00 00 00 00 B9 00 00 00 00 0F A2 B8 43 4C 52 53 5B C3: push RBX, load CPUID leaf/subleaf zero with flag-neutral MOV immediates, execute exactly one CPUID, load success cookie 0x53524C43 in EAX, restore RBX, and return.",
+        "Emit exact UNWIND_INFO bytes 01 01 01 00 01 30 00 00: version 1, flags zero, one-byte prolog, one unwind code, no frame register, UWOP_PUSH_NONVOL RBX at code offset 1, and zero padding. Emit one 12-byte RUNTIME_FUNCTION raw record with begin addend 0, end addend 20, and unwind addend 0. Its only relocations are IMAGE_REL_AMD64_ADDR32NB at .pdata offsets 0 and 4 against the external function symbol and at offset 8 against one static value-zero .xdata$clrossm base symbol; text and xdata have no relocations and no additional external symbol is permitted.",
+        "The generated Windows-x64 function has a valid push-RBX prolog and pop-RBX/ret epilog and restores RSP and RBX exactly. The object encodes the complete RUNTIME_FUNCTION/UNWIND_INFO intent required for asynchronous unwind coverage at every instruction boundary, but M01-033 must not claim final unwindability before linker relocation and M01-034 final-artifact verification. PUSH/POP, MOV, and CPUID preserve RFLAGS; RAX returns the fixed cookie; only volatile RCX and RDX remain clobbered. It performs no calls, conditional branches, runtime-helper access, or privileged-pointer access.",
+        "Build an independent bounds-checked host parser in the focused test rather than trusting the writer's object model. Parse the COFF header, all three section tables and raw-data ranges, relocation tables, symbol table, auxiliary count, long section/symbol names, and string table before comparing the complete text, unwind, runtime-function, relocation, symbol, and flag contracts.",
+        "Positive tests cover exact header, section, relocation, symbol, code-byte, UNWIND_INFO, RUNTIME_FUNCTION, ABI, deterministic timestamp, byte-for-byte repeatability, and stable SHA-256 behavior across clean output directories and differing absolute checkout paths.",
+        "Negative tests cover zero/default configuration, empty or malformed symbol/section names, duplicate symbol, unsupported machine, writable or non-file-backed text, missing executable/code flags, executable/writable pdata or xdata, missing/extra/wrong relocation, wrong relocation type/symbol/addend, malformed prolog size/opcode/register/code count/padding/function range, missing unwind coverage, unrecognized epilog, un-restored RBX/RSP, wrong/missing CPUID, wrong/missing return cookie, unexpected import/directive/debug data, truncated headers/tables/string/section data, out-of-range offsets/counts, integer overflow, capacity exhaustion, path traversal, existing-output mismatch, partial process output, generator timeout, and deterministic cleanup after failure.",
+        "Do not add the tool to CLROS.slnx, integrate it into OS.csproj, declare a RuntimeImport, link the object, edit EfiEntry, execute the serializer, or claim EFI/QEMU behavior in this issue."
+      ],
+      "referenceInfluences": [
+        {
+          "path": "references/SharpOS-main/bootasm/CoffStub.Generator/CoffWriter.cs",
+          "use": "adapt",
+          "notes": "Adapt only the permissively authorized high-level idea of a deterministic C# COFF writer. The referenced writer explicitly lacks multiple sections and relocations, so independently implement and test the CLROS three-section runtime-function/unwind format and record exact source provenance/hash during implementation."
+        },
+        {
+          "path": "references/SharpOS-main/bootasm/CoffStub.Generator/EmitCoffStubsTask.cs",
+          "use": "adapt",
+          "notes": "Study host-side emission and failure-boundary patterns; do not copy broad SharpOS task behavior, native files, or unrelated stub catalogs."
+        }
+      ],
+      "acceptanceCriteria": [
+        "The direct tool build and focused host tests emit and independently parse a byte-for-byte deterministic AMD64 COFF object with exactly one CLROS_X64_SerializeInstructionPublication external symbol, one RX/nonwritable .text$clrossm section, read-only/nonexecutable .xdata$clrossm and .pdata$clrossm sections, and exactly three required ADDR32NB relocations.",
+        "The independently decoded text is exactly 53 B8 00 00 00 00 B9 00 00 00 00 0F A2 B8 43 4C 52 53 5B C3 and tests prove the Windows-x64 push-RBX/pop-RBX ABI, valid epilog, exact encoded asynchronous-unwind intent pending final linker relocation, restored stack/RBX/RFLAGS, volatile clobbers, one-CPUID, and 0x53524C43 return-cookie contract.",
+        "Positive, malformed-input, default/zero, overflow, capacity, timeout, path, stale-output, and nondeterminism mutations fail closed with stable diagnostics and no accepted partial object.",
+        "No .obj, native source, secret, generated artifact, CLROS.slnx change, OS.csproj change, RuntimeImport, EfiEntry call, EFI build claim, or QEMU claim is committed by this leaf.",
+        "Only the exact owned generator, focused test, and security-document paths change; all forbidden integration surfaces remain untouched."
+      ],
+      "requiredMarkers": [
+        "TEST_START m01.033",
+        "CLROS_M01_033_READY",
+        "TEST_PASS m01.033",
+        "TEST_FAIL m01.033 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build .\\tools\\OS.X64TextSerializerGenerator\\OS.X64TextSerializerGenerator.csproj --nologo",
+        "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check-naming.ps1",
+        "git diff --check",
+        "git status --short"
+      ],
+      "documentationPaths": [
+        "docs/security.md"
+      ],
+      "evidenceBoundary": "This issue proves only a deterministic host-built and host-parsed AMD64 COFF object plus the exact static serializer bytes, Windows-x64 ABI, encoded RUNTIME_FUNCTION/UNWIND_INFO/relocation intent, and fixed post-CPUID return cookie. Object-only evidence does not prove that relocations were applied or that the function is asynchronously unwindable in a final image; that requires M01-034 final-artifact verification. It does not add the tool to the solution, link the object into EFI, prove final PE unwind-directory coverage or RuntimeImport resolution, prove final PE section protections/import state, call the serializer, observe its cookie at an EfiEntry publication epoch, execute under QEMU or hardware, empirically exclude speculative stale-instruction execution, or advance any completion gate.",
+      "desiredState": "open"
+    },
+    {
+      "key": "M01-034",
+      "title": "[M01-034] Link and verify the immutable instruction-publication serializer in the canonical EFI artifact.",
+      "milestone": "M01",
+      "parentKey": "M01-EPIC",
+      "dependencyKeys": [
+        "M01-033"
+      ],
+      "labels": [
+        "agent:blocked",
+        "priority:p0",
+        "type:tooling",
+        "evidence:host",
+        "component:repo",
+        "component:boot",
+        "component:runtime",
+        "component:security",
+        "phase:m01-memory",
+        "lane:os-project",
+        "reference:adapt"
+      ],
+      "priority": "priority:p0",
+      "ownedPaths": [
+        "CLROS.slnx",
+        "src/OS/OS.csproj",
+        "src/OS/Boot/X64InstructionPublication.cs",
+        "src/OS/Runtime/RuntimeImportAttribute.cs",
+        "src/OS/Runtime/MethodImplAttribute.cs",
+        "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.targets",
+        "scripts/test-efi-artifact.ps1",
+        "tests/OS.HostTests/M01InstructionPublicationBuildIntegrationTests.cs",
+        "tests/OS.HostTests/EfiArtifactVerificationScriptTests.cs",
+        "docs/efi-build.md",
+        "docs/nativeaot-nostdlib-limits.md"
+      ],
+      "forbiddenPaths": [
+        "src/OS/Boot/EfiEntry.cs",
+        "tools/OS.X64TextSerializerGenerator/Program.cs",
+        "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs",
+        "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs",
+        "scripts/build-efi-shell.ps1",
+        "scripts/run-qemu-smoke.ps1",
+        "docs/boot.md",
+        "docs/architecture.md",
+        "docs/security.md",
+        "docs/completion-gates.md",
+        "README.md",
+        "references/** (read-only)",
+        "done/** (reserve a new step only after implementation evidence exists)"
+      ],
+      "collisionLane": "lane:os-project",
+      "summary": "Integrate the reviewed generator into the canonical solution and EFI build, bind its exact external symbol through an InternalCall RuntimeImport declaration, and extend the final-artifact verifier to prove exact bytes, runtime-function/unwind coverage, immutable executable text, and no ordinary imports.",
+      "currentEvidence": "M01-033 will define and host-test the deterministic COFF object, but the current CLROS.slnx and explicit no-stdlib OS.csproj do not build or consume it. The EFI artifact verifier proves the current PE32+ x64 EFI entry/import baseline only; it does not associate CLROS_X64_SerializeInstructionPublication with a same-build map/RVA, compare exact serializer bytes, or prove the containing final PE section is file-backed RX and nonwritable. EfiEntry has no linked RuntimeImport binding for this symbol.",
+      "implementationNotes": [
+        "Add the host generator project to CLROS.slnx and import one explicit targets file from OS.csproj. Generate the .obj deterministically under the current OS intermediate-output directory before LinkNative, add only that object as a NativeLibrary after the project's runtime-library removal target, and never check the object into source control.",
+        "Make incremental and clean builds dependency-correct: inputs include all generator source and the targets contract; missing, stale, truncated, wrong-hash, or failed generation must stop the EFI build rather than reuse an older object. Parallel builds and paths containing spaces must be safe.",
+        "Add the minimal no-stdlib System.Runtime.RuntimeImportAttribute two-string constructor plus System.Runtime.CompilerServices.MethodImplOptions with InternalCall = 0x1000 and MethodImplAttribute(MethodImplOptions) shapes in the two declared runtime files. Add a direct static no-body binding in X64InstructionPublication.cs with exactly [RuntimeImport(\"*\", \"CLROS_X64_SerializeInstructionPublication\")], [MethodImpl(MethodImplOptions.InternalCall)], and internal static extern uint Serialize(). Expose the fixed expected success cookie 0x53524C43 as an internal constant for later checked callers, but M01-034 must not invoke the method.",
+        "Pass /INCLUDE:CLROS_X64_SerializeInstructionPublication and a deterministic same-build map path so /OPT:REF or /OPT:ICF cannot discard or ambiguously fold the serializer before M01-035 references it. Do not use post-link patching, writable executable data, or a fallback managed implementation.",
+        "Extend scripts/test-efi-artifact.ps1 to parse the same-build map plus final PE section table, authoritative PE32+ data-directory index 3, RUNTIME_FUNCTION table, UNWIND_INFO, and file ranges; resolve the exact symbol to exactly one RVA; require the full 20 bytes 53 B8 00 00 00 00 B9 00 00 00 00 0F A2 B8 43 4C 52 53 5B C3; and report section, RVA, size, unwind RVA, and SHA-256. Require NumberOfRvaAndSizes to include index 3, nonzero DWORD-aligned exception-directory RVA and size, size exactly divisible by the 12-byte RUNTIME_FUNCTION record size, and the complete directory to be file-backed within one readable nonwritable nonexecutable initialized-data section. Decode every record; require strictly ascending BeginAddress values, BeginAddress < EndAddress, no duplicate or overlapping range, and all addresses within SizeOfImage. Require exactly one record with BeginAddress equal the same-build symbol RVA and EndAddress equal BeginAddress + 20, a nonzero four-byte-aligned UnwindInfoAddress within SizeOfImage resolving exactly to 01 01 01 00 01 30 00 00, and no other record beginning in, ending in, enclosing, duplicating, or otherwise overlapping the serializer interval.",
+        "The final containing text section must have initialized/file-backed code bytes, IMAGE_SCN_CNT_CODE, IMAGE_SCN_MEM_READ, and IMAGE_SCN_MEM_EXECUTE, no IMAGE_SCN_MEM_WRITE or discardable flag, and both virtual and raw-file ranges covering every serializer byte; the symbol RVA must be 16-byte aligned. The complete selected RUNTIME_FUNCTION record and UNWIND_INFO must each be file-backed in readable initialized data with IMAGE_SCN_MEM_WRITE, IMAGE_SCN_MEM_EXECUTE, and discardable clear, regardless of linker-selected final section name. Continue to require absent import, bound-import, IAT, and delay-import directories and reject unresolved/default-library/fallback symbol binding.",
+        "Positive tests cover clean and incremental canonical builds, exact generator invocation, NativeLibrary ordering, force-include/map arguments, and emitted method metadata rather than source text alone: MethodImplAttributes.InternalCall set, PInvokeImpl clear, no IL body, static parameterless System.UInt32 signature, exact case-sensitive RuntimeImport fixed arguments \"*\" and \"CLROS_X64_SerializeInstructionPublication\", and no DllImport, marshalling stub, fallback body, weak external, or ordinary PE import. They also cover the 0x53524C43 constant, exact map-to-RVA-to-file translation, exact bytes/hash, RUNTIME_FUNCTION range, decoded UNWIND_INFO, section characteristics, and import-free final PE.",
+        "Negative tests cover zero/default RVA or size, missing NumberOfRvaAndSizes entry, duplicate/missing/wrong symbol, wrong machine, stale or mismatched map/object/PE, missing generator or output, malformed/truncated/overflowing PE, map, exception-directory, runtime-function, or unwind fields, zero/misaligned/non-12-byte-divisible exception-directory RVA or size, unsorted/overlapping/duplicate/empty/out-of-image runtime-function records, a wrong BeginAddress/EndAddress or another record overlapping the serializer, an aliased/zero/misaligned/out-of-range/wrong UnwindInfoAddress, virtual-only or out-of-file bytes, cross-section range, misaligned/writable/non-executable/discardable text, executable/writable/discardable pdata or xdata ranges, absent/duplicate/wrong-range runtime-function, wrong prolog length/opcode/register/code count, mutated serializer byte or cookie, missing/wrong RuntimeImport name or constructor, missing/wrong MethodImpl attribute/constructor/0x1000 flag, DllImport/ordinary PInvoke substitution, managed fallback body, non-static/non-extern/void or wrong-width signature, unresolved helper or imported/fallback binding, build timeout, paths with spaces, and parallel/incremental race artifacts.",
+        "This issue owns both the canonical solution membership and freestanding OS project integration as one serialized slice; before claim, verify no separately claimed solution-baseline or os-project issue touches either file. Do not edit EfiEntry or assert that the linked function executes."
+      ],
+      "referenceInfluences": [
+        {
+          "path": "references/SharpOS-main/bootasm/CoffStub.Generator/CoffStub.Generator.targets",
+          "use": "adapt",
+          "notes": "Adapt the authorized host-generator-to-linker staging pattern while independently enforcing CLROS deterministic intermediate paths, fail-closed inputs, and final-artifact verification."
+        },
+        {
+          "path": "references/SharpOS-main/apps_native/sdk/MinimalRuntime.cs",
+          "use": "adapt",
+          "notes": "Adapt only the RuntimeImport attribute/binding shape for the pinned NativeAOT toolchain; keep the CLROS declaration minimal and record exact provenance during implementation."
+        }
+      ],
+      "acceptanceCriteria": [
+        "A clean canonical solution/EFI build deterministically generates and links the ephemeral object, retains exactly one CLROS_X64_SerializeInstructionPublication symbol, and exposes the exact direct static extern uint RuntimeImport plus MethodImplOptions.InternalCall binding and 0x53524C43 expected-cookie constant without invoking it.",
+        "The final artifact verifier resolves the same-build map symbol to a file-backed PE RVA; proves the exact 20 bytes, post-CPUID cookie, and hash lie wholly in one initialized readable executable nonwritable section; requires a nonempty exception directory whose size is divisible by 12 and whose file-backed entries are sorted and nonoverlapping; and proves exactly one entry begins at the symbol RVA, ends at symbol RVA + 20, points to the exact file-backed UWOP_PUSH_NONVOL RBX UNWIND_INFO, has no overlapping peer, and has readable nonwritable nonexecutable pdata/xdata backing.",
+        "The existing PE32+ x64 EFI application, EfiMain, NODEFAULTLIB, and absent import/bound-import/IAT/delay-import contracts continue to pass; no fallback or unresolved host symbol is accepted.",
+        "Positive, malformed-input, default/zero, overflow, missing/stale artifact, duplicate-symbol, section-protection, byte-mutation, timeout, spaces-path, parallel, and incremental-build tests fail closed with stable diagnostics.",
+        "The implementation changes only declared build, binding, verifier, focused test, and canonical documentation paths; EfiEntry and generator C# implementation remain untouched.",
+        "Build success and artifact inspection are host evidence only and make no serializer-execution, EfiEntry-ordering, QEMU, hardware, SCSB, or completion-gate claim."
+      ],
+      "requiredMarkers": [
+        "TEST_START m01.034",
+        "CLROS_M01_034_READY",
+        "TEST_PASS m01.034",
+        "TEST_FAIL m01.034 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build .\\CLROS.slnx --nologo -m:1",
+        "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\build-efi-shell.ps1 -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\test-efi-artifact.ps1 -EfiArtifact .\\artifacts\\efi\\BOOTX64.EFI",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check-naming.ps1",
+        "git diff --check",
+        "git status --short"
+      ],
+      "documentationPaths": [
+        "docs/efi-build.md",
+        "docs/nativeaot-nostdlib-limits.md"
+      ],
+      "evidenceBoundary": "This issue proves canonical build integration, the exact direct static extern uint RuntimeImport plus InternalCall metadata and expected-cookie declaration, and same-build static PE/map/exception-directory inspection of one immutable RX/nonwritable serializer body with exact Windows-x64 unwind coverage and no ordinary runtime imports. It does not edit EfiEntry, call or execute the serializer, observe the post-CPUID cookie, prove any publication-epoch ordering, boot the artifact, provide real-QEMU or hardware evidence, empirically exclude speculative code-store bypass, prove cross-core instruction publication, or advance M01 or any later completion gate.",
+      "desiredState": "open"
+    },
+    {
+      "key": "M01-035",
+      "title": "[M01-035] Serialize all current EfiEntry generated-instruction publication epochs before first execution.",
+      "milestone": "M01",
+      "parentKey": "M01-EPIC",
+      "dependencyKeys": [
+        "M01-034"
+      ],
+      "labels": [
+        "agent:blocked",
+        "priority:p0",
+        "type:implementation",
+        "evidence:host",
+        "component:boot",
+        "component:memory",
+        "component:security",
+        "phase:m01-memory",
+        "lane:efi-entry",
+        "reference:test-only"
+      ],
+      "priority": "priority:p0",
+      "ownedPaths": [
+        "src/OS/Boot/EfiEntry.cs",
+        "tests/OS.HostTests/M01InstructionPublicationEfiEntryTests.cs",
+        "docs/boot.md",
+        "docs/architecture.md",
+        "docs/security.md"
+      ],
+      "forbiddenPaths": [
+        "CLROS.slnx",
+        "src/OS/OS.csproj",
+        "src/OS/Boot/X64InstructionPublication.cs",
+        "src/OS/Runtime/RuntimeImportAttribute.cs",
+        "src/OS/Runtime/MethodImplAttribute.cs",
+        "tools/OS.X64TextSerializerGenerator/**",
+        "scripts/test-efi-artifact.ps1",
+        "scripts/build-efi-shell.ps1",
+        "scripts/run-qemu-smoke.ps1",
+        "tests/OS.HostTests/M01InstructionPublicationSerializerGeneratorTests.cs",
+        "tests/OS.HostTests/M01InstructionPublicationBuildIntegrationTests.cs",
+        "tests/OS.HostTests/EfiArtifactVerificationScriptTests.cs",
+        "docs/efi-build.md",
+        "docs/nativeaot-nostdlib-limits.md",
+        "docs/completion-gates.md",
+        "README.md",
+        "references/** (read-only)",
+        "done/** (reserve a new step only after implementation evidence exists)"
+      ],
+      "collisionLane": "lane:efi-entry",
+      "summary": "Invoke the linked immutable instruction-publication serializer exactly once after the final write/readback of each of EfiEntry's four current generated-code publication epochs, require its fixed post-CPUID return cookie, and only then permit first execution of that epoch.",
+      "currentEvidence": "EfiEntry currently publishes generated instructions in four relevant epochs: the stage-one stack-probe stream, the stage-one stack-switch stream, the stage-three initial preflight/PAT/planner/transfer group, and the stage-three final composite/call-gate/protection-probe group. Existing source comments rely on a later CPUID inside the generated preflight stream to serialize earlier publication. That is too late to form an explicit first-execution boundary for every epoch and does not cover both stage-one streams. M01-034 must first prove the immutable linked serializer body and binding in the canonical artifact.",
+      "implementationNotes": [
+        "Use only the immutable M01-034 direct static extern uint InternalCall binding and compare every returned value to its exact 0x53524C43 success constant. Never copy the serializer bytes into LoaderCode, generate a second barrier, use a firmware callback as a barrier, ignore or synthesize the return value, or execute the serializer from a page that the current epoch just modified.",
+        "Maintain the four-bit publication mask in explicit EfiEntry-owned static or boot-handoff-owned primitive state that survives the one-way stage-one stack switch; an ordinary caller local is forbidden. Clear and validate the state once before epoch 1, reject stale/nonzero or repeated initialization, and require exact successful transitions 0 -> 1 -> 3 -> 7 -> 15. Epoch 1 is the stage-one stack-probe publication: call exactly once after the last probe byte write, full readback, and binding installation; reject a wrong cookie without entering the probe; then transition 0 -> 1 before any indirect transfer can enter it.",
+        "Epoch 2 is the stage-one stack-switch publication: call exactly once after the prepared stack-switch bytes are fully copied and read back; reject a wrong cookie without obtaining/invoking switchEntry; then transition 1 -> 3 before the one-way transfer to the owned-stack continuation. The continuation must observe the same EfiEntry-owned/handoff-owned state rather than reconstructing or trusting a local mask.",
+        "Epoch 3 is the stage-three initial publication group inside CaptureArchitecturalPreflight. Refactor that boundary so preparation writes and fully validates the transfer thunk, planner thunk, paging-preflight, and PAT-reader streams and binds both preflight and PAT entry addresses without invoking either entry. After the PAT-reader readback loop and both entry bindings, while the mask is exactly 3, call the serializer once, reject a wrong cookie without executing either entry, transition 3 -> 7, and only then invoke preflight followed by PAT. No generated entry, firmware callback, unrelated managed call, executable-byte write, binding mutation, or readback mutation may occur between the successful cookie check and first preflight invocation. A caller-side barrier after CaptureArchitecturalPreflight returns is too late and must fail source tests.",
+        "Epoch 4 is the stage-three final publication group: call exactly once after the final composite, call-gate, and constant-return protection-probe write/readback and binding step, after existing M01_PRE_CR3 firmware output; reject a wrong cookie without invoking the call gate; then transition 7 -> 15 and immediately enter the call gate. No executable-page write, rebinding, firmware callback, or unrelated managed call may occur between the successful check and first execution.",
+        "Every cookie mismatch emits stable M01_INSTRUCTION_PUBLICATION_COOKIE_FAILED before cleanup and prevents that epoch's generated code from executing. Only after epoch 4 returns, firmware CR3/CR4/RFLAGS are restored, the continuation canary passes, and the mask is exactly 0xF may EfiEntry emit M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED immediately before M01_POST_CR3.",
+        "Preserve all default-off behavior, stage prerequisites, failure cleanup, firmware-callback exclusions, and preexisting marker order apart from the two explicit new marker contracts. The serializer itself emits no marker and performs no allocation, exception, reflection, managed callback, firmware call, or diagnostic I/O.",
+        "Source-order tests identify each epoch structurally and prove final write/readback/binding precedes exactly one serializer call, its returned cookie is consumed and compared, the exact mask transition occurs only after success, and every possible first execution follows that check. They must prove the state is explicitly cleared and validated before epoch 1, survives the one-way switch, follows only 0 -> 1 -> 3 -> 7 -> 15, and cannot be reconstructed or pre-set in the owned-stack continuation. They must locate epoch 3 inside CaptureArchitecturalPreflight after PAT readback and both entry bindings but before the current preflight(observation) and readPat() calls. They must not accept comments, string literals, a method with a similar name, an ignored/synthetic cookie, a pre-set bit, a caller-side epoch-3 barrier after method return, or a barrier placed only on one branch.",
+        "Mutation tests remove, duplicate, reorder, or move each call early; move epoch 3 outside or after CaptureArchitecturalPreflight; ignore, replace, or compare the return against zero/default/wrong cookie; use an ordinary local mask across the one-way switch; omit or repeat reset; seed stale state; skip, repeat, regress, or reorder any 0 -> 1 -> 3 -> 7 -> 15 transition; set a mask bit without a successful call; emit the aggregate marker early or with a partial mask; insert a byte write/readback/binding after the call; execute before the check; substitute CPUID bytes in the dynamic page, LFENCE, MFENCE, volatile access, lock-prefixed data access, an ordinary managed call, or a firmware callback; bypass the call on success/error/default paths; or bind a zero/default/wrong function. Every mutation must fail with the affected epoch identified.",
+        "Positive and negative tests also cover zero-length/default plans, partial publication, malformed/truncated byte sources, overflowed destination ranges, readback mismatch, cleanup/timeout paths, disabled probes, repeated invocation, and all four publication epochs enabled together.",
+        "Build a fresh all-three-switch EFI artifact and require M01-034 artifact verification, but do not run QEMU and do not interpret build or source ordering as empirical SCSB, cross-core, or live-CR3 evidence."
+      ],
+      "referenceInfluences": [
+        {
+          "path": "references/nativeaot-patcher-main/src/Cosmos.Kernel.Native.X64/CPU/CpuOps.s",
+          "use": "test-only",
+          "notes": "Use only as a behavioral cross-check for CPUID's register-clobber and serialization intent; do not copy or commit assembly/native source."
+        }
+      ],
+      "acceptanceCriteria": [
+        "Focused source tests prove exactly four immutable-serializer call sites, one at each named publication epoch, after the complete final write/readback/binding; each call's uint result must equal 0x53524C43 and advance one shared EfiEntry-owned/handoff-owned state through exactly 0 -> 1 -> 3 -> 7 -> 15 before every possible first execution. The state is cleared and validated before epoch 1 and demonstrably survives the one-way stack switch.",
+        "Epoch 3 is proven inside CaptureArchitecturalPreflight after its PAT-reader readback loop and both entry-address bindings but before the current preflight(observation) and readPat() calls; a barrier in the caller after CaptureArchitecturalPreflight returns is rejected as too late.",
+        "Epoch 4 ordering specifically preserves existing M01_PRE_CR3 output before serialization, rejects a wrong cookie without entering owned CR3, and permits no executable write, readback mutation, rebinding, firmware callback, or unrelated managed call between the successful check and audited call-gate invocation.",
+        "Mutation tests reject missing, duplicate, early, late, branch-only, ignored/synthetic/wrong-cookie, pre-set/partial-mask, early aggregate marker, dynamically generated, wrong-binding, no-op, CPUID-in-published-stream-only, LFENCE/MFENCE/volatile/lock/ordinary-call/firmware-callback substitutes and identify the affected epoch.",
+        "Positive, malformed-input, zero/default, overflow, partial-write, readback-mismatch, timeout/cleanup, disabled-path, repeated-call, and all-switch tests preserve prior marker order and fail closed.",
+        "A fresh canonical all-three-switch EFI build and M01-034 final-artifact/unwind verifier pass. Source tests prove M01_INSTRUCTION_PUBLICATION_COOKIE_FAILED dominates cleanup on mismatch and M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED is emitted only for mask 0xF after post-return restoration/canary validation and immediately before M01_POST_CR3; no real QEMU command is run and no guest marker is treated as evidence by this issue.",
+        "Only EfiEntry, the focused source/mutation test, and canonical boot/architecture/security docs change; OS.csproj, CLROS.slnx, generator, targets, RuntimeImport declaration, verifier, QEMU runner, and completion gates remain untouched.",
+        "The evidence explicitly does not prove empirical absence of speculative stale-instruction execution, cross-core publication, coherent DMA-written code, hardware execution, live CR3, permanent W^X, or any M01 completion gate."
+      ],
+      "requiredMarkers": [
+        "TEST_START m01.035",
+        "CLROS_M01_035_READY",
+        "TEST_PASS m01.035",
+        "TEST_FAIL m01.035 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build .\\CLROS.slnx --nologo -m:1",
+        "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\build-efi-shell.ps1 -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\test-efi-artifact.ps1 -EfiArtifact .\\artifacts\\efi\\BOOTX64.EFI",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check-naming.ps1",
+        "git diff --check",
+        "git status --short"
+      ],
+      "documentationPaths": [
+        "docs/boot.md",
+        "docs/architecture.md",
+        "docs/security.md"
+      ],
+      "evidenceBoundary": "This issue proves host-tested source ordering, checked post-CPUID cookie flow, exact four-bit accounting, failure domination, aggregate-marker gating, mutation resistance, a fresh all-switch EFI build, and reuse of the statically verified immutable serializer at the four current same-core EfiEntry publication epochs. It deliberately does not treat the source marker text or build as execution evidence: it does not prove that the artifact booted, any call returned 0x53524C43, or either new guest marker occurred. It provides no real-QEMU or physical-hardware evidence and does not empirically exclude speculative code-store bypass, cross-core instruction publication hazards, DMA-written code hazards, live-CR3 faults, restored/systemwide W^X, or any completion gate.",
+      "desiredState": "open"
+    },
     {
       "key": "M01-026",
       "title": "[M01-026] Preserve cumulative fresh-QEMU M01 paging evidence and update the scoped completion gate.",
       "milestone": "M01",
       "parentKey": "M01-EPIC",
       "dependencyKeys": [
-        "M01-025"
+        "M01-035"
       ],
       "labels": [
         "agent:blocked",
@@ -5628,15 +5942,17 @@
         "done/** (reserve a new step only after fresh QEMU evidence exists)"
       ],
       "collisionLane": "lane:central-docs",
-      "summary": "Build and boot a fresh canonical EFI artifact and preserve cumulative pre-EBS three-allocation plus reversible owned-CR3 probe evidence, including architectural preflight, interrupt restoration, exact stub materialization, callback exclusion, firmware-CR3 restoration, scoped RW-to-RX/invlpg/probe execution, and scoped page-zero absence.",
-      "currentEvidence": "No current live guest evidence proves any M01 stage, distinct LoaderCode CR3/invlpg and protection-probe pages, the LoaderData table/state arena, map recapture, exact byte materialization, architectural preflight, interrupt discipline, reversible owned-CR3 continuity/restoration, canary validation, scoped RW-to-RX/invlpg/probe behavior, or scoped page-zero absence. M01-025 must first close with reviewed source/build evidence before this issue may be claimed.",
+      "summary": "Build and boot a fresh canonical EFI artifact and preserve cumulative pre-EBS three-allocation plus reversible owned-CR3 probe evidence, including architecturally unwindable immutable instruction-publication serialization with runtime-observed cookies at all four current epochs, interrupt restoration, exact stub materialization, callback exclusion, firmware-CR3 restoration, scoped RW-to-RX/invlpg/probe execution, and scoped page-zero absence.",
+      "currentEvidence": "No current live guest evidence proves any M01 stage, distinct LoaderCode CR3/invlpg and protection-probe pages, the LoaderData table/state arena, map recapture, exact byte materialization, immutable instruction-publication serialization or expected-cookie return at all four current EfiEntry epochs, architectural preflight, interrupt discipline, reversible owned-CR3 continuity/restoration, canary validation, scoped RW-to-RX/invlpg/probe behavior, or scoped page-zero absence. M01-025 and then M01-033, M01-034, and M01-035 must close with reviewed source/build evidence before this issue may be claimed.",
       "implementationNotes": [
         "Use -BuildEfi with all three explicit M01 switches and never reuse a staged EFI artifact.",
-        "Consume the ordered-plus-unique guest-marker mode introduced by M01-022. Require guest stage-one, stage-two, and stage-three start/pass pairs plus cumulative separate allocation/map/ledger recapture, exact byte materialization, M01_PAGING_MODE_VALIDATED before M01_PRE_CR3, verified exact raw firmware-CR3 restoration, M01_RFLAGS_RESTORED, M01_PGE_CYCLE_VERIFIED after exact raw-CR4 restoration/readback, canary validation, M01_POST_CR3, scoped protection/invlpg/probe/page-zero markers, and OS_SMOKE_PASS.",
+        "Consume the ordered-plus-unique guest-marker mode introduced by M01-022. Require guest stage-one, stage-two, and stage-three start/pass pairs plus cumulative separate allocation/map/ledger recapture, exact byte materialization, M01_PAGING_MODE_VALIDATED before M01_PRE_CR3, verified exact raw firmware-CR3 restoration, M01_RFLAGS_RESTORED, M01_PGE_CYCLE_VERIFIED after exact raw-CR4 restoration/readback, canary validation, M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED immediately before M01_POST_CR3, scoped protection/invlpg/probe/page-zero markers, and OS_SMOKE_PASS.",
         "M01_OWNED_CR3_ENTERED is recorded only in caller-owned state/canary while owned CR3 is active; do not require or permit an in-interval firmware serial write.",
-        "Reject arbitrary conventional-page use, mixed or aliased code/probe/data backing, outside-arena results, malformed/readback-mismatched bytes, invalid paging-mode preflight including PCIDE/LA57, failed PGE clear/readback/restore/readback, executable table/state data, writable/W+X stub mappings, execute-before-protect, wrong invlpg/PTE/probe result, firmware callbacks or interrupt restoration during the owned interval, failed raw-CR3/raw-CR4/RFLAGS/canary restoration, LIVE_ALLOCATOR_NOT_INSTALLED, BOOT_PAGE_ALLOCATOR_NOT_READY, TEST_FAIL, OS_SMOKE_FAIL, M01_INTEGRATION_FAIL, and every stage failure marker.",
+        "Reject arbitrary conventional-page use, mixed or aliased code/probe/data backing, outside-arena results, malformed/readback-mismatched bytes, invalid paging-mode preflight including PCIDE/LA57, failed PGE clear/readback/restore/readback, executable table/state data, writable/W+X stub mappings, execute-before-protect, wrong invlpg/PTE/probe result, M01_INSTRUCTION_PUBLICATION_COOKIE_FAILED, missing/early/duplicate aggregate cookie marker, firmware callbacks or interrupt restoration during the owned interval, failed raw-CR3/raw-CR4/RFLAGS/canary restoration, LIVE_ALLOCATOR_NOT_INSTALLED, BOOT_PAGE_ALLOCATOR_NOT_READY, TEST_FAIL, OS_SMOKE_FAIL, M01_INTEGRATION_FAIL, and every stage failure marker.",
         "Preserve source state, SDK, ILCompiler, linker, QEMU and OVMF versions, EFI/image/serial/evidence hashes, timestamps, markers, negative outcomes, exact raw CR0/CR3/CR4/EFER/CPUID-width/RFLAGS observations before and after restoration, and this boundary.",
         "The m01.026 markers are host-harness markers, qemu.smoke markers are runner-process markers, and only the exact -RequireMarker/-RequireOrderedMarker/-RequireUniqueMarker list is required from guest serial output.",
+        "Require the fresh artifact to pass the M01-034 same-build map/PE/exception-directory verifier for exactly one immutable CLROS_X64_SerializeInstructionPublication body with exact bytes, exact Windows-x64 unwind coverage, file-backed RX/nonwritable text, and no imports. Require the reviewed M01-035 source contract to retain exactly four checked publication-epoch calls and accept the run only when their runtime-observable aggregate success marker appears exactly once in order and the cookie-failure marker is absent.",
+        "QEMU/TCG execution can show continuity and marker order, but it is not empirical proof that speculative code-store bypass cannot expose stale instructions and it does not prove cross-core instruction publication. Preserve those explicit non-claims even when the run passes.",
         "Update completion-gates only for the exact local-QEMU M01 scope supported by preserved evidence.",
         "Do not trigger a null dereference; controlled #PF execution and register/error-code capture remain M02-014."
       ],
@@ -5653,12 +5969,13 @@
         }
       ],
       "acceptanceCriteria": [
-        "A fresh -BuildEfi real-QEMU/OVMF run observes all three guest stage start/pass pairs; explicit pre-EBS LoaderCode stack-switch, CR3/invlpg, and distinct PageProtectionProbe pages plus separate LoaderData guard/stack, allocator, and page-table/state arenas; stage-one/two/three map recaptures; exact byte materialization and table construction; M01_PAGING_MODE_VALIDATED before M01_PRE_CR3; audited PGE clear/readback before owned CR3; M01_FIRMWARE_CR3_RESTORED while PGE remains clear; exact original CR4 restoration/readback; then M01_RFLAGS_RESTORED and M01_PGE_CYCLE_VERIFIED after the callback-free owned interval; canary validation; M01_POST_CR3 only after all restorations; scoped RW-to-RX/invlpg/constant-return-probe/page-zero markers; and OS_SMOKE_PASS.",
+        "A fresh -BuildEfi real-QEMU/OVMF run observes all three guest stage start/pass pairs; explicit pre-EBS LoaderCode stack-switch, CR3/invlpg, and distinct PageProtectionProbe pages plus separate LoaderData guard/stack, allocator, and page-table/state arenas; stage-one/two/three map recaptures; exact byte materialization and table construction; M01_PAGING_MODE_VALIDATED before M01_PRE_CR3; audited PGE clear/readback before owned CR3; M01_FIRMWARE_CR3_RESTORED while PGE remains clear; exact original CR4 restoration/readback; then M01_RFLAGS_RESTORED and M01_PGE_CYCLE_VERIFIED after the callback-free owned interval; canary validation; exactly one M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED immediately before M01_POST_CR3; scoped RW-to-RX/invlpg/constant-return-probe/page-zero markers; and OS_SMOKE_PASS.",
         "During the owned-CR3 interval, no present leaf mapping in the owned M01 page-table hierarchy is both writable and executable and virtual page zero is absent; the run does not deliberately dereference page zero.",
         "The evidence explicitly excludes restored firmware mapping policy, systemwide W^X/page-zero policy, firmware diagnostics under owned CR3, and permanent CR3 adoption.",
-        "The runner rejects LIVE_ALLOCATOR_NOT_INSTALLED, BOOT_PAGE_ALLOCATOR_NOT_READY, M01_ARBITRARY_CONVENTIONAL_PAGE_USED, M01_PAGE_OUTSIDE_ALLOCATOR_ARENA, M01_PAGE_TABLE_OUTSIDE_ARENA, M01_PROTECTION_PROBE_ALLOCATION_FAILED, M01_PROTECTION_PROBE_ALIAS, M01_CR3_STUB_READBACK_FAILED, M01_PAGING_MODE_VALIDATION_FAILED, M01_PGE_CLEAR_FAILED, M01_PGE_RESTORE_FAILED, M01_EXECUTABLE_TABLE_DATA, M01_FIRMWARE_CALLBACK_DURING_OWNED_CR3, M01_FIRMWARE_CR3_RESTORE_FAILED, M01_CR4_RESTORE_FAILED, M01_RFLAGS_RESTORE_FAILED, M01_OWNED_CR3_CANARY_FAILED, M01_RX_PROBE_FAILED, TEST_FAIL, OS_SMOKE_FAIL, M01_INTEGRATION_FAIL, M01_STAGE1_FAIL, M01_STAGE2_FAIL, and M01_STAGE3_FAIL.",
+        "The runner rejects LIVE_ALLOCATOR_NOT_INSTALLED, BOOT_PAGE_ALLOCATOR_NOT_READY, M01_ARBITRARY_CONVENTIONAL_PAGE_USED, M01_PAGE_OUTSIDE_ALLOCATOR_ARENA, M01_PAGE_TABLE_OUTSIDE_ARENA, M01_PROTECTION_PROBE_ALLOCATION_FAILED, M01_PROTECTION_PROBE_ALIAS, M01_CR3_STUB_READBACK_FAILED, M01_PAGING_MODE_VALIDATION_FAILED, M01_PGE_CLEAR_FAILED, M01_PGE_RESTORE_FAILED, M01_EXECUTABLE_TABLE_DATA, M01_INSTRUCTION_PUBLICATION_COOKIE_FAILED, M01_FIRMWARE_CALLBACK_DURING_OWNED_CR3, M01_FIRMWARE_CR3_RESTORE_FAILED, M01_CR4_RESTORE_FAILED, M01_RFLAGS_RESTORE_FAILED, M01_OWNED_CR3_CANARY_FAILED, M01_RX_PROBE_FAILED, TEST_FAIL, OS_SMOKE_FAIL, M01_INTEGRATION_FAIL, M01_STAGE1_FAIL, M01_STAGE2_FAIL, and M01_STAGE3_FAIL.",
         "Negative tests cover stale artifacts; missing/reordered/duplicate stage starts/passes or nonterminal semantic markers under ordered-plus-unique enforcement; every three-allocation partial-cleanup or map-recapture failure; mixed/aliased code/probe/data type; arbitrary/outside-arena page use; malformed/truncated/readback-mismatched bytes; invalid table encoding; missing CR0/CR4/EFER/CPUID/root prerequisite including PCIDE/LA57; PGE clear/readback/restore/readback failure; executable table/state data; writable/W+X stub; execute-before-protect; wrong invlpg/PTE/probe return; missing essential mapping; firmware callback or IF restoration in the owned interval; CR3 transition/readback/restoration, CR4 restoration, or RFLAGS restoration failure; corrupt/unchanged canary; early/missing post; owned-hierarchy W+X; owned page zero present; timeout/reset/triple-fault classification; conflicting terminals; and hash mismatch.",
         "Evidence records exact source/tool/artifact/serial hashes and completion-gates advances only the proven local-QEMU M01 scope.",
+        "The exact M01-034 artifact/unwind verifier passes on the freshly built EFI file, the source state contains the reviewed M01-035 four-epoch checked-cookie ordering, and the guest emits the exact aggregate success marker only after all four cookie checks and post-return restoration. The evidence does not claim empirical exclusion of speculative code-store bypass or cross-core publication hazards.",
         "The issue explicitly defers actual null dereference and #PF capture to M02-014.",
         "Only the lane:central-docs runner/test/documentation surface is changed."
       ],
@@ -5697,6 +6014,7 @@
         "M01_RFLAGS_RESTORED",
         "M01_PGE_CYCLE_VERIFIED",
         "M01_OWNED_CR3_CANARY_VERIFIED",
+        "M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED",
         "M01_POST_CR3",
         "M01_RW_TO_RX_VERIFIED",
         "M01_TLB_INVALIDATION_COMPLETE",
@@ -5713,8 +6031,8 @@
         "dotnet build .\\CLROS.slnx --nologo -m:1",
         "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
         "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun -BuildEfi -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe -RequireMarker \"TEST_START m01.stage1,M01_LOADED_IMAGE_CAPTURED,M01_STACK_SWITCH_STUB_READY,M01_STACK_ARENA_ALLOCATED,M01_STACK_GUARD_RESERVED,M01_STAGE1_MAP_RECAPTURED,M01_STAGE1_RESERVATIONS_VALIDATED,M01_OWNED_STACK_READY,M01_OWNED_STACK_SWITCHED,M01_RSP_CONTAINED,TEST_PASS m01.stage1,TEST_START m01.stage2,M01_ALLOCATOR_ARENA_ALLOCATED,M01_STAGE2_MAP_RECAPTURED,M01_RESERVATIONS_APPLIED,M01_LIVE_ALLOCATED_4K,M01_LIVE_PAGE_WITHIN_ARENA,M01_LIVE_FREED_4K,M01_DOUBLE_FREE_REJECTED,TEST_PASS m01.stage2,TEST_START m01.stage3,M01_CR3_STUB_PAGE_ALLOCATED,M01_PROTECTION_PROBE_PAGE_ALLOCATED,M01_PAGE_TABLE_STATE_ARENA_ALLOCATED,M01_STAGE3_MAP_RECAPTURED,M01_CR3_STUB_MATERIALIZED,M01_PAGE_TABLES_BUILT,M01_PAGING_MODE_VALIDATED,M01_PRE_CR3,M01_FIRMWARE_CR3_RESTORED,M01_RFLAGS_RESTORED,M01_PGE_CYCLE_VERIFIED,M01_OWNED_CR3_CANARY_VERIFIED,M01_POST_CR3,M01_RW_TO_RX_VERIFIED,M01_TLB_INVALIDATION_COMPLETE,M01_RX_PROBE_EXECUTED,M01_PAGE_ZERO_ABSENT,TEST_PASS m01.stage3,CLROS_M01_LIVE_BOOT_MEMORY_READY,OS_SMOKE_PASS\" -RequireOrderedMarker \"TEST_START m01.stage1,M01_LOADED_IMAGE_CAPTURED,M01_STACK_SWITCH_STUB_READY,M01_STACK_ARENA_ALLOCATED,M01_STACK_GUARD_RESERVED,M01_STAGE1_MAP_RECAPTURED,M01_STAGE1_RESERVATIONS_VALIDATED,M01_OWNED_STACK_READY,M01_OWNED_STACK_SWITCHED,M01_RSP_CONTAINED,TEST_PASS m01.stage1,TEST_START m01.stage2,M01_ALLOCATOR_ARENA_ALLOCATED,M01_STAGE2_MAP_RECAPTURED,M01_RESERVATIONS_APPLIED,M01_LIVE_ALLOCATED_4K,M01_LIVE_PAGE_WITHIN_ARENA,M01_LIVE_FREED_4K,M01_DOUBLE_FREE_REJECTED,TEST_PASS m01.stage2,TEST_START m01.stage3,M01_CR3_STUB_PAGE_ALLOCATED,M01_PROTECTION_PROBE_PAGE_ALLOCATED,M01_PAGE_TABLE_STATE_ARENA_ALLOCATED,M01_STAGE3_MAP_RECAPTURED,M01_CR3_STUB_MATERIALIZED,M01_PAGE_TABLES_BUILT,M01_PAGING_MODE_VALIDATED,M01_PRE_CR3,M01_FIRMWARE_CR3_RESTORED,M01_RFLAGS_RESTORED,M01_PGE_CYCLE_VERIFIED,M01_OWNED_CR3_CANARY_VERIFIED,M01_POST_CR3,M01_RW_TO_RX_VERIFIED,M01_TLB_INVALIDATION_COMPLETE,M01_RX_PROBE_EXECUTED,M01_PAGE_ZERO_ABSENT,TEST_PASS m01.stage3,CLROS_M01_LIVE_BOOT_MEMORY_READY,OS_SMOKE_PASS\" -RequireUniqueMarker \"TEST_START m01.stage1,M01_LOADED_IMAGE_CAPTURED,M01_STACK_SWITCH_STUB_READY,M01_STACK_ARENA_ALLOCATED,M01_STACK_GUARD_RESERVED,M01_STAGE1_MAP_RECAPTURED,M01_STAGE1_RESERVATIONS_VALIDATED,M01_OWNED_STACK_READY,M01_OWNED_STACK_SWITCHED,M01_RSP_CONTAINED,TEST_PASS m01.stage1,TEST_START m01.stage2,M01_ALLOCATOR_ARENA_ALLOCATED,M01_STAGE2_MAP_RECAPTURED,M01_RESERVATIONS_APPLIED,M01_LIVE_ALLOCATED_4K,M01_LIVE_PAGE_WITHIN_ARENA,M01_LIVE_FREED_4K,M01_DOUBLE_FREE_REJECTED,TEST_PASS m01.stage2,TEST_START m01.stage3,M01_CR3_STUB_PAGE_ALLOCATED,M01_PROTECTION_PROBE_PAGE_ALLOCATED,M01_PAGE_TABLE_STATE_ARENA_ALLOCATED,M01_STAGE3_MAP_RECAPTURED,M01_CR3_STUB_MATERIALIZED,M01_PAGE_TABLES_BUILT,M01_PAGING_MODE_VALIDATED,M01_PRE_CR3,M01_FIRMWARE_CR3_RESTORED,M01_RFLAGS_RESTORED,M01_PGE_CYCLE_VERIFIED,M01_OWNED_CR3_CANARY_VERIFIED,M01_POST_CR3,M01_RW_TO_RX_VERIFIED,M01_TLB_INVALIDATION_COMPLETE,M01_RX_PROBE_EXECUTED,M01_PAGE_ZERO_ABSENT,TEST_PASS m01.stage3,CLROS_M01_LIVE_BOOT_MEMORY_READY,OS_SMOKE_PASS\"",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -BuildEfi -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"TEST_START m01.stage1,M01_LOADED_IMAGE_CAPTURED,M01_STACK_SWITCH_STUB_READY,M01_STACK_ARENA_ALLOCATED,M01_STACK_GUARD_RESERVED,M01_STAGE1_MAP_RECAPTURED,M01_STAGE1_RESERVATIONS_VALIDATED,M01_OWNED_STACK_READY,M01_OWNED_STACK_SWITCHED,M01_RSP_CONTAINED,TEST_PASS m01.stage1,TEST_START m01.stage2,M01_ALLOCATOR_ARENA_ALLOCATED,M01_STAGE2_MAP_RECAPTURED,M01_RESERVATIONS_APPLIED,M01_LIVE_ALLOCATED_4K,M01_LIVE_PAGE_WITHIN_ARENA,M01_LIVE_FREED_4K,M01_DOUBLE_FREE_REJECTED,TEST_PASS m01.stage2,TEST_START m01.stage3,M01_CR3_STUB_PAGE_ALLOCATED,M01_PROTECTION_PROBE_PAGE_ALLOCATED,M01_PAGE_TABLE_STATE_ARENA_ALLOCATED,M01_STAGE3_MAP_RECAPTURED,M01_CR3_STUB_MATERIALIZED,M01_PAGE_TABLES_BUILT,M01_PAGING_MODE_VALIDATED,M01_PRE_CR3,M01_FIRMWARE_CR3_RESTORED,M01_RFLAGS_RESTORED,M01_PGE_CYCLE_VERIFIED,M01_OWNED_CR3_CANARY_VERIFIED,M01_POST_CR3,M01_RW_TO_RX_VERIFIED,M01_TLB_INVALIDATION_COMPLETE,M01_RX_PROBE_EXECUTED,M01_PAGE_ZERO_ABSENT,TEST_PASS m01.stage3,CLROS_M01_LIVE_BOOT_MEMORY_READY,OS_SMOKE_PASS\" -RequireOrderedMarker \"TEST_START m01.stage1,M01_LOADED_IMAGE_CAPTURED,M01_STACK_SWITCH_STUB_READY,M01_STACK_ARENA_ALLOCATED,M01_STACK_GUARD_RESERVED,M01_STAGE1_MAP_RECAPTURED,M01_STAGE1_RESERVATIONS_VALIDATED,M01_OWNED_STACK_READY,M01_OWNED_STACK_SWITCHED,M01_RSP_CONTAINED,TEST_PASS m01.stage1,TEST_START m01.stage2,M01_ALLOCATOR_ARENA_ALLOCATED,M01_STAGE2_MAP_RECAPTURED,M01_RESERVATIONS_APPLIED,M01_LIVE_ALLOCATED_4K,M01_LIVE_PAGE_WITHIN_ARENA,M01_LIVE_FREED_4K,M01_DOUBLE_FREE_REJECTED,TEST_PASS m01.stage2,TEST_START m01.stage3,M01_CR3_STUB_PAGE_ALLOCATED,M01_PROTECTION_PROBE_PAGE_ALLOCATED,M01_PAGE_TABLE_STATE_ARENA_ALLOCATED,M01_STAGE3_MAP_RECAPTURED,M01_CR3_STUB_MATERIALIZED,M01_PAGE_TABLES_BUILT,M01_PAGING_MODE_VALIDATED,M01_PRE_CR3,M01_FIRMWARE_CR3_RESTORED,M01_RFLAGS_RESTORED,M01_PGE_CYCLE_VERIFIED,M01_OWNED_CR3_CANARY_VERIFIED,M01_POST_CR3,M01_RW_TO_RX_VERIFIED,M01_TLB_INVALIDATION_COMPLETE,M01_RX_PROBE_EXECUTED,M01_PAGE_ZERO_ABSENT,TEST_PASS m01.stage3,CLROS_M01_LIVE_BOOT_MEMORY_READY,OS_SMOKE_PASS\" -RequireUniqueMarker \"TEST_START m01.stage1,M01_LOADED_IMAGE_CAPTURED,M01_STACK_SWITCH_STUB_READY,M01_STACK_ARENA_ALLOCATED,M01_STACK_GUARD_RESERVED,M01_STAGE1_MAP_RECAPTURED,M01_STAGE1_RESERVATIONS_VALIDATED,M01_OWNED_STACK_READY,M01_OWNED_STACK_SWITCHED,M01_RSP_CONTAINED,TEST_PASS m01.stage1,TEST_START m01.stage2,M01_ALLOCATOR_ARENA_ALLOCATED,M01_STAGE2_MAP_RECAPTURED,M01_RESERVATIONS_APPLIED,M01_LIVE_ALLOCATED_4K,M01_LIVE_PAGE_WITHIN_ARENA,M01_LIVE_FREED_4K,M01_DOUBLE_FREE_REJECTED,TEST_PASS m01.stage2,TEST_START m01.stage3,M01_CR3_STUB_PAGE_ALLOCATED,M01_PROTECTION_PROBE_PAGE_ALLOCATED,M01_PAGE_TABLE_STATE_ARENA_ALLOCATED,M01_STAGE3_MAP_RECAPTURED,M01_CR3_STUB_MATERIALIZED,M01_PAGE_TABLES_BUILT,M01_PAGING_MODE_VALIDATED,M01_PRE_CR3,M01_FIRMWARE_CR3_RESTORED,M01_RFLAGS_RESTORED,M01_PGE_CYCLE_VERIFIED,M01_OWNED_CR3_CANARY_VERIFIED,M01_POST_CR3,M01_RW_TO_RX_VERIFIED,M01_TLB_INVALIDATION_COMPLETE,M01_RX_PROBE_EXECUTED,M01_PAGE_ZERO_ABSENT,TEST_PASS m01.stage3,CLROS_M01_LIVE_BOOT_MEMORY_READY,OS_SMOKE_PASS\" -ForbidMarker \"LIVE_ALLOCATOR_NOT_INSTALLED,BOOT_PAGE_ALLOCATOR_NOT_READY,M01_ARBITRARY_CONVENTIONAL_PAGE_USED,M01_PAGE_OUTSIDE_ALLOCATOR_ARENA,M01_PAGE_TABLE_OUTSIDE_ARENA,M01_PROTECTION_PROBE_ALLOCATION_FAILED,M01_PROTECTION_PROBE_ALIAS,M01_CR3_STUB_READBACK_FAILED,M01_PAGING_MODE_VALIDATION_FAILED,M01_PGE_CLEAR_FAILED,M01_PGE_RESTORE_FAILED,M01_EXECUTABLE_TABLE_DATA,M01_FIRMWARE_CALLBACK_DURING_OWNED_CR3,M01_FIRMWARE_CR3_RESTORE_FAILED,M01_CR4_RESTORE_FAILED,M01_RFLAGS_RESTORE_FAILED,M01_OWNED_CR3_CANARY_FAILED,M01_RX_PROBE_FAILED,TEST_FAIL,OS_SMOKE_FAIL,M01_INTEGRATION_FAIL,M01_STAGE1_FAIL,M01_STAGE2_FAIL,M01_STAGE3_FAIL\"",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun -BuildEfi -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe -RequireMarker \"TEST_START m01.stage1,M01_LOADED_IMAGE_CAPTURED,M01_STACK_SWITCH_STUB_READY,M01_STACK_ARENA_ALLOCATED,M01_STACK_GUARD_RESERVED,M01_STAGE1_MAP_RECAPTURED,M01_STAGE1_RESERVATIONS_VALIDATED,M01_OWNED_STACK_READY,M01_OWNED_STACK_SWITCHED,M01_RSP_CONTAINED,TEST_PASS m01.stage1,TEST_START m01.stage2,M01_ALLOCATOR_ARENA_ALLOCATED,M01_STAGE2_MAP_RECAPTURED,M01_RESERVATIONS_APPLIED,M01_LIVE_ALLOCATED_4K,M01_LIVE_PAGE_WITHIN_ARENA,M01_LIVE_FREED_4K,M01_DOUBLE_FREE_REJECTED,TEST_PASS m01.stage2,TEST_START m01.stage3,M01_CR3_STUB_PAGE_ALLOCATED,M01_PROTECTION_PROBE_PAGE_ALLOCATED,M01_PAGE_TABLE_STATE_ARENA_ALLOCATED,M01_STAGE3_MAP_RECAPTURED,M01_CR3_STUB_MATERIALIZED,M01_PAGE_TABLES_BUILT,M01_PAGING_MODE_VALIDATED,M01_PRE_CR3,M01_FIRMWARE_CR3_RESTORED,M01_RFLAGS_RESTORED,M01_PGE_CYCLE_VERIFIED,M01_OWNED_CR3_CANARY_VERIFIED,M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED,M01_POST_CR3,M01_RW_TO_RX_VERIFIED,M01_TLB_INVALIDATION_COMPLETE,M01_RX_PROBE_EXECUTED,M01_PAGE_ZERO_ABSENT,TEST_PASS m01.stage3,CLROS_M01_LIVE_BOOT_MEMORY_READY,OS_SMOKE_PASS\" -RequireOrderedMarker \"TEST_START m01.stage1,M01_LOADED_IMAGE_CAPTURED,M01_STACK_SWITCH_STUB_READY,M01_STACK_ARENA_ALLOCATED,M01_STACK_GUARD_RESERVED,M01_STAGE1_MAP_RECAPTURED,M01_STAGE1_RESERVATIONS_VALIDATED,M01_OWNED_STACK_READY,M01_OWNED_STACK_SWITCHED,M01_RSP_CONTAINED,TEST_PASS m01.stage1,TEST_START m01.stage2,M01_ALLOCATOR_ARENA_ALLOCATED,M01_STAGE2_MAP_RECAPTURED,M01_RESERVATIONS_APPLIED,M01_LIVE_ALLOCATED_4K,M01_LIVE_PAGE_WITHIN_ARENA,M01_LIVE_FREED_4K,M01_DOUBLE_FREE_REJECTED,TEST_PASS m01.stage2,TEST_START m01.stage3,M01_CR3_STUB_PAGE_ALLOCATED,M01_PROTECTION_PROBE_PAGE_ALLOCATED,M01_PAGE_TABLE_STATE_ARENA_ALLOCATED,M01_STAGE3_MAP_RECAPTURED,M01_CR3_STUB_MATERIALIZED,M01_PAGE_TABLES_BUILT,M01_PAGING_MODE_VALIDATED,M01_PRE_CR3,M01_FIRMWARE_CR3_RESTORED,M01_RFLAGS_RESTORED,M01_PGE_CYCLE_VERIFIED,M01_OWNED_CR3_CANARY_VERIFIED,M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED,M01_POST_CR3,M01_RW_TO_RX_VERIFIED,M01_TLB_INVALIDATION_COMPLETE,M01_RX_PROBE_EXECUTED,M01_PAGE_ZERO_ABSENT,TEST_PASS m01.stage3,CLROS_M01_LIVE_BOOT_MEMORY_READY,OS_SMOKE_PASS\" -RequireUniqueMarker \"TEST_START m01.stage1,M01_LOADED_IMAGE_CAPTURED,M01_STACK_SWITCH_STUB_READY,M01_STACK_ARENA_ALLOCATED,M01_STACK_GUARD_RESERVED,M01_STAGE1_MAP_RECAPTURED,M01_STAGE1_RESERVATIONS_VALIDATED,M01_OWNED_STACK_READY,M01_OWNED_STACK_SWITCHED,M01_RSP_CONTAINED,TEST_PASS m01.stage1,TEST_START m01.stage2,M01_ALLOCATOR_ARENA_ALLOCATED,M01_STAGE2_MAP_RECAPTURED,M01_RESERVATIONS_APPLIED,M01_LIVE_ALLOCATED_4K,M01_LIVE_PAGE_WITHIN_ARENA,M01_LIVE_FREED_4K,M01_DOUBLE_FREE_REJECTED,TEST_PASS m01.stage2,TEST_START m01.stage3,M01_CR3_STUB_PAGE_ALLOCATED,M01_PROTECTION_PROBE_PAGE_ALLOCATED,M01_PAGE_TABLE_STATE_ARENA_ALLOCATED,M01_STAGE3_MAP_RECAPTURED,M01_CR3_STUB_MATERIALIZED,M01_PAGE_TABLES_BUILT,M01_PAGING_MODE_VALIDATED,M01_PRE_CR3,M01_FIRMWARE_CR3_RESTORED,M01_RFLAGS_RESTORED,M01_PGE_CYCLE_VERIFIED,M01_OWNED_CR3_CANARY_VERIFIED,M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED,M01_POST_CR3,M01_RW_TO_RX_VERIFIED,M01_TLB_INVALIDATION_COMPLETE,M01_RX_PROBE_EXECUTED,M01_PAGE_ZERO_ABSENT,TEST_PASS m01.stage3,CLROS_M01_LIVE_BOOT_MEMORY_READY,OS_SMOKE_PASS\"",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -BuildEfi -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"TEST_START m01.stage1,M01_LOADED_IMAGE_CAPTURED,M01_STACK_SWITCH_STUB_READY,M01_STACK_ARENA_ALLOCATED,M01_STACK_GUARD_RESERVED,M01_STAGE1_MAP_RECAPTURED,M01_STAGE1_RESERVATIONS_VALIDATED,M01_OWNED_STACK_READY,M01_OWNED_STACK_SWITCHED,M01_RSP_CONTAINED,TEST_PASS m01.stage1,TEST_START m01.stage2,M01_ALLOCATOR_ARENA_ALLOCATED,M01_STAGE2_MAP_RECAPTURED,M01_RESERVATIONS_APPLIED,M01_LIVE_ALLOCATED_4K,M01_LIVE_PAGE_WITHIN_ARENA,M01_LIVE_FREED_4K,M01_DOUBLE_FREE_REJECTED,TEST_PASS m01.stage2,TEST_START m01.stage3,M01_CR3_STUB_PAGE_ALLOCATED,M01_PROTECTION_PROBE_PAGE_ALLOCATED,M01_PAGE_TABLE_STATE_ARENA_ALLOCATED,M01_STAGE3_MAP_RECAPTURED,M01_CR3_STUB_MATERIALIZED,M01_PAGE_TABLES_BUILT,M01_PAGING_MODE_VALIDATED,M01_PRE_CR3,M01_FIRMWARE_CR3_RESTORED,M01_RFLAGS_RESTORED,M01_PGE_CYCLE_VERIFIED,M01_OWNED_CR3_CANARY_VERIFIED,M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED,M01_POST_CR3,M01_RW_TO_RX_VERIFIED,M01_TLB_INVALIDATION_COMPLETE,M01_RX_PROBE_EXECUTED,M01_PAGE_ZERO_ABSENT,TEST_PASS m01.stage3,CLROS_M01_LIVE_BOOT_MEMORY_READY,OS_SMOKE_PASS\" -RequireOrderedMarker \"TEST_START m01.stage1,M01_LOADED_IMAGE_CAPTURED,M01_STACK_SWITCH_STUB_READY,M01_STACK_ARENA_ALLOCATED,M01_STACK_GUARD_RESERVED,M01_STAGE1_MAP_RECAPTURED,M01_STAGE1_RESERVATIONS_VALIDATED,M01_OWNED_STACK_READY,M01_OWNED_STACK_SWITCHED,M01_RSP_CONTAINED,TEST_PASS m01.stage1,TEST_START m01.stage2,M01_ALLOCATOR_ARENA_ALLOCATED,M01_STAGE2_MAP_RECAPTURED,M01_RESERVATIONS_APPLIED,M01_LIVE_ALLOCATED_4K,M01_LIVE_PAGE_WITHIN_ARENA,M01_LIVE_FREED_4K,M01_DOUBLE_FREE_REJECTED,TEST_PASS m01.stage2,TEST_START m01.stage3,M01_CR3_STUB_PAGE_ALLOCATED,M01_PROTECTION_PROBE_PAGE_ALLOCATED,M01_PAGE_TABLE_STATE_ARENA_ALLOCATED,M01_STAGE3_MAP_RECAPTURED,M01_CR3_STUB_MATERIALIZED,M01_PAGE_TABLES_BUILT,M01_PAGING_MODE_VALIDATED,M01_PRE_CR3,M01_FIRMWARE_CR3_RESTORED,M01_RFLAGS_RESTORED,M01_PGE_CYCLE_VERIFIED,M01_OWNED_CR3_CANARY_VERIFIED,M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED,M01_POST_CR3,M01_RW_TO_RX_VERIFIED,M01_TLB_INVALIDATION_COMPLETE,M01_RX_PROBE_EXECUTED,M01_PAGE_ZERO_ABSENT,TEST_PASS m01.stage3,CLROS_M01_LIVE_BOOT_MEMORY_READY,OS_SMOKE_PASS\" -RequireUniqueMarker \"TEST_START m01.stage1,M01_LOADED_IMAGE_CAPTURED,M01_STACK_SWITCH_STUB_READY,M01_STACK_ARENA_ALLOCATED,M01_STACK_GUARD_RESERVED,M01_STAGE1_MAP_RECAPTURED,M01_STAGE1_RESERVATIONS_VALIDATED,M01_OWNED_STACK_READY,M01_OWNED_STACK_SWITCHED,M01_RSP_CONTAINED,TEST_PASS m01.stage1,TEST_START m01.stage2,M01_ALLOCATOR_ARENA_ALLOCATED,M01_STAGE2_MAP_RECAPTURED,M01_RESERVATIONS_APPLIED,M01_LIVE_ALLOCATED_4K,M01_LIVE_PAGE_WITHIN_ARENA,M01_LIVE_FREED_4K,M01_DOUBLE_FREE_REJECTED,TEST_PASS m01.stage2,TEST_START m01.stage3,M01_CR3_STUB_PAGE_ALLOCATED,M01_PROTECTION_PROBE_PAGE_ALLOCATED,M01_PAGE_TABLE_STATE_ARENA_ALLOCATED,M01_STAGE3_MAP_RECAPTURED,M01_CR3_STUB_MATERIALIZED,M01_PAGE_TABLES_BUILT,M01_PAGING_MODE_VALIDATED,M01_PRE_CR3,M01_FIRMWARE_CR3_RESTORED,M01_RFLAGS_RESTORED,M01_PGE_CYCLE_VERIFIED,M01_OWNED_CR3_CANARY_VERIFIED,M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED,M01_POST_CR3,M01_RW_TO_RX_VERIFIED,M01_TLB_INVALIDATION_COMPLETE,M01_RX_PROBE_EXECUTED,M01_PAGE_ZERO_ABSENT,TEST_PASS m01.stage3,CLROS_M01_LIVE_BOOT_MEMORY_READY,OS_SMOKE_PASS\" -ForbidMarker \"LIVE_ALLOCATOR_NOT_INSTALLED,BOOT_PAGE_ALLOCATOR_NOT_READY,M01_ARBITRARY_CONVENTIONAL_PAGE_USED,M01_PAGE_OUTSIDE_ALLOCATOR_ARENA,M01_PAGE_TABLE_OUTSIDE_ARENA,M01_PROTECTION_PROBE_ALLOCATION_FAILED,M01_PROTECTION_PROBE_ALIAS,M01_CR3_STUB_READBACK_FAILED,M01_PAGING_MODE_VALIDATION_FAILED,M01_PGE_CLEAR_FAILED,M01_PGE_RESTORE_FAILED,M01_EXECUTABLE_TABLE_DATA,M01_INSTRUCTION_PUBLICATION_COOKIE_FAILED,M01_FIRMWARE_CALLBACK_DURING_OWNED_CR3,M01_FIRMWARE_CR3_RESTORE_FAILED,M01_CR4_RESTORE_FAILED,M01_RFLAGS_RESTORE_FAILED,M01_OWNED_CR3_CANARY_FAILED,M01_RX_PROBE_FAILED,TEST_FAIL,OS_SMOKE_FAIL,M01_INTEGRATION_FAIL,M01_STAGE1_FAIL,M01_STAGE2_FAIL,M01_STAGE3_FAIL\"",
         "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check-naming.ps1",
         "git diff --check",
         "git status --short"
@@ -5726,7 +6044,7 @@
         "docs/diagnostics.md",
         "docs/completion-gates.md"
       ],
-      "evidenceBoundary": "This issue proves only the cumulative pre-EBS M01 probe under the recorded local QEMU/OVMF configuration: loader-owned image; separate EfiLoaderCode stack-switch, CR3/invlpg, and protection-probe pages plus EfiLoaderData guard/stack, allocator, and page-table/state arenas with map recapture; exact audited byte materialization; architectural-mode validation with PCIDE/LA57 clear and an audited PGE clear/readback/restore cycle; one arena-confined metadata alloc/free cycle; reversible callback-free owned-CR3 execution; exact raw firmware-CR3, raw-CR4, and RFLAGS/IF restoration; continuation-canary validation; and, only during the owned interval, RX/non-writable stubs, RW+NX table/state/stack data, a live RW+NX-to-RO+X protection-probe transition with exact invlpg/PTE readback/constant return, no present owned-hierarchy W+X leaf, guard absent, and virtual page zero absent. It does not prove post-EBS allocation ownership, restored firmware mapping policy, systemwide W^X/page-zero policy, firmware diagnostics under owned CR3, permanent CR3 adoption, NMI/SMI safety, controlled #PF, ExitBootServices, owned COM1/descriptors, devices, applications, hosted .NET, Kestrel, cloud, or production readiness; null-fault execution remains M02-014 and permanent CR3 adoption occurs only after successful ExitBootServices in M03-007.",
+      "evidenceBoundary": "This issue proves only the cumulative pre-EBS M01 probe under the recorded local QEMU/OVMF configuration: loader-owned image; separate EfiLoaderCode stack-switch, CR3/invlpg, and protection-probe pages plus EfiLoaderData guard/stack, allocator, and page-table/state arenas with map recapture; exact audited byte materialization; an immutable, correctly unwind-described instruction-publication serializer whose post-CPUID cookie is checked at the four current same-core publication epochs and whose aggregate success marker is runtime-observed; architectural-mode validation with PCIDE/LA57 clear and an audited PGE clear/readback/restore cycle; one arena-confined metadata alloc/free cycle; reversible callback-free owned-CR3 execution; exact raw firmware-CR3, raw-CR4, and RFLAGS/IF restoration; continuation-canary validation; and, only during the owned interval, RX/non-writable stubs, RW+NX table/state/stack data, a live RW+NX-to-RO+X protection-probe transition with exact invlpg/PTE readback/constant return, no present owned-hierarchy W+X leaf, guard absent, and virtual page zero absent. QEMU/TCG continuity does not empirically prove absence of speculative code-store bypass and does not prove cross-core instruction publication. It does not prove post-EBS allocation ownership, restored firmware mapping policy, systemwide W^X/page-zero policy, firmware diagnostics under owned CR3, permanent CR3 adoption, NMI/SMI safety, controlled #PF, ExitBootServices, owned COM1/descriptors, devices, applications, hosted .NET, Kestrel, cloud, or production readiness; null-fault execution remains M02-014 and permanent CR3 adoption occurs only after successful ExitBootServices in M03-007.",
       "desiredState": "open"
     },
     {

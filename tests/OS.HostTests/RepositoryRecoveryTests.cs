@@ -88,7 +88,7 @@ internal static class RepositoryRecoveryTests
             && target.GetProperty("repository").GetString() == "CLROS"
             && document.RootElement.GetProperty("milestones").GetArrayLength() == 16
             && document.RootElement.GetProperty("labels").GetArrayLength() == 68
-            && document.RootElement.GetProperty("issues").GetArrayLength() == 337
+            && document.RootElement.GetProperty("issues").GetArrayLength() == 340
             && File.ReadAllText(scriptPath).Contains(
                 "Refusing non-canonical target",
                 StringComparison.Ordinal);

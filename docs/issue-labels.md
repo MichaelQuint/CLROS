@@ -18,13 +18,23 @@ children, 332 keyed issues, and 416 managed objects are preserved as a
 historical inventory snapshot; M01-027 and M01-020 are now evidence-reviewed
 and closed, not the next or blocked leaves.
 
-The M01-028 recovery adds itself and inserts M01-029 through M01-032 as four
-serialized prerequisites before M01-025. The current durable inventory
-therefore contains 321 children, 337 keyed issues, and 421 managed objects.
-M01-025 remains `agent:blocked` on M01-029 through M01-032, and M01-026 remains
-blocked on M01-025 for real-QEMU proof. Once M01-028 is evidence-reviewed and
-closed, readiness recomputation makes M01-029 the sole `agent:ready` next leaf
-in this recovery chain; M01-030, M01-031, and M01-032 remain blocked in order.
+The M01-028 recovery added itself and inserted M01-029 through M01-032 as four
+serialized prerequisites before M01-025. Its 321-child, 337-keyed-issue,
+421-managed-object inventory remains the last applied historical snapshot.
+
+The current durable manifest adds M01-033 through M01-035 after M01-025 and
+before M01-026. These slices respectively own deterministic C# AMD64 COFF
+serializer plus encoded unwind intent, canonical EFI
+link/authoritative-exception-directory verification, and four-epoch EfiEntry
+checked-cookie publication ordering through stack-switch-persistent state. The
+manifest therefore contains 324
+children, 340 keyed issues, and 424 managed objects. All three new issues begin
+`agent:blocked`. Once M01-025 closes with reviewed evidence, readiness
+recomputation makes only M01-033 `agent:ready`. M01-033 owns only new generator
+files, its focused host test, and `docs/security.md`, so it has no central
+collision lane and may run alongside genuinely disjoint work. M01-034,
+M01-035, and M01-026 remain blocked in order. This administrative branch does
+not synchronize the tracker.
 
 The guarded earlier M00-023 apply recognized existing M00-023 as issue #321,
 created only M01-016 through M01-026 as issues #323 through #333, updated
@@ -32,10 +42,12 @@ exactly 24 existing managed issues, and emitted
 `SYNC_VERIFY_PASS milestones=16 labels=68 issues=331`. The 24 updates included
 the substantive M03-007 post-EBS permanent-CR3 handoff and its generated
 M03-EPIC child-checklist update. Its 315-child/331-keyed/415-managed-object
-convergence is preserved historical evidence, as is the later
-316-child/332-keyed/416-managed-object snapshot. A converged M01-028 post-apply
-preview must report all 421 current managed objects unchanged. None of these
-administrative inventory changes advances a capability or completion gate.
+convergence is preserved historical evidence, as are the later
+316-child/332-keyed/416-managed-object and
+321-child/337-keyed/421-managed-object snapshots. After a future guarded apply,
+a converged preview for the current manifest must report all 424 managed
+objects unchanged. None of these administrative inventory changes advances a
+capability or completion gate.
 
 ## Implemented Behavior
 
@@ -62,8 +74,14 @@ administrative inventory changes advances a capability or completion gate.
   EfiEntry/fresh-`-BuildEfi` QEMU boundaries so each issue owns exactly one
   collision-lane surface. M01-027 and M01-020 are closed. M01-028 inserts the
   serialized M01-029 preparation, M01-030 identity-binding, M01-031 physical
-  table-materialization, and M01-032 call-gate leaves before blocked M01-025;
-  M01-026 retains the later real-QEMU evidence boundary.
+  table-materialization, and M01-032 call-gate leaves before M01-025. The new
+  M01-033 generator/unwind, M01-034 canonical link/artifact/unwind-verifier, and
+  M01-035 four-publication-epoch checked-cookie EfiEntry slices then serialize
+  the instruction-publication boundary before M01-026 retains the later
+  runtime-observable real-QEMU evidence boundary. M01-033 proves object bytes
+  and relocation intent only; M01-034 must prove the linked PE exception
+  directory and M01-035 must preserve exact state transitions across the
+  one-way owned-stack switch.
 - One `phase:mxx-*` label identifies each milestone from M00 through M15.
 
 Only issues whose complete transitive dependency tree is manifest-closed,
