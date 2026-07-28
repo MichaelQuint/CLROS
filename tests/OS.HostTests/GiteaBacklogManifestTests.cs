@@ -1458,6 +1458,20 @@ internal static class GiteaBacklogManifestTests
                 ["M01-034"] = "type:tooling",
                 ["M01-035"] = "type:implementation"
             };
+        IReadOnlyDictionary<string, string> desiredStates =
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["M01-033"] = "closed",
+                ["M01-034"] = "open",
+                ["M01-035"] = "open"
+            };
+        IReadOnlyDictionary<string, string> agentLabels =
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["M01-033"] = "agent:done",
+                ["M01-034"] = "agent:blocked",
+                ["M01-035"] = "agent:blocked"
+            };
 
         foreach (string key in keys)
         {
@@ -1477,9 +1491,9 @@ internal static class GiteaBacklogManifestTests
                     CountPrefix(labels, "lane:") == 1;
             if (!string.Equals(
                     issue.GetProperty("desiredState").GetString(),
-                    "open",
+                    desiredStates[key],
                     StringComparison.Ordinal) ||
-                !JsonArrayContainsExact(labels, "agent:blocked") ||
+                !JsonArrayContainsExact(labels, agentLabels[key]) ||
                 CountPrefix(labels, "agent:") != 1 ||
                 !JsonArrayContainsExact(labels, "priority:p0") ||
                 !JsonArrayContainsExact(labels, "evidence:host") ||
@@ -1498,6 +1512,18 @@ internal static class GiteaBacklogManifestTests
         JsonElement generator = issueByKey["M01-033"];
         JsonElement integration = issueByKey["M01-034"];
         JsonElement publication = issueByKey["M01-035"];
+        string generatorEvidence =
+            generator.GetProperty("currentEvidence").GetString() ?? string.Empty;
+        string[] requiredGeneratorEvidenceTerms =
+        [
+            "PR #416",
+            "b3b1dc892205509bef56bde6c4f9c25cb8f02726",
+            "DA97E50C95E479541B65EB3F96D9C6DED163735857650BEE9416324086D55C7B",
+            "done/step884.md",
+            "comment #6336",
+            "clros-evidence-reviewed:M01-033",
+            "deterministic object-only host evidence"
+        ];
         if (!OwnedPathsEqual(
                 generator,
                 "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.csproj",
@@ -1518,18 +1544,25 @@ internal static class GiteaBacklogManifestTests
                 "src/OS/Runtime/RuntimeImportAttribute.cs",
                 "src/OS/Runtime/MethodImplAttribute.cs",
                 "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.targets",
+                "tools/AGENTS.override.md",
+                "scripts/build-efi-shell.ps1",
                 "scripts/test-efi-artifact.ps1",
                 "tests/OS.HostTests/M01InstructionPublicationBuildIntegrationTests.cs",
+                "tests/OS.HostTests/BuildEfiShellPreflightTests.cs",
                 "tests/OS.HostTests/EfiArtifactVerificationScriptTests.cs",
                 "docs/efi-build.md",
-                "docs/nativeaot-nostdlib-limits.md") ||
+                "docs/nativeaot-nostdlib-limits.md",
+                "docs/boot.md",
+                "docs/security.md") ||
             !OwnedPathsEqual(
                 publication,
                 "src/OS/Boot/EfiEntry.cs",
                 "tests/OS.HostTests/M01InstructionPublicationEfiEntryTests.cs",
                 "docs/boot.md",
                 "docs/architecture.md",
-                "docs/security.md"))
+                "docs/security.md") ||
+            requiredGeneratorEvidenceTerms.Any(term =>
+                !generatorEvidence.Contains(term, StringComparison.Ordinal)))
         {
             return false;
         }
@@ -1552,6 +1585,15 @@ internal static class GiteaBacklogManifestTests
             !JsonElementContains(
                 integration.GetProperty("forbiddenPaths"),
                 "InstructionPublicationSerializerGenerator.cs") ||
+            JsonElementContains(
+                integration.GetProperty("forbiddenPaths"),
+                "scripts/build-efi-shell.ps1") ||
+            JsonElementContains(
+                integration.GetProperty("forbiddenPaths"),
+                "docs/security.md") ||
+            JsonElementContains(
+                integration.GetProperty("forbiddenPaths"),
+                "docs/boot.md") ||
             !JsonElementContains(
                 publication.GetProperty("forbiddenPaths"),
                 "src/OS/OS.csproj") ||
@@ -1650,6 +1692,9 @@ internal static class GiteaBacklogManifestTests
             "absent import",
             "must not invoke",
             "build timeout",
+            "exact 44 ordered compile items",
+            "exactly one allowlisted serializer-targets import",
+            "reject every other import",
             "no serializer-execution"
         ];
         string[] publicationTerms =

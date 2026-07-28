@@ -421,11 +421,12 @@ run a stage-three QEMU/OVMF guest; or advance a completion gate.
 The artifact also does not close immutable-text first-publication
 serialization. The first architectural-preflight bytes are dynamically
 published before their first transfer; serialization inside a later generated
-stream cannot serialize that initial fetch. New P0 M01-033 must generate the
-deterministic C# AMD64 COFF executable-text serializer, M01-034 must link and
-verify it in executable, nonwritable EFI image text, and M01-035 must place it
-at every current publication epoch. M01-026 remains blocked until that full
-chain has implementation and build-audit evidence.
+stream cannot serialize that initial fetch. M01-033 now provides the reviewed
+deterministic C# AMD64 COFF executable-text object and encoded relocation/unwind
+intent only. M01-034 must link and verify it in executable, nonwritable EFI
+image text, and M01-035 must place it at every current publication epoch.
+M01-026 remains blocked until those remaining slices have implementation and
+build-audit evidence.
 
 ## Unsupported Behavior
 
@@ -583,11 +584,13 @@ Any next-step EFI build work must keep the freestanding constraints explicit. If
 
 ## Next Steps
 
-1. Implement and host-test P0 M01-033's deterministic C# AMD64 COFF
-   executable-text serializer generator.
-2. Link and build-audit the serializer in executable, nonwritable EFI image
-   text under M01-034, then place it at every current publication epoch under
-   M01-035.
+1. Under M01-034, link M01-033's reviewed deterministic object and build-audit
+   its exact symbol, bytes, exception-directory/unwind coverage, immutable
+   executable section, binding metadata, and absent ordinary imports in the
+   same-build canonical EFI artifact without invoking it.
+2. Under M01-035, place the linked serializer at every current publication
+   epoch and host-audit each checked cookie transition without claiming guest
+   execution.
 3. Only after M01-035 closes, run M01-026's cumulative all-switch QEMU/OVMF
    proof with captured serial, artifact hashes, required/forbidden marker
    validation, and deterministic timeout/reset/triple-fault classification.
