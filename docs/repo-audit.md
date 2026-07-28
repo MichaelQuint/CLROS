@@ -40,16 +40,18 @@ and the reachable local Gitea tracker:
 - M01-028 records the subsequent live-paging feasibility recovery and inserts
   the serialized M01-029 through M01-032 prerequisites before M01-025. Its
   321-child, 337-keyed-issue, 421-managed-object inventory is preserved as the
-  last applied historical snapshot.
-- The current durable manifest adds M01-033 through M01-035 after M01-025 and
-  before M01-026: deterministic C# AMD64 COFF serializer and encoded unwind
-  intent, canonical EFI link/authoritative-exception-directory verification,
-  and four-epoch EfiEntry checked-cookie publication ordering through
-  stack-switch-persistent state. The manifest now contains 324 children, 340
-  keyed issues, and 424
-  managed objects. No tracker synchronization was performed as part of this
-  administrative change; it changes dependency/readiness intent only and does
-  not change a capability or completion gate.
+  preceding historical applied snapshot.
+- The current durable manifest and live tracker add M01-033 through M01-035
+  after M01-025 and before M01-026: deterministic C# AMD64 COFF serializer and
+  encoded unwind intent, canonical EFI
+  link/authoritative-exception-directory verification, and four-epoch
+  EfiEntry checked-cookie publication ordering through stack-switch-persistent
+  state. The guarded 2026-07-28 apply closed reviewed M01-025 issue `#332`,
+  created issues `#411` through `#413`, and converged at 324 children, 340
+  keyed issues, and 424 managed objects. M01-033 `#411` is the only open
+  `agent:ready` issue; M01-034 `#412`, M01-035 `#413`, and M01-026 `#333`
+  remain blocked. This changes dependency/readiness state only and does not
+  change a capability or completion gate.
 
 ## Implemented Behavior
 
@@ -194,11 +196,9 @@ Current M00 recovery evidence from 2026-07-25:
 - Generated evidence is under
   `artifacts/logs/m00-final/32a8f3b91e17-20260725T213702Z/` and is not
   committed as first-party source.
-- The last verified live Gitea tracker snapshot contains 68 labels, 16
-  milestones, 321 children, and 337 uniquely keyed issues. The current durable
-  manifest contains 324 children and 340 uniquely keyed issues; the additional
-  M01-033 through M01-035 records have not been applied by this change. The
-  earlier guarded M00-023 apply recognized issue
+- The verified live Gitea tracker snapshot now contains 68 labels, 16 open
+  milestones, 324 children, 340 uniquely keyed issues, and 424 total managed
+  objects. The earlier guarded M00-023 apply recognized issue
   #321, created only M01-016 through M01-026 as issues #323 through #333,
   updated exactly 24 existing managed issues, and emitted
   `SYNC_VERIFY_PASS milestones=16 labels=68 issues=331`; those counts are
@@ -210,9 +210,9 @@ Current M00 recovery evidence from 2026-07-25:
   `done/step867.md` evidence, and M01-020 is closed with reviewed
   `done/step868.md` linkage/build evidence. M01-028 now serializes M01-029
   through M01-032 before M01-025. The new durable chain is
-  `M01-025 -> M01-033 -> M01-034 -> M01-035 -> M01-026`; all three new issues
-  begin blocked. Once M01-025 closes with reviewed evidence, readiness
-  recomputation makes only M01-033 ready; because it owns only new generator
+  `M01-025 -> M01-033 -> M01-034 -> M01-035 -> M01-026`. The guarded apply
+  closed M01-025 `#332`, created M01-033 `#411`, M01-034 `#412`, and M01-035
+  `#413`, and made only M01-033 ready; because it owns only new generator
   files, its focused test, and `docs/security.md`, it carries no central
   collision lane and may run beside disjoint work. M01-034, M01-035, and
   M01-026 remain blocked in order. The first leaf proves object bytes and
@@ -220,8 +220,9 @@ Current M00 recovery evidence from 2026-07-25:
   the authoritative linked PE exception directory; the third requires the
   exact `0 -> 1 -> 3 -> 7 -> 15` publication state across the one-way stack
   switch and places epoch 3 inside `CaptureArchitecturalPreflight` before its
-  first generated-code invocation. A converged post-apply no-write preview for
-  the new manifest must report all 424 managed objects unchanged. M02 and M04
+  first generated-code invocation. The post-apply no-write preview reported
+  all 424 managed objects unchanged, and independent REST verification found
+  exactly one ready key, M01-033. M02 and M04
   entry work still
   depends on the final M01-026 cumulative paging proof. Only `M15-013`, the
   isolated optional DOOM/WAD boundary, retains
