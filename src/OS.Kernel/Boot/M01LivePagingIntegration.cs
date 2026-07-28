@@ -67,7 +67,19 @@ public enum M01LivePagingCheckpoint : byte
     Cr3TranscriptValidated = 10,
     ProtectionPlanValidated = 11,
     PageZeroValidated = 12,
-    Completed = 13
+    Completed = 13,
+    PreparedForCompositeTransition = 14
+}
+
+/// <summary>
+/// Separates the M01-029 preparation contract from the retained M01-019
+/// synthetic execution model. Neither mode is processor execution evidence.
+/// </summary>
+public enum M01LivePagingExecutionMode : byte
+{
+    Uninitialized = 0,
+    PreparationOnly = 1,
+    ModelOnlyLegacy = 2
 }
 
 /// <summary>
@@ -863,6 +875,470 @@ public struct M01LivePagingEvidence
         PageZeroAudit => PageZeroAuditValue;
 }
 
+/// <summary>
+/// Preparation-only description of the modeled probe-leaf rewrite and the
+/// exact one-target invalidation invocation that a later composite transition
+/// may consume. The caller-owned leaf is restored before this value can
+/// succeed. No instruction is invoked.
+/// </summary>
+public readonly struct M01LivePagingProtectionPreparation
+{
+    private readonly M01LivePagingStatus _status;
+    private readonly byte _initialLeafRestored;
+    private readonly ushort _reserved0;
+    private readonly uint _reserved1;
+    private readonly OS.Kernel.Memory.X64PageMapResult _mutation;
+    private readonly OS.Kernel.Memory.X64InvlpgInvocationPlanResult
+        _invlpgInvocation;
+    private readonly ulong _protectedLeafReadback;
+
+    internal M01LivePagingProtectionPreparation(
+        M01LivePagingStatus status,
+        OS.Kernel.Memory.X64PageMapResult mutation,
+        OS.Kernel.Memory.X64InvlpgInvocationPlanResult
+            invlpgInvocation,
+        ulong protectedLeafReadback,
+        bool initialLeafRestored)
+    {
+        _status = status;
+        _initialLeafRestored = initialLeafRestored ? (byte)1 : (byte)0;
+        _reserved0 = 0;
+        _reserved1 = 0;
+        _mutation = mutation;
+        _invlpgInvocation = invlpgInvocation;
+        _protectedLeafReadback = protectedLeafReadback;
+    }
+
+    public M01LivePagingStatus Status => _status;
+
+    public OS.Kernel.Memory.X64PageMapResult Mutation => _mutation;
+
+    public OS.Kernel.Memory.X64InvlpgInvocationPlanResult
+        InvlpgInvocation => _invlpgInvocation;
+
+    public ulong ProtectedLeafReadback => _protectedLeafReadback;
+
+    public bool InitialLeafRestored => _initialLeafRestored == 1;
+
+    public bool Succeeded =>
+        _status == M01LivePagingStatus.Success
+        && _initialLeafRestored == 1
+        && _reserved0 == 0
+        && _reserved1 == 0
+        && _mutation.Succeeded
+        && _invlpgInvocation.Succeeded
+        && _protectedLeafReadback
+            == _mutation.ReplacementEntry.RawValue;
+}
+
+/// <summary>
+/// Value-only M01-029 evidence. It deliberately omits transition runtime
+/// state, CR3 events, protection observations/events, and CR3 policy. The
+/// included leaf results describe preparation and caller-owned model
+/// mutation only.
+/// </summary>
+public struct M01LivePagingPreparationEvidence
+{
+    internal M01LivePagingAllocationEvidence AllocationEvidenceValue;
+    internal M01LivePagingMapLedgerEvidence MapLedgerEvidenceValue;
+    internal OS.Kernel.Memory.BootReservationTableValidationResult
+        ReservationValidationValue;
+    internal ulong Cr3CodeReservationIndexValue;
+    internal ulong ProtectionProbeReservationIndexValue;
+    internal ulong TableStateReservationIndexValue;
+    internal OS.Kernel.Boot.X64BootIdentityMappingPlanResult
+        MappingPlanValue;
+    internal M01LivePagingTableBuildResult TableBuildValue;
+    internal OS.Kernel.Memory.X64PagingModePreflightStubResult
+        PreflightMaterializationValue;
+    internal OS.Kernel.Memory.X64PagingModePreflightStubResult
+        PreflightReadbackValue;
+    internal OS.Kernel.Memory.X64PagingModePreflightResult
+        PreflightValue;
+    internal OS.Kernel.Memory
+        .X64ReversibleCr3TransitionStubPlanResult
+        TransitionMaterializationValue;
+    internal OS.Kernel.Memory
+        .X64ReversibleCr3TransitionStubPlanResult
+        TransitionReadbackValue;
+    internal OS.Kernel.Memory.X64InvlpgStubPlanResult
+        InvlpgMaterializationValue;
+    internal OS.Kernel.Memory.X64InvlpgStubPlanResult
+        InvlpgReadbackValue;
+    internal OS.Kernel.Memory.X64ProtectionProbeStubPlanResult
+        ProbeMaterializationValue;
+    internal OS.Kernel.Memory.X64ProtectionProbeStubPlanResult
+        ProbeReadbackValue;
+    internal M01LivePagingProtectionPreparation
+        ProtectionPreparationValue;
+    internal OS.Kernel.Memory.PageZeroMappingPolicyResult
+        PageZeroAuditValue;
+    internal M01LivePagingCleanupPlan CleanupPlanValue;
+
+    public M01LivePagingAllocationEvidence AllocationEvidence =>
+        AllocationEvidenceValue;
+
+    public M01LivePagingMapLedgerEvidence MapLedgerEvidence =>
+        MapLedgerEvidenceValue;
+
+    public OS.Kernel.Memory.BootReservationTableValidationResult
+        ReservationValidation => ReservationValidationValue;
+
+    public ulong Cr3CodeReservationIndex =>
+        Cr3CodeReservationIndexValue;
+
+    public ulong ProtectionProbeReservationIndex =>
+        ProtectionProbeReservationIndexValue;
+
+    public ulong TableStateReservationIndex =>
+        TableStateReservationIndexValue;
+
+    public OS.Kernel.Boot.X64BootIdentityMappingPlanResult
+        MappingPlan => MappingPlanValue;
+
+    public M01LivePagingTableBuildResult TableBuild =>
+        TableBuildValue;
+
+    public OS.Kernel.Memory.X64PagingModePreflightStubResult
+        PreflightMaterialization => PreflightMaterializationValue;
+
+    public OS.Kernel.Memory.X64PagingModePreflightStubResult
+        PreflightReadback => PreflightReadbackValue;
+
+    public OS.Kernel.Memory.X64PagingModePreflightResult Preflight =>
+        PreflightValue;
+
+    public OS.Kernel.Memory
+        .X64ReversibleCr3TransitionStubPlanResult
+        TransitionMaterialization => TransitionMaterializationValue;
+
+    public OS.Kernel.Memory
+        .X64ReversibleCr3TransitionStubPlanResult
+        TransitionReadback => TransitionReadbackValue;
+
+    public OS.Kernel.Memory.X64InvlpgStubPlanResult
+        InvlpgMaterialization => InvlpgMaterializationValue;
+
+    public OS.Kernel.Memory.X64InvlpgStubPlanResult InvlpgReadback =>
+        InvlpgReadbackValue;
+
+    public OS.Kernel.Memory.X64ProtectionProbeStubPlanResult
+        ProbeMaterialization => ProbeMaterializationValue;
+
+    public OS.Kernel.Memory.X64ProtectionProbeStubPlanResult
+        ProbeReadback => ProbeReadbackValue;
+
+    public M01LivePagingProtectionPreparation ProtectionPreparation =>
+        ProtectionPreparationValue;
+
+    public OS.Kernel.Memory.X64PageMapResult ProtectionMutation =>
+        ProtectionPreparationValue.Mutation;
+
+    public OS.Kernel.Memory.X64InvlpgInvocationPlanResult
+        InvlpgInvocation =>
+            ProtectionPreparationValue.InvlpgInvocation;
+
+    public OS.Kernel.Memory.PageZeroMappingPolicyResult
+        PageZeroAudit => PageZeroAuditValue;
+
+    public M01LivePagingCleanupPlan CleanupPlan => CleanupPlanValue;
+
+    public bool Succeeded =>
+        ReservationValidationValue.Succeeded
+        && MappingPlanValue.Succeeded
+        && TableBuildValue.Succeeded
+        && PreflightMaterializationValue.Succeeded
+        && PreflightReadbackValue.Succeeded
+        && PreflightReadbackValue.ExactBytes
+        && PreflightValue.Succeeded
+        && TransitionMaterializationValue.Succeeded
+        && TransitionReadbackValue.Succeeded
+        && InvlpgMaterializationValue.Succeeded
+        && InvlpgReadbackValue.ReadBackVerified
+        && ProbeMaterializationValue.Succeeded
+        && ProbeReadbackValue.ReadBackVerified
+        && ProtectionPreparationValue.Succeeded
+        && PageZeroAuditValue.ProvesPageZeroAbsentInSuppliedImage
+        && CleanupPlanValue.Succeeded;
+}
+
+/// <summary>
+/// Durable caller-owned M01-029 preparation state. Pointer values are retained
+/// only as explicit address/count/capacity facts for the later serialized
+/// integration issues; this record owns none of the referenced storage.
+/// </summary>
+public unsafe struct M01LivePagingPreparationState
+{
+    public const uint CurrentVersion = 1;
+    public const ulong RequiredStorageAlignment = 8;
+
+    internal uint HeaderSize;
+    internal uint HeaderVersion;
+    internal M01LivePagingStatus PreparationStatus;
+    internal M01LivePagingCheckpoint PreparationCheckpoint;
+    internal M01LivePagingExecutionMode ExecutionModeValue;
+    internal byte Reserved0;
+    internal uint Reserved1;
+    internal ulong StageTwoStateAddressValue;
+    internal ulong StageTwoStateCountValue;
+    internal ulong StageTwoStateCapacityValue;
+    internal ulong AllocationTableAddressValue;
+    internal ulong AllocationRecordCountValue;
+    internal ulong AllocationRecordCapacityValue;
+    internal ulong ReservationLedgerAddressValue;
+    internal ulong ReservationCountValue;
+    internal ulong ReservationCapacityValue;
+    internal ulong MappingRequirementAddressValue;
+    internal ulong MappingRequirementCountValue;
+    internal ulong MappingRequirementCapacityValue;
+    internal ulong MappingRangeAddressValue;
+    internal ulong MappingRangeCountValue;
+    internal ulong MappingRangeCapacityValue;
+    internal ulong PageImageAddressValue;
+    internal ulong PageImageCountValue;
+    internal ulong PageImageCapacityValue;
+    internal ulong PageEntryAddressValue;
+    internal ulong PageEntryCountValue;
+    internal ulong PageEntryCapacityValue;
+    internal ulong Cr3CodePageAddressValue;
+    internal ulong Cr3CodePageCapacityValue;
+    internal ulong ProtectionProbePageAddressValue;
+    internal ulong ProtectionProbePageCapacityValue;
+    internal ulong PreflightObservationAddressValue;
+    internal ulong PreflightObservationCountValue;
+    internal ulong PreflightObservationCapacityValue;
+    internal ulong RefreshedMapKeyValue;
+    internal ulong RefreshedMapGenerationValue;
+    internal OS.Kernel.Memory.BootReservedRange
+        Cr3CodeReservationValue;
+    internal OS.Kernel.Memory.BootReservedRange
+        ProtectionProbeReservationValue;
+    internal OS.Kernel.Memory.BootReservedRange
+        TableStateReservationValue;
+    internal PhysicalAddress OwnedRootValue;
+    internal ulong RawFirmwareCr3Value;
+    internal ulong RawCr4Value;
+    internal ulong OriginalRflagsValue;
+    internal ulong TablePageCountValue;
+    internal ulong MappedPageCountValue;
+    internal ulong ProbeLeafEntryIndexValue;
+    internal byte PageZeroAbsentValue;
+    internal byte StubBytesVerifiedValue;
+    internal byte InitialProbeLeafRestoredValue;
+    internal byte CleanupPlannedValue;
+    internal uint Reserved2;
+
+    public static ulong RequiredStorageBytes =>
+        (ulong)sizeof(M01LivePagingPreparationState);
+
+    public uint Size => HeaderSize;
+
+    public uint Version => HeaderVersion;
+
+    public M01LivePagingStatus Status => PreparationStatus;
+
+    public M01LivePagingCheckpoint Checkpoint =>
+        PreparationCheckpoint;
+
+    public M01LivePagingExecutionMode ExecutionMode =>
+        ExecutionModeValue;
+
+    public ulong StageTwoStateAddress => StageTwoStateAddressValue;
+
+    public ulong StageTwoStateCount => StageTwoStateCountValue;
+
+    public ulong StageTwoStateCapacity => StageTwoStateCapacityValue;
+
+    public ulong AllocationTableAddress => AllocationTableAddressValue;
+
+    public ulong AllocationRecordCount => AllocationRecordCountValue;
+
+    public ulong AllocationRecordCapacity =>
+        AllocationRecordCapacityValue;
+
+    public ulong ReservationLedgerAddress =>
+        ReservationLedgerAddressValue;
+
+    public ulong ReservationCount => ReservationCountValue;
+
+    public ulong ReservationCapacity => ReservationCapacityValue;
+
+    public ulong MappingRequirementAddress =>
+        MappingRequirementAddressValue;
+
+    public ulong MappingRequirementCount => MappingRequirementCountValue;
+
+    public ulong MappingRequirementCapacity =>
+        MappingRequirementCapacityValue;
+
+    public ulong MappingRangeAddress => MappingRangeAddressValue;
+
+    public ulong MappingRangeCount => MappingRangeCountValue;
+
+    public ulong MappingRangeCapacity => MappingRangeCapacityValue;
+
+    public ulong PageImageAddress => PageImageAddressValue;
+
+    public ulong PageImageCount => PageImageCountValue;
+
+    public ulong PageImageCapacity => PageImageCapacityValue;
+
+    public ulong PageEntryAddress => PageEntryAddressValue;
+
+    public ulong PageEntryCount => PageEntryCountValue;
+
+    public ulong PageEntryCapacity => PageEntryCapacityValue;
+
+    public ulong Cr3CodePageAddress => Cr3CodePageAddressValue;
+
+    public ulong Cr3CodePageCapacity => Cr3CodePageCapacityValue;
+
+    public ulong ProtectionProbePageAddress =>
+        ProtectionProbePageAddressValue;
+
+    public ulong ProtectionProbePageCapacity =>
+        ProtectionProbePageCapacityValue;
+
+    public ulong PreflightObservationAddress =>
+        PreflightObservationAddressValue;
+
+    public ulong PreflightObservationCount =>
+        PreflightObservationCountValue;
+
+    public ulong PreflightObservationCapacity =>
+        PreflightObservationCapacityValue;
+
+    public ulong RefreshedMapKey => RefreshedMapKeyValue;
+
+    public ulong RefreshedMapGeneration =>
+        RefreshedMapGenerationValue;
+
+    public OS.Kernel.Memory.BootReservedRange Cr3CodeReservation =>
+        Cr3CodeReservationValue;
+
+    public OS.Kernel.Memory.BootReservedRange
+        ProtectionProbeReservation =>
+            ProtectionProbeReservationValue;
+
+    public OS.Kernel.Memory.BootReservedRange TableStateReservation =>
+        TableStateReservationValue;
+
+    public PhysicalAddress OwnedRoot => OwnedRootValue;
+
+    public ulong RawFirmwareCr3 => RawFirmwareCr3Value;
+
+    public ulong RawCr4 => RawCr4Value;
+
+    public ulong OriginalRflags => OriginalRflagsValue;
+
+    public ulong TablePageCount => TablePageCountValue;
+
+    public ulong MappedPageCount => MappedPageCountValue;
+
+    public ulong ProbeLeafEntryIndex => ProbeLeafEntryIndexValue;
+
+    public bool PageZeroAbsent => PageZeroAbsentValue == 1;
+
+    public bool StubBytesVerified => StubBytesVerifiedValue == 1;
+
+    public bool InitialProbeLeafRestored =>
+        InitialProbeLeafRestoredValue == 1;
+
+    public bool CleanupPlanned => CleanupPlannedValue == 1;
+
+    public bool IsPrepared =>
+        M01LivePagingIntegration.IsPreparedState(this);
+}
+
+/// <summary>
+/// Result of M01-029 preparation. Success is preparation evidence only and
+/// cannot be interpreted as generated-code, privileged, EFI, or guest
+/// execution.
+/// </summary>
+public readonly struct M01LivePagingPreparationResult
+{
+    private readonly M01LivePagingStatus _status;
+    private readonly M01LivePagingCheckpoint _checkpoint;
+    private readonly M01LivePagingExecutionMode _executionMode;
+    private readonly byte _reserved0;
+    private readonly uint _reserved1;
+    private readonly M01LivePagingPreparationEvidence _evidence;
+    private readonly M01LivePagingPreparationState _state;
+
+    private M01LivePagingPreparationResult(
+        M01LivePagingStatus status,
+        M01LivePagingCheckpoint checkpoint,
+        M01LivePagingExecutionMode executionMode,
+        M01LivePagingPreparationEvidence evidence,
+        M01LivePagingPreparationState state)
+    {
+        _status = status;
+        _checkpoint = checkpoint;
+        _executionMode = executionMode;
+        _reserved0 = 0;
+        _reserved1 = 0;
+        _evidence = evidence;
+        _state = state;
+    }
+
+    public M01LivePagingStatus Status => _status;
+
+    public M01LivePagingCheckpoint LastCompletedCheckpoint =>
+        _checkpoint;
+
+    public M01LivePagingExecutionMode ExecutionMode =>
+        _executionMode;
+
+    public M01LivePagingPreparationEvidence Evidence => _evidence;
+
+    public M01LivePagingPreparationState State => _state;
+
+    public bool IsPreparationOnly =>
+        _executionMode == M01LivePagingExecutionMode.PreparationOnly;
+
+    public bool IsModelOnly => false;
+
+    public bool IsExecutionEvidence => false;
+
+    public bool Succeeded =>
+        _status == M01LivePagingStatus.Success
+        && _checkpoint
+            == M01LivePagingCheckpoint.PreparedForCompositeTransition
+        && _executionMode
+            == M01LivePagingExecutionMode.PreparationOnly
+        && _reserved0 == 0
+        && _reserved1 == 0
+        && _evidence.Succeeded
+        && _state.IsPrepared;
+
+    public bool PreparedForCompositeTransition => Succeeded;
+
+    internal static M01LivePagingPreparationResult Success(
+        M01LivePagingPreparationEvidence evidence,
+        M01LivePagingPreparationState state)
+    {
+        return new M01LivePagingPreparationResult(
+            M01LivePagingStatus.Success,
+            M01LivePagingCheckpoint.PreparedForCompositeTransition,
+            M01LivePagingExecutionMode.PreparationOnly,
+            evidence,
+            state);
+    }
+
+    internal static M01LivePagingPreparationResult Fail(
+        M01LivePagingStatus status,
+        M01LivePagingCheckpoint checkpoint,
+        M01LivePagingPreparationEvidence evidence)
+    {
+        return new M01LivePagingPreparationResult(
+            status,
+            checkpoint,
+            M01LivePagingExecutionMode.PreparationOnly,
+            evidence,
+            default);
+    }
+}
+
 public readonly struct M01LivePagingIntegrationResult
 {
     private readonly M01LivePagingStatus _status;
@@ -902,6 +1378,15 @@ public readonly struct M01LivePagingIntegrationResult
     public M01LivePagingEvidence Evidence => _evidence;
 
     public M01LivePagingStaticState StaticState => _staticState;
+
+    public M01LivePagingExecutionMode ExecutionMode =>
+        M01LivePagingExecutionMode.ModelOnlyLegacy;
+
+    public bool IsModelOnly => true;
+
+    public bool IsExecutionEvidence => false;
+
+    public bool PreparedForCompositeTransition => false;
 
     public bool Succeeded =>
         _status == M01LivePagingStatus.Success
@@ -1002,6 +1487,13 @@ public static unsafe class M01LivePagingIntegration
     public const bool SupportsPcide = false;
     public const bool SupportsFiveLevelPaging = false;
     public const bool EliminatesNmiOrSmiRisk = false;
+    public const bool LegacyExecuteIsModelOnly = true;
+    public const bool ExecuteModelOnlyIsModelOnly = true;
+    public const bool LegacyResultsCanPrepareCompositeTransition = false;
+    public const bool PreparationExecutesGeneratedCode = false;
+    public const bool PreparationExecutesPrivilegedInstructions = false;
+    public const bool PreparationInvokesFirmware = false;
+    public const bool PreparationIsGuestEvidence = false;
 
     public const ulong RequiredAllocationRecordCount = 3;
     public const ulong MaximumAllocationRecordCapacity = 16;
@@ -1127,6 +1619,1023 @@ public static unsafe class M01LivePagingIntegration
             completedAllocationCount == 3
                 ? 0
                 : M01LivePagingCleanupPlan.NoIndex);
+    }
+
+    /// <summary>
+    /// Validates and constructs caller-owned paging preparation without
+    /// accepting or manufacturing an execution transcript. Architectural
+    /// preflight is evaluated against the allocation-derived root and arena
+    /// before any caller output buffer is written.
+    /// </summary>
+    public static M01LivePagingPreparationResult Prepare(
+        M01LiveAllocatorStaticState* stageTwoState,
+        ulong stageTwoStateCount,
+        ulong stageTwoStateCapacity,
+        OwnedBootStackSwitchPlanResult stackSwitchPlan,
+        BootMemoryRegionRecord* allocationRecords,
+        ulong allocationRecordCount,
+        ulong allocationRecordCapacity,
+        M01LivePagingAllocationEvidence allocationEvidence,
+        M01LivePagingMapLedgerEvidence mapLedgerEvidence,
+        OS.Kernel.Memory.BootReservedRange* reservationLedger,
+        ulong reservationCount,
+        ulong reservationCapacity,
+        OS.Kernel.Boot.X64BootIdentityMappingRequirement*
+            mappingRequirements,
+        ulong mappingRequirementCount,
+        ulong mappingRequirementCapacity,
+        OS.Kernel.Boot.X64BootIdentityMappingRange* mappingRanges,
+        ulong mappingRangeCount,
+        ulong mappingRangeCapacity,
+        OS.Kernel.Memory.X64PageTableImagePage* pageImages,
+        ulong pageImageCount,
+        ulong pageImageCapacity,
+        ulong* pageTableEntries,
+        ulong pageTableEntryCount,
+        ulong pageTableEntryCapacity,
+        OS.Kernel.Memory.X64PageTableEncodingPreconditions
+            pageTablePreconditions,
+        byte* cr3CodePage,
+        ulong cr3CodePageCapacity,
+        byte* protectionProbePage,
+        ulong protectionProbePageCapacity,
+        OS.Kernel.Memory.X64PagingModePreflightObservation*
+            preflightObservation,
+        ulong preflightObservationCount,
+        ulong preflightObservationCapacity,
+        M01LivePagingByteMode byteMode,
+        M01LivePagingPreparationState* preparationState,
+        ulong preparationStateCount,
+        ulong preparationStateCapacity)
+    {
+        M01LivePagingPreparationEvidence evidence = default;
+        evidence.AllocationEvidenceValue = allocationEvidence;
+        evidence.MapLedgerEvidenceValue = mapLedgerEvidence;
+        evidence.Cr3CodeReservationIndexValue = NoIndex;
+        evidence.ProtectionProbeReservationIndexValue = NoIndex;
+        evidence.TableStateReservationIndexValue = NoIndex;
+        M01LivePagingCheckpoint checkpoint =
+            M01LivePagingCheckpoint.Uninitialized;
+
+        if (stageTwoStateCount != 1
+            || stageTwoStateCapacity != 1
+            || !ValidateStageTwoState(
+                stageTwoState,
+                M01LiveAllocatorStaticState.RequiredStorageBytes,
+                out ulong stageTwoStart,
+                out ulong stageTwoEnd)
+            || !stackSwitchPlan.Succeeded)
+        {
+            return FailPreparation(
+                M01LivePagingStatus.StageTwoRejected,
+                checkpoint,
+                evidence);
+        }
+        checkpoint = M01LivePagingCheckpoint.StageTwoValidated;
+
+        M01LoadedImageStackStaticState* stageOne =
+            (M01LoadedImageStackStaticState*)
+                stageTwoState->StageOneStateAddress;
+        if (!ValidateStageOneState(
+                stageOne,
+                stageTwoState->StageOneStateCapacity,
+                stackSwitchPlan,
+                out ulong stageOneStart,
+                out ulong stageOneEnd))
+        {
+            return FailPreparation(
+                M01LivePagingStatus.StageTwoRejected,
+                checkpoint,
+                evidence);
+        }
+
+        if (!ValidateAllocationStorage(
+                allocationRecords,
+                allocationRecordCount,
+                allocationRecordCapacity,
+                out ulong allocationTableStart,
+                out ulong allocationTableEnd))
+        {
+            return FailPreparation(
+                M01LivePagingStatus.AllocationTableRejected,
+                checkpoint,
+                evidence);
+        }
+
+        if (!allocationEvidence.IsValidFor(
+                allocationRecords,
+                allocationRecordCount,
+                allocationRecordCapacity))
+        {
+            return FailPreparation(
+                M01LivePagingStatus.AllocationEvidenceRejected,
+                checkpoint,
+                evidence);
+        }
+
+        BootMemoryRegionRecord code =
+            allocationRecords[Cr3CodeAllocationRecordIndex];
+        BootMemoryRegionRecord probe =
+            allocationRecords[ProtectionProbeAllocationRecordIndex];
+        BootMemoryRegionRecord tableState =
+            allocationRecords[TableStateAllocationRecordIndex];
+        if (!ValidateAllocationForIndex(
+                code,
+                Cr3CodeAllocationRecordIndex,
+                requireExactTablePages: false,
+                expectedTablePages: 0)
+            || !ValidateAllocationForIndex(
+                probe,
+                ProtectionProbeAllocationRecordIndex,
+                requireExactTablePages: false,
+                expectedTablePages: 0)
+            || !ValidateAllocationForIndex(
+                tableState,
+                TableStateAllocationRecordIndex,
+                requireExactTablePages: false,
+                expectedTablePages: 0)
+            || tableState.ByteLength <= PageSize
+            || AllocationsOverlap(code, probe)
+            || AllocationsOverlap(code, tableState)
+            || AllocationsOverlap(probe, tableState))
+        {
+            return FailPreparation(
+                M01LivePagingStatus.AllocationTableRejected,
+                checkpoint,
+                evidence);
+        }
+        checkpoint = M01LivePagingCheckpoint.AllocationsValidated;
+
+        bool mapLedgerValid = mapLedgerEvidence.IsValidFor(
+            *stageTwoState,
+            allocationEvidence,
+            reservationLedger,
+            reservationCount,
+            reservationCapacity);
+        if (!ValidateReservationStorage(
+                reservationLedger,
+                reservationCount,
+                reservationCapacity,
+                out ulong reservationTableStart,
+                out ulong reservationTableEnd)
+            || !mapLedgerValid)
+        {
+            return FailPreparation(
+                mapLedgerValid
+                    ? M01LivePagingStatus.ReservationLedgerRejected
+                    : M01LivePagingStatus.MapLedgerEvidenceRejected,
+                checkpoint,
+                evidence);
+        }
+        checkpoint = M01LivePagingCheckpoint.MapLedgerValidated;
+
+        if (!ValidatePreparationStateStorage(
+                preparationState,
+                preparationStateCount,
+                preparationStateCapacity,
+                out ulong preparationStateStart,
+                out ulong preparationStateEnd))
+        {
+            return FailPreparation(
+                M01LivePagingStatus.CoordinatorStateRejected,
+                checkpoint,
+                evidence);
+        }
+
+        if (!ValidatePreparationBufferTopology(
+                stageOneStart,
+                stageOneEnd,
+                stageTwoStart,
+                stageTwoEnd,
+                allocationTableStart,
+                allocationTableEnd,
+                reservationTableStart,
+                reservationTableEnd,
+                preparationStateStart,
+                preparationStateEnd,
+                mapLedgerEvidence.RefreshedMap,
+                mappingRequirements,
+                mappingRequirementCount,
+                mappingRequirementCapacity,
+                mappingRanges,
+                mappingRangeCapacity,
+                pageImages,
+                pageImageCapacity,
+                pageTableEntries,
+                pageTableEntryCapacity,
+                cr3CodePage,
+                cr3CodePageCapacity,
+                code,
+                protectionProbePage,
+                protectionProbePageCapacity,
+                probe,
+                tableState,
+                preflightObservation,
+                preflightObservationCount,
+                preflightObservationCapacity))
+        {
+            return FailPreparation(
+                M01LivePagingStatus.CoordinatorStateRejected,
+                checkpoint,
+                evidence);
+        }
+
+        if (preparationState->IsPrepared)
+        {
+            return FailPreparation(
+                M01LivePagingStatus.DuplicatePhase,
+                checkpoint,
+                evidence);
+        }
+
+        if (!IsDefaultPreparationState(*preparationState)
+            || mappingRangeCount != 0
+            || pageImageCount != 0
+            || pageTableEntryCount != 0
+            || byteMode != M01LivePagingByteMode.EmitAndVerify
+                && byteMode != M01LivePagingByteMode.VerifyExisting)
+        {
+            return FailPreparation(
+                byteMode != M01LivePagingByteMode.EmitAndVerify
+                    && byteMode
+                        != M01LivePagingByteMode.VerifyExisting
+                    ? M01LivePagingStatus.ByteModeRejected
+                    : M01LivePagingStatus.CoordinatorStateRejected,
+                checkpoint,
+                evidence);
+        }
+
+        evidence.ReservationValidationValue =
+            OS.Kernel.Memory.BootReservationTableValidator.Validate(
+                reservationLedger,
+                reservationCount,
+                reservationCapacity);
+        if (!evidence.ReservationValidationValue.Succeeded)
+        {
+            return FailPreparation(
+                M01LivePagingStatus.ReservationLedgerRejected,
+                checkpoint,
+                evidence);
+        }
+
+        if (!FindExactReservation(
+                reservationLedger,
+                reservationCount,
+                code,
+                OS.Kernel.Memory.BootReservationKind
+                    .Cr3TransitionStub,
+                out evidence.Cr3CodeReservationIndexValue,
+                out OS.Kernel.Memory.BootReservedRange
+                    codeReservation)
+            || !FindExactReservation(
+                reservationLedger,
+                reservationCount,
+                probe,
+                OS.Kernel.Memory.BootReservationKind
+                    .PageProtectionProbe,
+                out evidence.ProtectionProbeReservationIndexValue,
+                out OS.Kernel.Memory.BootReservedRange
+                    probeReservation)
+            || !FindExactReservation(
+                reservationLedger,
+                reservationCount,
+                tableState,
+                OS.Kernel.Memory.BootReservationKind.PageTableArena,
+                out evidence.TableStateReservationIndexValue,
+                out OS.Kernel.Memory.BootReservedRange
+                    tableStateReservation)
+            || !ContainsExactReservation(
+                reservationLedger,
+                reservationCount,
+                stageTwoState->ArenaReservation)
+            || !ContainsExactReservation(
+                reservationLedger,
+                reservationCount,
+                stackSwitchPlan.Plan.StubReservation)
+            || !ContainsExactReservation(
+                reservationLedger,
+                reservationCount,
+                stackSwitchPlan.Plan.StackLayout.GuardReservation)
+            || !ContainsExactReservation(
+                reservationLedger,
+                reservationCount,
+                stackSwitchPlan.Plan.StackLayout.StackReservation))
+        {
+            return FailPreparation(
+                M01LivePagingStatus.ReservationIdentityRejected,
+                checkpoint,
+                evidence);
+        }
+        checkpoint = M01LivePagingCheckpoint.ReservationsValidated;
+
+        if (!ValidateIdentityMappingBindings(
+                mappingRequirements,
+                mappingRequirementCount,
+                reservationLedger,
+                reservationCount,
+                stageOneStart,
+                stageOneEnd,
+                stackSwitchPlan.Plan,
+                stageTwoState->ArenaReservation,
+                codeReservation,
+                probeReservation,
+                tableStateReservation))
+        {
+            return FailPreparation(
+                M01LivePagingStatus.IdentityMappingRejected,
+                checkpoint,
+                evidence);
+        }
+
+        PhysicalAddress provisionalRoot =
+            ToPhysical(tableState.PhysicalStart);
+        ulong provisionalTableByteLength =
+            tableState.ByteLength - PageSize;
+        OS.Kernel.Memory.X64PagingModePreflightRequest
+            earlyPreflightRequest =
+                OS.Kernel.Memory.X64PagingModePreflightRequest
+                    .CreateEnabled(
+                        provisionalRoot,
+                        ToPhysical(tableState.PhysicalStart),
+                        provisionalTableByteLength);
+        OS.Kernel.Memory.X64PagingModePreflightResult
+            earlyPreflightState = default;
+        evidence.PreflightValue =
+            OS.Kernel.Memory.X64PagingModePreflightStubPlan.Evaluate(
+                &earlyPreflightRequest,
+                1,
+                1,
+                preflightObservation,
+                preflightObservationCount,
+                preflightObservationCapacity,
+                &earlyPreflightState,
+                1,
+                1);
+        if (!evidence.PreflightValue.Succeeded
+            || (evidence.PreflightValue.Rflags
+                & RflagsDirectionFlagBit) != 0)
+        {
+            return FailPreparation(
+                M01LivePagingStatus.PreflightRejected,
+                checkpoint,
+                evidence);
+        }
+        checkpoint = M01LivePagingCheckpoint.PagingModeValidated;
+
+        evidence.MappingPlanValue =
+            OS.Kernel.Boot.X64BootIdentityMappingPlan.Create(
+                mappingRequirements,
+                mappingRequirementCount,
+                mappingRequirementCapacity,
+                mappingRanges,
+                mappingRangeCapacity,
+                pageImageCapacity,
+                pageTablePreconditions);
+        if (!evidence.MappingPlanValue.Succeeded
+            || evidence.MappingPlanValue.TotalTablePageCount
+                == MaximumUnsignedLong
+            || evidence.MappingPlanValue.TotalTableByteLength
+                != provisionalTableByteLength
+            || !ValidateAllocationForIndex(
+                tableState,
+                TableStateAllocationRecordIndex,
+                requireExactTablePages: true,
+                expectedTablePages:
+                    evidence.MappingPlanValue.TotalTablePageCount + 1))
+        {
+            return FailPreparation(
+                M01LivePagingStatus.IdentityMappingRejected,
+                checkpoint,
+                evidence);
+        }
+        checkpoint =
+            M01LivePagingCheckpoint.IdentityMappingPlanned;
+
+        if (byteMode == M01LivePagingByteMode.EmitAndVerify)
+        {
+            ZeroBytes(cr3CodePage, cr3CodePageCapacity);
+            ZeroBytes(
+                protectionProbePage,
+                protectionProbePageCapacity);
+        }
+
+        OS.Kernel.Memory.X64PagingModePreflightResult
+            materializedPreflightState = default;
+        if (byteMode == M01LivePagingByteMode.VerifyExisting)
+        {
+            evidence.PreflightReadbackValue =
+                OS.Kernel.Memory.X64PagingModePreflightStubPlan
+                    .TryValidateMaterialized(
+                        cr3CodePage,
+                        cr3CodePageCapacity,
+                        PreflightEntryOffset,
+                        OS.Kernel.Memory
+                            .X64PagingModePreflightStubPlan
+                            .RequiredByteLength,
+                        preflightObservation,
+                        OS.Kernel.Memory
+                            .X64PagingModePreflightObservation
+                            .StructureSize,
+                        &materializedPreflightState,
+                        OS.Kernel.Memory.X64PagingModePreflightResult
+                            .StructureSize);
+            if (!evidence.PreflightReadbackValue.Succeeded)
+            {
+                return FailPreparation(
+                    M01LivePagingStatus.PreflightStubRejected,
+                    checkpoint,
+                    evidence);
+            }
+
+            evidence.PreflightMaterializationValue =
+                new OS.Kernel.Memory.X64PagingModePreflightStubResult(
+                    OS.Kernel.Memory.X64PagingModePreflightStatus
+                        .Success,
+                    OS.Kernel.Memory.X64PagingModePreflightOperation
+                        .Materialize,
+                    OS.Kernel.Memory.X64PagingModePreflightStubPlan
+                        .RequiredByteLength,
+                    cr3CodePageCapacity,
+                    PreflightEntryOffset,
+                    code.VirtualStart + PreflightEntryOffset,
+                    OS.Kernel.Memory.X64PagingModePreflightStubPlan
+                        .RequiredByteLength,
+                    OS.Kernel.Memory.X64PagingModePreflightStubResult
+                        .NoMismatchOffset,
+                    exactBytes: true);
+        }
+        else
+        {
+            evidence.PreflightMaterializationValue =
+                OS.Kernel.Memory.X64PagingModePreflightStubPlan
+                    .TryMaterialize(
+                        cr3CodePage,
+                        cr3CodePageCapacity,
+                        PreflightEntryOffset,
+                        OS.Kernel.Memory
+                            .X64PagingModePreflightStubPlan
+                            .RequiredByteLength,
+                        preflightObservation,
+                        OS.Kernel.Memory
+                            .X64PagingModePreflightObservation
+                            .StructureSize,
+                        &materializedPreflightState,
+                        OS.Kernel.Memory.X64PagingModePreflightResult
+                            .StructureSize);
+        }
+        evidence.PreflightReadbackValue =
+            OS.Kernel.Memory.X64PagingModePreflightStubPlan
+                .TryValidateMaterialized(
+                    cr3CodePage,
+                    cr3CodePageCapacity,
+                    PreflightEntryOffset,
+                    OS.Kernel.Memory.X64PagingModePreflightStubPlan
+                        .RequiredByteLength,
+                    preflightObservation,
+                    OS.Kernel.Memory.X64PagingModePreflightObservation
+                        .StructureSize,
+                    &materializedPreflightState,
+                    OS.Kernel.Memory.X64PagingModePreflightResult
+                        .StructureSize);
+        if (!evidence.PreflightMaterializationValue.Succeeded
+            || !evidence.PreflightReadbackValue.Succeeded
+            || !evidence.PreflightReadbackValue.ExactBytes)
+        {
+            return FailPreparation(
+                M01LivePagingStatus.PreflightStubRejected,
+                checkpoint,
+                evidence);
+        }
+
+        byte* transitionEntry =
+            cr3CodePage + TransitionEntryOffset;
+        ulong transitionEntryAddress =
+            code.VirtualStart + TransitionEntryOffset;
+        ulong transitionCapacity =
+            cr3CodePageCapacity - TransitionEntryOffset;
+        if (byteMode == M01LivePagingByteMode.VerifyExisting)
+        {
+            evidence.TransitionReadbackValue =
+                OS.Kernel.Memory
+                    .X64ReversibleCr3TransitionStubPlan.Validate(
+                        transitionEntry,
+                        OS.Kernel.Memory
+                            .X64ReversibleCr3TransitionStubPlan
+                            .RequiredByteLength,
+                        transitionCapacity,
+                        transitionEntryAddress);
+            if (!evidence.TransitionReadbackValue.Succeeded)
+            {
+                return FailPreparation(
+                    M01LivePagingStatus.TransitionStubRejected,
+                    checkpoint,
+                    evidence);
+            }
+            evidence.TransitionMaterializationValue =
+                evidence.TransitionReadbackValue;
+        }
+        else
+        {
+            evidence.TransitionMaterializationValue =
+                OS.Kernel.Memory
+                    .X64ReversibleCr3TransitionStubPlan.Emit(
+                        transitionEntry,
+                        transitionCapacity,
+                        transitionEntryAddress);
+        }
+        evidence.TransitionReadbackValue =
+            OS.Kernel.Memory.X64ReversibleCr3TransitionStubPlan
+                .Validate(
+                    transitionEntry,
+                    OS.Kernel.Memory
+                        .X64ReversibleCr3TransitionStubPlan
+                        .RequiredByteLength,
+                    transitionCapacity,
+                    transitionEntryAddress);
+        if (!evidence.TransitionMaterializationValue.Succeeded
+            || !evidence.TransitionReadbackValue.Succeeded)
+        {
+            return FailPreparation(
+                M01LivePagingStatus.TransitionStubRejected,
+                checkpoint,
+                evidence);
+        }
+
+        OS.Kernel.Memory.X64TlbInvalidationStatus rangeStatus =
+            OS.Kernel.Memory.X64TlbInvalidationPlan.TryCreate(
+                ToVirtual(probe.VirtualStart),
+                PageSize,
+                out OS.Kernel.Memory.X64TlbInvalidationRange
+                    invalidationRange);
+        OS.Kernel.Memory.X64TlbInvalidationRecord*
+            invalidationRecords =
+                stackalloc OS.Kernel.Memory
+                    .X64TlbInvalidationRecord[1];
+        OS.Kernel.Memory.X64TlbInvalidationPlanResult
+            invalidationPlan =
+                rangeStatus
+                    == OS.Kernel.Memory.X64TlbInvalidationStatus
+                        .Success
+                ? OS.Kernel.Memory.X64TlbInvalidationPlan
+                    .Materialize(
+                        invalidationRange,
+                        invalidationRecords,
+                        1)
+                : default;
+        if (!invalidationPlan.Succeeded)
+        {
+            return FailPreparation(
+                M01LivePagingStatus.InvlpgStubRejected,
+                checkpoint,
+                evidence);
+        }
+
+        if (byteMode == M01LivePagingByteMode.VerifyExisting)
+        {
+            evidence.InvlpgReadbackValue =
+                OS.Kernel.Memory.X64InvlpgStubPlan.ValidateReadback(
+                    cr3CodePage,
+                    code.VirtualStart,
+                    cr3CodePageCapacity,
+                    CreateExpectedInvlpgMaterialization(
+                        code,
+                        invalidationRecords[0]));
+            if (!evidence.InvlpgReadbackValue.ReadBackVerified)
+            {
+                return FailPreparation(
+                    M01LivePagingStatus.InvlpgStubRejected,
+                    checkpoint,
+                    evidence);
+            }
+            evidence.InvlpgMaterializationValue =
+                CreateExpectedInvlpgMaterialization(
+                    code,
+                    invalidationRecords[0]);
+        }
+        else
+        {
+            evidence.InvlpgMaterializationValue =
+                OS.Kernel.Memory.X64InvlpgStubPlan.Emit(
+                    cr3CodePage,
+                    code.VirtualStart,
+                    cr3CodePageCapacity,
+                    ToVirtual(code.VirtualStart),
+                    InvlpgEntryOffset,
+                    invalidationRecords[0]);
+        }
+        evidence.InvlpgReadbackValue =
+            OS.Kernel.Memory.X64InvlpgStubPlan.ValidateReadback(
+                cr3CodePage,
+                code.VirtualStart,
+                cr3CodePageCapacity,
+                evidence.InvlpgMaterializationValue);
+        if (!evidence.InvlpgMaterializationValue.Succeeded
+            || !evidence.InvlpgReadbackValue.ReadBackVerified
+            || StubRangesOverlap())
+        {
+            return FailPreparation(
+                M01LivePagingStatus.InvlpgStubRejected,
+                checkpoint,
+                evidence);
+        }
+
+        if (byteMode == M01LivePagingByteMode.VerifyExisting)
+        {
+            evidence.ProbeReadbackValue =
+                OS.Kernel.Memory.X64ProtectionProbeStubPlan
+                    .ValidateReadback(
+                        protectionProbePage,
+                        probe.VirtualStart,
+                        protectionProbePageCapacity,
+                        CreateExpectedProbeMaterialization(
+                            probe,
+                            probeReservation));
+            if (!evidence.ProbeReadbackValue.ReadBackVerified)
+            {
+                return FailPreparation(
+                    M01LivePagingStatus
+                        .ProtectionProbeStubRejected,
+                    checkpoint,
+                    evidence);
+            }
+            evidence.ProbeMaterializationValue =
+                CreateExpectedProbeMaterialization(
+                    probe,
+                    probeReservation);
+        }
+        else
+        {
+            evidence.ProbeMaterializationValue =
+                OS.Kernel.Memory.X64ProtectionProbeStubPlan.Emit(
+                    protectionProbePage,
+                    probe.VirtualStart,
+                    protectionProbePageCapacity,
+                    probe,
+                    probeReservation,
+                    ProtectionProbeEntryOffset);
+        }
+        evidence.ProbeReadbackValue =
+            OS.Kernel.Memory.X64ProtectionProbeStubPlan
+                .ValidateReadback(
+                    protectionProbePage,
+                    probe.VirtualStart,
+                    protectionProbePageCapacity,
+                    evidence.ProbeMaterializationValue);
+        if (!evidence.ProbeMaterializationValue.Succeeded
+            || !evidence.ProbeReadbackValue.ReadBackVerified
+            || !AuditStubPageLayouts(
+                cr3CodePage,
+                protectionProbePage))
+        {
+            return FailPreparation(
+                M01LivePagingStatus.ProtectionProbeStubRejected,
+                checkpoint,
+                evidence);
+        }
+        checkpoint = M01LivePagingCheckpoint.StubBytesVerified;
+
+        evidence.TableBuildValue = BuildTableImage(
+            evidence.MappingPlanValue,
+            mappingRanges,
+            evidence.MappingPlanValue.OutputRangeCount,
+            mappingRangeCapacity,
+            tableState,
+            code,
+            probe,
+            stageTwoState->StageOneStateAddress,
+            pageImages,
+            pageImageCapacity,
+            pageTableEntries,
+            pageTableEntryCapacity,
+            pageTablePreconditions);
+        if (!evidence.TableBuildValue.Succeeded
+            || !evidence.TableBuildValue.RootTable.Equals(
+                provisionalRoot))
+        {
+            return FailPreparation(
+                evidence.TableBuildValue.Status
+                    == M01LivePagingTableBuildStatus
+                        .InvalidTableStorage
+                    ? M01LivePagingStatus.TableStorageRejected
+                    : M01LivePagingStatus.TableConstructionRejected,
+                checkpoint,
+                evidence);
+        }
+        checkpoint = M01LivePagingCheckpoint.TableImageBuilt;
+
+        PhysicalAddress root =
+            evidence.TableBuildValue.RootTable;
+        OS.Kernel.Memory.PageProtection readExecute =
+            (OS.Kernel.Memory.PageProtection)(
+                (byte)OS.Kernel.Memory.PageProtection.Read
+                | (byte)OS.Kernel.Memory.PageProtection.Execute);
+        OS.Kernel.Memory.X64PageMapResult mutation =
+            OS.Kernel.Memory.X64PageMap.Apply(
+                OS.Kernel.Memory.X64PageMapRequest.CreateProtect(
+                    root,
+                    ToVirtual(probe.VirtualStart),
+                    readExecute,
+                    OS.Kernel.Memory.X64HardwareStatePolicy.Preserve,
+                    pageTablePreconditions),
+                pageImages,
+                evidence.TableBuildValue.TablePageCount,
+                pageImageCapacity,
+                pageTableEntries,
+                evidence.TableBuildValue.EntryCount,
+                pageTableEntryCapacity,
+                null,
+                0,
+                0);
+        if (!mutation.Succeeded
+            || mutation.TargetEntryIndex
+                != evidence.TableBuildValue.ProbeLeafEntryIndex)
+        {
+            if (mutation.Succeeded)
+            {
+                _ = RestoreModeledProbeLeaf(
+                    pageTableEntries,
+                    evidence.TableBuildValue.EntryCount,
+                    pageTableEntryCapacity,
+                    mutation);
+            }
+            return FailPreparation(
+                M01LivePagingStatus.ProtectionMutationRejected,
+                checkpoint,
+                evidence);
+        }
+
+        ulong protectedLeafReadback =
+            pageTableEntries[mutation.TargetEntryIndex];
+        OS.Kernel.Memory.X64InvlpgInvocationRequest
+            invlpgRequest =
+                OS.Kernel.Memory.X64InvlpgInvocationRequest.Create(
+                    evidence.InvlpgReadbackValue.EntryAddress,
+                    invalidationRecords[0],
+                    readExecute,
+                    1);
+        OS.Kernel.Memory.X64InvlpgInvocationPlanResult
+            invlpgInvocation =
+                OS.Kernel.Memory.X64InvlpgStubPlan
+                    .CreateInvocationPlan(
+                        evidence.InvlpgReadbackValue,
+                        invlpgRequest);
+        bool restoredInitialProbeLeaf =
+            RestoreModeledProbeLeaf(
+                pageTableEntries,
+                evidence.TableBuildValue.EntryCount,
+                pageTableEntryCapacity,
+                mutation);
+        evidence.ProtectionPreparationValue =
+            new M01LivePagingProtectionPreparation(
+                invlpgInvocation.Succeeded
+                    && restoredInitialProbeLeaf
+                    ? M01LivePagingStatus.Success
+                    : M01LivePagingStatus
+                        .ProtectionMutationRejected,
+                mutation,
+                invlpgInvocation,
+                protectedLeafReadback,
+                restoredInitialProbeLeaf);
+        if (!evidence.ProtectionPreparationValue.Succeeded)
+        {
+            return FailPreparation(
+                M01LivePagingStatus.ProtectionMutationRejected,
+                checkpoint,
+                evidence);
+        }
+        checkpoint =
+            M01LivePagingCheckpoint.ProtectionPlanValidated;
+
+        evidence.PageZeroAuditValue =
+            OS.Kernel.Memory.PageZeroMappingPolicy.AuditTableImage(
+                root,
+                pageTablePreconditions,
+                pageImages,
+                evidence.TableBuildValue.TablePageCount,
+                pageImageCapacity,
+                pageTableEntries,
+                evidence.TableBuildValue.EntryCount,
+                pageTableEntryCapacity);
+        if (!evidence.PageZeroAuditValue
+                .ProvesPageZeroAbsentInSuppliedImage)
+        {
+            return FailPreparation(
+                M01LivePagingStatus.PageZeroRejected,
+                checkpoint,
+                evidence);
+        }
+        checkpoint = M01LivePagingCheckpoint.PageZeroValidated;
+
+        evidence.CleanupPlanValue = PlanCleanup(
+            allocationRecords,
+            allocationRecordCount,
+            allocationRecordCapacity,
+            RequiredAllocationRecordCount,
+            firmwareServicesAvailable: true,
+            ownedRootWasEntered: false,
+            ownedRootRestored: false);
+        if (!evidence.CleanupPlanValue.Succeeded)
+        {
+            return FailPreparation(
+                M01LivePagingStatus.CleanupPlanRejected,
+                checkpoint,
+                evidence);
+        }
+
+        M01LivePagingPreparationState candidate = default;
+        candidate.HeaderSize =
+            (uint)M01LivePagingPreparationState.RequiredStorageBytes;
+        candidate.HeaderVersion =
+            M01LivePagingPreparationState.CurrentVersion;
+        candidate.PreparationStatus = M01LivePagingStatus.Success;
+        candidate.PreparationCheckpoint =
+            M01LivePagingCheckpoint.PreparedForCompositeTransition;
+        candidate.ExecutionModeValue =
+            M01LivePagingExecutionMode.PreparationOnly;
+        candidate.StageTwoStateAddressValue = (ulong)stageTwoState;
+        candidate.StageTwoStateCountValue = stageTwoStateCount;
+        candidate.StageTwoStateCapacityValue = stageTwoStateCapacity;
+        candidate.AllocationTableAddressValue =
+            (ulong)allocationRecords;
+        candidate.AllocationRecordCountValue =
+            allocationRecordCount;
+        candidate.AllocationRecordCapacityValue =
+            allocationRecordCapacity;
+        candidate.ReservationLedgerAddressValue =
+            (ulong)reservationLedger;
+        candidate.ReservationCountValue = reservationCount;
+        candidate.ReservationCapacityValue = reservationCapacity;
+        candidate.MappingRequirementAddressValue =
+            (ulong)mappingRequirements;
+        candidate.MappingRequirementCountValue =
+            mappingRequirementCount;
+        candidate.MappingRequirementCapacityValue =
+            mappingRequirementCapacity;
+        candidate.MappingRangeAddressValue = (ulong)mappingRanges;
+        candidate.MappingRangeCountValue =
+            evidence.MappingPlanValue.OutputRangeCount;
+        candidate.MappingRangeCapacityValue = mappingRangeCapacity;
+        candidate.PageImageAddressValue = (ulong)pageImages;
+        candidate.PageImageCountValue =
+            evidence.TableBuildValue.TablePageCount;
+        candidate.PageImageCapacityValue = pageImageCapacity;
+        candidate.PageEntryAddressValue = (ulong)pageTableEntries;
+        candidate.PageEntryCountValue =
+            evidence.TableBuildValue.EntryCount;
+        candidate.PageEntryCapacityValue = pageTableEntryCapacity;
+        candidate.Cr3CodePageAddressValue = (ulong)cr3CodePage;
+        candidate.Cr3CodePageCapacityValue = cr3CodePageCapacity;
+        candidate.ProtectionProbePageAddressValue =
+            (ulong)protectionProbePage;
+        candidate.ProtectionProbePageCapacityValue =
+            protectionProbePageCapacity;
+        candidate.PreflightObservationAddressValue =
+            (ulong)preflightObservation;
+        candidate.PreflightObservationCountValue =
+            preflightObservationCount;
+        candidate.PreflightObservationCapacityValue =
+            preflightObservationCapacity;
+        candidate.RefreshedMapKeyValue =
+            mapLedgerEvidence.RefreshedMap.MapKey;
+        candidate.RefreshedMapGenerationValue =
+            mapLedgerEvidence.RefreshedMapGeneration;
+        candidate.Cr3CodeReservationValue = codeReservation;
+        candidate.ProtectionProbeReservationValue =
+            probeReservation;
+        candidate.TableStateReservationValue =
+            tableStateReservation;
+        candidate.OwnedRootValue = root;
+        candidate.RawFirmwareCr3Value =
+            evidence.PreflightValue.RawFirmwareCr3;
+        candidate.RawCr4Value = evidence.PreflightValue.RawCr4;
+        candidate.OriginalRflagsValue =
+            evidence.PreflightValue.Rflags;
+        candidate.TablePageCountValue =
+            evidence.TableBuildValue.TablePageCount;
+        candidate.MappedPageCountValue =
+            evidence.TableBuildValue.MappedPageCount;
+        candidate.ProbeLeafEntryIndexValue =
+            evidence.TableBuildValue.ProbeLeafEntryIndex;
+        candidate.PageZeroAbsentValue = 1;
+        candidate.StubBytesVerifiedValue = 1;
+        candidate.InitialProbeLeafRestoredValue = 1;
+        candidate.CleanupPlannedValue = 1;
+
+        if (!IsPreparedState(candidate))
+        {
+            return FailPreparation(
+                M01LivePagingStatus.IllegalCoordinatorState,
+                checkpoint,
+                evidence);
+        }
+
+        M01LivePagingPreparationResult result =
+            M01LivePagingPreparationResult.Success(
+                evidence,
+                candidate);
+        if (!result.Succeeded)
+        {
+            return FailPreparation(
+                M01LivePagingStatus.IllegalCoordinatorState,
+                checkpoint,
+                evidence);
+        }
+
+        *preparationState = candidate;
+        return result;
+    }
+
+    /// <summary>
+    /// Explicit name for the retained M01-019 synthetic transcript
+    /// coordinator. A successful result remains model-only and can never
+    /// satisfy PreparedForCompositeTransition.
+    /// </summary>
+    public static M01LivePagingIntegrationResult ExecuteModelOnly(
+        M01LiveAllocatorStaticState* stageTwoState,
+        ulong stageTwoStateCapacity,
+        OwnedBootStackSwitchPlanResult stackSwitchPlan,
+        BootMemoryRegionRecord* allocationRecords,
+        ulong allocationRecordCount,
+        ulong allocationRecordCapacity,
+        M01LivePagingAllocationEvidence allocationEvidence,
+        M01LivePagingMapLedgerEvidence mapLedgerEvidence,
+        OS.Kernel.Memory.BootReservedRange* reservationLedger,
+        ulong reservationCount,
+        ulong reservationCapacity,
+        OS.Kernel.Boot.X64BootIdentityMappingRequirement*
+            mappingRequirements,
+        ulong mappingRequirementCount,
+        ulong mappingRequirementCapacity,
+        OS.Kernel.Boot.X64BootIdentityMappingRange* mappingRanges,
+        ulong mappingRangeCapacity,
+        OS.Kernel.Memory.X64PageTableImagePage* pageImages,
+        ulong pageImageCapacity,
+        ulong* pageTableEntries,
+        ulong pageTableEntryCapacity,
+        OS.Kernel.Memory.X64PageTableEncodingPreconditions
+            pageTablePreconditions,
+        byte* cr3CodePage,
+        ulong cr3CodePageCapacity,
+        byte* protectionProbePage,
+        ulong protectionProbePageCapacity,
+        OS.Kernel.Memory.X64PagingModePreflightObservation*
+            preflightObservation,
+        ulong preflightObservationCapacity,
+        OS.Kernel.Memory.X64ReversibleCr3TransitionRuntimeState*
+            transitionRuntimeState,
+        OS.Kernel.Memory.X64Cr3ProbeEvent* cr3Events,
+        ulong cr3EventCount,
+        ulong cr3EventCapacity,
+        OS.Kernel.Memory.X64ProtectionProbeObservation
+            protectionObservation,
+        OS.Kernel.Memory.X64ProtectionProbeEvent* protectionEvents,
+        ulong protectionEventCount,
+        ulong protectionEventCapacity,
+        OS.Kernel.Memory.X64Cr3ProbePolicy cr3Policy,
+        M01LivePagingByteMode byteMode,
+        M01LivePagingStaticState* staticState,
+        ulong staticStateCapacity)
+    {
+        return Execute(
+            stageTwoState,
+            stageTwoStateCapacity,
+            stackSwitchPlan,
+            allocationRecords,
+            allocationRecordCount,
+            allocationRecordCapacity,
+            allocationEvidence,
+            mapLedgerEvidence,
+            reservationLedger,
+            reservationCount,
+            reservationCapacity,
+            mappingRequirements,
+            mappingRequirementCount,
+            mappingRequirementCapacity,
+            mappingRanges,
+            mappingRangeCapacity,
+            pageImages,
+            pageImageCapacity,
+            pageTableEntries,
+            pageTableEntryCapacity,
+            pageTablePreconditions,
+            cr3CodePage,
+            cr3CodePageCapacity,
+            protectionProbePage,
+            protectionProbePageCapacity,
+            preflightObservation,
+            preflightObservationCapacity,
+            transitionRuntimeState,
+            cr3Events,
+            cr3EventCount,
+            cr3EventCapacity,
+            protectionObservation,
+            protectionEvents,
+            protectionEventCount,
+            protectionEventCapacity,
+            cr3Policy,
+            byteMode,
+            staticState,
+            staticStateCapacity);
     }
 
     public static M01LivePagingIntegrationResult Execute(
@@ -2259,6 +3768,100 @@ public static unsafe class M01LivePagingIntegration
             && state.PageZeroAbsentValue == 1;
     }
 
+    public static bool IsPreparedState(
+        M01LivePagingPreparationState state)
+    {
+        return state.HeaderSize
+                == M01LivePagingPreparationState.RequiredStorageBytes
+            && state.HeaderVersion
+                == M01LivePagingPreparationState.CurrentVersion
+            && state.PreparationStatus
+                == M01LivePagingStatus.Success
+            && state.PreparationCheckpoint
+                == M01LivePagingCheckpoint
+                    .PreparedForCompositeTransition
+            && state.ExecutionModeValue
+                == M01LivePagingExecutionMode.PreparationOnly
+            && state.Reserved0 == 0
+            && state.Reserved1 == 0
+            && state.Reserved2 == 0
+            && state.StageTwoStateAddressValue != 0
+            && state.StageTwoStateCountValue == 1
+            && state.StageTwoStateCapacityValue == 1
+            && state.AllocationTableAddressValue != 0
+            && state.AllocationRecordCountValue
+                == RequiredAllocationRecordCount
+            && state.AllocationRecordCapacityValue
+                == state.AllocationRecordCountValue
+            && state.ReservationLedgerAddressValue != 0
+            && state.ReservationCountValue != 0
+            && state.ReservationCountValue
+                <= state.ReservationCapacityValue
+            && state.ReservationCapacityValue
+                <= OS.Kernel.Memory.BootReservationTableValidator
+                    .MaximumReservationCount
+            && state.MappingRequirementAddressValue != 0
+            && state.MappingRequirementCountValue != 0
+            && state.MappingRequirementCountValue
+                <= state.MappingRequirementCapacityValue
+            && state.MappingRequirementCapacityValue
+                <= OS.Kernel.Boot.X64BootIdentityMappingPlan
+                    .MaximumSourceCount
+            && state.MappingRangeAddressValue != 0
+            && state.MappingRangeCountValue != 0
+            && state.MappingRangeCountValue
+                <= state.MappingRangeCapacityValue
+            && state.MappingRangeCapacityValue
+                <= OS.Kernel.Boot.X64BootIdentityMappingPlan
+                    .MaximumDestinationCount
+            && state.PageImageAddressValue != 0
+            && state.PageImageCountValue != 0
+            && state.PageImageCountValue
+                <= state.PageImageCapacityValue
+            && state.PageImageCapacityValue
+                <= OS.Kernel.Memory.X64PageMap.MaximumPageImages
+            && state.PageEntryAddressValue != 0
+            && state.PageEntryCountValue != 0
+            && state.PageEntryCountValue
+                <= state.PageEntryCapacityValue
+            && state.PageEntryCapacityValue
+                <= OS.Kernel.Memory.X64PageMap.MaximumEntryCount
+            && state.Cr3CodePageAddressValue != 0
+            && state.Cr3CodePageCapacityValue == PageSize
+            && state.ProtectionProbePageAddressValue != 0
+            && state.ProtectionProbePageCapacityValue == PageSize
+            && state.PreflightObservationAddressValue != 0
+            && state.PreflightObservationCountValue == 1
+            && state.PreflightObservationCapacityValue == 1
+            && state.RefreshedMapKeyValue != 0
+            && state.RefreshedMapGenerationValue != 0
+            && state.Cr3CodeReservationValue.IsValid
+            && state.Cr3CodeReservationValue.Kind
+                == OS.Kernel.Memory.BootReservationKind
+                    .Cr3TransitionStub
+            && state.ProtectionProbeReservationValue.IsValid
+            && state.ProtectionProbeReservationValue.Kind
+                == OS.Kernel.Memory.BootReservationKind
+                    .PageProtectionProbe
+            && state.TableStateReservationValue.IsValid
+            && state.TableStateReservationValue.Kind
+                == OS.Kernel.Memory.BootReservationKind
+                    .PageTableArena
+            && state.OwnedRootValue.IsValid
+            && state.RawFirmwareCr3Value != 0
+            && state.RawCr4Value != 0
+            && state.OriginalRflagsValue != 0
+            && state.TablePageCountValue != 0
+            && state.TablePageCountValue == state.PageImageCountValue
+            && state.MappedPageCountValue != 0
+            && state.ProbeLeafEntryIndexValue
+                < state.PageEntryCountValue
+            && state.PageZeroAbsentValue == 1
+            && state.StubBytesVerifiedValue == 1
+            && state.InitialProbeLeafRestoredValue == 1
+            && state.CleanupPlannedValue == 1;
+    }
+
     private static M01LivePagingTableBuildResult BuildTableImage(
         OS.Kernel.Boot.X64BootIdentityMappingPlanResult plan,
         OS.Kernel.Boot.X64BootIdentityMappingRange* ranges,
@@ -3328,6 +4931,183 @@ public static unsafe class M01LivePagingIntegration
                     .RequiredStorageBytes;
     }
 
+    private static bool ValidatePreparationBufferTopology(
+        ulong stageOneStart,
+        ulong stageOneEnd,
+        ulong stageTwoStart,
+        ulong stageTwoEnd,
+        ulong allocationTableStart,
+        ulong allocationTableEnd,
+        ulong reservationTableStart,
+        ulong reservationTableEnd,
+        ulong preparationStateStart,
+        ulong preparationStateEnd,
+        FirmwareMemoryMapRecord map,
+        OS.Kernel.Boot.X64BootIdentityMappingRequirement*
+            mappingRequirements,
+        ulong mappingRequirementCount,
+        ulong mappingRequirementCapacity,
+        OS.Kernel.Boot.X64BootIdentityMappingRange* mappingRanges,
+        ulong mappingRangeCapacity,
+        OS.Kernel.Memory.X64PageTableImagePage* pageImages,
+        ulong pageImageCapacity,
+        ulong* pageTableEntries,
+        ulong pageTableEntryCapacity,
+        byte* cr3CodePage,
+        ulong cr3CodePageCapacity,
+        BootMemoryRegionRecord code,
+        byte* protectionProbePage,
+        ulong protectionProbePageCapacity,
+        BootMemoryRegionRecord probe,
+        BootMemoryRegionRecord tableState,
+        OS.Kernel.Memory.X64PagingModePreflightObservation*
+            preflightObservation,
+        ulong preflightObservationCount,
+        ulong preflightObservationCapacity)
+    {
+        if (mappingRequirementCount == 0
+            || mappingRequirementCount > mappingRequirementCapacity
+            || mappingRequirementCapacity
+                > OS.Kernel.Boot.X64BootIdentityMappingPlan
+                    .MaximumSourceCount
+            || mappingRangeCapacity == 0
+            || mappingRangeCapacity
+                > OS.Kernel.Boot.X64BootIdentityMappingPlan
+                    .MaximumDestinationCount
+            || pageImageCapacity == 0
+            || pageImageCapacity
+                > OS.Kernel.Memory.X64PageMap.MaximumPageImages
+            || pageTableEntryCapacity == 0
+            || pageTableEntryCapacity
+                > OS.Kernel.Memory.X64PageMap.MaximumEntryCount
+            || cr3CodePageCapacity != PageSize
+            || protectionProbePageCapacity != PageSize
+            || (ulong)cr3CodePage != code.VirtualStart
+            || (ulong)protectionProbePage != probe.VirtualStart
+            || preflightObservationCount != 1
+            || preflightObservationCapacity != 1)
+        {
+            return false;
+        }
+
+        CoordinatorStorageSpan* spans =
+            stackalloc CoordinatorStorageSpan[15];
+        ulong spanCount = 0;
+        return TryAddExistingSpan(
+                spans,
+                ref spanCount,
+                15,
+                stageOneStart,
+                stageOneEnd)
+            && TryAddExistingSpan(
+                spans,
+                ref spanCount,
+                15,
+                stageTwoStart,
+                stageTwoEnd)
+            && TryAddExistingSpan(
+                spans,
+                ref spanCount,
+                15,
+                allocationTableStart,
+                allocationTableEnd)
+            && TryAddExistingSpan(
+                spans,
+                ref spanCount,
+                15,
+                reservationTableStart,
+                reservationTableEnd)
+            && TryAddExistingSpan(
+                spans,
+                ref spanCount,
+                15,
+                preparationStateStart,
+                preparationStateEnd)
+            && TryAddStorageSpan(
+                spans,
+                ref spanCount,
+                15,
+                map.BufferAddress,
+                map.BufferSize,
+                1,
+                RequiredPointerAlignment)
+            && TryAddStorageSpan(
+                spans,
+                ref spanCount,
+                15,
+                map.SourceBufferAddress,
+                map.SourceBufferSize,
+                1,
+                RequiredPointerAlignment)
+            && TryAddStorageSpan(
+                spans,
+                ref spanCount,
+                15,
+                (ulong)mappingRequirements,
+                mappingRequirementCapacity,
+                OS.Kernel.Boot.X64BootIdentityMappingRequirement
+                    .StructureSize,
+                RequiredPointerAlignment)
+            && TryAddStorageSpan(
+                spans,
+                ref spanCount,
+                15,
+                (ulong)mappingRanges,
+                mappingRangeCapacity,
+                OS.Kernel.Boot.X64BootIdentityMappingRange
+                    .StructureSize,
+                RequiredPointerAlignment)
+            && TryAddStorageSpan(
+                spans,
+                ref spanCount,
+                15,
+                (ulong)pageImages,
+                pageImageCapacity,
+                OS.Kernel.Memory.X64PageTableImagePage.StructureSize,
+                RequiredPointerAlignment)
+            && TryAddStorageSpan(
+                spans,
+                ref spanCount,
+                15,
+                (ulong)pageTableEntries,
+                pageTableEntryCapacity,
+                sizeof(ulong),
+                RequiredPointerAlignment)
+            && TryAddStorageSpan(
+                spans,
+                ref spanCount,
+                15,
+                (ulong)cr3CodePage,
+                cr3CodePageCapacity,
+                1,
+                PageSize)
+            && TryAddStorageSpan(
+                spans,
+                ref spanCount,
+                15,
+                (ulong)protectionProbePage,
+                protectionProbePageCapacity,
+                1,
+                PageSize)
+            && TryAddStorageSpan(
+                spans,
+                ref spanCount,
+                15,
+                (ulong)preflightObservation,
+                preflightObservationCapacity,
+                OS.Kernel.Memory.X64PagingModePreflightObservation
+                    .StructureSize,
+                RequiredPointerAlignment)
+            && TryAddStorageSpan(
+                spans,
+                ref spanCount,
+                15,
+                tableState.VirtualStart,
+                tableState.ByteLength,
+                1,
+                PageSize);
+    }
+
     private static bool ValidateCoordinatorBufferTopology(
         ulong stageOneStart,
         ulong stageOneEnd,
@@ -3747,6 +5527,28 @@ public static unsafe class M01LivePagingIntegration
                 & (M01LivePagingStaticState.RequiredStorageAlignment
                     - 1)) == 0
             && TryGetSpanEnd(start, capacity, 1, out end);
+    }
+
+    private static bool ValidatePreparationStateStorage(
+        M01LivePagingPreparationState* state,
+        ulong count,
+        ulong capacity,
+        out ulong start,
+        out ulong end)
+    {
+        start = (ulong)state;
+        end = 0;
+        return state != null
+            && count == 1
+            && capacity == 1
+            && (start
+                & (M01LivePagingPreparationState
+                    .RequiredStorageAlignment - 1)) == 0
+            && TryGetSpanEnd(
+                start,
+                capacity,
+                M01LivePagingPreparationState.RequiredStorageBytes,
+                out end);
     }
 
     private static bool ValidateAllocationForIndex(
@@ -4345,6 +6147,23 @@ public static unsafe class M01LivePagingIntegration
         return true;
     }
 
+    private static bool IsDefaultPreparationState(
+        M01LivePagingPreparationState state)
+    {
+        byte* bytes = (byte*)&state;
+        for (ulong index = 0;
+            index
+                < M01LivePagingPreparationState.RequiredStorageBytes;
+            index++)
+        {
+            if (bytes[index] != 0)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private static bool TryGetSpanEnd(
         ulong start,
         ulong capacity,
@@ -4476,6 +6295,17 @@ public static unsafe class M01LivePagingIntegration
         M01LivePagingEvidence evidence)
     {
         return M01LivePagingIntegrationResult.Fail(
+            status,
+            checkpoint,
+            evidence);
+    }
+
+    private static M01LivePagingPreparationResult FailPreparation(
+        M01LivePagingStatus status,
+        M01LivePagingCheckpoint checkpoint,
+        M01LivePagingPreparationEvidence evidence)
+    {
+        return M01LivePagingPreparationResult.Fail(
             status,
             checkpoint,
             evidence);

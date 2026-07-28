@@ -14,6 +14,7 @@ using OS.Kernel.Memory;
 internal static unsafe class M01LivePagingIntegrationTests
 {
     private const string IssueTestName = "m01.019";
+    private const string PreparationIssueTestName = "m01.029";
     private const int PageSize = (int)BootReservedRange.PageSize;
 
     [ModuleInitializer]
@@ -91,6 +92,60 @@ internal static unsafe class M01LivePagingIntegrationTests
 
         Console.WriteLine("CLROS_M01_019_READY");
         Console.WriteLine("TEST_PASS " + IssueTestName);
+
+        RunPreparationContractTests();
+    }
+
+    private static void RunPreparationContractTests()
+    {
+        int failures = 0;
+
+        Console.WriteLine(
+            "TEST_START " + PreparationIssueTestName);
+
+        Run(
+            "m01.029 stable pod defaults capabilities and api",
+            TestPreparationSurfaceAndDefaults,
+            ref failures);
+        Run(
+            "m01.029 canonical preparation is deterministic",
+            TestCanonicalPreparation,
+            ref failures);
+        Run(
+            "m01.029 legacy transcripts cannot promote preparation",
+            TestPreparationRejectsLegacyPromotion,
+            ref failures);
+        Run(
+            "m01.029 pointer count capacity and alias failures",
+            TestPreparationPointerCountCapacityAndAliases,
+            ref failures);
+        Run(
+            "m01.029 stale map ledger and preflight failures",
+            TestPreparationMapLedgerAndPreflightFailures,
+            ref failures);
+        Run(
+            "m01.029 byte readback workspace and repeated use",
+            TestPreparationByteWorkspaceAndRepeatedUse,
+            ref failures);
+        Run(
+            "m01.029 preflight failure preserves caller storage",
+            TestPreparationPreflightFailureIsAtomic,
+            ref failures);
+
+        if (failures != 0)
+        {
+            Console.WriteLine(
+                "TEST_FAIL " + PreparationIssueTestName
+                + " failures="
+                + failures);
+            throw new InvalidOperationException(
+                "M01-029 preparation contract tests failed: "
+                + failures);
+        }
+
+        Console.WriteLine("CLROS_M01_029_READY");
+        Console.WriteLine(
+            "TEST_PASS " + PreparationIssueTestName);
     }
 
     internal static M01LivePagingIntegrationResult
@@ -141,6 +196,1271 @@ internal static unsafe class M01LivePagingIntegrationTests
         }
     }
 
+    private static bool TestPreparationSurfaceAndDefaults()
+    {
+        (string Name, byte Value)[] executionModes =
+        [
+            ("Uninitialized", 0),
+            ("PreparationOnly", 1),
+            ("ModelOnlyLegacy", 2)
+        ];
+        M01LivePagingProtectionPreparation emptyProtection = default;
+        M01LivePagingPreparationEvidence emptyEvidence = default;
+        M01LivePagingPreparationState emptyState = default;
+        M01LivePagingPreparationResult emptyResult = default;
+        M01LivePagingIntegrationResult emptyLegacy = default;
+
+        MethodInfo[] prepareMethods =
+            typeof(M01LivePagingIntegration)
+                .GetMethods(
+                    BindingFlags.Public | BindingFlags.Static)
+                .Where(static method =>
+                    string.Equals(
+                        method.Name,
+                        nameof(M01LivePagingIntegration.Prepare),
+                        StringComparison.Ordinal))
+                .ToArray();
+        MethodInfo[] modelMethods =
+            typeof(M01LivePagingIntegration)
+                .GetMethods(
+                    BindingFlags.Public | BindingFlags.Static)
+                .Where(static method =>
+                    string.Equals(
+                        method.Name,
+                        nameof(
+                            M01LivePagingIntegration
+                                .ExecuteModelOnly),
+                        StringComparison.Ordinal))
+                .ToArray();
+        if (prepareMethods.Length != 1
+            || modelMethods.Length != 1)
+        {
+            return false;
+        }
+
+        ParameterInfo[] parameters =
+            prepareMethods[0].GetParameters();
+        string[] expectedNames =
+        [
+            "stageTwoState",
+            "stageTwoStateCount",
+            "stageTwoStateCapacity",
+            "stackSwitchPlan",
+            "allocationRecords",
+            "allocationRecordCount",
+            "allocationRecordCapacity",
+            "allocationEvidence",
+            "mapLedgerEvidence",
+            "reservationLedger",
+            "reservationCount",
+            "reservationCapacity",
+            "mappingRequirements",
+            "mappingRequirementCount",
+            "mappingRequirementCapacity",
+            "mappingRanges",
+            "mappingRangeCount",
+            "mappingRangeCapacity",
+            "pageImages",
+            "pageImageCount",
+            "pageImageCapacity",
+            "pageTableEntries",
+            "pageTableEntryCount",
+            "pageTableEntryCapacity",
+            "pageTablePreconditions",
+            "cr3CodePage",
+            "cr3CodePageCapacity",
+            "protectionProbePage",
+            "protectionProbePageCapacity",
+            "preflightObservation",
+            "preflightObservationCount",
+            "preflightObservationCapacity",
+            "byteMode",
+            "preparationState",
+            "preparationStateCount",
+            "preparationStateCapacity"
+        ];
+        if (parameters.Length != expectedNames.Length
+            || !parameters
+                .Select(static parameter => parameter.Name)
+                .SequenceEqual(expectedNames)
+            || prepareMethods[0].ReturnType
+                != typeof(M01LivePagingPreparationResult)
+            || PreparationSurfaceContainsSyntheticInput(parameters)
+            || PreparationEvidenceContainsSyntheticTranscript()
+            || HasPreparationLegacyConversion())
+        {
+            return false;
+        }
+
+        return EnumContractMatches<M01LivePagingExecutionMode>(
+                executionModes)
+            && M01LivePagingPreparationState.CurrentVersion == 1
+            && M01LivePagingPreparationState
+                .RequiredStorageAlignment == 8
+            && M01LivePagingPreparationState
+                .RequiredStorageBytes == 440
+            && (ulong)Unsafe.SizeOf<M01LivePagingPreparationState>()
+                == M01LivePagingPreparationState.RequiredStorageBytes
+            && Offset<M01LivePagingPreparationState>(
+                "StageTwoStateAddressValue") == 16
+            && Offset<M01LivePagingPreparationState>(
+                "MappingRangeAddressValue") == 112
+            && Offset<M01LivePagingPreparationState>(
+                "PageEntryAddressValue") == 160
+            && Offset<M01LivePagingPreparationState>(
+                "PreflightObservationAddressValue") == 216
+            && Offset<M01LivePagingPreparationState>(
+                "Cr3CodeReservationValue") == 256
+            && Offset<M01LivePagingPreparationState>(
+                "OwnedRootValue") == 376
+            && Offset<M01LivePagingPreparationState>(
+                "PageZeroAbsentValue") == 432
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<
+                M01LivePagingProtectionPreparation>()
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<
+                M01LivePagingPreparationEvidence>()
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<
+                M01LivePagingPreparationState>()
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<
+                M01LivePagingPreparationResult>()
+            && emptyProtection.Status
+                == M01LivePagingStatus.Uninitialized
+            && !emptyProtection.Succeeded
+            && !emptyProtection.InitialLeafRestored
+            && !emptyEvidence.Succeeded
+            && emptyState.Size == 0
+            && emptyState.Version == 0
+            && emptyState.Status == M01LivePagingStatus.Uninitialized
+            && emptyState.Checkpoint
+                == M01LivePagingCheckpoint.Uninitialized
+            && emptyState.ExecutionMode
+                == M01LivePagingExecutionMode.Uninitialized
+            && !emptyState.IsPrepared
+            && emptyResult.Status
+                == M01LivePagingStatus.Uninitialized
+            && emptyResult.LastCompletedCheckpoint
+                == M01LivePagingCheckpoint.Uninitialized
+            && emptyResult.ExecutionMode
+                == M01LivePagingExecutionMode.Uninitialized
+            && !emptyResult.Succeeded
+            && !emptyResult.IsPreparationOnly
+            && !emptyResult.IsModelOnly
+            && !emptyResult.IsExecutionEvidence
+            && !emptyResult.PreparedForCompositeTransition
+            && emptyLegacy.ExecutionMode
+                == M01LivePagingExecutionMode.ModelOnlyLegacy
+            && emptyLegacy.IsModelOnly
+            && !emptyLegacy.IsExecutionEvidence
+            && !emptyLegacy.PreparedForCompositeTransition
+            && M01LivePagingIntegration.LegacyExecuteIsModelOnly
+            && M01LivePagingIntegration.ExecuteModelOnlyIsModelOnly
+            && !M01LivePagingIntegration
+                .LegacyResultsCanPrepareCompositeTransition
+            && !M01LivePagingIntegration
+                .PreparationExecutesGeneratedCode
+            && !M01LivePagingIntegration
+                .PreparationExecutesPrivilegedInstructions
+            && !M01LivePagingIntegration.PreparationInvokesFirmware
+            && !M01LivePagingIntegration.PreparationIsGuestEvidence;
+    }
+
+    private static bool TestCanonicalPreparation()
+    {
+        using CanonicalFixture fixture = new();
+        fixture.FillStubPages(0xcc);
+        M01LivePagingPreparationResult first =
+            fixture.PrepareCurrent();
+        if (!first.Succeeded
+            || !first.PreparedForCompositeTransition
+            || !first.IsPreparationOnly
+            || first.IsModelOnly
+            || first.IsExecutionEvidence
+            || first.ExecutionMode
+                != M01LivePagingExecutionMode.PreparationOnly
+            || first.LastCompletedCheckpoint
+                != M01LivePagingCheckpoint
+                    .PreparedForCompositeTransition)
+        {
+            return false;
+        }
+
+        M01LivePagingPreparationEvidence evidence =
+            first.Evidence;
+        M01LivePagingPreparationState state = first.State;
+        if (!evidence.Succeeded
+            || !evidence.AllocationEvidence.IsValidFor(
+                fixture.Records,
+                3,
+                3)
+            || !evidence.MapLedgerEvidence.IsValidFor(
+                *fixture.StageTwoState,
+                fixture.AllocationEvidence,
+                fixture.Ledger,
+                fixture.LedgerCount,
+                fixture.LedgerCapacity)
+            || !evidence.ReservationValidation.Succeeded
+            || !evidence.MappingPlan.Succeeded
+            || !evidence.TableBuild.Succeeded
+            || !evidence.PreflightMaterialization.Succeeded
+            || !evidence.PreflightReadback.Succeeded
+            || !evidence.PreflightReadback.ExactBytes
+            || !evidence.Preflight.Succeeded
+            || !evidence.TransitionMaterialization.Succeeded
+            || !evidence.TransitionReadback.Succeeded
+            || !evidence.InvlpgMaterialization.Succeeded
+            || !evidence.InvlpgReadback.ReadBackVerified
+            || !evidence.ProbeMaterialization.Succeeded
+            || !evidence.ProbeReadback.ReadBackVerified
+            || !evidence.ProtectionPreparation.Succeeded
+            || !evidence.ProtectionPreparation
+                .InitialLeafRestored
+            || !evidence.InvlpgInvocation.Succeeded
+            || !evidence.PageZeroAudit
+                .ProvesPageZeroAbsentInSuppliedImage
+            || !evidence.CleanupPlan.Succeeded
+            || evidence.CleanupPlan.ReleaseCount != 3
+            || evidence.CleanupPlan.FirstReleaseIndex != 2
+            || evidence.CleanupPlan.SecondReleaseIndex != 1
+            || evidence.CleanupPlan.ThirdReleaseIndex != 0)
+        {
+            return false;
+        }
+
+        if (!state.IsPrepared
+            || state.Status != M01LivePagingStatus.Success
+            || state.Checkpoint
+                != M01LivePagingCheckpoint
+                    .PreparedForCompositeTransition
+            || state.ExecutionMode
+                != M01LivePagingExecutionMode.PreparationOnly
+            || state.StageTwoStateAddress
+                != (ulong)fixture.StageTwoState
+            || state.StageTwoStateCount != 1
+            || state.StageTwoStateCapacity != 1
+            || state.AllocationRecordCount != 3
+            || state.AllocationRecordCapacity != 3
+            || state.ReservationCount != fixture.LedgerCount
+            || state.ReservationCapacity != fixture.LedgerCapacity
+            || state.MappingRequirementCount
+                != fixture.MappingRequirementCount
+            || state.MappingRangeCount
+                != evidence.MappingPlan.OutputRangeCount
+            || state.PageImageCount
+                != evidence.TableBuild.TablePageCount
+            || state.PageEntryCount
+                != evidence.TableBuild.EntryCount
+            || state.PreflightObservationCount != 1
+            || state.PreflightObservationCapacity != 1
+            || state.RawFirmwareCr3 != fixture.RawFirmwareCr3
+            || state.TablePageCount
+                != evidence.TableBuild.TablePageCount
+            || state.MappedPageCount
+                != evidence.TableBuild.MappedPageCount
+            || state.ProbeLeafEntryIndex
+                != evidence.TableBuild.ProbeLeafEntryIndex
+            || !state.PageZeroAbsent
+            || !state.StubBytesVerified
+            || !state.InitialProbeLeafRestored
+            || !state.CleanupPlanned)
+        {
+            return false;
+        }
+
+        byte[] code = fixture.CopyCodePage();
+        byte[] probe = fixture.CopyProbePage();
+        X64BootIdentityMappingRange[] ranges =
+            (X64BootIdentityMappingRange[])
+                fixture.MappingRanges.Clone();
+        X64PageTableImagePage[] pages =
+            (X64PageTableImagePage[])
+                fixture.PageImages.Clone();
+        ulong[] entries = (ulong[])fixture.Entries.Clone();
+        fixture.ClearPreparationState();
+        M01LivePagingPreparationResult second =
+            fixture.PrepareCurrent(
+                M01LivePagingByteMode.VerifyExisting);
+
+        return second.Succeeded
+            && fixture.CodePageEquals(code)
+            && fixture.ProbePageEquals(probe)
+            && fixture.MappingRanges.AsSpan().SequenceEqual(ranges)
+            && fixture.PageImages.AsSpan().SequenceEqual(pages)
+            && fixture.Entries.AsSpan().SequenceEqual(entries)
+            && second.Evidence.MappingPlan.OutputRangeCount
+                == evidence.MappingPlan.OutputRangeCount
+            && second.Evidence.TableBuild.TablePageCount
+                == evidence.TableBuild.TablePageCount
+            && second.Evidence.TableBuild.MappedPageCount
+                == evidence.TableBuild.MappedPageCount
+            && second.State.PageEntryCount == state.PageEntryCount;
+    }
+
+    private static bool TestPreparationRejectsLegacyPromotion()
+    {
+        using CanonicalFixture legacy = new();
+        M01LivePagingIntegrationResult legacySuccess =
+            legacy.ExecuteCurrent();
+        if (!legacySuccess.Succeeded
+            || legacySuccess.ExecutionMode
+                != M01LivePagingExecutionMode.ModelOnlyLegacy
+            || !legacySuccess.IsModelOnly
+            || legacySuccess.IsExecutionEvidence
+            || legacySuccess.PreparedForCompositeTransition)
+        {
+            return false;
+        }
+
+        using CanonicalFixture irrelevant = new();
+        *irrelevant.TransitionState = default;
+        irrelevant.Cr3Events[0] = default;
+        irrelevant.ProtectionObservation = default;
+        irrelevant.ProtectionEvents[0] = default;
+        M01LivePagingPreparationResult prepared =
+            irrelevant.PrepareCurrent();
+        if (!prepared.Succeeded
+            || !prepared.PreparedForCompositeTransition)
+        {
+            return false;
+        }
+
+        using CanonicalFixture badTransition = new();
+        *badTransition.TransitionState = default;
+        M01LivePagingIntegrationResult transitionFailure =
+            badTransition.ExecuteCurrent();
+
+        using CanonicalFixture badCr3Events = new();
+        badCr3Events.Cr3Events[0] = default;
+        M01LivePagingIntegrationResult cr3Failure =
+            badCr3Events.ExecuteCurrent();
+
+        using CanonicalFixture badProtection = new();
+        badProtection.ProtectionObservation = default;
+        M01LivePagingIntegrationResult protectionFailure =
+            badProtection.ExecuteCurrent();
+
+        return transitionFailure.Status
+                == M01LivePagingStatus.TransitionEvidenceRejected
+            && cr3Failure.Status
+                == M01LivePagingStatus.Cr3TranscriptRejected
+            && protectionFailure.Status
+                == M01LivePagingStatus.ProtectionProbeRejected
+            && !typeof(M01LivePagingPreparationResult)
+                .IsAssignableFrom(
+                    typeof(M01LivePagingIntegrationResult))
+            && !typeof(M01LivePagingIntegrationResult)
+                .IsAssignableFrom(
+                    typeof(M01LivePagingPreparationResult))
+            && !HasPreparationLegacyConversion()
+            && PreparationEvidenceContainsSyntheticTranscript()
+                == false;
+    }
+
+    private static bool TestPreparationPointerCountCapacityAndAliases()
+    {
+        using CanonicalFixture fixture = new();
+        bool passed = true;
+
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareStageTwo(null, 1, 1),
+            M01LivePagingStatus.StageTwoRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareStageTwo(
+                fixture.StageTwoState,
+                0,
+                1),
+            M01LivePagingStatus.StageTwoRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareStageTwo(
+                fixture.StageTwoState,
+                1,
+                0),
+            M01LivePagingStatus.StageTwoRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareStageTwo(
+                fixture.StageTwoState,
+                2,
+                2),
+            M01LivePagingStatus.StageTwoRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareStageTwo(
+                (M01LiveAllocatorStaticState*)(
+                    (byte*)fixture.StageTwoState + 1),
+                1,
+                1),
+            M01LivePagingStatus.StageTwoRejected);
+
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareAllocation(
+                null,
+                3,
+                3,
+                fixture.AllocationEvidence),
+            M01LivePagingStatus.AllocationTableRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareAllocation(
+                fixture.Records,
+                0,
+                3,
+                fixture.AllocationEvidence),
+            M01LivePagingStatus.AllocationTableRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareAllocation(
+                fixture.Records,
+                2,
+                3,
+                fixture.AllocationEvidence),
+            M01LivePagingStatus.AllocationTableRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareAllocation(
+                fixture.Records,
+                3,
+                4,
+                fixture.AllocationEvidence),
+            M01LivePagingStatus.AllocationTableRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareAllocation(
+                fixture.Records,
+                3,
+                M01LivePagingIntegration
+                    .MaximumAllocationRecordCapacity + 1,
+                fixture.AllocationEvidence),
+            M01LivePagingStatus.AllocationTableRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareAllocation(
+                fixture.Records,
+                3,
+                3,
+                default),
+            M01LivePagingStatus.AllocationEvidenceRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareAllocation(
+                (BootMemoryRegionRecord*)(
+                    (byte*)fixture.Records + 1),
+                3,
+                3,
+                fixture.AllocationEvidence),
+            M01LivePagingStatus.AllocationTableRejected);
+
+        BootMemoryRegionRecord savedTable = fixture.Records[2];
+        fixture.Records[2] = WithRecord(
+            savedTable,
+            physicalStart: fixture.Records[1].PhysicalStart,
+            virtualStart: fixture.Records[1].VirtualStart,
+            physicalEndExclusive:
+                fixture.Records[1].PhysicalStart
+                    + savedTable.ByteLength);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareAllocation(
+                fixture.Records,
+                3,
+                3,
+                fixture.CaptureAllocationEvidence(
+                    8,
+                    9,
+                    10)),
+            M01LivePagingStatus.AllocationTableRejected);
+        fixture.Records[2] = savedTable;
+
+        BootMemoryRegionRecord savedCode = fixture.Records[0];
+        fixture.Records[0] = WithRecord(
+            savedCode,
+            physicalStart: savedCode.PhysicalStart + 1,
+            virtualStart: savedCode.VirtualStart + 1,
+            physicalEndExclusive:
+                savedCode.PhysicalEndExclusive + 1);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareAllocation(
+                fixture.Records,
+                3,
+                3,
+                fixture.CaptureAllocationEvidence(
+                    8,
+                    9,
+                    10)),
+            M01LivePagingStatus.AllocationTableRejected);
+        fixture.Records[0] = savedCode;
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareAllocation(
+                (BootMemoryRegionRecord*)(~0UL - 7),
+                3,
+                3,
+                fixture.AllocationEvidence),
+            M01LivePagingStatus.AllocationTableRejected);
+
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareMapLedger(
+                fixture.MapEvidence,
+                null,
+                fixture.LedgerCount,
+                fixture.LedgerCapacity),
+            M01LivePagingStatus.MapLedgerEvidenceRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareMapLedger(
+                fixture.MapEvidence,
+                fixture.Ledger,
+                0,
+                fixture.LedgerCapacity),
+            M01LivePagingStatus.MapLedgerEvidenceRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareMapLedger(
+                fixture.MapEvidence,
+                fixture.Ledger,
+                fixture.LedgerCapacity + 1,
+                fixture.LedgerCapacity),
+            M01LivePagingStatus.MapLedgerEvidenceRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareMapLedger(
+                fixture.MapEvidence,
+                (BootReservedRange*)(
+                    (byte*)fixture.Ledger + 1),
+                fixture.LedgerCount,
+                fixture.LedgerCapacity),
+            M01LivePagingStatus.MapLedgerEvidenceRejected);
+
+        fixed (X64PagingModePreflightObservation* preflight =
+            &fixture.PreflightObservation)
+        {
+            passed &= ExpectPreparationFailure(
+                fixture,
+                fixture.PreparePreflight(null, 1, 1),
+                M01LivePagingStatus.CoordinatorStateRejected);
+            passed &= ExpectPreparationFailure(
+                fixture,
+                fixture.PreparePreflight(preflight, 0, 1),
+                M01LivePagingStatus.CoordinatorStateRejected);
+            passed &= ExpectPreparationFailure(
+                fixture,
+                fixture.PreparePreflight(preflight, 1, 0),
+                M01LivePagingStatus.CoordinatorStateRejected);
+            passed &= ExpectPreparationFailure(
+                fixture,
+                fixture.PreparePreflight(preflight, 1, 2),
+                M01LivePagingStatus.CoordinatorStateRejected);
+            passed &= ExpectPreparationFailure(
+                fixture,
+                fixture.PreparePreflight(
+                    (X64PagingModePreflightObservation*)(
+                        (byte*)preflight + 1),
+                    1,
+                    1),
+                M01LivePagingStatus.CoordinatorStateRejected);
+        }
+
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareState(null, 1, 1),
+            M01LivePagingStatus.CoordinatorStateRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareState(
+                fixture.PreparationState,
+                0,
+                1),
+            M01LivePagingStatus.CoordinatorStateRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareState(
+                fixture.PreparationState,
+                1,
+                0),
+            M01LivePagingStatus.CoordinatorStateRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareState(
+                fixture.PreparationState,
+                2,
+                2),
+            M01LivePagingStatus.CoordinatorStateRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareState(
+                (M01LivePagingPreparationState*)
+                    fixture.StageTwoState,
+                1,
+                1),
+            M01LivePagingStatus.CoordinatorStateRejected);
+
+        byte[] preflightBefore;
+        fixed (X64PagingModePreflightObservation* preflight =
+            &fixture.PreflightObservation)
+        {
+            preflightBefore = CopyBytes(
+                (byte*)preflight,
+                X64PagingModePreflightObservation.StructureSize);
+        }
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareStateAliasesPreflight(),
+            M01LivePagingStatus.CoordinatorStateRejected);
+        fixed (X64PagingModePreflightObservation* preflight =
+            &fixture.PreflightObservation)
+        {
+            passed &= BytesEqual(
+                preflightBefore,
+                (byte*)preflight);
+        }
+
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareState(
+                (M01LivePagingPreparationState*)(~0UL - 7),
+                1,
+                1),
+            M01LivePagingStatus.CoordinatorStateRejected);
+
+        M01LivePagingPreparationState dirty = default;
+        ((byte*)&dirty)[0] = 1;
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareState(&dirty, 1, 1),
+            M01LivePagingStatus.CoordinatorStateRejected);
+
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareWorkspace(
+                fixture.MappingRequirements,
+                fixture.MappingRequirementCount,
+                fixture.MappingRequirementCapacity,
+                fixture.MappingRanges,
+                1,
+                fixture.MappingRangeCapacity,
+                fixture.PageImages,
+                0,
+                fixture.PageImageCapacity,
+                fixture.Entries,
+                0,
+                fixture.EntryCapacity,
+                fixture.CodePage,
+                BootReservedRange.PageSize,
+                fixture.ProbePage,
+                BootReservedRange.PageSize),
+            M01LivePagingStatus.CoordinatorStateRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareWorkspace(
+                fixture.MappingRequirements,
+                fixture.MappingRequirementCount,
+                fixture.MappingRequirementCapacity,
+                fixture.MappingRanges,
+                0,
+                fixture.MappingRangeCapacity,
+                fixture.PageImages,
+                1,
+                fixture.PageImageCapacity,
+                fixture.Entries,
+                0,
+                fixture.EntryCapacity,
+                fixture.CodePage,
+                BootReservedRange.PageSize,
+                fixture.ProbePage,
+                BootReservedRange.PageSize),
+            M01LivePagingStatus.CoordinatorStateRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareWorkspace(
+                fixture.MappingRequirements,
+                fixture.MappingRequirementCount,
+                fixture.MappingRequirementCapacity,
+                fixture.MappingRanges,
+                0,
+                fixture.MappingRangeCapacity,
+                fixture.PageImages,
+                0,
+                fixture.PageImageCapacity,
+                fixture.Entries,
+                1,
+                fixture.EntryCapacity,
+                fixture.CodePage,
+                BootReservedRange.PageSize,
+                fixture.ProbePage,
+                BootReservedRange.PageSize),
+            M01LivePagingStatus.CoordinatorStateRejected);
+
+        return passed;
+    }
+
+    private static bool TestPreparationMapLedgerAndPreflightFailures()
+    {
+        using CanonicalFixture fixture = new();
+        bool passed = true;
+
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareMapLedger(
+                default,
+                fixture.Ledger,
+                fixture.LedgerCount,
+                fixture.LedgerCapacity),
+            M01LivePagingStatus.MapLedgerEvidenceRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareMapLedger(
+                fixture.CaptureMapEvidence(
+                    previousMapKey:
+                        fixture.StageTwoState->RefreshedMapKey + 1),
+                fixture.Ledger,
+                fixture.LedgerCount,
+                fixture.LedgerCapacity),
+            M01LivePagingStatus.MapLedgerEvidenceRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareMapLedger(
+                fixture.CaptureMapEvidence(
+                    previousMapGeneration:
+                        fixture.StageTwoState
+                            ->RefreshedMapGeneration + 1),
+                fixture.Ledger,
+                fixture.LedgerCount,
+                fixture.LedgerCapacity),
+            M01LivePagingStatus.MapLedgerEvidenceRejected);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareMapLedger(
+                fixture.CaptureMapEvidence(
+                    refreshedMapGeneration:
+                        fixture.StageTwoState
+                            ->RefreshedMapGeneration),
+                fixture.Ledger,
+                fixture.LedgerCount,
+                fixture.LedgerCapacity),
+            M01LivePagingStatus.MapLedgerEvidenceRejected);
+
+        FirmwareMemoryMapRecord staleKey =
+            fixture.StageThreeMap;
+        staleKey.MapKey =
+            fixture.StageTwoState->RefreshedMapKey;
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareMapLedger(
+                fixture.CaptureMapEvidence(
+                    refreshedMap: staleKey),
+                fixture.Ledger,
+                fixture.LedgerCount,
+                fixture.LedgerCapacity),
+            M01LivePagingStatus.MapLedgerEvidenceRejected);
+
+        BootReservedRange[] saved = fixture.CopyLedger();
+        (fixture.Ledger[0], fixture.Ledger[1]) =
+            (fixture.Ledger[1], fixture.Ledger[0]);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareMapLedger(
+                fixture.RefreshMapEvidence(),
+                fixture.Ledger,
+                fixture.LedgerCount,
+                fixture.LedgerCapacity),
+            M01LivePagingStatus.ReservationLedgerRejected);
+        fixture.RestoreLedger(saved);
+
+        fixture.Ledger[fixture.LedgerCount - 1] =
+            fixture.Ledger[0];
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PrepareMapLedger(
+                fixture.RefreshMapEvidence(),
+                fixture.Ledger,
+                fixture.LedgerCount,
+                fixture.LedgerCapacity),
+            M01LivePagingStatus.ReservationLedgerRejected);
+        fixture.RestoreLedger(saved);
+
+        X64PagingModePreflightObservation empty = default;
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PreparePreflight(&empty, 1, 1),
+            M01LivePagingStatus.PreflightRejected);
+
+        X64PagingModePreflightObservation directionFlag =
+            X64PagingModePreflightObservation.CreateObserved(
+                CanonicalFixture.ValidCr0,
+                fixture.RawFirmwareCr3,
+                CanonicalFixture.ValidCr4,
+                CanonicalFixture.ValidEfer,
+                X64PagingModePreflightStubPlan
+                    .CpuidAddressSizesLeaf,
+                48,
+                CanonicalFixture.ValidRflags | (1UL << 10));
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PreparePreflight(
+                &directionFlag,
+                1,
+                1),
+            M01LivePagingStatus.PreflightRejected);
+
+        X64PagingModePreflightObservation invalidWidth =
+            X64PagingModePreflightObservation.CreateObserved(
+                CanonicalFixture.ValidCr0,
+                fixture.RawFirmwareCr3,
+                CanonicalFixture.ValidCr4,
+                CanonicalFixture.ValidEfer,
+                X64PagingModePreflightStubPlan
+                    .CpuidAddressSizesLeaf,
+                0,
+                CanonicalFixture.ValidRflags);
+        passed &= ExpectPreparationFailure(
+            fixture,
+            fixture.PreparePreflight(
+                &invalidWidth,
+                1,
+                1),
+            M01LivePagingStatus.PreflightRejected);
+
+        return passed;
+    }
+
+    private static bool TestPreparationByteWorkspaceAndRepeatedUse()
+    {
+        bool passed = true;
+        using (CanonicalFixture workspace = new())
+        {
+            passed &= ExpectPreparationFailure(
+                workspace,
+                workspace.PrepareWorkspace(
+                    null,
+                    workspace.MappingRequirementCount,
+                    workspace.MappingRequirementCapacity,
+                    workspace.MappingRanges,
+                    0,
+                    workspace.MappingRangeCapacity,
+                    workspace.PageImages,
+                    0,
+                    workspace.PageImageCapacity,
+                    workspace.Entries,
+                    0,
+                    workspace.EntryCapacity,
+                    workspace.CodePage,
+                    BootReservedRange.PageSize,
+                    workspace.ProbePage,
+                    BootReservedRange.PageSize),
+                M01LivePagingStatus.CoordinatorStateRejected);
+            passed &= ExpectPreparationFailure(
+                workspace,
+                workspace.PrepareWorkspace(
+                    workspace.MappingRequirements,
+                    0,
+                    workspace.MappingRequirementCapacity,
+                    workspace.MappingRanges,
+                    0,
+                    workspace.MappingRangeCapacity,
+                    workspace.PageImages,
+                    0,
+                    workspace.PageImageCapacity,
+                    workspace.Entries,
+                    0,
+                    workspace.EntryCapacity,
+                    workspace.CodePage,
+                    BootReservedRange.PageSize,
+                    workspace.ProbePage,
+                    BootReservedRange.PageSize),
+                M01LivePagingStatus.CoordinatorStateRejected);
+            passed &= ExpectPreparationFailure(
+                workspace,
+                workspace.PrepareWorkspace(
+                    workspace.MappingRequirements,
+                    workspace.MappingRequirementCount,
+                    workspace.MappingRequirementCount - 1,
+                    workspace.MappingRanges,
+                    0,
+                    workspace.MappingRangeCapacity,
+                    workspace.PageImages,
+                    0,
+                    workspace.PageImageCapacity,
+                    workspace.Entries,
+                    0,
+                    workspace.EntryCapacity,
+                    workspace.CodePage,
+                    BootReservedRange.PageSize,
+                    workspace.ProbePage,
+                    BootReservedRange.PageSize),
+                M01LivePagingStatus.CoordinatorStateRejected);
+            passed &= ExpectPreparationFailure(
+                workspace,
+                workspace.PrepareWorkspace(
+                    workspace.MappingRequirements,
+                    workspace.MappingRequirementCount,
+                    workspace.MappingRequirementCapacity,
+                    null,
+                    0,
+                    workspace.MappingRangeCapacity,
+                    workspace.PageImages,
+                    0,
+                    workspace.PageImageCapacity,
+                    workspace.Entries,
+                    0,
+                    workspace.EntryCapacity,
+                    workspace.CodePage,
+                    BootReservedRange.PageSize,
+                    workspace.ProbePage,
+                    BootReservedRange.PageSize),
+                M01LivePagingStatus.CoordinatorStateRejected);
+            passed &= ExpectPreparationFailure(
+                workspace,
+                workspace.PrepareWorkspace(
+                    workspace.MappingRequirements,
+                    workspace.MappingRequirementCount,
+                    workspace.MappingRequirementCapacity,
+                    workspace.MappingRanges,
+                    0,
+                    0,
+                    workspace.PageImages,
+                    0,
+                    workspace.PageImageCapacity,
+                    workspace.Entries,
+                    0,
+                    workspace.EntryCapacity,
+                    workspace.CodePage,
+                    BootReservedRange.PageSize,
+                    workspace.ProbePage,
+                    BootReservedRange.PageSize),
+                M01LivePagingStatus.CoordinatorStateRejected);
+            passed &= ExpectPreparationFailure(
+                workspace,
+                workspace.PrepareWorkspace(
+                    workspace.MappingRequirements,
+                    workspace.MappingRequirementCount,
+                    workspace.MappingRequirementCapacity,
+                    workspace.MappingRanges,
+                    0,
+                    workspace.MappingRangeCapacity,
+                    null,
+                    0,
+                    workspace.PageImageCapacity,
+                    workspace.Entries,
+                    0,
+                    workspace.EntryCapacity,
+                    workspace.CodePage,
+                    BootReservedRange.PageSize,
+                    workspace.ProbePage,
+                    BootReservedRange.PageSize),
+                M01LivePagingStatus.CoordinatorStateRejected);
+            passed &= ExpectPreparationFailure(
+                workspace,
+                workspace.PrepareWorkspace(
+                    workspace.MappingRequirements,
+                    workspace.MappingRequirementCount,
+                    workspace.MappingRequirementCapacity,
+                    workspace.MappingRanges,
+                    0,
+                    workspace.MappingRangeCapacity,
+                    workspace.PageImages,
+                    0,
+                    0,
+                    workspace.Entries,
+                    0,
+                    workspace.EntryCapacity,
+                    workspace.CodePage,
+                    BootReservedRange.PageSize,
+                    workspace.ProbePage,
+                    BootReservedRange.PageSize),
+                M01LivePagingStatus.CoordinatorStateRejected);
+            passed &= ExpectPreparationFailure(
+                workspace,
+                workspace.PrepareWorkspace(
+                    workspace.MappingRequirements,
+                    workspace.MappingRequirementCount,
+                    workspace.MappingRequirementCapacity,
+                    workspace.MappingRanges,
+                    0,
+                    workspace.MappingRangeCapacity,
+                    workspace.PageImages,
+                    0,
+                    workspace.PageImageCapacity,
+                    null,
+                    0,
+                    workspace.EntryCapacity,
+                    workspace.CodePage,
+                    BootReservedRange.PageSize,
+                    workspace.ProbePage,
+                    BootReservedRange.PageSize),
+                M01LivePagingStatus.CoordinatorStateRejected);
+            passed &= ExpectPreparationFailure(
+                workspace,
+                workspace.PrepareWorkspace(
+                    workspace.MappingRequirements,
+                    workspace.MappingRequirementCount,
+                    workspace.MappingRequirementCapacity,
+                    workspace.MappingRanges,
+                    0,
+                    workspace.MappingRangeCapacity,
+                    workspace.PageImages,
+                    0,
+                    workspace.PageImageCapacity,
+                    workspace.Entries,
+                    0,
+                    workspace.Mapping.TotalTablePageCount
+                        * X64PageTableImagePage
+                            .EntryCountPerPage - 1,
+                    workspace.CodePage,
+                    BootReservedRange.PageSize,
+                    workspace.ProbePage,
+                    BootReservedRange.PageSize),
+                M01LivePagingStatus.TableStorageRejected);
+            passed &= ExpectPreparationFailure(
+                workspace,
+                workspace.PrepareWorkspace(
+                    workspace.MappingRequirements,
+                    workspace.MappingRequirementCount,
+                    workspace.MappingRequirementCapacity,
+                    workspace.MappingRanges,
+                    0,
+                    workspace.MappingRangeCapacity,
+                    workspace.PageImages,
+                    0,
+                    workspace.PageImageCapacity,
+                    workspace.Entries,
+                    0,
+                    workspace.EntryCapacity,
+                    workspace.CodePage,
+                    BootReservedRange.PageSize,
+                    workspace.ProbePage,
+                    BootReservedRange.PageSize,
+                    aliasPageStorage: true),
+                M01LivePagingStatus.CoordinatorStateRejected);
+            passed &= ExpectPreparationFailure(
+                workspace,
+                workspace.PrepareWorkspace(
+                    workspace.MappingRequirements,
+                    workspace.MappingRequirementCount,
+                    workspace.MappingRequirementCapacity,
+                    workspace.MappingRanges,
+                    0,
+                    workspace.MappingRangeCapacity,
+                    workspace.PageImages,
+                    0,
+                    workspace.PageImageCapacity,
+                    workspace.Entries,
+                    0,
+                    workspace.EntryCapacity,
+                    workspace.CodePage,
+                    BootReservedRange.PageSize - 1,
+                    workspace.ProbePage,
+                    BootReservedRange.PageSize),
+                M01LivePagingStatus.CoordinatorStateRejected);
+            passed &= ExpectPreparationFailure(
+                workspace,
+                workspace.PrepareWorkspace(
+                    workspace.MappingRequirements,
+                    workspace.MappingRequirementCount,
+                    workspace.MappingRequirementCapacity,
+                    workspace.MappingRanges,
+                    0,
+                    workspace.MappingRangeCapacity,
+                    workspace.PageImages,
+                    0,
+                    workspace.PageImageCapacity,
+                    workspace.Entries,
+                    0,
+                    workspace.EntryCapacity,
+                    workspace.CodePage,
+                    BootReservedRange.PageSize,
+                    workspace.CodePage,
+                    BootReservedRange.PageSize),
+                M01LivePagingStatus.CoordinatorStateRejected);
+            passed &= ExpectPreparationFailure(
+                workspace,
+                workspace.PrepareWorkspace(
+                    workspace.MappingRequirements,
+                    workspace.MappingRequirementCount,
+                    workspace.MappingRequirementCapacity,
+                    workspace.MappingRanges,
+                    0,
+                    workspace.MappingRangeCapacity,
+                    workspace.PageImages,
+                    0,
+                    workspace.PageImageCapacity,
+                    workspace.Entries,
+                    0,
+                    workspace.EntryCapacity,
+                    workspace.CodePage,
+                    BootReservedRange.PageSize,
+                    workspace.ProbePage,
+                    BootReservedRange.PageSize,
+                    M01LivePagingByteMode.Uninitialized),
+                M01LivePagingStatus.ByteModeRejected);
+        }
+
+        using (CanonicalFixture bytes = new())
+        {
+            bytes.FillStubPages(0xcc);
+            M01LivePagingPreparationResult emitted =
+                bytes.PrepareCurrent();
+            if (!emitted.Succeeded || !bytes.PaddingIsZero())
+                return false;
+
+            byte[] exactCode = bytes.CopyCodePage();
+            byte[] exactProbe = bytes.CopyProbePage();
+            M01LivePagingStatus[] expected =
+            [
+                M01LivePagingStatus.PreflightStubRejected,
+                M01LivePagingStatus.TransitionStubRejected,
+                M01LivePagingStatus.InvlpgStubRejected,
+                M01LivePagingStatus.ProtectionProbeStubRejected,
+                M01LivePagingStatus.ProtectionProbeStubRejected
+            ];
+            ulong[] offsets =
+            [
+                M01LivePagingIntegration.PreflightEntryOffset,
+                M01LivePagingIntegration.TransitionEntryOffset,
+                M01LivePagingIntegration.InvlpgEntryOffset,
+                M01LivePagingIntegration.ProtectionProbeEntryOffset,
+                128
+            ];
+
+            for (int index = 0; index < expected.Length; index++)
+            {
+                bytes.RestoreStubPages(exactCode, exactProbe);
+                bytes.ClearPreparationState();
+                if (index == 3)
+                    bytes.ProbePage[offsets[index]] ^= 0xff;
+                else
+                    bytes.CodePage[offsets[index]] ^= 0xff;
+
+                M01LivePagingPreparationResult corrupted =
+                    bytes.PrepareCurrent(
+                        M01LivePagingByteMode.VerifyExisting);
+                if (!ExpectPreparationFailure(
+                        bytes,
+                        corrupted,
+                        expected[index]))
+                {
+                    return false;
+                }
+            }
+        }
+
+        using (CanonicalFixture repeated = new())
+        {
+            M01LivePagingPreparationResult first =
+                repeated.PrepareCurrent();
+            if (!first.Succeeded)
+                return false;
+
+            byte[] code = repeated.CopyCodePage();
+            byte[] probe = repeated.CopyProbePage();
+            X64BootIdentityMappingRange[] ranges =
+                (X64BootIdentityMappingRange[])
+                    repeated.MappingRanges.Clone();
+            X64PageTableImagePage[] pages =
+                (X64PageTableImagePage[])
+                    repeated.PageImages.Clone();
+            ulong[] entries =
+                (ulong[])repeated.Entries.Clone();
+            M01LivePagingPreparationResult duplicate =
+                repeated.PrepareCurrent();
+            passed &= duplicate.Status
+                    == M01LivePagingStatus.DuplicatePhase
+                && !duplicate.Succeeded
+                && repeated.PreparationState->IsPrepared
+                && repeated.CodePageEquals(code)
+                && repeated.ProbePageEquals(probe)
+                && repeated.MappingRanges.AsSpan()
+                    .SequenceEqual(ranges)
+                && repeated.PageImages.AsSpan()
+                    .SequenceEqual(pages)
+                && repeated.Entries.AsSpan()
+                    .SequenceEqual(entries);
+        }
+
+        return passed;
+    }
+
+    private static bool TestPreparationPreflightFailureIsAtomic()
+    {
+        using CanonicalFixture fixture = new();
+        fixture.FillStubPages(0xa5);
+        FillUnmanagedArray(fixture.MappingRanges, 0x31);
+        FillUnmanagedArray(fixture.PageImages, 0x52);
+        FillUnmanagedArray(fixture.Entries, 0x73);
+        ((byte*)fixture.PreparationState)[
+            M01LivePagingPreparationState.RequiredStorageBytes] =
+                0x94;
+
+        byte[] recordsBefore = CopyBytes(
+            (byte*)fixture.Records,
+            3UL * (ulong)sizeof(BootMemoryRegionRecord));
+        byte[] ledgerBefore = CopyBytes(
+            (byte*)fixture.Ledger,
+            fixture.LedgerCapacity
+                * (ulong)sizeof(BootReservedRange));
+        byte[] requirementsBefore =
+            CopyUnmanagedArray(fixture.MappingRequirements);
+        byte[] rangesBefore =
+            CopyUnmanagedArray(fixture.MappingRanges);
+        byte[] pagesBefore =
+            CopyUnmanagedArray(fixture.PageImages);
+        byte[] entriesBefore =
+            CopyUnmanagedArray(fixture.Entries);
+        byte[] codeBefore = fixture.CopyCodePage();
+        byte[] probeBefore = fixture.CopyProbePage();
+        byte[] statePageBefore = CopyBytes(
+            (byte*)fixture.PreparationState,
+            BootReservedRange.PageSize);
+
+        X64PagingModePreflightObservation malformed = default;
+        byte[] observationBefore = CopyBytes(
+            (byte*)&malformed,
+            X64PagingModePreflightObservation.StructureSize);
+        M01LivePagingPreparationResult result =
+            fixture.PreparePreflight(&malformed, 1, 1);
+
+        return result.Status
+                == M01LivePagingStatus.PreflightRejected
+            && result.LastCompletedCheckpoint
+                == M01LivePagingCheckpoint.ReservationsValidated
+            && result.ExecutionMode
+                == M01LivePagingExecutionMode.PreparationOnly
+            && !result.Succeeded
+            && !result.PreparedForCompositeTransition
+            && result.State.Size == 0
+            && fixture.PreparationStateIsZero()
+            && BytesEqual(
+                recordsBefore,
+                (byte*)fixture.Records)
+            && BytesEqual(
+                ledgerBefore,
+                (byte*)fixture.Ledger)
+            && BytesEqual(
+                requirementsBefore,
+                fixture.MappingRequirements)
+            && BytesEqual(
+                rangesBefore,
+                fixture.MappingRanges)
+            && BytesEqual(
+                pagesBefore,
+                fixture.PageImages)
+            && BytesEqual(
+                entriesBefore,
+                fixture.Entries)
+            && fixture.CodePageEquals(codeBefore)
+            && fixture.ProbePageEquals(probeBefore)
+            && BytesEqual(
+                statePageBefore,
+                (byte*)fixture.PreparationState)
+            && BytesEqual(
+                observationBefore,
+                (byte*)&malformed);
+    }
+
     private static bool TestStableSurfaceAndDefaults()
     {
         (string Name, byte Value)[] statuses =
@@ -188,7 +1508,8 @@ internal static unsafe class M01LivePagingIntegrationTests
             ("Cr3TranscriptValidated", 10),
             ("ProtectionPlanValidated", 11),
             ("PageZeroValidated", 12),
-            ("Completed", 13)
+            ("Completed", 13),
+            ("PreparedForCompositeTransition", 14)
         ];
         (string Name, byte Value)[] byteModes =
         [
@@ -1689,6 +3010,21 @@ internal static unsafe class M01LivePagingIntegrationTests
                 "public static M01LivePagingIntegrationResult Execute(",
                 StringComparison.Ordinal)
             && production.Contains(
+                "public static M01LivePagingPreparationResult Prepare(",
+                StringComparison.Ordinal)
+            && production.Contains(
+                "public static M01LivePagingIntegrationResult "
+                    + "ExecuteModelOnly(",
+                StringComparison.Ordinal)
+            && production.Contains(
+                "public const bool LegacyExecuteIsModelOnly = true;",
+                StringComparison.Ordinal)
+            && production.Contains(
+                "public const bool "
+                    + "LegacyResultsCanPrepareCompositeTransition "
+                    + "= false;",
+                StringComparison.Ordinal)
+            && production.Contains(
                 "OwnedBootStackSwitchPlanResult stackSwitchPlan",
                 StringComparison.Ordinal)
             && production.Contains(
@@ -1702,7 +3038,7 @@ internal static unsafe class M01LivePagingIntegrationTests
                 StringComparison.Ordinal)
             && CountOccurrences(
                 codeOnly,
-                "PageZeroMappingPolicy.AuditTableImage(") == 1
+                "PageZeroMappingPolicy.AuditTableImage(") == 2
             && !codeOnly.Contains(
                 "NullPageFaultProbePlan",
                 StringComparison.Ordinal)
@@ -1738,7 +3074,19 @@ internal static unsafe class M01LivePagingIntegrationTests
                 "TEST_PASS \" + IssueTestName") == 1
             && CountOccurrences(
                 tests,
-                "TEST_FAIL \" + IssueTestName") == 1;
+                "TEST_FAIL \" + IssueTestName") == 1
+            && CountOccurrences(
+                tests,
+                "TEST_START \" + PreparationIssueTestName") == 1
+            && CountOccurrences(
+                tests,
+                "CLROS_" + "M01_029_READY") == 1
+            && CountOccurrences(
+                tests,
+                "TEST_PASS \" + PreparationIssueTestName") == 1
+            && CountOccurrences(
+                tests,
+                "TEST_FAIL \" + PreparationIssueTestName") == 1;
     }
 
     private static bool VerifyExistingBranchesAreReadOnly(
@@ -1748,6 +3096,10 @@ internal static unsafe class M01LivePagingIntegrationTests
             "if (byteMode == M01LivePagingByteMode.VerifyExisting)";
         string[] expectedMaterializationAssignments =
         [
+            "evidence.PreflightMaterializationValue =",
+            "evidence.TransitionMaterializationValue =",
+            "evidence.InvlpgMaterializationValue =",
+            "evidence.ProbeMaterializationValue =",
             "evidence.PreflightMaterializationValue =",
             "evidence.TransitionMaterializationValue =",
             "evidence.InvlpgMaterializationValue =",
@@ -2308,7 +3660,9 @@ internal static unsafe class M01LivePagingIntegrationTests
         }
 
         int cleanupCount = 0;
+        int prepareCount = 0;
         int executeCount = 0;
+        int executeModelOnlyCount = 0;
         foreach (MethodDefinitionHandle handle in metadata
             .GetTypeDefinition(integrationType).GetMethods())
         {
@@ -2323,14 +3677,56 @@ internal static unsafe class M01LivePagingIntegrationTests
             }
             else if (string.Equals(
                     name,
+                    nameof(M01LivePagingIntegration.Prepare),
+                    StringComparison.Ordinal))
+            {
+                prepareCount++;
+            }
+            else if (string.Equals(
+                    name,
                     nameof(M01LivePagingIntegration.Execute),
                     StringComparison.Ordinal))
             {
                 executeCount++;
             }
+            else if (string.Equals(
+                    name,
+                    nameof(
+                        M01LivePagingIntegration
+                            .ExecuteModelOnly),
+                    StringComparison.Ordinal))
+            {
+                executeModelOnlyCount++;
+            }
         }
 
-        return cleanupCount == 1 && executeCount == 1;
+        bool hasLegacyModelOnlyField = false;
+        bool hasLegacyCannotPrepareField = false;
+        foreach (FieldDefinitionHandle handle in metadata
+            .GetTypeDefinition(integrationType).GetFields())
+        {
+            string name = metadata.GetString(
+                metadata.GetFieldDefinition(handle).Name);
+            hasLegacyModelOnlyField |= string.Equals(
+                name,
+                nameof(
+                    M01LivePagingIntegration
+                        .LegacyExecuteIsModelOnly),
+                StringComparison.Ordinal);
+            hasLegacyCannotPrepareField |= string.Equals(
+                name,
+                nameof(
+                    M01LivePagingIntegration
+                        .LegacyResultsCanPrepareCompositeTransition),
+                StringComparison.Ordinal);
+        }
+
+        return cleanupCount == 1
+            && prepareCount == 1
+            && executeCount == 1
+            && executeModelOnlyCount == 1
+            && hasLegacyModelOnlyField
+            && hasLegacyCannotPrepareField;
     }
 
     private static bool ContainsInfrastructureFailure(string output)
@@ -2997,6 +4393,186 @@ internal static unsafe class M01LivePagingIntegrationTests
             RegexOptions.Multiline | RegexOptions.CultureInvariant);
     }
 
+    private static bool PreparationSurfaceContainsSyntheticInput(
+        ParameterInfo[] parameters)
+    {
+        Type[] forbidden =
+        [
+            typeof(X64ReversibleCr3TransitionRuntimeState),
+            typeof(X64Cr3ProbeEvent),
+            typeof(X64ProtectionProbeObservation),
+            typeof(X64ProtectionProbeEvent),
+            typeof(X64Cr3ProbePolicy)
+        ];
+        foreach (ParameterInfo parameter in parameters)
+        {
+            Type type = parameter.ParameterType;
+            if (type.IsPointer || type.IsByRef)
+                type = type.GetElementType()!;
+            if (forbidden.Contains(type))
+                return true;
+        }
+        return false;
+    }
+
+    private static bool PreparationEvidenceContainsSyntheticTranscript()
+    {
+        Type[] forbidden =
+        [
+            typeof(X64ReversibleCr3TransitionRuntimeState),
+            typeof(X64Cr3ProbeEvent),
+            typeof(X64ProtectionProbeObservation),
+            typeof(X64ProtectionProbeEvent),
+            typeof(X64Cr3ProbePolicy),
+            typeof(X64ReversibleCr3TransitionEvidenceResult),
+            typeof(X64Cr3ProbeAuditResult),
+            typeof(X64ProtectionProbePlanResult)
+        ];
+        Type[] preparationTypes =
+        [
+            typeof(M01LivePagingProtectionPreparation),
+            typeof(M01LivePagingPreparationEvidence),
+            typeof(M01LivePagingPreparationState),
+            typeof(M01LivePagingPreparationResult)
+        ];
+        foreach (Type preparationType in preparationTypes)
+        {
+            foreach (FieldInfo field in preparationType.GetFields(
+                BindingFlags.Instance
+                    | BindingFlags.Public
+                    | BindingFlags.NonPublic))
+            {
+                Type fieldType = field.FieldType;
+                if (fieldType.IsPointer || fieldType.IsByRef)
+                    fieldType = fieldType.GetElementType()!;
+                if (forbidden.Contains(fieldType))
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool HasPreparationLegacyConversion()
+    {
+        Type preparation =
+            typeof(M01LivePagingPreparationResult);
+        Type legacy = typeof(M01LivePagingIntegrationResult);
+        foreach (Type owner in new[] { preparation, legacy })
+        {
+            foreach (MethodInfo method in owner.GetMethods(
+                BindingFlags.Static
+                    | BindingFlags.Public
+                    | BindingFlags.NonPublic))
+            {
+                if (!method.IsSpecialName
+                    || method.Name != "op_Implicit"
+                        && method.Name != "op_Explicit")
+                {
+                    continue;
+                }
+
+                ParameterInfo[] parameters = method.GetParameters();
+                if (parameters.Length == 1
+                    && (parameters[0].ParameterType == preparation
+                            && method.ReturnType == legacy
+                        || parameters[0].ParameterType == legacy
+                            && method.ReturnType == preparation))
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static bool ExpectPreparationFailure(
+        CanonicalFixture fixture,
+        M01LivePagingPreparationResult result,
+        M01LivePagingStatus expectedStatus,
+        [CallerLineNumber] int callerLine = 0)
+    {
+        bool passed =
+            result.Status == expectedStatus
+            && !result.Succeeded
+            && !result.PreparedForCompositeTransition
+            && result.ExecutionMode
+                == M01LivePagingExecutionMode.PreparationOnly
+            && result.State.Size == 0
+            && !result.State.IsPrepared
+            && fixture.PreparationStateIsZero();
+        if (!passed)
+        {
+            Console.WriteLine(
+                "M01_029_FAILURE_CONTRACT_MISMATCH"
+                + " line=" + callerLine
+                + " expected=" + expectedStatus
+                + " actual=" + result.Status
+                + " succeeded=" + result.Succeeded
+                + " prepared="
+                    + result.PreparedForCompositeTransition
+                + " mode=" + result.ExecutionMode
+                + " result_state_size=" + result.State.Size
+                + " result_state_prepared="
+                    + result.State.IsPrepared
+                + " storage_zero="
+                    + fixture.PreparationStateIsZero());
+        }
+        fixture.ClearPreparationState();
+        return passed;
+    }
+
+    private static void FillUnmanagedArray<T>(
+        T[] values,
+        byte value)
+        where T : unmanaged
+    {
+        fixed (T* pointer = values)
+        {
+            ulong length =
+                (ulong)values.Length * (ulong)sizeof(T);
+            byte* bytes = (byte*)pointer;
+            for (ulong index = 0; index < length; index++)
+                bytes[index] = value;
+        }
+    }
+
+    private static byte[] CopyUnmanagedArray<T>(T[] values)
+        where T : unmanaged
+    {
+        fixed (T* pointer = values)
+        {
+            return CopyBytes(
+                (byte*)pointer,
+                (ulong)values.Length * (ulong)sizeof(T));
+        }
+    }
+
+    private static bool BytesEqual(
+        byte[] expected,
+        byte* actual)
+    {
+        for (int index = 0; index < expected.Length; index++)
+        {
+            if (expected[index] != actual[index])
+                return false;
+        }
+        return true;
+    }
+
+    private static bool BytesEqual<T>(
+        byte[] expected,
+        T[] actual)
+        where T : unmanaged
+    {
+        if (expected.Length
+            != checked(actual.Length * sizeof(T)))
+        {
+            return false;
+        }
+        fixed (T* pointer = actual)
+            return BytesEqual(expected, (byte*)pointer);
+    }
+
     private sealed unsafe class CanonicalFixture : IDisposable
     {
         internal const ulong ValidCr0 =
@@ -3155,6 +4731,9 @@ internal static unsafe class M01LivePagingIntegrationTests
             private set;
         }
 
+        internal M01LivePagingPreparationState* PreparationState =>
+            (M01LivePagingPreparationState*)StaticState;
+
         internal byte* CodePage { get; private set; }
 
         internal byte* ProbePage { get; private set; }
@@ -3293,6 +4872,228 @@ internal static unsafe class M01LivePagingIntegrationTests
                 byteMode,
                 StaticState,
                 M01LivePagingStaticState.RequiredStorageBytes);
+        }
+
+        internal M01LivePagingPreparationResult PrepareCurrent(
+            M01LivePagingByteMode byteMode =
+                M01LivePagingByteMode.EmitAndVerify)
+        {
+            fixed (X64PagingModePreflightObservation* preflight =
+                &PreflightObservation)
+            {
+                return PrepareCore(
+                    StageTwoState,
+                    1,
+                    1,
+                    StackSwitchPlan,
+                    Records,
+                    3,
+                    3,
+                    AllocationEvidence,
+                    MapEvidence,
+                    Ledger,
+                    LedgerCount,
+                    LedgerCapacity,
+                    MappingRequirements,
+                    MappingRequirementCount,
+                    MappingRequirementCapacity,
+                    MappingRanges,
+                    0,
+                    MappingRangeCapacity,
+                    PageImages,
+                    0,
+                    PageImageCapacity,
+                    Entries,
+                    0,
+                    EntryCapacity,
+                    CodePage,
+                    BootReservedRange.PageSize,
+                    ProbePage,
+                    BootReservedRange.PageSize,
+                    byteMode,
+                    PreparationState,
+                    1,
+                    1,
+                    preflight,
+                    1,
+                    1);
+            }
+        }
+
+        internal M01LivePagingPreparationResult PrepareStageTwo(
+            M01LiveAllocatorStaticState* stageTwo,
+            ulong count,
+            ulong capacity)
+        {
+            fixed (X64PagingModePreflightObservation* preflight =
+                &PreflightObservation)
+            {
+                return PrepareMetadata(
+                    stageTwo,
+                    count,
+                    capacity,
+                    StackSwitchPlan,
+                    Records,
+                    3,
+                    3,
+                    AllocationEvidence,
+                    MapEvidence,
+                    Ledger,
+                    LedgerCount,
+                    LedgerCapacity,
+                    preflight,
+                    1,
+                    1,
+                    PreparationState,
+                    1,
+                    1);
+            }
+        }
+
+        internal M01LivePagingPreparationResult PrepareAllocation(
+            BootMemoryRegionRecord* records,
+            ulong count,
+            ulong capacity,
+            M01LivePagingAllocationEvidence evidence)
+        {
+            fixed (X64PagingModePreflightObservation* preflight =
+                &PreflightObservation)
+            {
+                return PrepareMetadata(
+                    StageTwoState,
+                    1,
+                    1,
+                    StackSwitchPlan,
+                    records,
+                    count,
+                    capacity,
+                    evidence,
+                    MapEvidence,
+                    Ledger,
+                    LedgerCount,
+                    LedgerCapacity,
+                    preflight,
+                    1,
+                    1,
+                    PreparationState,
+                    1,
+                    1);
+            }
+        }
+
+        internal M01LivePagingPreparationResult PrepareMapLedger(
+            M01LivePagingMapLedgerEvidence evidence,
+            BootReservedRange* ledger,
+            ulong count,
+            ulong capacity)
+        {
+            fixed (X64PagingModePreflightObservation* preflight =
+                &PreflightObservation)
+            {
+                return PrepareMetadata(
+                    StageTwoState,
+                    1,
+                    1,
+                    StackSwitchPlan,
+                    Records,
+                    3,
+                    3,
+                    AllocationEvidence,
+                    evidence,
+                    ledger,
+                    count,
+                    capacity,
+                    preflight,
+                    1,
+                    1,
+                    PreparationState,
+                    1,
+                    1);
+            }
+        }
+
+        internal M01LivePagingPreparationResult PreparePreflight(
+            X64PagingModePreflightObservation* observation,
+            ulong count,
+            ulong capacity)
+        {
+            return PrepareMetadata(
+                StageTwoState,
+                1,
+                1,
+                StackSwitchPlan,
+                Records,
+                3,
+                3,
+                AllocationEvidence,
+                MapEvidence,
+                Ledger,
+                LedgerCount,
+                LedgerCapacity,
+                observation,
+                count,
+                capacity,
+                PreparationState,
+                1,
+                1);
+        }
+
+        internal M01LivePagingPreparationResult PrepareState(
+            M01LivePagingPreparationState* state,
+            ulong count,
+            ulong capacity)
+        {
+            fixed (X64PagingModePreflightObservation* preflight =
+                &PreflightObservation)
+            {
+                return PrepareMetadata(
+                    StageTwoState,
+                    1,
+                    1,
+                    StackSwitchPlan,
+                    Records,
+                    3,
+                    3,
+                    AllocationEvidence,
+                    MapEvidence,
+                    Ledger,
+                    LedgerCount,
+                    LedgerCapacity,
+                    preflight,
+                    1,
+                    1,
+                    state,
+                    count,
+                    capacity);
+            }
+        }
+
+        internal M01LivePagingPreparationResult
+            PrepareStateAliasesPreflight()
+        {
+            fixed (X64PagingModePreflightObservation* preflight =
+                &PreflightObservation)
+            {
+                return PrepareMetadata(
+                    StageTwoState,
+                    1,
+                    1,
+                    StackSwitchPlan,
+                    Records,
+                    3,
+                    3,
+                    AllocationEvidence,
+                    MapEvidence,
+                    Ledger,
+                    LedgerCount,
+                    LedgerCapacity,
+                    preflight,
+                    1,
+                    1,
+                    (M01LivePagingPreparationState*)preflight,
+                    1,
+                    1);
+            }
         }
 
         internal M01LivePagingIntegrationResult ExecuteRequirements(
@@ -3459,6 +5260,64 @@ internal static unsafe class M01LivePagingIntegrationTests
                 M01LivePagingByteMode.EmitAndVerify,
                 state,
                 stateCapacity);
+        }
+
+        internal M01LivePagingPreparationResult PrepareMetadata(
+            M01LiveAllocatorStaticState* stageTwo,
+            ulong stageTwoCount,
+            ulong stageTwoCapacity,
+            OwnedBootStackSwitchPlanResult stackPlan,
+            BootMemoryRegionRecord* records,
+            ulong recordCount,
+            ulong recordCapacity,
+            M01LivePagingAllocationEvidence allocations,
+            M01LivePagingMapLedgerEvidence map,
+            BootReservedRange* ledger,
+            ulong ledgerCount,
+            ulong ledgerCapacity,
+            X64PagingModePreflightObservation* preflight,
+            ulong preflightCount,
+            ulong preflightCapacity,
+            M01LivePagingPreparationState* state,
+            ulong stateCount,
+            ulong stateCapacity)
+        {
+            return PrepareCore(
+                stageTwo,
+                stageTwoCount,
+                stageTwoCapacity,
+                stackPlan,
+                records,
+                recordCount,
+                recordCapacity,
+                allocations,
+                map,
+                ledger,
+                ledgerCount,
+                ledgerCapacity,
+                MappingRequirements,
+                MappingRequirementCount,
+                MappingRequirementCapacity,
+                MappingRanges,
+                0,
+                MappingRangeCapacity,
+                PageImages,
+                0,
+                PageImageCapacity,
+                Entries,
+                0,
+                EntryCapacity,
+                CodePage,
+                BootReservedRange.PageSize,
+                ProbePage,
+                BootReservedRange.PageSize,
+                M01LivePagingByteMode.EmitAndVerify,
+                state,
+                stateCount,
+                stateCapacity,
+                preflight,
+                preflightCount,
+                preflightCapacity);
         }
 
         internal M01LivePagingIntegrationResult ExecuteWorkspace(
@@ -3651,6 +5510,28 @@ internal static unsafe class M01LivePagingIntegrationTests
             Clear(
                 (byte*)StaticState,
                 M01LivePagingStaticState.RequiredStorageBytes);
+        }
+
+        internal void ClearPreparationState()
+        {
+            Clear(
+                (byte*)PreparationState,
+                M01LivePagingPreparationState.RequiredStorageBytes);
+        }
+
+        internal bool PreparationStateIsZero()
+        {
+            byte* state = (byte*)PreparationState;
+            for (ulong index = 0;
+                index
+                    < M01LivePagingPreparationState
+                        .RequiredStorageBytes;
+                index++)
+            {
+                if (state[index] != 0)
+                    return false;
+            }
+            return true;
         }
 
         internal void FillStubPages(byte value)
@@ -4389,6 +6270,165 @@ internal static unsafe class M01LivePagingIntegrationTests
             }
         }
 
+        private M01LivePagingPreparationResult PrepareCore(
+            M01LiveAllocatorStaticState* stageTwo,
+            ulong stageTwoCount,
+            ulong stageTwoCapacity,
+            OwnedBootStackSwitchPlanResult stackPlan,
+            BootMemoryRegionRecord* records,
+            ulong recordCount,
+            ulong recordCapacity,
+            M01LivePagingAllocationEvidence allocations,
+            M01LivePagingMapLedgerEvidence map,
+            BootReservedRange* ledger,
+            ulong ledgerCount,
+            ulong ledgerCapacity,
+            X64BootIdentityMappingRequirement[]? requirements,
+            ulong requirementCount,
+            ulong requirementCapacity,
+            X64BootIdentityMappingRange[]? ranges,
+            ulong rangeCount,
+            ulong rangeCapacity,
+            X64PageTableImagePage[]? pages,
+            ulong pageCount,
+            ulong pageCapacity,
+            ulong[]? entries,
+            ulong entryCount,
+            ulong entryCapacity,
+            byte* codePage,
+            ulong codeCapacity,
+            byte* probePage,
+            ulong probeCapacity,
+            M01LivePagingByteMode byteMode,
+            M01LivePagingPreparationState* state,
+            ulong stateCount,
+            ulong stateCapacity,
+            X64PagingModePreflightObservation* preflight,
+            ulong preflightCount,
+            ulong preflightCapacity)
+        {
+            fixed (X64BootIdentityMappingRequirement* requirementPointer =
+                requirements)
+            fixed (X64BootIdentityMappingRange* rangePointer = ranges)
+            fixed (X64PageTableImagePage* pagePointer = pages)
+            fixed (ulong* entryPointer = entries)
+            {
+                return PrepareCoreRawWorkspace(
+                    stageTwo,
+                    stageTwoCount,
+                    stageTwoCapacity,
+                    stackPlan,
+                    records,
+                    recordCount,
+                    recordCapacity,
+                    allocations,
+                    map,
+                    ledger,
+                    ledgerCount,
+                    ledgerCapacity,
+                    requirementPointer,
+                    requirementCount,
+                    requirementCapacity,
+                    rangePointer,
+                    rangeCount,
+                    rangeCapacity,
+                    pagePointer,
+                    pageCount,
+                    pageCapacity,
+                    entryPointer,
+                    entryCount,
+                    entryCapacity,
+                    codePage,
+                    codeCapacity,
+                    probePage,
+                    probeCapacity,
+                    preflight,
+                    preflightCount,
+                    preflightCapacity,
+                    byteMode,
+                    state,
+                    stateCount,
+                    stateCapacity);
+            }
+        }
+
+        private M01LivePagingPreparationResult
+            PrepareCoreRawWorkspace(
+                M01LiveAllocatorStaticState* stageTwo,
+                ulong stageTwoCount,
+                ulong stageTwoCapacity,
+                OwnedBootStackSwitchPlanResult stackPlan,
+                BootMemoryRegionRecord* records,
+                ulong recordCount,
+                ulong recordCapacity,
+                M01LivePagingAllocationEvidence allocations,
+                M01LivePagingMapLedgerEvidence map,
+                BootReservedRange* ledger,
+                ulong ledgerCount,
+                ulong ledgerCapacity,
+                X64BootIdentityMappingRequirement* requirements,
+                ulong requirementCount,
+                ulong requirementCapacity,
+                X64BootIdentityMappingRange* ranges,
+                ulong rangeCount,
+                ulong rangeCapacity,
+                X64PageTableImagePage* pages,
+                ulong pageCount,
+                ulong pageCapacity,
+                ulong* entries,
+                ulong entryCount,
+                ulong entryCapacity,
+                byte* codePage,
+                ulong codeCapacity,
+                byte* probePage,
+                ulong probeCapacity,
+                X64PagingModePreflightObservation* preflight,
+                ulong preflightCount,
+                ulong preflightCapacity,
+                M01LivePagingByteMode byteMode,
+                M01LivePagingPreparationState* state,
+                ulong stateCount,
+                ulong stateCapacity)
+        {
+            return M01LivePagingIntegration.Prepare(
+                stageTwo,
+                stageTwoCount,
+                stageTwoCapacity,
+                stackPlan,
+                records,
+                recordCount,
+                recordCapacity,
+                allocations,
+                map,
+                ledger,
+                ledgerCount,
+                ledgerCapacity,
+                requirements,
+                requirementCount,
+                requirementCapacity,
+                ranges,
+                rangeCount,
+                rangeCapacity,
+                pages,
+                pageCount,
+                pageCapacity,
+                entries,
+                entryCount,
+                entryCapacity,
+                Preconditions,
+                codePage,
+                codeCapacity,
+                probePage,
+                probeCapacity,
+                preflight,
+                preflightCount,
+                preflightCapacity,
+                byteMode,
+                state,
+                stateCount,
+                stateCapacity);
+        }
+
         private M01LivePagingIntegrationResult
             ExecuteCoreRawWorkspace(
                 M01LiveAllocatorStaticState* stageTwo,
@@ -4581,6 +6621,76 @@ internal static unsafe class M01LivePagingIntegrationTests
                 DescriptorCount = 2,
                 Flags = FirmwareMemoryMapRecord.FlagOwnedCopy
             };
+        }
+
+        internal M01LivePagingPreparationResult PrepareWorkspace(
+            X64BootIdentityMappingRequirement[]? requirements,
+            ulong requirementCount,
+            ulong requirementCapacity,
+            X64BootIdentityMappingRange[]? ranges,
+            ulong rangeCount,
+            ulong rangeCapacity,
+            X64PageTableImagePage[]? pages,
+            ulong pageCount,
+            ulong pageCapacity,
+            ulong[]? entries,
+            ulong entryCount,
+            ulong entryCapacity,
+            byte* codePage,
+            ulong codeCapacity,
+            byte* probePage,
+            ulong probeCapacity,
+            M01LivePagingByteMode byteMode =
+                M01LivePagingByteMode.EmitAndVerify,
+            bool aliasPageStorage = false)
+        {
+            fixed (X64BootIdentityMappingRequirement* requirementPointer =
+                requirements)
+            fixed (X64BootIdentityMappingRange* rangePointer = ranges)
+            fixed (X64PageTableImagePage* pagePointer = pages)
+            fixed (ulong* entryPointer = entries)
+            fixed (X64PagingModePreflightObservation* preflight =
+                &PreflightObservation)
+            {
+                return PrepareCoreRawWorkspace(
+                    StageTwoState,
+                    1,
+                    1,
+                    StackSwitchPlan,
+                    Records,
+                    3,
+                    3,
+                    AllocationEvidence,
+                    MapEvidence,
+                    Ledger,
+                    LedgerCount,
+                    LedgerCapacity,
+                    requirementPointer,
+                    requirementCount,
+                    requirementCapacity,
+                    rangePointer,
+                    rangeCount,
+                    rangeCapacity,
+                    aliasPageStorage
+                        ? (X64PageTableImagePage*)entryPointer
+                        : pagePointer,
+                    pageCount,
+                    pageCapacity,
+                    entryPointer,
+                    entryCount,
+                    entryCapacity,
+                    codePage,
+                    codeCapacity,
+                    probePage,
+                    probeCapacity,
+                    preflight,
+                    1,
+                    1,
+                    byteMode,
+                    PreparationState,
+                    1,
+                    1);
+            }
         }
     }
 }
