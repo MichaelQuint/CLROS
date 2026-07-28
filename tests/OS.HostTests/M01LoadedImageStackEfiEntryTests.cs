@@ -46,6 +46,14 @@ internal static class M01LoadedImageStackEfiEntryTests
             TestSourceFirewalls,
             ref failures);
         Run(
+            "m01.021 probe-scoped mutation selector skips prefix collisions",
+            TestProbeScopedMutationSelector,
+            ref failures);
+        Run(
+            "m01.021 probe-scoped method selector skips same-name collisions",
+            TestProbeScopedMethodMutationSelector,
+            ref failures);
+        Run(
             "m01.021 contract validator rejects representative bypasses",
             TestRepresentativeMutations,
             ref failures);
@@ -1520,6 +1528,377 @@ internal static class M01LoadedImageStackEfiEntryTests
             || Failure("stage-runtime-export");
     }
 
+    private static bool TestProbeScopedMutationSelector()
+    {
+        const string prefix =
+            "#if M01_OWNED_PAGING_PROBE\n"
+            + "AllocatePages(\n"
+            + "EfiLoaderCode\n"
+            + "BootReservationTableValidator\n"
+            + "AllocatePages(\n"
+            + "EfiLoaderCode\n"
+            + "BootReservationTableValidator\n"
+            + "#endif\n";
+        string baselineBranch = string.Join(
+            Environment.NewLine,
+            "AllocatePages(",
+            "EfiLoaderCode",
+            "BootReservationTableValidator",
+            "AllocatePages(",
+            "EfiLoaderCode",
+            "BootReservationTableValidator",
+            string.Empty);
+        string source =
+            prefix
+            + "#if "
+            + ProbeSymbol
+            + "\n"
+            + baselineBranch
+            + "#endif\n";
+
+        (string Search, string Replacement, string Name)[] cases =
+            [
+                (
+                    "AllocatePages(",
+                    "AllocatePagesDisabled(",
+                    "allocation-removed"),
+                (
+                    "EfiLoaderCode",
+                    "EfiLoaderData",
+                    "allocation-type"),
+                (
+                    "BootReservationTableValidator",
+                    "BootReservationTableValidatorDisabled",
+                    "ledger-validation")
+            ];
+
+        string extractedBaseline =
+            ExtractProbeEnabledBranches(source);
+        if (!string.Equals(
+                extractedBaseline,
+                baselineBranch,
+                StringComparison.Ordinal))
+        {
+            return Failure("selector-baseline-branch");
+        }
+
+        foreach ((
+            string search,
+            string replacement,
+            string name) in cases)
+        {
+            if (!TryReplaceFirst(
+                    baselineBranch,
+                    search,
+                    replacement,
+                    out string expectedBranch))
+            {
+                return Failure(
+                    "selector-expected-anchor=" + name);
+            }
+
+            if (!TryReplaceFirstAffectingProbeBranch(
+                    source,
+                    search,
+                    replacement,
+                    out string mutated))
+            {
+                return Failure("selector-anchor=" + name);
+            }
+
+            if (!mutated.StartsWith(
+                    prefix,
+                    StringComparison.Ordinal))
+            {
+                return Failure("selector-prefix-modified=" + name);
+            }
+
+            string extractedMutated =
+                ExtractProbeEnabledBranches(mutated);
+            if (string.Equals(
+                    extractedMutated,
+                    extractedBaseline,
+                    StringComparison.Ordinal))
+            {
+                return Failure(
+                    "selector-branch-unchanged=" + name);
+            }
+
+            if (!string.Equals(
+                    extractedMutated,
+                    expectedBranch,
+                    StringComparison.Ordinal))
+            {
+                return Failure(
+                    "selector-wrong-branch-mutation=" + name);
+            }
+
+            string expectedSource =
+                prefix
+                + "#if "
+                + ProbeSymbol
+                + "\n"
+                + expectedBranch
+                + "#endif\n";
+            if (!string.Equals(
+                    mutated,
+                    expectedSource,
+                    StringComparison.Ordinal))
+            {
+                return Failure(
+                    "selector-wrong-source-mutation=" + name);
+            }
+
+            string prefixOnlySource =
+                prefix
+                + "#if "
+                + ProbeSymbol
+                + "\n"
+                + "ProbeSentinel\n"
+                + "#endif\n";
+            if (TryReplaceFirstAffectingProbeBranch(
+                    prefixOnlySource,
+                    search,
+                    replacement,
+                    out string prefixOnly)
+                || !string.Equals(
+                    prefixOnly,
+                    prefixOnlySource,
+                    StringComparison.Ordinal))
+            {
+                return Failure(
+                    "selector-prefix-only=" + name);
+            }
+        }
+
+        return !TryReplaceFirstAffectingProbeBranch(
+                source,
+                string.Empty,
+                "invalid",
+                out string emptySearch)
+            && string.Equals(
+                emptySearch,
+                source,
+                StringComparison.Ordinal)
+            || Failure("selector-empty-search");
+    }
+
+    private static bool TestProbeScopedMethodMutationSelector()
+    {
+        const string prefix =
+            "#if M01_OWNED_PAGING_PROBE\n"
+            + "private static bool TryValidateAllocation()\n"
+            + "{\n"
+            + "    return (address & (PageSize - 1)) != 0;\n"
+            + "}\n"
+            + "private static bool RangesOverlap()\n"
+            + "{\n"
+            + "    return firstStart < secondEndExclusive;\n"
+            + "}\n"
+            + "private static void WriteSuccessLine()\n"
+            + "{\n"
+            + "    WriteEarlierSuccessLine();\n"
+            + "}\n"
+            + "private static void WriteSuccessLine()\n"
+            + "{\n"
+            + "    GetM01StageOneSuccessLineByte();\n"
+            + "}\n"
+            + "#endif\n";
+        string baselineBranch = string.Join(
+            Environment.NewLine,
+            "private static bool TryValidateAllocation()",
+            "{",
+            "    return (address & (PageSize - 1)) != 0;",
+            "}",
+            "private static bool RangesOverlap()",
+            "{",
+            "    return firstStart < secondEndExclusive;",
+            "}",
+            "private static void WriteSuccessLine()",
+            "{",
+            "    GetM01StageOneSuccessLineByte();",
+            "}",
+            string.Empty);
+        string source =
+            prefix
+            + "#if "
+            + ProbeSymbol
+            + "\n"
+            + baselineBranch
+            + "#endif\n";
+
+        (
+            string Method,
+            string Search,
+            string Replacement,
+            string Name)[] cases =
+        [
+            (
+                "TryValidateAllocation",
+                "(address & (PageSize - 1)) != 0",
+                "false",
+                "allocation-alignment"),
+            (
+                "RangesOverlap",
+                "firstStart < secondEndExclusive",
+                "false",
+                "allocation-overlap-always-false"),
+            (
+                "WriteSuccessLine",
+                "GetM01StageOneSuccessLineByte(",
+                "GetM01StageOneSuccessLineByteDisabled(",
+                "success-marker-byte-source")
+        ];
+
+        string extractedBaseline =
+            ExtractProbeEnabledBranches(source);
+        if (!string.Equals(
+                extractedBaseline,
+                baselineBranch,
+                StringComparison.Ordinal))
+        {
+            return Failure("method-selector-baseline-branch");
+        }
+
+        foreach ((
+            string method,
+            string search,
+            string replacement,
+            string name) in cases)
+        {
+            if (!TryMutateMethodBody(
+                    baselineBranch,
+                    method,
+                    search,
+                    replacement,
+                    out string expectedBranch))
+            {
+                return Failure(
+                    "method-selector-expected-anchor=" + name);
+            }
+
+            if (!TryMutateFirstMethodBodyAffectingProbeBranch(
+                    source,
+                    method,
+                    search,
+                    replacement,
+                    out string mutated))
+            {
+                return Failure(
+                    "method-selector-anchor=" + name);
+            }
+
+            if (!mutated.StartsWith(
+                    prefix,
+                    StringComparison.Ordinal))
+            {
+                return Failure(
+                    "method-selector-prefix-modified=" + name);
+            }
+
+            string extractedMutated =
+                ExtractProbeEnabledBranches(mutated);
+            if (string.Equals(
+                    extractedMutated,
+                    extractedBaseline,
+                    StringComparison.Ordinal))
+            {
+                return Failure(
+                    "method-selector-branch-unchanged=" + name);
+            }
+
+            if (!string.Equals(
+                    extractedMutated,
+                    expectedBranch,
+                    StringComparison.Ordinal))
+            {
+                return Failure(
+                    "method-selector-wrong-branch-mutation="
+                    + name);
+            }
+
+            string expectedSource =
+                prefix
+                + "#if "
+                + ProbeSymbol
+                + "\n"
+                + expectedBranch
+                + "#endif\n";
+            if (!string.Equals(
+                    mutated,
+                    expectedSource,
+                    StringComparison.Ordinal))
+            {
+                return Failure(
+                    "method-selector-wrong-source-mutation="
+                    + name);
+            }
+
+            if (TryMutateFirstMethodBodyAffectingProbeBranch(
+                    prefix,
+                    method,
+                    search,
+                    replacement,
+                    out string prefixOnly)
+                || !string.Equals(
+                    prefixOnly,
+                    prefix,
+                    StringComparison.Ordinal))
+            {
+                return Failure(
+                    "method-selector-prefix-only=" + name);
+            }
+
+            string missingTargetSource =
+                prefix
+                + "#if "
+                + ProbeSymbol
+                + "\n"
+                + "ProbeSentinel\n"
+                + "#endif\n";
+            if (TryMutateFirstMethodBodyAffectingProbeBranch(
+                    missingTargetSource,
+                    method,
+                    search,
+                    replacement,
+                    out string missingTarget)
+                || !string.Equals(
+                    missingTarget,
+                    missingTargetSource,
+                    StringComparison.Ordinal))
+            {
+                return Failure(
+                    "method-selector-missing-target=" + name);
+            }
+        }
+
+        if (TryMutateFirstMethodBodyAffectingProbeBranch(
+                source,
+                string.Empty,
+                "(address & (PageSize - 1)) != 0",
+                "false",
+                out string emptyMethodName)
+            || !string.Equals(
+                emptyMethodName,
+                source,
+                StringComparison.Ordinal))
+        {
+            return Failure("method-selector-empty-method-name");
+        }
+
+        return !TryMutateFirstMethodBodyAffectingProbeBranch(
+                source,
+                "TryValidateAllocation",
+                string.Empty,
+                "false",
+                out string emptySearch)
+            && string.Equals(
+                emptySearch,
+                source,
+                StringComparison.Ordinal)
+            || Failure("method-selector-empty-search");
+    }
+
     private static bool TestRepresentativeMutations()
     {
         string source = LoadEfiEntrySource();
@@ -1638,7 +2017,7 @@ internal static class M01LoadedImageStackEfiEntryTests
         foreach ((string search, string replacement, string name)
             in mutations)
         {
-            if (!TryReplaceFirst(
+            if (!TryReplaceFirstAffectingProbeBranch(
                     source,
                     search,
                     replacement,
@@ -1793,7 +2172,7 @@ internal static class M01LoadedImageStackEfiEntryTests
             string replacement,
             string name) in methodMutations)
         {
-            if (!TryMutateMethodBody(
+            if (!TryMutateFirstMethodBodyAffectingProbeBranch(
                     source,
                     method,
                     search,
@@ -2813,6 +3192,131 @@ internal static class M01LoadedImageStackEfiEntryTests
                 "OS",
                 "Runtime",
                 "MinimalRuntime.cs"));
+    }
+
+    private static bool TryReplaceFirstAffectingProbeBranch(
+        string source,
+        string search,
+        string replacement,
+        out string mutated)
+    {
+        mutated = source;
+        if (search.Length == 0)
+        {
+            return false;
+        }
+
+        string baseline =
+            ExtractProbeEnabledBranches(source);
+        int index = source.IndexOf(
+            search,
+            StringComparison.Ordinal);
+        while (index >= 0)
+        {
+            string candidate =
+                source[..index]
+                + replacement
+                + source[(index + search.Length)..];
+            if (!string.Equals(
+                    ExtractProbeEnabledBranches(candidate),
+                    baseline,
+                    StringComparison.Ordinal))
+            {
+                mutated = candidate;
+                return true;
+            }
+
+            index = source.IndexOf(
+                search,
+                index + 1,
+                StringComparison.Ordinal);
+        }
+
+        return false;
+    }
+
+    private static bool TryMutateFirstMethodBodyAffectingProbeBranch(
+        string source,
+        string methodName,
+        string search,
+        string replacement,
+        out string mutated)
+    {
+        mutated = source;
+        if (methodName.Length == 0 || search.Length == 0)
+        {
+            return false;
+        }
+
+        string baseline =
+            ExtractProbeEnabledBranches(source);
+        string sanitized =
+            SanitizeStringsAndCharacters(source);
+        MatchCollection methods = Regex.Matches(
+            sanitized,
+            @"\b(?:private|public|internal)\s+static\s+"
+                + @"(?:unsafe\s+)?"
+                + @"[A-Za-z_][A-Za-z_0-9.]*\s*\*?\s+"
+                + Regex.Escape(methodName)
+                + @"\s*\([^;{}]*\)\s*\{",
+            RegexOptions.CultureInvariant);
+        foreach (Match method in methods)
+        {
+            int open = sanitized.IndexOf(
+                '{',
+                method.Index + method.Length - 1);
+            if (open < 0)
+            {
+                continue;
+            }
+
+            int close = FindMatchingDelimiter(
+                sanitized,
+                open,
+                '{',
+                '}');
+            if (close <= open)
+            {
+                continue;
+            }
+
+            int bodyStart = open + 1;
+            int searchIndex = source.IndexOf(
+                search,
+                bodyStart,
+                close - bodyStart,
+                StringComparison.Ordinal);
+            while (searchIndex >= 0)
+            {
+                string candidate =
+                    source[..searchIndex]
+                    + replacement
+                    + source[(searchIndex + search.Length)..];
+                if (!string.Equals(
+                        ExtractProbeEnabledBranches(candidate),
+                        baseline,
+                        StringComparison.Ordinal))
+                {
+                    mutated = candidate;
+                    return true;
+                }
+
+                int nextStart = searchIndex + 1;
+                int remaining = close - nextStart;
+                if (remaining < search.Length)
+                {
+                    break;
+                }
+
+                searchIndex = source.IndexOf(
+                    search,
+                    nextStart,
+                    remaining,
+                    StringComparison.Ordinal);
+            }
+        }
+
+        return false;
     }
 
     private static bool TryReplaceFirst(
