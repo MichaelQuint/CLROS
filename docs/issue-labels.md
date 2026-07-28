@@ -20,21 +20,21 @@ and closed, not the next or blocked leaves.
 
 The M01-028 recovery added itself and inserted M01-029 through M01-032 as four
 serialized prerequisites before M01-025. Its 321-child, 337-keyed-issue,
-421-managed-object inventory remains the last applied historical snapshot.
+421-managed-object inventory remains a historical applied snapshot.
 
-The current durable manifest adds M01-033 through M01-035 after M01-025 and
-before M01-026. These slices respectively own deterministic C# AMD64 COFF
-serializer plus encoded unwind intent, canonical EFI
+The current durable manifest and live tracker add M01-033 through M01-035 after
+M01-025 and before M01-026. These slices respectively own deterministic C#
+AMD64 COFF serializer plus encoded unwind intent, canonical EFI
 link/authoritative-exception-directory verification, and four-epoch EfiEntry
 checked-cookie publication ordering through stack-switch-persistent state. The
-manifest therefore contains 324
-children, 340 keyed issues, and 424 managed objects. All three new issues begin
-`agent:blocked`. Once M01-025 closes with reviewed evidence, readiness
-recomputation makes only M01-033 `agent:ready`. M01-033 owns only new generator
-files, its focused host test, and `docs/security.md`, so it has no central
-collision lane and may run alongside genuinely disjoint work. M01-034,
-M01-035, and M01-026 remain blocked in order. This administrative branch does
-not synchronize the tracker.
+manifest and tracker contain 324 children, 340 keyed issues, and 424 managed
+objects. The guarded 2026-07-28 apply closed reviewed M01-025 issue `#332`,
+created M01-033 through M01-035 as issues `#411` through `#413`, and
+recomputed readiness. M01-033 `#411` is the only open `agent:ready` issue. It
+owns only new generator files, its focused host test, and `docs/security.md`,
+so it has no central collision lane and may run alongside genuinely disjoint
+work. M01-034 `#412`, M01-035 `#413`, and M01-026 `#333` remain
+`agent:blocked` in order.
 
 The guarded earlier M00-023 apply recognized existing M00-023 as issue #321,
 created only M01-016 through M01-026 as issues #323 through #333, updated
@@ -44,10 +44,13 @@ the substantive M03-007 post-EBS permanent-CR3 handoff and its generated
 M03-EPIC child-checklist update. Its 315-child/331-keyed/415-managed-object
 convergence is preserved historical evidence, as are the later
 316-child/332-keyed/416-managed-object and
-321-child/337-keyed/421-managed-object snapshots. After a future guarded apply,
-a converged preview for the current manifest must report all 424 managed
-objects unchanged. None of these administrative inventory changes advances a
-capability or completion gate.
+321-child/337-keyed/421-managed-object snapshots. The 2026-07-28 guarded apply
+created three issues, recorded four update events including the newly created
+M01-033 readiness recomputation, preserved 420 unchanged events, and emitted
+`SYNC_VERIFY_PASS milestones=16 labels=68 issues=340`. Its following no-write
+preview reported all 424 managed objects unchanged with zero create, update,
+skip, or failure action. None of these administrative inventory changes
+advances a capability or completion gate.
 
 ## Implemented Behavior
 
