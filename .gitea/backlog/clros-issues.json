@@ -4786,7 +4786,7 @@
         "M01-030"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p0",
         "type:implementation",
         "evidence:host",
@@ -4820,7 +4820,7 @@
       ],
       "collisionLane": "lane:probes",
       "summary": "Add a no-stdlib-compatible host-tested sizing, placement, capacity, materialization, and exact readback contract that turns the prepared flat X64 page images/entries into the physical table pages of one exact candidate-base arena while reserving its final page for transition state and canary.",
-      "currentEvidence": "M01LivePagingIntegration currently builds X64PageTableImagePage metadata and a disjoint flat entry workspace, but it does not copy those entries into the physical table pages named by the images. It also requires the allocation record to equal TotalTablePageCount plus one state page even though AllocateAnyPages reveals the arena base only after allocation and that base participates in the self-mapping plan. Host fixtures hide this dependency by choosing a backing address in advance.",
+      "currentEvidence": "Implementation commit f11f856 and merge commit 300f835 (PR #394) add a bounded candidate-base fixed-point planner, exact table-pages-plus-one-state-page LoaderData request, retained four-requirement and independently rederived seven-range plan evidence, strict nested-plan equality, separate physical/backing domains, a pre-write four-level semantic identity/protection/cache audit, exact ordered 512-entry page emission/readback, exact allocation attributes, and byte-for-byte preservation of the final 4096-byte state/canary page through disjoint caller scratch. done/step876.md preserves the reviewed host record. The accepted 413,657-byte stdout log has SHA-256 3519AC43B03CFBD6A71BEE287E9C2FFEF2706D9374172A56BC717B8CDD8F0562, contains exact TEST_START m01.031, CLROS_M01_031_READY, TEST_PASS m01.031, and final TEST_PASS host.tests lines once each, and contains zero TEST_FAIL prefixes. Stderr is empty with SHA-256 E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855. Solution and HostTests builds passed with zero warnings/errors; naming, source-firewall, QEMU dry-run tooling, and diff checks passed. A repeat independent review found no actionable production, security, test-coverage, no-stdlib, or issue-scope defect. Issue #386 comment #6055 carries clros-evidence-reviewed:M01-031. This is host-only exact arena geometry, capacity/allocation, semantic hierarchy, table materialization/readback, and state/canary preservation evidence; it does not prove live EFI selection/allocation, refreshed-map reconciliation, physical backing identity, CR3/PTE/TLB/protection effects, privileged execution, real QEMU/OVMF behavior, or completion-gate advancement.",
       "implementationNotes": [
         "Add pointer/count/capacity POD contracts inside the already-linked M01LivePagingIntegration source; do not add a new source file that would silently bypass the explicit no-stdlib EFI compile list.",
         "Given a caller-selected page-aligned candidate physical base inside a supplied free descriptor, iteratively compute the exact identity-map fixed point for that arena and return exact table-page count, one state-page count, total page/byte count, root address, state-page address, and required caller workspace.",
@@ -4862,7 +4862,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue may prove only host-tested exact arena geometry, capacity semantics, table-page copying, and readback. It does not select or allocate a live firmware range, prove the refreshed EFI map, install the hierarchy into CR3, execute the composite transition, or observe RFLAGS. It does not prove live QEMU/OVMF execution or advance a completion gate.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-032",
