@@ -1104,6 +1104,7 @@ internal static class GiteaBacklogManifestTests
             "M01_RFLAGS_RESTORED",
             "M01_PGE_CYCLE_VERIFIED",
             "M01_OWNED_CR3_CANARY_VERIFIED",
+            "M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED",
             "M01_POST_CR3",
             "M01_RW_TO_RX_VERIFIED",
             "M01_TLB_INVALIDATION_COMPLETE",
@@ -1511,6 +1512,7 @@ internal static class GiteaBacklogManifestTests
                 "src/OS/OS.csproj",
                 "src/OS/Boot/X64InstructionPublication.cs",
                 "src/OS/Runtime/RuntimeImportAttribute.cs",
+                "src/OS/Runtime/MethodImplAttribute.cs",
                 "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.targets",
                 "scripts/test-efi-artifact.ps1",
                 "tests/OS.HostTests/M01InstructionPublicationBuildIntegrationTests.cs",
@@ -1538,6 +1540,9 @@ internal static class GiteaBacklogManifestTests
                 generator.GetProperty("forbiddenPaths"),
                 "src/OS/Boot/EfiEntry.cs") ||
             !JsonElementContains(
+                generator.GetProperty("forbiddenPaths"),
+                "src/OS/Runtime/MethodImplAttribute.cs") ||
+            !JsonElementContains(
                 integration.GetProperty("forbiddenPaths"),
                 "src/OS/Boot/EfiEntry.cs") ||
             !JsonElementContains(
@@ -1546,6 +1551,9 @@ internal static class GiteaBacklogManifestTests
             !JsonElementContains(
                 publication.GetProperty("forbiddenPaths"),
                 "src/OS/OS.csproj") ||
+            !JsonElementContains(
+                publication.GetProperty("forbiddenPaths"),
+                "src/OS/Runtime/MethodImplAttribute.cs") ||
             !JsonElementContains(
                 publication.GetProperty("forbiddenPaths"),
                 "tools/OS.X64TextSerializerGenerator/**") ||
@@ -1575,7 +1583,7 @@ internal static class GiteaBacklogManifestTests
             JsonArrayText(publication.GetProperty("acceptanceCriteria")) + "\n" +
             publication.GetProperty("evidenceBoundary").GetString();
         string exactBytes =
-            "9C 53 B8 00 00 00 00 B9 00 00 00 00 0F A2 5B 9D C3";
+            "53 B8 00 00 00 00 B9 00 00 00 00 0F A2 B8 43 4C 52 53 5B C3";
         string[] generatorTerms =
         [
             "AMD64 COFF machine 0x8664",
@@ -1584,7 +1592,23 @@ internal static class GiteaBacklogManifestTests
             exactBytes,
             "timestamp zero",
             "IMAGE_SCN_MEM_WRITE clear",
-            "no relocations",
+            "IMAGE_SCN_ALIGN_16BYTES",
+            "raw size 20",
+            ".xdata$clrossm",
+            ".pdata$clrossm",
+            "raw size 8",
+            "raw size 12",
+            "IMAGE_SCN_CNT_INITIALIZED_DATA",
+            "IMAGE_SCN_ALIGN_4BYTES",
+            "COFF function type 0x20",
+            "static storage class",
+            "IMAGE_REL_AMD64_ADDR32NB",
+            "UWOP_PUSH_NONVOL RBX",
+            "01 01 01 00 01 30 00 00",
+            ".pdata offsets 0 and 4",
+            "at offset 8",
+            "static value-zero .xdata$clrossm base symbol",
+            "0x53524C43",
             "RFLAGS",
             "integer overflow",
             "generator timeout",
@@ -1595,10 +1619,29 @@ internal static class GiteaBacklogManifestTests
             "CLROS.slnx",
             "NativeLibrary",
             "[RuntimeImport(\"*\", \"CLROS_X64_SerializeInstructionPublication\")]",
+            "[MethodImpl(MethodImplOptions.InternalCall)]",
+            "internal static extern uint Serialize()",
+            "InternalCall = 0x1000",
+            "0x53524C43",
             "/INCLUDE:CLROS_X64_SerializeInstructionPublication",
             "same-build map",
+            "data-directory index 3",
+            "NumberOfRvaAndSizes",
+            "DWORD-aligned exception-directory RVA",
             "file-backed",
             "RX/nonwritable",
+            "RUNTIME_FUNCTION",
+            "UNWIND_INFO",
+            "exactly divisible by the 12-byte RUNTIME_FUNCTION",
+            "strictly sorted by BeginAddress and nonoverlapping",
+            "BeginAddress equal the same-build symbol RVA",
+            "EndAddress equal BeginAddress + 20",
+            "UnwindInfoAddress",
+            "within SizeOfImage",
+            "no other record to overlap",
+            "MethodImplAttributes.InternalCall set",
+            "PInvokeImpl clear",
+            "no IL body",
             exactBytes,
             "absent import",
             "must not invoke",
@@ -1612,7 +1655,19 @@ internal static class GiteaBacklogManifestTests
             "Epoch 2",
             "Epoch 3",
             "Epoch 4",
+            "CaptureArchitecturalPreflight",
+            "after the PAT-reader readback loop",
+            "both entry bindings",
+            "preflight(observation)",
+            "readPat()",
+            "ordinary caller local is forbidden",
+            "one-way stage-one stack switch",
+            "0 -> 1 -> 3 -> 7 -> 15",
             "M01_PRE_CR3",
+            "0x53524C43",
+            "mask is exactly 0xF",
+            "M01_INSTRUCTION_PUBLICATION_COOKIE_FAILED",
+            "M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED",
             "No executable-page write",
             "LFENCE",
             "MFENCE",
@@ -1687,7 +1742,16 @@ internal static class GiteaBacklogManifestTests
                 "M01-025 and then M01-033, M01-034, and M01-035",
                 StringComparison.Ordinal) &&
             qemuContract.Contains(
-                "exactly four publication-epoch calls",
+                "exactly four checked publication-epoch calls",
+                StringComparison.Ordinal) &&
+            qemuContract.Contains(
+                "runtime-observable aggregate success marker",
+                StringComparison.Ordinal) &&
+            qemuContract.Contains(
+                "M01_INSTRUCTION_PUBLICATION_COOKIE_FAILED",
+                StringComparison.Ordinal) &&
+            qemuContract.Contains(
+                "M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED",
                 StringComparison.Ordinal) &&
             qemuContract.Contains(
                 "QEMU/TCG",
@@ -1708,8 +1772,20 @@ internal static class GiteaBacklogManifestTests
                 integration.GetProperty("requiredCommands"),
                 "test-efi-artifact.ps1") &&
             JsonElementContains(
+                integration.GetProperty("requiredCommands"),
+                "-EfiArtifact .\\artifacts\\efi\\BOOTX64.EFI") &&
+            JsonElementContains(
                 publication.GetProperty("requiredCommands"),
-                "test-efi-artifact.ps1");
+                "test-efi-artifact.ps1") &&
+            JsonElementContains(
+                publication.GetProperty("requiredCommands"),
+                "-EfiArtifact .\\artifacts\\efi\\BOOTX64.EFI") &&
+            JsonElementContains(
+                issueByKey["M01-026"].GetProperty("requiredCommands"),
+                "M01_INSTRUCTION_PUBLICATION_COOKIE_FAILED") &&
+            JsonElementContains(
+                issueByKey["M01-026"].GetProperty("requiredCommands"),
+                "M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED");
     }
 
     private static bool ValidateM03PermanentCr3Handoff(

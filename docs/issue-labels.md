@@ -24,8 +24,10 @@ serialized prerequisites before M01-025. Its 321-child, 337-keyed-issue,
 
 The current durable manifest adds M01-033 through M01-035 after M01-025 and
 before M01-026. These slices respectively own deterministic C# AMD64 COFF
-serializer generation, canonical EFI link/final-artifact verification, and
-four-epoch EfiEntry publication ordering. The manifest therefore contains 324
+serializer plus encoded unwind intent, canonical EFI
+link/authoritative-exception-directory verification, and four-epoch EfiEntry
+checked-cookie publication ordering through stack-switch-persistent state. The
+manifest therefore contains 324
 children, 340 keyed issues, and 424 managed objects. All three new issues begin
 `agent:blocked`. Once M01-025 closes with reviewed evidence, readiness
 recomputation makes only M01-033 `agent:ready`. M01-033 owns only new generator
@@ -73,10 +75,13 @@ capability or completion gate.
   collision-lane surface. M01-027 and M01-020 are closed. M01-028 inserts the
   serialized M01-029 preparation, M01-030 identity-binding, M01-031 physical
   table-materialization, and M01-032 call-gate leaves before M01-025. The new
-  M01-033 generator, M01-034 canonical link/artifact-verifier, and M01-035
-  four-publication-epoch EfiEntry slices then serialize the instruction
-  publication boundary before M01-026 retains the later real-QEMU evidence
-  boundary.
+  M01-033 generator/unwind, M01-034 canonical link/artifact/unwind-verifier, and
+  M01-035 four-publication-epoch checked-cookie EfiEntry slices then serialize
+  the instruction-publication boundary before M01-026 retains the later
+  runtime-observable real-QEMU evidence boundary. M01-033 proves object bytes
+  and relocation intent only; M01-034 must prove the linked PE exception
+  directory and M01-035 must preserve exact state transitions across the
+  one-way owned-stack switch.
 - One `phase:mxx-*` label identifies each milestone from M00 through M15.
 
 Only issues whose complete transitive dependency tree is manifest-closed,

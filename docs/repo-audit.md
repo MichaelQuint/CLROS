@@ -42,9 +42,11 @@ and the reachable local Gitea tracker:
   321-child, 337-keyed-issue, 421-managed-object inventory is preserved as the
   last applied historical snapshot.
 - The current durable manifest adds M01-033 through M01-035 after M01-025 and
-  before M01-026: deterministic C# AMD64 COFF serializer generation, canonical
-  EFI link/final-artifact verification, and four-epoch EfiEntry publication
-  ordering. The manifest now contains 324 children, 340 keyed issues, and 424
+  before M01-026: deterministic C# AMD64 COFF serializer and encoded unwind
+  intent, canonical EFI link/authoritative-exception-directory verification,
+  and four-epoch EfiEntry checked-cookie publication ordering through
+  stack-switch-persistent state. The manifest now contains 324 children, 340
+  keyed issues, and 424
   managed objects. No tracker synchronization was performed as part of this
   administrative change; it changes dependency/readiness intent only and does
   not change a capability or completion gate.
@@ -213,7 +215,12 @@ Current M00 recovery evidence from 2026-07-25:
   recomputation makes only M01-033 ready; because it owns only new generator
   files, its focused test, and `docs/security.md`, it carries no central
   collision lane and may run beside disjoint work. M01-034, M01-035, and
-  M01-026 remain blocked in order. A converged post-apply no-write preview for
+  M01-026 remain blocked in order. The first leaf proves object bytes and
+  relocatable unwind intent, not final-image unwindability; the second proves
+  the authoritative linked PE exception directory; the third requires the
+  exact `0 -> 1 -> 3 -> 7 -> 15` publication state across the one-way stack
+  switch and places epoch 3 inside `CaptureArchitecturalPreflight` before its
+  first generated-code invocation. A converged post-apply no-write preview for
   the new manifest must report all 424 managed objects unchanged. M02 and M04
   entry work still
   depends on the final M01-026 cumulative paging proof. Only `M15-013`, the
