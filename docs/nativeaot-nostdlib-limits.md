@@ -437,6 +437,28 @@ and `TEST_PASS runtime.cctor work item layouts contain no managed references`.
 
 ## Known Limitations
 
+M01-034 adds the minimum no-stdlib binding metadata needed to retain and name
+one host-generated native helper in the EFI image:
+
+- `System.Runtime.RuntimeImportAttribute` stores only the module and entry-point
+  metadata consumed by NativeAOT;
+- `System.Runtime.CompilerServices.MethodImplAttribute` and the exact
+  `InternalCall` option provide only the method-implementation metadata needed
+  by this binding; and
+- `OS.Boot.X64InstructionPublication.Serialize()` is an `extern` binding to
+  `CLROS_X64_SerializeInstructionPublication` and has no managed fallback.
+
+These shims are deliberately narrower than the public BCL types. They do not
+implement reflection behavior, metadata discovery APIs, runtime invocation,
+exception behavior, or general internal-call resolution. The host integration
+test decodes the freshly built managed assembly and requires the exact
+no-body `RuntimeImport`/`InternalCall` metadata. The canonical EFI artifact
+verifier independently binds that managed-assembly hash to the same build and
+proves that the final PE contains the expected nonwritable executable bytes
+plus matching nonwritable unwind coverage. M01-034 does not call the binding,
+prove its success cookie in a guest, implement NativeAOT runtime helpers, or
+advance a runtime or boot completion gate.
+
 Most solution projects reference normal `net10.0` libraries to keep host
 contracts buildable. `src/OS/OS.csproj` is included in `CLROS.slnx` as explicit
 no-stdlib work under stricter directory-local rules; it produces a minimal EFI

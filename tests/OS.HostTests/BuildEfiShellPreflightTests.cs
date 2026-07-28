@@ -45,6 +45,54 @@ internal static class BuildEfiShellPreflightTests
                 "m01.020 rejects weakened allocation and CR3 contracts",
                 () => TestM01SemanticContractMatrix(tempRoot),
                 ref m01Failures);
+            Run(
+                "m01.034 rejects serializer targets import bypasses",
+                () => TestM01SerializerTargetsImportMatrix(tempRoot),
+                ref m01Failures);
+            Run(
+                "m01.034 locks and records the complete publish source and SDK closure",
+                TestM01PublishSourceAndSdkClosure,
+                ref m01Failures);
+            Run(
+                "m01.034 pins the isolated restore and package build authority",
+                TestM01PinnedRestoreAndPackageAuthority,
+                ref m01Failures);
+            Run(
+                "m01.034 holds absolute package inputs until explicit release",
+                () => TestM01AbsolutePackageInputLocks(tempRoot),
+                ref m01Failures);
+            Run(
+                "m01.034 isolates source evaluation from stale project-extension inputs",
+                () => TestM01ProjectExtensionEvaluationIsolation(tempRoot),
+                ref m01Failures);
+            Run(
+                "m01.034 bounds every owned build process and reaps descendants",
+                () => TestM01BoundedBuildProcessRunner(tempRoot),
+                ref m01Failures);
+            Run(
+                "m01.034 freezes SDK paths and disables wildcard imports",
+                () => TestM01MsbuildInjectionIsolation(tempRoot),
+                ref m01Failures);
+            Run(
+                "m01.034 bounds verifier execution and reaps its process tree",
+                () => TestM01ArtifactVerifierTimeout(tempRoot),
+                ref m01Failures);
+            Run(
+                "m01.034 serializes canonical output ownership and releases it",
+                () => TestM01PublishOutputMutex(tempRoot),
+                ref m01Failures);
+            Run(
+                "m01.034 rejects unsafe fresh-output cleanup paths",
+                () => TestM01FreshOutputCleanupGuards(tempRoot),
+                ref m01Failures);
+            Run(
+                "m01.034 holds source read locks until explicit release",
+                () => TestM01PublishSourceLocks(tempRoot),
+                ref m01Failures);
+            Run(
+                "m01.034 owns output, log, and verifier file authority",
+                () => TestM01OutputAndVerifierAuthority(tempRoot),
+                ref m01Failures);
 
             if (m01Failures == 0)
             {
@@ -737,7 +785,16 @@ internal static class BuildEfiShellPreflightTests
                 tempRoot,
                 "m01-project-negative-" + name);
             mutate(source);
-            if (!ExpectM01SourceClosureFailure(tools, source, expectedReason: null))
+            bool passed = name == "missing-required-source"
+                ? ExpectM01SourceSnapshotFailure(
+                    tools,
+                    source,
+                    "UefiMemoryType.cs")
+                : ExpectM01SourceClosureFailure(
+                    tools,
+                    source,
+                    expectedReason: null);
+            if (!passed)
             {
                 Console.WriteLine("M01 project-closure case failed: " + name);
                 return false;
@@ -745,6 +802,34 @@ internal static class BuildEfiShellPreflightTests
         }
 
         return true;
+    }
+
+    private static bool ExpectM01SourceSnapshotFailure(
+        ToolFixture tools,
+        SourceClosureFixture source,
+        string expectedPathFragment)
+    {
+        ProcessResult result = RunPreflight(
+            tools,
+            useSearchRoots: false,
+            scriptPath: source.ScriptPath);
+        bool passed = result.ExitCode == 1
+            && result.Output.Contains(
+                "TEST_FAIL efi.shell.publish source_snapshot_failed",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                expectedPathFragment,
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "EFI_PREFLIGHT_START",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(SecretCanary, StringComparison.Ordinal);
+        if (!passed)
+        {
+            Console.WriteLine(result.Output);
+        }
+
+        return passed;
     }
 
     private static bool TestM01SemanticContractMatrix(string tempRoot)
@@ -875,6 +960,2575 @@ internal static class BuildEfiShellPreflightTests
         return true;
     }
 
+    private static bool TestM01SerializerTargetsImportMatrix(string tempRoot)
+    {
+        ToolFixture tools = CreateCompleteToolFixture(
+            tempRoot,
+            "m01-serializer-import-negative-tools");
+        (string Name, Action<SourceClosureFixture> Mutate, string Reason)[] cases =
+        [
+            (
+                "missing-import",
+                source => ReplaceOnce(
+                    source.ProjectPath,
+                    "\t<Import Project=\"..\\..\\tools\\OS.X64TextSerializerGenerator\\OS.X64TextSerializerGenerator.targets\" />\n",
+                    string.Empty),
+                "serializer_import_count_mismatch"),
+            (
+                "duplicate-import",
+                source => InsertBeforeProjectEnd(
+                    source.ProjectPath,
+                    "  <Import Project=\"..\\..\\tools\\OS.X64TextSerializerGenerator\\OS.X64TextSerializerGenerator.targets\" />\n"),
+                "serializer_import_count_mismatch"),
+            (
+                "conditional-import",
+                source => ReplaceOnce(
+                    source.ProjectPath,
+                    "<Import Project=\"..\\..\\tools\\OS.X64TextSerializerGenerator\\OS.X64TextSerializerGenerator.targets\" />",
+                    "<Import Project=\"..\\..\\tools\\OS.X64TextSerializerGenerator\\OS.X64TextSerializerGenerator.targets\" Condition=\"Exists('future.targets')\" />"),
+                "serializer_import_shape_invalid"),
+            (
+                "property-expanded-import",
+                source => ReplaceOnce(
+                    source.ProjectPath,
+                    "..\\..\\tools\\OS.X64TextSerializerGenerator\\OS.X64TextSerializerGenerator.targets",
+                    "$(FutureTargets)"),
+                "serializer_import_shape_invalid"),
+            (
+                "wildcard-import",
+                source => ReplaceOnce(
+                    source.ProjectPath,
+                    "OS.X64TextSerializerGenerator.targets",
+                    "*.targets"),
+                "serializer_import_shape_invalid"),
+            (
+                "wrong-import-path",
+                source => ReplaceOnce(
+                    source.ProjectPath,
+                    "OS.X64TextSerializerGenerator.targets",
+                    "Alternate.targets"),
+                "serializer_import_shape_invalid"),
+            (
+                "missing-targets",
+                source => File.Delete(source.SerializerTargetsPath),
+                "serializer_targets_missing"),
+            (
+                "project-dtd",
+                source => File.WriteAllText(
+                    source.ProjectPath,
+                    "<!DOCTYPE Project [<!ENTITY injected \"unsafe\">]>\n" +
+                    File.ReadAllText(source.ProjectPath),
+                    new UTF8Encoding(false)),
+                "project_malformed"),
+            (
+                "malformed-targets",
+                source => File.WriteAllText(
+                    source.SerializerTargetsPath,
+                    "<Project>",
+                    new UTF8Encoding(false)),
+                "serializer_targets_malformed"),
+            (
+                "targets-dtd",
+                source => File.WriteAllText(
+                    source.SerializerTargetsPath,
+                    "<!DOCTYPE Project [<!ENTITY injected \"unsafe\">]>\n" +
+                    File.ReadAllText(source.SerializerTargetsPath),
+                    new UTF8Encoding(false)),
+                "serializer_targets_malformed"),
+            (
+                "hidden-generator-source",
+                source =>
+                {
+                    string hiddenDirectory = Path.Combine(
+                        Path.GetDirectoryName(source.SerializerTargetsPath)!,
+                        ".hidden");
+                    Directory.CreateDirectory(hiddenDirectory);
+                    File.WriteAllText(
+                        Path.Combine(hiddenDirectory, "Evil.cs"),
+                        "internal static class Evil { }\n",
+                        new UTF8Encoding(false));
+                },
+                "serializer_generator_compile_count_mismatch"),
+            (
+                "generator-project-reference",
+                source => InsertBeforeProjectEnd(
+                    Path.Combine(
+                        Path.GetDirectoryName(source.SerializerTargetsPath)!,
+                        "OS.X64TextSerializerGenerator.csproj"),
+                    "  <ItemGroup><ProjectReference Include=\"..\\OS.ImageBuilder\\OS.ImageBuilder.csproj\" /></ItemGroup>\n"),
+                "serializer_build_input_shape_invalid"),
+            (
+                "generator-package-reference",
+                source => InsertBeforeProjectEnd(
+                    Path.Combine(
+                        Path.GetDirectoryName(source.SerializerTargetsPath)!,
+                        "OS.X64TextSerializerGenerator.csproj"),
+                    "  <ItemGroup><PackageReference Include=\"Future.Generator\" Version=\"1.0.0\" /></ItemGroup>\n"),
+                "serializer_build_input_shape_invalid"),
+            (
+                "generator-analyzer",
+                source => InsertBeforeProjectEnd(
+                    Path.Combine(
+                        Path.GetDirectoryName(source.SerializerTargetsPath)!,
+                        "OS.X64TextSerializerGenerator.csproj"),
+                    "  <ItemGroup><Analyzer Include=\"future-generator.dll\" /></ItemGroup>\n"),
+                "serializer_build_input_shape_invalid"),
+            (
+                "tools-props-source-generator",
+                source => InsertBeforeProjectEnd(
+                    Path.Combine(
+                        Directory.GetParent(
+                            Path.GetDirectoryName(source.SerializerTargetsPath)!)!
+                            .FullName,
+                        "Directory.Build.props"),
+                    "  <ItemGroup><Analyzer Include=\"future-source-generator.dll\" /></ItemGroup>\n"),
+                "serializer_build_input_shape_invalid"),
+            (
+                "generator-local-props",
+                source => File.WriteAllText(
+                    Path.Combine(
+                        Path.GetDirectoryName(source.SerializerTargetsPath)!,
+                        "Directory.Build.props"),
+                    "<Project />\n",
+                    new UTF8Encoding(false)),
+                "unexpected_build_customization"),
+            (
+                "generator-local-targets",
+                source => File.WriteAllText(
+                    Path.Combine(
+                        Path.GetDirectoryName(source.SerializerTargetsPath)!,
+                        "Directory.Build.targets"),
+                    "<Project />\n",
+                    new UTF8Encoding(false)),
+                "unexpected_build_customization"),
+            (
+                "tools-directory-targets",
+                source => File.WriteAllText(
+                    Path.Combine(
+                        Directory.GetParent(
+                            Path.GetDirectoryName(source.SerializerTargetsPath)!)!
+                            .FullName,
+                        "Directory.Build.targets"),
+                    "<Project />\n",
+                    new UTF8Encoding(false)),
+                "unexpected_build_customization"),
+            (
+                "compile-injection",
+                source => InsertBeforeProjectEnd(
+                    source.SerializerTargetsPath,
+                    "  <ItemGroup><Compile Include=\"future.cs\" /></ItemGroup>\n"),
+                "serializer_targets_input_injection"),
+            (
+                "project-reference-injection",
+                source => InsertBeforeProjectEnd(
+                    source.SerializerTargetsPath,
+                    "  <ItemGroup><ProjectReference Include=\"future.csproj\" /></ItemGroup>\n"),
+                "serializer_targets_input_injection"),
+            (
+                "reference-injection",
+                source => InsertBeforeProjectEnd(
+                    source.SerializerTargetsPath,
+                    "  <ItemGroup><Reference Include=\"Future\" /></ItemGroup>\n"),
+                "serializer_targets_input_injection"),
+            (
+                "analyzer-injection",
+                source => InsertBeforeProjectEnd(
+                    source.SerializerTargetsPath,
+                    "  <ItemGroup><Analyzer Include=\"future.dll\" /></ItemGroup>\n"),
+                "serializer_targets_input_injection"),
+            (
+                "using-task-injection",
+                source => InsertBeforeProjectEnd(
+                    source.SerializerTargetsPath,
+                    "  <UsingTask TaskName=\"Future\" AssemblyFile=\"future.dll\" />\n"),
+                "serializer_targets_input_injection"),
+            (
+                "output-injection",
+                source => InsertBeforeProjectEnd(
+                    source.SerializerTargetsPath,
+                    "  <Target Name=\"Future\"><FutureTask><Output TaskParameter=\"Files\" ItemName=\"Compile\" /></FutureTask></Target>\n"),
+                "serializer_targets_output_injection"),
+            (
+                "target-shape-mutation",
+                source => ReplaceOnce(
+                    source.SerializerTargetsPath,
+                    "<ClrosX64InstructionPublicationObjectBytes>336</ClrosX64InstructionPublicationObjectBytes>",
+                    "<ClrosX64InstructionPublicationObjectBytes>337</ClrosX64InstructionPublicationObjectBytes>"),
+                "serializer_targets_shape_invalid")
+        ];
+
+        foreach ((string name, Action<SourceClosureFixture> mutate, string reason) in cases)
+        {
+            SourceClosureFixture source = CreateSourceClosureFixture(
+                tempRoot,
+                "m01-serializer-import-negative-" + name);
+            mutate(source);
+            bool passed = name == "missing-targets"
+                ? ExpectM01SourceSnapshotFailure(
+                    tools,
+                    source,
+                    "OS.X64TextSerializerGenerator.targets")
+                : ExpectM01SourceClosureFailure(tools, source, reason);
+            if (!passed)
+            {
+                Console.WriteLine("M01 serializer-import case failed: " + name);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TestM01PublishSourceAndSdkClosure()
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string scriptPath = Path.Combine(
+            repositoryRoot,
+            "scripts",
+            "build-efi-shell.ps1");
+        string script = File.ReadAllText(scriptPath);
+
+        int snapshotIndex = script.IndexOf(
+            "$sourceSnapshotBeforePublish = Get-M01PublishSourceSnapshot",
+            StringComparison.Ordinal);
+        int preflightLogSaveIndex = script.LastIndexOf(
+            "Save-EfiPreflightLog -Path $logFullPath",
+            StringComparison.Ordinal);
+        int lockIndex = script.IndexOf(
+            "$sourceLocks = Open-M01PublishSourceLocks",
+            StringComparison.Ordinal);
+        int lockedValidationIndex = script.IndexOf(
+            "$m01LockedSourceClosure = Test-M01SourceClosure",
+            StringComparison.Ordinal);
+        int initialValidationIndex = script.IndexOf(
+            "$m01SourceClosure = Test-M01SourceClosure",
+            StringComparison.Ordinal);
+        int outputLockIndex = script.IndexOf(
+            "$publishOutputLock = Open-M01PublishOutputLock",
+            StringComparison.Ordinal);
+        int freshOutputIndex = script.IndexOf(
+            "EFI_PUBLISH_FRESH_OUTPUTS status=ok",
+            StringComparison.Ordinal);
+        int restoreIndex = script.IndexOf(
+            "-Operation \"isolated-restore\"",
+            StringComparison.Ordinal);
+        int restoreLockIndex = script.IndexOf(
+            "$restoreLocks = Open-M01PublishSourceLocks",
+            StringComparison.Ordinal);
+        int restorePostPublishIndex = script.IndexOf(
+            "$restoreSnapshotAfterPublish = Get-M01ExactRestoreClosureSnapshot",
+            StringComparison.Ordinal);
+        int publishIndex = script.LastIndexOf(
+            "-Operation \"nativeaot-publish\"",
+            StringComparison.Ordinal);
+        int verifyIndex = script.IndexOf(
+            "$verificationResult = Invoke-M01ArtifactVerifier",
+            StringComparison.Ordinal);
+        int closeIndex = script.LastIndexOf(
+            "Close-M01PublishSourceLocks -Locks $sourceLocks",
+            StringComparison.Ordinal);
+        int restoreCloseIndex = script.LastIndexOf(
+            "Close-M01PublishSourceLocks -Locks $restoreLocks",
+            StringComparison.Ordinal);
+
+        return script.Contains("\"global.json\"", StringComparison.Ordinal)
+            && script.Contains(
+                "\"scripts\\build-efi-shell.ps1\"",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "\"scripts\\test-efi-artifact.ps1\"",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "[System.IO.FileShare]::Read",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "source_changed_before_lock",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "$sourceSnapshotAfterPublish = Get-M01PublishSourceSnapshot",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "dotnetHostPath = $script:DotnetHostPath",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "dotnetHostSha256 = $dotnetHostHash",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "dotnetSdkVersion = $dotnetSdkVersion",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "\"-p:NoIncremental=true\"",
+                StringComparison.Ordinal)
+            && Regex.Matches(
+                script,
+                "\"-noAutoResponse\"",
+                RegexOptions.CultureInvariant).Count >= 4
+            && script.Contains(
+                "\"-p:DirectoryBuildPropsPath=\" + $canonicalRootPropsPath",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "\"-p:DirectoryBuildTargetsPath=\" + $canonicalRootTargetsPath",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "EFI_PUBLISH_M01_SOURCE_CLOSURE_LOCKED status=ok",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "EFI_PUBLISH_RESTORE_CLOSURE_LOCKED status=ok",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "\"-p:MSBuildProjectExtensionsPath=\"",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "\"-p:ProjectAssetsFile=\"",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "\"-p:ImportProjectExtensionProps=false\"",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "\"-p:ImportProjectExtensionTargets=false\"",
+                StringComparison.Ordinal)
+            && !script.Contains(
+                "\"-p:ImportProjectExtensionProps=true\"",
+                StringComparison.Ordinal)
+            && !script.Contains(
+                "\"-p:ImportProjectExtensionTargets=true\"",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "\"-p:ExcludeRestorePackageImports=true\"",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "function Test-M01RestoreSemanticClosure",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "function Get-M01ConsumedPackageClosureSnapshot",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "function Get-M01PackageBuildClosureSnapshot",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "EFI_PUBLISH_PINNED_RESTORE_SOURCE status=ok",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "EFI_PUBLISH_PACKAGE_CLOSURE_LOCKED status=ok",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "EFI_PUBLISH_POST_RESTORE_EVALUATION status=ok",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "schemaVersion = 3",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "packageClosureSha256 =",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "packageBuildClosureSha256 =",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "postRestoreEvaluation = $postRestoreEvaluation",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "\"-p:RestoreForceEvaluate=true\"",
+                StringComparison.Ordinal)
+            && script.Contains("\"--no-restore\"", StringComparison.Ordinal)
+            && script.Contains(
+                "restoreClosureSha256 =",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "restoreClosureInputs =",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "projectAssetsSha256 = $projectAssetsHash",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "function Remove-M01FreshPublishDirectory",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "function Open-M01PublishOutputLock",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "publish_output_lock_failed",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "fresh_output_cleanup_failed",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "[System.IO.FileAttributes]::ReparsePoint",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "function Stop-M01ProcessTree",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "CLROS_M01_VERIFIER_STARTUP_GATE",
+                StringComparison.Ordinal)
+            && script.IndexOf(
+                "$processJob.Assign($process)",
+                StringComparison.Ordinal) <
+                script.IndexOf("$startupGate.Set()", StringComparison.Ordinal)
+            && script.Contains(
+                "artifact_verification_timeout",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "[int] $ArtifactVerifierTimeoutSeconds = 60",
+                StringComparison.Ordinal)
+            && outputLockIndex >= 0
+            && preflightLogSaveIndex > outputLockIndex
+            && snapshotIndex > outputLockIndex
+            && lockIndex > snapshotIndex
+            && initialValidationIndex > lockIndex
+            && lockedValidationIndex > lockIndex
+            && freshOutputIndex > lockedValidationIndex
+            && restoreIndex > freshOutputIndex
+            && restoreLockIndex > restoreIndex
+            && publishIndex > lockIndex
+            && publishIndex > lockedValidationIndex
+            && publishIndex > restoreLockIndex
+            && restorePostPublishIndex > publishIndex
+            && verifyIndex > publishIndex
+            && restoreCloseIndex > verifyIndex
+            && closeIndex > restoreCloseIndex;
+    }
+
+    private static bool TestM01PinnedRestoreAndPackageAuthority()
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string scriptPath = Path.Combine(
+            repositoryRoot,
+            "scripts",
+            "build-efi-shell.ps1");
+        string script = File.ReadAllText(scriptPath);
+
+        IReadOnlyList<IReadOnlyDictionary<string, string>> restoreArchives =
+            ParsePowerShellLiteralRecords(
+                ExtractPowerShellBlock(
+                    script,
+                    "$script:ExpectedRestoreArchives = @(",
+                    "$script:ExpectedM01ReviewedSourceIncludes"));
+        IReadOnlyList<IReadOnlyDictionary<string, string>> packageTrees =
+            ParsePowerShellLiteralRecords(
+                ExtractPowerShellBlock(
+                    script,
+                    "$script:ExpectedConsumedPackageTrees = @(",
+                    "$script:ExpectedActivePackageImportEdges"));
+        IReadOnlyList<IReadOnlyDictionary<string, string>> buildInputs =
+            ParsePowerShellLiteralRecords(
+                ExtractPowerShellBlock(
+                    script,
+                    "$script:ExpectedPackageBuildClosure = @(",
+                    "$script:ExpectedRestoreLibraries"));
+
+        string[] expectedArchives =
+        [
+            "microsoft.dotnet.ilcompiler|10.0.8|" +
+                "microsoft.dotnet.ilcompiler.10.0.8.nupkg|" +
+                "ccdc381bbc7672c48bc755311fdf2f5907433933c295198172d2ad6958ed10b4",
+            "microsoft.net.illink.tasks|10.0.10|" +
+                "microsoft.net.illink.tasks.10.0.10.nupkg|" +
+                "97a0eca2030901738f070f142aaf02b3b1aead2bc984c08c428847910b4be312",
+            "runtime.win-x64.microsoft.dotnet.ilcompiler|10.0.8|" +
+                "runtime.win-x64.microsoft.dotnet.ilcompiler.10.0.8.nupkg|" +
+                "49f15032ef981172b8c25360f97b76d8abab75348f8e16da0a3fbb970c10bec8",
+            "runtime.win-x64.microsoft.dotnet.ilcompiler|10.0.10|" +
+                "runtime.win-x64.microsoft.dotnet.ilcompiler.10.0.10.nupkg|" +
+                "0ae1c40ef28915e63c257999d4cd860db9086878c3a6f8e30388e00056ab350a",
+            "microsoft.netcore.app.runtime.nativeaot.win-x64|10.0.10|" +
+                "microsoft.netcore.app.runtime.nativeaot.win-x64.10.0.10.nupkg|" +
+                "5fd7129af9eed4b5a2ed04219b636f7ba0dd965569275d3379fc4d02f623e626"
+        ];
+        string[] actualArchives = restoreArchives
+            .Select(record =>
+                ReadRecordValue(record, "Id") + "|" +
+                ReadRecordValue(record, "Version") + "|" +
+                ReadRecordValue(record, "FileName") + "|" +
+                ReadRecordValue(record, "Sha256"))
+            .ToArray();
+
+        string[] expectedPackageTrees =
+        [
+            "microsoft.dotnet.ilcompiler|10.0.8|restore",
+            "microsoft.net.illink.tasks|10.0.10|restore",
+            "runtime.win-x64.microsoft.dotnet.ilcompiler|10.0.8|restore",
+            "runtime.win-x64.microsoft.dotnet.ilcompiler|10.0.10|restore-only",
+            "microsoft.netcore.app.runtime.nativeaot.win-x64|10.0.10|restore-only",
+            "microsoft.netcore.app.runtime.nativeaot.win-x64|10.0.8|runtime"
+        ];
+        string[] actualPackageTrees = packageTrees
+            .Select(record =>
+                ReadRecordValue(record, "Id") + "|" +
+                ReadRecordValue(record, "Version") + "|" +
+                ReadRecordValue(record, "RootKind"))
+            .ToArray();
+        bool packageTreeEvidenceComplete = packageTrees.All(record =>
+            IsLowerHex(ReadRecordValue(record, "AggregateSha256"), 64) &&
+            !string.IsNullOrWhiteSpace(
+                ReadRecordValue(record, "ContentHashSha512")) &&
+            int.TryParse(
+                ReadRecordValue(record, "FileCount"),
+                out int fileCount) &&
+            fileCount > 0 &&
+            long.TryParse(
+                ReadRecordValue(record, "TotalBytes"),
+                out long totalBytes) &&
+            totalBytes > 0);
+
+        string[] expectedBuildInputs =
+        [
+            "microsoft.dotnet.ilcompiler/10.0.8/build/" +
+                "Microsoft.DotNet.ILCompiler.SingleEntry.targets",
+            "microsoft.dotnet.ilcompiler/10.0.8/build/" +
+                "Microsoft.NETCore.Native.Publish.targets",
+            "microsoft.dotnet.ilcompiler/10.0.8/build/" +
+                "Microsoft.NETCore.Native.Windows.targets",
+            "microsoft.dotnet.ilcompiler/10.0.8/build/" +
+                "Microsoft.NETCore.Native.targets",
+            "microsoft.dotnet.ilcompiler/10.0.8/tools/netstandard/" +
+                "ILCompiler.Build.Tasks.dll",
+            "microsoft.dotnet.ilcompiler/10.0.8/tools/netstandard/" +
+                "ILCompiler.Build.Tasks.deps.json",
+            "microsoft.net.illink.tasks/10.0.10/build/" +
+                "Microsoft.NET.ILLink.targets",
+            "microsoft.net.illink.tasks/10.0.10/tools/net/" +
+                "ILLink.Tasks.dll",
+            "microsoft.net.illink.tasks/10.0.10/tools/net/" +
+                "ILLink.Tasks.deps.json"
+        ];
+        string[] actualBuildInputs = buildInputs
+            .Select(record => ReadRecordValue(record, "Path"))
+            .ToArray();
+        bool buildInputHashesComplete = buildInputs.All(record =>
+            IsLowerHex(ReadRecordValue(record, "Sha256"), 64));
+
+        string projectExtensionArguments = ExtractPowerShellBlock(
+            script,
+            "$projectExtensionArguments = @(",
+            "$pinnedPackageArguments");
+        string pinnedPackageArguments = ExtractPowerShellBlock(
+            script,
+            "$pinnedPackageArguments = @(",
+            "$arguments = @(");
+        string restoreArguments = ExtractPowerShellBlock(
+            script,
+            "$restoreArguments = @(",
+            "$nativeBinaryPath");
+        string restoreSemanticValidation = ExtractPowerShellBlock(
+            script,
+            "function Test-M01RestoreSemanticClosure",
+            "function Get-M01PackageBuildClosureSnapshot");
+        string packageTreeSnapshot = ExtractPowerShellBlock(
+            script,
+            "function Get-M01ConsumedPackageClosureSnapshot",
+            "function Open-M01AbsoluteInputLocks");
+        string pinnedRestoreSource = ExtractPowerShellBlock(
+            script,
+            "function New-M01PinnedRestoreSource",
+            "function Get-M01ConsumedPackageClosureSnapshot");
+        string finallyBlock = ExtractPowerShellBlock(
+            script,
+            "finally {\n    Close-M01AuthorityRecords -Records $verifierInputLocks",
+            "\n}\n");
+
+        int restoreInvocationIndex = script.IndexOf(
+            "$restoreResult = Invoke-M01BoundedProcess `",
+            StringComparison.Ordinal);
+        int restoreSemanticIndex = script.IndexOf(
+            "Test-M01RestoreSemanticClosure `",
+            restoreInvocationIndex,
+            StringComparison.Ordinal);
+        int packageSnapshotIndex = script.IndexOf(
+            "$packageClosureSnapshotBeforeLock =",
+            restoreSemanticIndex,
+            StringComparison.Ordinal);
+        int packageLockIndex = script.IndexOf(
+            "$packageLocks = Open-M01AbsoluteInputLocks",
+            packageSnapshotIndex,
+            StringComparison.Ordinal);
+        int packageLockedSnapshotIndex = script.IndexOf(
+            "$packageClosureSnapshotAfterLock =",
+            packageLockIndex,
+            StringComparison.Ordinal);
+        int postRestoreEvaluationIndex = script.IndexOf(
+            "$postRestoreEvaluation = Invoke-M01PostRestoreEvaluation",
+            packageLockedSnapshotIndex,
+            StringComparison.Ordinal);
+        int publishIndex = script.LastIndexOf(
+            "$publishResult = Invoke-M01BoundedProcess `",
+            StringComparison.Ordinal);
+        int postPublishPackageSnapshotIndex = script.IndexOf(
+            "$packageClosureSnapshotAfterPublish =",
+            publishIndex,
+            StringComparison.Ordinal);
+        int postPublishComparisonIndex = script.IndexOf(
+            "$packageClosureSnapshotBeforeLock.AggregateSha256 -cne",
+            postPublishPackageSnapshotIndex,
+            StringComparison.Ordinal);
+
+        string[] expectedReleaseOrder =
+        [
+            "$packageLocks",
+            "$restoreLocks",
+            "$restoreSourceLocks",
+            "$restoreArchiveSourceLocks",
+            "$sourceLocks"
+        ];
+        string[] actualReleaseOrder = Regex.Matches(
+                finallyBlock,
+                @"Close-M01PublishSourceLocks -Locks (?<lock>\$\w+)",
+                RegexOptions.CultureInvariant)
+            .Select(match => match.Groups["lock"].Value)
+            .ToArray();
+
+        bool passed =
+            actualArchives.SequenceEqual(
+                expectedArchives,
+                StringComparer.Ordinal)
+            && actualPackageTrees.SequenceEqual(
+                expectedPackageTrees,
+                StringComparer.Ordinal)
+            && packageTreeEvidenceComplete
+            && actualBuildInputs.SequenceEqual(
+                expectedBuildInputs,
+                StringComparer.Ordinal)
+            && buildInputHashesComplete
+            && CountOrdinal(
+                projectExtensionArguments,
+                "\"-p:ImportProjectExtensionProps=false\"") == 1
+            && CountOrdinal(
+                projectExtensionArguments,
+                "\"-p:ImportProjectExtensionTargets=false\"") == 1
+            && CountOrdinal(
+                projectExtensionArguments,
+                "\"-p:ExcludeRestorePackageImports=true\"") == 1
+            && !projectExtensionArguments.Contains(
+                "ImportProjectExtensionProps=true",
+                StringComparison.Ordinal)
+            && !projectExtensionArguments.Contains(
+                "ImportProjectExtensionTargets=true",
+                StringComparison.Ordinal)
+            && restoreArguments.Contains(
+                "\"--configfile\", $restoreConfigPath",
+                StringComparison.Ordinal)
+            && restoreArguments.Contains(
+                "\"--packages\", $restorePackagesDirectory",
+                StringComparison.Ordinal)
+            && restoreArguments.EndsWith(
+                ") + $projectExtensionArguments\n",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "$arguments += $projectExtensionArguments",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "$arguments += $pinnedPackageArguments",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "$arguments += \"--no-restore\"",
+                StringComparison.Ordinal)
+            && pinnedPackageArguments.Contains(
+                "\"-p:ILCompilerTargetsPath=\" + $ilCompilerTargetsPath",
+                StringComparison.Ordinal)
+            && pinnedPackageArguments.Contains(
+                "\"-p:ILLinkTasksAssembly=\" + $ilLinkTasksAssemblyPath",
+                StringComparison.Ordinal)
+            && pinnedPackageArguments.Contains(
+                "\"-p:IlcBuildTasksPath=\" + $ilcBuildTasksPath",
+                StringComparison.Ordinal)
+            && pinnedPackageArguments.Contains(
+                "\"-p:IlcHostPackagePath=\" + $ilCompilerHostPackageRoot",
+                StringComparison.Ordinal)
+            && pinnedPackageArguments.Contains(
+                "\"-p:RuntimePackagePath=\" + $resolvedNativeAotRuntimePackPath",
+                StringComparison.Ordinal)
+            && pinnedRestoreSource.Contains("<clear />", StringComparison.Ordinal)
+            && CountOrdinal(pinnedRestoreSource, "<add key=") == 1
+            && pinnedRestoreSource.Contains(
+                "key=`\"CLROS_PINNED`\"",
+                StringComparison.Ordinal)
+            && pinnedRestoreSource.Contains(
+                "[System.Security.SecurityElement]::Escape",
+                StringComparison.Ordinal)
+            && restoreSemanticValidation.Contains(
+                "local-name()='UsingTask'",
+                StringComparison.Ordinal)
+            && restoreSemanticValidation.Contains(
+                "restore generated targets must be empty",
+                StringComparison.Ordinal)
+            && restoreSemanticValidation.Contains(
+                "restore project assets library unexpected",
+                StringComparison.Ordinal)
+            && restoreSemanticValidation.Contains(
+                "restore project path contract invalid",
+                StringComparison.Ordinal)
+            && packageTreeSnapshot.Contains(
+                "isolated restore package version set invalid",
+                StringComparison.Ordinal)
+            && packageTreeSnapshot.Contains(
+                "consumed package tree mismatch",
+                StringComparison.Ordinal)
+            && packageTreeSnapshot.Contains(
+                ".Name -cne \".nupkg.metadata\"",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "schemaVersion = 3",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "packageRootKind = \"isolated\"",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "ilCompilerPath = $actualIlCompilerPath",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "$actualIlCompilerPath = Join-Path (\n" +
+                    "    $ilCompilerHostPackageRoot) \"tools\\ilc.exe\"",
+                StringComparison.Ordinal)
+            && restoreInvocationIndex >= 0
+            && restoreSemanticIndex > restoreInvocationIndex
+            && packageSnapshotIndex > restoreSemanticIndex
+            && packageLockIndex > packageSnapshotIndex
+            && packageLockedSnapshotIndex > packageLockIndex
+            && postRestoreEvaluationIndex > packageLockedSnapshotIndex
+            && publishIndex > postRestoreEvaluationIndex
+            && postPublishPackageSnapshotIndex > publishIndex
+            && postPublishComparisonIndex > postPublishPackageSnapshotIndex
+            && actualReleaseOrder.SequenceEqual(
+                expectedReleaseOrder,
+                StringComparer.Ordinal)
+            && finallyBlock.Contains(
+                "Close-M01PublishOutputLock -Lock $publishOutputLock",
+                StringComparison.Ordinal);
+
+        if (!passed)
+        {
+            Console.WriteLine(
+                "M01 package authority shape mismatch: archives=" +
+                string.Join(",", actualArchives) +
+                " packages=" +
+                string.Join(",", actualPackageTrees) +
+                " buildInputs=" +
+                string.Join(",", actualBuildInputs) +
+                " releases=" +
+                string.Join(",", actualReleaseOrder));
+        }
+
+        return passed;
+    }
+
+    private static bool TestM01AbsolutePackageInputLocks(string tempRoot)
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string buildScriptPath = Path.Combine(
+            repositoryRoot,
+            "scripts",
+            "build-efi-shell.ps1");
+        string caseRoot = Path.Combine(
+            tempRoot,
+            "m01 absolute package locks with spaces");
+        Directory.CreateDirectory(caseRoot);
+        string wrapperPath = Path.Combine(caseRoot, "package locks.ps1");
+
+        File.WriteAllText(
+            wrapperPath,
+            """
+            param(
+                [string] $BuildScriptPath,
+                [string] $CaseRoot
+            )
+            $ErrorActionPreference = "Stop"
+            $tokens = $null
+            $parseErrors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $BuildScriptPath,
+                [ref] $tokens,
+                [ref] $parseErrors)
+            if ($parseErrors.Count -ne 0) {
+                exit 60
+            }
+            foreach ($functionName in @(
+                    "Open-M01AbsoluteInputLocks",
+                    "Close-M01PublishSourceLocks")) {
+                $matches = @($ast.FindAll(
+                        {
+                            $args[0] -is
+                                [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                            $args[0].Name -ceq $functionName
+                        },
+                        $true))
+                if ($matches.Count -ne 1) {
+                    exit 61
+                }
+                . ([scriptblock]::Create($matches[0].Extent.Text))
+            }
+
+            $targetsPath = Join-Path $CaseRoot "Native.targets"
+            $taskPath = Join-Path $CaseRoot "Build.Tasks.dll"
+            [System.IO.File]::WriteAllText($targetsPath, "targets-before")
+            [System.IO.File]::WriteAllText($taskPath, "task-before")
+            $inputs = @(
+                [pscustomobject]@{ fullPath = $targetsPath },
+                [pscustomobject]@{ fullPath = $taskPath })
+            $locks = Open-M01AbsoluteInputLocks -Inputs $inputs
+            try {
+                foreach ($path in @($targetsPath, $taskPath)) {
+                    $writeRejected = $false
+                    try {
+                        [System.IO.File]::WriteAllText($path, "during")
+                    }
+                    catch [System.IO.IOException] {
+                        $writeRejected = $true
+                    }
+                    $moveRejected = $false
+                    try {
+                        [System.IO.File]::Move($path, $path + ".moved")
+                    }
+                    catch [System.IO.IOException] {
+                        $moveRejected = $true
+                    }
+                    if (-not $writeRejected -or -not $moveRejected) {
+                        exit 62
+                    }
+                }
+            }
+            finally {
+                Close-M01PublishSourceLocks -Locks $locks
+            }
+
+            [System.IO.File]::WriteAllText($targetsPath, "targets-after")
+            [System.IO.File]::WriteAllText($taskPath, "task-after")
+            if ([System.IO.File]::ReadAllText($targetsPath) -ne
+                    "targets-after" -or
+                [System.IO.File]::ReadAllText($taskPath) -ne "task-after") {
+                exit 63
+            }
+            Write-Output "M01_ABSOLUTE_PACKAGE_LOCKS_PASS"
+            exit 0
+            """,
+            new UTF8Encoding(false));
+
+        ProcessResult result = RunProcess(
+            "powershell.exe",
+            repositoryRoot,
+            timeoutMilliseconds: 15_000,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            wrapperPath,
+            "-BuildScriptPath",
+            buildScriptPath,
+            "-CaseRoot",
+            caseRoot);
+        return result.ExitCode == 0
+            && result.Output.Contains(
+                "M01_ABSOLUTE_PACKAGE_LOCKS_PASS",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestM01ProjectExtensionEvaluationIsolation(
+        string tempRoot)
+    {
+        ToolFixture tools = CreateCompleteToolFixture(
+            tempRoot,
+            "m01-project-extension-isolation-tools");
+        SourceClosureFixture source = CreateSourceClosureFixture(
+            tempRoot,
+            "m01-project-extension-isolation");
+        string staleObjRoot = Path.Combine(
+            source.Root,
+            "src",
+            "OS",
+            "obj");
+        Directory.CreateDirectory(staleObjRoot);
+        File.WriteAllText(
+            Path.Combine(staleObjRoot, "OS.csproj.nuget.g.props"),
+            """
+            <Project>
+              <PropertyGroup>
+                <NoStdLib>false</NoStdLib>
+              </PropertyGroup>
+              <ItemGroup>
+                <Compile Include="stale-injected.cs" />
+              </ItemGroup>
+            </Project>
+            """,
+            new UTF8Encoding(false));
+        File.WriteAllText(
+            Path.Combine(staleObjRoot, "OS.csproj.nuget.g.targets"),
+            """
+            <Project InitialTargets="StaleInjectedTarget">
+              <Target Name="StaleInjectedTarget">
+                <Error Text="stale project-extension target executed" />
+              </Target>
+            </Project>
+            """,
+            new UTF8Encoding(false));
+        File.WriteAllText(
+            Path.Combine(staleObjRoot, "project.assets.json"),
+            "{\"stale\":true}",
+            new UTF8Encoding(false));
+
+        ProcessResult result = RunPreflight(
+            tools,
+            useSearchRoots: false,
+            scriptPath: source.ScriptPath);
+        return IsM01SourceClosureSuccess(
+            result,
+            "loadedImageStack=false liveAllocator=false ownedPaging=false")
+            && !result.Output.Contains(
+                "stale project-extension target executed",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestM01BoundedBuildProcessRunner(string tempRoot)
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string buildScriptPath = Path.Combine(
+            repositoryRoot,
+            "scripts",
+            "build-efi-shell.ps1");
+        string script = File.ReadAllText(buildScriptPath);
+        string caseRoot = Path.Combine(
+            tempRoot,
+            "m01 bounded build runner with spaces");
+        Directory.CreateDirectory(caseRoot);
+        string positivePath = Path.Combine(caseRoot, "positive.ps1");
+        string overflowPath = Path.Combine(caseRoot, "overflow.ps1");
+        string lockerPath = Path.Combine(caseRoot, "locker.ps1");
+        string timeoutPath = Path.Combine(caseRoot, "timeout.ps1");
+        string wrapperPath = Path.Combine(caseRoot, "runner wrapper.ps1");
+        string childPidPath = Path.Combine(caseRoot, "child pid.txt");
+        string sentinelPath = Path.Combine(caseRoot, "sentinel.lock");
+
+        File.WriteAllText(
+            positivePath,
+            """
+            Write-Output (
+                "M01_BOUNDED_POSITIVE childNoReuse=" +
+                $env:MSBUILDDISABLENODEREUSE +
+                " server=" +
+                $env:DOTNET_CLI_USE_MSBUILD_SERVER)
+            exit 0
+            """,
+            new UTF8Encoding(false));
+        File.WriteAllText(
+            overflowPath,
+            """
+            Write-Output ("X" * 8192)
+            Start-Sleep -Seconds 30
+            """,
+            new UTF8Encoding(false));
+        File.WriteAllText(
+            lockerPath,
+            """
+            param([string] $SentinelPath, [string] $ChildPidPath)
+            $stream = [System.IO.File]::Open(
+                $SentinelPath,
+                [System.IO.FileMode]::OpenOrCreate,
+                [System.IO.FileAccess]::ReadWrite,
+                [System.IO.FileShare]::None)
+            try {
+                [System.IO.File]::WriteAllText(
+                    $ChildPidPath,
+                    $PID.ToString(),
+                    (New-Object System.Text.UTF8Encoding($false)))
+                Start-Sleep -Seconds 30
+            }
+            finally {
+                $stream.Dispose()
+            }
+            """,
+            new UTF8Encoding(false));
+        File.WriteAllText(
+            timeoutPath,
+            """
+            param(
+                [string] $LockerPath,
+                [string] $SentinelPath,
+                [string] $ChildPidPath
+            )
+            $child = Start-Process `
+                -FilePath (
+                    Join-Path $env:SystemRoot (
+                        "System32\WindowsPowerShell\v1.0\powershell.exe")) `
+                -ArgumentList @(
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    ('"' + $LockerPath + '"'),
+                    "-SentinelPath",
+                    ('"' + $SentinelPath + '"'),
+                    "-ChildPidPath",
+                    ('"' + $ChildPidPath + '"')
+                ) `
+                -PassThru `
+                -WindowStyle Hidden
+            $deadline = [DateTime]::UtcNow.AddSeconds(10)
+            while (-not (Test-Path -LiteralPath $ChildPidPath -PathType Leaf)) {
+                if ([DateTime]::UtcNow -ge $deadline) {
+                    exit 91
+                }
+                Start-Sleep -Milliseconds 25
+            }
+            Write-Output ("M01_BOUNDED_TIMEOUT_READY childPid=" + $child.Id)
+            Start-Sleep -Seconds 30
+            """,
+            new UTF8Encoding(false));
+        File.WriteAllText(
+            wrapperPath,
+            """
+            param(
+                [string] $BuildScriptPath,
+                [string] $CaseRoot,
+                [string] $PositivePath,
+                [string] $OverflowPath,
+                [string] $LockerPath,
+                [string] $TimeoutPath,
+                [string] $SentinelPath,
+                [string] $ChildPidPath
+            )
+            $ErrorActionPreference = "Stop"
+            $tokens = $null
+            $parseErrors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $BuildScriptPath,
+                [ref] $tokens,
+                [ref] $parseErrors)
+            if ($parseErrors.Count -ne 0) {
+                Write-Output "M01_BOUNDED_RUNNER_FAIL parse"
+                exit 10
+            }
+            foreach ($functionName in @(
+                    "New-M01ProcessJob",
+                    "Stop-M01ProcessTree",
+                    "Get-M01BoundedProcessFailureReason",
+                    "Invoke-M01BoundedProcess"
+                )) {
+                $matches = @($ast.FindAll(
+                        {
+                            $args[0] -is
+                                [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                            $args[0].Name -ceq $functionName
+                        },
+                        $true))
+                if ($matches.Count -ne 1) {
+                    Write-Output (
+                        "M01_BOUNDED_RUNNER_FAIL function=" +
+                        $functionName)
+                    exit 11
+                }
+                . ([scriptblock]::Create($matches[0].Extent.Text))
+            }
+            $powershellPath = Join-Path $env:SystemRoot (
+                "System32\WindowsPowerShell\v1.0\powershell.exe")
+            $positive = Invoke-M01BoundedProcess `
+                -FilePath $powershellPath `
+                -Arguments @(
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    $PositivePath
+                ) `
+                -WorkingDirectory $CaseRoot `
+                -Operation "positive" `
+                -TimeoutSeconds 10 `
+                -MaximumOutputCharacters 4096
+            if ((Get-M01BoundedProcessFailureReason $positive) -cne "ok" -or
+                $positive.OutputCharacters -gt 4096 -or
+                $positive.OutputText -cnotmatch
+                    'M01_BOUNDED_POSITIVE childNoReuse=1 server=0') {
+                Write-Output (
+                    "M01_BOUNDED_RUNNER_FAIL positive reason=" +
+                    (Get-M01BoundedProcessFailureReason $positive) +
+                    " output=" +
+                    $positive.OutputText)
+                exit 12
+            }
+
+            $overflow = Invoke-M01BoundedProcess `
+                -FilePath $powershellPath `
+                -Arguments @(
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    $OverflowPath
+                ) `
+                -WorkingDirectory $CaseRoot `
+                -Operation "overflow" `
+                -TimeoutSeconds 10 `
+                -MaximumOutputCharacters 512
+            if ((Get-M01BoundedProcessFailureReason $overflow) -cne
+                    "output_limit_exceeded" -or
+                -not $overflow.TerminationConfirmed -or
+                $overflow.OutputCharacters -gt 512) {
+                Write-Output (
+                    "M01_BOUNDED_RUNNER_FAIL overflow reason=" +
+                    (Get-M01BoundedProcessFailureReason $overflow) +
+                    " chars=" +
+                    $overflow.OutputCharacters)
+                exit 13
+            }
+
+            $timeout = Invoke-M01BoundedProcess `
+                -FilePath $powershellPath `
+                -Arguments @(
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    $TimeoutPath,
+                    "-LockerPath",
+                    $LockerPath,
+                    "-SentinelPath",
+                    $SentinelPath,
+                    "-ChildPidPath",
+                    $ChildPidPath
+                ) `
+                -WorkingDirectory $CaseRoot `
+                -Operation "timeout" `
+                -TimeoutSeconds 5 `
+                -MaximumOutputCharacters 4096
+            if ((Get-M01BoundedProcessFailureReason $timeout) -cne "timeout" -or
+                -not $timeout.TerminationConfirmed -or
+                -not (Test-Path -LiteralPath $ChildPidPath -PathType Leaf)) {
+                Write-Output (
+                    "M01_BOUNDED_RUNNER_FAIL timeout reason=" +
+                    (Get-M01BoundedProcessFailureReason $timeout))
+                exit 14
+            }
+            $childPid = [int](
+                Get-Content -LiteralPath $ChildPidPath -Raw).Trim()
+            Start-Sleep -Milliseconds 250
+            if ($null -ne (
+                    Get-Process -Id $childPid -ErrorAction SilentlyContinue)) {
+                Write-Output (
+                    "M01_BOUNDED_RUNNER_FAIL child_alive pid=" +
+                    $childPid)
+                exit 15
+            }
+            $sentinel = [System.IO.File]::Open(
+                $SentinelPath,
+                [System.IO.FileMode]::OpenOrCreate,
+                [System.IO.FileAccess]::ReadWrite,
+                [System.IO.FileShare]::None)
+            $sentinel.Dispose()
+
+            $invalidRejected = $false
+            try {
+                Invoke-M01BoundedProcess `
+                    -FilePath $powershellPath `
+                    -Arguments @() `
+                    -WorkingDirectory $CaseRoot `
+                    -Operation "invalid" `
+                    -TimeoutSeconds 0 `
+                    -MaximumOutputCharacters 4096
+            }
+            catch [System.Management.Automation.ParameterBindingException] {
+                $invalidRejected = $true
+            }
+            if (-not $invalidRejected) {
+                Write-Output "M01_BOUNDED_RUNNER_FAIL invalid_accepted"
+                exit 16
+            }
+            Write-Output "M01_BOUNDED_RUNNER_PASS"
+            """,
+            new UTF8Encoding(false));
+
+        int directDotnetInvocations = Regex.Matches(
+            script,
+            @"&\s+\$script:DotnetHostPath",
+            RegexOptions.CultureInvariant).Count;
+        string[] requiredOperations =
+        [
+            "source-evaluation-",
+            "serializer-generator-evaluation",
+            "isolated-restore",
+            "post-restore-evaluation",
+            "nativeaot-publish",
+            "dotnet-sdk-version",
+            "dotnet-sdk-recheck"
+        ];
+        if (directDotnetInvocations != 0 ||
+            !script.Contains(
+                "[int] $BuildProcessTimeoutSeconds = 300",
+                StringComparison.Ordinal) ||
+            !script.Contains(
+                "[int] $BuildProcessMaximumOutputCharacters = 4194304",
+                StringComparison.Ordinal) ||
+            requiredOperations.Any(
+                operation => !script.Contains(operation, StringComparison.Ordinal)))
+        {
+            return false;
+        }
+
+        ProcessResult result = RunProcess(
+            "powershell.exe",
+            repositoryRoot,
+            timeoutMilliseconds: 45_000,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            wrapperPath,
+            "-BuildScriptPath",
+            buildScriptPath,
+            "-CaseRoot",
+            caseRoot,
+            "-PositivePath",
+            positivePath,
+            "-OverflowPath",
+            overflowPath,
+            "-LockerPath",
+            lockerPath,
+            "-TimeoutPath",
+            timeoutPath,
+            "-SentinelPath",
+            sentinelPath,
+            "-ChildPidPath",
+            childPidPath);
+        bool passed = result.ExitCode == 0
+            && result.Output.Contains(
+                "M01_BOUNDED_RUNNER_PASS",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "M01_BOUNDED_RUNNER_FAIL",
+                StringComparison.Ordinal);
+        if (!passed)
+        {
+            Console.WriteLine(
+                "M01 bounded process runner mismatch: exit=" +
+                result.ExitCode +
+                " output=" +
+                result.Output);
+        }
+
+        return passed;
+    }
+
+    private static bool TestM01MsbuildInjectionIsolation(string tempRoot)
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string scriptPath = Path.Combine(
+            repositoryRoot,
+            "scripts",
+            "build-efi-shell.ps1");
+        string targetsPath = Path.Combine(
+            repositoryRoot,
+            "tools",
+            "OS.X64TextSerializerGenerator",
+            "OS.X64TextSerializerGenerator.targets");
+        string script = File.ReadAllText(scriptPath);
+        string targets = File.ReadAllText(targetsPath);
+        string[] wildcardProperties =
+        [
+            "ImportByWildcardBeforeMicrosoftCommonProps",
+            "ImportByWildcardAfterMicrosoftCommonProps",
+            "ImportUserLocationsByWildcardBeforeMicrosoftCommonProps",
+            "ImportUserLocationsByWildcardAfterMicrosoftCommonProps",
+            "ImportByWildcardBeforeMicrosoftCommonTargets",
+            "ImportByWildcardAfterMicrosoftCommonTargets",
+            "ImportUserLocationsByWildcardBeforeMicrosoftCommonTargets",
+            "ImportUserLocationsByWildcardAfterMicrosoftCommonTargets",
+            "ImportByWildcardBeforeMicrosoftCSharpTargets",
+            "ImportByWildcardAfterMicrosoftCSharpTargets",
+            "ImportUserLocationsByWildcardBeforeMicrosoftCSharpTargets",
+            "ImportUserLocationsByWildcardAfterMicrosoftCSharpTargets",
+            "ImportByWildcardBeforeMicrosoftCommonCrossTargetingTargets",
+            "ImportByWildcardAfterMicrosoftCommonCrossTargetingTargets"
+        ];
+        foreach (string property in wildcardProperties)
+        {
+            if (!script.Contains(
+                    property + " = \"false\"",
+                    StringComparison.Ordinal) ||
+                !targets.Contains(
+                    property + "=false",
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+        if (!script.Contains(
+                "MSBuildSDKsPath = $script:VerifiedMsbuildSdksPath",
+                StringComparison.Ordinal) ||
+            !script.Contains(
+                "MSBuildExtensionsPath = $script:VerifiedMsbuildExtensionsPath",
+                StringComparison.Ordinal) ||
+            !script.Contains(
+                "MSBuildUserExtensionsPath = $disabledUserExtensionsPath",
+                StringComparison.Ordinal) ||
+            !script.Contains(
+                "disabled MSBuild user extensions path must remain absent",
+                StringComparison.Ordinal) ||
+            !targets.Contains(
+                "MSBuildSDKsPath=$(MSBuildToolsPath)\\Sdks",
+                StringComparison.Ordinal) ||
+            !targets.Contains(
+                "MSBuildExtensionsPath=$(MSBuildToolsPath)\\;",
+                StringComparison.Ordinal) ||
+            !targets.Contains(
+                "MSBuildUserExtensionsPath=$(_ClrosX64SerializerToolDisabledUserExtensions)",
+                StringComparison.Ordinal) ||
+            !targets.Contains(
+                "UseSharedCompilation=false",
+                StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        ToolFixture tools = CreateCompleteToolFixture(
+            tempRoot,
+            "m01-msbuild-injection-tools");
+        SourceClosureFixture source = CreateSourceClosureFixture(
+            tempRoot,
+            "m01-msbuild-injection-source");
+        string logPath = Path.Combine(
+            tools.Root,
+            "msbuild-injection-" + Guid.NewGuid().ToString("N") + ".log");
+        ProcessStartInfo start = new()
+        {
+            FileName = "powershell.exe",
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+            UseShellExecute = false
+        };
+        AddArgument(start, "-NoProfile");
+        AddArgument(start, "-ExecutionPolicy", "Bypass");
+        AddArgument(start, "-File", source.ScriptPath);
+        AddArgument(start, "-PreflightOnly");
+        AddArgument(start, "-LogPath", logPath);
+        AddArgument(start, "-MsvcLinkerSearchRoot", tools.MsvcLinkerSearchRoot);
+        AddArgument(
+            start,
+            "-WindowsSdkLibSearchRoot",
+            tools.WindowsSdkLibSearchRoot);
+        AddArgument(start, "-IlCompilerPath", tools.IlCompilerPath);
+        AddArgument(
+            start,
+            "-NativeAotRuntimePackPath",
+            tools.NativeAotRuntimePackPath);
+        AddArgument(start, "-OvmfCodePath", tools.OvmfCodePath);
+        AddArgument(start, "-QemuPath", tools.QemuPath);
+        AddArgument(start, "-QemuImgPath", tools.QemuImgPath);
+        string poisonRoot = Path.Combine(tempRoot, "poison msbuild roots");
+        start.Environment["MSBuildSDKsPath"] =
+            Path.Combine(poisonRoot, "sdks");
+        start.Environment["MSBuildExtensionsPath"] =
+            Path.Combine(poisonRoot, "extensions") +
+            Path.DirectorySeparatorChar;
+        start.Environment["MSBuildUserExtensionsPath"] =
+            Path.Combine(poisonRoot, "user");
+        foreach (string property in wildcardProperties)
+        {
+            start.Environment[property] = "true";
+        }
+        ProcessResult result = RunProcess(
+            start,
+            timeoutMilliseconds: 30_000,
+            logPath: logPath);
+        return IsM01SourceClosureSuccess(
+                result,
+                "loadedImageStack=false liveAllocator=false ownedPaging=false")
+            && !result.Output.Contains(
+                "poison",
+                StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TestM01ArtifactVerifierTimeout(string tempRoot)
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string buildScriptPath = Path.Combine(
+            repositoryRoot,
+            "scripts",
+            "build-efi-shell.ps1");
+        string caseRoot = Path.Combine(
+            tempRoot,
+            "m01 verifier timeout with spaces");
+        Directory.CreateDirectory(caseRoot);
+        string sleepyVerifierPath = Path.Combine(
+            caseRoot,
+            "sleepy verifier.ps1");
+        string wrapperPath = Path.Combine(
+            caseRoot,
+            "timeout wrapper.ps1");
+        string childPidPath = Path.Combine(
+            caseRoot,
+            "child pid.txt");
+        string verifierPidPath = Path.Combine(
+            caseRoot,
+            "verifier pid.txt");
+        string noKillChildPidPath = Path.Combine(
+            caseRoot,
+            "no kill child pid.txt");
+        string noKillVerifierPidPath = Path.Combine(
+            caseRoot,
+            "no kill verifier pid.txt");
+
+        File.WriteAllText(
+            sleepyVerifierPath,
+            """
+            param(
+                [string] $ChildPidPath,
+                [string] $VerifierPidPath
+            )
+            [System.IO.File]::WriteAllText(
+                $VerifierPidPath,
+                $PID.ToString(),
+                (New-Object System.Text.UTF8Encoding($false)))
+            $child = Start-Process `
+                -FilePath $env:ComSpec `
+                -ArgumentList @(
+                    "/d",
+                    "/c",
+                    "ping -n 60 127.0.0.1 >nul"
+                ) `
+                -PassThru `
+                -WindowStyle Hidden
+            [System.IO.File]::WriteAllText(
+                $ChildPidPath,
+                $child.Id.ToString(),
+                (New-Object System.Text.UTF8Encoding($false)))
+            Write-Output ("SLEEPY_VERIFIER_READY childPid=" + $child.Id)
+            Start-Sleep -Seconds 60
+            """,
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        File.WriteAllText(
+            wrapperPath,
+            """
+            param(
+                [string] $BuildScriptPath,
+                [string] $SleepyVerifierPath,
+                [string] $ChildPidPath,
+                [string] $VerifierPidPath,
+                [string] $NoKillChildPidPath,
+                [string] $NoKillVerifierPidPath
+            )
+            $ErrorActionPreference = "Stop"
+            $tokens = $null
+            $parseErrors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $BuildScriptPath,
+                [ref] $tokens,
+                [ref] $parseErrors)
+            if ($parseErrors.Count -ne 0) {
+                Write-Output "M01_VERIFIER_TIMEOUT_FAIL parse"
+                exit 10
+            }
+            foreach ($functionName in @(
+                    "New-M01ProcessJob",
+                    "Stop-M01ProcessTree",
+                    "Invoke-M01ArtifactVerifier"
+                )) {
+                $matches = @($ast.FindAll(
+                        {
+                            $args[0] -is
+                                [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                            $args[0].Name -ceq $functionName
+                        },
+                        $true))
+                if ($matches.Count -ne 1) {
+                    Write-Output (
+                        "M01_VERIFIER_TIMEOUT_FAIL function=" +
+                        $functionName +
+                        " count=" +
+                        $matches.Count)
+                    exit 11
+                }
+                . ([scriptblock]::Create($matches[0].Extent.Text))
+            }
+            $result = Invoke-M01ArtifactVerifier `
+                -Arguments @(
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    $SleepyVerifierPath,
+                    "-ChildPidPath",
+                    $ChildPidPath,
+                    "-VerifierPidPath",
+                    $VerifierPidPath
+                ) `
+                -TimeoutSeconds 1
+            if (-not $result.TimedOut -or
+                $result.ExitCode -ne -1 -or
+                -not $result.TerminationConfirmed -or
+                -not $result.OutputCaptureSucceeded -or
+                $result.OutputDrainTimedOut) {
+                Write-Output (
+                    "M01_VERIFIER_TIMEOUT_FAIL result timedOut=" +
+                    $result.TimedOut +
+                    " exitCode=" +
+                    $result.ExitCode +
+                    " terminated=" +
+                    $result.TerminationConfirmed +
+                    " output=" +
+                    $result.OutputCaptureSucceeded +
+                    " drainTimeout=" +
+                    $result.OutputDrainTimedOut)
+                exit 12
+            }
+            if (-not (Test-Path -LiteralPath $ChildPidPath -PathType Leaf)) {
+                Write-Output "M01_VERIFIER_TIMEOUT_FAIL child_pid_missing"
+                exit 13
+            }
+            $childPid = [int](
+                Get-Content -LiteralPath $ChildPidPath -Raw).Trim()
+            Start-Sleep -Milliseconds 250
+            if ($null -ne (
+                    Get-Process -Id $childPid -ErrorAction SilentlyContinue)) {
+                Write-Output (
+                    "M01_VERIFIER_TIMEOUT_FAIL child_alive pid=" +
+                    $childPid)
+                exit 14
+            }
+            $verifierPid = [int](
+                Get-Content -LiteralPath $VerifierPidPath -Raw).Trim()
+            if ($null -ne (
+                    Get-Process -Id $verifierPid -ErrorAction SilentlyContinue)) {
+                Write-Output (
+                    "M01_VERIFIER_TIMEOUT_FAIL verifier_alive pid=" +
+                    $verifierPid)
+                exit 15
+            }
+
+            function Stop-M01ProcessTree {
+                param(
+                    [System.Diagnostics.Process] $Process,
+                    [object] $ProcessJob
+                )
+            }
+            $noKillStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+            try {
+                $noKillResult = Invoke-M01ArtifactVerifier `
+                    -Arguments @(
+                        "-NoProfile",
+                        "-ExecutionPolicy",
+                        "Bypass",
+                        "-File",
+                        $SleepyVerifierPath,
+                        "-ChildPidPath",
+                        $NoKillChildPidPath,
+                        "-VerifierPidPath",
+                        $NoKillVerifierPidPath
+                    ) `
+                    -TimeoutSeconds 1
+                $noKillStopwatch.Stop()
+                if (-not $noKillResult.TimedOut -or
+                    $noKillResult.ExitCode -ne -1 -or
+                    $noKillResult.TerminationConfirmed -or
+                    $noKillResult.OutputCaptureSucceeded -or
+                    -not $noKillResult.OutputDrainTimedOut -or
+                    $noKillStopwatch.ElapsedMilliseconds -gt 15000) {
+                    Write-Output (
+                        "M01_VERIFIER_TIMEOUT_FAIL unkillable timedOut=" +
+                        $noKillResult.TimedOut +
+                        " exitCode=" +
+                        $noKillResult.ExitCode +
+                        " terminated=" +
+                        $noKillResult.TerminationConfirmed +
+                        " output=" +
+                        $noKillResult.OutputCaptureSucceeded +
+                        " drainTimeout=" +
+                        $noKillResult.OutputDrainTimedOut +
+                        " elapsedMs=" +
+                        $noKillStopwatch.ElapsedMilliseconds)
+                    exit 16
+                }
+            }
+            finally {
+                foreach ($pidPath in @(
+                        $NoKillChildPidPath,
+                        $NoKillVerifierPidPath)) {
+                    if (Test-Path -LiteralPath $pidPath -PathType Leaf) {
+                        $lingeringPid = [int](
+                            Get-Content -LiteralPath $pidPath -Raw).Trim()
+                        Stop-Process `
+                            -Id $lingeringPid `
+                            -Force `
+                            -ErrorAction SilentlyContinue
+                    }
+                }
+            }
+            Write-Output (
+                "M01_VERIFIER_TIMEOUT_PASS timeoutSeconds=1 childPid=" +
+                $childPid +
+                " unkillableElapsedMs=" +
+                $noKillStopwatch.ElapsedMilliseconds)
+            exit 0
+            """,
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+        ProcessResult result = RunProcess(
+            "powershell.exe",
+            repositoryRoot,
+            timeoutMilliseconds: 20_000,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            wrapperPath,
+            "-BuildScriptPath",
+            buildScriptPath,
+            "-SleepyVerifierPath",
+            sleepyVerifierPath,
+            "-ChildPidPath",
+            childPidPath,
+            "-VerifierPidPath",
+            verifierPidPath,
+            "-NoKillChildPidPath",
+            noKillChildPidPath,
+            "-NoKillVerifierPidPath",
+            noKillVerifierPidPath);
+        return result.ExitCode == 0
+            && result.Output.Contains(
+                "M01_VERIFIER_TIMEOUT_PASS timeoutSeconds=1",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "M01_VERIFIER_TIMEOUT_FAIL",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestM01PublishOutputMutex(string tempRoot)
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string buildScriptPath = Path.Combine(
+            repositoryRoot,
+            "scripts",
+            "build-efi-shell.ps1");
+        string caseRoot = Path.Combine(tempRoot, "m01 publish mutex with spaces");
+        Directory.CreateDirectory(caseRoot);
+        string probePath = Path.Combine(caseRoot, "mutex probe.ps1");
+        string coordinatorPath = Path.Combine(caseRoot, "mutex coordinator.ps1");
+
+        File.WriteAllText(
+            probePath,
+            """
+            param(
+                [string] $BuildScriptPath,
+                [string] $RepositoryRoot,
+                [ValidateSet("blocked", "acquire")]
+                [string] $Mode,
+                [ValidateSet("Release", "Debug")]
+                [string] $Configuration,
+                [string] $Runtime
+            )
+            $ErrorActionPreference = "Stop"
+            $tokens = $null
+            $parseErrors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $BuildScriptPath,
+                [ref] $tokens,
+                [ref] $parseErrors)
+            if ($parseErrors.Count -ne 0) {
+                exit 20
+            }
+            foreach ($functionName in @(
+                    "Open-M01PublishOutputLock",
+                    "Close-M01PublishOutputLock")) {
+                $matches = @($ast.FindAll(
+                        {
+                            $args[0] -is
+                                [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                            $args[0].Name -ceq $functionName
+                        },
+                        $true))
+                if ($matches.Count -ne 1) {
+                    exit 21
+                }
+                . ([scriptblock]::Create($matches[0].Extent.Text))
+            }
+
+            $lock = $null
+            try {
+                $lock = Open-M01PublishOutputLock `
+                    -RepositoryRoot $RepositoryRoot `
+                    -Configuration $Configuration `
+                    -Runtime $Runtime
+                if ($Mode -eq "blocked") {
+                    Write-Output "M01_MUTEX_PROBE_FAIL unexpectedly_acquired"
+                    exit 22
+                }
+                Write-Output "M01_MUTEX_PROBE_ACQUIRED"
+                exit 0
+            }
+            catch {
+                if ($Mode -eq "blocked" -and
+                    $_.Exception.Message -eq
+                        "another EFI publish owns the canonical output paths") {
+                    Write-Output "M01_MUTEX_PROBE_BLOCKED"
+                    exit 0
+                }
+                Write-Output (
+                    "M01_MUTEX_PROBE_FAIL " +
+                    $_.Exception.GetType().Name)
+                exit 23
+            }
+            finally {
+                Close-M01PublishOutputLock -Lock $lock
+            }
+            """,
+            new UTF8Encoding(false));
+
+        File.WriteAllText(
+            coordinatorPath,
+            """
+            param(
+                [string] $BuildScriptPath,
+                [string] $RepositoryRoot,
+                [string] $ProbePath
+            )
+            $ErrorActionPreference = "Stop"
+            $tokens = $null
+            $parseErrors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $BuildScriptPath,
+                [ref] $tokens,
+                [ref] $parseErrors)
+            if ($parseErrors.Count -ne 0) {
+                exit 30
+            }
+            foreach ($functionName in @(
+                    "Open-M01PublishOutputLock",
+                    "Close-M01PublishOutputLock")) {
+                $matches = @($ast.FindAll(
+                        {
+                            $args[0] -is
+                                [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                            $args[0].Name -ceq $functionName
+                        },
+                        $true))
+                if ($matches.Count -ne 1) {
+                    exit 31
+                }
+                . ([scriptblock]::Create($matches[0].Extent.Text))
+            }
+
+            $powershellPath = Join-Path $env:SystemRoot (
+                "System32\WindowsPowerShell\v1.0\powershell.exe")
+            $first = Open-M01PublishOutputLock `
+                -RepositoryRoot $RepositoryRoot `
+                -Configuration "Release" `
+                -Runtime "win-x64"
+            try {
+                $blockedOutput = @(& $powershellPath `
+                    -NoProfile `
+                    -ExecutionPolicy Bypass `
+                    -File $ProbePath `
+                    -BuildScriptPath $BuildScriptPath `
+                    -RepositoryRoot $RepositoryRoot `
+                    -Mode blocked `
+                    -Configuration Debug `
+                    -Runtime linux-x64 2>&1)
+                if ($LASTEXITCODE -ne 0 -or
+                    ($blockedOutput | Out-String) -notmatch
+                        "M01_MUTEX_PROBE_BLOCKED") {
+                    Write-Output "M01_MUTEX_COORDINATOR_FAIL blocked"
+                    $blockedOutput
+                    exit 32
+                }
+            }
+            finally {
+                Close-M01PublishOutputLock -Lock $first
+            }
+
+            $acquiredOutput = @(& $powershellPath `
+                -NoProfile `
+                -ExecutionPolicy Bypass `
+                -File $ProbePath `
+                -BuildScriptPath $BuildScriptPath `
+                -RepositoryRoot $RepositoryRoot `
+                -Mode acquire `
+                -Configuration Debug `
+                -Runtime win-x64 2>&1)
+            if ($LASTEXITCODE -ne 0 -or
+                ($acquiredOutput | Out-String) -notmatch
+                    "M01_MUTEX_PROBE_ACQUIRED") {
+                Write-Output "M01_MUTEX_COORDINATOR_FAIL reacquire"
+                $acquiredOutput
+                exit 33
+            }
+            Write-Output "M01_MUTEX_COORDINATOR_PASS"
+            exit 0
+            """,
+            new UTF8Encoding(false));
+
+        ProcessResult result = RunProcess(
+            "powershell.exe",
+            repositoryRoot,
+            timeoutMilliseconds: 20_000,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            coordinatorPath,
+            "-BuildScriptPath",
+            buildScriptPath,
+            "-RepositoryRoot",
+            caseRoot,
+            "-ProbePath",
+            probePath);
+        return result.ExitCode == 0
+            && result.Output.Contains(
+                "M01_MUTEX_COORDINATOR_PASS",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "M01_MUTEX_COORDINATOR_FAIL",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "M01_MUTEX_PROBE_FAIL",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestM01FreshOutputCleanupGuards(string tempRoot)
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string buildScriptPath = Path.Combine(
+            repositoryRoot,
+            "scripts",
+            "build-efi-shell.ps1");
+        string caseRoot = Path.Combine(
+            tempRoot,
+            "m01 fresh output guards with spaces");
+        Directory.CreateDirectory(caseRoot);
+        string wrapperPath = Path.Combine(caseRoot, "fresh output guards.ps1");
+
+        File.WriteAllText(
+            wrapperPath,
+            """
+            param(
+                [string] $BuildScriptPath,
+                [string] $CaseRoot
+            )
+            $ErrorActionPreference = "Stop"
+            $tokens = $null
+            $parseErrors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $BuildScriptPath,
+                [ref] $tokens,
+                [ref] $parseErrors)
+            $matches = @($ast.FindAll(
+                    {
+                        $args[0] -is
+                            [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                        $args[0].Name -ceq
+                            "Remove-M01FreshPublishDirectory"
+                    },
+                    $true))
+            if ($parseErrors.Count -ne 0 -or $matches.Count -ne 1) {
+                exit 40
+            }
+            . ([scriptblock]::Create($matches[0].Extent.Text))
+
+            $normalRoot = Join-Path $CaseRoot "normal repo"
+            $normalCandidate = Join-Path $normalRoot (
+                "src\OS\obj\Release\net10.0\win-x64")
+            New-Item `
+                -ItemType Directory `
+                -Path $normalCandidate `
+                -Force | Out-Null
+            [System.IO.File]::WriteAllText(
+                (Join-Path $normalCandidate "sentinel.txt"),
+                "delete me")
+            Remove-M01FreshPublishDirectory `
+                -RepositoryRoot $normalRoot `
+                -CandidatePath $normalCandidate `
+                -ExpectedRelativePath (
+                    "src\OS\obj\Release\net10.0\win-x64")
+            if (Test-Path -LiteralPath $normalCandidate) {
+                exit 41
+            }
+
+            $outside = Join-Path $CaseRoot "outside mismatch"
+            New-Item -ItemType Directory -Path $outside -Force | Out-Null
+            $mismatchRejected = $false
+            try {
+                Remove-M01FreshPublishDirectory `
+                    -RepositoryRoot $normalRoot `
+                    -CandidatePath $outside `
+                    -ExpectedRelativePath (
+                        "src\OS\obj\Release\net10.0\win-x64")
+            }
+            catch {
+                $mismatchRejected =
+                    $_.Exception.Message -like
+                        "fresh publish path mismatch:*"
+            }
+            if (-not $mismatchRejected -or
+                -not (Test-Path -LiteralPath $outside -PathType Container)) {
+                exit 42
+            }
+
+            $candidateRoot = Join-Path $CaseRoot "candidate junction repo"
+            $candidateParent = Join-Path $candidateRoot (
+                "src\OS\bin\Release\net10.0")
+            $candidateTarget = Join-Path $CaseRoot "candidate junction target"
+            New-Item -ItemType Directory -Path $candidateParent -Force |
+                Out-Null
+            New-Item -ItemType Directory -Path $candidateTarget -Force |
+                Out-Null
+            $candidateSentinel = Join-Path $candidateTarget "keep.txt"
+            [System.IO.File]::WriteAllText($candidateSentinel, "keep")
+            $candidateJunction = Join-Path $candidateParent "win-x64"
+            New-Item `
+                -ItemType Junction `
+                -Path $candidateJunction `
+                -Target $candidateTarget | Out-Null
+            $candidateRejected = $false
+            try {
+                Remove-M01FreshPublishDirectory `
+                    -RepositoryRoot $candidateRoot `
+                    -CandidatePath $candidateJunction `
+                    -ExpectedRelativePath (
+                        "src\OS\bin\Release\net10.0\win-x64")
+            }
+            catch {
+                $candidateRejected =
+                    $_.Exception.Message -like
+                        "fresh publish path contains reparse point:*"
+            }
+            if (-not $candidateRejected -or
+                -not (Test-Path -LiteralPath $candidateSentinel -PathType Leaf)) {
+                exit 43
+            }
+            [System.IO.Directory]::Delete($candidateJunction)
+
+            $ancestorRoot = Join-Path $CaseRoot "ancestor junction repo"
+            $ancestorParent = Join-Path $ancestorRoot "src\OS"
+            $ancestorTarget = Join-Path $CaseRoot "ancestor junction target"
+            New-Item -ItemType Directory -Path $ancestorParent -Force |
+                Out-Null
+            $ancestorCandidateInTarget = Join-Path $ancestorTarget (
+                "Release\net10.0\win-x64")
+            New-Item `
+                -ItemType Directory `
+                -Path $ancestorCandidateInTarget `
+                -Force | Out-Null
+            $ancestorSentinel = Join-Path $ancestorCandidateInTarget "keep.txt"
+            [System.IO.File]::WriteAllText($ancestorSentinel, "keep")
+            $ancestorJunction = Join-Path $ancestorParent "obj"
+            New-Item `
+                -ItemType Junction `
+                -Path $ancestorJunction `
+                -Target $ancestorTarget | Out-Null
+            $ancestorCandidate = Join-Path $ancestorJunction (
+                "Release\net10.0\win-x64")
+            $ancestorRejected = $false
+            try {
+                Remove-M01FreshPublishDirectory `
+                    -RepositoryRoot $ancestorRoot `
+                    -CandidatePath $ancestorCandidate `
+                    -ExpectedRelativePath (
+                        "src\OS\obj\Release\net10.0\win-x64")
+            }
+            catch {
+                $ancestorRejected =
+                    $_.Exception.Message -like
+                        "fresh publish path contains reparse point:*"
+            }
+            if (-not $ancestorRejected -or
+                -not (Test-Path -LiteralPath $ancestorSentinel -PathType Leaf)) {
+                exit 44
+            }
+            [System.IO.Directory]::Delete($ancestorJunction)
+            Write-Output "M01_FRESH_OUTPUT_GUARDS_PASS"
+            exit 0
+            """,
+            new UTF8Encoding(false));
+
+        ProcessResult result = RunProcess(
+            "powershell.exe",
+            repositoryRoot,
+            timeoutMilliseconds: 20_000,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            wrapperPath,
+            "-BuildScriptPath",
+            buildScriptPath,
+            "-CaseRoot",
+            caseRoot);
+        return result.ExitCode == 0
+            && result.Output.Contains(
+                "M01_FRESH_OUTPUT_GUARDS_PASS",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestM01PublishSourceLocks(string tempRoot)
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string buildScriptPath = Path.Combine(
+            repositoryRoot,
+            "scripts",
+            "build-efi-shell.ps1");
+        string caseRoot = Path.Combine(tempRoot, "m01 source locks with spaces");
+        Directory.CreateDirectory(caseRoot);
+        string wrapperPath = Path.Combine(caseRoot, "source locks.ps1");
+
+        File.WriteAllText(
+            wrapperPath,
+            """
+            param(
+                [string] $BuildScriptPath,
+                [string] $CaseRoot
+            )
+            $ErrorActionPreference = "Stop"
+            $tokens = $null
+            $parseErrors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $BuildScriptPath,
+                [ref] $tokens,
+                [ref] $parseErrors)
+            if ($parseErrors.Count -ne 0) {
+                exit 50
+            }
+            foreach ($functionName in @(
+                    "Initialize-M01NativeFileIdentity",
+                    "Get-M01StreamSha256",
+                    "Assert-M01NoReparsePoints",
+                    "Open-M01AuthorityReadRecord",
+                    "Assert-M01AuthorityRecordUnchanged",
+                    "Assert-M01DistinctAuthorityRecords",
+                    "Close-M01AuthorityRecords",
+                    "Open-M01PublishSourceLocks",
+                    "Assert-M01PublishSourceLocks",
+                    "Close-M01PublishSourceLocks")) {
+                $matches = @($ast.FindAll(
+                        {
+                            $args[0] -is
+                                [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                            $args[0].Name -ceq $functionName
+                        },
+                        $true))
+                if ($matches.Count -ne 1) {
+                    exit 51
+                }
+                . ([scriptblock]::Create($matches[0].Extent.Text))
+            }
+
+            $sourcePath = Join-Path $CaseRoot "source.txt"
+            [System.IO.File]::WriteAllText($sourcePath, "before")
+            $sourceHash = (
+                Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256
+            ).Hash.ToLowerInvariant()
+            $inputs = @([pscustomobject]@{
+                    path = "source.txt"
+                    sha256 = $sourceHash
+                })
+            $locks = Open-M01PublishSourceLocks `
+                -RepositoryRoot $CaseRoot `
+                -Inputs $inputs
+            try {
+                Assert-M01PublishSourceLocks `
+                    -RepositoryRoot $CaseRoot `
+                    -Inputs $inputs `
+                    -Locks $locks
+                $writeRejected = $false
+                try {
+                    [System.IO.File]::WriteAllText($sourcePath, "during")
+                }
+                catch [System.IO.IOException] {
+                    $writeRejected = $true
+                }
+                $moveRejected = $false
+                try {
+                    [System.IO.File]::Move(
+                        $sourcePath,
+                        (Join-Path $CaseRoot "moved.txt"))
+                }
+                catch [System.IO.IOException] {
+                    $moveRejected = $true
+                }
+                if (-not $writeRejected -or -not $moveRejected -or
+                    [System.IO.File]::ReadAllText($sourcePath) -ne "before") {
+                    exit 52
+                }
+            }
+            finally {
+                Close-M01PublishSourceLocks -Locks $locks
+            }
+
+            [System.IO.File]::WriteAllText($sourcePath, "after")
+            $movedPath = Join-Path $CaseRoot "moved.txt"
+            [System.IO.File]::Move($sourcePath, $movedPath)
+            if ([System.IO.File]::ReadAllText($movedPath) -ne "after") {
+                exit 53
+            }
+
+            $hardlinkSource = Join-Path $CaseRoot "hardlink-source.txt"
+            $hardlinkAlias = Join-Path $CaseRoot "hardlink-alias.txt"
+            [System.IO.File]::WriteAllText($hardlinkSource, "hardlink")
+            New-Item `
+                -ItemType HardLink `
+                -Path $hardlinkAlias `
+                -Target $hardlinkSource | Out-Null
+            $hardlinkHash = (
+                Get-FileHash -LiteralPath $hardlinkAlias -Algorithm SHA256
+            ).Hash.ToLowerInvariant()
+            $hardlinkRejected = $false
+            try {
+                $unused = Open-M01PublishSourceLocks `
+                    -RepositoryRoot $CaseRoot `
+                    -Inputs @([pscustomobject]@{
+                            path = "hardlink-alias.txt"
+                            sha256 = $hardlinkHash
+                        })
+            }
+            catch {
+                $hardlinkRejected =
+                    $_.Exception.Message -like "*hardlink_invalid*"
+            }
+            if (-not $hardlinkRejected) {
+                exit 54
+            }
+
+            $junctionTarget = Join-Path $CaseRoot "junction-target"
+            $junctionRoot = Join-Path $CaseRoot "junction-root"
+            New-Item -ItemType Directory -Path $junctionTarget | Out-Null
+            $junctionSource = Join-Path $junctionTarget "source.txt"
+            [System.IO.File]::WriteAllText($junctionSource, "junction")
+            New-Item `
+                -ItemType Junction `
+                -Path $junctionRoot `
+                -Target $junctionTarget | Out-Null
+            $junctionHash = (
+                Get-FileHash -LiteralPath $junctionSource -Algorithm SHA256
+            ).Hash.ToLowerInvariant()
+            $junctionRejected = $false
+            try {
+                $unused = Open-M01PublishSourceLocks `
+                    -RepositoryRoot $junctionRoot `
+                    -Inputs @([pscustomobject]@{
+                            path = "source.txt"
+                            sha256 = $junctionHash
+                        })
+            }
+            catch {
+                $junctionRejected =
+                    $_.Exception.Message -like "*reparse*"
+            }
+            if (-not $junctionRejected) {
+                exit 55
+            }
+            [System.IO.Directory]::Delete($junctionRoot)
+
+            $leafTarget = Join-Path $CaseRoot "leaf-target.txt"
+            $leafLink = Join-Path $CaseRoot "leaf-link.txt"
+            [System.IO.File]::WriteAllText($leafTarget, "leaf")
+            $leafLinkCreated = $false
+            try {
+                New-Item `
+                    -ItemType SymbolicLink `
+                    -Path $leafLink `
+                    -Target $leafTarget `
+                    -ErrorAction Stop | Out-Null
+                $leafLinkCreated = $true
+            }
+            catch {
+                # Symlink creation can be policy restricted on Windows.
+            }
+            if ($leafLinkCreated) {
+                $leafHash = (
+                    Get-FileHash -LiteralPath $leafLink -Algorithm SHA256
+                ).Hash.ToLowerInvariant()
+                $leafRejected = $false
+                try {
+                    $unused = Open-M01PublishSourceLocks `
+                        -RepositoryRoot $CaseRoot `
+                        -Inputs @([pscustomobject]@{
+                                path = "leaf-link.txt"
+                                sha256 = $leafHash
+                            })
+                }
+                catch {
+                    $leafRejected =
+                        $_.Exception.Message -like "*reparse*"
+                }
+                if (-not $leafRejected) {
+                    exit 56
+                }
+                [System.IO.File]::Delete($leafLink)
+            }
+            Write-Output "M01_SOURCE_LOCKS_PASS"
+            exit 0
+            """,
+            new UTF8Encoding(false));
+
+        ProcessResult result = RunProcess(
+            "powershell.exe",
+            repositoryRoot,
+            timeoutMilliseconds: 15_000,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            wrapperPath,
+            "-BuildScriptPath",
+            buildScriptPath,
+            "-CaseRoot",
+            caseRoot);
+        return result.ExitCode == 0
+            && result.Output.Contains(
+                "M01_SOURCE_LOCKS_PASS",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestM01OutputAndVerifierAuthority(string tempRoot)
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string buildScriptPath = Path.Combine(
+            repositoryRoot,
+            "scripts",
+            "build-efi-shell.ps1");
+        string script = File.ReadAllText(buildScriptPath);
+        string[] requiredText =
+        [
+            "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=57",
+            "EFI_PUBLISH_OUTPUT_AUTHORITY status=ok leaves=5",
+            "EFI_PUBLISH_VERIFIER_INPUT_AUTHORITY status=ok inputs=8",
+            "EFI_PUBLISH_VERIFIER_INPUTS_UNCHANGED status=ok inputs=8",
+            "FileMode]::CreateNew",
+            "Assert-M01VerifierInputLocks -Locks $verifierInputLocks",
+            "Close-M01AuthorityRecords -Records $verifierInputLocks"
+        ];
+        if (requiredText.Any(
+                value => !script.Contains(value, StringComparison.Ordinal)) ||
+            script.Contains("Copy-Item", StringComparison.Ordinal) ||
+            script.Contains("Set-Content", StringComparison.Ordinal) ||
+            script.Contains("Add-Content", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        string caseRoot = Path.Combine(
+            tempRoot,
+            "m01 output authority with spaces");
+        Directory.CreateDirectory(caseRoot);
+        string wrapperPath = Path.Combine(caseRoot, "output authority.ps1");
+        File.WriteAllText(
+            wrapperPath,
+            """
+            param(
+                [string] $BuildScriptPath,
+                [string] $CaseRoot
+            )
+            $ErrorActionPreference = "Stop"
+            $tokens = $null
+            $parseErrors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $BuildScriptPath,
+                [ref] $tokens,
+                [ref] $parseErrors)
+            if ($parseErrors.Count -ne 0) {
+                exit 60
+            }
+            foreach ($functionName in @(
+                    "Initialize-M01NativeFileIdentity",
+                    "Get-M01StreamSha256",
+                    "Assert-M01NoReparsePoints",
+                    "Open-M01AuthorityReadRecord",
+                    "Assert-M01AuthorityRecordUnchanged",
+                    "Assert-M01DistinctAuthorityRecords",
+                    "Close-M01AuthorityRecords",
+                    "Initialize-M01PlainDirectoryPath",
+                    "Assert-M01WritableAuthorityIdentity",
+                    "Open-M01LogAuthority",
+                    "Write-M01LogLines",
+                    "Read-M01LogAuthorityText",
+                    "Get-M01OutputPublicationPlan",
+                    "Clear-M01OutputPublicationLeaves",
+                    "Copy-M01FileCreateNew",
+                    "Write-M01Utf8CreateNew",
+                    "Open-M01VerifierInputLocks",
+                    "Assert-M01VerifierInputLocks")) {
+                $matches = @($ast.FindAll(
+                        {
+                            $args[0] -is
+                                [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                            $args[0].Name -ceq $functionName
+                        },
+                        $true))
+                if ($matches.Count -ne 1) {
+                    exit 61
+                }
+                . ([scriptblock]::Create($matches[0].Extent.Text))
+            }
+
+            $repo = Join-Path $CaseRoot "repo"
+            New-Item -ItemType Directory -Path $repo | Out-Null
+            $logPath = Join-Path $CaseRoot "logs\publish.log"
+            $plan = Get-M01OutputPublicationPlan `
+                -RepositoryRoot $repo `
+                -EfiOutputPath "artifacts\efi\BOOTX64.EFI" `
+                -LogFullPath $logPath
+            $logAuthority = Open-M01LogAuthority -Path $logPath
+            try {
+                Write-M01LogLines `
+                    -Authority $logAuthority `
+                    -Lines @("first", "second") `
+                    -Replace
+                $logText = Read-M01LogAuthorityText -Authority $logAuthority
+                if ($logText -notlike "first*second*") {
+                    exit 62
+                }
+
+                [System.IO.File]::WriteAllText($plan.EfiPath, "stale")
+                Clear-M01OutputPublicationLeaves -Plan $plan
+                if (Test-Path -LiteralPath $plan.EfiPath) {
+                    exit 63
+                }
+
+                $work = Join-Path $repo "work"
+                New-Item -ItemType Directory -Path $work | Out-Null
+                $publishSource = Join-Path $work "published.exe"
+                $mapSource = Join-Path $work "linked.map"
+                $responseSource = Join-Path $work "linked.rsp"
+                $serializerSource = Join-Path $work "linked.obj"
+                $managedSource = Join-Path $work "managed.dll"
+                [System.IO.File]::WriteAllText($publishSource, "efi")
+                [System.IO.File]::WriteAllText($mapSource, "map")
+                [System.IO.File]::WriteAllText($responseSource, "response")
+                [System.IO.File]::WriteAllText($serializerSource, "serializer")
+                [System.IO.File]::WriteAllText($managedSource, "managed")
+                Copy-M01FileCreateNew `
+                    -SourcePath $publishSource `
+                    -SourceRootPath $repo `
+                    -DestinationPath $plan.EfiPath `
+                    -DestinationRootPath $plan.Directory `
+                    -Purpose "efi"
+                Copy-M01FileCreateNew `
+                    -SourcePath $mapSource `
+                    -SourceRootPath $repo `
+                    -DestinationPath $plan.MapPath `
+                    -DestinationRootPath $plan.Directory `
+                    -Purpose "map"
+                Copy-M01FileCreateNew `
+                    -SourcePath $responseSource `
+                    -SourceRootPath $repo `
+                    -DestinationPath $plan.ResponsePath `
+                    -DestinationRootPath $plan.Directory `
+                    -Purpose "response"
+                Copy-M01FileCreateNew `
+                    -SourcePath $serializerSource `
+                    -SourceRootPath $repo `
+                    -DestinationPath $plan.SerializerObjectPath `
+                    -DestinationRootPath $plan.Directory `
+                    -Purpose "serializer"
+                Write-M01Utf8CreateNew `
+                    -Path $plan.EvidencePath `
+                    -RootPath $plan.Directory `
+                    -Text '{"schemaVersion":3}'
+
+                $overwriteRejected = $false
+                try {
+                    Copy-M01FileCreateNew `
+                        -SourcePath $publishSource `
+                        -SourceRootPath $repo `
+                        -DestinationPath $plan.EfiPath `
+                        -DestinationRootPath $plan.Directory `
+                        -Purpose "duplicate"
+                }
+                catch [System.IO.IOException] {
+                    $overwriteRejected = $true
+                }
+                if (-not $overwriteRejected) {
+                    exit 64
+                }
+
+                $inputs = @(
+                    [pscustomobject]@{
+                        Path = $plan.EfiPath
+                        RootPath = $plan.Directory
+                        Purpose = "final-efi"
+                    },
+                    [pscustomobject]@{
+                        Path = $plan.MapPath
+                        RootPath = $plan.Directory
+                        Purpose = "final-map"
+                    },
+                    [pscustomobject]@{
+                        Path = $plan.ResponsePath
+                        RootPath = $plan.Directory
+                        Purpose = "final-response"
+                    },
+                    [pscustomobject]@{
+                        Path = $plan.EvidencePath
+                        RootPath = $plan.Directory
+                        Purpose = "evidence"
+                    },
+                    [pscustomobject]@{
+                        Path = $plan.SerializerObjectPath
+                        RootPath = $plan.Directory
+                        Purpose = "preserved-object"
+                    },
+                    [pscustomobject]@{
+                        Path = $serializerSource
+                        RootPath = $repo
+                        Purpose = "linked-object"
+                    },
+                    [pscustomobject]@{
+                        Path = $mapSource
+                        RootPath = $repo
+                        Purpose = "linked-map"
+                    },
+                    [pscustomobject]@{
+                        Path = $managedSource
+                        RootPath = $repo
+                        Purpose = "managed-dll"
+                    })
+                $locks = Open-M01VerifierInputLocks -Inputs $inputs
+                try {
+                    if ($locks.Count -ne 8) {
+                        exit 65
+                    }
+                    Assert-M01DistinctAuthorityRecords -Records (
+                        @($locks.ToArray()) + @($logAuthority))
+                    $writeRejected = $false
+                    try {
+                        [System.IO.File]::WriteAllText($plan.EfiPath, "changed")
+                    }
+                    catch [System.IO.IOException] {
+                        $writeRejected = $true
+                    }
+                    $replaceRejected = $false
+                    try {
+                        [System.IO.File]::Move(
+                            $plan.EfiPath,
+                            (Join-Path $plan.Directory "replaced.efi"))
+                    }
+                    catch [System.IO.IOException] {
+                        $replaceRejected = $true
+                    }
+                    if (-not $writeRejected -or -not $replaceRejected) {
+                        exit 66
+                    }
+                    Assert-M01VerifierInputLocks -Locks $locks
+                }
+                finally {
+                    Close-M01AuthorityRecords -Records $locks
+                }
+
+                Clear-M01OutputPublicationLeaves -Plan $plan
+                $hardlinkTarget = Join-Path $work "hardlink-target.bin"
+                [System.IO.File]::WriteAllText($hardlinkTarget, "target")
+                New-Item `
+                    -ItemType HardLink `
+                    -Path $plan.EfiPath `
+                    -Target $hardlinkTarget | Out-Null
+                $hardlinkRejected = $false
+                try {
+                    Clear-M01OutputPublicationLeaves -Plan $plan
+                }
+                catch {
+                    $hardlinkRejected =
+                        $_.Exception.Message -like "*hardlink_invalid*"
+                }
+                if (-not $hardlinkRejected) {
+                    exit 67
+                }
+                [System.IO.File]::Delete($plan.EfiPath)
+                [System.IO.File]::Delete($hardlinkTarget)
+
+                $logHardlinkTarget = Join-Path $CaseRoot "log-target.txt"
+                $logHardlinkPath = Join-Path $CaseRoot "log-hardlink.txt"
+                [System.IO.File]::WriteAllText($logHardlinkTarget, "log")
+                New-Item `
+                    -ItemType HardLink `
+                    -Path $logHardlinkPath `
+                    -Target $logHardlinkTarget | Out-Null
+                $logHardlinkRejected = $false
+                try {
+                    $unusedLog = Open-M01LogAuthority -Path $logHardlinkPath
+                }
+                catch {
+                    $logHardlinkRejected =
+                        $_.Exception.Message -like "*hardlink_invalid*"
+                }
+                if (-not $logHardlinkRejected) {
+                    exit 68
+                }
+
+                $targetRepo = Join-Path $CaseRoot "junction-target-repo"
+                $junctionRepo = Join-Path $CaseRoot "junction-repo"
+                New-Item -ItemType Directory -Path $targetRepo | Out-Null
+                New-Item `
+                    -ItemType Junction `
+                    -Path $junctionRepo `
+                    -Target $targetRepo | Out-Null
+                $ancestorRejected = $false
+                try {
+                    $unusedPlan = Get-M01OutputPublicationPlan `
+                        -RepositoryRoot $junctionRepo `
+                        -EfiOutputPath "artifacts\efi\BOOTX64.EFI" `
+                        -LogFullPath (Join-Path $CaseRoot "other.log")
+                }
+                catch {
+                    $ancestorRejected =
+                        $_.Exception.Message -like "*not_plain_directory*" -or
+                        $_.Exception.Message -like "*reparse*"
+                }
+                if (-not $ancestorRejected) {
+                    exit 69
+                }
+                [System.IO.Directory]::Delete($junctionRepo)
+
+                $leafTarget = Join-Path $work "leaf-target.bin"
+                $leafLink = $plan.EfiPath
+                [System.IO.File]::WriteAllText($leafTarget, "leaf")
+                $leafCreated = $false
+                try {
+                    New-Item `
+                        -ItemType SymbolicLink `
+                        -Path $leafLink `
+                        -Target $leafTarget `
+                        -ErrorAction Stop | Out-Null
+                    $leafCreated = $true
+                }
+                catch {
+                    # Symlink creation can be policy restricted on Windows.
+                }
+                if ($leafCreated) {
+                    $leafRejected = $false
+                    try {
+                        Clear-M01OutputPublicationLeaves -Plan $plan
+                    }
+                    catch {
+                        $leafRejected =
+                            $_.Exception.Message -like "*reparse*"
+                    }
+                    if (-not $leafRejected) {
+                        exit 70
+                    }
+                    [System.IO.File]::Delete($leafLink)
+                }
+            }
+            finally {
+                if ($null -ne $logAuthority) {
+                    $logAuthority.Stream.Dispose()
+                }
+            }
+            Write-Output "M01_OUTPUT_AUTHORITY_PASS"
+            exit 0
+            """,
+            new UTF8Encoding(false));
+
+        ProcessResult result = RunProcess(
+            "powershell.exe",
+            repositoryRoot,
+            timeoutMilliseconds: 30_000,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            wrapperPath,
+            "-BuildScriptPath",
+            buildScriptPath,
+            "-CaseRoot",
+            caseRoot);
+        return result.ExitCode == 0
+            && result.Output.Contains(
+                "M01_OUTPUT_AUTHORITY_PASS",
+                StringComparison.Ordinal);
+    }
+
     private static bool IsM01SourceClosureSuccess(
         ProcessResult result,
         string expectedSwitches)
@@ -885,7 +3539,7 @@ internal static class BuildEfiShellPreflightTests
         string switchMarker =
             "EFI_PREFLIGHT_M01_SWITCHES status=ok " + expectedSwitches;
         const string closureMarker =
-            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=28 prerequisites=3 compileItems=41 prerequisiteGap=UefiMemoryType";
+            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=28 prerequisites=3 compileItems=44 prerequisiteGap=UefiMemoryType";
         bool passed = result.ExitCode == 0
             && result.Output.Contains(switchMarker, StringComparison.Ordinal)
             && result.Output.Contains(closureMarker, StringComparison.Ordinal)
@@ -978,11 +3632,35 @@ internal static class BuildEfiShellPreflightTests
         string root = Path.Combine(tempRoot, name + "-repo");
         string projectPath = Path.Combine(root, "src", "OS", "OS.csproj");
         string scriptPath = Path.Combine(root, "scripts", "build-efi-shell.ps1");
+        string serializerTargetsPath = Path.Combine(
+            root,
+            "tools",
+            "OS.X64TextSerializerGenerator",
+            "OS.X64TextSerializerGenerator.targets");
 
         Directory.CreateDirectory(Path.GetDirectoryName(projectPath)!);
         Directory.CreateDirectory(Path.GetDirectoryName(scriptPath)!);
         File.Copy(sourceProjectPath, projectPath, overwrite: true);
         File.Copy(sourceScriptPath, scriptPath, overwrite: true);
+        Directory.CreateDirectory(Path.GetDirectoryName(serializerTargetsPath)!);
+        foreach (string fileName in new[]
+                 {
+                     "OS.X64TextSerializerGenerator.csproj",
+                     "OS.X64TextSerializerGenerator.targets",
+                     "Program.cs",
+                     "Amd64CoffWriter.cs",
+                     "InstructionPublicationSerializerGenerator.cs"
+                 })
+        {
+            File.Copy(
+                Path.Combine(
+                    repositoryRoot,
+                    "tools",
+                    "OS.X64TextSerializerGenerator",
+                    fileName),
+                Path.Combine(Path.GetDirectoryName(serializerTargetsPath)!, fileName),
+                overwrite: true);
+        }
         File.Copy(
             Path.Combine(repositoryRoot, "Directory.Build.props"),
             Path.Combine(root, "Directory.Build.props"),
@@ -990,6 +3668,22 @@ internal static class BuildEfiShellPreflightTests
         File.Copy(
             Path.Combine(repositoryRoot, "Directory.Build.targets"),
             Path.Combine(root, "Directory.Build.targets"),
+            overwrite: true);
+        File.Copy(
+            Path.Combine(repositoryRoot, "global.json"),
+            Path.Combine(root, "global.json"),
+            overwrite: true);
+        File.Copy(
+            Path.Combine(repositoryRoot, "CLROS.slnx"),
+            Path.Combine(root, "CLROS.slnx"),
+            overwrite: true);
+        File.Copy(
+            Path.Combine(repositoryRoot, "scripts", "test-efi-artifact.ps1"),
+            Path.Combine(root, "scripts", "test-efi-artifact.ps1"),
+            overwrite: true);
+        File.Copy(
+            Path.Combine(repositoryRoot, "tools", "Directory.Build.props"),
+            Path.Combine(root, "tools", "Directory.Build.props"),
             overwrite: true);
 
         string project = File.ReadAllText(sourceProjectPath);
@@ -1017,7 +3711,8 @@ internal static class BuildEfiShellPreflightTests
         {
             Root = root,
             ProjectPath = projectPath,
-            ScriptPath = scriptPath
+            ScriptPath = scriptPath,
+            SerializerTargetsPath = serializerTargetsPath
         };
     }
 
@@ -1036,6 +3731,111 @@ internal static class BuildEfiShellPreflightTests
         string text)
     {
         File.AppendAllText(SourcePath(source, area, file), text, new UTF8Encoding(false));
+    }
+
+    private static string ExtractPowerShellBlock(
+        string text,
+        string startToken,
+        string endToken)
+    {
+        string normalized = text.Replace(
+            "\r\n",
+            "\n",
+            StringComparison.Ordinal);
+        string normalizedStart = startToken.Replace(
+            "\r\n",
+            "\n",
+            StringComparison.Ordinal);
+        string normalizedEnd = endToken.Replace(
+            "\r\n",
+            "\n",
+            StringComparison.Ordinal);
+        int startIndex = normalized.IndexOf(
+            normalizedStart,
+            StringComparison.Ordinal);
+        int endIndex = startIndex < 0
+            ? -1
+            : normalized.IndexOf(
+                normalizedEnd,
+                startIndex + normalizedStart.Length,
+                StringComparison.Ordinal);
+        if (startIndex < 0 || endIndex <= startIndex)
+        {
+            throw new InvalidOperationException(
+                "PowerShell contract block was not found: " + startToken);
+        }
+
+        return normalized.Substring(startIndex, endIndex - startIndex);
+    }
+
+    private static IReadOnlyList<IReadOnlyDictionary<string, string>>
+        ParsePowerShellLiteralRecords(string block)
+    {
+        List<IReadOnlyDictionary<string, string>> records = [];
+        foreach (Match recordMatch in Regex.Matches(
+                     block,
+                     @"(?s)\[ordered\]\s+@\{(?<body>.*?)\}",
+                     RegexOptions.CultureInvariant))
+        {
+            Dictionary<string, string> record =
+                new(StringComparer.Ordinal);
+            foreach (Match propertyMatch in Regex.Matches(
+                         recordMatch.Groups["body"].Value,
+                         @"(?m)^\s*(?<name>[A-Za-z][A-Za-z0-9]*)\s*=\s*" +
+                         @"(?:'(?<quoted>[^']*)'|(?<bare>[^\r\n#]+?))\s*$",
+                         RegexOptions.CultureInvariant))
+            {
+                string name = propertyMatch.Groups["name"].Value;
+                string value = propertyMatch.Groups["quoted"].Success
+                    ? propertyMatch.Groups["quoted"].Value
+                    : propertyMatch.Groups["bare"].Value.Trim();
+                if (!record.TryAdd(name, value))
+                {
+                    throw new InvalidOperationException(
+                        "Duplicate PowerShell record property: " + name);
+                }
+            }
+
+            records.Add(record);
+        }
+
+        return records;
+    }
+
+    private static string ReadRecordValue(
+        IReadOnlyDictionary<string, string> record,
+        string name)
+    {
+        if (!record.TryGetValue(name, out string? value))
+        {
+            throw new InvalidOperationException(
+                "PowerShell record property was not found: " + name);
+        }
+
+        return value;
+    }
+
+    private static bool IsLowerHex(string value, int expectedLength)
+    {
+        return value.Length == expectedLength &&
+            value.All(character =>
+                character is >= '0' and <= '9' or >= 'a' and <= 'f');
+    }
+
+    private static int CountOrdinal(string text, string value)
+    {
+        int count = 0;
+        int index = 0;
+        while ((index = text.IndexOf(
+                   value,
+                   index,
+                   StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += value.Length;
+        }
+
+        return count;
     }
 
     private static void ReplaceOnce(
@@ -1347,7 +4147,9 @@ internal static class BuildEfiShellPreflightTests
         string[] requiredOutput =
         [
             "EFI_PREFLIGHT_M01_SWITCHES status=ok loadedImageStack=false liveAllocator=false ownedPaging=false",
-            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=28 prerequisites=3 compileItems=41 prerequisiteGap=UefiMemoryType",
+            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=28 prerequisites=3 compileItems=44 prerequisiteGap=UefiMemoryType",
+            "EFI_PREFLIGHT_DOTNET path=\"",
+            "sdkVersion=\"10.0.3",
             "EFI_PREFLIGHT_MSVC_LINKER path=\"" + Path.GetFullPath(tools.LinkerPath) + "\" version=\"14.40.33807\"",
             "EFI_PREFLIGHT_WINDOWS_SDK path=\"" + Path.GetFullPath(tools.SdkLibPath) + "\" version=\"10.0.26100.0\"",
             "EFI_PREFLIGHT_ILCOMPILER path=\"" + Path.GetFullPath(tools.IlCompilerPath) + "\" packageVersion=\"10.0.8\"",
@@ -1561,21 +4363,33 @@ internal static class BuildEfiShellPreflightTests
         };
         AddArgument(start, arguments);
 
+        return RunProcess(start, timeoutMilliseconds, logPath: string.Empty);
+    }
+
+    private static ProcessResult RunProcess(
+        ProcessStartInfo start,
+        int timeoutMilliseconds,
+        string logPath)
+    {
         using Process process = Process.Start(start)
-            ?? throw new InvalidOperationException("Failed to start " + fileName + ".");
+            ?? throw new InvalidOperationException(
+                "Failed to start " + start.FileName + ".");
         Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
         Task<string> standardError = process.StandardError.ReadToEndAsync();
         if (!process.WaitForExit(timeoutMilliseconds))
         {
             process.Kill(entireProcessTree: true);
             throw new TimeoutException(
-                fileName + " did not exit within " + timeoutMilliseconds + "ms.");
+                start.FileName +
+                " did not exit within " +
+                timeoutMilliseconds +
+                "ms.");
         }
 
         return new ProcessResult(
             process.ExitCode,
             standardOutput.GetAwaiter().GetResult() + standardError.GetAwaiter().GetResult(),
-            logPath: string.Empty);
+            logPath);
     }
 
     private static void AddArgument(ProcessStartInfo start, params string[] arguments)
@@ -1602,6 +4416,8 @@ internal static class BuildEfiShellPreflightTests
         public required string ProjectPath { get; init; }
 
         public required string ScriptPath { get; init; }
+
+        public required string SerializerTargetsPath { get; init; }
     }
 
     private sealed class ToolFixture

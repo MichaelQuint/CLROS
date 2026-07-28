@@ -96,12 +96,13 @@ QEMU/OVMF.
 ### M01 reviewed EFI source closure (host-only)
 
 M01-020 promotes the already host-reviewed M01 leaf and coordinator sources
-into the canonical `src/OS/OS.csproj` no-stdlib compilation. The project now
-has exactly 41 direct compile items: 38 linked `OS.Kernel` sources and the
-three local EFI sources `EfiConsoleAdapter.cs`, `EfiEntry.cs`, and
-`MinimalRuntime.cs`. There are no source globs, conditional future slots,
-alternate EFI projects, generated compile items, or managed project/assembly
-references.
+into the canonical `src/OS/OS.csproj` no-stdlib compilation. M01-034 expands
+that closure to exactly 44 direct compile items: 38 linked `OS.Kernel` sources
+and the six local EFI sources `EfiConsoleAdapter.cs`, `EfiEntry.cs`,
+`X64InstructionPublication.cs`, `RuntimeImportAttribute.cs`,
+`MethodImplAttribute.cs`, and `MinimalRuntime.cs`. There are no source globs,
+conditional future slots, alternate EFI projects, generated compile items, or
+managed project/assembly references.
 
 The issue-reviewed set has these 28 explicit entries:
 
@@ -159,7 +160,7 @@ validation emits:
 
 ```text
 EFI_PREFLIGHT_M01_SWITCHES status=ok loadedImageStack=<true|false> liveAllocator=<true|false> ownedPaging=<true|false>
-EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=28 prerequisites=3 compileItems=41 prerequisiteGap=UefiMemoryType
+EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=28 prerequisites=3 compileItems=44 prerequisiteGap=UefiMemoryType
 ```
 
 The opt-in build switches form a strict dependency chain:
@@ -418,15 +419,216 @@ gate, composite stream, or probe; install or restore CR3; change CR4, RFLAGS,
 a PTE, permissions, or the TLB; prove page-zero absence or W^X/NX in hardware;
 run a stage-three QEMU/OVMF guest; or advance a completion gate.
 
-The artifact also does not close immutable-text first-publication
-serialization. The first architectural-preflight bytes are dynamically
-published before their first transfer; serialization inside a later generated
-stream cannot serialize that initial fetch. M01-033 now provides the reviewed
-deterministic C# AMD64 COFF executable-text object and encoded relocation/unwind
-intent only. M01-034 must link and verify it in executable, nonwritable EFI
-image text, and M01-035 must place it at every current publication epoch.
-M01-026 remains blocked until those remaining slices have implementation and
-build-audit evidence.
+The first architectural-preflight bytes are dynamically published before their
+first transfer; serialization inside a later generated stream cannot serialize
+that initial fetch. M01-033 supplied the reviewed deterministic C# AMD64 COFF
+object. M01-034 now integrates that exact 336-byte object into the canonical
+native link and independently verifies the resulting EFI image, without
+invoking the symbol. The final image contains the exact 20-byte serializer in
+an executable, readable, nonwritable section and one matching exception-table
+entry whose eight-byte unwind record is readable, nonwritable, and
+nonexecutable. The verifier also requires the exact map symbol, linker-response
+input, no ordinary imports, and the exact managed-assembly hash and managed-PE
+shape recorded by the same build. The host integration test independently
+decodes that assembly's metadata and requires the exact
+`RuntimeImport`/`InternalCall` no-body binding. M01-035 must still place the
+checked call at every current publication epoch. M01-026 remains blocked until
+that invocation slice has implementation and build-audit evidence.
+
+### Linked instruction-publication serializer (M01-034)
+
+`src/OS/OS.csproj` imports the single allowlisted
+`tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.targets`
+file. The import runs only as a host-side build integration:
+
+- the generator remains an ordinary .NET 10 host tool and has no
+  `ProjectReference`, package, custom reference, or non-SDK analyzer closure;
+- the generated COFF object remains ephemeral, is generated atomically, and is
+  registered as both the exact `NativeLibrary` input and linker argument only
+  after the NativeAOT runtime-library list is finalized;
+- the generator output directory is isolated from the parent build, and
+  absolute or relative intermediate paths, including paths containing spaces,
+  are normalized without changing the object identity;
+- the object is registered early enough for normal `dotnet clean` tracking,
+  while the same-build artifact evidence preserves a separate exact copy for
+  independent verification;
+- `/BREPRO`, `/INCLUDE:CLROS_X64_SerializeInstructionPublication`, `/MAP`, and
+  `/MAPINFO:EXPORTS` make wall-clock-independent native output, symbol
+  retention, and map evidence explicit, while the verifier rejects any
+  `/FORCE` unresolved-symbol escape; and
+- the integration rejects attempts to override the symbol, object name,
+  expected byte count, expected object hash, or canonical generator inputs.
+
+The direct no-stdlib binding consists of
+`Boot/X64InstructionPublication.cs`,
+`Runtime/RuntimeImportAttribute.cs`, and
+`Runtime/MethodImplAttribute.cs`. Those three files are ordered before
+`Runtime/MinimalRuntime.cs`, bringing the exact EFI compile closure to 44
+items. `X64InstructionPublication.Serialize()` binds
+`CLROS_X64_SerializeInstructionPublication` from module `*` as an
+`InternalCall` and expects success cookie `0x53524C43`; no managed fallback
+body is present.
+
+The build acquires one repository-wide, cross-process and cross-session
+exclusive file lock at `artifacts/.locks/efi-publish.lock` before writing any
+preflight or publish output. The lock deliberately serializes every
+configuration and RID that targets the same repository tree; independent
+source copies retain fully parallel build isolation. Preflight then pins the
+direct and evaluated EFI and generator closures, including both project files,
+root and tool-local build props/targets, the three generator sources, the two
+expected SDK analyzers, and zero generator project/package/custom references.
+Both evaluated-closure queries use a random isolated project-extension root,
+disable automatic response files and default project-extension imports, and
+reset repository and custom MSBuild hooks. The selected SDK `Sdks` and
+extensions roots are explicit, the user-extension root is an absent isolated
+path, and all Common.props, Common.targets, CSharp, and cross-targeting
+wildcard/user-wildcard import switches are false. The same values are used by
+restore, post-restore evaluation, publish, the nested host generator, and the
+independent verifier. Consequently, stale or hostile
+`src/OS/obj/*.nuget.g.props`, `*.nuget.g.targets`, `project.assets.json`, SDK
+override, or user/machine ImportBefore/ImportAfter file cannot influence an
+accepted evaluation.
+
+The build takes a 57-input source snapshot that also includes `global.json`
+plus the build and verifier scripts. It opens read/share-read handles that deny
+writes and replacement before authoritative source validation, holds them for
+the entire restore/publish/evidence/verification interval, and confirms the
+same aggregate after locking and after publish. Every source path is checked
+component by component from the canonical repository root; a reparse-point
+ancestor or leaf is rejected before and after locking. The build removes only
+the exact plain RID-specific `src/OS/bin` and `src/OS/obj` output directories.
+Before restore, it authenticates five exact cached package
+archives by source-pinned SHA-256, copies them into a freshly created local
+source beside an allowlisted `NuGet.Config`, and read-locks both the five
+original archives and all six local-source files. The configuration clears
+ordinary package, fallback-package, and audit sources, so restore has one
+explicit local package source and one fresh isolated package root.
+
+That restore creates exactly five canonical NuGet/MSBuild inputs under
+`src/OS/obj/<configuration>/net10.0/<rid>/nuget`:
+`OS.csproj.nuget.dgspec.json`, `OS.csproj.nuget.g.props`,
+`OS.csproj.nuget.g.targets`, `project.assets.json`, and
+`project.nuget.cache`. The build rejects any missing, extra, empty, indirect,
+or reparse-point entry, securely parses the generated props/targets, and
+requires the exact version-4 asset graph. Generated package props and targets
+remain restore data only: both restore and publish set
+`ImportProjectExtensionProps=false`,
+`ImportProjectExtensionTargets=false`, and
+`ExcludeRestorePackageImports=true`.
+
+After restore, the build enumerates the exact five isolated package/version
+trees plus the selected external NativeAOT 10.0.8 runtime-pack tree. It
+validates source-pinned package content identities, rejects any extra package
+version or reparse point, hashes 900 stable package files with ordinal relative
+paths, validates and locks all six metadata records separately, and holds the
+resulting 906 file handles through verification. A narrower nine-file package
+build closure pins the five active target files, two task assemblies, and both
+task dependency manifests. Publish receives explicit canonical paths for
+ILCompiler, ILLink, their tasks, the isolated 10.0.8 host compiler, and the
+10.0.8 runtime pack. `OS.csproj` makes the SingleEntry target consume those
+same CLROS roots and fails the build if that target rewrites either root.
+The nested host generator removes inherited AOT/package globals and explicitly
+replaces the restore/project-extension globals it needs with canonical child
+values before its package-free build.
+
+A locked post-restore evaluation requires exactly 44 compile items, zero
+project references, zero explicit references, and the two SDK analyzers.
+Publish then runs with `--no-restore`, `NoIncremental=true`, and the same
+explicit paths. The build repeats the source, restore-source, generated
+restore-data, package-build, full package-tree, and evaluated-item checks after
+publish before accepting an artifact.
+
+Link evidence schema 3 records those distinct closures and their aggregate
+SHA-256 values; the isolated project-extension, package-root, and exact
+`project.assets.json` paths; the pinned expected five-edge package-import and
+two-task-binding contracts; post-restore item counts and hashes; both linked
+and preserved object paths; object and binding input hashes; canonical managed
+assembly identity; linker response/map hashes; final EFI hash; the validated
+.NET host plus selected SDK version and paths; and the declared/validated
+linker, Windows SDK, actual isolated ILCompiler, and complete NativeAOT
+runtime-pack identities. This is not a binlog or proof that independently
+reconstructs every conditional SDK import or causally traces each tool binary
+into the output. The installed SDK directory remains a trusted host
+prerequisite; its selected SDK/import paths are pinned and wildcard extension
+hooks are disabled, but the complete SDK tree is not content-hashed.
+
+`scripts/test-efi-artifact.ps1` treats that evidence as untrusted input. It
+independently recomputes every source, restore, package, tool, and artifact
+association, revalidates the generated restore semantics and post-restore item
+closure, bounds PE parsing, requires PE32+ AMD64 EFI-application shape, rejects
+imports and fallback binding, and checks section ranges,
+executable/nonwritable serializer bytes, the exception directory,
+runtime-function range, unwind RVA, and exact unwind bytes. It also rejects
+truncation, overlap, integer overflow, oversized inputs, ambiguous
+runtime-function coverage, writable code, executable or writable unwind data,
+stale hashes, mismatched map/response/object/source evidence, and a missing,
+noncanonical, mutated, or expanded restore/package closure. Runtime-function
+records and response tokens have explicit capacity ceilings.
+
+The verifier pins `ProjectPath` and `EntrySourcePath` to the exact
+`src/OS/OS.csproj` and `src/OS/Boot/EfiEntry.cs` below its own repository
+root. It rejects lexical traversal and alternate or sibling source contracts,
+requires exactly 57 mutually distinct single-link source inputs, and still
+allows the artifact/map/response/evidence bundle itself to be copied to a
+different directory for independent inspection. Its independent post-restore
+MSBuild evaluation also runs in a verifier-local kill-on-close Job Object: the
+child is created suspended, assigned before resume, and given bounded strict
+UTF-8 output plus a fixed timeout. Timeout, output overflow, capture failure,
+nonzero exit, or inability to confirm that the complete descendant tree
+terminated fails with a distinct stable reason. Node reuse, build-server reuse,
+shared compilation, telemetry, and decorative CLI output remain disabled.
+
+The parent creates a startup-gated Windows PowerShell wrapper, assigns that
+wrapper to a kill-on-close Windows Job Object, starts bounded asynchronous
+stdout/stderr capture, and only then releases the gate that permits direct
+invocation of the artifact verifier. This closes the pre-assignment descendant
+race: verifier code cannot run or create a child before the job owns its
+wrapper. A fixed 60-second verifier timeout has no retry, bounds both output
+drains, and treats verified whole-job termination separately from normal
+nonzero verifier exit. The host timeout fixture also exercises an explicitly
+unkillable test override and requires the build to refuse a false
+`terminationConfirmed` result.
+
+Restore, both project-evaluation passes, the NativeAOT publish, and the final
+SDK recheck use the same startup-gated Job Object ownership model with bounded
+output and an explicit build-process timeout. MSBuild node reuse and shared
+compilation are disabled so a timed-out descendant cannot escape through a
+pre-existing build server.
+
+Before final evidence is accepted, output ancestry is validated without
+following junctions or reparse points. Existing output leaves are accepted for
+replacement only when they are ordinary single-link files at the exact
+resolved paths; new outputs use non-overwrite creation after that guarded
+cleanup. The EFI, map, response, evidence JSON, preserved and linked serializer
+objects, linked map, and managed assembly must have distinct Windows file
+identities and expected link counts. The producer and verifier hold read
+handles that deny mutation/replacement through the entire verification pass,
+then independently rehash the held files immediately before reporting success.
+The canonical 57-source closure receives the same single-link and
+distinct-identity requirement. Package and tool inputs are reparse-checked and
+mutation-locked; they are not claimed to be globally unique file identities.
+
+The final frozen-source artifact counts, scan timings, source and restore
+closure hashes, and two-copy wall-clock-separated reproducibility results are
+recorded in `done/step886.md`. The lifecycle check separately proves that build
+creates the exact object, `dotnet clean` removes it through the normal
+file-write ledger, and rebuild regenerates the same 336 bytes and SHA-256
+`DA97E50C95E479541B65EB3F96D9C6DED163735857650BEE9416324086D55C7B`.
+
+The bounded reference influence for this integration is architectural:
+
+- `references/SharpOS-main/bootasm/CoffStub.Generator/CoffStub.Generator.targets`
+  (SHA-256
+  `C48D6A90385E162E9073B9BCCCF303156151905E598B1F4E84A5E1C6345DCA5F`)
+  informed the idea of generating a COFF input before the native link.
+- `references/SharpOS-main/apps_native/sdk/MinimalRuntime.cs` (SHA-256
+  `4BB87E5027014177ABFB120B1C3D214D71A44AC6707E969F2FA8E7DE0BB43AE7`)
+  informed the no-stdlib `RuntimeImport`/`InternalCall` binding shape.
+
+CLROS independently constrains the generator closure, object identity, linker
+ownership, source snapshot, clean behavior, PE/map/unwind verification, and
+negative cases. No reference artifact or output is accepted as CLROS evidence.
+The recorded project-owner grant permits this bounded adaptation.
 
 ## Unsupported Behavior
 
@@ -584,24 +786,20 @@ Any next-step EFI build work must keep the freestanding constraints explicit. If
 
 ## Next Steps
 
-1. Under M01-034, link M01-033's reviewed deterministic object and build-audit
-   its exact symbol, bytes, exception-directory/unwind coverage, immutable
-   executable section, binding metadata, and absent ordinary imports in the
-   same-build canonical EFI artifact without invoking it.
-2. Under M01-035, place the linked serializer at every current publication
+1. Under M01-035, place the M01-034 linked serializer at every current publication
    epoch and host-audit each checked cookie transition without claiming guest
    execution.
-3. Only after M01-035 closes, run M01-026's cumulative all-switch QEMU/OVMF
+2. Only after M01-035 closes, run M01-026's cumulative all-switch QEMU/OVMF
    proof with captured serial, artifact hashes, required/forbidden marker
    validation, and deterministic timeout/reset/triple-fault classification.
-4. Move UEFI structs behind platform interfaces.
+3. Move UEFI structs behind platform interfaces.
    - Keep the low-level UEFI table pointers isolated to the EFI boundary.
    - Expose only the narrow operations required for console diagnostics, memory-map ownership, firmware shutdown state, and optional filesystem/protocol discovery.
-5. Implement post-firmware COM1 before enabling any real firmware shutdown.
-6. Copy required firmware data, add the typed `ExitBootServices` call adapter,
+4. Implement post-firmware COM1 before enabling any real firmware shutdown.
+5. Copy required firmware data, add the typed `ExitBootServices` call adapter,
    and implement the bounded stale-map-key retry only after its M01/M02
    dependencies pass.
-7. Route additional platform interfaces through the UEFI-gone simulation path
+6. Route additional platform interfaces through the UEFI-gone simulation path
    as they are introduced.
-8. Replace permissive shell-only runtime placeholders with audited runtime
+7. Replace permissive shell-only runtime placeholders with audited runtime
    helpers as subsystems require them.

@@ -28,6 +28,8 @@
 		<NativeDebugSymbols>false</NativeDebugSymbols>
 		<EnableSourceLink>false</EnableSourceLink>
 		<SuppressGenerateILCompilerExplicitPackageReferenceWarning>true</SuppressGenerateILCompilerExplicitPackageReferenceWarning>
+		<ClrosIlcHostPackagePath Condition="'$(ClrosIlcHostPackagePath)' == ''">$(UserProfile)\.nuget\packages\runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.8</ClrosIlcHostPackagePath>
+		<ClrosRuntimePackagePath Condition="'$(ClrosRuntimePackagePath)' == ''">$(UserProfile)\.nuget\packages\microsoft.netcore.app.runtime.nativeaot.win-x64\10.0.8</ClrosRuntimePackagePath>
 		<EntryPointSymbol>EfiMain</EntryPointSymbol>
 		<LinkerSubsystem>EFI_APPLICATION</LinkerSubsystem>
 		<DefineConstants>$(DefineConstants);NOSTDLIB_EFI</DefineConstants>
@@ -101,16 +103,29 @@
 		<Compile Include="..\OS.Kernel\Boot\M01OwnedCr3CompositeTransition.cs" Link="Boot\M01OwnedCr3CompositeTransition.cs" />
 		<Compile Include="Boot\EfiConsoleAdapter.cs" />
 		<Compile Include="Boot\EfiEntry.cs" />
+		<Compile Include="Boot\X64InstructionPublication.cs" />
+		<Compile Include="Runtime\RuntimeImportAttribute.cs" />
+		<Compile Include="Runtime\MethodImplAttribute.cs" />
 		<Compile Include="Runtime\MinimalRuntime.cs" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
 		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
 		<ResolvedILCompilerPack Include="runtime.win-x64.Microsoft.DotNet.ILCompiler">
-			<PackageDirectory>$(UserProfile)\.nuget\packages\runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.8\</PackageDirectory>
+			<PackageDirectory>$(ClrosIlcHostPackagePath)</PackageDirectory>
 		</ResolvedILCompilerPack>
 		<ResolvedTargetILCompilerPack Include="Microsoft.NETCore.App.Runtime.NativeAOT.win-x64">
-			<PackageDirectory>$(UserProfile)\.nuget\packages\microsoft.netcore.app.runtime.nativeaot.win-x64\10.0.8\</PackageDirectory>
+			<PackageDirectory>$(ClrosRuntimePackagePath)</PackageDirectory>
 		</ResolvedTargetILCompilerPack>
 	</ItemGroup>
+
+	<Target Name="ValidateClrosPinnedNativeAotPaths"
+			AfterTargets="ImportRuntimeIlcPackageTarget">
+		<Error
+			Condition="'$(IlcHostPackagePath)' != '$(ClrosIlcHostPackagePath)'"
+			Text="NativeAOT host package path escaped the CLROS pinned package root." />
+		<Error
+			Condition="'$(RuntimePackagePath)' != '$(ClrosRuntimePackagePath)'"
+			Text="NativeAOT runtime package path escaped the CLROS pinned package root." />
+	</Target>
 
 	<Target Name="ValidateM01ProbeSwitches"
 			BeforeTargets="BeforeCompile">
@@ -159,6 +174,7 @@
 			<LinkerArg Include="/NOLOGO" />
 			<LinkerArg Include="/MANIFEST:NO" />
 			<LinkerArg Include="/INCREMENTAL:NO" />
+			<LinkerArg Include="/BREPRO" />
 			<LinkerArg Include="/SUBSYSTEM:$(LinkerSubsystem)" />
 			<LinkerArg Include="/ENTRY:$(EntryPointSymbol)" />
 			<LinkerArg Include="/NODEFAULTLIB" />
@@ -166,5 +182,7 @@
 			<LinkerArg Include="/OPT:ICF" />
 		</ItemGroup>
 	</Target>
+
+	<Import Project="..\..\tools\OS.X64TextSerializerGenerator\OS.X64TextSerializerGenerator.targets" />
 
 </Project>
