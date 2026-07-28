@@ -52,7 +52,11 @@ Libvirt connection, transient domain creation, live serial marker polling, timeo
 
 `tests/OS.HostTests/LibvirtRunnerTests.cs` covers network-none XML, OVMF loader XML, default virtio network XML, raw/qcow2 disk driver XML, XML validation pass/fail summaries, invalid disk-format rejection, lifecycle plan order/markers/opt-in guard, diagnostic readiness lines, required/forbidden marker diagnostics, smoke-wrapper dry-run/missing-tool/lifecycle/check-serial marker contracts, `check-serial` pass/missing-marker/forbidden-marker behavior, summary artifact writing, and opt-in image-path validation without requiring native libvirt. Image-path validation now covers missing images, empty images, diagnostic byte/header reporting, raw images accidentally passed as qcow2, and qcow2 images accidentally passed as raw. The runner tests execute the already-built `tools/OS.LibvirtRunner/bin/<configuration>/net10.0/OS.LibvirtRunner.dll` with `dotnet <dll>`, not nested `dotnet run --project`.
 
-Host tool project-boundary tests emit `TEST_PASS tools.project boundary excludes artifact sources` and `TEST_PASS tools.project boundary keeps four host tools`.
+Host tool project-boundary tests enumerate the current five expected projects
+(`OS.ImageBuilder`, `OS.LibvirtRunner`, `OS.ManifestTool`, `OS.QemuRunner`, and
+the standalone M01-033 `OS.X64TextSerializerGenerator`) and emit
+`TEST_PASS tools.project boundary excludes artifact sources` and
+`TEST_PASS tools.project boundary keeps expected host tools`.
 
 CI-smoke failure-injection tests verify that the libvirt dry-run and
 missing-tool lanes still pass when the injected `-DotNet` executable fails only

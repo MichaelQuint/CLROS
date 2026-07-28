@@ -9,7 +9,11 @@ internal static class HostToolProjectBoundaryTests
         int failures = 0;
 
         Run("tools.project boundary excludes artifact sources", TestToolsExcludeArtifactSources, ref failures);
-        Run("tools.project boundary keeps four host tools", TestToolProjectInventory, ref failures);
+        Run("tools.project boundary keeps expected host tools", TestToolProjectInventory, ref failures);
+        Run(
+            "tools.x64 serializer excludes native and object sources",
+            TestX64SerializerSourceBoundary,
+            ref failures);
 
         if (failures != 0)
         {
@@ -68,10 +72,51 @@ internal static class HostToolProjectBoundaryTests
             .Order(StringComparer.Ordinal)
             .ToArray();
 
-        return projects.Length == 4
+        return projects.Length == 5
             && projects[0] == "OS.ImageBuilder"
             && projects[1] == "OS.LibvirtRunner"
             && projects[2] == "OS.ManifestTool"
-            && projects[3] == "OS.QemuRunner";
+            && projects[3] == "OS.QemuRunner"
+            && projects[4] == "OS.X64TextSerializerGenerator";
+    }
+
+    private static bool TestX64SerializerSourceBoundary()
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string generatorRoot = Path.Combine(
+            repositoryRoot,
+            "tools",
+            "OS.X64TextSerializerGenerator");
+        if (!Directory.Exists(generatorRoot))
+        {
+            return false;
+        }
+
+        HashSet<string> forbiddenExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".obj",
+            ".c",
+            ".cpp",
+            ".h",
+            ".asm",
+            ".s"
+        };
+
+        return Directory
+            .EnumerateFiles(generatorRoot, "*", SearchOption.AllDirectories)
+            .Where(path => !HasGeneratedDirectorySegment(generatorRoot, path))
+            .All(path => !forbiddenExtensions.Contains(Path.GetExtension(path)));
+    }
+
+    private static bool HasGeneratedDirectorySegment(string root, string path)
+    {
+        string relative = Path.GetRelativePath(root, path);
+        string[] segments = relative.Split(
+            [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+            StringSplitOptions.RemoveEmptyEntries);
+        return segments.Any(
+            segment =>
+                string.Equals(segment, "bin", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(segment, "obj", StringComparison.OrdinalIgnoreCase));
     }
 }

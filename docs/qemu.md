@@ -801,11 +801,13 @@ marker checks against hashed serial bytes, strict serial UTF-8, conflicting
 terminal markers, inconsistent pass records, invalid timestamps, and output
 overlap with an input.
 
-Host tool project-boundary tests emit:
+Host tool project-boundary tests enumerate the current five expected projects
+(`OS.ImageBuilder`, `OS.LibvirtRunner`, `OS.ManifestTool`, `OS.QemuRunner`, and
+the standalone M01-033 `OS.X64TextSerializerGenerator`) and emit:
 
 ```text
 TEST_PASS tools.project boundary excludes artifact sources
-TEST_PASS tools.project boundary keeps four host tools
+TEST_PASS tools.project boundary keeps expected host tools
 ```
 
 M01-022 adds fake-QEMU coverage for the exact stage-one chain and the new

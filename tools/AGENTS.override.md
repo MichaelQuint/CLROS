@@ -12,6 +12,12 @@ Current tools:
 - `OS.ManifestTool`
 - `OS.LibvirtRunner`
 - `OS.ImageBuilder`
+- `OS.X64TextSerializerGenerator`
+
+`OS.X64TextSerializerGenerator` is the standalone M01-033 host-build leaf. It
+is deliberately outside `CLROS.slnx` until M01-034 owns canonical solution and
+EFI-link integration, so build its project directly when changing or verifying
+the generator.
 
 ## Allowed Dependencies
 
@@ -34,6 +40,7 @@ Rules:
 - Validate inputs and paths.
 - Avoid printing secrets.
 - Keep generated paths under `artifacts/` unless the user explicitly requests another output.
+- Keep generated `.obj` files ephemeral; do not commit them or native source.
 
 ## Output Contract
 
@@ -74,6 +81,7 @@ Add tests in `tests/OS.HostTests` for every manifest behavior change.
 Run the relevant host tests:
 
 ```powershell
+dotnet build .\tools\OS.X64TextSerializerGenerator\OS.X64TextSerializerGenerator.csproj --nologo
 dotnet build .\CLROS.slnx --nologo -m:1
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 .\scripts\run-qemu-smoke.ps1 -DryRun
