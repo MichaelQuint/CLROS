@@ -122,6 +122,13 @@ completion-gate, reference, or historical done-step source changed.
   - Reported 420 unchanged objects.
   - Reported exactly one pending update, `issue:M01-021`.
   - Reported zero creates, skips, and failures.
+- Closure no-write synchronization preview:
+  - Verified all 54 requested closure-evidence markers.
+  - Reported 411 unchanged objects.
+  - Reported exactly the 10 intended pending updates:
+    `M01-021`, `M01-022`, `M01-023`, `M01-024`, `M01-025`,
+    `M01-028`, `M01-029`, `M01-030`, `M01-031`, and `M01-032`.
+  - Reported zero creates, skips, and failures.
 - `git diff --check`
   - Passed.
 
@@ -141,9 +148,32 @@ Intent and implementation provenance:
 - Implementation commit:
   `f7251ac27b9c29a64d7c6ae7c4687318d2555196`.
 - Implementation pull request: `#407`.
+- Implementation merge commit:
+  `26fdb24c74a6af089196d0759f3afcf0bdd8cb85`.
+- Fresh M01-021 reviewed-evidence comment: `#6187`.
+- Pull-request independent-review comment: `#6189`.
+- Dependency-state closure pull request: `#408`.
 - Independent reviews covered selection semantics, ordinal/overlap traversal,
   raw body bounds, newline portability, exact M01-025 collisions, runtime-path
   isolation, and manifest history preservation. No merge blocker remained.
+
+Dependency-chain revalidation:
+
+- M01-022 comment `#6191`.
+- M01-023 comment `#6193`.
+- M01-024 comment `#6195`.
+- M01-028 comment `#6197`.
+- M01-029 comment `#6199`.
+- M01-030 comment `#6201`.
+- M01-031 comment `#6203`.
+- M01-032 comment `#6205`.
+- Parked M01-025 compatibility/readiness comment `#6207`; this issue remains
+  open and the comment deliberately carries no closure marker.
+
+Each reclosed descendant comment from `#6191` through `#6205` carries a fresh
+issue-key-specific `clros-evidence-reviewed` marker and explicitly preserves
+the issue's historical implementation, artifact, QEMU, and no-claim
+boundaries.
 
 Authoritative full-host evidence:
 
