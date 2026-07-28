@@ -51,6 +51,14 @@ internal static class X64BootIdentityMappingPlanTests
         Console.WriteLine("TEST_PASS " + IssueTestName);
     }
 
+    internal static bool TestM01030ExactLiveIntervalContract()
+    {
+        return TestM01030LiveIntervalCanonicalPlan()
+            && TestM01030LiveIntervalPurposeSet()
+            && TestM01030LiveIntervalGuardAndGeometry()
+            && TestM01030LiveIntervalPoliciesAndAtomicity();
+    }
+
     private static void Run(string name, Func<bool> test, ref int failures)
     {
         Console.WriteLine("TEST_START " + name);
@@ -91,7 +99,13 @@ internal static class X64BootIdentityMappingPlanTests
             ("AcpiScratch", 5),
             ("FramebufferMetadata", 6),
             ("BootStackGuard", 7),
-            ("AdditionalRequired", 8)
+            ("AdditionalRequired", 8),
+            ("CompositeCodeAndCallGate", 9),
+            ("CompositeOwnedStack", 10),
+            ("ProtectionProbePage", 11),
+            ("CompleteTableAndStateArena", 12),
+            ("RuntimeStateAndCanaryPage", 13),
+            ("OwnedRootPage", 14)
         ];
         (string Name, byte Value)[] statusValues =
         [
@@ -206,10 +220,740 @@ internal static class X64BootIdentityMappingPlanTests
             && X64BootIdentityMappingPlan.LowCanonicalEndExclusive
                 == 0x0000_8000_0000_0000
             && X64BootIdentityMappingPlan.RequiredPurposeMask == 0x7e
+            && X64BootIdentityMappingPlan
+                .RequiredLiveIntervalPurposeMask == 0x7e00
+            && X64BootIdentityMappingPlan
+                .RequiredLiveIntervalPurposeCount == 7
             && X64BootIdentityMappingPlan.UsesOnly4KiBLeaves
             && !X64BootIdentityMappingPlan.PerformsLiveMapping
             && !X64BootIdentityMappingPlan.AllocatesPageTables
             && !X64BootIdentityMappingPlan.PopulatesPageTables;
+    }
+
+    private static bool TestM01030LiveIntervalCanonicalPlan()
+    {
+        X64BootIdentityMappingRequirement[] source =
+            LiveIntervalRequirements();
+        X64BootIdentityMappingRange[] output =
+            new X64BootIdentityMappingRange[16];
+        X64BootIdentityMappingPlanResult result =
+            PlanLiveInterval(source, output);
+
+        X64BootIdentityMappingRequirement[] reversed =
+            source.Reverse().ToArray();
+        X64BootIdentityMappingRange[] reversedOutput =
+            new X64BootIdentityMappingRange[16];
+        X64BootIdentityMappingPlanResult reversedResult =
+            PlanLiveInterval(reversed, reversedOutput);
+
+        X64BootIdentityMappingRange[] legacyOutput =
+            new X64BootIdentityMappingRange[32];
+        X64BootIdentityMappingPlanResult legacy =
+            Plan(CompleteRequirements(), legacyOutput);
+        X64BootIdentityMappingRange[] legacyExactOutput =
+            new X64BootIdentityMappingRange[16];
+        X64BootIdentityMappingPlanResult legacyRejectsExactProfile =
+            Plan(source, legacyExactOutput);
+
+        const ulong guardMask =
+            1UL << (byte)X64BootIdentityMappingPurpose.BootStackGuard;
+        const ulong codeMask =
+            1UL << (byte)X64BootIdentityMappingPurpose
+                .CompositeCodeAndCallGate;
+        const ulong stackMask =
+            1UL << (byte)X64BootIdentityMappingPurpose
+                .CompositeOwnedStack;
+        const ulong compatibleUnionMask =
+              (1UL << (byte)X64BootIdentityMappingPurpose
+                  .ProtectionProbePage)
+            | (1UL << (byte)X64BootIdentityMappingPurpose
+                  .CompleteTableAndStateArena)
+            | (1UL << (byte)X64BootIdentityMappingPurpose
+                  .RuntimeStateAndCanaryPage)
+            | (1UL << (byte)X64BootIdentityMappingPurpose
+                  .OwnedRootPage);
+
+        bool guardAbsent = true;
+        for (ulong index = 0; index < result.OutputRangeCount; index++)
+        {
+            X64BootIdentityMappingRange range = output[(int)index];
+            if (range.PhysicalStart
+                    .TryGetRawValueForHardwareRegisterBoundary(
+                        out ulong start)
+                    != AddressValueStatus.Success
+                || range.PhysicalEndExclusive
+                    .TryGetRawValueForHardwareRegisterBoundary(
+                        out ulong endExclusive)
+                    != AddressValueStatus.Success
+                || (start < 0x5000 && 0x4000 < endExclusive)
+                || (range.ContributingPurposeMask & guardMask) != 0)
+            {
+                guardAbsent = false;
+                break;
+            }
+        }
+
+        PageProtection readWrite = Combine(
+            PageProtection.Read,
+            PageProtection.Write);
+        PageProtection readExecute = Combine(
+            PageProtection.Read,
+            PageProtection.Execute);
+
+        return legacy.Succeeded
+            && legacy.RequiredPurposeMask == 0x7e
+            && legacy.RequiredPurposeMask
+                == X64BootIdentityMappingPlan.RequiredPurposeMask
+            && legacyRejectsExactProfile.Status
+                == X64BootIdentityMappingStatus.InvalidPurpose
+            && legacyRejectsExactProfile.RequiredPurposeMask == 0x7e
+            && legacyRejectsExactProfile.InvalidSourceIndex == 1
+            && legacyRejectsExactProfile.OutputRangeCount == 0
+            && result.Succeeded
+            && result.SourceCount == 7
+            && result.ValidatedSourceCount == 7
+            && result.SourceCapacity == 7
+            && result.RequiredPurposeMask == 0x7e00
+            && result.RequiredPurposeMask
+                == X64BootIdentityMappingPlan
+                    .RequiredLiveIntervalPurposeMask
+            && result.ObservedPurposeMask == 0x7e80
+            && result.ObservedPurposeMask
+                == (result.RequiredPurposeMask | guardMask)
+            && result.MissingPurposeMask == 0
+            && result.GuardSourceIndex == 0
+            && result.InvalidSourceIndex
+                == X64BootIdentityMappingPlanResult.NoIndex
+            && result.ConflictingSourceIndex
+                == X64BootIdentityMappingPlanResult.NoIndex
+            && result.RequiredDestinationCapacity == 3
+            && result.OutputRangeCount == 3
+            && result.UnionPageCount == 9
+            && result.UnionByteLength == 9 * 4096UL
+            && result.TotalTablePageCount == 4
+            && result.TotalTableByteLength == 4 * 4096UL
+            && RangeEquals(
+                output[0],
+                0x2000,
+                0x4000,
+                2,
+                codeMask,
+                readExecute,
+                PageCachePolicy.WriteBack)
+            && RangeEquals(
+                output[1],
+                0x5000,
+                0x7000,
+                2,
+                stackMask,
+                readWrite,
+                PageCachePolicy.WriteBack)
+            && RangeEquals(
+                output[2],
+                0x8000,
+                0xd000,
+                5,
+                compatibleUnionMask,
+                readWrite,
+                PageCachePolicy.WriteBack)
+            && !output[3].IsInitialized
+            && guardAbsent
+            && reversedResult.Succeeded
+            && reversedResult.RequiredPurposeMask == 0x7e00
+            && reversedResult.ObservedPurposeMask == 0x7e80
+            && reversedResult.GuardSourceIndex == 6
+            && reversedResult.OutputRangeCount == 3
+            && OutputEquals(
+                output,
+                result.OutputRangeCount,
+                reversedOutput,
+                reversedResult.OutputRangeCount);
+    }
+
+    private static bool TestM01030LiveIntervalPurposeSet()
+    {
+        X64BootIdentityMappingRequirement[] complete =
+            LiveIntervalRequirements();
+        X64BootIdentityMappingPurpose[] mappedPurposes =
+            LiveIntervalMappedPurposes();
+
+        for (int mappedIndex = 0;
+            mappedIndex < mappedPurposes.Length;
+            mappedIndex++)
+        {
+            int sourceIndex = mappedIndex + 1;
+            X64BootIdentityMappingRequirement[] absent =
+                complete.Where(
+                    (_, index) => index != sourceIndex).ToArray();
+            if (!LiveIntervalFailureIsAtomic(
+                    absent,
+                    X64BootIdentityMappingStatus.InvalidSourceCount,
+                    X64BootIdentityMappingPlanResult.NoIndex,
+                    X64BootIdentityMappingPlanResult.NoIndex))
+            {
+                return false;
+            }
+
+            int duplicateMappedIndex =
+                (mappedIndex + 1) % mappedPurposes.Length;
+            int duplicateSourceIndex = duplicateMappedIndex + 1;
+            X64BootIdentityMappingRequirement[] missingAndDuplicate =
+                [.. complete];
+            missingAndDuplicate[sourceIndex] =
+                complete[duplicateSourceIndex];
+            if (!LiveIntervalFailureIsAtomic(
+                    missingAndDuplicate,
+                    X64BootIdentityMappingStatus
+                        .MissingRequiredPurpose,
+                    X64BootIdentityMappingPlanResult.NoIndex,
+                    X64BootIdentityMappingPlanResult.NoIndex,
+                    1UL << (byte)mappedPurposes[mappedIndex]))
+            {
+                return false;
+            }
+
+            X64BootIdentityMappingRequirement[] extra =
+                [.. complete, complete[sourceIndex]];
+            if (!LiveIntervalFailureIsAtomic(
+                    extra,
+                    X64BootIdentityMappingStatus.InvalidSourceCount,
+                    X64BootIdentityMappingPlanResult.NoIndex,
+                    X64BootIdentityMappingPlanResult.NoIndex))
+            {
+                return false;
+            }
+        }
+
+        byte[] forbiddenPurposeValues =
+        [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            8,
+            15,
+            byte.MaxValue
+        ];
+        PageProtection readExecute = Combine(
+            PageProtection.Read,
+            PageProtection.Execute);
+        foreach (byte rawPurpose in forbiddenPurposeValues)
+        {
+            X64BootIdentityMappingRequirement[] candidate =
+                [.. complete];
+            candidate[1] = Requirement(
+                (X64BootIdentityMappingPurpose)rawPurpose,
+                0x2000,
+                0x4000,
+                readExecute,
+                PageCachePolicy.WriteBack);
+            if (!LiveIntervalFailureIsAtomic(
+                    candidate,
+                    X64BootIdentityMappingStatus.InvalidPurpose,
+                    expectedInvalidSourceIndex: 1,
+                    X64BootIdentityMappingPlanResult.NoIndex))
+            {
+                return false;
+            }
+        }
+
+        X64BootIdentityMappingRequirement[] extraGuard =
+            [.. complete, Guard(0xe000, 0xf000)];
+        return LiveIntervalFailureIsAtomic(
+            extraGuard,
+            X64BootIdentityMappingStatus.InvalidSourceCount,
+            X64BootIdentityMappingPlanResult.NoIndex,
+            X64BootIdentityMappingPlanResult.NoIndex);
+    }
+
+    private static bool TestM01030LiveIntervalGuardAndGeometry()
+    {
+        X64BootIdentityMappingRequirement[] complete =
+            LiveIntervalRequirements();
+        PageProtection readExecute = Combine(
+            PageProtection.Read,
+            PageProtection.Execute);
+
+        X64BootIdentityMappingRequirement[] absentGuard =
+            complete.Skip(1).ToArray();
+        if (!LiveIntervalFailureIsAtomic(
+                absentGuard,
+                X64BootIdentityMappingStatus.InvalidSourceCount,
+                X64BootIdentityMappingPlanResult.NoIndex,
+                X64BootIdentityMappingPlanResult.NoIndex))
+        {
+            return false;
+        }
+
+        X64BootIdentityMappingRequirement[] missingGuard =
+            [.. complete];
+        missingGuard[0] = complete[1];
+        if (!LiveIntervalFailureIsAtomic(
+                missingGuard,
+                X64BootIdentityMappingStatus.MissingGuard,
+                X64BootIdentityMappingPlanResult.NoIndex,
+                X64BootIdentityMappingPlanResult.NoIndex,
+                expectedMissingPurposeMask: 0))
+        {
+            return false;
+        }
+
+        X64BootIdentityMappingRequirement[] duplicateGuard =
+            [.. complete];
+        duplicateGuard[1] = complete[0];
+        if (!LiveIntervalFailureIsAtomic(
+                duplicateGuard,
+                X64BootIdentityMappingStatus.MultipleGuards,
+                expectedInvalidSourceIndex: 1,
+                expectedConflictingSourceIndex: 0))
+        {
+            return false;
+        }
+
+        X64BootIdentityMappingRequirement[] defaultGuard =
+            [.. complete];
+        defaultGuard[0] = default;
+        if (!LiveIntervalFailureIsAtomic(
+                defaultGuard,
+                X64BootIdentityMappingStatus.InvalidRequirementState,
+                expectedInvalidSourceIndex: 0,
+                X64BootIdentityMappingPlanResult.NoIndex))
+        {
+            return false;
+        }
+
+        X64BootIdentityMappingRequirement[] reservedGuard =
+            [.. complete];
+        reservedGuard[0] = OverwriteByte(
+            reservedGuard[0],
+            byteOffset: 36,
+            replacement: 1);
+        if (!LiveIntervalFailureIsAtomic(
+                reservedGuard,
+                X64BootIdentityMappingStatus.InvalidRequirementState,
+                expectedInvalidSourceIndex: 0,
+                X64BootIdentityMappingPlanResult.NoIndex))
+        {
+            return false;
+        }
+
+        X64BootIdentityMappingRequirement[] presentGuard =
+            [.. complete];
+        presentGuard[0] = Requirement(
+            X64BootIdentityMappingPurpose.BootStackGuard,
+            0x4000,
+            0x5000,
+            PageProtection.Read,
+            PageCachePolicy.WriteBack);
+        if (!LiveIntervalFailureIsAtomic(
+                presentGuard,
+                X64BootIdentityMappingStatus.InvalidGuardPolicy,
+                expectedInvalidSourceIndex: 0,
+                X64BootIdentityMappingPlanResult.NoIndex))
+        {
+            return false;
+        }
+
+        X64BootIdentityMappingRequirement[] invalidGuardStart =
+            [.. complete];
+        invalidGuardStart[0] =
+            new X64BootIdentityMappingRequirement(
+                X64BootIdentityMappingPurpose.BootStackGuard,
+                PhysicalUnchecked(0),
+                Physical(0x1000),
+                1,
+                4096,
+                PageProtection.None,
+                PageCachePolicy.Uninitialized);
+        if (!LiveIntervalFailureIsAtomic(
+                invalidGuardStart,
+                X64BootIdentityMappingStatus.InvalidPhysicalStart,
+                expectedInvalidSourceIndex: 0,
+                X64BootIdentityMappingPlanResult.NoIndex))
+        {
+            return false;
+        }
+
+        X64BootIdentityMappingRequirement[] invalidGuardEnd =
+            [.. complete];
+        invalidGuardEnd[0] =
+            new X64BootIdentityMappingRequirement(
+                X64BootIdentityMappingPurpose.BootStackGuard,
+                Physical(0x4000),
+                PhysicalUnchecked(0),
+                1,
+                4096,
+                PageProtection.None,
+                PageCachePolicy.Uninitialized);
+        if (!LiveIntervalFailureIsAtomic(
+                invalidGuardEnd,
+                X64BootIdentityMappingStatus.InvalidPhysicalEnd,
+                expectedInvalidSourceIndex: 0,
+                X64BootIdentityMappingPlanResult.NoIndex))
+        {
+            return false;
+        }
+
+        X64BootIdentityMappingRequirement[] guardOverlap =
+            [.. complete];
+        guardOverlap[0] = Guard(0x3000, 0x5000);
+        if (!LiveIntervalFailureIsAtomic(
+                guardOverlap,
+                X64BootIdentityMappingStatus.GuardOverlap,
+                expectedInvalidSourceIndex: 0,
+                expectedConflictingSourceIndex: 1,
+                expectedMissingPurposeMask: 0))
+        {
+            return false;
+        }
+
+        X64BootIdentityMappingRequirement[] defaultRange =
+            [.. complete];
+        defaultRange[1] = default;
+        if (!LiveIntervalFailureIsAtomic(
+                defaultRange,
+                X64BootIdentityMappingStatus.InvalidRequirementState,
+                expectedInvalidSourceIndex: 1,
+                X64BootIdentityMappingPlanResult.NoIndex))
+        {
+            return false;
+        }
+
+        X64BootIdentityMappingRequirement[] reservedRange =
+            [.. complete];
+        reservedRange[1] = OverwriteByte(
+            reservedRange[1],
+            byteOffset: 39,
+            replacement: 1);
+        if (!LiveIntervalFailureIsAtomic(
+                reservedRange,
+                X64BootIdentityMappingStatus.InvalidRequirementState,
+                expectedInvalidSourceIndex: 1,
+                X64BootIdentityMappingPlanResult.NoIndex))
+        {
+            return false;
+        }
+
+        X64BootIdentityMappingRequirement[] pageZero =
+            [.. complete];
+        pageZero[1] = new X64BootIdentityMappingRequirement(
+            X64BootIdentityMappingPurpose.CompositeCodeAndCallGate,
+            PhysicalUnchecked(0),
+            Physical(0x2000),
+            2,
+            2 * 4096UL,
+            readExecute,
+            PageCachePolicy.WriteBack);
+        if (!LiveIntervalFailureIsAtomic(
+                pageZero,
+                X64BootIdentityMappingStatus.PageZeroMappingRejected,
+                expectedInvalidSourceIndex: 1,
+                X64BootIdentityMappingPlanResult.NoIndex))
+        {
+            return false;
+        }
+
+        X64BootIdentityMappingRequirement[] invalidEnd =
+            [.. complete];
+        invalidEnd[1] = new X64BootIdentityMappingRequirement(
+            X64BootIdentityMappingPurpose.CompositeCodeAndCallGate,
+            Physical(0x2000),
+            PhysicalUnchecked(0),
+            2,
+            2 * 4096UL,
+            readExecute,
+            PageCachePolicy.WriteBack);
+        if (!LiveIntervalFailureIsAtomic(
+                invalidEnd,
+                X64BootIdentityMappingStatus.InvalidPhysicalEnd,
+                expectedInvalidSourceIndex: 1,
+                X64BootIdentityMappingPlanResult.NoIndex))
+        {
+            return false;
+        }
+
+        X64BootIdentityMappingRequirement[] reversed =
+            [.. complete];
+        reversed[1] = new X64BootIdentityMappingRequirement(
+            X64BootIdentityMappingPurpose.CompositeCodeAndCallGate,
+            Physical(0x4000),
+            Physical(0x2000),
+            2,
+            2 * 4096UL,
+            readExecute,
+            PageCachePolicy.WriteBack);
+        if (!LiveIntervalFailureIsAtomic(
+                reversed,
+                X64BootIdentityMappingStatus.EmptyOrReversedRange,
+                expectedInvalidSourceIndex: 1,
+                X64BootIdentityMappingPlanResult.NoIndex))
+        {
+            return false;
+        }
+
+        X64BootIdentityMappingRequirement[] unaligned =
+            [.. complete];
+        unaligned[1] = new X64BootIdentityMappingRequirement(
+            X64BootIdentityMappingPurpose.CompositeCodeAndCallGate,
+            Physical(0x2001),
+            Physical(0x4000),
+            2,
+            0x1fff,
+            readExecute,
+            PageCachePolicy.WriteBack);
+        if (!LiveIntervalFailureIsAtomic(
+                unaligned,
+                X64BootIdentityMappingStatus.MisalignedRange,
+                expectedInvalidSourceIndex: 1,
+                X64BootIdentityMappingPlanResult.NoIndex))
+        {
+            return false;
+        }
+
+        X64BootIdentityMappingRequirement[] zeroGeometry =
+            [.. complete];
+        zeroGeometry[1] = new X64BootIdentityMappingRequirement(
+            X64BootIdentityMappingPurpose.CompositeCodeAndCallGate,
+            Physical(0x2000),
+            Physical(0x4000),
+            0,
+            0,
+            readExecute,
+            PageCachePolicy.WriteBack);
+        if (!LiveIntervalFailureIsAtomic(
+                zeroGeometry,
+                X64BootIdentityMappingStatus.GeometryMismatch,
+                expectedInvalidSourceIndex: 1,
+                X64BootIdentityMappingPlanResult.NoIndex))
+        {
+            return false;
+        }
+
+        X64BootIdentityMappingRequirement[] geometryMismatch =
+            [.. complete];
+        geometryMismatch[1] =
+            new X64BootIdentityMappingRequirement(
+                X64BootIdentityMappingPurpose
+                    .CompositeCodeAndCallGate,
+                Physical(0x2000),
+                Physical(0x4000),
+                2,
+                4096,
+                readExecute,
+                PageCachePolicy.WriteBack);
+        if (!LiveIntervalFailureIsAtomic(
+                geometryMismatch,
+                X64BootIdentityMappingStatus.GeometryMismatch,
+                expectedInvalidSourceIndex: 1,
+                X64BootIdentityMappingPlanResult.NoIndex))
+        {
+            return false;
+        }
+
+        X64BootIdentityMappingRequirement[] geometryOverflow =
+            [.. complete];
+        geometryOverflow[1] =
+            new X64BootIdentityMappingRequirement(
+                X64BootIdentityMappingPurpose
+                    .CompositeCodeAndCallGate,
+                Physical(0x2000),
+                Physical(0x4000),
+                ~0UL,
+                4096,
+                readExecute,
+                PageCachePolicy.WriteBack);
+        if (!LiveIntervalFailureIsAtomic(
+                geometryOverflow,
+                X64BootIdentityMappingStatus.GeometryOverflow,
+                expectedInvalidSourceIndex: 1,
+                X64BootIdentityMappingPlanResult.NoIndex))
+        {
+            return false;
+        }
+
+        X64BootIdentityMappingRequirement[] nonCanonical =
+            [.. complete];
+        nonCanonical[1] = Requirement(
+            X64BootIdentityMappingPurpose.CompositeCodeAndCallGate,
+            X64BootIdentityMappingPlan.LowCanonicalEndExclusive,
+            X64BootIdentityMappingPlan.LowCanonicalEndExclusive
+                + 4096,
+            readExecute,
+            PageCachePolicy.WriteBack);
+        if (!LiveIntervalFailureIsAtomic(
+                nonCanonical,
+                X64BootIdentityMappingStatus
+                    .NonCanonicalIdentityRange,
+                expectedInvalidSourceIndex: 1,
+                X64BootIdentityMappingPlanResult.NoIndex))
+        {
+            return false;
+        }
+
+        X64BootIdentityMappingRequirement[] outsideWidth =
+            [.. complete];
+        outsideWidth[1] = Requirement(
+            X64BootIdentityMappingPurpose.CompositeCodeAndCallGate,
+            1UL << 36,
+            (1UL << 36) + 4096,
+            readExecute,
+            PageCachePolicy.WriteBack);
+        return LiveIntervalFailureIsAtomic(
+            outsideWidth,
+            X64BootIdentityMappingStatus.PhysicalAddressOutsideWidth,
+            expectedInvalidSourceIndex: 1,
+            X64BootIdentityMappingPlanResult.NoIndex,
+            physicalAddressWidth: 36);
+    }
+
+    private static bool TestM01030LiveIntervalPoliciesAndAtomicity()
+    {
+        X64BootIdentityMappingRequirement[] complete =
+            LiveIntervalRequirements();
+        (PageProtection Protection,
+            X64BootIdentityMappingStatus Status)[] badProtections =
+        [
+            (
+                PageProtection.None,
+                X64BootIdentityMappingStatus.InvalidProtection),
+            (
+                PageProtection.Write,
+                X64BootIdentityMappingStatus.InvalidProtection),
+            (
+                PageProtection.Execute,
+                X64BootIdentityMappingStatus.InvalidProtection),
+            (
+                Combine(
+                    PageProtection.Write,
+                    PageProtection.Execute),
+                X64BootIdentityMappingStatus
+                    .WritableExecutableRejected),
+            (
+                Combine(
+                    Combine(
+                        PageProtection.Read,
+                        PageProtection.Write),
+                    PageProtection.Execute),
+                X64BootIdentityMappingStatus
+                    .WritableExecutableRejected),
+            (
+                (PageProtection)0x80,
+                X64BootIdentityMappingStatus.InvalidProtection)
+        ];
+
+        foreach ((PageProtection protection,
+                     X64BootIdentityMappingStatus status)
+                 in badProtections)
+        {
+            X64BootIdentityMappingRequirement[] candidate =
+                [.. complete];
+            candidate[1] = Requirement(
+                X64BootIdentityMappingPurpose
+                    .CompositeCodeAndCallGate,
+                0x2000,
+                0x4000,
+                protection,
+                PageCachePolicy.WriteBack);
+            if (!LiveIntervalFailureIsAtomic(
+                    candidate,
+                    status,
+                    expectedInvalidSourceIndex: 1,
+                    X64BootIdentityMappingPlanResult.NoIndex))
+            {
+                return false;
+            }
+        }
+
+        PageCachePolicy[] badCachePolicies =
+        [
+            PageCachePolicy.Uninitialized,
+            (PageCachePolicy)byte.MaxValue
+        ];
+        PageProtection readExecute = Combine(
+            PageProtection.Read,
+            PageProtection.Execute);
+        foreach (PageCachePolicy cachePolicy in badCachePolicies)
+        {
+            X64BootIdentityMappingRequirement[] candidate =
+                [.. complete];
+            candidate[1] = Requirement(
+                X64BootIdentityMappingPurpose
+                    .CompositeCodeAndCallGate,
+                0x2000,
+                0x4000,
+                readExecute,
+                cachePolicy);
+            if (!LiveIntervalFailureIsAtomic(
+                    candidate,
+                    X64BootIdentityMappingStatus.InvalidCachePolicy,
+                    expectedInvalidSourceIndex: 1,
+                    X64BootIdentityMappingPlanResult.NoIndex))
+            {
+                return false;
+            }
+        }
+
+        X64BootIdentityMappingRequirement[] protectionConflict =
+            [.. complete];
+        protectionConflict[5] = Requirement(
+            X64BootIdentityMappingPurpose
+                .RuntimeStateAndCanaryPage,
+            0xa000,
+            0xb000,
+            PageProtection.Read,
+            PageCachePolicy.WriteBack);
+        if (!LiveIntervalFailureIsAtomic(
+                protectionConflict,
+                X64BootIdentityMappingStatus
+                    .IncompatibleProtectionOverlap,
+                expectedInvalidSourceIndex: 5,
+                expectedConflictingSourceIndex: 4,
+                expectedMissingPurposeMask: 0))
+        {
+            return false;
+        }
+
+        X64BootIdentityMappingRequirement[] cacheConflict =
+            [.. complete];
+        cacheConflict[6] = Requirement(
+            X64BootIdentityMappingPurpose.OwnedRootPage,
+            0xc000,
+            0xd000,
+            Combine(PageProtection.Read, PageProtection.Write),
+            PageCachePolicy.Uncached);
+        if (!LiveIntervalFailureIsAtomic(
+                cacheConflict,
+                X64BootIdentityMappingStatus
+                    .IncompatibleCacheOverlap,
+                expectedInvalidSourceIndex: 6,
+                expectedConflictingSourceIndex: 4,
+                expectedMissingPurposeMask: 0))
+        {
+            return false;
+        }
+
+        if (!LiveIntervalFailureIsAtomic(
+                complete,
+                X64BootIdentityMappingStatus
+                    .DestinationCapacityTooSmall,
+                X64BootIdentityMappingPlanResult.NoIndex,
+                X64BootIdentityMappingPlanResult.NoIndex,
+                expectedMissingPurposeMask: 0,
+                declaredDestinationCapacity: 2))
+        {
+            return false;
+        }
+
+        return LiveIntervalFailureIsAtomic(
+            complete,
+            X64BootIdentityMappingStatus.TableCapacityTooSmall,
+            X64BootIdentityMappingPlanResult.NoIndex,
+            X64BootIdentityMappingPlanResult.NoIndex,
+            expectedMissingPurposeMask: 0,
+            availableTablePageCapacity: 3);
     }
 
     private static bool TestRequiredRolesAndGuard()
@@ -2270,6 +3014,74 @@ internal static class X64BootIdentityMappingPlanTests
         ];
     }
 
+    private static X64BootIdentityMappingPurpose[]
+        LiveIntervalMappedPurposes()
+    {
+        return
+        [
+            X64BootIdentityMappingPurpose.CompositeCodeAndCallGate,
+            X64BootIdentityMappingPurpose.CompositeOwnedStack,
+            X64BootIdentityMappingPurpose.ProtectionProbePage,
+            X64BootIdentityMappingPurpose.CompleteTableAndStateArena,
+            X64BootIdentityMappingPurpose.RuntimeStateAndCanaryPage,
+            X64BootIdentityMappingPurpose.OwnedRootPage
+        ];
+    }
+
+    private static X64BootIdentityMappingRequirement[]
+        LiveIntervalRequirements()
+    {
+        PageProtection readWrite = Combine(
+            PageProtection.Read,
+            PageProtection.Write);
+        PageProtection readExecute = Combine(
+            PageProtection.Read,
+            PageProtection.Execute);
+        return
+        [
+            Guard(0x4000, 0x5000),
+            Requirement(
+                X64BootIdentityMappingPurpose
+                    .CompositeCodeAndCallGate,
+                0x2000,
+                0x4000,
+                readExecute,
+                PageCachePolicy.WriteBack),
+            Requirement(
+                X64BootIdentityMappingPurpose.CompositeOwnedStack,
+                0x5000,
+                0x7000,
+                readWrite,
+                PageCachePolicy.WriteBack),
+            Requirement(
+                X64BootIdentityMappingPurpose.ProtectionProbePage,
+                0x8000,
+                0x9000,
+                readWrite,
+                PageCachePolicy.WriteBack),
+            Requirement(
+                X64BootIdentityMappingPurpose
+                    .CompleteTableAndStateArena,
+                0x9000,
+                0xd000,
+                readWrite,
+                PageCachePolicy.WriteBack),
+            Requirement(
+                X64BootIdentityMappingPurpose
+                    .RuntimeStateAndCanaryPage,
+                0xa000,
+                0xb000,
+                readWrite,
+                PageCachePolicy.WriteBack),
+            Requirement(
+                X64BootIdentityMappingPurpose.OwnedRootPage,
+                0xc000,
+                0xd000,
+                readWrite,
+                PageCachePolicy.WriteBack)
+        ];
+    }
+
     private static unsafe X64BootIdentityMappingPlanResult Plan(
         X64BootIdentityMappingRequirement[] source,
         X64BootIdentityMappingRange[] destination,
@@ -2307,6 +3119,134 @@ internal static class X64BootIdentityMappingPlanTests
                 availableTablePageCapacity,
                 preconditions);
         }
+    }
+
+    private static unsafe X64BootIdentityMappingPlanResult
+        PlanLiveInterval(
+            X64BootIdentityMappingRequirement[] source,
+            X64BootIdentityMappingRange[] destination,
+            ulong availableTablePageCapacity = 512,
+            byte physicalAddressWidth = 48,
+            ulong? sourceCapacity = null,
+            ulong? destinationCapacity = null)
+    {
+        fixed (X64BootIdentityMappingRequirement* sourcePointer =
+            source)
+        fixed (X64BootIdentityMappingRange* destinationPointer =
+            destination)
+        {
+            return X64BootIdentityMappingPlan.CreateLiveInterval(
+                sourcePointer,
+                (ulong)source.Length,
+                sourceCapacity ?? (ulong)source.Length,
+                destinationPointer,
+                destinationCapacity ?? (ulong)destination.Length,
+                availableTablePageCapacity,
+                Context(physicalAddressWidth));
+        }
+    }
+
+    private static unsafe bool LiveIntervalFailureIsAtomic(
+        X64BootIdentityMappingRequirement[] source,
+        X64BootIdentityMappingStatus expectedStatus,
+        ulong expectedInvalidSourceIndex,
+        ulong expectedConflictingSourceIndex,
+        ulong expectedMissingPurposeMask =
+            X64BootIdentityMappingPlan
+                .RequiredLiveIntervalPurposeMask,
+        byte physicalAddressWidth = 48,
+        ulong declaredDestinationCapacity = 16,
+        ulong availableTablePageCapacity = 512)
+    {
+        X64BootIdentityMappingRange[] destination =
+            new X64BootIdentityMappingRange[16];
+        ulong[] sourceBefore;
+        ulong[] destinationBefore;
+        fixed (X64BootIdentityMappingRequirement* sourcePointer =
+            source)
+        fixed (X64BootIdentityMappingRange* destinationPointer =
+            destination)
+        {
+            sourceBefore = CopyBytesAsUlongs(
+                sourcePointer,
+                source.Length
+                    * sizeof(X64BootIdentityMappingRequirement));
+            FillBytes(
+                destinationPointer,
+                destination.Length
+                    * sizeof(X64BootIdentityMappingRange),
+                0xa5);
+            destinationBefore = CopyBytesAsUlongs(
+                destinationPointer,
+                destination.Length
+                    * sizeof(X64BootIdentityMappingRange));
+        }
+
+        X64BootIdentityMappingPlanResult result =
+            PlanLiveInterval(
+                source,
+                destination,
+                availableTablePageCapacity,
+                physicalAddressWidth,
+                destinationCapacity: declaredDestinationCapacity);
+
+        bool sourceUnchanged;
+        bool destinationUnchanged;
+        fixed (X64BootIdentityMappingRequirement* sourcePointer =
+            source)
+        fixed (X64BootIdentityMappingRange* destinationPointer =
+            destination)
+        {
+            sourceUnchanged = EqualBytes(
+                sourceBefore,
+                sourcePointer,
+                source.Length
+                    * sizeof(X64BootIdentityMappingRequirement));
+            destinationUnchanged = EqualBytes(
+                destinationBefore,
+                destinationPointer,
+                destination.Length
+                    * sizeof(X64BootIdentityMappingRange));
+        }
+
+        bool passed =
+            result.Status == expectedStatus
+            && result.RequiredPurposeMask == 0x7e00
+            && result.MissingPurposeMask
+                == expectedMissingPurposeMask
+            && result.InvalidSourceIndex
+                == expectedInvalidSourceIndex
+            && result.ConflictingSourceIndex
+                == expectedConflictingSourceIndex
+            && result.OutputRangeCount == 0
+            && sourceUnchanged
+            && destinationUnchanged;
+        if (!passed)
+        {
+            Console.WriteLine(
+                "M01_030_PLANNER_DIAGNOSTIC expected="
+                + expectedStatus
+                + " actual="
+                + result.Status
+                + " expectedInvalid="
+                + expectedInvalidSourceIndex
+                + " actualInvalid="
+                + result.InvalidSourceIndex
+                + " expectedConflict="
+                + expectedConflictingSourceIndex
+                + " actualConflict="
+                + result.ConflictingSourceIndex
+                + " expectedMissing=0x"
+                + expectedMissingPurposeMask.ToString("X")
+                + " actualMissing=0x"
+                + result.MissingPurposeMask.ToString("X")
+                + " sourceUnchanged="
+                + sourceUnchanged
+                + " destinationUnchanged="
+                + destinationUnchanged);
+        }
+
+        return passed;
     }
 
     private static unsafe bool FailurePreservesDestination(

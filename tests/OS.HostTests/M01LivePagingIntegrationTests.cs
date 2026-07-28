@@ -17,6 +17,13 @@ internal static unsafe class M01LivePagingIntegrationTests
     private const string PreparationIssueTestName = "m01.029";
     private const int PageSize = (int)BootReservedRange.PageSize;
 
+    private enum FixtureMappingProfile : byte
+    {
+        Uninitialized = 0,
+        LegacyExecute = 1,
+        ExactLiveIntervalPreparation = 2
+    }
+
     [ModuleInitializer]
     internal static void RunAll()
     {
@@ -146,6 +153,840 @@ internal static unsafe class M01LivePagingIntegrationTests
         Console.WriteLine("CLROS_M01_029_READY");
         Console.WriteLine(
             "TEST_PASS " + PreparationIssueTestName);
+    }
+
+    internal static bool TestM01030ExactPreparationContract()
+    {
+        bool passed = true;
+        passed &= TestM01030CanonicalLiveIntervalPreparation();
+        passed &= TestM01030PurposeCardinalityAndAliasRejection();
+        passed &= TestM01030MalformedGeometryAndPolicyRejection();
+        passed &= TestM01030AllocationAndReservationProvenance();
+        return passed;
+    }
+
+    private static bool TestM01030CanonicalLiveIntervalPreparation()
+    {
+        using CanonicalFixture fixture = new();
+        fixture.UseLiveIntervalProfile();
+
+        X64BootIdentityMappingPurpose[] expectedPurposes =
+            LiveIntervalPurposes();
+        X64BootIdentityMappingRequirement[] requirements =
+            fixture.MappingRequirements;
+        ulong guardBit =
+            1UL << (byte)X64BootIdentityMappingPurpose.BootStackGuard;
+        ulong expectedObservedMask =
+            X64BootIdentityMappingPlan.RequiredLiveIntervalPurposeMask
+            | guardBit;
+        ulong observedMask = 0;
+
+        if (fixture.MappingProfile
+                != FixtureMappingProfile
+                    .ExactLiveIntervalPreparation
+            || requirements.Length
+                != checked((int)M01LivePagingIntegration
+                    .RequiredLiveIntervalMappingRequirementCount)
+            || fixture.LedgerCount != 8
+            || fixture.FindReservation(
+                    BootReservationKind.AcpiScratch).IsValid
+            || fixture.FindReservation(
+                    BootReservationKind.FramebufferMetadata).IsValid
+            || M01LivePagingIntegration
+                .PreparationRequiresHistoricalIdentityAliases
+            || M01LivePagingIntegration
+                .PreparationCrossBindsStageOneSwitchStub)
+        {
+            return M01030Diagnostic(
+                "canonical-profile-shape");
+        }
+
+        for (int index = 0; index < expectedPurposes.Length; index++)
+        {
+            X64BootIdentityMappingPurpose purpose =
+                expectedPurposes[index];
+            int requirementIndex = FindRequirementIndex(
+                requirements,
+                purpose);
+            if (requirementIndex < 0
+                || FindRequirementIndex(
+                    requirements,
+                    purpose,
+                    occurrence: 1) >= 0)
+            {
+                return M01030Diagnostic(
+                    "canonical-purpose-" + purpose);
+            }
+            observedMask |= 1UL << (byte)purpose;
+        }
+
+        if (observedMask != expectedObservedMask
+            || ContainsHistoricalLiveIntervalAlias(requirements))
+        {
+            return M01030Diagnostic(
+                "canonical-purpose-mask");
+        }
+
+        BootReservedRange code = fixture.FindReservation(
+            BootReservationKind.Cr3TransitionStub);
+        BootReservedRange probe = fixture.FindReservation(
+            BootReservationKind.PageProtectionProbe);
+        BootReservedRange table = fixture.FindReservation(
+            BootReservationKind.PageTableArena);
+        BootReservedRange stack =
+            fixture.StackSwitchPlan.Plan.StackLayout.StackReservation;
+        BootReservedRange guard =
+            fixture.StackSwitchPlan.Plan.StackLayout.GuardReservation;
+        ulong tableStart = Raw(table.PhysicalStart);
+        ulong tableEnd = Raw(table.PhysicalEndExclusive);
+        ulong page = BootReservedRange.PageSize;
+
+        if (!RequirementMatchesReservation(
+                requirements[FindRequirementIndex(
+                    requirements,
+                    X64BootIdentityMappingPurpose
+                        .CompositeCodeAndCallGate)],
+                code,
+                M01014TestData.ReadExecute)
+            || !RequirementMatchesReservation(
+                requirements[FindRequirementIndex(
+                    requirements,
+                    X64BootIdentityMappingPurpose
+                        .CompositeOwnedStack)],
+                stack,
+                M01014TestData.ReadWrite)
+            || !RequirementMatchesReservation(
+                requirements[FindRequirementIndex(
+                    requirements,
+                    X64BootIdentityMappingPurpose
+                        .ProtectionProbePage)],
+                probe,
+                M01014TestData.ReadWrite)
+            || !RequirementMatchesReservation(
+                requirements[FindRequirementIndex(
+                    requirements,
+                    X64BootIdentityMappingPurpose
+                        .CompleteTableAndStateArena)],
+                table,
+                M01014TestData.ReadWrite)
+            || !RequirementMatches(
+                requirements[FindRequirementIndex(
+                    requirements,
+                    X64BootIdentityMappingPurpose
+                        .RuntimeStateAndCanaryPage)],
+                tableEnd - page,
+                tableEnd,
+                M01014TestData.ReadWrite,
+                PageCachePolicy.WriteBack)
+            || !RequirementMatches(
+                requirements[FindRequirementIndex(
+                    requirements,
+                    X64BootIdentityMappingPurpose.OwnedRootPage)],
+                tableStart,
+                tableStart + page,
+                M01014TestData.ReadWrite,
+                PageCachePolicy.WriteBack)
+            || !RequirementMatches(
+                requirements[FindRequirementIndex(
+                    requirements,
+                    X64BootIdentityMappingPurpose.BootStackGuard)],
+                Raw(guard.PhysicalStart),
+                Raw(guard.PhysicalEndExclusive),
+                PageProtection.None,
+                PageCachePolicy.Uninitialized))
+        {
+            return M01030Diagnostic(
+                "canonical-purpose-bindings");
+        }
+
+        fixture.FillStubPages(0xcc);
+        M01LivePagingPreparationResult result =
+            fixture.PrepareCurrent();
+        if (!result.Succeeded
+            || !result.PreparedForCompositeTransition
+            || result.LastCompletedCheckpoint
+                != M01LivePagingCheckpoint
+                    .PreparedForCompositeTransition
+            || result.State.MappingRequirementCount
+                != M01LivePagingIntegration
+                    .RequiredLiveIntervalMappingRequirementCount
+            || result.Evidence.MappingPlan.RequiredPurposeMask
+                != X64BootIdentityMappingPlan
+                    .RequiredLiveIntervalPurposeMask
+            || result.Evidence.MappingPlan.ObservedPurposeMask
+                != expectedObservedMask
+            || result.Evidence.MappingPlan.MissingPurposeMask != 0
+            || !result.Evidence.PageZeroAudit
+                .ProvesPageZeroAbsentInSuppliedImage)
+        {
+            return M01030Diagnostic(
+                "canonical-prepare-result");
+        }
+
+        ulong outputMask = 0;
+        for (ulong index = 0;
+            index < result.Evidence.MappingPlan.OutputRangeCount;
+            index++)
+        {
+            X64BootIdentityMappingRange range =
+                fixture.MappingRanges[checked((int)index)];
+            outputMask |= range.ContributingPurposeMask;
+            if (!range.IsInitialized
+                || range.CachePolicy != PageCachePolicy.WriteBack
+                || HasWriteAndExecute(range.Protection)
+                || (range.ContributingPurposeMask
+                    & ~X64BootIdentityMappingPlan
+                        .RequiredLiveIntervalPurposeMask) != 0
+                || RangeContains(
+                    range,
+                    Raw(guard.PhysicalStart)))
+            {
+                return M01030Diagnostic(
+                    "canonical-normalized-range");
+            }
+        }
+        if (outputMask
+            != X64BootIdentityMappingPlan
+                .RequiredLiveIntervalPurposeMask)
+        {
+            return M01030Diagnostic(
+                "canonical-output-mask");
+        }
+
+        for (int index = 0; index < requirements.Length; index++)
+        {
+            X64BootIdentityMappingRequirement requirement =
+                requirements[index];
+            if (requirement.Purpose
+                == X64BootIdentityMappingPurpose.BootStackGuard)
+            {
+                continue;
+            }
+
+            if (!TryReadFourLevelLeaf(
+                    Raw(requirement.PhysicalStart),
+                    result.Evidence.TableBuild.RootTable,
+                    fixture.PageImages,
+                    result.Evidence.TableBuild.TablePageCount,
+                    fixture.Entries,
+                    result.Evidence.TableBuild.EntryCount,
+                    fixture.Preconditions,
+                    out X64PageTableEntryResult leaf)
+                || leaf.Protection != requirement.Protection
+                || leaf.CachePolicy != PageCachePolicy.WriteBack
+                || HasWriteAndExecute(leaf.Protection))
+            {
+                return M01030Diagnostic(
+                    "canonical-leaf-" + requirement.Purpose);
+            }
+        }
+
+        BootReservedRange loadedImage = fixture.FindReservation(
+            BootReservationKind.LoadedImage);
+        BootReservedRange allocator = fixture.FindReservation(
+            BootReservationKind.AllocatorArena);
+        BootReservedRange stageOneStub = fixture.FindReservation(
+            BootReservationKind.BootStackSwitchStub);
+        if (AnyOutputRangeContains(
+                fixture.MappingRanges,
+                result.Evidence.MappingPlan.OutputRangeCount,
+                Raw(guard.PhysicalStart))
+            || AnyOutputRangeContains(
+                fixture.MappingRanges,
+                result.Evidence.MappingPlan.OutputRangeCount,
+                Raw(loadedImage.PhysicalStart))
+            || AnyOutputRangeContains(
+                fixture.MappingRanges,
+                result.Evidence.MappingPlan.OutputRangeCount,
+                Raw(allocator.PhysicalStart))
+            || AnyOutputRangeContains(
+                fixture.MappingRanges,
+                result.Evidence.MappingPlan.OutputRangeCount,
+                Raw(stageOneStub.PhysicalStart))
+            || (TryReadFourLevelLeaf(
+                    0,
+                    result.Evidence.TableBuild.RootTable,
+                    fixture.PageImages,
+                    result.Evidence.TableBuild.TablePageCount,
+                    fixture.Entries,
+                    result.Evidence.TableBuild.EntryCount,
+                    fixture.Preconditions,
+                    out X64PageTableEntryResult pageZeroLeaf)
+                && pageZeroLeaf.Kind
+                    != X64PageTableEntryKind.Unmapped)
+            || (TryReadFourLevelLeaf(
+                    Raw(guard.PhysicalStart),
+                    result.Evidence.TableBuild.RootTable,
+                    fixture.PageImages,
+                    result.Evidence.TableBuild.TablePageCount,
+                    fixture.Entries,
+                    result.Evidence.TableBuild.EntryCount,
+                    fixture.Preconditions,
+                    out X64PageTableEntryResult guardLeaf)
+                && guardLeaf.Kind
+                    != X64PageTableEntryKind.Unmapped))
+        {
+            return M01030Diagnostic(
+                "canonical-exclusion-boundary");
+        }
+
+        return true;
+    }
+
+    private static bool
+        TestM01030PurposeCardinalityAndAliasRejection()
+    {
+        bool passed = true;
+        X64BootIdentityMappingPurpose[] exactPurposes =
+            LiveIntervalPurposes();
+
+        for (int purposeIndex = 0;
+            purposeIndex < exactPurposes.Length;
+            purposeIndex++)
+        {
+            X64BootIdentityMappingPurpose purpose =
+                exactPurposes[purposeIndex];
+            passed &= ExpectM01030RequirementFailure(
+                "missing-" + purpose,
+                (_, canonical) => RemoveRequirementAt(
+                    canonical,
+                    FindRequirementIndex(canonical, purpose)));
+            passed &= ExpectM01030RequirementFailure(
+                "duplicate-" + purpose,
+                (_, canonical) =>
+                {
+                    X64BootIdentityMappingRequirement[] mutated =
+                        (X64BootIdentityMappingRequirement[])
+                            canonical.Clone();
+                    int source = FindRequirementIndex(
+                        canonical,
+                        purpose);
+                    int destination = (source + 1) % mutated.Length;
+                    mutated[destination] = canonical[source];
+                    return mutated;
+                });
+            passed &= ExpectM01030RequirementFailure(
+                "extra-" + purpose,
+                (_, canonical) => AppendRequirement(
+                    canonical,
+                    canonical[FindRequirementIndex(
+                        canonical,
+                        purpose)]));
+        }
+
+        X64BootIdentityMappingPurpose[] historicalAliases =
+        [
+            X64BootIdentityMappingPurpose.ExecutingImage,
+            X64BootIdentityMappingPurpose.OwnedStack,
+            X64BootIdentityMappingPurpose.BootHandoff,
+            X64BootIdentityMappingPurpose.SerialStub,
+            X64BootIdentityMappingPurpose.AcpiScratch,
+            X64BootIdentityMappingPurpose.FramebufferMetadata,
+            X64BootIdentityMappingPurpose.AdditionalRequired
+        ];
+        for (int exactIndex = 1;
+            exactIndex < exactPurposes.Length;
+            exactIndex++)
+        {
+            X64BootIdentityMappingPurpose exact =
+                exactPurposes[exactIndex];
+            for (int aliasIndex = 0;
+                aliasIndex < historicalAliases.Length;
+                aliasIndex++)
+            {
+                X64BootIdentityMappingPurpose alias =
+                    historicalAliases[aliasIndex];
+                passed &= ExpectM01030RequirementFailure(
+                    "alias-" + exact + "-" + alias,
+                    (_, canonical) =>
+                    {
+                        X64BootIdentityMappingRequirement[] mutated =
+                            (X64BootIdentityMappingRequirement[])
+                                canonical.Clone();
+                        int index = FindRequirementIndex(
+                            mutated,
+                            exact);
+                        mutated[index] = WithRequirement(
+                            mutated[index],
+                            purpose: alias);
+                        return mutated;
+                    });
+            }
+        }
+
+        passed &= ExpectM01030RequirementFailure(
+            "default-purpose",
+            (_, canonical) =>
+            {
+                X64BootIdentityMappingRequirement[] mutated =
+                    (X64BootIdentityMappingRequirement[])
+                        canonical.Clone();
+                mutated[1] = WithRequirement(
+                    mutated[1],
+                    purpose:
+                        X64BootIdentityMappingPurpose.Uninitialized);
+                return mutated;
+            });
+        passed &= ExpectM01030RequirementFailure(
+            "unknown-purpose",
+            (_, canonical) =>
+            {
+                X64BootIdentityMappingRequirement[] mutated =
+                    (X64BootIdentityMappingRequirement[])
+                        canonical.Clone();
+                mutated[1] = WithRequirement(
+                    mutated[1],
+                    purpose:
+                        (X64BootIdentityMappingPurpose)0xff);
+                return mutated;
+            });
+        passed &= ExpectM01030RequirementFailure(
+            "extra-additional-required",
+            (_, canonical) => AppendRequirement(
+                canonical,
+                WithRequirement(
+                    canonical[1],
+                    purpose:
+                        X64BootIdentityMappingPurpose
+                            .AdditionalRequired)));
+
+        return passed;
+    }
+
+    private static bool
+        TestM01030MalformedGeometryAndPolicyRejection()
+    {
+        bool passed = true;
+        X64BootIdentityMappingPurpose codePurpose =
+            X64BootIdentityMappingPurpose.CompositeCodeAndCallGate;
+
+        (
+            string Name,
+            Func<X64BootIdentityMappingRequirement,
+                X64BootIdentityMappingRequirement> Mutate
+        )[] geometryCases =
+        [
+            (
+                "default-record",
+                _ => default),
+            (
+                "default-start",
+                source => WithRequirement(
+                    source,
+                    physicalStart: default,
+                    replacePhysicalStart: true)),
+            (
+                "default-end",
+                source => WithRequirement(
+                    source,
+                    physicalEndExclusive: default,
+                    replacePhysicalEnd: true)),
+            (
+                "equal-range",
+                source => WithRequirement(
+                    source,
+                    physicalEndExclusive: source.PhysicalStart,
+                    replacePhysicalEnd: true,
+                    pageCount: 0,
+                    byteLength: 0)),
+            (
+                "reversed-range",
+                source => WithRequirement(
+                    source,
+                    physicalStart: source.PhysicalEndExclusive,
+                    replacePhysicalStart: true,
+                    physicalEndExclusive: source.PhysicalStart,
+                    replacePhysicalEnd: true)),
+            (
+                "unaligned-start",
+                source => WithRequirement(
+                    source,
+                    physicalStart: Physical(
+                        Raw(source.PhysicalStart) + 1),
+                    replacePhysicalStart: true)),
+            (
+                "unaligned-end",
+                source => WithRequirement(
+                    source,
+                    physicalEndExclusive: Physical(
+                        Raw(source.PhysicalEndExclusive) - 1),
+                    replacePhysicalEnd: true)),
+            (
+                "zero-page-count",
+                source => WithRequirement(
+                    source,
+                    pageCount: 0)),
+            (
+                "zero-byte-length",
+                source => WithRequirement(
+                    source,
+                    byteLength: 0)),
+            (
+                "page-count-overflow",
+                source => WithRequirement(
+                    source,
+                    pageCount: ~0UL)),
+            (
+                "byte-length-mismatch",
+                source => WithRequirement(
+                    source,
+                    byteLength: source.ByteLength + 1)),
+            (
+                "end-mismatch",
+                source => WithRequirement(
+                    source,
+                    physicalEndExclusive: Physical(
+                        Raw(source.PhysicalEndExclusive)
+                            + BootReservedRange.PageSize),
+                    replacePhysicalEnd: true))
+        ];
+        for (int index = 0; index < geometryCases.Length; index++)
+        {
+            (
+                string name,
+                Func<X64BootIdentityMappingRequirement,
+                    X64BootIdentityMappingRequirement> mutate
+            ) = geometryCases[index];
+            passed &= ExpectM01030RequirementFailure(
+                "geometry-" + name,
+                (_, canonical) =>
+                {
+                    X64BootIdentityMappingRequirement[] mutated =
+                        (X64BootIdentityMappingRequirement[])
+                            canonical.Clone();
+                    int code = FindRequirementIndex(
+                        mutated,
+                        codePurpose);
+                    mutated[code] = mutate(mutated[code]);
+                    return mutated;
+                });
+        }
+
+        X64BootIdentityMappingPurpose[] mappedPurposes =
+        [
+            X64BootIdentityMappingPurpose.CompositeCodeAndCallGate,
+            X64BootIdentityMappingPurpose.CompositeOwnedStack,
+            X64BootIdentityMappingPurpose.ProtectionProbePage,
+            X64BootIdentityMappingPurpose
+                .CompleteTableAndStateArena,
+            X64BootIdentityMappingPurpose
+                .RuntimeStateAndCanaryPage,
+            X64BootIdentityMappingPurpose.OwnedRootPage
+        ];
+        PageCachePolicy[] wrongCaches =
+        [
+            PageCachePolicy.Uninitialized,
+            PageCachePolicy.Uncached,
+            PageCachePolicy.WriteCombining
+        ];
+        for (int purposeIndex = 0;
+            purposeIndex < mappedPurposes.Length;
+            purposeIndex++)
+        {
+            X64BootIdentityMappingPurpose purpose =
+                mappedPurposes[purposeIndex];
+            for (int cacheIndex = 0;
+                cacheIndex < wrongCaches.Length;
+                cacheIndex++)
+            {
+                PageCachePolicy cache = wrongCaches[cacheIndex];
+                passed &= ExpectM01030RequirementFailure(
+                    "cache-" + purpose + "-" + cache,
+                    (_, canonical) =>
+                    {
+                        X64BootIdentityMappingRequirement[] mutated =
+                            (X64BootIdentityMappingRequirement[])
+                                canonical.Clone();
+                        int index = FindRequirementIndex(
+                            mutated,
+                            purpose);
+                        mutated[index] = WithRequirement(
+                            mutated[index],
+                            cachePolicy: cache);
+                        return mutated;
+                    });
+            }
+
+            PageProtection[] wrongProtections =
+                purpose == codePurpose
+                    ?
+                    [
+                        PageProtection.None,
+                        PageProtection.Read,
+                        PageProtection.Write,
+                        PageProtection.Execute,
+                        M01014TestData.ReadWrite,
+                        Protection(
+                            M01014TestData.ReadWrite,
+                            PageProtection.Execute)
+                    ]
+                    :
+                    [
+                        PageProtection.None,
+                        PageProtection.Read,
+                        PageProtection.Write,
+                        PageProtection.Execute,
+                        M01014TestData.ReadExecute,
+                        Protection(
+                            M01014TestData.ReadWrite,
+                            PageProtection.Execute)
+                    ];
+            for (int protectionIndex = 0;
+                protectionIndex < wrongProtections.Length;
+                protectionIndex++)
+            {
+                PageProtection protection =
+                    wrongProtections[protectionIndex];
+                passed &= ExpectM01030RequirementFailure(
+                    "protection-" + purpose + "-"
+                        + (byte)protection,
+                    (_, canonical) =>
+                    {
+                        X64BootIdentityMappingRequirement[] mutated =
+                            (X64BootIdentityMappingRequirement[])
+                                canonical.Clone();
+                        int index = FindRequirementIndex(
+                            mutated,
+                            purpose);
+                        mutated[index] = WithRequirement(
+                            mutated[index],
+                            protection: protection);
+                        return mutated;
+                    });
+            }
+        }
+
+        passed &= ExpectM01030RequirementFailure(
+            "guard-present",
+            (_, canonical) =>
+            {
+                X64BootIdentityMappingRequirement[] mutated =
+                    (X64BootIdentityMappingRequirement[])
+                        canonical.Clone();
+                int guard = FindRequirementIndex(
+                    mutated,
+                    X64BootIdentityMappingPurpose.BootStackGuard);
+                mutated[guard] = WithRequirement(
+                    mutated[guard],
+                    protection: M01014TestData.ReadWrite,
+                    cachePolicy: PageCachePolicy.WriteBack);
+                return mutated;
+            });
+        passed &= ExpectM01030RequirementFailure(
+            "guard-cache",
+            (_, canonical) =>
+            {
+                X64BootIdentityMappingRequirement[] mutated =
+                    (X64BootIdentityMappingRequirement[])
+                        canonical.Clone();
+                int guard = FindRequirementIndex(
+                    mutated,
+                    X64BootIdentityMappingPurpose.BootStackGuard);
+                mutated[guard] = WithRequirement(
+                    mutated[guard],
+                    cachePolicy: PageCachePolicy.WriteBack);
+                return mutated;
+            });
+        passed &= ExpectM01030RequirementFailure(
+            "partial-table-arena",
+            (_, canonical) =>
+            {
+                X64BootIdentityMappingRequirement[] mutated =
+                    (X64BootIdentityMappingRequirement[])
+                        canonical.Clone();
+                int arena = FindRequirementIndex(
+                    mutated,
+                    X64BootIdentityMappingPurpose
+                        .CompleteTableAndStateArena);
+                X64BootIdentityMappingRequirement source =
+                    mutated[arena];
+                ulong newEnd =
+                    Raw(source.PhysicalEndExclusive)
+                    - BootReservedRange.PageSize;
+                mutated[arena] = new X64BootIdentityMappingRequirement(
+                    source.Purpose,
+                    source.PhysicalStart,
+                    Physical(newEnd),
+                    source.PageCount - 1,
+                    source.ByteLength - BootReservedRange.PageSize,
+                    source.Protection,
+                    source.CachePolicy);
+                return mutated;
+            });
+        passed &= ExpectM01030RequirementFailure(
+            "partial-state-page",
+            (_, canonical) =>
+            {
+                X64BootIdentityMappingRequirement[] mutated =
+                    (X64BootIdentityMappingRequirement[])
+                        canonical.Clone();
+                int state = FindRequirementIndex(
+                    mutated,
+                    X64BootIdentityMappingPurpose
+                        .RuntimeStateAndCanaryPage);
+                X64BootIdentityMappingRequirement source =
+                    mutated[state];
+                mutated[state] = WithRequirement(
+                    source,
+                    physicalStart: Physical(
+                        Raw(source.PhysicalStart) + 8),
+                    replacePhysicalStart: true);
+                return mutated;
+            });
+        passed &= ExpectM01030RequirementFailure(
+            "partial-root-page",
+            (_, canonical) =>
+            {
+                X64BootIdentityMappingRequirement[] mutated =
+                    (X64BootIdentityMappingRequirement[])
+                        canonical.Clone();
+                int root = FindRequirementIndex(
+                    mutated,
+                    X64BootIdentityMappingPurpose.OwnedRootPage);
+                X64BootIdentityMappingRequirement source =
+                    mutated[root];
+                mutated[root] = WithRequirement(
+                    source,
+                    physicalEndExclusive: Physical(
+                        Raw(source.PhysicalEndExclusive) - 8),
+                    replacePhysicalEnd: true);
+                return mutated;
+            });
+
+        return passed;
+    }
+
+    private static bool
+        TestM01030AllocationAndReservationProvenance()
+    {
+        bool passed = true;
+
+        passed &= ExpectM01030FixtureFailure(
+            "code-allocation-type",
+            fixture => fixture.ReplaceAllocationRecord(
+                0,
+                WithRecord(
+                    fixture.Records[0],
+                    uefiType: (uint)UefiMemoryType.LoaderData)),
+            M01LivePagingStatus.AllocationTableRejected,
+            M01LivePagingCheckpoint.StageTwoValidated);
+        passed &= ExpectM01030FixtureFailure(
+            "probe-allocation-type",
+            fixture => fixture.ReplaceAllocationRecord(
+                1,
+                WithRecord(
+                    fixture.Records[1],
+                    uefiType: (uint)UefiMemoryType.LoaderData)),
+            M01LivePagingStatus.AllocationTableRejected,
+            M01LivePagingCheckpoint.StageTwoValidated);
+        passed &= ExpectM01030FixtureFailure(
+            "table-allocation-type",
+            fixture => fixture.ReplaceAllocationRecord(
+                2,
+                WithRecord(
+                    fixture.Records[2],
+                    uefiType: (uint)UefiMemoryType.LoaderCode)),
+            M01LivePagingStatus.AllocationTableRejected,
+            M01LivePagingCheckpoint.StageTwoValidated);
+        passed &= ExpectM01030FixtureFailure(
+            "code-virtual-physical-mismatch",
+            fixture => fixture.ReplaceAllocationRecord(
+                0,
+                WithRecord(
+                    fixture.Records[0],
+                    virtualStart:
+                        fixture.Records[0].VirtualStart
+                        + BootReservedRange.PageSize)),
+            M01LivePagingStatus.AllocationTableRejected,
+            M01LivePagingCheckpoint.StageTwoValidated);
+        passed &= ExpectM01030FixtureFailure(
+            "allocation-overlap",
+            fixture => fixture.ReplaceAllocationRecord(
+                0,
+                Record(
+                    UefiMemoryType.LoaderCode,
+                    fixture.Records[1].PhysicalStart,
+                    1)),
+            M01LivePagingStatus.AllocationTableRejected,
+            M01LivePagingCheckpoint.StageTwoValidated);
+        passed &= ExpectM01030FixtureFailure(
+            "stale-allocation-evidence",
+            fixture =>
+                fixture.CorruptAllocationEvidenceWithoutRefreshing(),
+            M01LivePagingStatus.AllocationEvidenceRejected,
+            M01LivePagingCheckpoint.StageTwoValidated);
+
+        BootReservationKind[] requiredReservationKinds =
+        [
+            BootReservationKind.BootStackGuard,
+            BootReservationKind.BootStack,
+            BootReservationKind.Cr3TransitionStub,
+            BootReservationKind.PageProtectionProbe,
+            BootReservationKind.PageTableArena
+        ];
+        for (int index = 0;
+            index < requiredReservationKinds.Length;
+            index++)
+        {
+            BootReservationKind kind =
+                requiredReservationKinds[index];
+            M01LivePagingStatus expectedStatus =
+                kind is BootReservationKind.BootStackGuard
+                    or BootReservationKind.BootStack
+                    ? M01LivePagingStatus.ReservationLedgerRejected
+                    : M01LivePagingStatus.ReservationIdentityRejected;
+            passed &= ExpectM01030FixtureFailure(
+                "missing-reservation-" + kind,
+                fixture => fixture.RemoveReservation(kind),
+                expectedStatus,
+                M01LivePagingCheckpoint.MapLedgerValidated);
+            passed &= ExpectM01030FixtureFailure(
+                "wrong-reservation-kind-" + kind,
+                fixture =>
+                {
+                    BootReservedRange range =
+                        fixture.FindReservation(kind);
+                    fixture.ReplaceReservation(
+                        kind,
+                        CreateRange(
+                            BootReservationKind.DiagnosticState,
+                            Raw(range.PhysicalStart),
+                            range.PageCount));
+                },
+                expectedStatus,
+                M01LivePagingCheckpoint.MapLedgerValidated);
+        }
+
+        passed &= ExpectM01030FixtureFailure(
+            "partial-table-reservation",
+            fixture =>
+            {
+                BootReservedRange range = fixture.FindReservation(
+                    BootReservationKind.PageTableArena);
+                fixture.ReplaceReservation(
+                    BootReservationKind.PageTableArena,
+                    CreateRange(
+                        BootReservationKind.PageTableArena,
+                        Raw(range.PhysicalStart),
+                        range.PageCount - 1));
+            },
+            M01LivePagingStatus.ReservationIdentityRejected,
+            M01LivePagingCheckpoint.MapLedgerValidated);
+        passed &= ExpectM01030FixtureFailure(
+            "duplicate-reservation",
+            fixture =>
+            {
+                BootReservedRange[] ledger = fixture.CopyLedger();
+                BootReservedRange[] duplicate =
+                    new BootReservedRange[ledger.Length + 1];
+                ledger.CopyTo(duplicate, 0);
+                duplicate[^1] = ledger[0];
+                fixture.RestoreLedger(duplicate);
+            },
+            M01LivePagingStatus.ReservationLedgerRejected,
+            M01LivePagingCheckpoint.MapLedgerValidated);
+
+        return passed;
     }
 
     internal static M01LivePagingIntegrationResult
@@ -901,6 +1742,7 @@ internal static unsafe class M01LivePagingIntegrationTests
     private static bool TestPreparationMapLedgerAndPreflightFailures()
     {
         using CanonicalFixture fixture = new();
+        fixture.UseLiveIntervalProfile();
         bool passed = true;
 
         passed &= ExpectPreparationFailure(
@@ -1033,6 +1875,7 @@ internal static unsafe class M01LivePagingIntegrationTests
         bool passed = true;
         using (CanonicalFixture workspace = new())
         {
+            workspace.UseLiveIntervalProfile();
             passed &= ExpectPreparationFailure(
                 workspace,
                 workspace.PrepareWorkspace(
@@ -1387,6 +2230,7 @@ internal static unsafe class M01LivePagingIntegrationTests
     private static bool TestPreparationPreflightFailureIsAtomic()
     {
         using CanonicalFixture fixture = new();
+        fixture.UseLiveIntervalProfile();
         fixture.FillStubPages(0xa5);
         FillUnmanagedArray(fixture.MappingRanges, 0x31);
         FillUnmanagedArray(fixture.PageImages, 0x52);
@@ -3816,6 +4660,225 @@ internal static unsafe class M01LivePagingIntegrationTests
         public string Output { get; }
     }
 
+    private static X64BootIdentityMappingPurpose[]
+        LiveIntervalPurposes()
+    {
+        return
+        [
+            X64BootIdentityMappingPurpose.BootStackGuard,
+            X64BootIdentityMappingPurpose.CompositeCodeAndCallGate,
+            X64BootIdentityMappingPurpose.CompositeOwnedStack,
+            X64BootIdentityMappingPurpose.ProtectionProbePage,
+            X64BootIdentityMappingPurpose
+                .CompleteTableAndStateArena,
+            X64BootIdentityMappingPurpose
+                .RuntimeStateAndCanaryPage,
+            X64BootIdentityMappingPurpose.OwnedRootPage
+        ];
+    }
+
+    private static bool ContainsHistoricalLiveIntervalAlias(
+        X64BootIdentityMappingRequirement[] requirements)
+    {
+        for (int index = 0; index < requirements.Length; index++)
+        {
+            X64BootIdentityMappingPurpose purpose =
+                requirements[index].Purpose;
+            if (purpose == X64BootIdentityMappingPurpose.ExecutingImage
+                || purpose == X64BootIdentityMappingPurpose.OwnedStack
+                || purpose == X64BootIdentityMappingPurpose.BootHandoff
+                || purpose == X64BootIdentityMappingPurpose.SerialStub
+                || purpose == X64BootIdentityMappingPurpose.AcpiScratch
+                || purpose
+                    == X64BootIdentityMappingPurpose
+                        .FramebufferMetadata
+                || purpose
+                    == X64BootIdentityMappingPurpose
+                        .AdditionalRequired)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool HasWriteAndExecute(
+        PageProtection protection)
+    {
+        return ((byte)protection & (byte)PageProtection.Write) != 0
+            && ((byte)protection & (byte)PageProtection.Execute) != 0;
+    }
+
+    private static bool RangeContains(
+        X64BootIdentityMappingRange range,
+        ulong address)
+    {
+        return range.IsInitialized
+            && address >= Raw(range.PhysicalStart)
+            && address < Raw(range.PhysicalEndExclusive);
+    }
+
+    private static bool AnyOutputRangeContains(
+        X64BootIdentityMappingRange[] ranges,
+        ulong count,
+        ulong address)
+    {
+        if (count > (ulong)ranges.Length)
+            return true;
+
+        for (ulong index = 0; index < count; index++)
+        {
+            if (RangeContains(
+                    ranges[checked((int)index)],
+                    address))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool M01030Diagnostic(string reason)
+    {
+        Console.WriteLine(
+            "M01_030_PREPARATION_DIAGNOSTIC " + reason);
+        return false;
+    }
+
+    private static bool ExpectM01030RequirementFailure(
+        string name,
+        Func<
+            CanonicalFixture,
+            X64BootIdentityMappingRequirement[],
+            X64BootIdentityMappingRequirement[]> mutate)
+    {
+        using CanonicalFixture fixture = new();
+        fixture.UseLiveIntervalProfile();
+        X64BootIdentityMappingRequirement[] canonical =
+            (X64BootIdentityMappingRequirement[])
+                fixture.MappingRequirements.Clone();
+        X64BootIdentityMappingRequirement[] requirements =
+            mutate(fixture, canonical);
+        return ExpectM01030FailureIsAtomic(
+            name,
+            fixture,
+            () => fixture.PrepareRequirements(requirements),
+            M01LivePagingStatus.IdentityMappingRejected,
+            M01LivePagingCheckpoint.ReservationsValidated);
+    }
+
+    private static bool ExpectM01030FixtureFailure(
+        string name,
+        Action<CanonicalFixture> mutate,
+        M01LivePagingStatus expectedStatus,
+        M01LivePagingCheckpoint expectedCheckpoint)
+    {
+        using CanonicalFixture fixture = new();
+        fixture.UseLiveIntervalProfile();
+        mutate(fixture);
+        return ExpectM01030FailureIsAtomic(
+            name,
+            fixture,
+            () => fixture.PrepareCurrent(),
+            expectedStatus,
+            expectedCheckpoint);
+    }
+
+    private static bool ExpectM01030FailureIsAtomic(
+        string name,
+        CanonicalFixture fixture,
+        Func<M01LivePagingPreparationResult> execute,
+        M01LivePagingStatus expectedStatus,
+        M01LivePagingCheckpoint expectedCheckpoint)
+    {
+        fixture.ClearPreparationState();
+        fixture.FillStubPages(0xa5);
+        FillUnmanagedArray(fixture.MappingRanges, 0x31);
+        FillUnmanagedArray(fixture.PageImages, 0x52);
+        FillUnmanagedArray(fixture.Entries, 0x73);
+        byte[] rangesBefore =
+            CopyUnmanagedArray(fixture.MappingRanges);
+        byte[] pagesBefore =
+            CopyUnmanagedArray(fixture.PageImages);
+        byte[] entriesBefore =
+            CopyUnmanagedArray(fixture.Entries);
+        byte[] codeBefore = fixture.CopyCodePage();
+        byte[] probeBefore = fixture.CopyProbePage();
+
+        M01LivePagingPreparationResult result = execute();
+        bool passed =
+            result.Status == expectedStatus
+            && result.LastCompletedCheckpoint == expectedCheckpoint
+            && !result.Succeeded
+            && !result.PreparedForCompositeTransition
+            && result.ExecutionMode
+                == M01LivePagingExecutionMode.PreparationOnly
+            && result.State.Size == 0
+            && fixture.PreparationStateIsZero()
+            && BytesEqual(rangesBefore, fixture.MappingRanges)
+            && BytesEqual(pagesBefore, fixture.PageImages)
+            && BytesEqual(entriesBefore, fixture.Entries)
+            && fixture.CodePageEquals(codeBefore)
+            && fixture.ProbePageEquals(probeBefore);
+        if (!passed)
+        {
+            Console.WriteLine(
+                "M01_030_PREPARATION_DIAGNOSTIC "
+                + name
+                + " expected="
+                + expectedStatus
+                + "/"
+                + expectedCheckpoint
+                + " actual="
+                + result.Status
+                + "/"
+                + result.LastCompletedCheckpoint
+                + " prepared="
+                + result.PreparedForCompositeTransition
+                + " state_zero="
+                + fixture.PreparationStateIsZero());
+        }
+        return passed;
+    }
+
+    private static X64BootIdentityMappingRequirement[]
+        AppendRequirement(
+            X64BootIdentityMappingRequirement[] source,
+            X64BootIdentityMappingRequirement appended)
+    {
+        X64BootIdentityMappingRequirement[] result =
+            new X64BootIdentityMappingRequirement[source.Length + 1];
+        source.CopyTo(result, 0);
+        result[^1] = appended;
+        return result;
+    }
+
+    private static X64BootIdentityMappingRequirement WithRequirement(
+        X64BootIdentityMappingRequirement source,
+        X64BootIdentityMappingPurpose? purpose = null,
+        PhysicalAddress physicalStart = default,
+        bool replacePhysicalStart = false,
+        PhysicalAddress physicalEndExclusive = default,
+        bool replacePhysicalEnd = false,
+        ulong? pageCount = null,
+        ulong? byteLength = null,
+        PageProtection? protection = null,
+        PageCachePolicy? cachePolicy = null)
+    {
+        return new X64BootIdentityMappingRequirement(
+            purpose ?? source.Purpose,
+            replacePhysicalStart
+                ? physicalStart
+                : source.PhysicalStart,
+            replacePhysicalEnd
+                ? physicalEndExclusive
+                : source.PhysicalEndExclusive,
+            pageCount ?? source.PageCount,
+            byteLength ?? source.ByteLength,
+            protection ?? source.Protection,
+            cachePolicy ?? source.CachePolicy);
+    }
+
     private static bool EnumContractMatches<TEnum>(
         (string Name, byte Value)[] expected)
         where TEnum : struct, Enum
@@ -4658,6 +5721,18 @@ internal static unsafe class M01LivePagingIntegrationTests
         private BootReservedRange* _stageOneLedger;
         private BootMemoryRegionRecord* _stageTwoRecords;
         private BootReservedRange* _stageTwoLedger;
+        private FixtureMappingProfile _mappingProfile;
+        private BootReservedRange[] _legacyStageThreeReservations = [];
+        private BootReservedRange[] _liveIntervalStageThreeReservations = [];
+        private X64BootIdentityMappingRequirement[]
+            _legacyMappingRequirements = [];
+        private X64BootIdentityMappingRequirement[]
+            _liveIntervalMappingRequirements = [];
+        private X64BootIdentityMappingRange[] _legacyMappingRanges = [];
+        private X64BootIdentityMappingRange[]
+            _liveIntervalMappingRanges = [];
+        private X64BootIdentityMappingPlanResult _legacyMapping;
+        private X64BootIdentityMappingPlanResult _liveIntervalMapping;
 
         internal CanonicalFixture()
         {
@@ -4816,6 +5891,14 @@ internal static unsafe class M01LivePagingIntegrationTests
 
         internal ulong EntryCapacity => (ulong)Entries.Length;
 
+        internal FixtureMappingProfile MappingProfile => _mappingProfile;
+
+        internal void UseLiveIntervalProfile()
+        {
+            ActivateMappingProfile(
+                FixtureMappingProfile.ExactLiveIntervalPreparation);
+        }
+
         internal X64PagingModePreflightObservation
             PreflightObservation;
 
@@ -4844,6 +5927,8 @@ internal static unsafe class M01LivePagingIntegrationTests
             M01LivePagingByteMode byteMode =
                 M01LivePagingByteMode.EmitAndVerify)
         {
+            ActivateMappingProfile(
+                FixtureMappingProfile.LegacyExecute);
             return ExecuteCore(
                 StageTwoState,
                 M01LiveAllocatorStaticState.RequiredStorageBytes,
@@ -4878,6 +5963,8 @@ internal static unsafe class M01LivePagingIntegrationTests
             M01LivePagingByteMode byteMode =
                 M01LivePagingByteMode.EmitAndVerify)
         {
+            ActivateMappingProfile(
+                FixtureMappingProfile.ExactLiveIntervalPreparation);
             fixed (X64PagingModePreflightObservation* preflight =
                 &PreflightObservation)
             {
@@ -4920,11 +6007,60 @@ internal static unsafe class M01LivePagingIntegrationTests
             }
         }
 
+        internal M01LivePagingPreparationResult PrepareRequirements(
+            X64BootIdentityMappingRequirement[] requirements)
+        {
+            ActivateMappingProfile(
+                FixtureMappingProfile.ExactLiveIntervalPreparation);
+            fixed (X64PagingModePreflightObservation* preflight =
+                &PreflightObservation)
+            {
+                return PrepareCore(
+                    StageTwoState,
+                    1,
+                    1,
+                    StackSwitchPlan,
+                    Records,
+                    3,
+                    3,
+                    AllocationEvidence,
+                    MapEvidence,
+                    Ledger,
+                    LedgerCount,
+                    LedgerCapacity,
+                    requirements,
+                    (ulong)requirements.Length,
+                    (ulong)requirements.Length,
+                    MappingRanges,
+                    0,
+                    MappingRangeCapacity,
+                    PageImages,
+                    0,
+                    PageImageCapacity,
+                    Entries,
+                    0,
+                    EntryCapacity,
+                    CodePage,
+                    BootReservedRange.PageSize,
+                    ProbePage,
+                    BootReservedRange.PageSize,
+                    M01LivePagingByteMode.EmitAndVerify,
+                    PreparationState,
+                    1,
+                    1,
+                    preflight,
+                    1,
+                    1);
+            }
+        }
+
         internal M01LivePagingPreparationResult PrepareStageTwo(
             M01LiveAllocatorStaticState* stageTwo,
             ulong count,
             ulong capacity)
         {
+            ActivateMappingProfile(
+                FixtureMappingProfile.ExactLiveIntervalPreparation);
             fixed (X64PagingModePreflightObservation* preflight =
                 &PreflightObservation)
             {
@@ -4956,6 +6092,8 @@ internal static unsafe class M01LivePagingIntegrationTests
             ulong capacity,
             M01LivePagingAllocationEvidence evidence)
         {
+            ActivateMappingProfile(
+                FixtureMappingProfile.ExactLiveIntervalPreparation);
             fixed (X64PagingModePreflightObservation* preflight =
                 &PreflightObservation)
             {
@@ -4987,6 +6125,8 @@ internal static unsafe class M01LivePagingIntegrationTests
             ulong count,
             ulong capacity)
         {
+            ActivateMappingProfile(
+                FixtureMappingProfile.ExactLiveIntervalPreparation);
             fixed (X64PagingModePreflightObservation* preflight =
                 &PreflightObservation)
             {
@@ -5017,6 +6157,8 @@ internal static unsafe class M01LivePagingIntegrationTests
             ulong count,
             ulong capacity)
         {
+            ActivateMappingProfile(
+                FixtureMappingProfile.ExactLiveIntervalPreparation);
             return PrepareMetadata(
                 StageTwoState,
                 1,
@@ -5043,6 +6185,8 @@ internal static unsafe class M01LivePagingIntegrationTests
             ulong count,
             ulong capacity)
         {
+            ActivateMappingProfile(
+                FixtureMappingProfile.ExactLiveIntervalPreparation);
             fixed (X64PagingModePreflightObservation* preflight =
                 &PreflightObservation)
             {
@@ -5071,6 +6215,8 @@ internal static unsafe class M01LivePagingIntegrationTests
         internal M01LivePagingPreparationResult
             PrepareStateAliasesPreflight()
         {
+            ActivateMappingProfile(
+                FixtureMappingProfile.ExactLiveIntervalPreparation);
             fixed (X64PagingModePreflightObservation* preflight =
                 &PreflightObservation)
             {
@@ -5099,6 +6245,8 @@ internal static unsafe class M01LivePagingIntegrationTests
         internal M01LivePagingIntegrationResult ExecuteRequirements(
             X64BootIdentityMappingRequirement[] requirements)
         {
+            ActivateMappingProfile(
+                FixtureMappingProfile.LegacyExecute);
             return ExecuteWorkspace(
                 requirements,
                 (ulong)requirements.Length,
@@ -5121,6 +6269,8 @@ internal static unsafe class M01LivePagingIntegrationTests
             ulong count,
             ulong capacity)
         {
+            ActivateMappingProfile(
+                FixtureMappingProfile.LegacyExecute);
             return ExecuteCore(
                 StageTwoState,
                 M01LiveAllocatorStaticState.RequiredStorageBytes,
@@ -5154,6 +6304,8 @@ internal static unsafe class M01LivePagingIntegrationTests
         internal M01LivePagingIntegrationResult ExecuteWithMap(
             M01LivePagingMapLedgerEvidence evidence)
         {
+            ActivateMappingProfile(
+                FixtureMappingProfile.LegacyExecute);
             return ExecuteCore(
                 StageTwoState,
                 M01LiveAllocatorStaticState.RequiredStorageBytes,
@@ -5187,6 +6339,8 @@ internal static unsafe class M01LivePagingIntegrationTests
         internal M01LivePagingIntegrationResult ExecuteWithStack(
             OwnedBootStackSwitchPlanResult plan)
         {
+            ActivateMappingProfile(
+                FixtureMappingProfile.LegacyExecute);
             return ExecuteCore(
                 StageTwoState,
                 M01LiveAllocatorStaticState.RequiredStorageBytes,
@@ -5232,6 +6386,8 @@ internal static unsafe class M01LivePagingIntegrationTests
             M01LivePagingStaticState* state,
             ulong stateCapacity)
         {
+            ActivateMappingProfile(
+                FixtureMappingProfile.LegacyExecute);
             return ExecuteCore(
                 stageTwo,
                 stageTwoCapacity,
@@ -5282,6 +6438,8 @@ internal static unsafe class M01LivePagingIntegrationTests
             ulong stateCount,
             ulong stateCapacity)
         {
+            ActivateMappingProfile(
+                FixtureMappingProfile.ExactLiveIntervalPreparation);
             return PrepareCore(
                 stageTwo,
                 stageTwoCount,
@@ -5336,6 +6494,8 @@ internal static unsafe class M01LivePagingIntegrationTests
             ulong probeCapacity,
             bool aliasPageStorage = false)
         {
+            ActivateMappingProfile(
+                FixtureMappingProfile.LegacyExecute);
             fixed (X64BootIdentityMappingRequirement* requirementPointer =
                 requirements)
             fixed (X64BootIdentityMappingRange* rangePointer = ranges)
@@ -5398,6 +6558,29 @@ internal static unsafe class M01LivePagingIntegrationTests
                     codeStatus,
                     probeStatus,
                     tableStatus);
+        }
+
+        internal void ReplaceAllocationRecord(
+            int index,
+            BootMemoryRegionRecord replacement)
+        {
+            if ((uint)index >= 3)
+                throw new ArgumentOutOfRangeException(nameof(index));
+
+            Records[index] = replacement;
+            AllocationEvidence = CaptureAllocationEvidence(
+                Cr3CodeAllocationOrdinal,
+                ProbeAllocationOrdinal,
+                TableStateAllocationOrdinal);
+            MapEvidence = CaptureMapEvidence();
+        }
+
+        internal void CorruptAllocationEvidenceWithoutRefreshing()
+        {
+            AllocationEvidence = CaptureAllocationEvidence(
+                Cr3CodeAllocationOrdinal,
+                ProbeAllocationOrdinal + 1,
+                TableStateAllocationOrdinal + 1);
         }
 
         internal M01LivePagingMapLedgerEvidence CaptureMapEvidence(
@@ -5679,6 +6862,44 @@ internal static unsafe class M01LivePagingIntegrationTests
             return _backing + page * BootReservedRange.PageSize;
         }
 
+        private void ActivateMappingProfile(
+            FixtureMappingProfile profile)
+        {
+            if (_mappingProfile == profile)
+                return;
+
+            if (profile == FixtureMappingProfile.LegacyExecute)
+            {
+                MappingRequirements = _legacyMappingRequirements;
+                MappingRanges = _legacyMappingRanges;
+                Mapping = _legacyMapping;
+                WriteStageThreeLedger(
+                    (BootReservedRange[])
+                        _legacyStageThreeReservations.Clone());
+            }
+            else if (profile
+                == FixtureMappingProfile
+                    .ExactLiveIntervalPreparation)
+            {
+                MappingRequirements =
+                    _liveIntervalMappingRequirements;
+                MappingRanges = _liveIntervalMappingRanges;
+                Mapping = _liveIntervalMapping;
+                WriteStageThreeLedger(
+                    (BootReservedRange[])
+                        _liveIntervalStageThreeReservations.Clone());
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    "unsupported fixture mapping profile");
+            }
+
+            _mappingProfile = profile;
+            if (AllocationEvidence.Size != 0)
+                MapEvidence = CaptureMapEvidence();
+        }
+
         private void BuildStageOneAndTwo()
         {
             EfiLoadedImageProtocolObservation observation =
@@ -5920,16 +7141,30 @@ internal static unsafe class M01LivePagingIntegrationTests
         private void BuildStageThree()
         {
             BuildMappingPlan(
-                out X64BootIdentityMappingRequirement[] requirements,
-                out X64BootIdentityMappingRange[] ranges,
-                out X64BootIdentityMappingPlanResult mapping);
-            MappingRequirements = requirements;
-            MappingRanges = ranges;
-            Mapping = mapping;
-            if (!Mapping.Succeeded)
+                out _legacyMappingRequirements,
+                out _legacyMappingRanges,
+                out _legacyMapping);
+            BuildLiveIntervalMappingPlan(
+                out _liveIntervalMappingRequirements,
+                out _liveIntervalMappingRanges,
+                out _liveIntervalMapping);
+            if (!_legacyMapping.Succeeded
+                || !_liveIntervalMapping.Succeeded)
             {
                 throw new InvalidOperationException(
-                    "stage-three mapping: " + Mapping.Status);
+                    "stage-three mapping: legacy="
+                    + _legacyMapping.Status
+                    + " live="
+                    + _liveIntervalMapping.Status);
+            }
+            if (_legacyMapping.TotalTablePageCount
+                != _liveIntervalMapping.TotalTablePageCount)
+            {
+                throw new InvalidOperationException(
+                    "stage-three mapping table geometry differs: legacy="
+                    + _legacyMapping.TotalTablePageCount
+                    + " live="
+                    + _liveIntervalMapping.TotalTablePageCount);
             }
 
             Records[0] = Record(
@@ -5943,40 +7178,54 @@ internal static unsafe class M01LivePagingIntegrationTests
             Records[2] = Record(
                 UefiMemoryType.LoaderData,
                 (ulong)AtPage(StageThreeTablePage),
-                Mapping.TotalTablePageCount + 1);
+                _liveIntervalMapping.TotalTablePageCount + 1);
             PageImages =
-                new X64PageTableImagePage[
-                    X64PageMap.MaximumPageImages];
+                GC.AllocateArray<X64PageTableImagePage>(
+                    checked((int)X64PageMap.MaximumPageImages),
+                    pinned: true);
             Entries =
-                new ulong[checked((int)(
-                    Mapping.TotalTablePageCount
-                    * X64PageTableImagePage.EntryCountPerPage))];
+                GC.AllocateArray<ulong>(
+                    checked((int)(
+                        _liveIntervalMapping.TotalTablePageCount
+                        * X64PageTableImagePage.EntryCountPerPage)),
+                    pinned: true);
 
-            BootReservedRange[] reservations =
+            BootReservedRange[] legacyReservations =
                 new BootReservedRange[10];
             for (int index = 0; index < 5; index++)
-                reservations[index] = _stageTwoLedger[index];
-            reservations[5] = CreateRange(
+                legacyReservations[index] = _stageTwoLedger[index];
+            legacyReservations[5] = CreateRange(
                 BootReservationKind.AcpiScratch,
                 (ulong)AtPage(AcpiRequirementPage),
                 1);
-            reservations[6] = CreateRange(
+            legacyReservations[6] = CreateRange(
                 BootReservationKind.FramebufferMetadata,
                 (ulong)AtPage(FramebufferRequirementPage),
                 1);
-            reservations[7] = CreateRange(
+            legacyReservations[7] = CreateRange(
                 BootReservationKind.Cr3TransitionStub,
                 Records[0].PhysicalStart,
                 Records[0].PageCount);
-            reservations[8] = CreateRange(
+            legacyReservations[8] = CreateRange(
                 BootReservationKind.PageProtectionProbe,
                 Records[1].PhysicalStart,
                 Records[1].PageCount);
-            reservations[9] = CreateRange(
+            legacyReservations[9] = CreateRange(
                 BootReservationKind.PageTableArena,
                 Records[2].PhysicalStart,
                 Records[2].PageCount);
-            WriteStageThreeLedger(reservations);
+            _legacyStageThreeReservations = legacyReservations;
+
+            BootReservedRange[] liveIntervalReservations =
+                new BootReservedRange[8];
+            for (int index = 0; index < 5; index++)
+                liveIntervalReservations[index] = _stageTwoLedger[index];
+            liveIntervalReservations[5] = legacyReservations[7];
+            liveIntervalReservations[6] = legacyReservations[8];
+            liveIntervalReservations[7] = legacyReservations[9];
+            _liveIntervalStageThreeReservations =
+                liveIntervalReservations;
+            ActivateMappingProfile(FixtureMappingProfile.LegacyExecute);
 
             StageThreeMap = CreateOwnedMap(
                 AtPage(StageThreeMapDestinationPage),
@@ -6115,6 +7364,62 @@ internal static unsafe class M01LivePagingIntegrationTests
                 "stage-three page accounting did not converge");
         }
 
+        private void BuildLiveIntervalMappingPlan(
+            out X64BootIdentityMappingRequirement[] requirements,
+            out X64BootIdentityMappingRange[] ranges,
+            out X64BootIdentityMappingPlanResult result)
+        {
+            ulong tableStatePages = 5;
+            requirements = [];
+            ranges = [];
+            result = default;
+            for (int attempt = 0; attempt < 8; attempt++)
+            {
+                requirements = AllocatePinnedCopy(
+                    RequirementsForLiveInterval(tableStatePages));
+                ranges =
+                    GC.AllocateArray<X64BootIdentityMappingRange>(
+                        checked((int)
+                            X64BootIdentityMappingPlan
+                                .MaximumDestinationCount),
+                        pinned: true);
+                fixed (X64BootIdentityMappingRequirement* source =
+                    requirements)
+                fixed (X64BootIdentityMappingRange* destination =
+                    ranges)
+                {
+                    result =
+                        X64BootIdentityMappingPlan.CreateLiveInterval(
+                            source,
+                            (ulong)requirements.Length,
+                            (ulong)requirements.Length,
+                            destination,
+                            (ulong)ranges.Length,
+                            X64PageMap.MaximumPageImages,
+                            Preconditions);
+                }
+                if (!result.Succeeded)
+                    return;
+
+                ulong exactPages = result.TotalTablePageCount + 1;
+                if (exactPages == tableStatePages)
+                    return;
+                tableStatePages = exactPages;
+            }
+            throw new InvalidOperationException(
+                "live-interval page accounting did not converge");
+        }
+
+        private static T[] AllocatePinnedCopy<T>(T[] source)
+            where T : unmanaged
+        {
+            T[] destination = GC.AllocateArray<T>(
+                source.Length,
+                pinned: true);
+            source.CopyTo(destination, 0);
+            return destination;
+        }
+
         private X64BootIdentityMappingRequirement[]
             RequirementsFor(ulong tableStatePages)
         {
@@ -6200,6 +7505,61 @@ internal static unsafe class M01LivePagingIntegrationTests
                 RequirementForReservation(
                     X64BootIdentityMappingPurpose.AdditionalRequired,
                     allocatorArena,
+                    M01014TestData.ReadWrite)
+            ];
+        }
+
+        private X64BootIdentityMappingRequirement[]
+            RequirementsForLiveInterval(ulong tableStatePages)
+        {
+            ulong page = BootReservedRange.PageSize;
+            ulong guard = (ulong)AtPage(StageOneDataPage);
+            ulong stack = guard + page;
+            ulong table = (ulong)AtPage(StageThreeTablePage);
+            ulong tableEnd = checked(
+                table + tableStatePages * page);
+            return
+            [
+                Requirement(
+                    X64BootIdentityMappingPurpose.BootStackGuard,
+                    guard,
+                    guard + page,
+                    PageProtection.None,
+                    PageCachePolicy.Uninitialized),
+                Requirement(
+                    X64BootIdentityMappingPurpose
+                        .CompositeCodeAndCallGate,
+                    (ulong)CodePage,
+                    (ulong)CodePage + page,
+                    M01014TestData.ReadExecute),
+                Requirement(
+                    X64BootIdentityMappingPurpose
+                        .CompositeOwnedStack,
+                    stack,
+                    stack + StackPages * page,
+                    M01014TestData.ReadWrite),
+                Requirement(
+                    X64BootIdentityMappingPurpose
+                        .ProtectionProbePage,
+                    (ulong)ProbePage,
+                    (ulong)ProbePage + page,
+                    M01014TestData.ReadWrite),
+                Requirement(
+                    X64BootIdentityMappingPurpose
+                        .CompleteTableAndStateArena,
+                    table,
+                    tableEnd,
+                    M01014TestData.ReadWrite),
+                Requirement(
+                    X64BootIdentityMappingPurpose
+                        .RuntimeStateAndCanaryPage,
+                    tableEnd - page,
+                    tableEnd,
+                    M01014TestData.ReadWrite),
+                Requirement(
+                    X64BootIdentityMappingPurpose.OwnedRootPage,
+                    table,
+                    table + page,
                     M01014TestData.ReadWrite)
             ];
         }
@@ -6644,6 +8004,8 @@ internal static unsafe class M01LivePagingIntegrationTests
                 M01LivePagingByteMode.EmitAndVerify,
             bool aliasPageStorage = false)
         {
+            ActivateMappingProfile(
+                FixtureMappingProfile.ExactLiveIntervalPreparation);
             fixed (X64BootIdentityMappingRequirement* requirementPointer =
                 requirements)
             fixed (X64BootIdentityMappingRange* rangePointer = ranges)

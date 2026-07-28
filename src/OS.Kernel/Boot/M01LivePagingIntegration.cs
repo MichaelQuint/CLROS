@@ -1313,6 +1313,15 @@ public readonly struct M01LivePagingPreparationResult
 
     public bool PreparedForCompositeTransition => Succeeded;
 
+    public bool UsesExactLiveIntervalBindings =>
+        Succeeded
+        && _state.MappingRequirementCount
+            == M01LivePagingIntegration
+                .RequiredLiveIntervalMappingRequirementCount
+        && _evidence.MappingPlan.RequiredPurposeMask
+            == OS.Kernel.Boot.X64BootIdentityMappingPlan
+                .RequiredLiveIntervalPurposeMask;
+
     internal static M01LivePagingPreparationResult Success(
         M01LivePagingPreparationEvidence evidence,
         M01LivePagingPreparationState state)
@@ -1480,6 +1489,7 @@ public static unsafe class M01LivePagingIntegration
     public const bool ProvesAcpiOrFramebufferSourceProvenance = false;
     public const bool EnforcesPerSectionLoadedImageProtections = false;
     public const bool CrossBindsStageOneSwitchStub = true;
+    public const bool PreparationCrossBindsStageOneSwitchStub = false;
     public const bool CrossBindsOwnedSerialStub = false;
     public const bool SerialPurposeIsCompatibilityAliasOnly = true;
     public const bool CrossBindsOwnedMapIdentity = false;
@@ -1494,6 +1504,9 @@ public static unsafe class M01LivePagingIntegration
     public const bool PreparationExecutesPrivilegedInstructions = false;
     public const bool PreparationInvokesFirmware = false;
     public const bool PreparationIsGuestEvidence = false;
+    public const bool PreparationUsesExactLiveIntervalBindings = true;
+    public const bool PreparationRequiresHistoricalIdentityAliases =
+        false;
 
     public const ulong RequiredAllocationRecordCount = 3;
     public const ulong MaximumAllocationRecordCapacity = 16;
@@ -1503,6 +1516,7 @@ public static unsafe class M01LivePagingIntegration
     public const ulong RequiredCodePageCount = 1;
     public const ulong RequiredProbePageCount = 1;
     public const ulong RequiredNonImageMappingRequirementCount = 10;
+    public const ulong RequiredLiveIntervalMappingRequirementCount = 7;
     public const ulong RequiredPointerAlignment = 8;
     public const ulong PageSize = 4096;
     public const ulong PreflightEntryOffset = 0;
@@ -1907,14 +1921,6 @@ public static unsafe class M01LivePagingIntegration
             || !ContainsExactReservation(
                 reservationLedger,
                 reservationCount,
-                stageTwoState->ArenaReservation)
-            || !ContainsExactReservation(
-                reservationLedger,
-                reservationCount,
-                stackSwitchPlan.Plan.StubReservation)
-            || !ContainsExactReservation(
-                reservationLedger,
-                reservationCount,
                 stackSwitchPlan.Plan.StackLayout.GuardReservation)
             || !ContainsExactReservation(
                 reservationLedger,
@@ -1928,15 +1934,12 @@ public static unsafe class M01LivePagingIntegration
         }
         checkpoint = M01LivePagingCheckpoint.ReservationsValidated;
 
-        if (!ValidateIdentityMappingBindings(
+        if (!ValidateLiveIntervalIdentityMappingBindings(
                 mappingRequirements,
                 mappingRequirementCount,
                 reservationLedger,
                 reservationCount,
-                stageOneStart,
-                stageOneEnd,
                 stackSwitchPlan.Plan,
-                stageTwoState->ArenaReservation,
                 codeReservation,
                 probeReservation,
                 tableStateReservation))
@@ -1983,7 +1986,8 @@ public static unsafe class M01LivePagingIntegration
         checkpoint = M01LivePagingCheckpoint.PagingModeValidated;
 
         evidence.MappingPlanValue =
-            OS.Kernel.Boot.X64BootIdentityMappingPlan.Create(
+            OS.Kernel.Boot.X64BootIdentityMappingPlan
+                .CreateLiveInterval(
                 mappingRequirements,
                 mappingRequirementCount,
                 mappingRequirementCapacity,
@@ -2307,7 +2311,8 @@ public static unsafe class M01LivePagingIntegration
             pageImageCapacity,
             pageTableEntries,
             pageTableEntryCapacity,
-            pageTablePreconditions);
+            pageTablePreconditions,
+            requireStageOneStubMapping: false);
         if (!evidence.TableBuildValue.Succeeded
             || !evidence.TableBuildValue.RootTable.Equals(
                 provisionalRoot))
@@ -3010,7 +3015,7 @@ public static unsafe class M01LivePagingIntegration
         }
         checkpoint = M01LivePagingCheckpoint.ReservationsValidated;
 
-        if (!ValidateIdentityMappingBindings(
+        if (!ValidateLegacyIdentityMappingBindings(
                 mappingRequirements,
                 mappingRequirementCount,
                 reservationLedger,
@@ -3378,7 +3383,8 @@ public static unsafe class M01LivePagingIntegration
             pageImageCapacity,
             pageTableEntries,
             pageTableEntryCapacity,
-            pageTablePreconditions);
+            pageTablePreconditions,
+            requireStageOneStubMapping: true);
         if (!evidence.TableBuildValue.Succeeded)
         {
             return Fail(
@@ -3801,7 +3807,8 @@ public static unsafe class M01LivePagingIntegration
                 <= OS.Kernel.Memory.BootReservationTableValidator
                     .MaximumReservationCount
             && state.MappingRequirementAddressValue != 0
-            && state.MappingRequirementCountValue != 0
+            && state.MappingRequirementCountValue
+                == RequiredLiveIntervalMappingRequirementCount
             && state.MappingRequirementCountValue
                 <= state.MappingRequirementCapacityValue
             && state.MappingRequirementCapacityValue
@@ -3876,7 +3883,8 @@ public static unsafe class M01LivePagingIntegration
         ulong* entries,
         ulong entryCapacity,
         OS.Kernel.Memory.X64PageTableEncodingPreconditions
-            preconditions)
+            preconditions,
+        bool requireStageOneStubMapping)
     {
         if (!plan.Succeeded
             || rangeCount != plan.OutputRangeCount
@@ -4242,36 +4250,39 @@ public static unsafe class M01LivePagingIntegration
             (M01LoadedImageStackStaticState*)stageOneStateAddress;
         OwnedBootStackSwitchPlan stageOnePlan =
             stageOne->SwitchState.Plan;
-        BootMemoryRegionRecord stageOneCode =
-            stageOnePlan.CodeAllocation;
-        ulong stageOneCodeStart = stageOneCode.VirtualStart;
-        for (ulong pageOrdinal = 0;
-            pageOrdinal < stageOneCode.PageCount;
-            pageOrdinal++)
+        if (requireStageOneStubMapping)
         {
-            if (!HasExactLeafProtection(
-                    stageOneCodeStart + pageOrdinal * PageSize,
-                    OS.Kernel.Memory.PageProtection.Read
-                        | OS.Kernel.Memory.PageProtection.Execute,
-                    root,
-                    pageImages,
-                    tablePageCount,
-                    entries,
-                    requiredEntries,
-                    preconditions))
+            BootMemoryRegionRecord stageOneCode =
+                stageOnePlan.CodeAllocation;
+            ulong stageOneCodeStart = stageOneCode.VirtualStart;
+            for (ulong pageOrdinal = 0;
+                pageOrdinal < stageOneCode.PageCount;
+                pageOrdinal++)
             {
-                return TableFailure(
-                    M01LivePagingTableBuildStatus
-                        .MissingStageOneStubMapping,
-                    rangeCount,
-                    validatedRanges,
-                    allocatedTablePages,
-                    requiredEntries,
-                    mappedPages,
-                    M01LivePagingTableBuildResult.NoIndex,
-                    pageOrdinal,
-                    probeLeafIndex,
-                    root: root);
+                if (!HasExactLeafProtection(
+                        stageOneCodeStart + pageOrdinal * PageSize,
+                        OS.Kernel.Memory.PageProtection.Read
+                            | OS.Kernel.Memory.PageProtection.Execute,
+                        root,
+                        pageImages,
+                        tablePageCount,
+                        entries,
+                        requiredEntries,
+                        preconditions))
+                {
+                    return TableFailure(
+                        M01LivePagingTableBuildStatus
+                            .MissingStageOneStubMapping,
+                        rangeCount,
+                        validatedRanges,
+                        allocatedTablePages,
+                        requiredEntries,
+                        mappedPages,
+                        M01LivePagingTableBuildResult.NoIndex,
+                        pageOrdinal,
+                        probeLeafIndex,
+                        root: root);
+                }
             }
         }
 
@@ -5662,7 +5673,158 @@ public static unsafe class M01LivePagingIntegration
             && range.ByteLength == allocation.ByteLength;
     }
 
-    private static bool ValidateIdentityMappingBindings(
+    private static bool ValidateLiveIntervalIdentityMappingBindings(
+        OS.Kernel.Boot.X64BootIdentityMappingRequirement*
+            requirements,
+        ulong requirementCount,
+        OS.Kernel.Memory.BootReservedRange* ledger,
+        ulong reservationCount,
+        OwnedBootStackSwitchPlan stackPlan,
+        OS.Kernel.Memory.BootReservedRange codeReservation,
+        OS.Kernel.Memory.BootReservedRange probeReservation,
+        OS.Kernel.Memory.BootReservedRange tableStateReservation)
+    {
+        if (requirements == null
+            || ledger == null
+            || reservationCount == 0
+            || requirementCount
+                != RequiredLiveIntervalMappingRequirementCount
+            || !stackPlan.IsValid
+            || !codeReservation.IsValid
+            || !probeReservation.IsValid
+            || !tableStateReservation.IsValid
+            || !ContainsExactReservation(
+                ledger,
+                reservationCount,
+                stackPlan.StackLayout.GuardReservation)
+            || !ContainsExactReservation(
+                ledger,
+                reservationCount,
+                stackPlan.StackLayout.StackReservation)
+            || tableStateReservation.PageCount < 2
+            || tableStateReservation.ByteLength
+                < 2 * PageSize)
+        {
+            return false;
+        }
+
+        ulong tableStart = Raw(tableStateReservation.PhysicalStart);
+        ulong tableEnd =
+            Raw(tableStateReservation.PhysicalEndExclusive);
+        if (tableStart == 0
+            || tableStart > MaximumUnsignedLong - PageSize
+            || tableEnd < PageSize
+            || tableStart + PageSize >= tableEnd)
+        {
+            return false;
+        }
+
+        ulong statePageStart = tableEnd - PageSize;
+        ulong rootPageEnd = tableStart + PageSize;
+        OS.Kernel.Memory.PageProtection readWrite =
+            (OS.Kernel.Memory.PageProtection)(
+                (byte)OS.Kernel.Memory.PageProtection.Read
+                | (byte)OS.Kernel.Memory.PageProtection.Write);
+        OS.Kernel.Memory.PageProtection readExecute =
+            (OS.Kernel.Memory.PageProtection)(
+                (byte)OS.Kernel.Memory.PageProtection.Read
+                | (byte)OS.Kernel.Memory.PageProtection.Execute);
+
+        ulong seenPurposeMask = 0;
+        for (ulong index = 0; index < requirementCount; index++)
+        {
+            OS.Kernel.Boot.X64BootIdentityMappingRequirement
+                requirement = requirements[index];
+            bool isGuard = requirement.Purpose
+                == OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                    .BootStackGuard;
+            if (!requirement.IsInitialized
+                || (!isGuard
+                    && requirement.CachePolicy
+                        != OS.Kernel.Memory.PageCachePolicy.WriteBack))
+            {
+                return false;
+            }
+
+            bool matches;
+            switch (requirement.Purpose)
+            {
+                case OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                    .BootStackGuard:
+                    matches = RequirementMatchesReservation(
+                        requirement,
+                        stackPlan.StackLayout.GuardReservation,
+                        OS.Kernel.Memory.PageProtection.None)
+                        && requirement.CachePolicy
+                            == OS.Kernel.Memory.PageCachePolicy
+                                .Uninitialized;
+                    break;
+                case OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                    .CompositeCodeAndCallGate:
+                    matches = RequirementMatchesReservation(
+                        requirement,
+                        codeReservation,
+                        readExecute);
+                    break;
+                case OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                    .CompositeOwnedStack:
+                    matches = RequirementMatchesReservation(
+                        requirement,
+                        stackPlan.StackLayout.StackReservation,
+                        readWrite);
+                    break;
+                case OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                    .ProtectionProbePage:
+                    matches = RequirementMatchesReservation(
+                        requirement,
+                        probeReservation,
+                        readWrite);
+                    break;
+                case OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                    .CompleteTableAndStateArena:
+                    matches = RequirementMatchesReservation(
+                        requirement,
+                        tableStateReservation,
+                        readWrite);
+                    break;
+                case OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                    .RuntimeStateAndCanaryPage:
+                    matches = RequirementMatchesRawRange(
+                        requirement,
+                        statePageStart,
+                        tableEnd)
+                        && requirement.Protection == readWrite;
+                    break;
+                case OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                    .OwnedRootPage:
+                    matches = RequirementMatchesRawRange(
+                        requirement,
+                        tableStart,
+                        rootPageEnd)
+                        && requirement.Protection == readWrite;
+                    break;
+                default:
+                    return false;
+            }
+
+            ulong purposeBit =
+                1UL << (byte)requirement.Purpose;
+            if (!matches
+                || (seenPurposeMask & purposeBit) != 0)
+            {
+                return false;
+            }
+            seenPurposeMask |= purposeBit;
+        }
+
+        return seenPurposeMask
+            == (OS.Kernel.Boot.X64BootIdentityMappingPlan
+                    .RequiredLiveIntervalPurposeMask
+                | (1UL << (byte)OS.Kernel.Boot
+                    .X64BootIdentityMappingPurpose.BootStackGuard));
+    }
+
+    private static bool ValidateLegacyIdentityMappingBindings(
         OS.Kernel.Boot.X64BootIdentityMappingRequirement*
             requirements,
         ulong requirementCount,
@@ -6022,6 +6184,19 @@ public static unsafe class M01LivePagingIntegration
             }
         }
         return matches == 1;
+    }
+
+    private static bool RequirementMatchesReservation(
+        OS.Kernel.Boot.X64BootIdentityMappingRequirement requirement,
+        OS.Kernel.Memory.BootReservedRange reservation,
+        OS.Kernel.Memory.PageProtection protection)
+    {
+        return reservation.IsValid
+            && RequirementMatchesRawRange(
+                requirement,
+                Raw(reservation.PhysicalStart),
+                Raw(reservation.PhysicalEndExclusive))
+            && requirement.Protection == protection;
     }
 
     private static bool RequirementMatchesRawRange(
