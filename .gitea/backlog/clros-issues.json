@@ -4698,7 +4698,7 @@
         "M01-029"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p0",
         "type:implementation",
         "evidence:host",
@@ -4734,7 +4734,7 @@
       ],
       "collisionLane": "lane:probes",
       "summary": "Replace the M01 preparation/composite contracts' historical SerialStub, ACPI scratch, framebuffer metadata, and loaded-image-continuation identity aliases with append-only purposes and range roles for only the pages actually dereferenced while the owned root is active.",
-      "currentEvidence": "The current preparation path requires unique AcpiScratch and FramebufferMetadata reservations and maps the stage-one switch stub through the historical SerialStub purpose even though the composite interval does not dereference ACPI, framebuffer, serial, or diagnostic state. The composite range contract also treats a loaded-image continuation page as its exact return target, while a future audited call gate must own that return site. Those requirements cannot be populated truthfully by the current three-allocation M01-025 boundary.",
+      "currentEvidence": "Implementation commit be8808e and merge commit 8f4fb75 (PR #392) append six exact live-interval identity purposes and composite roles, preserve historical public values and the composite byte/runtime-state contracts, replace fabricated ACPI/framebuffer/serial/continuation aliases with six actual mappings plus one absent guard sentinel, and cross-bind exact allocation, reservation, identity-map, containment, cache, protection, W+X, and call-gate-return evidence. The reviewed replacement removes the former AcpiScratch, FramebufferMetadata, SerialStub, and loaded-image return target aliases from this exact interval without renumbering them for other phases. done/step875.md preserves the reviewed host record. The accepted 412,688-byte stdout log has SHA-256 DC36E741E2ABFAE54759E49BB7B35F770A1CF64C98F665E38E3FAD3007D68D15, contains exact TEST_START m01.030, CLROS_M01_030_READY, TEST_PASS m01.030, and final TEST_PASS host.tests lines once each, and contains zero TEST_FAIL markers. Stderr is empty with SHA-256 E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855. Solution and HostTests builds passed with zero warnings/errors; naming, source-firewall, QEMU dry-run tooling, and diff checks passed. Independent production and tests/docs reviews found no blocking issue. Issue #385 comment #6029 carries clros-evidence-reviewed:M01-030. This is host-only exact live-interval planning/provenance evidence and does not prove physical table materialization, CR3 installation, call-gate or privileged execution, hardware restoration, real QEMU/OVMF behavior, or completion-gate advancement.",
       "implementationNotes": [
         "Append, never renumber, exact X64BootIdentityMappingPurpose values and composite range roles for the composite code/call-gate page, owned stack, protection-probe page, complete table/state arena, runtime-state/canary page, and owned-root page.",
         "Enumerate the composite byte plan's actual memory dereferences and require exactly those present identity mappings with exact RO/RW, executable/NX, cache-policy, containment, allocation, and reservation provenance.",
@@ -4775,7 +4775,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue may prove only host validation of exact live-interval identity and provenance bindings. It does not allocate or map pages in firmware, install page tables, materialize or invoke the call gate/composite, execute privileged instructions, observe hardware restoration, or establish owned serial/ACPI/framebuffer access. It does not prove live QEMU/OVMF execution or advance a completion gate.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-031",
