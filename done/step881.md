@@ -63,8 +63,48 @@ parallel work without granting it ownership of `CLROS.slnx`, `OS.csproj`, or
 
 ## Tests run
 
-- Final combined-tree validation is recorded below after the closure and
-  publication-chain changes are frozen in one commit.
+- Exact validated source commit:
+  `9dda4ac72f55dc207c4214571b907df19f27181c`.
+- `dotnet build .\CLROS.slnx --nologo -m:1`
+  - Passed with 0 warnings and 0 errors.
+- `dotnet build .\tests\OS.HostTests\OS.HostTests.csproj --nologo`
+  - Passed with 0 warnings and 0 errors.
+- `dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build`
+  - Exit code 0.
+  - 834,644 stdout bytes.
+  - Stdout SHA-256
+    `C1192C7C58BE315FBEB6E52CF08F1467D26ECE6855CCE71F0E30E7D0DFA95746`.
+  - Empty stderr SHA-256
+    `E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855`.
+  - 3,270 `TEST_START`, 3,271 `TEST_PASS`, zero `TEST_FAIL`, exactly one
+    `TEST_PASS host.tests`, and zero terminal or named diagnostic failures.
+  - Ephemeral capture:
+    `C:\Users\Roger\AppData\Local\Temp\clros-m01-final-2997b0c4042640ccb854ecf261a04e75`.
+- `powershell -NoProfile -ExecutionPolicy Bypass -File
+  .\scripts\sync-gitea-backlog.ps1 -SelfTest`
+  - Passed with 16 milestones, 68 labels, 16 epics, 324 children, and 340
+    keyed issues; managed-body and state-policy self-tests passed.
+- `powershell -NoProfile -ExecutionPolicy Bypass -File
+  .\scripts\sync-gitea-backlog.ps1 -Offline`
+  - Passed with all 424 managed objects intentionally skipped and no failure,
+    create, or update action.
+- `powershell -NoProfile -ExecutionPolicy Bypass -File
+  .\scripts\check-naming.ps1`
+  - Passed `naming.guard` and `source.firewall`.
+- `powershell -NoProfile -ExecutionPolicy Bypass -File
+  .\scripts\run-qemu-smoke.ps1 -DryRun`
+  - Passed the `SingleMinimalApi` default marker contract.
+- `git diff --check`
+  - Passed.
+- `git status --short`
+  - Empty before and after the complete gate.
+- No-write live Gitea preview:
+  - Read 68 labels, 16 milestones, and 337 existing keyed issues.
+  - Verified 55 of 55 requested closure evidence markers.
+  - Reported 418 unchanged objects.
+  - Would create only `M01-033`, `M01-034`, and `M01-035`.
+  - Would update only `M01-025`, `M01-026`, and `M01-EPIC`.
+  - Reported zero skipped or failed objects.
 
 ## Evidence
 
@@ -99,6 +139,12 @@ parallel work without granting it ownership of `CLROS.slnx`, `OS.csproj`, or
   `0 -> 1 -> 3 -> 7 -> 15`, and places epoch 3 inside
   `CaptureArchitecturalPreflight` after publication/readback/binding but before
   its first preflight or PAT invocation.
+- Two independent read-only reviews found no remaining AMD64 ABI, COFF,
+  relocation, Windows-x64 unwind, PE exception-directory, NativeAOT binding,
+  publication-order, dependency, ownership, or evidence-boundary blocker.
+- The final complete host gate ran against the exact post-review commit and
+  ended cleanly; the live preview confirms the additive apply set before any
+  tracker mutation.
 
 ## Failures
 
@@ -131,6 +177,15 @@ parallel work without granting it ownership of `CLROS.slnx`, `OS.csproj`, or
   persistent monotonic publication state. Those refinements were added before
   the tracker was touched; M01-033 now explicitly declines final-image
   unwindability until M01-034 applies and verifies the relocations.
+- The first launch of the final gate was deliberately interrupted after a
+  reviewer found four stale exact-string assertions for stronger replacement
+  wording. The agent interruption did not terminate its spawned host-test
+  process, so an attempted rebuild encountered a transient DLL file lock. The
+  exact owned host-test process tree was inspected and stopped, the assertions
+  were aligned in commit
+  `9dda4ac72f55dc207c4214571b907df19f27181c`, and the complete gate was then
+  restarted in a fresh capture directory and passed. This was orchestration
+  cleanup, not a product-code failure, and no stale capture was reused.
 - Initial PR `#409` metadata automation created the PR before a nested-array
   JSON error stopped label assignment. The PR was recovered idempotently and
   its labels, assignee, review evidence, and merge state were verified.
