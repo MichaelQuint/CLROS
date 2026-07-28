@@ -152,6 +152,7 @@ Intent and implementation provenance:
   `26fdb24c74a6af089196d0759f3afcf0bdd8cb85`.
 - Fresh M01-021 reviewed-evidence comment: `#6187`.
 - Pull-request independent-review comment: `#6189`.
+- Dependency-state closure pull request: `#408`.
 - Independent reviews covered selection semantics, ordinal/overlap traversal,
   raw body bounds, newline portability, exact M01-025 collisions, runtime-path
   isolation, and manifest history preservation. No merge blocker remained.
