@@ -11,14 +11,13 @@ Windows SDK, QEMU, and OVMF installed. `scripts/build-efi-shell.ps1` publishes a
 NativeAOT x64 PE with EFI application subsystem and stages it as
 `artifacts/efi/BOOTX64.EFI`.
 
-The most recent staged artifact enables both `M01_LOADED_IMAGE_STACK_PROBE` and
-`M01_LIVE_ALLOCATOR_PROBE`. It contains the M01-021 loaded-image,
-page-allocation, map/ledger, stack-probe, and owned-stack-switch wiring plus the
-M01-023 allocator-arena/map-recapture/five-record-ledger/coordinator adapter.
-The M01-023 stage-two portion has build and PE-verification evidence only. The
-accepted QEMU/OVMF evidence includes the earlier default Gate 2 path and the
-separately gated M01-022 owned-stack run; it does not include stage-two guest
-execution.
+The most recent staged artifact enables `M01_LOADED_IMAGE_STACK_PROBE`,
+`M01_LIVE_ALLOCATOR_PROBE`, and `M01_OWNED_PAGING_PROBE`. It contains the
+M01-021 loaded-image/page-allocation/map/ledger/owned-stack wiring, the M01-023
+allocator-arena adapter, and M01-025's stage-three source wiring. M01-024 owns
+the accepted stage-two QEMU/OVMF tuple. The M01-025 stage-three artifact has
+host/source and PE-verification evidence only; it has not executed under
+QEMU/OVMF.
 
 ## Implemented Behavior
 
@@ -32,6 +31,14 @@ execution.
   allocates a two-page loader-data arena, performs a fresh static map recapture,
   builds an exact five-record ledger, and calls the reviewed M01 allocator
   coordinator before emitting the packed stage-two success plan.
+- When `M01_OWNED_PAGING_PROBE` is enabled with both required earlier probes,
+  the stage-two continuation enters M01-025's default-off stage-three source
+  adapter. It wires three page-allocation sites, refreshed-map/ledger checks,
+  the reviewed preparation and physical-arena materialization contracts, the
+  audited composite call gate, final readback and pre-transfer validation, a
+  generated transfer call site, returned-observation audit, and the fixed
+  stage-three marker plan. Current evidence proves that this path compiles; it
+  does not prove that any of those EFI or generated-code calls executed.
 - `EfiMain` uses minimal UEFI system-table, console-output, boot-services, and Serial I/O protocol structs.
 - `src/OS/Boot/EfiConsoleAdapter.cs` is a no-stdlib byte-output adapter for the live EFI artifact. It encapsulates UEFI console and Serial I/O fallback writes without using managed interface dispatch.
 - `OS.Kernel` has a host-tested `IPlatformConsole` guard contract for future firmware-console marker writes. The live EFI artifact now has a separate no-stdlib adapter boundary, but it is still not a full `IPlatformConsole` implementation.
@@ -344,6 +351,82 @@ networking, app execution, hosted .NET, Kestrel, cloud support, or any
 completion-gate promotion. M01-024 owns the separate QEMU/OVMF execution and
 serial evidence.
 
+### M01 owned-paging stage-three EFI wiring (M01-025 build evidence)
+
+The three-probe artifact is built explicitly with:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-efi-shell.ps1 -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe
+```
+
+The owned-paging combination is valid only with both earlier probes. M01-025
+source-wires the stage-three adapter after a completed stage-two state and
+preserves the all-false, stage-one-only, and stage-one-plus-stage-two paths.
+Each successful `AllocatePages` status immediately becomes the authoritative
+ownership flag before CLROS validates the returned address. Consequently,
+successfully granted but rejected zero, misaligned, wrapping, overlapping, or
+wrong fixed-address allocations remain eligible for cleanup.
+
+All 21 pre-entry failures forward the exact ownership tuple to one cleanup
+path. That path attempts `FreePages` for table, probe, and code in reverse
+allocation order, uses the corresponding requested page counts, and continues
+after any individual free failure. The host source/control-flow oracle covers
+16 allocation/map/validation scenarios under all eight possible combinations
+of the three free-call outcomes, for 128 deterministic model evaluations.
+Those evaluations inspect the source and cleanup model; they do not invoke a
+fake EFI service, a real firmware callback, or any generated instruction.
+
+The accepted validation evidence was:
+
+- `dotnet build .\CLROS.slnx --nologo -m:1`: exit 0, zero warnings, zero
+  errors, and empty stderr.
+- `dotnet build .\tests\OS.HostTests\OS.HostTests.csproj --nologo`: exit 0,
+  zero warnings, zero errors, and empty stderr.
+- Final integrated host harness from `2026-07-28T11:25:45.8776369Z` through
+  `2026-07-28T11:34:24.2000179Z`: exit 0; exactly one each of
+  `TEST_START m01.025`, `CLROS_M01_025_READY`, `TEST_PASS m01.025`, and
+  `TEST_PASS host.tests`; no `TEST_FAIL` line and no named M01-019, M01-021,
+  M01-030, or M01-031 diagnostic marker (`M01_021_DIAGNOSTIC`,
+  `M01_019_BINDING_DIAGNOSTIC`, `M01_019_NOSTDLIB_COMPILE_DIAGNOSTIC`,
+  `M01_030_PREPARATION_DIAGNOSTIC`, or `M01_031_ARENA_DIAGNOSTIC`).
+- Host stdout SHA-256
+  `E9377EECB18F71A8EC329ACAA14F049757A4FD2887B76C85F6F3065B7BE24A1F`;
+  empty stderr SHA-256
+  `E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855`.
+- Naming validation and QEMU dry run: exit 0 with empty stderr.
+
+The fresh all-switch publish also exited zero with empty stderr. The artifact
+verifier accepted PE32+ machine `0x8664`, EFI application subsystem `10`, an
+entry RVA of `0x49c50` in `.managed`, a same-build `EfiMain`, and absent
+ordinary runtime imports. Its frozen hashes were:
+
+| Build output | SHA-256 |
+| --- | --- |
+| `BOOTX64.EFI` | `0A674D1628D48C478D616F43548DA18BC9673D4BECBEC0D875C7ECDA05F646CB` |
+| `BOOTX64.EFI.link.map` | `B3A9772F07B579986DF4F3B726ADC1AB378FDE4F79E80B9B497DEAA166C11037` |
+| `BOOTX64.EFI.link.rsp` | `0108286539031918F3576A3C9759803740D9E2DCB1A26E3E244E882C56E82F1F` |
+| `BOOTX64.EFI.link.json` | `405CF854F218423A0283F0DFCF1148FF7E7944F8AAC9F360FC2687A37884AA62` |
+
+The build recorded MSVC linker `14.51.36252.0`, Windows SDK `10.0.28000.0`,
+ILCompiler `10.0.8`, QEMU `11.0.50`, and OVMF SHA-256
+`33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`.
+
+This is source closure and fresh NativeAOT artifact evidence only. It does not
+show firmware allocating, describing, or freeing any page; execute an EFI
+callback, architectural-preflight stream, planner thunk, transfer thunk, call
+gate, composite stream, or probe; install or restore CR3; change CR4, RFLAGS,
+a PTE, permissions, or the TLB; prove page-zero absence or W^X/NX in hardware;
+run a stage-three QEMU/OVMF guest; or advance a completion gate.
+
+The artifact also does not close immutable-text first-publication
+serialization. The first architectural-preflight bytes are dynamically
+published before their first transfer; serialization inside a later generated
+stream cannot serialize that initial fetch. New P0 M01-033 must generate the
+deterministic C# AMD64 COFF executable-text serializer, M01-034 must link and
+verify it in executable, nonwritable EFI image text, and M01-035 must place it
+at every current publication epoch. M01-026 remains blocked until that full
+chain has implementation and build-audit evidence.
+
 ## Unsupported Behavior
 
 The project is not yet a functional kernel. `ExitBootServices`, owned drivers,
@@ -488,9 +571,11 @@ The memory-map source buffer is firmware-allocated by the source-linked capture 
 The logged default-path memory-map metadata proves the map captured at that
 point in the EFI path. M01-022 provides one accepted guest log for the
 M01-021 post-allocation static recapture and owned-stack transfer. M01-023 adds
-a second recapture after allocating the allocator arena, but that stage-two
-path has source/build evidence only. None of these records proves that its map
-key remains valid after later boot-services calls.
+a second recapture after allocating the allocator arena, and M01-024 supplies
+the separate accepted stage-two guest tuple. M01-025 source-wires another
+recapture after the stage-three allocations, but that stage-three path has
+source/build evidence only. None of these records proves that its map key
+remains valid after later boot-services calls.
 
 The ACPI physical discovery probe proves only pre-`ExitBootServices` table bytes on the tested QEMU/OVMF host. It does not map ECAM, enumerate PCI, size BARs, bind drivers, discover APIC/HPET for use, or prove post-firmware physical-memory access.
 
@@ -498,16 +583,22 @@ Any next-step EFI build work must keep the freestanding constraints explicit. If
 
 ## Next Steps
 
-1. Move UEFI structs behind platform interfaces.
+1. Implement and host-test P0 M01-033's deterministic C# AMD64 COFF
+   executable-text serializer generator.
+2. Link and build-audit the serializer in executable, nonwritable EFI image
+   text under M01-034, then place it at every current publication epoch under
+   M01-035.
+3. Only after M01-035 closes, run M01-026's cumulative all-switch QEMU/OVMF
+   proof with captured serial, artifact hashes, required/forbidden marker
+   validation, and deterministic timeout/reset/triple-fault classification.
+4. Move UEFI structs behind platform interfaces.
    - Keep the low-level UEFI table pointers isolated to the EFI boundary.
    - Expose only the narrow operations required for console diagnostics, memory-map ownership, firmware shutdown state, and optional filesystem/protocol discovery.
-2. Obtain the M01-024 QEMU/OVMF stage-two proof using the accepted M01-022
-   owned-stack path and audited M01-023 allocator adapter. Implement
-   post-firmware COM1 before enabling any real firmware shutdown.
-3. Copy required firmware data, add the typed `ExitBootServices` call adapter,
+5. Implement post-firmware COM1 before enabling any real firmware shutdown.
+6. Copy required firmware data, add the typed `ExitBootServices` call adapter,
    and implement the bounded stale-map-key retry only after its M01/M02
    dependencies pass.
-4. Route additional platform interfaces through the UEFI-gone simulation path
+7. Route additional platform interfaces through the UEFI-gone simulation path
    as they are introduced.
-5. Replace permissive shell-only runtime placeholders with audited runtime
+8. Replace permissive shell-only runtime placeholders with audited runtime
    helpers as subsystems require them.

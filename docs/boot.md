@@ -2,7 +2,27 @@
 
 ## Current Status
 
-Boot has a firmware-visible QEMU/OVMF smoke proof. `src/OS` publishes a no-stdlib NativeAOT EFI application, `tools/OS.ImageBuilder` wraps it in a raw GPT/FAT32 EFI System Partition image, and `scripts/run-qemu-smoke.ps1` boots that image in QEMU/OVMF and captures serial markers. A separate `M01_LOADED_IMAGE_STACK_PROBE` build now has source-bound opt-in QEMU proof that the M01-021 adapter captures the live loaded-image range, allocates and validates the stack-switch resources, refreshes the map, validates its four-record reservation ledger, transfers to the owned stack, observes a contained live `RSP`, and then emits the unchanged default boot plan. The nested `M01_LIVE_ALLOCATOR_PROBE` profile also has a separately source-bound M01-024 QEMU tuple: after the proven stage-one transition it observes one successful two-page `EfiLoaderData` arena allocation, performs a post-allocation map recapture, validates the exact five-record ledger, and completes exactly one arena-confined 4 KiB metadata allocation/free/double-free-rejection cycle before `OS_SMOKE_PASS`. Both M01 profiles are explicit pre-`ExitBootServices` opt-ins. The default EFI path remains unchanged.
+Boot has a firmware-visible QEMU/OVMF smoke proof. `src/OS` publishes a
+no-stdlib NativeAOT EFI application, `tools/OS.ImageBuilder` wraps it in a raw
+GPT/FAT32 EFI System Partition image, and `scripts/run-qemu-smoke.ps1` boots
+that image in QEMU/OVMF and captures serial markers. A separate
+`M01_LOADED_IMAGE_STACK_PROBE` build now has source-bound opt-in QEMU proof that
+the M01-021 adapter captures the live loaded-image range, allocates and
+validates the stack-switch resources, refreshes the map, validates its
+four-record reservation ledger, transfers to the owned stack, observes a
+contained live `RSP`, and then emits the unchanged default boot plan. The
+nested `M01_LIVE_ALLOCATOR_PROBE` profile also has a separately source-bound
+M01-024 QEMU tuple: after the proven stage-one transition it observes one
+successful two-page `EfiLoaderData` arena allocation, performs a
+post-allocation map recapture, validates the exact five-record ledger, and
+completes exactly one arena-confined 4 KiB metadata
+allocation/free/double-free-rejection cycle before `OS_SMOKE_PASS`. M01-025 now
+source-wires the additional default-off `M01_OWNED_PAGING_PROBE` stage-three
+adapter and has host/source plus fresh NativeAOT EFI build evidence only.
+M01-033 through M01-035 must generate, link, verify, and call an immutable-text
+first-publication serializer before M01-026 may execute that path in a guest.
+All three M01 profiles are explicit pre-`ExitBootServices` opt-ins. The default
+EFI path remains unchanged.
 
 This is still an EFI application smoke, not a functional kernel. The current evidence proves that firmware reaches `EfiMain`, that `EfiMain` can capture the UEFI memory map on the tested QEMU host, copy the raw descriptor bytes into an OS-owned static buffer, validate the live owned handoff record, normalize and accept a live owned-map summary, materialize compact boot memory-region records into OS-owned static storage, carry a discovered ACPI RSDP pointer into the typed handoff record, optionally validate live ACPI RSDP/root SDT/MCFG bytes before `ExitBootServices` in an explicit probe build, and emit the ordered boot phase marker plan.
 
@@ -35,6 +55,16 @@ This is still an EFI application smoke, not a functional kernel. The current evi
   stage-two success plan. `BootSequence.RunM01LiveAllocatorIntegration`
   presents it only for a completed host result; it is not part of the default
   boot path.
+- Behind the additional `M01_OWNED_PAGING_PROBE`, M01-025 source-wires the
+  stage-three adapter after the completed stage-two continuation. It binds
+  three firmware page-allocation sites, refreshed-map and reservation-ledger
+  validation, the accepted preparation/arena/call-gate contracts, final
+  readback and pre-transfer checks, the generated transfer call site, returned
+  observation audit, and the fixed stage-three marker topology. This profile
+  remains default-off and requires both earlier M01 probe symbols. Its accepted
+  evidence is source/host/build evidence, not evidence that any EFI callback,
+  generated instruction byte, CR3/PTE/TLB operation, or stage-three marker
+  executed.
 - `OS_BOOT_OK` and `OS_SMOKE_PASS` are defined, host-tested, and QEMU-tested.
 - `src/OS/OS.csproj` defines an explicit no-stdlib NativeAOT EFI publish boundary with exported `EfiMain`.
 - `EfiMain` writes machine-readable firmware-console markers through the
@@ -2106,8 +2136,9 @@ ready/pass pair. Group 12 compiles the exact production source in the retained
 `NoStdLib=true`, `NOSTDLIB_EFI`, zero-framework-reference fixture. Closed
 M01-020 updated group 13 to prove that both evaluated opt-in
 `SingleMinimalApi` and `MultiMinimalApi` EFI closures source-link the planner
-while excluding its host test. No current `EfiEntry` path invokes the planner,
-so compile-closure membership adds no live EFI or guest evidence.
+while excluding its host test. At that evidence boundary no `EfiEntry` path
+invoked the planner. M01-025 now source-wires it, but its accepted build did
+not execute the path and adds no live EFI or guest evidence.
 
 This is host-only plan evidence. It does not discover or own live boot ranges,
 allocate or zero table pages, assign physical table addresses, populate a
@@ -2118,8 +2149,10 @@ preparation and synthetic transcript composition, M01-029 owns the
 preparation/execution-transcript split, M01-031 supplies the separate host-only
 physical-arena sizing/materialization/readback contract, and M01-032 supplies
 the host-only audited call gate and post-return observation contract. M01-025
-is the next default-off live integration boundary, and M01-026 owns cumulative
-QEMU evidence.
+now source-wires those contracts into the default-off stage-three adapter but
+adds no guest execution evidence. M01-033 through M01-035 form the
+immutable-text serializer prerequisite chain, and M01-026 owns cumulative QEMU
+evidence after M01-035 closes.
 
 ### Reversible CR3 probe plan contract (M01-013)
 
@@ -2306,8 +2339,9 @@ composite sources compiles in the retained `NoStdLib=true`, `NOSTDLIB_EFI`,
 zero-framework-reference fixture with zero assembly references. Closed
 M01-020 source-links the production sources into both evaluated opt-in
 `SingleMinimalApi` and `MultiMinimalApi` EFI closures while retaining their
-host tests outside those closures. No current `EfiEntry` path invokes the
-linked plans.
+host tests outside those closures. At that evidence boundary no `EfiEntry`
+path invoked the linked plans. M01-025 now source-wires them, but its accepted
+build did not execute the path.
 
 The retained SharpOS files are owner-authorized architectural/test influences,
 not imported live behavior or CLROS execution evidence:
@@ -2345,8 +2379,10 @@ fault diagnostics. M01-019 supplies host-only preparation and synthetic
 transcript composition, M01-029 owns the preparation/execution-transcript
 split, M01-031 supplies the host-only physical-arena contract, and M01-032
 supplies the host-only audited call gate and post-return observation contract.
-M01-025 is the next default-off live integration boundary, and M01-026 owns
-cumulative real-QEMU proof.
+M01-025 now source-wires those contracts into the default-off stage-three
+adapter but adds no guest execution evidence. M01-033 through M01-035 form the
+immutable-text serializer prerequisite chain, and M01-026 owns cumulative
+real-QEMU proof after M01-035 closes.
 
 ### Caller-owned protection transition contract (M01-014)
 
@@ -2522,17 +2558,20 @@ identity. No file-local third-party term is overridden.
 
 This issue proves only host mutation of caller-owned table bytes and audited
 byte/transcript identity. Closed M01-020 source-links the production sources
-into the opt-in EFI compile closure, but no current `EfiEntry` path invokes
-them and linkage adds no live evidence. The current path does not allocate or
-populate live table pages, perform a processor-owned PTE store, execute either
-stream, reload CR3, invalidate a CPU TLB, prove effective parent permissions or
-page-zero absence, provide SMP shootdown, run under QEMU/OVMF, or advance a
-completion gate. M01-019 supplies host-only preparation and synthetic
+into the opt-in EFI compile closure. At that evidence boundary no `EfiEntry`
+path invoked them. M01-025 now source-wires them, but its accepted build did
+not execute the path and adds no live evidence. It therefore does not prove a
+live page allocation or populated table, a processor-owned PTE store, stream
+execution, a CR3 reload, CPU TLB invalidation, effective parent permissions,
+page-zero absence, SMP shootdown, QEMU/OVMF execution, or completion-gate
+advancement. M01-019 supplies host-only preparation and synthetic
 transcript composition, M01-029 owns the preparation/execution-transcript
 split, M01-031 supplies the host-only physical-arena contract, and M01-032
 supplies the host-only audited call gate and post-return observation contract.
-M01-025 is the next default-off live integration boundary, and M01-026 owns
-cumulative real-QEMU evidence.
+M01-025 now source-wires those contracts into the default-off stage-three
+adapter but adds no guest execution evidence. M01-033 through M01-035 form the
+immutable-text serializer prerequisite chain, and M01-026 owns cumulative
+real-QEMU evidence after M01-035 closes.
 
 ### Page-zero absence and disabled fault-probe contract (M01-015)
 
@@ -2757,8 +2796,9 @@ TEST_PASS m01.029
 Any rejected M01-029 test group emits `TEST_FAIL m01.029 <reason>` instead of
 the ready/pass pair. These markers prove only the caller-owned preparation and
 anti-promotion boundary. Closed M01-020 source-links the coordinator into the
-opt-in EFI compile closure, but no current `EfiEntry` path invokes it and
-linkage adds no live evidence. Neither preparation nor the legacy model calls
+opt-in EFI compile closure. At that evidence boundary no `EfiEntry` path
+invoked it. M01-025 now source-wires it, but its accepted build did not execute
+the path and adds no live evidence. Neither preparation nor the legacy model calls
 firmware or EFI `AllocatePages`, invokes generated code, changes CR3, a live
 PTE, the TLB, or RFLAGS, physically materializes page tables, proves the
 caller-owned model is the installed live identity interval, proves page zero
@@ -2769,9 +2809,11 @@ evidence remains M02-014. M01-030 owns the accepted host-only exact
 live-interval identity bindings, M01-031 supplies the completed host-only
 physical table-arena sizing/materialization/readback contract, and M01-032
 supplies the completed host-only audited call gate and post-return RFLAGS
-observation contract. M01-025 owns the next live-allocation and default-off
-`EfiEntry` invocation boundary, and M01-026 owns cumulative real-QEMU evidence.
-Until M01-026, even
+observation contract. M01-025 now source-wires the live-allocation and
+default-off `EfiEntry` invocation boundary but adds no guest execution
+evidence. M01-033 through M01-035 form the immutable-text serializer
+prerequisite chain, and M01-026 owns cumulative real-QEMU evidence after
+M01-035 closes. Until M01-026, even
 `CLROS_M01_LIVE_BOOT_MEMORY_READY` is a reserved host-tested contract line,
 not live boot-memory evidence.
 
@@ -2827,8 +2869,10 @@ call gate, observe a return site, change CR3/PTE/TLB/RFLAGS state, enforce
 W^X/NX or guard absence in hardware, execute under EFI/QEMU/OVMF, or advance a
 completion gate. M01-031 supplies the separate host-only physical-arena
 contract described below, and M01-032 supplies the host-only audited call gate
-and post-return observer. M01-025 owns the next default-off live wiring, and
-M01-026 owns cumulative QEMU evidence.
+and post-return observer. M01-025 now source-wires those contracts into the
+default-off stage-three adapter but adds no guest execution evidence. M01-033
+through M01-035 form the immutable-text serializer prerequisite chain, and
+M01-026 owns cumulative QEMU evidence after M01-035 closes.
 
 ### Physical page-table arena contract (M01-031)
 
@@ -2952,8 +2996,10 @@ writer cannot modify it, or that a CPU installed or walked the root. The
 contract calls no firmware allocator, executes no generated code, changes no
 CR3/PTE/TLB/protection/RFLAGS state, runs no EFI/QEMU/OVMF path, and advances no
 completion gate. M01-032 now supplies the accepted host-only call-gate repair;
-M01-025 is the next default-off live integration boundary, and M01-026 remains
-the cumulative real-QEMU evidence owner.
+M01-025 now source-wires the default-off stage-three adapter but adds no guest
+execution evidence. M01-033 through M01-035 form the immutable-text serializer
+prerequisite chain, and M01-026 remains the cumulative real-QEMU evidence owner
+after M01-035 closes.
 
 ### Composite owned-CR3 interval contract (M01-027)
 
@@ -3024,8 +3070,9 @@ The entered stream rejects a captured Trap Flag and an active CR4.CET bit as
 unsupported defense-in-depth. Those checks cannot establish safe entry:
 single-step or supervisor CET/IBT can fault on the indirect transfer before
 the stream reaches either guard, and the frozen six-byte indirect probe target
-does not begin with `endbr64`. M01-025 therefore owns the caller-side
-pre-transfer proof that TF is clear and supervisor CET/IBT is inactive.
+does not begin with `endbr64`. M01-025 now source-wires the caller-side
+pre-transfer validation that TF is clear and supervisor CET/IBT is inactive,
+but its source/build evidence does not show that validation executing.
 M01-027 explicitly does not establish that prerequisite by itself.
 
 Host materialization preflight is failure-atomic over caller storage, and
@@ -3057,18 +3104,21 @@ TEST_PASS m01.027
 
 These markers prove only materialization, exact readback, range binding, and
 host structural audit. M01-027 itself did not add the leaf to `OS.csproj`;
-closed M01-020 now source-links it into the opt-in EFI compile closure, but no
-current `EfiEntry` path invokes it and linkage adds no live evidence. The
-current path does not enable `Probes`, call firmware allocation, invoke any
+closed M01-020 source-links it into the opt-in EFI compile closure. At that
+evidence boundary no `EfiEntry` path invoked it. M01-025 now source-wires it,
+but its accepted build did not execute the path and adds no live evidence. It
+does not enable `Probes`, execute a firmware allocation callback or any
 generated byte, change CR3/CR4/RFLAGS/PTE/TLB state, execute the probe, prove
 hardware page-zero absence, run QEMU/OVMF, provide owned serial, or advance
 `docs/completion-gates.md`. M01-019 owns only host-side preparation and
 synthetic transcript composition, M01-029 owns the
 preparation/execution-transcript split, M01-031 supplies physical-arena host
 evidence, and M01-032 supplies the audited call-gate and post-return observation
-contract described below. M01-025 owns the next live-allocation, default-off
-invocation, and pre-transfer TF/CET boundary. M01-026 owns cumulative real-QEMU
-execution evidence.
+contract described below. M01-025 now source-wires the live-allocation,
+default-off invocation, and pre-transfer TF/CET boundary but adds no guest
+execution evidence. M01-033 through M01-035 form the immutable-text serializer
+prerequisite chain, and M01-026 owns cumulative real-QEMU execution evidence
+after M01-035 closes.
 
 ### Audited composite call gate and post-return observer contract (M01-032)
 
@@ -3153,8 +3203,11 @@ transfer. Otherwise the pre-call `popfq` normalizes the mismatch and the
 returned observation can appear internally valid without proving the original
 entry state. The gate does not make NMI or
 SMI delivery safe. `PrepareCallGate(...)` and later readback/audit represent
-those requirements as host data evidence; M01-025 must provide a trusted live
-invocation thunk and enforce the RFLAGS, pre-transfer, and mapping conditions.
+those requirements as host data evidence. M01-025 now source-wires the
+invocation thunk plus RFLAGS, pre-transfer, and mapping validation, but its
+accepted evidence does not execute them. M01-033 through M01-035 must generate,
+link, verify, and call the immutable-text serializer before the first
+generated-stream transfer.
 
 `TryMaterializeCallGate(...)` materializes the unchanged composite prefix and
 its 16 semantic records, emits the gate into the page tail, and requires the
@@ -3220,8 +3273,110 @@ change CR3, CR4, PTE, TLB, page-protection, or interrupt state; prove mapped
 pointers, a page-aligned state root, an effective RX/non-writable/WB identity
 mapping, live TF/CET/LA57/PCIDE/IF/PGE preconditions, or NMI/SMI safety; call
 firmware; execute under EFI/QEMU/OVMF; or advance a completion gate. M01-025
-owns the next default-off live invocation, and M01-026 owns cumulative
-real-QEMU evidence.
+now source-wires the default-off live invocation but adds no guest execution
+evidence. M01-033 through M01-035 form the immutable-text serializer
+prerequisite chain, and M01-026 owns cumulative real-QEMU evidence after
+M01-035 closes.
+
+### Default-off stage-three EFI source wiring (M01-025 build evidence)
+
+M01-025 wires the accepted M01-024, M01-027, M01-029, M01-030, M01-031, and
+M01-032 contracts into the third nested opt-in `EfiEntry` path. The source
+profile is enabled only when all three symbols are present:
+
+```text
+M01_LOADED_IMAGE_STACK_PROBE
+M01_LIVE_ALLOCATOR_PROBE
+M01_OWNED_PAGING_PROBE
+```
+
+The ordinary all-false profile and the two earlier profiles retain their
+existing control flow and marker contracts. The new source path is one-shot
+and stage-two-gated. It records authoritative firmware ownership immediately
+after each `AllocatePages` call: `EFI_SUCCESS`, rather than address
+truthiness or later validation, owns the returned code, probe, or table
+allocation. This is intentional because firmware can successfully return an
+address that CLROS subsequently rejects as zero, misaligned, overflowing,
+overlapping, or otherwise outside the issue contract.
+
+Every one of the 21 pre-entry failure sites passes the complete current
+ownership tuple into one fail-closed cleanup function. Cleanup attempts the
+fixed reverse allocation order, table then probe then code, with the exact
+requested page count for each owned range. A failed `FreePages` call does not
+suppress either later cleanup attempt. The path does not free those ranges
+after the generated interval has been entered because their contents and
+returned observation are then part of the terminal execution contract.
+
+The M01-025 host suite freezes the three allocation call sites, immediate
+ownership assignments, validation ordering, all 21 failure calls, exact
+cleanup arguments and reverse order, marker/failure suppression, one-shot
+state, and representative bypass mutations. Its source/control-flow cleanup
+oracle covers 16 allocation/map/validation scenarios under all eight
+combinations of table, probe, and code free failures: 128 deterministic model
+evaluations. These are evaluations of the source and cleanup model. They are
+not calls through a fake EFI adapter, not executions of any firmware callback,
+and not guest evidence.
+
+The accepted aggregate markers each occurred exactly once:
+
+```text
+TEST_START m01.025
+CLROS_M01_025_READY
+TEST_PASS m01.025
+TEST_PASS host.tests
+```
+
+The final integrated full harness ran from
+`2026-07-28T11:25:45.8776369Z` through
+`2026-07-28T11:34:24.2000179Z` and exited zero. Its stdout SHA-256 is
+`E9377EECB18F71A8EC329ACAA14F049757A4FD2887B76C85F6F3065B7BE24A1F`;
+stderr was empty with SHA-256
+`E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855`.
+There was no `TEST_FAIL` line and none of the named M01-019, M01-021,
+M01-030, or M01-031 diagnostic markers:
+`M01_021_DIAGNOSTIC`, `M01_019_BINDING_DIAGNOSTIC`,
+`M01_019_NOSTDLIB_COMPILE_DIAGNOSTIC`,
+`M01_030_PREPARATION_DIAGNOSTIC`, and `M01_031_ARENA_DIAGNOSTIC`. Both the
+solution build and direct host-project build also exited zero with zero
+warnings, errors, or stderr.
+
+The all-switch NativeAOT EFI publish exited zero with no stderr. Verification
+accepted a PE32+ x64 EFI application (subsystem 10), entry RVA `0x49c50` in
+`.managed`, the same-build `EfiMain`, and absent ordinary runtime imports.
+The accepted hashes were:
+
+| Build output | SHA-256 |
+| --- | --- |
+| `BOOTX64.EFI` | `0A674D1628D48C478D616F43548DA18BC9673D4BECBEC0D875C7ECDA05F646CB` |
+| link map | `B3A9772F07B579986DF4F3B726ADC1AB378FDE4F79E80B9B497DEAA166C11037` |
+| linker response | `0108286539031918F3576A3C9759803740D9E2DCB1A26E3E244E882C56E82F1F` |
+| link evidence JSON | `405CF854F218423A0283F0DFCF1148FF7E7944F8AAC9F360FC2687A37884AA62` |
+| OVMF input | `33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A` |
+
+The recorded toolchain was MSVC linker `14.51.36252.0`, Windows SDK
+`10.0.28000.0`, ILCompiler `10.0.8`, and QEMU `11.0.50`. Naming validation and
+the QEMU dry run both exited zero with empty stderr.
+
+This evidence proves compilation, source closure, PE shape, stable marker
+contracts, and deterministic host validation of the stage-three wiring. It
+does **not** prove that firmware granted, described, or reclaimed an
+allocation; that an EFI callback or generated byte executed; that page tables
+occupy the reported physical addresses; that CR3, CR4, RFLAGS, a PTE, or the
+TLB changed; that page zero was absent in hardware; that W^X/NX held live; or
+that the path ran under QEMU/OVMF. It does not advance a completion gate.
+
+One security prerequisite remains before guest execution. The current source
+publishes the first generated architectural-preflight stream into writable
+memory and then reaches it through the functional x64 self-modifying-code
+boundary. Later generated thunks contain serialization for earlier
+publications, but that cannot serialize the first fetch of the preflight stream
+itself. Therefore M01-025 does not claim immutable-text first-publication
+serialization or closure of the speculative code store bypass (SCSB) gap.
+New P0 prerequisite M01-033 owns the deterministic C# AMD64 COFF
+executable-text generator. M01-034 owns canonical linker integration and final
+PE/map verification, and M01-035 owns all current `EfiEntry` publication-epoch
+calls. M01-026 is blocked until that complete chain is implemented,
+build-audited, and incorporated before every first generated-stream transfer.
 
 ### Live-paging feasibility and prerequisite recovery (M01-028)
 
@@ -3272,10 +3427,12 @@ The repair is intentionally serialized:
    semantics after M01-031.
 
 The accepted M01-024, M01-027, M01-029, M01-030, M01-031, and M01-032 host
-prerequisites make M01-025 the next default-off live integration boundary.
-That issue must not promote source/build success to execution evidence.
-M01-026 continues to own the first cumulative real-QEMU/OVMF proof; no
-M01-028 through M01-032 host marker or build result advances a completion gate.
+prerequisites enabled M01-025's default-off source/build integration. M01-025
+did not promote that success to execution evidence. M01-033 through M01-035
+now form the P0 immutable-text first-publication serialization prerequisite
+chain. M01-026 continues to own the first cumulative real-QEMU/OVMF proof and
+remains blocked until M01-035 closes; no M01-028 through M01-035 host marker
+or build result advances a completion gate.
 
 Boot page allocator-readiness composition coverage is host-test only. It proves existing planner/state contracts can be composed over caller-owned scratch buffers and forwarded into the ordered boot readiness marker boundary. It does not reserve kernel-owned ranges, mutate allocator-owned state, allocate pages, configure paging, or run in `EfiMain`:
 
@@ -3816,14 +3973,18 @@ The `APP_PACKAGE_READY`, `APP_LAUNCH_READY`, `APP_PAYLOAD_READY`, `APP_EXEC_MAPP
 
 ## Next Steps
 
-1. Implement M01-025's default-off live adapter using the accepted M01-031
-   physical arena and M01-032 call gate while preserving M01-024 as the
-   allocator-stage prerequisite and M01-029/M01-030 as host-only preparation
-   and exact-binding evidence; keep cumulative real-QEMU paging evidence in
-   M01-026.
-2. Keep extending the QEMU UEFI-gone simulation as new firmware-guarded platform interfaces are added, keeping real `ExitBootServices` blocked until post-firmware diagnostics are implemented.
-3. Add a real `ExitBootServices` probe only after the retry plan, diagnostics, and owned output paths have evidence.
-4. Begin diagnostics-first IDT/fault panic work after post-UEFI diagnostics requirements are represented by tests and evidence.
+1. Implement P0 M01-033's deterministic C# AMD64 COFF executable-text
+   serializer generator and audit its exact object, section, symbol, byte, ABI,
+   and determinism contracts.
+2. Integrate and verify that symbol in executable, nonwritable EFI image text
+   under M01-034, then add every current publication-epoch call under M01-035.
+3. Only after M01-035 closes, obtain M01-026's cumulative real-QEMU/OVMF
+   stage-three evidence from a fresh all-switch artifact. Keep M01-025's
+   source/build evidence distinct from EFI callback, generated-code, and live
+   CR3/PTE/TLB execution evidence.
+4. Keep extending the QEMU UEFI-gone simulation as new firmware-guarded platform interfaces are added, keeping real `ExitBootServices` blocked until post-firmware diagnostics are implemented.
+5. Add a real `ExitBootServices` probe only after the retry plan, diagnostics, and owned output paths have evidence.
+6. Begin diagnostics-first IDT/fault panic work after post-UEFI diagnostics requirements are represented by tests and evidence.
    - The host-tested `CpuFaultFrame`, `PanicFormatter.FormatFault`,
      `CpuFaultEntryFrameLayout`, and `CpuFaultPanicReadiness` contracts now
      define the expected register dump field order and caller-owned
