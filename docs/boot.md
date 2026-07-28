@@ -19,9 +19,11 @@ completes exactly one arena-confined 4 KiB metadata
 allocation/free/double-free-rejection cycle before `OS_SMOKE_PASS`. M01-025 now
 source-wires the additional default-off `M01_OWNED_PAGING_PROBE` stage-three
 adapter and has host/source plus fresh NativeAOT EFI build evidence only.
-M01-033 now supplies the reviewed deterministic host-built AMD64 COFF serializer
-object and encoded unwind intent only. M01-034 must link and inspect it in the
-canonical EFI artifact, and M01-035 must call it at all four current
+M01-033 supplies the reviewed deterministic host-built AMD64 COFF serializer
+object. M01-034 now links and independently verifies its exact executable
+bytes, map symbol, binding metadata, and exception/unwind coverage in the
+canonical EFI artifact without invoking it. M01-035 must call it at all four
+current
 publication epochs before M01-026 may execute that path in a guest.
 All three M01 profiles are explicit pre-`ExitBootServices` opt-ins. The default
 EFI path remains unchanged.
@@ -3207,10 +3209,10 @@ entry state. The gate does not make NMI or
 SMI delivery safe. `PrepareCallGate(...)` and later readback/audit represent
 those requirements as host data evidence. M01-025 now source-wires the
 invocation thunk plus RFLAGS, pre-transfer, and mapping validation, but its
-accepted evidence does not execute them. M01-033 now provides the reviewed
-object-only serializer bytes and relocation/unwind intent; M01-034 and M01-035
-must still link, verify, and call that immutable-text serializer before the
-first generated-stream transfer.
+accepted evidence does not execute them. M01-033 provides the reviewed
+serializer object and M01-034 proves its exact linked PE/map/unwind identity
+without invoking it. M01-035 must still call that immutable-text serializer
+before the first generated-stream transfer.
 
 `TryMaterializeCallGate(...)` materializes the unchanged composite prefix and
 its 16 semantic records, emits the gate into the page tail, and requires the
@@ -3376,11 +3378,12 @@ publications, but that cannot serialize the first fetch of the preflight stream
 itself. Therefore M01-025 does not claim immutable-text first-publication
 serialization or closure of the speculative code store bypass (SCSB) gap.
 Completed host-evidence prerequisite M01-033 provides the deterministic C#
-AMD64 COFF executable-text generator and exact object contract, without linking
-or executing it. M01-034 owns canonical linker integration and final PE/map
-verification, and M01-035 owns all current `EfiEntry` publication-epoch calls.
-M01-026 is blocked until those remaining slices are implemented,
-build-audited, and incorporated before every first generated-stream transfer.
+AMD64 COFF executable-text generator and exact object contract. M01-034 now
+owns the reviewed canonical linker integration and final PE/map/unwind
+verification, without executing the symbol. M01-035 owns all current
+`EfiEntry` publication-epoch calls. M01-026 remains blocked until that
+remaining invocation slice is implemented, build-audited, and incorporated
+before every first generated-stream transfer.
 
 ### Live-paging feasibility and prerequisite recovery (M01-028)
 
@@ -3977,19 +3980,15 @@ The `APP_PACKAGE_READY`, `APP_LAUNCH_READY`, `APP_PAYLOAD_READY`, `APP_EXEC_MAPP
 
 ## Next Steps
 
-1. Integrate M01-033's reviewed deterministic object under M01-034 and verify
-   the exact symbol, bytes, relocations, exception-directory/unwind coverage,
-   immutable executable section, binding metadata, and absent ordinary imports
-   in the same-build canonical EFI artifact without invoking it.
-2. Under M01-035, add and host-audit every current publication-epoch call and
+1. Under M01-035, add and host-audit every current publication-epoch call and
    checked success-cookie transition without promoting it to guest evidence.
-3. Only after M01-035 closes, obtain M01-026's cumulative real-QEMU/OVMF
+2. Only after M01-035 closes, obtain M01-026's cumulative real-QEMU/OVMF
    stage-three evidence from a fresh all-switch artifact. Keep M01-025's
    source/build evidence distinct from EFI callback, generated-code, and live
    CR3/PTE/TLB execution evidence.
-4. Keep extending the QEMU UEFI-gone simulation as new firmware-guarded platform interfaces are added, keeping real `ExitBootServices` blocked until post-firmware diagnostics are implemented.
-5. Add a real `ExitBootServices` probe only after the retry plan, diagnostics, and owned output paths have evidence.
-6. Begin diagnostics-first IDT/fault panic work after post-UEFI diagnostics requirements are represented by tests and evidence.
+3. Keep extending the QEMU UEFI-gone simulation as new firmware-guarded platform interfaces are added, keeping real `ExitBootServices` blocked until post-firmware diagnostics are implemented.
+4. Add a real `ExitBootServices` probe only after the retry plan, diagnostics, and owned output paths have evidence.
+5. Begin diagnostics-first IDT/fault panic work after post-UEFI diagnostics requirements are represented by tests and evidence.
    - The host-tested `CpuFaultFrame`, `PanicFormatter.FormatFault`,
      `CpuFaultEntryFrameLayout`, and `CpuFaultPanicReadiness` contracts now
      define the expected register dump field order and caller-owned

@@ -23,5 +23,6 @@
     <Project Path="tools/OS.LibvirtRunner/OS.LibvirtRunner.csproj" />
     <Project Path="tools/OS.ManifestTool/OS.ManifestTool.csproj" />
     <Project Path="tools/OS.QemuRunner/OS.QemuRunner.csproj" />
+    <Project Path="tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.csproj" />
   </Folder>
 </Solution>

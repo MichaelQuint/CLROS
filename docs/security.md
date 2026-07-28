@@ -14,9 +14,10 @@ Security is policy baseline only.
   - rejects `references/` project paths in `CLROS.slnx`;
   - rejects `references/` project paths from first-party `src/`, `std/`, and `apps/` project files;
   - emits `TEST_START source.firewall`, `TEST_PASS source.firewall`, and `TEST_FAIL source.firewall <path>: <reason>` markers.
-- `tools/OS.X64TextSerializerGenerator` is the standalone M01-033 C# 14/.NET
-  10 host-build leaf. It is deliberately outside `CLROS.slnx` until M01-034
-  owns canonical solution and EFI-link integration.
+- `tools/OS.X64TextSerializerGenerator` is the C# 14/.NET 10 host-build leaf
+  included in `CLROS.slnx`. M01-034 imports its audited targets into the EFI
+  project without a managed `ProjectReference`; only the exact generated native
+  object enters the native link.
   - Its canonical output is exactly 336 bytes with SHA-256
     `DA97E50C95E479541B65EB3F96D9C6DED163735857650BEE9416324086D55C7B`.
   - The `.text$clrossm` payload is exactly 20 bytes:
@@ -35,8 +36,72 @@ Security is policy baseline only.
     it without overwrite, and re-reads the final bytes before reporting
     success. Failure cleanup removes only its uniquely named temporary file;
     it never deletes a destination pathname after publication. Generated
-    objects remain ephemeral; M01-033 commits neither an `.obj` nor native
+    objects remain ephemeral; CLROS commits neither an `.obj` nor native
     source.
+  - M01-034 binds the exact object through a no-stdlib
+    `RuntimeImport`/`InternalCall`, retains it explicitly in the native link,
+    and independently verifies the final PE/map/evidence association. The
+    native link requires `/BREPRO`; `/FORCE` and every `/FORCE:*` unresolved
+    binding escape are rejected.
+  - The final serializer bytes must be executable and readable but not
+    writable. Its matching exception-directory entry and unwind bytes must be
+    readable, nonwritable, and nonexecutable. The verifier fails closed on
+    writable code, writable or executable unwind data, overlapping sections,
+    malformed/ambiguous runtime-function entries, ordinary imports, fallback
+    binding, stale hashes, and source/evidence mismatches.
+  - One repository-wide, cross-process and cross-session exclusive file lock
+    at `artifacts/.locks/efi-publish.lock` is acquired before any preflight or
+    publish output. The evidence build read-locks its complete source closure
+    before authoritative validation and removes only the exact non-reparse
+    RID-specific managed/native output directories.
+  - Restore uses a fresh local source containing five exact SHA-256-pinned
+    package archives and a generated `NuGet.Config` that clears ordinary,
+    fallback, and audit sources. Packages expand into a fresh isolated root;
+    the build validates the exact version set and 900 stable package files,
+    validates six package metadata records, and keeps all 906 files read-locked
+    through verification. Nine package target/task inputs receive an additional
+    exact hash contract.
+  - The five generated NuGet/MSBuild restore files are read-locked and parsed
+    as data. Both restore and publish disable default project-extension imports
+    and exclude generated package imports. A post-restore evaluation must
+    contain exactly 44 compile items, zero project references, zero references,
+    and two SDK analyzers before the no-restore, nonincremental publish begins.
+  - The nested host generator removes inherited AOT/package globals and
+    explicitly replaces the restore/project-extension globals it needs with
+    canonical child values before its package-free build. Automatic response
+    files cannot influence preflight evaluation.
+  - Every MSBuild surface pins the verified SDK/extension roots, neutralizes
+    the user-extension root, and disables Common.props, Common.targets, CSharp,
+    and cross-targeting wildcard imports. Restore, evaluation, publish, and SDK
+    recheck run inside startup-gated kill-on-close Job Objects with bounded
+    output, explicit timeouts, node reuse disabled, and confirmed whole-tree
+    termination.
+  - Link-evidence schema 3 records the restore archive/source, generated
+    restore, full package-tree, package-build-input, evaluated-item, source,
+    toolchain, and artifact closures. The independent verifier recomputes those
+    identities, validates the version-4 assets graph and task bindings, and
+    rejects any extra package, import surface, mutable input, or noncanonical
+    compiler/runtime path.
+  - Source and output ancestor chains are reparse-checked. Final evidence files
+    must be ordinary single-link files with distinct Windows file identities.
+    The canonical 57-source closure is also single-link and identity-distinct.
+    Source, package, tool, and output read handles deny mutation/replacement
+    through verification, and both producer and verifier rehash held inputs
+    immediately before success. Package and tool inputs are not claimed to
+    have globally unique file identities.
+  - The parent assigns a startup-gated wrapper to a kill-on-close Windows Job
+    Object before releasing it to invoke the independent verifier. Timeout,
+    bounded output-drain failure, or inability to confirm whole-job
+    termination fails closed. A future-dated stale managed assembly, hostile
+    default project extension, hung verifier descendant, or
+    wall-clock-dependent native output is not accepted as evidence.
+  - The standalone verifier independently creates its post-restore MSBuild
+    child suspended, assigns it to a kill-on-close Job Object before resume,
+    bounds strict UTF-8 output and elapsed time, and confirms that the complete
+    descendant tree has exited. It accepts only its repository's exact
+    `src/OS/OS.csproj`, exact `EfiEntry.cs`, and exact 57-source closure;
+    copied artifact bundles remain inspectable without substituting an
+    alternate source contract.
 - `ExecutableStubMemoryPlan` defines the first host-tested W^X policy contract for future C#-emitted executable stubs. It accepts write-then-execute layout planning, rejects accidental RWX page intent by default, calculates page-aligned caller-owned layout metadata, validates page size/alignment/payload inputs, and rejects default/zero result-success cases without allocating memory or changing page protections.
 - `ExecutableStubBundlePlan` defines the first host-tested deterministic layout for future generated diagnostic stubs inside a caller-owned executable-stub payload region. It packs stable COM1, descriptor-table, and controlled-fault-probe slots while rejecting duplicate, unknown, zero-length, invalid-memory-plan, insufficient-memory-plan, overflow, and default/zero result-success cases without copying or executing bytes.
 - `ExecutableStubBundleMaterializer` defines the first host-tested byte-copy boundary for planned generated diagnostic stubs. It writes only into caller-owned storage, validates failed plans, undersized source/destination buffers, and default/zero result-success cases, preserves guard bytes in tests, and still avoids executable allocation, page-protection changes, instruction-cache flushes, and stub execution.
@@ -53,10 +118,12 @@ Security is policy baseline only.
 
 In-kernel manifest loading, live W^X/NX enforcement, panic redaction, debug/release log split, a post-firmware entropy pool, full license scanning, and SBOM generation are pending.
 
-M01-033 is object-only host evidence. It does not add the generator to
-`CLROS.slnx`, link or apply the object's relocations, prove final-image unwind
-behavior, add a `RuntimeImport`, modify or call from `EfiEntry`, build or boot
-EFI, run under QEMU, exercise live paging, or advance a completion gate.
+M01-034 is linked-artifact host/build evidence. It does not modify or call from
+`EfiEntry`, execute the serializer, prove the success cookie at runtime, boot
+the artifact under QEMU, exercise live paging, enforce live page-table
+protections, close the speculative code store bypass gap, or advance a
+completion gate. Final PE section permissions are a required static property,
+not evidence that live W^X/NX page mappings have been installed.
 
 The AWS metadata policy fixture is not live enforcement. There is no app
 supervisor, process isolation, socket firewall, IMDS client, credential cache,
@@ -194,18 +261,16 @@ The source firewall is a provenance/build-boundary guard only. It does not repla
 
 `GuardedPlatformRandom` is a firmware RNG guard only. It does not implement a kernel entropy pool, deterministic/random seed management, post-`ExitBootServices` RNG, TLS, cryptographic APIs, or Minimal API/Kestrel cryptographic prerequisites.
 
-`OS.X64TextSerializerGenerator` proves deterministic object construction and
-static ABI/unwind intent only. Until M01-034 links the object and inspects the
-same-build final artifact, its relocations, final PE section protections,
-runtime-function table coverage, unwindability, symbol binding, and absence of
-fallback imports remain unproven.
+`OS.X64TextSerializerGenerator` and the M01-034 integration prove deterministic
+object construction plus static same-build PE/map/unwind identity. They do not
+prove invocation, a returned success cookie, runtime serialization, or live
+page permissions. Those boundaries remain with M01-035 and M01-026.
 
 ## Next Steps
 
-1. Complete M01-034: add the generator to the canonical solution, link only
-   its ephemeral object into the EFI build, and verify the relocated bytes,
-   runtime-function/unwind coverage, section protections, symbol binding, and
-   import state in the same-build final artifact without invoking it.
+1. Complete M01-035: place the linked serializer call and checked success-cookie
+   transition before every current generated-code publication transfer without
+   weakening the M01-034 static artifact checks.
 2. Move manifest validation contract into the package/image path and later kernel parser.
 3. Add license/provenance metadata for any adapted reference source.
 4. Implement real page-permission transitions for generated stubs using the W^X policy, materialization, and transition-plan contracts.

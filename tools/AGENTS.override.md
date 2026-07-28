@@ -14,10 +14,15 @@ Current tools:
 - `OS.ImageBuilder`
 - `OS.X64TextSerializerGenerator`
 
-`OS.X64TextSerializerGenerator` is the standalone M01-033 host-build leaf. It
-is deliberately outside `CLROS.slnx` until M01-034 owns canonical solution and
-EFI-link integration, so build its project directly when changing or verifying
-the generator.
+`OS.X64TextSerializerGenerator` is the host-build leaf that produces the
+deterministic M01 instruction-publication serializer object. M01-034 includes
+the tool in `CLROS.slnx` and imports its integration targets from
+`src/OS/OS.csproj`, but the EFI project does not take a `ProjectReference` to
+the tool or link its managed output into the image. The imported target invokes
+the audited host build, generates the ephemeral COFF object, and registers only
+that exact object with the native linker. Build the generator project directly
+when changing its implementation; run the EFI build and artifact verifier when
+changing its targets or integration contract.
 
 ## Allowed Dependencies
 

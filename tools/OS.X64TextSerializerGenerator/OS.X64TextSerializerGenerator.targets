@@ -1,0 +1,263 @@
+<Project>
+
+  <PropertyGroup>
+    <_ClrosX64SerializerGeneratorDirectory>$(MSBuildThisFileDirectory)</_ClrosX64SerializerGeneratorDirectory>
+    <_ClrosX64SerializerGeneratorProject>$(_ClrosX64SerializerGeneratorDirectory)OS.X64TextSerializerGenerator.csproj</_ClrosX64SerializerGeneratorProject>
+    <_ClrosX64SerializerCanonicalToolsProps>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\Directory.Build.props'))</_ClrosX64SerializerCanonicalToolsProps>
+    <_ClrosX64SerializerCanonicalRootTargets>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\Directory.Build.targets'))</_ClrosX64SerializerCanonicalRootTargets>
+    <_ClrosX64SerializerObjectName>CLROS.X64.InstructionPublication.obj</_ClrosX64SerializerObjectName>
+    <_ClrosX64SerializerCanonicalSdkDirectory>$([System.IO.Path]::TrimEndingDirectorySeparator('$(MSBuildToolsPath)'))</_ClrosX64SerializerCanonicalSdkDirectory>
+    <_ClrosX64SerializerCanonicalSdksPath>$([System.IO.Path]::GetFullPath('$(_ClrosX64SerializerCanonicalSdkDirectory)\Sdks'))</_ClrosX64SerializerCanonicalSdksPath>
+    <_ClrosX64SerializerCanonicalMsbuildExtensionsPath>$(_ClrosX64SerializerCanonicalSdkDirectory)\</_ClrosX64SerializerCanonicalMsbuildExtensionsPath>
+    <_ClrosX64SerializerCanonicalDisabledUserExtensions>$([System.IO.Path]::GetFullPath('$(BaseIntermediateOutputPath)disabled-user-extensions'))</_ClrosX64SerializerCanonicalDisabledUserExtensions>
+    <ClrosX64InstructionPublicationSymbol>CLROS_X64_SerializeInstructionPublication</ClrosX64InstructionPublicationSymbol>
+    <ClrosX64InstructionPublicationObjectBytes>336</ClrosX64InstructionPublicationObjectBytes>
+    <ClrosX64InstructionPublicationObjectSha256>DA97E50C95E479541B65EB3F96D9C6DED163735857650BEE9416324086D55C7B</ClrosX64InstructionPublicationObjectSha256>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorProject)" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)Program.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)Amd64CoffWriter.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)InstructionPublicationSerializerGenerator.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(MSBuildThisFileFullPath)" />
+  </ItemGroup>
+
+  <Target Name="ValidateClrosX64SerializerGeneratorCompileClosure"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(MSBuildProjectFullPath)' == '$(MSBuildThisFileDirectory)OS.X64TextSerializerGenerator.csproj'">
+    <Error
+      Condition="'@(Compile-&gt;'%(Identity)', '|')' != 'Amd64CoffWriter.cs|InstructionPublicationSerializerGenerator.cs|Program.cs'"
+      Text="CLROS_M01_034_GENERATOR_FAILED compile_closure_mismatch actual=@(Compile-&gt;'%(Identity)', '|')" />
+    <Error
+      Condition="'@(ProjectReference)' != '' Or '@(Reference)' != '' Or '@(PackageReference)' != ''"
+      Text="CLROS_M01_034_GENERATOR_FAILED reference_closure_mismatch project=@(ProjectReference) reference=@(Reference) package=@(PackageReference)" />
+    <Error
+      Condition="'@(Analyzer-&gt;'%(Filename)%(Extension)', '|')' != 'Microsoft.CodeAnalysis.CSharp.NetAnalyzers.dll|Microsoft.CodeAnalysis.NetAnalyzers.dll'"
+      Text="CLROS_M01_034_GENERATOR_FAILED analyzer_closure_mismatch actual=@(Analyzer-&gt;'%(Filename)%(Extension)', '|')" />
+    <Error
+      Condition="'$(_ClrosX64SerializerGeneratorProjectSha256)' != '' Or '$(_ClrosX64SerializerToolsPropsSha256)' != '' Or '$(_ClrosX64SerializerRootPropsSha256)' != '' Or '$(_ClrosX64SerializerRootTargetsSha256)' != ''"
+      Text="CLROS_M01_034_GENERATOR_FAILED build_input_hash_override" />
+    <Error
+      Condition="'$(DirectoryBuildPropsPath)' != '$([System.IO.Path]::GetFullPath(&quot;$(MSBuildThisFileDirectory)..\Directory.Build.props&quot;))' Or '$(DirectoryBuildTargetsPath)' != '$([System.IO.Path]::GetFullPath(&quot;$(MSBuildThisFileDirectory)..\..\Directory.Build.targets&quot;))' Or '$(ImportDirectoryBuildProps)' != 'true' Or '$(ImportDirectoryBuildTargets)' != 'true'"
+      Text="CLROS_M01_034_GENERATOR_FAILED directory_build_import_override" />
+    <Error
+      Condition="'$(CustomBeforeMicrosoftCommonTargets)' != '$(MSBuildThisFileFullPath)' Or '$(CustomAfterMicrosoftCommonTargets)' != '' Or '$(CustomBeforeMicrosoftCommonProps)' != '' Or '$(CustomAfterMicrosoftCommonProps)' != '' Or '$(CustomBeforeDirectoryBuildProps)' != '' Or '$(CustomAfterDirectoryBuildProps)' != '' Or '$(CustomBeforeDirectoryBuildTargets)' != '' Or '$(CustomAfterDirectoryBuildTargets)' != '' Or '$(CustomBeforeMicrosoftCSharpTargets)' != '' Or '$(CustomAfterMicrosoftCSharpTargets)' != '' Or '$(CustomBeforeMicrosoftCommonCrossTargetingTargets)' != '' Or '$(CustomAfterMicrosoftCommonCrossTargetingTargets)' != ''"
+      Text="CLROS_M01_034_GENERATOR_FAILED custom_import_override" />
+    <Error
+      Condition="'$(BeforeMicrosoftNETSdkTargets)' != '' Or '$(AfterMicrosoftNETSdkTargets)' != '' Or '$(LanguageTargets)' != '$(MSBuildToolsPath)\Microsoft.CSharp.targets' Or '$(CSharpTargetsPath)' != '$(MSBuildToolsPath)\Microsoft.CSharp.CurrentVersion.targets' Or '$(CommonTargetsPath)' != '$(MSBuildToolsPath)\Microsoft.Common.CurrentVersion.targets' Or '$(ImportNuGetBuildTasksPackTargetsFromSdk)' != 'false' Or '$(NuGetBuildTasksPackTargets)' != ''"
+      Text="CLROS_M01_034_GENERATOR_FAILED sdk_import_override" />
+    <Error
+      Condition="'$(MSBuildSDKsPath)' != '$(_ClrosX64SerializerCanonicalSdksPath)' Or '$(MSBuildExtensionsPath)' != '$(_ClrosX64SerializerCanonicalMsbuildExtensionsPath)' Or '$(MSBuildUserExtensionsPath)' != '$(_ClrosX64SerializerCanonicalDisabledUserExtensions)' Or '$(UseSharedCompilation)' != 'false'"
+      Text="CLROS_M01_034_GENERATOR_FAILED sdk_path_isolation_override" />
+    <Error
+      Condition="'$(ImportByWildcardBeforeMicrosoftCommonProps)' != 'false' Or '$(ImportByWildcardAfterMicrosoftCommonProps)' != 'false' Or '$(ImportUserLocationsByWildcardBeforeMicrosoftCommonProps)' != 'false' Or '$(ImportUserLocationsByWildcardAfterMicrosoftCommonProps)' != 'false' Or '$(ImportByWildcardBeforeMicrosoftCommonTargets)' != 'false' Or '$(ImportByWildcardAfterMicrosoftCommonTargets)' != 'false' Or '$(ImportUserLocationsByWildcardBeforeMicrosoftCommonTargets)' != 'false' Or '$(ImportUserLocationsByWildcardAfterMicrosoftCommonTargets)' != 'false' Or '$(ImportByWildcardBeforeMicrosoftCSharpTargets)' != 'false' Or '$(ImportByWildcardAfterMicrosoftCSharpTargets)' != 'false' Or '$(ImportUserLocationsByWildcardBeforeMicrosoftCSharpTargets)' != 'false' Or '$(ImportUserLocationsByWildcardAfterMicrosoftCSharpTargets)' != 'false' Or '$(ImportByWildcardBeforeMicrosoftCommonCrossTargetingTargets)' != 'false' Or '$(ImportByWildcardAfterMicrosoftCommonCrossTargetingTargets)' != 'false'"
+      Text="CLROS_M01_034_GENERATOR_FAILED wildcard_import_isolation_override" />
+    <Error
+      Condition="Exists('$(MSBuildUserExtensionsPath)')"
+      Text="CLROS_M01_034_GENERATOR_FAILED user_extensions_path_exists path=$(MSBuildUserExtensionsPath)" />
+    <Error
+      Condition="'$(MSBuildProjectExtensionsPath)' != '$(BaseIntermediateOutputPath)' Or '$(RestoreOutputPath)' != '$(BaseIntermediateOutputPath)' Or '$(ProjectAssetsFile)' != '$(BaseIntermediateOutputPath)project.assets.json' Or '$(ImportProjectExtensionProps)' != 'true' Or '$(ImportProjectExtensionTargets)' != 'true' Or '$(RestoreUseCustomAfterTargets)' != 'false' Or '$(RestoreForceEvaluate)' != 'true'"
+      Text="CLROS_M01_034_GENERATOR_FAILED project_extensions_path_override" />
+    <GetFileHash
+      Files="$(MSBuildProjectFullPath)"
+      Algorithm="SHA256"
+      HashEncoding="hex">
+      <Output TaskParameter="Hash" PropertyName="_ClrosX64SerializerGeneratorProjectSha256" />
+    </GetFileHash>
+    <GetFileHash
+      Files="$(MSBuildThisFileDirectory)..\Directory.Build.props"
+      Algorithm="SHA256"
+      HashEncoding="hex">
+      <Output TaskParameter="Hash" PropertyName="_ClrosX64SerializerToolsPropsSha256" />
+    </GetFileHash>
+    <GetFileHash
+      Files="$(MSBuildThisFileDirectory)..\..\Directory.Build.props"
+      Algorithm="SHA256"
+      HashEncoding="hex">
+      <Output TaskParameter="Hash" PropertyName="_ClrosX64SerializerRootPropsSha256" />
+    </GetFileHash>
+    <GetFileHash
+      Files="$(MSBuildThisFileDirectory)..\..\Directory.Build.targets"
+      Algorithm="SHA256"
+      HashEncoding="hex">
+      <Output TaskParameter="Hash" PropertyName="_ClrosX64SerializerRootTargetsSha256" />
+    </GetFileHash>
+    <Error
+      Condition="'$(_ClrosX64SerializerGeneratorProjectSha256)' != '920D8236BDD7A548BBA2B6C6A4BDBF073B1D52B702CEC5D0C5BA033BDFEAB8E5' Or '$(_ClrosX64SerializerToolsPropsSha256)' != '44B8268EA6934335DBC79FEF47C1CE1FDEE49393C929C92E322417B14AA321AE' Or '$(_ClrosX64SerializerRootPropsSha256)' != 'DF8A0D794DB73060124F5134EB930DCDBF6EE526C2410227F0C668AB6D10C5E5' Or '$(_ClrosX64SerializerRootTargetsSha256)' != '85AFD90F9DD0F550B6A3C6AD71D28BF714A8C930158DB872F8DA5D316889931A'"
+      Text="CLROS_M01_034_GENERATOR_FAILED build_input_hash_mismatch" />
+  </Target>
+
+  <Target Name="TrackClrosX64InstructionPublicationSerializerOutput"
+          BeforeTargets="_CleanGetCurrentAndPriorFileWrites"
+          Condition="'$(NativeIntermediateOutputPath)' != ''">
+    <PropertyGroup>
+      <_ClrosX64SerializerTrackingPathIsRooted>$([System.IO.Path]::IsPathRooted('$(NativeIntermediateOutputPath)'))</_ClrosX64SerializerTrackingPathIsRooted>
+      <_ClrosX64SerializerTrackingRootCandidate
+        Condition="'$(_ClrosX64SerializerTrackingPathIsRooted)' == 'True'">$([System.IO.Path]::GetFullPath('$(NativeIntermediateOutputPath)'))</_ClrosX64SerializerTrackingRootCandidate>
+      <_ClrosX64SerializerTrackingRootCandidate
+        Condition="'$(_ClrosX64SerializerTrackingPathIsRooted)' != 'True'">$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(NativeIntermediateOutputPath)'))</_ClrosX64SerializerTrackingRootCandidate>
+      <_ClrosX64SerializerTrackingRoot>$([System.IO.Path]::TrimEndingDirectorySeparator('$(_ClrosX64SerializerTrackingRootCandidate)'))</_ClrosX64SerializerTrackingRoot>
+      <_ClrosX64SerializerTrackedObject>$(_ClrosX64SerializerTrackingRoot)\CLROS.X64.InstructionPublication.obj</_ClrosX64SerializerTrackedObject>
+      <_ClrosX64SerializerTrackedToolRoot>$(_ClrosX64SerializerTrackingRoot)\clros-x64-serializer-tool\</_ClrosX64SerializerTrackedToolRoot>
+    </PropertyGroup>
+    <Error
+      Condition="$([System.IO.Path]::IsPathRooted('$(NativeIntermediateOutputPath)')) And '$(_ClrosX64SerializerTrackingRootCandidate)' != '$([System.IO.Path]::GetFullPath(&quot;$(NativeIntermediateOutputPath)&quot;))'"
+      Text="CLROS_M01_034_GENERATOR_FAILED tracking_root_override" />
+    <Error
+      Condition="!$([System.IO.Path]::IsPathRooted('$(NativeIntermediateOutputPath)')) And '$(_ClrosX64SerializerTrackingRootCandidate)' != '$([System.IO.Path]::GetFullPath(&quot;$(MSBuildProjectDirectory)\$(NativeIntermediateOutputPath)&quot;))'"
+      Text="CLROS_M01_034_GENERATOR_FAILED tracking_root_override" />
+    <Error
+      Condition="'$(_ClrosX64SerializerTrackingRoot)' != '$([System.IO.Path]::TrimEndingDirectorySeparator(&quot;$(_ClrosX64SerializerTrackingRootCandidate)&quot;))'"
+      Text="CLROS_M01_034_GENERATOR_FAILED tracking_root_override" />
+    <Error
+      Condition="'$(_ClrosX64SerializerTrackedObject)' != '$(_ClrosX64SerializerTrackingRoot)\CLROS.X64.InstructionPublication.obj'"
+      Text="CLROS_M01_034_GENERATOR_FAILED tracking_object_override" />
+    <Error
+      Condition="'$(_ClrosX64SerializerTrackedToolRoot)' != '$(_ClrosX64SerializerTrackingRoot)\clros-x64-serializer-tool\'"
+      Text="CLROS_M01_034_GENERATOR_FAILED tracking_tool_root_override" />
+    <ItemGroup>
+      <FileWrites Include="$(_ClrosX64SerializerTrackedObject)" />
+      <FileWrites
+        Include="$(_ClrosX64SerializerTrackedToolRoot)**\*"
+        Condition="Exists('$(_ClrosX64SerializerTrackedToolRoot)')" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="RemoveClrosX64InstructionPublicationSerializerToolOutput"
+          AfterTargets="CoreClean"
+          DependsOnTargets="TrackClrosX64InstructionPublicationSerializerOutput"
+          Condition="'$(NativeIntermediateOutputPath)' != ''">
+    <RemoveDir
+      Directories="$(_ClrosX64SerializerTrackedToolRoot)"
+      Condition="Exists('$(_ClrosX64SerializerTrackedToolRoot)')" />
+    <Error
+      Condition="Exists('$(_ClrosX64SerializerTrackedToolRoot)')"
+      Text="CLROS_M01_034_GENERATOR_FAILED clean_tool_root_not_removed path=$(_ClrosX64SerializerTrackedToolRoot)" />
+  </Target>
+
+  <Target Name="IntegrateClrosX64InstructionPublicationSerializer"
+          AfterTargets="RemoveNativeAotRuntimeLibraries"
+          BeforeTargets="LinkNative">
+    <Error
+      Condition="'$(_ClrosX64SerializerGeneratorDirectory)' != '$(MSBuildThisFileDirectory)'"
+      Text="CLROS_M01_034_GENERATOR_FAILED generator_directory_override" />
+    <Error
+      Condition="'$(_ClrosX64SerializerGeneratorProject)' != '$(MSBuildThisFileDirectory)OS.X64TextSerializerGenerator.csproj'"
+      Text="CLROS_M01_034_GENERATOR_FAILED generator_project_override" />
+    <Error
+      Condition="'$(_ClrosX64SerializerObjectName)' != 'CLROS.X64.InstructionPublication.obj'"
+      Text="CLROS_M01_034_GENERATOR_FAILED object_name_override" />
+    <Error
+      Condition="'$(ClrosX64InstructionPublicationSymbol)' != 'CLROS_X64_SerializeInstructionPublication'"
+      Text="CLROS_M01_034_GENERATOR_FAILED symbol_override" />
+    <Error
+      Condition="'$(ClrosX64InstructionPublicationObjectBytes)' != '336'"
+      Text="CLROS_M01_034_GENERATOR_FAILED object_size_override" />
+    <Error
+      Condition="'$(ClrosX64InstructionPublicationObjectSha256)' != 'DA97E50C95E479541B65EB3F96D9C6DED163735857650BEE9416324086D55C7B'"
+      Text="CLROS_M01_034_GENERATOR_FAILED object_hash_override" />
+    <Error
+      Condition="'$(_ClrosX64SerializerActualSha256)' != ''"
+      Text="CLROS_M01_034_GENERATOR_FAILED actual_hash_override" />
+    <Error
+      Condition="'$(NativeIntermediateOutputPath)' == ''"
+      Text="CLROS_M01_034_GENERATOR_FAILED native_intermediate_output_path_missing" />
+    <Error
+      Condition="'$(Configuration)' == ''"
+      Text="CLROS_M01_034_GENERATOR_FAILED configuration_missing" />
+    <PropertyGroup>
+      <_ClrosX64SerializerNativeIntermediatePathIsRooted>$([System.IO.Path]::IsPathRooted('$(NativeIntermediateOutputPath)'))</_ClrosX64SerializerNativeIntermediatePathIsRooted>
+      <_ClrosX64SerializerNativeIntermediateRootCandidate
+        Condition="'$(_ClrosX64SerializerNativeIntermediatePathIsRooted)' == 'True'">$([System.IO.Path]::GetFullPath('$(NativeIntermediateOutputPath)'))</_ClrosX64SerializerNativeIntermediateRootCandidate>
+      <_ClrosX64SerializerNativeIntermediateRootCandidate
+        Condition="'$(_ClrosX64SerializerNativeIntermediatePathIsRooted)' != 'True'">$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(NativeIntermediateOutputPath)'))</_ClrosX64SerializerNativeIntermediateRootCandidate>
+      <_ClrosX64SerializerNativeIntermediateRoot>$([System.IO.Path]::TrimEndingDirectorySeparator('$(_ClrosX64SerializerNativeIntermediateRootCandidate)'))</_ClrosX64SerializerNativeIntermediateRoot>
+      <_ClrosX64SerializerToolRoot>$(_ClrosX64SerializerNativeIntermediateRoot)\clros-x64-serializer-tool\</_ClrosX64SerializerToolRoot>
+      <_ClrosX64SerializerToolIntermediate>$(_ClrosX64SerializerToolRoot)obj\</_ClrosX64SerializerToolIntermediate>
+      <_ClrosX64SerializerToolOutput>$(_ClrosX64SerializerToolRoot)bin\$(Configuration)\net10.0\</_ClrosX64SerializerToolOutput>
+      <_ClrosX64SerializerToolExecutable>$(_ClrosX64SerializerToolOutput)OS.X64TextSerializerGenerator.exe</_ClrosX64SerializerToolExecutable>
+      <_ClrosX64SerializerToolAssetsFile>$(_ClrosX64SerializerToolIntermediate)project.assets.json</_ClrosX64SerializerToolAssetsFile>
+      <_ClrosX64SerializerToolDisabledUserExtensions>$(_ClrosX64SerializerToolIntermediate)disabled-user-extensions</_ClrosX64SerializerToolDisabledUserExtensions>
+      <ClrosX64InstructionPublicationObject>$(_ClrosX64SerializerNativeIntermediateRoot)\$(_ClrosX64SerializerObjectName)</ClrosX64InstructionPublicationObject>
+      <ClrosX64InstructionPublicationMap>$(_ClrosX64SerializerNativeIntermediateRoot)\OS.link.map</ClrosX64InstructionPublicationMap>
+    </PropertyGroup>
+    <Error
+      Condition="$([System.IO.Path]::IsPathRooted('$(NativeIntermediateOutputPath)')) And '$(_ClrosX64SerializerNativeIntermediateRootCandidate)' != '$([System.IO.Path]::GetFullPath(&quot;$(NativeIntermediateOutputPath)&quot;))'"
+      Text="CLROS_M01_034_GENERATOR_FAILED native_intermediate_root_override" />
+    <Error
+      Condition="!$([System.IO.Path]::IsPathRooted('$(NativeIntermediateOutputPath)')) And '$(_ClrosX64SerializerNativeIntermediateRootCandidate)' != '$([System.IO.Path]::GetFullPath(&quot;$(MSBuildProjectDirectory)\$(NativeIntermediateOutputPath)&quot;))'"
+      Text="CLROS_M01_034_GENERATOR_FAILED native_intermediate_root_override" />
+    <Error
+      Condition="'$(_ClrosX64SerializerNativeIntermediateRoot)' != '$([System.IO.Path]::TrimEndingDirectorySeparator(&quot;$(_ClrosX64SerializerNativeIntermediateRootCandidate)&quot;))'"
+      Text="CLROS_M01_034_GENERATOR_FAILED native_intermediate_root_override" />
+    <Error
+      Condition="'$(_ClrosX64SerializerToolRoot)' != '$(_ClrosX64SerializerNativeIntermediateRoot)\clros-x64-serializer-tool\'"
+      Text="CLROS_M01_034_GENERATOR_FAILED tool_root_override" />
+    <Error
+      Condition="'$(_ClrosX64SerializerToolIntermediate)' != '$(_ClrosX64SerializerToolRoot)obj\'"
+      Text="CLROS_M01_034_GENERATOR_FAILED tool_intermediate_override" />
+    <Error
+      Condition="'$(_ClrosX64SerializerToolOutput)' != '$(_ClrosX64SerializerToolRoot)bin\$(Configuration)\net10.0\'"
+      Text="CLROS_M01_034_GENERATOR_FAILED tool_output_override" />
+    <Error
+      Condition="'$(_ClrosX64SerializerToolExecutable)' != '$(_ClrosX64SerializerToolOutput)OS.X64TextSerializerGenerator.exe'"
+      Text="CLROS_M01_034_GENERATOR_FAILED tool_executable_override" />
+    <Error
+      Condition="'$(_ClrosX64SerializerToolAssetsFile)' != '$(_ClrosX64SerializerToolIntermediate)project.assets.json'"
+      Text="CLROS_M01_034_GENERATOR_FAILED tool_assets_override" />
+    <Error
+      Condition="'$(ClrosX64InstructionPublicationObject)' != '$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.InstructionPublication.obj'"
+      Text="CLROS_M01_034_GENERATOR_FAILED object_path_override" />
+    <Error
+      Condition="'$(ClrosX64InstructionPublicationMap)' != '$(_ClrosX64SerializerNativeIntermediateRoot)\OS.link.map'"
+      Text="CLROS_M01_034_GENERATOR_FAILED map_path_override" />
+    <Error
+      Condition="'@(_ClrosX64SerializerGeneratorInput)' == ''"
+      Text="CLROS_M01_034_GENERATOR_FAILED inputs_missing" />
+    <Error
+      Condition="!Exists('%(_ClrosX64SerializerGeneratorInput.Identity)')"
+      Text="CLROS_M01_034_GENERATOR_FAILED input_missing path=%(_ClrosX64SerializerGeneratorInput.Identity)" />
+    <Error
+      Condition="!Exists('$(_ClrosX64SerializerCanonicalToolsProps)') Or !Exists('$(_ClrosX64SerializerCanonicalRootTargets)')"
+      Text="CLROS_M01_034_GENERATOR_FAILED build_customization_missing" />
+    <Error
+      Condition="Exists('$(_ClrosX64SerializerToolDisabledUserExtensions)')"
+      Text="CLROS_M01_034_GENERATOR_FAILED user_extensions_path_exists path=$(_ClrosX64SerializerToolDisabledUserExtensions)" />
+    <MSBuild
+      Projects="$(_ClrosX64SerializerGeneratorProject)"
+      Targets="Restore;Build"
+      BuildInParallel="false"
+      RemoveProperties="RuntimeIdentifier;RuntimeIdentifiers;SelfContained;PublishAot;PublishReadyToRun;PublishSingleFile;PublishTrimmed;NoStdLib;NoConfig;DisableImplicitFrameworkReferences;EnableDefaultCompileItems;IlcUseEnvironmentalTools;CppLinker;ILCompilerTargetsPath;ILLinkTargetsPath;ILLinkTasksAssembly;IlcBuildTasksPath;IlcHostPackagePath;ClrosIlcHostPackagePath;IlcToolsPath;RuntimePackagePath;ClrosRuntimePackagePath;IlcFrameworkPath;IlcFrameworkNativePath;IlcSdkPath;IlcMibcPath;IlcGenerateMapFile;IlcPgoOptimize;IlcMultiModule;NativeCompilationDuringPublish;PublishAotUsingRuntimePack;DisableFrameworkLibGeneration;ImportRuntimeIlcPackageTargetDependsOn;IlcSetupPropertiesDependsOn;IlcDynamicBuildPropertyDependencies;RestorePackagesPath;NuGetPackageRoot;ExcludeRestorePackageImports;EntryPointSymbol;LinkerSubsystem;BuildDependsOn;CoreBuildDependsOn;CompileDependsOn;CoreCompileDependsOn;PrepareForBuildDependsOn;RebuildDependsOn;CleanDependsOn;PublishDependsOn;SkipCompilerExecution;NoBuild;DesignTimeBuild;BuildingProject;BuildProjectReferences;IntermediateOutputPath;OutputPath;OutDir;PublishDir;PublishUrl;UseArtifactsOutput;ArtifactsPath;TargetFramework;TargetFrameworks;OutputType;AssemblyName;LangVersion;Nullable;ImplicitUsings;InvariantGlobalization;Deterministic;TreatWarningsAsErrors;DefineConstants;GenerateAssemblyInfo;GenerateTargetFrameworkAttribute;CscToolPath;CscToolExe;RoslynTargetsPath;RunAnalyzers;RunAnalyzersDuringBuild;EnableNETAnalyzers"
+      Properties="Configuration=$(Configuration);BaseOutputPath=$(_ClrosX64SerializerToolRoot)bin\;BaseIntermediateOutputPath=$(_ClrosX64SerializerToolIntermediate);MSBuildProjectExtensionsPath=$(_ClrosX64SerializerToolIntermediate);RestoreOutputPath=$(_ClrosX64SerializerToolIntermediate);ProjectAssetsFile=$(_ClrosX64SerializerToolAssetsFile);DefaultItemExcludes=obj/**;DefaultExcludesInProjectFolder=bin/**;DirectoryBuildPropsPath=$(_ClrosX64SerializerCanonicalToolsProps);DirectoryBuildTargetsPath=$(_ClrosX64SerializerCanonicalRootTargets);ImportDirectoryBuildProps=true;ImportDirectoryBuildTargets=true;ImportProjectExtensionProps=true;ImportProjectExtensionTargets=true;CustomBeforeMicrosoftCommonTargets=$(MSBuildThisFileFullPath);CustomAfterMicrosoftCommonTargets=;CustomBeforeMicrosoftCommonProps=;CustomAfterMicrosoftCommonProps=;CustomBeforeDirectoryBuildProps=;CustomAfterDirectoryBuildProps=;CustomBeforeDirectoryBuildTargets=;CustomAfterDirectoryBuildTargets=;CustomBeforeMicrosoftCSharpTargets=;CustomAfterMicrosoftCSharpTargets=;CustomBeforeMicrosoftCommonCrossTargetingTargets=;CustomAfterMicrosoftCommonCrossTargetingTargets=;BeforeMicrosoftNETSdkTargets=;AfterMicrosoftNETSdkTargets=;LanguageTargets=$(MSBuildToolsPath)\Microsoft.CSharp.targets;CSharpTargetsPath=$(MSBuildToolsPath)\Microsoft.CSharp.CurrentVersion.targets;CommonTargetsPath=$(MSBuildToolsPath)\Microsoft.Common.CurrentVersion.targets;ImportNuGetBuildTasksPackTargetsFromSdk=false;NuGetBuildTasksPackTargets=;RestoreUseCustomAfterTargets=false;RestoreForceEvaluate=true;RestoreIgnoreFailedSources=true;MSBuildSDKsPath=$(MSBuildToolsPath)\Sdks;MSBuildExtensionsPath=$(MSBuildToolsPath)\;MSBuildUserExtensionsPath=$(_ClrosX64SerializerToolDisabledUserExtensions);UseSharedCompilation=false;ImportByWildcardBeforeMicrosoftCommonProps=false;ImportByWildcardAfterMicrosoftCommonProps=false;ImportUserLocationsByWildcardBeforeMicrosoftCommonProps=false;ImportUserLocationsByWildcardAfterMicrosoftCommonProps=false;ImportByWildcardBeforeMicrosoftCommonTargets=false;ImportByWildcardAfterMicrosoftCommonTargets=false;ImportUserLocationsByWildcardBeforeMicrosoftCommonTargets=false;ImportUserLocationsByWildcardAfterMicrosoftCommonTargets=false;ImportByWildcardBeforeMicrosoftCSharpTargets=false;ImportByWildcardAfterMicrosoftCSharpTargets=false;ImportUserLocationsByWildcardBeforeMicrosoftCSharpTargets=false;ImportUserLocationsByWildcardAfterMicrosoftCSharpTargets=false;ImportByWildcardBeforeMicrosoftCommonCrossTargetingTargets=false;ImportByWildcardAfterMicrosoftCommonCrossTargetingTargets=false" />
+    <Error
+      Condition="!Exists('$(_ClrosX64SerializerToolExecutable)')"
+      Text="CLROS_M01_034_GENERATOR_FAILED executable_missing path=$(_ClrosX64SerializerToolExecutable)" />
+    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(ClrosX64InstructionPublicationObject)'))" />
+    <Exec
+      Command="&quot;$(_ClrosX64SerializerToolExecutable)&quot; --output-root &quot;$([System.IO.Path]::GetDirectoryName('$(ClrosX64InstructionPublicationObject)'))&quot; --output-file &quot;$(_ClrosX64SerializerObjectName)&quot;"
+      ConsoleToMSBuild="true"
+      IgnoreExitCode="false"
+      Timeout="60000" />
+    <Error
+      Condition="!Exists('$(ClrosX64InstructionPublicationObject)')"
+      Text="CLROS_M01_034_GENERATOR_FAILED object_missing path=$(ClrosX64InstructionPublicationObject)" />
+    <GetFileHash
+      Files="$(ClrosX64InstructionPublicationObject)"
+      Algorithm="SHA256"
+      HashEncoding="hex">
+      <Output TaskParameter="Hash" PropertyName="_ClrosX64SerializerActualSha256" />
+    </GetFileHash>
+    <Error
+      Condition="'$(_ClrosX64SerializerActualSha256)' != '$(ClrosX64InstructionPublicationObjectSha256)'"
+      Text="CLROS_M01_034_GENERATOR_FAILED object_hash_mismatch expected=$(ClrosX64InstructionPublicationObjectSha256) actual=$(_ClrosX64SerializerActualSha256)" />
+    <ItemGroup>
+      <NativeLibrary Include="$(ClrosX64InstructionPublicationObject)" />
+      <LinkerArg Include="&quot;$(ClrosX64InstructionPublicationObject)&quot;" />
+      <LinkerArg Include="/INCLUDE:$(ClrosX64InstructionPublicationSymbol)" />
+      <LinkerArg Include="/MAP:&quot;$(ClrosX64InstructionPublicationMap)&quot;" />
+      <LinkerArg Include="/MAPINFO:EXPORTS" />
+    </ItemGroup>
+  </Target>
+
+</Project>

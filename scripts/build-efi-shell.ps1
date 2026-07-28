@@ -20,6 +20,12 @@ param(
     [string[]] $OvmfSearchRoot = @(),
     [ValidateRange(100, 60000)]
     [int] $VersionProbeTimeoutMilliseconds = 5000,
+    [ValidateRange(5, 300)]
+    [int] $ArtifactVerifierTimeoutSeconds = 60,
+    [ValidateRange(5, 3600)]
+    [int] $BuildProcessTimeoutSeconds = 300,
+    [ValidateRange(4096, 67108864)]
+    [int] $BuildProcessMaximumOutputCharacters = 4194304,
     [switch] $PreflightOnly,
     [switch] $EnableUefiGoneSimulationProbe,
     [switch] $EnableExitBootServicesFreshMapProbe,
@@ -74,7 +80,185 @@ $script:ExpectedEfiCompileItems = @(
     '..\OS.Kernel\Boot\M01OwnedCr3CompositeTransition.cs|Boot\M01OwnedCr3CompositeTransition.cs',
     'Boot\EfiConsoleAdapter.cs|',
     'Boot\EfiEntry.cs|',
+    'Boot\X64InstructionPublication.cs|',
+    'Runtime\RuntimeImportAttribute.cs|',
+    'Runtime\MethodImplAttribute.cs|',
     'Runtime\MinimalRuntime.cs|'
+)
+
+$script:ExpectedSerializerTargetsImport =
+    '..\..\tools\OS.X64TextSerializerGenerator\OS.X64TextSerializerGenerator.targets'
+$script:ExpectedSerializerObjectBytes = 336
+$script:ExpectedSerializerObjectSha256 =
+    'DA97E50C95E479541B65EB3F96D9C6DED163735857650BEE9416324086D55C7B'
+$script:ExpectedSerializerSymbol =
+    'CLROS_X64_SerializeInstructionPublication'
+$script:ExpectedSerializerSuccessCookie = 1397902403
+
+$script:ExpectedPackageBuildClosure = @(
+    [ordered] @{
+        Path = 'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets'
+        Sha256 = '345c9448182507befa430e80622f68c7ab09debe9c419d98b418f7f1cb79c34e'
+    },
+    [ordered] @{
+        Path = 'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.Publish.targets'
+        Sha256 = '6fcb3f0491a79fd5a67281b44439e0685c17fe4c848a07477ab2a57a10a68c60'
+    },
+    [ordered] @{
+        Path = 'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.Windows.targets'
+        Sha256 = '547266fbf1e772518edda8194413ce99906d3deb8bef074bbcca1033c31bc54c'
+    },
+    [ordered] @{
+        Path = 'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.targets'
+        Sha256 = '22516102af0e4bdafa004795d3bbc30d617efe5bb7b809005d1ea3a00c436f6d'
+    },
+    [ordered] @{
+        Path = 'microsoft.dotnet.ilcompiler/10.0.8/tools/netstandard/ILCompiler.Build.Tasks.dll'
+        Sha256 = '4c8cd85bcf8e2d51d69c0fce3eaea55c2c8b23765da747c0c6cbfc38f9cccd88'
+    },
+    [ordered] @{
+        Path = 'microsoft.dotnet.ilcompiler/10.0.8/tools/netstandard/ILCompiler.Build.Tasks.deps.json'
+        Sha256 = '893364a48ebfd6ca97a440e32fc2252f53dbc4f4c64d63f62ac9a583365ec7c6'
+    },
+    [ordered] @{
+        Path = 'microsoft.net.illink.tasks/10.0.10/build/Microsoft.NET.ILLink.targets'
+        Sha256 = 'f1bbe7e9e79badb900a594691fe4c6738e906d911ee3e50975434d09035a2568'
+    },
+    [ordered] @{
+        Path = 'microsoft.net.illink.tasks/10.0.10/tools/net/ILLink.Tasks.dll'
+        Sha256 = '9c5ffc1e594b75c1c716173c12f501ff4a7aa0cfb7a84019c7176f2a3f4c6120'
+    },
+    [ordered] @{
+        Path = 'microsoft.net.illink.tasks/10.0.10/tools/net/ILLink.Tasks.deps.json'
+        Sha256 = '4bd1d4ac7c249fa1911c53106c757fd390fb40aad0d690368bcda0941ff8bbae'
+    }
+)
+
+$script:ExpectedRestoreLibraries = [ordered] @{
+    'Microsoft.DotNet.ILCompiler/10.0.8' = [ordered] @{
+        Path = 'microsoft.dotnet.ilcompiler/10.0.8'
+        Sha512 = 'RJxitcN5CCyZDcPNXKLsecwKvACzmy8C1z8hGM9+hFcnPhv1jDysJFFIeUHIPWaZ6wDAfYtZcgKEtegvL2Nz8A=='
+        FileCount = 20
+        TotalBytes = 404859
+        AggregateSha256 = 'b9c5a195c93e515f34066c9d8b0b3827cf1a32ce681454d284c489622a5bfcde'
+    }
+    'Microsoft.NET.ILLink.Tasks/10.0.10' = [ordered] @{
+        Path = 'microsoft.net.illink.tasks/10.0.10'
+        Sha512 = 'f5VCIE7AJpd5YvzNTeMGVzQIgyE9tX+AreTYwQF+REbu+DZo/2Ae+jNSwhPEYrVz6RRkd7y8ubXjk6Nn6Ka+Cg=='
+        FileCount = 42
+        TotalBytes = 5337318
+        AggregateSha256 = '0edc00810e9462f8d6a7468835861db6d2833f970539e6d4eb82cde5eb42ffb6'
+    }
+    'runtime.win-x64.Microsoft.DotNet.ILCompiler/10.0.8' = [ordered] @{
+        Path = 'runtime.win-x64.microsoft.dotnet.ilcompiler/10.0.8'
+        Sha512 = 'S+9omeowlFjRReD0VB/Q4u3DcN7+vueJSF37saFj0U2OSJIkfI7gGKQRsDxGIf0MwLha14qGrjRC3bDGhvF0Gg=='
+        FileCount = 13
+        TotalBytes = 37461393
+        AggregateSha256 = 'c5aff04c7a4abcca691fc0e6a8539628cded3250a7777d6c407dc64c07ca858e'
+    }
+}
+
+$script:ExpectedConsumedPackageTrees = @(
+    [ordered] @{
+        Id = 'microsoft.dotnet.ilcompiler'
+        Version = '10.0.8'
+        ContentHashSha512 = 'RJxitcN5CCyZDcPNXKLsecwKvACzmy8C1z8hGM9+hFcnPhv1jDysJFFIeUHIPWaZ6wDAfYtZcgKEtegvL2Nz8A=='
+        FileCount = 20
+        TotalBytes = 404859
+        AggregateSha256 = 'b9c5a195c93e515f34066c9d8b0b3827cf1a32ce681454d284c489622a5bfcde'
+        RootKind = 'restore'
+    },
+    [ordered] @{
+        Id = 'microsoft.net.illink.tasks'
+        Version = '10.0.10'
+        ContentHashSha512 = 'f5VCIE7AJpd5YvzNTeMGVzQIgyE9tX+AreTYwQF+REbu+DZo/2Ae+jNSwhPEYrVz6RRkd7y8ubXjk6Nn6Ka+Cg=='
+        FileCount = 42
+        TotalBytes = 5337318
+        AggregateSha256 = '0edc00810e9462f8d6a7468835861db6d2833f970539e6d4eb82cde5eb42ffb6'
+        RootKind = 'restore'
+    },
+    [ordered] @{
+        Id = 'runtime.win-x64.microsoft.dotnet.ilcompiler'
+        Version = '10.0.8'
+        ContentHashSha512 = 'S+9omeowlFjRReD0VB/Q4u3DcN7+vueJSF37saFj0U2OSJIkfI7gGKQRsDxGIf0MwLha14qGrjRC3bDGhvF0Gg=='
+        FileCount = 13
+        TotalBytes = 37461393
+        AggregateSha256 = 'c5aff04c7a4abcca691fc0e6a8539628cded3250a7777d6c407dc64c07ca858e'
+        RootKind = 'restore'
+    },
+    [ordered] @{
+        Id = 'runtime.win-x64.microsoft.dotnet.ilcompiler'
+        Version = '10.0.10'
+        ContentHashSha512 = 'e5P00ObvdmAl49KkvGvqDLE5+EXu/IdXCDsLghgKFXKrNybyxMmH12HuGrsO7LTIGjXI58tyN3Hwxwr/MR0d8A=='
+        FileCount = 13
+        TotalBytes = 37473738
+        AggregateSha256 = '17a69cfcd4a3a770d27b7315313c85f68b3a956878af4b95699f4011572e63fb'
+        RootKind = 'restore-only'
+    },
+    [ordered] @{
+        Id = 'microsoft.netcore.app.runtime.nativeaot.win-x64'
+        Version = '10.0.10'
+        ContentHashSha512 = 'NHkgRRE/Fbaw/z0eLdC7rNF7ZRoR+2KQGSPh2ZiKgXpuZOz3Cjhv0srLOaeYnvYMDtT+KzjyyZGgChXx1W18wA=='
+        FileCount = 406
+        TotalBytes = 109133220
+        AggregateSha256 = '389ade21d811efc6fc4d6f0f1aa492ba71f5fabfb39e4780b83c5a65e9a680c4'
+        RootKind = 'restore-only'
+    },
+    [ordered] @{
+        Id = 'microsoft.netcore.app.runtime.nativeaot.win-x64'
+        Version = '10.0.8'
+        ContentHashSha512 = '4OPm4RaS1aAEf0GOcA/IsdD/ml9o6Hw2BaiHy/iceHxExoj+38QFAyNTxcNAz73SDPHXpUp4SL046vBq5RkuEQ=='
+        FileCount = 406
+        TotalBytes = 109016717
+        AggregateSha256 = '73972c0d17f29fa389de9c4a87051b372fa15afe5cdadf55bef731a3d8144fbc'
+        RootKind = 'runtime'
+    }
+)
+
+$script:ExpectedActivePackageImportEdges = @(
+    'sdk|microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets',
+    'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets|microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.targets',
+    'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.targets|microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.Windows.targets',
+    'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.targets|microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.Publish.targets',
+    'sdk|microsoft.net.illink.tasks/10.0.10/build/Microsoft.NET.ILLink.targets'
+)
+
+$script:ExpectedPackageTaskBindings = @(
+    'ComputeManagedAssembliesToCompileToNative|microsoft.dotnet.ilcompiler/10.0.8/tools/netstandard/ILCompiler.Build.Tasks.dll',
+    'ComputeManagedAssemblies|microsoft.net.illink.tasks/10.0.10/tools/net/ILLink.Tasks.dll'
+)
+
+$script:ExpectedRestoreArchives = @(
+    [ordered] @{
+        Id = 'microsoft.dotnet.ilcompiler'
+        Version = '10.0.8'
+        FileName = 'microsoft.dotnet.ilcompiler.10.0.8.nupkg'
+        Sha256 = 'ccdc381bbc7672c48bc755311fdf2f5907433933c295198172d2ad6958ed10b4'
+    },
+    [ordered] @{
+        Id = 'microsoft.net.illink.tasks'
+        Version = '10.0.10'
+        FileName = 'microsoft.net.illink.tasks.10.0.10.nupkg'
+        Sha256 = '97a0eca2030901738f070f142aaf02b3b1aead2bc984c08c428847910b4be312'
+    },
+    [ordered] @{
+        Id = 'runtime.win-x64.microsoft.dotnet.ilcompiler'
+        Version = '10.0.8'
+        FileName = 'runtime.win-x64.microsoft.dotnet.ilcompiler.10.0.8.nupkg'
+        Sha256 = '49f15032ef981172b8c25360f97b76d8abab75348f8e16da0a3fbb970c10bec8'
+    },
+    [ordered] @{
+        Id = 'runtime.win-x64.microsoft.dotnet.ilcompiler'
+        Version = '10.0.10'
+        FileName = 'runtime.win-x64.microsoft.dotnet.ilcompiler.10.0.10.nupkg'
+        Sha256 = '0ae1c40ef28915e63c257999d4cd860db9086878c3a6f8e30388e00056ab350a'
+    },
+    [ordered] @{
+        Id = 'microsoft.netcore.app.runtime.nativeaot.win-x64'
+        Version = '10.0.10'
+        FileName = 'microsoft.netcore.app.runtime.nativeaot.win-x64.10.0.10.nupkg'
+        Sha256 = '5fd7129af9eed4b5a2ed04219b636f7ba0dd965569275d3379fc4d02f623e626'
+    }
 )
 
 $script:ExpectedM01ReviewedSourceIncludes = @(
@@ -183,7 +367,13 @@ function Write-EfiPreflightLine {
 function Save-EfiPreflightLog {
     param([string] $Path)
 
-    Set-Content -LiteralPath $Path -Value $script:EfiPreflightLines -Encoding UTF8
+    if ($null -eq $script:M01LogAuthority) {
+        throw "log authority is not initialized: $Path"
+    }
+    Write-M01LogLines `
+        -Authority $script:M01LogAuthority `
+        -Lines $script:EfiPreflightLines.ToArray() `
+        -Replace
 }
 
 function Resolve-ToolPath {
@@ -324,6 +514,3525 @@ function Test-CoffArchive {
     }
 }
 
+function Read-M01SecureXmlDocument {
+    param([string] $Path)
+
+    $settings = New-Object System.Xml.XmlReaderSettings
+    $settings.DtdProcessing = [System.Xml.DtdProcessing]::Prohibit
+    $settings.XmlResolver = $null
+    $reader = $null
+    try {
+        $reader = [System.Xml.XmlReader]::Create($Path, $settings)
+        $document = New-Object System.Xml.XmlDocument
+        $document.XmlResolver = $null
+        $document.Load($reader)
+        return $document
+    }
+    finally {
+        if ($null -ne $reader) {
+            $reader.Dispose()
+        }
+    }
+}
+
+function Initialize-M01NativeFileIdentity {
+    if ($null -ne ("CLROS.Build.AuthorityNativeFile" -as [type])) {
+        return
+    }
+
+    Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+
+namespace CLROS.Build
+{
+    public sealed class AuthorityFileIdentity
+    {
+        public string Key { get; private set; }
+        public uint LinkCount { get; private set; }
+        public ulong Length { get; private set; }
+
+        internal AuthorityFileIdentity(string key, uint linkCount, ulong length)
+        {
+            Key = key;
+            LinkCount = linkCount;
+            Length = length;
+        }
+    }
+
+    public static class AuthorityNativeFile
+    {
+        [StructLayout(LayoutKind.Sequential)]
+        private struct FILETIME
+        {
+            public uint Low;
+            public uint High;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct BY_HANDLE_FILE_INFORMATION
+        {
+            public uint FileAttributes;
+            public FILETIME CreationTime;
+            public FILETIME LastAccessTime;
+            public FILETIME LastWriteTime;
+            public uint VolumeSerialNumber;
+            public uint FileSizeHigh;
+            public uint FileSizeLow;
+            public uint NumberOfLinks;
+            public uint FileIndexHigh;
+            public uint FileIndexLow;
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool GetFileInformationByHandle(
+            SafeFileHandle handle,
+            out BY_HANDLE_FILE_INFORMATION information);
+
+        public static AuthorityFileIdentity GetIdentity(SafeFileHandle handle)
+        {
+            if (handle == null || handle.IsInvalid || handle.IsClosed)
+            {
+                throw new ArgumentException("A live file handle is required.", "handle");
+            }
+
+            BY_HANDLE_FILE_INFORMATION information;
+            if (!GetFileInformationByHandle(handle, out information))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+
+            string key = String.Format(
+                System.Globalization.CultureInfo.InvariantCulture,
+                "{0:x8}:{1:x8}{2:x8}",
+                information.VolumeSerialNumber,
+                information.FileIndexHigh,
+                information.FileIndexLow);
+            ulong length =
+                ((ulong)information.FileSizeHigh << 32) |
+                information.FileSizeLow;
+            return new AuthorityFileIdentity(
+                key,
+                information.NumberOfLinks,
+                length);
+        }
+    }
+}
+'@
+}
+
+function Get-M01StreamSha256 {
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.IO.Stream] $Stream
+    )
+
+    $originalPosition = $Stream.Position
+    $algorithm = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $Stream.Position = 0
+        return ([System.BitConverter]::ToString(
+                $algorithm.ComputeHash($Stream))).Replace(
+            "-",
+            "").ToLowerInvariant()
+    }
+    finally {
+        $Stream.Position = $originalPosition
+        $algorithm.Dispose()
+    }
+}
+
+function Assert-M01NoReparsePoints {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $RootPath,
+        [Parameter(Mandatory = $true)]
+        [string] $Path,
+        [Parameter(Mandatory = $true)]
+        [string] $Reason,
+        [switch] $AllowMissingLeaf
+    )
+
+    $rootCandidate = [System.IO.Path]::GetFullPath($RootPath)
+    $rootVolume = [System.IO.Path]::GetPathRoot($rootCandidate)
+    if ([string]::IsNullOrWhiteSpace($rootVolume)) {
+        throw "$Reason root_missing path=$rootCandidate"
+    }
+    $rootFullPath = if ([string]::Equals(
+            $rootCandidate,
+            $rootVolume,
+            [System.StringComparison]::OrdinalIgnoreCase)) {
+        $rootVolume
+    }
+    else {
+        $rootCandidate.TrimEnd(
+            [System.IO.Path]::DirectorySeparatorChar,
+            [System.IO.Path]::AltDirectorySeparatorChar)
+    }
+    $pathFullPath = [System.IO.Path]::GetFullPath($Path)
+    $rootPrefix = if ($rootFullPath.EndsWith(
+            [string][System.IO.Path]::DirectorySeparatorChar,
+            [System.StringComparison]::Ordinal)) {
+        $rootFullPath
+    }
+    else {
+        $rootFullPath + [System.IO.Path]::DirectorySeparatorChar
+    }
+    if (-not [string]::Equals(
+            $pathFullPath,
+            $rootFullPath,
+            [System.StringComparison]::OrdinalIgnoreCase) -and
+        -not $pathFullPath.StartsWith(
+            $rootPrefix,
+            [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "$Reason outside_root path=$pathFullPath root=$rootFullPath"
+    }
+
+    $volumeRoot = [System.IO.Path]::GetPathRoot($pathFullPath)
+    if ([string]::IsNullOrWhiteSpace($volumeRoot)) {
+        throw "$Reason volume_root_missing path=$pathFullPath"
+    }
+    $segments = $pathFullPath.Substring($volumeRoot.Length).Split(
+        @(
+            [System.IO.Path]::DirectorySeparatorChar,
+            [System.IO.Path]::AltDirectorySeparatorChar
+        ),
+        [System.StringSplitOptions]::RemoveEmptyEntries)
+    $currentPath = $volumeRoot
+    for ($index = 0; $index -lt $segments.Length; $index++) {
+        $currentPath = Join-Path $currentPath $segments[$index]
+        if (-not (Test-Path -LiteralPath $currentPath)) {
+            if ($AllowMissingLeaf -and $index -eq ($segments.Length - 1)) {
+                return
+            }
+            throw "$Reason missing_component path=$currentPath"
+        }
+        $item = Get-Item -LiteralPath $currentPath -Force -ErrorAction Stop
+        if (($item.Attributes -band
+                [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "$Reason reparse_point path=$currentPath"
+        }
+    }
+}
+
+function Open-M01AuthorityReadRecord {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Path,
+        [Parameter(Mandatory = $true)]
+        [string] $RootPath,
+        [Parameter(Mandatory = $true)]
+        [string] $Purpose,
+        [Parameter(Mandatory = $true)]
+        [string] $FailurePrefix,
+        [string] $ExpectedSha256,
+        [switch] $AllowEmpty,
+        [switch] $RequireSingleLink
+    )
+
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
+    Assert-M01NoReparsePoints `
+        -RootPath $RootPath `
+        -Path $fullPath `
+        -Reason ($FailurePrefix + "_reparse")
+    if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+        throw "$FailurePrefix missing path=$fullPath"
+    }
+
+    Initialize-M01NativeFileIdentity
+    $stream = $null
+    try {
+        $stream = New-Object System.IO.FileStream(
+            $fullPath,
+            [System.IO.FileMode]::Open,
+            [System.IO.FileAccess]::Read,
+            [System.IO.FileShare]::Read,
+            65536,
+            [System.IO.FileOptions]::SequentialScan)
+        Assert-M01NoReparsePoints `
+            -RootPath $RootPath `
+            -Path $fullPath `
+            -Reason ($FailurePrefix + "_reparse")
+        $identity = [CLROS.Build.AuthorityNativeFile]::GetIdentity(
+            $stream.SafeFileHandle)
+        $length = [long] $stream.Length
+        if ($length -lt 0 -or
+            (-not $AllowEmpty -and $length -eq 0) -or
+            [uint64] $length -ne [uint64] $identity.Length) {
+            throw "$FailurePrefix size_invalid purpose=$Purpose path=$fullPath"
+        }
+        if ($RequireSingleLink -and [uint32] $identity.LinkCount -ne 1) {
+            throw (
+                "$FailurePrefix hardlink_invalid purpose=$Purpose path=$fullPath " +
+                "links=$($identity.LinkCount)")
+        }
+        $sha256 = Get-M01StreamSha256 -Stream $stream
+        if (-not [string]::IsNullOrWhiteSpace($ExpectedSha256) -and
+            $sha256 -cne $ExpectedSha256.ToLowerInvariant()) {
+            throw "$FailurePrefix hash_mismatch purpose=$Purpose path=$fullPath"
+        }
+
+        $probe = New-Object System.IO.FileStream(
+            $fullPath,
+            [System.IO.FileMode]::Open,
+            [System.IO.FileAccess]::Read,
+            [System.IO.FileShare]::Read,
+            4096,
+            [System.IO.FileOptions]::SequentialScan)
+        try {
+            $probeIdentity = [CLROS.Build.AuthorityNativeFile]::GetIdentity(
+                $probe.SafeFileHandle)
+        }
+        finally {
+            $probe.Dispose()
+        }
+        if ([string] $probeIdentity.Key -cne [string] $identity.Key) {
+            throw "$FailurePrefix path_identity_mismatch purpose=$Purpose path=$fullPath"
+        }
+
+        $record = [pscustomobject] @{
+            Path = $fullPath
+            RootPath = [System.IO.Path]::GetFullPath($RootPath)
+            Purpose = $Purpose
+            FailurePrefix = $FailurePrefix
+            Stream = $stream
+            InitialLength = $length
+            InitialSha256 = $sha256
+            InitialIdentityKey = [string] $identity.Key
+            InitialLinkCount = [uint32] $identity.LinkCount
+            RequireSingleLink = [bool] $RequireSingleLink
+        }
+        $stream = $null
+        return $record
+    }
+    finally {
+        if ($null -ne $stream) {
+            $stream.Dispose()
+        }
+    }
+}
+
+function Assert-M01AuthorityRecordUnchanged {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Record
+    )
+
+    Assert-M01NoReparsePoints `
+        -RootPath $Record.RootPath `
+        -Path $Record.Path `
+        -Reason ($Record.FailurePrefix + "_reparse")
+    $identity = [CLROS.Build.AuthorityNativeFile]::GetIdentity(
+        $Record.Stream.SafeFileHandle)
+    $finalLength = [long] $Record.Stream.Length
+    $finalSha256 = Get-M01StreamSha256 -Stream $Record.Stream
+    $probe = New-Object System.IO.FileStream(
+        $Record.Path,
+        [System.IO.FileMode]::Open,
+        [System.IO.FileAccess]::Read,
+        [System.IO.FileShare]::Read,
+        4096,
+        [System.IO.FileOptions]::SequentialScan)
+    try {
+        $probeIdentity = [CLROS.Build.AuthorityNativeFile]::GetIdentity(
+            $probe.SafeFileHandle)
+    }
+    finally {
+        $probe.Dispose()
+    }
+    if ($finalLength -ne [long] $Record.InitialLength -or
+        $finalSha256 -cne [string] $Record.InitialSha256 -or
+        [string] $identity.Key -cne [string] $Record.InitialIdentityKey -or
+        [string] $probeIdentity.Key -cne [string] $Record.InitialIdentityKey -or
+        [uint32] $identity.LinkCount -ne [uint32] $Record.InitialLinkCount -or
+        ($Record.RequireSingleLink -and [uint32] $identity.LinkCount -ne 1)) {
+        throw (
+            "$($Record.FailurePrefix) changed purpose=$($Record.Purpose) " +
+            "path=$($Record.Path)")
+    }
+}
+
+function Assert-M01DistinctAuthorityRecords {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object[]] $Records
+    )
+
+    $identityPaths =
+        New-Object 'System.Collections.Generic.Dictionary[string,string]' (
+            [System.StringComparer]::Ordinal)
+    foreach ($record in $Records) {
+        if ([uint32] $record.InitialLinkCount -ne 1) {
+            throw (
+                "authority_file_hardlink_invalid purpose=$($record.Purpose) " +
+                "path=$($record.Path) links=$($record.InitialLinkCount)")
+        }
+        if ($identityPaths.ContainsKey(
+                [string] $record.InitialIdentityKey)) {
+            throw (
+                "authority_file_alias first=" +
+                $identityPaths[[string] $record.InitialIdentityKey] +
+                " second=$($record.Path)")
+        }
+        $identityPaths.Add(
+            [string] $record.InitialIdentityKey,
+            [string] $record.Path)
+    }
+}
+
+function Close-M01AuthorityRecords {
+    param(
+        [AllowNull()]
+        [object] $Records
+    )
+
+    if ($null -eq $Records) {
+        return
+    }
+    for ($index = $Records.Count - 1; $index -ge 0; $index--) {
+        try {
+            $Records[$index].Stream.Dispose()
+        }
+        catch {
+            # Process exit remains the final handle-cleanup boundary.
+        }
+    }
+    $Records.Clear()
+}
+
+function Initialize-M01PlainDirectoryPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Path,
+        [Parameter(Mandatory = $true)]
+        [string] $Reason
+    )
+
+    $pathCandidate = [System.IO.Path]::GetFullPath($Path)
+    $volumeRoot = [System.IO.Path]::GetPathRoot($pathCandidate)
+    if ([string]::IsNullOrWhiteSpace($volumeRoot)) {
+        throw "$Reason volume_root_missing path=$pathCandidate"
+    }
+    $fullPath = if ([string]::Equals(
+            $pathCandidate,
+            $volumeRoot,
+            [System.StringComparison]::OrdinalIgnoreCase)) {
+        $volumeRoot
+    }
+    else {
+        $pathCandidate.TrimEnd(
+            [System.IO.Path]::DirectorySeparatorChar,
+            [System.IO.Path]::AltDirectorySeparatorChar)
+    }
+    $currentPath = $volumeRoot
+    $segments = $fullPath.Substring($volumeRoot.Length).Split(
+        @(
+            [System.IO.Path]::DirectorySeparatorChar,
+            [System.IO.Path]::AltDirectorySeparatorChar
+        ),
+        [System.StringSplitOptions]::RemoveEmptyEntries)
+    foreach ($segment in $segments) {
+        $currentPath = Join-Path $currentPath $segment
+        if (-not (Test-Path -LiteralPath $currentPath)) {
+            New-Item `
+                -ItemType Directory `
+                -Path $currentPath `
+                -ErrorAction Stop | Out-Null
+        }
+        $item = Get-Item -LiteralPath $currentPath -Force -ErrorAction Stop
+        if (-not $item.PSIsContainer -or
+            ($item.Attributes -band
+                [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "$Reason not_plain_directory path=$currentPath"
+        }
+    }
+    Assert-M01NoReparsePoints `
+        -RootPath $volumeRoot `
+        -Path $fullPath `
+        -Reason $Reason
+    return $fullPath
+}
+
+function Assert-M01WritableAuthorityIdentity {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Record
+    )
+
+    Assert-M01NoReparsePoints `
+        -RootPath $Record.RootPath `
+        -Path $Record.Path `
+        -Reason ($Record.FailurePrefix + "_reparse")
+    $identity = [CLROS.Build.AuthorityNativeFile]::GetIdentity(
+        $Record.Stream.SafeFileHandle)
+    $probe = New-Object System.IO.FileStream(
+        $Record.Path,
+        [System.IO.FileMode]::Open,
+        [System.IO.FileAccess]::Read,
+        [System.IO.FileShare]::ReadWrite,
+        4096,
+        [System.IO.FileOptions]::SequentialScan)
+    try {
+        $probeIdentity = [CLROS.Build.AuthorityNativeFile]::GetIdentity(
+            $probe.SafeFileHandle)
+    }
+    finally {
+        $probe.Dispose()
+    }
+    if ([string] $identity.Key -cne [string] $Record.InitialIdentityKey -or
+        [string] $probeIdentity.Key -cne [string] $Record.InitialIdentityKey -or
+        [uint32] $identity.LinkCount -ne 1) {
+        throw (
+            "$($Record.FailurePrefix) identity_changed path=$($Record.Path)")
+    }
+}
+
+function Open-M01LogAuthority {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Path
+    )
+
+    Initialize-M01NativeFileIdentity
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
+    $volumeRoot = [System.IO.Path]::GetPathRoot($fullPath)
+    $directory = Split-Path -Parent $fullPath
+    [void] (Initialize-M01PlainDirectoryPath `
+            -Path $directory `
+            -Reason "log_authority_ancestor_invalid")
+    Assert-M01NoReparsePoints `
+        -RootPath $volumeRoot `
+        -Path $fullPath `
+        -Reason "log_authority_leaf_invalid" `
+        -AllowMissingLeaf
+    $mode = if (Test-Path -LiteralPath $fullPath) {
+        if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+            throw "log_authority_leaf_invalid path=$fullPath"
+        }
+        [System.IO.FileMode]::Open
+    }
+    else {
+        [System.IO.FileMode]::CreateNew
+    }
+    $stream = $null
+    try {
+        $stream = New-Object System.IO.FileStream(
+            $fullPath,
+            $mode,
+            [System.IO.FileAccess]::ReadWrite,
+            [System.IO.FileShare]::Read,
+            4096,
+            [System.IO.FileOptions]::SequentialScan)
+        Assert-M01NoReparsePoints `
+            -RootPath $volumeRoot `
+            -Path $fullPath `
+            -Reason "log_authority_leaf_invalid"
+        $identity = [CLROS.Build.AuthorityNativeFile]::GetIdentity(
+            $stream.SafeFileHandle)
+        if ([uint32] $identity.LinkCount -ne 1) {
+            throw (
+                "log_authority_hardlink_invalid path=$fullPath " +
+                "links=$($identity.LinkCount)")
+        }
+        $record = [pscustomobject] @{
+            Path = $fullPath
+            RootPath = $volumeRoot
+            Purpose = "publish-log"
+            FailurePrefix = "log_authority"
+            Stream = $stream
+            InitialIdentityKey = [string] $identity.Key
+            InitialLinkCount = [uint32] $identity.LinkCount
+        }
+        Assert-M01WritableAuthorityIdentity -Record $record
+        $record.Stream.SetLength(0)
+        $record.Stream.Position = 0
+        $record.Stream.Flush($true)
+        $stream = $null
+        return $record
+    }
+    finally {
+        if ($null -ne $stream) {
+            $stream.Dispose()
+        }
+    }
+}
+
+function Write-M01LogLines {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Authority,
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
+        [string[]] $Lines,
+        [switch] $Replace
+    )
+
+    Assert-M01WritableAuthorityIdentity -Record $Authority
+    if ($Replace) {
+        $Authority.Stream.SetLength(0)
+        $Authority.Stream.Position = 0
+    }
+    else {
+        $Authority.Stream.Position = $Authority.Stream.Length
+    }
+    if ($Lines.Count -gt 0) {
+        $text = [string]::Join([Environment]::NewLine, $Lines) +
+            [Environment]::NewLine
+        $bytes = (New-Object System.Text.UTF8Encoding($false)).GetBytes($text)
+        $Authority.Stream.Write($bytes, 0, $bytes.Length)
+    }
+    $Authority.Stream.Flush($true)
+    Assert-M01WritableAuthorityIdentity -Record $Authority
+}
+
+function Read-M01LogAuthorityText {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Authority
+    )
+
+    Assert-M01WritableAuthorityIdentity -Record $Authority
+    $originalPosition = $Authority.Stream.Position
+    try {
+        $Authority.Stream.Position = 0
+        $reader = New-Object System.IO.StreamReader(
+            $Authority.Stream,
+            (New-Object System.Text.UTF8Encoding($false, $true)),
+            $true,
+            4096,
+            $true)
+        try {
+            return $reader.ReadToEnd()
+        }
+        finally {
+            $reader.Dispose()
+        }
+    }
+    finally {
+        $Authority.Stream.Position = $originalPosition
+    }
+}
+
+function Get-M01OutputPublicationPlan {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $RepositoryRoot,
+        [Parameter(Mandatory = $true)]
+        [string] $EfiOutputPath,
+        [Parameter(Mandatory = $true)]
+        [string] $LogFullPath
+    )
+
+    $repositoryFullPath = [System.IO.Path]::GetFullPath($RepositoryRoot)
+    $outputDirectory = [System.IO.Path]::GetFullPath(
+        (Join-Path $repositoryFullPath "artifacts\efi"))
+    [void] (Initialize-M01PlainDirectoryPath `
+            -Path $outputDirectory `
+            -Reason "output_authority_ancestor_invalid")
+    $efiFullPath = if ([System.IO.Path]::IsPathRooted($EfiOutputPath)) {
+        [System.IO.Path]::GetFullPath($EfiOutputPath)
+    }
+    else {
+        [System.IO.Path]::GetFullPath(
+            (Join-Path $repositoryFullPath $EfiOutputPath))
+    }
+    if (-not [string]::Equals(
+            (Split-Path -Parent $efiFullPath),
+            $outputDirectory,
+            [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw (
+            "output_authority_path_invalid path=$efiFullPath " +
+            "expectedDirectory=$outputDirectory")
+    }
+    $paths = @(
+        $efiFullPath,
+        ($efiFullPath + ".link.map"),
+        ($efiFullPath + ".link.rsp"),
+        ($efiFullPath + ".link.json"),
+        ($efiFullPath + ".serializer.obj")
+    )
+    $seenPaths = New-Object 'System.Collections.Generic.HashSet[string]' (
+        [System.StringComparer]::OrdinalIgnoreCase)
+    $volumeRoot = [System.IO.Path]::GetPathRoot($outputDirectory)
+    foreach ($path in $paths) {
+        if (-not $seenPaths.Add($path)) {
+            throw "output_authority_duplicate_path path=$path"
+        }
+        if ([string]::Equals(
+                $path,
+                [System.IO.Path]::GetFullPath($LogFullPath),
+                [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "output_authority_log_path_collision path=$path"
+        }
+        Assert-M01NoReparsePoints `
+            -RootPath $volumeRoot `
+            -Path $path `
+            -Reason "output_authority_leaf_invalid" `
+            -AllowMissingLeaf
+    }
+    return [pscustomobject] @{
+        Directory = $outputDirectory
+        EfiPath = $paths[0]
+        MapPath = $paths[1]
+        ResponsePath = $paths[2]
+        EvidencePath = $paths[3]
+        SerializerObjectPath = $paths[4]
+        Paths = $paths
+    }
+}
+
+function Clear-M01OutputPublicationLeaves {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Plan
+    )
+
+    $existingRecords = New-Object System.Collections.Generic.List[object]
+    try {
+        foreach ($path in $Plan.Paths) {
+            if (-not (Test-Path -LiteralPath $path)) {
+                continue
+            }
+            $existingRecords.Add((Open-M01AuthorityReadRecord `
+                    -Path $path `
+                    -RootPath $Plan.Directory `
+                    -Purpose "stale-publish-output" `
+                    -FailurePrefix "output_cleanup_authority" `
+                    -AllowEmpty `
+                    -RequireSingleLink))
+        }
+        Assert-M01DistinctAuthorityRecords -Records $existingRecords.ToArray()
+    }
+    finally {
+        Close-M01AuthorityRecords -Records $existingRecords
+    }
+    foreach ($path in $Plan.Paths) {
+        Assert-M01NoReparsePoints `
+            -RootPath $Plan.Directory `
+            -Path $path `
+            -Reason "output_cleanup_authority" `
+            -AllowMissingLeaf
+        if (Test-Path -LiteralPath $path -PathType Leaf) {
+            [System.IO.File]::Delete($path)
+        }
+        if (Test-Path -LiteralPath $path) {
+            throw "output_cleanup_failed path=$path"
+        }
+    }
+}
+
+function Copy-M01FileCreateNew {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $SourcePath,
+        [Parameter(Mandatory = $true)]
+        [string] $SourceRootPath,
+        [Parameter(Mandatory = $true)]
+        [string] $DestinationPath,
+        [Parameter(Mandatory = $true)]
+        [string] $DestinationRootPath,
+        [Parameter(Mandatory = $true)]
+        [string] $Purpose
+    )
+
+    $source = Open-M01AuthorityReadRecord `
+        -Path $SourcePath `
+        -RootPath $SourceRootPath `
+        -Purpose $Purpose `
+        -FailurePrefix "output_source_authority" `
+        -RequireSingleLink
+    $destination = $null
+    try {
+        Assert-M01NoReparsePoints `
+            -RootPath $DestinationRootPath `
+            -Path $DestinationPath `
+            -Reason "output_destination_authority" `
+            -AllowMissingLeaf
+        $destination = New-Object System.IO.FileStream(
+            $DestinationPath,
+            [System.IO.FileMode]::CreateNew,
+            [System.IO.FileAccess]::Write,
+            [System.IO.FileShare]::None,
+            65536,
+            [System.IO.FileOptions]::SequentialScan)
+        $source.Stream.Position = 0
+        $source.Stream.CopyTo($destination, 65536)
+        $destination.Flush($true)
+        $destination.Dispose()
+        $destination = $null
+        Assert-M01AuthorityRecordUnchanged -Record $source
+        Assert-M01NoReparsePoints `
+            -RootPath $DestinationRootPath `
+            -Path $DestinationPath `
+            -Reason "output_destination_authority"
+    }
+    finally {
+        if ($null -ne $destination) {
+            $destination.Dispose()
+        }
+        $source.Stream.Dispose()
+    }
+}
+
+function Write-M01Utf8CreateNew {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Path,
+        [Parameter(Mandatory = $true)]
+        [string] $RootPath,
+        [Parameter(Mandatory = $true)]
+        [string] $Text
+    )
+
+    Assert-M01NoReparsePoints `
+        -RootPath $RootPath `
+        -Path $Path `
+        -Reason "output_evidence_authority" `
+        -AllowMissingLeaf
+    $stream = New-Object System.IO.FileStream(
+        $Path,
+        [System.IO.FileMode]::CreateNew,
+        [System.IO.FileAccess]::Write,
+        [System.IO.FileShare]::None)
+    try {
+        $bytes = (New-Object System.Text.UTF8Encoding($false)).GetBytes($Text)
+        $stream.Write($bytes, 0, $bytes.Length)
+        $stream.Flush($true)
+    }
+    finally {
+        $stream.Dispose()
+    }
+}
+
+function Open-M01VerifierInputLocks {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object[]] $Inputs
+    )
+
+    $records = New-Object System.Collections.Generic.List[object]
+    try {
+        foreach ($input in $Inputs) {
+            $records.Add((Open-M01AuthorityReadRecord `
+                    -Path ([string] $input.Path) `
+                    -RootPath ([string] $input.RootPath) `
+                    -Purpose ([string] $input.Purpose) `
+                    -FailurePrefix "verifier_input_authority" `
+                    -RequireSingleLink))
+        }
+        Assert-M01DistinctAuthorityRecords -Records $records.ToArray()
+        return ,$records
+    }
+    catch {
+        Close-M01AuthorityRecords -Records $records
+        throw
+    }
+}
+
+function Assert-M01VerifierInputLocks {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Locks
+    )
+
+    foreach ($record in $Locks) {
+        Assert-M01AuthorityRecordUnchanged -Record $record
+    }
+    Assert-M01DistinctAuthorityRecords -Records $Locks.ToArray()
+}
+
+function Get-M01PublishSourceSnapshot {
+    param(
+        [string] $RepositoryRoot,
+        [string] $ProjectPath
+    )
+
+    $repositoryFullPath = [System.IO.Path]::GetFullPath($RepositoryRoot)
+    $repositoryPrefix = $repositoryFullPath.TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar) +
+        [System.IO.Path]::DirectorySeparatorChar
+    $projectDirectory = Split-Path -Parent $ProjectPath
+    $candidatePaths = New-Object System.Collections.Generic.List[string]
+    foreach ($relativePath in @(
+            "CLROS.slnx",
+            "global.json",
+            "Directory.Build.props",
+            "Directory.Build.targets",
+            "scripts\build-efi-shell.ps1",
+            "scripts\test-efi-artifact.ps1",
+            "src\OS\OS.csproj",
+            "tools\Directory.Build.props",
+            "tools\OS.X64TextSerializerGenerator\OS.X64TextSerializerGenerator.targets",
+            "tools\OS.X64TextSerializerGenerator\OS.X64TextSerializerGenerator.csproj",
+            "tools\OS.X64TextSerializerGenerator\Program.cs",
+            "tools\OS.X64TextSerializerGenerator\Amd64CoffWriter.cs",
+            "tools\OS.X64TextSerializerGenerator\InstructionPublicationSerializerGenerator.cs"
+        )) {
+        $candidatePaths.Add(
+            [System.IO.Path]::GetFullPath(
+                (Join-Path $repositoryFullPath $relativePath)))
+    }
+    foreach ($compileKey in $script:ExpectedEfiCompileItems) {
+        $separatorIndex = $compileKey.IndexOf(
+            "|",
+            [System.StringComparison]::Ordinal)
+        if ($separatorIndex -le 0) {
+            throw "invalid expected EFI compile key: $compileKey"
+        }
+        $compileInclude = $compileKey.Substring(0, $separatorIndex)
+        $candidatePaths.Add(
+            [System.IO.Path]::GetFullPath(
+                (Join-Path $projectDirectory $compileInclude)))
+    }
+
+    $relativePaths = New-Object System.Collections.Generic.List[string]
+    $seenFullPaths = New-Object 'System.Collections.Generic.HashSet[string]' (
+        [System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($candidatePath in $candidatePaths) {
+        if (-not $seenFullPaths.Add($candidatePath)) {
+            continue
+        }
+        if (-not (Test-Path -LiteralPath $candidatePath -PathType Leaf)) {
+            throw "source snapshot input missing: $candidatePath"
+        }
+
+        if (-not $candidatePath.StartsWith(
+                $repositoryPrefix,
+                [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "source snapshot input outside repository: $candidatePath"
+        }
+        $relativePath = $candidatePath.Substring(
+            $repositoryPrefix.Length).Replace("\", "/")
+        $relativePaths.Add($relativePath)
+    }
+
+    $relativePathArray = $relativePaths.ToArray()
+    [System.Array]::Sort(
+        $relativePathArray,
+        [System.StringComparer]::Ordinal)
+    $inputs = New-Object System.Collections.Generic.List[object]
+    $aggregateBuilder = New-Object System.Text.StringBuilder
+    $authorityBuilder = New-Object System.Text.StringBuilder
+    $authorityRecords = New-Object System.Collections.Generic.List[object]
+    try {
+        foreach ($relativePath in $relativePathArray) {
+            $fullPath = [System.IO.Path]::GetFullPath(
+                (Join-Path $repositoryFullPath $relativePath))
+            $record = Open-M01AuthorityReadRecord `
+                -Path $fullPath `
+                -RootPath $repositoryFullPath `
+                -Purpose ("source:" + $relativePath) `
+                -FailurePrefix "source_authority" `
+                -RequireSingleLink
+            $authorityRecords.Add($record)
+            $hash = [string] $record.InitialSha256
+            $inputs.Add([ordered] @{
+                    path = $relativePath
+                    sha256 = $hash
+                })
+            [void] $aggregateBuilder.Append($relativePath)
+            [void] $aggregateBuilder.Append("|")
+            [void] $aggregateBuilder.Append($hash)
+            [void] $aggregateBuilder.Append("`n")
+            [void] $authorityBuilder.Append($relativePath)
+            [void] $authorityBuilder.Append("|")
+            [void] $authorityBuilder.Append($hash)
+            [void] $authorityBuilder.Append("|")
+            [void] $authorityBuilder.Append($record.InitialIdentityKey)
+            [void] $authorityBuilder.Append("|")
+            [void] $authorityBuilder.Append($record.InitialLinkCount)
+            [void] $authorityBuilder.Append("`n")
+        }
+        Assert-M01DistinctAuthorityRecords -Records $authorityRecords.ToArray()
+    }
+    finally {
+        Close-M01AuthorityRecords -Records $authorityRecords
+    }
+
+    $aggregateBytes = [System.Text.Encoding]::UTF8.GetBytes(
+        $aggregateBuilder.ToString())
+    $aggregateAlgorithm = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $aggregateHash = ([System.BitConverter]::ToString(
+                $aggregateAlgorithm.ComputeHash($aggregateBytes))).Replace(
+            "-",
+            "").ToLowerInvariant()
+    }
+    finally {
+        $aggregateAlgorithm.Dispose()
+    }
+    $authorityAlgorithm = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $authorityHash = ([System.BitConverter]::ToString(
+                $authorityAlgorithm.ComputeHash(
+                    [System.Text.Encoding]::UTF8.GetBytes(
+                        $authorityBuilder.ToString())))).Replace(
+            "-",
+            "").ToLowerInvariant()
+    }
+    finally {
+        $authorityAlgorithm.Dispose()
+    }
+
+    return [pscustomobject] @{
+        Inputs = $inputs.ToArray()
+        AggregateSha256 = $aggregateHash
+        AuthoritySha256 = $authorityHash
+        InputCount = $inputs.Count
+    }
+}
+
+function Get-M01ExactFileSnapshot {
+    param(
+        [string] $RepositoryRoot,
+        [string[]] $RelativePaths
+    )
+
+    $repositoryFullPath = [System.IO.Path]::GetFullPath($RepositoryRoot)
+    $repositoryPrefix = $repositoryFullPath.TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar) +
+        [System.IO.Path]::DirectorySeparatorChar
+    $normalizedPaths = New-Object System.Collections.Generic.List[string]
+    $seenPaths = New-Object 'System.Collections.Generic.HashSet[string]' (
+        [System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($relativePath in $RelativePaths) {
+        if ([string]::IsNullOrWhiteSpace($relativePath) -or
+            [System.IO.Path]::IsPathRooted($relativePath)) {
+            throw "exact snapshot relative path invalid"
+        }
+        $fullPath = [System.IO.Path]::GetFullPath(
+            (Join-Path $repositoryFullPath $relativePath))
+        if (-not $fullPath.StartsWith(
+                $repositoryPrefix,
+                [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "exact snapshot input outside repository: $fullPath"
+        }
+        if (-not $seenPaths.Add($fullPath)) {
+            throw "exact snapshot input duplicated: $fullPath"
+        }
+        if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+            throw "exact snapshot input missing: $fullPath"
+        }
+        $normalizedPaths.Add(
+            $fullPath.Substring($repositoryPrefix.Length).Replace("\", "/"))
+    }
+
+    $pathArray = $normalizedPaths.ToArray()
+    [System.Array]::Sort($pathArray, [System.StringComparer]::Ordinal)
+    $inputs = New-Object System.Collections.Generic.List[object]
+    $aggregateBuilder = New-Object System.Text.StringBuilder
+    foreach ($relativePath in $pathArray) {
+        $fullPath = [System.IO.Path]::GetFullPath(
+            (Join-Path $repositoryFullPath $relativePath))
+        $hash = (
+            Get-FileHash -LiteralPath $fullPath -Algorithm SHA256
+        ).Hash.ToLowerInvariant()
+        $inputs.Add([ordered] @{
+                path = $relativePath
+                sha256 = $hash
+            })
+        [void] $aggregateBuilder.Append($relativePath)
+        [void] $aggregateBuilder.Append("|")
+        [void] $aggregateBuilder.Append($hash)
+        [void] $aggregateBuilder.Append("`n")
+    }
+
+    $aggregateAlgorithm = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $aggregateHash = ([System.BitConverter]::ToString(
+                $aggregateAlgorithm.ComputeHash(
+                    [System.Text.Encoding]::UTF8.GetBytes(
+                        $aggregateBuilder.ToString())))).Replace(
+            "-",
+            "").ToLowerInvariant()
+    }
+    finally {
+        $aggregateAlgorithm.Dispose()
+    }
+
+    return [pscustomobject] @{
+        Inputs = $inputs.ToArray()
+        AggregateSha256 = $aggregateHash
+    }
+}
+
+function Get-M01ExactRestoreClosureSnapshot {
+    param(
+        [string] $RepositoryRoot,
+        [string] $ProjectExtensionsDirectory,
+        [string[]] $ExpectedRelativePaths
+    )
+
+    $repositoryFullPath = [System.IO.Path]::GetFullPath($RepositoryRoot)
+    $repositoryPrefix = $repositoryFullPath.TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar) +
+        [System.IO.Path]::DirectorySeparatorChar
+    $extensionsFullPath = [System.IO.Path]::GetFullPath(
+        $ProjectExtensionsDirectory)
+    if (-not $extensionsFullPath.StartsWith(
+            $repositoryPrefix,
+            [System.StringComparison]::OrdinalIgnoreCase) -or
+        -not (Test-Path -LiteralPath $extensionsFullPath -PathType Container)) {
+        throw "restore project-extensions directory is not canonical"
+    }
+    $extensionsItem = Get-Item -LiteralPath $extensionsFullPath -Force
+    if (($extensionsItem.Attributes -band
+            [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "restore project-extensions directory is a reparse point"
+    }
+
+    $actualEntries = @(
+        Get-ChildItem -LiteralPath $extensionsFullPath -Force)
+    if ($actualEntries.Count -ne $ExpectedRelativePaths.Count -or
+        @($actualEntries | Where-Object { $_.PSIsContainer }).Count -ne 0) {
+        throw (
+            "restore closure entry count mismatch: expected=" +
+            $ExpectedRelativePaths.Count +
+            " actual=" +
+            $actualEntries.Count)
+    }
+
+    $expectedPaths = @($ExpectedRelativePaths)
+    [System.Array]::Sort($expectedPaths, [System.StringComparer]::Ordinal)
+    $actualPaths = @(
+        $actualEntries |
+            ForEach-Object {
+                if (($_.Attributes -band
+                        [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+                    throw "restore closure contains a reparse point: $($_.FullName)"
+                }
+                $_.FullName.Substring($repositoryPrefix.Length).Replace("\", "/")
+            })
+    [System.Array]::Sort($actualPaths, [System.StringComparer]::Ordinal)
+    for ($index = 0; $index -lt $expectedPaths.Count; $index++) {
+        if ($actualPaths[$index] -cne $expectedPaths[$index]) {
+            throw (
+                "restore closure input mismatch: expected=" +
+                $expectedPaths[$index] +
+                " actual=" +
+                $actualPaths[$index])
+        }
+    }
+
+    return Get-M01ExactFileSnapshot `
+        -RepositoryRoot $repositoryFullPath `
+        -RelativePaths $expectedPaths
+}
+
+function Test-M01ExactPropertyNameSet {
+    param(
+        [AllowNull()]
+        [object] $Value,
+        [string[]] $ExpectedNames
+    )
+
+    if ($null -eq $Value) {
+        return $false
+    }
+    $actualNames = @(
+        $Value.PSObject.Properties |
+            ForEach-Object { [string] $_.Name })
+    $expected = @($ExpectedNames)
+    [System.Array]::Sort($actualNames, [System.StringComparer]::Ordinal)
+    [System.Array]::Sort($expected, [System.StringComparer]::Ordinal)
+    if ($actualNames.Count -ne $expected.Count) {
+        return $false
+    }
+    for ($index = 0; $index -lt $expected.Count; $index++) {
+        if ($actualNames[$index] -cne $expected[$index]) {
+            return $false
+        }
+    }
+    return $true
+}
+
+function Get-M01Utf8Sha256 {
+    param([AllowEmptyString()][string] $Text)
+
+    $algorithm = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        return ([System.BitConverter]::ToString(
+                $algorithm.ComputeHash(
+                    [System.Text.Encoding]::UTF8.GetBytes($Text)))).Replace(
+            "-",
+            "").ToLowerInvariant()
+    }
+    finally {
+        $algorithm.Dispose()
+    }
+}
+
+function Get-M01MsbuildIsolationContract {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $ProjectExtensionsDirectory
+    )
+
+    if ([string]::IsNullOrWhiteSpace($script:VerifiedDotnetSdkDirectory) -or
+        [string]::IsNullOrWhiteSpace($script:VerifiedMsbuildSdksPath) -or
+        [string]::IsNullOrWhiteSpace($script:VerifiedMsbuildExtensionsPath)) {
+        throw "verified MSBuild SDK isolation paths are unavailable"
+    }
+
+    $projectExtensionsFullPath = [System.IO.Path]::GetFullPath(
+        $ProjectExtensionsDirectory.TrimEnd(
+            [System.IO.Path]::DirectorySeparatorChar,
+            [System.IO.Path]::AltDirectorySeparatorChar))
+    $disabledUserExtensionsPath = Join-Path (
+        $projectExtensionsFullPath) "disabled-user-extensions"
+    if (Test-Path -LiteralPath $disabledUserExtensionsPath) {
+        throw (
+            "disabled MSBuild user extensions path must remain absent: " +
+            $disabledUserExtensionsPath)
+    }
+
+    $properties = [ordered] @{
+        MSBuildSDKsPath = $script:VerifiedMsbuildSdksPath
+        MSBuildExtensionsPath = $script:VerifiedMsbuildExtensionsPath
+        MSBuildUserExtensionsPath = $disabledUserExtensionsPath
+        ImportByWildcardBeforeMicrosoftCommonProps = "false"
+        ImportByWildcardAfterMicrosoftCommonProps = "false"
+        ImportUserLocationsByWildcardBeforeMicrosoftCommonProps = "false"
+        ImportUserLocationsByWildcardAfterMicrosoftCommonProps = "false"
+        ImportByWildcardBeforeMicrosoftCommonTargets = "false"
+        ImportByWildcardAfterMicrosoftCommonTargets = "false"
+        ImportUserLocationsByWildcardBeforeMicrosoftCommonTargets = "false"
+        ImportUserLocationsByWildcardAfterMicrosoftCommonTargets = "false"
+        ImportByWildcardBeforeMicrosoftCSharpTargets = "false"
+        ImportByWildcardAfterMicrosoftCSharpTargets = "false"
+        ImportUserLocationsByWildcardBeforeMicrosoftCSharpTargets = "false"
+        ImportUserLocationsByWildcardAfterMicrosoftCSharpTargets = "false"
+        ImportByWildcardBeforeMicrosoftCommonCrossTargetingTargets = "false"
+        ImportByWildcardAfterMicrosoftCommonCrossTargetingTargets = "false"
+        UseSharedCompilation = "false"
+    }
+    $arguments = New-Object System.Collections.Generic.List[string]
+    $arguments.Add("-nodeReuse:false")
+    foreach ($entry in $properties.GetEnumerator()) {
+        if ($entry.Key -ceq "MSBuildExtensionsPath") {
+            # A quoted Windows native-process argument ending in "\" can
+            # consume the following argument. Preserve the required canonical
+            # trailing separator through the child environment instead.
+            continue
+        }
+        $arguments.Add("-p:" + $entry.Key + "=" + [string] $entry.Value)
+    }
+
+    $environment = @{
+        MSBuildSDKsPath = $script:VerifiedMsbuildSdksPath
+        MSBuildExtensionsPath = $script:VerifiedMsbuildExtensionsPath
+        MSBuildUserExtensionsPath = $disabledUserExtensionsPath
+    }
+
+    return [pscustomobject] @{
+        ProjectExtensionsDirectory = $projectExtensionsFullPath
+        DisabledUserExtensionsPath = $disabledUserExtensionsPath
+        Properties = $properties
+        Arguments = $arguments.ToArray()
+        Environment = $environment
+    }
+}
+
+function Invoke-M01PostRestoreEvaluation {
+    param(
+        [string] $RepositoryRoot,
+        [string] $ProjectPath,
+        [string] $Configuration,
+        [string] $Runtime,
+        [string] $ProjectExtensionsDirectory,
+        [string] $ProjectAssetsPath,
+        [string] $RestorePackagesRoot,
+        [string] $IlCompilerTargetsPath,
+        [string] $IlLinkTargetsPath,
+        [string] $IlLinkTasksAssembly,
+        [string] $IlcBuildTasksPath,
+        [string] $IlcHostPackagePath,
+        [string] $IlcToolsPath,
+        [string] $RuntimePackagePath,
+        [string] $IlcFrameworkPath,
+        [string] $IlcFrameworkNativePath,
+        [string] $IlcSdkPath,
+        [string] $IlcMibcPath,
+        [string] $LanguageTargetsPath,
+        [string] $CSharpTargetsPath,
+        [string] $CommonTargetsPath
+    )
+
+    $canonicalRootPropsPath = Join-Path $RepositoryRoot "Directory.Build.props"
+    $canonicalRootTargetsPath = Join-Path $RepositoryRoot "Directory.Build.targets"
+    $msbuildIsolation = Get-M01MsbuildIsolationContract `
+        -ProjectExtensionsDirectory $ProjectExtensionsDirectory
+    $arguments = @(
+        "msbuild",
+        $ProjectPath,
+        "-noAutoResponse",
+        "-nologo",
+        "-getItem:Compile,ProjectReference,Reference,Analyzer",
+        (
+            "-getProperty:" +
+            "_targetOS,_targetArchitecture,RuntimeIdentifier," +
+            "TargetFramework,PublishAot,SelfContained,PublishTrimmed," +
+            "ImportProjectExtensionProps,ImportProjectExtensionTargets," +
+            "ExcludeRestorePackageImports,ILCompilerTargetsPath," +
+            "ILLinkTargetsPath,ILLinkTasksAssembly,IlcBuildTasksPath," +
+            "IlcHostPackagePath,IlcToolsPath,RuntimePackagePath," +
+            "IlcFrameworkPath,IlcFrameworkNativePath,IlcSdkPath," +
+            "IlcMibcPath,RunILLink,NativeCompilationDuringPublish," +
+            "IlcMultiModule,DisableFrameworkLibGeneration," +
+            "IlcUseEnvironmentalTools,PublishAotUsingRuntimePack," +
+            "IlcPgoOptimize,ClrosIlcHostPackagePath," +
+            "ClrosRuntimePackagePath,ImportRuntimeIlcPackageTargetDependsOn," +
+            "IlcSetupPropertiesDependsOn,IlcDynamicBuildPropertyDependencies," +
+            "ImportNuGetBuildTasksPackTargetsFromSdk," +
+            "NuGetBuildTasksPackTargets,LanguageTargets,CSharpTargetsPath," +
+            "CommonTargetsPath,MSBuildSDKsPath,MSBuildExtensionsPath," +
+            "MSBuildUserExtensionsPath," +
+            "ImportByWildcardBeforeMicrosoftCommonProps," +
+            "ImportByWildcardAfterMicrosoftCommonProps," +
+            "ImportUserLocationsByWildcardBeforeMicrosoftCommonProps," +
+            "ImportUserLocationsByWildcardAfterMicrosoftCommonProps," +
+            "ImportByWildcardBeforeMicrosoftCommonTargets," +
+            "ImportByWildcardAfterMicrosoftCommonTargets," +
+            "ImportUserLocationsByWildcardBeforeMicrosoftCommonTargets," +
+            "ImportUserLocationsByWildcardAfterMicrosoftCommonTargets," +
+            "ImportByWildcardBeforeMicrosoftCSharpTargets," +
+            "ImportByWildcardAfterMicrosoftCSharpTargets," +
+            "ImportUserLocationsByWildcardBeforeMicrosoftCSharpTargets," +
+            "ImportUserLocationsByWildcardAfterMicrosoftCSharpTargets," +
+            "ImportByWildcardBeforeMicrosoftCommonCrossTargetingTargets," +
+            "ImportByWildcardAfterMicrosoftCommonCrossTargetingTargets," +
+            "UseSharedCompilation"
+        ),
+        ("-p:Configuration=" + $Configuration),
+        ("-p:RuntimeIdentifier=" + $Runtime),
+        ("-p:DirectoryBuildPropsPath=" + $canonicalRootPropsPath),
+        ("-p:DirectoryBuildTargetsPath=" + $canonicalRootTargetsPath),
+        ("-p:MSBuildProjectExtensionsPath=" +
+            $ProjectExtensionsDirectory.Replace("\", "/").TrimEnd("/") + "/"),
+        ("-p:ProjectAssetsFile=" + $ProjectAssetsPath.Replace("\", "/")),
+        ("-p:RestorePackagesPath=" + $RestorePackagesRoot),
+        ("-p:NuGetPackageRoot=" + $RestorePackagesRoot),
+        "-p:ImportDirectoryBuildProps=true",
+        "-p:ImportDirectoryBuildTargets=true",
+        "-p:ImportProjectExtensionProps=false",
+        "-p:ImportProjectExtensionTargets=false",
+        "-p:ExcludeRestorePackageImports=true",
+        "-p:CustomBeforeMicrosoftCommonProps=",
+        "-p:CustomAfterMicrosoftCommonProps=",
+        "-p:CustomBeforeDirectoryBuildProps=",
+        "-p:CustomAfterDirectoryBuildProps=",
+        "-p:CustomBeforeDirectoryBuildTargets=",
+        "-p:CustomAfterDirectoryBuildTargets=",
+        "-p:CustomBeforeMicrosoftCommonTargets=",
+        "-p:CustomAfterMicrosoftCommonTargets=",
+        "-p:CustomBeforeMicrosoftCSharpTargets=",
+        "-p:CustomAfterMicrosoftCSharpTargets=",
+        "-p:CustomBeforeMicrosoftCommonCrossTargetingTargets=",
+        "-p:CustomAfterMicrosoftCommonCrossTargetingTargets=",
+        "-p:BeforeMicrosoftNETSdkTargets=",
+        "-p:AfterMicrosoftNETSdkTargets=",
+        ("-p:ILCompilerTargetsPath=" + $IlCompilerTargetsPath),
+        ("-p:ILLinkTargetsPath=" + $IlLinkTargetsPath),
+        ("-p:ILLinkTasksAssembly=" + $IlLinkTasksAssembly),
+        ("-p:IlcBuildTasksPath=" + $IlcBuildTasksPath),
+        ("-p:IlcHostPackagePath=" + $IlcHostPackagePath),
+        ("-p:ClrosIlcHostPackagePath=" + $IlcHostPackagePath),
+        ("-p:IlcToolsPath=" + $IlcToolsPath),
+        ("-p:RuntimePackagePath=" + $RuntimePackagePath),
+        ("-p:ClrosRuntimePackagePath=" + $RuntimePackagePath),
+        ("-p:IlcFrameworkPath=" + $IlcFrameworkPath),
+        ("-p:IlcFrameworkNativePath=" + $IlcFrameworkNativePath),
+        ("-p:IlcSdkPath=" + $IlcSdkPath),
+        ("-p:IlcMibcPath=" + $IlcMibcPath),
+        "-p:RunILLink=false",
+        "-p:NativeCompilationDuringPublish=true",
+        "-p:IlcMultiModule=false",
+        "-p:DisableFrameworkLibGeneration=true",
+        "-p:IlcUseEnvironmentalTools=true",
+        "-p:PublishAotUsingRuntimePack=false",
+        "-p:IlcPgoOptimize=false",
+        "-p:PublishTrimmed=true",
+        "-p:ImportRuntimeIlcPackageTargetDependsOn=",
+        "-p:IlcSetupPropertiesDependsOn=ImportRuntimeIlcPackageTarget",
+        "-p:IlcDynamicBuildPropertyDependencies=SetupProperties",
+        "-p:ImportNuGetBuildTasksPackTargetsFromSdk=false",
+        "-p:NuGetBuildTasksPackTargets=",
+        ("-p:LanguageTargets=" + $LanguageTargetsPath),
+        ("-p:CSharpTargetsPath=" + $CSharpTargetsPath),
+        ("-p:CommonTargetsPath=" + $CommonTargetsPath)
+    )
+    $arguments += $msbuildIsolation.Arguments
+    $processResult = Invoke-M01BoundedProcess `
+        -FilePath $script:DotnetHostPath `
+        -Arguments $arguments `
+        -WorkingDirectory $RepositoryRoot `
+        -Operation "post-restore-evaluation" `
+        -TimeoutSeconds $BuildProcessTimeoutSeconds `
+        -MaximumOutputCharacters $BuildProcessMaximumOutputCharacters `
+        -EnvironmentOverrides $msbuildIsolation.Environment
+    $processFailure = Get-M01BoundedProcessFailureReason -Result $processResult
+    if ($processFailure -cne "ok") {
+        throw (
+            "post-restore project evaluation failed: " +
+            $processFailure +
+            ";output=" +
+            $processResult.OutputText)
+    }
+    $outputText = $processResult.OutputText
+    $jsonStart = $outputText.IndexOf(
+        "{",
+        [System.StringComparison]::Ordinal)
+    $jsonEnd = $outputText.LastIndexOf(
+        "}",
+        [System.StringComparison]::Ordinal)
+    if ($jsonStart -lt 0 -or $jsonEnd -le $jsonStart) {
+        throw "post-restore project evaluation malformed"
+    }
+    try {
+        $evaluation = $outputText.Substring(
+            $jsonStart,
+            $jsonEnd - $jsonStart + 1) | ConvertFrom-Json
+    }
+    catch {
+        throw "post-restore project evaluation JSON invalid"
+    }
+
+    $expectedProperties = [ordered] @{
+        _targetOS = "win"
+        _targetArchitecture = "x64"
+        RuntimeIdentifier = $Runtime
+        TargetFramework = "net10.0"
+        PublishAot = "true"
+        SelfContained = "true"
+        PublishTrimmed = "true"
+        ImportProjectExtensionProps = "false"
+        ImportProjectExtensionTargets = "false"
+        ExcludeRestorePackageImports = "true"
+        ILCompilerTargetsPath = $IlCompilerTargetsPath
+        ILLinkTargetsPath = $IlLinkTargetsPath
+        ILLinkTasksAssembly = $IlLinkTasksAssembly
+        IlcBuildTasksPath = $IlcBuildTasksPath
+        IlcHostPackagePath = $IlcHostPackagePath
+        ClrosIlcHostPackagePath = $IlcHostPackagePath
+        IlcToolsPath = $IlcToolsPath
+        RuntimePackagePath = $RuntimePackagePath
+        ClrosRuntimePackagePath = $RuntimePackagePath
+        IlcFrameworkPath = $IlcFrameworkPath
+        IlcFrameworkNativePath = $IlcFrameworkNativePath
+        IlcSdkPath = $IlcSdkPath
+        IlcMibcPath = $IlcMibcPath
+        RunILLink = "false"
+        NativeCompilationDuringPublish = "true"
+        IlcMultiModule = "false"
+        DisableFrameworkLibGeneration = "true"
+        IlcUseEnvironmentalTools = "true"
+        PublishAotUsingRuntimePack = "false"
+        IlcPgoOptimize = "false"
+        ImportRuntimeIlcPackageTargetDependsOn = ""
+        IlcSetupPropertiesDependsOn = "ImportRuntimeIlcPackageTarget"
+        IlcDynamicBuildPropertyDependencies = "SetupProperties"
+        ImportNuGetBuildTasksPackTargetsFromSdk = "false"
+        NuGetBuildTasksPackTargets = ""
+        LanguageTargets = $LanguageTargetsPath
+        CSharpTargetsPath = $CSharpTargetsPath
+        CommonTargetsPath = $CommonTargetsPath
+    }
+    foreach ($entry in $msbuildIsolation.Properties.GetEnumerator()) {
+        $expectedProperties[$entry.Key] = [string] $entry.Value
+    }
+    foreach ($entry in $expectedProperties.GetEnumerator()) {
+        if ([string] $evaluation.Properties.($entry.Key) -cne
+            [string] $entry.Value) {
+            throw "post-restore property mismatch: $($entry.Key)"
+        }
+    }
+
+    $compileItems = @($evaluation.Items.Compile)
+    $projectReferences = @($evaluation.Items.ProjectReference)
+    $references = @($evaluation.Items.Reference)
+    $analyzers = @($evaluation.Items.Analyzer)
+    if ($compileItems.Count -ne $script:ExpectedEfiCompileItems.Count -or
+        $projectReferences.Count -ne 0 -or
+        $references.Count -ne 0 -or
+        $analyzers.Count -ne 2) {
+        throw (
+            "post-restore item count mismatch: compile=" +
+            $compileItems.Count +
+            ";project=" +
+            $projectReferences.Count +
+            ";reference=" +
+            $references.Count +
+            ";analyzer=" +
+            $analyzers.Count)
+    }
+
+    $compileBuilder = New-Object System.Text.StringBuilder
+    for ($index = 0; $index -lt $compileItems.Count; $index++) {
+        $item = $compileItems[$index]
+        $link = if ($null -eq $item.Link) { "" } else { [string] $item.Link }
+        $key = [string] $item.Identity + "|" + $link
+        if ($key -cne $script:ExpectedEfiCompileItems[$index]) {
+            throw "post-restore compile item mismatch: $index"
+        }
+        [void] $compileBuilder.Append($key)
+        [void] $compileBuilder.Append("`n")
+    }
+    $expectedAnalyzerNames = @(
+        "Microsoft.CodeAnalysis.CSharp.NetAnalyzers.dll",
+        "Microsoft.CodeAnalysis.NetAnalyzers.dll")
+    $analyzerRecords = New-Object System.Collections.Generic.List[string]
+    foreach ($analyzer in $analyzers) {
+        $analyzerName = [System.IO.Path]::GetFileName(
+            [string] $analyzer.FullPath)
+        $definingProjectName = [System.IO.Path]::GetFileName(
+            [string] $analyzer.DefiningProjectFullPath)
+        if ($expectedAnalyzerNames -cnotcontains $analyzerName -or
+            $definingProjectName -cne
+                "Microsoft.NET.Sdk.Analyzers.targets") {
+            throw "post-restore analyzer item mismatch"
+        }
+        $analyzerRecords.Add(
+            $analyzerName + "|" + $definingProjectName)
+    }
+    $analyzerArray = [string[]] $analyzerRecords.ToArray()
+    [System.Array]::Sort(
+        $analyzerArray,
+        [System.StringComparer]::Ordinal)
+    return [ordered] @{
+        compileCount = $compileItems.Count
+        compileSha256 = Get-M01Utf8Sha256 -Text $compileBuilder.ToString()
+        projectReferenceCount = $projectReferences.Count
+        projectReferenceSha256 = Get-M01Utf8Sha256 -Text ""
+        referenceCount = $references.Count
+        referenceSha256 = Get-M01Utf8Sha256 -Text ""
+        analyzerCount = $analyzers.Count
+        analyzerSha256 = Get-M01Utf8Sha256 -Text (
+            ($analyzerArray -join "`n") + "`n")
+        properties = $expectedProperties
+    }
+}
+
+function Test-M01RestoreSemanticClosure {
+    param(
+        [string] $ProjectPath,
+        [string] $ProjectExtensionsDirectory,
+        [string] $PackageCacheRoot
+    )
+
+    $projectFullPath = [System.IO.Path]::GetFullPath($ProjectPath)
+    $extensionsFullPath = [System.IO.Path]::GetFullPath(
+        $ProjectExtensionsDirectory)
+    $packageCacheFullPath = [System.IO.Path]::GetFullPath(
+        $PackageCacheRoot).TrimEnd(
+            [System.IO.Path]::DirectorySeparatorChar,
+            [System.IO.Path]::AltDirectorySeparatorChar)
+    $propsPath = Join-Path $extensionsFullPath "OS.csproj.nuget.g.props"
+    $targetsPath = Join-Path $extensionsFullPath "OS.csproj.nuget.g.targets"
+    $assetsPath = Join-Path $extensionsFullPath "project.assets.json"
+
+    $props = Read-M01SecureXmlDocument -Path $propsPath
+    $propsRoot = $props.DocumentElement
+    if ($null -eq $propsRoot -or
+        $propsRoot.LocalName -cne "Project" -or
+        $propsRoot.NamespaceURI -cne
+            "http://schemas.microsoft.com/developer/msbuild/2003" -or
+        $propsRoot.Attributes.Count -ne 2 -or
+        $propsRoot.GetAttribute("ToolsVersion") -cne "14.0" -or
+        $propsRoot.GetAttribute("xmlns") -cne
+            "http://schemas.microsoft.com/developer/msbuild/2003") {
+        throw "restore generated props root invalid"
+    }
+    $propsChildren = @(
+        $propsRoot.ChildNodes |
+            Where-Object { $_.NodeType -eq [System.Xml.XmlNodeType]::Element })
+    $expectedChildNames = @(
+        "PropertyGroup",
+        "ItemGroup",
+        "ImportGroup",
+        "PropertyGroup")
+    if ($propsChildren.Count -ne $expectedChildNames.Count) {
+        throw "restore generated props child count invalid"
+    }
+    for ($index = 0; $index -lt $expectedChildNames.Count; $index++) {
+        if ($propsChildren[$index].LocalName -cne $expectedChildNames[$index]) {
+            throw "restore generated props child order invalid"
+        }
+        if ($propsChildren[$index].Attributes.Count -ne 1 -or
+            $propsChildren[$index].GetAttribute("Condition") -cne
+                " '`$(ExcludeRestorePackageImports)' != 'true' ") {
+            throw "restore generated props group attributes invalid"
+        }
+    }
+
+    $forbiddenPropsNodes = @($props.SelectNodes(
+        "//*[local-name()='Target' or local-name()='UsingTask' or " +
+        "local-name()='Choose' or local-name()='When' or " +
+        "local-name()='Otherwise' or local-name()='ItemDefinitionGroup' or " +
+        "local-name()='PropertyGroup']/*[contains(local-name(), 'Custom') or " +
+        "contains(local-name(), 'Before') or contains(local-name(), 'After')]"))
+    if ($forbiddenPropsNodes.Count -ne 0) {
+        throw "restore generated props executable surface invalid"
+    }
+
+    $imports = @($props.SelectNodes("//*[local-name()='Import']"))
+    $expectedImports = [ordered] @{
+        '$(NuGetPackageRoot)\microsoft.net.illink.tasks\10.0.10\build\Microsoft.NET.ILLink.Tasks.props' =
+            "Exists('`$(NuGetPackageRoot)\microsoft.net.illink.tasks\10.0.10\build\Microsoft.NET.ILLink.Tasks.props')"
+        '$(NuGetPackageRoot)\microsoft.dotnet.ilcompiler\10.0.8\build\Microsoft.DotNet.ILCompiler.props' =
+            "Exists('`$(NuGetPackageRoot)\microsoft.dotnet.ilcompiler\10.0.8\build\Microsoft.DotNet.ILCompiler.props')"
+    }
+    if ($imports.Count -ne $expectedImports.Count) {
+        throw "restore generated props import count invalid"
+    }
+    $seenImports = New-Object 'System.Collections.Generic.HashSet[string]' (
+        [System.StringComparer]::Ordinal)
+    foreach ($import in $imports) {
+        $project = $import.GetAttribute("Project")
+        if (-not $expectedImports.Contains($project) -or
+            -not $seenImports.Add($project) -or
+            $import.GetAttribute("Condition") -cne $expectedImports[$project] -or
+            $import.Attributes.Count -ne 2 -or
+            $import.ParentNode.LocalName -cne "ImportGroup" -or
+            $import.ParentNode.GetAttribute("Condition") -cne
+                " '`$(ExcludeRestorePackageImports)' != 'true' ") {
+            throw "restore generated props import invalid"
+        }
+    }
+
+    $allowedPropertyNames = @(
+        "RestoreSuccess",
+        "RestoreTool",
+        "ProjectAssetsFile",
+        "NuGetPackageRoot",
+        "NuGetPackageFolders",
+        "NuGetProjectStyle",
+        "NuGetToolVersion",
+        "Pkgruntime_win-x64_Microsoft_DotNet_ILCompiler",
+        "PkgMicrosoft_NET_ILLink_Tasks",
+        "PkgMicrosoft_DotNet_ILCompiler")
+    $propertyNodes = @(
+        $props.SelectNodes("//*[local-name()='PropertyGroup']/*"))
+    if ($propertyNodes.Count -ne $allowedPropertyNames.Count) {
+        throw "restore generated props property count invalid"
+    }
+    $seenPropertyNames = New-Object 'System.Collections.Generic.HashSet[string]' (
+        [System.StringComparer]::Ordinal)
+    foreach ($propertyNode in $propertyNodes) {
+        if ($allowedPropertyNames -cnotcontains $propertyNode.LocalName -or
+            -not $seenPropertyNames.Add($propertyNode.LocalName) -or
+            $propertyNode.Attributes.Count -ne 1 -or
+            $propertyNode.GetAttribute("Condition") -cne
+                (" '`$(" + $propertyNode.LocalName + ")' == '' ")) {
+            throw "restore generated props property invalid"
+        }
+    }
+    $userProfileFullPath = [System.IO.Path]::GetFullPath(
+        [Environment]::GetFolderPath(
+            [Environment+SpecialFolder]::UserProfile)).TrimEnd(
+                [System.IO.Path]::DirectorySeparatorChar,
+                [System.IO.Path]::AltDirectorySeparatorChar)
+    $userProfilePrefix = $userProfileFullPath +
+        [System.IO.Path]::DirectorySeparatorChar
+    $generatedPackageRoot = if ($packageCacheFullPath.StartsWith(
+            $userProfilePrefix,
+            [System.StringComparison]::OrdinalIgnoreCase)) {
+        '$(UserProfile)\' +
+            $packageCacheFullPath.Substring($userProfilePrefix.Length)
+    }
+    else {
+        $packageCacheFullPath
+    }
+    $expectedPropertyValues = [ordered] @{
+        RestoreSuccess = "True"
+        RestoreTool = "NuGet"
+        ProjectAssetsFile = '$(MSBuildThisFileDirectory)project.assets.json'
+        NuGetPackageRoot = $generatedPackageRoot
+        NuGetProjectStyle = "PackageReference"
+        NuGetToolVersion = "7.0.0"
+        'Pkgruntime_win-x64_Microsoft_DotNet_ILCompiler' =
+            (Join-Path $packageCacheFullPath (
+                "runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.8"))
+        'PkgMicrosoft_NET_ILLink_Tasks' =
+            (Join-Path $packageCacheFullPath (
+                "microsoft.net.illink.tasks\10.0.10"))
+        'PkgMicrosoft_DotNet_ILCompiler' =
+            (Join-Path $packageCacheFullPath (
+                "microsoft.dotnet.ilcompiler\10.0.8"))
+    }
+    foreach ($propertyName in $expectedPropertyValues.Keys) {
+        $propertyNode = @(
+            $propertyNodes |
+                Where-Object { $_.LocalName -ceq $propertyName })[0]
+        if ($null -eq $propertyNode -or
+            $propertyNode.InnerText -cne $expectedPropertyValues[$propertyName]) {
+            throw "restore generated props property value invalid: $propertyName"
+        }
+    }
+
+    $generatedTargets = Read-M01SecureXmlDocument -Path $targetsPath
+    if ($null -eq $generatedTargets.DocumentElement -or
+        $generatedTargets.DocumentElement.LocalName -cne "Project" -or
+        $generatedTargets.DocumentElement.NamespaceURI -cne
+            "http://schemas.microsoft.com/developer/msbuild/2003" -or
+        $generatedTargets.DocumentElement.Attributes.Count -ne 2 -or
+        $generatedTargets.DocumentElement.GetAttribute("ToolsVersion") -cne
+            "14.0" -or
+        $generatedTargets.DocumentElement.GetAttribute("xmlns") -cne
+            "http://schemas.microsoft.com/developer/msbuild/2003" -or
+        @($generatedTargets.DocumentElement.ChildNodes |
+            Where-Object {
+                $_.NodeType -eq [System.Xml.XmlNodeType]::Element
+            }).Count -ne 0) {
+        throw "restore generated targets must be empty"
+    }
+
+    try {
+        $assets = [System.IO.File]::ReadAllText($assetsPath) |
+            ConvertFrom-Json
+    }
+    catch {
+        throw "restore project assets invalid"
+    }
+    if (-not (Test-M01ExactPropertyNameSet `
+            -Value $assets `
+            -ExpectedNames @(
+                "version",
+                "targets",
+                "libraries",
+                "projectFileDependencyGroups",
+                "packageFolders",
+                "project")) -or
+        [int64] $assets.version -ne 4) {
+        throw "restore project assets root invalid"
+    }
+
+    $libraryProperties = @($assets.libraries.PSObject.Properties)
+    if ($libraryProperties.Count -ne $script:ExpectedRestoreLibraries.Count) {
+        throw "restore project assets library count invalid"
+    }
+    foreach ($libraryProperty in $libraryProperties) {
+        $libraryName = [string] $libraryProperty.Name
+        if (-not $script:ExpectedRestoreLibraries.Contains($libraryName)) {
+            throw "restore project assets library unexpected: $libraryName"
+        }
+        $expectedLibrary = $script:ExpectedRestoreLibraries[$libraryName]
+        $library = $libraryProperty.Value
+        if (-not (Test-M01ExactPropertyNameSet `
+                -Value $library `
+                -ExpectedNames @("sha512", "type", "path", "hasTools", "files")) -or
+            [string] $library.sha512 -cne [string] $expectedLibrary.Sha512 -or
+            [string] $library.type -cne "package" -or
+            [string] $library.path -cne [string] $expectedLibrary.Path -or
+            $library.hasTools -isnot [bool] -or
+            -not [bool] $library.hasTools -or
+            @($library.files).Count -ne [int] $expectedLibrary.FileCount) {
+            throw "restore project assets library contract invalid: $libraryName"
+        }
+        $seenLibraryFiles = New-Object 'System.Collections.Generic.HashSet[string]' (
+            [System.StringComparer]::Ordinal)
+        foreach ($libraryFile in @($library.files)) {
+            $libraryFilePath = [string] $libraryFile
+            if ([string]::IsNullOrWhiteSpace($libraryFilePath) -or
+                [System.IO.Path]::IsPathRooted($libraryFilePath) -or
+                $libraryFilePath.IndexOf("..", [System.StringComparison]::Ordinal) -ge 0 -or
+                $libraryFilePath.IndexOf(":", [System.StringComparison]::Ordinal) -ge 0 -or
+                -not $seenLibraryFiles.Add($libraryFilePath)) {
+                throw "restore project assets library file invalid: $libraryName"
+            }
+        }
+    }
+
+    $targetProperties = @($assets.targets.PSObject.Properties)
+    $expectedTargetNames = @("net10.0", "net10.0/win-x64")
+    if ($targetProperties.Count -ne $expectedTargetNames.Count) {
+        throw "restore project assets target count invalid"
+    }
+    foreach ($targetName in $expectedTargetNames) {
+        $targetProperty = @(
+            $targetProperties |
+                Where-Object { $_.Name -ceq $targetName })[0]
+        if ($null -eq $targetProperty) {
+            throw "restore project assets target missing: $targetName"
+        }
+        $targetLibraries = @($targetProperty.Value.PSObject.Properties)
+        if ($targetLibraries.Count -ne $script:ExpectedRestoreLibraries.Count) {
+            throw "restore project assets target library count invalid: $targetName"
+        }
+        foreach ($targetLibraryProperty in $targetLibraries) {
+            $libraryName = [string] $targetLibraryProperty.Name
+            if (-not $script:ExpectedRestoreLibraries.Contains($libraryName)) {
+                throw "restore project assets target library unexpected: $libraryName"
+            }
+            $targetLibrary = $targetLibraryProperty.Value
+            $isCompiler = $libraryName -ceq
+                "Microsoft.DotNet.ILCompiler/10.0.8"
+            $isLinker = $libraryName -ceq
+                "Microsoft.NET.ILLink.Tasks/10.0.10"
+            $isRidTarget = $targetName -ceq "net10.0/win-x64"
+            $expectedNames = if ($isCompiler -and $isRidTarget) {
+                @("type", "dependencies", "build")
+            }
+            elseif ($isCompiler -or $isLinker) {
+                @("type", "build")
+            }
+            else {
+                @("type")
+            }
+            if (-not (Test-M01ExactPropertyNameSet `
+                    -Value $targetLibrary `
+                    -ExpectedNames $expectedNames) -or
+                [string] $targetLibrary.type -cne "package") {
+                throw "restore project assets target library contract invalid: $targetName/$libraryName"
+            }
+            if ($isCompiler -or $isLinker) {
+                $expectedBuildPath = if ($isCompiler) {
+                    "build/Microsoft.DotNet.ILCompiler.props"
+                }
+                else {
+                    "build/Microsoft.NET.ILLink.Tasks.props"
+                }
+                $buildProperties = @($targetLibrary.build.PSObject.Properties)
+                if ($buildProperties.Count -ne 1 -or
+                    $buildProperties[0].Name -cne $expectedBuildPath -or
+                    @($buildProperties[0].Value.PSObject.Properties).Count -ne 0) {
+                    throw "restore project assets build import invalid: $targetName/$libraryName"
+                }
+            }
+            if ($isCompiler -and $isRidTarget) {
+                $dependencies = @(
+                    $targetLibrary.dependencies.PSObject.Properties)
+                if ($dependencies.Count -ne 1 -or
+                    $dependencies[0].Name -cne
+                        "runtime.win-x64.Microsoft.DotNet.ILCompiler" -or
+                    [string] $dependencies[0].Value -cne "10.0.8") {
+                    throw "restore project assets compiler dependency invalid"
+                }
+            }
+        }
+    }
+
+    $packageFolderProperties = @($assets.packageFolders.PSObject.Properties)
+    if ($packageFolderProperties.Count -ne 1) {
+        throw "restore package folder count invalid"
+    }
+    $expectedPrimaryFolder = $packageCacheFullPath
+    if (-not [string]::Equals(
+            [string] $packageFolderProperties[0].Name,
+            $expectedPrimaryFolder,
+            [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "restore primary package folder invalid"
+    }
+    $nuGetPackageFolders = @(
+        $packageFolderProperties |
+            ForEach-Object { [string] $_.Name }) -join ";"
+    $nuGetPackageFoldersNode = @(
+        $propertyNodes |
+            Where-Object { $_.LocalName -ceq "NuGetPackageFolders" })[0]
+    if ($null -eq $nuGetPackageFoldersNode -or
+        $nuGetPackageFoldersNode.InnerText -cne $nuGetPackageFolders) {
+        throw "restore generated package-folder property invalid"
+    }
+    $sourceRoots = @($props.SelectNodes("//*[local-name()='SourceRoot']"))
+    if ($sourceRoots.Count -ne $packageFolderProperties.Count) {
+        throw "restore generated source-root count invalid"
+    }
+    for ($index = 0; $index -lt $sourceRoots.Count; $index++) {
+        if ($sourceRoots[$index].Attributes.Count -ne 1 -or
+            $sourceRoots[$index].GetAttribute("Include") -cne
+                ([string] $packageFolderProperties[$index].Name +
+                    [System.IO.Path]::DirectorySeparatorChar) -or
+            $sourceRoots[$index].ParentNode.LocalName -cne "ItemGroup" -or
+            $sourceRoots[$index].ParentNode.GetAttribute("Condition") -cne
+                " '`$(ExcludeRestorePackageImports)' != 'true' ") {
+            throw "restore generated source-root invalid"
+        }
+    }
+
+    $restore = $assets.project.restore
+    if ($null -eq $restore -or
+        -not [string]::Equals(
+            [System.IO.Path]::GetFullPath([string] $restore.projectPath),
+            $projectFullPath,
+            [System.StringComparison]::OrdinalIgnoreCase) -or
+        -not [string]::Equals(
+            [System.IO.Path]::GetFullPath([string] $restore.packagesPath),
+            $packageCacheFullPath,
+            [System.StringComparison]::OrdinalIgnoreCase) -or
+        -not [string]::Equals(
+            [System.IO.Path]::GetFullPath([string] $restore.outputPath),
+            $extensionsFullPath +
+                [System.IO.Path]::DirectorySeparatorChar,
+            [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "restore project path contract invalid"
+    }
+}
+
+function Get-M01PackageBuildClosureSnapshot {
+    param([string] $PackageCacheRoot)
+
+    $packageCacheFullPath = [System.IO.Path]::GetFullPath(
+        $PackageCacheRoot).TrimEnd(
+            [System.IO.Path]::DirectorySeparatorChar,
+            [System.IO.Path]::AltDirectorySeparatorChar)
+    if (-not (Test-Path -LiteralPath $packageCacheFullPath -PathType Container)) {
+        throw "package cache root missing"
+    }
+    $packageCacheItem = Get-Item -LiteralPath $packageCacheFullPath -Force
+    if (($packageCacheItem.Attributes -band
+            [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "package cache root is a reparse point"
+    }
+
+    $inputs = New-Object System.Collections.Generic.List[object]
+    $aggregateBuilder = New-Object System.Text.StringBuilder
+    foreach ($expectedInput in $script:ExpectedPackageBuildClosure) {
+        $relativePath = [string] $expectedInput.Path
+        $expectedHash = [string] $expectedInput.Sha256
+        $fullPath = [System.IO.Path]::GetFullPath(
+            (Join-Path $packageCacheFullPath $relativePath))
+        $packageCachePrefix = $packageCacheFullPath +
+            [System.IO.Path]::DirectorySeparatorChar
+        if (-not $fullPath.StartsWith(
+                $packageCachePrefix,
+                [System.StringComparison]::OrdinalIgnoreCase) -or
+            -not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+            throw "package build closure input missing: $relativePath"
+        }
+        $relativePlatformPath = $relativePath.Replace(
+            "/",
+            [System.IO.Path]::DirectorySeparatorChar)
+        $currentPath = $packageCacheFullPath
+        foreach ($segment in $relativePlatformPath.Split(
+                [System.IO.Path]::DirectorySeparatorChar)) {
+            $currentPath = Join-Path $currentPath $segment
+            $item = Get-Item -LiteralPath $currentPath -Force
+            if (($item.Attributes -band
+                    [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw "package build closure contains a reparse point: $relativePath"
+            }
+        }
+        $actualHash = (
+            Get-FileHash -LiteralPath $fullPath -Algorithm SHA256
+        ).Hash.ToLowerInvariant()
+        if ($actualHash -cne $expectedHash) {
+            throw "package build closure hash mismatch: $relativePath"
+        }
+        $inputs.Add([ordered] @{
+                path = $relativePath
+                sha256 = $actualHash
+            })
+        [void] $aggregateBuilder.Append($relativePath)
+        [void] $aggregateBuilder.Append("|")
+        [void] $aggregateBuilder.Append($actualHash)
+        [void] $aggregateBuilder.Append("`n")
+    }
+
+    $algorithm = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $aggregateHash = ([System.BitConverter]::ToString(
+                $algorithm.ComputeHash(
+                    [System.Text.Encoding]::UTF8.GetBytes(
+                        $aggregateBuilder.ToString())))).Replace(
+            "-",
+            "").ToLowerInvariant()
+    }
+    finally {
+        $algorithm.Dispose()
+    }
+    return [pscustomobject] @{
+        PackageCacheRoot = $packageCacheFullPath
+        Inputs = $inputs.ToArray()
+        AggregateSha256 = $aggregateHash
+    }
+}
+
+function Get-M01PinnedRestoreArchiveSnapshot {
+    param([string] $GlobalPackageCacheRoot)
+
+    $cacheFullPath = [System.IO.Path]::GetFullPath(
+        $GlobalPackageCacheRoot).TrimEnd(
+            [System.IO.Path]::DirectorySeparatorChar,
+            [System.IO.Path]::AltDirectorySeparatorChar)
+    if (-not (Test-Path -LiteralPath $cacheFullPath -PathType Container)) {
+        throw "global package cache root missing"
+    }
+    $cacheItem = Get-Item -LiteralPath $cacheFullPath -Force
+    if (($cacheItem.Attributes -band
+            [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "global package cache root is a reparse point"
+    }
+    $cachePrefix = $cacheFullPath +
+        [System.IO.Path]::DirectorySeparatorChar
+    $inputs = New-Object System.Collections.Generic.List[object]
+    $aggregateBuilder = New-Object System.Text.StringBuilder
+    foreach ($archive in $script:ExpectedRestoreArchives) {
+        $relativePath = (
+            [string] $archive.Id +
+            "/" +
+            [string] $archive.Version +
+            "/" +
+            [string] $archive.FileName)
+        $fullPath = [System.IO.Path]::GetFullPath(
+            (Join-Path $cacheFullPath $relativePath))
+        if (-not $fullPath.StartsWith(
+                $cachePrefix,
+                [System.StringComparison]::OrdinalIgnoreCase) -or
+            -not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+            throw "pinned restore archive missing: $relativePath"
+        }
+        $currentPath = $cacheFullPath
+        foreach ($segment in $relativePath.Replace(
+                "/",
+                [System.IO.Path]::DirectorySeparatorChar).Split(
+                    [System.IO.Path]::DirectorySeparatorChar)) {
+            $currentPath = Join-Path $currentPath $segment
+            $item = Get-Item -LiteralPath $currentPath -Force
+            if (($item.Attributes -band
+                    [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw "pinned restore archive path contains a reparse point"
+            }
+        }
+        $actualHash = (
+            Get-FileHash -LiteralPath $fullPath -Algorithm SHA256
+        ).Hash.ToLowerInvariant()
+        if ($actualHash -cne [string] $archive.Sha256) {
+            throw "pinned restore archive hash mismatch: $relativePath"
+        }
+        $inputs.Add([ordered] @{
+                path = $relativePath
+                sha256 = $actualHash
+            })
+        [void] $aggregateBuilder.Append($relativePath)
+        [void] $aggregateBuilder.Append("|")
+        [void] $aggregateBuilder.Append($actualHash)
+        [void] $aggregateBuilder.Append("`n")
+    }
+    $algorithm = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $aggregateHash = ([System.BitConverter]::ToString(
+                $algorithm.ComputeHash(
+                    [System.Text.Encoding]::UTF8.GetBytes(
+                        $aggregateBuilder.ToString())))).Replace(
+            "-",
+            "").ToLowerInvariant()
+    }
+    finally {
+        $algorithm.Dispose()
+    }
+    return [pscustomobject] @{
+        RootPath = $cacheFullPath
+        Inputs = $inputs.ToArray()
+        AggregateSha256 = $aggregateHash
+    }
+}
+
+function New-M01PinnedRestoreSource {
+    param(
+        [string] $GlobalPackageCacheRoot,
+        [string] $RestoreSourceDirectory,
+        [object[]] $ArchiveInputs
+    )
+
+    $cacheFullPath = [System.IO.Path]::GetFullPath(
+        $GlobalPackageCacheRoot).TrimEnd(
+            [System.IO.Path]::DirectorySeparatorChar,
+            [System.IO.Path]::AltDirectorySeparatorChar)
+    $sourceFullPath = [System.IO.Path]::GetFullPath($RestoreSourceDirectory)
+    [System.IO.Directory]::CreateDirectory($sourceFullPath) | Out-Null
+    $sourceItem = Get-Item -LiteralPath $sourceFullPath -Force
+    if (($sourceItem.Attributes -band
+            [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "pinned restore source is a reparse point"
+    }
+    foreach ($input in $ArchiveInputs) {
+        $relativePath = [string] $input.path
+        $sourcePath = [System.IO.Path]::GetFullPath(
+            (Join-Path $cacheFullPath $relativePath))
+        $destinationPath = Join-Path $sourceFullPath (
+            [System.IO.Path]::GetFileName($relativePath))
+        [System.IO.File]::Copy($sourcePath, $destinationPath, $false)
+        $destinationHash = (
+            Get-FileHash -LiteralPath $destinationPath -Algorithm SHA256
+        ).Hash.ToLowerInvariant()
+        if ($destinationHash -cne [string] $input.sha256) {
+            throw "pinned restore archive copy mismatch: $relativePath"
+        }
+    }
+    $escapedSourcePath = [System.Security.SecurityElement]::Escape(
+        $sourceFullPath)
+    $configPath = Join-Path $sourceFullPath "NuGet.Config"
+    $configText = (
+        "<?xml version=`"1.0`" encoding=`"utf-8`"?>`n" +
+        "<configuration>`n" +
+        "  <packageSources>`n" +
+        "    <clear />`n" +
+        "    <add key=`"CLROS_PINNED`" value=`"" +
+        $escapedSourcePath +
+        "`" />`n" +
+        "  </packageSources>`n" +
+        "  <fallbackPackageFolders>`n" +
+        "    <clear />`n" +
+        "  </fallbackPackageFolders>`n" +
+        "  <auditSources>`n" +
+        "    <clear />`n" +
+        "  </auditSources>`n" +
+        "</configuration>`n")
+    [System.IO.File]::WriteAllText(
+        $configPath,
+        $configText,
+        (New-Object System.Text.UTF8Encoding($false)))
+    return $configPath
+}
+
+function Get-M01ConsumedPackageClosureSnapshot {
+    param(
+        [string] $RestorePackagesRoot,
+        [string] $RuntimePackageRoot,
+        [string] $RestoreSourceDirectory
+    )
+
+    $restoreRoot = [System.IO.Path]::GetFullPath(
+        $RestorePackagesRoot).TrimEnd(
+            [System.IO.Path]::DirectorySeparatorChar,
+            [System.IO.Path]::AltDirectorySeparatorChar)
+    $runtimeRoot = [System.IO.Path]::GetFullPath(
+        $RuntimePackageRoot).TrimEnd(
+            [System.IO.Path]::DirectorySeparatorChar,
+            [System.IO.Path]::AltDirectorySeparatorChar)
+    $restoreSourceFullPath = [System.IO.Path]::GetFullPath(
+        $RestoreSourceDirectory).TrimEnd(
+            [System.IO.Path]::DirectorySeparatorChar,
+            [System.IO.Path]::AltDirectorySeparatorChar)
+    $packages = New-Object System.Collections.Generic.List[object]
+    $lockInputs = New-Object System.Collections.Generic.List[object]
+    $closureBuilder = New-Object System.Text.StringBuilder
+
+    if (-not (Test-Path -LiteralPath $restoreRoot -PathType Container)) {
+        throw "isolated restore package root missing"
+    }
+    $restoreRootItem = Get-Item -LiteralPath $restoreRoot -Force
+    if (($restoreRootItem.Attributes -band
+            [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "isolated restore package root is a reparse point"
+    }
+    $expectedRestoreVersions = @(
+        $script:ExpectedConsumedPackageTrees |
+            Where-Object { [string] $_.RootKind -cne "runtime" } |
+            ForEach-Object {
+                [string] $_.Id + "/" + [string] $_.Version
+            })
+    $actualRestoreVersions = New-Object System.Collections.Generic.List[string]
+    foreach ($packageIdDirectory in @(
+            Get-ChildItem -LiteralPath $restoreRoot -Force)) {
+        if (-not $packageIdDirectory.PSIsContainer -or
+            ($packageIdDirectory.Attributes -band
+                [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "isolated restore package root shape invalid"
+        }
+        $versionEntries = @(
+            Get-ChildItem -LiteralPath $packageIdDirectory.FullName -Force)
+        foreach ($versionEntry in $versionEntries) {
+            if (-not $versionEntry.PSIsContainer -or
+                ($versionEntry.Attributes -band
+                    [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw "isolated restore package version shape invalid"
+            }
+            $actualRestoreVersions.Add(
+                $packageIdDirectory.Name + "/" + $versionEntry.Name)
+        }
+    }
+    $expectedRestoreVersions = [string[]] $expectedRestoreVersions
+    $actualRestoreVersionArray = [string[]] $actualRestoreVersions.ToArray()
+    [System.Array]::Sort(
+        $expectedRestoreVersions,
+        [System.StringComparer]::Ordinal)
+    [System.Array]::Sort(
+        $actualRestoreVersionArray,
+        [System.StringComparer]::Ordinal)
+    if ($actualRestoreVersionArray.Count -ne
+        $expectedRestoreVersions.Count) {
+        throw "isolated restore package version count invalid"
+    }
+    for ($versionIndex = 0;
+        $versionIndex -lt $expectedRestoreVersions.Count;
+        $versionIndex++) {
+        if ($actualRestoreVersionArray[$versionIndex] -cne
+            $expectedRestoreVersions[$versionIndex]) {
+            throw "isolated restore package version set invalid"
+        }
+    }
+
+    foreach ($expectedPackage in $script:ExpectedConsumedPackageTrees) {
+        if ([string] $expectedPackage.RootKind -cnotin @(
+                "restore",
+                "restore-only",
+                "runtime")) {
+            throw "consumed package root kind invalid"
+        }
+        $packageRoot = if ([string] $expectedPackage.RootKind -cne "runtime") {
+            Join-Path $restoreRoot (
+                [string] $expectedPackage.Id +
+                "\" +
+                [string] $expectedPackage.Version)
+        }
+        else {
+            $runtimeRoot
+        }
+        $packageRoot = [System.IO.Path]::GetFullPath($packageRoot).TrimEnd(
+            [System.IO.Path]::DirectorySeparatorChar,
+            [System.IO.Path]::AltDirectorySeparatorChar)
+        $expectedSuffix = (
+            [string] $expectedPackage.Id +
+            "\" +
+            [string] $expectedPackage.Version)
+        if (-not $packageRoot.EndsWith(
+                $expectedSuffix,
+                [System.StringComparison]::OrdinalIgnoreCase) -or
+            -not (Test-Path -LiteralPath $packageRoot -PathType Container)) {
+            throw "consumed package root invalid: $($expectedPackage.Id)"
+        }
+        $packageRootItem = Get-Item -LiteralPath $packageRoot -Force
+        if (($packageRootItem.Attributes -band
+                [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "consumed package root is a reparse point: $($expectedPackage.Id)"
+        }
+        $treeItems = @(
+            Get-ChildItem -LiteralPath $packageRoot -Recurse -Force)
+        foreach ($treeItem in $treeItems) {
+            if (($treeItem.Attributes -band
+                    [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw "consumed package contains a reparse point: $($expectedPackage.Id)"
+            }
+        }
+        $metadataPath = Join-Path $packageRoot ".nupkg.metadata"
+        if (-not (Test-Path -LiteralPath $metadataPath -PathType Leaf)) {
+            throw "consumed package metadata missing: $($expectedPackage.Id)"
+        }
+        try {
+            $metadata = [System.IO.File]::ReadAllText($metadataPath) |
+                ConvertFrom-Json
+        }
+        catch {
+            throw "consumed package metadata invalid: $($expectedPackage.Id)"
+        }
+        if (-not (Test-M01ExactPropertyNameSet `
+                -Value $metadata `
+                -ExpectedNames @("version", "contentHash", "source")) -or
+            [int64] $metadata.version -ne 2 -or
+            [string] $metadata.contentHash -cne
+                [string] $expectedPackage.ContentHashSha512 -or
+            [string]::IsNullOrWhiteSpace([string] $metadata.source)) {
+            throw "consumed package metadata contract invalid: $($expectedPackage.Id)"
+        }
+        if ([string] $expectedPackage.RootKind -cne "runtime" -and
+            -not [string]::Equals(
+                [System.IO.Path]::GetFullPath([string] $metadata.source),
+                $restoreSourceFullPath,
+                [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "consumed package source invalid: $($expectedPackage.Id)"
+        }
+
+        $fileRecords = New-Object System.Collections.Generic.List[object]
+        $treeBuilder = New-Object System.Text.StringBuilder
+        $totalBytes = [int64] 0
+        $fileByRelativePath = New-Object `
+            'System.Collections.Generic.Dictionary[string,object]' (
+                [System.StringComparer]::Ordinal)
+        foreach ($file in @(
+                $treeItems |
+                    Where-Object {
+                        -not $_.PSIsContainer -and
+                        $_.Name -cne ".nupkg.metadata"
+                    })) {
+            $relativePath = $file.FullName.Substring(
+                $packageRoot.Length + 1).Replace("\", "/")
+            if ($fileByRelativePath.ContainsKey($relativePath)) {
+                throw "consumed package contains duplicate path: $relativePath"
+            }
+            $fileByRelativePath.Add($relativePath, $file)
+        }
+        $relativePaths = [string[]] @($fileByRelativePath.Keys)
+        [System.Array]::Sort(
+            $relativePaths,
+            [System.StringComparer]::Ordinal)
+        foreach ($relativePath in $relativePaths) {
+            $file = $fileByRelativePath[$relativePath]
+            $hash = (
+                Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256
+            ).Hash.ToLowerInvariant()
+            $length = [int64] $file.Length
+            $totalBytes += $length
+            $fileRecords.Add([ordered] @{
+                    path = $relativePath
+                    bytes = $length
+                    sha256 = $hash
+                })
+            $lockInputs.Add([pscustomobject] @{ fullPath = $file.FullName })
+            [void] $treeBuilder.Append($relativePath)
+            [void] $treeBuilder.Append("|")
+            [void] $treeBuilder.Append($length)
+            [void] $treeBuilder.Append("|")
+            [void] $treeBuilder.Append($hash)
+            [void] $treeBuilder.Append("`n")
+        }
+        $lockInputs.Add([pscustomobject] @{ fullPath = $metadataPath })
+        $treeAlgorithm = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            $treeHash = ([System.BitConverter]::ToString(
+                    $treeAlgorithm.ComputeHash(
+                        [System.Text.Encoding]::UTF8.GetBytes(
+                            $treeBuilder.ToString())))).Replace(
+                "-",
+                "").ToLowerInvariant()
+        }
+        finally {
+            $treeAlgorithm.Dispose()
+        }
+        if ($fileRecords.Count -ne [int] $expectedPackage.FileCount -or
+            $totalBytes -ne [int64] $expectedPackage.TotalBytes -or
+            $treeHash -cne [string] $expectedPackage.AggregateSha256) {
+            throw (
+                "consumed package tree mismatch: " +
+                $expectedPackage.Id +
+                "/" +
+                $expectedPackage.Version +
+                ";count=" +
+                $fileRecords.Count +
+                ";bytes=" +
+                $totalBytes +
+                ";sha256=" +
+                $treeHash)
+        }
+        $metadataHash = (
+            Get-FileHash -LiteralPath $metadataPath -Algorithm SHA256
+        ).Hash.ToLowerInvariant()
+        $packageEvidence = [ordered] @{
+            id = [string] $expectedPackage.Id
+            version = [string] $expectedPackage.Version
+            rootKind = [string] $expectedPackage.RootKind
+            rootPath = $packageRoot
+            contentHashSha512 =
+                [string] $expectedPackage.ContentHashSha512
+            fileCount = $fileRecords.Count
+            totalBytes = $totalBytes
+            aggregateSha256 = $treeHash
+            metadataSha256 = $metadataHash
+            inputs = $fileRecords.ToArray()
+        }
+        $packages.Add($packageEvidence)
+        [void] $closureBuilder.Append($packageEvidence.id)
+        [void] $closureBuilder.Append("|")
+        [void] $closureBuilder.Append($packageEvidence.version)
+        [void] $closureBuilder.Append("|")
+        [void] $closureBuilder.Append($packageEvidence.rootKind)
+        [void] $closureBuilder.Append("|")
+        [void] $closureBuilder.Append($packageEvidence.aggregateSha256)
+        [void] $closureBuilder.Append("`n")
+    }
+    $closureAlgorithm = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $closureHash = ([System.BitConverter]::ToString(
+                $closureAlgorithm.ComputeHash(
+                    [System.Text.Encoding]::UTF8.GetBytes(
+                        $closureBuilder.ToString())))).Replace(
+            "-",
+            "").ToLowerInvariant()
+    }
+    finally {
+        $closureAlgorithm.Dispose()
+    }
+    return [pscustomobject] @{
+        Packages = $packages.ToArray()
+        LockInputs = $lockInputs.ToArray()
+        AggregateSha256 = $closureHash
+    }
+}
+
+function Open-M01AbsoluteInputLocks {
+    param([object[]] $Inputs)
+
+    $locks = New-Object System.Collections.Generic.List[System.IO.FileStream]
+    try {
+        foreach ($input in $Inputs) {
+            $fullPath = [System.IO.Path]::GetFullPath(
+                [string] $input.fullPath)
+            $locks.Add([System.IO.File]::Open(
+                    $fullPath,
+                    [System.IO.FileMode]::Open,
+                    [System.IO.FileAccess]::Read,
+                    [System.IO.FileShare]::Read))
+        }
+        return ,$locks
+    }
+    catch {
+        foreach ($lock in $locks) {
+            $lock.Dispose()
+        }
+        throw
+    }
+}
+
+function Open-M01ExternalInputLocks {
+    param(
+        [string] $RootPath,
+        [object[]] $Inputs
+    )
+
+    $rootFullPath = [System.IO.Path]::GetFullPath($RootPath).TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar)
+    $rootPrefix = $rootFullPath + [System.IO.Path]::DirectorySeparatorChar
+    $locks = New-Object System.Collections.Generic.List[System.IO.FileStream]
+    try {
+        foreach ($input in $Inputs) {
+            $relativePath = [string] $input.path
+            if ([string]::IsNullOrWhiteSpace($relativePath) -or
+                [System.IO.Path]::IsPathRooted($relativePath)) {
+                throw "external lock input path invalid"
+            }
+            $fullPath = [System.IO.Path]::GetFullPath(
+                (Join-Path $rootFullPath $relativePath))
+            if (-not $fullPath.StartsWith(
+                    $rootPrefix,
+                    [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "external lock input outside root"
+            }
+            $locks.Add([System.IO.File]::Open(
+                    $fullPath,
+                    [System.IO.FileMode]::Open,
+                    [System.IO.FileAccess]::Read,
+                    [System.IO.FileShare]::Read))
+        }
+        return ,$locks
+    }
+    catch {
+        foreach ($lock in $locks) {
+            $lock.Dispose()
+        }
+        throw
+    }
+}
+
+function Open-M01PublishSourceLocks {
+    param(
+        [string] $RepositoryRoot,
+        [object[]] $Inputs
+    )
+
+    $repositoryFullPath = [System.IO.Path]::GetFullPath($RepositoryRoot)
+    $repositoryPrefix = $repositoryFullPath.TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar) +
+        [System.IO.Path]::DirectorySeparatorChar
+    $locks = New-Object System.Collections.Generic.List[object]
+    try {
+        foreach ($input in $Inputs) {
+            $relativePath = [string] $input.path
+            if ([string]::IsNullOrWhiteSpace($relativePath) -or
+                [System.IO.Path]::IsPathRooted($relativePath)) {
+                throw "source lock input path missing"
+            }
+
+            $fullPath = [System.IO.Path]::GetFullPath(
+                (Join-Path $repositoryFullPath $relativePath))
+            if (-not $fullPath.StartsWith(
+                    $repositoryPrefix,
+                    [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "source lock input outside repository: $fullPath"
+            }
+            $locks.Add((Open-M01AuthorityReadRecord `
+                    -Path $fullPath `
+                    -RootPath $repositoryFullPath `
+                    -Purpose ("source:" + $relativePath) `
+                    -FailurePrefix "source_lock_authority" `
+                    -ExpectedSha256 ([string] $input.sha256) `
+                    -RequireSingleLink))
+        }
+        Assert-M01DistinctAuthorityRecords -Records $locks.ToArray()
+        return ,$locks
+    }
+    catch {
+        Close-M01AuthorityRecords -Records $locks
+        throw
+    }
+}
+
+function Assert-M01PublishSourceLocks {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $RepositoryRoot,
+        [Parameter(Mandatory = $true)]
+        [object[]] $Inputs,
+        [Parameter(Mandatory = $true)]
+        [object] $Locks
+    )
+
+    if ($Locks.Count -ne $Inputs.Count) {
+        throw "source authority lock count mismatch"
+    }
+    $repositoryFullPath = [System.IO.Path]::GetFullPath($RepositoryRoot)
+    for ($index = 0; $index -lt $Inputs.Count; $index++) {
+        $record = $Locks[$index]
+        $relativePath = [string] $Inputs[$index].path
+        $expectedPath = [System.IO.Path]::GetFullPath(
+            (Join-Path $repositoryFullPath $relativePath))
+        if (-not [string]::Equals(
+                $record.Path,
+                $expectedPath,
+                [System.StringComparison]::OrdinalIgnoreCase) -or
+            [string] $record.InitialSha256 -cne
+                ([string] $Inputs[$index].sha256).ToLowerInvariant()) {
+            throw "source authority lock input mismatch: $relativePath"
+        }
+        Assert-M01AuthorityRecordUnchanged -Record $record
+    }
+    Assert-M01DistinctAuthorityRecords -Records $Locks.ToArray()
+}
+
+function Close-M01PublishSourceLocks {
+    param(
+        [AllowNull()]
+        [object] $Locks
+    )
+
+    if ($null -eq $Locks) {
+        return
+    }
+
+    for ($index = $Locks.Count - 1; $index -ge 0; $index--) {
+        $lock = $Locks[$index]
+        if ($null -ne $lock.PSObject.Properties["Stream"]) {
+            $lock.Stream.Dispose()
+        }
+        else {
+            $lock.Dispose()
+        }
+    }
+    $Locks.Clear()
+}
+
+function Open-M01PublishOutputLock {
+    param(
+        [string] $RepositoryRoot,
+        [string] $Configuration,
+        [string] $Runtime
+    )
+
+    if ($Configuration -notmatch '^(Release|Debug)$' -or
+        $Runtime -notmatch '^[A-Za-z0-9-]+$') {
+        throw "publish output lock identity invalid"
+    }
+    $repositoryFullPath = [System.IO.Path]::GetFullPath($RepositoryRoot)
+    $artifactsPath = Join-Path $repositoryFullPath "artifacts"
+    $lockDirectory = Join-Path $artifactsPath ".locks"
+    if (-not (Test-Path -LiteralPath $repositoryFullPath -PathType Container)) {
+        throw "publish output lock repository missing: $repositoryFullPath"
+    }
+    foreach ($directory in @($repositoryFullPath, $artifactsPath, $lockDirectory)) {
+        if (-not (Test-Path -LiteralPath $directory)) {
+            New-Item -ItemType Directory -Path $directory -Force | Out-Null
+        }
+        $directoryItem = Get-Item -LiteralPath $directory -Force
+        if (-not $directoryItem.PSIsContainer -or
+            ($directoryItem.Attributes -band
+                [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "publish output lock path is not a plain directory: $directory"
+        }
+    }
+
+    $lockPath = Join-Path $lockDirectory "efi-publish.lock"
+    try {
+        return [System.IO.File]::Open(
+            $lockPath,
+            [System.IO.FileMode]::OpenOrCreate,
+            [System.IO.FileAccess]::ReadWrite,
+            [System.IO.FileShare]::None)
+    }
+    catch [System.IO.IOException] {
+        throw "another EFI publish owns the canonical output paths"
+    }
+}
+
+function Close-M01PublishOutputLock {
+    param(
+        [AllowNull()]
+        [System.IO.FileStream] $Lock
+    )
+
+    if ($null -eq $Lock) {
+        return
+    }
+
+    $Lock.Dispose()
+}
+
+function Remove-M01FreshPublishDirectory {
+    param(
+        [string] $RepositoryRoot,
+        [string] $CandidatePath,
+        [string] $ExpectedRelativePath
+    )
+
+    $repositoryFullPath = [System.IO.Path]::GetFullPath($RepositoryRoot)
+    $candidateFullPath = [System.IO.Path]::GetFullPath($CandidatePath)
+    $expectedFullPath = [System.IO.Path]::GetFullPath(
+        (Join-Path $repositoryFullPath $ExpectedRelativePath))
+    $repositoryPrefix = $repositoryFullPath.TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar) +
+        [System.IO.Path]::DirectorySeparatorChar
+    if (-not [string]::Equals(
+            $candidateFullPath,
+            $expectedFullPath,
+            [System.StringComparison]::OrdinalIgnoreCase) -or
+        -not $candidateFullPath.StartsWith(
+            $repositoryPrefix,
+            [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "fresh publish path mismatch: $candidateFullPath"
+    }
+
+    $relativePath = $candidateFullPath.Substring($repositoryPrefix.Length)
+    $currentPath = $repositoryFullPath
+    foreach ($segment in $relativePath.Split(
+            @(
+                [System.IO.Path]::DirectorySeparatorChar,
+                [System.IO.Path]::AltDirectorySeparatorChar
+            ),
+            [System.StringSplitOptions]::RemoveEmptyEntries)) {
+        $currentPath = Join-Path $currentPath $segment
+        if (-not (Test-Path -LiteralPath $currentPath)) {
+            continue
+        }
+
+        $item = Get-Item -LiteralPath $currentPath -Force
+        if (($item.Attributes -band
+                [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "fresh publish path contains reparse point: $currentPath"
+        }
+    }
+
+    if (Test-Path -LiteralPath $candidateFullPath -PathType Leaf) {
+        throw "fresh publish path is not a directory: $candidateFullPath"
+    }
+    if (Test-Path -LiteralPath $candidateFullPath -PathType Container) {
+        Remove-Item `
+            -LiteralPath $candidateFullPath `
+            -Recurse `
+            -Force `
+            -ErrorAction Stop
+    }
+    if (Test-Path -LiteralPath $candidateFullPath) {
+        throw "fresh publish path cleanup failed: $candidateFullPath"
+    }
+}
+
+function New-M01ProcessJob {
+    if ($null -eq ("CLROS.Build.ProcessJob" -as [type])) {
+        Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace CLROS.Build
+{
+    public sealed class ProcessJob : IDisposable
+    {
+        private const uint JobObjectBasicAccountingInformation = 1;
+        private const uint JobObjectExtendedLimitInformation = 9;
+        private const uint JobObjectLimitKillOnJobClose = 0x00002000;
+        private IntPtr handle;
+
+        private ProcessJob(IntPtr handle)
+        {
+            this.handle = handle;
+        }
+
+        public static ProcessJob Create()
+        {
+            IntPtr handle = CreateJobObject(IntPtr.Zero, null);
+            if (handle == IntPtr.Zero)
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+
+            try
+            {
+                JOBOBJECT_EXTENDED_LIMIT_INFORMATION information =
+                    new JOBOBJECT_EXTENDED_LIMIT_INFORMATION();
+                information.BasicLimitInformation.LimitFlags =
+                    JobObjectLimitKillOnJobClose;
+                int length = Marshal.SizeOf(
+                    typeof(JOBOBJECT_EXTENDED_LIMIT_INFORMATION));
+                IntPtr buffer = Marshal.AllocHGlobal(length);
+                try
+                {
+                    Marshal.StructureToPtr(information, buffer, false);
+                    if (!SetInformationJobObject(
+                            handle,
+                            JobObjectExtendedLimitInformation,
+                            buffer,
+                            (uint)length))
+                    {
+                        throw new Win32Exception(Marshal.GetLastWin32Error());
+                    }
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(buffer);
+                }
+
+                return new ProcessJob(handle);
+            }
+            catch
+            {
+                CloseHandle(handle);
+                throw;
+            }
+        }
+
+        public void Assign(Process process)
+        {
+            if (process == null)
+            {
+                throw new ArgumentNullException("process");
+            }
+            if (handle == IntPtr.Zero)
+            {
+                throw new ObjectDisposedException("ProcessJob");
+            }
+            if (!AssignProcessToJobObject(handle, process.Handle))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+        }
+
+        public void Terminate()
+        {
+            if (handle == IntPtr.Zero)
+            {
+                throw new ObjectDisposedException("ProcessJob");
+            }
+            if (!TerminateJobObject(handle, 1))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+        }
+
+        public uint ActiveProcessCount
+        {
+            get
+            {
+                if (handle == IntPtr.Zero)
+                {
+                    throw new ObjectDisposedException("ProcessJob");
+                }
+
+                JOBOBJECT_BASIC_ACCOUNTING_INFORMATION information =
+                    new JOBOBJECT_BASIC_ACCOUNTING_INFORMATION();
+                int length = Marshal.SizeOf(
+                    typeof(JOBOBJECT_BASIC_ACCOUNTING_INFORMATION));
+                IntPtr buffer = Marshal.AllocHGlobal(length);
+                try
+                {
+                    if (!QueryInformationJobObject(
+                            handle,
+                            JobObjectBasicAccountingInformation,
+                            buffer,
+                            (uint)length,
+                            IntPtr.Zero))
+                    {
+                        throw new Win32Exception(Marshal.GetLastWin32Error());
+                    }
+
+                    information =
+                        (JOBOBJECT_BASIC_ACCOUNTING_INFORMATION)
+                        Marshal.PtrToStructure(
+                            buffer,
+                            typeof(JOBOBJECT_BASIC_ACCOUNTING_INFORMATION));
+                    return information.ActiveProcesses;
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(buffer);
+                }
+            }
+        }
+
+        public bool WaitForEmpty(int milliseconds)
+        {
+            if (milliseconds < 0)
+            {
+                throw new ArgumentOutOfRangeException("milliseconds");
+            }
+
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            do
+            {
+                if (ActiveProcessCount == 0)
+                {
+                    return true;
+                }
+                Thread.Sleep(10);
+            }
+            while (stopwatch.ElapsedMilliseconds < milliseconds);
+
+            return ActiveProcessCount == 0;
+        }
+
+        public void Dispose()
+        {
+            if (handle == IntPtr.Zero)
+            {
+                return;
+            }
+
+            CloseHandle(handle);
+            handle = IntPtr.Zero;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct JOBOBJECT_BASIC_LIMIT_INFORMATION
+        {
+            public long PerProcessUserTimeLimit;
+            public long PerJobUserTimeLimit;
+            public uint LimitFlags;
+            public UIntPtr MinimumWorkingSetSize;
+            public UIntPtr MaximumWorkingSetSize;
+            public uint ActiveProcessLimit;
+            public UIntPtr Affinity;
+            public uint PriorityClass;
+            public uint SchedulingClass;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct IO_COUNTERS
+        {
+            public ulong ReadOperationCount;
+            public ulong WriteOperationCount;
+            public ulong OtherOperationCount;
+            public ulong ReadTransferCount;
+            public ulong WriteTransferCount;
+            public ulong OtherTransferCount;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+        {
+            public JOBOBJECT_BASIC_LIMIT_INFORMATION BasicLimitInformation;
+            public IO_COUNTERS IoInfo;
+            public UIntPtr ProcessMemoryLimit;
+            public UIntPtr JobMemoryLimit;
+            public UIntPtr PeakProcessMemoryUsed;
+            public UIntPtr PeakJobMemoryUsed;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct JOBOBJECT_BASIC_ACCOUNTING_INFORMATION
+        {
+            public long TotalUserTime;
+            public long TotalKernelTime;
+            public long ThisPeriodTotalUserTime;
+            public long ThisPeriodTotalKernelTime;
+            public uint TotalPageFaultCount;
+            public uint TotalProcesses;
+            public uint ActiveProcesses;
+            public uint TotalTerminatedProcesses;
+        }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern IntPtr CreateJobObject(
+            IntPtr jobAttributes,
+            string name);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool SetInformationJobObject(
+            IntPtr job,
+            uint informationClass,
+            IntPtr information,
+            uint informationLength);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool AssignProcessToJobObject(
+            IntPtr job,
+            IntPtr process);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool TerminateJobObject(
+            IntPtr job,
+            uint exitCode);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool QueryInformationJobObject(
+            IntPtr job,
+            uint informationClass,
+            IntPtr information,
+            uint informationLength,
+            IntPtr returnLength);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool CloseHandle(IntPtr handle);
+    }
+
+    public sealed class BoundedProcessOutput : IDisposable
+    {
+        private readonly object sync = new object();
+        private readonly int maximumCharacters;
+        private readonly StringBuilder captured = new StringBuilder();
+        private bool disposed;
+        private bool limitExceeded;
+
+        public BoundedProcessOutput(
+            TextReader standardOutput,
+            TextReader standardError,
+            int maximumCharacters)
+        {
+            if (standardOutput == null)
+            {
+                throw new ArgumentNullException("standardOutput");
+            }
+            if (standardError == null)
+            {
+                throw new ArgumentNullException("standardError");
+            }
+            if (maximumCharacters <= 0)
+            {
+                throw new ArgumentOutOfRangeException("maximumCharacters");
+            }
+
+            this.maximumCharacters = maximumCharacters;
+            Tasks = new Task[]
+            {
+                StartDrain(standardOutput),
+                StartDrain(standardError)
+            };
+        }
+
+        public Task[] Tasks { get; private set; }
+
+        public bool LimitExceeded
+        {
+            get
+            {
+                lock (sync)
+                {
+                    return limitExceeded;
+                }
+            }
+        }
+
+        public int CapturedCharacters
+        {
+            get
+            {
+                lock (sync)
+                {
+                    return captured.Length;
+                }
+            }
+        }
+
+        public string GetText()
+        {
+            lock (sync)
+            {
+                return captured.ToString();
+            }
+        }
+
+        public void Dispose()
+        {
+            lock (sync)
+            {
+                disposed = true;
+            }
+        }
+
+        private Task StartDrain(TextReader reader)
+        {
+            return Task.Factory.StartNew(
+                delegate
+                {
+                    char[] buffer = new char[4096];
+                    while (true)
+                    {
+                        int count = reader.Read(buffer, 0, buffer.Length);
+                        if (count == 0)
+                        {
+                            return;
+                        }
+
+                        lock (sync)
+                        {
+                            if (disposed)
+                            {
+                                return;
+                            }
+
+                            int remaining =
+                                maximumCharacters - captured.Length;
+                            if (remaining > 0)
+                            {
+                                captured.Append(
+                                    buffer,
+                                    0,
+                                    Math.Min(remaining, count));
+                            }
+                            if (count > remaining)
+                            {
+                                limitExceeded = true;
+                            }
+                        }
+                    }
+                },
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
+        }
+    }
+}
+'@
+    }
+
+    return [CLROS.Build.ProcessJob]::Create()
+}
+
+function Stop-M01ProcessTree {
+    param(
+        [System.Diagnostics.Process] $Process,
+        [object] $ProcessJob
+    )
+
+    $wrapperExited = $false
+    $jobEmpty = $false
+    try {
+        $ProcessJob.Terminate()
+        $wrapperExited = $Process.WaitForExit(5000)
+        $jobEmpty = $ProcessJob.WaitForEmpty(5000)
+    }
+    catch {
+        try {
+            if (-not $Process.HasExited) {
+                $Process.Kill()
+            }
+            $wrapperExited = $Process.WaitForExit(5000)
+            $jobEmpty = $ProcessJob.WaitForEmpty(5000)
+        }
+        catch {
+            # The false result below is authoritative.
+        }
+    }
+
+    return $wrapperExited -and $jobEmpty
+}
+
+function Get-M01BoundedProcessFailureReason {
+    param([object] $Result)
+
+    if ($Result.TimedOut) {
+        return "timeout"
+    }
+    if ($Result.OutputLimitExceeded) {
+        return "output_limit_exceeded"
+    }
+    if (-not $Result.TerminationConfirmed) {
+        return "process_tree_termination_unconfirmed"
+    }
+    if (-not $Result.OutputCaptureSucceeded) {
+        return "output_capture_failed"
+    }
+    if ($Result.ExitCode -ne 0) {
+        return "exit_code_" + $Result.ExitCode
+    }
+    return "ok"
+}
+
+function Write-M01BoundedProcessOutput {
+    param(
+        [object] $Result,
+        [string] $LogFullPath
+    )
+
+    foreach ($line in @($Result.OutputLines)) {
+        Write-Host $line
+        if (-not [string]::IsNullOrWhiteSpace($LogFullPath)) {
+            if ($null -eq $script:M01LogAuthority) {
+                throw "log authority is not initialized: $LogFullPath"
+            }
+            Write-M01LogLines `
+                -Authority $script:M01LogAuthority `
+                -Lines @([string] $line)
+        }
+    }
+}
+
+function Invoke-M01BoundedProcess {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $FilePath,
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
+        [string[]] $Arguments,
+        [Parameter(Mandatory = $true)]
+        [string] $WorkingDirectory,
+        [Parameter(Mandatory = $true)]
+        [ValidatePattern('^[a-z0-9][a-z0-9._-]*$')]
+        [string] $Operation,
+        [Parameter(Mandatory = $true)]
+        [ValidateRange(1, 3600)]
+        [int] $TimeoutSeconds,
+        [Parameter(Mandatory = $true)]
+        [ValidateRange(256, 67108864)]
+        [int] $MaximumOutputCharacters,
+        [System.Collections.IDictionary] $EnvironmentOverrides = @{}
+    )
+
+    $resolvedFilePath = (Resolve-Path -LiteralPath $FilePath).ProviderPath
+    $resolvedWorkingDirectory = (
+        Resolve-Path -LiteralPath $WorkingDirectory).ProviderPath
+    if (-not (Test-Path -LiteralPath $resolvedFilePath -PathType Leaf)) {
+        throw "bounded process executable is not a file: $resolvedFilePath"
+    }
+    if (-not (Test-Path -LiteralPath $resolvedWorkingDirectory -PathType Container)) {
+        throw (
+            "bounded process working directory is not a directory: " +
+            $resolvedWorkingDirectory)
+    }
+
+    $powershellPath = Join-Path $env:SystemRoot (
+        "System32\WindowsPowerShell\v1.0\powershell.exe")
+    if (-not (Test-Path -LiteralPath $powershellPath -PathType Leaf)) {
+        throw "Windows PowerShell executable missing: $powershellPath"
+    }
+
+    $argumentJson = ConvertTo-Json -InputObject @($Arguments) -Compress
+    $encodedArguments = [System.Convert]::ToBase64String(
+        [System.Text.Encoding]::UTF8.GetBytes($argumentJson))
+    $encodedFilePath = [System.Convert]::ToBase64String(
+        [System.Text.Encoding]::UTF8.GetBytes($resolvedFilePath))
+    if ($encodedArguments.Length -gt 16384 -or
+        $encodedFilePath.Length -gt 4096) {
+        throw "bounded process launch payload exceeds the bounded contract"
+    }
+
+    $startupGateName =
+        "Local\CLROS-M01-BuildProcess-" +
+        [System.Guid]::NewGuid().ToString("N")
+    $startupGateCreated = $false
+    $startupGate = New-Object System.Threading.EventWaitHandle(
+        $false,
+        [System.Threading.EventResetMode]::ManualReset,
+        $startupGateName,
+        [ref] $startupGateCreated)
+    if (-not $startupGateCreated) {
+        $startupGate.Dispose()
+        throw "bounded process startup gate name collision"
+    }
+$startupBootstrap = @'
+$ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
+$gate = [System.Threading.EventWaitHandle]::OpenExisting(
+    $env:CLROS_M01_BUILD_STARTUP_GATE)
+try {
+    if (-not $gate.WaitOne(30000)) {
+        exit 125
+    }
+}
+finally {
+    $gate.Dispose()
+}
+$targetPath = [System.Text.Encoding]::UTF8.GetString(
+    [System.Convert]::FromBase64String(
+        $env:CLROS_M01_BUILD_FILE_PATH))
+$argumentJson = [System.Text.Encoding]::UTF8.GetString(
+    [System.Convert]::FromBase64String(
+        $env:CLROS_M01_BUILD_ARGUMENTS))
+$targetArguments = @($argumentJson | ConvertFrom-Json)
+$env:CLROS_M01_BUILD_STARTUP_GATE = $null
+$env:CLROS_M01_BUILD_FILE_PATH = $null
+$env:CLROS_M01_BUILD_ARGUMENTS = $null
+& $targetPath @targetArguments
+if ($null -eq $LASTEXITCODE) {
+    exit 0
+}
+exit [int] $LASTEXITCODE
+'@
+    $encodedBootstrap = [System.Convert]::ToBase64String(
+        [System.Text.Encoding]::Unicode.GetBytes($startupBootstrap))
+
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $powershellPath
+    $startInfo.Arguments =
+        "-NoProfile -ExecutionPolicy Bypass -EncodedCommand " +
+        $encodedBootstrap
+    $startInfo.WorkingDirectory = $resolvedWorkingDirectory
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.EnvironmentVariables["CLROS_M01_BUILD_STARTUP_GATE"] =
+        $startupGateName
+    $startInfo.EnvironmentVariables["CLROS_M01_BUILD_FILE_PATH"] =
+        $encodedFilePath
+    $startInfo.EnvironmentVariables["CLROS_M01_BUILD_ARGUMENTS"] =
+        $encodedArguments
+    $startInfo.EnvironmentVariables["MSBUILDDISABLENODEREUSE"] = "1"
+    $startInfo.EnvironmentVariables["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0"
+    $startInfo.EnvironmentVariables["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1"
+    $startInfo.EnvironmentVariables["DOTNET_NOLOGO"] = "1"
+    foreach ($key in @($EnvironmentOverrides.Keys)) {
+        $name = [string] $key
+        $value = $EnvironmentOverrides[$key]
+        if ($null -eq $value) {
+            [void] $startInfo.EnvironmentVariables.Remove($name)
+        }
+        else {
+            $startInfo.EnvironmentVariables[$name] = [string] $value
+        }
+    }
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $startInfo
+    $processJob = $null
+    $capture = $null
+    $processStarted = $false
+    $processAssigned = $false
+    try {
+        $processJob = New-M01ProcessJob
+        if (-not $process.Start()) {
+            throw "bounded process did not start: $Operation"
+        }
+        $processStarted = $true
+        $processJob.Assign($process)
+        $processAssigned = $true
+        $capture = New-Object CLROS.Build.BoundedProcessOutput(
+            $process.StandardOutput,
+            $process.StandardError,
+            $MaximumOutputCharacters)
+        if (-not $startupGate.Set()) {
+            throw "bounded process startup gate release failed: $Operation"
+        }
+
+        $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+        $completed = $false
+        $timedOut = $false
+        $outputLimitExceeded = $false
+        while (-not $completed) {
+            $completed = $process.WaitForExit(25)
+            if ($capture.LimitExceeded) {
+                $outputLimitExceeded = $true
+                break
+            }
+            if ($stopwatch.Elapsed.TotalSeconds -ge $TimeoutSeconds) {
+                $timedOut = $true
+                break
+            }
+        }
+        $stopwatch.Stop()
+        $exitCode = if ($completed -and -not $outputLimitExceeded) {
+            $process.ExitCode
+        }
+        else {
+            -1
+        }
+        $terminationConfirmed = Stop-M01ProcessTree `
+            -Process $process `
+            -ProcessJob $processJob
+
+        $outputDrainTask = [System.Threading.Tasks.Task]::WhenAll(
+            [System.Threading.Tasks.Task[]] $capture.Tasks)
+        $outputDrainWaitCompleted = $false
+        try {
+            $outputDrainWaitCompleted = $outputDrainTask.Wait(2000)
+        }
+        catch {
+            $outputDrainWaitCompleted = $true
+        }
+        $outputCaptureSucceeded =
+            $outputDrainWaitCompleted -and
+            ($capture.Tasks | Where-Object {
+                $_.Status -ne
+                    [System.Threading.Tasks.TaskStatus]::RanToCompletion
+            }).Count -eq 0
+        $outputText = $capture.GetText()
+        $outputLines = New-Object System.Collections.Generic.List[string]
+        if (-not [string]::IsNullOrEmpty($outputText)) {
+            foreach ($line in [System.Text.RegularExpressions.Regex]::Split(
+                    $outputText.TrimEnd("`r", "`n"),
+                    "\r\n|\n|\r")) {
+                $outputLines.Add($line)
+            }
+        }
+
+        return [pscustomobject] @{
+            Operation = $Operation
+            TimedOut = $timedOut
+            OutputLimitExceeded =
+                $outputLimitExceeded -or $capture.LimitExceeded
+            ExitCode = $exitCode
+            TerminationConfirmed = $terminationConfirmed
+            OutputCaptureSucceeded = $outputCaptureSucceeded
+            OutputDrainTimedOut = -not $outputDrainWaitCompleted
+            OutputCharacters = $capture.CapturedCharacters
+            OutputText = $outputText
+            OutputLines = $outputLines.ToArray()
+            ElapsedMilliseconds = $stopwatch.ElapsedMilliseconds
+        }
+    }
+    finally {
+        $startupGate.Dispose()
+        if ($null -ne $processJob) {
+            $processJob.Dispose()
+        }
+        if ($processStarted -and -not $processAssigned) {
+            try {
+                if (-not $process.HasExited) {
+                    $process.Kill()
+                }
+                [void] $process.WaitForExit(1000)
+            }
+            catch {
+                # Launch failure remains authoritative.
+            }
+        }
+        if ($null -ne $capture) {
+            $capture.Dispose()
+        }
+        $process.Dispose()
+    }
+}
+
+function Invoke-M01ArtifactVerifier {
+    param(
+        [string[]] $Arguments,
+        [int] $TimeoutSeconds
+    )
+
+    $powershellPath = Join-Path $env:SystemRoot (
+        "System32\WindowsPowerShell\v1.0\powershell.exe")
+    if (-not (Test-Path -LiteralPath $powershellPath -PathType Leaf)) {
+        throw "Windows PowerShell executable missing: $powershellPath"
+    }
+
+    $argumentJson = ConvertTo-Json -InputObject @($Arguments) -Compress
+    $encodedArguments = [System.Convert]::ToBase64String(
+        [System.Text.Encoding]::UTF8.GetBytes($argumentJson))
+    if ($encodedArguments.Length -gt 16384) {
+        throw "artifact verifier argument payload exceeds the bounded launch contract"
+    }
+    $startupGateName =
+        "Local\CLROS-M01-ArtifactVerifier-" +
+        [System.Guid]::NewGuid().ToString("N")
+    $startupGateCreated = $false
+    $startupGate = New-Object System.Threading.EventWaitHandle(
+        $false,
+        [System.Threading.EventResetMode]::ManualReset,
+        $startupGateName,
+        [ref] $startupGateCreated)
+    if (-not $startupGateCreated) {
+        $startupGate.Dispose()
+        throw "artifact verifier startup gate name collision"
+    }
+$startupBootstrap = @'
+$ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
+$gate = [System.Threading.EventWaitHandle]::OpenExisting(
+    $env:CLROS_M01_VERIFIER_STARTUP_GATE)
+try {
+    if (-not $gate.WaitOne(30000)) {
+        exit 125
+    }
+}
+finally {
+    $gate.Dispose()
+}
+$argumentBytes = [System.Convert]::FromBase64String(
+    $env:CLROS_M01_VERIFIER_ARGUMENTS)
+$argumentJson = [System.Text.Encoding]::UTF8.GetString($argumentBytes)
+$parsedArguments = $argumentJson | ConvertFrom-Json
+$verifierArguments = @($parsedArguments)
+if ($verifierArguments.Count -lt 5 -or
+    [string]$verifierArguments[0] -cne "-NoProfile" -or
+    [string]$verifierArguments[1] -cne "-ExecutionPolicy" -or
+    [string]$verifierArguments[2] -cne "Bypass" -or
+    [string]$verifierArguments[3] -cne "-File") {
+    exit 126
+}
+$verifierScript = [string]$verifierArguments[4]
+if (($verifierArguments.Count - 5) % 2 -ne 0) {
+    exit 127
+}
+$verifierParameters = @{}
+for ($index = 5; $index -lt $verifierArguments.Count; $index += 2) {
+    $parameterToken = [string]$verifierArguments[$index]
+    if ($parameterToken -cnotmatch '^-[A-Za-z][A-Za-z0-9]*$') {
+        exit 127
+    }
+    $parameterName = $parameterToken.Substring(1)
+    if ($verifierParameters.ContainsKey($parameterName)) {
+        exit 127
+    }
+    $verifierParameters.Add(
+        $parameterName,
+        [string]$verifierArguments[$index + 1])
+}
+& $verifierScript @verifierParameters
+exit $LASTEXITCODE
+'@
+    $encodedBootstrap = [System.Convert]::ToBase64String(
+        [System.Text.Encoding]::Unicode.GetBytes($startupBootstrap))
+
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $powershellPath
+    $startInfo.Arguments =
+        "-NoProfile -ExecutionPolicy Bypass -EncodedCommand " +
+        $encodedBootstrap
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.EnvironmentVariables["CLROS_M01_VERIFIER_STARTUP_GATE"] =
+        $startupGateName
+    $startInfo.EnvironmentVariables["CLROS_M01_VERIFIER_ARGUMENTS"] =
+        $encodedArguments
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $startInfo
+    $standardOutputReader = $null
+    $standardErrorReader = $null
+    $standardOutputTask = $null
+    $standardErrorTask = $null
+    $processJob = $null
+    $processStarted = $false
+    $processAssigned = $false
+    try {
+        $processJob = New-M01ProcessJob
+        if (-not $process.Start()) {
+            throw "artifact verifier process did not start"
+        }
+        $processStarted = $true
+        $processJob.Assign($process)
+        $processAssigned = $true
+        $standardOutputReader = $process.StandardOutput
+        $standardErrorReader = $process.StandardError
+        $standardOutputTask = $standardOutputReader.ReadToEndAsync()
+        $standardErrorTask = $standardErrorReader.ReadToEndAsync()
+        if (-not $startupGate.Set()) {
+            throw "artifact verifier startup gate release failed"
+        }
+        $completed = $process.WaitForExit($TimeoutSeconds * 1000)
+        $exitCode = if ($completed) { $process.ExitCode } else { -1 }
+        $terminationConfirmed = Stop-M01ProcessTree `
+            -Process $process `
+            -ProcessJob $processJob
+
+        $outputDrainTask = [System.Threading.Tasks.Task]::WhenAll(
+            [System.Threading.Tasks.Task[]] @(
+                $standardOutputTask,
+                $standardErrorTask
+            ))
+        $outputDrainWaitCompleted = $false
+        $outputDrainDeadlineExceeded = $false
+        try {
+            $outputDrainWaitCompleted = $outputDrainTask.Wait(2000)
+        }
+        catch {
+            $outputDrainWaitCompleted = $true
+        }
+        if (-not $outputDrainWaitCompleted) {
+            $outputDrainDeadlineExceeded = $true
+            $terminationConfirmed =
+                (Stop-M01ProcessTree `
+                    -Process $process `
+                    -ProcessJob $processJob) -and
+                $terminationConfirmed
+            try {
+                $outputDrainWaitCompleted = $outputDrainTask.Wait(1000)
+            }
+            catch {
+                $outputDrainWaitCompleted = $true
+            }
+        }
+
+        $outputCaptureSucceeded =
+            $outputDrainWaitCompleted -and
+            $standardOutputTask.Status -eq
+                [System.Threading.Tasks.TaskStatus]::RanToCompletion -and
+            $standardErrorTask.Status -eq
+                [System.Threading.Tasks.TaskStatus]::RanToCompletion
+        $standardOutput = if ($outputCaptureSucceeded) {
+            $standardOutputTask.GetAwaiter().GetResult()
+        }
+        else {
+            ""
+        }
+        $standardError = if ($outputCaptureSucceeded) {
+            $standardErrorTask.GetAwaiter().GetResult()
+        }
+        else {
+            ""
+        }
+        $outputLines = New-Object System.Collections.Generic.List[string]
+        foreach ($text in @($standardOutput, $standardError)) {
+            if ([string]::IsNullOrEmpty($text)) {
+                continue
+            }
+            foreach ($line in [System.Text.RegularExpressions.Regex]::Split(
+                    $text.TrimEnd("`r", "`n"),
+                    "\r\n|\n|\r")) {
+                $outputLines.Add($line)
+            }
+        }
+
+        return [pscustomobject] @{
+            TimedOut = -not $completed
+            ExitCode = $exitCode
+            TerminationConfirmed = $terminationConfirmed
+            OutputCaptureSucceeded = $outputCaptureSucceeded
+            OutputDrainTimedOut = $outputDrainDeadlineExceeded
+            OutputLines = $outputLines.ToArray()
+        }
+    }
+    finally {
+        $startupGate.Dispose()
+        if ($null -ne $processJob) {
+            $processJob.Dispose()
+        }
+        if ($processStarted -and -not $processAssigned) {
+            try {
+                if (-not $process.HasExited) {
+                    $process.Kill()
+                    [void] $process.WaitForExit(1000)
+                }
+            }
+            catch {
+                # Launch failure remains authoritative.
+            }
+        }
+        if ($null -ne $standardOutputReader -and
+            ($null -eq $standardOutputTask -or
+                -not $standardOutputTask.IsCompleted)) {
+            $standardOutputReader.Dispose()
+        }
+        if ($null -ne $standardErrorReader -and
+            ($null -eq $standardErrorTask -or
+                -not $standardErrorTask.IsCompleted)) {
+            $standardErrorReader.Dispose()
+        }
+        $process.Dispose()
+    }
+}
+
 function Test-NativeAotRuntimePack {
     param([string] $Path)
 
@@ -334,7 +4043,7 @@ function Test-NativeAotRuntimePack {
             return $false
         }
 
-        [xml] $runtimeList = Get-Content -LiteralPath $runtimeListPath -Raw
+        $runtimeList = Read-M01SecureXmlDocument -Path $runtimeListPath
         return $null -ne $runtimeList.DocumentElement -and
             $runtimeList.DocumentElement.LocalName -eq "FileList"
     }
@@ -524,7 +4233,7 @@ function Get-PackageReferenceVersion {
     )
 
     try {
-        [xml] $project = Get-Content -LiteralPath $ProjectPath -Raw
+        $project = Read-M01SecureXmlDocument -Path $ProjectPath
         $packageReference = $project.Project.ItemGroup.PackageReference |
             Where-Object { $_.Include -eq $PackageId } |
             Select-Object -First 1
@@ -935,6 +4644,237 @@ function Get-M01CanonicalXmlSha256 {
     }
 }
 
+function Test-M01SerializerTargetsImport {
+    param(
+        [string] $RepositoryRoot,
+        [string] $ProjectPath,
+        [System.Xml.XmlDocument] $Project
+    )
+
+    $projectReferences = @($Project.SelectNodes("//ProjectReference"))
+    $importGroups = @($Project.SelectNodes("//ImportGroup"))
+    $chooseNodes = @($Project.SelectNodes("//Choose"))
+    if ($projectReferences.Count -ne 0 -or
+        $importGroups.Count -ne 0 -or
+        $chooseNodes.Count -ne 0) {
+        return [pscustomobject] @{
+            Succeeded = $false
+            Reason = "forbidden_project_input"
+            Detail = "reference-importgroup-or-choose"
+        }
+    }
+
+    $allImports = @($Project.SelectNodes("//Import"))
+    $rootImports = @($Project.SelectNodes("/Project/Import"))
+    if ($allImports.Count -ne 1 -or $rootImports.Count -ne 1) {
+        return [pscustomobject] @{
+            Succeeded = $false
+            Reason = "serializer_import_count_mismatch"
+            Detail = $allImports.Count.ToString()
+        }
+    }
+
+    $import = $rootImports[0]
+    $importValue = $import.GetAttribute("Project")
+    if ($import.Attributes.Count -ne 1 -or
+        -not $import.HasAttribute("Project") -or
+        $import.HasAttribute("Condition") -or
+        $import.SelectNodes("*").Count -ne 0 -or
+        $importValue -ne $script:ExpectedSerializerTargetsImport -or
+        $importValue -match '[*?\[\];]' -or
+        $importValue -match '\$\(' -or
+        $importValue -match '@\(' -or
+        [System.IO.Path]::IsPathRooted($importValue)) {
+        return [pscustomobject] @{
+            Succeeded = $false
+            Reason = "serializer_import_shape_invalid"
+            Detail = $importValue
+        }
+    }
+
+    $projectDirectory = Split-Path -Parent $ProjectPath
+    $expectedTargetsPath = [System.IO.Path]::GetFullPath(
+        (Join-Path $RepositoryRoot (
+            "tools\OS.X64TextSerializerGenerator\" +
+            "OS.X64TextSerializerGenerator.targets")))
+    try {
+        $resolvedTargetsPath = [System.IO.Path]::GetFullPath(
+            (Join-Path $projectDirectory $importValue))
+    }
+    catch {
+        return [pscustomobject] @{
+            Succeeded = $false
+            Reason = "serializer_import_path_invalid"
+            Detail = $importValue
+        }
+    }
+
+    if (-not [string]::Equals(
+            $resolvedTargetsPath,
+            $expectedTargetsPath,
+            [System.StringComparison]::OrdinalIgnoreCase)) {
+        return [pscustomobject] @{
+            Succeeded = $false
+            Reason = "serializer_import_path_invalid"
+            Detail = $resolvedTargetsPath
+        }
+    }
+
+    if (-not (Test-Path -LiteralPath $resolvedTargetsPath -PathType Leaf)) {
+        return [pscustomobject] @{
+            Succeeded = $false
+            Reason = "serializer_targets_missing"
+            Detail = $resolvedTargetsPath
+        }
+    }
+
+    try {
+        $targets = Read-M01SecureXmlDocument -Path $resolvedTargetsPath
+    }
+    catch {
+        return [pscustomobject] @{
+            Succeeded = $false
+            Reason = "serializer_targets_malformed"
+            Detail = $resolvedTargetsPath
+        }
+    }
+
+    if ($targets.Project.Attributes.Count -ne 0) {
+        return [pscustomobject] @{
+            Succeeded = $false
+            Reason = "serializer_targets_shape_invalid"
+            Detail = "project-attributes"
+        }
+    }
+
+    $injectedInputs = @($targets.SelectNodes(
+        "//Compile|//ProjectReference|//Reference|//PackageReference|" +
+        "//Analyzer|//AdditionalFiles|//UsingTask|//Import|//ImportGroup|" +
+        "//Choose|//Csc|//WriteLinesToFile|//Copy|//Delete"))
+    if ($injectedInputs.Count -ne 0) {
+        return [pscustomobject] @{
+            Succeeded = $false
+            Reason = "serializer_targets_input_injection"
+            Detail = $injectedInputs[0].Name
+        }
+    }
+
+    $cleanupNodes = @($targets.SelectNodes("//RemoveDir"))
+    $expectedCleanupDirectory =
+        '$(_ClrosX64SerializerTrackedToolRoot)'
+    $expectedCleanupCondition =
+        'Exists(''$(_ClrosX64SerializerTrackedToolRoot)'')'
+    $expectedCleanupTargetCondition =
+        "'`$(NativeIntermediateOutputPath)' != ''"
+    $cleanupTarget = if ($cleanupNodes.Count -eq 1) {
+        $cleanupNodes[0].ParentNode
+    }
+    else {
+        $null
+    }
+    if ($cleanupNodes.Count -ne 1 -or
+        $null -eq $cleanupTarget -or
+        $cleanupTarget.LocalName -ne "Target" -or
+        $cleanupTarget.Attributes.Count -ne 4 -or
+        $cleanupTarget.GetAttribute("Name") -ne
+            "RemoveClrosX64InstructionPublicationSerializerToolOutput" -or
+        $cleanupTarget.GetAttribute("AfterTargets") -ne "CoreClean" -or
+        $cleanupTarget.GetAttribute("DependsOnTargets") -ne
+            "TrackClrosX64InstructionPublicationSerializerOutput" -or
+        $cleanupTarget.GetAttribute("Condition") -ne
+            $expectedCleanupTargetCondition -or
+        $cleanupNodes[0].Attributes.Count -ne 2 -or
+        $cleanupNodes[0].GetAttribute("Directories") -ne
+            $expectedCleanupDirectory -or
+        $cleanupNodes[0].GetAttribute("Condition") -ne
+            $expectedCleanupCondition -or
+        $cleanupNodes[0].SelectNodes("*").Count -ne 0) {
+        return [pscustomobject] @{
+            Succeeded = $false
+            Reason = "serializer_targets_cleanup_invalid"
+            Detail = $cleanupNodes.Count.ToString()
+        }
+    }
+
+    $expectedHashOutputs = @(
+        "_ClrosX64SerializerGeneratorProjectSha256",
+        "_ClrosX64SerializerToolsPropsSha256",
+        "_ClrosX64SerializerRootPropsSha256",
+        "_ClrosX64SerializerRootTargetsSha256",
+        "_ClrosX64SerializerActualSha256"
+    )
+    $outputNodes = @($targets.SelectNodes("//Output"))
+    if ($outputNodes.Count -ne $expectedHashOutputs.Count) {
+        return [pscustomobject] @{
+            Succeeded = $false
+            Reason = "serializer_targets_output_injection"
+            Detail = $outputNodes.Count.ToString()
+        }
+    }
+    foreach ($expectedHashOutput in $expectedHashOutputs) {
+        $matchingOutputs = @($outputNodes | Where-Object {
+            $_.ParentNode.Name -eq "GetFileHash" -and
+            $_.Attributes.Count -eq 2 -and
+            $_.GetAttribute("TaskParameter") -eq "Hash" -and
+            $_.GetAttribute("PropertyName") -eq $expectedHashOutput -and
+            $_.SelectNodes("*").Count -eq 0
+        })
+        if ($matchingOutputs.Count -ne 1) {
+            return [pscustomobject] @{
+                Succeeded = $false
+                Reason = "serializer_targets_output_injection"
+                Detail = $expectedHashOutput
+            }
+        }
+    }
+
+    $serializerDirectory = Split-Path -Parent $resolvedTargetsPath
+    $generatorProjectPath = Join-Path $serializerDirectory (
+        "OS.X64TextSerializerGenerator.csproj")
+    $toolsPropsPath = Join-Path (
+        Split-Path -Parent $serializerDirectory) (
+        "Directory.Build.props")
+    try {
+        $generatorProject =
+            Read-M01SecureXmlDocument -Path $generatorProjectPath
+        $toolsProps = Read-M01SecureXmlDocument -Path $toolsPropsPath
+    }
+    catch {
+        return [pscustomobject] @{
+            Succeeded = $false
+            Reason = "serializer_build_input_malformed"
+            Detail = $_.Exception.Message
+        }
+    }
+    if ((Get-M01CanonicalXmlSha256 -Document $generatorProject) -ne
+            "0c76867058268dffc8790f47468a742a4cc6baa8fc7d062062c3df9b7654591d" -or
+        (Get-M01CanonicalXmlSha256 -Document $toolsProps) -ne
+            "b268302d013a229bfc4c3be37fd22a59daaa699a2bc53e439804cbd3a9bfa778") {
+        return [pscustomobject] @{
+            Succeeded = $false
+            Reason = "serializer_build_input_shape_invalid"
+            Detail = $generatorProjectPath
+        }
+    }
+
+    $expectedTargetsHash =
+        "b803e080fa0060e4909a0a5bd65d6396cbe45226ef9f4d2ddfeb54acb5746c1f"
+    $targetsHash = Get-M01CanonicalXmlSha256 -Document $targets
+    if ($targetsHash -ne $expectedTargetsHash) {
+        return [pscustomobject] @{
+            Succeeded = $false
+            Reason = "serializer_targets_shape_invalid"
+            Detail = $targetsHash
+        }
+    }
+
+    return [pscustomobject] @{
+        Succeeded = $true
+        Reason = "ok"
+        Detail = $resolvedTargetsPath
+    }
+}
+
 function Test-M01BuildCustomizationSurface {
     param(
         [string] $RepositoryRoot,
@@ -985,8 +4925,8 @@ function Test-M01BuildCustomizationSurface {
         }
 
         try {
-            [xml] $customization =
-                Get-Content -LiteralPath $customizationPath -Raw
+            $customization =
+                Read-M01SecureXmlDocument -Path $customizationPath
         }
         catch {
             return [pscustomobject] @{
@@ -1028,6 +4968,43 @@ function Test-M01BuildCustomizationSurface {
             }
         }
     }
+    $rootResponsePath = Join-Path $repositoryFullPath "Directory.Build.rsp"
+    if (Test-Path -LiteralPath $rootResponsePath -PathType Leaf) {
+        return [pscustomobject] @{
+            Succeeded = $false
+            Reason = "unexpected_build_customization"
+            Detail = $rootResponsePath
+        }
+    }
+
+    $toolsDirectory = Join-Path $repositoryFullPath "tools"
+    $generatorDirectory = Join-Path $toolsDirectory (
+        "OS.X64TextSerializerGenerator")
+    $unexpectedGeneratorCustomizations = @(
+        (Join-Path $generatorDirectory "Directory.Build.props"),
+        (Join-Path $generatorDirectory "Directory.Build.targets"),
+        (Join-Path $generatorDirectory "Directory.Build.rsp"),
+        (Join-Path $toolsDirectory "Directory.Build.targets"),
+        (Join-Path $toolsDirectory "Directory.Build.rsp")
+    )
+    foreach ($unexpectedPath in $unexpectedGeneratorCustomizations) {
+        if (Test-Path -LiteralPath $unexpectedPath -PathType Leaf) {
+            return [pscustomobject] @{
+                Succeeded = $false
+                Reason = "unexpected_build_customization"
+                Detail = $unexpectedPath
+            }
+        }
+    }
+
+    $canonicalToolsPropsPath = Join-Path $toolsDirectory "Directory.Build.props"
+    if (-not (Test-Path -LiteralPath $canonicalToolsPropsPath -PathType Leaf)) {
+        return [pscustomobject] @{
+            Succeeded = $false
+            Reason = "build_customization_missing"
+            Detail = $canonicalToolsPropsPath
+        }
+    }
 
     return [pscustomobject] @{
         Succeeded = $true
@@ -1038,6 +5015,7 @@ function Test-M01BuildCustomizationSurface {
 
 function Test-M01EvaluatedSourceClosure {
     param(
+        [string] $RepositoryRoot,
         [string] $ProjectPath,
         [string] $Configuration,
         [bool] $LoadedImageStackEnabled,
@@ -1049,6 +5027,19 @@ function Test-M01EvaluatedSourceClosure {
     )
 
     $projectDirectory = Split-Path -Parent $ProjectPath
+    $canonicalRootPropsPath = Join-Path $RepositoryRoot "Directory.Build.props"
+    $canonicalRootTargetsPath = Join-Path $RepositoryRoot "Directory.Build.targets"
+    $evaluationExtensionsPath = (
+        Join-Path (
+            [System.IO.Path]::GetTempPath()) (
+            "clros-m01-source-evaluation-" +
+            [System.Guid]::NewGuid().ToString("N"))
+    ).Replace("\", "/").TrimEnd("/") + "/"
+    $evaluationAssetsPath = Join-Path (
+        $evaluationExtensionsPath) (
+        "project.assets.json")
+    $evaluationIsolation = Get-M01MsbuildIsolationContract `
+        -ProjectExtensionsDirectory $evaluationExtensionsPath
     $expectedSwitchValues = [ordered] @{
         "EnableM01LoadedImageStackProbe" =
             $LoadedImageStackEnabled.ToString().ToLowerInvariant()
@@ -1071,8 +5062,13 @@ function Test-M01EvaluatedSourceClosure {
         $arguments = @(
             "msbuild",
             $ProjectPath,
+            "-noAutoResponse",
             "-nologo",
-            "-getItem:Compile,ProjectReference,Reference,Analyzer",
+            (
+                "-getItem:" +
+                "Compile,ProjectReference,Reference,Analyzer," +
+                "_ClrosX64SerializerGeneratorInput"
+            ),
             (
                 "-getProperty:" +
                 "Configuration," +
@@ -1082,12 +5078,55 @@ function Test-M01EvaluatedSourceClosure {
                 "DefineConstants," +
                 "EnableDefaultCompileItems," +
                 "NoStdLib," +
-                "DisableImplicitFrameworkReferences"
+                "DisableImplicitFrameworkReferences," +
+                "MSBuildSDKsPath,MSBuildExtensionsPath," +
+                "MSBuildUserExtensionsPath," +
+                "ImportByWildcardBeforeMicrosoftCommonProps," +
+                "ImportByWildcardAfterMicrosoftCommonProps," +
+                "ImportUserLocationsByWildcardBeforeMicrosoftCommonProps," +
+                "ImportUserLocationsByWildcardAfterMicrosoftCommonProps," +
+                "ImportByWildcardBeforeMicrosoftCommonTargets," +
+                "ImportByWildcardAfterMicrosoftCommonTargets," +
+                "ImportUserLocationsByWildcardBeforeMicrosoftCommonTargets," +
+                "ImportUserLocationsByWildcardAfterMicrosoftCommonTargets," +
+                "ImportByWildcardBeforeMicrosoftCSharpTargets," +
+                "ImportByWildcardAfterMicrosoftCSharpTargets," +
+                "ImportUserLocationsByWildcardBeforeMicrosoftCSharpTargets," +
+                "ImportUserLocationsByWildcardAfterMicrosoftCSharpTargets," +
+                "ImportByWildcardBeforeMicrosoftCommonCrossTargetingTargets," +
+                "ImportByWildcardAfterMicrosoftCommonCrossTargetingTargets," +
+                "UseSharedCompilation"
             ),
             ("-p:Configuration=" + $Configuration),
             ("-p:OSWorkloadProfile=" + $profile),
+            ("-p:DirectoryBuildPropsPath=" + $canonicalRootPropsPath),
+            ("-p:DirectoryBuildTargetsPath=" + $canonicalRootTargetsPath),
+            ("-p:MSBuildProjectExtensionsPath=" + $evaluationExtensionsPath),
+            ("-p:BaseIntermediateOutputPath=" + $evaluationExtensionsPath),
+            ("-p:IntermediateOutputPath=" + $evaluationExtensionsPath),
+            ("-p:ProjectAssetsFile=" + $evaluationAssetsPath),
+            "-p:ImportDirectoryBuildProps=true",
+            "-p:ImportDirectoryBuildTargets=true",
+            "-p:ImportProjectExtensionProps=false",
+            "-p:ImportProjectExtensionTargets=false",
+            "-p:ExcludeRestorePackageImports=true",
+            "-p:CustomBeforeMicrosoftCommonProps=",
+            "-p:CustomAfterMicrosoftCommonProps=",
+            "-p:CustomBeforeDirectoryBuildProps=",
+            "-p:CustomAfterDirectoryBuildProps=",
+            "-p:CustomBeforeDirectoryBuildTargets=",
+            "-p:CustomAfterDirectoryBuildTargets=",
+            "-p:CustomBeforeMicrosoftCommonTargets=",
+            "-p:CustomAfterMicrosoftCommonTargets=",
+            "-p:CustomBeforeMicrosoftCSharpTargets=",
+            "-p:CustomAfterMicrosoftCSharpTargets=",
+            "-p:CustomBeforeMicrosoftCommonCrossTargetingTargets=",
+            "-p:CustomAfterMicrosoftCommonCrossTargetingTargets=",
+            "-p:BeforeMicrosoftNETSdkTargets=",
+            "-p:AfterMicrosoftNETSdkTargets=",
             "-p:RestoreIgnoreFailedSources=true"
         )
+        $arguments += $evaluationIsolation.Arguments
         if ($LoadedImageStackEnabled) {
             $arguments += "-p:EnableM01LoadedImageStackProbe=true"
         }
@@ -1107,14 +5146,23 @@ function Test-M01EvaluatedSourceClosure {
             $arguments += "-p:EnableAcpiPhysicalDiscoveryProbe=true"
         }
 
-        $outputLines = @(& dotnet @arguments 2>&1)
-        $exitCode = $LASTEXITCODE
-        $outputText = $outputLines | Out-String
-        if ($exitCode -ne 0) {
+        $processResult = Invoke-M01BoundedProcess `
+            -FilePath $script:DotnetHostPath `
+            -Arguments $arguments `
+            -WorkingDirectory $RepositoryRoot `
+            -Operation ("source-evaluation-" + $profile.ToLowerInvariant()) `
+            -TimeoutSeconds $BuildProcessTimeoutSeconds `
+            -MaximumOutputCharacters $BuildProcessMaximumOutputCharacters `
+            -EnvironmentOverrides $evaluationIsolation.Environment
+        $processFailure = Get-M01BoundedProcessFailureReason `
+            -Result $processResult
+        $outputText = $processResult.OutputText
+        if ($processFailure -cne "ok") {
             return New-M01SourceClosureResult `
                 -Succeeded $false `
-                -Reason "evaluated_project_failed" `
-                -Detail $profile
+                -Reason (
+                    "evaluated_project_process_" + $processFailure) `
+                -Detail ($profile + ":" + $processResult.OutputText)
         }
 
         $jsonStart = $outputText.IndexOf(
@@ -1150,6 +5198,15 @@ function Test-M01EvaluatedSourceClosure {
                 -Succeeded $false `
                 -Reason "evaluated_property_mismatch" `
                 -Detail ($profile + ":nostdlib")
+        }
+        foreach ($entry in $evaluationIsolation.Properties.GetEnumerator()) {
+            if ([string] $evaluation.Properties.($entry.Key) -cne
+                [string] $entry.Value) {
+                return New-M01SourceClosureResult `
+                    -Succeeded $false `
+                    -Reason "evaluated_property_mismatch" `
+                    -Detail ($profile + ":" + $entry.Key)
+            }
         }
         foreach ($entry in $expectedSwitchValues.GetEnumerator()) {
             if ($evaluation.Properties.($entry.Key) -ne $entry.Value) {
@@ -1234,10 +5291,13 @@ function Test-M01EvaluatedSourceClosure {
         $projectReferences = @($evaluation.Items.ProjectReference)
         $references = @($evaluation.Items.Reference)
         $analyzers = @($evaluation.Items.Analyzer)
+        $serializerInputs = @(
+            $evaluation.Items._ClrosX64SerializerGeneratorInput)
         if ($compileItems.Count -ne $script:ExpectedEfiCompileItems.Count -or
             $projectReferences.Count -ne 0 -or
             $references.Count -ne 0 -or
-            $analyzers.Count -ne 2) {
+            $analyzers.Count -ne 2 -or
+            $serializerInputs.Count -ne 5) {
             return New-M01SourceClosureResult `
                 -Succeeded $false `
                 -Reason "evaluated_item_count_mismatch" `
@@ -1246,7 +5306,45 @@ function Test-M01EvaluatedSourceClosure {
                     ":compile=" + $compileItems.Count +
                     ";project=" + $projectReferences.Count +
                     ";reference=" + $references.Count +
-                    ";analyzer=" + $analyzers.Count)
+                    ";analyzer=" + $analyzers.Count +
+                    ";serializer=" + $serializerInputs.Count)
+        }
+
+        $serializerTargetsPath = [System.IO.Path]::GetFullPath(
+            (Join-Path $projectDirectory $script:ExpectedSerializerTargetsImport))
+        $serializerDirectory = Split-Path -Parent $serializerTargetsPath
+        $expectedSerializerInputPaths = @(
+            (Join-Path $serializerDirectory (
+                "OS.X64TextSerializerGenerator.csproj")),
+            (Join-Path $serializerDirectory "Program.cs"),
+            (Join-Path $serializerDirectory "Amd64CoffWriter.cs"),
+            (Join-Path $serializerDirectory (
+                "InstructionPublicationSerializerGenerator.cs")),
+            $serializerTargetsPath
+        )
+        for ($serializerIndex = 0;
+            $serializerIndex -lt $expectedSerializerInputPaths.Count;
+            $serializerIndex++) {
+            $expectedSerializerInputPath = [System.IO.Path]::GetFullPath(
+                $expectedSerializerInputPaths[$serializerIndex])
+            $serializerInput = $serializerInputs[$serializerIndex]
+            if (-not [string]::Equals(
+                    [string] $serializerInput.Identity,
+                    $expectedSerializerInputPath,
+                    [System.StringComparison]::OrdinalIgnoreCase) -or
+                -not [string]::Equals(
+                    [string] $serializerInput.FullPath,
+                    $expectedSerializerInputPath,
+                    [System.StringComparison]::OrdinalIgnoreCase) -or
+                -not [string]::Equals(
+                    [string] $serializerInput.DefiningProjectFullPath,
+                    $serializerTargetsPath,
+                    [System.StringComparison]::OrdinalIgnoreCase)) {
+                return New-M01SourceClosureResult `
+                    -Succeeded $false `
+                    -Reason "evaluated_serializer_input_mismatch" `
+                    -Detail ($profile + ":" + $serializerIndex)
+            }
         }
 
         $expectedAnalyzerNames = @(
@@ -1309,6 +5407,238 @@ function Test-M01EvaluatedSourceClosure {
         }
     }
 
+    $serializerTargetsPath = [System.IO.Path]::GetFullPath(
+        (Join-Path $projectDirectory $script:ExpectedSerializerTargetsImport))
+    $serializerGeneratorProjectPath = Join-Path (
+        Split-Path -Parent $serializerTargetsPath) (
+        "OS.X64TextSerializerGenerator.csproj")
+    $serializerGeneratorDirectory =
+        Split-Path -Parent $serializerGeneratorProjectPath
+    $serializerToolsPropsPath = Join-Path (
+        Split-Path -Parent $serializerGeneratorDirectory) (
+        "Directory.Build.props")
+    $serializerRootTargetsPath = Join-Path $RepositoryRoot (
+        "Directory.Build.targets")
+    $generatorEvaluationRoot = Join-Path (
+        $serializerGeneratorDirectory) (
+        "obj\clros-m01-034-source-closure")
+    $generatorEvaluationOutputPath = (
+        Join-Path $generatorEvaluationRoot "bin").Replace(
+            [System.IO.Path]::DirectorySeparatorChar,
+            [System.IO.Path]::AltDirectorySeparatorChar) + "/"
+    $generatorEvaluationIntermediatePath = (
+        Join-Path $generatorEvaluationRoot "obj").Replace(
+            [System.IO.Path]::DirectorySeparatorChar,
+            [System.IO.Path]::AltDirectorySeparatorChar) + "/"
+    $generatorProjectExtensionsPath = (
+        Join-Path (
+            [System.IO.Path]::GetTempPath()) (
+            "clros-m01-generator-evaluation-" +
+            [System.Guid]::NewGuid().ToString("N"))
+    ).Replace("\", "/").TrimEnd("/") + "/"
+    $generatorAssetsPath = Join-Path (
+        $generatorProjectExtensionsPath) (
+        "project.assets.json")
+    $generatorIsolation = Get-M01MsbuildIsolationContract `
+        -ProjectExtensionsDirectory $generatorProjectExtensionsPath
+    $generatorArguments = @(
+        "msbuild",
+        $serializerGeneratorProjectPath,
+        "-noAutoResponse",
+        "-nologo",
+        (
+            "-getItem:" +
+            "Compile,ProjectReference,Reference,PackageReference,Analyzer"
+        ),
+        (
+            "-getProperty:EnableDefaultCompileItems,MSBuildSDKsPath," +
+            "MSBuildExtensionsPath,MSBuildUserExtensionsPath," +
+            "ImportByWildcardBeforeMicrosoftCommonProps," +
+            "ImportByWildcardAfterMicrosoftCommonProps," +
+            "ImportUserLocationsByWildcardBeforeMicrosoftCommonProps," +
+            "ImportUserLocationsByWildcardAfterMicrosoftCommonProps," +
+            "ImportByWildcardBeforeMicrosoftCommonTargets," +
+            "ImportByWildcardAfterMicrosoftCommonTargets," +
+            "ImportUserLocationsByWildcardBeforeMicrosoftCommonTargets," +
+            "ImportUserLocationsByWildcardAfterMicrosoftCommonTargets," +
+            "ImportByWildcardBeforeMicrosoftCSharpTargets," +
+            "ImportByWildcardAfterMicrosoftCSharpTargets," +
+            "ImportUserLocationsByWildcardBeforeMicrosoftCSharpTargets," +
+            "ImportUserLocationsByWildcardAfterMicrosoftCSharpTargets," +
+            "ImportByWildcardBeforeMicrosoftCommonCrossTargetingTargets," +
+            "ImportByWildcardAfterMicrosoftCommonCrossTargetingTargets," +
+            "UseSharedCompilation"
+        ),
+        ("-p:Configuration=" + $Configuration),
+        (
+            "-p:BaseOutputPath=" +
+            $generatorEvaluationOutputPath),
+        (
+            "-p:BaseIntermediateOutputPath=" +
+            $generatorEvaluationIntermediatePath),
+        (
+            "-p:MSBuildProjectExtensionsPath=" +
+            $generatorProjectExtensionsPath),
+        ("-p:ProjectAssetsFile=" + $generatorAssetsPath),
+        "-p:ImportProjectExtensionProps=false",
+        "-p:ImportProjectExtensionTargets=false",
+        "-p:ExcludeRestorePackageImports=true",
+        "-p:DefaultItemExcludes=obj/**",
+        "-p:DefaultExcludesInProjectFolder=bin/**",
+        (
+            "-p:CustomBeforeMicrosoftCommonTargets=" +
+            $serializerTargetsPath),
+        ("-p:DirectoryBuildPropsPath=" + $serializerToolsPropsPath),
+        ("-p:DirectoryBuildTargetsPath=" + $serializerRootTargetsPath),
+        "-p:ImportDirectoryBuildProps=true",
+        "-p:ImportDirectoryBuildTargets=true",
+        "-p:CustomBeforeMicrosoftCommonProps=",
+        "-p:CustomAfterMicrosoftCommonProps=",
+        "-p:CustomBeforeDirectoryBuildProps=",
+        "-p:CustomAfterDirectoryBuildProps=",
+        "-p:CustomAfterMicrosoftCommonTargets=",
+        "-p:CustomBeforeDirectoryBuildTargets=",
+        "-p:CustomAfterDirectoryBuildTargets=",
+        "-p:CustomBeforeMicrosoftCSharpTargets=",
+        "-p:CustomAfterMicrosoftCSharpTargets=",
+        "-p:CustomBeforeMicrosoftCommonCrossTargetingTargets=",
+        "-p:CustomAfterMicrosoftCommonCrossTargetingTargets=",
+        "-p:BeforeMicrosoftNETSdkTargets=",
+        "-p:AfterMicrosoftNETSdkTargets=",
+        "-p:RestoreIgnoreFailedSources=true"
+    )
+    $generatorArguments += $generatorIsolation.Arguments
+    $generatorProcessResult = Invoke-M01BoundedProcess `
+        -FilePath $script:DotnetHostPath `
+        -Arguments $generatorArguments `
+        -WorkingDirectory $RepositoryRoot `
+        -Operation "serializer-generator-evaluation" `
+        -TimeoutSeconds $BuildProcessTimeoutSeconds `
+        -MaximumOutputCharacters $BuildProcessMaximumOutputCharacters `
+        -EnvironmentOverrides $generatorIsolation.Environment
+    $generatorProcessFailure = Get-M01BoundedProcessFailureReason `
+        -Result $generatorProcessResult
+    $generatorOutputText = $generatorProcessResult.OutputText
+    if ($generatorProcessFailure -cne "ok") {
+        return New-M01SourceClosureResult `
+            -Succeeded $false `
+            -Reason (
+                "serializer_generator_evaluation_process_" +
+                $generatorProcessFailure) `
+            -Detail (
+                $serializerGeneratorProjectPath +
+                ":" +
+                $generatorProcessResult.OutputText)
+    }
+
+    $generatorJsonStart = $generatorOutputText.IndexOf(
+        "{",
+        [System.StringComparison]::Ordinal)
+    $generatorJsonEnd = $generatorOutputText.LastIndexOf(
+        "}",
+        [System.StringComparison]::Ordinal)
+    if ($generatorJsonStart -lt 0 -or
+        $generatorJsonEnd -le $generatorJsonStart) {
+        return New-M01SourceClosureResult `
+            -Succeeded $false `
+            -Reason "serializer_generator_evaluation_malformed" `
+            -Detail "json"
+    }
+
+    try {
+        $generatorEvaluation = $generatorOutputText.Substring(
+            $generatorJsonStart,
+            $generatorJsonEnd - $generatorJsonStart + 1) | ConvertFrom-Json
+    }
+    catch {
+        return New-M01SourceClosureResult `
+            -Succeeded $false `
+            -Reason "serializer_generator_evaluation_malformed" `
+            -Detail "parse"
+    }
+
+    $generatorCompileItems = @($generatorEvaluation.Items.Compile)
+    $generatorProjectReferences = @(
+        $generatorEvaluation.Items.ProjectReference)
+    $generatorReferences = @($generatorEvaluation.Items.Reference)
+    $generatorPackageReferences = @(
+        $generatorEvaluation.Items.PackageReference)
+    $generatorAnalyzers = @($generatorEvaluation.Items.Analyzer)
+    foreach ($entry in $generatorIsolation.Properties.GetEnumerator()) {
+        if ([string] $generatorEvaluation.Properties.($entry.Key) -cne
+            [string] $entry.Value) {
+            return New-M01SourceClosureResult `
+                -Succeeded $false `
+                -Reason "serializer_generator_property_mismatch" `
+                -Detail $entry.Key
+        }
+    }
+    $expectedGeneratorCompileItems = @(
+        "Amd64CoffWriter.cs",
+        "InstructionPublicationSerializerGenerator.cs",
+        "Program.cs"
+    )
+    if ($generatorEvaluation.Properties.EnableDefaultCompileItems -ne "true" -or
+        $generatorCompileItems.Count -ne $expectedGeneratorCompileItems.Count -or
+        $generatorProjectReferences.Count -ne 0 -or
+        $generatorReferences.Count -ne 0 -or
+        $generatorPackageReferences.Count -ne 0 -or
+        $generatorAnalyzers.Count -ne 2) {
+        return New-M01SourceClosureResult `
+            -Succeeded $false `
+            -Reason "serializer_generator_compile_count_mismatch" `
+            -Detail (
+                "compile=" + $generatorCompileItems.Count +
+                ";project=" + $generatorProjectReferences.Count +
+                ";reference=" + $generatorReferences.Count +
+                ";package=" + $generatorPackageReferences.Count +
+                ";analyzer=" + $generatorAnalyzers.Count)
+    }
+
+    for ($generatorIndex = 0;
+        $generatorIndex -lt $expectedGeneratorCompileItems.Count;
+        $generatorIndex++) {
+        $generatorCompileItem = $generatorCompileItems[$generatorIndex]
+        $expectedGeneratorIdentity =
+            $expectedGeneratorCompileItems[$generatorIndex]
+        $expectedGeneratorFullPath = [System.IO.Path]::GetFullPath(
+            (Join-Path $serializerGeneratorDirectory $expectedGeneratorIdentity))
+        $definingProjectName = [System.IO.Path]::GetFileName(
+            [string] $generatorCompileItem.DefiningProjectFullPath)
+        if ([string] $generatorCompileItem.Identity -cne
+                $expectedGeneratorIdentity -or
+            -not [string]::Equals(
+                [string] $generatorCompileItem.FullPath,
+                $expectedGeneratorFullPath,
+                [System.StringComparison]::OrdinalIgnoreCase) -or
+            $definingProjectName -ne "Microsoft.NET.Sdk.DefaultItems.props") {
+            return New-M01SourceClosureResult `
+                -Succeeded $false `
+                -Reason "serializer_generator_compile_item_mismatch" `
+                -Detail $generatorIndex
+        }
+    }
+
+    $expectedGeneratorAnalyzerNames = @(
+        "Microsoft.CodeAnalysis.CSharp.NetAnalyzers.dll",
+        "Microsoft.CodeAnalysis.NetAnalyzers.dll"
+    )
+    for ($analyzerIndex = 0;
+        $analyzerIndex -lt $expectedGeneratorAnalyzerNames.Count;
+        $analyzerIndex++) {
+        $analyzer = $generatorAnalyzers[$analyzerIndex]
+        if ([System.IO.Path]::GetFileName([string] $analyzer.FullPath) -ne
+                $expectedGeneratorAnalyzerNames[$analyzerIndex] -or
+            [System.IO.Path]::GetFileName(
+                [string] $analyzer.DefiningProjectFullPath) -ne
+                "Microsoft.NET.Sdk.Analyzers.targets") {
+            return New-M01SourceClosureResult `
+                -Succeeded $false `
+                -Reason "serializer_generator_analyzer_mismatch" `
+                -Detail $analyzerIndex
+        }
+    }
+
     return New-M01SourceClosureResult `
         -Succeeded $true `
         -Reason "ok" `
@@ -1351,7 +5681,7 @@ function Test-M01SourceClosure {
 
     try {
         $projectText = Get-Content -LiteralPath $canonicalProjectPath -Raw
-        [xml] $project = $projectText
+        $project = Read-M01SecureXmlDocument -Path $canonicalProjectPath
     }
     catch {
         return New-M01SourceClosureResult `
@@ -1360,9 +5690,20 @@ function Test-M01SourceClosure {
             -Detail $canonicalProjectPath
     }
 
+    $serializerImport = Test-M01SerializerTargetsImport `
+        -RepositoryRoot $RepositoryRoot `
+        -ProjectPath $canonicalProjectPath `
+        -Project $project
+    if (-not $serializerImport.Succeeded) {
+        return New-M01SourceClosureResult `
+            -Succeeded $false `
+            -Reason $serializerImport.Reason `
+            -Detail $serializerImport.Detail
+    }
+
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "bb9f1dc5fab00848c7682478b5651b833fa9a66f3c7ee03a9e3a8b425eb865e3") {
+        "e72e12278a638dd6e20a1660639b4a14717568b59d636bf68b98a1a210f9aefe") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `
@@ -1575,13 +5916,12 @@ function Test-M01SourceClosure {
     }
 
     if (($project.SelectNodes("//ProjectReference").Count -ne 0) -or
-        ($project.SelectNodes("//Import").Count -ne 0) -or
         ($project.SelectNodes("//ImportGroup").Count -ne 0) -or
         ($project.SelectNodes("//Choose").Count -ne 0)) {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "forbidden_project_input" `
-            -Detail "reference-or-import"
+            -Detail "reference-importgroup-or-choose"
     }
 
     $compileItems = @($project.SelectNodes("/Project/ItemGroup/Compile"))
@@ -1805,6 +6145,7 @@ function Test-M01SourceClosure {
     }
 
     $evaluatedClosure = Test-M01EvaluatedSourceClosure `
+        -RepositoryRoot $RepositoryRoot `
         -ProjectPath $canonicalProjectPath `
         -Configuration $Configuration `
         -LoadedImageStackEnabled $LoadedImageStackEnabled `
@@ -1897,15 +6238,106 @@ $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).ProviderPath
 $efiProjectPath = Join-Path $repositoryRoot "src\OS\OS.csproj"
 
 if ([System.IO.Path]::IsPathRooted($LogPath)) {
-    $logFullPath = $LogPath
+    $logFullPath = [System.IO.Path]::GetFullPath($LogPath)
 }
 else {
-    $logFullPath = Join-Path $repositoryRoot $LogPath
+    $logFullPath = [System.IO.Path]::GetFullPath(
+        (Join-Path $repositoryRoot $LogPath))
 }
-$logDirectory = Split-Path -Parent $logFullPath
-New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
+$outputPublicationPlan = $null
+$script:M01LogAuthority = $null
+try {
+    $outputPublicationPlan = Get-M01OutputPublicationPlan `
+        -RepositoryRoot $repositoryRoot `
+        -EfiOutputPath $EfiOutputPath `
+        -LogFullPath $logFullPath
+    $script:M01LogAuthority = Open-M01LogAuthority -Path $logFullPath
+}
+catch {
+    Write-Host (
+        "TEST_FAIL efi.shell.publish authority_initialization_failed detail=" +
+        $_.Exception.Message.Replace("`r", " ").Replace("`n", " "))
+    exit 1
+}
 
-Write-Host "TEST_START efi.shell.publish"
+$publishOutputLock = $null
+$sourceLocks = $null
+$restoreArchiveSourceLocks = $null
+$restoreSourceLocks = $null
+$restoreLocks = $null
+$packageLocks = $null
+$verifierInputLocks = $null
+try {
+    Write-Host "TEST_START efi.shell.publish"
+
+    try {
+        $publishOutputLock = Open-M01PublishOutputLock `
+            -RepositoryRoot $repositoryRoot `
+            -Configuration $Configuration `
+            -Runtime $Runtime
+    }
+    catch {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish publish_output_lock_failed detail=" +
+            (Format-EvidenceValue $_.Exception.Message))
+        exit 1
+    }
+    Write-Host "EFI_PUBLISH_OUTPUT_LOCK status=ok"
+
+    try {
+        $sourceSnapshotBeforePublish = Get-M01PublishSourceSnapshot `
+            -RepositoryRoot $repositoryRoot `
+            -ProjectPath $efiProjectPath
+    }
+    catch {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish source_snapshot_failed detail=" +
+            (Format-EvidenceValue $_.Exception.Message))
+        exit 1
+    }
+
+    try {
+        $sourceLocks = Open-M01PublishSourceLocks `
+            -RepositoryRoot $repositoryRoot `
+            -Inputs $sourceSnapshotBeforePublish.Inputs
+        Assert-M01PublishSourceLocks `
+            -RepositoryRoot $repositoryRoot `
+            -Inputs $sourceSnapshotBeforePublish.Inputs `
+            -Locks $sourceLocks
+    }
+    catch {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish source_lock_failed detail=" +
+            (Format-EvidenceValue $_.Exception.Message))
+        exit 1
+    }
+
+    try {
+        $sourceSnapshotAfterLock = Get-M01PublishSourceSnapshot `
+            -RepositoryRoot $repositoryRoot `
+            -ProjectPath $efiProjectPath
+    }
+    catch {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish source_snapshot_failed detail=" +
+            (Format-EvidenceValue $_.Exception.Message))
+        exit 1
+    }
+    if ($sourceSnapshotBeforePublish.InputCount -ne 57 -or
+        $sourceSnapshotAfterLock.InputCount -ne 57 -or
+        $sourceSnapshotBeforePublish.AggregateSha256 -cne
+            $sourceSnapshotAfterLock.AggregateSha256 -or
+        $sourceSnapshotBeforePublish.AuthoritySha256 -cne
+            $sourceSnapshotAfterLock.AuthoritySha256) {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish source_changed_before_lock before=" +
+            $sourceSnapshotBeforePublish.AggregateSha256 +
+            " locked=" +
+            $sourceSnapshotAfterLock.AggregateSha256)
+        exit 1
+    }
+    Write-Host "EFI_PUBLISH_SOURCE_LOCK status=ok"
+    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=57"
 
 Write-EfiPreflightLine "EFI_PREFLIGHT_START"
 
@@ -1951,6 +6383,67 @@ if ($EnableM01OwnedPagingProbe -and -not $EnableM01LiveAllocatorProbe) {
         -Status "invalid"
 }
 
+$dotnetCommand = Get-Command "dotnet" -CommandType Application -ErrorAction SilentlyContinue |
+    Select-Object -First 1
+if ($null -eq $dotnetCommand) {
+    Stop-EfiPreflight `
+        -Marker "EFI_PREFLIGHT_DOTNET" `
+        -Reason "dotnet_host_missing" `
+        -LogFullPath $logFullPath `
+        -ReportedLogPath $LogPath
+}
+$script:DotnetHostPath =
+    (Resolve-Path -LiteralPath $dotnetCommand.Source).ProviderPath
+$dotnetVersionResult = Invoke-M01BoundedProcess `
+    -FilePath $script:DotnetHostPath `
+    -Arguments @("--version") `
+    -WorkingDirectory $repositoryRoot `
+    -Operation "dotnet-sdk-version" `
+    -TimeoutSeconds $BuildProcessTimeoutSeconds `
+    -MaximumOutputCharacters $BuildProcessMaximumOutputCharacters
+$dotnetVersionFailure = Get-M01BoundedProcessFailureReason `
+    -Result $dotnetVersionResult
+$dotnetVersionLines = @(
+    @($dotnetVersionResult.OutputLines) |
+        Where-Object { -not [string]::IsNullOrWhiteSpace([string] $_) } |
+        ForEach-Object { [string] $_ }
+)
+if ($dotnetVersionFailure -cne "ok" -or
+    $dotnetVersionLines.Count -ne 1 -or
+    $dotnetVersionLines[0].Trim() -cnotmatch '^10\.0\.3[0-9]{2}$') {
+    Stop-EfiPreflight `
+        -Marker "EFI_PREFLIGHT_DOTNET" `
+        -Reason ("dotnet_sdk_version_" + $dotnetVersionFailure) `
+        -LogFullPath $logFullPath `
+        -ReportedLogPath $LogPath `
+        -Status "version_unavailable"
+}
+$dotnetSdkVersion = $dotnetVersionLines[0].Trim()
+$dotnetSdkCandidate = Join-Path (
+    Split-Path -Parent $script:DotnetHostPath) (
+        "sdk\" + $dotnetSdkVersion)
+$dotnetSdksCandidate = Join-Path $dotnetSdkCandidate "Sdks"
+if (-not (Test-Path -LiteralPath $dotnetSdkCandidate -PathType Container) -or
+    -not (Test-Path -LiteralPath $dotnetSdksCandidate -PathType Container)) {
+    Stop-EfiPreflight `
+        -Marker "EFI_PREFLIGHT_DOTNET" `
+        -Reason "dotnet_sdk_layout_invalid" `
+        -LogFullPath $logFullPath `
+        -ReportedLogPath $LogPath `
+        -Status "version_unavailable"
+}
+$script:VerifiedDotnetSdkDirectory = (
+    Resolve-Path -LiteralPath $dotnetSdkCandidate).ProviderPath.TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar)
+$script:VerifiedMsbuildSdksPath = (
+    Resolve-Path -LiteralPath $dotnetSdksCandidate).ProviderPath.TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar)
+$script:VerifiedMsbuildExtensionsPath =
+    $script:VerifiedDotnetSdkDirectory +
+    [System.IO.Path]::DirectorySeparatorChar
+
 Write-EfiPreflightLine (
     "EFI_PREFLIGHT_M01_SWITCHES status=ok " + $m01SwitchEvidence)
 
@@ -1982,6 +6475,12 @@ Write-EfiPreflightLine (
     " prerequisites=" + $m01SourceClosure.PrerequisiteSourceCount +
     " compileItems=" + $m01SourceClosure.CompileItemCount +
     " prerequisiteGap=UefiMemoryType")
+
+Write-EfiPreflightLine (
+    "EFI_PREFLIGHT_DOTNET path=" +
+    (Format-EvidenceValue $script:DotnetHostPath) +
+    " sdkVersion=" +
+    (Format-EvidenceValue $dotnetSdkVersion))
 
 if ([string]::IsNullOrWhiteSpace($VsWherePath)) {
     $programFilesX86 = ${env:ProgramFiles(x86)}
@@ -2327,19 +6826,184 @@ if ($PreflightOnly) {
     exit 0
 }
 
+$canonicalRootPropsPath = Join-Path $repositoryRoot "Directory.Build.props"
+$canonicalRootTargetsPath = Join-Path $repositoryRoot "Directory.Build.targets"
+$dotnetSdkDirectory = $script:VerifiedDotnetSdkDirectory
+$languageTargetsPath = Join-Path (
+    $dotnetSdkDirectory) "Microsoft.CSharp.targets"
+$csharpTargetsPath = Join-Path (
+    $dotnetSdkDirectory) "Microsoft.CSharp.CurrentVersion.targets"
+$commonTargetsPath = Join-Path (
+    $dotnetSdkDirectory) "Microsoft.Common.CurrentVersion.targets"
+foreach ($sdkTargetPath in @(
+        $languageTargetsPath,
+        $csharpTargetsPath,
+        $commonTargetsPath)) {
+    if (-not (Test-Path -LiteralPath $sdkTargetPath -PathType Leaf)) {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish sdk_target_missing path=" +
+            (Format-EvidenceValue $sdkTargetPath))
+        exit 1
+    }
+}
+$nativeIntermediateDirectory = Join-Path $repositoryRoot (
+    "src\OS\obj\$Configuration\net10.0\$Runtime\native")
+$managedIntermediateDirectory = Join-Path $repositoryRoot (
+    "src\OS\obj\$Configuration\net10.0\$Runtime")
+$managedOutputDirectory = Join-Path $repositoryRoot (
+    "src\OS\bin\$Configuration\net10.0\$Runtime")
+$projectExtensionsDirectory = Join-Path $managedIntermediateDirectory "nuget"
+$restoreSourceDirectory = Join-Path (
+    $managedIntermediateDirectory) "restore-source"
+$restorePackagesDirectory = Join-Path (
+    $managedIntermediateDirectory) "packages"
+$restoreConfigPath = Join-Path $restoreSourceDirectory "NuGet.Config"
+$globalPackageCacheRoot = [System.IO.Path]::GetFullPath($nugetPackageRoot)
+$projectExtensionsArgumentPath = $projectExtensionsDirectory.Replace(
+    "\",
+    "/").TrimEnd("/") + "/"
+$projectAssetsPath = Join-Path $projectExtensionsDirectory "project.assets.json"
+$projectAssetsArgumentPath = $projectAssetsPath.Replace("\", "/")
+$producerMsbuildIsolation = Get-M01MsbuildIsolationContract `
+    -ProjectExtensionsDirectory $projectExtensionsDirectory
+$projectExtensionsRelativePath = (
+    "src/OS/obj/" +
+    $Configuration +
+    "/net10.0/" +
+    $Runtime +
+    "/nuget")
+$restoreSourceRelativePath = (
+    "src/OS/obj/" +
+    $Configuration +
+    "/net10.0/" +
+    $Runtime +
+    "/restore-source")
+$expectedRestoreClosureRelativePaths = @(
+    ($projectExtensionsRelativePath + "/OS.csproj.nuget.dgspec.json")
+    ($projectExtensionsRelativePath + "/OS.csproj.nuget.g.props")
+    ($projectExtensionsRelativePath + "/OS.csproj.nuget.g.targets")
+    ($projectExtensionsRelativePath + "/project.assets.json")
+    ($projectExtensionsRelativePath + "/project.nuget.cache")
+)
+$expectedRestoreSourceRelativePaths = @(
+    ($restoreSourceRelativePath + "/NuGet.Config")
+)
+foreach ($archive in $script:ExpectedRestoreArchives) {
+    $expectedRestoreSourceRelativePaths += (
+        $restoreSourceRelativePath +
+        "/" +
+        [string] $archive.FileName)
+}
+
+$ilCompilerBuildPackageRoot = Join-Path (
+    $restorePackagesDirectory) "microsoft.dotnet.ilcompiler\10.0.8"
+$ilCompilerHostPackageRoot = Join-Path (
+    $restorePackagesDirectory) (
+        "runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.8")
+$ilLinkPackageRoot = Join-Path (
+    $restorePackagesDirectory) "microsoft.net.illink.tasks\10.0.10"
+$actualIlCompilerPath = Join-Path (
+    $ilCompilerHostPackageRoot) "tools\ilc.exe"
+$ilCompilerTargetsPath = Join-Path (
+    $ilCompilerBuildPackageRoot) (
+        "build\Microsoft.DotNet.ILCompiler.SingleEntry.targets")
+$ilLinkTargetsPath = Join-Path (
+    $ilLinkPackageRoot) "build\Microsoft.NET.ILLink.targets"
+$ilLinkTasksAssemblyPath = Join-Path (
+    $ilLinkPackageRoot) "tools\net\ILLink.Tasks.dll"
+$ilcBuildTasksPath = Join-Path (
+    $ilCompilerBuildPackageRoot) (
+        "tools\netstandard\ILCompiler.Build.Tasks.dll")
+$ilcToolsPath = (
+    Join-Path $ilCompilerHostPackageRoot "tools") +
+    [System.IO.Path]::DirectorySeparatorChar
+$ilcFrameworkPath = (
+    Join-Path $resolvedNativeAotRuntimePackPath (
+        "runtimes\$Runtime\lib")) +
+    [System.IO.Path]::DirectorySeparatorChar
+$ilcFrameworkNativePath = (
+    Join-Path $resolvedNativeAotRuntimePackPath (
+        "runtimes\$Runtime\native")) +
+    [System.IO.Path]::DirectorySeparatorChar
+$ilcSdkPath = $ilcFrameworkNativePath
+$ilcMibcPath = (
+    Join-Path $resolvedNativeAotRuntimePackPath "mibc") +
+    [System.IO.Path]::DirectorySeparatorChar
+
+$projectExtensionArguments = @(
+    ("-p:MSBuildProjectExtensionsPath=" + $projectExtensionsArgumentPath),
+    ("-p:RestoreOutputPath=" + $projectExtensionsArgumentPath),
+    ("-p:ProjectAssetsFile=" + $projectAssetsArgumentPath),
+    ("-p:RestorePackagesPath=" + $restorePackagesDirectory),
+    ("-p:NuGetPackageRoot=" + $restorePackagesDirectory),
+    "-p:ImportProjectExtensionProps=false",
+    "-p:ImportProjectExtensionTargets=false",
+    "-p:ExcludeRestorePackageImports=true"
+)
+$projectExtensionArguments += $producerMsbuildIsolation.Arguments
+$pinnedPackageArguments = @(
+    ("-p:ILCompilerTargetsPath=" + $ilCompilerTargetsPath),
+    ("-p:ILLinkTargetsPath=" + $ilLinkTargetsPath),
+    ("-p:ILLinkTasksAssembly=" + $ilLinkTasksAssemblyPath),
+    ("-p:IlcBuildTasksPath=" + $ilcBuildTasksPath),
+    ("-p:IlcHostPackagePath=" + $ilCompilerHostPackageRoot),
+    ("-p:ClrosIlcHostPackagePath=" + $ilCompilerHostPackageRoot),
+    ("-p:IlcToolsPath=" + $ilcToolsPath),
+    ("-p:RuntimePackagePath=" + $resolvedNativeAotRuntimePackPath),
+    ("-p:ClrosRuntimePackagePath=" + $resolvedNativeAotRuntimePackPath),
+    ("-p:IlcFrameworkPath=" + $ilcFrameworkPath),
+    ("-p:IlcFrameworkNativePath=" + $ilcFrameworkNativePath),
+    ("-p:IlcSdkPath=" + $ilcSdkPath),
+    ("-p:IlcMibcPath=" + $ilcMibcPath),
+    "-p:RunILLink=false",
+    "-p:NativeCompilationDuringPublish=true",
+    "-p:IlcMultiModule=false",
+    "-p:DisableFrameworkLibGeneration=true",
+    "-p:IlcUseEnvironmentalTools=true",
+    "-p:PublishAotUsingRuntimePack=false",
+    "-p:IlcPgoOptimize=false",
+    "-p:PublishTrimmed=true",
+    "-p:ImportRuntimeIlcPackageTargetDependsOn=",
+    "-p:IlcSetupPropertiesDependsOn=ImportRuntimeIlcPackageTarget",
+    "-p:IlcDynamicBuildPropertyDependencies=SetupProperties",
+    "-p:ImportNuGetBuildTasksPackTargetsFromSdk=false",
+    "-p:NuGetBuildTasksPackTargets=",
+    ("-p:LanguageTargets=" + $languageTargetsPath),
+    ("-p:CSharpTargetsPath=" + $csharpTargetsPath),
+    ("-p:CommonTargetsPath=" + $commonTargetsPath)
+)
 $arguments = @(
     "publish",
     $efiProjectPath,
+    "-noAutoResponse",
     "-c", $Configuration,
     "-r", $Runtime,
     "--nologo",
-    "-p:IlcUseEnvironmentalTools=true",
+    ("-p:DirectoryBuildPropsPath=" + $canonicalRootPropsPath),
+    ("-p:DirectoryBuildTargetsPath=" + $canonicalRootTargetsPath),
+    "-p:ImportDirectoryBuildProps=true",
+    "-p:ImportDirectoryBuildTargets=true",
+    "-p:CustomBeforeMicrosoftCommonProps=",
+    "-p:CustomAfterMicrosoftCommonProps=",
+    "-p:CustomBeforeDirectoryBuildProps=",
+    "-p:CustomAfterDirectoryBuildProps=",
+    "-p:CustomBeforeDirectoryBuildTargets=",
+    "-p:CustomAfterDirectoryBuildTargets=",
+    "-p:CustomBeforeMicrosoftCommonTargets=",
+    "-p:CustomAfterMicrosoftCommonTargets=",
+    "-p:CustomBeforeMicrosoftCSharpTargets=",
+    "-p:CustomAfterMicrosoftCSharpTargets=",
+    "-p:CustomBeforeMicrosoftCommonCrossTargetingTargets=",
+    "-p:CustomAfterMicrosoftCommonCrossTargetingTargets=",
+    "-p:BeforeMicrosoftNETSdkTargets=",
+    "-p:AfterMicrosoftNETSdkTargets=",
     "-p:CppLinker=$linkerPath",
-    "-p:IlcHostPackagePath=$(Split-Path -Parent (Split-Path -Parent $resolvedIlCompilerPath))",
-    "-p:IlcToolsPath=$(Split-Path -Parent $resolvedIlCompilerPath)",
-    "-p:RuntimePackagePath=$resolvedNativeAotRuntimePackPath",
-    "-p:IlcGenerateMapFile=true"
+    "-p:IlcGenerateMapFile=true",
+    "-p:NoIncremental=true"
 )
+$arguments += $projectExtensionArguments
+$arguments += $pinnedPackageArguments
+$arguments += "--no-restore"
 
 if ($EnableM01LoadedImageStackProbe) {
     $arguments += "-p:EnableM01LoadedImageStackProbe=true"
@@ -2371,71 +7035,530 @@ if ($EnableAcpiPhysicalDiscoveryProbe) {
     Write-Host "EFI_PROBE ACPI_PHYSICAL_DISCOVERY"
 }
 
-$nativeIntermediateDirectory = Join-Path $repositoryRoot (
-    "src\OS\obj\$Configuration\net10.0\$Runtime\native")
+$restoreArguments = @(
+    "restore",
+    $efiProjectPath,
+    "-noAutoResponse",
+    "-r", $Runtime,
+    "--nologo",
+    "--force",
+    "--no-cache",
+    "--configfile", $restoreConfigPath,
+    "--packages", $restorePackagesDirectory,
+    ("-p:Configuration=" + $Configuration),
+    ("-p:DirectoryBuildPropsPath=" + $canonicalRootPropsPath),
+    ("-p:DirectoryBuildTargetsPath=" + $canonicalRootTargetsPath),
+    "-p:ImportDirectoryBuildProps=true",
+    "-p:ImportDirectoryBuildTargets=true",
+    "-p:CustomBeforeMicrosoftCommonProps=",
+    "-p:CustomAfterMicrosoftCommonProps=",
+    "-p:CustomBeforeDirectoryBuildProps=",
+    "-p:CustomAfterDirectoryBuildProps=",
+    "-p:CustomBeforeDirectoryBuildTargets=",
+    "-p:CustomAfterDirectoryBuildTargets=",
+    "-p:CustomBeforeMicrosoftCommonTargets=",
+    "-p:CustomAfterMicrosoftCommonTargets=",
+    "-p:CustomBeforeMicrosoftCSharpTargets=",
+    "-p:CustomAfterMicrosoftCSharpTargets=",
+    "-p:CustomBeforeMicrosoftCommonCrossTargetingTargets=",
+    "-p:CustomAfterMicrosoftCommonCrossTargetingTargets=",
+    "-p:BeforeMicrosoftNETSdkTargets=",
+    "-p:AfterMicrosoftNETSdkTargets=",
+    "-p:RestoreForceEvaluate=true",
+    "-p:RestoreUseCustomAfterTargets=false",
+    "-p:RestoreIgnoreFailedSources=false"
+) + $projectExtensionArguments
 $nativeBinaryPath = Join-Path $repositoryRoot (
     "src\OS\bin\$Configuration\net10.0\$Runtime\native\OS.exe")
 $linkerMapWorkingPath = Join-Path $nativeIntermediateDirectory "OS.link.map"
 $linkResponseWorkingPath = Join-Path $nativeIntermediateDirectory "link.rsp"
+    $serializerObjectPath = Join-Path $nativeIntermediateDirectory (
+        "CLROS.X64.InstructionPublication.obj")
+    $solutionPath = Join-Path $repositoryRoot "CLROS.slnx"
+$managedAssemblyPath = Join-Path $repositoryRoot (
+    "src\OS\bin\$Configuration\net10.0\$Runtime\OS.dll")
+$serializerToolRoot = Join-Path $repositoryRoot (
+    "tools\OS.X64TextSerializerGenerator")
+$serializerTargetsPath = Join-Path $serializerToolRoot (
+    "OS.X64TextSerializerGenerator.targets")
+$serializerGeneratorProjectPath = Join-Path $serializerToolRoot (
+    "OS.X64TextSerializerGenerator.csproj")
+$serializerGeneratorProgramPath = Join-Path $serializerToolRoot "Program.cs"
+$serializerGeneratorWriterPath = Join-Path $serializerToolRoot "Amd64CoffWriter.cs"
+$serializerGeneratorSourcePath = Join-Path $serializerToolRoot (
+    "InstructionPublicationSerializerGenerator.cs")
+$instructionPublicationSourcePath = Join-Path $repositoryRoot (
+    "src\OS\Boot\X64InstructionPublication.cs")
+$runtimeImportAttributeSourcePath = Join-Path $repositoryRoot (
+    "src\OS\Runtime\RuntimeImportAttribute.cs")
+$methodImplAttributeSourcePath = Join-Path $repositoryRoot (
+    "src\OS\Runtime\MethodImplAttribute.cs")
 
-foreach ($generatedPath in @($nativeBinaryPath, $linkerMapWorkingPath)) {
-    if (Test-Path -LiteralPath $generatedPath -PathType Leaf) {
-        Remove-Item -LiteralPath $generatedPath -Force
+    $lockedDotnetVersionResult = Invoke-M01BoundedProcess `
+        -FilePath $script:DotnetHostPath `
+        -Arguments @("--version") `
+        -WorkingDirectory $repositoryRoot `
+        -Operation "dotnet-sdk-recheck" `
+        -TimeoutSeconds $BuildProcessTimeoutSeconds `
+        -MaximumOutputCharacters $BuildProcessMaximumOutputCharacters
+    $lockedDotnetVersionFailure = Get-M01BoundedProcessFailureReason `
+        -Result $lockedDotnetVersionResult
+    $lockedDotnetVersionLines = @(
+        @($lockedDotnetVersionResult.OutputLines) |
+            Where-Object {
+                -not [string]::IsNullOrWhiteSpace([string] $_)
+            } |
+            ForEach-Object { [string] $_ }
+    )
+    if ($lockedDotnetVersionFailure -cne "ok" -or
+        $lockedDotnetVersionLines.Count -ne 1 -or
+        $lockedDotnetVersionLines[0].Trim() -cne $dotnetSdkVersion) {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish dotnet_sdk_changed_before_publish reason=" +
+            $lockedDotnetVersionFailure +
+            " expected=" +
+            (Format-EvidenceValue $dotnetSdkVersion))
+        exit 1
     }
+
+    $m01LockedSourceClosure = Test-M01SourceClosure `
+        -RepositoryRoot $repositoryRoot `
+        -ProjectPath $efiProjectPath `
+        -Configuration $Configuration `
+        -LoadedImageStackEnabled $EnableM01LoadedImageStackProbe.IsPresent `
+        -LiveAllocatorEnabled $EnableM01LiveAllocatorProbe.IsPresent `
+        -OwnedPagingEnabled $EnableM01OwnedPagingProbe.IsPresent `
+        -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
+        -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
+        -AcpiPhysicalDiscoveryEnabled $EnableAcpiPhysicalDiscoveryProbe.IsPresent
+    if (-not $m01LockedSourceClosure.Succeeded) {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish m01_locked_source_closure_" +
+            $m01LockedSourceClosure.Reason +
+            " detail=" +
+            (Format-EvidenceValue $m01LockedSourceClosure.Detail))
+        exit 1
+    }
+    Write-Host (
+        "EFI_PUBLISH_M01_SOURCE_CLOSURE_LOCKED status=ok" +
+        " reviewed=" + $m01LockedSourceClosure.ReviewedSourceCount +
+        " prerequisites=" + $m01LockedSourceClosure.PrerequisiteSourceCount +
+        " compileItems=" + $m01LockedSourceClosure.CompileItemCount)
+
+    try {
+        Remove-M01FreshPublishDirectory `
+            -RepositoryRoot $repositoryRoot `
+            -CandidatePath $managedIntermediateDirectory `
+            -ExpectedRelativePath (
+                "src\OS\obj\$Configuration\net10.0\$Runtime")
+        Remove-M01FreshPublishDirectory `
+            -RepositoryRoot $repositoryRoot `
+            -CandidatePath $managedOutputDirectory `
+            -ExpectedRelativePath (
+                "src\OS\bin\$Configuration\net10.0\$Runtime")
+    }
+    catch {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish fresh_output_cleanup_failed detail=" +
+            (Format-EvidenceValue $_.Exception.Message))
+        exit 1
+    }
+    Write-Host (
+        "EFI_PUBLISH_FRESH_OUTPUTS status=ok directories=2 " +
+        "noIncremental=true")
+
+    try {
+        $restoreArchiveSnapshotBeforeLock =
+            Get-M01PinnedRestoreArchiveSnapshot `
+                -GlobalPackageCacheRoot $globalPackageCacheRoot
+        $restoreArchiveSourceLocks = Open-M01ExternalInputLocks `
+            -RootPath $globalPackageCacheRoot `
+            -Inputs $restoreArchiveSnapshotBeforeLock.Inputs
+        $restoreArchiveSnapshotAfterLock =
+            Get-M01PinnedRestoreArchiveSnapshot `
+                -GlobalPackageCacheRoot $globalPackageCacheRoot
+        if ($restoreArchiveSnapshotBeforeLock.AggregateSha256 -cne
+            $restoreArchiveSnapshotAfterLock.AggregateSha256) {
+            throw "pinned restore archives changed before lock"
+        }
+        $createdRestoreConfigPath = New-M01PinnedRestoreSource `
+            -GlobalPackageCacheRoot $globalPackageCacheRoot `
+            -RestoreSourceDirectory $restoreSourceDirectory `
+            -ArchiveInputs $restoreArchiveSnapshotBeforeLock.Inputs
+        if (-not [string]::Equals(
+                [System.IO.Path]::GetFullPath($createdRestoreConfigPath),
+                [System.IO.Path]::GetFullPath($restoreConfigPath),
+                [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "pinned restore configuration path mismatch"
+        }
+        $restoreSourceSnapshotBeforeLock = Get-M01ExactFileSnapshot `
+            -RepositoryRoot $repositoryRoot `
+            -RelativePaths $expectedRestoreSourceRelativePaths
+        $restoreSourceLocks = Open-M01PublishSourceLocks `
+            -RepositoryRoot $repositoryRoot `
+            -Inputs $restoreSourceSnapshotBeforeLock.Inputs
+        $restoreSourceSnapshotAfterLock = Get-M01ExactFileSnapshot `
+            -RepositoryRoot $repositoryRoot `
+            -RelativePaths $expectedRestoreSourceRelativePaths
+        if ($restoreSourceSnapshotBeforeLock.AggregateSha256 -cne
+            $restoreSourceSnapshotAfterLock.AggregateSha256) {
+            throw "pinned restore source changed before lock"
+        }
+    }
+    catch {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish pinned_restore_source_failed detail=" +
+            (Format-EvidenceValue $_.Exception.Message))
+        exit 1
+    }
+    Write-Host (
+        "EFI_PUBLISH_PINNED_RESTORE_SOURCE status=ok archives=" +
+        $restoreArchiveSnapshotBeforeLock.Inputs.Count +
+        " sourceInputs=" +
+        $restoreSourceSnapshotBeforeLock.Inputs.Count +
+        " sha256=" +
+        $restoreSourceSnapshotBeforeLock.AggregateSha256)
+
+$restoreEnvironment = @{}
+foreach ($entry in $producerMsbuildIsolation.Environment.GetEnumerator()) {
+    $restoreEnvironment[$entry.Key] = $entry.Value
+}
+$restoreEnvironment["LINK"] = $null
+$restoreEnvironment["_LINK_"] = $null
+$restoreResult = Invoke-M01BoundedProcess `
+    -FilePath $script:DotnetHostPath `
+    -Arguments $restoreArguments `
+    -WorkingDirectory $repositoryRoot `
+    -Operation "isolated-restore" `
+    -TimeoutSeconds $BuildProcessTimeoutSeconds `
+    -MaximumOutputCharacters $BuildProcessMaximumOutputCharacters `
+    -EnvironmentOverrides $restoreEnvironment
+Write-M01BoundedProcessOutput `
+    -Result $restoreResult `
+    -LogFullPath $logFullPath
+$restoreFailure = Get-M01BoundedProcessFailureReason -Result $restoreResult
+if ($restoreFailure -cne "ok") {
+    Write-Host (
+        "TEST_FAIL efi.shell.publish isolated_restore_failed reason=" +
+        $restoreFailure +
+        " exit_code=" +
+        $restoreResult.ExitCode +
+        " log=" +
+        $LogPath)
+    exit 1
 }
 
+try {
+    $restoreArchiveSnapshotAfterRestore =
+        Get-M01PinnedRestoreArchiveSnapshot `
+            -GlobalPackageCacheRoot $globalPackageCacheRoot
+    if ($restoreArchiveSnapshotBeforeLock.AggregateSha256 -cne
+        $restoreArchiveSnapshotAfterRestore.AggregateSha256) {
+        throw "pinned restore archives changed during restore"
+    }
+    $restoreSourceSnapshotAfterRestore = Get-M01ExactFileSnapshot `
+        -RepositoryRoot $repositoryRoot `
+        -RelativePaths $expectedRestoreSourceRelativePaths
+    if ($restoreSourceSnapshotBeforeLock.AggregateSha256 -cne
+        $restoreSourceSnapshotAfterRestore.AggregateSha256) {
+        throw "pinned restore source changed during restore"
+    }
+    $restoreSnapshotBeforeLock = Get-M01ExactRestoreClosureSnapshot `
+        -RepositoryRoot $repositoryRoot `
+        -ProjectExtensionsDirectory $projectExtensionsDirectory `
+        -ExpectedRelativePaths $expectedRestoreClosureRelativePaths
+    $restoreLocks = Open-M01PublishSourceLocks `
+        -RepositoryRoot $repositoryRoot `
+        -Inputs $restoreSnapshotBeforeLock.Inputs
+    $restoreSnapshotAfterLock = Get-M01ExactRestoreClosureSnapshot `
+        -RepositoryRoot $repositoryRoot `
+        -ProjectExtensionsDirectory $projectExtensionsDirectory `
+        -ExpectedRelativePaths $expectedRestoreClosureRelativePaths
+    Test-M01RestoreSemanticClosure `
+        -ProjectPath $efiProjectPath `
+        -ProjectExtensionsDirectory $projectExtensionsDirectory `
+        -PackageCacheRoot $restorePackagesDirectory
+}
+catch {
+    Write-Host (
+        "TEST_FAIL efi.shell.publish restore_closure_lock_failed detail=" +
+        (Format-EvidenceValue $_.Exception.Message))
+    exit 1
+}
+if ($restoreSnapshotBeforeLock.AggregateSha256 -cne
+    $restoreSnapshotAfterLock.AggregateSha256) {
+    Write-Host (
+        "TEST_FAIL efi.shell.publish restore_closure_changed_before_lock before=" +
+        $restoreSnapshotBeforeLock.AggregateSha256 +
+        " locked=" +
+        $restoreSnapshotAfterLock.AggregateSha256)
+    exit 1
+}
+Write-Host (
+    "EFI_PUBLISH_RESTORE_CLOSURE_LOCKED status=ok inputs=" +
+    $restoreSnapshotBeforeLock.Inputs.Count +
+    " sha256=" +
+    $restoreSnapshotBeforeLock.AggregateSha256)
+
+try {
+    $packageBuildSnapshotBeforeLock =
+        Get-M01PackageBuildClosureSnapshot `
+            -PackageCacheRoot $restorePackagesDirectory
+    $packageClosureSnapshotBeforeLock =
+        Get-M01ConsumedPackageClosureSnapshot `
+            -RestorePackagesRoot $restorePackagesDirectory `
+            -RuntimePackageRoot $resolvedNativeAotRuntimePackPath `
+            -RestoreSourceDirectory $restoreSourceDirectory
+    $packageLocks = Open-M01AbsoluteInputLocks `
+        -Inputs $packageClosureSnapshotBeforeLock.LockInputs
+    $packageBuildSnapshotAfterLock =
+        Get-M01PackageBuildClosureSnapshot `
+            -PackageCacheRoot $restorePackagesDirectory
+    $packageClosureSnapshotAfterLock =
+        Get-M01ConsumedPackageClosureSnapshot `
+            -RestorePackagesRoot $restorePackagesDirectory `
+            -RuntimePackageRoot $resolvedNativeAotRuntimePackPath `
+            -RestoreSourceDirectory $restoreSourceDirectory
+    if ($packageBuildSnapshotBeforeLock.AggregateSha256 -cne
+            $packageBuildSnapshotAfterLock.AggregateSha256 -or
+        $packageClosureSnapshotBeforeLock.AggregateSha256 -cne
+            $packageClosureSnapshotAfterLock.AggregateSha256) {
+        throw "package closure changed before lock"
+    }
+    $postRestoreEvaluation = Invoke-M01PostRestoreEvaluation `
+        -RepositoryRoot $repositoryRoot `
+        -ProjectPath $efiProjectPath `
+        -Configuration $Configuration `
+        -Runtime $Runtime `
+        -ProjectExtensionsDirectory $projectExtensionsDirectory `
+        -ProjectAssetsPath $projectAssetsPath `
+        -RestorePackagesRoot $restorePackagesDirectory `
+        -IlCompilerTargetsPath $ilCompilerTargetsPath `
+        -IlLinkTargetsPath $ilLinkTargetsPath `
+        -IlLinkTasksAssembly $ilLinkTasksAssemblyPath `
+        -IlcBuildTasksPath $ilcBuildTasksPath `
+        -IlcHostPackagePath $ilCompilerHostPackageRoot `
+        -IlcToolsPath $ilcToolsPath `
+        -RuntimePackagePath $resolvedNativeAotRuntimePackPath `
+        -IlcFrameworkPath $ilcFrameworkPath `
+        -IlcFrameworkNativePath $ilcFrameworkNativePath `
+        -IlcSdkPath $ilcSdkPath `
+        -IlcMibcPath $ilcMibcPath `
+        -LanguageTargetsPath $languageTargetsPath `
+        -CSharpTargetsPath $csharpTargetsPath `
+        -CommonTargetsPath $commonTargetsPath
+    $activePackageImportGraphSha256 = Get-M01Utf8Sha256 -Text (
+        ($script:ExpectedActivePackageImportEdges -join "`n") + "`n")
+    $packageTaskBindingsSha256 = Get-M01Utf8Sha256 -Text (
+        ($script:ExpectedPackageTaskBindings -join "`n") + "`n")
+}
+catch {
+    Write-Host (
+        "TEST_FAIL efi.shell.publish package_closure_lock_failed detail=" +
+        (Format-EvidenceValue $_.Exception.Message))
+    exit 1
+}
+Write-Host (
+    "EFI_PUBLISH_PACKAGE_CLOSURE_LOCKED status=ok packages=" +
+    $packageClosureSnapshotBeforeLock.Packages.Count +
+    " buildInputs=" +
+    $packageBuildSnapshotBeforeLock.Inputs.Count +
+    " sha256=" +
+    $packageClosureSnapshotBeforeLock.AggregateSha256)
+Write-Host (
+    "EFI_PUBLISH_POST_RESTORE_EVALUATION status=ok compile=" +
+    $postRestoreEvaluation.compileCount +
+    " projectReferences=" +
+    $postRestoreEvaluation.projectReferenceCount +
+    " references=" +
+    $postRestoreEvaluation.referenceCount +
+    " analyzers=" +
+    $postRestoreEvaluation.analyzerCount)
+
 $linkerHash = (Get-FileHash -LiteralPath $linkerPath -Algorithm SHA256).Hash.ToLowerInvariant()
-$ilCompilerHash = (Get-FileHash -LiteralPath $resolvedIlCompilerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+$dotnetHostHash = (
+    Get-FileHash -LiteralPath $script:DotnetHostPath -Algorithm SHA256
+).Hash.ToLowerInvariant()
+$ilCompilerHash = (
+    Get-FileHash -LiteralPath $actualIlCompilerPath -Algorithm SHA256
+).Hash.ToLowerInvariant()
 $sdkLibHash = (Get-FileHash -LiteralPath $sdkLibPath -Algorithm SHA256).Hash.ToLowerInvariant()
 $runtimeListHash = (Get-FileHash -LiteralPath $runtimeListPath -Algorithm SHA256).Hash.ToLowerInvariant()
 Write-Host (
     "EFI_PUBLISH_TOOLCHAIN_PIN linkerPath=" + (Format-EvidenceValue $linkerPath) +
     " linkerSha256=" + $linkerHash +
-    " ilcompilerPath=" + (Format-EvidenceValue $resolvedIlCompilerPath) +
+    " ilcompilerPath=" + (Format-EvidenceValue $actualIlCompilerPath) +
     " ilcompilerSha256=" + $ilCompilerHash)
 
-$previousLinkEnvironment = $env:LINK
-$previousTrailingLinkEnvironment = $env:_LINK_
-try {
-    $env:LINK = '/MAP:"' + $linkerMapWorkingPath + '" /MAPINFO:EXPORTS'
-    $env:_LINK_ = $null
-    & dotnet @arguments 2>&1 | Tee-Object -FilePath $logFullPath -Append
-    $exitCode = $LASTEXITCODE
+$publishEnvironment = @{}
+foreach ($entry in $producerMsbuildIsolation.Environment.GetEnumerator()) {
+    $publishEnvironment[$entry.Key] = $entry.Value
 }
-finally {
-    if ($null -eq $previousLinkEnvironment) {
-        $env:LINK = $null
-    }
-    else {
-        $env:LINK = $previousLinkEnvironment
-    }
-
-    if ($null -eq $previousTrailingLinkEnvironment) {
-        $env:_LINK_ = $null
-    }
-    else {
-        $env:_LINK_ = $previousTrailingLinkEnvironment
-    }
+$publishEnvironment["LINK"] = $null
+$publishEnvironment["_LINK_"] = $null
+$publishResult = Invoke-M01BoundedProcess `
+    -FilePath $script:DotnetHostPath `
+    -Arguments $arguments `
+    -WorkingDirectory $repositoryRoot `
+    -Operation "nativeaot-publish" `
+    -TimeoutSeconds $BuildProcessTimeoutSeconds `
+    -MaximumOutputCharacters $BuildProcessMaximumOutputCharacters `
+    -EnvironmentOverrides $publishEnvironment
+Write-M01BoundedProcessOutput `
+    -Result $publishResult `
+    -LogFullPath $logFullPath
+$publishFailure = Get-M01BoundedProcessFailureReason -Result $publishResult
+$exitCode = if ($publishFailure -ceq "ok") {
+    0
+}
+else {
+    1
 }
 
 if ($exitCode -eq 0) {
+    try {
+        Assert-M01PublishSourceLocks `
+            -RepositoryRoot $repositoryRoot `
+            -Inputs $sourceSnapshotBeforePublish.Inputs `
+            -Locks $sourceLocks
+        $sourceSnapshotAfterPublish = Get-M01PublishSourceSnapshot `
+            -RepositoryRoot $repositoryRoot `
+            -ProjectPath $efiProjectPath
+    }
+    catch {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish source_snapshot_failed detail=" +
+            (Format-EvidenceValue $_.Exception.Message))
+        exit 1
+    }
+    if ($sourceSnapshotBeforePublish.AggregateSha256 -cne
+            $sourceSnapshotAfterPublish.AggregateSha256 -or
+        $sourceSnapshotBeforePublish.AuthoritySha256 -cne
+            $sourceSnapshotAfterPublish.AuthoritySha256) {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish source_changed_during_publish before=" +
+            $sourceSnapshotBeforePublish.AggregateSha256 +
+            " after=" +
+            $sourceSnapshotAfterPublish.AggregateSha256)
+        exit 1
+    }
+    try {
+        $restoreSnapshotAfterPublish = Get-M01ExactRestoreClosureSnapshot `
+            -RepositoryRoot $repositoryRoot `
+            -ProjectExtensionsDirectory $projectExtensionsDirectory `
+            -ExpectedRelativePaths $expectedRestoreClosureRelativePaths
+    }
+    catch {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish restore_closure_snapshot_failed detail=" +
+            (Format-EvidenceValue $_.Exception.Message))
+        exit 1
+    }
+    if ($restoreSnapshotBeforeLock.AggregateSha256 -cne
+        $restoreSnapshotAfterPublish.AggregateSha256) {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish restore_closure_changed_during_publish before=" +
+            $restoreSnapshotBeforeLock.AggregateSha256 +
+            " after=" +
+            $restoreSnapshotAfterPublish.AggregateSha256)
+        exit 1
+    }
+    try {
+        Test-M01RestoreSemanticClosure `
+            -ProjectPath $efiProjectPath `
+            -ProjectExtensionsDirectory $projectExtensionsDirectory `
+            -PackageCacheRoot $restorePackagesDirectory
+        $restoreSourceSnapshotAfterPublish = Get-M01ExactFileSnapshot `
+            -RepositoryRoot $repositoryRoot `
+            -RelativePaths $expectedRestoreSourceRelativePaths
+        $restoreArchiveSnapshotAfterPublish =
+            Get-M01PinnedRestoreArchiveSnapshot `
+                -GlobalPackageCacheRoot $globalPackageCacheRoot
+        $packageBuildSnapshotAfterPublish =
+            Get-M01PackageBuildClosureSnapshot `
+                -PackageCacheRoot $restorePackagesDirectory
+        $packageClosureSnapshotAfterPublish =
+            Get-M01ConsumedPackageClosureSnapshot `
+                -RestorePackagesRoot $restorePackagesDirectory `
+                -RuntimePackageRoot $resolvedNativeAotRuntimePackPath `
+                -RestoreSourceDirectory $restoreSourceDirectory
+        $postRestoreEvaluationAfterPublish =
+            Invoke-M01PostRestoreEvaluation `
+                -RepositoryRoot $repositoryRoot `
+                -ProjectPath $efiProjectPath `
+                -Configuration $Configuration `
+                -Runtime $Runtime `
+                -ProjectExtensionsDirectory $projectExtensionsDirectory `
+                -ProjectAssetsPath $projectAssetsPath `
+                -RestorePackagesRoot $restorePackagesDirectory `
+                -IlCompilerTargetsPath $ilCompilerTargetsPath `
+                -IlLinkTargetsPath $ilLinkTargetsPath `
+                -IlLinkTasksAssembly $ilLinkTasksAssemblyPath `
+                -IlcBuildTasksPath $ilcBuildTasksPath `
+                -IlcHostPackagePath $ilCompilerHostPackageRoot `
+                -IlcToolsPath $ilcToolsPath `
+                -RuntimePackagePath $resolvedNativeAotRuntimePackPath `
+                -IlcFrameworkPath $ilcFrameworkPath `
+                -IlcFrameworkNativePath $ilcFrameworkNativePath `
+                -IlcSdkPath $ilcSdkPath `
+                -IlcMibcPath $ilcMibcPath `
+                -LanguageTargetsPath $languageTargetsPath `
+                -CSharpTargetsPath $csharpTargetsPath `
+                -CommonTargetsPath $commonTargetsPath
+    }
+    catch {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish package_closure_snapshot_failed detail=" +
+            (Format-EvidenceValue $_.Exception.Message))
+        exit 1
+    }
+    if ($restoreSourceSnapshotBeforeLock.AggregateSha256 -cne
+            $restoreSourceSnapshotAfterPublish.AggregateSha256 -or
+        $restoreArchiveSnapshotBeforeLock.AggregateSha256 -cne
+            $restoreArchiveSnapshotAfterPublish.AggregateSha256 -or
+        $packageBuildSnapshotBeforeLock.AggregateSha256 -cne
+            $packageBuildSnapshotAfterPublish.AggregateSha256 -or
+        $packageClosureSnapshotBeforeLock.AggregateSha256 -cne
+            $packageClosureSnapshotAfterPublish.AggregateSha256 -or
+        $postRestoreEvaluation.compileSha256 -cne
+            $postRestoreEvaluationAfterPublish.compileSha256 -or
+        $postRestoreEvaluation.analyzerSha256 -cne
+            $postRestoreEvaluationAfterPublish.analyzerSha256) {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish package_or_restore_input_changed_during_publish")
+        exit 1
+    }
+
     $publishOutput = Join-Path $repositoryRoot (
         "src\OS\bin\$Configuration\net10.0\$Runtime\publish\OS.exe")
-    if ([System.IO.Path]::IsPathRooted($EfiOutputPath)) {
-        $efiFullPath = [System.IO.Path]::GetFullPath($EfiOutputPath)
+    $efiFullPath = $outputPublicationPlan.EfiPath
+    $linkerMapOutputPath = $outputPublicationPlan.MapPath
+    $linkResponseOutputPath = $outputPublicationPlan.ResponsePath
+    $linkEvidenceOutputPath = $outputPublicationPlan.EvidencePath
+    $serializerObjectOutputPath =
+        $outputPublicationPlan.SerializerObjectPath
+    try {
+        Clear-M01OutputPublicationLeaves -Plan $outputPublicationPlan
     }
-    else {
-        $efiFullPath = [System.IO.Path]::GetFullPath(
-            (Join-Path $repositoryRoot $EfiOutputPath))
+    catch {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish output_authority_failed detail=" +
+            (Format-EvidenceValue $_.Exception.Message))
+        exit 1
     }
-    $efiDirectory = Split-Path -Parent $efiFullPath
-    New-Item -ItemType Directory -Path $efiDirectory -Force | Out-Null
+    Write-Host "EFI_PUBLISH_OUTPUT_AUTHORITY status=ok leaves=5"
 
     foreach ($requiredOutput in @(
         $publishOutput,
         $linkerMapWorkingPath,
-        $linkResponseWorkingPath
+        $linkResponseWorkingPath,
+        $serializerObjectPath,
+        $managedAssemblyPath
     )) {
+        Assert-M01NoReparsePoints `
+            -RootPath $repositoryRoot `
+            -Path $requiredOutput `
+            -Reason "publish_working_output_authority"
         if (-not (Test-Path -LiteralPath $requiredOutput -PathType Leaf) -or
             (Get-Item -LiteralPath $requiredOutput).Length -eq 0) {
             Write-Host (
@@ -2445,77 +7568,380 @@ if ($exitCode -eq 0) {
         }
     }
 
-    Copy-Item -Path $publishOutput -Destination $efiFullPath -Force
-    $linkerMapOutputPath = $efiFullPath + ".link.map"
-    $linkResponseOutputPath = $efiFullPath + ".link.rsp"
-    $linkEvidenceOutputPath = $efiFullPath + ".link.json"
-    Copy-Item -LiteralPath $linkerMapWorkingPath -Destination $linkerMapOutputPath -Force
-    Copy-Item -LiteralPath $linkResponseWorkingPath -Destination $linkResponseOutputPath -Force
+    $serializerObjectBytes = (Get-Item -LiteralPath $serializerObjectPath).Length
+    $serializerObjectHash = (
+        Get-FileHash -LiteralPath $serializerObjectPath -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+    if ($serializerObjectBytes -ne $script:ExpectedSerializerObjectBytes -or
+        $serializerObjectHash -cne
+            $script:ExpectedSerializerObjectSha256.ToLowerInvariant()) {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish serializer_object_mismatch bytes=" +
+            $serializerObjectBytes +
+            " sha256=" +
+            $serializerObjectHash)
+        exit 1
+    }
+
+    try {
+        Copy-M01FileCreateNew `
+            -SourcePath $publishOutput `
+            -SourceRootPath $repositoryRoot `
+            -DestinationPath $efiFullPath `
+            -DestinationRootPath $outputPublicationPlan.Directory `
+            -Purpose "published-efi"
+        Copy-M01FileCreateNew `
+            -SourcePath $linkerMapWorkingPath `
+            -SourceRootPath $repositoryRoot `
+            -DestinationPath $linkerMapOutputPath `
+            -DestinationRootPath $outputPublicationPlan.Directory `
+            -Purpose "preserved-link-map"
+        Copy-M01FileCreateNew `
+            -SourcePath $linkResponseWorkingPath `
+            -SourceRootPath $repositoryRoot `
+            -DestinationPath $linkResponseOutputPath `
+            -DestinationRootPath $outputPublicationPlan.Directory `
+            -Purpose "preserved-link-response"
+        Copy-M01FileCreateNew `
+            -SourcePath $serializerObjectPath `
+            -SourceRootPath $repositoryRoot `
+            -DestinationPath $serializerObjectOutputPath `
+            -DestinationRootPath $outputPublicationPlan.Directory `
+            -Purpose "preserved-serializer-object"
+    }
+    catch {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish output_publication_failed detail=" +
+            (Format-EvidenceValue $_.Exception.Message))
+        exit 1
+    }
 
     $artifactHash = (Get-FileHash -LiteralPath $efiFullPath -Algorithm SHA256).Hash.ToLowerInvariant()
     $linkerMapHash = (Get-FileHash -LiteralPath $linkerMapOutputPath -Algorithm SHA256).Hash.ToLowerInvariant()
     $linkResponseHash = (Get-FileHash -LiteralPath $linkResponseOutputPath -Algorithm SHA256).Hash.ToLowerInvariant()
     $projectHash = (Get-FileHash -LiteralPath $efiProjectPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $solutionHash = (
+        Get-FileHash -LiteralPath $solutionPath -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
     $entrySourcePath = Join-Path $repositoryRoot "src\OS\Boot\EfiEntry.cs"
     $entrySourceHash = (Get-FileHash -LiteralPath $entrySourcePath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $serializerTargetsHash = (
+        Get-FileHash -LiteralPath $serializerTargetsPath -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+    $serializerGeneratorProjectHash = (
+        Get-FileHash -LiteralPath $serializerGeneratorProjectPath -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+    $serializerGeneratorProgramHash = (
+        Get-FileHash -LiteralPath $serializerGeneratorProgramPath -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+    $serializerGeneratorWriterHash = (
+        Get-FileHash -LiteralPath $serializerGeneratorWriterPath -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+    $serializerGeneratorSourceHash = (
+        Get-FileHash -LiteralPath $serializerGeneratorSourcePath -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+    $instructionPublicationSourceHash = (
+        Get-FileHash -LiteralPath $instructionPublicationSourcePath -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+    $runtimeImportAttributeSourceHash = (
+        Get-FileHash -LiteralPath $runtimeImportAttributeSourcePath -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+    $methodImplAttributeSourceHash = (
+        Get-FileHash -LiteralPath $methodImplAttributeSourcePath -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+    $managedAssemblyHash = (
+        Get-FileHash -LiteralPath $managedAssemblyPath -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+    $projectAssetsHash = (
+        Get-FileHash -LiteralPath $projectAssetsPath -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+    $runtimePackEvidence = @(
+        $packageClosureSnapshotBeforeLock.Packages |
+            Where-Object { [string] $_.rootKind -ceq "runtime" })
+    if ($runtimePackEvidence.Count -ne 1) {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish runtime_pack_evidence_count_invalid")
+        exit 1
+    }
+    $actualIlCompilerFileVersion =
+        Get-FileVersionEvidence -Path $actualIlCompilerPath
 
     $linkEvidence = [ordered] @{
-        schemaVersion = 1
+        schemaVersion = 3
+        configuration = $Configuration
+        runtimeIdentifier = $Runtime
         artifactSha256 = $artifactHash
         artifactBytes = (Get-Item -LiteralPath $efiFullPath).Length
         linkerMapSha256 = $linkerMapHash
         linkResponseSha256 = $linkResponseHash
+        solutionSha256 = $solutionHash
+        sourceClosureSha256 =
+            $sourceSnapshotBeforePublish.AggregateSha256
+        sourceClosureInputs =
+            $sourceSnapshotBeforePublish.Inputs
+        restoreClosureSha256 =
+            $restoreSnapshotBeforeLock.AggregateSha256
+        restoreClosureInputs =
+            $restoreSnapshotBeforeLock.Inputs
+        restoreArchiveSourceRootPath = $globalPackageCacheRoot
+        restoreArchiveClosureSha256 =
+            $restoreArchiveSnapshotBeforeLock.AggregateSha256
+        restoreArchiveInputs =
+            $restoreArchiveSnapshotBeforeLock.Inputs
+        pinnedRestoreSourcePath = $restoreSourceDirectory
+        pinnedRestoreSourceSha256 =
+            $restoreSourceSnapshotBeforeLock.AggregateSha256
+        pinnedRestoreSourceInputs =
+            $restoreSourceSnapshotBeforeLock.Inputs
+        restoreImportProjectExtensionProps = $false
+        restoreImportProjectExtensionTargets = $false
+        restoreExcludeRestorePackageImports = $true
+        publishImportProjectExtensionProps = $false
+        publishImportProjectExtensionTargets = $false
+        publishExcludeRestorePackageImports = $true
+        projectExtensionsPath = $projectExtensionsDirectory
+        projectAssetsPath = $projectAssetsPath
+        projectAssetsSha256 = $projectAssetsHash
+        packageRootPath = $restorePackagesDirectory
+        packageRootKind = "isolated"
+        packageClosureSha256 =
+            $packageClosureSnapshotBeforeLock.AggregateSha256
+        packages = $packageClosureSnapshotBeforeLock.Packages
+        packageBuildClosureSha256 =
+            $packageBuildSnapshotBeforeLock.AggregateSha256
+        packageBuildClosureInputs =
+            $packageBuildSnapshotBeforeLock.Inputs
+        activePackageImportEdges =
+            $script:ExpectedActivePackageImportEdges
+        activePackageImportGraphSha256 =
+            $activePackageImportGraphSha256
+        packageTaskBindings =
+            $script:ExpectedPackageTaskBindings
+        packageTaskBindingsSha256 =
+            $packageTaskBindingsSha256
+        postRestoreEvaluation = $postRestoreEvaluation
         sourceProjectSha256 = $projectHash
         entrySourceSha256 = $entrySourceHash
         entryPointSymbol = "EfiMain"
         managedEntrySymbol = "OS_OS_Boot_EfiEntry__EfiMain"
+        serializerSymbol = $script:ExpectedSerializerSymbol
+        serializerExpectedSuccessCookie =
+            $script:ExpectedSerializerSuccessCookie
+        serializerLinkedObjectPath = $serializerObjectPath
+        serializerObjectPath = $serializerObjectOutputPath
+        serializerObjectBytes = $serializerObjectBytes
+        serializerObjectSha256 = $serializerObjectHash
+        serializerTargetsSha256 = $serializerTargetsHash
+        serializerGeneratorProjectSha256 = $serializerGeneratorProjectHash
+        serializerGeneratorProgramSha256 = $serializerGeneratorProgramHash
+        serializerGeneratorWriterSha256 = $serializerGeneratorWriterHash
+        serializerGeneratorSourceSha256 = $serializerGeneratorSourceHash
+        instructionPublicationSourceSha256 = $instructionPublicationSourceHash
+        runtimeImportAttributeSourceSha256 = $runtimeImportAttributeSourceHash
+        methodImplAttributeSourceSha256 = $methodImplAttributeSourceHash
+        managedAssemblyPath = $managedAssemblyPath
+        managedAssemblySha256 = $managedAssemblyHash
         linkerPath = $linkerPath
         linkerVersion = $linkerVersion
         linkerSha256 = $linkerHash
+        dotnetHostPath = $script:DotnetHostPath
+        dotnetHostSha256 = $dotnetHostHash
+        dotnetSdkVersion = $dotnetSdkVersion
         windowsSdkLibraryPath = $sdkLibPath
         windowsSdkVersion = $sdkVersion
         windowsSdkLibrarySha256 = $sdkLibHash
-        ilCompilerPath = $resolvedIlCompilerPath
+        ilCompilerPath = $actualIlCompilerPath
+        ilCompilerDiscoverySourcePath = $resolvedIlCompilerPath
         ilCompilerPackageVersion = $ilCompilerPackageVersion
-        ilCompilerFileVersion = $ilCompilerFileVersion
+        ilCompilerFileVersion = $actualIlCompilerFileVersion
         ilCompilerSha256 = $ilCompilerHash
         nativeAotRuntimePackPath = $resolvedNativeAotRuntimePackPath
         nativeAotRuntimePackVersion = $nativeAotRuntimePackVersion
+        nativeAotRuntimePackSha256 =
+            $runtimePackEvidence[0].aggregateSha256
+        nativeAotRuntimePackFileCount =
+            $runtimePackEvidence[0].fileCount
+        nativeAotRuntimePackBytes =
+            $runtimePackEvidence[0].totalBytes
+        ilCompilerTargetsPath = $ilCompilerTargetsPath
+        ilLinkTargetsPath = $ilLinkTargetsPath
+        ilLinkTasksAssemblyPath = $ilLinkTasksAssemblyPath
+        ilcBuildTasksPath = $ilcBuildTasksPath
+        ilcHostPackagePath = $ilCompilerHostPackageRoot
+        ilcToolsPath = $ilcToolsPath
+        ilcFrameworkPath = $ilcFrameworkPath
+        ilcFrameworkNativePath = $ilcFrameworkNativePath
+        ilcSdkPath = $ilcSdkPath
+        ilcMibcPath = $ilcMibcPath
+        languageTargetsPath = $languageTargetsPath
+        csharpTargetsPath = $csharpTargetsPath
+        commonTargetsPath = $commonTargetsPath
         runtimeListSha256 = $runtimeListHash
         generatedUtc = [DateTimeOffset]::UtcNow.ToString("O")
     }
-    $linkEvidenceJson = $linkEvidence | ConvertTo-Json -Depth 4
-    [System.IO.File]::WriteAllText(
-        $linkEvidenceOutputPath,
-        $linkEvidenceJson,
-        (New-Object System.Text.UTF8Encoding($false)))
+    $linkEvidenceJson = $linkEvidence | ConvertTo-Json -Depth 10
+    try {
+        Write-M01Utf8CreateNew `
+            -Path $linkEvidenceOutputPath `
+            -RootPath $outputPublicationPlan.Directory `
+            -Text $linkEvidenceJson
+        $verifierInputLocks = Open-M01VerifierInputLocks -Inputs @(
+            [pscustomobject] @{
+                Path = $efiFullPath
+                RootPath = $outputPublicationPlan.Directory
+                Purpose = "final-efi"
+            },
+            [pscustomobject] @{
+                Path = $linkerMapOutputPath
+                RootPath = $outputPublicationPlan.Directory
+                Purpose = "final-link-map"
+            },
+            [pscustomobject] @{
+                Path = $linkResponseOutputPath
+                RootPath = $outputPublicationPlan.Directory
+                Purpose = "final-link-response"
+            },
+            [pscustomobject] @{
+                Path = $linkEvidenceOutputPath
+                RootPath = $outputPublicationPlan.Directory
+                Purpose = "final-link-evidence"
+            },
+            [pscustomobject] @{
+                Path = $serializerObjectOutputPath
+                RootPath = $outputPublicationPlan.Directory
+                Purpose = "preserved-serializer-object"
+            },
+            [pscustomobject] @{
+                Path = $serializerObjectPath
+                RootPath = $repositoryRoot
+                Purpose = "linked-serializer-object"
+            },
+            [pscustomobject] @{
+                Path = $linkerMapWorkingPath
+                RootPath = $repositoryRoot
+                Purpose = "linked-map"
+            },
+            [pscustomobject] @{
+                Path = $managedAssemblyPath
+                RootPath = $repositoryRoot
+                Purpose = "managed-dll"
+            }
+        )
+        if ($verifierInputLocks.Count -ne 8) {
+            throw "verifier input authority count mismatch"
+        }
+        Assert-M01DistinctAuthorityRecords -Records (
+            @($verifierInputLocks.ToArray()) +
+            @($script:M01LogAuthority))
+    }
+    catch {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish verifier_input_authority_failed detail=" +
+            (Format-EvidenceValue $_.Exception.Message))
+        exit 1
+    }
+    Write-Host "EFI_PUBLISH_VERIFIER_INPUT_AUTHORITY status=ok inputs=8"
 
     $verifierScript = Join-Path $repositoryRoot "scripts\test-efi-artifact.ps1"
-    $verificationOutput = @(
-        & powershell.exe `
-            -NoProfile `
-            -ExecutionPolicy Bypass `
-            -File $verifierScript `
-            -EfiArtifact $efiFullPath `
-            -ProjectPath $efiProjectPath `
-            -EntrySourcePath $entrySourcePath `
-            -LinkerMapPath $linkerMapOutputPath `
-            -LinkResponsePath $linkResponseOutputPath `
-            -LinkEvidencePath $linkEvidenceOutputPath 2>&1
+    $verificationArguments = @(
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        $verifierScript,
+        "-EfiArtifact",
+        $efiFullPath,
+        "-ProjectPath",
+        $efiProjectPath,
+        "-EntrySourcePath",
+        $entrySourcePath,
+        "-SerializerObjectPath",
+        $serializerObjectOutputPath,
+        "-LinkerMapPath",
+        $linkerMapOutputPath,
+        "-LinkResponsePath",
+        $linkResponseOutputPath,
+        "-LinkEvidencePath",
+        $linkEvidenceOutputPath
     )
-    $verificationExitCode = $LASTEXITCODE
-    foreach ($verificationLine in $verificationOutput) {
-        Write-Host $verificationLine
-        Add-Content -LiteralPath $logFullPath -Value $verificationLine -Encoding UTF8
+    $verificationStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    try {
+        $verificationResult = Invoke-M01ArtifactVerifier `
+            -Arguments $verificationArguments `
+            -TimeoutSeconds $ArtifactVerifierTimeoutSeconds
     }
-    if ($verificationExitCode -ne 0) {
+    catch {
+        $verificationStopwatch.Stop()
+        Write-Host (
+            "TEST_FAIL efi.shell.publish artifact_verifier_launch_failed detail=" +
+            (Format-EvidenceValue $_.Exception.Message))
+        exit 1
+    }
+    $verificationStopwatch.Stop()
+    try {
+        Assert-M01VerifierInputLocks -Locks $verifierInputLocks
+        Assert-M01WritableAuthorityIdentity `
+            -Record $script:M01LogAuthority
+        Assert-M01DistinctAuthorityRecords -Records (
+            @($verifierInputLocks.ToArray()) +
+            @($script:M01LogAuthority))
+    }
+    catch {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish verifier_input_changed detail=" +
+            (Format-EvidenceValue $_.Exception.Message))
+        exit 1
+    }
+    Write-Host "EFI_PUBLISH_VERIFIER_INPUTS_UNCHANGED status=ok inputs=8"
+    foreach ($verificationLine in $verificationResult.OutputLines) {
+        Write-Host $verificationLine
+        Write-M01LogLines `
+            -Authority $script:M01LogAuthority `
+            -Lines @([string] $verificationLine)
+    }
+    if ($verificationResult.TimedOut) {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish artifact_verification_timeout " +
+            "timeout_seconds=" +
+            $ArtifactVerifierTimeoutSeconds +
+            " elapsed_ms=" +
+            $verificationStopwatch.ElapsedMilliseconds +
+            " termination_confirmed=" +
+            $verificationResult.TerminationConfirmed.ToString().ToLowerInvariant() +
+            " output_capture_succeeded=" +
+            $verificationResult.OutputCaptureSucceeded.ToString().ToLowerInvariant())
+        exit 1
+    }
+    if (-not $verificationResult.TerminationConfirmed) {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish artifact_verification_tree_termination_failed " +
+            "elapsed_ms=" +
+            $verificationStopwatch.ElapsedMilliseconds)
+        exit 1
+    }
+    if ($verificationResult.OutputDrainTimedOut -or
+        -not $verificationResult.OutputCaptureSucceeded) {
+        Write-Host (
+            "TEST_FAIL efi.shell.publish artifact_verification_output_capture_failed " +
+            "drain_timed_out=" +
+            $verificationResult.OutputDrainTimedOut.ToString().ToLowerInvariant() +
+            " elapsed_ms=" +
+            $verificationStopwatch.ElapsedMilliseconds)
+        exit 1
+    }
+    if ($verificationResult.ExitCode -ne 0) {
         Write-Host (
             "TEST_FAIL efi.shell.publish artifact_verification_failed exit_code=" +
-            $verificationExitCode +
+            $verificationResult.ExitCode +
             " log=" +
             $LogPath)
-        exit $verificationExitCode
+        exit $verificationResult.ExitCode
     }
+    Write-Host (
+        "EFI_ARTIFACT_VERIFIER_BOUND status=ok elapsed_ms=" +
+        $verificationStopwatch.ElapsedMilliseconds +
+        " timeout_seconds=" +
+        $ArtifactVerifierTimeoutSeconds)
 
     Write-Host (
         "EFI_PUBLISH_TOOLCHAIN_VERIFIED linkerPath=" +
@@ -2524,6 +7950,13 @@ if ($exitCode -eq 0) {
         $linkerMapHash +
         " responseSha256=" +
         $linkResponseHash)
+    Write-Host (
+        "EFI_SERIALIZER_OBJECT path=" +
+        (Format-EvidenceValue $serializerObjectOutputPath) +
+        " bytes=" +
+        $serializerObjectBytes +
+        " sha256=" +
+        $serializerObjectHash)
     Write-Host "TEST_PASS efi.shell.publish"
     Write-Host "EFI_ARTIFACT $EfiOutputPath"
     Write-Host "EFI_LINKER_MAP $linkerMapOutputPath"
@@ -2531,7 +7964,7 @@ if ($exitCode -eq 0) {
     exit 0
 }
 
-$logText = Get-Content -Raw -Path $logFullPath
+$logText = Read-M01LogAuthorityText -Authority $script:M01LogAuthority
 if ($logText.IndexOf("Platform linker not found", [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
     Write-Host "TEST_FAIL efi.shell.publish platform_linker_missing log=$LogPath"
     exit $exitCode
@@ -2539,3 +7972,17 @@ if ($logText.IndexOf("Platform linker not found", [System.StringComparison]::Ord
 
 Write-Host "TEST_FAIL efi.shell.publish exit_code=$exitCode log=$LogPath"
 exit $exitCode
+}
+finally {
+    Close-M01AuthorityRecords -Records $verifierInputLocks
+    if ($null -ne $script:M01LogAuthority) {
+        $script:M01LogAuthority.Stream.Dispose()
+        $script:M01LogAuthority = $null
+    }
+    Close-M01PublishSourceLocks -Locks $packageLocks
+    Close-M01PublishSourceLocks -Locks $restoreLocks
+    Close-M01PublishSourceLocks -Locks $restoreSourceLocks
+    Close-M01PublishSourceLocks -Locks $restoreArchiveSourceLocks
+    Close-M01PublishSourceLocks -Locks $sourceLocks
+    Close-M01PublishOutputLock -Lock $publishOutputLock
+}
