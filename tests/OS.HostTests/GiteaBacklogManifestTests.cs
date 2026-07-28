@@ -11,7 +11,7 @@ internal static class GiteaBacklogManifestTests
         new Dictionary<string, int>(StringComparer.Ordinal)
         {
             ["M00"] = 23,
-            ["M01"] = 32,
+            ["M01"] = 35,
             ["M02"] = 16,
             ["M03"] = 11,
             ["M04"] = 23,
@@ -47,7 +47,8 @@ internal static class GiteaBacklogManifestTests
             RunTest("gitea backlog sync refuses noncanonical target", () => TestCanonicalTargetRefusal(scriptPath), ref failures);
             RunTest("gitea backlog validation rejects missing required field", () => TestInvalidManifest(scriptPath, manifestPath, tempRoot, "missing", RemoveRequiredField, "missing required field 'summary'"), ref failures);
             RunTest("gitea backlog validation rejects duplicate key", () => TestInvalidManifest(scriptPath, manifestPath, tempRoot, "duplicate", DuplicateIssueKey, "Duplicate issue key"), ref failures);
-            RunTest("gitea backlog validation requires every M01 child through 032", () => TestInvalidManifest(scriptPath, manifestPath, tempRoot, "missing-m01-032", ReplaceLastM01ChildWithExtra, "Manifest is missing child 'M01-032'"), ref failures);
+            RunTest("gitea backlog M01 instruction-publication chain is collision-safe", () => TestM01InstructionPublicationManifest(manifestPath), ref failures);
+            RunTest("gitea backlog validation requires every M01 child through 035", () => TestInvalidManifest(scriptPath, manifestPath, tempRoot, "missing-m01-035", ReplaceLastM01ChildWithExtra, "Manifest is missing child 'M01-035'"), ref failures);
             RunTest("gitea backlog validation rejects unknown dependency", () => TestInvalidManifest(scriptPath, manifestPath, tempRoot, "dependency", AddUnknownDependency, "references unknown dependency"), ref failures);
             RunTest("gitea backlog validation rejects dependency cycle", () => TestInvalidManifest(scriptPath, manifestPath, tempRoot, "cycle", AddDependencyCycle, "dependency graph contains a cycle"), ref failures);
             RunTest("gitea backlog validation rejects unserialized M00 ownership", () => TestInvalidManifest(scriptPath, manifestPath, tempRoot, "overlap", AddUnserializedM00Overlap, "unserialized owned-path overlap"), ref failures);
@@ -134,7 +135,7 @@ internal static class GiteaBacklogManifestTests
         JsonElement milestones = root.GetProperty("milestones");
         JsonElement labels = root.GetProperty("labels");
         JsonElement issues = root.GetProperty("issues");
-        if (milestones.GetArrayLength() != 16 || labels.GetArrayLength() != 68 || issues.GetArrayLength() != 337)
+        if (milestones.GetArrayLength() != 16 || labels.GetArrayLength() != 68 || issues.GetArrayLength() != 340)
         {
             return false;
         }
@@ -243,6 +244,21 @@ internal static class GiteaBacklogManifestTests
             DependenciesEqual(issueByKey["M12-018"], "M12-016") &&
             DependenciesEqual(issueByKey["M13-018"], "M13-016") &&
             DependenciesEqual(issueByKey["M15-014"], "M15-009");
+    }
+
+    private static bool TestM01InstructionPublicationManifest(string manifestPath)
+    {
+        using JsonDocument document = JsonDocument.Parse(
+            File.ReadAllText(manifestPath));
+        Dictionary<string, JsonElement> issueByKey =
+            document.RootElement.GetProperty("issues")
+                .EnumerateArray()
+                .ToDictionary(
+                    issue => issue.GetProperty("key").GetString()
+                        ?? string.Empty,
+                    issue => issue,
+                    StringComparer.Ordinal);
+        return ValidateM01InstructionPublicationContracts(issueByKey);
     }
 
     private static bool ValidateM00Contracts(IReadOnlyDictionary<string, JsonElement> issueByKey)
@@ -407,8 +423,12 @@ internal static class GiteaBacklogManifestTests
                 Enumerable.Range(28, 5)
                     .Select(number => "M01-" + number.ToString("000")))
             .Concat(
-                Enumerable.Range(20, 7)
+                Enumerable.Range(20, 6)
                     .Select(number => "M01-" + number.ToString("000")))
+            .Concat(
+                Enumerable.Range(33, 3)
+                    .Select(number => "M01-" + number.ToString("000")))
+            .Append("M01-026")
             .ToArray();
         string[] actualOrder = issues.EnumerateArray()
             .Select(issue => issue.GetProperty("key").GetString() ?? string.Empty)
@@ -699,7 +719,7 @@ internal static class GiteaBacklogManifestTests
     private static bool ValidateM01ReferenceLabels(
         IReadOnlyDictionary<string, JsonElement> issueByKey)
     {
-        for (int number = 1; number <= 32; number++)
+        for (int number = 1; number <= 35; number++)
         {
             string key = "M01-" + number.ToString("000");
             JsonElement issue = issueByKey[key];
@@ -900,7 +920,8 @@ internal static class GiteaBacklogManifestTests
         [
             "M01-016", "M01-017", "M01-018", "M01-019", "M01-020",
             "M01-021", "M01-023", "M01-025", "M01-027", "M01-028",
-            "M01-029", "M01-030", "M01-031", "M01-032"
+            "M01-029", "M01-030", "M01-031", "M01-032", "M01-033",
+            "M01-034", "M01-035"
         ];
 
         for (int number = 16; number <= 26; number++)
@@ -924,6 +945,8 @@ internal static class GiteaBacklogManifestTests
                         "M01-030",
                         "M01-031",
                         "M01-032")
+                    : key == "M01-026"
+                        ? DependenciesEqual(issue, "M01-035")
                     : DependenciesEqual(issue, dependency);
             if (!dependencyContractSatisfied ||
                 !string.Equals(
@@ -1194,6 +1217,7 @@ internal static class GiteaBacklogManifestTests
         }
 
         return ValidateM01PrerequisiteRepairContracts(issueByKey) &&
+            ValidateM01InstructionPublicationContracts(issueByKey) &&
             efiIssues.All(key =>
                 JsonElementContains(
                     issueByKey[key].GetProperty("requiredCommands"),
@@ -1238,7 +1262,7 @@ internal static class GiteaBacklogManifestTests
                 "M01-030",
                 "M01-031",
                 "M01-032") ||
-            !DependenciesEqual(issueByKey["M01-026"], "M01-025"))
+            !DependenciesEqual(issueByKey["M01-026"], "M01-035"))
         {
             return false;
         }
@@ -1365,6 +1389,288 @@ internal static class GiteaBacklogManifestTests
         }
 
         return true;
+    }
+
+    private static bool ValidateM01InstructionPublicationContracts(
+        IReadOnlyDictionary<string, JsonElement> issueByKey)
+    {
+        string[] keys = ["M01-033", "M01-034", "M01-035"];
+        if (keys.Any(key => !issueByKey.ContainsKey(key)) ||
+            !DependenciesEqual(issueByKey["M01-033"], "M01-025") ||
+            !DependenciesEqual(issueByKey["M01-034"], "M01-033") ||
+            !DependenciesEqual(issueByKey["M01-035"], "M01-034") ||
+            !DependenciesEqual(issueByKey["M01-026"], "M01-035"))
+        {
+            return false;
+        }
+
+        IReadOnlyDictionary<string, string?> lanes =
+            new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["M01-033"] = null,
+                ["M01-034"] = "lane:os-project",
+                ["M01-035"] = "lane:efi-entry"
+            };
+        IReadOnlyDictionary<string, string> types =
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["M01-033"] = "type:tooling",
+                ["M01-034"] = "type:tooling",
+                ["M01-035"] = "type:implementation"
+            };
+
+        foreach (string key in keys)
+        {
+            JsonElement issue = issueByKey[key];
+            JsonElement labels = issue.GetProperty("labels");
+            string commands = JsonArrayText(issue.GetProperty("requiredCommands"));
+            string? expectedLane = lanes[key];
+            bool laneContractSatisfied = expectedLane is null
+                ? issue.GetProperty("collisionLane").ValueKind ==
+                    JsonValueKind.Null &&
+                    CountPrefix(labels, "lane:") == 0
+                : string.Equals(
+                        issue.GetProperty("collisionLane").GetString(),
+                        expectedLane,
+                        StringComparison.Ordinal) &&
+                    JsonArrayContainsExact(labels, expectedLane) &&
+                    CountPrefix(labels, "lane:") == 1;
+            if (!string.Equals(
+                    issue.GetProperty("desiredState").GetString(),
+                    "open",
+                    StringComparison.Ordinal) ||
+                !JsonArrayContainsExact(labels, "agent:blocked") ||
+                CountPrefix(labels, "agent:") != 1 ||
+                !JsonArrayContainsExact(labels, "priority:p0") ||
+                !JsonArrayContainsExact(labels, "evidence:host") ||
+                !JsonArrayContainsExact(labels, "phase:m01-memory") ||
+                !JsonArrayContainsExact(labels, types[key]) ||
+                CountPrefix(labels, "type:") != 1 ||
+                !laneContractSatisfied ||
+                commands.Contains("run-qemu-smoke.ps1", StringComparison.Ordinal) ||
+                commands.Contains(" -Qemu \"", StringComparison.Ordinal) ||
+                commands.Contains(" -OvmfCode \"", StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        JsonElement generator = issueByKey["M01-033"];
+        JsonElement integration = issueByKey["M01-034"];
+        JsonElement publication = issueByKey["M01-035"];
+        if (!OwnedPathsEqual(
+                generator,
+                "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.csproj",
+                "tools/OS.X64TextSerializerGenerator/Program.cs",
+                "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs",
+                "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs",
+                "tests/OS.HostTests/M01InstructionPublicationSerializerGeneratorTests.cs",
+                "docs/security.md") ||
+            !OwnedPathsEqual(
+                integration,
+                "CLROS.slnx",
+                "src/OS/OS.csproj",
+                "src/OS/Boot/X64InstructionPublication.cs",
+                "src/OS/Runtime/RuntimeImportAttribute.cs",
+                "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.targets",
+                "scripts/test-efi-artifact.ps1",
+                "tests/OS.HostTests/M01InstructionPublicationBuildIntegrationTests.cs",
+                "tests/OS.HostTests/EfiArtifactVerificationScriptTests.cs",
+                "docs/efi-build.md",
+                "docs/nativeaot-nostdlib-limits.md") ||
+            !OwnedPathsEqual(
+                publication,
+                "src/OS/Boot/EfiEntry.cs",
+                "tests/OS.HostTests/M01InstructionPublicationEfiEntryTests.cs",
+                "docs/boot.md",
+                "docs/architecture.md",
+                "docs/security.md"))
+        {
+            return false;
+        }
+
+        if (!JsonElementContains(
+                generator.GetProperty("forbiddenPaths"),
+                "CLROS.slnx") ||
+            !JsonElementContains(
+                generator.GetProperty("forbiddenPaths"),
+                "src/OS/OS.csproj") ||
+            !JsonElementContains(
+                generator.GetProperty("forbiddenPaths"),
+                "src/OS/Boot/EfiEntry.cs") ||
+            !JsonElementContains(
+                integration.GetProperty("forbiddenPaths"),
+                "src/OS/Boot/EfiEntry.cs") ||
+            !JsonElementContains(
+                integration.GetProperty("forbiddenPaths"),
+                "InstructionPublicationSerializerGenerator.cs") ||
+            !JsonElementContains(
+                publication.GetProperty("forbiddenPaths"),
+                "src/OS/OS.csproj") ||
+            !JsonElementContains(
+                publication.GetProperty("forbiddenPaths"),
+                "tools/OS.X64TextSerializerGenerator/**") ||
+            !JsonElementContains(
+                publication.GetProperty("forbiddenPaths"),
+                "scripts/test-efi-artifact.ps1"))
+        {
+            return false;
+        }
+
+        string generatorContract =
+            generator.GetProperty("summary").GetString() + "\n" +
+            generator.GetProperty("currentEvidence").GetString() + "\n" +
+            JsonArrayText(generator.GetProperty("implementationNotes")) + "\n" +
+            JsonArrayText(generator.GetProperty("acceptanceCriteria")) + "\n" +
+            generator.GetProperty("evidenceBoundary").GetString();
+        string integrationContract =
+            integration.GetProperty("summary").GetString() + "\n" +
+            integration.GetProperty("currentEvidence").GetString() + "\n" +
+            JsonArrayText(integration.GetProperty("implementationNotes")) + "\n" +
+            JsonArrayText(integration.GetProperty("acceptanceCriteria")) + "\n" +
+            integration.GetProperty("evidenceBoundary").GetString();
+        string publicationContract =
+            publication.GetProperty("summary").GetString() + "\n" +
+            publication.GetProperty("currentEvidence").GetString() + "\n" +
+            JsonArrayText(publication.GetProperty("implementationNotes")) + "\n" +
+            JsonArrayText(publication.GetProperty("acceptanceCriteria")) + "\n" +
+            publication.GetProperty("evidenceBoundary").GetString();
+        string exactBytes =
+            "9C 53 B8 00 00 00 00 B9 00 00 00 00 0F A2 5B 9D C3";
+        string[] generatorTerms =
+        [
+            "AMD64 COFF machine 0x8664",
+            ".text$clrossm",
+            "CLROS_X64_SerializeInstructionPublication",
+            exactBytes,
+            "timestamp zero",
+            "IMAGE_SCN_MEM_WRITE clear",
+            "no relocations",
+            "RFLAGS",
+            "integer overflow",
+            "generator timeout",
+            "No .obj"
+        ];
+        string[] integrationTerms =
+        [
+            "CLROS.slnx",
+            "NativeLibrary",
+            "[RuntimeImport(\"*\", \"CLROS_X64_SerializeInstructionPublication\")]",
+            "/INCLUDE:CLROS_X64_SerializeInstructionPublication",
+            "same-build map",
+            "file-backed",
+            "RX/nonwritable",
+            exactBytes,
+            "absent import",
+            "must not invoke",
+            "build timeout",
+            "no serializer-execution"
+        ];
+        string[] publicationTerms =
+        [
+            "four relevant epochs",
+            "Epoch 1",
+            "Epoch 2",
+            "Epoch 3",
+            "Epoch 4",
+            "M01_PRE_CR3",
+            "No executable-page write",
+            "LFENCE",
+            "MFENCE",
+            "firmware callback",
+            "zero/default",
+            "overflow",
+            "timeout",
+            "do not run QEMU",
+            "cross-core"
+        ];
+        if (generatorTerms.Any(term =>
+                !generatorContract.Contains(term, StringComparison.Ordinal)) ||
+            integrationTerms.Any(term =>
+                !integrationContract.Contains(term, StringComparison.Ordinal)) ||
+            publicationTerms.Any(term =>
+                !publicationContract.Contains(term, StringComparison.Ordinal)))
+        {
+            return false;
+        }
+
+        if (!ReferencePathExists(
+                generator,
+                "references/SharpOS-main/bootasm/CoffStub.Generator/CoffWriter.cs") ||
+            !ReferencePathExists(
+                generator,
+                "references/SharpOS-main/bootasm/CoffStub.Generator/EmitCoffStubsTask.cs") ||
+            !ReferencePathExists(
+                integration,
+                "references/SharpOS-main/bootasm/CoffStub.Generator/CoffStub.Generator.targets") ||
+            !ReferencePathExists(
+                integration,
+                "references/SharpOS-main/apps_native/sdk/MinimalRuntime.cs") ||
+            !ReferencePathExists(
+                publication,
+                "references/nativeaot-patcher-main/src/Cosmos.Kernel.Native.X64/CPU/CpuOps.s") ||
+            !JsonArrayContainsExact(
+                generator.GetProperty("labels"),
+                "reference:adapt") ||
+            !JsonArrayContainsExact(
+                integration.GetProperty("labels"),
+                "reference:adapt") ||
+            !JsonArrayContainsExact(
+                publication.GetProperty("labels"),
+                "reference:test-only"))
+        {
+            return false;
+        }
+
+        string epicContract =
+            JsonArrayText(
+                issueByKey["M01-EPIC"].GetProperty("implementationNotes")) +
+            "\n" +
+            JsonArrayText(
+                issueByKey["M01-EPIC"].GetProperty("acceptanceCriteria"));
+        string qemuContract =
+            issueByKey["M01-026"].GetProperty("currentEvidence").GetString() +
+            "\n" +
+            JsonArrayText(
+                issueByKey["M01-026"].GetProperty("implementationNotes")) +
+            "\n" +
+            JsonArrayText(
+                issueByKey["M01-026"].GetProperty("acceptanceCriteria")) +
+            "\n" +
+            issueByKey["M01-026"].GetProperty("evidenceBoundary").GetString();
+        return epicContract.Contains(
+                "M01-033 generates one deterministic C# AMD64 COFF serializer",
+                StringComparison.Ordinal) &&
+            epicContract.Contains(
+                "All 35 keyed child issues",
+                StringComparison.Ordinal) &&
+            qemuContract.Contains(
+                "M01-025 and then M01-033, M01-034, and M01-035",
+                StringComparison.Ordinal) &&
+            qemuContract.Contains(
+                "exactly four publication-epoch calls",
+                StringComparison.Ordinal) &&
+            qemuContract.Contains(
+                "QEMU/TCG",
+                StringComparison.Ordinal) &&
+            qemuContract.Contains(
+                "does not empirically prove absence of speculative code-store bypass",
+                StringComparison.Ordinal) &&
+            qemuContract.Contains(
+                "does not prove cross-core instruction publication",
+                StringComparison.Ordinal) &&
+            JsonElementContains(
+                integration.GetProperty("requiredCommands"),
+                "build-efi-shell.ps1") &&
+            JsonElementContains(
+                publication.GetProperty("requiredCommands"),
+                "build-efi-shell.ps1") &&
+            JsonElementContains(
+                integration.GetProperty("requiredCommands"),
+                "test-efi-artifact.ps1") &&
+            JsonElementContains(
+                publication.GetProperty("requiredCommands"),
+                "test-efi-artifact.ps1");
     }
 
     private static bool ValidateM03PermanentCr3Handoff(
@@ -1652,11 +1958,11 @@ internal static class GiteaBacklogManifestTests
         byte[] after = SHA256.HashData(File.ReadAllBytes(manifestPath));
         DateTime afterWriteTime = File.GetLastWriteTimeUtc(manifestPath);
         return result.ExitCode == 0 &&
-            result.Output.Contains("SYNC_MANIFEST_VALID milestones=16 labels=68 epics=16 children=321 issues=337", StringComparison.Ordinal) &&
+            result.Output.Contains("SYNC_MANIFEST_VALID milestones=16 labels=68 epics=16 children=324 issues=340", StringComparison.Ordinal) &&
             result.Output.Contains("SYNC_MODE preview", StringComparison.Ordinal) &&
             result.Output.Contains("SYNC_OFFLINE manifest_only", StringComparison.Ordinal) &&
-            result.Output.Contains("SYNC_KEYS action=skipped count=421", StringComparison.Ordinal) &&
-            result.Output.Contains("SYNC_SUMMARY created=0 updated=0 unchanged=0 skipped=421 failed=0 wouldCreate=0 wouldUpdate=0", StringComparison.Ordinal) &&
+            result.Output.Contains("SYNC_KEYS action=skipped count=424", StringComparison.Ordinal) &&
+            result.Output.Contains("SYNC_SUMMARY created=0 updated=0 unchanged=0 skipped=424 failed=0 wouldCreate=0 wouldUpdate=0", StringComparison.Ordinal) &&
             result.Output.Contains("TEST_PASS gitea.backlog.sync", StringComparison.Ordinal) &&
             before.AsSpan().SequenceEqual(after) &&
             beforeWriteTime == afterWriteTime;
@@ -1752,22 +2058,22 @@ internal static class GiteaBacklogManifestTests
 
     private static void ReplaceLastM01ChildWithExtra(JsonObject root)
     {
-        JsonObject child = FindIssue(root, "M01-032");
+        JsonObject child = FindIssue(root, "M01-035");
         child["key"] = "M01-999";
 
-        JsonObject dependent = FindIssue(root, "M01-025");
+        JsonObject dependent = FindIssue(root, "M01-026");
         JsonArray dependencyKeys = dependent["dependencyKeys"]?.AsArray()
-            ?? throw new InvalidOperationException("M01-025 dependencyKeys missing");
+            ?? throw new InvalidOperationException("M01-026 dependencyKeys missing");
         for (int index = 0; index < dependencyKeys.Count; index++)
         {
-            if (dependencyKeys[index]?.GetValue<string>() == "M01-032")
+            if (dependencyKeys[index]?.GetValue<string>() == "M01-035")
             {
                 dependencyKeys[index] = "M01-999";
                 return;
             }
         }
 
-        throw new InvalidOperationException("M01-025 dependency on M01-032 missing");
+        throw new InvalidOperationException("M01-026 dependency on M01-035 missing");
     }
 
     private static void AddDependencyCycle(JsonObject root)

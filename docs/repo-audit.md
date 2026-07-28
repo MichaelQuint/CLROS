@@ -2,7 +2,7 @@
 
 ## Current Status
 
-Audit date: 2026-07-27.
+Audit date: 2026-07-28.
 
 The first-party workspace began as an empty baseline under the former `OS`
 solution/repository identity. The current canonical solution is `CLROS.slnx`,
@@ -38,10 +38,16 @@ and the reachable local Gitea tracker:
   preserved as historical evidence. M01-027 and its dependent M01-020 linkage
   issue are now evidence-reviewed and closed.
 - M01-028 records the subsequent live-paging feasibility recovery and inserts
-  the serialized M01-029 through M01-032 prerequisites before M01-025. The
-  current durable inventory contains 321 children, 337 keyed issues, and 421
-  managed objects. This backlog repair changes dependency/readiness state only;
-  it does not change a capability or completion gate.
+  the serialized M01-029 through M01-032 prerequisites before M01-025. Its
+  321-child, 337-keyed-issue, 421-managed-object inventory is preserved as the
+  last applied historical snapshot.
+- The current durable manifest adds M01-033 through M01-035 after M01-025 and
+  before M01-026: deterministic C# AMD64 COFF serializer generation, canonical
+  EFI link/final-artifact verification, and four-epoch EfiEntry publication
+  ordering. The manifest now contains 324 children, 340 keyed issues, and 424
+  managed objects. No tracker synchronization was performed as part of this
+  administrative change; it changes dependency/readiness intent only and does
+  not change a capability or completion gate.
 
 ## Implemented Behavior
 
@@ -186,8 +192,11 @@ Current M00 recovery evidence from 2026-07-25:
 - Generated evidence is under
   `artifacts/logs/m00-final/32a8f3b91e17-20260725T213702Z/` and is not
   committed as first-party source.
-- The live Gitea tracker contains 68 labels, 16 milestones, 321 children, and
-  337 uniquely keyed issues. The earlier guarded M00-023 apply recognized issue
+- The last verified live Gitea tracker snapshot contains 68 labels, 16
+  milestones, 321 children, and 337 uniquely keyed issues. The current durable
+  manifest contains 324 children and 340 uniquely keyed issues; the additional
+  M01-033 through M01-035 records have not been applied by this change. The
+  earlier guarded M00-023 apply recognized issue
   #321, created only M01-016 through M01-026 as issues #323 through #333,
   updated exactly 24 existing managed issues, and emitted
   `SYNC_VERIFY_PASS milestones=16 labels=68 issues=331`; those counts are
@@ -198,12 +207,15 @@ Current M00 recovery evidence from 2026-07-25:
   reviewed `done/step866.md` evidence, M01-027 is closed with reviewed
   `done/step867.md` evidence, and M01-020 is closed with reviewed
   `done/step868.md` linkage/build evidence. M01-028 now serializes M01-029
-  through M01-032 before M01-025; M01-025 remains blocked on those four
-  prerequisites, and M01-026 remains blocked on M01-025 for cumulative QEMU
-  proof. After M01-028 is evidence-reviewed and closed, M01-029 is the sole
-  dependency-ready implementation leaf in this recovery chain; M01-030 through
-  M01-032 remain blocked in order. A converged post-apply no-write preview must
-  report all 421 managed objects unchanged. M02 and M04 entry work still
+  through M01-032 before M01-025. The new durable chain is
+  `M01-025 -> M01-033 -> M01-034 -> M01-035 -> M01-026`; all three new issues
+  begin blocked. Once M01-025 closes with reviewed evidence, readiness
+  recomputation makes only M01-033 ready; because it owns only new generator
+  files, its focused test, and `docs/security.md`, it carries no central
+  collision lane and may run beside disjoint work. M01-034, M01-035, and
+  M01-026 remain blocked in order. A converged post-apply no-write preview for
+  the new manifest must report all 424 managed objects unchanged. M02 and M04
+  entry work still
   depends on the final M01-026 cumulative paging proof. Only `M15-013`, the
   isolated optional DOOM/WAD boundary, retains
   `reference:license-blocked`. This is administrative tracker evidence, not
