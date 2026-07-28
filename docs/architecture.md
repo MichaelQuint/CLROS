@@ -47,7 +47,7 @@ The architecture is a staged CloudReady NativeAOT OS plan. The first-class appli
 - `src/OS.Kernel/Memory/X64InvlpgStubPlan.cs` and `X64ProtectionProbeStubPlan.cs` bind that value mutation to two independently authored C# byte plans for later live integration. The first materializes and reads back the exact four bytes `0F 01 39 C3` (`invlpg [rcx]; ret`) inside one modeled page, then permits a one-shot invocation plan only for the exact RX/non-writable entry and exactly one matching invalidation record; the aggregate separately binds that page to a caller-supplied one-page `LoaderCode` allocation. The second materializes and reads back the exact six bytes `B8 4B 4F 53 4F C3` (`mov eax, 0x4F534F4B; ret`) inside a caller-attested separate identity-mapped one-page `LoaderCode` allocation whose canonical reservation kind is `PageProtectionProbe`. Its aggregate audit requires caller-record coherence and disjoint transition-code, probe-code, and table/state allocations; physical containment of the mutation result's complete page-image envelope inside the caller-attested RW+NX `LoaderData` table/state allocation; an exact RW+NX-to-RX leaf mutation with unchanged physical page and WB cache policy; exact leaf readback; exact target-only invalidation and invlpg plan; a modeled single invocation, expected return, unchanged nonzero canary; and nine ordered events that make execute-before-protect impossible. Both boundaries retain explicit `false` live-evidence flags; host tests materialize bytes as data and invoke neither stream.
 - `src/OS.Kernel/Memory/PageZeroMappingPolicy.cs` defines the M01-015 no-stdlib-compatible page-zero policy over raw mapping intents and a caller-owned four-level table image. Raw intent is narrowly permitted because `VirtualAddress` deliberately cannot represent zero; present ranges intersecting `[0, 4096)`, ranges wrapping through zero, malformed alignment, and noncanonical bounds fail closed. The read-only image audit validates complete pointer/count/capacity spans, record order and physical uniqueness, walks index zero from PML4E through PTE, recognizes canonical raw-zero absence at any level, rejects nonzero non-present encodings, rejects 1 GiB, 2 MiB, or 4 KiB leaves covering zero, and requires every child table traversed by the index-zero walk to belong to the supplied image. It mutates no entry and does not claim the supplied image is the installed CR3 root.
 - `src/OS.Kernel/Boot/M01LivePagingIntegration.cs` separates the first-class M01-029 preparation-only boundary from the historical M01-019 execution model. `Prepare(...)` returns caller-owned POD preparation evidence/state without accepting synthetic execution transcripts. M01-030 gives that path a seven-record exact live-interval profile: six present code/gate, stack, probe, table/state, state/canary, and root purposes plus one absent stack-guard sentinel. Historical `SerialStub`, ACPI, framebuffer, handoff, allocator-arena, loaded-image, and `AdditionalRequired` purposes cannot promote preparation. M01-031 adds sibling pointer-free arena-plan and materialization result PODs without changing those frozen preparation surfaces. `PlanOwnedTableArena(...)` retains the four fixed requirements and derives one exact table-pages-plus-state-page request for a caller-selected physical candidate. Before `MaterializeOwnedTableArena(...)` writes or verifies through a distinct caller-owned backing pointer, it rederives the exact seven-requirement range plan, compares every nested plan field, audits every hierarchy leaf for virtual/physical identity, protection, and cache policy, validates the exact `LoaderData` attribute, and requires a disjoint caller-owned 4096-byte scratch snapshot for byte-exact state-page preservation; FNV values remain diagnostic only. The retained `Execute(...)` and `ExecuteModelOnly(...)` paths preserve their historical alias contract and remain non-promotable model evidence. Preparation remains one-shot and fail-closed, and architectural-preflight rejection still occurs before caller output is written.
-- `src/OS.Kernel/Boot/M01OwnedCr3CompositeTransition.cs` defines the M01-027 C#-authored, relocation-free Windows-x64 composite stream and the M01-030 exact host binding contract. Six present bindings cover the combined composite/future-call-gate RX page, RW+NX stack, initially RW+NX probe, complete RW+NX table/state arena, contained state/canary page, and contained root page. The exact future post-call return lies in the code-page tail; a loaded-image continuation is not an owned-root dependency. Every binding cross-checks typed geometry, allocation/reservation provenance, a containing declared identity range, exact purpose bit, WB cache, and protection, while the canonical guard must be absent from the supplied table image. Same-policy contained or adjacent roles may share a normalized mapping only when each exact bit remains present. The byte stream, size, instruction/hash contract, recovery semantics, and no-callback policy are unchanged. This remains host byte/data and metadata evidence: no path invokes firmware or generated code, installs CR3, changes a live PTE/TLB/RFLAGS value, proves hardware W^X/guard absence, or supplies guest/completion-gate evidence.
+- `src/OS.Kernel/Boot/M01OwnedCr3CompositeTransition.cs` defines the M01-027 C#-authored, relocation-free Windows-x64 composite stream, the M01-030 exact host binding contract, and the M01-032 audited same-page call gate. Six present bindings cover the combined composite/call-gate RX page, RW+NX stack, initially RW+NX probe, complete RW+NX table/state arena, contained state/canary page, and contained root page. The frozen 3,830-byte/732-instruction composite prefix is followed, after ten zero bytes, by an exact 256-byte/74-instruction gate filling `[0xF00, 0x1000)`; its direct `call rel32` at `0xFC4` fixes the exact call-next return site at `0xFC9` without an external relocation. A 160-byte version-1 observation POD records lifecycle, raw post-return RFLAGS, restored CR3/CR4, composite result, exact call/observation counts, canary, and a last-written completion signature; the pointer-free result POD is 776 bytes. Before any write or call, the gate checks low-canonical aligned state/observation pointers, packed state/self/arena identity, exact stack geometry, state-page observation containment, packed `Armed` observation/self/count-signature state, and its RIP-derived expected return address through one no-write/no-call reject path. The guarded body preserves Windows-x64 alignment/shadow-space and nonvolatile-register rules, uses the fixed `observation + 127` bias and 48-byte entry-to-composite stack delta, restores the prepared RFLAGS snapshot with consecutive `push [RDX+48]; popfq; call` instructions, touches no XMM6-XMM15, and writes the completion signature last. Production materialization/readback performs exact comparison; host tests independently decode the bytes and reject success transcripts that cannot satisfy the gate's own stack window. Pointer mapping, page-aligned state-root provenance, exact live RX/non-writable/WB mapping, broader observation expectations and non-count output pristineness, full live-entry RFLAGS equality with the prepared snapshot, TF/CET transfer safety, LA57/PCIDE/IF/PGE policy, and NMI/SMI risk remain external live-boundary responsibilities. A loaded-image continuation is not an owned-root dependency. Every binding cross-checks typed geometry, allocation/reservation provenance, a containing declared identity range, exact purpose bit, WB cache, and protection, while the canonical guard must be absent from the supplied table image. Same-policy contained or adjacent roles may share a normalized mapping only when each exact bit remains present. This remains host byte/data and metadata evidence: no path invokes firmware or generated code, installs CR3, changes a live PTE/TLB/RFLAGS value, proves hardware W^X/guard absence, or supplies guest/completion-gate evidence.
 - `src/OS.Kernel/Diagnostics/NullPageFaultProbePlan.cs` defines the companion default-off metadata contract for a future supervisor read of address zero. A ready-disabled result requires successful page-zero absence evidence from the supplied table image plus caller-attested owned diagnostics and page-fault-handler prerequisites. It fixes vector 14, error-code value 0 under mask `0x1f`, CR2 value 0, supervisor privilege, and read access. Any default-on, requested-execution, or attempted-execution state is rejected. The contract emits no bytes, carries no callable address, dereferences nothing, and explicitly defers execution to M02-014.
 - `FirmwareServicesGuard` and the `UEFI_GONE_SIM_*` host tests establish the first UEFI-gone simulation boundary.
 - The EFI build can produce an explicit QEMU-tested UEFI-gone simulation artifact that reaches `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, and `UEFI_GONE_SIM_PASS`.
@@ -125,9 +125,10 @@ compile closure, but no current `EfiEntry` path invokes them; linkage and build
 success add no live EFI or guest evidence. M01-019 supplies only host-side
 preparation and synthetic transcript composition, M01-027 supplies the reviewed
 single-stream leaf, M01-029 owns the preparation/execution-transcript split,
-M01-031 supplies the separate host-only physical-arena contract, M01-032 is the
-remaining call-gate prerequisite before M01-025 live allocation and `EfiEntry`
-invocation, and M01-026 owns cumulative real-QEMU evidence.
+M01-031 supplies the separate host-only physical-arena contract, and M01-032
+supplies the host-only call-gate and post-return observation contract. M01-025
+is the next default-off live allocation and `EfiEntry` invocation boundary, and
+M01-026 owns cumulative real-QEMU evidence.
 
 The M01-014 page-map, invalidation, and protection-probe contracts are also
 host-only. The table image is ordinary caller-owned memory, the allocation and
@@ -143,9 +144,10 @@ sources into the evaluated opt-in `src/OS` compile closure, but no current
 guest evidence. M01-019 supplies only host-side preparation and synthetic
 transcript composition, M01-027 supplies the reviewed composite leaf, M01-029
 owns the preparation/execution-transcript split, M01-031 supplies the separate
-host-only physical-arena contract, M01-032 is the remaining call-gate
-prerequisite before M01-025 live allocation and `EfiEntry` invocation, and
-M01-026 owns cumulative real-QEMU proof.
+host-only physical-arena contract, and M01-032 supplies the host-only call-gate
+and post-return observation contract. M01-025 is the next default-off live
+allocation and `EfiEntry` invocation boundary, and M01-026 owns cumulative
+real-QEMU proof.
 
 ## Tests
 
@@ -289,10 +291,10 @@ bits, LA57, PCID, live table synchronization, TLB shootdown, and `DmaMapping`.
 M01-014 owns caller-owned table-image mutation and invalidation planning;
 M01-019 now supplies the separate-leaf host coordinator and frozen stage-three
 marker plan. M01-027 supplies the reviewed composite leaf, M01-020 owns
-explicit EFI source linkage, and M01-031 supplies the host-only physical-arena
-contract. M01-025 retains live allocation and `EfiEntry` wiring only after the
-remaining serialized M01-032 prerequisite; M01-026 owns any cumulative QEMU
-claim.
+explicit EFI source linkage, M01-031 supplies the host-only physical-arena
+contract, and M01-032 supplies the host-only gate/observer contract. M01-025 is
+the next live allocation and default-off `EfiEntry` wiring boundary; M01-026
+owns any cumulative QEMU claim.
 
 The `X64PageMap`, `X64TlbInvalidationPlan`, `X64InvlpgStubPlan`, and
 `X64ProtectionProbeStubPlan` boundaries remain caller-owned models. Their
@@ -305,10 +307,11 @@ record and audited byte plan, not a CPU effect, and no SMP shootdown, PCID,
 global-page, memory-ordering, or parent-effective-permission policy is proven.
 The modeled constant return/canary cannot substitute for guest execution.
 M01-019 composes these contracts only as separate-leaf host evidence.
-M01-027 supplies the single-stream host encoding, M01-020 links it, and
-M01-031 supplies the host-only physical-arena contract, but M01-025 remains
-blocked on M01-032 before live wiring.
-M01-026 retains the first cumulative QEMU evidence. No current path proves a
+M01-027 supplies the single-stream host encoding, M01-020 links it, M01-031
+supplies the host-only physical-arena contract, and M01-032 supplies the
+host-only same-page gate and observation semantics. M01-025 is the next
+default-off live wiring boundary. M01-026 retains the first cumulative QEMU
+evidence. No current path proves a
 live table construction, CR3 write,
 `invlpg`, RW-to-RX processor mutation, restored-firmware or systemwide
 W^X/page-zero policy, PCID/LA57 support, NMI/SMI safety, or a deliberate null
@@ -325,12 +328,12 @@ bounded materialization and readback boundary. Its mandatory `SerialStub`,
 ACPI-scratch, and framebuffer-metadata identity bindings were historical or
 synthetic rather than exact composite ranges, and exact table-page count
 depended on the fixed candidate address selected before `AllocatePages`.
-M01-030 and M01-031 now repair those two host-contract gaps. The remaining
-finding is that an ordinary NativeAOT C# call cannot provide the composite's
-exact return RIP, and the composite's final `popfq; ret` leaves any hardware
-post-restoration RFLAGS observation outside the stream. Caller-supplied success
-transcripts remain host models and cannot substitute for returned live POD
-observations.
+M01-030 and M01-031 repair those two host-contract gaps. M01-032 repairs the
+final host-contract gap by placing a base-independent direct call in the same
+page as the composite, fixing its exact call-next RIP, and defining a separate
+returned observation POD whose first post-return instruction captures raw
+RFLAGS. Caller-supplied success transcripts remain host models and cannot
+substitute for returned live POD observations.
 
 M01-029 establishes the first repaired boundary as a caller-owned POD
 preparation-only contract. Its successful state is produced without synthetic
@@ -356,13 +359,13 @@ QEMU/OVMF or guest execution, or completion-gate change.
 
 M01-030 repairs the second feasibility defect at the host-contract boundary.
 Append-only exact purposes and roles enumerate only the combined
-composite/future-call-gate code page, stack, probe, complete table/state arena,
+composite/call-gate code page, stack, probe, complete table/state arena,
 state/canary page, and root page required by the future owned-root interval,
 plus the non-emitted guard sentinel. Historical `SerialStub`, ACPI,
 framebuffer, handoff, allocator-arena, loaded-image-continuation, and
 `AdditionalRequired` aliases cannot satisfy those roles. Each accepted binding
 has exact geometry, identity, cache, protection, allocation, reservation, and
-containment relationships; the future post-call return address lies in the RX
+containment relationships; the exact post-call return address lies in the RX
 code-page tail. Same-policy normalization may combine adjacent or contained
 requirements only while retaining every exact purpose bit. The supplied
 records and page image remain caller-owned models, not proof that a mapping is
@@ -371,7 +374,7 @@ installed or executable.
 The M01-030 markers `TEST_START m01.030`, `CLROS_M01_030_READY`,
 `TEST_PASS m01.030`, and `TEST_FAIL m01.030 <reason>` prove only host rejection
 or acceptance of that declared contract. They do not allocate/map pages,
-materialize the physical hierarchy or future call gate, invoke the composite,
+materialize the physical hierarchy or call gate, invoke the composite,
 observe CR3/PTE/TLB/RFLAGS effects, enforce W^X/NX or guard absence in
 hardware, execute under EFI/QEMU/OVMF, or change a completion gate.
 
@@ -438,11 +441,111 @@ directory policy, and TLB effects remain outside CLROS.
 
 The M01-031 markers `TEST_START m01.031`, `CLROS_M01_031_READY`,
 `TEST_PASS m01.031`, and `TEST_FAIL m01.031 <reason>` are host-contract evidence
-only. M01-032 **Add an audited composite call gate and post-return RFLAGS
-observer** is now the sole remaining serialized repair before M01-025. This
-ordering does not claim that any prerequisite executes privileged code.
-M01-026 remains the real-QEMU/OVMF proof owner after M01-025; completion-gate
+only. M01-032 now supplies the host-only audited call gate and post-return
+RFLAGS observation contract. M01-025 is the next default-off live integration
+boundary, and M01-026 remains the real-QEMU/OVMF proof owner; completion-gate
 status is unchanged.
+
+### M01-032 composite gate trust boundary
+
+M01-032 makes the previously modeled exact post-call address representable by a
+deterministic gate in the tail of the same 4 KiB code page as the frozen
+composite. The composite remains 3,830 bytes and 732 instructions. The aligned
+gate fills `[0xF00, 0x1000)`, is 256 bytes and 74 instructions long, and uses
+one direct `call rel32` at `0xFC4` whose next instruction at `0xFC9` is the only
+accepted return site. Ten zero bytes remain between the prefix and gate, the
+combined stream contains 806 instructions, and there is no external
+relocation, absolute-address patch, callback, or second composite call.
+
+Before its first write, push, or call, the gate uses only volatile registers.
+It requires low-canonical 8-byte-aligned state and observation pointers; the
+exact packed state header, self address, and `TableStateArenaStart`; entry
+`RSP mod 16 == 8` with at least 128 lower and 40 upper bytes; the complete
+observation to fit within the derived `[state, state + 4096)` page; the packed
+`Armed` observation header and self address; a pristine qword spanning both
+counts, reserved padding, and the completion signature; and a RIP-derived
+`0xFC9` return address matching the state's expected return. Every failure uses
+one common `InvalidState` return that writes no observation byte and does not
+call the composite.
+
+After those guards, the gate preserves Windows-x64 nonvolatile state, pushes
+`RSI`, reserves 32 bytes of shadow space, biases `RSI` to
+`observation + 127`, and enters the composite with a fixed 48-byte
+gate-entry-to-composite-entry `RSP` delta. The guards, frame setup, lifecycle
+write, and call-count increment change arithmetic flags, so the final
+pre-transfer sequence is exactly
+`push qword [RDX+48]; popfq; call rel32`. This reloads the prepared full-RFLAGS
+snapshot immediately before transfer. Its first instruction at `0xFC9` is
+`pushfq`; it captures raw RFLAGS before any flag-mutating instruction, then
+reads restored CR3 and CR4 and records the composite result. The 160-byte
+version-1 `M01OwnedCr3CompositeCallGateObservation` additionally carries its
+lifecycle, exact call and observation counts, boundary canary, and a completion
+signature written last. The pointer-free
+`M01OwnedCr3CompositeCallGateResult` is 776 bytes and retains the exact
+preparation, materialization, readback, and observation-audit evidence.
+
+The frozen hashes are `F903C5DE16D3A5B2` (gate FNV-1a64),
+`42CAF3B4A6C2119A` (combined-page FNV-1a64), and
+`8B2965E741AC40B725B898D7B2BB2FFBDF7CC4C50DF9AEB163C17485270BD88A`
+(gate SHA-256). The combined-page SHA-256 is
+`FA1B2EC2332CF70A5222B22B672758A1E948FD0F179FB91A16D7DD4280FD5631`;
+the unchanged composite prefix FNV-1a64 remains
+`F00446F61BE13CDD`. Production materialization/readback preserves the ten-byte
+gap and performs exact planned-byte, instruction-count, call/return-position,
+and full-page comparisons. Host tests independently decode the emitted stream
+to audit instruction boundaries, branches, control flow, and Windows-x64 ABI
+discipline. Observation audit derives gate-entry `RSP` from the audited
+composite-entry `RSP` with a checked 48-byte addition, revalidates the gate's
+alignment and exact 128-byte lower/40-byte upper stack window, cross-binds the
+composite-captured original RFLAGS to the prepared observation, and requires
+one completed call, one post-return observation, the exact composite result,
+exact RFLAGS/IF policy, exact firmware CR3/CR4 and PGE policy, and an unchanged
+canary. Timeout, reset, and triple-fault transcripts remain failures rather
+than synthetic success.
+
+The in-stream guards are deliberately narrower than the host and live
+pre-transfer contracts. They cannot prove either pointer is mapped, the state
+root is page aligned, or the gate page has the exact live RX/non-writable/WB
+mapping. They do not pre-write revalidate the observation's broader expected
+code/composite/gate/return fields or pristine non-count output/reserved fields.
+The caller must establish clear TF and disabled supervisor CET before transfer,
+plus the intended LA57-disabled, PCIDE-disabled, IF, and PGE policies. The gate
+cannot read full live-entry RFLAGS without writing to the not-yet-validated
+stack, so it does not self-validate that live gate-entry RFLAGS equal the
+prepared snapshot. The caller must establish exact full-qword equality, keep
+the state and observation storage mapped and exclusively owned, retain
+gate/composite write access, and prevent external or concurrent mutation of
+their validated input/header fields through transfer. A mismatch is normalized
+by the pre-call `popfq` and can
+otherwise yield an apparently valid post-return record. M01-025 owns the
+trusted live invocation thunk and that equality proof. The gate does not
+eliminate NMI or SMI risk. `PrepareCallGate(...)` represents these as
+failure-atomic host preflight, and observation/readback audit represents them
+as host data evidence; neither is live execution proof.
+
+The selective structural influence is
+`references/SharpOS-main/bootasm/BootAsm.Generator/BootAsmGenerator.cs`,
+SHA-256
+`B24C79DCD38757DCBE243DC6C4C63C1AF628525F06C4F5D296B6AFB0C9387500`.
+The archive has no recoverable Git revision; the owner grant and current
+upstream CC0-1.0 evidence permit selective adaptation. M01-032 independently
+authors its fixed encoder, POD/status surfaces, audit, and hostile tests. It
+copies no Roslyn/Iced reflection generator, sentinel-hole implementation,
+fallback skeleton, runtime absolute patch, Iced source or binary, or
+third-party dependency.
+
+The markers `TEST_START m01.032`, `CLROS_M01_032_READY`,
+`TEST_PASS m01.032`, and `TEST_FAIL m01.032 <reason>` are host-only byte-plan
+and returned-POD contract evidence. They prove deterministic same-page layout,
+exact call-next binding, failure-atomic preflight, exact compare/readback plus
+independent test decoding, complete hashes, and modeled observation-validation
+semantics. Tests invoke neither the gate nor the composite and do not observe
+hardware RFLAGS/CR3/CR4, change CR3/CR4/PTE/TLB/protection/interrupt state,
+prove mapped pointers, a page-aligned state root, effective identity mapping or
+W^X/WB policy, live TF/CET/LA57/PCIDE/IF/PGE preconditions, or NMI/SMI safety,
+call firmware, run under EFI/QEMU/OVMF, or advance a completion gate. M01-025
+owns the next default-off live invocation, and M01-026 owns cumulative
+real-QEMU evidence.
 
 `PageZeroMappingPolicy` proves absence only in the validated caller-owned
 snapshot passed to that call. Pointer arithmetic cannot prove the snapshot is
@@ -463,15 +566,16 @@ prove those pages are firmware allocated or available at call time, reuse
 firmware tables, or account for a later implementation that chooses large
 pages. Caller-provided ranges can be semantically wrong even after their
 geometry passes. The exact profile and backing audit cannot prove pointers are
-mapped/stable, the future gate bytes occupy the declared RX range, the backing
-is the claimed physical arena, effective parent/leaf permissions are installed,
-the guard or page zero is absent in hardware, or a CPU ever uses the reported
-root. M01-032 remains the sole blocked repair prerequisite before M01-025 live
-integration, with cumulative real-QEMU evidence deferred to M01-026.
+mapped/stable, the gate bytes occupy the declared RX range, the backing is the
+claimed physical arena, effective parent/leaf permissions are installed, the
+guard or page zero is absent in hardware, or a CPU ever uses the reported root.
+M01-032 supplies the host-only gate/observer repair, so M01-025 is the next
+default-off live integration boundary; cumulative real-QEMU evidence remains
+deferred to M01-026.
 
 ## Next Steps
 
-1. Complete M01-032's audited composite call gate and post-return RFLAGS observer before M01-025 attempts the default-off live adapter; retain M01-031 as host-only backing-offset evidence and M01-026 as the cumulative QEMU proof owner.
+1. Implement M01-025's default-off live adapter using the accepted M01-031 physical-arena and M01-032 call-gate contracts; retain M01-026 as the cumulative QEMU proof owner.
 2. Finish UEFI platform interfaces and post-firmware diagnostics before real firmware shutdown.
 3. Add post-firmware physical-memory and MMIO ownership rules so the ACPI probe evidence can become durable platform discovery and PCI contracts can move from caller-owned bytes to live platform enumeration.
 4. Keep all shared utility implementation in `std/no-runtime/shared` before kernel/app use.
