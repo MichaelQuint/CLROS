@@ -2115,9 +2115,10 @@ table image, protect a real guard, map page zero or prove its hardware absence,
 perform a live RW-to-RX transition, load CR3, invalidate a TLB, execute under
 EFI or QEMU/OVMF, or advance any completion gate. M01-019 supplies host-only
 preparation and synthetic transcript composition, M01-029 owns the
-preparation/execution-transcript split, M01-025 owns eventual live invocation
-after the remaining M01-031 and M01-032 prerequisites, and M01-026 owns
-cumulative QEMU evidence.
+preparation/execution-transcript split, M01-031 now supplies the separate
+host-only physical-arena sizing/materialization/readback contract, M01-032 is
+the remaining call-gate prerequisite before M01-025 live invocation, and
+M01-026 owns cumulative QEMU evidence.
 
 ### Reversible CR3 probe plan contract (M01-013)
 
@@ -2341,9 +2342,9 @@ state, or advance a completion gate. PCID and LA57 remain unsupported. NMI/SMI
 behavior remains an explicit residual risk until M02 owns descriptors and
 fault diagnostics. M01-019 supplies host-only preparation and synthetic
 transcript composition, M01-029 owns the preparation/execution-transcript
-split, M01-025 owns eventual live invocation after the remaining M01-031 and
-M01-032 prerequisites,
-and M01-026 owns cumulative real-QEMU proof.
+split, M01-031 now supplies the host-only physical-arena contract, M01-032 is
+the remaining call-gate prerequisite before M01-025 live invocation, and
+M01-026 owns cumulative real-QEMU proof.
 
 ### Caller-owned protection transition contract (M01-014)
 
@@ -2526,9 +2527,9 @@ stream, reload CR3, invalidate a CPU TLB, prove effective parent permissions or
 page-zero absence, provide SMP shootdown, run under QEMU/OVMF, or advance a
 completion gate. M01-019 supplies host-only preparation and synthetic
 transcript composition, M01-029 owns the preparation/execution-transcript
-split, M01-025 owns eventual live invocation after the remaining M01-031 and
-M01-032 prerequisites,
-and M01-026 owns cumulative real-QEMU evidence.
+split, M01-031 now supplies the host-only physical-arena contract, M01-032 is
+the remaining call-gate prerequisite before M01-025 live invocation, and
+M01-026 owns cumulative real-QEMU evidence.
 
 ### Page-zero absence and disabled fault-probe contract (M01-015)
 
@@ -2761,11 +2762,11 @@ caller-owned model is the installed live identity interval, proves page zero
 absent in hardware, runs under QEMU/OVMF or in a guest, or advances a completion
 gate. PCID/LA57 remain
 unsupported, NMI/SMI remains an M02 residual risk, and null dereference/#PF
-evidence remains M02-014. M01-030 now owns the accepted host-only exact
-live-interval identity bindings, M01-031 owns physical table-arena
-sizing/materialization/readback, M01-032 owns
-the audited call gate and post-return RFLAGS observer, M01-025 owns eventual
-live allocation and default-off `EfiEntry` invocation, and M01-026 owns
+evidence remains M02-014. M01-030 owns the accepted host-only exact
+live-interval identity bindings, M01-031 now supplies the completed host-only
+physical table-arena sizing/materialization/readback contract, M01-032 owns
+the remaining audited call gate and post-return RFLAGS observer, M01-025 owns
+eventual live allocation and default-off `EfiEntry` invocation, and M01-026 owns
 cumulative real-QEMU evidence. Until M01-026, even
 `CLROS_M01_LIVE_BOOT_MEMORY_READY` is a reserved host-tested contract line,
 not live boot-memory evidence.
@@ -2820,9 +2821,135 @@ allocate or map firmware pages, establish that modeled workspace bytes occupy
 the reported physical arena, install/read CR3, materialize or invoke the future
 call gate, observe a return site, change CR3/PTE/TLB/RFLAGS state, enforce
 W^X/NX or guard absence in hardware, execute under EFI/QEMU/OVMF, or advance a
-completion gate. M01-031 owns physical arena materialization/readback, M01-032
-owns the audited call gate and post-return observer, M01-025 owns default-off
-live wiring, and M01-026 owns cumulative QEMU evidence.
+completion gate. M01-031 now supplies the separate host-only physical-arena
+contract described below, M01-032 owns the remaining audited call gate and
+post-return observer, M01-025 owns default-off live wiring, and M01-026 owns
+cumulative QEMU evidence.
+
+### Physical page-table arena contract (M01-031)
+
+M01-031 closes the host-contract gap between the prepared flat page-table image
+and one exact candidate physical arena. It adds sibling
+`M01LivePagingArenaPlanStatus`/`M01LivePagingArenaPlanResult` and
+`M01LivePagingArenaMaterializationStatus`/
+`M01LivePagingArenaMaterializationResult` POD contracts without changing the
+frozen M01-029/M01-030 preparation structures. The no-stdlib-compatible
+`PlanOwnedTableArena(...)` entry takes a caller-selected, page-aligned candidate
+`PhysicalAddress`, one physically valid `ConventionalMemory` descriptor, the
+exact live-interval requirements, caller-owned requirement/range workspaces,
+reservation evidence, the existing x64 encoding preconditions, and an explicit
+iteration limit from 1 through 65. A firmware descriptor is validated from its
+physical geometry: its virtual start may still be zero before UEFI
+virtual-address-map setup, and valid nonzero UEFI attribute bits are preserved
+rather than treated as a failure. The candidate and the complete eventual arena
+must be contained by the descriptor and disjoint from every canonical
+reservation.
+
+The planner starts from the exact five-page lower bound (four hierarchy pages
+plus one state page) and iterates the arena's self-identity mapping through the
+validated caller limit of 1 through 65 attempts. For a converged result with
+candidate `C` and exact table-page count `T`, the geometry is:
+
+```text
+root physical address      C
+table interval             [C, C + T * 4096)
+state/canary page          [C + T * 4096, C + (T + 1) * 4096)
+exact allocation request   T + 1 pages
+page-image requirement     T records
+entry requirement          T * 512 entries
+```
+
+The final page is always exactly one state/canary page and is never a table
+page. A descriptor may contain more space than the converged demand, but the
+returned request and the separately validated `LoaderData` allocation record
+must use the exact `T + 1` pages and preserve exact UEFI `Attribute` equality.
+The successful plan retains the four fixed guard, code/call-gate, owned-stack,
+and protection-probe requirements. Before materialization, those four records
+are combined with the derived arena, state, and root records to rederive the
+exact seven-requirement normalized range plan; every nested success field is
+compared with the retained plan rather than trusting aggregate counts alone.
+Host vectors independently cover an ordinary single-PT fixed point plus
+candidates that cross 2 MiB, 1 GiB, and 512 GiB hierarchy boundaries. They
+also cover a deliberately insufficient iteration budget, descriptor capacity
+below/equal/above exact demand, physical-width and low-canonical limits, wrap,
+alignment, descriptor escape, and reservation overlap.
+
+Physical identity and host dereferenceability are separate assertions. The
+materializer accepts an explicit caller-owned backing pointer and capacity in
+addition to candidate physical address `C`; it writes image `i` at:
+
+```text
+arenaBacking + (pageImages[i].PhysicalStart - C)
+```
+
+It never casts `C` into a host pointer. Before the first write it validates the
+complete page-image, entry, and destination spans; their declared capacities
+and pairwise disjointness; exact root placement; strictly ordered, unique,
+page-aligned image addresses; `EntryStartIndex == i * 512`; containment inside
+the table interval; exclusion of the final state page; and the exact
+`LoaderData` record including `Attribute`. A bounded full-hierarchy walk
+reconstructs each leaf virtual address and rejects any mismatch in virtual
+placement, physical identity, protection, cache policy, strict entry encoding,
+or normalized-range cardinality before table bytes are committed. Missing,
+duplicate, cyclic, unreachable, out-of-order, outside-arena,
+state-page-targeting, aliased, truncated, overflowing, structurally malformed,
+or semantically altered storage fails without committing table bytes.
+
+`M01LivePagingArenaByteMode.EmitAndVerify` copies all 512 raw entries for every
+accepted image and then performs an independent destination walk that compares
+every entry and records deterministic source/readback FNV-1a64 aggregates.
+`VerifyExisting` performs the same comparison without writing, which makes
+post-emission corruption a first-class readback failure with exact page, entry,
+expected-value, and observed-value evidence. Exact entry equality is
+authoritative; the aggregate is additional deterministic evidence, not a
+substitute for comparison. Both modes require a disjoint, caller-owned,
+exactly 4096-byte state-snapshot scratch buffer. The materializer copies the
+complete final state/canary page into that scratch space before table writes
+and compares all 4096 bytes afterward, reporting the first mismatch index.
+State FNV-1a64 values are diagnostic only and cannot substitute for this exact
+comparison. Capacity-tail bytes are likewise not part of the table write.
+
+Hostile tests cover forged nested-plan counts, masks, and hierarchy totals;
+wrong leaf physical identity, protection, and cache policy; missing, duplicate,
+cyclic, unreachable, misplaced, and malformed table images; allocation
+attribute drift; null, misaligned, aliased, truncated, oversized, and wrapping
+snapshot/storage spans; first- and last-entry readback corruption; exact state
+scratch comparison; source-array nonmutation; and capacity-tail preservation.
+
+The SharpOS snapshot supplied the test-only hierarchy-boundary cross-check:
+
+```text
+references/SharpOS-main/OS/src/Kernel/Paging/X64PageTable.cs
+SHA-256 35503B543628E5A462073D498704050EEEF7D79DEB2B84F01CACA29714200BAC
+```
+
+The archive has no recoverable Git revision. M01-031 independently authors its
+planner, POD evidence, failure taxonomy, materializer, and tests. It copies
+neither SharpOS's global allocator/spare-list behavior nor its permanent
+physical-pointer, firmware-table-clone, live-CR3, large-page-split, permissive
+directory, or TLB-flush assumptions.
+
+The M01-031 aggregate host-harness markers are:
+
+```text
+TEST_START m01.031
+CLROS_M01_031_READY
+TEST_PASS m01.031
+```
+
+A rejected group emits `TEST_FAIL m01.031 <reason>` instead of the ready/pass
+pair. These markers prove exact fixed-point geometry, bounded host workspace
+validation, offset-correct writes into caller-provided backing, complete
+per-entry readback, deterministic aggregate evidence, and state-page
+preservation. They do **not** prove that the backing pointer names the reported
+physical range, that firmware allocation occurred, that a refreshed map still
+owns the range, that the arena is identity mapped or current, that another
+writer cannot modify it, or that a CPU installed or walked the root. The
+contract calls no firmware allocator, executes no generated code, changes no
+CR3/PTE/TLB/protection/RFLAGS state, runs no EFI/QEMU/OVMF path, and advances no
+completion gate. M01-032 is the only remaining serialized repair prerequisite
+before M01-025 may attempt default-off live integration; M01-026 remains the
+cumulative real-QEMU evidence owner.
 
 ### Composite owned-CR3 interval contract (M01-027)
 
@@ -2933,10 +3060,10 @@ generated byte, change CR3/CR4/RFLAGS/PTE/TLB state, execute the probe, prove
 hardware page-zero absence, run QEMU/OVMF, provide owned serial, or advance
 `docs/completion-gates.md`. M01-019 owns only host-side preparation and
 synthetic transcript composition, M01-029 owns the
-preparation/execution-transcript split, and M01-025 owns eventual live
-allocation, default-off invocation, and the pre-transfer TF/CET precondition
-after the remaining M01-031 and M01-032 prerequisites close. M01-026 owns
-cumulative real-QEMU
+preparation/execution-transcript split, M01-031 now supplies physical-arena
+host evidence, and M01-025 owns eventual live allocation, default-off
+invocation, and the pre-transfer TF/CET precondition after the remaining
+M01-032 prerequisite closes. M01-026 owns cumulative real-QEMU
 execution evidence.
 
 ### Live-paging feasibility and prerequisite recovery (M01-028)
@@ -2979,13 +3106,14 @@ The repair is intentionally serialized:
    The historical `Execute`/`ExecuteModelOnly` surface remains model-only and
    cannot promote caller-supplied transcripts into that prepared state.
 2. M01-031, **Materialize and read back the owned physical page-table arena**,
-   depends on M01-030 and owns the bounded-capacity/fixed-address sizing
-   contract.
+   now supplies the bounded-capacity/fixed-address sizing contract, exact
+   table-pages-plus-one-state-page geometry, caller-backing materialization,
+   and independent readback evidence.
 3. M01-032, **Add an audited composite call gate and post-return RFLAGS
    observer**, depends on M01-031.
 
-M01-025 remains blocked on M01-031 and M01-032 after the accepted M01-024,
-M01-027, M01-029, and M01-030 host prerequisites. It may then wire the
+M01-025 remains blocked only on M01-032 after the accepted M01-024, M01-027,
+M01-029, M01-030, and M01-031 host prerequisites. It may then wire the
 default-off live adapter without promoting source/build success to execution
 evidence. M01-026
 continues to own the first cumulative real-QEMU/OVMF proof; no M01-028 through
@@ -3530,12 +3658,12 @@ The `APP_PACKAGE_READY`, `APP_LAUNCH_READY`, `APP_PAYLOAD_READY`, `APP_EXEC_MAPP
 
 ## Next Steps
 
-1. Complete the remaining serialized M01-031 physical-table and M01-032
-   call-gate prerequisites before wiring the separately
-   allocated CR3/invalidation code, protection-probe code, and page-table/state
-   arena through M01-025. Preserve M01-024 as the accepted allocator-stage
-   prerequisite and M01-029/M01-030 as host-only preparation/exact-binding
-   evidence; keep cumulative real-QEMU paging evidence in M01-026.
+1. Complete the remaining serialized M01-032 call-gate prerequisite before
+   wiring the separately allocated CR3/invalidation code, protection-probe
+   code, and page-table/state arena through M01-025. Preserve M01-024 as the
+   accepted allocator-stage prerequisite and M01-029/M01-030/M01-031 as
+   host-only preparation, exact-binding, and physical-arena evidence; keep
+   cumulative real-QEMU paging evidence in M01-026.
 2. Keep extending the QEMU UEFI-gone simulation as new firmware-guarded platform interfaces are added, keeping real `ExitBootServices` blocked until post-firmware diagnostics are implemented.
 3. Add a real `ExitBootServices` probe only after the retry plan, diagnostics, and owned output paths have evidence.
 4. Begin diagnostics-first IDT/fault panic work after post-UEFI diagnostics requirements are represented by tests and evidence.

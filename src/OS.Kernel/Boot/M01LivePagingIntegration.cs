@@ -654,6 +654,544 @@ public readonly struct M01LivePagingTableBuildResult
 }
 
 /// <summary>
+/// Reports the first rejected boundary while sizing one caller-owned physical
+/// arena that contains every fresh table page followed by one state/canary
+/// page. Values are append-only and the zero-valued default is invalid.
+/// </summary>
+public enum M01LivePagingArenaPlanStatus : byte
+{
+    Uninitialized = 0,
+    Success = 1,
+    ContractLayoutMismatch = 2,
+    InvalidFixedRequirementCount = 3,
+    InvalidFixedRequirementCapacity = 4,
+    MissingFixedRequirements = 5,
+    MisalignedFixedRequirements = 6,
+    FixedRequirementSpanOverflow = 7,
+    InvalidFixedRequirementSet = 8,
+    InvalidDescriptor = 9,
+    InvalidCandidate = 10,
+    InvalidPreconditions = 11,
+    InvalidIterationLimit = 12,
+    InvalidReservationStorage = 13,
+    ReservationValidationFailed = 14,
+    InvalidRequirementWorkspace = 15,
+    InvalidRangeWorkspace = 16,
+    WorkspaceOverlap = 17,
+    RequirementConstructionFailed = 18,
+    IdentityPlanRejected = 19,
+    RangeWorkspaceTooSmall = 20,
+    TableCapacityExceeded = 21,
+    NonMonotonicIteration = 22,
+    IterationLimitReached = 23,
+    TablePageCountOverflow = 24,
+    ArenaGeometryOverflow = 25,
+    PhysicalWidthExceeded = 26,
+    DescriptorCapacityTooSmall = 27,
+    ReservationOverlap = 28,
+    CapacityExceedsLimit = 29
+}
+
+/// <summary>
+/// Value-only result of one bounded table/state-arena fixed-point plan.
+/// The exact LoaderData allocation record can be passed unchanged to the
+/// materializer after the caller has performed the allocation.
+/// </summary>
+public readonly struct M01LivePagingArenaPlanResult
+{
+    public const ushort CurrentVersion = 1;
+    public const ulong StructureSize = 568;
+    public const ulong NoIndex = ~0UL;
+
+    private readonly uint _structureSize;
+    private readonly ushort _structureVersion;
+    private readonly M01LivePagingArenaPlanStatus _status;
+    private readonly byte _isInitialized;
+    private readonly AddressValueStatus _addressStatus;
+    private readonly OS.Kernel.Memory.BootReservationTableStatus
+        _reservationStatus;
+    private readonly OS.Kernel.Boot.X64BootIdentityMappingStatus
+        _mappingStatus;
+    private readonly OS.Kernel.Memory.X64PageTableEntryStatus
+        _pageTableEntryStatus;
+    private readonly uint _reserved;
+    private readonly OS.Kernel.Memory.X64PageTableEncodingPreconditions
+        _pageTablePreconditions;
+    private readonly BootMemoryRegionRecord _allocationRecord;
+    private readonly OS.Kernel.Boot.X64BootIdentityMappingPlanResult
+        _mappingPlan;
+    private readonly PhysicalAddress _candidatePhysicalBase;
+    private readonly PhysicalAddress _rootTable;
+    private readonly PhysicalAddress _statePage;
+    private readonly PhysicalAddress _arenaEndExclusive;
+    private readonly ulong _iterationCount;
+    private readonly ulong _iterationLimit;
+    private readonly ulong _tablePageCount;
+    private readonly ulong _statePageCount;
+    private readonly ulong _totalPageCount;
+    private readonly ulong _tableByteLength;
+    private readonly ulong _totalByteLength;
+    private readonly ulong _availablePageCountFromCandidate;
+    private readonly ulong _requiredFixedRequirementCount;
+    private readonly ulong _requiredRequirementWorkspaceCount;
+    private readonly ulong _requiredRangeWorkspaceCount;
+    private readonly ulong _requiredPageImageCount;
+    private readonly ulong _requiredPageTableEntryCount;
+    private readonly OS.Kernel.Boot.X64BootIdentityMappingRequirement
+        _bootStackGuardRequirement;
+    private readonly OS.Kernel.Boot.X64BootIdentityMappingRequirement
+        _codeAndCallGateRequirement;
+    private readonly OS.Kernel.Boot.X64BootIdentityMappingRequirement
+        _ownedStackRequirement;
+    private readonly OS.Kernel.Boot.X64BootIdentityMappingRequirement
+        _protectionProbeRequirement;
+
+    internal M01LivePagingArenaPlanResult(
+        M01LivePagingArenaPlanStatus status,
+        AddressValueStatus addressStatus,
+        OS.Kernel.Memory.BootReservationTableStatus reservationStatus,
+        OS.Kernel.Boot.X64BootIdentityMappingStatus mappingStatus,
+        OS.Kernel.Memory.X64PageTableEntryStatus pageTableEntryStatus,
+        OS.Kernel.Memory.X64PageTableEncodingPreconditions
+            pageTablePreconditions,
+        BootMemoryRegionRecord allocationRecord,
+        OS.Kernel.Boot.X64BootIdentityMappingPlanResult mappingPlan,
+        PhysicalAddress candidatePhysicalBase,
+        PhysicalAddress rootTable,
+        PhysicalAddress statePage,
+        PhysicalAddress arenaEndExclusive,
+        ulong iterationCount,
+        ulong iterationLimit,
+        ulong tablePageCount,
+        ulong statePageCount,
+        ulong totalPageCount,
+        ulong tableByteLength,
+        ulong totalByteLength,
+        ulong availablePageCountFromCandidate,
+        ulong requiredFixedRequirementCount,
+        ulong requiredRequirementWorkspaceCount,
+        ulong requiredRangeWorkspaceCount,
+        ulong requiredPageImageCount,
+        ulong requiredPageTableEntryCount,
+        OS.Kernel.Boot.X64BootIdentityMappingRequirement
+            bootStackGuardRequirement,
+        OS.Kernel.Boot.X64BootIdentityMappingRequirement
+            codeAndCallGateRequirement,
+        OS.Kernel.Boot.X64BootIdentityMappingRequirement
+            ownedStackRequirement,
+        OS.Kernel.Boot.X64BootIdentityMappingRequirement
+            protectionProbeRequirement)
+    {
+        _structureSize = (uint)StructureSize;
+        _structureVersion = CurrentVersion;
+        _status = status;
+        _isInitialized = 1;
+        _addressStatus = addressStatus;
+        _reservationStatus = reservationStatus;
+        _mappingStatus = mappingStatus;
+        _pageTableEntryStatus = pageTableEntryStatus;
+        _reserved = 0;
+        _pageTablePreconditions = pageTablePreconditions;
+        _allocationRecord = allocationRecord;
+        _mappingPlan = mappingPlan;
+        _candidatePhysicalBase = candidatePhysicalBase;
+        _rootTable = rootTable;
+        _statePage = statePage;
+        _arenaEndExclusive = arenaEndExclusive;
+        _iterationCount = iterationCount;
+        _iterationLimit = iterationLimit;
+        _tablePageCount = tablePageCount;
+        _statePageCount = statePageCount;
+        _totalPageCount = totalPageCount;
+        _tableByteLength = tableByteLength;
+        _totalByteLength = totalByteLength;
+        _availablePageCountFromCandidate =
+            availablePageCountFromCandidate;
+        _requiredFixedRequirementCount =
+            requiredFixedRequirementCount;
+        _requiredRequirementWorkspaceCount =
+            requiredRequirementWorkspaceCount;
+        _requiredRangeWorkspaceCount = requiredRangeWorkspaceCount;
+        _requiredPageImageCount = requiredPageImageCount;
+        _requiredPageTableEntryCount =
+            requiredPageTableEntryCount;
+        _bootStackGuardRequirement =
+            bootStackGuardRequirement;
+        _codeAndCallGateRequirement =
+            codeAndCallGateRequirement;
+        _ownedStackRequirement = ownedStackRequirement;
+        _protectionProbeRequirement =
+            protectionProbeRequirement;
+    }
+
+    public uint Size => _structureSize;
+
+    public ushort Version => _structureVersion;
+
+    public bool IsInitialized =>
+        _structureSize == StructureSize
+        && _structureVersion == CurrentVersion
+        && _isInitialized == 1
+        && _reserved == 0;
+
+    public M01LivePagingArenaPlanStatus Status => _status;
+
+    public AddressValueStatus AddressStatus => _addressStatus;
+
+    public OS.Kernel.Memory.BootReservationTableStatus
+        ReservationStatus => _reservationStatus;
+
+    public OS.Kernel.Boot.X64BootIdentityMappingStatus MappingStatus =>
+        _mappingStatus;
+
+    public OS.Kernel.Memory.X64PageTableEntryStatus
+        PageTableEntryStatus => _pageTableEntryStatus;
+
+    public OS.Kernel.Memory.X64PageTableEncodingPreconditions
+        PageTablePreconditions => _pageTablePreconditions;
+
+    public BootMemoryRegionRecord AllocationRecord =>
+        _allocationRecord;
+
+    public OS.Kernel.Boot.X64BootIdentityMappingPlanResult MappingPlan =>
+        _mappingPlan;
+
+    public PhysicalAddress CandidatePhysicalBase =>
+        _candidatePhysicalBase;
+
+    public PhysicalAddress RootTable => _rootTable;
+
+    public PhysicalAddress StatePage => _statePage;
+
+    public PhysicalAddress ArenaEndExclusive =>
+        _arenaEndExclusive;
+
+    public ulong IterationCount => _iterationCount;
+
+    public ulong IterationLimit => _iterationLimit;
+
+    public ulong TablePageCount => _tablePageCount;
+
+    public ulong StatePageCount => _statePageCount;
+
+    public ulong TotalPageCount => _totalPageCount;
+
+    public ulong TableByteLength => _tableByteLength;
+
+    public ulong TotalByteLength => _totalByteLength;
+
+    public ulong AvailablePageCountFromCandidate =>
+        _availablePageCountFromCandidate;
+
+    public ulong RequiredFixedRequirementCount =>
+        _requiredFixedRequirementCount;
+
+    public ulong RequiredRequirementWorkspaceCount =>
+        _requiredRequirementWorkspaceCount;
+
+    public ulong RequiredRangeWorkspaceCount =>
+        _requiredRangeWorkspaceCount;
+
+    public ulong RequiredPageImageCount =>
+        _requiredPageImageCount;
+
+    public ulong RequiredPageTableEntryCount =>
+        _requiredPageTableEntryCount;
+
+    public OS.Kernel.Boot.X64BootIdentityMappingRequirement
+        BootStackGuardRequirement =>
+            _bootStackGuardRequirement;
+
+    public OS.Kernel.Boot.X64BootIdentityMappingRequirement
+        CodeAndCallGateRequirement =>
+            _codeAndCallGateRequirement;
+
+    public OS.Kernel.Boot.X64BootIdentityMappingRequirement
+        OwnedStackRequirement => _ownedStackRequirement;
+
+    public OS.Kernel.Boot.X64BootIdentityMappingRequirement
+        ProtectionProbeRequirement =>
+            _protectionProbeRequirement;
+
+    public bool Succeeded =>
+        IsInitialized
+        && _status == M01LivePagingArenaPlanStatus.Success
+        && _addressStatus == AddressValueStatus.Success
+        && _reservationStatus
+            == OS.Kernel.Memory.BootReservationTableStatus.Success
+        && _mappingStatus
+            == OS.Kernel.Boot.X64BootIdentityMappingStatus.Success
+        && _pageTableEntryStatus
+            == OS.Kernel.Memory.X64PageTableEntryStatus.Success
+        && _mappingPlan.Succeeded
+        && _candidatePhysicalBase.IsValid
+        && _rootTable.IsValid
+        && _statePage.IsValid
+        && _arenaEndExclusive.IsValid
+        && _tablePageCount != 0
+        && _statePageCount
+            == M01LivePagingIntegration.RequiredArenaStatePageCount
+        && _totalPageCount
+            == _tablePageCount + _statePageCount
+        && _requiredPageImageCount == _tablePageCount
+        && _requiredPageTableEntryCount
+            == _tablePageCount
+                * OS.Kernel.Memory.X64PageTableImagePage
+                    .EntryCountPerPage
+        && _bootStackGuardRequirement.IsInitialized
+        && _bootStackGuardRequirement.Purpose
+            == OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                .BootStackGuard
+        && _codeAndCallGateRequirement.IsInitialized
+        && _codeAndCallGateRequirement.Purpose
+            == OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                .CompositeCodeAndCallGate
+        && _ownedStackRequirement.IsInitialized
+        && _ownedStackRequirement.Purpose
+            == OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                .CompositeOwnedStack
+        && _protectionProbeRequirement.IsInitialized
+        && _protectionProbeRequirement.Purpose
+            == OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                .ProtectionProbePage;
+}
+
+/// <summary>
+/// Controls whether the arena materializer writes the audited table bytes or
+/// independently verifies table bytes already supplied by the caller.
+/// </summary>
+public enum M01LivePagingArenaByteMode : byte
+{
+    Uninitialized = 0,
+    EmitAndVerify = 1,
+    VerifyExisting = 2
+}
+
+/// <summary>
+/// Reports the first rejected arena materialization or independent readback
+/// boundary. Values are append-only and the zero-valued default is invalid.
+/// </summary>
+public enum M01LivePagingArenaMaterializationStatus : byte
+{
+    Uninitialized = 0,
+    Success = 1,
+    ContractLayoutMismatch = 2,
+    InvalidByteMode = 3,
+    InvalidPlan = 4,
+    AllocationRecordMismatch = 5,
+    InvalidPageImageCount = 6,
+    PageImageCapacityTooSmall = 7,
+    PageImageCapacityExceedsLimit = 8,
+    MissingPageImages = 9,
+    MisalignedPageImages = 10,
+    PageImageSpanOverflow = 11,
+    InvalidEntryCount = 12,
+    EntryCountMismatch = 13,
+    EntryCapacityTooSmall = 14,
+    EntryCapacityExceedsLimit = 15,
+    MissingEntries = 16,
+    MisalignedEntries = 17,
+    EntrySpanOverflow = 18,
+    MissingArenaBacking = 19,
+    InvalidArenaByteCount = 20,
+    ArenaCapacityTooSmall = 21,
+    ArenaCapacityExceedsLimit = 22,
+    MisalignedArenaBacking = 23,
+    ArenaBackingSpanOverflow = 24,
+    StorageOverlap = 25,
+    PageImageMalformed = 26,
+    PageImageOrderInvalid = 27,
+    PageImageOutsideTableArena = 28,
+    PageImageTargetsStatePage = 29,
+    HierarchyMalformed = 30,
+    MissingChildPage = 31,
+    DuplicateChildOrCycle = 32,
+    UnreachablePageImage = 33,
+    LeafCountMismatch = 34,
+    EntryMismatch = 35,
+    StatePageChanged = 36,
+    SemanticMappingMismatch = 37,
+    MissingStateSnapshot = 38,
+    InvalidStateSnapshotByteCount = 39,
+    StateSnapshotCapacityTooSmall = 40,
+    StateSnapshotCapacityExceedsLimit = 41,
+    MisalignedStateSnapshot = 42,
+    StateSnapshotSpanOverflow = 43,
+    StateSnapshotStorageOverlap = 44
+}
+
+/// <summary>
+/// Value-only evidence from exact table-page materialization and readback.
+/// Hashes are diagnostic; exact per-entry comparison remains authoritative.
+/// </summary>
+public readonly struct M01LivePagingArenaMaterializationResult
+{
+    public const ushort CurrentVersion = 1;
+    public const ulong StructureSize = 160;
+    public const ulong NoIndex = ~0UL;
+
+    private readonly uint _structureSize;
+    private readonly ushort _structureVersion;
+    private readonly M01LivePagingArenaMaterializationStatus _status;
+    private readonly byte _isInitialized;
+    private readonly OS.Kernel.Memory.X64PageTableEntryStatus
+        _pageTableEntryStatus;
+    private readonly OS.Kernel.Memory.X64PageMapStatus _pageImageStatus;
+    private readonly ushort _reserved0;
+    private readonly uint _reserved1;
+    private readonly PhysicalAddress _rootTable;
+    private readonly ulong _tablePageCount;
+    private readonly ulong _verifiedPageCount;
+    private readonly ulong _entryCount;
+    private readonly ulong _verifiedEntryCount;
+    private readonly ulong _invalidPageOrdinal;
+    private readonly ulong _invalidEntryIndex;
+    private readonly ulong _expectedEntry;
+    private readonly ulong _observedEntry;
+    private readonly ulong _sourceFingerprint;
+    private readonly ulong _observedFingerprint;
+    private readonly ulong _stateFingerprintBefore;
+    private readonly ulong _stateFingerprintAfter;
+    private readonly ulong _bytesWritten;
+    private readonly ulong _reachablePageCount;
+    private readonly ulong _mappedLeafCount;
+    private readonly ulong _verifiedStateByteCount;
+    private readonly ulong _invalidStateByteIndex;
+
+    internal M01LivePagingArenaMaterializationResult(
+        M01LivePagingArenaMaterializationStatus status,
+        OS.Kernel.Memory.X64PageTableEntryStatus pageTableEntryStatus,
+        OS.Kernel.Memory.X64PageMapStatus pageImageStatus,
+        PhysicalAddress rootTable,
+        ulong tablePageCount,
+        ulong verifiedPageCount,
+        ulong entryCount,
+        ulong verifiedEntryCount,
+        ulong invalidPageOrdinal,
+        ulong invalidEntryIndex,
+        ulong expectedEntry,
+        ulong observedEntry,
+        ulong sourceFingerprint,
+        ulong observedFingerprint,
+        ulong stateFingerprintBefore,
+        ulong stateFingerprintAfter,
+        ulong bytesWritten,
+        ulong reachablePageCount,
+        ulong mappedLeafCount,
+        ulong verifiedStateByteCount,
+        ulong invalidStateByteIndex)
+    {
+        _structureSize = (uint)StructureSize;
+        _structureVersion = CurrentVersion;
+        _status = status;
+        _isInitialized = 1;
+        _pageTableEntryStatus = pageTableEntryStatus;
+        _pageImageStatus = pageImageStatus;
+        _reserved0 = 0;
+        _reserved1 = 0;
+        _rootTable = rootTable;
+        _tablePageCount = tablePageCount;
+        _verifiedPageCount = verifiedPageCount;
+        _entryCount = entryCount;
+        _verifiedEntryCount = verifiedEntryCount;
+        _invalidPageOrdinal = invalidPageOrdinal;
+        _invalidEntryIndex = invalidEntryIndex;
+        _expectedEntry = expectedEntry;
+        _observedEntry = observedEntry;
+        _sourceFingerprint = sourceFingerprint;
+        _observedFingerprint = observedFingerprint;
+        _stateFingerprintBefore = stateFingerprintBefore;
+        _stateFingerprintAfter = stateFingerprintAfter;
+        _bytesWritten = bytesWritten;
+        _reachablePageCount = reachablePageCount;
+        _mappedLeafCount = mappedLeafCount;
+        _verifiedStateByteCount = verifiedStateByteCount;
+        _invalidStateByteIndex = invalidStateByteIndex;
+    }
+
+    public uint Size => _structureSize;
+
+    public ushort Version => _structureVersion;
+
+    public bool IsInitialized =>
+        _structureSize == StructureSize
+        && _structureVersion == CurrentVersion
+        && _isInitialized == 1
+        && _reserved0 == 0
+        && _reserved1 == 0;
+
+    public M01LivePagingArenaMaterializationStatus Status =>
+        _status;
+
+    public OS.Kernel.Memory.X64PageTableEntryStatus
+        PageTableEntryStatus => _pageTableEntryStatus;
+
+    public OS.Kernel.Memory.X64PageMapStatus PageImageStatus =>
+        _pageImageStatus;
+
+    public PhysicalAddress RootTable => _rootTable;
+
+    public ulong TablePageCount => _tablePageCount;
+
+    public ulong VerifiedPageCount => _verifiedPageCount;
+
+    public ulong EntryCount => _entryCount;
+
+    public ulong VerifiedEntryCount => _verifiedEntryCount;
+
+    public ulong InvalidPageOrdinal => _invalidPageOrdinal;
+
+    public ulong InvalidEntryIndex => _invalidEntryIndex;
+
+    public ulong ExpectedEntry => _expectedEntry;
+
+    public ulong ObservedEntry => _observedEntry;
+
+    public ulong SourceFingerprint => _sourceFingerprint;
+
+    public ulong ObservedFingerprint => _observedFingerprint;
+
+    public ulong StateFingerprintBefore =>
+        _stateFingerprintBefore;
+
+    public ulong StateFingerprintAfter => _stateFingerprintAfter;
+
+    public ulong BytesWritten => _bytesWritten;
+
+    public ulong ReachablePageCount => _reachablePageCount;
+
+    public ulong MappedLeafCount => _mappedLeafCount;
+
+    public ulong VerifiedStateByteCount =>
+        _verifiedStateByteCount;
+
+    public ulong InvalidStateByteIndex =>
+        _invalidStateByteIndex;
+
+    public bool Succeeded =>
+        IsInitialized
+        && _status
+            == M01LivePagingArenaMaterializationStatus.Success
+        && _pageTableEntryStatus
+            == OS.Kernel.Memory.X64PageTableEntryStatus.Success
+        && _pageImageStatus
+            == OS.Kernel.Memory.X64PageMapStatus.Success
+        && _rootTable.IsValid
+        && _tablePageCount != 0
+        && _verifiedPageCount == _tablePageCount
+        && _verifiedEntryCount == _entryCount
+        && _invalidPageOrdinal == NoIndex
+        && _invalidEntryIndex == NoIndex
+        && _sourceFingerprint == _observedFingerprint
+        && _stateFingerprintBefore == _stateFingerprintAfter
+        && _reachablePageCount == _tablePageCount
+        && _verifiedStateByteCount
+            == M01LivePagingIntegration
+                .RequiredArenaStateSnapshotByteCount
+        && _invalidStateByteIndex == NoIndex;
+}
+
+/// <summary>
 /// Durable caller-owned state written only after every stage-three host audit
 /// succeeds. Its contents remain value-only and no pointer is retained.
 /// </summary>
@@ -1466,6 +2004,67 @@ public static unsafe class M01LivePagingIntegration
         internal ulong End;
     }
 
+    private struct ArenaPlanState
+    {
+        internal AddressValueStatus AddressStatus;
+        internal OS.Kernel.Memory.BootReservationTableStatus
+            ReservationStatus;
+        internal OS.Kernel.Boot.X64BootIdentityMappingStatus
+            MappingStatus;
+        internal OS.Kernel.Memory.X64PageTableEntryStatus
+            PageTableEntryStatus;
+        internal OS.Kernel.Memory.X64PageTableEncodingPreconditions
+            PageTablePreconditions;
+        internal BootMemoryRegionRecord AllocationRecord;
+        internal OS.Kernel.Boot.X64BootIdentityMappingPlanResult
+            MappingPlan;
+        internal PhysicalAddress CandidatePhysicalBase;
+        internal PhysicalAddress RootTable;
+        internal PhysicalAddress StatePage;
+        internal PhysicalAddress ArenaEndExclusive;
+        internal ulong IterationCount;
+        internal ulong IterationLimit;
+        internal ulong TablePageCount;
+        internal ulong TotalPageCount;
+        internal ulong TableByteLength;
+        internal ulong TotalByteLength;
+        internal ulong AvailablePageCountFromCandidate;
+        internal ulong RequiredRangeWorkspaceCount;
+        internal OS.Kernel.Boot.X64BootIdentityMappingRequirement
+            BootStackGuardRequirement;
+        internal OS.Kernel.Boot.X64BootIdentityMappingRequirement
+            CodeAndCallGateRequirement;
+        internal OS.Kernel.Boot.X64BootIdentityMappingRequirement
+            OwnedStackRequirement;
+        internal OS.Kernel.Boot.X64BootIdentityMappingRequirement
+            ProtectionProbeRequirement;
+    }
+
+    private struct ArenaMaterializationState
+    {
+        internal OS.Kernel.Memory.X64PageTableEntryStatus
+            PageTableEntryStatus;
+        internal OS.Kernel.Memory.X64PageMapStatus PageImageStatus;
+        internal PhysicalAddress RootTable;
+        internal ulong TablePageCount;
+        internal ulong VerifiedPageCount;
+        internal ulong EntryCount;
+        internal ulong VerifiedEntryCount;
+        internal ulong InvalidPageOrdinal;
+        internal ulong InvalidEntryIndex;
+        internal ulong ExpectedEntry;
+        internal ulong ObservedEntry;
+        internal ulong SourceFingerprint;
+        internal ulong ObservedFingerprint;
+        internal ulong StateFingerprintBefore;
+        internal ulong StateFingerprintAfter;
+        internal ulong BytesWritten;
+        internal ulong ReachablePageCount;
+        internal ulong MappedLeafCount;
+        internal ulong VerifiedStateByteCount;
+        internal ulong InvalidStateByteIndex;
+    }
+
     public const bool CallsFirmwarePageAllocator = false;
     public const bool PerformsFirmwareAllocation = false;
     public const bool PerformsFirmwareCleanup = false;
@@ -1507,6 +2106,16 @@ public static unsafe class M01LivePagingIntegration
     public const bool PreparationUsesExactLiveIntervalBindings = true;
     public const bool PreparationRequiresHistoricalIdentityAliases =
         false;
+    public const bool ArenaPlannerInvokesFirmware = false;
+    public const bool ArenaMaterializerInvokesFirmware = false;
+    public const bool ArenaMaterializerAllocatesFirmwarePages = false;
+    public const bool ArenaMaterializerLoadsCr3 = false;
+    public const bool ArenaMaterializerChangesPageProtection = false;
+    public const bool ArenaMaterializerExecutesGeneratedCode = false;
+    public const bool ArenaMaterializerIsGuestEvidence = false;
+    public const bool ArenaMaterializerRequiresStateSnapshot = true;
+    public const bool ArenaMaterializerUsesExactStateComparison =
+        true;
 
     public const ulong RequiredAllocationRecordCount = 3;
     public const ulong MaximumAllocationRecordCapacity = 16;
@@ -1524,6 +2133,16 @@ public static unsafe class M01LivePagingIntegration
     public const ulong InvlpgEntryOffset = 2240;
     public const ulong ProtectionProbeEntryOffset = 0;
     public const ulong NoIndex = ~0UL;
+    public const ulong RequiredArenaFixedRequirementCount = 4;
+    public const ulong RequiredArenaRequirementWorkspaceCount = 7;
+    public const ulong RequiredArenaStatePageCount = 1;
+    public const ulong MinimumArenaTotalPageCount = 5;
+    public const ulong MaximumArenaIterationCount = 65;
+    public const ulong MaximumArenaTotalPageCount = 65;
+    public const ulong MaximumArenaTotalByteLength =
+        MaximumArenaTotalPageCount * PageSize;
+    public const ulong RequiredArenaStateSnapshotByteCount =
+        PageSize;
 
     private const ulong MaximumUnsignedLong = ~0UL;
     private const ulong RflagsDirectionFlagBit = 1UL << 10;
@@ -1633,6 +2252,1365 @@ public static unsafe class M01LivePagingIntegration
             completedAllocationCount == 3
                 ? 0
                 : M01LivePagingCleanupPlan.NoIndex);
+    }
+
+    /// <summary>
+    /// Computes the exact table-page plus state-page arena needed by the
+    /// supplied four live requirements. This bounded planner writes only its
+    /// caller-owned scratch workspaces and never allocates firmware pages.
+    /// </summary>
+    public static M01LivePagingArenaPlanResult PlanOwnedTableArena(
+        OS.Kernel.Boot.X64BootIdentityMappingRequirement*
+            fixedRequirements,
+        ulong fixedRequirementCount,
+        ulong fixedRequirementCapacity,
+        BootMemoryRegionRecord conventionalDescriptor,
+        OS.Kernel.Memory.BootReservedRange* reservations,
+        ulong reservationCount,
+        ulong reservationCapacity,
+        PhysicalAddress candidatePhysicalBase,
+        OS.Kernel.Memory.X64PageTableEncodingPreconditions
+            pageTablePreconditions,
+        ulong iterationLimit,
+        OS.Kernel.Boot.X64BootIdentityMappingRequirement*
+            requirementWorkspace,
+        ulong requirementWorkspaceCount,
+        ulong requirementWorkspaceCapacity,
+        OS.Kernel.Boot.X64BootIdentityMappingRange* rangeWorkspace,
+        ulong rangeWorkspaceCount,
+        ulong rangeWorkspaceCapacity)
+    {
+        ArenaPlanState state = default;
+        state.PageTablePreconditions = pageTablePreconditions;
+        state.CandidatePhysicalBase = candidatePhysicalBase;
+        state.IterationLimit = iterationLimit;
+        state.AddressStatus = AddressValueStatus.Uninitialized;
+        state.ReservationStatus =
+            OS.Kernel.Memory.BootReservationTableStatus
+                .Uninitialized;
+        state.MappingStatus =
+            OS.Kernel.Boot.X64BootIdentityMappingStatus
+                .Uninitialized;
+        state.PageTableEntryStatus =
+            OS.Kernel.Memory.X64PageTableEntryStatus
+                .Uninitialized;
+
+        if ((ulong)sizeof(M01LivePagingArenaPlanResult)
+                != M01LivePagingArenaPlanResult.StructureSize
+            || (ulong)sizeof(
+                    M01LivePagingArenaMaterializationResult)
+                != M01LivePagingArenaMaterializationResult
+                    .StructureSize
+            || (ulong)sizeof(BootMemoryRegionRecord) != 56
+            || (ulong)sizeof(PhysicalAddress) != 8
+            || (ulong)sizeof(
+                    OS.Kernel.Memory.BootReservedRange)
+                != 40
+            || (ulong)sizeof(
+                    OS.Kernel.Boot
+                        .X64BootIdentityMappingRequirement)
+                != OS.Kernel.Boot
+                    .X64BootIdentityMappingRequirement
+                    .StructureSize
+            || (ulong)sizeof(
+                    OS.Kernel.Boot
+                        .X64BootIdentityMappingRange)
+                != OS.Kernel.Boot
+                    .X64BootIdentityMappingRange
+                    .StructureSize
+            || (ulong)sizeof(
+                    OS.Kernel.Boot
+                        .X64BootIdentityMappingPlanResult)
+                != OS.Kernel.Boot
+                    .X64BootIdentityMappingPlanResult
+                    .StructureSize
+            || (ulong)sizeof(
+                    OS.Kernel.Memory
+                        .X64PageTableEncodingPreconditions)
+                != OS.Kernel.Memory
+                    .X64PageTableEncodingPreconditions
+                    .StructureSize)
+        {
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus
+                    .ContractLayoutMismatch,
+                state);
+        }
+
+        if (fixedRequirementCount
+            != RequiredArenaFixedRequirementCount)
+        {
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus
+                    .InvalidFixedRequirementCount,
+                state);
+        }
+
+        if (fixedRequirementCapacity < fixedRequirementCount)
+        {
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus
+                    .InvalidFixedRequirementCapacity,
+                state);
+        }
+
+        if (fixedRequirementCapacity
+            > OS.Kernel.Boot.X64BootIdentityMappingPlan
+                .MaximumSourceCount)
+        {
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus.CapacityExceedsLimit,
+                state);
+        }
+
+        if (fixedRequirements == null)
+        {
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus
+                    .MissingFixedRequirements,
+                state);
+        }
+
+        ulong fixedStart = (ulong)fixedRequirements;
+        if ((fixedStart & (RequiredPointerAlignment - 1)) != 0)
+        {
+            state.AddressStatus =
+                AddressValueStatus.MisalignedAddress;
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus
+                    .MisalignedFixedRequirements,
+                state);
+        }
+
+        if (!TryGetSpanEnd(
+                fixedStart,
+                fixedRequirementCapacity,
+                (ulong)sizeof(
+                    OS.Kernel.Boot
+                        .X64BootIdentityMappingRequirement),
+                out ulong fixedEnd))
+        {
+            state.AddressStatus =
+                AddressValueStatus.AddressOverflow;
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus
+                    .FixedRequirementSpanOverflow,
+                state);
+        }
+
+        if (!TryValidateConventionalDescriptor(
+                conventionalDescriptor,
+                out ulong descriptorStart,
+                out ulong descriptorEnd))
+        {
+            state.AddressStatus =
+                AddressValueStatus.InvalidAddress;
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus.InvalidDescriptor,
+                state);
+        }
+
+        state.AddressStatus =
+            candidatePhysicalBase
+                .TryGetRawValueForUefiBoundary(
+                    out ulong candidateStart);
+        if (state.AddressStatus != AddressValueStatus.Success
+            || !candidatePhysicalBase.IsAligned(PageSize)
+            || candidateStart < descriptorStart
+            || candidateStart >= descriptorEnd)
+        {
+            if (state.AddressStatus == AddressValueStatus.Success)
+            {
+                state.AddressStatus =
+                    (candidateStart & (PageSize - 1)) != 0
+                        ? AddressValueStatus.MisalignedAddress
+                        : AddressValueStatus.InvalidAddress;
+            }
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus.InvalidCandidate,
+                state);
+        }
+
+        state.AvailablePageCountFromCandidate =
+            (descriptorEnd - candidateStart) / PageSize;
+
+        state.PageTableEntryStatus =
+            pageTablePreconditions.Validate();
+        if (state.PageTableEntryStatus
+            != OS.Kernel.Memory.X64PageTableEntryStatus.Success)
+        {
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus
+                    .InvalidPreconditions,
+                state);
+        }
+
+        if (iterationLimit == 0
+            || iterationLimit > MaximumArenaIterationCount)
+        {
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus
+                    .InvalidIterationLimit,
+                state);
+        }
+
+        if (reservationCount == 0
+            || reservationCount > reservationCapacity)
+        {
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus
+                    .InvalidReservationStorage,
+                state);
+        }
+
+        if (reservationCapacity
+            > OS.Kernel.Memory.BootReservationTableValidator
+                .MaximumReservationCount)
+        {
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus.CapacityExceedsLimit,
+                state);
+        }
+
+        if (reservations == null
+            || (((ulong)reservations)
+                & (RequiredPointerAlignment - 1)) != 0
+            || !TryGetSpanEnd(
+                (ulong)reservations,
+                reservationCapacity,
+                (ulong)sizeof(
+                    OS.Kernel.Memory.BootReservedRange),
+                out ulong reservationEnd))
+        {
+            state.AddressStatus = reservations != null
+                    && (((ulong)reservations)
+                        & (RequiredPointerAlignment - 1)) != 0
+                ? AddressValueStatus.MisalignedAddress
+                : AddressValueStatus.AddressOverflow;
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus
+                    .InvalidReservationStorage,
+                state);
+        }
+        ulong reservationStart = (ulong)reservations;
+
+        OS.Kernel.Memory.BootReservationTableValidationResult
+            reservationValidation =
+                OS.Kernel.Memory.BootReservationTableValidator
+                    .Validate(
+                        reservations,
+                        reservationCount,
+                        reservationCapacity);
+        state.ReservationStatus = reservationValidation.Status;
+        if (!reservationValidation.Succeeded)
+        {
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus
+                    .ReservationValidationFailed,
+                state);
+        }
+
+        if (requirementWorkspaceCount != 0
+            || requirementWorkspaceCapacity
+                < RequiredArenaRequirementWorkspaceCount)
+        {
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus
+                    .InvalidRequirementWorkspace,
+                state);
+        }
+
+        if (requirementWorkspaceCapacity
+            > OS.Kernel.Boot.X64BootIdentityMappingPlan
+                .MaximumSourceCount)
+        {
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus.CapacityExceedsLimit,
+                state);
+        }
+
+        if (requirementWorkspace == null
+            || (((ulong)requirementWorkspace)
+                & (RequiredPointerAlignment - 1)) != 0
+            || !TryGetSpanEnd(
+                (ulong)requirementWorkspace,
+                requirementWorkspaceCapacity,
+                (ulong)sizeof(
+                    OS.Kernel.Boot
+                        .X64BootIdentityMappingRequirement),
+                out ulong requirementWorkspaceEnd))
+        {
+            state.AddressStatus =
+                requirementWorkspace != null
+                    && (((ulong)requirementWorkspace)
+                        & (RequiredPointerAlignment - 1)) != 0
+                ? AddressValueStatus.MisalignedAddress
+                : AddressValueStatus.AddressOverflow;
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus
+                    .InvalidRequirementWorkspace,
+                state);
+        }
+        ulong requirementWorkspaceStart =
+            (ulong)requirementWorkspace;
+
+        if (rangeWorkspaceCount != 0
+            || rangeWorkspaceCapacity
+                < RequiredArenaRequirementWorkspaceCount)
+        {
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus.InvalidRangeWorkspace,
+                state);
+        }
+
+        if (rangeWorkspaceCapacity
+            > OS.Kernel.Boot.X64BootIdentityMappingPlan
+                .MaximumDestinationCount)
+        {
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus.CapacityExceedsLimit,
+                state);
+        }
+
+        if (rangeWorkspace == null
+            || (((ulong)rangeWorkspace)
+                & (RequiredPointerAlignment - 1)) != 0
+            || !TryGetSpanEnd(
+                (ulong)rangeWorkspace,
+                rangeWorkspaceCapacity,
+                (ulong)sizeof(
+                    OS.Kernel.Boot.X64BootIdentityMappingRange),
+                out ulong rangeWorkspaceEnd))
+        {
+            state.AddressStatus = rangeWorkspace != null
+                    && (((ulong)rangeWorkspace)
+                        & (RequiredPointerAlignment - 1)) != 0
+                ? AddressValueStatus.MisalignedAddress
+                : AddressValueStatus.AddressOverflow;
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus.InvalidRangeWorkspace,
+                state);
+        }
+        ulong rangeWorkspaceStart = (ulong)rangeWorkspace;
+
+        if (!AreDisjoint(
+                fixedStart,
+                fixedEnd,
+                reservationStart,
+                reservationEnd)
+            || !AreDisjoint(
+                fixedStart,
+                fixedEnd,
+                requirementWorkspaceStart,
+                requirementWorkspaceEnd)
+            || !AreDisjoint(
+                fixedStart,
+                fixedEnd,
+                rangeWorkspaceStart,
+                rangeWorkspaceEnd)
+            || !AreDisjoint(
+                reservationStart,
+                reservationEnd,
+                requirementWorkspaceStart,
+                requirementWorkspaceEnd)
+            || !AreDisjoint(
+                reservationStart,
+                reservationEnd,
+                rangeWorkspaceStart,
+                rangeWorkspaceEnd)
+            || !AreDisjoint(
+                requirementWorkspaceStart,
+                requirementWorkspaceEnd,
+                rangeWorkspaceStart,
+                rangeWorkspaceEnd))
+        {
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus.WorkspaceOverlap,
+                state);
+        }
+
+        OS.Kernel.Boot.X64BootIdentityMappingRequirement
+            bootStackGuard = default;
+        OS.Kernel.Boot.X64BootIdentityMappingRequirement
+            codeAndCallGate = default;
+        OS.Kernel.Boot.X64BootIdentityMappingRequirement
+            ownedStack = default;
+        OS.Kernel.Boot.X64BootIdentityMappingRequirement
+            protectionProbe = default;
+        byte observedFixedPurposeMask = 0;
+        for (ulong index = 0;
+            index < fixedRequirementCount;
+            index++)
+        {
+            OS.Kernel.Boot.X64BootIdentityMappingRequirement
+                requirement = fixedRequirements[index];
+            byte purposeBit;
+            switch (requirement.Purpose)
+            {
+                case OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                    .BootStackGuard:
+                    purposeBit = 1;
+                    bootStackGuard = requirement;
+                    break;
+                case OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                    .CompositeCodeAndCallGate:
+                    purposeBit = 2;
+                    codeAndCallGate = requirement;
+                    break;
+                case OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                    .CompositeOwnedStack:
+                    purposeBit = 4;
+                    ownedStack = requirement;
+                    break;
+                case OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                    .ProtectionProbePage:
+                    purposeBit = 8;
+                    protectionProbe = requirement;
+                    break;
+                default:
+                    return ArenaPlanFailure(
+                        M01LivePagingArenaPlanStatus
+                            .InvalidFixedRequirementSet,
+                        state);
+            }
+
+            if (!requirement.IsInitialized
+                || (observedFixedPurposeMask & purposeBit) != 0)
+            {
+                return ArenaPlanFailure(
+                    M01LivePagingArenaPlanStatus
+                        .InvalidFixedRequirementSet,
+                    state);
+            }
+            observedFixedPurposeMask |= purposeBit;
+        }
+
+        if (observedFixedPurposeMask != 0x0f)
+        {
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus
+                    .InvalidFixedRequirementSet,
+                state);
+        }
+
+        requirementWorkspace[0] = bootStackGuard;
+        requirementWorkspace[1] = codeAndCallGate;
+        requirementWorkspace[2] = ownedStack;
+        requirementWorkspace[3] = protectionProbe;
+        state.BootStackGuardRequirement = bootStackGuard;
+        state.CodeAndCallGateRequirement = codeAndCallGate;
+        state.OwnedStackRequirement = ownedStack;
+        state.ProtectionProbeRequirement = protectionProbe;
+
+        ulong currentTotalPageCount =
+            MinimumArenaTotalPageCount;
+        bool converged = false;
+        for (ulong iteration = 1;
+            iteration <= iterationLimit;
+            iteration++)
+        {
+            state.IterationCount = iteration;
+            if (!TryWriteArenaRequirements(
+                    requirementWorkspace,
+                    candidatePhysicalBase,
+                    currentTotalPageCount,
+                    out state.RootTable,
+                    out state.StatePage,
+                    out state.ArenaEndExclusive,
+                    out state.AddressStatus))
+            {
+                return ArenaPlanFailure(
+                    M01LivePagingArenaPlanStatus
+                        .RequirementConstructionFailed,
+                    state);
+            }
+
+            state.MappingPlan =
+                OS.Kernel.Boot.X64BootIdentityMappingPlan
+                    .CreateLiveInterval(
+                        requirementWorkspace,
+                        RequiredArenaRequirementWorkspaceCount,
+                        RequiredArenaRequirementWorkspaceCount,
+                        rangeWorkspace,
+                        RequiredArenaRequirementWorkspaceCount,
+                        OS.Kernel.Memory.X64PageMap
+                            .MaximumPageImages,
+                        pageTablePreconditions);
+            state.MappingStatus = state.MappingPlan.Status;
+            state.AddressStatus =
+                state.MappingPlan.AddressStatus;
+            state.PageTableEntryStatus =
+                state.MappingPlan.PageTableEntryStatus;
+            state.RequiredRangeWorkspaceCount =
+                state.MappingPlan.RequiredDestinationCapacity;
+
+            if (!state.MappingPlan.Succeeded)
+            {
+                M01LivePagingArenaPlanStatus failureStatus =
+                    state.MappingPlan.Status
+                        == OS.Kernel.Boot
+                            .X64BootIdentityMappingStatus
+                            .DestinationCapacityTooSmall
+                    ? M01LivePagingArenaPlanStatus
+                        .RangeWorkspaceTooSmall
+                    : state.MappingPlan.Status
+                        == OS.Kernel.Boot
+                            .X64BootIdentityMappingStatus
+                            .TableCapacityTooSmall
+                        ? M01LivePagingArenaPlanStatus
+                            .TableCapacityExceeded
+                        : state.MappingPlan.Status
+                            == OS.Kernel.Boot
+                                .X64BootIdentityMappingStatus
+                                .PhysicalAddressOutsideWidth
+                            ? M01LivePagingArenaPlanStatus
+                                .PhysicalWidthExceeded
+                        : M01LivePagingArenaPlanStatus
+                            .IdentityPlanRejected;
+                return ArenaPlanFailure(
+                    failureStatus,
+                    state);
+            }
+
+            ulong tablePageCount =
+                state.MappingPlan.TotalTablePageCount;
+            if (tablePageCount == 0
+                || tablePageCount
+                    > OS.Kernel.Memory.X64PageMap
+                        .MaximumPageImages
+                || tablePageCount
+                    > MaximumUnsignedLong
+                        - RequiredArenaStatePageCount)
+            {
+                return ArenaPlanFailure(
+                    M01LivePagingArenaPlanStatus
+                        .TablePageCountOverflow,
+                    state);
+            }
+
+            ulong nextTotalPageCount =
+                tablePageCount + RequiredArenaStatePageCount;
+            if (nextTotalPageCount
+                > MaximumArenaTotalPageCount)
+            {
+                return ArenaPlanFailure(
+                    M01LivePagingArenaPlanStatus
+                        .TableCapacityExceeded,
+                    state);
+            }
+
+            if (nextTotalPageCount < currentTotalPageCount)
+            {
+                return ArenaPlanFailure(
+                    M01LivePagingArenaPlanStatus
+                        .NonMonotonicIteration,
+                    state);
+            }
+
+            if (nextTotalPageCount == currentTotalPageCount)
+            {
+                state.TablePageCount = tablePageCount;
+                state.TotalPageCount = nextTotalPageCount;
+                converged = true;
+                break;
+            }
+            currentTotalPageCount = nextTotalPageCount;
+        }
+
+        if (!converged)
+        {
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus
+                    .IterationLimitReached,
+                state);
+        }
+
+        if (state.TablePageCount
+                > MaximumUnsignedLong / PageSize
+            || state.TotalPageCount
+                > MaximumUnsignedLong / PageSize)
+        {
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus
+                    .ArenaGeometryOverflow,
+                state);
+        }
+
+        state.TableByteLength =
+            state.TablePageCount * PageSize;
+        state.TotalByteLength =
+            state.TotalPageCount * PageSize;
+
+        if (state.TotalByteLength
+                > MaximumArenaTotalByteLength
+            || candidateStart
+                > MaximumUnsignedLong - state.TotalByteLength
+            || candidateStart + state.TotalByteLength
+                != Raw(state.ArenaEndExclusive))
+        {
+            state.AddressStatus =
+                AddressValueStatus.AddressOverflow;
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus
+                    .ArenaGeometryOverflow,
+                state);
+        }
+
+        ulong arenaEnd =
+            candidateStart + state.TotalByteLength;
+        if (arenaEnd > descriptorEnd
+            || state.TotalPageCount
+                > state.AvailablePageCountFromCandidate)
+        {
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus
+                    .DescriptorCapacityTooSmall,
+                state);
+        }
+
+        ulong physicalLimit =
+            1UL << pageTablePreconditions
+                .PhysicalAddressWidth;
+        if (arenaEnd > physicalLimit)
+        {
+            state.PageTableEntryStatus =
+                OS.Kernel.Memory.X64PageTableEntryStatus
+                    .PhysicalAddressOutsideWidth;
+            return ArenaPlanFailure(
+                M01LivePagingArenaPlanStatus
+                    .PhysicalWidthExceeded,
+                state);
+        }
+
+        for (ulong index = 0;
+            index < reservationCount;
+            index++)
+        {
+            ulong reservationRangeStart =
+                Raw(reservations[index].PhysicalStart);
+            ulong reservationRangeEnd =
+                Raw(reservations[index].PhysicalEndExclusive);
+            if (!AreDisjoint(
+                    candidateStart,
+                    arenaEnd,
+                    reservationRangeStart,
+                    reservationRangeEnd))
+            {
+                return ArenaPlanFailure(
+                    M01LivePagingArenaPlanStatus
+                        .ReservationOverlap,
+                    state);
+            }
+        }
+
+        state.AllocationRecord =
+            new BootMemoryRegionRecord(
+                (uint)UefiMemoryType.LoaderData,
+                candidateStart,
+                candidateStart,
+                state.TotalPageCount,
+                conventionalDescriptor.Attribute,
+                state.TotalByteLength,
+                arenaEnd);
+        state.AddressStatus = AddressValueStatus.Success;
+        state.ReservationStatus =
+            OS.Kernel.Memory.BootReservationTableStatus.Success;
+        state.MappingStatus =
+            OS.Kernel.Boot.X64BootIdentityMappingStatus.Success;
+        state.PageTableEntryStatus =
+            OS.Kernel.Memory.X64PageTableEntryStatus.Success;
+        return ArenaPlanSuccess(state);
+    }
+
+    /// <summary>
+    /// Materializes or independently verifies the exact page-table image in
+    /// caller-owned CPU-addressable backing storage. The backing pointer is
+    /// deliberately independent of the planned physical address.
+    /// </summary>
+    public static M01LivePagingArenaMaterializationResult
+        MaterializeOwnedTableArena(
+            M01LivePagingArenaPlanResult plan,
+            BootMemoryRegionRecord allocationRecord,
+            OS.Kernel.Memory.X64PageTableImagePage* pageImages,
+            ulong pageImageCount,
+            ulong pageImageCapacity,
+            ulong* pageTableEntries,
+            ulong pageTableEntryCount,
+            ulong pageTableEntryCapacity,
+            byte* arenaBacking,
+            ulong arenaBackingByteCount,
+            ulong arenaBackingByteCapacity,
+            M01LivePagingArenaByteMode byteMode,
+            byte* stateSnapshot,
+            ulong stateSnapshotByteCount,
+            ulong stateSnapshotByteCapacity)
+    {
+        ArenaMaterializationState state = default;
+        state.RootTable = plan.RootTable;
+        state.TablePageCount = plan.TablePageCount;
+        state.EntryCount = pageTableEntryCount;
+        state.InvalidPageOrdinal =
+            M01LivePagingArenaMaterializationResult.NoIndex;
+        state.InvalidEntryIndex =
+            M01LivePagingArenaMaterializationResult.NoIndex;
+        state.InvalidStateByteIndex =
+            M01LivePagingArenaMaterializationResult.NoIndex;
+        state.PageTableEntryStatus =
+            OS.Kernel.Memory.X64PageTableEntryStatus
+                .Uninitialized;
+        state.PageImageStatus =
+            OS.Kernel.Memory.X64PageMapStatus.Uninitialized;
+
+        if ((ulong)sizeof(
+                    M01LivePagingArenaMaterializationResult)
+                != M01LivePagingArenaMaterializationResult
+                    .StructureSize
+            || (ulong)sizeof(M01LivePagingArenaPlanResult)
+                != M01LivePagingArenaPlanResult.StructureSize
+            || (ulong)sizeof(
+                    OS.Kernel.Memory.X64PageTableImagePage)
+                != OS.Kernel.Memory.X64PageTableImagePage
+                    .StructureSize)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .ContractLayoutMismatch,
+                state);
+        }
+
+        if (byteMode
+                != M01LivePagingArenaByteMode.EmitAndVerify
+            && byteMode
+                != M01LivePagingArenaByteMode.VerifyExisting)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .InvalidByteMode,
+                state);
+        }
+
+        if (!IsCanonicalArenaPlan(plan))
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .InvalidPlan,
+                state);
+        }
+        state.PageTableEntryStatus =
+            OS.Kernel.Memory.X64PageTableEntryStatus.Success;
+
+        OS.Kernel.Boot.X64BootIdentityMappingRequirement*
+            rederivedRequirements =
+                stackalloc OS.Kernel.Boot
+                    .X64BootIdentityMappingRequirement[
+                        (int)RequiredArenaRequirementWorkspaceCount];
+        OS.Kernel.Boot.X64BootIdentityMappingRange*
+            rederivedRanges =
+                stackalloc OS.Kernel.Boot
+                    .X64BootIdentityMappingRange[
+                        (int)RequiredArenaRequirementWorkspaceCount];
+        if (!TryRederiveArenaMappingPlan(
+                plan,
+                rederivedRequirements,
+                rederivedRanges,
+                out OS.Kernel.Boot
+                    .X64BootIdentityMappingPlanResult
+                    rederivedMappingPlan)
+            || !MappingPlansEqual(
+                plan.MappingPlan,
+                rederivedMappingPlan))
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .SemanticMappingMismatch,
+                state);
+        }
+
+        if (!AllocationRecordsEqual(
+                allocationRecord,
+                plan.AllocationRecord))
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .AllocationRecordMismatch,
+                state);
+        }
+
+        if (pageImageCount == 0
+            || pageImageCount != plan.RequiredPageImageCount)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .InvalidPageImageCount,
+                state);
+        }
+
+        if (pageImageCapacity < pageImageCount)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .PageImageCapacityTooSmall,
+                state);
+        }
+
+        if (pageImageCapacity
+            > OS.Kernel.Memory.X64PageMap.MaximumPageImages)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .PageImageCapacityExceedsLimit,
+                state);
+        }
+
+        if (pageImages == null)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .MissingPageImages,
+                state);
+        }
+
+        ulong pageImageStart = (ulong)pageImages;
+        if ((pageImageStart
+                & (RequiredPointerAlignment - 1)) != 0)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .MisalignedPageImages,
+                state);
+        }
+
+        if (!TryGetSpanEnd(
+                pageImageStart,
+                pageImageCapacity,
+                (ulong)sizeof(
+                    OS.Kernel.Memory.X64PageTableImagePage),
+                out ulong pageImageEnd))
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .PageImageSpanOverflow,
+                state);
+        }
+
+        if (pageTableEntryCount == 0)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .InvalidEntryCount,
+                state);
+        }
+
+        if (pageTableEntryCount
+            != plan.RequiredPageTableEntryCount)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .EntryCountMismatch,
+                state);
+        }
+
+        if (pageTableEntryCapacity < pageTableEntryCount)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .EntryCapacityTooSmall,
+                state);
+        }
+
+        if (pageTableEntryCapacity
+            > OS.Kernel.Memory.X64PageMap.MaximumEntryCount)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .EntryCapacityExceedsLimit,
+                state);
+        }
+
+        if (pageTableEntries == null)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .MissingEntries,
+                state);
+        }
+
+        ulong pageTableEntryStart = (ulong)pageTableEntries;
+        if ((pageTableEntryStart
+                & (RequiredPointerAlignment - 1)) != 0)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .MisalignedEntries,
+                state);
+        }
+
+        if (!TryGetSpanEnd(
+                pageTableEntryStart,
+                pageTableEntryCapacity,
+                (ulong)sizeof(ulong),
+                out ulong pageTableEntryEnd))
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .EntrySpanOverflow,
+                state);
+        }
+
+        if (arenaBacking == null)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .MissingArenaBacking,
+                state);
+        }
+
+        if (arenaBackingByteCount != plan.TotalByteLength)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .InvalidArenaByteCount,
+                state);
+        }
+
+        if (arenaBackingByteCapacity < arenaBackingByteCount)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .ArenaCapacityTooSmall,
+                state);
+        }
+
+        if (arenaBackingByteCapacity
+            > MaximumArenaTotalByteLength)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .ArenaCapacityExceedsLimit,
+                state);
+        }
+
+        ulong arenaBackingStart = (ulong)arenaBacking;
+        if ((arenaBackingStart & (PageSize - 1)) != 0)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .MisalignedArenaBacking,
+                state);
+        }
+
+        if (!TryGetSpanEnd(
+                arenaBackingStart,
+                arenaBackingByteCapacity,
+                1,
+                out ulong arenaBackingEnd))
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .ArenaBackingSpanOverflow,
+                state);
+        }
+
+        if (stateSnapshotByteCount
+            != RequiredArenaStateSnapshotByteCount)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .InvalidStateSnapshotByteCount,
+                state);
+        }
+
+        if (stateSnapshotByteCapacity < stateSnapshotByteCount)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .StateSnapshotCapacityTooSmall,
+                state);
+        }
+
+        if (stateSnapshotByteCapacity
+            > RequiredArenaStateSnapshotByteCount)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .StateSnapshotCapacityExceedsLimit,
+                state);
+        }
+
+        if (stateSnapshot == null)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .MissingStateSnapshot,
+                state);
+        }
+
+        ulong stateSnapshotStart = (ulong)stateSnapshot;
+        if ((stateSnapshotStart
+                & (RequiredPointerAlignment - 1)) != 0)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .MisalignedStateSnapshot,
+                state);
+        }
+
+        if (!TryGetSpanEnd(
+                stateSnapshotStart,
+                stateSnapshotByteCapacity,
+                1,
+                out ulong stateSnapshotEnd))
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .StateSnapshotSpanOverflow,
+                state);
+        }
+
+        if (!AreDisjoint(
+                pageImageStart,
+                pageImageEnd,
+                pageTableEntryStart,
+                pageTableEntryEnd)
+            || !AreDisjoint(
+                pageImageStart,
+                pageImageEnd,
+                arenaBackingStart,
+                arenaBackingEnd)
+            || !AreDisjoint(
+                pageTableEntryStart,
+                pageTableEntryEnd,
+                arenaBackingStart,
+                arenaBackingEnd)
+            || !AreDisjoint(
+                stateSnapshotStart,
+                stateSnapshotEnd,
+                pageImageStart,
+                pageImageEnd)
+            || !AreDisjoint(
+                stateSnapshotStart,
+                stateSnapshotEnd,
+                pageTableEntryStart,
+                pageTableEntryEnd)
+            || !AreDisjoint(
+                stateSnapshotStart,
+                stateSnapshotEnd,
+                arenaBackingStart,
+                arenaBackingEnd))
+        {
+            bool snapshotOverlap =
+                !AreDisjoint(
+                    stateSnapshotStart,
+                    stateSnapshotEnd,
+                    pageImageStart,
+                    pageImageEnd)
+                || !AreDisjoint(
+                    stateSnapshotStart,
+                    stateSnapshotEnd,
+                    pageTableEntryStart,
+                    pageTableEntryEnd)
+                || !AreDisjoint(
+                    stateSnapshotStart,
+                    stateSnapshotEnd,
+                    arenaBackingStart,
+                    arenaBackingEnd);
+            return ArenaMaterializationFailure(
+                snapshotOverlap
+                    ? M01LivePagingArenaMaterializationStatus
+                        .StateSnapshotStorageOverlap
+                    : M01LivePagingArenaMaterializationStatus
+                        .StorageOverlap,
+                state);
+        }
+
+        byte* statePageBacking =
+            arenaBacking + plan.TableByteLength;
+
+        ulong candidateStart = Raw(plan.CandidatePhysicalBase);
+        ulong statePageStart = Raw(plan.StatePage);
+        for (ulong ordinal = 0;
+            ordinal < pageImageCount;
+            ordinal++)
+        {
+            state.PageImageStatus =
+                pageImages[ordinal].Validate(
+                    ordinal,
+                    pageTableEntryCount,
+                    plan.PageTablePreconditions
+                        .PhysicalAddressWidth);
+            if (state.PageImageStatus
+                != OS.Kernel.Memory.X64PageMapStatus.Success)
+            {
+                state.InvalidPageOrdinal = ordinal;
+                return ArenaMaterializationFailure(
+                    M01LivePagingArenaMaterializationStatus
+                        .PageImageMalformed,
+                    state);
+            }
+
+            ulong actualPhysical =
+                Raw(pageImages[ordinal].PhysicalStart);
+            if (actualPhysical == statePageStart)
+            {
+                state.InvalidPageOrdinal = ordinal;
+                return ArenaMaterializationFailure(
+                    M01LivePagingArenaMaterializationStatus
+                        .PageImageTargetsStatePage,
+                    state);
+            }
+
+            if (ordinal > MaximumUnsignedLong / PageSize
+                || candidateStart
+                    > MaximumUnsignedLong
+                        - ordinal * PageSize)
+            {
+                state.InvalidPageOrdinal = ordinal;
+                return ArenaMaterializationFailure(
+                    M01LivePagingArenaMaterializationStatus
+                        .PageImageOutsideTableArena,
+                    state);
+            }
+
+            ulong expectedPhysical =
+                candidateStart + ordinal * PageSize;
+            if (actualPhysical < candidateStart
+                || actualPhysical >= statePageStart)
+            {
+                state.InvalidPageOrdinal = ordinal;
+                return ArenaMaterializationFailure(
+                    M01LivePagingArenaMaterializationStatus
+                        .PageImageOutsideTableArena,
+                    state);
+            }
+
+            if (actualPhysical != expectedPhysical
+                || (ordinal == 0
+                    && !pageImages[ordinal]
+                        .PhysicalStart.Equals(plan.RootTable)))
+            {
+                state.InvalidPageOrdinal = ordinal;
+                return ArenaMaterializationFailure(
+                    M01LivePagingArenaMaterializationStatus
+                        .PageImageOrderInvalid,
+                    state);
+            }
+        }
+        state.PageImageStatus =
+            OS.Kernel.Memory.X64PageMapStatus.Success;
+
+        state.SourceFingerprint = Fnv1aArenaImage(
+            pageImages,
+            pageImageCount,
+            pageTableEntries,
+            useBackingEntries: false,
+            arenaBacking);
+
+        ulong visitedMask = 1;
+        state.ReachablePageCount = 1;
+        ulong* rangeLeafCounts =
+            stackalloc ulong[
+                (int)RequiredArenaRequirementWorkspaceCount];
+        for (ulong index = 0;
+            index < RequiredArenaRequirementWorkspaceCount;
+            index++)
+        {
+            rangeLeafCounts[index] = 0;
+        }
+        M01LivePagingArenaMaterializationStatus auditStatus =
+            AuditArenaHierarchyPage(
+                pageImages,
+                pageImageCount,
+                pageTableEntries,
+                pageTableEntryCount,
+                plan.PageTablePreconditions,
+                rederivedRanges,
+                rederivedMappingPlan.OutputRangeCount,
+                rangeLeafCounts,
+                0,
+                OS.Kernel.Memory.X64PageTableLevel.Pml4e,
+                0,
+                ref visitedMask,
+                ref state);
+        if (auditStatus
+            != M01LivePagingArenaMaterializationStatus.Success)
+        {
+            return ArenaMaterializationFailure(
+                auditStatus,
+                state);
+        }
+
+        ulong expectedVisitedMask =
+            pageImageCount == 64
+                ? MaximumUnsignedLong
+                : (1UL << (int)pageImageCount) - 1;
+        if (visitedMask != expectedVisitedMask
+            || state.ReachablePageCount != pageImageCount)
+        {
+            state.PageImageStatus =
+                OS.Kernel.Memory.X64PageMapStatus
+                    .PageImageOrderInvalid;
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .UnreachablePageImage,
+                state);
+        }
+
+        if (state.MappedLeafCount
+            != plan.MappingPlan.UnionPageCount)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .LeafCountMismatch,
+                state);
+        }
+
+        ulong semanticRangePageCount = 0;
+        for (ulong rangeIndex = 0;
+            rangeIndex < rederivedMappingPlan.OutputRangeCount;
+            rangeIndex++)
+        {
+            if (!rederivedRanges[rangeIndex].IsInitialized
+                || rangeLeafCounts[rangeIndex]
+                    != rederivedRanges[rangeIndex].PageCount
+                || semanticRangePageCount
+                    > MaximumUnsignedLong
+                        - rangeLeafCounts[rangeIndex])
+            {
+                return ArenaMaterializationFailure(
+                    M01LivePagingArenaMaterializationStatus
+                        .SemanticMappingMismatch,
+                    state);
+            }
+            semanticRangePageCount +=
+                rangeLeafCounts[rangeIndex];
+        }
+        if (semanticRangePageCount
+            != rederivedMappingPlan.UnionPageCount)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .SemanticMappingMismatch,
+                state);
+        }
+
+        for (ulong stateByteIndex = 0;
+            stateByteIndex < RequiredArenaStateSnapshotByteCount;
+            stateByteIndex++)
+        {
+            stateSnapshot[stateByteIndex] =
+                statePageBacking[stateByteIndex];
+        }
+        state.StateFingerprintBefore =
+            Fnv1aBytes(
+                stateSnapshot,
+                RequiredArenaStateSnapshotByteCount);
+        state.StateFingerprintAfter =
+            state.StateFingerprintBefore;
+
+        if (byteMode
+            == M01LivePagingArenaByteMode.EmitAndVerify)
+        {
+            for (ulong ordinal = 0;
+                ordinal < pageImageCount;
+                ordinal++)
+            {
+                ulong* destination =
+                    (ulong*)(arenaBacking
+                        + ordinal * PageSize);
+                ulong sourceStart =
+                    pageImages[ordinal].EntryStartIndex;
+                for (ulong entryOrdinal = 0;
+                    entryOrdinal
+                        < OS.Kernel.Memory
+                            .X64PageTableImagePage
+                            .EntryCountPerPage;
+                    entryOrdinal++)
+                {
+                    destination[entryOrdinal] =
+                        pageTableEntries[
+                            sourceStart + entryOrdinal];
+                }
+            }
+            state.BytesWritten = plan.TableByteLength;
+        }
+
+        bool foundMismatch = false;
+        for (ulong ordinal = 0;
+            ordinal < pageImageCount;
+            ordinal++)
+        {
+            ulong* observedPage =
+                (ulong*)(arenaBacking + ordinal * PageSize);
+            ulong sourceStart =
+                pageImages[ordinal].EntryStartIndex;
+            for (ulong entryOrdinal = 0;
+                entryOrdinal
+                    < OS.Kernel.Memory
+                        .X64PageTableImagePage
+                        .EntryCountPerPage;
+                entryOrdinal++)
+            {
+                ulong sourceIndex =
+                    sourceStart + entryOrdinal;
+                ulong expected =
+                    pageTableEntries[sourceIndex];
+                ulong observed = observedPage[entryOrdinal];
+                if (!foundMismatch && expected != observed)
+                {
+                    foundMismatch = true;
+                    state.InvalidPageOrdinal = ordinal;
+                    state.InvalidEntryIndex = sourceIndex;
+                    state.ExpectedEntry = expected;
+                    state.ObservedEntry = observed;
+                }
+                state.VerifiedEntryCount++;
+            }
+            state.VerifiedPageCount++;
+        }
+
+        state.ObservedFingerprint = Fnv1aArenaImage(
+            pageImages,
+            pageImageCount,
+            pageTableEntries,
+            useBackingEntries: true,
+            arenaBacking);
+        bool foundStateMismatch = false;
+        for (ulong stateByteIndex = 0;
+            stateByteIndex < RequiredArenaStateSnapshotByteCount;
+            stateByteIndex++)
+        {
+            if (!foundStateMismatch
+                && stateSnapshot[stateByteIndex]
+                    != statePageBacking[stateByteIndex])
+            {
+                foundStateMismatch = true;
+                state.InvalidStateByteIndex = stateByteIndex;
+            }
+            state.VerifiedStateByteCount++;
+        }
+        state.StateFingerprintAfter =
+            Fnv1aBytes(statePageBacking, PageSize);
+        if (foundStateMismatch
+            || state.StateFingerprintBefore
+                != state.StateFingerprintAfter)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .StatePageChanged,
+                state);
+        }
+
+        if (foundMismatch
+            || state.SourceFingerprint
+                != state.ObservedFingerprint)
+        {
+            return ArenaMaterializationFailure(
+                M01LivePagingArenaMaterializationStatus
+                    .EntryMismatch,
+                state);
+        }
+
+        return ArenaMaterializationSuccess(state);
     }
 
     /// <summary>
@@ -6337,6 +8315,832 @@ public static unsafe class M01LivePagingIntegration
             }
         }
         return true;
+    }
+
+    private static bool TryValidateConventionalDescriptor(
+        BootMemoryRegionRecord descriptor,
+        out ulong physicalStart,
+        out ulong physicalEndExclusive)
+    {
+        physicalStart = descriptor.PhysicalStart;
+        physicalEndExclusive = descriptor.PhysicalEndExclusive;
+        if (descriptor.UefiType
+                != (uint)UefiMemoryType.ConventionalMemory
+            || descriptor.PageCount == 0
+            || descriptor.PageCount
+                > MaximumUnsignedLong / PageSize
+            || (physicalStart & (PageSize - 1)) != 0
+            || physicalStart
+                > MaximumUnsignedLong
+                    - descriptor.PageCount * PageSize)
+        {
+            return false;
+        }
+
+        ulong expectedByteLength =
+            descriptor.PageCount * PageSize;
+        return descriptor.ByteLength == expectedByteLength
+            && physicalEndExclusive
+                == physicalStart + expectedByteLength
+            && physicalEndExclusive > physicalStart
+            && (physicalEndExclusive & (PageSize - 1)) == 0;
+    }
+
+    private static bool TryWriteArenaRequirements(
+        OS.Kernel.Boot.X64BootIdentityMappingRequirement*
+            requirementWorkspace,
+        PhysicalAddress candidatePhysicalBase,
+        ulong totalPageCount,
+        out PhysicalAddress rootTable,
+        out PhysicalAddress statePage,
+        out PhysicalAddress arenaEndExclusive,
+        out AddressValueStatus addressStatus)
+    {
+        rootTable = default;
+        statePage = default;
+        arenaEndExclusive = default;
+        addressStatus = AddressValueStatus.Uninitialized;
+        if (requirementWorkspace == null
+            || totalPageCount < RequiredArenaStatePageCount + 1
+            || totalPageCount > MaximumArenaTotalPageCount
+            || totalPageCount
+                > MaximumUnsignedLong / PageSize)
+        {
+            addressStatus = AddressValueStatus.InvalidAddress;
+            return false;
+        }
+
+        ulong totalByteLength = totalPageCount * PageSize;
+        ulong statePageOffset =
+            (totalPageCount - RequiredArenaStatePageCount)
+            * PageSize;
+        addressStatus =
+            candidatePhysicalBase.TryGetEndExclusive(
+                totalByteLength,
+                out arenaEndExclusive);
+        if (addressStatus != AddressValueStatus.Success)
+        {
+            return false;
+        }
+
+        addressStatus =
+            candidatePhysicalBase.TryAdd(
+                statePageOffset,
+                out statePage);
+        if (addressStatus != AddressValueStatus.Success)
+        {
+            return false;
+        }
+
+        addressStatus =
+            candidatePhysicalBase.TryGetEndExclusive(
+                PageSize,
+                out PhysicalAddress rootEndExclusive);
+        if (addressStatus != AddressValueStatus.Success)
+        {
+            return false;
+        }
+
+        rootTable = candidatePhysicalBase;
+        OS.Kernel.Memory.PageProtection readWrite =
+            (OS.Kernel.Memory.PageProtection)(
+                (byte)OS.Kernel.Memory.PageProtection.Read
+                | (byte)OS.Kernel.Memory.PageProtection.Write);
+        requirementWorkspace[4] =
+            new OS.Kernel.Boot.X64BootIdentityMappingRequirement(
+                OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                    .CompleteTableAndStateArena,
+                candidatePhysicalBase,
+                arenaEndExclusive,
+                totalPageCount,
+                totalByteLength,
+                readWrite,
+                OS.Kernel.Memory.PageCachePolicy.WriteBack);
+        requirementWorkspace[5] =
+            new OS.Kernel.Boot.X64BootIdentityMappingRequirement(
+                OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                    .RuntimeStateAndCanaryPage,
+                statePage,
+                arenaEndExclusive,
+                RequiredArenaStatePageCount,
+                PageSize,
+                readWrite,
+                OS.Kernel.Memory.PageCachePolicy.WriteBack);
+        requirementWorkspace[6] =
+            new OS.Kernel.Boot.X64BootIdentityMappingRequirement(
+                OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                    .OwnedRootPage,
+                rootTable,
+                rootEndExclusive,
+                1,
+                PageSize,
+                readWrite,
+                OS.Kernel.Memory.PageCachePolicy.WriteBack);
+        addressStatus = AddressValueStatus.Success;
+        return true;
+    }
+
+    private static M01LivePagingArenaPlanResult ArenaPlanSuccess(
+        ArenaPlanState state)
+    {
+        return ArenaPlanResult(
+            M01LivePagingArenaPlanStatus.Success,
+            state);
+    }
+
+    private static M01LivePagingArenaPlanResult ArenaPlanFailure(
+        M01LivePagingArenaPlanStatus status,
+        ArenaPlanState state)
+    {
+        return ArenaPlanResult(status, state);
+    }
+
+    private static M01LivePagingArenaPlanResult ArenaPlanResult(
+        M01LivePagingArenaPlanStatus status,
+        ArenaPlanState state)
+    {
+        ulong requiredEntryCount =
+            state.TablePageCount
+                <= MaximumUnsignedLong
+                    / OS.Kernel.Memory
+                        .X64PageTableImagePage.EntryCountPerPage
+            ? state.TablePageCount
+                * OS.Kernel.Memory
+                    .X64PageTableImagePage.EntryCountPerPage
+            : 0;
+        return new M01LivePagingArenaPlanResult(
+            status,
+            state.AddressStatus,
+            state.ReservationStatus,
+            state.MappingStatus,
+            state.PageTableEntryStatus,
+            state.PageTablePreconditions,
+            state.AllocationRecord,
+            state.MappingPlan,
+            state.CandidatePhysicalBase,
+            state.RootTable,
+            state.StatePage,
+            state.ArenaEndExclusive,
+            state.IterationCount,
+            state.IterationLimit,
+            state.TablePageCount,
+            RequiredArenaStatePageCount,
+            state.TotalPageCount,
+            state.TableByteLength,
+            state.TotalByteLength,
+            state.AvailablePageCountFromCandidate,
+            RequiredArenaFixedRequirementCount,
+            RequiredArenaRequirementWorkspaceCount,
+            state.RequiredRangeWorkspaceCount,
+            state.TablePageCount,
+            requiredEntryCount,
+            state.BootStackGuardRequirement,
+            state.CodeAndCallGateRequirement,
+            state.OwnedStackRequirement,
+            state.ProtectionProbeRequirement);
+    }
+
+    private static bool IsCanonicalArenaPlan(
+        M01LivePagingArenaPlanResult plan)
+    {
+        if (!plan.Succeeded
+            || plan.RequiredFixedRequirementCount
+                != RequiredArenaFixedRequirementCount
+            || plan.RequiredRequirementWorkspaceCount
+                != RequiredArenaRequirementWorkspaceCount
+            || plan.StatePageCount
+                != RequiredArenaStatePageCount
+            || plan.TablePageCount == 0
+            || plan.TablePageCount
+                > OS.Kernel.Memory.X64PageMap.MaximumPageImages
+            || plan.TotalPageCount
+                < MinimumArenaTotalPageCount
+            || plan.TotalPageCount
+                > MaximumArenaTotalPageCount
+            || plan.TotalPageCount
+                != plan.TablePageCount
+                    + RequiredArenaStatePageCount
+            || plan.IterationCount == 0
+            || plan.IterationCount > plan.IterationLimit
+            || plan.IterationLimit == 0
+            || plan.IterationLimit > MaximumArenaIterationCount
+            || plan.TablePageCount
+                > MaximumUnsignedLong / PageSize
+            || plan.TotalPageCount
+                > MaximumUnsignedLong / PageSize
+            || plan.TableByteLength
+                != plan.TablePageCount * PageSize
+            || plan.TotalByteLength
+                != plan.TotalPageCount * PageSize
+            || plan.TotalByteLength
+                > MaximumArenaTotalByteLength
+            || plan.AvailablePageCountFromCandidate
+                < plan.TotalPageCount
+            || plan.RequiredPageImageCount
+                != plan.TablePageCount
+            || plan.TablePageCount
+                > MaximumUnsignedLong
+                    / OS.Kernel.Memory
+                        .X64PageTableImagePage
+                        .EntryCountPerPage
+            || plan.RequiredPageTableEntryCount
+                != plan.TablePageCount
+                    * OS.Kernel.Memory
+                        .X64PageTableImagePage
+                        .EntryCountPerPage
+            || plan.RequiredPageTableEntryCount
+                > OS.Kernel.Memory.X64PageMap.MaximumEntryCount
+            || plan.MappingPlan.SourceCount
+                != RequiredArenaRequirementWorkspaceCount
+            || plan.MappingPlan.OutputRangeCount
+                != plan.RequiredRangeWorkspaceCount
+            || plan.MappingPlan.TotalTablePageCount
+                != plan.TablePageCount
+            || plan.MappingPlan.TotalTableByteLength
+                != plan.TableByteLength
+            || plan.PageTablePreconditions.Validate()
+                != OS.Kernel.Memory
+                    .X64PageTableEntryStatus.Success)
+        {
+            return false;
+        }
+
+        ulong candidateStart =
+            Raw(plan.CandidatePhysicalBase);
+        ulong rootStart = Raw(plan.RootTable);
+        ulong stateStart = Raw(plan.StatePage);
+        ulong arenaEnd = Raw(plan.ArenaEndExclusive);
+        if (candidateStart == 0
+            || rootStart != candidateStart
+            || candidateStart
+                > MaximumUnsignedLong - plan.TableByteLength
+            || stateStart
+                != candidateStart + plan.TableByteLength
+            || candidateStart
+                > MaximumUnsignedLong - plan.TotalByteLength
+            || arenaEnd
+                != candidateStart + plan.TotalByteLength
+            || arenaEnd
+                > (1UL << plan.PageTablePreconditions
+                    .PhysicalAddressWidth))
+        {
+            return false;
+        }
+
+        BootMemoryRegionRecord expected =
+            new BootMemoryRegionRecord(
+                (uint)UefiMemoryType.LoaderData,
+                candidateStart,
+                candidateStart,
+                plan.TotalPageCount,
+                plan.AllocationRecord.Attribute,
+                plan.TotalByteLength,
+                arenaEnd);
+        return AllocationRecordsEqual(
+            plan.AllocationRecord,
+            expected);
+    }
+
+    private static bool AllocationRecordsEqual(
+        BootMemoryRegionRecord left,
+        BootMemoryRegionRecord right)
+    {
+        return left.UefiType == right.UefiType
+            && left.PhysicalStart == right.PhysicalStart
+            && left.VirtualStart == right.VirtualStart
+            && left.PageCount == right.PageCount
+            && left.Attribute == right.Attribute
+            && left.ByteLength == right.ByteLength
+            && left.PhysicalEndExclusive
+                == right.PhysicalEndExclusive;
+    }
+
+    private static bool TryRederiveArenaMappingPlan(
+        M01LivePagingArenaPlanResult plan,
+        OS.Kernel.Boot.X64BootIdentityMappingRequirement*
+            requirements,
+        OS.Kernel.Boot.X64BootIdentityMappingRange* ranges,
+        out OS.Kernel.Boot.X64BootIdentityMappingPlanResult
+            mappingPlan)
+    {
+        mappingPlan = default;
+        if (requirements == null || ranges == null)
+        {
+            return false;
+        }
+
+        requirements[0] = plan.BootStackGuardRequirement;
+        requirements[1] = plan.CodeAndCallGateRequirement;
+        requirements[2] = plan.OwnedStackRequirement;
+        requirements[3] = plan.ProtectionProbeRequirement;
+        if (!TryWriteArenaRequirements(
+                requirements,
+                plan.CandidatePhysicalBase,
+                plan.TotalPageCount,
+                out PhysicalAddress rootTable,
+                out PhysicalAddress statePage,
+                out PhysicalAddress arenaEndExclusive,
+                out AddressValueStatus addressStatus)
+            || addressStatus != AddressValueStatus.Success
+            || !rootTable.Equals(plan.RootTable)
+            || !statePage.Equals(plan.StatePage)
+            || !arenaEndExclusive.Equals(
+                plan.ArenaEndExclusive))
+        {
+            return false;
+        }
+
+        mappingPlan =
+            OS.Kernel.Boot.X64BootIdentityMappingPlan
+                .CreateLiveInterval(
+                    requirements,
+                    RequiredArenaRequirementWorkspaceCount,
+                    RequiredArenaRequirementWorkspaceCount,
+                    ranges,
+                    RequiredArenaRequirementWorkspaceCount,
+                    OS.Kernel.Memory.X64PageMap
+                        .MaximumPageImages,
+                    plan.PageTablePreconditions);
+        return mappingPlan.Succeeded;
+    }
+
+    private static bool MappingPlansEqual(
+        OS.Kernel.Boot.X64BootIdentityMappingPlanResult left,
+        OS.Kernel.Boot.X64BootIdentityMappingPlanResult right)
+    {
+        return left.IsInitialized == right.IsInitialized
+            && left.Succeeded == right.Succeeded
+            && left.Status == right.Status
+            && left.AddressStatus == right.AddressStatus
+            && left.PageTableEntryStatus
+                == right.PageTableEntryStatus
+            && left.SourceCount == right.SourceCount
+            && left.ValidatedSourceCount
+                == right.ValidatedSourceCount
+            && left.SourceCapacity == right.SourceCapacity
+            && left.DestinationCapacity
+                == right.DestinationCapacity
+            && left.RequiredDestinationCapacity
+                == right.RequiredDestinationCapacity
+            && left.OutputRangeCount == right.OutputRangeCount
+            && left.AvailableTablePageCapacity
+                == right.AvailableTablePageCapacity
+            && left.RequiredPurposeMask
+                == right.RequiredPurposeMask
+            && left.ObservedPurposeMask
+                == right.ObservedPurposeMask
+            && left.MissingPurposeMask
+                == right.MissingPurposeMask
+            && left.InvalidSourceIndex
+                == right.InvalidSourceIndex
+            && left.ConflictingSourceIndex
+                == right.ConflictingSourceIndex
+            && left.GuardSourceIndex == right.GuardSourceIndex
+            && left.UnionPageCount == right.UnionPageCount
+            && left.UnionByteLength == right.UnionByteLength
+            && left.Pml4PageCount == right.Pml4PageCount
+            && left.PdptPageCount == right.PdptPageCount
+            && left.PdPageCount == right.PdPageCount
+            && left.PtPageCount == right.PtPageCount
+            && left.TotalTablePageCount
+                == right.TotalTablePageCount
+            && left.TotalTableByteLength
+                == right.TotalTableByteLength;
+    }
+
+    private static M01LivePagingArenaMaterializationStatus
+        AuditArenaHierarchyPage(
+            OS.Kernel.Memory.X64PageTableImagePage* pageImages,
+            ulong pageImageCount,
+            ulong* pageTableEntries,
+            ulong pageTableEntryCount,
+            OS.Kernel.Memory.X64PageTableEncodingPreconditions
+                preconditions,
+            OS.Kernel.Boot.X64BootIdentityMappingRange*
+                normalizedRanges,
+            ulong normalizedRangeCount,
+            ulong* rangeLeafCounts,
+            ulong pageIndex,
+            OS.Kernel.Memory.X64PageTableLevel level,
+            ulong virtualPrefix,
+            ref ulong visitedMask,
+            ref ArenaMaterializationState state)
+    {
+        if (pageIndex >= pageImageCount
+            || normalizedRanges == null
+            || rangeLeafCounts == null
+            || normalizedRangeCount == 0
+            || normalizedRangeCount
+                > RequiredArenaRequirementWorkspaceCount)
+        {
+            state.InvalidPageOrdinal = pageIndex;
+            return M01LivePagingArenaMaterializationStatus
+                .MissingChildPage;
+        }
+
+        int virtualShift =
+            level
+                == OS.Kernel.Memory.X64PageTableLevel.Pml4e
+            ? 39
+            : level
+                == OS.Kernel.Memory.X64PageTableLevel.Pdpte
+                ? 30
+                : level
+                    == OS.Kernel.Memory.X64PageTableLevel.Pde
+                    ? 21
+                    : 12;
+        ulong entryStart =
+            pageImages[pageIndex].EntryStartIndex;
+        for (ulong ordinal = 0;
+            ordinal
+                < OS.Kernel.Memory.X64PageTableImagePage
+                    .EntryCountPerPage;
+            ordinal++)
+        {
+            ulong entryIndex = entryStart + ordinal;
+            if (entryIndex >= pageTableEntryCount)
+            {
+                state.InvalidPageOrdinal = pageIndex;
+                state.InvalidEntryIndex = entryIndex;
+                state.PageImageStatus =
+                    OS.Kernel.Memory.X64PageMapStatus
+                        .InvalidPageImageRecord;
+                return M01LivePagingArenaMaterializationStatus
+                    .HierarchyMalformed;
+            }
+
+            ulong rawEntry = pageTableEntries[entryIndex];
+            ulong entryVirtualStart =
+                virtualPrefix | (ordinal << virtualShift);
+            OS.Kernel.Memory.X64PageTableEntryResult decoded =
+                OS.Kernel.Memory.X64PageTableEntry.TryDecode(
+                    level,
+                    rawEntry,
+                    preconditions);
+            if (!decoded.Succeeded)
+            {
+                state.InvalidPageOrdinal = pageIndex;
+                state.InvalidEntryIndex = entryIndex;
+                state.ExpectedEntry = rawEntry;
+                state.PageTableEntryStatus = decoded.Status;
+                state.PageImageStatus =
+                    OS.Kernel.Memory.X64PageMapStatus
+                        .MalformedEntry;
+                return M01LivePagingArenaMaterializationStatus
+                    .HierarchyMalformed;
+            }
+
+            if (decoded.Kind
+                == OS.Kernel.Memory.X64PageTableEntryKind.Unmapped)
+            {
+                continue;
+            }
+
+            if (level
+                == OS.Kernel.Memory.X64PageTableLevel.Pte)
+            {
+                if (decoded.Kind
+                    != OS.Kernel.Memory
+                        .X64PageTableEntryKind.Leaf
+                    || decoded.PageSizeBytes != PageSize
+                    || Raw(decoded.PhysicalAddress)
+                        != entryVirtualStart
+                    || !TryMatchArenaSemanticLeaf(
+                        normalizedRanges,
+                        normalizedRangeCount,
+                        entryVirtualStart,
+                        decoded.Protection,
+                        decoded.CachePolicy,
+                        out ulong matchingRangeIndex))
+                {
+                    state.InvalidPageOrdinal = pageIndex;
+                    state.InvalidEntryIndex = entryIndex;
+                    state.ExpectedEntry = rawEntry;
+                    state.PageImageStatus =
+                        OS.Kernel.Memory.X64PageMapStatus
+                            .MalformedEntry;
+                    return M01LivePagingArenaMaterializationStatus
+                        .SemanticMappingMismatch;
+                }
+                OS.Kernel.Memory.X64PageTableEntryResult
+                    strictLeaf =
+                        OS.Kernel.Memory.X64PageTableEntry
+                            .TryEncode(
+                                new OS.Kernel.Memory
+                                    .X64PageTableEntryRequest(
+                                        OS.Kernel.Memory
+                                            .X64PageTableLevel.Pte,
+                                        OS.Kernel.Memory
+                                            .X64PageTableEntryKind.Leaf,
+                                        decoded.PhysicalAddress,
+                                        decoded.Protection,
+                                        decoded.CachePolicy),
+                                preconditions);
+                if (!strictLeaf.Succeeded
+                    || strictLeaf.Entry.RawValue != rawEntry)
+                {
+                    state.InvalidPageOrdinal = pageIndex;
+                    state.InvalidEntryIndex = entryIndex;
+                    state.ExpectedEntry = strictLeaf.Succeeded
+                        ? strictLeaf.Entry.RawValue
+                        : 0;
+                    state.ObservedEntry = rawEntry;
+                    state.PageTableEntryStatus =
+                        strictLeaf.Status;
+                    return M01LivePagingArenaMaterializationStatus
+                        .SemanticMappingMismatch;
+                }
+                rangeLeafCounts[matchingRangeIndex]++;
+                state.MappedLeafCount++;
+                continue;
+            }
+
+            if (decoded.Kind
+                != OS.Kernel.Memory
+                    .X64PageTableEntryKind.TablePointer
+                || decoded.Protection
+                    != OS.Kernel.Memory.PageProtection.None
+                || decoded.CachePolicy
+                    != OS.Kernel.Memory.PageCachePolicy.WriteBack
+                || decoded.PageSizeBytes != 0
+                || decoded.IsLargePage)
+            {
+                state.InvalidPageOrdinal = pageIndex;
+                state.InvalidEntryIndex = entryIndex;
+                state.ExpectedEntry = rawEntry;
+                state.PageImageStatus =
+                    OS.Kernel.Memory.X64PageMapStatus
+                        .LargePageCollision;
+                return M01LivePagingArenaMaterializationStatus
+                    .HierarchyMalformed;
+            }
+
+            OS.Kernel.Memory.X64PageTableEntryResult
+                strictTablePointer =
+                    OS.Kernel.Memory.X64PageTableEntry.TryEncode(
+                        new OS.Kernel.Memory
+                            .X64PageTableEntryRequest(
+                                level,
+                                OS.Kernel.Memory
+                                    .X64PageTableEntryKind
+                                    .TablePointer,
+                                decoded.PhysicalAddress,
+                                OS.Kernel.Memory
+                                    .PageProtection.None,
+                                OS.Kernel.Memory
+                                    .PageCachePolicy.WriteBack),
+                        preconditions);
+            if (!strictTablePointer.Succeeded
+                || strictTablePointer.Entry.RawValue != rawEntry)
+            {
+                state.InvalidPageOrdinal = pageIndex;
+                state.InvalidEntryIndex = entryIndex;
+                state.ExpectedEntry =
+                    strictTablePointer.Succeeded
+                        ? strictTablePointer.Entry.RawValue
+                        : 0;
+                state.ObservedEntry = rawEntry;
+                state.PageTableEntryStatus =
+                    strictTablePointer.Status;
+                return M01LivePagingArenaMaterializationStatus
+                    .SemanticMappingMismatch;
+            }
+
+            ulong childPageIndex = FindPageImage(
+                pageImages,
+                pageImageCount,
+                decoded.PhysicalAddress);
+            if (childPageIndex
+                == M01LivePagingTableBuildResult.NoIndex)
+            {
+                state.InvalidPageOrdinal = pageIndex;
+                state.InvalidEntryIndex = entryIndex;
+                state.ExpectedEntry = rawEntry;
+                state.PageImageStatus =
+                    OS.Kernel.Memory.X64PageMapStatus
+                        .TablePointerTargetMissing;
+                return M01LivePagingArenaMaterializationStatus
+                    .MissingChildPage;
+            }
+
+            ulong childBit = 1UL << (int)childPageIndex;
+            if ((visitedMask & childBit) != 0)
+            {
+                state.InvalidPageOrdinal = childPageIndex;
+                state.InvalidEntryIndex = entryIndex;
+                state.ExpectedEntry = rawEntry;
+                state.PageImageStatus =
+                    OS.Kernel.Memory.X64PageMapStatus
+                        .PageImagePhysicalOverlap;
+                return M01LivePagingArenaMaterializationStatus
+                    .DuplicateChildOrCycle;
+            }
+
+            visitedMask |= childBit;
+            state.ReachablePageCount++;
+            OS.Kernel.Memory.X64PageTableLevel childLevel =
+                level
+                    == OS.Kernel.Memory.X64PageTableLevel.Pml4e
+                ? OS.Kernel.Memory.X64PageTableLevel.Pdpte
+                : level
+                    == OS.Kernel.Memory.X64PageTableLevel.Pdpte
+                    ? OS.Kernel.Memory.X64PageTableLevel.Pde
+                    : OS.Kernel.Memory.X64PageTableLevel.Pte;
+            M01LivePagingArenaMaterializationStatus childStatus =
+                AuditArenaHierarchyPage(
+                    pageImages,
+                    pageImageCount,
+                    pageTableEntries,
+                    pageTableEntryCount,
+                    preconditions,
+                    normalizedRanges,
+                    normalizedRangeCount,
+                    rangeLeafCounts,
+                    childPageIndex,
+                    childLevel,
+                    entryVirtualStart,
+                    ref visitedMask,
+                    ref state);
+            if (childStatus
+                != M01LivePagingArenaMaterializationStatus
+                    .Success)
+            {
+                return childStatus;
+            }
+        }
+
+        return M01LivePagingArenaMaterializationStatus.Success;
+    }
+
+    private static bool TryMatchArenaSemanticLeaf(
+        OS.Kernel.Boot.X64BootIdentityMappingRange*
+            normalizedRanges,
+        ulong normalizedRangeCount,
+        ulong virtualPageStart,
+        OS.Kernel.Memory.PageProtection protection,
+        OS.Kernel.Memory.PageCachePolicy cachePolicy,
+        out ulong matchingRangeIndex)
+    {
+        matchingRangeIndex =
+            M01LivePagingArenaMaterializationResult.NoIndex;
+        for (ulong rangeIndex = 0;
+            rangeIndex < normalizedRangeCount;
+            rangeIndex++)
+        {
+            OS.Kernel.Boot.X64BootIdentityMappingRange range =
+                normalizedRanges[rangeIndex];
+            ulong virtualStart = Raw(range.VirtualStart);
+            ulong virtualEnd = Raw(range.VirtualEndExclusive);
+            ulong physicalStart = Raw(range.PhysicalStart);
+            ulong physicalEnd =
+                Raw(range.PhysicalEndExclusive);
+            if (!range.IsInitialized
+                || virtualStart == 0
+                || virtualStart >= virtualEnd
+                || physicalStart != virtualStart
+                || physicalEnd != virtualEnd
+                || range.ByteLength != virtualEnd - virtualStart
+                || range.PageCount
+                    != range.ByteLength / PageSize
+                || range.ByteLength % PageSize != 0)
+            {
+                return false;
+            }
+
+            if (virtualPageStart < virtualStart
+                || virtualPageStart >= virtualEnd)
+            {
+                continue;
+            }
+
+            if (matchingRangeIndex
+                    != M01LivePagingArenaMaterializationResult
+                        .NoIndex
+                || protection != range.Protection
+                || cachePolicy != range.CachePolicy)
+            {
+                return false;
+            }
+            matchingRangeIndex = rangeIndex;
+        }
+
+        return matchingRangeIndex
+            != M01LivePagingArenaMaterializationResult.NoIndex;
+    }
+
+    private static ulong Fnv1aArenaImage(
+        OS.Kernel.Memory.X64PageTableImagePage* pageImages,
+        ulong pageImageCount,
+        ulong* pageTableEntries,
+        bool useBackingEntries,
+        byte* arenaBacking)
+    {
+        ulong hash = 14695981039346656037UL;
+        hash = Fnv1aAppendUlong(hash, pageImageCount);
+        for (ulong pageIndex = 0;
+            pageIndex < pageImageCount;
+            pageIndex++)
+        {
+            hash = Fnv1aAppendUlong(
+                hash,
+                Raw(pageImages[pageIndex].PhysicalStart));
+            hash = Fnv1aAppendUlong(
+                hash,
+                pageImages[pageIndex].EntryStartIndex);
+            ulong* backingPage =
+                (ulong*)(arenaBacking + pageIndex * PageSize);
+            ulong sourceStart =
+                pageImages[pageIndex].EntryStartIndex;
+            for (ulong entryOrdinal = 0;
+                entryOrdinal
+                    < OS.Kernel.Memory
+                        .X64PageTableImagePage
+                        .EntryCountPerPage;
+                entryOrdinal++)
+            {
+                ulong entry = useBackingEntries
+                    ? backingPage[entryOrdinal]
+                    : pageTableEntries[
+                        sourceStart + entryOrdinal];
+                hash = Fnv1aAppendUlong(hash, entry);
+            }
+        }
+        return hash;
+    }
+
+    private static ulong Fnv1aBytes(
+        byte* bytes,
+        ulong byteCount)
+    {
+        ulong hash = 14695981039346656037UL;
+        for (ulong index = 0; index < byteCount; index++)
+        {
+            hash ^= bytes[index];
+            hash *= 1099511628211UL;
+        }
+        return hash;
+    }
+
+    private static ulong Fnv1aAppendUlong(
+        ulong hash,
+        ulong value)
+    {
+        for (int shift = 0; shift < 64; shift += 8)
+        {
+            hash ^= (byte)(value >> shift);
+            hash *= 1099511628211UL;
+        }
+        return hash;
+    }
+
+    private static M01LivePagingArenaMaterializationResult
+        ArenaMaterializationSuccess(
+            ArenaMaterializationState state)
+    {
+        state.PageTableEntryStatus =
+            OS.Kernel.Memory.X64PageTableEntryStatus.Success;
+        state.PageImageStatus =
+            OS.Kernel.Memory.X64PageMapStatus.Success;
+        return ArenaMaterializationResult(
+            M01LivePagingArenaMaterializationStatus.Success,
+            state);
+    }
+
+    private static M01LivePagingArenaMaterializationResult
+        ArenaMaterializationFailure(
+            M01LivePagingArenaMaterializationStatus status,
+            ArenaMaterializationState state)
+    {
+        return ArenaMaterializationResult(status, state);
+    }
+
+    private static M01LivePagingArenaMaterializationResult
+        ArenaMaterializationResult(
+            M01LivePagingArenaMaterializationStatus status,
+            ArenaMaterializationState state)
+    {
+        return new M01LivePagingArenaMaterializationResult(
+            status,
+            state.PageTableEntryStatus,
+            state.PageImageStatus,
+            state.RootTable,
+            state.TablePageCount,
+            state.VerifiedPageCount,
+            state.EntryCount,
+            state.VerifiedEntryCount,
+            state.InvalidPageOrdinal,
+            state.InvalidEntryIndex,
+            state.ExpectedEntry,
+            state.ObservedEntry,
+            state.SourceFingerprint,
+            state.ObservedFingerprint,
+            state.StateFingerprintBefore,
+            state.StateFingerprintAfter,
+            state.BytesWritten,
+            state.ReachablePageCount,
+            state.MappedLeafCount,
+            state.VerifiedStateByteCount,
+            state.InvalidStateByteIndex);
     }
 
     private static bool TryGetSpanEnd(

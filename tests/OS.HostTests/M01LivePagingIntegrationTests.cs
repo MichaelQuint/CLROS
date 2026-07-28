@@ -15,6 +15,8 @@ internal static unsafe class M01LivePagingIntegrationTests
 {
     private const string IssueTestName = "m01.019";
     private const string PreparationIssueTestName = "m01.029";
+    private const string ArenaIssueTestName = "m01.031";
+    private const string ArenaReadyMarker = "CLROS_M01_031_READY";
     private const int PageSize = (int)BootReservedRange.PageSize;
 
     private enum FixtureMappingProfile : byte
@@ -153,6 +155,1542 @@ internal static unsafe class M01LivePagingIntegrationTests
         Console.WriteLine("CLROS_M01_029_READY");
         Console.WriteLine(
             "TEST_PASS " + PreparationIssueTestName);
+
+        RunArenaContractTests();
+    }
+
+    private static void RunArenaContractTests()
+    {
+        int failures = 0;
+
+        Console.WriteLine("TEST_START " + ArenaIssueTestName);
+
+        Run(
+            "m01.031 stable pod defaults capabilities and api",
+            TestArenaSurfaceAndDefaults,
+            ref failures);
+        Run(
+            "m01.031 fixed point hierarchy and descriptor capacity",
+            TestArenaFixedPointAndCapacity,
+            ref failures);
+        Run(
+            "m01.031 planning rejects malformed candidates and storage",
+            TestArenaPlanningFailures,
+            ref failures);
+        Run(
+            "m01.031 materialization copies exact offsets and reads back",
+            TestArenaMaterializationAndReadback,
+            ref failures);
+        Run(
+            "m01.031 materialization rejects malformed image and aliases",
+            TestArenaMaterializationFailures,
+            ref failures);
+        Run(
+            "m01.031 state page canary and failure atomicity",
+            TestArenaStateAndFailureAtomicity,
+            ref failures);
+        Run(
+            "m01.031 source marker and nostdlib firewalls",
+            TestArenaSourceAndNoStdLibFirewalls,
+            ref failures);
+
+        if (failures != 0)
+        {
+            Console.WriteLine(
+                "TEST_FAIL " + ArenaIssueTestName
+                + " failures="
+                + failures);
+            throw new InvalidOperationException(
+                "M01-031 physical table-arena tests failed: "
+                + failures);
+        }
+
+        Console.WriteLine(ArenaReadyMarker);
+        Console.WriteLine("TEST_PASS " + ArenaIssueTestName);
+    }
+
+    private static bool TestArenaSurfaceAndDefaults()
+    {
+        (string Name, byte Value)[] planStatuses =
+        [
+            ("Uninitialized", 0),
+            ("Success", 1),
+            ("ContractLayoutMismatch", 2),
+            ("InvalidFixedRequirementCount", 3),
+            ("InvalidFixedRequirementCapacity", 4),
+            ("MissingFixedRequirements", 5),
+            ("MisalignedFixedRequirements", 6),
+            ("FixedRequirementSpanOverflow", 7),
+            ("InvalidFixedRequirementSet", 8),
+            ("InvalidDescriptor", 9),
+            ("InvalidCandidate", 10),
+            ("InvalidPreconditions", 11),
+            ("InvalidIterationLimit", 12),
+            ("InvalidReservationStorage", 13),
+            ("ReservationValidationFailed", 14),
+            ("InvalidRequirementWorkspace", 15),
+            ("InvalidRangeWorkspace", 16),
+            ("WorkspaceOverlap", 17),
+            ("RequirementConstructionFailed", 18),
+            ("IdentityPlanRejected", 19),
+            ("RangeWorkspaceTooSmall", 20),
+            ("TableCapacityExceeded", 21),
+            ("NonMonotonicIteration", 22),
+            ("IterationLimitReached", 23),
+            ("TablePageCountOverflow", 24),
+            ("ArenaGeometryOverflow", 25),
+            ("PhysicalWidthExceeded", 26),
+            ("DescriptorCapacityTooSmall", 27),
+            ("ReservationOverlap", 28),
+            ("CapacityExceedsLimit", 29)
+        ];
+        (string Name, byte Value)[] byteModes =
+        [
+            ("Uninitialized", 0),
+            ("EmitAndVerify", 1),
+            ("VerifyExisting", 2)
+        ];
+        (string Name, byte Value)[] materializationStatuses =
+        [
+            ("Uninitialized", 0),
+            ("Success", 1),
+            ("ContractLayoutMismatch", 2),
+            ("InvalidByteMode", 3),
+            ("InvalidPlan", 4),
+            ("AllocationRecordMismatch", 5),
+            ("InvalidPageImageCount", 6),
+            ("PageImageCapacityTooSmall", 7),
+            ("PageImageCapacityExceedsLimit", 8),
+            ("MissingPageImages", 9),
+            ("MisalignedPageImages", 10),
+            ("PageImageSpanOverflow", 11),
+            ("InvalidEntryCount", 12),
+            ("EntryCountMismatch", 13),
+            ("EntryCapacityTooSmall", 14),
+            ("EntryCapacityExceedsLimit", 15),
+            ("MissingEntries", 16),
+            ("MisalignedEntries", 17),
+            ("EntrySpanOverflow", 18),
+            ("MissingArenaBacking", 19),
+            ("InvalidArenaByteCount", 20),
+            ("ArenaCapacityTooSmall", 21),
+            ("ArenaCapacityExceedsLimit", 22),
+            ("MisalignedArenaBacking", 23),
+            ("ArenaBackingSpanOverflow", 24),
+            ("StorageOverlap", 25),
+            ("PageImageMalformed", 26),
+            ("PageImageOrderInvalid", 27),
+            ("PageImageOutsideTableArena", 28),
+            ("PageImageTargetsStatePage", 29),
+            ("HierarchyMalformed", 30),
+            ("MissingChildPage", 31),
+            ("DuplicateChildOrCycle", 32),
+            ("UnreachablePageImage", 33),
+            ("LeafCountMismatch", 34),
+            ("EntryMismatch", 35),
+            ("StatePageChanged", 36),
+            ("SemanticMappingMismatch", 37),
+            ("MissingStateSnapshot", 38),
+            ("InvalidStateSnapshotByteCount", 39),
+            ("StateSnapshotCapacityTooSmall", 40),
+            ("StateSnapshotCapacityExceedsLimit", 41),
+            ("MisalignedStateSnapshot", 42),
+            ("StateSnapshotSpanOverflow", 43),
+            ("StateSnapshotStorageOverlap", 44)
+        ];
+
+        M01LivePagingArenaPlanResult defaultPlan = default;
+        M01LivePagingArenaMaterializationResult defaultMaterialization =
+            default;
+        MethodInfo[] publicMethods =
+            typeof(M01LivePagingIntegration).GetMethods(
+                BindingFlags.Public | BindingFlags.Static);
+
+        return EnumContractMatches<M01LivePagingArenaPlanStatus>(
+                planStatuses)
+            && EnumContractMatches<M01LivePagingArenaByteMode>(
+                byteModes)
+            && EnumContractMatches<
+                M01LivePagingArenaMaterializationStatus>(
+                    materializationStatuses)
+            && (ulong)sizeof(M01LivePagingArenaPlanResult)
+                == M01LivePagingArenaPlanResult.StructureSize
+            && (ulong)sizeof(
+                    M01LivePagingArenaMaterializationResult)
+                == M01LivePagingArenaMaterializationResult
+                    .StructureSize
+            && M01LivePagingArenaPlanResult.CurrentVersion == 1
+            && M01LivePagingArenaMaterializationResult
+                .CurrentVersion == 1
+            && !defaultPlan.IsInitialized
+            && !defaultPlan.Succeeded
+            && defaultPlan.Status
+                == M01LivePagingArenaPlanStatus.Uninitialized
+            && !defaultMaterialization.IsInitialized
+            && !defaultMaterialization.Succeeded
+            && defaultMaterialization.Status
+                == M01LivePagingArenaMaterializationStatus
+                    .Uninitialized
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<
+                M01LivePagingArenaPlanResult>()
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<
+                M01LivePagingArenaMaterializationResult>()
+            && M01LivePagingIntegration
+                .RequiredArenaFixedRequirementCount == 4
+            && M01LivePagingIntegration
+                .RequiredArenaRequirementWorkspaceCount == 7
+            && M01LivePagingIntegration
+                .RequiredArenaStatePageCount == 1
+            && M01LivePagingIntegration
+                .RequiredArenaStateSnapshotByteCount
+                    == BootReservedRange.PageSize
+            && M01LivePagingIntegration
+                .MinimumArenaTotalPageCount == 5
+            && M01LivePagingIntegration
+                .MaximumArenaIterationCount == 65
+            && M01LivePagingIntegration
+                .MaximumArenaTotalPageCount == 65
+            && M01LivePagingIntegration
+                .MaximumArenaTotalByteLength
+                    == 65 * BootReservedRange.PageSize
+            && !M01LivePagingIntegration.ArenaPlannerInvokesFirmware
+            && !M01LivePagingIntegration
+                .ArenaMaterializerInvokesFirmware
+            && !M01LivePagingIntegration
+                .ArenaMaterializerAllocatesFirmwarePages
+            && !M01LivePagingIntegration.ArenaMaterializerLoadsCr3
+            && !M01LivePagingIntegration
+                .ArenaMaterializerChangesPageProtection
+            && !M01LivePagingIntegration
+                .ArenaMaterializerExecutesGeneratedCode
+            && !M01LivePagingIntegration
+                .ArenaMaterializerIsGuestEvidence
+            && M01LivePagingIntegration
+                .ArenaMaterializerRequiresStateSnapshot
+            && M01LivePagingIntegration
+                .ArenaMaterializerUsesExactStateComparison
+            && publicMethods.Count(
+                method => method.Name
+                    == nameof(
+                        M01LivePagingIntegration
+                            .PlanOwnedTableArena)) == 1
+            && publicMethods.Count(
+                method => method.Name
+                    == nameof(
+                        M01LivePagingIntegration
+                            .MaterializeOwnedTableArena)) == 1;
+    }
+
+    private static bool TestArenaFixedPointAndCapacity()
+    {
+        using ArenaFixture fixture = new();
+
+        M01LivePagingArenaPlanResult canonical = fixture.Plan();
+        if (!canonical.Succeeded)
+        {
+            return ArenaDiagnostic(
+                "canonical planning failed status="
+                    + canonical.Status);
+        }
+
+        ulong candidate = fixture.Candidate;
+        bool passed =
+            canonical.CandidatePhysicalBase.Equals(
+                Physical(candidate))
+            && canonical.RootTable.Equals(Physical(candidate))
+            && canonical.TablePageCount
+                == canonical.MappingPlan.TotalTablePageCount
+            && canonical.TotalPageCount
+                == canonical.TablePageCount + 1
+            && canonical.TableByteLength
+                == canonical.TablePageCount
+                    * BootReservedRange.PageSize
+            && canonical.TotalByteLength
+                == canonical.TotalPageCount
+                    * BootReservedRange.PageSize
+            && Raw(canonical.StatePage)
+                == candidate + canonical.TableByteLength
+            && Raw(canonical.ArenaEndExclusive)
+                == candidate + canonical.TotalByteLength
+            && canonical.AllocationRecord.UefiType
+                == (uint)UefiMemoryType.LoaderData
+            && canonical.AllocationRecord.PhysicalStart == candidate
+            && canonical.AllocationRecord.PageCount
+                == canonical.TotalPageCount
+            && canonical.AllocationRecord.ByteLength
+                == canonical.TotalByteLength
+            && canonical.RequiredFixedRequirementCount == 4
+            && canonical.RequiredRequirementWorkspaceCount == 7
+            && canonical.RequiredRangeWorkspaceCount
+                == canonical.MappingPlan.OutputRangeCount
+            && canonical.RequiredPageImageCount
+                == canonical.TablePageCount
+            && canonical.RequiredPageTableEntryCount
+                == canonical.TablePageCount
+                    * X64PageTableImagePage.EntryCountPerPage
+            && ArenaRequirementEquals(
+                canonical.BootStackGuardRequirement,
+                fixture.FixedRequirements[0])
+            && ArenaRequirementEquals(
+                canonical.CodeAndCallGateRequirement,
+                fixture.FixedRequirements[1])
+            && ArenaRequirementEquals(
+                canonical.OwnedStackRequirement,
+                fixture.FixedRequirements[2])
+            && ArenaRequirementEquals(
+                canonical.ProtectionProbeRequirement,
+                fixture.FixedRequirements[3])
+            && canonical.MappingPlan.SourceCount == 7
+            && canonical.MappingPlan.ValidatedSourceCount == 7
+            && canonical.MappingPlan.SourceCapacity == 7
+            && canonical.MappingPlan.DestinationCapacity == 7
+            && canonical.MappingPlan.AvailableTablePageCapacity
+                == X64PageMap.MaximumPageImages
+            && canonical.MappingPlan.MissingPurposeMask == 0
+            && canonical.MappingPlan.InvalidSourceIndex
+                == X64BootIdentityMappingPlanResult.NoIndex
+            && canonical.MappingPlan.ConflictingSourceIndex
+                == X64BootIdentityMappingPlanResult.NoIndex
+            && canonical.MappingPlan.UnionByteLength
+                == canonical.MappingPlan.UnionPageCount
+                    * BootReservedRange.PageSize
+            && canonical.MappingPlan.TotalTablePageCount
+                == canonical.MappingPlan.Pml4PageCount
+                    + canonical.MappingPlan.PdptPageCount
+                    + canonical.MappingPlan.PdPageCount
+                    + canonical.MappingPlan.PtPageCount
+            && canonical.IterationCount >= 1
+            && canonical.IterationCount
+                <= canonical.IterationLimit;
+
+        ulong exactPages = canonical.TotalPageCount;
+        M01LivePagingArenaPlanResult below =
+            fixture.Plan(descriptorPages: exactPages - 1);
+        M01LivePagingArenaPlanResult exact =
+            fixture.Plan(descriptorPages: exactPages);
+        M01LivePagingArenaPlanResult above =
+            fixture.Plan(descriptorPages: exactPages + 8);
+        passed &=
+            below.Status
+                == M01LivePagingArenaPlanStatus
+                    .DescriptorCapacityTooSmall
+            && !below.Succeeded
+            && exact.Succeeded
+            && above.Succeeded
+            && exact.TotalPageCount == exactPages
+            && above.TotalPageCount == exactPages
+            && exact.AllocationRecord.PageCount == exactPages
+            && above.AllocationRecord.PageCount == exactPages
+            && fixture.Plan(
+                    descriptorPages: exactPages + 8,
+                    descriptorAttribute:
+                        0x8000_0000_0000_0001UL)
+                .Succeeded;
+
+        (
+            ulong Candidate,
+            ulong TablePages,
+            ulong TotalPages,
+            ulong Iterations)[] boundaryVectors =
+        [
+            (0x0101_0000UL, 4, 5, 1),
+            (0x001f_f000UL, 5, 6, 2),
+            (0x3fff_f000UL, 6, 7, 2),
+            (0x0000_007f_ffff_f000UL, 7, 8, 2)
+        ];
+        foreach (var vector in boundaryVectors)
+        {
+            using ArenaFixture boundaryFixture = new();
+            boundaryFixture.UseRelocatedFixedRequirements(
+                vector.Candidate);
+            M01LivePagingArenaPlanResult boundary =
+                boundaryFixture.Plan(
+                    candidate: vector.Candidate,
+                    descriptorStart: vector.Candidate,
+                    descriptorPages:
+                        M01LivePagingIntegration
+                            .MaximumArenaTotalPageCount);
+            passed &= boundary.Succeeded
+                && boundary.TablePageCount == vector.TablePages
+                && boundary.TotalPageCount == vector.TotalPages
+                && boundary.IterationCount == vector.Iterations
+                && Raw(boundary.RootTable) == vector.Candidate
+                && Raw(boundary.StatePage)
+                    == vector.Candidate
+                        + boundary.TableByteLength;
+            if (!boundary.Succeeded)
+            {
+                ArenaDiagnostic(
+                    "boundary planning failed candidate=0x"
+                        + vector.Candidate.ToString("x")
+                        + " status="
+                        + boundary.Status);
+            }
+            else if (boundary.TablePageCount
+                    != vector.TablePages
+                || boundary.TotalPageCount
+                    != vector.TotalPages
+                || boundary.IterationCount
+                    != vector.Iterations)
+            {
+                ArenaDiagnostic(
+                    "boundary geometry candidate=0x"
+                        + vector.Candidate.ToString("x")
+                        + " expected="
+                        + vector.TablePages
+                        + "/"
+                        + vector.TotalPages
+                        + "/"
+                        + vector.Iterations
+                        + " actual="
+                        + boundary.TablePageCount
+                        + "/"
+                        + boundary.TotalPageCount
+                        + "/"
+                        + boundary.IterationCount);
+            }
+        }
+
+        return passed;
+    }
+
+    private static bool TestArenaPlanningFailures()
+    {
+        using ArenaFixture fixture = new();
+        M01LivePagingArenaPlanResult valid = fixture.Plan();
+        if (!valid.Succeeded)
+            return ArenaDiagnostic("planning negative setup failed");
+
+        ulong page = BootReservedRange.PageSize;
+        ulong wrappedDescriptorStart = ~0UL - page + 1;
+        bool passed = true;
+        passed &= ExpectArenaPlanStatus(
+            "default candidate",
+            fixture.Plan(
+                candidateAddress: default,
+                useCandidateAddress: true),
+            M01LivePagingArenaPlanStatus.InvalidCandidate);
+        passed &= ExpectArenaPlanStatus(
+            "unaligned candidate",
+            fixture.Plan(
+                candidate: fixture.Candidate + 1,
+                descriptorStart: fixture.Candidate,
+                descriptorPages: 32),
+            M01LivePagingArenaPlanStatus.InvalidCandidate);
+        passed &= ExpectArenaPlanStatus(
+            "candidate outside descriptor",
+            fixture.Plan(
+                candidate: fixture.Candidate
+                    + 33 * BootReservedRange.PageSize,
+                descriptorStart: fixture.Candidate,
+                descriptorPages: 32),
+            M01LivePagingArenaPlanStatus.InvalidCandidate);
+        passed &= ExpectArenaPlanStatus(
+            "zero-page descriptor",
+            fixture.Plan(descriptorPages: 0),
+            M01LivePagingArenaPlanStatus.InvalidDescriptor);
+        passed &= ExpectArenaPlanStatus(
+            "unaligned descriptor",
+            fixture.Plan(
+                descriptorStart: fixture.Candidate + 1,
+                descriptorPages: 1),
+            M01LivePagingArenaPlanStatus.InvalidDescriptor);
+        passed &= ExpectArenaPlanStatus(
+            "wrapped descriptor",
+            fixture.Plan(
+                descriptorStart: wrappedDescriptorStart,
+                descriptorPages: 2),
+            M01LivePagingArenaPlanStatus.InvalidDescriptor);
+        passed &= ExpectArenaPlanStatus(
+            "zero iteration limit",
+            fixture.Plan(iterationLimit: 0),
+            M01LivePagingArenaPlanStatus.InvalidIterationLimit);
+        passed &= ExpectArenaPlanStatus(
+            "iteration limit above maximum",
+            fixture.Plan(
+                iterationLimit:
+                    M01LivePagingIntegration
+                        .MaximumArenaIterationCount + 1),
+            M01LivePagingArenaPlanStatus.InvalidIterationLimit);
+
+        passed &= ExpectArenaPlanStatus(
+            "fixed requirement count",
+            fixture.PlanWithStorage(
+                fixedCount: 3,
+                fixedCapacity: 4),
+            M01LivePagingArenaPlanStatus
+                .InvalidFixedRequirementCount);
+        passed &= ExpectArenaPlanStatus(
+            "fixed requirement capacity",
+            fixture.PlanWithStorage(
+                fixedCount: 4,
+                fixedCapacity: 3),
+            M01LivePagingArenaPlanStatus
+                .InvalidFixedRequirementCapacity);
+        passed &= ExpectArenaPlanStatus(
+            "missing fixed requirements",
+            fixture.PlanWithStorage(missingFixed: true),
+            M01LivePagingArenaPlanStatus.MissingFixedRequirements);
+        passed &= ExpectArenaPlanStatus(
+            "misaligned fixed requirements",
+            fixture.PlanWithStorage(misalignFixed: true),
+            M01LivePagingArenaPlanStatus
+                .MisalignedFixedRequirements);
+        passed &= ExpectArenaPlanStatus(
+            "zero reservation count",
+            fixture.PlanWithStorage(reservationCount: 0),
+            M01LivePagingArenaPlanStatus
+                .InvalidReservationStorage);
+        passed &= ExpectArenaPlanStatus(
+            "reservation capacity below count",
+            fixture.PlanWithStorage(
+                reservationCapacity:
+                    (ulong)fixture.Reservations.Length - 1),
+            M01LivePagingArenaPlanStatus
+                .InvalidReservationStorage);
+        passed &= ExpectArenaPlanStatus(
+            "missing reservations",
+            fixture.PlanWithStorage(missingReservations: true),
+            M01LivePagingArenaPlanStatus
+                .InvalidReservationStorage);
+        passed &= ExpectArenaPlanStatus(
+            "misaligned reservations",
+            fixture.PlanWithStorage(misalignReservations: true),
+            M01LivePagingArenaPlanStatus
+                .InvalidReservationStorage);
+        passed &= ExpectArenaPlanStatus(
+            "missing requirement workspace",
+            fixture.PlanWithStorage(missingRequirements: true),
+            M01LivePagingArenaPlanStatus
+                .InvalidRequirementWorkspace);
+        passed &= ExpectArenaPlanStatus(
+            "misaligned requirement workspace",
+            fixture.PlanWithStorage(misalignRequirements: true),
+            M01LivePagingArenaPlanStatus
+                .InvalidRequirementWorkspace);
+        passed &= ExpectArenaPlanStatus(
+            "requirement workspace below minimum",
+            fixture.PlanWithStorage(
+                requirementCapacity:
+                    M01LivePagingIntegration
+                        .RequiredArenaRequirementWorkspaceCount - 1),
+            M01LivePagingArenaPlanStatus
+                .InvalidRequirementWorkspace);
+        passed &= ExpectArenaPlanStatus(
+            "missing range workspace",
+            fixture.PlanWithStorage(missingRanges: true),
+            M01LivePagingArenaPlanStatus.InvalidRangeWorkspace);
+        passed &= ExpectArenaPlanStatus(
+            "misaligned range workspace",
+            fixture.PlanWithStorage(misalignRanges: true),
+            M01LivePagingArenaPlanStatus.InvalidRangeWorkspace);
+        passed &= ExpectArenaPlanStatus(
+            "zero range capacity",
+            fixture.PlanWithStorage(rangeCapacity: 0),
+            M01LivePagingArenaPlanStatus.InvalidRangeWorkspace);
+        passed &= ExpectArenaPlanStatus(
+            "range capacity below minimum",
+            fixture.PlanWithStorage(rangeCapacity: 1),
+            M01LivePagingArenaPlanStatus.InvalidRangeWorkspace);
+        passed &= ExpectArenaPlanStatus(
+            "aliased requirement and range workspaces",
+            fixture.PlanWithStorage(aliasWorkspaces: true),
+            M01LivePagingArenaPlanStatus.WorkspaceOverlap);
+        passed &= ExpectArenaPlanStatus(
+            "fixed capacity above maximum",
+            fixture.PlanWithStorage(
+                fixedCapacity:
+                    X64BootIdentityMappingPlan.MaximumSourceCount + 1),
+            M01LivePagingArenaPlanStatus.CapacityExceedsLimit);
+        passed &= ExpectArenaPlanStatus(
+            "reservation capacity above maximum",
+            fixture.PlanWithStorage(
+                reservationCapacity:
+                    BootReservationTableValidator
+                        .MaximumReservationCount + 1),
+            M01LivePagingArenaPlanStatus.CapacityExceedsLimit);
+        passed &= ExpectArenaPlanStatus(
+            "requirement capacity above maximum",
+            fixture.PlanWithStorage(
+                requirementCapacity:
+                    X64BootIdentityMappingPlan.MaximumSourceCount + 1),
+            M01LivePagingArenaPlanStatus.CapacityExceedsLimit);
+        passed &= ExpectArenaPlanStatus(
+            "range capacity above maximum",
+            fixture.PlanWithStorage(
+                rangeCapacity:
+                    X64BootIdentityMappingPlan
+                        .MaximumDestinationCount + 1),
+            M01LivePagingArenaPlanStatus.CapacityExceedsLimit);
+
+        BootReservedRange[] overlapping =
+            fixture.CreateReservationsWithCandidateOverlap();
+        passed &= ExpectArenaPlanStatus(
+            "candidate reservation overlap",
+            fixture.Plan(reservations: overlapping),
+            M01LivePagingArenaPlanStatus.ReservationOverlap);
+
+        X64BootIdentityMappingRequirement[] fixedBefore =
+            (X64BootIdentityMappingRequirement[])
+                fixture.FixedRequirements.Clone();
+        fixture.FixedRequirements[0] = default;
+        passed &= ExpectArenaPlanStatus(
+            "default fixed requirement",
+            fixture.Plan(),
+            M01LivePagingArenaPlanStatus.InvalidFixedRequirementSet);
+        fixedBefore.CopyTo(fixture.FixedRequirements, 0);
+        fixture.FixedRequirements[0] =
+            fixture.FixedRequirements[1];
+        passed &= ExpectArenaPlanStatus(
+            "duplicate fixed purpose",
+            fixture.Plan(),
+            M01LivePagingArenaPlanStatus.InvalidFixedRequirementSet);
+        fixedBefore.CopyTo(fixture.FixedRequirements, 0);
+
+        BootReservedRange[] unsorted =
+            (BootReservedRange[])fixture.Reservations.Clone();
+        (unsorted[0], unsorted[^1]) =
+            (unsorted[^1], unsorted[0]);
+        passed &= ExpectArenaPlanStatus(
+            "unsorted reservation ledger",
+            fixture.Plan(reservations: unsorted),
+            M01LivePagingArenaPlanStatus
+                .ReservationValidationFailed);
+
+        ulong fourLevelNonCanonicalBoundary =
+            1UL << fixture.PhysicalAddressWidth;
+        fixture.UseRelocatedFixedRequirements(
+            fourLevelNonCanonicalBoundary - 4 * page);
+        M01LivePagingArenaPlanResult nonCanonicalIdentity =
+            fixture.Plan(
+                candidate:
+                    fourLevelNonCanonicalBoundary - 4 * page,
+                descriptorStart:
+                    fourLevelNonCanonicalBoundary - 4 * page,
+                descriptorPages:
+                    M01LivePagingIntegration
+                        .MaximumArenaTotalPageCount);
+        passed &= ExpectArenaPlanStatus(
+            "width-48 noncanonical identity range",
+            nonCanonicalIdentity,
+            M01LivePagingArenaPlanStatus.IdentityPlanRejected,
+            X64BootIdentityMappingStatus
+                .NonCanonicalIdentityRange,
+            AddressValueStatus.InvalidAddress);
+
+        const byte narrowPhysicalAddressWidth = 36;
+        ulong narrowPhysicalLimit =
+            1UL << narrowPhysicalAddressWidth;
+        X64PageTableEncodingPreconditions narrowPreconditions =
+            X64PageTableEncodingPreconditions.CreateObserved(
+                narrowPhysicalAddressWidth,
+                fixture.Preconditions.NxeEnabled,
+                fixture.Preconditions.WriteProtectEnabled,
+                fixture.Preconditions.FiveLevelPagingEnabled,
+                fixture.Preconditions.OneGiBPagesSupported,
+                fixture.Preconditions.PatMapping);
+        fixture.UseRelocatedFixedRequirements(
+            narrowPhysicalLimit - 4 * page);
+        M01LivePagingArenaPlanResult beyondWidth =
+            fixture.Plan(
+                candidate: narrowPhysicalLimit - 4 * page,
+                descriptorStart: narrowPhysicalLimit - 4 * page,
+                descriptorPages:
+                    M01LivePagingIntegration
+                        .MaximumArenaTotalPageCount,
+                preconditions: narrowPreconditions);
+        passed &= ExpectArenaPlanStatus(
+            "physical-width overflow",
+            beyondWidth,
+            M01LivePagingArenaPlanStatus.PhysicalWidthExceeded);
+
+        fixture.UseRelocatedFixedRequirements(0x001f_f000UL);
+        M01LivePagingArenaPlanResult failure =
+            fixture.Plan(
+                candidate: 0x001f_f000UL,
+                descriptorStart: 0x001f_f000UL,
+                descriptorPages:
+                    M01LivePagingIntegration
+                        .MaximumArenaTotalPageCount,
+                iterationLimit: 1);
+        passed &= ExpectArenaPlanStatus(
+            "fixed-point iteration exhaustion",
+            failure,
+            M01LivePagingArenaPlanStatus.IterationLimitReached);
+        return passed;
+    }
+
+    private static bool TestArenaMaterializationAndReadback()
+    {
+        using ArenaFixture fixture = new();
+        M01LivePagingArenaPlanResult plan = fixture.Plan();
+        M01LivePagingPreparationResult preparation =
+            fixture.Prepare();
+        if (!plan.Succeeded
+            || !preparation.Succeeded
+            || plan.TablePageCount
+                != preparation.State.TablePageCount)
+        {
+            return ArenaDiagnostic(
+                "materialization setup failed plan="
+                    + plan.Status
+                    + " preparation="
+                    + preparation.Status);
+        }
+
+        byte[] stateBefore =
+            CopyBytes(fixture.StateBacking(plan), PageSize);
+        Clear(fixture.ArenaBacking, plan.TableByteLength);
+        byte* capacityTail =
+            fixture.ArenaBacking + plan.TotalByteLength;
+        for (int index = 0; index < PageSize; index++)
+            capacityTail[index] = (byte)(0x6d ^ index);
+        byte[] capacityTailBefore =
+            CopyBytes(capacityTail, PageSize);
+        byte[] pageSourcesBefore =
+            CopyUnmanagedArray(fixture.PageImages);
+        byte[] entrySourcesBefore =
+            CopyUnmanagedArray(fixture.Entries);
+        M01LivePagingArenaMaterializationResult emitted =
+            fixture.MaterializeRaw(
+                plan,
+                M01LivePagingArenaByteMode.EmitAndVerify,
+                arenaCapacity:
+                    plan.TotalByteLength
+                        + BootReservedRange.PageSize);
+        bool passed =
+            (ulong)fixture.ArenaBacking
+                != Raw(plan.CandidatePhysicalBase)
+            && emitted.Succeeded
+            && emitted.RootTable.Equals(plan.RootTable)
+            && emitted.TablePageCount == plan.TablePageCount
+            && emitted.VerifiedPageCount == plan.TablePageCount
+            && emitted.EntryCount
+                == plan.RequiredPageTableEntryCount
+            && emitted.VerifiedEntryCount == emitted.EntryCount
+            && emitted.InvalidPageOrdinal
+                == M01LivePagingArenaMaterializationResult.NoIndex
+            && emitted.InvalidEntryIndex
+                == M01LivePagingArenaMaterializationResult.NoIndex
+            && emitted.SourceFingerprint
+                == emitted.ObservedFingerprint
+            && emitted.StateFingerprintBefore
+                == emitted.StateFingerprintAfter
+            && emitted.BytesWritten == plan.TableByteLength
+            && emitted.ReachablePageCount == plan.TablePageCount
+            && emitted.MappedLeafCount
+                == preparation.State.MappedPageCount
+            && emitted.VerifiedStateByteCount
+                == M01LivePagingIntegration
+                    .RequiredArenaStateSnapshotByteCount
+            && emitted.InvalidStateByteIndex
+                == M01LivePagingArenaMaterializationResult.NoIndex
+            && BytesEqual(stateBefore, fixture.StateBacking(plan))
+            && BytesEqual(stateBefore, fixture.StateSnapshot)
+            && BytesEqual(capacityTailBefore, capacityTail)
+            && BytesEqual(pageSourcesBefore, fixture.PageImages)
+            && BytesEqual(entrySourcesBefore, fixture.Entries)
+            && fixture.MaterializedPagesMatch(plan);
+
+        M01LivePagingArenaMaterializationResult verified =
+            fixture.Materialize(
+                plan,
+                M01LivePagingArenaByteMode.VerifyExisting);
+        passed &=
+            verified.Succeeded
+            && verified.BytesWritten == 0
+            && verified.SourceFingerprint
+                == verified.ObservedFingerprint
+            && verified.StateFingerprintBefore
+                == verified.StateFingerprintAfter
+            && verified.VerifiedStateByteCount
+                == M01LivePagingIntegration
+                    .RequiredArenaStateSnapshotByteCount
+            && verified.InvalidStateByteIndex
+                == M01LivePagingArenaMaterializationResult.NoIndex
+            && BytesEqual(stateBefore, fixture.StateSnapshot)
+            && BytesEqual(stateBefore, fixture.StateBacking(plan));
+
+        ulong original = *(ulong*)fixture.ArenaBacking;
+        *(ulong*)fixture.ArenaBacking = original ^ 1UL;
+        M01LivePagingArenaMaterializationResult corrupt =
+            fixture.Materialize(
+                plan,
+                M01LivePagingArenaByteMode.VerifyExisting);
+        passed &=
+            corrupt.Status
+                == M01LivePagingArenaMaterializationStatus.EntryMismatch
+            && !corrupt.Succeeded
+            && corrupt.InvalidPageOrdinal == 0
+            && corrupt.InvalidEntryIndex == 0
+            && corrupt.ExpectedEntry == original
+            && corrupt.ObservedEntry == (original ^ 1UL)
+            && corrupt.BytesWritten == 0
+            && BytesEqual(stateBefore, fixture.StateBacking(plan));
+
+        *(ulong*)fixture.ArenaBacking = original;
+        M01LivePagingArenaMaterializationResult restored =
+            fixture.Materialize(
+                plan,
+                M01LivePagingArenaByteMode.EmitAndVerify);
+        ulong lastEntryIndex =
+            plan.RequiredPageTableEntryCount - 1;
+        ulong* flattenedArena = (ulong*)fixture.ArenaBacking;
+        ulong lastOriginal = flattenedArena[lastEntryIndex];
+        flattenedArena[lastEntryIndex] = lastOriginal ^ 1UL;
+        M01LivePagingArenaMaterializationResult lastCorrupt =
+            fixture.Materialize(
+                plan,
+                M01LivePagingArenaByteMode.VerifyExisting);
+        passed &= restored.Succeeded
+            && lastCorrupt.Status
+                == M01LivePagingArenaMaterializationStatus.EntryMismatch
+            && lastCorrupt.InvalidPageOrdinal
+                == plan.TablePageCount - 1
+            && lastCorrupt.InvalidEntryIndex == lastEntryIndex
+            && lastCorrupt.ExpectedEntry == lastOriginal
+            && lastCorrupt.ObservedEntry == (lastOriginal ^ 1UL)
+            && lastCorrupt.BytesWritten == 0
+            && BytesEqual(stateBefore, fixture.StateBacking(plan));
+
+        return passed;
+    }
+
+    private static bool TestArenaMaterializationFailures()
+    {
+        using ArenaFixture fixture = new();
+        M01LivePagingArenaPlanResult plan = fixture.Plan();
+        M01LivePagingPreparationResult preparation =
+            fixture.Prepare();
+        if (!plan.Succeeded || !preparation.Succeeded)
+            return ArenaDiagnostic("materialization negatives setup failed");
+
+        bool passed =
+            fixture.Materialize(
+                    default,
+                    M01LivePagingArenaByteMode.EmitAndVerify).Status
+                == M01LivePagingArenaMaterializationStatus.InvalidPlan
+            && fixture.Materialize(
+                    plan,
+                    M01LivePagingArenaByteMode.Uninitialized).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .InvalidByteMode
+            && fixture.Materialize(
+                    plan,
+                    M01LivePagingArenaByteMode.EmitAndVerify,
+                    allocationRecord: WithRecord(
+                        plan.AllocationRecord,
+                        uefiType: (uint)UefiMemoryType.LoaderCode))
+                .Status
+                == M01LivePagingArenaMaterializationStatus
+                    .AllocationRecordMismatch
+            && fixture.Materialize(
+                    plan,
+                    M01LivePagingArenaByteMode.EmitAndVerify,
+                    allocationRecord: WithRecord(
+                        plan.AllocationRecord,
+                        attribute:
+                            plan.AllocationRecord.Attribute ^ 1UL))
+                .Status
+                == M01LivePagingArenaMaterializationStatus
+                    .AllocationRecordMismatch
+            && fixture.Materialize(
+                    plan,
+                    M01LivePagingArenaByteMode.EmitAndVerify,
+                    allocationRecord: WithRecord(
+                        plan.AllocationRecord,
+                        pageCount:
+                            plan.AllocationRecord.PageCount - 1))
+                .Status
+                == M01LivePagingArenaMaterializationStatus
+                    .AllocationRecordMismatch
+            && fixture.Materialize(
+                    plan,
+                    M01LivePagingArenaByteMode.EmitAndVerify,
+                    allocationRecord: WithRecord(
+                        plan.AllocationRecord,
+                        pageCount:
+                            plan.AllocationRecord.PageCount + 1))
+                .Status
+                == M01LivePagingArenaMaterializationStatus
+                    .AllocationRecordMismatch
+            && fixture.Materialize(
+                    plan,
+                    M01LivePagingArenaByteMode.EmitAndVerify,
+                    allocationRecord: WithRecord(
+                        plan.AllocationRecord,
+                        virtualStart:
+                            plan.AllocationRecord.VirtualStart
+                                + BootReservedRange.PageSize))
+                .Status
+                == M01LivePagingArenaMaterializationStatus
+                    .AllocationRecordMismatch
+            && fixture.Materialize(
+                    MutateArenaPlanUlong(
+                        plan,
+                        "_rootTable",
+                        0),
+                    M01LivePagingArenaByteMode.EmitAndVerify).Status
+                == M01LivePagingArenaMaterializationStatus.InvalidPlan
+            && fixture.Materialize(
+                    MutateArenaPlanUlong(
+                        plan,
+                        "_statePage",
+                        Raw(plan.StatePage)
+                            + BootReservedRange.PageSize),
+                    M01LivePagingArenaByteMode.EmitAndVerify).Status
+                == M01LivePagingArenaMaterializationStatus.InvalidPlan
+            && fixture.MaterializeRaw(
+                    plan,
+                    pageImageCount: 0).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .InvalidPageImageCount
+            && fixture.MaterializeRaw(
+                    plan,
+                    pageImageCapacity:
+                        plan.RequiredPageImageCount - 1).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .PageImageCapacityTooSmall
+            && fixture.MaterializeRaw(
+                    plan,
+                    pageImageCapacity:
+                        X64PageMap.MaximumPageImages + 1).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .PageImageCapacityExceedsLimit
+            && fixture.MaterializeRaw(
+                    plan,
+                    missingPageImages: true).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .MissingPageImages
+            && fixture.MaterializeRaw(
+                    plan,
+                    misalignPageImages: true).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .MisalignedPageImages
+            && fixture.MaterializeRaw(
+                    plan,
+                    overflowPageImageSpan: true).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .PageImageSpanOverflow
+            && fixture.MaterializeRaw(
+                    plan,
+                    entryCount:
+                        plan.RequiredPageTableEntryCount - 1).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .EntryCountMismatch
+            && fixture.MaterializeRaw(
+                    plan,
+                    entryCapacity:
+                        plan.RequiredPageTableEntryCount - 1).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .EntryCapacityTooSmall
+            && fixture.MaterializeRaw(
+                    plan,
+                    entryCapacity:
+                        X64PageMap.MaximumEntryCount + 1).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .EntryCapacityExceedsLimit
+            && fixture.MaterializeRaw(
+                    plan,
+                    missingEntries: true).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .MissingEntries
+            && fixture.MaterializeRaw(
+                    plan,
+                    misalignEntries: true).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .MisalignedEntries
+            && fixture.MaterializeRaw(
+                    plan,
+                    overflowEntrySpan: true).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .EntrySpanOverflow
+            && fixture.MaterializeRaw(
+                    plan,
+                    missingArena: true).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .MissingArenaBacking
+            && fixture.MaterializeRaw(
+                    plan,
+                    arenaByteCount: plan.TotalByteLength - 1).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .InvalidArenaByteCount
+            && fixture.MaterializeRaw(
+                    plan,
+                    arenaCapacity:
+                        plan.TotalByteLength - 1).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .ArenaCapacityTooSmall
+            && fixture.MaterializeRaw(
+                    plan,
+                    arenaCapacity:
+                        M01LivePagingIntegration
+                            .MaximumArenaTotalByteLength + 1).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .ArenaCapacityExceedsLimit
+            && fixture.MaterializeRaw(
+                    plan,
+                    misalignArena: true).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .MisalignedArenaBacking
+            && fixture.MaterializeRaw(
+                    plan,
+                    overflowArenaSpan: true).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .ArenaBackingSpanOverflow
+            && fixture.MaterializeRaw(
+                    plan,
+                    arenaAliasesPageImages: true).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .StorageOverlap
+            && fixture.MaterializeRaw(
+                    plan,
+                    arenaAliasesEntries: true).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .StorageOverlap
+            && fixture.MaterializeRaw(
+                    plan,
+                    stateSnapshotByteCount: 0).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .InvalidStateSnapshotByteCount
+            && fixture.MaterializeRaw(
+                    plan,
+                    stateSnapshotByteCount:
+                        M01LivePagingIntegration
+                            .RequiredArenaStateSnapshotByteCount - 1)
+                .Status
+                == M01LivePagingArenaMaterializationStatus
+                    .InvalidStateSnapshotByteCount
+            && fixture.MaterializeRaw(
+                    plan,
+                    stateSnapshotByteCapacity:
+                        M01LivePagingIntegration
+                            .RequiredArenaStateSnapshotByteCount - 1)
+                .Status
+                == M01LivePagingArenaMaterializationStatus
+                    .StateSnapshotCapacityTooSmall
+            && fixture.MaterializeRaw(
+                    plan,
+                    stateSnapshotByteCapacity:
+                        M01LivePagingIntegration
+                            .RequiredArenaStateSnapshotByteCount + 1)
+                .Status
+                == M01LivePagingArenaMaterializationStatus
+                    .StateSnapshotCapacityExceedsLimit
+            && fixture.MaterializeRaw(
+                    plan,
+                    missingStateSnapshot: true).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .MissingStateSnapshot
+            && fixture.MaterializeRaw(
+                    plan,
+                    misalignStateSnapshot: true).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .MisalignedStateSnapshot
+            && fixture.MaterializeRaw(
+                    plan,
+                    overflowStateSnapshotSpan: true).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .StateSnapshotSpanOverflow
+            && fixture.MaterializeRaw(
+                    plan,
+                    stateSnapshotAliasesArena: true).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .StateSnapshotStorageOverlap
+            && fixture.MaterializeRaw(
+                    plan,
+                    stateSnapshotAliasesPageImages: true).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .StateSnapshotStorageOverlap
+            && fixture.MaterializeRaw(
+                    plan,
+                    stateSnapshotAliasesEntries: true).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .StateSnapshotStorageOverlap;
+
+        M01LivePagingArenaPlanResult forgedValidatedCount =
+            MutateArenaNestedPlanUlong(
+                plan,
+                "_validatedSourceCount",
+                plan.MappingPlan.ValidatedSourceCount - 1);
+        M01LivePagingArenaPlanResult forgedPurposeMask =
+            MutateArenaNestedPlanUlong(
+                plan,
+                "_missingPurposeMask",
+                1);
+        M01LivePagingArenaPlanResult forgedHierarchyCount =
+            MutateArenaNestedPlanUlong(
+                plan,
+                "_ptPageCount",
+                plan.MappingPlan.PtPageCount + 1);
+        passed &= fixture.Materialize(
+                forgedValidatedCount,
+                M01LivePagingArenaByteMode.EmitAndVerify).Status
+            == M01LivePagingArenaMaterializationStatus
+                .SemanticMappingMismatch;
+        passed &= fixture.Materialize(
+                forgedPurposeMask,
+                M01LivePagingArenaByteMode.EmitAndVerify).Status
+            == M01LivePagingArenaMaterializationStatus
+                .SemanticMappingMismatch;
+        passed &= fixture.Materialize(
+                forgedHierarchyCount,
+                M01LivePagingArenaByteMode.EmitAndVerify).Status
+            == M01LivePagingArenaMaterializationStatus
+                .SemanticMappingMismatch;
+
+        X64PageTableImagePage[] malformed =
+            fixture.CopyUsedPageImages(plan);
+        malformed[0] = default;
+        passed &= fixture.MaterializeWithPageImages(
+                plan,
+                malformed).Status
+            == M01LivePagingArenaMaterializationStatus
+                .PageImageMalformed;
+
+        X64PageTableImagePage[] reversed =
+            fixture.CopyUsedPageImages(plan);
+        X64PageMapStatus firstReordered =
+            X64PageTableImagePage.TryCreate(
+                reversed[1].PhysicalStart,
+                0,
+                out reversed[0]);
+        X64PageMapStatus secondReordered =
+            X64PageTableImagePage.TryCreate(
+                plan.RootTable,
+                X64PageTableImagePage.EntryCountPerPage,
+                out reversed[1]);
+        passed &= firstReordered == X64PageMapStatus.Success
+            && secondReordered == X64PageMapStatus.Success
+            && fixture.MaterializeWithPageImages(
+                plan,
+                reversed).Status
+            == M01LivePagingArenaMaterializationStatus
+                .PageImageOrderInvalid;
+
+        X64PageTableImagePage[] stateTarget =
+            fixture.CopyUsedPageImages(plan);
+        X64PageMapStatus createStatus =
+            X64PageTableImagePage.TryCreate(
+                plan.StatePage,
+                0,
+                out stateTarget[0]);
+        passed &= createStatus == X64PageMapStatus.Success
+            && fixture.MaterializeWithPageImages(
+                    plan,
+                    stateTarget).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .PageImageTargetsStatePage;
+
+        X64PageTableImagePage[] outside =
+            fixture.CopyUsedPageImages(plan);
+        X64PageMapStatus outsideStatus =
+            X64PageTableImagePage.TryCreate(
+                Physical(
+                    Raw(plan.ArenaEndExclusive)
+                        + BootReservedRange.PageSize),
+                0,
+                out outside[0]);
+        passed &= outsideStatus == X64PageMapStatus.Success
+            && fixture.MaterializeWithPageImages(
+                    plan,
+                    outside).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .PageImageOutsideTableArena;
+
+        X64PageTableImagePage[] misaligned =
+            fixture.CopyUsedPageImages(plan);
+        misaligned[0] = MutatePageImagePhysical(
+            misaligned[0],
+            Raw(plan.RootTable) + 1);
+        passed &= fixture.MaterializeWithPageImages(
+                plan,
+                misaligned).Status
+            == M01LivePagingArenaMaterializationStatus
+                .PageImageMalformed;
+
+        X64PageTableImagePage[] duplicate =
+            fixture.CopyUsedPageImages(plan);
+        X64PageMapStatus duplicateStatus =
+            X64PageTableImagePage.TryCreate(
+                plan.RootTable,
+                X64PageTableImagePage.EntryCountPerPage,
+                out duplicate[1]);
+        passed &= duplicateStatus == X64PageMapStatus.Success
+            && fixture.MaterializeWithPageImages(
+                    plan,
+                    duplicate).Status
+                == M01LivePagingArenaMaterializationStatus
+                    .PageImageOrderInvalid;
+
+        ulong rootEntryStart =
+            fixture.PageImages[0].EntryStartIndex;
+        ulong rootEntryIndex =
+            M01LivePagingArenaMaterializationResult.NoIndex;
+        for (ulong index = 0;
+            index < X64PageTableImagePage.EntryCountPerPage;
+            index++)
+        {
+            if (fixture.Entries[checked((int)(
+                    rootEntryStart + index))] != 0)
+            {
+                rootEntryIndex = rootEntryStart + index;
+                break;
+            }
+        }
+        if (rootEntryIndex
+            == M01LivePagingArenaMaterializationResult.NoIndex)
+        {
+            return ArenaDiagnostic("root hierarchy entry missing");
+        }
+
+        ulong originalRootEntry =
+            fixture.Entries[checked((int)rootEntryIndex)];
+        ulong physicalMask =
+            ((1UL << fixture.PhysicalAddressWidth) - 1)
+            & ~(BootReservedRange.PageSize - 1);
+        fixture.Entries[checked((int)rootEntryIndex)] =
+            (originalRootEntry & ~physicalMask)
+            | Raw(plan.RootTable);
+        passed &= fixture.Materialize(
+                plan,
+                M01LivePagingArenaByteMode.EmitAndVerify).Status
+            == M01LivePagingArenaMaterializationStatus
+                .DuplicateChildOrCycle;
+
+        fixture.Entries[checked((int)rootEntryIndex)] =
+            (originalRootEntry & ~physicalMask)
+            | (Raw(plan.ArenaEndExclusive)
+                + BootReservedRange.PageSize);
+        passed &= fixture.Materialize(
+                plan,
+                M01LivePagingArenaByteMode.EmitAndVerify).Status
+            == M01LivePagingArenaMaterializationStatus
+                .MissingChildPage;
+
+        fixture.Entries[checked((int)rootEntryIndex)] = 0;
+        passed &= fixture.Materialize(
+                plan,
+                M01LivePagingArenaByteMode.EmitAndVerify).Status
+            == M01LivePagingArenaMaterializationStatus
+                .UnreachablePageImage;
+
+        fixture.Entries[checked((int)rootEntryIndex)] =
+            originalRootEntry | (1UL << 7);
+        passed &= fixture.Materialize(
+                plan,
+                M01LivePagingArenaByteMode.EmitAndVerify).Status
+            == M01LivePagingArenaMaterializationStatus
+                .HierarchyMalformed;
+        fixture.Entries[checked((int)rootEntryIndex)] =
+            originalRootEntry;
+
+        int codeRequirementIndex = FindRequirementIndex(
+            fixture.FixedRequirements,
+            X64BootIdentityMappingPurpose
+                .CompositeCodeAndCallGate);
+        if (codeRequirementIndex < 0
+            || !TryFindFourLevelLeafEntry(
+                Raw(fixture.FixedRequirements[
+                    codeRequirementIndex].PhysicalStart),
+                plan.RootTable,
+                fixture.PageImages,
+                plan.RequiredPageImageCount,
+                fixture.Entries,
+                plan.RequiredPageTableEntryCount,
+                fixture.Preconditions,
+                out ulong codeLeafIndex,
+                out X64PageTableEntryResult codeLeaf))
+        {
+            return ArenaDiagnostic(
+                "semantic leaf fixture traversal failed");
+        }
+
+        ulong originalCodeLeaf =
+            fixture.Entries[checked((int)codeLeafIndex)];
+        fixture.Entries[checked((int)codeLeafIndex)] = 0;
+        passed &= fixture.Materialize(
+                plan,
+                M01LivePagingArenaByteMode.EmitAndVerify).Status
+            == M01LivePagingArenaMaterializationStatus
+                .LeafCountMismatch;
+
+        X64PageTableEntryResult wrongPhysical =
+            X64PageTableEntry.TryEncode(
+                new X64PageTableEntryRequest(
+                    X64PageTableLevel.Pte,
+                    X64PageTableEntryKind.Leaf,
+                    Physical(
+                        Raw(codeLeaf.PhysicalAddress)
+                            + BootReservedRange.PageSize),
+                    codeLeaf.Protection,
+                    codeLeaf.CachePolicy),
+                fixture.Preconditions);
+        X64PageTableEntryResult wrongProtection =
+            X64PageTableEntry.TryEncode(
+                new X64PageTableEntryRequest(
+                    X64PageTableLevel.Pte,
+                    X64PageTableEntryKind.Leaf,
+                    codeLeaf.PhysicalAddress,
+                    PageProtection.Read,
+                    codeLeaf.CachePolicy),
+                fixture.Preconditions);
+        X64PageTableEntryResult wrongCache =
+            X64PageTableEntry.TryEncode(
+                new X64PageTableEntryRequest(
+                    X64PageTableLevel.Pte,
+                    X64PageTableEntryKind.Leaf,
+                    codeLeaf.PhysicalAddress,
+                    codeLeaf.Protection,
+                    PageCachePolicy.Uncached),
+                fixture.Preconditions);
+        if (!wrongPhysical.Succeeded
+            || !wrongProtection.Succeeded
+            || !wrongCache.Succeeded)
+        {
+            fixture.Entries[checked((int)codeLeafIndex)] =
+                originalCodeLeaf;
+            return ArenaDiagnostic(
+                "semantic leaf mutation encoding failed");
+        }
+
+        fixture.Entries[checked((int)codeLeafIndex)] =
+            wrongPhysical.Entry.RawValue;
+        passed &= fixture.Materialize(
+                plan,
+                M01LivePagingArenaByteMode.EmitAndVerify).Status
+            == M01LivePagingArenaMaterializationStatus
+                .SemanticMappingMismatch;
+        fixture.Entries[checked((int)codeLeafIndex)] =
+            wrongProtection.Entry.RawValue;
+        passed &= fixture.Materialize(
+                plan,
+                M01LivePagingArenaByteMode.EmitAndVerify).Status
+            == M01LivePagingArenaMaterializationStatus
+                .SemanticMappingMismatch;
+        fixture.Entries[checked((int)codeLeafIndex)] =
+            wrongCache.Entry.RawValue;
+        passed &= fixture.Materialize(
+                plan,
+                M01LivePagingArenaByteMode.EmitAndVerify).Status
+            == M01LivePagingArenaMaterializationStatus
+                .SemanticMappingMismatch;
+        fixture.Entries[checked((int)codeLeafIndex)] =
+            originalCodeLeaf;
+
+        return passed;
+    }
+
+    private static bool TestArenaStateAndFailureAtomicity()
+    {
+        using ArenaFixture fixture = new();
+        M01LivePagingArenaPlanResult plan = fixture.Plan();
+        M01LivePagingPreparationResult preparation =
+            fixture.Prepare();
+        if (!plan.Succeeded || !preparation.Succeeded)
+            return ArenaDiagnostic("atomicity setup failed");
+
+        FillUnmanagedArray(fixture.PageImages, 0x52);
+        FillUnmanagedArray(fixture.Entries, 0x73);
+        Array.Fill(fixture.StateSnapshot, (byte)0x94);
+        byte[] arenaBefore =
+            CopyBytes(fixture.ArenaBacking, plan.TotalByteLength);
+        byte[] pagesBefore =
+            CopyUnmanagedArray(fixture.PageImages);
+        byte[] entriesBefore =
+            CopyUnmanagedArray(fixture.Entries);
+        byte[] snapshotBefore =
+            (byte[])fixture.StateSnapshot.Clone();
+        M01LivePagingArenaMaterializationResult failure =
+            fixture.MaterializeRaw(
+                plan,
+                entryCount: plan.RequiredPageTableEntryCount - 1);
+        bool passed =
+            failure.Status
+                == M01LivePagingArenaMaterializationStatus
+                    .EntryCountMismatch
+            && failure.BytesWritten == 0
+            && BytesEqual(arenaBefore, fixture.ArenaBacking)
+            && BytesEqual(pagesBefore, fixture.PageImages)
+            && BytesEqual(entriesBefore, fixture.Entries)
+            && BytesEqual(
+                snapshotBefore,
+                fixture.StateSnapshot);
+
+        fixture.Prepare();
+        byte[] stateBefore =
+            CopyBytes(fixture.StateBacking(plan), PageSize);
+        Clear(fixture.ArenaBacking, plan.TableByteLength);
+        M01LivePagingArenaMaterializationResult success =
+            fixture.Materialize(
+                plan,
+                M01LivePagingArenaByteMode.EmitAndVerify);
+        passed &= success.Succeeded
+            && BytesEqual(stateBefore, fixture.StateBacking(plan));
+
+        return passed;
+    }
+
+    private static bool TestArenaSourceAndNoStdLibFirewalls()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        string productionPath = Path.Combine(
+            root,
+            "src",
+            "OS.Kernel",
+            "Boot",
+            "M01LivePagingIntegration.cs");
+        string testPath = Path.Combine(
+            root,
+            "tests",
+            "OS.HostTests",
+            "M01LivePagingIntegrationTests.cs");
+        string production = File.ReadAllText(productionPath);
+        string tests = File.ReadAllText(testPath);
+        string codeOnly = RemoveComments(production);
+
+        return codeOnly.Contains(
+                "PlanOwnedTableArena(",
+                StringComparison.Ordinal)
+            && codeOnly.Contains(
+                "MaterializeOwnedTableArena(",
+                StringComparison.Ordinal)
+            && !codeOnly.Contains(
+                "EfiEntry",
+                StringComparison.Ordinal)
+            && !codeOnly.Contains(
+                "AllocatePages(",
+                StringComparison.Ordinal)
+            && !codeOnly.Contains(
+                "FreePages(",
+                StringComparison.Ordinal)
+            && !production.Contains(
+                ArenaReadyMarker,
+                StringComparison.Ordinal)
+            && CountOccurrences(
+                tests,
+                "TEST_START \" + ArenaIssueTestName") == 1
+            && CountOccurrences(
+                tests,
+                "CLROS_" + "M01_031_READY") == 1
+            && CountOccurrences(
+                tests,
+                "TEST_PASS \" + ArenaIssueTestName") == 1
+            && CountOccurrences(
+                tests,
+                "TEST_FAIL \" + ArenaIssueTestName") == 1;
+    }
+
+    private static bool ArenaDiagnostic(string reason)
+    {
+        Console.WriteLine("M01_031_ARENA_DIAGNOSTIC " + reason);
+        return false;
+    }
+
+    private static bool ExpectArenaPlanStatus(
+        string name,
+        M01LivePagingArenaPlanResult result,
+        M01LivePagingArenaPlanStatus expected,
+        X64BootIdentityMappingStatus? expectedMappingStatus = null,
+        AddressValueStatus? expectedAddressStatus = null)
+    {
+        if (result.Status == expected
+            && (!expectedMappingStatus.HasValue
+                || result.MappingStatus
+                    == expectedMappingStatus.Value)
+            && (!expectedAddressStatus.HasValue
+                || result.AddressStatus
+                    == expectedAddressStatus.Value))
+        {
+            return true;
+        }
+
+        Console.WriteLine(
+            "M01_031_PLAN_STATUS_MISMATCH"
+            + " case="
+            + name.Replace(' ', '_')
+            + " expected="
+            + expected
+            + " actual="
+            + result.Status
+            + " expectedMapping="
+            + (expectedMappingStatus.HasValue
+                ? expectedMappingStatus.Value.ToString()
+                : "any")
+            + " expectedAddress="
+            + (expectedAddressStatus.HasValue
+                ? expectedAddressStatus.Value.ToString()
+                : "any")
+            + " initialized="
+            + result.IsInitialized
+            + " address="
+            + result.AddressStatus
+            + " reservation="
+            + result.ReservationStatus
+            + " mapping="
+            + result.MappingStatus
+            + " entry="
+            + result.PageTableEntryStatus
+            + " iteration="
+            + result.IterationCount
+            + "/"
+            + result.IterationLimit);
+        return false;
+    }
+
+    private static bool ArenaRequirementEquals(
+        X64BootIdentityMappingRequirement left,
+        X64BootIdentityMappingRequirement right)
+    {
+        return left.IsInitialized == right.IsInitialized
+            && left.Purpose == right.Purpose
+            && left.PhysicalStart.Equals(right.PhysicalStart)
+            && left.PhysicalEndExclusive.Equals(
+                right.PhysicalEndExclusive)
+            && left.PageCount == right.PageCount
+            && left.ByteLength == right.ByteLength
+            && left.Protection == right.Protection
+            && left.CachePolicy == right.CachePolicy;
+    }
+
+    private static M01LivePagingArenaPlanResult
+        MutateArenaPlanUlong(
+            M01LivePagingArenaPlanResult source,
+            string field,
+            ulong value)
+    {
+        M01LivePagingArenaPlanResult mutated = source;
+        byte* bytes = (byte*)&mutated;
+        *(ulong*)(bytes + Offset<M01LivePagingArenaPlanResult>(
+            field)) = value;
+        return mutated;
+    }
+
+    private static M01LivePagingArenaPlanResult
+        MutateArenaNestedPlanUlong(
+            M01LivePagingArenaPlanResult source,
+            string field,
+            ulong value)
+    {
+        M01LivePagingArenaPlanResult mutated = source;
+        byte* bytes = (byte*)&mutated;
+        long nestedOffset =
+            Offset<M01LivePagingArenaPlanResult>("_mappingPlan");
+        long fieldOffset =
+            Offset<X64BootIdentityMappingPlanResult>(field);
+        *(ulong*)(bytes + nestedOffset + fieldOffset) = value;
+        return mutated;
+    }
+
+    private static X64PageTableImagePage MutatePageImagePhysical(
+        X64PageTableImagePage source,
+        ulong rawPhysical)
+    {
+        X64PageTableImagePage mutated = source;
+        byte* bytes = (byte*)&mutated;
+        *(ulong*)(bytes + Offset<X64PageTableImagePage>(
+            "_physicalStart")) = rawPhysical;
+        return mutated;
     }
 
     internal static bool TestM01030ExactPreparationContract()
@@ -4507,6 +6045,8 @@ internal static unsafe class M01LivePagingIntegrationTests
         int prepareCount = 0;
         int executeCount = 0;
         int executeModelOnlyCount = 0;
+        int planArenaCount = 0;
+        int materializeArenaCount = 0;
         foreach (MethodDefinitionHandle handle in metadata
             .GetTypeDefinition(integrationType).GetMethods())
         {
@@ -4542,6 +6082,24 @@ internal static unsafe class M01LivePagingIntegrationTests
             {
                 executeModelOnlyCount++;
             }
+            else if (string.Equals(
+                    name,
+                    nameof(
+                        M01LivePagingIntegration
+                            .PlanOwnedTableArena),
+                    StringComparison.Ordinal))
+            {
+                planArenaCount++;
+            }
+            else if (string.Equals(
+                    name,
+                    nameof(
+                        M01LivePagingIntegration
+                            .MaterializeOwnedTableArena),
+                    StringComparison.Ordinal))
+            {
+                materializeArenaCount++;
+            }
         }
 
         bool hasLegacyModelOnlyField = false;
@@ -4569,6 +6127,8 @@ internal static unsafe class M01LivePagingIntegrationTests
             && prepareCount == 1
             && executeCount == 1
             && executeModelOnlyCount == 1
+            && planArenaCount == 1
+            && materializeArenaCount == 1
             && hasLegacyModelOnlyField
             && hasLegacyCannotPrepareField;
     }
@@ -5308,6 +6868,81 @@ internal static unsafe class M01LivePagingIntegrationTests
         return false;
     }
 
+    private static bool TryFindFourLevelLeafEntry(
+        ulong virtualAddress,
+        PhysicalAddress root,
+        X64PageTableImagePage[] pageImages,
+        ulong pageImageCount,
+        ulong[] entries,
+        ulong entryCount,
+        X64PageTableEncodingPreconditions preconditions,
+        out ulong leafEntryIndex,
+        out X64PageTableEntryResult leaf)
+    {
+        leafEntryIndex =
+            M01LivePagingArenaMaterializationResult.NoIndex;
+        leaf = default;
+        PhysicalAddress table = root;
+        X64PageTableLevel level = X64PageTableLevel.Pml4e;
+        for (int depth = 0; depth < 4; depth++)
+        {
+            if (!TryFindPageImage(
+                    pageImages,
+                    pageImageCount,
+                    table,
+                    out X64PageTableImagePage image))
+            {
+                return false;
+            }
+
+            int shift = level == X64PageTableLevel.Pml4e
+                ? 39
+                : level == X64PageTableLevel.Pdpte
+                    ? 30
+                    : level == X64PageTableLevel.Pde
+                        ? 21
+                        : 12;
+            ulong tableIndex = (virtualAddress >> shift) & 0x1ff;
+            ulong entryIndex = image.EntryStartIndex + tableIndex;
+            if (entryIndex >= entryCount
+                || entryIndex >= (ulong)entries.Length)
+            {
+                return false;
+            }
+
+            X64PageTableEntryResult decoded =
+                X64PageTableEntry.TryDecode(
+                    level,
+                    entries[checked((int)entryIndex)],
+                    preconditions);
+            if (!decoded.Succeeded)
+                return false;
+
+            if (level == X64PageTableLevel.Pte)
+            {
+                if (decoded.Kind != X64PageTableEntryKind.Leaf)
+                    return false;
+                leafEntryIndex = entryIndex;
+                leaf = decoded;
+                return true;
+            }
+
+            if (decoded.Kind
+                != X64PageTableEntryKind.TablePointer)
+            {
+                return false;
+            }
+
+            table = decoded.PhysicalAddress;
+            level = level == X64PageTableLevel.Pml4e
+                ? X64PageTableLevel.Pdpte
+                : level == X64PageTableLevel.Pdpte
+                    ? X64PageTableLevel.Pde
+                    : X64PageTableLevel.Pte;
+        }
+        return false;
+    }
+
     private static bool TryFindPageImage(
         X64PageTableImagePage[] pageImages,
         ulong pageImageCount,
@@ -5634,6 +7269,583 @@ internal static unsafe class M01LivePagingIntegrationTests
         }
         fixed (T* pointer = actual)
             return BytesEqual(expected, (byte*)pointer);
+    }
+
+    private sealed unsafe class ArenaFixture : IDisposable
+    {
+        private const ulong DefaultDescriptorPages = 32;
+
+        private readonly CanonicalFixture _canonical;
+        private byte* _arenaBacking;
+
+        internal ArenaFixture()
+        {
+            _canonical = new CanonicalFixture();
+            _canonical.UseLiveIntervalProfile();
+            _arenaBacking = (byte*)NativeMemory.AlignedAlloc(
+                (nuint)M01LivePagingIntegration
+                    .MaximumArenaTotalByteLength,
+                (nuint)BootReservedRange.PageSize);
+            if (_arenaBacking == null)
+                throw new OutOfMemoryException();
+            for (ulong index = 0;
+                index < M01LivePagingIntegration
+                    .MaximumArenaTotalByteLength;
+                index++)
+            {
+                _arenaBacking[index] = 0xa5;
+            }
+
+            FixedRequirements =
+                GC.AllocateArray<X64BootIdentityMappingRequirement>(
+                    checked((int)M01LivePagingIntegration
+                        .RequiredArenaFixedRequirementCount),
+                    pinned: true);
+            X64BootIdentityMappingPurpose[] fixedPurposes =
+            [
+                X64BootIdentityMappingPurpose.BootStackGuard,
+                X64BootIdentityMappingPurpose
+                    .CompositeCodeAndCallGate,
+                X64BootIdentityMappingPurpose.CompositeOwnedStack,
+                X64BootIdentityMappingPurpose.ProtectionProbePage
+            ];
+            for (int index = 0;
+                index < fixedPurposes.Length;
+                index++)
+            {
+                int source = FindRequirementIndex(
+                    _canonical.MappingRequirements,
+                    fixedPurposes[index]);
+                if (source < 0)
+                {
+                    throw new InvalidOperationException(
+                        "arena fixed requirement missing: "
+                        + fixedPurposes[index]);
+                }
+                FixedRequirements[index] =
+                    _canonical.MappingRequirements[source];
+            }
+
+            List<BootReservedRange> reservations = [];
+            foreach (BootReservedRange reservation
+                in _canonical.CopyLedger())
+            {
+                if (reservation.Kind
+                    != BootReservationKind.PageTableArena)
+                {
+                    reservations.Add(reservation);
+                }
+            }
+            Reservations = [.. reservations];
+
+            RequirementWorkspace =
+                GC.AllocateArray<X64BootIdentityMappingRequirement>(
+                    checked((int)M01LivePagingIntegration
+                        .RequiredArenaRequirementWorkspaceCount),
+                    pinned: true);
+            RangeWorkspace =
+                GC.AllocateArray<X64BootIdentityMappingRange>(
+                    checked((int)X64BootIdentityMappingPlan
+                        .MaximumDestinationCount),
+                    pinned: true);
+            StateSnapshot = GC.AllocateArray<byte>(
+                checked((int)M01LivePagingIntegration
+                    .RequiredArenaStateSnapshotByteCount),
+                pinned: true);
+        }
+
+        internal ulong Candidate => _canonical.TableStateStart;
+
+        internal byte PhysicalAddressWidth =>
+            _canonical.Preconditions.PhysicalAddressWidth;
+
+        internal X64PageTableEncodingPreconditions Preconditions =>
+            _canonical.Preconditions;
+
+        internal byte* ArenaBacking => _arenaBacking;
+
+        internal X64BootIdentityMappingRequirement[]
+            FixedRequirements { get; }
+
+        internal BootReservedRange[] Reservations { get; }
+
+        internal X64BootIdentityMappingRequirement[]
+            RequirementWorkspace { get; }
+
+        internal X64BootIdentityMappingRange[] RangeWorkspace
+        {
+            get;
+        }
+
+        internal X64PageTableImagePage[] PageImages =>
+            _canonical.PageImages;
+
+        internal ulong[] Entries => _canonical.Entries;
+
+        internal byte[] StateSnapshot { get; }
+
+        internal void UseRelocatedFixedRequirements(
+            ulong candidate)
+        {
+            ulong page = BootReservedRange.PageSize;
+            if ((candidate & (page - 1)) != 0
+                || candidate < 8 * page)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(candidate));
+            }
+
+            FixedRequirements[0] = Requirement(
+                X64BootIdentityMappingPurpose.BootStackGuard,
+                candidate - 8 * page,
+                candidate - 7 * page,
+                PageProtection.None,
+                PageCachePolicy.Uninitialized);
+            FixedRequirements[1] = Requirement(
+                X64BootIdentityMappingPurpose
+                    .CompositeCodeAndCallGate,
+                candidate - 7 * page,
+                candidate - 6 * page,
+                M01014TestData.ReadExecute);
+            FixedRequirements[2] = Requirement(
+                X64BootIdentityMappingPurpose.CompositeOwnedStack,
+                candidate - 6 * page,
+                candidate - 3 * page,
+                M01014TestData.ReadWrite);
+            FixedRequirements[3] = Requirement(
+                X64BootIdentityMappingPurpose.ProtectionProbePage,
+                candidate - 2 * page,
+                candidate - page,
+                M01014TestData.ReadWrite);
+        }
+
+        internal M01LivePagingArenaPlanResult Plan(
+            ulong? candidate = null,
+            ulong? descriptorStart = null,
+            ulong descriptorPages = DefaultDescriptorPages,
+            ulong descriptorAttribute = 0,
+            ulong iterationLimit =
+                M01LivePagingIntegration
+                    .MaximumArenaIterationCount,
+            BootReservedRange[]? reservations = null,
+            PhysicalAddress candidateAddress = default,
+            bool useCandidateAddress = false,
+            X64PageTableEncodingPreconditions? preconditions = null)
+        {
+            ClearWorkspace();
+            ulong rawCandidate = candidate ?? Candidate;
+            ulong rawDescriptorStart =
+                descriptorStart ?? rawCandidate;
+            ulong descriptorBytes = descriptorPages
+                <= ~0UL / BootReservedRange.PageSize
+                    ? descriptorPages * BootReservedRange.PageSize
+                    : 0;
+            ulong descriptorEnd =
+                descriptorBytes != 0
+                    && rawDescriptorStart
+                        <= ~0UL - descriptorBytes
+                    ? rawDescriptorStart + descriptorBytes
+                    : 0;
+            BootMemoryRegionRecord descriptor =
+                new(
+                    (uint)UefiMemoryType.ConventionalMemory,
+                    rawDescriptorStart,
+                    0,
+                    descriptorPages,
+                    descriptorAttribute,
+                    descriptorBytes,
+                    descriptorEnd);
+            return PlanCore(
+                useCandidateAddress
+                    ? candidateAddress
+                    : Physical(rawCandidate),
+                descriptor,
+                iterationLimit,
+                reservations ?? Reservations,
+                preconditions ?? _canonical.Preconditions);
+        }
+
+        internal M01LivePagingArenaPlanResult PlanWithStorage(
+            ulong fixedCount =
+                M01LivePagingIntegration
+                    .RequiredArenaFixedRequirementCount,
+            ulong fixedCapacity =
+                M01LivePagingIntegration
+                    .RequiredArenaFixedRequirementCount,
+            ulong? requirementCapacity = null,
+            ulong? rangeCapacity = null,
+            bool missingFixed = false,
+            bool misalignFixed = false,
+            ulong? reservationCount = null,
+            ulong? reservationCapacity = null,
+            bool missingReservations = false,
+            bool misalignReservations = false,
+            bool missingRequirements = false,
+            bool misalignRequirements = false,
+            bool missingRanges = false,
+            bool misalignRanges = false,
+            bool aliasWorkspaces = false)
+        {
+            ClearWorkspace();
+            BootMemoryRegionRecord descriptor =
+                Record(
+                    UefiMemoryType.ConventionalMemory,
+                    Candidate,
+                    DefaultDescriptorPages);
+            fixed (X64BootIdentityMappingRequirement* fixedPointer =
+                FixedRequirements)
+            fixed (BootReservedRange* reservationPointer =
+                Reservations)
+            fixed (X64BootIdentityMappingRequirement*
+                requirementPointer = RequirementWorkspace)
+            fixed (X64BootIdentityMappingRange* rangePointer =
+                RangeWorkspace)
+            {
+                X64BootIdentityMappingRequirement* actualFixed =
+                    missingFixed
+                        ? null
+                        : misalignFixed
+                            ? (X64BootIdentityMappingRequirement*)(
+                                (byte*)fixedPointer + 1)
+                            : fixedPointer;
+                BootReservedRange* actualReservations =
+                    missingReservations
+                        ? null
+                        : misalignReservations
+                            ? (BootReservedRange*)(
+                                (byte*)reservationPointer + 1)
+                            : reservationPointer;
+                X64BootIdentityMappingRequirement*
+                    actualRequirement =
+                        missingRequirements
+                            ? null
+                            : misalignRequirements
+                                ? (X64BootIdentityMappingRequirement*)(
+                                    (byte*)requirementPointer + 1)
+                                : requirementPointer;
+                X64BootIdentityMappingRange* actualRange =
+                    missingRanges
+                        ? null
+                        : misalignRanges
+                            ? (X64BootIdentityMappingRange*)(
+                                (byte*)rangePointer + 1)
+                        : aliasWorkspaces
+                            ? (X64BootIdentityMappingRange*)
+                                requirementPointer
+                            : rangePointer;
+                return M01LivePagingIntegration
+                    .PlanOwnedTableArena(
+                        actualFixed,
+                        fixedCount,
+                        fixedCapacity,
+                        descriptor,
+                        actualReservations,
+                        reservationCount
+                            ?? (ulong)Reservations.Length,
+                        reservationCapacity
+                            ?? (ulong)Reservations.Length,
+                        Physical(Candidate),
+                        _canonical.Preconditions,
+                        M01LivePagingIntegration
+                            .MaximumArenaIterationCount,
+                        actualRequirement,
+                        0,
+                        requirementCapacity
+                            ?? (ulong)RequirementWorkspace.Length,
+                        actualRange,
+                        0,
+                        rangeCapacity
+                            ?? (ulong)RangeWorkspace.Length);
+            }
+        }
+
+        internal BootReservedRange[]
+            CreateReservationsWithCandidateOverlap()
+        {
+            BootReservedRange[] result =
+                new BootReservedRange[Reservations.Length + 1];
+            Reservations.CopyTo(result, 0);
+            result[^1] = CreateRange(
+                BootReservationKind.PageTableArena,
+                Candidate,
+                1);
+            Array.Sort(
+                result,
+                static (left, right) =>
+                    Raw(left.PhysicalStart).CompareTo(
+                        Raw(right.PhysicalStart)));
+            return result;
+        }
+
+        internal M01LivePagingPreparationResult Prepare()
+        {
+            _canonical.ClearPreparationState();
+            return _canonical.PrepareCurrent();
+        }
+
+        internal byte* StateBacking(
+            M01LivePagingArenaPlanResult plan)
+        {
+            return ArenaBacking + plan.TableByteLength;
+        }
+
+        internal M01LivePagingArenaMaterializationResult
+            Materialize(
+                M01LivePagingArenaPlanResult plan,
+                M01LivePagingArenaByteMode byteMode,
+                BootMemoryRegionRecord? allocationRecord = null)
+        {
+            return MaterializeRaw(
+                plan,
+                byteMode,
+                allocationRecord: allocationRecord);
+        }
+
+        internal M01LivePagingArenaMaterializationResult
+            MaterializeRaw(
+                M01LivePagingArenaPlanResult plan,
+                M01LivePagingArenaByteMode byteMode =
+                    M01LivePagingArenaByteMode.EmitAndVerify,
+                BootMemoryRegionRecord? allocationRecord = null,
+                ulong? pageImageCount = null,
+                ulong? pageImageCapacity = null,
+                ulong? entryCount = null,
+                ulong? entryCapacity = null,
+                ulong? arenaByteCount = null,
+                ulong? arenaCapacity = null,
+                bool missingPageImages = false,
+                bool misalignPageImages = false,
+                bool overflowPageImageSpan = false,
+                bool missingEntries = false,
+                bool misalignEntries = false,
+                bool overflowEntrySpan = false,
+                bool missingArena = false,
+                bool misalignArena = false,
+                bool overflowArenaSpan = false,
+                bool arenaAliasesPageImages = false,
+                bool arenaAliasesEntries = false,
+                ulong? stateSnapshotByteCount = null,
+                ulong? stateSnapshotByteCapacity = null,
+                bool missingStateSnapshot = false,
+                bool misalignStateSnapshot = false,
+                bool overflowStateSnapshotSpan = false,
+                bool stateSnapshotAliasesArena = false,
+                bool stateSnapshotAliasesPageImages = false,
+                bool stateSnapshotAliasesEntries = false)
+        {
+            fixed (X64PageTableImagePage* pagePointer =
+                PageImages)
+            fixed (ulong* entryPointer = Entries)
+            fixed (byte* stateSnapshotPointer = StateSnapshot)
+            {
+                X64PageTableImagePage* actualPages =
+                    missingPageImages
+                        ? null
+                        : overflowPageImageSpan
+                            ? (X64PageTableImagePage*)(
+                                ~0UL - 7)
+                        : misalignPageImages
+                            ? (X64PageTableImagePage*)(
+                                (byte*)pagePointer + 1)
+                        : arenaAliasesPageImages
+                            ? (X64PageTableImagePage*)
+                                ArenaBacking
+                            : pagePointer;
+                ulong* actualEntries =
+                    missingEntries
+                        ? null
+                        : overflowEntrySpan
+                            ? (ulong*)(~0UL - 7)
+                        : misalignEntries
+                            ? (ulong*)((byte*)entryPointer + 1)
+                        : arenaAliasesEntries
+                            ? (ulong*)ArenaBacking
+                            : entryPointer;
+                byte* actualArena =
+                    missingArena
+                        ? null
+                        : overflowArenaSpan
+                            ? (byte*)(~0UL
+                                & ~(BootReservedRange.PageSize - 1))
+                        : misalignArena
+                            ? ArenaBacking + 1
+                            : ArenaBacking;
+                byte* actualStateSnapshot =
+                    missingStateSnapshot
+                        ? null
+                        : overflowStateSnapshotSpan
+                            ? (byte*)(~0UL - 7)
+                        : misalignStateSnapshot
+                            ? stateSnapshotPointer + 1
+                        : stateSnapshotAliasesArena
+                            ? ArenaBacking
+                        : stateSnapshotAliasesPageImages
+                            ? (byte*)pagePointer
+                        : stateSnapshotAliasesEntries
+                            ? (byte*)entryPointer
+                            : stateSnapshotPointer;
+                return M01LivePagingIntegration
+                    .MaterializeOwnedTableArena(
+                        plan,
+                        allocationRecord ?? plan.AllocationRecord,
+                        actualPages,
+                        pageImageCount
+                            ?? plan.RequiredPageImageCount,
+                        pageImageCapacity
+                            ?? (ulong)PageImages.Length,
+                        actualEntries,
+                        entryCount
+                            ?? plan.RequiredPageTableEntryCount,
+                        entryCapacity
+                            ?? (ulong)Entries.Length,
+                        actualArena,
+                        arenaByteCount ?? plan.TotalByteLength,
+                        arenaCapacity ?? plan.TotalByteLength,
+                        byteMode,
+                        actualStateSnapshot,
+                        stateSnapshotByteCount
+                            ?? M01LivePagingIntegration
+                                .RequiredArenaStateSnapshotByteCount,
+                        stateSnapshotByteCapacity
+                            ?? M01LivePagingIntegration
+                                .RequiredArenaStateSnapshotByteCount);
+            }
+        }
+
+        internal M01LivePagingArenaMaterializationResult
+            MaterializeWithPageImages(
+                M01LivePagingArenaPlanResult plan,
+                X64PageTableImagePage[] pageImages)
+        {
+            fixed (X64PageTableImagePage* pagePointer = pageImages)
+            fixed (ulong* entryPointer = Entries)
+            fixed (byte* stateSnapshotPointer = StateSnapshot)
+            {
+                return M01LivePagingIntegration
+                    .MaterializeOwnedTableArena(
+                        plan,
+                        plan.AllocationRecord,
+                        pagePointer,
+                        (ulong)pageImages.Length,
+                        (ulong)pageImages.Length,
+                        entryPointer,
+                        plan.RequiredPageTableEntryCount,
+                        (ulong)Entries.Length,
+                        ArenaBacking,
+                        plan.TotalByteLength,
+                        plan.TotalByteLength,
+                        M01LivePagingArenaByteMode.EmitAndVerify,
+                        stateSnapshotPointer,
+                        M01LivePagingIntegration
+                            .RequiredArenaStateSnapshotByteCount,
+                        M01LivePagingIntegration
+                            .RequiredArenaStateSnapshotByteCount);
+            }
+        }
+
+        internal X64PageTableImagePage[] CopyUsedPageImages(
+            M01LivePagingArenaPlanResult plan)
+        {
+            X64PageTableImagePage[] result =
+                new X64PageTableImagePage[
+                    checked((int)plan.RequiredPageImageCount)];
+            Array.Copy(
+                PageImages,
+                result,
+                result.Length);
+            return result;
+        }
+
+        internal bool MaterializedPagesMatch(
+            M01LivePagingArenaPlanResult plan)
+        {
+            for (ulong pageOrdinal = 0;
+                pageOrdinal < plan.RequiredPageImageCount;
+                pageOrdinal++)
+            {
+                X64PageTableImagePage page =
+                    PageImages[checked((int)pageOrdinal)];
+                ulong pageAddress = Raw(page.PhysicalStart);
+                if (!page.IsInitialized
+                    || pageAddress < Candidate
+                    || pageAddress
+                        >= Candidate + plan.TableByteLength)
+                {
+                    return false;
+                }
+
+                ulong pageOffset = pageAddress - Candidate;
+                ulong* actual =
+                    (ulong*)(ArenaBacking + pageOffset);
+                ulong entryStart = page.EntryStartIndex;
+                for (ulong entryOffset = 0;
+                    entryOffset
+                        < X64PageTableImagePage.EntryCountPerPage;
+                    entryOffset++)
+                {
+                    if (actual[entryOffset]
+                        != Entries[checked((int)(
+                            entryStart + entryOffset))])
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        public void Dispose()
+        {
+            if (_arenaBacking != null)
+            {
+                NativeMemory.AlignedFree(_arenaBacking);
+                _arenaBacking = null;
+            }
+            _canonical.Dispose();
+        }
+
+        private M01LivePagingArenaPlanResult PlanCore(
+            PhysicalAddress candidate,
+            BootMemoryRegionRecord descriptor,
+            ulong iterationLimit,
+            BootReservedRange[] reservations,
+            X64PageTableEncodingPreconditions preconditions)
+        {
+            fixed (X64BootIdentityMappingRequirement* fixedPointer =
+                FixedRequirements)
+            fixed (BootReservedRange* reservationPointer =
+                reservations)
+            fixed (X64BootIdentityMappingRequirement*
+                requirementPointer = RequirementWorkspace)
+            fixed (X64BootIdentityMappingRange* rangePointer =
+                RangeWorkspace)
+            {
+                return M01LivePagingIntegration
+                    .PlanOwnedTableArena(
+                        fixedPointer,
+                        (ulong)FixedRequirements.Length,
+                        (ulong)FixedRequirements.Length,
+                        descriptor,
+                        reservationPointer,
+                        (ulong)reservations.Length,
+                        (ulong)reservations.Length,
+                        candidate,
+                        preconditions,
+                        iterationLimit,
+                        requirementPointer,
+                        0,
+                        (ulong)RequirementWorkspace.Length,
+                        rangePointer,
+                        0,
+                        (ulong)RangeWorkspace.Length);
+            }
+        }
+
+        private void ClearWorkspace()
+        {
+            Array.Clear(RequirementWorkspace);
+            Array.Clear(RangeWorkspace);
+        }
     }
 
     private sealed unsafe class CanonicalFixture : IDisposable
