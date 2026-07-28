@@ -852,7 +852,8 @@ internal static class GiteaBacklogManifestTests
                     "docs/boot.md",
                     "docs/efi-build.md",
                     "docs/nativeaot-nostdlib-limits.md",
-                    "done/step869.md"
+                    "done/step869.md",
+                    "done/step879.md"
                 ],
                 ["M01-022"] =
                 [
