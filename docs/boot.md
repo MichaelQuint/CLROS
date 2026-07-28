@@ -2673,7 +2673,8 @@ The modeled probe leaf is restored to its initial RW+NX value after the
 RW+NX-to-RO+X audit, including on a rejected aggregate. The rest of the
 caller-owned output image is the newly constructed table model, so
 `RestoresCallerOwnedInitialTableImage` is deliberately `false` while
-`RestoresModeledProbeLeafToInitialProtection` is `true`.
+`RestoresModeledProbeLeafToInitialProtection` is `true` when the historical
+model-only `Execute`/`ExecuteModelOnly` path returns.
 
 The aggregate host-harness markers are:
 
@@ -2683,20 +2684,59 @@ CLROS_M01_019_READY
 TEST_PASS m01.019
 ```
 
-This is host evidence over caller-supplied allocations, map/ledger
-generations, table bytes, register observations, and synthetic execution
-transcripts. Closed M01-020 source-links the coordinator into the opt-in EFI
-compile closure, but no current `EfiEntry` path invokes it and linkage adds no
-live evidence. The current path does not call EFI `AllocatePages`, populate
-processor-owned tables, execute preflight/CR3/invlpg/probe bytes, change CR3 or
-page protections, perform a CPU TLB invalidation, prove page zero absent in
-hardware, run QEMU/OVMF, or advance a completion gate. PCID/LA57 remain
+M01-029 adds `M01LivePagingIntegration.Prepare` as the first-class
+preparation-only entry. It consumes explicit caller-owned POD
+pointer/count/capacity storage and returns
+`M01LivePagingPreparationEvidence`, `M01LivePagingPreparationState`, and
+`M01LivePagingPreparationResult`; `M01LivePagingExecutionMode` and
+`M01LivePagingProtectionPreparation` keep model-only execution intent and
+deterministic protection preparation distinct. Preparation succeeds without
+accepting a synthetic
+`X64ReversibleCr3TransitionRuntimeState`, `X64Cr3ProbeEvent`,
+`X64ProtectionProbeObservation`, or `X64ProtectionProbeEvent`. A successful
+preparation deterministically validates the allocation records, refreshed map
+and sorted ledger, canonical reservation relationships, existing identity-map
+requirements, architectural preflight, exact byte plans and readback,
+table-image and entry workspaces, protection/invalidation plans, page-zero
+audit, and cleanup evidence required before a future composite transfer.
+
+Preparation is one-shot and fail-closed. Default, null, zero, short, excess,
+overflowing, unaligned, overlapping, aliased, stale-map, unsorted-ledger,
+malformed-preflight, malformed-byte-plan, undersized-workspace, and
+repeated-use inputs cannot publish a partially prepared state.
+Architectural-preflight rejection occurs before any mapping, byte,
+page-image, entry, or state output is written; later failures can retain
+deterministic caller-workspace construction, but the final preparation state
+is committed only after every check succeeds. The preserved `Execute`
+compatibility entry and explicit `ExecuteModelOnly` entry remain
+historical model-only surfaces over caller-supplied execution transcripts. A
+successful legacy model result is neither composite preparation nor execution
+evidence and cannot be converted into or used to satisfy the new
+preparation-only result/state/evidence contract.
+
+The M01-029 aggregate host-harness markers are:
+
+```text
+TEST_START m01.029
+CLROS_M01_029_READY
+TEST_PASS m01.029
+```
+
+Any rejected M01-029 test group emits `TEST_FAIL m01.029 <reason>` instead of
+the ready/pass pair. These markers prove only the caller-owned preparation and
+anti-promotion boundary. Closed M01-020 source-links the coordinator into the
+opt-in EFI compile closure, but no current `EfiEntry` path invokes it and
+linkage adds no live evidence. Neither preparation nor the legacy model calls
+firmware or EFI `AllocatePages`, invokes generated code, changes CR3, a live
+PTE, the TLB, or RFLAGS, physically materializes page tables, repairs the exact
+live identity interval, proves page zero absent in hardware, runs under
+QEMU/OVMF or in a guest, or advances a completion gate. PCID/LA57 remain
 unsupported, NMI/SMI remains an M02 residual risk, and null dereference/#PF
-evidence remains M02-014. M01-019 owns only host-side preparation and synthetic
-transcript composition; M01-027 supplies the reviewed composite byte stream,
-M01-029 owns the preparation/execution-transcript split, and M01-025 owns
-eventual live allocation and `EfiEntry` invocation after M01-029 through
-M01-032. M01-026 owns cumulative real-QEMU evidence. Until M01-026, even
+evidence remains M02-014. M01-030 owns exact live-interval identity bindings,
+M01-031 owns physical table-arena sizing/materialization/readback, M01-032 owns
+the audited call gate and post-return RFLAGS observer, M01-025 owns eventual
+live allocation and default-off `EfiEntry` invocation, and M01-026 owns
+cumulative real-QEMU evidence. Until M01-026, even
 `CLROS_M01_LIVE_BOOT_MEMORY_READY` is a reserved host-tested contract line,
 not live boot-memory evidence.
 
@@ -2844,7 +2884,10 @@ boundary within its current `EfiEntry`-only production scope:
 The repair is intentionally serialized:
 
 1. M01-029, **Split M01 paging preparation from synthetic execution
-   transcripts**, depends on M01-028 and M01-027.
+   transcripts**, now provides the first-class caller-owned POD
+   preparation-only result/state/evidence boundary after M01-028 and M01-027.
+   The historical `Execute`/`ExecuteModelOnly` surface remains model-only and
+   cannot promote caller-supplied transcripts into that prepared state.
 2. M01-030, **Replace historical paging identity aliases with exact
    live-interval bindings**, depends on M01-029.
 3. M01-031, **Materialize and read back the owned physical page-table arena**,
