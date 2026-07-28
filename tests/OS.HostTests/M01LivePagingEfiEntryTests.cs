@@ -427,35 +427,29 @@ internal static class M01LivePagingEfiEntryTests
                 "privateconstulongProbePageCount=1;",
                 StringComparison.Ordinal)
             || !runCompact.Contains(
-                "boolcodeAllocationSucceeded="
+                "codeAllocated="
                     + "firmwareStatus==EfiSuccess;",
                 StringComparison.Ordinal)
             || !runCompact.Contains(
-                "boolprobeAllocationSucceeded="
+                "probeAllocated="
                     + "firmwareStatus==EfiSuccess;",
                 StringComparison.Ordinal)
             || !runCompact.Contains(
-                "booltableAllocationSucceeded="
+                "tableAllocated="
                     + "firmwareStatus==EfiSuccess;",
                 StringComparison.Ordinal)
             || CountOccurrences(
                 runCompact,
-                "codeAllocated=true;") != 1
+                "codeAllocated="
+                    + "firmwareStatus==EfiSuccess;") != 1
             || CountOccurrences(
                 runCompact,
-                "probeAllocated=true;") != 1
+                "probeAllocated="
+                    + "firmwareStatus==EfiSuccess;") != 1
             || CountOccurrences(
                 runCompact,
-                "tableAllocated=true;") != 1
-            || runCompact.Contains(
-                "codeAllocated=codeAllocationSucceeded;",
-                StringComparison.Ordinal)
-            || runCompact.Contains(
-                "probeAllocated=probeAllocationSucceeded;",
-                StringComparison.Ordinal)
-            || runCompact.Contains(
-                "tableAllocated=tableAllocationSucceeded;",
-                StringComparison.Ordinal)
+                "tableAllocated="
+                    + "firmwareStatus==EfiSuccess;") != 1
             || !runCompact.Contains(
                 "ulongrequestedTableAddress=tableAddress;",
                 StringComparison.Ordinal)
@@ -497,13 +491,16 @@ internal static class M01LivePagingEfiEntryTests
             "ValidateNewAllocationAgainstStageTwo",
             2);
         int codeOwned = run.IndexOf(
-            "codeAllocated = true;",
+            "codeAllocated =",
+            first + 1,
             StringComparison.Ordinal);
         int probeOwned = run.IndexOf(
-            "probeAllocated = true;",
+            "probeAllocated =",
+            second + 1,
             StringComparison.Ordinal);
         int tableOwned = run.IndexOf(
-            "tableAllocated = true;",
+            "tableAllocated =",
+            third + 1,
             StringComparison.Ordinal);
         int recapture = FlexibleCallIndex(
             run,
@@ -513,15 +510,15 @@ internal static class M01LivePagingEfiEntryTests
             || plan <= second
             || third <= plan
             || recapture <= third
-            || codeGeometry <= first
+            || codeOwned <= first
+            || codeGeometry <= codeOwned
             || codePriorMap <= codeGeometry
-            || codeOwned <= codePriorMap
-            || probeGeometry <= second
+            || probeOwned <= second
+            || probeGeometry <= probeOwned
             || probePriorMap <= probeGeometry
-            || probeOwned <= probePriorMap
-            || tableGeometry <= third
+            || tableOwned <= third
+            || tableGeometry <= tableOwned
             || tablePriorMap <= tableGeometry
-            || tableOwned <= tablePriorMap
             || CountOccurrences(
                 runCompact,
                 "WriteSuccessLine(console,serial,1);") != 1
@@ -1852,6 +1849,90 @@ internal static class M01LivePagingEfiEntryTests
             return Failure("cleanup-reverse-order");
         }
 
+        if (!ValidatePreEntryFailureOwnershipCalls(
+                FindMethodBody(stageThree, "RunAfterStageTwo")
+                    ?? string.Empty)
+            || !ValidateCleanupImplementation(failBefore))
+        {
+            return Failure("cleanup-source-binding");
+        }
+
+        if (!TestAllocationCleanupMatrix())
+        {
+            return Failure("allocation-cleanup-matrix");
+        }
+
+        string run =
+            FindMethodBody(stageThree, "RunAfterStageTwo")
+            ?? string.Empty;
+        string runCompact = Compact(run);
+        string[] ownershipAndStatusContracts =
+        [
+            "codeAllocated=firmwareStatus==EfiSuccess;",
+            "probeAllocated=firmwareStatus==EfiSuccess;",
+            "tableAllocated=firmwareStatus==EfiSuccess;",
+            "codeAllocated?"
+                + "M01StageThreeAdapterStatus.CodeAllocationRejected:"
+                + "M01StageThreeAdapterStatus.CodeAllocationFailed",
+            "probeAllocated?"
+                + "M01StageThreeAdapterStatus.ProbeAllocationRejected:"
+                + "M01StageThreeAdapterStatus.ProbeAllocationFailed",
+            "tableAllocated?"
+                + "M01StageThreeAdapterStatus.TableAllocationRejected:"
+                + "M01StageThreeAdapterStatus.TableAllocationFailed"
+        ];
+        foreach (string contract in ownershipAndStatusContracts)
+        {
+            if (!runCompact.Contains(
+                    contract,
+                    StringComparison.Ordinal))
+            {
+                return Failure(
+                    "allocation-ownership-contract="
+                    + contract);
+            }
+        }
+
+        string[] preEntryStatuses =
+        [
+            "RepeatedUse",
+            "PrerequisiteRejected",
+            "StageTwoMapRejected",
+            "CodeAllocationFailed",
+            "CodeAllocationRejected",
+            "ProbeAllocationFailed",
+            "ProbeAllocationRejected",
+            "ArchitecturalPreflightRejected",
+            "PlanningInputRejected",
+            "ArenaPlanRejected",
+            "TableAllocationFailed",
+            "TableAllocationRejected",
+            "PostAllocationMapRejected",
+            "EvidenceRejected",
+            "PreparationRejected",
+            "StatePageRejected",
+            "ArenaMaterializationRejected",
+            "BindingOrReadbackRejected",
+            "RuntimeAddressRejected",
+            "RuntimeStateRejected",
+            "GatePreparationRejected",
+            "GateMaterializationRejected",
+            "FinalReadbackRejected",
+            "PreTransferRejected"
+        ];
+        foreach (string status in preEntryStatuses)
+        {
+            if (CountOccurrences(
+                    runCompact,
+                    "M01StageThreeAdapterStatus."
+                        + status) != 1)
+            {
+                return Failure(
+                    "pre-entry-status="
+                    + status);
+            }
+        }
+
         string compact = Compact(stageThree);
         string[] forbidden =
         [
@@ -1883,9 +1964,305 @@ internal static class M01LivePagingEfiEntryTests
             || Failure("forced-on-probe");
     }
 
+    private static bool TestAllocationCleanupMatrix()
+    {
+        AllocationCleanupScenario[] scenarios =
+        [
+            new(
+                "code-status-failure",
+                AdapterAllocationOutcome.FirmwareFailure,
+                AdapterAllocationOutcome.NotAttempted,
+                AdapterAllocationOutcome.NotAttempted,
+                FailAfterAllocations: false,
+                ExpectedCleanup: string.Empty),
+            new(
+                "code-success-zero-address",
+                AdapterAllocationOutcome.SuccessRejected,
+                AdapterAllocationOutcome.NotAttempted,
+                AdapterAllocationOutcome.NotAttempted,
+                FailAfterAllocations: false,
+                ExpectedCleanup: "code"),
+            new(
+                "code-success-misaligned-address",
+                AdapterAllocationOutcome.SuccessRejected,
+                AdapterAllocationOutcome.NotAttempted,
+                AdapterAllocationOutcome.NotAttempted,
+                FailAfterAllocations: false,
+                ExpectedCleanup: "code"),
+            new(
+                "code-success-wrapped-range",
+                AdapterAllocationOutcome.SuccessRejected,
+                AdapterAllocationOutcome.NotAttempted,
+                AdapterAllocationOutcome.NotAttempted,
+                FailAfterAllocations: false,
+                ExpectedCleanup: "code"),
+            new(
+                "code-success-prior-map-overlap",
+                AdapterAllocationOutcome.SuccessRejected,
+                AdapterAllocationOutcome.NotAttempted,
+                AdapterAllocationOutcome.NotAttempted,
+                FailAfterAllocations: false,
+                ExpectedCleanup: "code"),
+            new(
+                "probe-status-failure",
+                AdapterAllocationOutcome.SuccessAccepted,
+                AdapterAllocationOutcome.FirmwareFailure,
+                AdapterAllocationOutcome.NotAttempted,
+                FailAfterAllocations: false,
+                ExpectedCleanup: "code"),
+            new(
+                "probe-success-zero-or-misaligned-address",
+                AdapterAllocationOutcome.SuccessAccepted,
+                AdapterAllocationOutcome.SuccessRejected,
+                AdapterAllocationOutcome.NotAttempted,
+                FailAfterAllocations: false,
+                ExpectedCleanup: "probe,code"),
+            new(
+                "probe-success-code-overlap",
+                AdapterAllocationOutcome.SuccessAccepted,
+                AdapterAllocationOutcome.SuccessRejected,
+                AdapterAllocationOutcome.NotAttempted,
+                FailAfterAllocations: false,
+                ExpectedCleanup: "probe,code"),
+            new(
+                "probe-success-prior-map-overlap",
+                AdapterAllocationOutcome.SuccessAccepted,
+                AdapterAllocationOutcome.SuccessRejected,
+                AdapterAllocationOutcome.NotAttempted,
+                FailAfterAllocations: false,
+                ExpectedCleanup: "probe,code"),
+            new(
+                "table-status-failure",
+                AdapterAllocationOutcome.SuccessAccepted,
+                AdapterAllocationOutcome.SuccessAccepted,
+                AdapterAllocationOutcome.FirmwareFailure,
+                FailAfterAllocations: false,
+                ExpectedCleanup: "probe,code"),
+            new(
+                "table-success-wrong-fixed-address",
+                AdapterAllocationOutcome.SuccessAccepted,
+                AdapterAllocationOutcome.SuccessAccepted,
+                AdapterAllocationOutcome.SuccessRejected,
+                FailAfterAllocations: false,
+                ExpectedCleanup: "table,probe,code"),
+            new(
+                "table-success-zero-misaligned-or-wrapped",
+                AdapterAllocationOutcome.SuccessAccepted,
+                AdapterAllocationOutcome.SuccessAccepted,
+                AdapterAllocationOutcome.SuccessRejected,
+                FailAfterAllocations: false,
+                ExpectedCleanup: "table,probe,code"),
+            new(
+                "table-success-code-or-probe-overlap",
+                AdapterAllocationOutcome.SuccessAccepted,
+                AdapterAllocationOutcome.SuccessAccepted,
+                AdapterAllocationOutcome.SuccessRejected,
+                FailAfterAllocations: false,
+                ExpectedCleanup: "table,probe,code"),
+            new(
+                "post-allocation-map-recapture-failure",
+                AdapterAllocationOutcome.SuccessAccepted,
+                AdapterAllocationOutcome.SuccessAccepted,
+                AdapterAllocationOutcome.SuccessAccepted,
+                FailAfterAllocations: true,
+                ExpectedCleanup: "table,probe,code"),
+            new(
+                "post-allocation-type-or-attribute-failure",
+                AdapterAllocationOutcome.SuccessAccepted,
+                AdapterAllocationOutcome.SuccessAccepted,
+                AdapterAllocationOutcome.SuccessAccepted,
+                FailAfterAllocations: true,
+                ExpectedCleanup: "table,probe,code"),
+            new(
+                "accepted-live-path-retains-backing",
+                AdapterAllocationOutcome.SuccessAccepted,
+                AdapterAllocationOutcome.SuccessAccepted,
+                AdapterAllocationOutcome.SuccessAccepted,
+                FailAfterAllocations: false,
+                ExpectedCleanup: string.Empty)
+        ];
+
+        foreach (AllocationCleanupScenario scenario in scenarios)
+        {
+            if (string.IsNullOrWhiteSpace(scenario.Name))
+            {
+                return false;
+            }
+
+            for (byte failedFreeMask = 0;
+                failedFreeMask < 8;
+                failedFreeMask++)
+            {
+                CleanupOracleResult cleanup =
+                    SimulateAllocationCleanup(
+                        scenario,
+                        failedFreeMask);
+                int expectedFailedAttempts =
+                    CountExpectedFailedCleanupAttempts(
+                        scenario.ExpectedCleanup,
+                        failedFreeMask);
+                if (!string.Equals(
+                        cleanup.Attempts,
+                        scenario.ExpectedCleanup,
+                        StringComparison.Ordinal)
+                    || cleanup.FailedAttemptCount
+                        != expectedFailedAttempts)
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static CleanupOracleResult
+        SimulateAllocationCleanup(
+            AllocationCleanupScenario scenario,
+            byte failedFreeMask)
+    {
+        bool codeOwned = false;
+        bool probeOwned = false;
+        bool tableOwned = false;
+
+        if (scenario.Code == AdapterAllocationOutcome.NotAttempted)
+        {
+            return new("!invalid-code-state", 0);
+        }
+
+        codeOwned =
+            scenario.Code
+                != AdapterAllocationOutcome.FirmwareFailure;
+        if (scenario.Code
+            != AdapterAllocationOutcome.SuccessAccepted)
+        {
+            return DescribeCleanup(
+                codeOwned,
+                probeOwned,
+                tableOwned,
+                failedFreeMask);
+        }
+
+        if (scenario.Probe == AdapterAllocationOutcome.NotAttempted)
+        {
+            return new("!invalid-probe-state", 0);
+        }
+
+        probeOwned =
+            scenario.Probe
+                != AdapterAllocationOutcome.FirmwareFailure;
+        if (scenario.Probe
+            != AdapterAllocationOutcome.SuccessAccepted)
+        {
+            return DescribeCleanup(
+                codeOwned,
+                probeOwned,
+                tableOwned,
+                failedFreeMask);
+        }
+
+        if (scenario.Table == AdapterAllocationOutcome.NotAttempted)
+        {
+            return new("!invalid-table-state", 0);
+        }
+
+        tableOwned =
+            scenario.Table
+                != AdapterAllocationOutcome.FirmwareFailure;
+        if (scenario.Table
+                != AdapterAllocationOutcome.SuccessAccepted
+            || scenario.FailAfterAllocations)
+        {
+            return DescribeCleanup(
+                codeOwned,
+                probeOwned,
+                tableOwned,
+                failedFreeMask);
+        }
+
+        return new(string.Empty, 0);
+    }
+
+    private static CleanupOracleResult DescribeCleanup(
+        bool codeOwned,
+        bool probeOwned,
+        bool tableOwned,
+        byte failedFreeMask)
+    {
+        StringBuilder cleanup = new();
+        int failedAttempts = 0;
+        if (tableOwned)
+        {
+            cleanup.Append("table");
+            if ((failedFreeMask & 4) != 0)
+            {
+                failedAttempts++;
+            }
+        }
+        if (probeOwned)
+        {
+            if (cleanup.Length != 0)
+            {
+                cleanup.Append(',');
+            }
+
+            cleanup.Append("probe");
+            if ((failedFreeMask & 2) != 0)
+            {
+                failedAttempts++;
+            }
+        }
+        if (codeOwned)
+        {
+            if (cleanup.Length != 0)
+            {
+                cleanup.Append(',');
+            }
+
+            cleanup.Append("code");
+            if ((failedFreeMask & 1) != 0)
+            {
+                failedAttempts++;
+            }
+        }
+
+        return new(cleanup.ToString(), failedAttempts);
+    }
+
+    private static int CountExpectedFailedCleanupAttempts(
+        string expectedCleanup,
+        byte failedFreeMask)
+    {
+        int count = 0;
+        if (expectedCleanup.Contains(
+                "table",
+                StringComparison.Ordinal)
+            && (failedFreeMask & 4) != 0)
+        {
+            count++;
+        }
+        if (expectedCleanup.Contains(
+                "probe",
+                StringComparison.Ordinal)
+            && (failedFreeMask & 2) != 0)
+        {
+            count++;
+        }
+        if (expectedCleanup.Contains(
+                "code",
+                StringComparison.Ordinal)
+            && (failedFreeMask & 1) != 0)
+        {
+            count++;
+        }
+
+        return count;
+    }
+
     private static bool TestRepresentativeMutations()
     {
-        string source = LoadEfiEntrySource();
+        string source =
+            NormalizeLineEndings(LoadEfiEntrySource());
         if (!ValidateEssentialContract(
                 source,
                 out string baselineFailure))
@@ -2001,9 +2378,78 @@ internal static class M01LivePagingEfiEntryTests
                 "BypassPriorMapValidation("
             ),
             (
-                "validated-code-ownership",
-                "codeAllocated = true;",
-                "codeAllocated = codeAllocationSucceeded;"
+                "code-ownership-at-status",
+                "codeAllocated = firmwareStatus == EfiSuccess;",
+                "bool codeAllocationSucceeded = "
+                    + "firmwareStatus == EfiSuccess;"
+            ),
+            (
+                "probe-ownership-at-status",
+                "probeAllocated = firmwareStatus == EfiSuccess;",
+                "bool probeAllocationSucceeded = "
+                    + "firmwareStatus == EfiSuccess;"
+            ),
+            (
+                "table-ownership-at-status",
+                "tableAllocated = firmwareStatus == EfiSuccess;",
+                "bool tableAllocationSucceeded = "
+                    + "firmwareStatus == EfiSuccess;"
+            ),
+            (
+                "code-ownership-address-truthiness",
+                "codeAllocated = firmwareStatus == EfiSuccess;",
+                "codeAllocated = codeAddress != 0;"
+            ),
+            (
+                "probe-ownership-address-truthiness",
+                "probeAllocated = firmwareStatus == EfiSuccess;",
+                "probeAllocated = probeAddress != 0;"
+            ),
+            (
+                "table-ownership-address-truthiness",
+                "tableAllocated = firmwareStatus == EfiSuccess;",
+                "tableAllocated = tableAddress != 0;"
+            ),
+            (
+                "failure-call-drops-code-ownership",
+                "                    codeAddress,\n"
+                    + "                    codeAllocated,\n"
+                    + "                    probeAddress,",
+                "                    codeAddress,\n"
+                    + "                    false,\n"
+                    + "                    probeAddress,"
+            ),
+            (
+                "cleanup-removes-table-branch",
+                "if (tableAllocated)",
+                "if (false)"
+            ),
+            (
+                "cleanup-removes-probe-branch",
+                "if (probeAllocated)",
+                "if (false)"
+            ),
+            (
+                "cleanup-removes-code-branch",
+                "if (codeAllocated)",
+                "if (false)"
+            ),
+            (
+                "cleanup-table-wrong-page-count",
+                "                            tableAddress,\n"
+                    + "                            tablePageCount);",
+                "                            tableAddress,\n"
+                    + "                            ProbePageCount);"
+            ),
+            (
+                "cleanup-table-early-return",
+                "                            tablePageCount);\n"
+                    + "                }\n"
+                    + "                if (probeAllocated)",
+                "                            tablePageCount);\n"
+                    + "                    return false;\n"
+                    + "                }\n"
+                    + "                if (probeAllocated)"
             ),
             (
                 "planner-low-canary",
@@ -2014,6 +2460,26 @@ internal static class M01LivePagingEfiEntryTests
                 "post-entry-fail-stop",
                 "            while (true)",
                 "            return false"
+            ),
+            (
+                "one-shot-guard",
+                "if (s_runState != 0)",
+                "if (false)"
+            ),
+            (
+                "one-shot-running-state",
+                "s_runState = 1;",
+                "s_runState = 0;"
+            ),
+            (
+                "one-shot-success-state",
+                "s_runState = 2;",
+                "s_runState = 0;"
+            ),
+            (
+                "one-shot-failure-state",
+                "s_runState = 3;",
+                "s_runState = 0;"
             ),
             (
                 "observation-offset",
@@ -2205,6 +2671,9 @@ internal static class M01LivePagingEfiEntryTests
             string failAfter =
                 FindMethodBody(stageThree, "FailAfterEntry")
                 ?? string.Empty;
+            string failBefore =
+                FindMethodBody(stageThree, "FailBeforeEntry")
+                ?? string.Empty;
             string compact = Compact(stageThree);
             string runCompact = Compact(run);
             string plannerCompact = Compact(planner);
@@ -2257,9 +2726,9 @@ internal static class M01LivePagingEfiEntryTests
                 "privateconstulongGateObservationOffset=0x300;",
                 "tableAddress!=requestedTableAddress",
                 "refreshedMap.MapKey==previousMapKey",
-                "codeAllocated=true;",
-                "probeAllocated=true;",
-                "tableAllocated=true;",
+                "codeAllocated=firmwareStatus==EfiSuccess;",
+                "probeAllocated=firmwareStatus==EfiSuccess;",
+                "tableAllocated=firmwareStatus==EfiSuccess;",
                 "M01LivePagingArenaByteMode.EmitAndVerify",
                 "M01LivePagingArenaByteMode.VerifyExisting",
                 "[System.Runtime.InteropServices."
@@ -2342,6 +2811,20 @@ internal static class M01LivePagingEfiEntryTests
                 || !failAfterCompact.Contains(
                     "s_runState=3;while(true){}",
                     StringComparison.Ordinal)
+                || !runCompact.Contains(
+                    "if(s_runState!=0)",
+                    StringComparison.Ordinal)
+                || !runCompact.Contains(
+                    "s_runState=1;",
+                    StringComparison.Ordinal)
+                || !runCompact.Contains(
+                    "s_runState=2;returntrue;",
+                    StringComparison.Ordinal)
+                || CountOccurrences(
+                    compact,
+                    "s_runState=3;") != 2
+                || !ValidatePreEntryFailureOwnershipCalls(run)
+                || !ValidateCleanupImplementation(failBefore)
                 || failAfterCompact.Contains(
                     "return",
                     StringComparison.Ordinal)
@@ -2543,6 +3026,104 @@ internal static class M01LivePagingEfiEntryTests
         }
 
         return -1;
+    }
+
+    private static bool ValidatePreEntryFailureOwnershipCalls(
+        string run)
+    {
+        List<string[]> calls =
+            FindInvocationArguments(run, "FailBeforeEntry");
+        if (calls.Count != 21)
+        {
+            return false;
+        }
+
+        foreach (string[] arguments in calls)
+        {
+            if (arguments.Length != 12
+                || !string.Equals(
+                    Compact(arguments[5]),
+                    "codeAddress",
+                    StringComparison.Ordinal)
+                || !string.Equals(
+                    Compact(arguments[6]),
+                    "codeAllocated",
+                    StringComparison.Ordinal)
+                || !string.Equals(
+                    Compact(arguments[7]),
+                    "probeAddress",
+                    StringComparison.Ordinal)
+                || !string.Equals(
+                    Compact(arguments[8]),
+                    "probeAllocated",
+                    StringComparison.Ordinal)
+                || !string.Equals(
+                    Compact(arguments[9]),
+                    "tableAddress",
+                    StringComparison.Ordinal)
+                || !string.Equals(
+                    Compact(arguments[10]),
+                    "tablePageCount",
+                    StringComparison.Ordinal)
+                || !string.Equals(
+                    Compact(arguments[11]),
+                    "tableAllocated",
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool ValidateCleanupImplementation(
+        string failBefore)
+    {
+        string compact = Compact(failBefore);
+        if (CountOccurrences(
+                compact,
+                "if(tableAllocated)") != 1
+            || CountOccurrences(
+                compact,
+                "if(probeAllocated)") != 1
+            || CountOccurrences(
+                compact,
+                "if(codeAllocated)") != 1)
+        {
+            return false;
+        }
+
+        List<(int Index, string[] Arguments)> calls =
+            FindInvocationArgumentsWithIndices(
+                failBefore,
+                "FreePages");
+        if (calls.Count != 3
+            || !InvocationArgumentsEqual(
+                calls[0].Arguments,
+                "tableAddress",
+                "tablePageCount")
+            || !InvocationArgumentsEqual(
+                calls[1].Arguments,
+                "probeAddress",
+                "ProbePageCount")
+            || !InvocationArgumentsEqual(
+                calls[2].Arguments,
+                "codeAddress",
+                "CodePageCount"))
+        {
+            return false;
+        }
+
+        int returnIndex = failBefore.IndexOf(
+            "return false;",
+            StringComparison.Ordinal);
+        return calls[0].Index < calls[1].Index
+            && calls[1].Index < calls[2].Index
+            && returnIndex > calls[2].Index
+            && CountOccurrences(
+                compact,
+                "returnfalse;") == 1;
     }
 
     private static int FindLastFlexibleCallIndexBefore(
@@ -3335,4 +3916,24 @@ internal static class M01LivePagingEfiEntryTests
         bool ParentEmit,
         bool SelectedValue,
         bool SeenElse);
+
+    private enum AdapterAllocationOutcome : byte
+    {
+        NotAttempted = 0,
+        FirmwareFailure = 1,
+        SuccessRejected = 2,
+        SuccessAccepted = 3
+    }
+
+    private readonly record struct AllocationCleanupScenario(
+        string Name,
+        AdapterAllocationOutcome Code,
+        AdapterAllocationOutcome Probe,
+        AdapterAllocationOutcome Table,
+        bool FailAfterAllocations,
+        string ExpectedCleanup);
+
+    private readonly record struct CleanupOracleResult(
+        string Attempts,
+        int FailedAttemptCount);
 }

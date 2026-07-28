@@ -260,9 +260,8 @@ public static unsafe class EfiEntry
                 EfiLoaderCode,
                 CodePageCount,
                 &codeAddress);
-            bool codeAllocationSucceeded =
-                firmwareStatus == EfiSuccess;
-            if (!codeAllocationSucceeded
+            codeAllocated = firmwareStatus == EfiSuccess;
+            if (!codeAllocated
                 || !TryValidateAllocation(
                     codeAddress,
                     CodePageCount,
@@ -279,7 +278,7 @@ public static unsafe class EfiEntry
                     console,
                     serial,
                     bootServices,
-                    codeAllocationSucceeded
+                    codeAllocated
                         ? M01StageThreeAdapterStatus
                             .CodeAllocationRejected
                         : M01StageThreeAdapterStatus
@@ -293,7 +292,6 @@ public static unsafe class EfiEntry
                     tablePageCount,
                     tableAllocated);
             }
-            codeAllocated = true;
             WriteSuccessLine(console, serial, 1);
 
             firmwareStatus = bootServices->AllocatePages(
@@ -301,9 +299,8 @@ public static unsafe class EfiEntry
                 EfiLoaderCode,
                 ProbePageCount,
                 &probeAddress);
-            bool probeAllocationSucceeded =
-                firmwareStatus == EfiSuccess;
-            if (!probeAllocationSucceeded
+            probeAllocated = firmwareStatus == EfiSuccess;
+            if (!probeAllocated
                 || !TryValidateAllocation(
                     probeAddress,
                     ProbePageCount,
@@ -325,7 +322,7 @@ public static unsafe class EfiEntry
                     console,
                     serial,
                     bootServices,
-                    probeAllocationSucceeded
+                    probeAllocated
                         ? M01StageThreeAdapterStatus
                             .ProbeAllocationRejected
                         : M01StageThreeAdapterStatus
@@ -339,7 +336,6 @@ public static unsafe class EfiEntry
                     tablePageCount,
                     tableAllocated);
             }
-            probeAllocated = true;
             WriteSuccessLine(console, serial, 2);
 
             fixed (M01StageThreeAllocationRecordBuffer*
@@ -422,9 +418,13 @@ public static unsafe class EfiEntry
                     rawIa32Pat);
 
                 // Publish the transfer thunk before invoking the architectural
-                // preflight. The preflight's CPUID serializes this earlier
-                // code publication; the thunk's later CPUID then serializes
-                // the final gate-page publication before transferring to it.
+                // preflight. Once the preflight stream begins, its CPUID
+                // serializes this earlier thunk publication; the thunk's later
+                // CPUID then serializes the final gate-page publication before
+                // transferring to it. The first control transfer into the
+                // newly written preflight stream is only the functional x64
+                // self-modifying-code boundary. It is not an immutable-text
+                // serializer and does not close Intel SCSB hardening by itself.
                 if (!MaterializeTransferThunk(
                         stageOneCodeAllocation,
                         out transferEntry)
@@ -519,9 +519,8 @@ public static unsafe class EfiEntry
                     EfiLoaderData,
                     tablePageCount,
                     &tableAddress);
-                bool tableAllocationSucceeded =
-                    firmwareStatus == EfiSuccess;
-                if (!tableAllocationSucceeded
+                tableAllocated = firmwareStatus == EfiSuccess;
+                if (!tableAllocated
                     || tableAddress != requestedTableAddress
                     || !TryValidateAllocation(
                         tableAddress,
@@ -551,7 +550,7 @@ public static unsafe class EfiEntry
                         console,
                         serial,
                         bootServices,
-                        tableAllocationSucceeded
+                        tableAllocated
                             ? M01StageThreeAdapterStatus
                                 .TableAllocationRejected
                             : M01StageThreeAdapterStatus
@@ -565,7 +564,6 @@ public static unsafe class EfiEntry
                         tablePageCount,
                         tableAllocated);
                 }
-                tableAllocated = true;
                 WriteSuccessLine(console, serial, 3);
 
                 if (!M01StageOneAdapter
