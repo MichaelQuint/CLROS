@@ -1504,8 +1504,12 @@ internal static class GiteaBacklogManifestTests
                 "tools/OS.X64TextSerializerGenerator/Program.cs",
                 "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs",
                 "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs",
+                "tools/AGENTS.override.md",
                 "tests/OS.HostTests/M01InstructionPublicationSerializerGeneratorTests.cs",
-                "docs/security.md") ||
+                "tests/OS.HostTests/HostToolProjectBoundaryTests.cs",
+                "docs/security.md",
+                "docs/qemu.md",
+                "docs/libvirt.md") ||
             !OwnedPathsEqual(
                 integration,
                 "CLROS.slnx",

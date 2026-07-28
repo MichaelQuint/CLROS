@@ -5616,8 +5616,12 @@
         "tools/OS.X64TextSerializerGenerator/Program.cs",
         "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs",
         "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs",
+        "tools/AGENTS.override.md",
         "tests/OS.HostTests/M01InstructionPublicationSerializerGeneratorTests.cs",
-        "docs/security.md"
+        "tests/OS.HostTests/HostToolProjectBoundaryTests.cs",
+        "docs/security.md",
+        "docs/qemu.md",
+        "docs/libvirt.md"
       ],
       "forbiddenPaths": [
         "CLROS.slnx",
@@ -5644,7 +5648,7 @@
         "Export exactly one external symbol named CLROS_X64_SerializeInstructionPublication with external storage class, .text$clrossm section number, value zero, COFF function type 0x20, no auxiliary record, and no weak-external or alias fallback. Define the relocation-only .xdata$clrossm base symbol with static storage class, its exact section number, value zero, and no auxiliary/weak/alias fallback; it is not an additional external symbol. The exact 20 function bytes are 53 B8 00 00 00 00 B9 00 00 00 00 0F A2 B8 43 4C 52 53 5B C3: push RBX, load CPUID leaf/subleaf zero with flag-neutral MOV immediates, execute exactly one CPUID, load success cookie 0x53524C43 in EAX, restore RBX, and return.",
         "Emit exact UNWIND_INFO bytes 01 01 01 00 01 30 00 00: version 1, flags zero, one-byte prolog, one unwind code, no frame register, UWOP_PUSH_NONVOL RBX at code offset 1, and zero padding. Emit one 12-byte RUNTIME_FUNCTION raw record with begin addend 0, end addend 20, and unwind addend 0. Its only relocations are IMAGE_REL_AMD64_ADDR32NB at .pdata offsets 0 and 4 against the external function symbol and at offset 8 against one static value-zero .xdata$clrossm base symbol; text and xdata have no relocations and no additional external symbol is permitted.",
         "The generated Windows-x64 function has a valid push-RBX prolog and pop-RBX/ret epilog and restores RSP and RBX exactly. The object encodes the complete RUNTIME_FUNCTION/UNWIND_INFO intent required for asynchronous unwind coverage at every instruction boundary, but M01-033 must not claim final unwindability before linker relocation and M01-034 final-artifact verification. PUSH/POP, MOV, and CPUID preserve RFLAGS; RAX returns the fixed cookie; only volatile RCX and RDX remain clobbered. It performs no calls, conditional branches, runtime-helper access, or privileged-pointer access.",
-        "Build an independent bounds-checked host parser in the focused test rather than trusting the writer's object model. Parse the COFF header, all three section tables and raw-data ranges, relocation tables, symbol table, auxiliary count, long section/symbol names, and string table before comparing the complete text, unwind, runtime-function, relocation, symbol, and flag contracts.",
+        "Build an independent bounds-checked host parser in the focused test rather than trusting the writer's object model. Parse the COFF header, all three section tables and raw-data ranges, relocation tables, symbol table, auxiliary count, long section/symbol names, and string table before comparing the complete text, unwind, runtime-function, relocation, symbol, and flag contracts. The focused test must clean-build and invoke the standalone generator through a bounded subprocess so a clean HostTests build/run does not depend on stale tool output; do not add a HostTests project reference or make the generator a transitive CLROS.slnx dependency in this leaf.",
         "Positive tests cover exact header, section, relocation, symbol, code-byte, UNWIND_INFO, RUNTIME_FUNCTION, ABI, deterministic timestamp, byte-for-byte repeatability, and stable SHA-256 behavior across clean output directories and differing absolute checkout paths.",
         "Negative tests cover zero/default configuration, empty or malformed symbol/section names, duplicate symbol, unsupported machine, writable or non-file-backed text, missing executable/code flags, executable/writable pdata or xdata, missing/extra/wrong relocation, wrong relocation type/symbol/addend, malformed prolog size/opcode/register/code count/padding/function range, missing unwind coverage, unrecognized epilog, un-restored RBX/RSP, wrong/missing CPUID, wrong/missing return cookie, unexpected import/directive/debug data, truncated headers/tables/string/section data, out-of-range offsets/counts, integer overflow, capacity exhaustion, path traversal, existing-output mismatch, partial process output, generator timeout, and deterministic cleanup after failure.",
         "Do not add the tool to CLROS.slnx, integrate it into OS.csproj, declare a RuntimeImport, link the object, edit EfiEntry, execute the serializer, or claim EFI/QEMU behavior in this issue."
@@ -5666,7 +5670,7 @@
         "The independently decoded text is exactly 53 B8 00 00 00 00 B9 00 00 00 00 0F A2 B8 43 4C 52 53 5B C3 and tests prove the Windows-x64 push-RBX/pop-RBX ABI, valid epilog, exact encoded asynchronous-unwind intent pending final linker relocation, restored stack/RBX/RFLAGS, volatile clobbers, one-CPUID, and 0x53524C43 return-cookie contract.",
         "Positive, malformed-input, default/zero, overflow, capacity, timeout, path, stale-output, and nondeterminism mutations fail closed with stable diagnostics and no accepted partial object.",
         "No .obj, native source, secret, generated artifact, CLROS.slnx change, OS.csproj change, RuntimeImport, EfiEntry call, EFI build claim, or QEMU claim is committed by this leaf.",
-        "Only the exact owned generator, focused test, and security-document paths change; all forbidden integration surfaces remain untouched."
+        "Only the exact owned generator, tool-local guide, focused test, host-tool inventory boundary test, security document, and QEMU/libvirt marker-inventory documentation paths change; all forbidden integration surfaces remain untouched."
       ],
       "requiredMarkers": [
         "TEST_START m01.033",
@@ -5683,7 +5687,9 @@
         "git status --short"
       ],
       "documentationPaths": [
-        "docs/security.md"
+        "docs/security.md",
+        "docs/qemu.md",
+        "docs/libvirt.md"
       ],
       "evidenceBoundary": "This issue proves only a deterministic host-built and host-parsed AMD64 COFF object plus the exact static serializer bytes, Windows-x64 ABI, encoded RUNTIME_FUNCTION/UNWIND_INFO/relocation intent, and fixed post-CPUID return cookie. Object-only evidence does not prove that relocations were applied or that the function is asynchronously unwindable in a final image; that requires M01-034 final-artifact verification. It does not add the tool to the solution, link the object into EFI, prove final PE unwind-directory coverage or RuntimeImport resolution, prove final PE section protections/import state, call the serializer, observe its cookie at an EfiEntry publication epoch, execute under QEMU or hardware, empirically exclude speculative stale-instruction execution, or advance any completion gate.",
       "desiredState": "open"
