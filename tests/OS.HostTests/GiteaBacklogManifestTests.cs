@@ -258,7 +258,46 @@ internal static class GiteaBacklogManifestTests
                         ?? string.Empty,
                     issue => issue,
                     StringComparer.Ordinal);
-        return ValidateM01InstructionPublicationContracts(issueByKey);
+        return ValidateM01StageThreeClosure(issueByKey) &&
+            ValidateM01InstructionPublicationContracts(issueByKey);
+    }
+
+    private static bool ValidateM01StageThreeClosure(
+        IReadOnlyDictionary<string, JsonElement> issueByKey)
+    {
+        JsonElement issue = issueByKey["M01-025"];
+        JsonElement labels = issue.GetProperty("labels");
+        string currentEvidence =
+            issue.GetProperty("currentEvidence").GetString() ?? string.Empty;
+        string evidenceBoundary =
+            issue.GetProperty("evidenceBoundary").GetString() ?? string.Empty;
+        string[] requiredEvidenceTerms =
+        [
+            "PR #409",
+            "06131dbc5dae6b68e73a827a61407b9d60392046",
+            "E9377EECB18F71A8EC329ACAA14F049757A4FD2887B76C85F6F3065B7BE24A1F",
+            "0A674D1628D48C478D616F43548DA18BC9673D4BECBEC0D875C7ECDA05F646CB",
+            "tracker evidence comment #6254",
+            "source/control-flow",
+            "M01-033 through M01-035"
+        ];
+        return string.Equals(
+                issue.GetProperty("desiredState").GetString(),
+                "closed",
+                StringComparison.Ordinal) &&
+            JsonArrayContainsExact(labels, "agent:done") &&
+            CountPrefix(labels, "agent:") == 1 &&
+            requiredEvidenceTerms.All(term =>
+                currentEvidence.Contains(term, StringComparison.Ordinal)) &&
+            evidenceBoundary.Contains(
+                "host oracle, not fake-EFI or live-firmware execution",
+                StringComparison.Ordinal) &&
+            evidenceBoundary.Contains(
+                "immutable-text first-publication serialization",
+                StringComparison.Ordinal) &&
+            evidenceBoundary.Contains(
+                "M01-033 through M01-035 must close before M01-026",
+                StringComparison.Ordinal);
     }
 
     private static bool ValidateM00Contracts(IReadOnlyDictionary<string, JsonElement> issueByKey)
