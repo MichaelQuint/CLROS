@@ -4788,7 +4788,7 @@
         "M01-030"
       ],
       "labels": [
-        "agent:done",
+        "agent:blocked",
         "priority:p0",
         "type:implementation",
         "evidence:host",
@@ -4864,7 +4864,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue may prove only host-tested exact arena geometry, capacity semantics, table-page copying, and readback. It does not select or allocate a live firmware range, prove the refreshed EFI map, install the hierarchy into CR3, execute the composite transition, or observe RFLAGS. It does not prove live QEMU/OVMF execution or advance a completion gate.",
-      "desiredState": "closed"
+      "desiredState": "open"
     },
     {
       "key": "M01-032",
@@ -4950,7 +4950,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue may prove only host-tested gate/composite byte materialization, exact return-site binding, ABI/control-flow audit, and post-return observation semantics. It does not execute the gate, change CR3/CR4/RFLAGS/PTE/TLB state, call firmware, or prove restoration in hardware. It does not prove live QEMU/OVMF execution or advance a completion gate.",
-      "desiredState": "closed"
+      "desiredState": "open"
     },
     {
       "key": "M01-020",
