@@ -74,6 +74,10 @@ internal static unsafe class M01LivePagingIntegrationTests
             TestStageTwoAndStackPlanBindings,
             ref failures);
         Run(
+            "m01.019 canonical fixture uses deterministic PT-coverage backing",
+            TestCanonicalFixtureBackingGeometry,
+            ref failures);
+        Run(
             "m01.019 transition protection and page zero negatives",
             TestNegativeLeafEvidence,
             ref failures);
@@ -5316,6 +5320,20 @@ internal static unsafe class M01LivePagingIntegrationTests
                 .ProvesPageZeroAbsentInSuppliedImage;
     }
 
+    private static bool TestCanonicalFixtureBackingGeometry()
+    {
+        using CanonicalFixture fixture = new();
+        return fixture.BackingByteLength
+                == 128UL * BootReservedRange.PageSize
+            && fixture.BackingByteLength
+                <= CanonicalFixture.PageTableCoverageBytes
+            && fixture.BackingAddress != 0
+            && (fixture.BackingAddress
+                & (CanonicalFixture.PageTableCoverageBytes - 1)) == 0
+            && fixture.LegacyTablePageCount == 4
+            && fixture.LiveIntervalTablePageCount == 4;
+    }
+
     private static bool TestDuplicateAndDeterministicRepeat()
     {
         using CanonicalFixture fixture = new();
@@ -7870,6 +7888,7 @@ internal static unsafe class M01LivePagingIntegrationTests
             0x434c_524f_535f_4f4bUL;
         internal const ulong StageThreeMapGeneration = 10;
 
+        internal const ulong PageTableCoverageBytes = 1UL << 21;
         private const ulong BackingPages = 128;
         private const ulong BackingBytes =
             BackingPages * BootReservedRange.PageSize;
@@ -7952,7 +7971,7 @@ internal static unsafe class M01LivePagingIntegrationTests
             {
                 _backing = (byte*)NativeMemory.AlignedAlloc(
                     (nuint)BackingBytes,
-                    (nuint)BootReservedRange.PageSize);
+                    (nuint)PageTableCoverageBytes);
                 if (_backing == null)
                     throw new OutOfMemoryException();
                 Clear(_backing, BackingBytes);
@@ -8001,6 +8020,16 @@ internal static unsafe class M01LivePagingIntegrationTests
             get;
             private set;
         }
+
+        internal ulong BackingAddress => (ulong)_backing;
+
+        internal ulong BackingByteLength => BackingBytes;
+
+        internal ulong LegacyTablePageCount =>
+            _legacyMapping.TotalTablePageCount;
+
+        internal ulong LiveIntervalTablePageCount =>
+            _liveIntervalMapping.TotalTablePageCount;
 
         internal M01LiveAllocatorStaticState* StageTwoState
         {
