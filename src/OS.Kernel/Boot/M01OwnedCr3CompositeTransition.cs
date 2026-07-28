@@ -223,7 +223,13 @@ public enum M01OwnedCr3CompositeTransitionRangeRole : byte
     ProbePage = 4,
     CompleteTableArena = 5,
     RuntimeStateAndCanary = 6,
-    OwnedRoot = 7
+    OwnedRoot = 7,
+    CompositeCodeAndCallGate = 8,
+    CompositeOwnedStack = 9,
+    ProtectionProbePage = 10,
+    CompleteTableAndStateArena = 11,
+    RuntimeStateAndCanaryPage = 12,
+    OwnedRootPage = 13
 }
 
 /// <summary>
@@ -561,10 +567,16 @@ public struct M01OwnedCr3CompositeTransitionRuntimeState
     public ulong CompositeCodeStart => _compositeCodeStart;
     public ulong CompositeCodeEndExclusive =>
         _compositeCodeEndExclusive;
+    public ulong CompositeCodeAndCallGatePageStart =>
+        _compositeCodeStart;
+    public ulong CompositeCodeAndCallGatePageEndExclusive =>
+        _compositeCodeEndExclusive;
     public ulong ContinuationPageStart => _continuationPageStart;
     public ulong ContinuationPageEndExclusive =>
         _continuationPageEndExclusive;
     public ulong ExpectedReturnAddress => _expectedReturnAddress;
+    public ulong ExactPostCallReturnAddress =>
+        _expectedReturnAddress;
     public ulong StackStart => _stackStart;
     public ulong StackEndExclusive => _stackEndExclusive;
     public ulong ProbePageStart => _probePageStart;
@@ -900,6 +912,9 @@ public static unsafe class M01OwnedCr3CompositeTransition
     public const bool CrossBindsOwnedMapIdentity = false;
     public const bool CrossBindsDiagnosticState = false;
     public const bool SerialPurposeIsCompatibilityAliasOnly = true;
+    public const bool UsesExactLiveIntervalBindings = true;
+    public const bool AcceptsHistoricalIdentityAliases = false;
+    public const bool RequiresLoadedImageContinuationPage = false;
     public const bool InvokesFirmwareCallbacks = false;
     public const bool InvokesArbitraryCallbacks = false;
     public const bool CallsFirmware = false;
@@ -972,6 +987,8 @@ public static unsafe class M01OwnedCr3CompositeTransition
     public const uint NoObservedRuntimeReturnValue = ~0U;
     public const ulong ExactProbeByteLength = 6;
     public const ulong RequiredRangeBindingCount = 7;
+    public const ulong RequiredLiveIntervalRangeBindingCount = 6;
+    public const ulong RequiredLiveIntervalRoleMask = 0x3f00;
     public const ulong MaximumAllocationRecordCount = 64;
     public const ulong MaximumReservationRecordCount = 64;
     public const ulong MaximumIdentityMappingCount =
@@ -1083,7 +1100,7 @@ public static unsafe class M01OwnedCr3CompositeTransition
 
     public static M01OwnedCr3CompositeTransitionResult
         CreateRuntimeState(
-            M01LivePagingIntegrationResult* priorPlanningEvidence,
+            M01LivePagingPreparationResult* priorPlanningEvidence,
             ulong priorPlanningEvidenceCount,
             ulong priorPlanningEvidenceCapacity,
             BootMemoryRegionRecord* allocationRecords,
@@ -1125,7 +1142,7 @@ public static unsafe class M01OwnedCr3CompositeTransition
                 priorPlanningEvidenceCount,
                 priorPlanningEvidenceCapacity,
                 1,
-                (ulong)sizeof(M01LivePagingIntegrationResult),
+                (ulong)sizeof(M01LivePagingPreparationResult),
                 M01OwnedCr3CompositeTransitionStatus
                     .MissingPriorPlanningEvidence,
                 M01OwnedCr3CompositeTransitionStatus
@@ -1138,7 +1155,15 @@ public static unsafe class M01OwnedCr3CompositeTransition
                 != M01OwnedCr3CompositeTransitionStatus.Success
             || priorPlanningEvidenceCount != 1
             || priorPlanningEvidenceCapacity != 1
-            || !priorPlanningEvidence[0].Succeeded)
+            || !priorPlanningEvidence[0].Succeeded
+            || !priorPlanningEvidence[0]
+                .PreparedForCompositeTransition
+            || !priorPlanningEvidence[0].IsPreparationOnly
+            || priorPlanningEvidence[0].IsModelOnly
+            || priorPlanningEvidence[0].IsExecutionEvidence
+            || priorPlanningEvidence[0].ExecutionMode
+                != M01LivePagingExecutionMode.PreparationOnly
+            || !priorPlanningEvidence[0].State.IsPrepared)
         {
             return Fail(
                 tableStatus
@@ -1275,13 +1300,15 @@ public static unsafe class M01OwnedCr3CompositeTransition
                 observedValue: pageEntryCapacity);
         }
 
-        if (rangeBindingCount != RequiredRangeBindingCount)
+        if (rangeBindingCount
+            != RequiredLiveIntervalRangeBindingCount)
         {
             return Fail(
                 M01OwnedCr3CompositeTransitionStatus
                     .InvalidRangeBindingCount,
                 invalidIndex: M01OwnedCr3CompositeTransitionResult.NoIndex,
-                expectedValue: RequiredRangeBindingCount,
+                expectedValue:
+                    RequiredLiveIntervalRangeBindingCount,
                 observedValue: rangeBindingCount);
         }
 
@@ -1289,7 +1316,7 @@ public static unsafe class M01OwnedCr3CompositeTransition
             rangeBindings,
             rangeBindingCount,
             rangeBindingCapacity,
-            RequiredRangeBindingCount,
+            RequiredLiveIntervalRangeBindingCount,
             (ulong)sizeof(
                 M01OwnedCr3CompositeTransitionRangeBinding),
             M01OwnedCr3CompositeTransitionStatus
@@ -1484,11 +1511,9 @@ public static unsafe class M01OwnedCr3CompositeTransition
         }
 
         ulong seenRoleMask = 0;
-        M01OwnedCr3CompositeTransitionRangeBinding compositeCode =
+        M01OwnedCr3CompositeTransitionRangeBinding codeAndCallGate =
             default;
         M01OwnedCr3CompositeTransitionRangeBinding ownedStack =
-            default;
-        M01OwnedCr3CompositeTransitionRangeBinding continuation =
             default;
         M01OwnedCr3CompositeTransitionRangeBinding probe = default;
         M01OwnedCr3CompositeTransitionRangeBinding tableArena =
@@ -1497,7 +1522,7 @@ public static unsafe class M01OwnedCr3CompositeTransition
             default;
         M01OwnedCr3CompositeTransitionRangeBinding ownedRoot =
             default;
-        M01LivePagingIntegrationResult prior =
+        M01LivePagingPreparationResult prior =
             priorPlanningEvidence[0];
 
         for (ulong index = 0; index < rangeBindingCount; index++)
@@ -1538,31 +1563,27 @@ public static unsafe class M01OwnedCr3CompositeTransition
             switch (binding.Role)
             {
                 case M01OwnedCr3CompositeTransitionRangeRole
-                    .CompositeCode:
-                    compositeCode = binding;
+                    .CompositeCodeAndCallGate:
+                    codeAndCallGate = binding;
                     break;
                 case M01OwnedCr3CompositeTransitionRangeRole
-                    .OwnedStack:
+                    .CompositeOwnedStack:
                     ownedStack = binding;
                     break;
                 case M01OwnedCr3CompositeTransitionRangeRole
-                    .LoadedImageContinuationPage:
-                    continuation = binding;
-                    break;
-                case M01OwnedCr3CompositeTransitionRangeRole
-                    .ProbePage:
+                    .ProtectionProbePage:
                     probe = binding;
                     break;
                 case M01OwnedCr3CompositeTransitionRangeRole
-                    .CompleteTableArena:
+                    .CompleteTableAndStateArena:
                     tableArena = binding;
                     break;
                 case M01OwnedCr3CompositeTransitionRangeRole
-                    .RuntimeStateAndCanary:
+                    .RuntimeStateAndCanaryPage:
                     stateAndCanary = binding;
                     break;
                 case M01OwnedCr3CompositeTransitionRangeRole
-                    .OwnedRoot:
+                    .OwnedRootPage:
                     ownedRoot = binding;
                     break;
                 default:
@@ -1573,27 +1594,22 @@ public static unsafe class M01OwnedCr3CompositeTransition
             }
         }
 
-        const ulong RequiredRolesMask = 0xfe;
-        if (seenRoleMask != RequiredRolesMask)
+        if (seenRoleMask != RequiredLiveIntervalRoleMask)
         {
             return Fail(
                 M01OwnedCr3CompositeTransitionStatus.MissingRangeRole,
-                expectedValue: RequiredRolesMask,
+                expectedValue: RequiredLiveIntervalRoleMask,
                 observedValue: seenRoleMask);
         }
 
         if (!TryGetRawRange(
-                compositeCode,
+                codeAndCallGate,
                 out ulong codeStart,
                 out ulong codeEnd)
             || !TryGetRawRange(
                 ownedStack,
                 out ulong stackStart,
                 out ulong stackEnd)
-            || !TryGetRawRange(
-                continuation,
-                out ulong continuationStart,
-                out ulong continuationEnd)
             || !TryGetRawRange(
                 probe,
                 out ulong probeStart,
@@ -1627,10 +1643,6 @@ public static unsafe class M01OwnedCr3CompositeTransition
         ulong tablePageEnd =
             tableStart + pageImageCount * PageSize;
         if (!IsPageRange(codeStart, codeEnd, exactlyOnePage: true)
-            || !IsPageRange(
-                continuationStart,
-                continuationEnd,
-                exactlyOnePage: true)
             || !IsPageRange(
                 probeStart,
                 probeEnd,
@@ -1674,27 +1686,7 @@ public static unsafe class M01OwnedCr3CompositeTransition
             || RangesOverlap(codeStart, codeEnd, tableStart, tableEnd)
             || RangesOverlap(probeStart, probeEnd, stackStart, stackEnd)
             || RangesOverlap(probeStart, probeEnd, tableStart, tableEnd)
-            || RangesOverlap(stackStart, stackEnd, tableStart, tableEnd)
-            || RangesOverlap(
-                continuationStart,
-                continuationEnd,
-                codeStart,
-                codeEnd)
-            || RangesOverlap(
-                continuationStart,
-                continuationEnd,
-                probeStart,
-                probeEnd)
-            || RangesOverlap(
-                continuationStart,
-                continuationEnd,
-                stackStart,
-                stackEnd)
-            || RangesOverlap(
-                continuationStart,
-                continuationEnd,
-                tableStart,
-                tableEnd))
+            || RangesOverlap(stackStart, stackEnd, tableStart, tableEnd))
         {
             return Fail(
                 M01OwnedCr3CompositeTransitionStatus.InputOutputAlias);
@@ -1714,14 +1706,22 @@ public static unsafe class M01OwnedCr3CompositeTransition
         }
 
         if (!ContainsAddress(
-                continuationStart,
-                continuationEnd,
+                codeStart,
+                codeEnd,
                 expectedReturnRaw))
         {
             return Fail(
                 M01OwnedCr3CompositeTransitionStatus
                     .InvalidProbeContract,
-                expectedValue: continuationStart,
+                expectedValue: codeStart,
+                observedValue: expectedReturnRaw);
+        }
+        if (expectedReturnRaw < codeStart + RequiredByteLength)
+        {
+            return Fail(
+                M01OwnedCr3CompositeTransitionStatus
+                    .InvalidProbeContract,
+                expectedValue: codeStart + RequiredByteLength,
                 observedValue: expectedReturnRaw);
         }
 
@@ -1748,10 +1748,54 @@ public static unsafe class M01OwnedCr3CompositeTransition
             || priorLedger.LedgerAddress != (ulong)reservationRecords
             || priorLedger.LedgerCount != reservationRecordCount
             || priorLedger.LedgerCapacity != reservationRecordCapacity
+            || prior.State.AllocationTableAddress
+                != (ulong)allocationRecords
+            || prior.State.AllocationRecordCount
+                != allocationRecordCount
+            || prior.State.AllocationRecordCapacity
+                != allocationRecordCapacity
+            || prior.State.ReservationLedgerAddress
+                != (ulong)reservationRecords
+            || prior.State.ReservationCount
+                != reservationRecordCount
+            || prior.State.ReservationCapacity
+                != reservationRecordCapacity
+            || prior.State.MappingRequirementCount
+                != M01LivePagingIntegration
+                    .RequiredLiveIntervalMappingRequirementCount
+            || prior.State.MappingRequirementCapacity
+                < prior.State.MappingRequirementCount
+            || prior.State.MappingRangeAddress
+                != (ulong)identityMappings
+            || prior.State.MappingRangeCount
+                != identityMappingCount
+            || prior.State.MappingRangeCapacity
+                != identityMappingCapacity
+            || prior.State.PageImageAddress != (ulong)pageImages
+            || prior.State.PageImageCount != pageImageCount
+            || prior.State.PageImageCapacity != pageImageCapacity
+            || prior.State.PageEntryAddress != (ulong)pageEntries
+            || prior.State.PageEntryCount != pageEntryCount
+            || prior.State.PageEntryCapacity != pageEntryCapacity
+            || prior.State.Cr3CodePageAddress != codeStart
+            || prior.State.Cr3CodePageCapacity != PageSize
+            || prior.State.ProtectionProbePageAddress
+                != probeStart
+            || prior.State.ProtectionProbePageCapacity != PageSize
+            || !prior.State.PageZeroAbsent
+            || !prior.State.StubBytesVerified
+            || !prior.State.InitialProbeLeafRestored
             || prior.Evidence.MappingPlan.OutputRangeCount
                 != identityMappingCount
             || prior.Evidence.MappingPlan.DestinationCapacity
                 != identityMappingCapacity
+            || prior.Evidence.MappingPlan.RequiredPurposeMask
+                != OS.Kernel.Boot.X64BootIdentityMappingPlan
+                    .RequiredLiveIntervalPurposeMask
+            || prior.Evidence.MappingPlan.GuardSourceIndex
+                == OS.Kernel.Boot
+                    .X64BootIdentityMappingPlanResult.NoIndex
+            || prior.Evidence.MappingPlan.MissingPurposeMask != 0
             || !prior.Evidence.Preflight.Succeeded
             || priorPhysicalAddressWidth < 36
             || priorPhysicalAddressWidth > 52
@@ -1770,9 +1814,9 @@ public static unsafe class M01OwnedCr3CompositeTransition
                 priorTableBuild.RootTable,
                 out ulong priorRoot)
             || priorRoot != rootStart
-            || prior.StaticState.TablePageCount != pageImageCount
+            || prior.State.TablePageCount != pageImageCount
             || !TryGetRawPhysical(
-                prior.StaticState.OwnedRoot,
+                prior.State.OwnedRoot,
                 out ulong priorStaticRoot)
             || priorStaticRoot != rootStart)
         {
@@ -1851,6 +1895,29 @@ public static unsafe class M01OwnedCr3CompositeTransition
                     .InvalidPriorPlanningEvidence);
         }
 
+        if (!TryFindUniqueReservationRange(
+                reservationRecords,
+                reservationRecordCount,
+                OS.Kernel.Memory.BootReservationKind.BootStackGuard,
+                out ulong guardStart,
+                out ulong guardEnd)
+            || !ValidateAbsentIdentityRange(
+                pageImages,
+                pageImageCount,
+                pageEntries,
+                pageEntryCount,
+                rootStart,
+                tableStart,
+                tablePageEnd,
+                priorPhysicalPageMask,
+                guardStart,
+                guardEnd))
+        {
+            return Fail(
+                M01OwnedCr3CompositeTransitionStatus
+                    .IdentityMappingProvenanceMismatch);
+        }
+
         ulong auditedCriticalPages = 0;
         if (!ValidateCriticalRangeMapping(
                 pageImages,
@@ -1879,20 +1946,6 @@ public static unsafe class M01OwnedCr3CompositeTransition
                 stackEnd,
                 OS.Kernel.Memory.PageProtection.Read
                     | OS.Kernel.Memory.PageProtection.Write,
-                ref auditedCriticalPages)
-            || !ValidateCriticalRangeMapping(
-                pageImages,
-                pageImageCount,
-                pageEntries,
-                pageEntryCount,
-                rootStart,
-                tableStart,
-                tablePageEnd,
-                priorPhysicalPageMask,
-                continuationStart,
-                continuationEnd,
-                OS.Kernel.Memory.PageProtection.Read
-                    | OS.Kernel.Memory.PageProtection.Execute,
                 ref auditedCriticalPages)
             || !ValidateCriticalRangeMapping(
                 pageImages,
@@ -1986,8 +2039,8 @@ public static unsafe class M01OwnedCr3CompositeTransition
             stateEnd,
             codeStart,
             codeEnd,
-            continuationStart,
-            continuationEnd,
+            codeStart,
+            codeEnd,
             expectedReturnRaw,
             stackStart,
             stackEnd,
@@ -7377,6 +7430,8 @@ public static unsafe class M01OwnedCr3CompositeTransition
                 state.ContinuationPageStart,
                 state.ContinuationPageEndExclusive,
                 state.ExpectedReturnAddress)
+            || state.ExpectedReturnAddress
+                < state.CompositeCodeStart + RequiredByteLength
             || expectedProbeEnd == 0
             || !ContainsRange(
                 state.ProbePageStart,
@@ -7415,11 +7470,10 @@ public static unsafe class M01OwnedCr3CompositeTransition
             || state.ExpectedCanary == 0
             || state.ReplacementCanary == 0
             || state.ExpectedCanary == state.ReplacementCanary
-            || RangesOverlap(
-                state.CompositeCodeStart,
-                state.CompositeCodeEndExclusive,
-                state.ContinuationPageStart,
-                state.ContinuationPageEndExclusive)
+            || state.ContinuationPageStart
+                != state.CompositeCodeStart
+            || state.ContinuationPageEndExclusive
+                != state.CompositeCodeEndExclusive
             || RangesOverlap(
                 state.CompositeCodeStart,
                 state.CompositeCodeEndExclusive,
@@ -7433,21 +7487,6 @@ public static unsafe class M01OwnedCr3CompositeTransition
             || RangesOverlap(
                 state.CompositeCodeStart,
                 state.CompositeCodeEndExclusive,
-                state.TablePageArenaStart,
-                state.TableStateArenaEndExclusive)
-            || RangesOverlap(
-                state.ContinuationPageStart,
-                state.ContinuationPageEndExclusive,
-                state.StackStart,
-                state.StackEndExclusive)
-            || RangesOverlap(
-                state.ContinuationPageStart,
-                state.ContinuationPageEndExclusive,
-                state.ProbePageStart,
-                state.ProbePageEndExclusive)
-            || RangesOverlap(
-                state.ContinuationPageStart,
-                state.ContinuationPageEndExclusive,
                 state.TablePageArenaStart,
                 state.TableStateArenaEndExclusive)
             || RangesOverlap(
@@ -7565,9 +7604,10 @@ public static unsafe class M01OwnedCr3CompositeTransition
         if (!binding.ReservedFieldsAreZero
             || binding.Role
                 < M01OwnedCr3CompositeTransitionRangeRole
-                    .CompositeCode
+                    .CompositeCodeAndCallGate
             || binding.Role
-                > M01OwnedCr3CompositeTransitionRangeRole.OwnedRoot
+                > M01OwnedCr3CompositeTransitionRangeRole
+                    .OwnedRootPage
             || binding.Provenance
                 < M01OwnedCr3CompositeTransitionRangeProvenance
                     .AllocationReservationAndIdentityMapping
@@ -7601,7 +7641,8 @@ public static unsafe class M01OwnedCr3CompositeTransition
         ulong expectedReservationIndex;
         switch (binding.Role)
         {
-            case M01OwnedCr3CompositeTransitionRangeRole.CompositeCode:
+            case M01OwnedCr3CompositeTransitionRangeRole
+                .CompositeCodeAndCallGate:
                 expectedProvenance =
                     M01OwnedCr3CompositeTransitionRangeProvenance
                         .AllocationReservationAndIdentityMapping;
@@ -7611,7 +7652,8 @@ public static unsafe class M01OwnedCr3CompositeTransition
                 expectedReservationIndex =
                     expectedCodeReservationIndex;
                 break;
-            case M01OwnedCr3CompositeTransitionRangeRole.ProbePage:
+            case M01OwnedCr3CompositeTransitionRangeRole
+                .ProtectionProbePage:
                 expectedProvenance =
                     M01OwnedCr3CompositeTransitionRangeProvenance
                         .AllocationReservationAndIdentityMapping;
@@ -7622,7 +7664,7 @@ public static unsafe class M01OwnedCr3CompositeTransition
                     expectedProbeReservationIndex;
                 break;
             case M01OwnedCr3CompositeTransitionRangeRole
-                .CompleteTableArena:
+                .CompleteTableAndStateArena:
                 expectedProvenance =
                     M01OwnedCr3CompositeTransitionRangeProvenance
                         .AllocationReservationAndIdentityMapping;
@@ -7633,8 +7675,9 @@ public static unsafe class M01OwnedCr3CompositeTransition
                     expectedTableReservationIndex;
                 break;
             case M01OwnedCr3CompositeTransitionRangeRole
-                .RuntimeStateAndCanary:
-            case M01OwnedCr3CompositeTransitionRangeRole.OwnedRoot:
+                .RuntimeStateAndCanaryPage:
+            case M01OwnedCr3CompositeTransitionRangeRole
+                .OwnedRootPage:
                 expectedProvenance =
                     M01OwnedCr3CompositeTransitionRangeProvenance
                         .ContainedInAllocationReservationAndIdentityMapping;
@@ -7644,9 +7687,8 @@ public static unsafe class M01OwnedCr3CompositeTransition
                 expectedReservationIndex =
                     expectedTableReservationIndex;
                 break;
-            case M01OwnedCr3CompositeTransitionRangeRole.OwnedStack:
             case M01OwnedCr3CompositeTransitionRangeRole
-                .LoadedImageContinuationPage:
+                .CompositeOwnedStack:
                 expectedProvenance =
                     M01OwnedCr3CompositeTransitionRangeProvenance
                         .ReservationAndIdentityMapping;
@@ -7728,14 +7770,16 @@ public static unsafe class M01OwnedCr3CompositeTransition
         bool reservationMustBeExact =
             binding.Role
                 == M01OwnedCr3CompositeTransitionRangeRole
-                    .CompositeCode
-            || binding.Role
-                == M01OwnedCr3CompositeTransitionRangeRole.OwnedStack
-            || binding.Role
-                == M01OwnedCr3CompositeTransitionRangeRole.ProbePage
+                    .CompositeCodeAndCallGate
             || binding.Role
                 == M01OwnedCr3CompositeTransitionRangeRole
-                    .CompleteTableArena;
+                    .CompositeOwnedStack
+            || binding.Role
+                == M01OwnedCr3CompositeTransitionRangeRole
+                    .ProtectionProbePage
+            || binding.Role
+                == M01OwnedCr3CompositeTransitionRangeRole
+                    .CompleteTableAndStateArena;
         if (!reservation.IsValid
             || !TryGetRawPhysical(
                 reservation.PhysicalStart,
@@ -7786,14 +7830,16 @@ public static unsafe class M01OwnedCr3CompositeTransition
             || mappingPhysicalEnd - mappingPhysicalStart
                 != mapping.ByteLength
             || mapping.ContributingPurposeMask == 0
-            || (mapping.ContributingPurposeMask & ~0x1feUL) != 0
+            || (mapping.ContributingPurposeMask
+                & ~OS.Kernel.Boot.X64BootIdentityMappingPlan
+                    .RequiredLiveIntervalPurposeMask) != 0
             || !ContainsRange(
                 mappingPhysicalStart,
                 mappingPhysicalEnd,
                 physicalStart,
                 physicalEnd)
             || (mapping.ContributingPurposeMask
-                & ExpectedPurposeMask(binding.Role)) == 0
+                & RequiredMappingPurposeBit(binding.Role)) == 0
             || mapping.CachePolicy
                 != OS.Kernel.Memory.PageCachePolicy.WriteBack)
         {
@@ -7828,15 +7874,17 @@ public static unsafe class M01OwnedCr3CompositeTransition
     {
         switch (role)
         {
-            case M01OwnedCr3CompositeTransitionRangeRole.CompositeCode:
-            case M01OwnedCr3CompositeTransitionRangeRole.ProbePage:
+            case M01OwnedCr3CompositeTransitionRangeRole
+                .CompositeCodeAndCallGate:
+            case M01OwnedCr3CompositeTransitionRangeRole
+                .ProtectionProbePage:
                 return (uint)UefiMemoryType.LoaderCode;
-            case M01OwnedCr3CompositeTransitionRangeRole.OwnedStack:
             case M01OwnedCr3CompositeTransitionRangeRole
-                .CompleteTableArena:
+                .CompleteTableAndStateArena:
             case M01OwnedCr3CompositeTransitionRangeRole
-                .RuntimeStateAndCanary:
-            case M01OwnedCr3CompositeTransitionRangeRole.OwnedRoot:
+                .RuntimeStateAndCanaryPage:
+            case M01OwnedCr3CompositeTransitionRangeRole
+                .OwnedRootPage:
                 return (uint)UefiMemoryType.LoaderData;
             default:
                 return 0;
@@ -7849,22 +7897,23 @@ public static unsafe class M01OwnedCr3CompositeTransition
     {
         switch (role)
         {
-            case M01OwnedCr3CompositeTransitionRangeRole.CompositeCode:
+            case M01OwnedCr3CompositeTransitionRangeRole
+                .CompositeCodeAndCallGate:
                 return OS.Kernel.Memory.BootReservationKind
                     .Cr3TransitionStub;
-            case M01OwnedCr3CompositeTransitionRangeRole.OwnedStack:
+            case M01OwnedCr3CompositeTransitionRangeRole
+                .CompositeOwnedStack:
                 return OS.Kernel.Memory.BootReservationKind.BootStack;
             case M01OwnedCr3CompositeTransitionRangeRole
-                .LoadedImageContinuationPage:
-                return OS.Kernel.Memory.BootReservationKind.LoadedImage;
-            case M01OwnedCr3CompositeTransitionRangeRole.ProbePage:
+                .ProtectionProbePage:
                 return OS.Kernel.Memory.BootReservationKind
                     .PageProtectionProbe;
             case M01OwnedCr3CompositeTransitionRangeRole
-                .CompleteTableArena:
+                .CompleteTableAndStateArena:
             case M01OwnedCr3CompositeTransitionRangeRole
-                .RuntimeStateAndCanary:
-            case M01OwnedCr3CompositeTransitionRangeRole.OwnedRoot:
+                .RuntimeStateAndCanaryPage:
+            case M01OwnedCr3CompositeTransitionRangeRole
+                .OwnedRootPage:
                 return OS.Kernel.Memory.BootReservationKind
                     .PageTableArena;
             default:
@@ -7873,30 +7922,41 @@ public static unsafe class M01OwnedCr3CompositeTransition
         }
     }
 
-    private static ulong ExpectedPurposeMask(
+    private static ulong RequiredMappingPurposeBit(
         M01OwnedCr3CompositeTransitionRangeRole role)
     {
         OS.Kernel.Boot.X64BootIdentityMappingPurpose purpose;
         switch (role)
         {
-            case M01OwnedCr3CompositeTransitionRangeRole.CompositeCode:
-            case M01OwnedCr3CompositeTransitionRangeRole.ProbePage:
             case M01OwnedCr3CompositeTransitionRangeRole
-                .CompleteTableArena:
-            case M01OwnedCr3CompositeTransitionRangeRole
-                .RuntimeStateAndCanary:
-            case M01OwnedCr3CompositeTransitionRangeRole.OwnedRoot:
+                .CompositeCodeAndCallGate:
                 purpose = OS.Kernel.Boot.X64BootIdentityMappingPurpose
-                    .AdditionalRequired;
-                break;
-            case M01OwnedCr3CompositeTransitionRangeRole.OwnedStack:
-                purpose = OS.Kernel.Boot.X64BootIdentityMappingPurpose
-                    .OwnedStack;
+                    .CompositeCodeAndCallGate;
                 break;
             case M01OwnedCr3CompositeTransitionRangeRole
-                .LoadedImageContinuationPage:
+                .CompositeOwnedStack:
                 purpose = OS.Kernel.Boot.X64BootIdentityMappingPurpose
-                    .ExecutingImage;
+                    .CompositeOwnedStack;
+                break;
+            case M01OwnedCr3CompositeTransitionRangeRole
+                .ProtectionProbePage:
+                purpose = OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                    .ProtectionProbePage;
+                break;
+            case M01OwnedCr3CompositeTransitionRangeRole
+                .CompleteTableAndStateArena:
+                purpose = OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                    .CompleteTableAndStateArena;
+                break;
+            case M01OwnedCr3CompositeTransitionRangeRole
+                .RuntimeStateAndCanaryPage:
+                purpose = OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                    .RuntimeStateAndCanaryPage;
+                break;
+            case M01OwnedCr3CompositeTransitionRangeRole
+                .OwnedRootPage:
+                purpose = OS.Kernel.Boot.X64BootIdentityMappingPurpose
+                    .OwnedRootPage;
                 break;
             default:
                 return 0;
@@ -7910,18 +7970,20 @@ public static unsafe class M01OwnedCr3CompositeTransition
     {
         switch (role)
         {
-            case M01OwnedCr3CompositeTransitionRangeRole.CompositeCode:
             case M01OwnedCr3CompositeTransitionRangeRole
-                .LoadedImageContinuationPage:
+                .CompositeCodeAndCallGate:
                 return OS.Kernel.Memory.PageProtection.Read
                     | OS.Kernel.Memory.PageProtection.Execute;
-            case M01OwnedCr3CompositeTransitionRangeRole.OwnedStack:
-            case M01OwnedCr3CompositeTransitionRangeRole.ProbePage:
             case M01OwnedCr3CompositeTransitionRangeRole
-                .CompleteTableArena:
+                .CompositeOwnedStack:
             case M01OwnedCr3CompositeTransitionRangeRole
-                .RuntimeStateAndCanary:
-            case M01OwnedCr3CompositeTransitionRangeRole.OwnedRoot:
+                .ProtectionProbePage:
+            case M01OwnedCr3CompositeTransitionRangeRole
+                .CompleteTableAndStateArena:
+            case M01OwnedCr3CompositeTransitionRangeRole
+                .RuntimeStateAndCanaryPage:
+            case M01OwnedCr3CompositeTransitionRangeRole
+                .OwnedRootPage:
                 return OS.Kernel.Memory.PageProtection.Read
                     | OS.Kernel.Memory.PageProtection.Write;
             default:
@@ -8012,6 +8074,52 @@ public static unsafe class M01OwnedCr3CompositeTransition
         return TryGetRawVirtual(binding.VirtualStart, out start)
             && TryGetRawVirtual(binding.VirtualEndExclusive, out end)
             && start < end;
+    }
+
+    private static bool TryFindUniqueReservationRange(
+        OS.Kernel.Memory.BootReservedRange* reservations,
+        ulong reservationCount,
+        OS.Kernel.Memory.BootReservationKind kind,
+        out ulong start,
+        out ulong end)
+    {
+        start = 0;
+        end = 0;
+        if (reservations == null
+            || reservationCount == 0
+            || kind == OS.Kernel.Memory.BootReservationKind.Uninitialized)
+        {
+            return false;
+        }
+
+        ulong matchCount = 0;
+        for (ulong index = 0; index < reservationCount; index++)
+        {
+            OS.Kernel.Memory.BootReservedRange reservation =
+                reservations[index];
+            if (reservation.Kind != kind)
+            {
+                continue;
+            }
+
+            if (!reservation.IsValid
+                || !TryGetRawPhysical(
+                    reservation.PhysicalStart,
+                    out ulong candidateStart)
+                || !TryGetRawPhysical(
+                    reservation.PhysicalEndExclusive,
+                    out ulong candidateEnd)
+                || candidateStart >= candidateEnd)
+            {
+                return false;
+            }
+
+            start = candidateStart;
+            end = candidateEnd;
+            matchCount++;
+        }
+
+        return matchCount == 1;
     }
 
     private static bool TryGetRawPhysical(
@@ -8347,6 +8455,129 @@ public static unsafe class M01OwnedCr3CompositeTransition
 
         auditedPageCount += pageCount;
         return true;
+    }
+
+    private static bool ValidateAbsentIdentityRange(
+        OS.Kernel.Memory.X64PageTableImagePage* pageImages,
+        ulong pageImageCount,
+        ulong* entries,
+        ulong entryCount,
+        ulong rootStart,
+        ulong tableStart,
+        ulong tablePageEnd,
+        ulong physicalPageMask,
+        ulong rangeStart,
+        ulong rangeEnd)
+    {
+        if (!IsPageRange(
+                rangeStart,
+                rangeEnd,
+                exactlyOnePage: false))
+        {
+            return false;
+        }
+
+        ulong pageCount = (rangeEnd - rangeStart) / PageSize;
+        for (ulong pageOrdinal = 0;
+            pageOrdinal < pageCount;
+            pageOrdinal++)
+        {
+            if (!IsIdentityAddressAbsent(
+                    pageImages,
+                    pageImageCount,
+                    entries,
+                    entryCount,
+                    rootStart,
+                    tableStart,
+                    tablePageEnd,
+                    physicalPageMask,
+                    rangeStart + pageOrdinal * PageSize))
+            {
+                return false;
+            }
+        }
+
+        return pageCount != 0;
+    }
+
+    private static bool IsIdentityAddressAbsent(
+        OS.Kernel.Memory.X64PageTableImagePage* pageImages,
+        ulong pageImageCount,
+        ulong* entries,
+        ulong entryCount,
+        ulong rootStart,
+        ulong tableStart,
+        ulong tablePageEnd,
+        ulong physicalPageMask,
+        ulong virtualAddress)
+    {
+        if (pageImages == null
+            || entries == null
+            || rootStart < tableStart
+            || rootStart >= tablePageEnd
+            || ((rootStart - tableStart) & (PageSize - 1)) != 0)
+        {
+            return false;
+        }
+
+        ulong currentPage = (rootStart - tableStart) / PageSize;
+        for (byte level = 0; level < 3; level++)
+        {
+            if (currentPage >= pageImageCount
+                || !pageImages[currentPage].IsInitialized)
+            {
+                return false;
+            }
+
+            int shift = level == 0 ? 39 : level == 1 ? 30 : 21;
+            ulong index = (virtualAddress >> shift) & 0x1ff;
+            ulong flat =
+                pageImages[currentPage].EntryStartIndex + index;
+            if (flat >= entryCount)
+            {
+                return false;
+            }
+
+            ulong entry = entries[flat];
+            if ((entry & PagePresentBit) == 0)
+            {
+                return entry == 0;
+            }
+
+            ulong allowed =
+                physicalPageMask
+                | PagePresentBit
+                | PageWritableBit
+                | PageAccessedBit;
+            if ((entry & ~allowed) != 0
+                || (entry
+                    & (PagePresentBit | PageWritableBit))
+                    != (PagePresentBit | PageWritableBit))
+            {
+                return false;
+            }
+
+            ulong child = entry & physicalPageMask;
+            if (child < tableStart
+                || child >= tablePageEnd
+                || ((child - tableStart) & (PageSize - 1)) != 0)
+            {
+                return false;
+            }
+
+            currentPage = (child - tableStart) / PageSize;
+        }
+
+        if (currentPage >= pageImageCount
+            || !pageImages[currentPage].IsInitialized)
+        {
+            return false;
+        }
+
+        ulong leafIndex = (virtualAddress >> 12) & 0x1ff;
+        ulong leafFlat =
+            pageImages[currentPage].EntryStartIndex + leafIndex;
+        return leafFlat < entryCount && entries[leafFlat] == 0;
     }
 
     private static bool TryReadIdentityLeaf(

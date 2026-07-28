@@ -15,6 +15,9 @@ using OS.Kernel.Memory;
 internal static unsafe class M01OwnedCr3CompositeTransitionTests
 {
     private const string IssueTestName = "m01.027";
+    private const string LiveIntervalIssueTestName = "m01.030";
+    private const string LiveIntervalReadyMarker =
+        "CLROS_M01_030_READY";
     private const int BuildTimeoutMilliseconds = 90_000;
     private const ulong ExpectedRequiredByteLength = 3830;
     private const ulong ExpectedInstructionCount = 732;
@@ -115,6 +118,50 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
 
         Console.WriteLine("CLROS_M01_027_READY");
         Console.WriteLine("TEST_PASS " + IssueTestName);
+
+        RunLiveIntervalContractTests();
+    }
+
+    private static void RunLiveIntervalContractTests()
+    {
+        int failures = 0;
+
+        Console.WriteLine(
+            "TEST_START " + LiveIntervalIssueTestName);
+
+        Run(
+            "m01.030 exact identity planner profile is closed",
+            X64BootIdentityMappingPlanTests
+                .TestM01030ExactLiveIntervalContract,
+            ref failures);
+        Run(
+            "m01.030 exact preparation profile is closed",
+            M01LivePagingIntegrationTests
+                .TestM01030ExactPreparationContract,
+            ref failures);
+        Run(
+            "m01.030 exact composite roles and provenance are closed",
+            TestM01030ExactCompositeContract,
+            ref failures);
+        Run(
+            "m01.030 exact marker and evidence boundary is closed",
+            TestM01030MarkerAndEvidenceBoundary,
+            ref failures);
+
+        if (failures != 0)
+        {
+            Console.WriteLine(
+                "TEST_FAIL " + LiveIntervalIssueTestName
+                + " failures="
+                + failures);
+            throw new InvalidOperationException(
+                "M01-030 exact live-interval contract tests failed: "
+                + failures);
+        }
+
+        Console.WriteLine(LiveIntervalReadyMarker);
+        Console.WriteLine(
+            "TEST_PASS " + LiveIntervalIssueTestName);
     }
 
     private static bool TestStableSurfaceAndDefaults()
@@ -316,7 +363,13 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
             ("ProbePage", 4),
             ("CompleteTableArena", 5),
             ("RuntimeStateAndCanary", 6),
-            ("OwnedRoot", 7)
+            ("OwnedRoot", 7),
+            ("CompositeCodeAndCallGate", 8),
+            ("CompositeOwnedStack", 9),
+            ("ProtectionProbePage", 10),
+            ("CompleteTableAndStateArena", 11),
+            ("RuntimeStateAndCanaryPage", 12),
+            ("OwnedRootPage", 13)
         ];
         (string Name, byte Value)[] provenances =
         [
@@ -493,6 +546,18 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
                 .CrossBindsDiagnosticState
             && M01OwnedCr3CompositeTransition
                 .SerialPurposeIsCompatibilityAliasOnly
+            && M01OwnedCr3CompositeTransition
+                .UsesExactLiveIntervalBindings
+            && !M01OwnedCr3CompositeTransition
+                .AcceptsHistoricalIdentityAliases
+            && !M01OwnedCr3CompositeTransition
+                .RequiresLoadedImageContinuationPage
+            && M01OwnedCr3CompositeTransition
+                .RequiredRangeBindingCount == 7
+            && M01OwnedCr3CompositeTransition
+                .RequiredLiveIntervalRangeBindingCount == 6
+            && M01OwnedCr3CompositeTransition
+                .RequiredLiveIntervalRoleMask == 0x3f00
             && !M01OwnedCr3CompositeTransition
                 .InvokesFirmwareCallbacks
             && !M01OwnedCr3CompositeTransition
@@ -726,10 +791,10 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
             || ExecuteMissingBindingTable(fixture).Status
                 != M01OwnedCr3CompositeTransitionStatus
                     .MissingRangeBindings
-            || fixture.Execute(bindingCount: 6).Status
+            || fixture.Execute(bindingCount: 5).Status
                 != M01OwnedCr3CompositeTransitionStatus
                     .InvalidRangeBindingCount
-            || fixture.Execute(bindingCapacity: 6).Status
+            || fixture.Execute(bindingCapacity: 5).Status
                 != M01OwnedCr3CompositeTransitionStatus
                     .RangeBindingCapacityTooSmall
             || fixture.Execute(stateDestinationCount: 0).Status
@@ -913,8 +978,8 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
         using CompositeFixture missingMapping =
             CompositeFixture.Create();
         M01OwnedCr3CompositeTransitionRangeBinding probeBinding =
-            missingMapping.Bindings[3];
-        missingMapping.Bindings[3] = Binding(
+            missingMapping.Bindings[2];
+        missingMapping.Bindings[2] = Binding(
             probeBinding.Role,
             probeBinding.Provenance,
             Raw(probeBinding.PhysicalStart),
@@ -934,7 +999,7 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
 
         using CompositeFixture duplicateRole =
             CompositeFixture.Create();
-        duplicateRole.Bindings[6] = duplicateRole.Bindings[5];
+        duplicateRole.Bindings[5] = duplicateRole.Bindings[4];
         if (duplicateRole.Execute().Status
             != M01OwnedCr3CompositeTransitionStatus
                 .DuplicateRangeRole)
@@ -970,9 +1035,9 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
         using CompositeFixture wrongProbeIndex =
             CompositeFixture.Create();
         M01OwnedCr3CompositeTransitionRangeBinding wrongProbe =
-            wrongProbeIndex.Bindings[3];
+            wrongProbeIndex.Bindings[2];
         wrongProbeIndex.ReplaceBinding(
-            3,
+            2,
             wrongProbe.Provenance,
             2,
             wrongProbe.ReservationIndex,
@@ -980,11 +1045,11 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
         using CompositeFixture wrongArenaReservation =
             CompositeFixture.Create();
         M01OwnedCr3CompositeTransitionRangeBinding wrongArena =
-            wrongArenaReservation.Bindings[4];
+            wrongArenaReservation.Bindings[3];
         ulong probeReservationIndex =
-            wrongArenaReservation.Bindings[3].ReservationIndex;
+            wrongArenaReservation.Bindings[2].ReservationIndex;
         wrongArenaReservation.ReplaceBinding(
-            4,
+            3,
             wrongArena.Provenance,
             wrongArena.AllocationIndex,
             probeReservationIndex,
@@ -1003,9 +1068,9 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
         using CompositeFixture exactState =
             CompositeFixture.Create();
         M01OwnedCr3CompositeTransitionRangeBinding stateBinding =
-            exactState.Bindings[5];
+            exactState.Bindings[4];
         exactState.ReplaceBinding(
-            5,
+            4,
             M01OwnedCr3CompositeTransitionRangeProvenance
                 .AllocationReservationAndIdentityMapping,
             stateBinding.AllocationIndex,
@@ -1029,7 +1094,7 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
             return false;
         }
 
-        int[] dereferencedBindings = [0, 1, 2, 4, 5, 6];
+        int[] dereferencedBindings = [0, 1, 2, 3, 4, 5];
         for (int index = 0;
             index < dereferencedBindings.Length;
             index++)
@@ -1240,6 +1305,677 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
         return finalBoundaryMatrix;
     }
 
+    private static bool TestM01030ExactCompositeContract()
+    {
+        return TestM01030CanonicalCompositeBindings()
+            && TestM01030RoleCardinalityAndAliases()
+            && TestM01030MappingPoliciesAndReturnContainment()
+            && TestM01030MalformedBindingsAndAtomicity();
+    }
+
+    private static bool TestM01030CanonicalCompositeBindings()
+    {
+        using CompositeFixture fixture = CompositeFixture.Create();
+        GC.Collect(
+            GC.MaxGeneration,
+            GCCollectionMode.Forced,
+            blocking: true,
+            compacting: true);
+        M01OwnedCr3CompositeTransitionResult result =
+            fixture.Execute();
+        M01OwnedCr3CompositeTransitionRangeRole[] expectedRoles =
+        [
+            M01OwnedCr3CompositeTransitionRangeRole
+                .CompositeCodeAndCallGate,
+            M01OwnedCr3CompositeTransitionRangeRole
+                .CompositeOwnedStack,
+            M01OwnedCr3CompositeTransitionRangeRole
+                .ProtectionProbePage,
+            M01OwnedCr3CompositeTransitionRangeRole
+                .CompleteTableAndStateArena,
+            M01OwnedCr3CompositeTransitionRangeRole
+                .RuntimeStateAndCanaryPage,
+            M01OwnedCr3CompositeTransitionRangeRole
+                .OwnedRootPage
+        ];
+        if (!result.IsSuccess
+            || !fixture.PriorEvidence.Succeeded
+            || !fixture.PriorEvidence
+                .PreparedForCompositeTransition
+            || !fixture.PriorEvidence.IsPreparationOnly
+            || fixture.PriorEvidence.IsModelOnly
+            || fixture.PriorEvidence.IsExecutionEvidence
+            || fixture.Bindings.Length != expectedRoles.Length
+            || fixture.PriorEvidence.State.MappingRequirementCount
+                != M01LivePagingIntegration
+                    .RequiredLiveIntervalMappingRequirementCount
+            || fixture.PriorEvidence.Evidence.MappingPlan
+                    .RequiredPurposeMask
+                != X64BootIdentityMappingPlan
+                    .RequiredLiveIntervalPurposeMask
+            || fixture.PriorEvidence.Evidence.MappingPlan
+                    .MissingPurposeMask != 0
+            || fixture.PriorEvidence.Evidence.MappingPlan
+                    .GuardSourceIndex
+                == X64BootIdentityMappingPlanResult.NoIndex
+            || result.State.ContinuationPageStart
+                != result.State.CompositeCodeStart
+            || result.State.ContinuationPageEndExclusive
+                != result.State.CompositeCodeEndExclusive
+            || result.State.ExpectedReturnAddress
+                != fixture.ExpectedReturnAddressValue
+            || fixture.ExpectedReturnAddressValue
+                < result.State.CompositeCodeStart
+                    + M01OwnedCr3CompositeTransition
+                        .RequiredByteLength
+            || fixture.ExpectedReturnAddressValue
+                >= result.State.CompositeCodeEndExclusive)
+        {
+            Console.WriteLine(
+                "M01_030_COMPOSITE_DIAGNOSTIC canonical"
+                + " status=" + result.Status
+                + " binding_count=" + fixture.Bindings.Length
+                + " required_mask=0x"
+                + fixture.PriorEvidence.Evidence.MappingPlan
+                    .RequiredPurposeMask.ToString("X")
+                + " observed_mask=0x"
+                + fixture.PriorEvidence.Evidence.MappingPlan
+                    .ObservedPurposeMask.ToString("X"));
+            return false;
+        }
+
+        for (int index = 0; index < expectedRoles.Length; index++)
+        {
+            if (fixture.Bindings[index].Role != expectedRoles[index])
+            {
+                Console.WriteLine(
+                    "M01_030_COMPOSITE_DIAGNOSTIC role index="
+                    + index
+                    + " observed="
+                    + fixture.Bindings[index].Role);
+                return false;
+            }
+        }
+
+        ulong exactMask =
+            X64BootIdentityMappingPlan
+                .RequiredLiveIntervalPurposeMask;
+        ulong historicalMask = 0x1feUL;
+        bool observedMergedAdjacentRange =
+            fixture.Bindings[2].IdentityMappingIndex
+                == fixture.Bindings[3].IdentityMappingIndex;
+        for (ulong mappingIndex = 0;
+            mappingIndex < fixture.MappingCount;
+            mappingIndex++)
+        {
+            X64BootIdentityMappingRange mapping =
+                fixture.Mappings[mappingIndex];
+            ulong expectedMask = 0;
+            int containedBindings = 0;
+            for (int bindingIndex = 0;
+                bindingIndex < fixture.Bindings.Length;
+                bindingIndex++)
+            {
+                M01OwnedCr3CompositeTransitionRangeBinding binding =
+                    fixture.Bindings[bindingIndex];
+                if (ContainsRawRange(mapping, binding))
+                {
+                    expectedMask |= PurposeBitForRole(binding.Role);
+                    containedBindings++;
+                }
+            }
+
+            if (!mapping.IsInitialized
+                || expectedMask == 0
+                || mapping.ContributingPurposeMask != expectedMask
+                || (mapping.ContributingPurposeMask & ~exactMask) != 0
+                || (mapping.ContributingPurposeMask
+                    & historicalMask) != 0
+                || mapping.CachePolicy != PageCachePolicy.WriteBack)
+            {
+                Console.WriteLine(
+                    "M01_030_COMPOSITE_DIAGNOSTIC mapping index="
+                    + mappingIndex
+                    + " expected_mask=0x"
+                    + expectedMask.ToString("X")
+                    + " observed_mask=0x"
+                    + mapping.ContributingPurposeMask.ToString("X")
+                    + " contained="
+                    + containedBindings);
+                return false;
+            }
+        }
+
+        if (!observedMergedAdjacentRange)
+        {
+            Console.WriteLine(
+                "M01_030_COMPOSITE_DIAGNOSTIC "
+                + "merged_adjacent_profile_not_exercised");
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool TestM01030RoleCardinalityAndAliases()
+    {
+        using CompositeFixture fixture = CompositeFixture.Create();
+        M01OwnedCr3CompositeTransitionRangeBinding[] reversed =
+            fixture.Bindings.Reverse().ToArray();
+        if (!ExecuteWithBindings(fixture, reversed).IsSuccess)
+        {
+            Console.WriteLine(
+                "M01_030_COMPOSITE_DIAGNOSTIC reordered");
+            return false;
+        }
+
+        using CompositeFixture negative = CompositeFixture.Create();
+        for (int missingIndex = 0;
+            missingIndex < negative.Bindings.Length;
+            missingIndex++)
+        {
+            M01OwnedCr3CompositeTransitionRangeBinding[] missing =
+                negative.Bindings
+                    .Where((_, index) => index != missingIndex)
+                    .ToArray();
+            if (ExecuteWithBindings(negative, missing).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InvalidRangeBindingCount)
+            {
+                Console.WriteLine(
+                    "M01_030_COMPOSITE_DIAGNOSTIC missing index="
+                    + missingIndex);
+                return false;
+            }
+        }
+
+        for (int duplicateIndex = 0;
+            duplicateIndex < negative.Bindings.Length;
+            duplicateIndex++)
+        {
+            M01OwnedCr3CompositeTransitionRangeBinding[] duplicate =
+                [.. negative.Bindings];
+            duplicate[duplicateIndex] =
+                duplicate[(duplicateIndex + 1) % duplicate.Length];
+            if (ExecuteWithBindings(negative, duplicate).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .DuplicateRangeRole)
+            {
+                Console.WriteLine(
+                    "M01_030_COMPOSITE_DIAGNOSTIC duplicate index="
+                    + duplicateIndex);
+                return false;
+            }
+        }
+
+        M01OwnedCr3CompositeTransitionRangeBinding[] extra =
+            new M01OwnedCr3CompositeTransitionRangeBinding[
+                negative.Bindings.Length + 1];
+        negative.Bindings.CopyTo(extra, 0);
+        extra[^1] = negative.Bindings[0];
+        if (ExecuteWithBindings(negative, extra).Status
+            != M01OwnedCr3CompositeTransitionStatus
+                .InvalidRangeBindingCount)
+        {
+            Console.WriteLine(
+                "M01_030_COMPOSITE_DIAGNOSTIC extra");
+            return false;
+        }
+
+        byte[] forbiddenRoleValues = [0, 1, 2, 3, 4, 5, 6, 7, 255];
+        for (int index = 0;
+            index < forbiddenRoleValues.Length;
+            index++)
+        {
+            M01OwnedCr3CompositeTransitionRangeBinding[] bindings =
+                [.. negative.Bindings];
+            M01OwnedCr3CompositeTransitionRangeBinding source =
+                bindings[0];
+            bindings[0] = Binding(
+                (M01OwnedCr3CompositeTransitionRangeRole)
+                    forbiddenRoleValues[index],
+                source.Provenance,
+                Raw(source.PhysicalStart),
+                Raw(source.PhysicalEndExclusive),
+                source.AllocationIndex,
+                source.ReservationIndex,
+                source.IdentityMappingIndex);
+            if (ExecuteWithBindings(negative, bindings).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InvalidRangeBinding)
+            {
+                Console.WriteLine(
+                    "M01_030_COMPOSITE_DIAGNOSTIC historical_role="
+                    + forbiddenRoleValues[index]);
+                return false;
+            }
+        }
+
+        for (int targetIndex = 0;
+            targetIndex < negative.Bindings.Length;
+            targetIndex++)
+        {
+            for (int sourceIndex = 0;
+                sourceIndex < negative.Bindings.Length;
+                sourceIndex++)
+            {
+                if (targetIndex == sourceIndex)
+                {
+                    continue;
+                }
+
+                M01OwnedCr3CompositeTransitionRangeBinding[] aliased =
+                    [.. negative.Bindings];
+                M01OwnedCr3CompositeTransitionRangeBinding target =
+                    aliased[targetIndex];
+                M01OwnedCr3CompositeTransitionRangeBinding source =
+                    aliased[sourceIndex];
+                aliased[targetIndex] = Binding(
+                    target.Role,
+                    target.Provenance,
+                    Raw(source.PhysicalStart),
+                    Raw(source.PhysicalEndExclusive),
+                    target.AllocationIndex,
+                    target.ReservationIndex,
+                    target.IdentityMappingIndex);
+                if (ExecuteWithBindings(negative, aliased).IsSuccess)
+                {
+                    Console.WriteLine(
+                        "M01_030_COMPOSITE_DIAGNOSTIC cross_alias="
+                        + targetIndex
+                        + "<-"
+                        + sourceIndex);
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TestM01030MappingPoliciesAndReturnContainment()
+    {
+        using (CompositeFixture additional =
+            CompositeFixture.Create())
+        {
+            HashSet<ulong> indexes =
+                additional.Bindings
+                    .Select(binding => binding.IdentityMappingIndex)
+                    .ToHashSet();
+            foreach (ulong mappingIndex in indexes)
+            {
+                X64BootIdentityMappingRange mapping =
+                    additional.Mappings[mappingIndex];
+                additional.SetMappingUlong(
+                    mappingIndex,
+                    "_contributingPurposeMask",
+                    mapping.ContributingPurposeMask
+                        | (1UL << (byte)
+                            X64BootIdentityMappingPurpose
+                                .AdditionalRequired));
+                if (additional.Execute().Status
+                    != M01OwnedCr3CompositeTransitionStatus
+                        .IdentityMappingProvenanceMismatch)
+                {
+                    Console.WriteLine(
+                        "M01_030_COMPOSITE_DIAGNOSTIC "
+                        + "additional_required mapping="
+                        + mappingIndex);
+                    return false;
+                }
+                additional.SetMappingUlong(
+                    mappingIndex,
+                    "_contributingPurposeMask",
+                    mapping.ContributingPurposeMask);
+            }
+        }
+
+        using (CompositeFixture historical =
+            CompositeFixture.Create())
+        {
+            X64BootIdentityMappingRange mapping =
+                historical.Mappings[historical.CodeMappingIndex];
+            historical.SetMappingUlong(
+                historical.CodeMappingIndex,
+                "_contributingPurposeMask",
+                mapping.ContributingPurposeMask
+                    | (1UL << (byte)
+                        X64BootIdentityMappingPurpose.SerialStub));
+            if (historical.Execute().Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .IdentityMappingProvenanceMismatch)
+            {
+                Console.WriteLine(
+                    "M01_030_COMPOSITE_DIAGNOSTIC historical_mask");
+                return false;
+            }
+        }
+
+        using (CompositeFixture wrongCache =
+            CompositeFixture.Create())
+        {
+            wrongCache.SetMappingCachePolicy(
+                wrongCache.Bindings[1].IdentityMappingIndex,
+                PageCachePolicy.Uncached);
+            if (wrongCache.Execute().Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .IdentityMappingProvenanceMismatch)
+            {
+                Console.WriteLine(
+                    "M01_030_COMPOSITE_DIAGNOSTIC cache");
+                return false;
+            }
+        }
+
+        using (CompositeFixture wrongCode =
+            CompositeFixture.Create())
+        {
+            wrongCode.SetMappingProtection(
+                wrongCode.CodeMappingIndex,
+                PageProtection.Read | PageProtection.Write);
+            if (wrongCode.Execute().Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InvalidProtection)
+            {
+                Console.WriteLine(
+                    "M01_030_COMPOSITE_DIAGNOSTIC code_policy");
+                return false;
+            }
+        }
+
+        using (CompositeFixture wxCode =
+            CompositeFixture.Create())
+        {
+            wxCode.SetMappingProtection(
+                wxCode.CodeMappingIndex,
+                PageProtection.Read
+                    | PageProtection.Write
+                    | PageProtection.Execute);
+            if (wxCode.Execute().Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .WritableExecutableRejected)
+            {
+                Console.WriteLine(
+                    "M01_030_COMPOSITE_DIAGNOSTIC wx");
+                return false;
+            }
+        }
+
+        using (CompositeFixture executableStack =
+            CompositeFixture.Create())
+        {
+            executableStack.SetMappingProtection(
+                executableStack.Bindings[1].IdentityMappingIndex,
+                PageProtection.Read | PageProtection.Execute);
+            if (executableStack.Execute().Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InvalidProtection)
+            {
+                Console.WriteLine(
+                    "M01_030_COMPOSITE_DIAGNOSTIC stack_policy");
+                return false;
+            }
+        }
+
+        using (CompositeFixture guard = CompositeFixture.Create())
+        {
+            ulong guardReservation = FindReservationIndex(
+                guard,
+                BootReservationKind.BootStackGuard);
+            ulong guardStart = Raw(
+                guard.ReservationPointer[guardReservation]
+                    .PhysicalStart);
+            ulong guardLeaf = guard.LeafEntryIndex(guardStart);
+            guard.PageEntries[guardLeaf] =
+                guardStart
+                | M01OwnedCr3CompositeTransition.PagePresentBit
+                | M01OwnedCr3CompositeTransition.PageWritableBit
+                | M01OwnedCr3CompositeTransition.PageNoExecuteBit;
+            if (guard.Execute().Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .IdentityMappingProvenanceMismatch)
+            {
+                Console.WriteLine(
+                    "M01_030_COMPOSITE_DIAGNOSTIC guard_present");
+                return false;
+            }
+        }
+
+        using CompositeFixture returns = CompositeFixture.Create();
+        ulong codeStart = Raw(returns.Bindings[0].VirtualStart);
+        ulong codeEnd = Raw(
+            returns.Bindings[0].VirtualEndExclusive);
+        ulong[] rejectedReturns =
+        [
+            codeStart - 1,
+            codeStart,
+            codeStart
+                + M01OwnedCr3CompositeTransition.RequiredByteLength
+                - 1,
+            codeEnd,
+            ContinuationPageStart
+        ];
+        for (int index = 0; index < rejectedReturns.Length; index++)
+        {
+            if (returns.Execute(
+                    expectedReturnAddress:
+                        rejectedReturns[index]).Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InvalidProbeContract)
+            {
+                Console.WriteLine(
+                    "M01_030_COMPOSITE_DIAGNOSTIC return index="
+                    + index);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TestM01030MalformedBindingsAndAtomicity()
+    {
+        using CompositeFixture fixture = CompositeFixture.Create();
+        M01OwnedCr3CompositeTransitionRangeBinding[] malformed =
+            [.. fixture.Bindings];
+        malformed[0] = default;
+        if (ExecuteWithBindings(fixture, malformed).Status
+            != M01OwnedCr3CompositeTransitionStatus
+                .InvalidRangeBinding)
+        {
+            Console.WriteLine(
+                "M01_030_COMPOSITE_DIAGNOSTIC default_binding");
+            return false;
+        }
+
+        M01OwnedCr3CompositeTransitionRangeBinding source =
+            fixture.Bindings[0];
+        ulong sourceStart = Raw(source.PhysicalStart);
+        ulong sourceEnd = Raw(source.PhysicalEndExclusive);
+        (ulong Start, ulong End)[] malformedGeometry =
+        [
+            (sourceStart + 1, sourceEnd),
+            (sourceStart, sourceEnd - 1),
+            (sourceEnd, sourceStart),
+            (sourceStart, sourceStart)
+        ];
+        for (int index = 0;
+            index < malformedGeometry.Length;
+            index++)
+        {
+            malformed = [.. fixture.Bindings];
+            malformed[0] = Binding(
+                source.Role,
+                source.Provenance,
+                malformedGeometry[index].Start,
+                malformedGeometry[index].End,
+                source.AllocationIndex,
+                source.ReservationIndex,
+                source.IdentityMappingIndex);
+            if (ExecuteWithBindings(fixture, malformed).IsSuccess)
+            {
+                Console.WriteLine(
+                    "M01_030_COMPOSITE_DIAGNOSTIC geometry index="
+                    + index);
+                return false;
+            }
+        }
+
+        for (int index = 0;
+            index < fixture.Bindings.Length;
+            index++)
+        {
+            M01OwnedCr3CompositeTransitionRangeBinding binding =
+                fixture.Bindings[index];
+            ulong start = Raw(binding.PhysicalStart);
+            ulong end = Raw(binding.PhysicalEndExclusive);
+            malformed = [.. fixture.Bindings];
+            malformed[index] = Binding(
+                binding.Role,
+                binding.Provenance,
+                start + 8,
+                end,
+                binding.AllocationIndex,
+                binding.ReservationIndex,
+                binding.IdentityMappingIndex);
+            if (ExecuteWithBindings(fixture, malformed).IsSuccess)
+            {
+                Console.WriteLine(
+                    "M01_030_COMPOSITE_DIAGNOSTIC partial index="
+                    + index);
+                return false;
+            }
+        }
+
+        Span<byte> output = new(
+            fixture.StateDestination,
+            checked((int)
+                M01OwnedCr3CompositeTransitionRuntimeState
+                    .StructureSize
+                + sizeof(ulong)));
+        output.Fill(0xa5);
+        byte[] before = output.ToArray();
+        M01OwnedCr3CompositeTransitionResult rejected =
+            fixture.Execute(
+                expectedReturnAddress:
+                    Raw(fixture.Bindings[0].VirtualEndExclusive));
+        if (rejected.Status
+                != M01OwnedCr3CompositeTransitionStatus
+                    .InvalidProbeContract
+            || !output.SequenceEqual(before))
+        {
+            Console.WriteLine(
+                "M01_030_COMPOSITE_DIAGNOSTIC atomic"
+                + " status=" + rejected.Status);
+            return false;
+        }
+
+        return true;
+    }
+
+    private static M01OwnedCr3CompositeTransitionResult
+        ExecuteWithBindings(
+            CompositeFixture fixture,
+            M01OwnedCr3CompositeTransitionRangeBinding[] bindings)
+    {
+        fixed (X64BootIdentityMappingRange* mappings =
+            fixture.Mappings)
+        fixed (M01OwnedCr3CompositeTransitionRangeBinding* pointer =
+            bindings)
+        {
+            return ExecuteRaw(
+                fixture,
+                fixture.AllocationPointer,
+                fixture.AllocationCount,
+                fixture.AllocationCapacity,
+                fixture.ReservationPointer,
+                fixture.ReservationCount,
+                fixture.ReservationCapacity,
+                mappings,
+                fixture.MappingCount,
+                (ulong)fixture.Mappings.Length,
+                pointer,
+                (ulong)bindings.Length,
+                (ulong)bindings.Length);
+        }
+    }
+
+    private static ulong PurposeBitForRole(
+        M01OwnedCr3CompositeTransitionRangeRole role)
+    {
+        X64BootIdentityMappingPurpose purpose = role switch
+        {
+            M01OwnedCr3CompositeTransitionRangeRole
+                .CompositeCodeAndCallGate =>
+                X64BootIdentityMappingPurpose
+                    .CompositeCodeAndCallGate,
+            M01OwnedCr3CompositeTransitionRangeRole
+                .CompositeOwnedStack =>
+                X64BootIdentityMappingPurpose.CompositeOwnedStack,
+            M01OwnedCr3CompositeTransitionRangeRole
+                .ProtectionProbePage =>
+                X64BootIdentityMappingPurpose.ProtectionProbePage,
+            M01OwnedCr3CompositeTransitionRangeRole
+                .CompleteTableAndStateArena =>
+                X64BootIdentityMappingPurpose
+                    .CompleteTableAndStateArena,
+            M01OwnedCr3CompositeTransitionRangeRole
+                .RuntimeStateAndCanaryPage =>
+                X64BootIdentityMappingPurpose
+                    .RuntimeStateAndCanaryPage,
+            M01OwnedCr3CompositeTransitionRangeRole
+                .OwnedRootPage =>
+                X64BootIdentityMappingPurpose.OwnedRootPage,
+            _ => X64BootIdentityMappingPurpose.Uninitialized
+        };
+        return purpose == X64BootIdentityMappingPurpose.Uninitialized
+            ? 0
+            : 1UL << (byte)purpose;
+    }
+
+    private static bool ContainsRawRange(
+        X64BootIdentityMappingRange mapping,
+        M01OwnedCr3CompositeTransitionRangeBinding binding)
+    {
+        ulong mappingStart = Raw(mapping.PhysicalStart);
+        ulong mappingEnd = Raw(mapping.PhysicalEndExclusive);
+        ulong bindingStart = Raw(binding.PhysicalStart);
+        ulong bindingEnd = Raw(binding.PhysicalEndExclusive);
+        return mappingStart <= bindingStart
+            && bindingEnd <= mappingEnd;
+    }
+
+    private static ulong FindReservationIndex(
+        CompositeFixture fixture,
+        BootReservationKind kind)
+    {
+        ulong found = M01OwnedCr3CompositeTransitionResult.NoIndex;
+        for (ulong index = 0;
+            index < fixture.ReservationCount;
+            index++)
+        {
+            if (fixture.ReservationPointer[index].Kind != kind)
+            {
+                continue;
+            }
+
+            if (found
+                != M01OwnedCr3CompositeTransitionResult.NoIndex)
+            {
+                throw new InvalidOperationException(
+                    "Duplicate canonical reservation: " + kind);
+            }
+            found = index;
+        }
+
+        if (found == M01OwnedCr3CompositeTransitionResult.NoIndex)
+        {
+            throw new InvalidOperationException(
+                "Missing canonical reservation: " + kind);
+        }
+        return found;
+    }
+
     private static M01OwnedCr3CompositeTransitionResult
         ExecuteWithProbeWalkBit(int level, ulong bit)
     {
@@ -1266,10 +2002,8 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
             fixture.PageEntries[leafIndex] = 0;
         }
         else if (binding.Role
-            == M01OwnedCr3CompositeTransitionRangeRole.CompositeCode
-            || binding.Role
-                == M01OwnedCr3CompositeTransitionRangeRole
-                    .LoadedImageContinuationPage)
+            == M01OwnedCr3CompositeTransitionRangeRole
+                .CompositeCodeAndCallGate)
         {
             fixture.PageEntries[leafIndex] |=
                 M01OwnedCr3CompositeTransition.PageWritableBit
@@ -4695,7 +5429,7 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
         ulong canaryDestinationCount = 1,
         ulong canaryDestinationCapacity = 1)
     {
-        M01LivePagingIntegrationResult prior =
+        M01LivePagingPreparationResult prior =
             fixture.PriorEvidence;
         fixed (X64PageTableImagePage* pageImages =
             fixture.PageImages)
@@ -5178,7 +5912,7 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
 
         internal required ulong TableMappingIndex { get; init; }
 
-        internal M01LivePagingIntegrationResult PriorEvidence;
+        internal M01LivePagingPreparationResult PriorEvidence;
 
         internal BootMemoryRegionRecord* AllocationPointer;
 
@@ -5250,19 +5984,23 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
             try
             {
                 MethodInfo execute = fixtureType.GetMethod(
-                    "ExecuteCurrent",
+                    "PrepareCurrent",
                     Flags)
                     ?? throw new InvalidOperationException(
-                        "M01-019 fixture executor is unavailable.");
+                        "M01-029 fixture preparer is unavailable.");
                 object? boxedPrior = execute.Invoke(
                     inner,
                     [M01LivePagingByteMode.EmitAndVerify]);
                 if (boxedPrior
-                        is not M01LivePagingIntegrationResult prior
-                    || !prior.Succeeded)
+                        is not M01LivePagingPreparationResult prior
+                    || !prior.Succeeded
+                    || !prior.PreparedForCompositeTransition
+                    || !prior.IsPreparationOnly
+                    || prior.IsModelOnly
+                    || prior.IsExecutionEvidence)
                 {
                     throw new InvalidOperationException(
-                        "M01-019 canonical evidence was not successful.");
+                        "M01-029 canonical preparation was not successful.");
                 }
 
                 BootMemoryRegionRecord* records =
@@ -5344,16 +6082,6 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
                     ledger[stackReservation].PhysicalStart);
                 ulong stackEnd = Raw(
                     ledger[stackReservation].PhysicalEndExclusive);
-                ulong continuationReservation =
-                    FindReservationByKind(
-                        ledger,
-                        ledgerCount,
-                        BootReservationKind.LoadedImage);
-                ulong loadedStart = Raw(
-                    ledger[continuationReservation].PhysicalStart);
-                ulong loadedEnd = Raw(
-                    ledger[continuationReservation]
-                        .PhysicalEndExclusive);
 
                 ulong codeMapping = FindMapping(
                     mappings,
@@ -5375,17 +6103,6 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
                     mappingCount,
                     stackStart,
                     stackEnd);
-                ulong continuationMapping =
-                    FindMappingForPurpose(
-                        mappings,
-                        mappingCount,
-                        loadedStart,
-                        loadedEnd,
-                        X64BootIdentityMappingPurpose.ExecutingImage,
-                        PageProtection.Read
-                            | PageProtection.Execute,
-                        out ulong continuationStart,
-                        out ulong continuationEnd);
 
                 ulong root = Raw(
                     prior.Evidence.TableBuild.RootTable);
@@ -5409,7 +6126,7 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
                 [
                     Binding(
                         M01OwnedCr3CompositeTransitionRangeRole
-                            .CompositeCode,
+                            .CompositeCodeAndCallGate,
                         M01OwnedCr3CompositeTransitionRangeProvenance
                             .AllocationReservationAndIdentityMapping,
                         codeStart,
@@ -5419,7 +6136,7 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
                         codeMapping),
                     Binding(
                         M01OwnedCr3CompositeTransitionRangeRole
-                            .OwnedStack,
+                            .CompositeOwnedStack,
                         M01OwnedCr3CompositeTransitionRangeProvenance
                             .ReservationAndIdentityMapping,
                         stackStart,
@@ -5430,18 +6147,7 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
                         stackMapping),
                     Binding(
                         M01OwnedCr3CompositeTransitionRangeRole
-                            .LoadedImageContinuationPage,
-                        M01OwnedCr3CompositeTransitionRangeProvenance
-                            .ReservationAndIdentityMapping,
-                        continuationStart,
-                        continuationEnd,
-                        M01OwnedCr3CompositeTransitionRangeBinding
-                            .NoIndex,
-                        continuationReservation,
-                        continuationMapping),
-                    Binding(
-                        M01OwnedCr3CompositeTransitionRangeRole
-                            .ProbePage,
+                            .ProtectionProbePage,
                         M01OwnedCr3CompositeTransitionRangeProvenance
                             .AllocationReservationAndIdentityMapping,
                         probeStart,
@@ -5451,7 +6157,7 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
                         probeMapping),
                     Binding(
                         M01OwnedCr3CompositeTransitionRangeRole
-                            .CompleteTableArena,
+                            .CompleteTableAndStateArena,
                         M01OwnedCr3CompositeTransitionRangeProvenance
                             .AllocationReservationAndIdentityMapping,
                         tableStart,
@@ -5461,7 +6167,7 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
                         tableMapping),
                     Binding(
                         M01OwnedCr3CompositeTransitionRangeRole
-                            .RuntimeStateAndCanary,
+                            .RuntimeStateAndCanaryPage,
                         M01OwnedCr3CompositeTransitionRangeProvenance
                             .ContainedInAllocationReservationAndIdentityMapping,
                         stateStart,
@@ -5471,7 +6177,7 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
                         tableMapping),
                     Binding(
                         M01OwnedCr3CompositeTransitionRangeRole
-                            .OwnedRoot,
+                            .OwnedRootPage,
                         M01OwnedCr3CompositeTransitionRangeProvenance
                             .ContainedInAllocationReservationAndIdentityMapping,
                         root,
@@ -5523,7 +6229,11 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
                             stateStart,
                     RuntimeStateAddress = stateStart,
                     ExpectedReturnAddressValue =
-                        continuationStart + 0x100,
+                        checked(
+                            codeStart
+                            + M01OwnedCr3CompositeTransition
+                                .RequiredByteLength
+                            + 16),
                     CanaryAddressValue =
                         stateStart
                         + M01OwnedCr3CompositeTransitionRuntimeState
@@ -5800,6 +6510,27 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
                 byte* field = (byte*)(mappings + mappingIndex)
                     + fieldOffset;
                 *field = (byte)protection;
+            }
+        }
+
+        internal void SetMappingCachePolicy(
+            ulong mappingIndex,
+            PageCachePolicy cachePolicy)
+        {
+            if (mappingIndex >= (ulong)Mappings.Length)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(mappingIndex));
+            }
+
+            int fieldOffset = checked((int)Marshal.OffsetOf<
+                X64BootIdentityMappingRange>("_cachePolicy"));
+            fixed (X64BootIdentityMappingRange* mappings =
+                Mappings)
+            {
+                byte* field = (byte*)(mappings + mappingIndex)
+                    + fieldOffset;
+                *field = (byte)cachePolicy;
             }
         }
 
@@ -6385,6 +7116,191 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
                 + ": "
                 + ex.Message);
         }
+    }
+
+    private static bool TestM01030MarkerAndEvidenceBoundary()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        string ownerPath = Path.Combine(
+            root,
+            "tests",
+            "OS.HostTests",
+            "M01OwnedCr3CompositeTransitionTests.cs");
+        string productionPath = Path.Combine(
+            root,
+            "src",
+            "OS.Kernel",
+            "Boot",
+            "M01OwnedCr3CompositeTransition.cs");
+        if (!File.Exists(ownerPath)
+            || !File.Exists(productionPath))
+        {
+            Console.WriteLine(
+                "M01_030_MARKER_DIAGNOSTIC missing_owner");
+            return false;
+        }
+
+        string owner = File.ReadAllText(ownerPath);
+        string production = RemoveComments(
+            File.ReadAllText(productionPath));
+        int runner = owner.IndexOf(
+            "private static void RunLiveIntervalContractTests()",
+            StringComparison.Ordinal);
+        int start = owner.IndexOf(
+            "\"TEST_START \" + LiveIntervalIssueTestName",
+            runner,
+            StringComparison.Ordinal);
+        int failureGate = owner.IndexOf(
+            "if (failures != 0)",
+            runner,
+            StringComparison.Ordinal);
+        int failure = owner.IndexOf(
+            "\"TEST_FAIL \" + LiveIntervalIssueTestName",
+            runner,
+            StringComparison.Ordinal);
+        int ready = owner.IndexOf(
+            "Console.WriteLine(LiveIntervalReadyMarker)",
+            runner,
+            StringComparison.Ordinal);
+        int pass = owner.IndexOf(
+            "\"TEST_PASS \" + LiveIntervalIssueTestName",
+            runner,
+            StringComparison.Ordinal);
+        if (runner < 0
+            || start < runner
+            || failureGate <= start
+            || failure <= failureGate
+            || ready <= failure
+            || pass <= ready
+            || CountOccurrences(
+                owner,
+                "\"" + LiveIntervalReadyMarker + "\"") != 1
+            || CountOccurrences(
+                owner,
+                "\"TEST_START \" + LiveIntervalIssueTestName") != 1
+            || CountOccurrences(
+                owner,
+                "\"TEST_FAIL \" + LiveIntervalIssueTestName") != 1
+            || CountOccurrences(
+                owner,
+                "\"TEST_PASS \" + LiveIntervalIssueTestName") != 1
+            || CountOccurrences(
+                owner,
+                "[" + "ModuleInitializer]") != 1
+            || CountOccurrences(
+                owner,
+                "CLROS_" + "M01_027_READY") != 1
+            || production.Contains(
+                LiveIntervalReadyMarker,
+                StringComparison.Ordinal)
+            || production.Contains(
+                "OS_" + "BOOT_OK",
+                StringComparison.Ordinal)
+            || production.Contains(
+                "OS_" + "SMOKE_PASS",
+                StringComparison.Ordinal)
+            || production.Contains(
+                "OS_" + "SMOKE_FAIL",
+                StringComparison.Ordinal)
+            || production.Contains(
+                "RuntimeExport",
+                StringComparison.Ordinal)
+            || production.Contains(
+                "EfiEntry",
+                StringComparison.Ordinal)
+            || CountOccurrences(production, "Qemu") != 1
+            || CountOccurrences(
+                production,
+                "public const bool IsQemuEvidence = false;") != 1
+            || production.Contains(
+                "public const bool IsQemuEvidence = true;",
+                StringComparison.Ordinal))
+        {
+            Console.WriteLine(
+                "M01_030_MARKER_DIAGNOSTIC ownership"
+                + " indexes="
+                + runner + ","
+                + start + ","
+                + failureGate + ","
+                + failure + ","
+                + ready + ","
+                + pass);
+            return false;
+        }
+
+        string[] roots =
+        [
+            "src",
+            "std",
+            "apps",
+            "tools",
+            "tests",
+            "scripts",
+            Path.Combine(".gitea", "workflows")
+        ];
+        string ownerFullPath = Path.GetFullPath(ownerPath);
+        foreach (string relativeRoot in roots)
+        {
+            string scanRoot = Path.Combine(root, relativeRoot);
+            if (!Directory.Exists(scanRoot))
+            {
+                continue;
+            }
+
+            foreach (string path in Directory.EnumerateFiles(
+                         scanRoot,
+                         "*",
+                         SearchOption.AllDirectories))
+            {
+                string fullPath = Path.GetFullPath(path);
+                string extension = Path.GetExtension(path);
+                if (fullPath.Equals(
+                        ownerFullPath,
+                        StringComparison.OrdinalIgnoreCase)
+                    || HasPathSegment(path, "bin")
+                    || HasPathSegment(path, "obj")
+                    || HasPathSegment(path, "artifacts")
+                    || extension is not (
+                        ".cs"
+                        or ".ps1"
+                        or ".yml"
+                        or ".yaml"
+                        or ".props"
+                        or ".targets"
+                        or ".csproj"
+                        or ".slnx"))
+                {
+                    continue;
+                }
+
+                if (File.ReadAllText(path).Contains(
+                        LiveIntervalReadyMarker,
+                        StringComparison.Ordinal))
+                {
+                    Console.WriteLine(
+                        "M01_030_MARKER_DIAGNOSTIC duplicate="
+                        + Path.GetRelativePath(root, path));
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static bool HasPathSegment(string path, string segment)
+    {
+        string normalized = Path.GetFullPath(path)
+            .Replace(
+                Path.AltDirectorySeparatorChar,
+                Path.DirectorySeparatorChar);
+        string token =
+            Path.DirectorySeparatorChar
+            + segment
+            + Path.DirectorySeparatorChar;
+        return normalized.Contains(
+            token,
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool TestSourceAndMarkerFirewall()

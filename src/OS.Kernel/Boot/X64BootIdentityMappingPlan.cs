@@ -14,7 +14,13 @@ public enum X64BootIdentityMappingPurpose : byte
     AcpiScratch = 5,
     FramebufferMetadata = 6,
     BootStackGuard = 7,
-    AdditionalRequired = 8
+    AdditionalRequired = 8,
+    CompositeCodeAndCallGate = 9,
+    CompositeOwnedStack = 10,
+    ProtectionProbePage = 11,
+    CompleteTableAndStateArena = 12,
+    RuntimeStateAndCanaryPage = 13,
+    OwnedRootPage = 14
 }
 
 /// <summary>
@@ -374,6 +380,8 @@ public static unsafe class X64BootIdentityMappingPlan
     public const ulong RequiredPointerAlignment = 8;
     public const ulong LowCanonicalEndExclusive = 0x0000800000000000UL;
     public const ulong RequiredPurposeMask = 0x7e;
+    public const ulong RequiredLiveIntervalPurposeMask = 0x7e00;
+    public const ulong RequiredLiveIntervalPurposeCount = 7;
     public const bool UsesOnly4KiBLeaves = true;
     public const bool PerformsLiveMapping = false;
     public const bool AllocatesPageTables = false;
@@ -390,13 +398,75 @@ public static unsafe class X64BootIdentityMappingPlan
         ulong availableTablePageCapacity,
         OS.Kernel.Memory.X64PageTableEncodingPreconditions preconditions)
     {
+        return CreateCore(
+            source,
+            sourceCount,
+            sourceCapacity,
+            destination,
+            destinationCapacity,
+            availableTablePageCapacity,
+            preconditions,
+            RequiredPurposeMask,
+            requiresGuard: true,
+            exactLiveInterval: false);
+    }
+
+    /// <summary>
+    /// Builds the exact host-side identity plan for the future composite
+    /// owned-root interval. Historical mapped aliases and the
+    /// AdditionalRequired wildcard are not accepted; one absent boot-stack
+    /// guard sentinel is required.
+    /// </summary>
+    public static X64BootIdentityMappingPlanResult CreateLiveInterval(
+        X64BootIdentityMappingRequirement* source,
+        ulong sourceCount,
+        ulong sourceCapacity,
+        X64BootIdentityMappingRange* destination,
+        ulong destinationCapacity,
+        ulong availableTablePageCapacity,
+        OS.Kernel.Memory.X64PageTableEncodingPreconditions preconditions)
+    {
+        return CreateCore(
+            source,
+            sourceCount,
+            sourceCapacity,
+            destination,
+            destinationCapacity,
+            availableTablePageCapacity,
+            preconditions,
+            RequiredLiveIntervalPurposeMask,
+            requiresGuard: true,
+            exactLiveInterval: true);
+    }
+
+    private static X64BootIdentityMappingPlanResult CreateCore(
+        X64BootIdentityMappingRequirement* source,
+        ulong sourceCount,
+        ulong sourceCapacity,
+        X64BootIdentityMappingRange* destination,
+        ulong destinationCapacity,
+        ulong availableTablePageCapacity,
+        OS.Kernel.Memory.X64PageTableEncodingPreconditions preconditions,
+        ulong requiredPurposeMask,
+        bool requiresGuard,
+        bool exactLiveInterval)
+    {
         PlannerState state = new PlannerState(
             sourceCount,
             sourceCapacity,
             destinationCapacity,
-            availableTablePageCapacity);
+            availableTablePageCapacity,
+            requiredPurposeMask);
 
         if (sourceCount == 0)
+        {
+            return Fail(
+                state,
+                X64BootIdentityMappingStatus.InvalidSourceCount);
+        }
+
+        if (exactLiveInterval
+            && sourceCount != RequiredLiveIntervalPurposeCount)
         {
             return Fail(
                 state,
@@ -533,6 +603,7 @@ public static unsafe class X64BootIdentityMappingPlan
             if (!TryNormalizeRequirement(
                     source[index],
                     preconditions,
+                    exactLiveInterval,
                     out RequirementView view,
                     out X64BootIdentityMappingStatus status,
                     out OS.Boot.AddressValueStatus addressStatus,
@@ -568,10 +639,11 @@ public static unsafe class X64BootIdentityMappingPlan
         }
 
         state.MissingPurposeMask =
-            RequiredPurposeMask
+            state.RequiredPurposeMask
             & ~state.ObservedPurposeMask;
 
-        if (state.GuardSourceIndex
+        if (requiresGuard
+            && state.GuardSourceIndex
             == X64BootIdentityMappingPlanResult.NoIndex)
         {
             return Fail(
@@ -729,6 +801,7 @@ public static unsafe class X64BootIdentityMappingPlan
     private static bool TryNormalizeRequirement(
         X64BootIdentityMappingRequirement requirement,
         OS.Kernel.Memory.X64PageTableEncodingPreconditions preconditions,
+        bool exactLiveInterval,
         out RequirementView view,
         out X64BootIdentityMappingStatus status,
         out OS.Boot.AddressValueStatus addressStatus,
@@ -748,7 +821,7 @@ public static unsafe class X64BootIdentityMappingPlan
         }
 
         X64BootIdentityMappingPurpose purpose = requirement.Purpose;
-        if (!IsValidPurpose(purpose))
+        if (!IsValidPurpose(purpose, exactLiveInterval))
         {
             status = X64BootIdentityMappingStatus.InvalidPurpose;
             return false;
@@ -1353,8 +1426,32 @@ public static unsafe class X64BootIdentityMappingPlan
     }
 
     private static bool IsValidPurpose(
-        X64BootIdentityMappingPurpose purpose)
+        X64BootIdentityMappingPurpose purpose,
+        bool exactLiveInterval)
     {
+        if (exactLiveInterval)
+        {
+            return purpose
+                    == X64BootIdentityMappingPurpose.BootStackGuard
+                || purpose
+                    == X64BootIdentityMappingPurpose
+                        .CompositeCodeAndCallGate
+                || purpose
+                    == X64BootIdentityMappingPurpose
+                        .CompositeOwnedStack
+                || purpose
+                    == X64BootIdentityMappingPurpose
+                        .ProtectionProbePage
+                || purpose
+                    == X64BootIdentityMappingPurpose
+                        .CompleteTableAndStateArena
+                || purpose
+                    == X64BootIdentityMappingPurpose
+                        .RuntimeStateAndCanaryPage
+                || purpose
+                    == X64BootIdentityMappingPurpose.OwnedRootPage;
+        }
+
         return purpose
                 == X64BootIdentityMappingPurpose.ExecutingImage
             || purpose == X64BootIdentityMappingPurpose.OwnedStack
@@ -1491,7 +1588,7 @@ public static unsafe class X64BootIdentityMappingPlan
             state.RequiredDestinationCapacity,
             state.OutputRangeCount,
             state.AvailableTablePageCapacity,
-            RequiredPurposeMask,
+            state.RequiredPurposeMask,
             state.ObservedPurposeMask,
             state.MissingPurposeMask,
             invalidSourceIndex,
@@ -1587,7 +1684,8 @@ public static unsafe class X64BootIdentityMappingPlan
             ulong sourceCount,
             ulong sourceCapacity,
             ulong destinationCapacity,
-            ulong availableTablePageCapacity)
+            ulong availableTablePageCapacity,
+            ulong requiredPurposeMask)
         {
             SourceCount = sourceCount;
             ValidatedSourceCount = 0;
@@ -1597,8 +1695,9 @@ public static unsafe class X64BootIdentityMappingPlan
             OutputRangeCount = 0;
             AvailableTablePageCapacity =
                 availableTablePageCapacity;
+            RequiredPurposeMask = requiredPurposeMask;
             ObservedPurposeMask = 0;
-            MissingPurposeMask = RequiredPurposeMask;
+            MissingPurposeMask = requiredPurposeMask;
             GuardSourceIndex =
                 X64BootIdentityMappingPlanResult.NoIndex;
             UnionPageCount = 0;
@@ -1618,6 +1717,7 @@ public static unsafe class X64BootIdentityMappingPlan
         public ulong RequiredDestinationCapacity;
         public ulong OutputRangeCount;
         public ulong AvailableTablePageCapacity;
+        public ulong RequiredPurposeMask;
         public ulong ObservedPurposeMask;
         public ulong MissingPurposeMask;
         public ulong GuardSourceIndex;
