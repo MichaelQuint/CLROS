@@ -5600,7 +5600,7 @@
         "M01-025"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p0",
         "type:tooling",
         "evidence:host",
@@ -5641,7 +5641,7 @@
       ],
       "collisionLane": null,
       "summary": "Create a deterministic first-party C# 14 host tool that emits one AMD64 COFF object containing one audited immutable-text instruction-publication serializer and independently parse every emitted byte and COFF field in host tests.",
-      "currentEvidence": "The EFI project currently materializes executable stub bytes into firmware-allocated LoaderCode pages. EfiEntry comments acknowledge that later CPUID execution serializes earlier publication, but the repository has no independently linked immutable serializer that can run immediately after each publication epoch. No first-party generator, deterministic COFF artifact contract, exact serializer symbol, or independent COFF/ABI byte test exists. M01-025 must close before this new chain begins.",
+      "currentEvidence": "Implementation commit 55a4da3309036b62d3783ee49d8713f23157052d and merge commit b3b1dc892205509bef56bde6c4f9c25cb8f02726 (PR #416) add the standalone deterministic C# 14/.NET 10 AMD64 COFF serializer generator without solution membership or checked-in object/native source. The reviewed canonical object is exactly 336 bytes with SHA-256 DA97E50C95E479541B65EB3F96D9C6DED163735857650BEE9416324086D55C7B, exact RX/nonwritable .text$clrossm bytes 53 B8 00 00 00 00 B9 00 00 00 00 0F A2 B8 43 4C 52 53 5B C3, exact read-only .xdata$clrossm/.pdata$clrossm records, one external serializer symbol, one static xdata symbol, and exactly three ADDR32NB relocations. Independent bounds-checked host parsing rejects all 336 truncations and all 2,688 single-bit mutations plus malformed/default/overflow/capacity, path, stale-output, timeout, bounded-output, partial-publication, and cleanup failures. The direct tool, solution, and HostTests builds passed with zero warnings/errors. The complete host harness exited zero after 427.396 seconds with 3,272 TEST_START lines, 3,273 TEST_PASS lines, zero TEST_FAIL lines, exact M01-033 start/ready/pass markers once each, exactly one final TEST_PASS host.tests, stdout SHA-256 B16B4A41BB7BB2C006B5DCF3DC6036B39ED8A8F3587A15631816E97416F04DFF, and empty stderr SHA-256 E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855. Backlog SelfTest/Offline validation, naming/source firewall, QEMU dry-run tooling, diff checks, artifact/source scans, and independent production, test, and final PR reviews passed. done/step884.md preserves the reviewed record, and issue #411 comment #6336 carries clros-evidence-reviewed:M01-033. This is deterministic object-only host evidence: it does not prove solution or EFI integration, linker relocation application, final PE protections/imports/unwind coverage, RuntimeImport binding, EfiEntry invocation or cookie observation, real QEMU/OVMF execution, live paging, completion-gate advancement, cloud support, or production readiness.",
       "implementationNotes": [
         "Implement a standalone C# 14/.NET 10 host tool with no first-party C, C++, header, assembly, or checked-in object file. Generated .obj output is ephemeral under obj or an explicit caller-selected temporary output path.",
         "Emit AMD64 COFF machine 0x8664 with timestamp zero and exactly three file-backed sections. .text$clrossm has raw size 20 and exactly the required IMAGE_SCN_CNT_CODE, IMAGE_SCN_MEM_READ, IMAGE_SCN_MEM_EXECUTE, and IMAGE_SCN_ALIGN_16BYTES characteristics with IMAGE_SCN_MEM_WRITE clear; it also lacks initialized/uninitialized-data, COMDAT, remove, discardable, and relocation-overflow flags. .xdata$clrossm has raw size 8 and .pdata$clrossm has raw size 12; each has IMAGE_SCN_CNT_INITIALIZED_DATA, IMAGE_SCN_MEM_READ, and IMAGE_SCN_ALIGN_4BYTES with IMAGE_SCN_MEM_WRITE and IMAGE_SCN_MEM_EXECUTE clear and lacks code, COMDAT, remove, discardable, and relocation-overflow flags. Every required raw-data and relocation range is nonzero, in bounds, mutually nonoverlapping, and overflow checked. Emit no imports, directives, COMDAT ambiguity, debug records, writable/executable section, or unrelated external symbol.",
@@ -5692,7 +5692,7 @@
         "docs/libvirt.md"
       ],
       "evidenceBoundary": "This issue proves only a deterministic host-built and host-parsed AMD64 COFF object plus the exact static serializer bytes, Windows-x64 ABI, encoded RUNTIME_FUNCTION/UNWIND_INFO/relocation intent, and fixed post-CPUID return cookie. Object-only evidence does not prove that relocations were applied or that the function is asynchronously unwindable in a final image; that requires M01-034 final-artifact verification. It does not add the tool to the solution, link the object into EFI, prove final PE unwind-directory coverage or RuntimeImport resolution, prove final PE section protections/import state, call the serializer, observe its cookie at an EfiEntry publication epoch, execute under QEMU or hardware, empirically exclude speculative stale-instruction execution, or advance any completion gate.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-034",
@@ -5723,22 +5723,24 @@
         "src/OS/Runtime/RuntimeImportAttribute.cs",
         "src/OS/Runtime/MethodImplAttribute.cs",
         "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.targets",
+        "tools/AGENTS.override.md",
+        "scripts/build-efi-shell.ps1",
         "scripts/test-efi-artifact.ps1",
         "tests/OS.HostTests/M01InstructionPublicationBuildIntegrationTests.cs",
+        "tests/OS.HostTests/BuildEfiShellPreflightTests.cs",
         "tests/OS.HostTests/EfiArtifactVerificationScriptTests.cs",
         "docs/efi-build.md",
-        "docs/nativeaot-nostdlib-limits.md"
+        "docs/nativeaot-nostdlib-limits.md",
+        "docs/boot.md",
+        "docs/security.md"
       ],
       "forbiddenPaths": [
         "src/OS/Boot/EfiEntry.cs",
         "tools/OS.X64TextSerializerGenerator/Program.cs",
         "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs",
         "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs",
-        "scripts/build-efi-shell.ps1",
         "scripts/run-qemu-smoke.ps1",
-        "docs/boot.md",
         "docs/architecture.md",
-        "docs/security.md",
         "docs/completion-gates.md",
         "README.md",
         "references/** (read-only)",
@@ -5746,9 +5748,10 @@
       ],
       "collisionLane": "lane:os-project",
       "summary": "Integrate the reviewed generator into the canonical solution and EFI build, bind its exact external symbol through an InternalCall RuntimeImport declaration, and extend the final-artifact verifier to prove exact bytes, runtime-function/unwind coverage, immutable executable text, and no ordinary imports.",
-      "currentEvidence": "M01-033 will define and host-test the deterministic COFF object, but the current CLROS.slnx and explicit no-stdlib OS.csproj do not build or consume it. The EFI artifact verifier proves the current PE32+ x64 EFI entry/import baseline only; it does not associate CLROS_X64_SerializeInstructionPublication with a same-build map/RVA, compare exact serializer bytes, or prove the containing final PE section is file-backed RX and nonwritable. EfiEntry has no linked RuntimeImport binding for this symbol.",
+      "currentEvidence": "M01-033 implementation commit 55a4da3309036b62d3783ee49d8713f23157052d merged through PR #416 as b3b1dc892205509bef56bde6c4f9c25cb8f02726 and defines the reviewed deterministic 336-byte COFF object contract, but the current CLROS.slnx and explicit no-stdlib OS.csproj do not build or consume it. The EFI artifact verifier proves the current PE32+ x64 EFI entry/import baseline only; it does not associate CLROS_X64_SerializeInstructionPublication with a same-build map/RVA, compare exact serializer bytes, or prove the containing final PE section is file-backed RX and nonwritable. EfiEntry has no linked RuntimeImport binding for this symbol. Pre-claim review also established that build-efi-shell.ps1 pins the exact OS.csproj XML shape, 41-item compile list/order, zero imports, and evaluated closure, so this issue now explicitly owns that guard and BuildEfiShellPreflightTests.cs. The implementation must migrate the guard to the exact 44-item source list and exactly one allowlisted serializer-targets import while retaining fail-closed rejection of every other import or evaluated input. tools/AGENTS.override.md, docs/security.md, and docs/boot.md still truthfully describe the generator as outside CLROS.slnx or final linking/protection/import evidence as unproven; this issue owns their required same-change status update without advancing any execution or QEMU claim.",
       "implementationNotes": [
         "Add the host generator project to CLROS.slnx and import one explicit targets file from OS.csproj. Generate the .obj deterministically under the current OS intermediate-output directory before LinkNative, add only that object as a NativeLibrary after the project's runtime-library removal target, and never check the object into source control.",
+        "Migrate the canonical EFI source-closure guard in scripts/build-efi-shell.ps1 together with its isolated fixture tests. Permit exactly one unconditional literal <Import Project=\"..\\..\\tools\\OS.X64TextSerializerGenerator\\OS.X64TextSerializerGenerator.targets\" /> at the canonical project location, require that exact in-repository file and contract, and update the ordered compile allowlist from 41 to 44 for Boot\\X64InstructionPublication.cs, Runtime\\RuntimeImportAttribute.cs, and Runtime\\MethodImplAttribute.cs. Continue to reject every other, missing, duplicate, conditional, wildcard, property-expanded, out-of-repository, or malformed import; every ProjectReference or ImportGroup; imported Compile, ProjectReference, Reference, Analyzer, UsingTask, or output injection; and every unexpected evaluated item or order change.",
         "Make incremental and clean builds dependency-correct: inputs include all generator source and the targets contract; missing, stale, truncated, wrong-hash, or failed generation must stop the EFI build rather than reuse an older object. Parallel builds and paths containing spaces must be safe.",
         "Add the minimal no-stdlib System.Runtime.RuntimeImportAttribute two-string constructor plus System.Runtime.CompilerServices.MethodImplOptions with InternalCall = 0x1000 and MethodImplAttribute(MethodImplOptions) shapes in the two declared runtime files. Add a direct static no-body binding in X64InstructionPublication.cs with exactly [RuntimeImport(\"*\", \"CLROS_X64_SerializeInstructionPublication\")], [MethodImpl(MethodImplOptions.InternalCall)], and internal static extern uint Serialize(). Expose the fixed expected success cookie 0x53524C43 as an internal constant for later checked callers, but M01-034 must not invoke the method.",
         "Pass /INCLUDE:CLROS_X64_SerializeInstructionPublication and a deterministic same-build map path so /OPT:REF or /OPT:ICF cannot discard or ambiguously fold the serializer before M01-035 references it. Do not use post-link patching, writable executable data, or a fallback managed implementation.",
@@ -5756,6 +5759,7 @@
         "The final containing text section must have initialized/file-backed code bytes, IMAGE_SCN_CNT_CODE, IMAGE_SCN_MEM_READ, and IMAGE_SCN_MEM_EXECUTE, no IMAGE_SCN_MEM_WRITE or discardable flag, and both virtual and raw-file ranges covering every serializer byte; the symbol RVA must be 16-byte aligned. The complete selected RUNTIME_FUNCTION record and UNWIND_INFO must each be file-backed in readable initialized data with IMAGE_SCN_MEM_WRITE, IMAGE_SCN_MEM_EXECUTE, and discardable clear, regardless of linker-selected final section name. Continue to require absent import, bound-import, IAT, and delay-import directories and reject unresolved/default-library/fallback symbol binding.",
         "Positive tests cover clean and incremental canonical builds, exact generator invocation, NativeLibrary ordering, force-include/map arguments, and emitted method metadata rather than source text alone: MethodImplAttributes.InternalCall set, PInvokeImpl clear, no IL body, static parameterless System.UInt32 signature, exact case-sensitive RuntimeImport fixed arguments \"*\" and \"CLROS_X64_SerializeInstructionPublication\", and no DllImport, marshalling stub, fallback body, weak external, or ordinary PE import. They also cover the 0x53524C43 constant, exact map-to-RVA-to-file translation, exact bytes/hash, RUNTIME_FUNCTION range, decoded UNWIND_INFO, section characteristics, and import-free final PE.",
         "Negative tests cover zero/default RVA or size, missing NumberOfRvaAndSizes entry, duplicate/missing/wrong symbol, wrong machine, stale or mismatched map/object/PE, missing generator or output, malformed/truncated/overflowing PE, map, exception-directory, runtime-function, or unwind fields, zero/misaligned/non-12-byte-divisible exception-directory RVA or size, unsorted/overlapping/duplicate/empty/out-of-image runtime-function records, a wrong BeginAddress/EndAddress or another record overlapping the serializer, an aliased/zero/misaligned/out-of-range/wrong UnwindInfoAddress, virtual-only or out-of-file bytes, cross-section range, misaligned/writable/non-executable/discardable text, executable/writable/discardable pdata or xdata ranges, absent/duplicate/wrong-range runtime-function, wrong prolog length/opcode/register/code count, mutated serializer byte or cookie, missing/wrong RuntimeImport name or constructor, missing/wrong MethodImpl attribute/constructor/0x1000 flag, DllImport/ordinary PInvoke substitution, managed fallback body, non-static/non-extern/void or wrong-width signature, unresolved helper or imported/fallback binding, build timeout, paths with spaces, and parallel/incremental race artifacts.",
+        "Update tools/AGENTS.override.md, docs/security.md, and docs/boot.md in the same change so they no longer say the generator is outside CLROS.slnx or object-only after integration and so they record only the static final-artifact evidence actually produced. Preserve explicit non-claims for invocation, EfiEntry publication ordering, real QEMU/OVMF, live paging, completion gates, cloud support, and production readiness.",
         "This issue owns both the canonical solution membership and freestanding OS project integration as one serialized slice; before claim, verify no separately claimed solution-baseline or os-project issue touches either file. Do not edit EfiEntry or assert that the linked function executes."
       ],
       "referenceInfluences": [
@@ -5774,6 +5778,8 @@
         "A clean canonical solution/EFI build deterministically generates and links the ephemeral object, retains exactly one CLROS_X64_SerializeInstructionPublication symbol, and exposes the exact direct static extern uint RuntimeImport plus MethodImplOptions.InternalCall binding and 0x53524C43 expected-cookie constant without invoking it.",
         "The final artifact verifier resolves the same-build map symbol to a file-backed PE RVA; proves the exact 20 bytes, post-CPUID cookie, and hash lie wholly in one initialized readable executable nonwritable section; requires a nonempty exception directory whose size is divisible by 12 and whose file-backed entries are sorted and nonoverlapping; and proves exactly one entry begins at the symbol RVA, ends at symbol RVA + 20, points to the exact file-backed UWOP_PUSH_NONVOL RBX UNWIND_INFO, has no overlapping peer, and has readable nonwritable nonexecutable pdata/xdata backing.",
         "The existing PE32+ x64 EFI application, EfiMain, NODEFAULTLIB, and absent import/bound-import/IAT/delay-import contracts continue to pass; no fallback or unresolved host symbol is accepted.",
+        "The canonical EFI source-closure preflight accepts only the exact 44 ordered compile items and the single unconditional literal serializer-targets import, verifies its canonical in-repository path and evaluated item effects, and continues to reject every other import, project reference, source/input injection, conditional/glob/property expansion, missing target, malformed target, and unexpected evaluated compile/reference/analyzer item.",
+        "The tool-local agent guide plus boot and security status documents are updated in the same change to reflect solution/EFI integration and only the verified static artifact boundary, with every execution, EfiEntry, QEMU/OVMF, live-paging, completion-gate, cloud, and production non-claim preserved.",
         "Positive, malformed-input, default/zero, overflow, missing/stale artifact, duplicate-symbol, section-protection, byte-mutation, timeout, spaces-path, parallel, and incremental-build tests fail closed with stable diagnostics.",
         "The implementation changes only declared build, binding, verifier, focused test, and canonical documentation paths; EfiEntry and generator C# implementation remain untouched.",
         "Build success and artifact inspection are host evidence only and make no serializer-execution, EfiEntry-ordering, QEMU, hardware, SCSB, or completion-gate claim."
@@ -5796,7 +5802,9 @@
       ],
       "documentationPaths": [
         "docs/efi-build.md",
-        "docs/nativeaot-nostdlib-limits.md"
+        "docs/nativeaot-nostdlib-limits.md",
+        "docs/boot.md",
+        "docs/security.md"
       ],
       "evidenceBoundary": "This issue proves canonical build integration, the exact direct static extern uint RuntimeImport plus InternalCall metadata and expected-cookie declaration, and same-build static PE/map/exception-directory inspection of one immutable RX/nonwritable serializer body with exact Windows-x64 unwind coverage and no ordinary runtime imports. It does not edit EfiEntry, call or execute the serializer, observe the post-CPUID cookie, prove any publication-epoch ordering, boot the artifact, provide real-QEMU or hardware evidence, empirically exclude speculative code-store bypass, prove cross-core instruction publication, or advance M01 or any later completion gate.",
       "desiredState": "open"

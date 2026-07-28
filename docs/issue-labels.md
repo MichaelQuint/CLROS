@@ -29,12 +29,16 @@ link/authoritative-exception-directory verification, and four-epoch EfiEntry
 checked-cookie publication ordering through stack-switch-persistent state. The
 manifest and tracker contain 324 children, 340 keyed issues, and 424 managed
 objects. The guarded 2026-07-28 apply closed reviewed M01-025 issue `#332`,
-created M01-033 through M01-035 as issues `#411` through `#413`, and
-recomputed readiness. M01-033 `#411` is the only open `agent:ready` issue. It
-owns only new generator files, its focused host test, and `docs/security.md`,
-so it has no central collision lane and may run alongside genuinely disjoint
-work. M01-034 `#412`, M01-035 `#413`, and M01-026 `#333` remain
-`agent:blocked` in order.
+created M01-033 through M01-035 as issues `#411` through `#413`, and initially
+made M01-033 the only ready leaf. M01-033 implementation commit `55a4da3`
+merged through PR #416 as `b3b1dc8`; issue comment #6336 preserves the reviewed
+object-only evidence. The durable manifest now records M01-033 as
+`desiredState: closed` with `agent:done`; guarded synchronization must converge
+that desired state onto live issue `#411`. Once that closure verifies,
+M01-034 `#412` is the sole next readiness candidate and serialized owner of
+`lane:os-project`; M01-035 `#413` and M01-026 `#333` remain blocked in order.
+This status transition does not prove final EFI linking, serializer execution,
+QEMU behavior, or any completion gate.
 
 The guarded earlier M00-023 apply recognized existing M00-023 as issue #321,
 created only M01-016 through M01-026 as issues #323 through #333, updated

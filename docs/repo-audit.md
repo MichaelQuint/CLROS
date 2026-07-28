@@ -48,10 +48,15 @@ and the reachable local Gitea tracker:
   EfiEntry checked-cookie publication ordering through stack-switch-persistent
   state. The guarded 2026-07-28 apply closed reviewed M01-025 issue `#332`,
   created issues `#411` through `#413`, and converged at 324 children, 340
-  keyed issues, and 424 managed objects. M01-033 `#411` is the only open
-  `agent:ready` issue; M01-034 `#412`, M01-035 `#413`, and M01-026 `#333`
-  remain blocked. This changes dependency/readiness state only and does not
-  change a capability or completion gate.
+  keyed issues, and 424 managed objects. M01-033 implementation commit
+  `55a4da3` merged through PR #416 as `b3b1dc8`, and issue comment #6336
+  preserves the reviewed object-only evidence. The durable manifest now
+  records M01-033 `#411` closed/done; guarded synchronization must converge
+  that desired state onto the live tracker. M01-034 `#412` is the sole next
+  readiness candidate after verified closure, while M01-035 `#413` and
+  M01-026 `#333` remain blocked. This changes dependency/readiness state only
+  and does not prove final EFI linking, serializer execution, QEMU behavior,
+  or a completion gate.
 
 ## Implemented Behavior
 
@@ -212,17 +217,18 @@ Current M00 recovery evidence from 2026-07-25:
   through M01-032 before M01-025. The new durable chain is
   `M01-025 -> M01-033 -> M01-034 -> M01-035 -> M01-026`. The guarded apply
   closed M01-025 `#332`, created M01-033 `#411`, M01-034 `#412`, and M01-035
-  `#413`, and made only M01-033 ready; because it owns only new generator
-  files, its focused test, and `docs/security.md`, it carries no central
-  collision lane and may run beside disjoint work. M01-034, M01-035, and
-  M01-026 remain blocked in order. The first leaf proves object bytes and
-  relocatable unwind intent, not final-image unwindability; the second proves
-  the authoritative linked PE exception directory; the third requires the
-  exact `0 -> 1 -> 3 -> 7 -> 15` publication state across the one-way stack
-  switch and places epoch 3 inside `CaptureArchitecturalPreflight` before its
-  first generated-code invocation. The post-apply no-write preview reported
-  all 424 managed objects unchanged, and independent REST verification found
-  exactly one ready key, M01-033. M02 and M04
+  `#413`, and initially made only M01-033 ready. Its reviewed implementation is
+  now merged and the durable manifest records it closed/done with the
+  object-only evidence boundary preserved in `done/step884.md` and issue
+  comment #6336. The guarded closure synchronization is responsible for
+  closing live issue #411 and then making M01-034 the sole ready owner of
+  `lane:os-project`; M01-035 and M01-026 remain blocked in order. The first
+  leaf proves object bytes and relocatable unwind intent, not final-image
+  unwindability; the second must prove the authoritative linked PE exception
+  directory; the third requires the exact `0 -> 1 -> 3 -> 7 -> 15`
+  publication state across the one-way stack switch and places epoch 3 inside
+  `CaptureArchitecturalPreflight` before its first generated-code invocation.
+  M02 and M04
   entry work still
   depends on the final M01-026 cumulative paging proof. Only `M15-013`, the
   isolated optional DOOM/WAD boundary, retains
