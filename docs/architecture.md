@@ -2,7 +2,7 @@
 
 ## Current Status
 
-The architecture is a staged CloudReady NativeAOT OS plan. The first-class application goal is .NET 10 workload hosting, with ASP.NET Minimal API apps as the primary cloud target. Kestrel support is mandatory for the CloudReady milestone. The implementation is currently at the first EFI/QEMU smoke boundary, an opt-in QEMU-proven pre-`ExitBootServices` ACPI physical discovery probe, a separate opt-in QEMU-proven loaded-image/owned-stack transition boundary, a nested opt-in QEMU-proven pre-EBS allocator-arena and one-cycle metadata-allocation boundary, and host-tested parser/planning contracts for early diagnostics, ACPI/PCI/virtio, storage, networking, PAL, manifest, and native-app readiness.
+The architecture is a staged CloudReady NativeAOT OS plan. The first-class application goal is .NET 10 workload hosting, with ASP.NET Minimal API apps as the primary cloud target. Kestrel support is mandatory for the CloudReady milestone. The implementation is currently at the first EFI/QEMU smoke boundary, an opt-in QEMU-proven pre-`ExitBootServices` ACPI physical discovery probe, a separate opt-in QEMU-proven loaded-image/owned-stack transition boundary, a nested opt-in QEMU-proven pre-EBS allocator-arena and one-cycle metadata-allocation boundary, a host-tested exact physical page-table-arena planning/materialization/readback boundary, and host-tested parser/planning contracts for early diagnostics, ACPI/PCI/virtio, storage, networking, PAL, manifest, and native-app readiness.
 
 `docs/workload-profiles.md` defines the workload profile decision. `SingleMinimalApi` is the near-term default path: one ASP.NET Minimal API workload, no process-table or per-process isolation requirement, but still with the required Kestrel runtime/network prerequisites. `MultiMinimalApi` is a later platform profile that requires process, isolation, scheduler, and supervisor semantics before it can be claimed.
 
@@ -46,7 +46,7 @@ The architecture is a staged CloudReady NativeAOT OS plan. The first-class appli
 - `src/OS.Kernel/Memory/X64PageMap.cs` and `X64TlbInvalidationPlan.cs` define the no-stdlib-compatible M01-014 mutation boundary over a flat, caller-owned image of existing four-level x64 table pages. The map core accepts explicit POD pointers, logical counts, declared capacities, a typed root, one aligned low-canonical target page, the exact M01-011 encoding preconditions, and an optional sorted list of essential virtual ranges. It validates every complete declared storage span, disjointness, page-record order and physical uniqueness, root and child-table membership, entry form, request policy, and the exact target invalidation before its sole aligned 64-bit leaf write. Every success retains the validated page-image set's typed first-to-last physical envelope. It supports one 4 KiB map, unmap, or protection-only rewrite; preserves M01-011 physical/cache and selected Accessed/Dirty state on protection change; rejects page zero, W+X, missing tables, malformed entries, 1 GiB/2 MiB collisions, duplicate map, double unmap, unchanged protection, and removal or reprotection of an essential mapping. It deliberately allocates no table page, splits no large page, reloads no CR3, and performs no live invalidation.
 - `src/OS.Kernel/Memory/X64InvlpgStubPlan.cs` and `X64ProtectionProbeStubPlan.cs` bind that value mutation to two independently authored C# byte plans for later live integration. The first materializes and reads back the exact four bytes `0F 01 39 C3` (`invlpg [rcx]; ret`) inside one modeled page, then permits a one-shot invocation plan only for the exact RX/non-writable entry and exactly one matching invalidation record; the aggregate separately binds that page to a caller-supplied one-page `LoaderCode` allocation. The second materializes and reads back the exact six bytes `B8 4B 4F 53 4F C3` (`mov eax, 0x4F534F4B; ret`) inside a caller-attested separate identity-mapped one-page `LoaderCode` allocation whose canonical reservation kind is `PageProtectionProbe`. Its aggregate audit requires caller-record coherence and disjoint transition-code, probe-code, and table/state allocations; physical containment of the mutation result's complete page-image envelope inside the caller-attested RW+NX `LoaderData` table/state allocation; an exact RW+NX-to-RX leaf mutation with unchanged physical page and WB cache policy; exact leaf readback; exact target-only invalidation and invlpg plan; a modeled single invocation, expected return, unchanged nonzero canary; and nine ordered events that make execute-before-protect impossible. Both boundaries retain explicit `false` live-evidence flags; host tests materialize bytes as data and invoke neither stream.
 - `src/OS.Kernel/Memory/PageZeroMappingPolicy.cs` defines the M01-015 no-stdlib-compatible page-zero policy over raw mapping intents and a caller-owned four-level table image. Raw intent is narrowly permitted because `VirtualAddress` deliberately cannot represent zero; present ranges intersecting `[0, 4096)`, ranges wrapping through zero, malformed alignment, and noncanonical bounds fail closed. The read-only image audit validates complete pointer/count/capacity spans, record order and physical uniqueness, walks index zero from PML4E through PTE, recognizes canonical raw-zero absence at any level, rejects nonzero non-present encodings, rejects 1 GiB, 2 MiB, or 4 KiB leaves covering zero, and requires every child table traversed by the index-zero walk to belong to the supplied image. It mutates no entry and does not claim the supplied image is the installed CR3 root.
-- `src/OS.Kernel/Boot/M01LivePagingIntegration.cs` separates the first-class M01-029 preparation-only boundary from the historical M01-019 execution model. `Prepare(...)` returns caller-owned POD preparation evidence/state without accepting synthetic execution transcripts. M01-030 gives that path a seven-record exact live-interval profile: six present code/gate, stack, probe, table/state, state/canary, and root purposes plus one absent stack-guard sentinel. Historical `SerialStub`, ACPI, framebuffer, handoff, allocator-arena, loaded-image, and `AdditionalRequired` purposes cannot promote preparation. The retained `Execute(...)` and `ExecuteModelOnly(...)` paths preserve their historical alias contract and remain non-promotable model evidence. Preparation remains one-shot and fail-closed, and architectural-preflight rejection still occurs before caller output is written.
+- `src/OS.Kernel/Boot/M01LivePagingIntegration.cs` separates the first-class M01-029 preparation-only boundary from the historical M01-019 execution model. `Prepare(...)` returns caller-owned POD preparation evidence/state without accepting synthetic execution transcripts. M01-030 gives that path a seven-record exact live-interval profile: six present code/gate, stack, probe, table/state, state/canary, and root purposes plus one absent stack-guard sentinel. Historical `SerialStub`, ACPI, framebuffer, handoff, allocator-arena, loaded-image, and `AdditionalRequired` purposes cannot promote preparation. M01-031 adds sibling pointer-free arena-plan and materialization result PODs without changing those frozen preparation surfaces. `PlanOwnedTableArena(...)` retains the four fixed requirements and derives one exact table-pages-plus-state-page request for a caller-selected physical candidate. Before `MaterializeOwnedTableArena(...)` writes or verifies through a distinct caller-owned backing pointer, it rederives the exact seven-requirement range plan, compares every nested plan field, audits every hierarchy leaf for virtual/physical identity, protection, and cache policy, validates the exact `LoaderData` attribute, and requires a disjoint caller-owned 4096-byte scratch snapshot for byte-exact state-page preservation; FNV values remain diagnostic only. The retained `Execute(...)` and `ExecuteModelOnly(...)` paths preserve their historical alias contract and remain non-promotable model evidence. Preparation remains one-shot and fail-closed, and architectural-preflight rejection still occurs before caller output is written.
 - `src/OS.Kernel/Boot/M01OwnedCr3CompositeTransition.cs` defines the M01-027 C#-authored, relocation-free Windows-x64 composite stream and the M01-030 exact host binding contract. Six present bindings cover the combined composite/future-call-gate RX page, RW+NX stack, initially RW+NX probe, complete RW+NX table/state arena, contained state/canary page, and contained root page. The exact future post-call return lies in the code-page tail; a loaded-image continuation is not an owned-root dependency. Every binding cross-checks typed geometry, allocation/reservation provenance, a containing declared identity range, exact purpose bit, WB cache, and protection, while the canonical guard must be absent from the supplied table image. Same-policy contained or adjacent roles may share a normalized mapping only when each exact bit remains present. The byte stream, size, instruction/hash contract, recovery semantics, and no-callback policy are unchanged. This remains host byte/data and metadata evidence: no path invokes firmware or generated code, installs CR3, changes a live PTE/TLB/RFLAGS value, proves hardware W^X/guard absence, or supplies guest/completion-gate evidence.
 - `src/OS.Kernel/Diagnostics/NullPageFaultProbePlan.cs` defines the companion default-off metadata contract for a future supervisor read of address zero. A ready-disabled result requires successful page-zero absence evidence from the supplied table image plus caller-attested owned diagnostics and page-fault-handler prerequisites. It fixes vector 14, error-code value 0 under mask `0x1f`, CR2 value 0, supervisor privilege, and read access. Any default-on, requested-execution, or attempted-execution state is rejected. The contract emits no bytes, carries no callable address, dereferences nothing, and explicitly defers execution to M02-014.
 - `FirmwareServicesGuard` and the `UEFI_GONE_SIM_*` host tests establish the first UEFI-gone simulation boundary.
@@ -125,9 +125,9 @@ compile closure, but no current `EfiEntry` path invokes them; linkage and build
 success add no live EFI or guest evidence. M01-019 supplies only host-side
 preparation and synthetic transcript composition, M01-027 supplies the reviewed
 single-stream leaf, M01-029 owns the preparation/execution-transcript split,
- M01-025 owns eventual live allocation and `EfiEntry` invocation after the
- remaining M01-031 and M01-032 prerequisites, and M01-026 owns cumulative
- real-QEMU evidence.
+M01-031 supplies the separate host-only physical-arena contract, M01-032 is the
+remaining call-gate prerequisite before M01-025 live allocation and `EfiEntry`
+invocation, and M01-026 owns cumulative real-QEMU evidence.
 
 The M01-014 page-map, invalidation, and protection-probe contracts are also
 host-only. The table image is ordinary caller-owned memory, the allocation and
@@ -142,9 +142,9 @@ sources into the evaluated opt-in `src/OS` compile closure, but no current
 `EfiEntry` path invokes them; linkage and build success add no live EFI or
 guest evidence. M01-019 supplies only host-side preparation and synthetic
 transcript composition, M01-027 supplies the reviewed composite leaf, M01-029
- owns the preparation/execution-transcript split, M01-025 owns eventual live
- allocation and `EfiEntry` invocation after the remaining M01-031 and M01-032
- prerequisites, and
+owns the preparation/execution-transcript split, M01-031 supplies the separate
+host-only physical-arena contract, M01-032 is the remaining call-gate
+prerequisite before M01-025 live allocation and `EfiEntry` invocation, and
 M01-026 owns cumulative real-QEMU proof.
 
 ## Tests
@@ -288,10 +288,11 @@ and the current strict format intentionally defers user/global/software/key
 bits, LA57, PCID, live table synchronization, TLB shootdown, and `DmaMapping`.
 M01-014 owns caller-owned table-image mutation and invalidation planning;
 M01-019 now supplies the separate-leaf host coordinator and frozen stage-three
-marker plan. M01-027 supplies the reviewed composite leaf and M01-020 owns
-explicit EFI source linkage. M01-025 retains live allocation and `EfiEntry`
-wiring only after the remaining serialized M01-031 and M01-032 prerequisites;
-M01-026 owns any cumulative QEMU claim.
+marker plan. M01-027 supplies the reviewed composite leaf, M01-020 owns
+explicit EFI source linkage, and M01-031 supplies the host-only physical-arena
+contract. M01-025 retains live allocation and `EfiEntry` wiring only after the
+remaining serialized M01-032 prerequisite; M01-026 owns any cumulative QEMU
+claim.
 
 The `X64PageMap`, `X64TlbInvalidationPlan`, `X64InvlpgStubPlan`, and
 `X64ProtectionProbeStubPlan` boundaries remain caller-owned models. Their
@@ -304,8 +305,9 @@ record and audited byte plan, not a CPU effect, and no SMP shootdown, PCID,
 global-page, memory-ordering, or parent-effective-permission policy is proven.
 The modeled constant return/canary cannot substitute for guest execution.
 M01-019 composes these contracts only as separate-leaf host evidence.
-M01-027 supplies the single-stream host encoding and M01-020 links it, but
-M01-025 remains blocked on M01-031 and M01-032 before live wiring.
+M01-027 supplies the single-stream host encoding, M01-020 links it, and
+M01-031 supplies the host-only physical-arena contract, but M01-025 remains
+blocked on M01-032 before live wiring.
 M01-026 retains the first cumulative QEMU evidence. No current path proves a
 live table construction, CR3 write,
 `invlpg`, RW-to-RX processor mutation, restored-firmware or systemwide
@@ -314,21 +316,21 @@ dereference.
 
 ### M01-028 live-paging feasibility boundary
 
-M01-028 changes only durable backlog intent, synchronization/readiness logic,
-host tests, and canonical documentation; it changes no production paging
-source and proves no execution. The current integration builds raw entries in
-a flat model that is intentionally
-disjoint from the physical `PageTableArena`; it therefore cannot supply an
-installed CR3 root without a separate bounded materialization and readback
-boundary. Its mandatory `SerialStub`, ACPI-scratch, and framebuffer-metadata
-identity bindings are historical or synthetic at this interval rather than
-exact ranges used by the composite. The exact table-page count also depends on
-the fixed candidate address that must be selected before `AllocatePages`.
-Finally, an ordinary NativeAOT C# call cannot provide the composite's exact
-return RIP, and the composite's final `popfq; ret` leaves any hardware
-post-restoration RFLAGS observation outside the stream. The current
-caller-supplied success transcripts remain host models and cannot substitute
-for returned live POD observations.
+M01-028 changed only durable backlog intent, synchronization/readiness logic,
+host tests, and canonical documentation; it changed no production paging
+source and proved no execution. At that audit boundary, the integration built
+raw entries in a flat model intentionally disjoint from the physical
+`PageTableArena`; it could not supply an installed CR3 root without a separate
+bounded materialization and readback boundary. Its mandatory `SerialStub`,
+ACPI-scratch, and framebuffer-metadata identity bindings were historical or
+synthetic rather than exact composite ranges, and exact table-page count
+depended on the fixed candidate address selected before `AllocatePages`.
+M01-030 and M01-031 now repair those two host-contract gaps. The remaining
+finding is that an ordinary NativeAOT C# call cannot provide the composite's
+exact return RIP, and the composite's final `popfq; ret` leaves any hardware
+post-restoration RFLAGS observation outside the stream. Caller-supplied success
+transcripts remain host models and cannot substitute for returned live POD
+observations.
 
 M01-029 establishes the first repaired boundary as a caller-owned POD
 preparation-only contract. Its successful state is produced without synthetic
@@ -373,14 +375,74 @@ materialize the physical hierarchy or future call gate, invoke the composite,
 observe CR3/PTE/TLB/RFLAGS effects, enforce W^X/NX or guard absence in
 hardware, execute under EFI/QEMU/OVMF, or change a completion gate.
 
-The remaining serialized repair is M01-031 **Materialize and read back the
-owned physical page-table arena**
-(including bounded-capacity/fixed-address sizing), and M01-032 **Add an
-audited composite call gate and post-return RFLAGS observer**. M01-025 then
-depends on M01-024, M01-027, and all four repair prerequisites. This ordering
-does not claim that any prerequisite executes privileged code. M01-026 remains
-the real-QEMU/OVMF proof owner after M01-025; completion-gate status is
-unchanged.
+### M01-031 physical table-arena trust boundary
+
+M01-031 closes the third feasibility defect at the host-contract boundary.
+`PlanOwnedTableArena(...)` validates a caller-selected aligned physical
+candidate inside one physically coherent `ConventionalMemory` descriptor,
+rejects canonical-reservation overlap, and iterates the arena's own exact
+identity requirement from the five-page lower bound through a validated
+caller-supplied limit of 1 through 65 attempts. With candidate `C` and
+converged table-page count `T`, it fixes root `C`, table interval
+`[C, C + T * 4096)`, one final state/canary page
+`[C + T * 4096, C + (T + 1) * 4096)`, exact allocation demand `T + 1`, exactly
+`T` page-image records, and exactly `T * 512` entries. Descriptor capacity may
+exceed demand, but the later `LoaderData` allocation record must match the exact
+request, including its UEFI `Attribute`. The plan retains the four fixed
+requirements; the materializer combines them with the derived arena, state,
+and root records, rederives the exact seven-range plan, and requires full
+nested-plan equality. Independent host vectors cross 2 MiB, 1 GiB, and 512 GiB
+hierarchy boundaries and prove bounded convergence, physical-width/canonical
+arithmetic, descriptor containment, and reservation policy.
+
+`MaterializeOwnedTableArena(...)` keeps the reported physical candidate and
+CPU-addressable backing pointer as separate trust domains. Every image is
+written or verified at
+`arenaBacking + (image.PhysicalStart - candidatePhysicalBase)` only after all
+pointer/count/capacity spans, aliases, record order, physical uniqueness, exact
+entry offsets, root placement, table containment, allocation geometry, and
+state-page exclusion validate. A bounded full-hierarchy walk reconstructs each
+leaf virtual address and rejects wrong physical identity, protection, cache
+policy, strict encoding, or normalized-range coverage before any write.
+`M01LivePagingArenaByteMode.EmitAndVerify` copies every 512-entry page and
+performs an independent exact readback; `VerifyExisting` is read-only and
+detects later corruption. Results report exact mismatch indexes/values and
+deterministic source/readback FNV-1a64 aggregates, but per-entry equality
+remains authoritative. A disjoint caller-owned 4096-byte scratch buffer holds
+the complete pre-write state page and is compared byte-for-byte afterward;
+state hashes are diagnostic only. The capacity tail remains outside table
+writes.
+
+Hostile host tests cover forged nested-plan evidence; wrong leaf identity,
+protection, and cache policy; missing, duplicate, cyclic, unreachable,
+misplaced, and malformed table images; exact allocation-attribute mismatch;
+snapshot pointer/count/capacity/alias/overflow failures; first- and last-entry
+corruption; exact state comparison; source nonmutation; and capacity-tail
+preservation.
+
+The host materializer proves exact writes and readback at offsets inside
+caller-provided backing. It cannot prove that the backing is the reported
+physical range, that the firmware allocation occurred, that the memory is
+identity mapped or current, that another writer cannot modify it, or that any
+CPU installed the root. The planner and materializer call no firmware
+allocator, execute no generated code, change no CR3/PTE/TLB/protection/RFLAGS
+state, and supply no EFI/QEMU/OVMF or completion-gate evidence.
+
+The test-only hierarchy influence is
+`references/SharpOS-main/OS/src/Kernel/Paging/X64PageTable.cs`, SHA-256
+`35503B543628E5A462073D498704050EEEF7D79DEB2B84F01CACA29714200BAC`.
+The archive has no recoverable Git revision, and no SharpOS source or algorithm
+was copied. Its global allocator/spare list, permanent physical-pointer casts,
+firmware-table clone, live-CR3 activation, large-page splitting, permissive
+directory policy, and TLB effects remain outside CLROS.
+
+The M01-031 markers `TEST_START m01.031`, `CLROS_M01_031_READY`,
+`TEST_PASS m01.031`, and `TEST_FAIL m01.031 <reason>` are host-contract evidence
+only. M01-032 **Add an audited composite call gate and post-return RFLAGS
+observer** is now the sole remaining serialized repair before M01-025. This
+ordering does not claim that any prerequisite executes privileged code.
+M01-026 remains the real-QEMU/OVMF proof owner after M01-025; completion-gate
+status is unchanged.
 
 `PageZeroMappingPolicy` proves absence only in the validated caller-owned
 snapshot passed to that call. Pointer arithmetic cannot prove the snapshot is
@@ -394,21 +456,23 @@ code. M01-026 owns cumulative QEMU evidence for page-zero absence during the
 owned-root interval; M02-014 owns the disabled live `#PF` trigger and captured
 fault evidence.
 
-The `X64BootIdentityMappingPlan` boundary remains host-tested only. Its exact
-fresh-hierarchy count cannot assign physical table pages, prove they are
-available, reuse firmware tables, or account for a later implementation that
-chooses large pages. Caller-provided ranges can be semantically wrong even
-after their geometry passes. The exact profile cannot prove pointers are
-mapped/stable, the future gate bytes occupy the declared RX range, the supplied
-page image occupies the claimed physical arena, effective parent/leaf
-permissions are installed, the guard or page zero is absent in hardware, or a
-CPU ever uses the reported root. M01-031 and M01-032 remain blocked
-prerequisites before M01-025 live integration, with cumulative real-QEMU
-evidence deferred to M01-026.
+The `X64BootIdentityMappingPlan` boundary remains host-tested only. M01-031 can
+assign fresh physical table-page addresses inside one exact candidate and copy
+the resulting flat image into separate caller-provided backing, but it cannot
+prove those pages are firmware allocated or available at call time, reuse
+firmware tables, or account for a later implementation that chooses large
+pages. Caller-provided ranges can be semantically wrong even after their
+geometry passes. The exact profile and backing audit cannot prove pointers are
+mapped/stable, the future gate bytes occupy the declared RX range, the backing
+is the claimed physical arena, effective parent/leaf permissions are installed,
+the guard or page zero is absent in hardware, or a CPU ever uses the reported
+root. M01-032 remains the sole blocked repair prerequisite before M01-025 live
+integration, with cumulative real-QEMU evidence deferred to M01-026.
 
 ## Next Steps
 
-1. Finish UEFI platform interfaces and post-firmware diagnostics before real firmware shutdown.
-2. Add post-firmware physical-memory and MMIO ownership rules so the ACPI probe evidence can become durable platform discovery and PCI contracts can move from caller-owned bytes to live platform enumeration.
-3. Keep all shared utility implementation in `std/no-runtime/shared` before kernel/app use.
-4. Use `docs/workload-profiles.md` to keep the first hosted workload target on `SingleMinimalApi` while tracking the additional process/isolation work needed before `MultiMinimalApi`.
+1. Complete M01-032's audited composite call gate and post-return RFLAGS observer before M01-025 attempts the default-off live adapter; retain M01-031 as host-only backing-offset evidence and M01-026 as the cumulative QEMU proof owner.
+2. Finish UEFI platform interfaces and post-firmware diagnostics before real firmware shutdown.
+3. Add post-firmware physical-memory and MMIO ownership rules so the ACPI probe evidence can become durable platform discovery and PCI contracts can move from caller-owned bytes to live platform enumeration.
+4. Keep all shared utility implementation in `std/no-runtime/shared` before kernel/app use.
+5. Use `docs/workload-profiles.md` to keep the first hosted workload target on `SingleMinimalApi` while tracking the additional process/isolation work needed before `MultiMinimalApi`.
