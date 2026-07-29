@@ -35,11 +35,15 @@ merged through PR #416 as `b3b1dc8`; issue comment #6336 preserves the reviewed
 object-only evidence. M01-034 implementation commit `eb06fda1` merged through
 PR #418 as `5226b2a`; `done/step886.md` and issue comment #6366 preserve the
 reviewed static final-PE/link/unwind evidence. The durable manifest and live
-tracker record M01-033 and M01-034 closed/done. A guarded synchronization from
-this merged state verifies those closures and computes M01-035 `#413` as the
-sole next ready owner of `lane:efi-entry`; M01-026 `#333` remains blocked.
-This status proves neither serializer invocation nor returned-cookie
-observation, QEMU/OVMF execution, SCSB exclusion, cross-core publication, or
+tracker record M01-033 and M01-034 closed/done. M01-035 implementation commit
+`6d43176` merged through PR #420 as `a32b4cb`; `done/step887.md` and issue
+comment #6388 preserve its reviewed source-order, host, and fresh-build
+evidence. The durable manifest and live tracker record all three instruction-
+publication leaves closed/done. A guarded synchronization from this merged
+state verifies those closures and computes M01-026 `#333` as the sole next
+ready issue and owner of cumulative real-QEMU/OVMF evidence. This status does
+not prove serializer execution or returned-cookie observation, guest markers,
+SCSB exclusion, cross-core or DMA-written-code publication, live paging, or
 any completion gate.
 
 The guarded earlier M00-023 apply recognized existing M00-023 as issue #321,
@@ -89,8 +93,8 @@ advances a capability or completion gate.
   the instruction-publication boundary before M01-026 retains the later
   runtime-observable real-QEMU evidence boundary. M01-033 proves object bytes
   and relocation intent only; M01-034 proves the linked PE exception
-  directory statically, and M01-035 must preserve exact state transitions
-  across the one-way owned-stack switch.
+  directory statically; M01-035 proves host-tested exact state transitions
+  across the one-way owned-stack switch without guest execution.
 - One `phase:mxx-*` label identifies each milestone from M00 through M15.
 
 Only issues whose complete transitive dependency tree is manifest-closed,
