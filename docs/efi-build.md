@@ -589,6 +589,30 @@ nonzero verifier exit. The host timeout fixture also exercises an explicitly
 unkillable test override and requires the build to refuse a false
 `terminationConfirmed` result.
 
+That hostile host fixture uses a five-second verifier deadline, which is the
+minimum accepted by the production command surface, so startup-gated nested
+PowerShell has time to publish both verifier and descendant process identities
+before the deliberately sleeping verifier times out. Its separate 45-second
+outer harness bound leaves room for the verifier's own termination and
+output-drain diagnostics to remain authoritative under host contention. These
+are test-only timing bounds: the production verifier remains fixed at 60
+seconds with no retry, and neither Job Object ownership nor any drain or
+termination check is weakened.
+
+The broader PE/link-evidence negative-fixture wrapper likewise allows 45
+seconds for a verifier process to return its precise stable diagnostic. The
+same hard 45-second ceiling bounds each maximum-capacity verifier process,
+while stable in-process markers separately require both the 4,096-token link
+response scan and the 2,048-record runtime-function scan to complete within
+one second. The response timer accumulates tokenization, option-policy regexes,
+map-path parsing, and every token's object-path normalization/match pass, while
+pausing around linked-map authority-handle and identity-hash I/O. This
+separates bounded parser work from comprehensive verifier startup,
+source-closure, authority-handle, identity-hash, and final unchanged-input
+checks. Increasing the generic outer guard therefore prevents host scheduling
+from replacing a useful rejection reason with a wrapper timeout without
+relaxing either measured parser-performance criterion.
+
 Restore, both project-evaluation passes, the NativeAOT publish, and the final
 SDK recheck use the same startup-gated Job Object ownership model with bounded
 output and an explicit build-process timeout. MSBuild node reuse and shared

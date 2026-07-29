@@ -2334,6 +2334,7 @@ internal static class BuildEfiShellPreflightTests
 
     private static bool TestM01ArtifactVerifierTimeout(string tempRoot)
     {
+        const int verifierTimeoutSeconds = 5;
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string buildScriptPath = Path.Combine(
             repositoryRoot,
@@ -2399,7 +2400,9 @@ internal static class BuildEfiShellPreflightTests
                 [string] $ChildPidPath,
                 [string] $VerifierPidPath,
                 [string] $NoKillChildPidPath,
-                [string] $NoKillVerifierPidPath
+                [string] $NoKillVerifierPidPath,
+                [ValidateRange(5, 30)]
+                [int] $TimeoutSeconds
             )
             $ErrorActionPreference = "Stop"
             $tokens = $null
@@ -2446,7 +2449,7 @@ internal static class BuildEfiShellPreflightTests
                     "-VerifierPidPath",
                     $VerifierPidPath
                 ) `
-                -TimeoutSeconds 1
+                -TimeoutSeconds $TimeoutSeconds
             if (-not $result.TimedOut -or
                 $result.ExitCode -ne -1 -or
                 -not $result.TerminationConfirmed -or
@@ -2509,7 +2512,7 @@ internal static class BuildEfiShellPreflightTests
                         "-VerifierPidPath",
                         $NoKillVerifierPidPath
                     ) `
-                    -TimeoutSeconds 1
+                    -TimeoutSeconds $TimeoutSeconds
                 $noKillStopwatch.Stop()
                 if (-not $noKillResult.TimedOut -or
                     $noKillResult.ExitCode -ne -1 -or
@@ -2548,7 +2551,9 @@ internal static class BuildEfiShellPreflightTests
                 }
             }
             Write-Output (
-                "M01_VERIFIER_TIMEOUT_PASS timeoutSeconds=1 childPid=" +
+                "M01_VERIFIER_TIMEOUT_PASS timeoutSeconds=" +
+                $TimeoutSeconds +
+                " childPid=" +
                 $childPid +
                 " unkillableElapsedMs=" +
                 $noKillStopwatch.ElapsedMilliseconds)
@@ -2559,7 +2564,7 @@ internal static class BuildEfiShellPreflightTests
         ProcessResult result = RunProcess(
             "powershell.exe",
             repositoryRoot,
-            timeoutMilliseconds: 20_000,
+            timeoutMilliseconds: 45_000,
             "-NoProfile",
             "-ExecutionPolicy",
             "Bypass",
@@ -2576,10 +2581,13 @@ internal static class BuildEfiShellPreflightTests
             "-NoKillChildPidPath",
             noKillChildPidPath,
             "-NoKillVerifierPidPath",
-            noKillVerifierPidPath);
+            noKillVerifierPidPath,
+            "-TimeoutSeconds",
+            verifierTimeoutSeconds.ToString());
         return result.ExitCode == 0
             && result.Output.Contains(
-                "M01_VERIFIER_TIMEOUT_PASS timeoutSeconds=1",
+                "M01_VERIFIER_TIMEOUT_PASS timeoutSeconds=" +
+                    verifierTimeoutSeconds,
                 StringComparison.Ordinal)
             && !result.Output.Contains(
                 "M01_VERIFIER_TIMEOUT_FAIL",
