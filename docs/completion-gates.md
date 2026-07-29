@@ -2,10 +2,10 @@
 
 ## Current Status
 
-No CloudReady release is complete as of 2026-07-25. The repository has a
-current source-bound EFI/QEMU smoke proof and broad host-tested planning
-contracts, but it is not a functional kernel, not cloud-ready, and not
-production-ready.
+No CloudReady release is complete as of 2026-07-29. The repository has a
+current source-bound default EFI/QEMU smoke proof, one separate source-bound
+opt-in pre-EBS M01 owned-root tuple, and broad host-tested planning contracts,
+but it is not a functional kernel, not cloud-ready, and not production-ready.
 
 Gate status is explicit:
 
@@ -36,21 +36,68 @@ profile. Those hosted-tier and Kestrel claim boundaries are tracked under Gate
 and exposes `OS.Kernel.Build.WorkloadProfile` metadata, but it does not change
 any gate status or prove runtime behavior.
 
+## M01 Live Boot Memory and Paging Exit
+
+The M01 technical exit is now supported by a separate, opt-in, source-bound
+local-QEMU/OVMF tuple from clean, pushed implementation commit
+`9fe466fdc06cfdf43ce8102b38592db9ef1c8b29`. It does not replace the default
+Gate 2 tuple or change the status of any numbered completion gate.
+
+The accepted r12 host package preserves successful solution and host-test
+builds, verifier warm-up, naming and exact M01 dry-run checks, and one complete
+semantic host stream with 3,328 `TEST_START` lines, 3,329 `TEST_PASS` lines
+including `TEST_PASS host.tests`, no `TEST_FAIL`, and empty stderr. The host
+stream SHA-256 is
+`393FB9EAF36B7CB46EB32CF3496F5F8A38651F74BF887CAC5F65458DAC45E4B1`.
+
+The full fresh all-switch `-BuildEfi` acceptance command began at
+`2026-07-29T16:13:34.3355662Z` and completed at
+`2026-07-29T16:15:15.2857325Z`. It used QEMU 11.0.50, SHA-256
+`B396EB9B669F6282EC60F0D46E6ADDCA8C669992E67A34365BE44CD3CB97C9A7`,
+and OVMF SHA-256
+`33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`.
+All 42 issue-required markers occurred exactly once and in order, all 25
+issue-forbidden markers were absent, `M01_OWNED_CR3_ENTERED` was absent from
+serial, and both `TEST_PASS qemu.smoke` and
+`TEST_PASS m01.026.raw-observations` were recorded. The raw sidecar binds CR0
+`0x80010033`; firmware CR3 `0xF801000`; temporary owned CR3 `0x100000`; CR4
+`0x668`; EFER `0xD00`; physical width 40; and RFLAGS `0x246`, with firmware
+CR3, CR4, and RFLAGS equal to their post-return runtime values.
+
+The EFI SHA-256 is
+`76F2B404E91EB5E62CAD80B797B936BA3D3D39D5B0577889BB8459AF1B55C47C`;
+the raw-image SHA-256 is
+`309BAA429365AD88311510728560F5DC078BDDE62E9989DB1503D5489B3AECA9`;
+the public-serial SHA-256 is
+`CC51100244A8A20865DB9D16CE5D73B0930F43EA98835DFA57027A00B126C661`;
+and the schema-version-1 evidence-manifest SHA-256 is
+`964F0A0346F4A4CE7B4D4E070A19743A307EAEFD16AD750849A4BFF3B67D916C`.
+The manifest binds source dirty `false`, 53 nonempty artifacts, 10 tool
+identities, 44 required markers, 26 forbidden markers, all 61 observed serial
+markers, exact timestamps and command, exit code 0, and classification `pass`.
+`done/step888.md` is the durable ledger.
+
+This satisfies only the documented M01 local-QEMU pre-`ExitBootServices`
+technical exit. It proves no real firmware shutdown, permanent owned root,
+post-firmware diagnostics, IDT/fault handling, SMP/TLB shootdown, systemwide
+W^X, physical-hardware or provider behavior, storage, networking, hosted .NET,
+Minimal API, Kestrel, CloudReady status, or production readiness.
+
 | Gate | Status | Preserved current evidence | Missing before pass |
 | --- | --- | --- | --- |
 | 1. Clean build | Fail | From clean, pushed commit `32a8f3b91e17e1fc7e4b296730a5ea6565c38369`, the source-frozen 11-step M00 baseline passed solution build, host build/run with exactly one `TEST_PASS host.tests`, naming/source firewall, QEMU dry runs, qcow2/libvirt intent, `git diff --check`, and `git status --short`; `done/step845.md` records hashes | Repeat from an independently clean checkout/runner and preserve release/CI evidence that no untracked source, forbidden first-party `.c/.cpp/.h/.asm/.s`, or secret is required |
-| 2. Boot | Pass | Current real QEMU/OVMF evidence from clean commit `32a8f3b91e17e1fc7e4b296730a5ea6565c38369` reaches all 12 required firmware-visible markers including `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and `OS_SMOKE_PASS`, with no `TEST_FAIL` or `OS_SMOKE_FAIL`; manifest SHA-256 `D398F73FF5051D138D5F2A77CE4EF51277BD2DE289F58BA5383FC6FC74D02E65` binds source, command, tools, EFI, image, serial, summary, timestamps, and hashes; opt-in ACPI and UEFI-gone probe artifacts remain separate historical marker evidence | Keep this scoped to EFI smoke until later gates prove `ExitBootServices`, owned diagnostics/drivers, storage, networking, app launch, or hosted workload behavior |
+| 2. Boot | Pass | Current default real QEMU/OVMF evidence from clean commit `32a8f3b91e17e1fc7e4b296730a5ea6565c38369` reaches all 12 required firmware-visible markers including `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and `OS_SMOKE_PASS`, with no `TEST_FAIL` or `OS_SMOKE_FAIL`; manifest SHA-256 `D398F73FF5051D138D5F2A77CE4EF51277BD2DE289F58BA5383FC6FC74D02E65` binds source, command, tools, EFI, image, serial, summary, timestamps, and hashes. Separate opt-in commit `9fe466fdc06cfdf43ce8102b38592db9ef1c8b29` and manifest SHA-256 `964F0A0346F4A4CE7B4D4E070A19743A307EAEFD16AD750849A4BFF3B67D916C` preserve the bounded M01 pre-EBS owned-root tuple; opt-in ACPI and UEFI-gone probe artifacts remain separate historical marker evidence | Keep this scoped to EFI smoke and the explicitly bounded M01 tuple until later gates prove `ExitBootServices`, owned diagnostics/drivers, storage, networking, app launch, or hosted workload behavior |
 | 3. Fault diagnostics | Fail | Host-tested boot-event ring, panic formatter, panic serial reporter, COM1 configuration/writer contracts, GDT/TSS/IST/IDT descriptor plans, fault-vector metadata, fault-entry/fault-probe stub plans, and readiness markers exist | Install real IDT/GDT/TSS/IST, implement handlers and register capture, prove null-pointer and invalid-opcode panic probes in QEMU without triple fault or silent reboot |
 | 4. std/runtime | Fail | Host-tested `OS.Std.*` helper slices exist for ASCII/text formatting, memory operations, endian primitives, native integer helpers, integer math, array helpers, CRC32, and internet checksums; host-tested caller-owned boot page allocator mutation, class-constructor state-table transitions, cctor state diagnostic formatting, cctor runner preflight metadata validation, and BootSequence cctor preflight readiness markers now exist below the live runtime-helper boundary; `NativeAotHelperLedger` tracks runtime gaps | Complete the supported BCL subset, object/array/string allocation helpers, GC/root scanning, interface dispatch, full cctor runner/metadata execution, exceptions/finally/catch, thread statics, and runtime-helper QEMU/host tests |
-| 5. UEFI encapsulation | Fail | `EfiMain` uses no-stdlib adapters to capture/copy UEFI memory-map bytes, validate handoff, normalize compact records, carry ACPI RSDP provenance, and emit probe markers; host tests cover guarded platform interfaces including read-only filesystem denial under UEFI-gone simulation | Finish platform interfaces, own post-firmware serial/framebuffer/physical-memory/MMIO rules, simulate forbidden firmware calls broadly, and implement real `ExitBootServices` only after diagnostics and drivers can continue |
+| 5. UEFI encapsulation | Fail | `EfiMain` uses no-stdlib adapters to capture/copy UEFI memory-map bytes, validate handoff, normalize compact records, carry ACPI RSDP provenance, and emit probe markers; host tests cover guarded platform interfaces including read-only filesystem denial under UEFI-gone simulation; the separate M01-026 tuple proves one scoped pre-EBS allocation/map/temporary-root/restoration interval while firmware remains available | Finish platform interfaces, own post-firmware serial/framebuffer/physical-memory/MMIO rules, simulate forbidden firmware calls broadly, and implement real `ExitBootServices` only after diagnostics and drivers can continue |
 | 6. Platform | Fail | Host-tested ACPI RSDP/root SDT/MCFG parsing, PCI ECAM/header/BAR/scanner planning, physical MMIO ownership planning, framebuffer metadata guards, and virtio PCI metadata contracts exist; opt-in ACPI probe has pre-`ExitBootServices` QEMU markers | Implement ACPI table use, APIC/IOAPIC/HPET/TSC, live ECAM mapping, live PCI enumeration, BAR mapping, interrupts/MSI, serial ownership, framebuffer text, and QEMU-visible platform logs |
 | 7. Storage | Fail | Host-tested block-device contracts, GPT/FAT32/package parsers, caller-owned GPT partition selector metadata, generated image package placement/readback, package filesystem APIs, manifest/package loaders over mocks, package-file staging preflight markers, a completed read-session-to-`IReadOnlyBlockDevice` adapter, and virtio-blk queue/read planning contracts exist | Implement live PCI-backed virtio-blk, sector reads, partition/filesystem reads from the guest after firmware handoff, manifest/package loading from disk, and storage error probes |
 | 8. Networking | Fail | Host-tested Ethernet, ARP, IPv4, ICMP echo packets/frames/receive dispatch, UDP, DHCP, DNS, TCP handshake/payload/close/connection-table metadata, HTTP request/response/GET planning, formatter diagnostics, HTTP static TCP response plan diagnostic formatting plus `HTTP_STATIC_TCP_RESPONSE_READY` BootSequence marker aggregation and opt-in `http-static-tcp-response` QEMU marker-preset contract, virtio-net RX TCP dispatch diagnostic formatting, manifest/config-derived FetchApp HTTP request endpoint parsing/diagnostic formatting plus `FETCHAPP_HTTP_ENDPOINT_READY` BootSequence marker aggregation and opt-in QEMU marker-preset contract, FetchApp HTTP completion expectation planning/diagnostic formatting, manifest-side FetchApp config preflight plus `FETCHAPP_CONFIG_PREFLIGHT_READY` BootSequence marker aggregation, FetchApp HTTP completion planning/diagnostic formatting, opt-in QEMU marker-preset contract for `FETCH_APP_HTTP_COMPLETION_READY`, socket PAL mocks, and virtio-net RX/TX queue planning contracts exist | Implement live virtio-net RX/TX, DHCP lease acquisition, DNS resolution, TCP connect/read/write/close, HTTP GET through packet I/O, FetchApp execution, and optional HTTP server evidence |
 | 9. Native-tier app model | Fail | Host-tested manifest parsing, profile-aware manifest validation, app/package selection, native payload headers, package/image generation, executable-range and permission planning, invocation metadata, invocation/argument-vector handoff metadata, manifest environment diagnostics plus `NATIVE_MANIFEST_ENV_READY` BootSequence marker aggregation, app argument-vector planning/formatting plus `APP_ARGS_VECTOR_READY` BootSequence marker aggregation, app log facades, and lifecycle marker formatting exist | Wire live package loading into boot, define and use the app ABI, map executable memory, pass args/config, materialize process environment/config, route stdout/stderr, invoke one native-tier app, and capture live exit status |
 | 10. Cloud image artifacts | Fail | Raw GPT/FAT32 images are generated and booted in QEMU; qcow2 conversion/smoke wrappers exist and have local QEMU evidence where `qemu-img` is available; QEMU runner, marker presets including `app-args`, `app-exit`, `app-lifecycle`, `app-selection`, `cctor-preflight`, `fetch-http`, `fetch-http-endpoint`, `http-static-response`, and `http-static-tcp-response`, and serial summary parsing are host-tested; libvirt XML/dry-run/preflight planning exists | Add/validate ISO if still supported, preserve raw/qcow2 artifact evidence, run opt-in libvirt real boot where available, generate cloud import artifacts/docs, and separate provider validation from local QEMU evidence |
 | 11. CI | Fail | `scripts/run-ci-smoke.ps1 -DryRun`, baseline plan-only evidence, and `.gitea/workflows/ci-smoke.yml` exist; CI artifact summaries include planned build, host-test, QEMU dry-run, native-app-marker dry-run, diagnostics/app-args/app-exit/cctor-preflight/fetch-http/fetch-http-endpoint/http-static-response/http-static-tcp-response marker-preset dry-run lanes, qcow2 intent, libvirt intent, qemu-img discovery, and `git diff --check` lanes, but no executed Gitea CI evidence has been captured yet | Run the workflow on a compatible Windows agent, preserve logs/artifacts from a clean checkout, then add real QEMU smoke in CI-compatible hosts |
-| 12. Security | Fail | Host-side manifest validation, source/build-boundary firewall checks, W^X/NX planning for diagnostic and native-app executable memory, PAL page-protection planning, guarded firmware RNG access, and default-deny AWS metadata policy fixtures exist | Enforce in-kernel validation, live W^X/NX page transitions, reduced release logs, post-firmware entropy handling, app/supervisor metadata policy, malformed-manifest rejection in the guest, and full license/provenance automation |
-| 13. Documentation | Fail | Required docs exist, `docs/documentation-map.md` defines canonical ownership, subsystem docs preserve status/evidence boundaries, and done-step files record implementation slices through the latest host-tested work | Keep every affected doc current, add/update `done/stepNN.md` for meaningful milestones, keep README build/run flow aligned, and avoid claiming cloud or production readiness until all required gates pass |
+| 12. Security | Fail | Host-side manifest validation, source/build-boundary firewall checks, W^X/NX planning for diagnostic and native-app executable memory, PAL page-protection planning, guarded firmware RNG access, and default-deny AWS metadata policy fixtures exist; the separate M01-026 tuple proves one source-bound local-QEMU RW-to-RX probe, publication-cookie audit, targeted invalidation, and page-zero-absence observation during a temporary owned-root interval | Enforce general in-kernel validation, live systemwide W^X/NX page transitions, permanent page-zero policy, reduced release logs, post-firmware entropy handling, app/supervisor metadata policy, malformed-manifest rejection in the guest, and full license/provenance automation |
+| 13. Documentation | Fail | Required docs exist, `docs/documentation-map.md` defines canonical ownership, subsystem docs preserve status/evidence boundaries, and done-step files record implementation slices through the M01-026 live-QEMU milestone in `done/step888.md` | Keep every affected doc current, add/update `done/stepNN.md` for meaningful milestones, keep README build/run flow aligned, and avoid claiming cloud or production readiness until all required gates pass |
 | 14. Hosted-tier, CoreCLR, Roslyn, and PowerShell | Fail | Hosted-tier PAL shape, mock `OSHost_*` tables/facades, workload-profile metadata, and the `kestrel.smoke.package.v0` contract are host-tested/documented; no hosted runtime, CoreCLR `TARGET_OS`, JIT Hello.dll, Roslyn REPL, PowerShell host, or in-guest Kestrel evidence exists | Only claim full long-term OS completion after the external hosted runtime path builds, `OSHost_*` ABI works, JIT Hello.dll runs, Roslyn REPL runs, PowerShell host subset runs, and all hosted-tier docs/tests pass |
 
 Historical CI numbering note: the previous ledger numbered CI as Gate 12. The
@@ -826,11 +873,40 @@ Evidence:
 
 Do not describe the OS as complete, production-ready, or cloud-ready until every applicable gate in this ledger has pass evidence.
 
-The current QEMU pass is an EFI smoke with ordered boot markers, UEFI memory-map capture, and compact boot memory-region materialization. It is not an `ExitBootServices`, driver, storage, network, or hosted-workload proof.
+The current default QEMU pass is an EFI smoke with ordered boot markers, UEFI
+memory-map capture, and compact boot memory-region materialization. The separate
+opt-in M01-026 pass adds only its exact reversible pre-EBS owned-root and scoped
+protection/page-zero observations. Neither is an `ExitBootServices`, owned
+diagnostics/driver, storage, network, or hosted-workload proof.
 
-The host-friendly caller-owned `MemoryMapInfo` region writer, allocator-facing `BootMemoryRegionPlanner`, free-list `BootPageAllocatorPlanner`, caller-owned `BootPageFreeListBuilder`, `BootPageAllocatorStateInitializer`, caller-owned `BootPageAllocatorMutation`, `BootPageAllocatorReadinessComposer`, `NativeAotHeapBootstrapPlanner`, and `BootSequence.RunBootPageAllocatorReadiness` marker gate are still host-tested against synthetic descriptors or compact records and caller-provided storage. Live EFI now uses the no-stdlib `BootMemoryRegionMaterializer` to write compact `BootMemoryRegionRecord` entries and emits `BOOT_PAGE_ALLOCATOR_READY` with live conventional/free node/page/byte counts, but it does not yet run the host-friendly allocator-facing planning chain, reserve kernel-owned ranges, construct the allocator-facing `MemoryMapInfo` view, expose page allocation/free APIs, reserve managed heap pages, configure paging, enforce NX/W^X, or allocate pages.
+The host-friendly caller-owned `MemoryMapInfo` region writer, allocator-facing
+`BootMemoryRegionPlanner`, free-list `BootPageAllocatorPlanner`, caller-owned
+`BootPageFreeListBuilder`, `BootPageAllocatorStateInitializer`, caller-owned
+`BootPageAllocatorMutation`, `BootPageAllocatorReadinessComposer`,
+`NativeAotHeapBootstrapPlanner`, and
+`BootSequence.RunBootPageAllocatorReadiness` marker gate are still host-tested
+against synthetic descriptors or compact records and caller-provided storage.
+Default live EFI uses the no-stdlib `BootMemoryRegionMaterializer` to write
+compact `BootMemoryRegionRecord` entries and emits `BOOT_PAGE_ALLOCATOR_READY`
+with live conventional/free node/page/byte counts, but it does not run the
+host-friendly allocator-facing planning chain, expose page allocation/free
+APIs, reserve managed heap pages, configure paging, or enforce NX/W^X. The
+separate M01-026 all-switch tuple allocates only its explicit arenas and one
+metadata page, constructs and temporarily enters only its fixed owned-root
+profile, and restores the exact cycle. It does not establish a general
+allocator, permanent paging authority, managed heap, or systemwide W^X.
 
-`BOOT_HANDOFF_READY`, `UEFI_MEMORY_MAP_NORMALIZED`, `BOOT_MEMORY_MAP_ACCEPTED`, `BOOT_MEMORY_REGIONS_READY`, `BOOT_MEMORY_REGION_COUNT`, `BOOT_PAGE_ALLOCATOR_READY`, and `BOOT_ACPI_RSDP_HANDOFF_READY` are QEMU-proven from the live default EFI artifact. The five ACPI physical discovery markers are QEMU-proven only from the explicit opt-in probe artifact. `UefiExitBootServicesPlan` and `PlatformFirmwareExitBootServicesResult` are host-tested only and do not prove real firmware shutdown. None of this proves owned drivers, storage, networking, or hosted workload launch.
+`BOOT_HANDOFF_READY`, `UEFI_MEMORY_MAP_NORMALIZED`,
+`BOOT_MEMORY_MAP_ACCEPTED`, `BOOT_MEMORY_REGIONS_READY`,
+`BOOT_MEMORY_REGION_COUNT`, `BOOT_PAGE_ALLOCATOR_READY`, and
+`BOOT_ACPI_RSDP_HANDOFF_READY` are QEMU-proven from the live default EFI
+artifact. The five ACPI physical discovery markers are QEMU-proven only from
+the explicit opt-in probe artifact. The complete M01 stage-one-through-stage-three
+marker chain and `CLROS_M01_LIVE_BOOT_MEMORY_READY` are QEMU-proven only
+from the source-bound M01-026 all-switch artifact. `UefiExitBootServicesPlan`
+and `PlatformFirmwareExitBootServicesResult` are host-tested only and do not
+prove real firmware shutdown. None of this proves owned drivers, storage,
+networking, or hosted workload launch.
 
 `EnableExitBootServicesFreshMapProbe` is disabled by default. Its explicit EFI probe build reacquires and validates a fresh memory map and then emits `UEFI_EBS_CALL_SKIPPED`; it is not a live firmware `ExitBootServices` call.
 
@@ -998,7 +1074,11 @@ The `kestrel.smoke.package.v0` contract is documentation evidence only. It defin
 
 ## Next Steps
 
-1. Finish UEFI platform interfaces before real firmware shutdown.
-2. Add post-firmware diagnostic output paths before a real `ExitBootServices` probe.
-3. Start diagnostics-first IDT/fault panic infrastructure after post-UEFI diagnostics requirements are represented by tests.
-4. Add libvirt real boot once local raw/qcow2 QEMU smoke remains stable.
+1. Complete M01 tracker review and readiness synchronization, then claim the
+   smallest collision-safe released M02 diagnostics or M04 UEFI/PAL leaf.
+2. Finish UEFI platform interfaces before real firmware shutdown.
+3. Add post-firmware diagnostic output paths before a real
+   `ExitBootServices` probe.
+4. Start diagnostics-first IDT/fault panic infrastructure after post-UEFI
+   diagnostics requirements are represented by tests.
+5. Add libvirt real boot once local raw/qcow2 QEMU smoke remains stable.
