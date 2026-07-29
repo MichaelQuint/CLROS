@@ -30,8 +30,10 @@ continuation-canary contract must pass and the mask must equal `15` before
 the existing `M01_POST_CR3` line.
 
 The complete host harness, fresh all-three-switch EFI build, and independent
-M01-034 final-artifact verifier passed. This issue intentionally ran no QEMU
-command and makes no guest-execution claim.
+M01-034 final-artifact verifier passed. No QEMU smoke, guest boot, or QEMU
+dry-run smoke workflow ran. The mandatory EFI preflight queried only
+`qemu-system-x86_64 --version` and `qemu-img --version`; those tool-version
+probes are not guest-execution evidence.
 
 ## Why
 
@@ -140,7 +142,10 @@ first-party `.c`, `.cpp`, `.h`, `.asm`, or `.s` file was added.
   - Before reserving this step, the only changes were the five exact
     M01-035-owned implementation/test/documentation paths.
 
-No QEMU command, including dry-run QEMU, was run for M01-035.
+No QEMU smoke, guest boot, or QEMU dry-run smoke workflow was run for
+M01-035. The required EFI preflight did execute
+`qemu-system-x86_64 --version` and `qemu-img --version` for tool discovery
+only; it created no guest/runtime evidence.
 
 ## Evidence
 

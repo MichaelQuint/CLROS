@@ -3421,9 +3421,11 @@ wrong-cookie, wrong-binding, dynamically generated, partial-mask, reset,
 reconstruction, and substitute-barrier forms. The all-three-switch NativeAOT
 build reuses M01-034's immutable serializer and final PE/map/unwind verifier.
 
-This evidence is intentionally static and host-side. No M01-035 QEMU command is
-run, neither new marker is claimed from a guest, and no returned runtime cookie
-is observed. It does not empirically exclude speculative stale-instruction
+This evidence is intentionally static and host-side. No M01-035 QEMU smoke,
+guest boot, or QEMU dry-run smoke workflow is run; the mandatory EFI preflight
+only queries `qemu-system-x86_64 --version` and `qemu-img --version` for tool
+discovery. Neither new marker is claimed from a guest, and no returned runtime
+cookie is observed. It does not empirically exclude speculative stale-instruction
 execution, SCSB, cross-core or DMA publication hazards; prove hardware
 execution, live CR3/PTE/TLB behavior, restored or systemwide W^X; or advance an
 M01 completion gate. M01-026 owns the cumulative real-QEMU/OVMF boundary after

@@ -132,9 +132,12 @@ M01-034 remains linked-artifact host/build evidence. M01-035 now adds checked
 `EfiEntry` source calls against that exact binding and a fresh all-switch build,
 but this still does not prove that the serializer executed, that any call
 returned its success cookie, or that either new marker appeared in a guest.
-M01-035 runs no QEMU command and does not exercise live paging, empirically
-exclude speculative code store bypass, establish cross-core or DMA-written-code
-publication, enforce live page-table protections, or advance a completion gate.
+M01-035 runs no QEMU smoke, guest boot, or QEMU dry-run smoke workflow. Its
+mandatory EFI preflight only queries `qemu-system-x86_64 --version` and
+`qemu-img --version` for tool discovery; those probes do not exercise live
+paging, empirically exclude speculative code store bypass, establish cross-core
+or DMA-written-code publication, enforce live page-table protections, or
+advance a completion gate.
 Final PE section permissions are a required static property, not evidence that
 live W^X/NX page mappings have been installed.
 
