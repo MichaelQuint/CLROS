@@ -6993,6 +6993,10 @@ internal static class QemuRunnerTests
             StringSplitOptions.RemoveEmptyEntries))
         {
             string literal = rawLine.Trim();
+            if (literal.Length == 0)
+            {
+                continue;
+            }
             if (literal.EndsWith(",", StringComparison.Ordinal))
             {
                 literal = literal[..^1].TrimEnd();
