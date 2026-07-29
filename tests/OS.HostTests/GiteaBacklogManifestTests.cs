@@ -1462,14 +1462,14 @@ internal static class GiteaBacklogManifestTests
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["M01-033"] = "closed",
-                ["M01-034"] = "open",
+                ["M01-034"] = "closed",
                 ["M01-035"] = "open"
             };
         IReadOnlyDictionary<string, string> agentLabels =
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["M01-033"] = "agent:done",
-                ["M01-034"] = "agent:blocked",
+                ["M01-034"] = "agent:done",
                 ["M01-035"] = "agent:blocked"
             };
 
@@ -1514,6 +1514,8 @@ internal static class GiteaBacklogManifestTests
         JsonElement publication = issueByKey["M01-035"];
         string generatorEvidence =
             generator.GetProperty("currentEvidence").GetString() ?? string.Empty;
+        string integrationEvidence =
+            integration.GetProperty("currentEvidence").GetString() ?? string.Empty;
         string[] requiredGeneratorEvidenceTerms =
         [
             "PR #416",
@@ -1523,6 +1525,19 @@ internal static class GiteaBacklogManifestTests
             "comment #6336",
             "clros-evidence-reviewed:M01-033",
             "deterministic object-only host evidence"
+        ];
+        string[] requiredIntegrationEvidenceTerms =
+        [
+            "eb06fda1c9146436a3025b4b4da093195551579d",
+            "PR #418",
+            "5226b2a33809a487bfc1ebfc3b142fc43bfb2ee8",
+            "DA97E50C95E479541B65EB3F96D9C6DED163735857650BEE9416324086D55C7B",
+            "9A886C748EE8F6FFB5FF87005F5CD7EE1B6C19911186F52A93FEA433B427C37B",
+            "D40FCD847855EC59971FA9E1395A23B0E3804D2079973E3D1DFEC6388BC2A302",
+            "done/step886.md",
+            "comment #6366",
+            "clros-evidence-reviewed:M01-034",
+            "static host/artifact evidence only"
         ];
         if (!OwnedPathsEqual(
                 generator,
@@ -1562,7 +1577,9 @@ internal static class GiteaBacklogManifestTests
                 "docs/architecture.md",
                 "docs/security.md") ||
             requiredGeneratorEvidenceTerms.Any(term =>
-                !generatorEvidence.Contains(term, StringComparison.Ordinal)))
+                !generatorEvidence.Contains(term, StringComparison.Ordinal)) ||
+            requiredIntegrationEvidenceTerms.Any(term =>
+                !integrationEvidence.Contains(term, StringComparison.Ordinal)))
         {
             return false;
         }

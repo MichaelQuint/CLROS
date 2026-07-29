@@ -32,13 +32,15 @@ objects. The guarded 2026-07-28 apply closed reviewed M01-025 issue `#332`,
 created M01-033 through M01-035 as issues `#411` through `#413`, and initially
 made M01-033 the only ready leaf. M01-033 implementation commit `55a4da3`
 merged through PR #416 as `b3b1dc8`; issue comment #6336 preserves the reviewed
-object-only evidence. The durable manifest now records M01-033 as
-`desiredState: closed` with `agent:done`; guarded synchronization must converge
-that desired state onto live issue `#411`. Once that closure verifies,
-M01-034 `#412` is the sole next readiness candidate and serialized owner of
-`lane:os-project`; M01-035 `#413` and M01-026 `#333` remain blocked in order.
-This status transition does not prove final EFI linking, serializer execution,
-QEMU behavior, or any completion gate.
+object-only evidence. M01-034 implementation commit `eb06fda1` merged through
+PR #418 as `5226b2a`; `done/step886.md` and issue comment #6366 preserve the
+reviewed static final-PE/link/unwind evidence. The durable manifest and live
+tracker record M01-033 and M01-034 closed/done. A guarded synchronization from
+this merged state verifies those closures and computes M01-035 `#413` as the
+sole next ready owner of `lane:efi-entry`; M01-026 `#333` remains blocked.
+This status proves neither serializer invocation nor returned-cookie
+observation, QEMU/OVMF execution, SCSB exclusion, cross-core publication, or
+any completion gate.
 
 The guarded earlier M00-023 apply recognized existing M00-023 as issue #321,
 created only M01-016 through M01-026 as issues #323 through #333, updated
@@ -86,9 +88,9 @@ advances a capability or completion gate.
   M01-035 four-publication-epoch checked-cookie EfiEntry slices then serialize
   the instruction-publication boundary before M01-026 retains the later
   runtime-observable real-QEMU evidence boundary. M01-033 proves object bytes
-  and relocation intent only; M01-034 must prove the linked PE exception
-  directory and M01-035 must preserve exact state transitions across the
-  one-way owned-stack switch.
+  and relocation intent only; M01-034 proves the linked PE exception
+  directory statically, and M01-035 must preserve exact state transitions
+  across the one-way owned-stack switch.
 - One `phase:mxx-*` label identifies each milestone from M00 through M15.
 
 Only issues whose complete transitive dependency tree is manifest-closed,
