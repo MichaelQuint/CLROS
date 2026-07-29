@@ -600,9 +600,9 @@ ordering. Cumulative real-QEMU evidence remains deferred to M01-026.
 
 ## Next Steps
 
-1. Review and close M01-035 only after its focused source/mutation checks,
-   complete host gate, fresh all-switch EFI build, and inherited final-artifact
-   verifier pass; then run M01-026 as the cumulative real-QEMU/OVMF proof owner.
+1. Run M01-026 as the cumulative fresh-artifact real-QEMU/OVMF proof owner
+   after the reviewed M01-035 closure, without promoting source/build evidence
+   or dry-run output to guest execution evidence.
 2. Finish UEFI platform interfaces and post-firmware diagnostics before real firmware shutdown.
 3. Add post-firmware physical-memory and MMIO ownership rules so the ACPI probe evidence can become durable platform discovery and PCI contracts can move from caller-owned bytes to live platform enumeration.
 4. Keep all shared utility implementation in `std/no-runtime/shared` before kernel/app use.

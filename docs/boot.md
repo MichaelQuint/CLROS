@@ -2157,7 +2157,7 @@ the host-only audited call gate and post-return observation contract. M01-025
 now source-wires those contracts into the default-off stage-three adapter but
 adds no guest execution evidence. M01-033 through M01-035 form the
 immutable-text serializer prerequisite chain, and M01-026 owns cumulative QEMU
-evidence after M01-035 closes.
+evidence after the reviewed M01-035 closure.
 
 ### Reversible CR3 probe plan contract (M01-013)
 
@@ -2387,7 +2387,7 @@ supplies the host-only audited call gate and post-return observation contract.
 M01-025 now source-wires those contracts into the default-off stage-three
 adapter but adds no guest execution evidence. M01-033 through M01-035 form the
 immutable-text serializer prerequisite chain, and M01-026 owns cumulative
-real-QEMU proof after M01-035 closes.
+real-QEMU proof after the reviewed M01-035 closure.
 
 ### Caller-owned protection transition contract (M01-014)
 
@@ -2576,7 +2576,7 @@ supplies the host-only audited call gate and post-return observation contract.
 M01-025 now source-wires those contracts into the default-off stage-three
 adapter but adds no guest execution evidence. M01-033 through M01-035 form the
 immutable-text serializer prerequisite chain, and M01-026 owns cumulative
-real-QEMU evidence after M01-035 closes.
+real-QEMU evidence after the reviewed M01-035 closure.
 
 ### Page-zero absence and disabled fault-probe contract (M01-015)
 
@@ -2714,6 +2714,7 @@ M01_FIRMWARE_CR3_RESTORED
 M01_RFLAGS_RESTORED
 M01_PGE_CYCLE_VERIFIED
 M01_OWNED_CR3_CANARY_VERIFIED
+M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED
 M01_POST_CR3
 M01_RW_TO_RX_VERIFIED
 M01_TLB_INVALIDATION_COMPLETE
@@ -2816,9 +2817,9 @@ physical table-arena sizing/materialization/readback contract, and M01-032
 supplies the completed host-only audited call gate and post-return RFLAGS
 observation contract. M01-025 now source-wires the live-allocation and
 default-off `EfiEntry` invocation boundary but adds no guest execution
-evidence. M01-033 through M01-035 form the immutable-text serializer
-prerequisite chain, and M01-026 owns cumulative real-QEMU evidence after
-M01-035 closes. Until M01-026, even
+evidence. M01-033 through M01-035 form the reviewed and closed immutable-text
+serializer prerequisite chain, and M01-026 is the active cumulative
+fresh-artifact real-QEMU evidence owner. Until M01-026, even
 `CLROS_M01_LIVE_BOOT_MEMORY_READY` is a reserved host-tested contract line,
 not live boot-memory evidence.
 
@@ -2877,7 +2878,7 @@ contract described below, and M01-032 supplies the host-only audited call gate
 and post-return observer. M01-025 now source-wires those contracts into the
 default-off stage-three adapter but adds no guest execution evidence. M01-033
 through M01-035 form the immutable-text serializer prerequisite chain, and
-M01-026 owns cumulative QEMU evidence after M01-035 closes.
+M01-026 owns cumulative QEMU evidence after the reviewed M01-035 closure.
 
 ### Physical page-table arena contract (M01-031)
 
@@ -3004,7 +3005,7 @@ completion gate. M01-032 now supplies the accepted host-only call-gate repair;
 M01-025 now source-wires the default-off stage-three adapter but adds no guest
 execution evidence. M01-033 through M01-035 form the immutable-text serializer
 prerequisite chain, and M01-026 remains the cumulative real-QEMU evidence owner
-after M01-035 closes.
+after the reviewed M01-035 closure.
 
 ### Composite owned-CR3 interval contract (M01-027)
 
@@ -3123,7 +3124,7 @@ contract described below. M01-025 now source-wires the live-allocation,
 default-off invocation, and pre-transfer TF/CET boundary but adds no guest
 execution evidence. M01-033 through M01-035 form the immutable-text serializer
 prerequisite chain, and M01-026 owns cumulative real-QEMU execution evidence
-after M01-035 closes.
+after the reviewed M01-035 closure.
 
 ### Audited composite call gate and post-return observer contract (M01-032)
 
@@ -3281,9 +3282,9 @@ pointers, a page-aligned state root, an effective RX/non-writable/WB identity
 mapping, live TF/CET/LA57/PCIDE/IF/PGE preconditions, or NMI/SMI safety; call
 firmware; execute under EFI/QEMU/OVMF; or advance a completion gate. M01-025
 now source-wires the default-off live invocation but adds no guest execution
-evidence. M01-033 through M01-035 form the immutable-text serializer
-prerequisite chain, and M01-026 owns cumulative real-QEMU evidence after
-M01-035 closes.
+evidence. M01-033 through M01-035 form the reviewed and closed immutable-text
+serializer prerequisite chain, and M01-026 is the active cumulative
+fresh-artifact real-QEMU evidence owner.
 
 ### Default-off stage-three EFI source wiring (M01-025 build evidence)
 
@@ -3429,7 +3430,7 @@ cookie is observed. It does not empirically exclude speculative stale-instructio
 execution, SCSB, cross-core or DMA publication hazards; prove hardware
 execution, live CR3/PTE/TLB behavior, restored or systemwide W^X; or advance an
 M01 completion gate. M01-026 owns the cumulative real-QEMU/OVMF boundary after
-M01-035 is reviewed and closed.
+the reviewed M01-035 closure.
 
 ### Live-paging feasibility and prerequisite recovery (M01-028)
 
@@ -3482,10 +3483,10 @@ The repair is intentionally serialized:
 The accepted M01-024, M01-027, M01-029, M01-030, M01-031, and M01-032 host
 prerequisites enabled M01-025's default-off source/build integration. M01-025
 did not promote that success to execution evidence. M01-033 through M01-035
-now form the P0 immutable-text first-publication serialization prerequisite
-chain. M01-026 continues to own the first cumulative real-QEMU/OVMF proof and
-remains blocked until M01-035 closes; no M01-028 through M01-035 host marker
-or build result advances a completion gate.
+now form the reviewed and closed P0 immutable-text first-publication
+serialization prerequisite chain. M01-026 is the active owner of the first
+cumulative fresh-artifact real-QEMU/OVMF proof; no M01-028 through M01-035 host
+marker or build result advances a completion gate.
 
 Boot page allocator-readiness composition coverage is host-test only. It proves existing planner/state contracts can be composed over caller-owned scratch buffers and forwarded into the ordered boot readiness marker boundary. It does not reserve kernel-owned ranges, mutate allocator-owned state, allocate pages, configure paging, or run in `EfiMain`:
 
@@ -4026,16 +4027,13 @@ The `APP_PACKAGE_READY`, `APP_LAUNCH_READY`, `APP_PAYLOAD_READY`, `APP_EXEC_MAPP
 
 ## Next Steps
 
-1. Review and close M01-035 only after its focused source/mutation checks,
-   complete host gate, fresh all-switch EFI build, and inherited final-artifact
-   verifier all pass without promoting source or build output to guest evidence.
-2. Only after that reviewed closure, obtain M01-026's cumulative real-QEMU/OVMF
-   stage-three evidence from a fresh all-switch artifact. Keep M01-025's
+1. Obtain M01-026's cumulative real-QEMU/OVMF stage-three evidence from a
+   fresh all-switch artifact after the reviewed M01-035 closure. Keep M01-025's
    source/build evidence distinct from EFI callback, generated-code, and live
    CR3/PTE/TLB execution evidence.
-3. Keep extending the QEMU UEFI-gone simulation as new firmware-guarded platform interfaces are added, keeping real `ExitBootServices` blocked until post-firmware diagnostics are implemented.
-4. Add a real `ExitBootServices` probe only after the retry plan, diagnostics, and owned output paths have evidence.
-5. Begin diagnostics-first IDT/fault panic work after post-UEFI diagnostics requirements are represented by tests and evidence.
+2. Keep extending the QEMU UEFI-gone simulation as new firmware-guarded platform interfaces are added, keeping real `ExitBootServices` blocked until post-firmware diagnostics are implemented.
+3. Add a real `ExitBootServices` probe only after the retry plan, diagnostics, and owned output paths have evidence.
+4. Begin diagnostics-first IDT/fault panic work after post-UEFI diagnostics requirements are represented by tests and evidence.
    - The host-tested `CpuFaultFrame`, `PanicFormatter.FormatFault`,
      `CpuFaultEntryFrameLayout`, and `CpuFaultPanicReadiness` contracts now
      define the expected register dump field order and caller-owned

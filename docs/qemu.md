@@ -214,6 +214,50 @@ state.
   `QEMU_SCRIPT_M01_LIVE_ALLOCATOR_PROBE`, and forwards both probe switches
   only to the fresh EFI build. A stage-two-only, stale-EFI, or stale-image
   selection fails before QEMU launch.
+- `-EnableM01OwnedPagingProbe` is the cumulative M01-026 evidence selector.
+  It requires `-EnableM01LiveAllocatorProbe` and `-BuildEfi`, rejects
+  `-SkipImageBuild`, emits
+  `QEMU_SCRIPT_M01_OWNED_PAGING_PROBE`, and forwards the third switch exactly
+  once to the same fresh EFI build as the loaded-image-stack and live-allocator
+  switches. The existing stage-two dependency check transitively rejects a
+  paging selection without the loaded-image-stack profile. These selector
+  checks prove only fail-closed command construction; `-DryRun` is not guest
+  execution evidence.
+- A non-dry-run owned-paging selection generates and strictly builds a
+  per-run .NET 10 QEMU proxy. The proxy preserves the real QEMU path, accepts
+  only the runner's audited 256 MiB q35/TCG/headless argument shape, rejects
+  caller-supplied monitor/QMP channels, and opens a private loopback QMP
+  channel. The normal `OS.QemuRunner` remains the public marker/timeout
+  authority.
+- The proxy copies private guest serial bytes unchanged except that it
+  withholds the final `OS_SMOKE_PASS` bytes. It requires the exact 42-marker
+  cumulative guest sequence once each, rejects the 25 M01 failure markers and
+  any attempted `M01_OWNED_CR3_ENTERED` serial line, stops the vCPU, confirms
+  paused state and the 256 MiB memory shape, and scans sixteen 16 MiB
+  `pmemsave` chunks. It validates the preflight, runtime-state, external
+  canary, and call-gate PODs before deleting every memory chunk and the empty
+  scratch directory synchronously.
+- Only after that scan does the proxy flush and atomically publish the raw
+  observation sidecar, record terminal-release authorization in the QMP
+  transcript, and release the withheld terminal. The parent wrapper then
+  independently checks the exact sidecar schema, hashes, decoded POD
+  structures, address relationships, status/checkpoint bytes, signatures,
+  reserved fields, exact CR3/CR4/RFLAGS restoration, private/public serial
+  equality, QMP transcript, and absence of retained capture chunks.
+  `-M01RawObservationLog` may select a fresh sidecar path; otherwise a unique
+  sibling of the serial log is used. Raw-observation, serial, summary, and
+  generated support paths must remain distinct. These host-only checks emit
+  `TEST_START m01.026.raw-observations` and either a matching pass or
+  fail marker; they are never injected into guest serial.
+- The exact preflight POD records CR0, firmware CR3, raw CR4, IA32_EFER,
+  CPUID maximum-extended-leaf/address-size EAX and physical width, and entry
+  RFLAGS. The immediate post-return call-gate POD independently records the
+  hardware CR3, CR4, and RFLAGS/IF values that the owned transition actually
+  changes and restores. CR0, IA32_EFER, and CPUID width are preflight-only;
+  they are not claimed as independently reread after return. The audited
+  immutable transition stream contains no CR0/EFER write and cannot change a
+  CPUID capability, but that source property is not a second hardware
+  observation.
 - Script defaults require `OS_BOOT_OK`, `TEST_PASS boot.sequence`,
   `OS_SMOKE_PASS`, `UEFI_MEMORY_MAP_OWNED`, `BOOT_HANDOFF_READY`,
   `UEFI_MEMORY_MAP_NORMALIZED`, `BOOT_MEMORY_MAP_ACCEPTED`,
