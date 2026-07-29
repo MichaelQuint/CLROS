@@ -20,11 +20,12 @@ allocation/free/double-free-rejection cycle before `OS_SMOKE_PASS`. M01-025 now
 source-wires the additional default-off `M01_OWNED_PAGING_PROBE` stage-three
 adapter and has host/source plus fresh NativeAOT EFI build evidence only.
 M01-033 supplies the reviewed deterministic host-built AMD64 COFF serializer
-object. M01-034 now links and independently verifies its exact executable
-bytes, map symbol, binding metadata, and exception/unwind coverage in the
-canonical EFI artifact without invoking it. M01-035 must call it at all four
-current
-publication epochs before M01-026 may execute that path in a guest.
+object. M01-034 links and independently verifies its exact executable bytes,
+map symbol, binding metadata, and exception/unwind coverage in the canonical
+EFI artifact without invoking it. M01-035 now source-wires checked direct calls
+at all four current publication epochs and carries their shared one-shot state
+across the owned-stack transfer. This remains source, host-test, and fresh-build
+evidence only; M01-026 owns the first guest execution of that path.
 All three M01 profiles are explicit pre-`ExitBootServices` opt-ins. The default
 EFI path remains unchanged.
 
@@ -3211,8 +3212,9 @@ those requirements as host data evidence. M01-025 now source-wires the
 invocation thunk plus RFLAGS, pre-transfer, and mapping validation, but its
 accepted evidence does not execute them. M01-033 provides the reviewed
 serializer object and M01-034 proves its exact linked PE/map/unwind identity
-without invoking it. M01-035 must still call that immutable-text serializer
-before the first generated-stream transfer.
+without invoking it. M01-035 now source-wires the immutable-text serializer
+before every current first generated-stream transfer, but M01-026 still owns
+the first guest observation of those calls and returned cookies.
 
 `TryMaterializeCallGate(...)` materializes the unchanged composite prefix and
 its 16 semantic records, emits the gate into the page tail, and requires the
@@ -3370,20 +3372,62 @@ occupy the reported physical addresses; that CR3, CR4, RFLAGS, a PTE, or the
 TLB changed; that page zero was absent in hardware; that W^X/NX held live; or
 that the path ran under QEMU/OVMF. It does not advance a completion gate.
 
-One security prerequisite remains before guest execution. The current source
-publishes the first generated architectural-preflight stream into writable
-memory and then reaches it through the functional x64 self-modifying-code
-boundary. Later generated thunks contain serialization for earlier
-publications, but that cannot serialize the first fetch of the preflight stream
-itself. Therefore M01-025 does not claim immutable-text first-publication
-serialization or closure of the speculative code store bypass (SCSB) gap.
-Completed host-evidence prerequisite M01-033 provides the deterministic C#
-AMD64 COFF executable-text generator and exact object contract. M01-034 now
-owns the reviewed canonical linker integration and final PE/map/unwind
-verification, without executing the symbol. M01-035 owns all current
-`EfiEntry` publication-epoch calls. M01-026 remains blocked until that
-remaining invocation slice is implemented, build-audited, and incorporated
-before every first generated-stream transfer.
+M01-025 did not claim immutable-text first-publication serialization or closure
+of the speculative code store bypass (SCSB) gap. M01-033 provides the
+deterministic C# AMD64 COFF executable-text generator and exact object contract,
+and M01-034 provides the reviewed canonical linker integration and final
+PE/map/unwind verification without executing the symbol.
+
+### Immutable instruction-publication epoch wiring (M01-035 source/build evidence)
+
+M01-035 adds one EfiEntry-owned primitive initialization flag and one shared
+publication mask under the existing loaded-image-stack opt-in. The path rejects
+stale or repeated initialization, explicitly starts from zero, and permits only
+the successful one-shot sequence `0 -> 1 -> 3 -> 7 -> 15`. The state is not a
+caller local: the owned-stack continuation reads the same root
+`EfiEntry` field at mask `3` before it observes the continuation `RSP` or enters
+stage two.
+
+The four checked direct `X64InstructionPublication.Serialize()` calls are:
+
+1. After the stage-one stack-probe stream has been written, read back, and
+   installed, before `PrepareAndTransfer` can enter that stream.
+2. After the stack-switch stream has been prepared and read back, but before
+   `switchEntry` is obtained or invoked; success advances the shared mask from
+   `1` to `3` before the one-way transfer.
+3. Inside `CaptureArchitecturalPreflight`, after the paging-preflight and PAT
+   reader are written and read back and both entry addresses are bound. Success
+   advances `3` to `7` and is immediately followed by
+   `preflight(observation)`, then the PAT reader; a caller-side barrier after
+   this method returns is too late.
+4. After the final composite/call-gate/protection-probe materialization,
+   readback, and transfer binding and after the existing `M01_PRE_CR3` firmware
+   output. Success advances `7` to `15` and is immediately followed by the
+   audited call-gate transfer.
+
+Every pre-execution wrong cookie or epoch-state mismatch emits
+`M01_INSTRUCTION_PUBLICATION_COOKIE_FAILED` before cleanup, return, or terminal
+spin and prevents first execution of that epoch. Only after the call gate
+returns, the post-return observation audit and continuation canary pass, and
+the shared mask is exactly `15` does the source emit
+`M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED`, immediately before the existing
+`M01_POST_CR3` line.
+
+`tests/OS.HostTests/M01InstructionPublicationEfiEntryTests.cs` checks the four
+compile-profile call counts, exact owner methods and ordering, root-state
+lifetime, byte-authored marker text, immediate success windows, and mutation
+rejection for missing, duplicate, early, late, branch-only, ignored, synthetic,
+wrong-cookie, wrong-binding, dynamically generated, partial-mask, reset,
+reconstruction, and substitute-barrier forms. The all-three-switch NativeAOT
+build reuses M01-034's immutable serializer and final PE/map/unwind verifier.
+
+This evidence is intentionally static and host-side. No M01-035 QEMU command is
+run, neither new marker is claimed from a guest, and no returned runtime cookie
+is observed. It does not empirically exclude speculative stale-instruction
+execution, SCSB, cross-core or DMA publication hazards; prove hardware
+execution, live CR3/PTE/TLB behavior, restored or systemwide W^X; or advance an
+M01 completion gate. M01-026 owns the cumulative real-QEMU/OVMF boundary after
+M01-035 is reviewed and closed.
 
 ### Live-paging feasibility and prerequisite recovery (M01-028)
 
@@ -3980,9 +4024,10 @@ The `APP_PACKAGE_READY`, `APP_LAUNCH_READY`, `APP_PAYLOAD_READY`, `APP_EXEC_MAPP
 
 ## Next Steps
 
-1. Under M01-035, add and host-audit every current publication-epoch call and
-   checked success-cookie transition without promoting it to guest evidence.
-2. Only after M01-035 closes, obtain M01-026's cumulative real-QEMU/OVMF
+1. Review and close M01-035 only after its focused source/mutation checks,
+   complete host gate, fresh all-switch EFI build, and inherited final-artifact
+   verifier all pass without promoting source or build output to guest evidence.
+2. Only after that reviewed closure, obtain M01-026's cumulative real-QEMU/OVMF
    stage-three evidence from a fresh all-switch artifact. Keep M01-025's
    source/build evidence distinct from EFI callback, generated-code, and live
    CR3/PTE/TLB execution evidence.
