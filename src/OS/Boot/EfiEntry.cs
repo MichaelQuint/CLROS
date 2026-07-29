@@ -425,6 +425,7 @@ public static unsafe class EfiEntry
                 // newly written preflight stream is only the functional x64
                 // self-modifying-code boundary. It is not an immutable-text
                 // serializer and does not close Intel SCSB hardening by itself.
+                bool instructionPublicationRejected = false;
                 if (!MaterializeTransferThunk(
                         stageOneCodeAllocation,
                         out transferEntry)
@@ -436,16 +437,22 @@ public static unsafe class EfiEntry
                         preflightObservation,
                         preflightScratch,
                         rawIa32Pat,
+                        console,
+                        serial,
                         out OS.Kernel.Memory
                             .X64PageTableEncodingPreconditions
-                                preconditions))
+                                preconditions,
+                        out instructionPublicationRejected))
                 {
                     return FailBeforeEntry(
                         console,
                         serial,
                         bootServices,
-                        M01StageThreeAdapterStatus
-                            .ArchitecturalPreflightRejected,
+                        instructionPublicationRejected
+                            ? M01StageThreeAdapterStatus
+                                .InstructionPublicationRejected
+                            : M01StageThreeAdapterStatus
+                                .ArchitecturalPreflightRejected,
                         firmwareStatus,
                         codeAddress,
                         codeAllocated,
@@ -1118,8 +1125,6 @@ public static unsafe class EfiEntry
                         tableAllocated);
                 }
 
-                WriteSuccessLine(console, serial, 8);
-
                 delegate* unmanaged<
                     M01OwnedCr3CompositeTransitionRuntimeState*,
                     M01OwnedCr3CompositeCallGateObservation*,
@@ -1132,6 +1137,46 @@ public static unsafe class EfiEntry
                             ulong,
                             ulong,
                             uint>)(void*)transferEntry;
+
+                WriteSuccessLine(console, serial, 8);
+
+                if (EfiEntry
+                        .s_m01InstructionPublicationEpochMask
+                    != 7)
+                {
+                    return RejectInstructionPublicationBeforeEntry(
+                        console,
+                        serial,
+                        bootServices,
+                        mapFirmwareStatus,
+                        codeAddress,
+                        codeAllocated,
+                        probeAddress,
+                        probeAllocated,
+                        tableAddress,
+                        tablePageCount,
+                        tableAllocated);
+                }
+                uint epochFourPublicationCookie =
+                    global::OS.Boot.X64InstructionPublication.Serialize();
+                if (epochFourPublicationCookie
+                    != global::OS.Boot.X64InstructionPublication
+                        .ExpectedSuccessCookie)
+                {
+                    return RejectInstructionPublicationBeforeEntry(
+                        console,
+                        serial,
+                        bootServices,
+                        mapFirmwareStatus,
+                        codeAddress,
+                        codeAllocated,
+                        probeAddress,
+                        probeAllocated,
+                        tableAddress,
+                        tablePageCount,
+                        tableAllocated);
+                }
+                EfiEntry.s_m01InstructionPublicationEpochMask = 15;
                 uint runtimeReturn = transfer(
                     runtimeState,
                     gateObservation,
@@ -1172,6 +1217,23 @@ public static unsafe class EfiEntry
                             .M01StageThreeSuccessLineCount;
                     lineIndex++)
                 {
+                    if (lineIndex == 13)
+                    {
+                        if (EfiEntry
+                                .s_m01InstructionPublicationEpochMask
+                            != 15)
+                        {
+                            return FailAfterEntry(
+                                M01StageThreeAdapterStatus
+                                    .InstructionPublicationRejected,
+                                EfiEntry
+                                    .s_m01InstructionPublicationEpochMask);
+                        }
+                        EfiEntry
+                            .WriteM01InstructionPublicationEpochsVerified(
+                                console,
+                                serial);
+                    }
                     WriteSuccessLine(
                         console,
                         serial,
@@ -1299,11 +1361,15 @@ public static unsafe class EfiEntry
             OS.Kernel.Memory.X64PagingModePreflightResult*
                 scratch,
             ulong* rawIa32Pat,
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial,
             out OS.Kernel.Memory
                 .X64PageTableEncodingPreconditions
-                    preconditions)
+                    preconditions,
+            out bool instructionPublicationRejected)
         {
             preconditions = default;
+            instructionPublicationRejected = false;
             if (codeAddress == 0
                 || (codeAddress & (PageSize - 1)) != 0
                 || observation == null
@@ -1400,16 +1466,42 @@ public static unsafe class EfiEntry
                         OS.Kernel.Memory
                             .X64PagingModePreflightObservation*,
                         void>)(void*)codeAddress;
+            delegate* unmanaged<ulong*, uint> readPat =
+                (delegate* unmanaged<ulong*, uint>)
+                    (void*)(codeAddress
+                        + PatReaderEntryOffset);
+
+            if (EfiEntry
+                    .s_m01InstructionPublicationEpochMask
+                != 3)
+            {
+                instructionPublicationRejected = true;
+                EfiEntry
+                    .WriteM01InstructionPublicationCookieFailure(
+                        console,
+                        serial);
+                return false;
+            }
+            uint epochThreePublicationCookie =
+                global::OS.Boot.X64InstructionPublication.Serialize();
+            if (epochThreePublicationCookie
+                != global::OS.Boot.X64InstructionPublication
+                    .ExpectedSuccessCookie)
+            {
+                instructionPublicationRejected = true;
+                EfiEntry
+                    .WriteM01InstructionPublicationCookieFailure(
+                        console,
+                        serial);
+                return false;
+            }
+            EfiEntry.s_m01InstructionPublicationEpochMask = 7;
             preflight(observation);
             if (!observation->IsInitialized)
             {
                 return false;
             }
 
-            delegate* unmanaged<ulong*, uint> readPat =
-                (delegate* unmanaged<ulong*, uint>)
-                    (void*)(codeAddress
-                        + PatReaderEntryOffset);
             if (readPat(rawIa32Pat) != 1)
             {
                 return false;
@@ -3165,6 +3257,38 @@ public static unsafe class EfiEntry
                 && *(ulong*)canaryAddress == TransitionCanary;
         }
 
+        private static bool RejectInstructionPublicationBeforeEntry(
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial,
+            EfiBootServices* bootServices,
+            ulong firmwareStatus,
+            ulong codeAddress,
+            bool codeAllocated,
+            ulong probeAddress,
+            bool probeAllocated,
+            ulong tableAddress,
+            ulong tablePageCount,
+            bool tableAllocated)
+        {
+            EfiEntry.WriteM01InstructionPublicationCookieFailure(
+                console,
+                serial);
+            return FailBeforeEntry(
+                console,
+                serial,
+                bootServices,
+                M01StageThreeAdapterStatus
+                    .InstructionPublicationRejected,
+                firmwareStatus,
+                codeAddress,
+                codeAllocated,
+                probeAddress,
+                probeAllocated,
+                tableAddress,
+                tablePageCount,
+                tableAllocated);
+        }
+
         private static bool FailBeforeEntry(
             EfiSimpleTextOutputProtocol* console,
             EfiSerialIoProtocol* serial,
@@ -3677,7 +3801,8 @@ public static unsafe class EfiEntry
             GateMaterializationRejected = 22,
             FinalReadbackRejected = 23,
             PreTransferRejected = 24,
-            PostReturnAuditRejected = 25
+            PostReturnAuditRejected = 25,
+            InstructionPublicationRejected = 26
         }
 
         private struct M01StageThreeAllocationRecordBuffer
@@ -6160,6 +6285,176 @@ public static unsafe class EfiEntry
         WriteCrLf(console, serial);
     }
 
+    private static void
+        WriteM01InstructionPublicationCookieFailure(
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial)
+    {
+        WriteM01InstructionPublicationAscii(
+            console,
+            serial,
+            (byte)'M',
+            (byte)'0',
+            (byte)'1',
+            (byte)'_',
+            (byte)'I',
+            (byte)'N',
+            (byte)'S',
+            (byte)'T');
+        WriteM01InstructionPublicationAscii(
+            console,
+            serial,
+            (byte)'R',
+            (byte)'U',
+            (byte)'C',
+            (byte)'T',
+            (byte)'I',
+            (byte)'O',
+            (byte)'N',
+            (byte)'_');
+        WriteM01InstructionPublicationAscii(
+            console,
+            serial,
+            (byte)'P',
+            (byte)'U',
+            (byte)'B',
+            (byte)'L',
+            (byte)'I',
+            (byte)'C',
+            (byte)'A',
+            (byte)'T');
+        WriteM01InstructionPublicationAscii(
+            console,
+            serial,
+            (byte)'I',
+            (byte)'O',
+            (byte)'N',
+            (byte)'_',
+            (byte)'C',
+            (byte)'O',
+            (byte)'O',
+            (byte)'K');
+        WriteM01InstructionPublicationAscii(
+            console,
+            serial,
+            (byte)'I',
+            (byte)'E',
+            (byte)'_',
+            (byte)'F',
+            (byte)'A',
+            (byte)'I',
+            (byte)'L',
+            (byte)'E');
+        WriteM01InstructionPublicationAscii(
+            console,
+            serial,
+            (byte)'D',
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void
+        WriteM01InstructionPublicationEpochsVerified(
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial)
+    {
+        WriteM01InstructionPublicationAscii(
+            console,
+            serial,
+            (byte)'M',
+            (byte)'0',
+            (byte)'1',
+            (byte)'_',
+            (byte)'I',
+            (byte)'N',
+            (byte)'S',
+            (byte)'T');
+        WriteM01InstructionPublicationAscii(
+            console,
+            serial,
+            (byte)'R',
+            (byte)'U',
+            (byte)'C',
+            (byte)'T',
+            (byte)'I',
+            (byte)'O',
+            (byte)'N',
+            (byte)'_');
+        WriteM01InstructionPublicationAscii(
+            console,
+            serial,
+            (byte)'P',
+            (byte)'U',
+            (byte)'B',
+            (byte)'L',
+            (byte)'I',
+            (byte)'C',
+            (byte)'A',
+            (byte)'T');
+        WriteM01InstructionPublicationAscii(
+            console,
+            serial,
+            (byte)'I',
+            (byte)'O',
+            (byte)'N',
+            (byte)'_',
+            (byte)'E',
+            (byte)'P',
+            (byte)'O',
+            (byte)'C');
+        WriteM01InstructionPublicationAscii(
+            console,
+            serial,
+            (byte)'H',
+            (byte)'S',
+            (byte)'_',
+            (byte)'V',
+            (byte)'E',
+            (byte)'R',
+            (byte)'I',
+            (byte)'F');
+        WriteM01InstructionPublicationAscii(
+            console,
+            serial,
+            (byte)'I',
+            (byte)'E',
+            (byte)'D',
+            0,
+            0,
+            0,
+            0,
+            0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM01InstructionPublicationAscii(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial,
+        byte b0,
+        byte b1,
+        byte b2,
+        byte b3,
+        byte b4,
+        byte b5,
+        byte b6,
+        byte b7)
+    {
+        if (b0 != 0) Write(console, serial, b0);
+        if (b1 != 0) Write(console, serial, b1);
+        if (b2 != 0) Write(console, serial, b2);
+        if (b3 != 0) Write(console, serial, b3);
+        if (b4 != 0) Write(console, serial, b4);
+        if (b5 != 0) Write(console, serial, b5);
+        if (b6 != 0) Write(console, serial, b6);
+        if (b7 != 0) Write(console, serial, b7);
+    }
+
     private static void WriteBootSequencePlan(EfiSimpleTextOutputProtocol* console, EfiSerialIoProtocol* serial)
     {
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
@@ -6359,6 +6654,9 @@ public static unsafe class EfiEntry
     }
 
 #if M01_LOADED_IMAGE_STACK_PROBE
+    private static byte s_m01InstructionPublicationInitialized;
+    private static byte s_m01InstructionPublicationEpochMask;
+
     private static class M01StageOneAdapter
     {
         private const ulong EfiSuccess = 0;
@@ -6428,6 +6726,33 @@ public static unsafe class EfiEntry
             }
 
             EfiBootServices* bootServices = systemTable->BootServices;
+            if (EfiEntry
+                    .s_m01InstructionPublicationInitialized != 0
+                || EfiEntry
+                    .s_m01InstructionPublicationEpochMask != 0)
+            {
+                EfiEntry
+                    .WriteM01InstructionPublicationCookieFailure(
+                        console,
+                        serial);
+                return FailBeforeTransfer(
+                    console,
+                    serial,
+                    bootServices,
+                    M01StageOneAdapterStatus
+                        .InstructionPublicationRejected,
+                    (ulong)M01LoadedImageStackStatus
+                        .Uninitialized,
+                    (ulong)M01LoadedImageStackCheckpoint
+                        .Uninitialized,
+                    0,
+                    false,
+                    0,
+                    false);
+            }
+            EfiEntry.s_m01InstructionPublicationEpochMask = 0;
+            EfiEntry.s_m01InstructionPublicationInitialized = 1;
+
             M01StageOneAdapterStatus captureStatus =
                 TryCaptureLoadedImage(
                     imageHandle,
@@ -6640,6 +6965,55 @@ public static unsafe class EfiEntry
                     dataAddress,
                     dataAllocated);
             }
+
+            if (EfiEntry.s_m01InstructionPublicationEpochMask
+                != 0)
+            {
+                EfiEntry
+                    .WriteM01InstructionPublicationCookieFailure(
+                        console,
+                        serial);
+                return FailBeforeTransfer(
+                    console,
+                    serial,
+                    bootServices,
+                    M01StageOneAdapterStatus
+                        .InstructionPublicationRejected,
+                    (ulong)M01LoadedImageStackStatus
+                        .SwitchPlanRejected,
+                    (ulong)M01LoadedImageStackCheckpoint
+                        .MapLedgerValidated,
+                    codeAddress,
+                    codeAllocated,
+                    dataAddress,
+                    dataAllocated);
+            }
+            uint epochOnePublicationCookie =
+                global::OS.Boot.X64InstructionPublication.Serialize();
+            if (epochOnePublicationCookie
+                != global::OS.Boot.X64InstructionPublication
+                    .ExpectedSuccessCookie)
+            {
+                EfiEntry
+                    .WriteM01InstructionPublicationCookieFailure(
+                        console,
+                        serial);
+                return FailBeforeTransfer(
+                    console,
+                    serial,
+                    bootServices,
+                    M01StageOneAdapterStatus
+                        .InstructionPublicationRejected,
+                    (ulong)M01LoadedImageStackStatus
+                        .SwitchPlanRejected,
+                    (ulong)M01LoadedImageStackCheckpoint
+                        .MapLedgerValidated,
+                    codeAddress,
+                    codeAllocated,
+                    dataAddress,
+                    dataAllocated);
+            }
+            EfiEntry.s_m01InstructionPublicationEpochMask = 1;
 
             M01StageOneAdapterStatus prepareStatus =
                 PrepareAndTransfer(
@@ -7487,6 +7861,32 @@ public static unsafe class EfiEntry
                 s_bootServices = bootServices;
                 transfer = default;
 
+                if (EfiEntry
+                        .s_m01InstructionPublicationEpochMask
+                    != 1)
+                {
+                    EfiEntry
+                        .WriteM01InstructionPublicationCookieFailure(
+                            console,
+                            serial);
+                    return M01StageOneAdapterStatus
+                        .InstructionPublicationRejected;
+                }
+                uint epochTwoPublicationCookie =
+                    global::OS.Boot.X64InstructionPublication.Serialize();
+                if (epochTwoPublicationCookie
+                    != global::OS.Boot.X64InstructionPublication
+                        .ExpectedSuccessCookie)
+                {
+                    EfiEntry
+                        .WriteM01InstructionPublicationCookieFailure(
+                            console,
+                            serial);
+                    return M01StageOneAdapterStatus
+                        .InstructionPublicationRejected;
+                }
+                EfiEntry.s_m01InstructionPublicationEpochMask = 3;
+
                 delegate* unmanaged<
                     ulong,
                     OwnedBootStackSwitchHandoff*,
@@ -7795,6 +8195,28 @@ public static unsafe class EfiEntry
             fixed (M01LoadedImageStackStaticState*
                 staticState = &s_staticState)
             {
+                if (EfiEntry
+                        .s_m01InstructionPublicationEpochMask
+                    != 3)
+                {
+                    EfiEntry
+                        .WriteM01InstructionPublicationCookieFailure(
+                            s_console,
+                            s_serial);
+                    WriteFailure(
+                        s_console,
+                        s_serial,
+                        M01StageOneAdapterStatus
+                            .InstructionPublicationRejected,
+                        (ulong)M01LoadedImageStackStatus
+                            .ContinuationRspRejected,
+                        (ulong)M01LoadedImageStackCheckpoint
+                            .TransferRecorded,
+                        NotAttemptedStatus,
+                        NotAttemptedStatus);
+                    Spin();
+                }
+
                 VirtualAddress observedRspAddress = default;
                 if (handoff == null
                     || handoff
@@ -8313,7 +8735,8 @@ public static unsafe class EfiEntry
             ContinuationRspRejected = 31,
             StackProbeLayoutRejected = 32,
             StackProbeReadbackRejected = 33,
-            StackProbeInstallRejected = 34
+            StackProbeInstallRejected = 34,
+            InstructionPublicationRejected = 35
         }
 
         private unsafe struct EfiLoadedImageProtocol

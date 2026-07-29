@@ -102,6 +102,16 @@ Security is policy baseline only.
     `src/OS/OS.csproj`, exact `EfiEntry.cs`, and exact 57-source closure;
     copied artifact bundles remain inspectable without substituting an
     alternate source contract.
+- M01-035 source-wires checked direct calls to that immutable serializer at
+  all four current `EfiEntry` generated-instruction publication epochs. A
+  root-owned primitive mask survives the one-way stack switch and may advance
+  only `0 -> 1 -> 3 -> 7 -> 15`. Every pre-execution epoch-state mismatch or
+  wrong cookie emits `M01_INSTRUCTION_PUBLICATION_COOKIE_FAILED` before
+  fail-closed cleanup, return, or terminal spin. The aggregate
+  `M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED` marker is source-gated on mask
+  `15` only after the call-gate observation audit and continuation canary, and
+  immediately before `M01_POST_CR3`. Both markers remain unobserved guest
+  contracts until M01-026.
 - `ExecutableStubMemoryPlan` defines the first host-tested W^X policy contract for future C#-emitted executable stubs. It accepts write-then-execute layout planning, rejects accidental RWX page intent by default, calculates page-aligned caller-owned layout metadata, validates page size/alignment/payload inputs, and rejects default/zero result-success cases without allocating memory or changing page protections.
 - `ExecutableStubBundlePlan` defines the first host-tested deterministic layout for future generated diagnostic stubs inside a caller-owned executable-stub payload region. It packs stable COM1, descriptor-table, and controlled-fault-probe slots while rejecting duplicate, unknown, zero-length, invalid-memory-plan, insufficient-memory-plan, overflow, and default/zero result-success cases without copying or executing bytes.
 - `ExecutableStubBundleMaterializer` defines the first host-tested byte-copy boundary for planned generated diagnostic stubs. It writes only into caller-owned storage, validates failed plans, undersized source/destination buffers, and default/zero result-success cases, preserves guard bytes in tests, and still avoids executable allocation, page-protection changes, instruction-cache flushes, and stub execution.
@@ -118,12 +128,18 @@ Security is policy baseline only.
 
 In-kernel manifest loading, live W^X/NX enforcement, panic redaction, debug/release log split, a post-firmware entropy pool, full license scanning, and SBOM generation are pending.
 
-M01-034 is linked-artifact host/build evidence. It does not modify or call from
-`EfiEntry`, execute the serializer, prove the success cookie at runtime, boot
-the artifact under QEMU, exercise live paging, enforce live page-table
-protections, close the speculative code store bypass gap, or advance a
-completion gate. Final PE section permissions are a required static property,
-not evidence that live W^X/NX page mappings have been installed.
+M01-034 remains linked-artifact host/build evidence. M01-035 now adds checked
+`EfiEntry` source calls against that exact binding and a fresh all-switch build,
+but this still does not prove that the serializer executed, that any call
+returned its success cookie, or that either new marker appeared in a guest.
+M01-035 runs no QEMU smoke, guest boot, or QEMU dry-run smoke workflow. Its
+mandatory EFI preflight only queries `qemu-system-x86_64 --version` and
+`qemu-img --version` for tool discovery; those probes do not exercise live
+paging, empirically exclude speculative code store bypass, establish cross-core
+or DMA-written-code publication, enforce live page-table protections, or
+advance a completion gate.
+Final PE section permissions are a required static property, not evidence that
+live W^X/NX page mappings have been installed.
 
 The AWS metadata policy fixture is not live enforcement. There is no app
 supervisor, process isolation, socket firewall, IMDS client, credential cache,
@@ -159,6 +175,29 @@ CLROS_M01_033_READY bytes=336 sha256=DA97E50C95E479541B65EB3F96D9C6DED1637358576
 TEST_PASS m01.033
 TEST_FAIL m01.033 <reason>
 ```
+
+`tests/OS.HostTests/M01InstructionPublicationEfiEntryTests.cs` structurally
+selects the disabled, stage-one, stage-two, and all-switch source profiles and
+requires direct serializer-call cardinalities `0`, `2`, `2`, and `4`. Its eight
+groups check exact call ownership and final write/readback/binding order,
+success-cookie consumption, the shared root-state lifetime and exact
+`0 -> 1 -> 3 -> 7 -> 15` sequence, continuation observation, byte-authored
+marker text, immediate epoch-three and epoch-four execution windows, and
+failure-marker domination. Mutation cases reject missing, duplicate, early,
+late, branch-only, ignored, synthetic, wrong-cookie, wrong-binding,
+dynamically generated, CPUID-stream-only, LFENCE/MFENCE/volatile/lock,
+ordinary-call, firmware-callback, reset, reconstruction, regression, and
+partial-mask substitutes. The aggregate markers are:
+
+```text
+TEST_START m01.035
+CLROS_M01_035_READY
+TEST_PASS m01.035
+TEST_FAIL m01.035 <reason>
+```
+
+These markers are host-source evidence and do not report runtime cookie or
+guest instruction-publication observations.
 
 The host-tool inventory boundary enumerates the current five expected projects
 and emits `TEST_PASS tools.project boundary keeps expected host tools`.
@@ -261,16 +300,18 @@ The source firewall is a provenance/build-boundary guard only. It does not repla
 
 `GuardedPlatformRandom` is a firmware RNG guard only. It does not implement a kernel entropy pool, deterministic/random seed management, post-`ExitBootServices` RNG, TLS, cryptographic APIs, or Minimal API/Kestrel cryptographic prerequisites.
 
-`OS.X64TextSerializerGenerator` and the M01-034 integration prove deterministic
-object construction plus static same-build PE/map/unwind identity. They do not
-prove invocation, a returned success cookie, runtime serialization, or live
-page permissions. Those boundaries remain with M01-035 and M01-026.
+`OS.X64TextSerializerGenerator`, M01-034, and M01-035 prove deterministic
+object construction, static same-build PE/map/unwind identity, and checked
+source ordering at the four current publication epochs. They do not prove
+invocation, a returned success cookie, runtime serialization, empirical SCSB
+exclusion, cross-core or DMA publication, or live page permissions. Those
+execution boundaries remain with M01-026 and later hardware evidence.
 
 ## Next Steps
 
-1. Complete M01-035: place the linked serializer call and checked success-cookie
-   transition before every current generated-code publication transfer without
-   weakening the M01-034 static artifact checks.
+1. Review and close M01-035 only after its focused mutation suite, complete
+   host gate, fresh all-switch EFI build, and inherited M01-034 final-artifact
+   verifier pass; then obtain M01-026's cumulative real-QEMU/OVMF evidence.
 2. Move manifest validation contract into the package/image path and later kernel parser.
 3. Add license/provenance metadata for any adapted reference source.
 4. Implement real page-permission transitions for generated stubs using the W^X policy, materialization, and transition-plan contracts.
