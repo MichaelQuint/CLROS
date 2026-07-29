@@ -1463,14 +1463,14 @@ internal static class GiteaBacklogManifestTests
             {
                 ["M01-033"] = "closed",
                 ["M01-034"] = "closed",
-                ["M01-035"] = "open"
+                ["M01-035"] = "closed"
             };
         IReadOnlyDictionary<string, string> agentLabels =
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["M01-033"] = "agent:done",
                 ["M01-034"] = "agent:done",
-                ["M01-035"] = "agent:blocked"
+                ["M01-035"] = "agent:done"
             };
 
         foreach (string key in keys)
@@ -1516,6 +1516,8 @@ internal static class GiteaBacklogManifestTests
             generator.GetProperty("currentEvidence").GetString() ?? string.Empty;
         string integrationEvidence =
             integration.GetProperty("currentEvidence").GetString() ?? string.Empty;
+        string publicationEvidence =
+            publication.GetProperty("currentEvidence").GetString() ?? string.Empty;
         string[] requiredGeneratorEvidenceTerms =
         [
             "PR #416",
@@ -1538,6 +1540,21 @@ internal static class GiteaBacklogManifestTests
             "comment #6366",
             "clros-evidence-reviewed:M01-034",
             "static host/artifact evidence only"
+        ];
+        string[] requiredPublicationEvidenceTerms =
+        [
+            "6d43176fa6602dd4a3bdd87179c66e3982d43967",
+            "PR #420",
+            "a008e84fb30e8a88471fdfa499d8b82cbce98751",
+            "a32b4cbe695b704919dfd9dcdfd0ba49dcee9470",
+            "done/step887.md",
+            "comment #6388",
+            "clros-evidence-reviewed:M01-035",
+            "6E8508D43357A05A3391A8A80578D114D71B6C6521B109AF03EA3E460B6F0742",
+            "76F2B404E91EB5E62CAD80B797B936BA3D3D39D5B0577889BB8459AF1B55C47C",
+            "DF76C8E39E0768D26EA27206FF102D7EADCC35D2C9BDF547B52B1171FD47BDAF",
+            "0 -> 1 -> 3 -> 7 -> 15",
+            "static source-order, host, and fresh-build evidence only"
         ];
         if (!OwnedPathsEqual(
                 generator,
@@ -1579,7 +1596,9 @@ internal static class GiteaBacklogManifestTests
             requiredGeneratorEvidenceTerms.Any(term =>
                 !generatorEvidence.Contains(term, StringComparison.Ordinal)) ||
             requiredIntegrationEvidenceTerms.Any(term =>
-                !integrationEvidence.Contains(term, StringComparison.Ordinal)))
+                !integrationEvidence.Contains(term, StringComparison.Ordinal)) ||
+            requiredPublicationEvidenceTerms.Any(term =>
+                !publicationEvidence.Contains(term, StringComparison.Ordinal)))
         {
             return false;
         }
@@ -1716,7 +1735,7 @@ internal static class GiteaBacklogManifestTests
         ];
         string[] publicationTerms =
         [
-            "four relevant epochs",
+            "exactly four checked fully qualified serializer calls",
             "Epoch 1",
             "Epoch 2",
             "Epoch 3",
@@ -1741,7 +1760,9 @@ internal static class GiteaBacklogManifestTests
             "zero/default",
             "overflow",
             "timeout",
-            "do not run QEMU",
+            "qemu-system-x86_64 --version",
+            "qemu-img --version",
+            "no QEMU smoke, guest boot, or QEMU dry-run smoke workflow",
             "cross-core"
         ];
         if (generatorTerms.Any(term =>

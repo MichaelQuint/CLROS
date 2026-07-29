@@ -53,12 +53,15 @@ and the reachable local Gitea tracker:
   preserves the reviewed object-only evidence. M01-034 implementation commit
   `eb06fda1` merged through PR #418 as `5226b2a`; `done/step886.md` and issue
   comment #6366 preserve reviewed static final-PE/link/unwind evidence. The
-  durable manifest and live tracker record M01-033 `#411` and M01-034 `#412`
-  closed/done. A guarded synchronization from this merged state verifies those
-  closures and computes M01-035 `#413` as the sole next ready owner of
-  `lane:efi-entry`, while M01-026 `#333` remains blocked. This does not prove
-  serializer invocation, returned-cookie observation, QEMU/OVMF behavior,
-  SCSB exclusion, cross-core publication, or a completion gate.
+  M01-035 implementation commit `6d43176` merged through PR #420 as `a32b4cb`;
+  `done/step887.md` and issue comment #6388 preserve reviewed source-order,
+  host, and fresh-build evidence. The durable manifest and live tracker record
+  all three instruction-publication leaves closed/done. A guarded
+  synchronization from this merged state verifies those closures and computes
+  M01-026 `#333` as the sole next ready issue and owner of cumulative
+  real-QEMU/OVMF evidence. This does not prove serializer execution or returned
+  cookies, guest markers, SCSB exclusion, cross-core or DMA-written-code
+  publication, live paging, or a completion gate.
 
 ## Implemented Behavior
 
@@ -223,14 +226,16 @@ Current M00 recovery evidence from 2026-07-25:
   implementation and closure are now merged, with the object-only evidence
   boundary preserved in `done/step884.md` and issue comment #6336. M01-034 is
   likewise merged and closed with static final-artifact evidence in
-  `done/step886.md` and issue comment #6366. Guarded synchronization verifies
-  both tracker closures and computes M01-035 as the sole ready owner of
-  `lane:efi-entry`; M01-026 remains blocked. The first leaf proves object bytes
+  `done/step886.md` and issue comment #6366. M01-035 is merged and closed with
+  source-order, host, and fresh-build evidence in `done/step887.md` and issue
+  comment #6388. Guarded synchronization verifies all three closures and
+  computes M01-026 as the sole ready issue. The first leaf proves object bytes
   and relocatable unwind intent; the second proves the authoritative linked PE
-  exception directory statically; the third requires the exact
-  `0 -> 1 -> 3 -> 7 -> 15`
-  publication state across the one-way stack switch and places epoch 3 inside
-  `CaptureArchitecturalPreflight` before its first generated-code invocation.
+  exception directory statically; the third proves the exact
+  `0 -> 1 -> 3 -> 7 -> 15` publication state across the one-way stack switch
+  and places epoch 3 inside `CaptureArchitecturalPreflight` before its first
+  generated-code invocation, all without guest execution. M01-026 retains the
+  cumulative real-QEMU/OVMF evidence boundary.
   M02 and M04
   entry work still
   depends on the final M01-026 cumulative paging proof. Only `M15-013`, the
