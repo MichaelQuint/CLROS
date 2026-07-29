@@ -497,6 +497,12 @@ same aggregate after locking and after publish. Every source path is checked
 component by component from the canonical repository root; a reparse-point
 ancestor or leaf is rejected before and after locking. The build removes only
 the exact plain RID-specific `src/OS/bin` and `src/OS/obj` output directories.
+The five final publication leaves may all be absent on a genuinely clean
+build. In that case there is no stale output identity set to compare, but each
+canonical leaf path is still reparse-checked before create-new publication.
+When any stale leaf exists, the build opens it under the output authority,
+requires every opened identity to be distinct and single-link, closes the
+records, and only then removes the exact five allowlisted leaves.
 Before restore, it authenticates five exact cached package
 archives by source-pinned SHA-256, copies them into a freshly created local
 source beside an allowlisted `NuGet.Config`, and read-locks both the five

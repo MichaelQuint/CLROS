@@ -3194,6 +3194,7 @@ internal static class BuildEfiShellPreflightTests
             "EFI_PUBLISH_VERIFIER_INPUT_AUTHORITY status=ok inputs=8",
             "EFI_PUBLISH_VERIFIER_INPUTS_UNCHANGED status=ok inputs=8",
             "FileMode]::CreateNew",
+            "if ($existingRecords.Count -gt 0)",
             "Assert-M01VerifierInputLocks -Locks $verifierInputLocks",
             "Close-M01AuthorityRecords -Records $verifierInputLocks"
         ];
@@ -3267,6 +3268,13 @@ internal static class BuildEfiShellPreflightTests
                 -RepositoryRoot $repo `
                 -EfiOutputPath "artifacts\efi\BOOTX64.EFI" `
                 -LogFullPath $logPath
+            Clear-M01OutputPublicationLeaves -Plan $plan
+            foreach ($path in $plan.Paths) {
+                if (Test-Path -LiteralPath $path) {
+                    exit 71
+                }
+            }
+            Write-Output "M01_EMPTY_OUTPUT_AUTHORITY_PASS"
             $logAuthority = Open-M01LogAuthority -Path $logPath
             try {
                 Write-M01LogLines `
@@ -3532,6 +3540,9 @@ internal static class BuildEfiShellPreflightTests
             "-CaseRoot",
             caseRoot);
         return result.ExitCode == 0
+            && result.Output.Contains(
+                "M01_EMPTY_OUTPUT_AUTHORITY_PASS",
+                StringComparison.Ordinal)
             && result.Output.Contains(
                 "M01_OUTPUT_AUTHORITY_PASS",
                 StringComparison.Ordinal);
