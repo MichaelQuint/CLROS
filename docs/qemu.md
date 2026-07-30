@@ -89,17 +89,21 @@ state.
 
 M01-026 adds a separate opt-in, source-bound local-QEMU tuple from clean,
 pushed implementation commit
-`9fe466fdc06cfdf43ce8102b38592db9ef1c8b29`. The accepted r12 host gate binds
-the unchanged source to successful solution and host-test builds, an
-independent EFI-verifier warm-up, the required naming and exact M01 dry-run
-checks, and a complete host stream with 3,328 `TEST_START` lines, 3,329
-`TEST_PASS` lines including the harness terminal, zero `TEST_FAIL`, and empty
-stderr. The host stream SHA-256 is
-`393FB9EAF36B7CB46EB32CF3496F5F8A38651F74BF887CAC5F65458DAC45E4B1`.
+`8f1edea17f2de425520e239af58d37aa3b182146`, tree
+`6b5359e36293d770e3dc0d074b1baabf8d4fdbf8`. The accepted r16 host gate binds
+that unchanged source and remote branch to successful solution and host-test
+builds, the required naming/firewall and exact all-switch M01 dry-run checks,
+`git diff --check`, an empty tracked status, and a complete host stream with
+3,328 `TEST_START` lines, 3,329 `TEST_PASS` lines including the sole
+`TEST_PASS host.tests`, zero `TEST_FAIL`, and empty stderr for every gate
+step. The host stream SHA-256 is
+`996E343DC72C34B6F2521C1E703A58BB98362242A3E894D48647057F139F13F3`;
+the terminal host-state SHA-256 is
+`F4C3CF0C49005FE4A89C56050C47FE52BD4F88775C8A588BD17B01F5FB65AED9`.
 
 The full fresh `-BuildEfi` acceptance command ran from
-`2026-07-29T16:13:34.3355662Z` through
-`2026-07-29T16:15:15.2857325Z`. Within that window, QEMU `11.0.50`
+`2026-07-30T15:36:47.5722979Z` through
+`2026-07-30T15:37:49.8210616Z`. Within that window, QEMU `11.0.50`
 (executable SHA-256
 `B396EB9B669F6282EC60F0D46E6ADDCA8C669992E67A34365BE44CD3CB97C9A7`)
 and the 3,653,632-byte OVMF file (SHA-256
@@ -115,7 +119,8 @@ reported `terminal=Success`, `orderedSeen=42`, `outOfOrder=0`,
 
 The fresh artifact and the post-run canonical-path verifier both passed the
 M01-034 same-build contract: PE32+ AMD64 EFI subsystem 10, no import
-directories, exactly one `CLROS_X64_SerializeInstructionPublication`, a
+directories, an 807-record exception directory with 621 distinct unwind
+records, exactly one `CLROS_X64_SerializeInstructionPublication`, and a
 20-byte RX/nonwritable serializer body with SHA-256
 `DF76C8E39E0768D26EA27206FF102D7EADCC35D2C9BDF547B52B1171FD47BDAF`,
 the 336-byte serializer object with SHA-256
@@ -123,10 +128,6 @@ the 336-byte serializer object with SHA-256
 expected cookie `0x53524C43`, and matching Windows-x64 unwind coverage.
 The whole EFI SHA-256 is
 `76F2B404E91EB5E62CAD80B797B936BA3D3D39D5B0577889BB8459AF1B55C47C`.
-The first independent post-run verifier invocation failed before artifact
-inspection because its project path was relative. The resume validator reran
-the unchanged canonical bundle with absolute repository-contract paths and
-passed without rebuilding it or rerunning QEMU.
 
 The QMP proxy paused the 256 MiB guest, scanned sixteen 16 MiB `pmemsave`
 chunks, and then deleted the chunks, private serial, and scratch directory
@@ -138,25 +139,34 @@ address width 40, and `rflags=0x0000000000000246`. Firmware CR3, raw CR4,
 and RFLAGS match their post-return runtime readbacks exactly. The raw image,
 serial, summary, raw-observation, QMP-transcript, command, and wrapper
 SHA-256 values are, respectively,
-`309BAA429365AD88311510728560F5DC078BDDE62E9989DB1503D5489B3AECA9`,
+`D7D219AE32CDDA595C8A7685CD4F7733A932918258F1B52AA04C704F13333F82`,
 `CC51100244A8A20865DB9D16CE5D73B0930F43EA98835DFA57027A00B126C661`,
-`028DA1117470CE9938CF2EA676D5C640DEE59B243788478125CC15F6EA4E327D`,
-`0106CFD2DD241B42ACC7FC3FD572B9526D6EC41C28AE89CF586D9A311BF6CB8F`,
-`75C99D828D7C4A815F7F08381EC7CBFD55EEF8773FE8CB9949A6CA1CA8F3278F`,
-`FDC405D14DFB8059742C3CDEFE24F11BC1912802FE40FA4CF484820149495221`,
+`B8451020C2355B061E83DB090EFFD62A965A95AD73D11D7F9864477753582339`,
+`6FFEDB0B5998A930E614E3EC0EE68E2B444439AE686A9412F3206760D257F933`,
+`0A0A6CC6985593D798BBD158F46D5CE9B7D84A57928EC2781BFC3CDD643AC14E`,
+`430FC9F805B235DAAA90720465D4A48AD532AFF7DF433DC323B5D7FBBF5575A5`,
 and
-`4FEAD5438C14BB42D79F427532069968C280645040F5A78B635D1DFF5B71BB18`.
+`484B4C602891C3FDC14203AA1E185BF5ABB099779583E3F6AE3CD53DE64099F6`.
 
 The schema-version-1 evidence manifest binds source dirty `false`, the exact
-command and timestamps, 10 tool identities, 53 nonempty hashed artifacts, 44
+command and timestamps, 10 tool identities, 47 nonempty hashed artifacts, 44
 required guest markers (the 42 issue markers plus the two baseline boot
 markers), 25 issue failure markers plus the separate owned-interval serial
 prohibition, all 61 observed serial markers, exit code 0, and classification
 `pass`. Its SHA-256 is
-`964F0A0346F4A4CE7B4D4E070A19743A307EAEFD16AD750849A4BFF3B67D916C`.
+`94A28FE683FC068C88F42AB806B3E9A06DB5467FD35488B6ADF397AC8F8A8188`.
+All 47 manifest artifacts were independently rehashed with zero mismatch.
+The final-state auxiliary ledger SHA-256 is
+`89A1A89B600698618E9DEDDE91FB1FABFD5B7B7993FA023AE8C5329C9B340F07`;
+the intermediate driver ledger is excluded because the driver created its
+run-state row before rewriting that state from process-exit success to final
+`PASS`. The independent validation record SHA-256 is
+`B686F7C9C69CE8A9FB8731A4C8C2DF3807006A9993AB2349B763CE556E05DAA1`.
 The ignored evidence root is
-`artifacts/logs/m01-026-final/9fe466fd-20260729T160918Z-r12/`; the durable
-ledger is `done/step888.md`.
+`artifacts/logs/m01-026-final/8f1edea1-20260730T145353Z-r16/`; the durable
+current-source ledger is `done/step890.md`. `done/step888.md` remains the
+immutable historical r12 ledger and is superseded for current-source
+acceptance.
 
 This tuple satisfies only the documented M01 local-QEMU pre-`ExitBootServices`
 technical exit. It proves one reversible owned-root interval, not restored
@@ -915,7 +925,7 @@ If `-OvmfCode` is omitted, the runner checks `OS_OVMF_CODE`, `OVMF_CODE`, `QEMU_
 
 Host tests validate the extracted QEMU command builder and runner contracts through dry-run output, including base command construction, serial log arguments, OVMF pflash arguments, default/custom required marker reporting, the script-level native app marker preset, currently supported virtio-net arguments, default raw disk format, qcow2 disk format, invalid disk format arguments, preflight pass/fail validation for raw image artifacts, missing images, and raw/qcow2 format mismatches, HTTP probe dry-run output, invalid HTTP probe arguments, real-mode local-loopback HTTP probe pass/fail/timeout behavior, app-exit summary output, and missing-image failure. Script-level host tests now also invoke `scripts/run-qemu-smoke.ps1` with fake paths to prove dry-run remains QEMU-free and real mode fails before the runner for missing QEMU, missing OVMF, and missing images. The QEMU runner CLI tests execute the already-built `tools/OS.QemuRunner/bin/<configuration>/net10.0/OS.QemuRunner.dll` with `dotnet <dll>`, not nested `dotnet run --project`. Host tests also validate `--summary-log` without requiring real QEMU by using deterministic fake QEMU command scripts that write serial markers, including app-exit summary artifact coverage. Focused parser tests validate that `SerialMarkerSummary` passes required markers, reports missing markers, rejects marker-substring false positives, reports forbidden markers, preserves observed marker order including `ACPI_` lines, reports ordered marker failures, observes `APP_EXIT` marker lines, extracts app-exit status records, reports absent app-exit status, reports malformed app-exit markers with reasons, and keeps required-marker behavior unchanged. QEMU preset host tests now cover the `app-args` preset and aliases `app_args`, `app-arguments`, and `native-app-args`, the `app-lifecycle` preset and aliases `app_lifecycle`, `native-app-lifecycle`, and `applifecycle`, the `fetch-http-endpoint` preset and aliases `fetch_endpoint`, `fetchhttp-endpoint`, and `fetchapp-http-endpoint`, the `fetch-http-tcp-exchange` preset and aliases `fetch_http_tcp_exchange`, `fetch-http-exchange`, and `fetchapp-http-tcp-exchange`, the `http-static-response` preset and aliases `http_static_response`, `tiny-http-static`, and `tinyhttp-static`, the `http-static-tcp-response` preset and aliases `http_static_tcp_response`, `tiny-http-tcp-static`, and `tinyhttp-tcp-static`, the `virtio-rx-tcp-dispatch` preset and aliases `virtio_rx_tcp_dispatch`, `virtio-net-rx-tcp-dispatch`, and `virtionet-rx-tcp-dispatch`, the `cctor-work-items` preset and aliases `cctor_work_items`, `cctor-workitem`, and `cctor-work-item`, and the `manifest-env` preset and aliases `native-manifest-env`, `manifest_environment`, and `manifestenv`, without claiming live argument-vector materialization, native app lifecycle execution, FetchApp, networking, TCP exchange, HTTP static response service, HTTP static TCP response service, virtio-net RX/TCP dispatch, manifest loading, environment materialization, app execution, or class-constructor execution proof. CI smoke host tests validate that `scripts/run-ci-smoke.ps1 -DryRun` writes the artifact plan and includes planned serial, summary, image, marker preset, and domain XML artifacts for raw QEMU dry-run, native-app marker dry-run, diagnostics marker-preset dry-run, app-args marker-preset dry-run, app-exit marker-preset dry-run, cctor-preflight marker-preset dry-run, fetch-http marker-preset dry-run, fetch-http-endpoint marker-preset dry-run, fetch-http-tcp-exchange marker-preset dry-run, http-static-response marker-preset dry-run, http-static-tcp-response marker-preset dry-run, virtio-rx-tcp-dispatch marker-preset dry-run, qcow2 smoke intent, and libvirt smoke intent. CI smoke tests also cover found and missing fake `qemu-img` discovery paths, including `CI_SMOKE_QEMU_IMG_DISCOVERY`, top-level `qemuImgDiscovery`/`qcow2ConversionIntent`, and matching qcow2-step fields without executing conversion. The executed CI failure-path test also verifies the diagnostics dry-run log contains `QEMU_MARKER_PRESETS diagnostics`, `MARKER_PRESETS diagnostics`, `DIAGNOSTICS_CHAIN_READY`, `DIAGNOSTIC_STUB_INVOCATION_READY`, and the ordered diagnostics marker chain; verifies the app-args dry-run log contains `QEMU_MARKER_PRESETS app-args`, `MARKER_PRESETS app-args`, and `APP_ARGS_VECTOR_READY`; verifies the app-exit dry-run log contains `QEMU_MARKER_PRESETS app-exit`, `MARKER_PRESETS app-exit`, and `APP_EXIT_OBSERVER_READY`; verifies the cctor-preflight dry-run log contains `QEMU_MARKER_PRESETS cctor-preflight`, `MARKER_PRESETS cctor-preflight`, and `NATIVEAOT_CCTOR_RUNNER_PREFLIGHT_READY`; verifies the fetch-http dry-run log contains `QEMU_MARKER_PRESETS fetch-http`, `MARKER_PRESETS fetch-http`, and `FETCH_APP_HTTP_COMPLETION_READY`; verifies the fetch-http-endpoint dry-run log contains `QEMU_MARKER_PRESETS fetch-http-endpoint`, `MARKER_PRESETS fetch-http-endpoint`, and `FETCHAPP_HTTP_ENDPOINT_READY`; verifies the fetch-http-tcp-exchange dry-run log contains `QEMU_MARKER_PRESETS fetch-http-tcp-exchange`, `MARKER_PRESETS fetch-http-tcp-exchange`, and `FETCH_APP_HTTP_TCP_EXCHANGE_READY`; verifies the http-static-response dry-run log contains `QEMU_MARKER_PRESETS http-static-response`, `MARKER_PRESETS http-static-response`, `HTTP_STATIC_RESPONSE_READY`, and `HTTP_STATIC_RESPONSE`; verifies the http-static-tcp-response dry-run log contains `QEMU_MARKER_PRESETS http-static-tcp-response`, `MARKER_PRESETS http-static-tcp-response`, `HTTP_STATIC_TCP_RESPONSE_READY`, and `HTTP_STATIC_TCP_RESPONSE`; verifies the virtio-rx-tcp-dispatch dry-run log contains `QEMU_MARKER_PRESETS virtio-rx-tcp-dispatch`, `MARKER_PRESETS virtio-rx-tcp-dispatch`, `VIRTIO_NET_RX_TCP_DISPATCH_READY`, and `VIRTIO_NET_RX_TCP_DISPATCH`; and verifies the execute summary records a passing `ci.smoke.git.diffcheck` lane. Baseline evidence script host tests verify qcow2 and libvirt intent lanes keep workload-profile propagation wired, execute `run-baseline-evidence.ps1 -PlanOnly` to validate the artifact-summary shape for diagnostics, qcow2, and libvirt intent lanes, and cover found/missing fake `qemu-img` discovery paths without executing conversion.
 
-The accepted r12 host gate also proves all 15 focused M01-026 groups:
+The accepted r16 host gate also proves all 15 focused M01-026 groups:
 manifest/stage-three marker parity, switch forwarding, invalid-selector
 rejection, strict generated-shim compilation, shim/manifest parity, dry-run
 inactivity, owned-paging requirement, path-overlap rejection, fail-closed

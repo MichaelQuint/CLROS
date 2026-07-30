@@ -524,9 +524,10 @@ TEST_PASS diagnostics.stub_callable formatter result contains no managed referen
 ### M01-026 paging-observation boundary
 
 The accepted M01-026 run is bound to clean implementation commit
-`9fe466fdc06cfdf43ce8102b38592db9ef1c8b29`. Its full fresh all-switch
-QEMU/OVMF acceptance command ran from `2026-07-29T16:13:34.3355662Z` through
-`2026-07-29T16:15:15.2857325Z`, observed all 42 issue markers exactly once and
+`8f1edea17f2de425520e239af58d37aa3b182146`, tree
+`6b5359e36293d770e3dc0d074b1baabf8d4fdbf8`. Its full fresh all-switch
+QEMU/OVMF acceptance command ran from `2026-07-30T15:36:47.5722979Z` through
+`2026-07-30T15:37:49.8210616Z`, observed all 42 issue markers exactly once and
 in order, observed none of the 25 issue failure markers, withheld
 `M01_OWNED_CR3_ENTERED` from serial, and emitted both
 `TEST_PASS qemu.smoke` and `TEST_PASS m01.026.raw-observations`.
@@ -542,15 +543,19 @@ Firmware CR3, CR4, and RFLAGS match their independently reported post-return
 runtime values. The public serial SHA-256 is
 `CC51100244A8A20865DB9D16CE5D73B0930F43EA98835DFA57027A00B126C661`;
 the raw-observation sidecar SHA-256 is
-`0106CFD2DD241B42ACC7FC3FD572B9526D6EC41C28AE89CF586D9A311BF6CB8F`;
+`6FFEDB0B5998A930E614E3EC0EE68E2B444439AE686A9412F3206760D257F933`;
 and the evidence-manifest SHA-256 is
-`964F0A0346F4A4CE7B4D4E070A19743A307EAEFD16AD750849A4BFF3B67D916C`.
+`94A28FE683FC068C88F42AB806B3E9A06DB5467FD35488B6ADF397AC8F8A8188`.
+The manifest binds 47 nonempty artifacts, 10 tool identities, 44 required
+markers, 26 forbidden markers, and 61 observed markers; all artifact hashes
+were independently revalidated.
 
 This is bounded pre-EBS local-QEMU evidence for M01, not an owned diagnostic
 transport. It proves no real IDT/fault capture, COM1 port I/O, panic-safe
 output, real firmware shutdown, physical-hardware behavior, provider behavior,
 or post-firmware survivability. The full tuple and claim boundary are recorded
-in `docs/qemu.md`, `docs/boot.md`, and `done/step888.md`.
+in `docs/qemu.md`, `docs/boot.md`, and `done/step890.md`.
+`done/step888.md` remains immutable historical r12 evidence.
 
 ## Known Limitations
 

@@ -3476,15 +3476,21 @@ retroactively turn this isolated host/build result into processor evidence.
 ### Cumulative pre-EBS live-paging QEMU proof (M01-026)
 
 M01-026 was executed from clean, pushed source commit
-`9fe466fdc06cfdf43ce8102b38592db9ef1c8b29`. Its r12 host gate preserves
-successful solution and host builds, an independent EFI-verifier warm-up,
-naming and exact M01 dry-run checks, and a complete 3,329-pass,
-zero-failure host stream. The fresh real run used QEMU `11.0.50`, OVMF
-SHA-256
+`8f1edea17f2de425520e239af58d37aa3b182146`, tree
+`6b5359e36293d770e3dc0d074b1baabf8d4fdbf8`. Its r16 host gate preserves
+successful solution and host builds, naming/firewall and exact all-switch M01
+dry-run checks, clean diff/status checks, and a complete 3,329-pass,
+zero-failure host stream with SHA-256
+`996E343DC72C34B6F2521C1E703A58BB98362242A3E894D48647057F139F13F3`.
+The fresh real run used QEMU `11.0.50` (SHA-256
+`B396EB9B669F6282EC60F0D46E6ADDCA8C669992E67A34365BE44CD3CB97C9A7`)
+and OVMF SHA-256
 `33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`,
 `-BuildEfi`, all three explicit M01 switches, the exact 42-marker required,
 ordered, and unique list, the exact 25-marker issue failure list, and a
-30-second guest timeout.
+30-second guest timeout. The command ran from
+`2026-07-30T15:36:47.5722979Z` through
+`2026-07-30T15:37:49.8210616Z`.
 
 The guest emitted every stage-one, stage-two, and stage-three line exactly
 once and in order. `M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED` occurred
@@ -3523,14 +3529,20 @@ M01-034 PE/map/serializer/unwind contract. The EFI, serial,
 raw-observation, QMP-transcript, and evidence-manifest SHA-256 values are
 `76F2B404E91EB5E62CAD80B797B936BA3D3D39D5B0577889BB8459AF1B55C47C`,
 `CC51100244A8A20865DB9D16CE5D73B0930F43EA98835DFA57027A00B126C661`,
-`0106CFD2DD241B42ACC7FC3FD572B9526D6EC41C28AE89CF586D9A311BF6CB8F`,
-`75C99D828D7C4A815F7F08381EC7CBFD55EEF8773FE8CB9949A6CA1CA8F3278F`,
+`6FFEDB0B5998A930E614E3EC0EE68E2B444439AE686A9412F3206760D257F933`,
+`0A0A6CC6985593D798BBD158F46D5CE9B7D84A57928EC2781BFC3CDD643AC14E`,
 and
-`964F0A0346F4A4CE7B4D4E070A19743A307EAEFD16AD750849A4BFF3B67D916C`.
+`94A28FE683FC068C88F42AB806B3E9A06DB5467FD35488B6ADF397AC8F8A8188`.
+The manifest binds 47 nonempty artifacts, 10 tool identities, 44 required
+markers, 26 forbidden markers, and all 61 observed serial markers; every
+artifact was independently rehashed. The stale intermediate run-state ledger
+was excluded and replaced by final-state ledger SHA-256
+`89A1A89B600698618E9DEDDE91FB1FABFD5B7B7993FA023AE8C5329C9B340F07`.
 The generated ignored run-output package is under
-`artifacts/logs/m01-026-final/9fe466fd-20260729T160918Z-r12/`; its manifest
+`artifacts/logs/m01-026-final/8f1edea1-20260730T145353Z-r16/`; its manifest
 additionally binds external build and tool inputs by absolute path and hash.
-`done/step888.md` is the durable ledger.
+`done/step890.md` is the durable current-source ledger; `done/step888.md`
+remains immutable historical r12 evidence.
 
 This satisfies only the M01 local-QEMU pre-`ExitBootServices` technical exit.
 It does not prove restored firmware mapping policy, a permanent or systemwide

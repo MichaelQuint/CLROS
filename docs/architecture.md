@@ -618,16 +618,18 @@ real-QEMU evidence for the exact integrated path.
 ### M01-026 live owned-root evidence boundary
 
 M01-026 was executed from clean, pushed source commit
-`9fe466fdc06cfdf43ce8102b38592db9ef1c8b29`. Its accepted r12 host package
-preserves successful solution and host-test builds, verifier warm-up, naming
-and exact M01 dry-run checks, and one complete semantic host run with 3,328
-`TEST_START` lines, 3,329 `TEST_PASS` lines including `TEST_PASS host.tests`,
-no `TEST_FAIL`, and empty stderr. The host-run log SHA-256 is
-`393FB9EAF36B7CB46EB32CF3496F5F8A38651F74BF887CAC5F65458DAC45E4B1`.
+`8f1edea17f2de425520e239af58d37aa3b182146`, tree
+`6b5359e36293d770e3dc0d074b1baabf8d4fdbf8`. Its accepted r16 host package
+preserves successful solution and host-test builds, naming/firewall and exact
+M01 dry-run checks, clean diff/status checks, and one complete semantic host
+run with 3,328 `TEST_START` lines, 3,329 `TEST_PASS` lines including the sole
+`TEST_PASS host.tests`, no `TEST_FAIL`, and empty stderr. The host-run log
+SHA-256 is
+`996E343DC72C34B6F2521C1E703A58BB98362242A3E894D48647057F139F13F3`.
 
 The full fresh `-BuildEfi` QEMU/OVMF acceptance command window started at
-`2026-07-29T16:13:34.3355662Z` and completed at
-`2026-07-29T16:15:15.2857325Z`. It used QEMU 11.0.50,
+`2026-07-30T15:36:47.5722979Z` and completed at
+`2026-07-30T15:37:49.8210616Z`. It used QEMU 11.0.50,
 SHA-256 `B396EB9B669F6282EC60F0D46E6ADDCA8C669992E67A34365BE44CD3CB97C9A7`,
 and OVMF SHA-256
 `33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`.
@@ -642,14 +644,19 @@ CR4 `0x668`; EFER `0xD00`; physical width 40; and RFLAGS `0x246`.
 The EFI application SHA-256 is
 `76F2B404E91EB5E62CAD80B797B936BA3D3D39D5B0577889BB8459AF1B55C47C`;
 the raw image SHA-256 is
-`309BAA429365AD88311510728560F5DC078BDDE62E9989DB1503D5489B3AECA9`;
+`D7D219AE32CDDA595C8A7685CD4F7733A932918258F1B52AA04C704F13333F82`;
 the serial SHA-256 is
 `CC51100244A8A20865DB9D16CE5D73B0930F43EA98835DFA57027A00B126C661`;
 and the evidence-manifest SHA-256 is
-`964F0A0346F4A4CE7B4D4E070A19743A307EAEFD16AD750849A4BFF3B67D916C`.
-The manifest binds 53 nonempty artifacts, 10 tool identities, 44 required
+`94A28FE683FC068C88F42AB806B3E9A06DB5467FD35488B6ADF397AC8F8A8188`.
+The manifest binds 47 nonempty artifacts, 10 tool identities, 44 required
 markers including the two base boot markers, 26 forbidden markers including
-the no-serial-owned-interval marker, and 61 observed markers.
+the no-serial-owned-interval marker, and 61 observed markers. All 47 artifact
+hashes were independently revalidated; the final-state auxiliary ledger
+SHA-256 is
+`89A1A89B600698618E9DEDDE91FB1FABFD5B7B7993FA023AE8C5329C9B340F07`.
+`done/step890.md` is the durable current-source record, while
+`done/step888.md` remains immutable historical r12 evidence.
 
 This satisfies only the documented M01 local-QEMU pre-EBS technical exit. It
 does not prove real `ExitBootServices`, a permanent owned root, post-firmware
