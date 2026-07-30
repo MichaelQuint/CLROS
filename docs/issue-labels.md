@@ -47,7 +47,11 @@ repaired canonical manifest contains 16 epics, 326 children, 342 keyed issues,
 and 426 managed objects: M01 gains M01-036, and M02 gains M02-017. These are
 canonical target totals, not a claim that the live tracker has converged; live
 adoption of `#425`, creation of only M02-017, M01 epic closure, and a final
-426-object unchanged preview remain post-merge acceptance steps.
+426-object unchanged preview remain post-merge acceptance steps. Implementation
+commit `f14a26f9267fc3e1cc32fcd5e847818d7dbe252c` passed the complete host-only
+gate with 3,329 starts, 3,330 passes, zero failures, and exactly one M01-036
+start/ready/pass envelope; `done/step891.md` preserves the exact logs, hashes,
+wrapper-timeout recovery, and evidence boundary.
 
 The repaired dependency graph exposes actual production-C# work without
 confusing host evidence with guest execution. M02-001 owns an allocation-free

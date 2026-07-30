@@ -69,6 +69,11 @@ and the reachable local Gitea tracker:
   manifest target totals, not a live-convergence claim; hidden-key adoption of
   `#425`, creation of only M02-017, eligible M01 epic closure, and a final
   426-object unchanged preview remain post-merge acceptance steps.
+  Implementation commit `f14a26f9267fc3e1cc32fcd5e847818d7dbe252c`
+  passed the complete host-only gate with 3,329 starts, 3,330 passes, zero
+  failures, and exactly one M01-036 start/ready/pass envelope.
+  `done/step891.md` preserves the exact source tuple, log hashes,
+  wrapper-timeout recovery, and evidence boundary.
 - M02-001, M02-002, and M04-001 are production-C# leaves with host evidence
   only. M02-017 is the sole serialized real-QEMU integration leaf before
   M02-003 and may execute only the fixed safe offset-zero return-cookie entry.
