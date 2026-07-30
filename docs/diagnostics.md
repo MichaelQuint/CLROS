@@ -2,7 +2,7 @@
 
 ## Current Status
 
-Diagnostics are host-testable only. No real IDT load, fault handlers, GDT/TSS/IST setup, live CPU port-I/O serial writer, or live panic-safe output path exists yet. The repository now has host contracts for serial diagnostics readiness, COM1 configuration planning, a COM1-backed platform serial transport over a fakeable byte-port backend, owned-serial readiness derivation from COM1 backend prerequisites, aggregate owned COM1 diagnostics readiness metadata, CPU fault-frame formatting, deterministic CPU fault-entry frame storage, caller-owned panic text buffering, x64 IDT gate descriptors, IDT table planning, required fault-vector metadata, x64 instruction-byte plans for future port-I/O, descriptor-table, and fault-entry shellcode stubs, byte-copy materialization of planned diagnostic stubs into caller-owned buffers, a page-transition plan contract for future W^X handoff, a host-only diagnostics-chain readiness aggregate across the current prerequisite contracts, a post-chain diagnostic-stub invocation readiness guard that validates resolved COM1 stub addresses against the planned executable payload range without invoking them, and a value-only diagnostic-stub callable-binding plan that checks materialized COM1 callable preconditions before any live COM1/serial invocation.
+The owned diagnostics subsystem is host-testable only. No real IDT load, fault handlers, GDT/TSS/IST setup, live CPU port-I/O serial writer, or live panic-safe output path exists yet. The accepted M01-026 tuple uses firmware-visible serial plus an issue-specific host QMP/physical-memory capture mechanism while firmware is still available; that observation mechanism is not OS-owned diagnostics and does not prove or provide an OS-owned diagnostic channel across real `ExitBootServices`. The repository now has host contracts for serial diagnostics readiness, COM1 configuration planning, a COM1-backed platform serial transport over a fakeable byte-port backend, owned-serial readiness derivation from COM1 backend prerequisites, aggregate owned COM1 diagnostics readiness metadata, CPU fault-frame formatting, deterministic CPU fault-entry frame storage, caller-owned panic text buffering, x64 IDT gate descriptors, IDT table planning, required fault-vector metadata, x64 instruction-byte plans for future port-I/O, descriptor-table, and fault-entry shellcode stubs, byte-copy materialization of planned diagnostic stubs into caller-owned buffers, a page-transition plan contract for future W^X handoff, a host-only diagnostics-chain readiness aggregate across the current prerequisite contracts, a post-chain diagnostic-stub invocation readiness guard that validates resolved COM1 stub addresses against the planned executable payload range without invoking them, and a value-only diagnostic-stub callable-binding plan that checks materialized COM1 callable preconditions before any live COM1/serial invocation.
 
 ## Implemented Behavior
 
@@ -205,11 +205,14 @@ remain disabled. No marker is emitted from inside the modeled owned-CR3
 interval; `M01_OWNED_CR3_ENTERED` is deliberately caller-owned POD state rather
 than a serial marker. The post-restoration protection, TLB, constant-return
 probe, and page-zero lines report separate, mutually cross-checked host models
-intended for a future composite interval. They do not prove that one current
-machine-code interval performed those operations, and they are not guest or
-processor observations.
-`CLROS_M01_LIVE_BOOT_MEMORY_READY` does not become live evidence until M01-026
-preserves a fresh cumulative real-QEMU run.
+that did not independently prove execution when M01-019 closed. The later
+accepted M01-026 tuple executed the exact integrated machine-code interval and
+recovered the corresponding guest-written register/POD observations through
+raw physical-memory capture. That result does not retroactively turn the
+isolated M01-019 presenter into live evidence.
+`CLROS_M01_LIVE_BOOT_MEMORY_READY` is guest evidence only inside the
+source-bound accepted M01-026 tuple; in isolated host output or arbitrary logs,
+it remains a reserved contract line.
 
 `tests/OS.HostTests/BootEventRecordRingBufferTests.cs` covers the caller-owned
 boot-event record ring. Current markers:
@@ -518,6 +521,42 @@ TEST_PASS diagnostics.stub_callable formatter uses shared ascii text builder
 TEST_PASS diagnostics.stub_callable formatter result contains no managed references
 ```
 
+### M01-026 paging-observation boundary
+
+The accepted M01-026 run is bound to clean implementation commit
+`8f1edea17f2de425520e239af58d37aa3b182146`, tree
+`6b5359e36293d770e3dc0d074b1baabf8d4fdbf8`. Its full fresh all-switch
+QEMU/OVMF acceptance command ran from `2026-07-30T15:36:47.5722979Z` through
+`2026-07-30T15:37:49.8210616Z`, observed all 42 issue markers exactly once and
+in order, observed none of the 25 issue failure markers, withheld
+`M01_OWNED_CR3_ENTERED` from serial, and emitted both
+`TEST_PASS qemu.smoke` and `TEST_PASS m01.026.raw-observations`.
+
+The issue-specific host proxy used QMP to pause the 256 MiB guest and capture
+sixteen temporary 16 MiB physical-memory chunks. It decoded and validated the
+guest-written preflight, runtime-state, and call-gate PODs from those raw
+memory captures, then deleted the chunks, private serial, and scratch
+directory before releasing the public terminal marker. The resulting 44-key
+sidecar binds CR0 `0x80010033`; firmware CR3 `0xF801000`; temporary owned CR3
+`0x100000`; CR4 `0x668`; EFER `0xD00`; physical width 40; and RFLAGS `0x246`.
+Firmware CR3, CR4, and RFLAGS match their independently reported post-return
+runtime values. The public serial SHA-256 is
+`CC51100244A8A20865DB9D16CE5D73B0930F43EA98835DFA57027A00B126C661`;
+the raw-observation sidecar SHA-256 is
+`6FFEDB0B5998A930E614E3EC0EE68E2B444439AE686A9412F3206760D257F933`;
+and the evidence-manifest SHA-256 is
+`94A28FE683FC068C88F42AB806B3E9A06DB5467FD35488B6ADF397AC8F8A8188`.
+The manifest binds 47 nonempty artifacts, 10 tool identities, 44 required
+markers, 26 forbidden markers, and 61 observed markers; all artifact hashes
+were independently revalidated.
+
+This is bounded pre-EBS local-QEMU evidence for M01, not an owned diagnostic
+transport. It proves no real IDT/fault capture, COM1 port I/O, panic-safe
+output, real firmware shutdown, physical-hardware behavior, provider behavior,
+or post-firmware survivability. The full tuple and claim boundary are recorded
+in `docs/qemu.md`, `docs/boot.md`, and `done/step890.md`.
+`done/step888.md` remains immutable historical r12 evidence.
+
 ## Known Limitations
 
 The current managed formatter and guard contracts allocate managed strings and are only safe for host tests or normal boot diagnostics. `BootEventRingBuffer` is still the managed string mirror used by normal host-tested boot logging. `BootEventRecordRingBuffer` and `BootEventRecordFormatter` are caller-storage based, but they are not wired into `BootSequence`, a real panic dump, or the live EFI path yet. `PanicTextBuffer` and `PanicSerialReporter` are caller-storage based, but they are not wired into a real panic path yet. `CpuFaultFrame` is a data contract and formatter input only; it is not evidence that CPU handlers can capture those registers yet.
@@ -579,9 +618,11 @@ the managed `BootSequence` marker path.
 
 The M01 live-memory probe switches and
 `ValidateM01LiveProbePolicy` are host-tested compile-time policy only. They do
-not establish EFI compile closure, guest marker ownership, QEMU execution,
-loaded-image capture, an owned stack, allocator state, page-table storage,
-W^X/NX transitions, TLB invalidation, or a CR3 load. The
+not independently establish EFI compile closure, guest marker ownership, QEMU
+execution, loaded-image capture, an owned stack, allocator state, page-table
+storage, W^X/NX transitions, TLB invalidation, or a CR3 load. The accepted
+M01-026 tuple supplies those scoped observations only for the exact integrated
+all-switch source and run recorded above. The
 `CLROS_M01_016_READY` marker is emitted only by the host test initializer and
 must not be interpreted as guest evidence. Likewise, M01-019 freezes and
 presents a host-only stage-three result without enabling any probe or emitting
@@ -601,7 +642,6 @@ from the ordinary boot path.
    toggles only in their dedicated issues; M02-014 must consume the disabled
    M01-015 intent after owned diagnostics exist.
 8. Wire real handler register capture into `CpuFaultFrame` through the deterministic fault-entry layout.
-9. Implement the serialized M01-017 through M01-026 path: add host-tested
-   stage coordinators, link only reviewed sources into the EFI project, wire
-   each stage behind its corresponding default-off switch, and preserve fresh
-   cumulative QEMU evidence before changing any completion gate.
+9. Begin the M02 diagnostics dependency chain after tracker review and
+   synchronization, starting with the smallest ready owned-diagnostics leaf;
+   preserve the M01-026 tuple only as its bounded pre-EBS prerequisite evidence.
