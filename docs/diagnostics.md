@@ -51,6 +51,14 @@ The owned diagnostics subsystem is host-testable only. No real IDT load, fault h
 - `Com1PlatformSerialTransport` adapts `Com1SerialWriter` to `IPlatformSerialTransport`. It lazily initializes the writer, exposes itself as an owned serial transport, maps writer initialization, timeout, backend, invalid-ASCII, unavailable-readiness, and partial-write states into `PlatformSerialTransportResult`, and preserves compact encoded COM1 backend status for diagnostics. The current tests use fake byte-port backends only.
 - `PortIoOperationPlan` emits deterministic x64 `out dx, al` and `in al, dx` instruction bytes into caller-owned storage for a future C# shellcode port-I/O backend. It rejects default/zero result values and incomplete byte-count metadata as not successful.
 - `PortIoStubPlan` emits deterministic callable x64 COM1 byte-port stubs for future unmanaged `Out8` and `In8` delegates, reusing `PortIoOperationPlan` for the final privileged operation byte and ending each stub with `ret`. It rejects default/zero result values and incomplete byte-count metadata as not successful.
+- `ManagedX64StubStrategyADRUseExistingAudited` records the allocation-free,
+  status-coded M02-001 authoring decision over those exact plans. One
+  demonstrated port-I/O family selects `ExistingAuditedBytePlans`; a build-time
+  generator becomes eligible only at two independent demonstrated families.
+  The current result requires the exact seven-byte `Out8` and five-byte `In8`
+  contracts, write-then-execute publication, and no permanent RWX mapping. The
+  `BuildTimeGenerator` enum value represents eligibility only; this slice
+  implements no generator.
 - `DescriptorTableInstructionPlan` emits deterministic x64 `lidt [rip+disp32]`, `lgdt [rip+disp32]`, and `ltr ax` instruction bytes into caller-owned storage for future descriptor-table installation stubs.
 - `DescriptorTableInstallStubPlan` emits deterministic callable x64 `lidt`, `lgdt`, and `ltr` stubs into caller-owned storage. `lidt` and `lgdt` stubs embed the 10-byte descriptor payload after the executable bytes and use RIP-relative addressing; the `ltr` stub loads a caller-provided TSS selector into `AX`. The descriptor payload copy path uses the shared `OS.Std.Memory.BufferOperations.MemoryCopy` helper after validation and maps unexpected copy-helper failure to the existing output-buffer-too-small status.
 - `FaultProbeStubPlan` emits deterministic non-executed destructive fault probe bytes for future QEMU tests: `ud2; ret` and a null-address byte write followed by `ret`. Its metadata is tied to the disabled-by-default destructive probe toggles, and it rejects default/zero result values or incomplete byte-count metadata as successful evidence.
@@ -307,6 +315,15 @@ TEST_PASS port io stub plan encodes callable out8 stub
 TEST_PASS port io stub plan encodes callable in8 stub
 TEST_PASS port io stub plan rejects invalid inputs
 TEST_PASS port io stub plan default result is not success
+TEST_START m02.001
+TEST_PASS m02.001 selects existing audited plans
+TEST_PASS m02.001 verifies exact audited bytes
+TEST_PASS m02.001 enables generator only for second family
+TEST_PASS m02.001 rejects malformed policies
+TEST_PASS m02.001 default result is not success
+TEST_PASS m02.001 current decision allocates no managed memory
+CLROS_M02_001_READY strategy=ExistingAuditedBytePlans families=1 generatorThreshold=2 generatorEligible=false out8Bytes=7 in8Bytes=5 writeThenExecute=true permanentRwx=false
+TEST_PASS m02.001
 TEST_PASS descriptor instruction plan encodes lidt
 TEST_PASS descriptor instruction plan encodes lgdt
 TEST_PASS descriptor instruction plan encodes ltr
@@ -628,7 +645,7 @@ must not be interpreted as guest evidence. Likewise, M01-019 freezes and
 presents a host-only stage-three result without enabling any probe or emitting
 from the ordinary boot path.
 
-`SerialDiagnosticsGuard` is a readiness contract only. `SerialPortConfiguration`, `Com1SerialWriter`, `Com1PlatformSerialTransport`, `PortIoOperationPlan`, `PortIoStubPlan`, and owned-serial readiness derivation are configuration, polling, abstract backend, status, adapter, and instruction-byte contracts only. They do not execute CPU port I/O instructions or prove serial output survives real firmware shutdown.
+`SerialDiagnosticsGuard` is a readiness contract only. `SerialPortConfiguration`, `Com1SerialWriter`, `Com1PlatformSerialTransport`, `PortIoOperationPlan`, `PortIoStubPlan`, `ManagedX64StubStrategyADRUseExistingAudited`, and owned-serial readiness derivation are configuration, polling, abstract backend, status, adapter, instruction-byte, and authoring-policy contracts only. The M02-001 strategy allocates, materializes, protects, binds, and executes no page; it provides no generator implementation and does not perform CPU port I/O or prove serial output survives real firmware shutdown.
 
 ## Next Steps
 
@@ -642,6 +659,7 @@ from the ordinary boot path.
    toggles only in their dedicated issues; M02-014 must consume the disabled
    M01-015 intent after owned diagnostics exist.
 8. Wire real handler register capture into `CpuFaultFrame` through the deterministic fault-entry layout.
-9. Begin the M02 diagnostics dependency chain after tracker review and
-   synchronization, starting with the smallest ready owned-diagnostics leaf;
-   preserve the M01-026 tuple only as its bounded pre-EBS prerequisite evidence.
+9. Continue the M02 diagnostics dependency chain with M02-002 fixed-page
+   materialization after the reviewed M02-001 authoring-policy result; reserve
+   safe guest execution for M02-017 and preserve the M01-026 tuple only as its
+   bounded pre-EBS prerequisite evidence.

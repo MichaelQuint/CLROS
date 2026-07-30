@@ -186,6 +186,12 @@ Host tests assert:
 - Serial configuration tests prove COM1 defaults, divisor-latch calculation, deterministic initialization port/value planning, and status-coded invalid input handling.
 - Port-I/O operation-plan tests prove deterministic `out dx, al` and `in al, dx` opcode bytes and status-coded invalid-input handling.
 - Port-I/O stub-plan tests prove callable `Out8` and `In8` stub bytes end in `ret`, use the port-I/O operation plan, and handle invalid inputs without execution.
+- M02-001 managed x64-stub strategy tests prove that one demonstrated port-I/O
+  family selects the existing exact seven-byte `Out8` and five-byte `In8`
+  plans, a generator is ineligible until a synthetic second independent family,
+  publication remains write-then-execute, and permanent RWX is forbidden. This
+  is an allocation-free host policy result only; it adds no boot phase,
+  generator, page transition, or execution.
 - Descriptor-table instruction-plan tests prove deterministic `lidt [rip+disp32]`, `lgdt [rip+disp32]`, and `ltr ax` bytes and status-coded invalid-input handling.
 - Descriptor-table install-stub tests prove callable `lidt`, `lgdt`, and `ltr` stubs preserve descriptor payloads/selectors and handle invalid inputs without execution.
 - Descriptor-table install-readiness tests prove IDT/IDTR/GDT/TSS/IST and install-stub buffer prerequisites are aggregated before any future privileged install.
@@ -260,9 +266,11 @@ permission changes, relocation, or native-tier or hosted .NET app launch.
 
 1. Wire the transition marker helper only after the live EFI path can perform a real `ExitBootServices` call and preserve diagnostics afterward.
 2. Add an owned serial diagnostics phase only after a real serial writer exists.
-3. Wire the early diagnostics readiness helper only after generated stubs can be copied to executable memory and safely invoked under W^X policy.
-4. Wire the controlled fault-probe readiness helper only after early diagnostics can survive generated-stub execution and fault handling.
-5. Wire the app-selection readiness helper only after live block-device package reads can supply the manifest/package/descriptor prerequisites.
-6. Add probe toggles for destructive fault tests.
-7. Promote future placeholder phases from documented ledger entries to emitted phases only when the required subsystem evidence exists.
-8. Prevent any subsystem from bypassing `BootSequence`.
+3. Complete M02-002 fixed-page materialization and M02-017 safe-cookie guest
+   integration before any privileged `In8`/`Out8` binding or execution.
+4. Wire the early diagnostics readiness helper only after generated stubs can be copied to executable memory and safely invoked under W^X policy.
+5. Wire the controlled fault-probe readiness helper only after early diagnostics can survive generated-stub execution and fault handling.
+6. Wire the app-selection readiness helper only after live block-device package reads can supply the manifest/package/descriptor prerequisites.
+7. Add probe toggles for destructive fault tests.
+8. Promote future placeholder phases from documented ledger entries to emitted phases only when the required subsystem evidence exists.
+9. Prevent any subsystem from bypassing `BootSequence`.
