@@ -51,7 +51,10 @@ identity.
 
 ## Tests run
 
-From `C:\Projects\CLROS`, against the frozen implementation commit:
+From `C:\Projects\CLROS`, against evidence-source commit
+`a97d25107d9cd573b140a6a524a192c8fd77b68b` and tree
+`d5bc7a406484cd8aa08b9cdfd7ed3cbc5dbef0da`, which contain the frozen
+implementation commit plus the initially reserved evidence ledger:
 
 ```powershell
 dotnet build .\CLROS.slnx --nologo -m:1
@@ -65,20 +68,22 @@ git status --short
 ```
 
 The solution and HostTests builds passed with zero warnings and zero errors.
-The complete host harness reached its terminal pass. Naming/source-firewall,
-QEMU dry-run, canonical EFI publish/artifact verification, whitespace
-validation, and the clean-source check passed.
+The complete host harness returned native exit code `0` and reached its
+terminal pass. Naming/source-firewall, QEMU dry-run, canonical EFI
+publish/artifact verification, whitespace validation, and the clean-source
+check passed.
 
 ## Evidence
 
 Authoritative evidence root:
 
 ```text
-C:\Projects\CLROS\artifacts\logs\m02-001-final\acec50b4-20260730T174129Z-r2
+C:\Projects\CLROS\artifacts\logs\m02-001-final\a97d2510-20260730T182236Z-r3
 ```
 
 Complete HostTests results:
 
+- native process exit code: `0`
 - `TEST_START`: 3,336
 - `TEST_PASS`: 3,337
 - `TEST_FAIL`: 0
@@ -105,13 +110,17 @@ across 1,024 warmed current-decision calls.
 SHA-256 anchors:
 
 - evidence summary:
-  `41952493199C25DB5612BA46239153A7F6C88639A7FD6F8FEE31A6D3D3FDAC49`
+  `CDBDF0A7F980F554854931291165AF4073FED1F6C3A2B30C949C6702C10BF5C4`
+- direct-wrapper probe stdout:
+  `DFD2A33C4B139A72A2F52E5F9B3BEF6F378B1D70B40268518B7B15020CD42A46`
+- direct-wrapper probe and HostTests exit-code sidecars:
+  `5FECEB66FFC86F38D952786C6D696C79C2DBC239DD4E91B46729D73A27FB57E9`
 - solution build:
-  `C2FC9E86A83D20BF25ABD7B13A61A4D8566B50829D7CDBFF0F0A6503ECCEC465`
+  `D00630CDD6EE137BDE6FC6E08B1674CA30C0AFF5D694684499EBFAD09033039A`
 - HostTests build:
-  `1F6CD4D96FCC423C8BF89B818A2FE86759B451175BFAEB2ADD2857953619741E`
+  `3F9AAB30DA4268BB1611B1F918942C16FFBB1A84AFF8E7B09411229FA061B93B`
 - HostTests stdout:
-  `80D9F835BC664780E02AE27E1D5ACEF89D2570C18C16D3458731EDCF77EBDF04`
+  `A42963F6C44EB98CA0C1397BEDB5B80A7B61EBC890273EE8AA35AE6673A401E9`
 - HostTests stderr:
   `E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855`
 - naming/source firewall:
@@ -119,7 +128,7 @@ SHA-256 anchors:
 - QEMU dry-run:
   `3CAB1CB4EAD174CCB35A225FE67E02A23748213E5FA2E0163F012F33F4E543A4`
 - canonical EFI build:
-  `891CF93396EAE0A6ACA6D3C5000012B6C74DE89344A743FF76BA7A36089AA693`
+  `6FEA8A30572CD06A96B10469FC969597B5C1C7BF4A01F3A3880E8700223282CD`
 - generated `BOOTX64.EFI`:
   `158432A6F1BA692561A8CA047AD4E1C1362E3549E5CA8A7EF4E7288ABECD1741`
 - final diff and pre-reservation status logs:
@@ -134,21 +143,22 @@ this issue.
 - Before the requested machine reboot, an earlier full-host attempt was stopped
   intentionally at 396 starts, 394 passes, zero failures, and no terminal
   marker. That partial run is excluded from acceptance evidence.
-- In the accepted post-reboot r2 run, the HostTests process emitted the complete
-  terminal pass and exited, but Windows kept the `Start-Process -Wait` wrapper
-  alive after all non-console test descendants had exited. The childless
-  wrapper and its private console host were stopped after marker, stderr, and
-  process-tree audit. It therefore did not create its planned exit-code sidecar.
-  The complete terminal host marker, zero failures, empty stderr, and vanished
-  test process are the accepted command outcome.
+- Post-reboot r2 emitted the complete terminal pass with zero failures and
+  empty stderr, but its `Start-Process -Wait` wrapper did not preserve the
+  native HostTests exit code. Independent review correctly rejected r2 under
+  the precedent in `done/step858.md` and `done/step879.md`; r2 is not acceptance
+  evidence.
+- The r3 wrapper first proved direct invocation and exit-sidecar capture with a
+  bounded `dotnet --version` probe. It then ran the unchanged complete HostTests
+  command directly, persisted native exit code `0`, and exited normally. The
+  complete r3 gate supersedes r2.
 - No build, test, naming, source-firewall, dry-run, EFI-publish, artifact,
   whitespace, or source-cleanliness acceptance check failed.
 
 ## Deferred work
 
-- Commit and push this evidence ledger.
-- Obtain independent read-only review of the frozen implementation, ownership,
-  documentation, and evidence.
+- Commit and push the corrected r3 evidence ledger.
+- Obtain independent read-only review of the corrected evidence-only delta.
 - Move issue `#41` and PR `#428` to review only after that review passes, then
   merge without auto-closing the issue.
 - Execute a separately owned administrative closure transaction because
