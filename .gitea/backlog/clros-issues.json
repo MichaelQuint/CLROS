@@ -6183,7 +6183,7 @@
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
-        "M02-001 and M02-002 are host-evidence production C# leaves. M02-017 is their serialized safe guest-integration leaf; only it may touch the EFI/project/QEMU boundary, and it must not invoke In8 or Out8.",
+        "M02-001 is a reviewed and merged host-evidence production C# leaf. M02-018 owns its durable tracker closure before M02-002 becomes ready. M02-017 remains the serialized safe guest-integration leaf; only it may touch the EFI/project/QEMU boundary, and it must not invoke In8 or Out8.",
         "Close only after every child issue is closed with accepted evidence and the milestone exit criterion is satisfied."
       ],
       "referenceInfluences": [
@@ -6194,7 +6194,7 @@
         }
       ],
       "acceptanceCriteria": [
-        "All 17 keyed child issues are closed with reviewed evidence.",
+        "All 18 keyed child issues are closed with reviewed evidence.",
         "Prove owned COM1 and descriptor/fault handling under real QEMU.",
         "Canonical documentation and completion gates state only what current first-party evidence proves."
       ],
@@ -6222,7 +6222,7 @@
         "M01-036"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:host",
@@ -6255,7 +6255,7 @@
       ],
       "collisionLane": "lane:central-docs",
       "summary": "Implement an allocation-free production C# strategy result that selects existing audited byte plans for the first demonstrated x64 stub family and makes generator eligibility an explicit default-deny threshold decision.",
-      "currentEvidence": "Production PortIoStubPlan already emits the exact reviewed Out8 bytes 66 89 CA 88 D0 EE C3 (7 bytes) and In8 bytes 66 89 CA EC C3 (5 bytes), while the executable-stub bundle/materialization/page-transition surfaces remain host-tested contracts only. There is one demonstrated byte-plan family, so a generator is not yet justified; no live port I/O, executable guest binding, or owned COM1 output has been proven.",
+      "currentEvidence": "Reviewed M02-001 implementation commit acec50b47056e7c538ca5225d32898ff2c0bc93f (tree ac236ce5acb9a88485b15e12f309ec2457d2e758), evidence-source commit a97d25107d9cd573b140a6a524a192c8fd77b68b (tree d5bc7a406484cd8aa08b9cdfd7ed3cbc5dbef0da), final evidence head 5a4234a5b6e0fadcd1a4db9a01374340723ba4e8, and merge commit 85528a5513f1cf24396ff29acc6787bc015ec9c5 are recorded by PR #428, issue #41, reviewed-evidence comment #6578, merge-proof comment #6584, and done/step892.md. Authoritative r3 summary SHA-256 CDBDF0A7F980F554854931291165AF4073FED1F6C3A2B30C949C6702C10BF5C4 records native HostTests exit 0, 3,336 TEST_START, 3,337 TEST_PASS, zero TEST_FAIL, one exact M02-001 envelope, one terminal host pass, empty stderr, sourceClean=true, and realQemuRun=false. The implementation selects existing audited byte plans for one family, keeps generator eligibility false below two independent families, requires write-then-execute, and rejects permanent RWX. No live port I/O, executable guest binding, owned COM1 output, provider behavior, CloudReady status, or production readiness is proven.",
       "implementationNotes": [
         "Implement ManagedX64StubStrategyADRUseExistingAudited.cs as production C# 14 code with value-only enums/results, explicit initialization, status-coded invalid/default cases, no exceptions, no reflection, no dynamic invocation, and no hidden allocation on the successful decision path.",
         "Return strategy=ExistingAuditedBytePlans, families=1, generatorThreshold=2, generatorEligible=false, out8Bytes=7, in8Bytes=5, writeThenExecute=true, and permanentRwx=false only when the exact existing PortIoStubPlan lengths and policy inputs validate.",
@@ -6265,7 +6265,8 @@
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
         "The proposed owned paths are exact for this slice: src/OS.Kernel/Diagnostics/ManagedX64StubStrategyADRUseExistingAudited.cs, tests/OS.HostTests/ManagedX64StubStrategyADRUseExistingAuditedTests.cs, docs/diagnostics.md, docs/boot-order.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Emit the exact host marker CLROS_M02_001_READY strategy=ExistingAuditedBytePlans families=1 generatorThreshold=2 generatorEligible=false out8Bytes=7 in8Bytes=5 writeThenExecute=true permanentRwx=false.",
-        "Close from focused and complete host evidence. QEMU dry-run is tooling preflight only; no real-QEMU marker or serial evidence is required or permitted for this policy leaf."
+        "Close from focused and complete host evidence. QEMU dry-run is tooling preflight only; no real-QEMU marker or serial evidence is required or permitted for this policy leaf.",
+        "M02-001 passed independent final and post-reboot review, merged through PR #428 at 85528a5513f1cf24396ff29acc6787bc015ec9c5, and carries exact reviewed marker comment #6578. M02-018 exclusively owns the catalog-backed agent:done closure and readiness convergence."
       ],
       "referenceInfluences": [
         {
@@ -6305,7 +6306,7 @@
         "docs/boot-order.md"
       ],
       "evidenceBoundary": "This issue proves only an allocation-free host-tested production C# strategy decision over the existing exact Out8/In8 audited byte plans: one port-I/O family uses existing plans, a generator remains ineligible until two independent families exist, bytes must be written before execution, and permanent RWX is forbidden. It does not allocate, materialize, protect, bind, or execute a page; invoke In8/Out8; configure COM1; install descriptors; capture faults; cross ExitBootServices; or prove QEMU, hardware, provider, CloudReady, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M02-002",
@@ -6313,7 +6314,7 @@
       "milestone": "M02",
       "parentKey": "M02-EPIC",
       "dependencyKeys": [
-        "M02-001"
+        "M02-018"
       ],
       "labels": [
         "agent:blocked",
@@ -7732,6 +7733,102 @@
       ],
       "evidenceBoundary": "This issue proves only local pre-ExitBootServices materialization, whole-page readback, temporary owned-root RX execution of the fixed safe entry at offset 0, return cookie 0x4F534F4B, and restoration under the recorded QEMU/OVMF configuration. It explicitly proves portIoExecuted=false and does not execute or prove In8, Out8, COM1, general I/O, permanent page-table adoption, IDT/GDT/TSS behavior, controlled faults, real ExitBootServices, physical hardware, provider support, CloudReady status, hosted .NET, Kestrel, or production readiness.",
       "desiredState": "open"
+    },
+    {
+      "key": "M02-018",
+      "title": "[M02-018] Persist reviewed M02-001 closure intent and converge the tracker",
+      "milestone": "M02",
+      "parentKey": "M02-EPIC",
+      "dependencyKeys": [
+        "M02-001"
+      ],
+      "labels": [
+        "agent:done",
+        "priority:p0",
+        "type:tooling",
+        "evidence:host",
+        "component:repo",
+        "phase:m02-diagnostics",
+        "lane:solution-baseline"
+      ],
+      "priority": "priority:p0",
+      "ownedPaths": [
+        ".gitea/backlog/clros-issues.json",
+        "scripts/sync-gitea-backlog.ps1",
+        "tests/OS.HostTests/GiteaBacklogManifestTests.cs",
+        "tests/OS.HostTests/RepositoryRecoveryTests.cs",
+        "docs/issue-labels.md",
+        "docs/repo-audit.md"
+      ],
+      "forbiddenPaths": [
+        "src/**",
+        "std/**",
+        "apps/**",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "src/OS.Kernel/Diagnostics/ManagedX64StubStrategyADRUseExistingAudited.cs",
+        "tests/OS.HostTests/ManagedX64StubStrategyADRUseExistingAuditedTests.cs",
+        "docs/diagnostics.md",
+        "docs/boot-order.md",
+        "scripts/build-efi-shell.ps1",
+        "scripts/run-qemu-smoke.ps1",
+        "tools/**",
+        "README.md",
+        "docs/completion-gates.md",
+        "references/** (read-only)",
+        "done/** (reserve one new step only after implementation evidence exists)"
+      ],
+      "collisionLane": "lane:solution-baseline",
+      "summary": "Persist the reviewed M02-001 host implementation and merge evidence in the canonical catalog, make its tracker closure durable, and gate M02-002 readiness on a verified idempotent repository-state transaction.",
+      "currentEvidence": "At the source-bound r4 ledger checkpoint recorded by done/step893.md, M02-001 issue #41 retained reviewed-evidence comment #6578 and merge-proof comment #6584 and had merged through PR #428 at 85528a5513f1cf24396ff29acc6787bc015ec9c5. At that same checkpoint, M02-018 implementation commit 8c1f0d8d2b6dfd06433840f973de6aa7aa08e532, tree 4e1dfbe4bad969af26e534a0cf12b10c61401d7f, and evidence-source commit 79f318f25389cee411e65bc745f2cb052be0058d, tree 13e86bf0164bb0e52b3f4e2c2d53f341f351e3f4, were carried by draft PR #430 and live issue #429. Authoritative r4 evidence at C:\\Projects\\CLROS\\artifacts\\logs\\m02-018-final\\79f318f2-20260730T201222Z-r4 has summary SHA-256 99A39D223A9D208B0E985E6A50CA1E617F4A52F33B2954B0294595325B676D7F and 42-file hash-ledger SHA-256 2FE2BA2A97FEED0577AD1499074D2878455885BACF6136129640697242DADBFE. All ten required commands exited 0; HostTests recorded native exit 0, 3337 TEST_START, 3338 TEST_PASS, zero TEST_FAIL, one exact M02-018 start/ready/pass envelope at lines 1715-1717, one terminal host pass, and zero stderr bytes. Solution and HostTests builds, naming/source firewall, QEMU dry-run, EFI build, offline 427-object validation, synchronizer self-tests, diff check, clean status, and ownership audit passed. No QEMU/OVMF guest boot ran; QEMU-related execution was limited to host preflight/version probes and the explicit dry-run, so no guest or serial evidence is attached. At that checkpoint, independent review, canonical merge, and guarded preview/apply/repeated-apply/final-preview convergence remained required before issues #41 and #429 could be treated as live-closed and before M02-002 could be claimed; later tracker comments and synchronizer logs are the authority for completion of that sequence.",
+      "implementationNotes": [
+        "Add M02-018 as the eighteenth M02 child and the 343rd keyed issue so the canonical inventory is 16 epics, 327 children, 343 issues, and 427 total managed objects.",
+        "Persist M02-001 as desiredState=closed with exactly agent:done and the accepted implementation commit/tree, evidence-source commit/tree, reviewed head, merge commit, PR, issue, evidence comments, done step, native exit, marker counts, summary hash, and host-only evidence boundary.",
+        "Make M02-018 depend on M02-001 and declare final desiredState=closed with exactly agent:done. Closure is permitted only after live issue #429 contains the exact reviewed-evidence marker and the reviewed source is merged.",
+        "Rewire only M02-002 from M02-001 to M02-018. Preserve M02-017 -> M02-002 and M02-003 -> M02-017 so materialization cannot release against a partial closure transaction.",
+        "Update synchronizer and host-test inventory assertions to 327 children, 343 issues, M02=18, and 427 managed objects; add exact M02-001 evidence-anchor, M02-018 ownership/state/marker, M02 dependency, and offline idempotency assertions.",
+        "Update only docs/issue-labels.md and docs/repo-audit.md with dated historical totals, the reviewed M02-001 merge, this durable closure boundary, and explicit unsupported live/runtime/cloud/production claims.",
+        "The proposed owned paths are exact for this slice: .gitea/backlog/clros-issues.json, scripts/sync-gitea-backlog.ps1, tests/OS.HostTests/GiteaBacklogManifestTests.cs, tests/OS.HostTests/RepositoryRecoveryTests.cs, docs/issue-labels.md, docs/repo-audit.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Emit the exact host marker CLROS_M02_018_READY epics=16 children=327 issues=343 managed=427 m02Children=18 m02001Issue=41 m02001Pr=428 m02001Merge=85528a5513f1cf24396ff29acc6787bc015ec9c5 closureMarkers=2.",
+        "After independent review, post <!-- clros-evidence-reviewed:M02-018 --> while issue #429 is open, merge the reviewed source, then run canonical preview/apply/repeated-apply/final-preview. Require both M02-001 and M02-018 closed with agent:done, M02-002 ready, zero duplicate hidden keys, and final 427-object convergence."
+      ],
+      "referenceInfluences": [],
+      "acceptanceCriteria": [
+        "The manifest contains exactly 16 epics, 327 contiguous children, 343 keyed issues, 68 labels, and 427 managed objects, including M02-018 as the eighteenth M02 child.",
+        "M02-001 retains dependency M01-036, exact owned and forbidden paths, exact host marker/behavior, desiredState=closed, exactly agent:done, and all accepted implementation/evidence/merge anchors without any stronger runtime claim.",
+        "M02-018 depends on M02-001; owns exactly the catalog, synchronizer, two manifest tests, two canonical repository documents, and one newly reserved done step; and forbids all production, EFI, integration, M02-001, completion-gate, reference, and existing-ledger paths.",
+        "M02-002 depends only on M02-018, M02-017 depends only on M02-002, and M02-003 depends only on M02-017.",
+        "The exact CLROS_M02_018_READY epics=16 children=327 issues=343 managed=427 m02Children=18 m02001Issue=41 m02001Pr=428 m02001Merge=85528a5513f1cf24396ff29acc6787bc015ec9c5 closureMarkers=2 marker appears once between the M02-018 start/pass markers.",
+        "Full builds, complete HostTests with authoritative native exit 0, naming/source firewall, QEMU dry-run, EFI build/preflight, offline synchronizer validation, synchronizer self-tests, diff check, ownership audit, and independent review pass.",
+        "After merge, canonical preview/apply/repeated-apply/final-preview closes M02-001 and M02-018 in dependency order, promotes both to agent:done, makes M02-002 the smallest collision-safe ready issue, and finishes with all 427 objects unchanged/skipped and zero failures or proposed writes.",
+        "Evidence remains repository/tracker host evidence only and makes no kernel/runtime, live port-I/O, COM1, ExitBootServices, guest, hardware/provider, hosted .NET/Kestrel, CloudReady, or production-readiness claim."
+      ],
+      "requiredMarkers": [
+        "TEST_START m02.018",
+        "CLROS_M02_018_READY epics=16 children=327 issues=343 managed=427 m02Children=18 m02001Issue=41 m02001Pr=428 m02001Merge=85528a5513f1cf24396ff29acc6787bc015ec9c5 closureMarkers=2",
+        "TEST_PASS m02.018",
+        "TEST_FAIL m02.018 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build .\\CLROS.slnx --nologo -m:1",
+        "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check-naming.ps1",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\build-efi-shell.ps1",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\sync-gitea-backlog.ps1 -Offline",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\sync-gitea-backlog.ps1 -SelfTest",
+        "git diff --check",
+        "git status --short"
+      ],
+      "documentationPaths": [
+        "docs/issue-labels.md",
+        "docs/repo-audit.md"
+      ],
+      "evidenceBoundary": "This issue proves only durable repository/tracker state, closure-policy enforcement, dependency readiness, and synchronizer idempotency through host evidence. QEMU dry-run and EFI build are tooling/build preflight only. It changes no production C# and does not prove live page materialization, In8/Out8 execution, COM1, real ExitBootServices, guest execution, hardware/provider support, hosted .NET/Kestrel, CloudReady status, or production readiness.",
+      "desiredState": "closed"
     },
     {
       "key": "M03-EPIC",
