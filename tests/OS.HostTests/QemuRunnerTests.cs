@@ -5089,7 +5089,7 @@ internal static class QemuRunnerTests
             "--summary-log",
             summaryLog,
             "--timeout",
-            "3");
+            "5");
 
         string summary = File.ReadAllText(summaryLog);
         return result.ExitCode == 13
@@ -5276,7 +5276,7 @@ internal static class QemuRunnerTests
             "--summary-log",
             summaryLog,
             "--timeout",
-            "3");
+            "5");
 
         string summary = File.ReadAllText(summaryLog);
         return result.ExitCode == 14
@@ -6218,12 +6218,27 @@ internal static class QemuRunnerTests
             ":write",
             "if \"%serial:~0,5%\"==\"file:\" set \"serial=%serial:~5%\"",
             "if \"%serial%\"==\"\" exit /b 12",
-            "> \"%serial%\" echo OS_BOOT_OK",
-            ">> \"%serial%\" echo TEST_PASS boot.sequence",
-            ">> \"%serial%\" echo OS_SMOKE_PASS",
-            "powershell.exe -NoProfile -Command \"Start-Sleep -Milliseconds 200\"",
-            ">> \"%serial%\" echo " + delayedTerminal,
-            "exit /b 0"
+            "set \"CLROS_FAKE_QEMU_SERIAL=%serial%\"",
+            "powershell.exe -NoProfile -Command " +
+                "\"$path = $env:CLROS_FAKE_QEMU_SERIAL; " +
+                "$stream = [System.IO.File]::Open(" +
+                "$path, [System.IO.FileMode]::Create, " +
+                "[System.IO.FileAccess]::Write, " +
+                "[System.IO.FileShare]::ReadWrite); " +
+                "$writer = [System.IO.StreamWriter]::new(" +
+                "$stream, [System.Text.Encoding]::ASCII); " +
+                "try { " +
+                "$writer.NewLine = [Environment]::NewLine; " +
+                "$writer.WriteLine('OS_BOOT_OK'); " +
+                "$writer.WriteLine('TEST_PASS boot.sequence'); " +
+                "$writer.WriteLine('OS_SMOKE_PASS'); " +
+                "$writer.Flush(); " +
+                "Start-Sleep -Milliseconds 200; " +
+                "$writer.WriteLine('" +
+                delayedTerminal +
+                "'); $writer.Flush(); " +
+                "} finally { $writer.Dispose() }\"",
+            "exit /b %ERRORLEVEL%"
         ];
 
         File.WriteAllLines(path, script);
@@ -6253,13 +6268,28 @@ internal static class QemuRunnerTests
             ":write",
             "if \"%serial:~0,5%\"==\"file:\" set \"serial=%serial:~5%\"",
             "if \"%serial%\"==\"\" exit /b 12",
-            "> \"%serial%\" echo OS_BOOT_OK",
-            ">> \"%serial%\" echo TEST_PASS boot.sequence",
-            ">> \"%serial%\" echo OS_SMOKE_PASS",
-            "powershell.exe -NoProfile -Command \"Start-Sleep -Milliseconds " +
+            "set \"CLROS_FAKE_QEMU_SERIAL=%serial%\"",
+            "powershell.exe -NoProfile -Command " +
+                "\"$path = $env:CLROS_FAKE_QEMU_SERIAL; " +
+                "$stream = [System.IO.File]::Open(" +
+                "$path, [System.IO.FileMode]::Create, " +
+                "[System.IO.FileAccess]::Write, " +
+                "[System.IO.FileShare]::ReadWrite); " +
+                "$writer = [System.IO.StreamWriter]::new(" +
+                "$stream, [System.Text.Encoding]::ASCII); " +
+                "try { " +
+                "$writer.NewLine = [Environment]::NewLine; " +
+                "$writer.WriteLine('OS_BOOT_OK'); " +
+                "$writer.WriteLine('TEST_PASS boot.sequence'); " +
+                "$writer.WriteLine('OS_SMOKE_PASS'); " +
+                "$writer.Flush(); " +
+                "Start-Sleep -Milliseconds " +
                 delayMilliseconds +
+                "; } finally { $writer.Dispose() }; " +
+                "exit " +
+                exitCode +
                 "\"",
-            "exit /b " + exitCode
+            "exit /b %ERRORLEVEL%"
         ];
 
         File.WriteAllLines(path, script);

@@ -4689,6 +4689,8 @@ catch {
     Write-Failure "link_evidence_read_failed" "type=$($_.Exception.GetType().Name)"
 }
 
+$linkResponseValidationStopwatch =
+    [System.Diagnostics.Stopwatch]::StartNew()
 $linkResponseTokens = @(Get-LinkResponseTokens $linkResponseText)
 $breproOptionCount = 0
 $malformedBreproOptionCount = 0
@@ -4718,6 +4720,7 @@ if ($breproOptionCount -ne 1 -or $malformedBreproOptionCount -ne 0) {
     Write-Failure "brepro_link_response_contract_invalid" (
         "matches=$breproOptionCount malformed=$malformedBreproOptionCount")
 }
+$linkResponseValidationStopwatch.Stop()
 
 $requiredEvidenceProperties = @(
     "schemaVersion",
@@ -6227,6 +6230,7 @@ Assert-DistinctAuthorityFiles -Records @(
 )
 Assert-ManagedPeImage -Path $managedAssemblyFullPath
 
+$linkResponseValidationStopwatch.Start()
 $entryOptions = [System.Text.RegularExpressions.Regex]::Matches(
     $linkResponseText,
     '(?im)^\s*/ENTRY:(?:"([^"]+)"|([^\s"]+))\s*$')
@@ -6309,6 +6313,7 @@ if (-not [string]::Equals(
     Write-Failure "serializer_link_map_path_mismatch" (
         "expected=$expectedLinkedMapPath actual=$mapResponseFullPath")
 }
+$linkResponseValidationStopwatch.Stop()
 $linkedMapAuthority = Open-AuthorityReadHandle `
     -Path $expectedLinkedMapPath `
     -RootPath $repositoryRoot `
@@ -6321,6 +6326,7 @@ if (-not (Test-Path -LiteralPath $expectedLinkedMapPath -PathType Leaf) -or
     Write-Failure "serializer_link_map_identity_mismatch"
 }
 
+$linkResponseValidationStopwatch.Start()
 $mapInfoResponseOptions = [System.Text.RegularExpressions.Regex]::Matches(
     $linkResponseText,
     '(?im)^\s*/MAPINFO:(?:"([^"]+)"|([^\s"]+))\s*$')
@@ -6371,6 +6377,7 @@ if ($objectResponseMatches -ne 1) {
     Write-Failure "serializer_object_link_response_contract_missing" (
         "matches=$objectResponseMatches")
 }
+$linkResponseValidationStopwatch.Stop()
 
 $hex16 = '[0-9A-Fa-f]{16}'
 $hex8 = '[0-9A-Fa-f]{8}'
@@ -6761,6 +6768,11 @@ Write-Output (
     $entryPointRva,
     $entrySectionName)
 Write-Output "EFI_ARTIFACT_IMPORTS import=absent bound-import=absent iat=absent delay-import=absent"
+Write-Output (
+    "EFI_ARTIFACT_LINK_RESPONSE_SCAN tokens={0} elapsedMs={1} maximumTokens={2}" -f
+    $linkResponseTokens.Count,
+    $linkResponseValidationStopwatch.ElapsedMilliseconds,
+    $maximumLinkResponseTokens)
 Write-Output (
     "EFI_ARTIFACT_ENTRY_CONTRACT symbol=EfiMain managedSymbol=OS_OS_Boot_EfiEntry__EfiMain association=same-build-linker-map rva=0x{0:x8}" -f
     $entryPointRva)
