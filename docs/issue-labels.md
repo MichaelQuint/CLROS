@@ -61,11 +61,12 @@ ExistingAuditedBytePlans decision, and the host-only evidence boundary. At the
 M02-018 evidence-source checkpoint, issue #41 remained open in `agent:review`
 pending the post-merge manifest-owned closure transaction.
 
-M02-018 live issue `#429` is that serialized host-only durability transaction.
-Implementation commit `8c1f0d8d2b6dfd06433840f973de6aa7aa08e532`,
-tree `4e1dfbe4bad969af26e534a0cf12b10c61401d7f`, and evidence-source
-commit `79f318f25389cee411e65bc745f2cb052be0058d`, tree
-`13e86bf0164bb0e52b3f4e2c2d53f341f351e3f4`, are carried by draft PR #430
+At the source-bound r4 ledger checkpoint, M02-018 live issue `#429` was that
+serialized host-only durability transaction. Implementation commit
+`8c1f0d8d2b6dfd06433840f973de6aa7aa08e532`, tree
+`4e1dfbe4bad969af26e534a0cf12b10c61401d7f`, and evidence-source commit
+`79f318f25389cee411e65bc745f2cb052be0058d`, tree
+`13e86bf0164bb0e52b3f4e2c2d53f341f351e3f4`, were carried by draft PR #430
 and `done/step893.md`. The complete r4 gate under
 `artifacts/logs/m02-018-final/79f318f2-20260730T201222Z-r4` passed all ten
 commands. Summary SHA-256
@@ -73,7 +74,9 @@ commands. Summary SHA-256
 records native HostTests exit 0, 3,337 starts, 3,338 passes, zero failures, one
 exact M02-018 start/ready/pass envelope, one terminal host pass, and empty
 stderr. Offline validation reported 427 skipped managed objects, managed-body
-and state-policy self-tests passed, and no real QEMU ran.
+and state-policy self-tests passed. No QEMU/OVMF guest boot ran; QEMU-related
+execution was limited to host preflight/version probes and the explicit
+dry-run, so no guest or serial evidence is attached.
 
 The canonical target adds the eighteenth M02 child for 16 epics, 327 children,
 343 keyed issues, and 427 managed objects; records M02-001 as
@@ -85,9 +88,10 @@ sole serialized EFI/QEMU integration leaf before M02-003. M02-017 may execute
 only the safe offset-zero return-cookie entry, never the In8 or Out8 entries.
 None of this repository-state or M02-001 host evidence advances a completion
 gate or proves real `ExitBootServices`, live port I/O, provider behavior,
-CloudReady status, hosted .NET, Kestrel, or production readiness. Live closure
-and 427-object convergence remain pending until the post-merge synchronizer
-sequence passes.
+CloudReady status, hosted .NET, Kestrel, or production readiness. At the r4
+ledger checkpoint, live closure and 427-object convergence were pending; later
+tracker comments and synchronizer logs are the authority for completion of the
+required post-merge sequence.
 
 The guarded earlier M00-023 apply recognized existing M00-023 as issue #321,
 created only M01-016 through M01-026 as issues #323 through #333, updated
@@ -211,7 +215,10 @@ The 16 milestone objects intentionally remain open and have no fabricated due
 dates; the keyed epic and child issue states carry the durable evidence-review
 closure contract.
 
-## Next Steps
+## Required Post-r4 Sequence
+
+The r4 checkpoint requires this ordered sequence. Later tracker comments and
+synchronizer logs prove which steps completed.
 
 1. Independently review the source-bound M02-018 r4 evidence and final
    evidence-only delta, post exactly one reviewed marker to issue `#429` while

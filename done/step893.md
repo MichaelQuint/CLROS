@@ -106,12 +106,13 @@ command captured native exit `0`. Its complete HostTests log recorded:
 Offline validation emitted the exact 16/68/16/327/343 inventory, nine
 intentional `SYNC_KEYS action=skipped count=427 chunk=N/9` lines, and the
 zero-write summary with 427 skipped objects. Managed-body and state-policy
-self-tests passed. QEMU was dry-run only; no real QEMU process or guest
-evidence belongs to this issue.
+self-tests passed. The smoke path used `-DryRun`, and EFI preflight performed
+only QEMU/qemu-img version probes. No QEMU/OVMF guest boot ran, and no guest
+marker or serial evidence belongs to this issue.
 
-r3 is implementation evidence only. It predates this reserved ledger and its
-generated post-validator incorrectly required the repeated chunk total to
-appear exactly once.
+r3 is implementation evidence only. It completed all ten commands
+successfully but ended in a post-validation false-negative. The exact rejected
+wrapper source was not immutably preserved; r4 supersedes it.
 
 Authoritative r4 evidence root:
 
@@ -188,8 +189,10 @@ SHA-256 anchors:
 `final-file-sha256.json` contains the name, byte length, and SHA-256 for every
 accepted pre-ledger file in r4. Its own hash is the 42-artifact ledger anchor
 above. The exact commit/tree and empty status evidence prove that the r4 source
-was clean before and after the gate. No real QEMU process ran and no guest
-marker or provider evidence is attached to M02-018.
+was clean before and after the gate. No QEMU/OVMF guest boot ran; QEMU-related
+execution was limited to host preflight/version probes and the explicit
+dry-run, so no guest marker, serial log, or provider evidence is attached to
+M02-018.
 
 ## Failures
 
@@ -201,12 +204,11 @@ marker or provider evidence is attached to M02-018.
   materialized its process handle. The wrapper rejected the null exit and r2
   is excluded.
 - r3 pinned the process handle and captured native exit `0` for all ten
-  commands. Its generated post-validator nevertheless rejected the successful
-  offline log because `SYNC_KEYS action=skipped count=427` correctly appears
-  once per chunk across nine chunks. This was an evidence-wrapper assertion
-  defect, not an implementation, build, test, naming, EFI, synchronizer,
-  whitespace, or source-cleanliness failure. r3 also predates this reserved
-  ledger and is superseded by the required r4 source-bound gate.
+  commands, but its runner ended with a post-validation false-negative. The
+  exact rejected wrapper source was not immutably preserved, so this ledger
+  does not claim a narrower validator root cause. The successful command logs
+  and rejected runner exit remain diagnostic evidence only; r3 predates this
+  reserved ledger and is superseded by the required r4 source-bound gate.
 
 ## Deferred work
 
@@ -230,9 +232,9 @@ evidence. QEMU dry-run and EFI build are tooling/build regression checks.
 
 It changes no production C# and does not prove page materialization, live page
 protection, In8 or Out8 execution, COM1, descriptors, controlled faults, real
-`ExitBootServices`, guest execution, real QEMU, physical hardware, provider
-support, hosted .NET, ASP.NET Minimal API, Kestrel, CloudReady status, or
-production readiness.
+`ExitBootServices`, guest execution, QEMU/OVMF guest boot, physical hardware,
+provider support, hosted .NET, ASP.NET Minimal API, Kestrel, CloudReady status,
+or production readiness.
 
 Live issue closure and online synchronizer convergence are not proved by this
 ledger until the separately recorded post-merge apply sequence succeeds.

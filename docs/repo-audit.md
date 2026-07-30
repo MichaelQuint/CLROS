@@ -80,11 +80,12 @@ and the reachable local Gitea tracker:
   policy, and the host-only nonclaims. At the M02-018 evidence-source
   checkpoint, issue #41 remained open in `agent:review` pending catalog-owned
   post-merge convergence.
-- M02-018 issue `#429`, implementation commit
+- At the source-bound r4 ledger checkpoint, M02-018 issue `#429`,
+  implementation commit
   `8c1f0d8d2b6dfd06433840f973de6aa7aa08e532`/tree
   `4e1dfbe4bad969af26e534a0cf12b10c61401d7f`, and evidence-source commit
   `79f318f25389cee411e65bc745f2cb052be0058d`/tree
-  `13e86bf0164bb0e52b3f4e2c2d53f341f351e3f4` are carried by draft PR #430
+  `13e86bf0164bb0e52b3f4e2c2d53f341f351e3f4` were carried by draft PR #430
   and `done/step893.md`. The complete source-bound r4 gate at
   `artifacts/logs/m02-018-final/79f318f2-20260730T201222Z-r4` passed all ten
   commands. Summary SHA-256
@@ -94,16 +95,19 @@ and the reachable local Gitea tracker:
   validation skipped all 427 managed objects, synchronizer self-tests passed,
   the 42-file hash ledger is
   `2FE2BA2A97FEED0577AD1499074D2878455885BACF6136129640697242DADBFE`,
-  and no real QEMU ran.
+  and no QEMU/OVMF guest boot ran. QEMU-related execution was limited to host
+  preflight/version probes and the explicit dry-run, so no guest or serial
+  evidence is attached.
 - M02-018's target is 16 epics, 327 children, 343 keyed issues, and 427
   managed objects. It records M02-001 as closed/done and gates M02-002 on
   M02-018 so a partial tracker update cannot release production
   materialization. M02-002 and M04-001 remain production-C# leaves with host
   evidence only. M02-017 remains the sole serialized real-QEMU integration
   leaf before M02-003 and may execute only the fixed safe offset-zero
-  return-cookie entry, never In8 or Out8. Live closure and convergence remain
-  pending until the reviewed PR is merged and the guarded synchronizer sequence
-  passes.
+  return-cookie entry, never In8 or Out8. At the r4 ledger checkpoint, live
+  closure and convergence were pending; later tracker comments and synchronizer
+  logs are the authority for completion of the required reviewed-merge and
+  guarded-convergence sequence.
 
 ## Implemented Behavior
 
@@ -285,11 +289,12 @@ Current M00 recovery evidence from 2026-07-25:
   above. M01-036 then closed the final M01 repository/tracker durability
   boundary, closed M01-EPIC, and produced the applied 326-child,
   342-keyed-issue, 426-managed-object snapshot. M02-001 subsequently merged
-  reviewed host-only production C# through PR #428. M02-018 now owns the
-  follow-on target of 327 children, 343 keyed issues, and 427 managed objects
-  and must converge issues #41 and #429 before M02-002 is ready. M02-002 and
-  M04-001 remain host-only production-C# slices; M02-017 alone owns safe guest
-  execution before M02-003. Only `M15-013`, the
+  reviewed host-only production C# through PR #428. At the M02-018 r4
+  checkpoint, M02-018 owned the follow-on target of 327 children, 343 keyed
+  issues, and 427 managed objects and had to converge issues #41 and #429
+  before M02-002 could be ready. M02-002 and M04-001 remain host-only
+  production-C# slices; M02-017 alone owns safe guest execution before
+  M02-003. Only `M15-013`, the
   isolated optional DOOM/WAD boundary, retains
   `reference:license-blocked`. This is administrative tracker evidence, not
   additional kernel capability evidence.
@@ -304,7 +309,10 @@ Current M00 recovery evidence from 2026-07-25:
   provenance, boundary, first-party review, and CLROS tests. File-local vendor,
   GPL, CoreCLR, WAD, and media rights remain separate.
 
-## Next Steps
+## Required Post-r4 Sequence
+
+The r4 checkpoint requires this ordered sequence. Later tracker comments and
+synchronizer logs prove which steps completed.
 
 1. Complete independent review of the accepted M02-018 r4 source tuple and
    evidence-only delta, post the exact reviewed marker to issue `#429`, and
