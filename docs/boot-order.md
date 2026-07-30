@@ -192,6 +192,15 @@ Host tests assert:
   publication remains write-then-execute, and permanent RWX is forbidden. This
   is an allocation-free host policy result only; it adds no boot phase,
   generator, page transition, or execution.
+- M02-002 fixed-page tests prove the exact 4,096-byte safe/`Out8`/`In8` page,
+  full-page FNV-1a64 and SHA-256 identities, exhaustive readback rejection,
+  zero-reference no-stdlib pointer compile closure, separate exact-source
+  `NOSTDLIB_EFI` host pointer execution, and a caller-owned state progression
+  from materialized RW+NX metadata through readback to finalized RO+X metadata.
+  M02-002 adds no `BootSequence` phase, EFI linkage, firmware-visible marker,
+  live protection change, or execution. M02-017 remains the exclusive owner of
+  later guest integration and may execute only safe offset 0; privileged
+  offsets 16 and 32 remain unexecuted.
 - Descriptor-table instruction-plan tests prove deterministic `lidt [rip+disp32]`, `lgdt [rip+disp32]`, and `ltr ax` bytes and status-coded invalid-input handling.
 - Descriptor-table install-stub tests prove callable `lidt`, `lgdt`, and `ltr` stubs preserve descriptor payloads/selectors and handle invalid inputs without execution.
 - Descriptor-table install-readiness tests prove IDT/IDTR/GDT/TSS/IST and install-stub buffer prerequisites are aggregated before any future privileged install.
@@ -266,8 +275,10 @@ permission changes, relocation, or native-tier or hosted .NET app launch.
 
 1. Wire the transition marker helper only after the live EFI path can perform a real `ExitBootServices` call and preserve diagnostics afterward.
 2. Add an owned serial diagnostics phase only after a real serial writer exists.
-3. Complete M02-002 fixed-page materialization and M02-017 safe-cookie guest
-   integration before any privileged `In8`/`Out8` binding or execution.
+3. Integrate the host-verified M02-002 fixed page through M02-017's bounded
+   safe-cookie guest path before any privileged `In8`/`Out8` binding or
+   execution; only offset 0 may execute in M02-017, while offsets 16 and 32
+   remain forbidden targets.
 4. Wire the early diagnostics readiness helper only after generated stubs can be copied to executable memory and safely invoked under W^X policy.
 5. Wire the controlled fault-probe readiness helper only after early diagnostics can survive generated-stub execution and fault handling.
 6. Wire the app-selection readiness helper only after live block-device package reads can supply the manifest/package/descriptor prerequisites.

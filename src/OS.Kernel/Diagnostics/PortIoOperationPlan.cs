@@ -11,7 +11,8 @@ public enum PortIoOperationPlanStatus
 {
     Success = 0,
     InvalidOperationKind = 1,
-    OutputBufferTooSmall = 2
+    OutputBufferTooSmall = 2,
+    MissingDestination = 3
 }
 
 public readonly struct PortIoOperationPlanResult
@@ -71,7 +72,9 @@ public readonly struct PortIoOperationPlan
 
     public static PortIoOperationPlan In8 => new PortIoOperationPlan(PortIoOperationKind.In8);
 
-    public PortIoOperationPlanResult Emit(Span<byte> destination)
+    public unsafe PortIoOperationPlanResult Emit(
+        byte* destination,
+        int destinationLength)
     {
         PortIoOperationPlanStatus status = Validate(OperationKind);
         if (status != PortIoOperationPlanStatus.Success)
@@ -79,14 +82,29 @@ public readonly struct PortIoOperationPlan
             return PortIoOperationPlanResult.Fail(status);
         }
 
-        if (destination.Length < RequiredByteLength)
+        if (destinationLength < RequiredByteLength)
         {
             return PortIoOperationPlanResult.Fail(PortIoOperationPlanStatus.OutputBufferTooSmall);
+        }
+
+        if (destination == null)
+        {
+            return PortIoOperationPlanResult.Fail(PortIoOperationPlanStatus.MissingDestination);
         }
 
         destination[0] = GetOpcode(OperationKind);
         return PortIoOperationPlanResult.Success(RequiredByteLength);
     }
+
+#if !NOSTDLIB_EFI
+    public unsafe PortIoOperationPlanResult Emit(Span<byte> destination)
+    {
+        fixed (byte* pointer = destination)
+        {
+            return Emit(pointer, destination.Length);
+        }
+    }
+#endif
 
     public static PortIoOperationPlanStatus Validate(PortIoOperationKind operationKind)
     {
