@@ -59,6 +59,27 @@ The owned diagnostics subsystem is host-testable only. No real IDT load, fault h
   contracts, write-then-execute publication, and no permanent RWX mapping. The
   `BuildTimeGenerator` enum value represents eligibility only; this slice
   implements no generator.
+- `ExistingIn8Out8StubBytesRWPagesFinalize` materializes the fixed M02-002
+  4,096-byte page into caller-owned, page-aligned storage. The page contains
+  `B8 4B 4F 53 4F C3` at offset 0, the existing seven-byte `Out8` plan at
+  offset 16, the existing five-byte `In8` plan at offset 32, and zeroes
+  everywhere else. Its occupied extent is 37 bytes, its instruction-byte count
+  is 18, its full-page FNV-1a64 is `F85393074A792B1E`, and its independently
+  host-verified SHA-256 is
+  `F8DAF2F093F6FCD3CB6CA764DCC294EC9B4DBF2B392D222946F11250BFCE353D`.
+  Always-compiled pointer cores provide materialize, full-page readback, and
+  metadata-only finalization operations; normal host builds additionally expose
+  `Span<T>` wrappers under `#if !NOSTDLIB_EFI`. A caller-owned value state
+  advances only through `Uninitialized`, `Materialized`,
+  `ReadBackVerified`, and `FinalizationAudited`, with replay/stale-version
+  rejection; state storage that aliases the page is rejected before any caller
+  storage changes. The initial state is audited as RW+NX and the final state as
+  RO+X. Tests compile the exact pointer source with `NOSTDLIB_EFI`, framework
+  references disabled, and zero assembly references, and separately execute
+  that exact `NOSTDLIB_EFI` pointer path in a bounded normal host process; the
+  zero-corelib artifact itself is compile-closure evidence, not a CLR-runnable
+  binary. The implementation changes no live page protection and invokes
+  neither the safe entry nor either privileged port-I/O entry.
 - `DescriptorTableInstructionPlan` emits deterministic x64 `lidt [rip+disp32]`, `lgdt [rip+disp32]`, and `ltr ax` instruction bytes into caller-owned storage for future descriptor-table installation stubs.
 - `DescriptorTableInstallStubPlan` emits deterministic callable x64 `lidt`, `lgdt`, and `ltr` stubs into caller-owned storage. `lidt` and `lgdt` stubs embed the 10-byte descriptor payload after the executable bytes and use RIP-relative addressing; the `ltr` stub loads a caller-provided TSS selector into `AX`. The descriptor payload copy path uses the shared `OS.Std.Memory.BufferOperations.MemoryCopy` helper after validation and maps unexpected copy-helper failure to the existing output-buffer-too-small status.
 - `FaultProbeStubPlan` emits deterministic non-executed destructive fault probe bytes for future QEMU tests: `ud2; ret` and a null-address byte write followed by `ret`. Its metadata is tied to the disabled-by-default destructive probe toggles, and it rejects default/zero result values or incomplete byte-count metadata as successful evidence.
@@ -645,7 +666,7 @@ must not be interpreted as guest evidence. Likewise, M01-019 freezes and
 presents a host-only stage-three result without enabling any probe or emitting
 from the ordinary boot path.
 
-`SerialDiagnosticsGuard` is a readiness contract only. `SerialPortConfiguration`, `Com1SerialWriter`, `Com1PlatformSerialTransport`, `PortIoOperationPlan`, `PortIoStubPlan`, `ManagedX64StubStrategyADRUseExistingAudited`, and owned-serial readiness derivation are configuration, polling, abstract backend, status, adapter, instruction-byte, and authoring-policy contracts only. The M02-001 strategy allocates, materializes, protects, binds, and executes no page; it provides no generator implementation and does not perform CPU port I/O or prove serial output survives real firmware shutdown.
+`SerialDiagnosticsGuard` is a readiness contract only. `SerialPortConfiguration`, `Com1SerialWriter`, `Com1PlatformSerialTransport`, `PortIoOperationPlan`, `PortIoStubPlan`, `ManagedX64StubStrategyADRUseExistingAudited`, `ExistingIn8Out8StubBytesRWPagesFinalize`, and owned-serial readiness derivation are configuration, polling, abstract backend, status, adapter, instruction-byte, authoring-policy, caller-owned page-byte, readback, and metadata-audit contracts only. The M02-001 strategy allocates, materializes, protects, binds, and executes no page; it provides no generator implementation and does not perform CPU port I/O or prove serial output survives real firmware shutdown. M02-002 proves exact host page bytes and no-stdlib pointer compile closure, but `src/OS/OS.csproj` does not link this contract and M02-002 owns no EFI integration path. It performs no live protection mutation, binds or invokes no function pointer, executes neither offset 0 nor privileged offsets 16 and 32, emits no guest marker, and advances no completion gate. M02-017 exclusively owns the later EFI linkage and bounded real-QEMU execution of the safe offset-zero return-cookie entry; the privileged `In8` and `Out8` entries remain unexecuted.
 
 ## Next Steps
 
@@ -659,7 +680,8 @@ from the ordinary boot path.
    toggles only in their dedicated issues; M02-014 must consume the disabled
    M01-015 intent after owned diagnostics exist.
 8. Wire real handler register capture into `CpuFaultFrame` through the deterministic fault-entry layout.
-9. Continue the M02 diagnostics dependency chain with M02-002 fixed-page
-   materialization after the reviewed M02-001 authoring-policy result; reserve
-   safe guest execution for M02-017 and preserve the M01-026 tuple only as its
-   bounded pre-EBS prerequisite evidence.
+9. Integrate the reviewed M02-002 fixed page through M02-017 only after this
+   host-only materialization, full-page readback, and RW+NX-to-RO+X metadata
+   audit is accepted. M02-017 may execute only the safe offset-zero cookie and
+   must preserve the M01-026 tuple only as bounded pre-EBS prerequisite
+   evidence; offsets 16 and 32 remain privileged and unexecuted.

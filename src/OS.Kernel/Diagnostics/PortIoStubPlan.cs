@@ -4,7 +4,8 @@ public enum PortIoStubPlanStatus
 {
     Success = 0,
     InvalidOperationKind = 1,
-    OutputBufferTooSmall = 2
+    OutputBufferTooSmall = 2,
+    MissingDestination = 3
 }
 
 public readonly struct PortIoStubPlanResult
@@ -68,7 +69,9 @@ public readonly struct PortIoStubPlan
 
     public static PortIoStubPlan In8 => new PortIoStubPlan(PortIoOperationKind.In8);
 
-    public PortIoStubPlanResult Emit(Span<byte> destination)
+    public unsafe PortIoStubPlanResult Emit(
+        byte* destination,
+        int destinationLength)
     {
         PortIoOperationPlanStatus operationStatus = PortIoOperationPlan.Validate(OperationKind);
         if (operationStatus != PortIoOperationPlanStatus.Success)
@@ -77,9 +80,26 @@ public readonly struct PortIoStubPlan
         }
 
         int requiredBytes = GetRequiredByteLength(OperationKind);
-        if (destination.Length < requiredBytes)
+        if (destinationLength < requiredBytes)
         {
             return PortIoStubPlanResult.Fail(PortIoStubPlanStatus.OutputBufferTooSmall, requiredBytes);
+        }
+
+        if (destination == null)
+        {
+            return PortIoStubPlanResult.Fail(PortIoStubPlanStatus.MissingDestination, requiredBytes);
+        }
+
+        byte operationByte = 0;
+
+        PortIoOperationPlanResult operationResult =
+            new PortIoOperationPlan(OperationKind).Emit(
+                &operationByte,
+                PortIoOperationPlan.RequiredByteLength);
+
+        if (!operationResult.Succeeded)
+        {
+            return PortIoStubPlanResult.Fail(PortIoStubPlanStatus.InvalidOperationKind, requiredBytes);
         }
 
         destination[0] = OperandSizeOverridePrefix;
@@ -94,18 +114,21 @@ public readonly struct PortIoStubPlan
             operationOffset = 5;
         }
 
-        PortIoOperationPlanResult operationResult =
-            new PortIoOperationPlan(OperationKind).Emit(destination.Slice(operationOffset, PortIoOperationPlan.RequiredByteLength));
-
-        if (!operationResult.Succeeded)
-        {
-            return PortIoStubPlanResult.Fail(PortIoStubPlanStatus.InvalidOperationKind, requiredBytes);
-        }
-
+        destination[operationOffset] = operationByte;
         destination[operationOffset + PortIoOperationPlan.RequiredByteLength] = RetOpcode;
 
         return PortIoStubPlanResult.Success(requiredBytes, requiredBytes);
     }
+
+#if !NOSTDLIB_EFI
+    public unsafe PortIoStubPlanResult Emit(Span<byte> destination)
+    {
+        fixed (byte* pointer = destination)
+        {
+            return Emit(pointer, destination.Length);
+        }
+    }
+#endif
 
     public static int GetRequiredByteLength(PortIoOperationKind operationKind)
     {
