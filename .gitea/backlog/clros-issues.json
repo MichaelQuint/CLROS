@@ -2506,7 +2506,7 @@
         "M00-023"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:epic",
         "evidence:qemu",
@@ -2520,12 +2520,13 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M01: Live Boot Memory and Paging.",
-      "currentEvidence": "M01-001 typed address wrappers are implemented and host-tested on merged master, but they are not linked into or executed by the canonical EFI artifact. The current EfiEntry source publishes four generated-instruction epochs and relies on later CPUID execution rather than a separately linked immutable instruction-publication serializer; that gap is now serialized as M01-033 through M01-035 after M01-025 and before cumulative QEMU evidence. All live reservation, stack, allocator, paging, reversible-CR3, publication-serialization, and milestone-exit evidence remains unproven.",
+      "currentEvidence": "All prior M01 implementation leaves are reviewed and closed. M01-026 implementation commit 8f1edea17f2de425520e239af58d37aa3b182146, tree 6b5359e36293d770e3dc0d074b1baabf8d4fdbf8, evidence manifest SHA-256 94A28FE683FC068C88F42AB806B3E9A06DB5467FD35488B6ADF397AC8F8A8188, reviewed PR #422 head 26219cc5327e9b32935f4e5b06fe5eb014cca93c, and merge commit 6aaf046362d0a3187f551ee06f1456d05ce5021f preserve the accepted bounded local-QEMU pre-ExitBootServices technical exit. M01-036 is the final repository-state repair leaf: it makes those closures durable, adds the safe M02 integration split, and must close with reviewed host evidence before this epic may converge closed.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
         "M01-001 through M01-015 are host-evidence leaves; M01-016 through M01-027 serialize the original probe, composite-transition, project, boot-sequence, EFI-entry, and QEMU boundaries; M01-028 through M01-032 recover and serialize the preparation, exact live-interval binding, physical table-arena, and audited call-gate prerequisites before M01-025 may resume.",
         "After M01-025 closes, M01-033 generates one deterministic C# AMD64 COFF serializer with exact x64 unwind metadata and a fixed post-CPUID cookie, M01-034 integrates and verifies its immutable executable text, RUNTIME_FUNCTION/unwind coverage, and exact InternalCall RuntimeImport binding in the canonical EFI artifact, and M01-035 checks the returned cookie at all four current EfiEntry publication epochs before M01-026 may collect cumulative real-QEMU evidence.",
+        "M01-036 is the final host-only repository-state repair leaf after M01-026. It makes the accepted closure idempotent, corrects the first M02/M04 implementation evidence contracts, and prevents readiness from being recomputed against stale open-state data.",
         "Close only after every child issue is closed with accepted evidence and the milestone exit criterion is satisfied."
       ],
       "referenceInfluences": [
@@ -2541,7 +2542,7 @@
         }
       ],
       "acceptanceCriteria": [
-        "All 35 keyed child issues are closed with reviewed evidence.",
+        "All 36 keyed child issues are closed with reviewed evidence.",
         "Prove owned reservations, allocation, paging, CR3, and W^X under real QEMU.",
         "Canonical documentation and completion gates state only what current first-party evidence proves."
       ],
@@ -2558,7 +2559,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "The epic records coordination only; it proves none of Live Boot Memory and Paging until every child and exit criterion passes.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M01-001",
@@ -5923,7 +5924,7 @@
         "M01-035"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p0",
         "type:test",
         "evidence:qemu",
@@ -5957,7 +5958,7 @@
       ],
       "collisionLane": "lane:central-docs",
       "summary": "Build and boot a fresh canonical EFI artifact and preserve cumulative pre-EBS three-allocation plus reversible owned-CR3 probe evidence, including architecturally unwindable immutable instruction-publication serialization with runtime-observed cookies at all four current epochs, interrupt restoration, exact stub materialization, callback exclusion, firmware-CR3 restoration, scoped RW-to-RX/invlpg/probe execution, and scoped page-zero absence.",
-      "currentEvidence": "No current live guest evidence proves any M01 stage, distinct LoaderCode CR3/invlpg and protection-probe pages, the LoaderData table/state arena, map recapture, exact byte materialization, immutable instruction-publication serialization or expected-cookie return at all four current EfiEntry epochs, architectural preflight, interrupt discipline, reversible owned-CR3 continuity/restoration, canary validation, scoped RW-to-RX/invlpg/probe behavior, or scoped page-zero absence. M01-025 and then M01-033, M01-034, and M01-035 must close with reviewed source/build evidence before this issue may be claimed.",
+      "currentEvidence": "Accepted implementation commit 8f1edea17f2de425520e239af58d37aa3b182146 and tree 6b5359e36293d770e3dc0d074b1baabf8d4fdbf8 passed the complete host gate and one fresh all-switch local QEMU/OVMF r16 run at artifacts/logs/m01-026-final/8f1edea1-20260730T145353Z-r16/. HostTests emitted 3,328 TEST_START markers, 3,329 TEST_PASS markers, zero TEST_FAIL markers, and one terminal TEST_PASS host.tests; stdout SHA-256 is 996E343DC72C34B6F2521C1E703A58BB98362242A3E894D48647057F139F13F3. Real QEMU required all 42 issue guest markers ordered and unique, rejected all 25 issue failure markers, kept M01_OWNED_CR3_ENTERED absent from public serial, and produced serial SHA-256 CC51100244A8A20865DB9D16CE5D73B0930F43EA98835DFA57027A00B126C661, QEMU summary SHA-256 B8451020C2355B061E83DB090EFFD62A965A95AD73D11D7F9864477753582339, raw-observations SHA-256 6FFEDB0B5998A930E614E3EC0EE68E2B444439AE686A9412F3206760D257F933, and BOOTX64.EFI SHA-256 76F2B404E91EB5E62CAD80B797B936BA3D3D39D5B0577889BB8459AF1B55C47C. Schema-v1 evidence manifest SHA-256 94A28FE683FC068C88F42AB806B3E9A06DB5467FD35488B6ADF397AC8F8A8188 binds 47 independently rehashed artifacts, 10 tools, 44 required markers, 26 forbidden markers, and 61 observed markers; independent validation SHA-256 is B686F7C9C69CE8A9FB8731A4C8C2DF3807006A9993AB2349B763CE556E05DAA1. Documentation/evidence head 26219cc5327e9b32935f4e5b06fe5eb014cca93c passed independent review and merged through PR #422 as 6aaf046362d0a3187f551ee06f1456d05ce5021f. Issue #333 evidence-review comment #6472 carries clros-evidence-reviewed:M01-026, merge-proof comment #6477 records the guarded merge, and done/step890.md preserves the exact evidence and nonclaims.",
       "implementationNotes": [
         "Use -BuildEfi with all three explicit M01 switches and never reuse a staged EFI artifact.",
         "Consume the ordered-plus-unique guest-marker mode introduced by M01-022. Require guest stage-one, stage-two, and stage-three start/pass pairs plus cumulative separate allocation/map/ledger recapture, exact byte materialization, M01_PAGING_MODE_VALIDATED before M01_PRE_CR3, verified exact raw firmware-CR3 restoration, M01_RFLAGS_RESTORED, M01_PGE_CYCLE_VERIFIED after exact raw-CR4 restoration/readback, canary validation, M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED immediately before M01_POST_CR3, scoped protection/invlpg/probe/page-zero markers, and OS_SMOKE_PASS.",
@@ -6059,7 +6060,101 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves only the cumulative pre-EBS M01 probe under the recorded local QEMU/OVMF configuration: loader-owned image; separate EfiLoaderCode stack-switch, CR3/invlpg, and protection-probe pages plus EfiLoaderData guard/stack, allocator, and page-table/state arenas with map recapture; exact audited byte materialization; an immutable, correctly unwind-described instruction-publication serializer whose post-CPUID cookie is checked at the four current same-core publication epochs and whose aggregate success marker is runtime-observed; architectural-mode validation with PCIDE/LA57 clear and an audited PGE clear/readback/restore cycle; one arena-confined metadata alloc/free cycle; reversible callback-free owned-CR3 execution; exact raw firmware-CR3, raw-CR4, and RFLAGS/IF restoration; continuation-canary validation; and, only during the owned interval, RX/non-writable stubs, RW+NX table/state/stack data, a live RW+NX-to-RO+X protection-probe transition with exact invlpg/PTE readback/constant return, no present owned-hierarchy W+X leaf, guard absent, and virtual page zero absent. QEMU/TCG continuity does not empirically prove absence of speculative code-store bypass and does not prove cross-core instruction publication. It does not prove post-EBS allocation ownership, restored firmware mapping policy, systemwide W^X/page-zero policy, firmware diagnostics under owned CR3, permanent CR3 adoption, NMI/SMI safety, controlled #PF, ExitBootServices, owned COM1/descriptors, devices, applications, hosted .NET, Kestrel, cloud, or production readiness; null-fault execution remains M02-014 and permanent CR3 adoption occurs only after successful ExitBootServices in M03-007.",
-      "desiredState": "open"
+      "desiredState": "closed"
+    },
+    {
+      "key": "M01-036",
+      "title": "[M01-036] Make M01 closure and M02 production-slice readiness durable.",
+      "milestone": "M01",
+      "parentKey": "M01-EPIC",
+      "dependencyKeys": [
+        "M01-026"
+      ],
+      "labels": [
+        "agent:done",
+        "priority:p0",
+        "type:tooling",
+        "evidence:host",
+        "component:repo",
+        "phase:m01-memory",
+        "lane:central-docs"
+      ],
+      "priority": "priority:p0",
+      "ownedPaths": [
+        ".gitea/backlog/clros-issues.json",
+        "scripts/sync-gitea-backlog.ps1",
+        "tests/OS.HostTests/GiteaBacklogManifestTests.cs",
+        "tests/OS.HostTests/RepositoryRecoveryTests.cs",
+        "tests/OS.HostTests/M01LivePagingPrerequisiteManifestTests.cs",
+        "docs/issue-labels.md",
+        "docs/repo-audit.md"
+      ],
+      "forbiddenPaths": [
+        "src/**",
+        "std/**",
+        "apps/**",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Boot/BootSequencePlan.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "scripts/build-efi-shell.ps1",
+        "scripts/run-qemu-smoke.ps1",
+        "tests/OS.HostTests/QemuRunnerTests.cs",
+        "README.md",
+        "references/** (read-only)",
+        "done/** (reserve one new step only after implementation evidence exists)"
+      ],
+      "collisionLane": "lane:central-docs",
+      "summary": "Make the accepted M01-026 closure idempotent, add the safe M02 live-integration split, and repair the first M02/M04 production-C# contracts before readiness is recomputed.",
+      "currentEvidence": "Implementation commit f14a26f9267fc3e1cc32fcd5e847818d7dbe252c and tree dd247128d6e1bd759edc4a770243a0f329dd3257 passed the complete host-only M01-036 gate at artifacts/logs/m01-036-final/f14a26f-20260730T162508Z-r1. HostTests emitted 3,329 TEST_START markers, 3,330 TEST_PASS markers, zero TEST_FAIL markers, one terminal TEST_PASS host.tests, and exactly one M01-036 start/ready/pass envelope. Gate-summary SHA-256 is 8AFFFF45C7D35AC3B822EAB855A873933DD0E3B3D96C4802D0390326608EE4A6; HostTests stdout SHA-256 is 2230BDC50460A751CBB3573A6E7FCDA5C8E30C3C0D463FDB18268E7C4F7DCC0D. Solution and HostTests builds, naming/source firewall, QEMU dry-run, canonical EFI build, synchronizer offline validation/self-test, diff check, and clean status passed. done/step891.md preserves exact hashes, wrapper-timeout recovery, deferred live synchronization, and nonclaims. M01-026 issue #333 remains reviewed, merged, and closed at PR #422 merge commit 6aaf046362d0a3187f551ee06f1456d05ce5021f. Live issue #425 remains claimed pending independent review and guarded merge; the stale synchronizer has not been applied.",
+      "implementationNotes": [
+        "Change M01-026 to desiredState closed with exactly one agent:done label and bind its accepted source, host, real-QEMU, manifest, independent-review, PR, merge, step, and tracker evidence.",
+        "Add this M01-036 leaf after M01-026 and serialize it on lane:central-docs. Keep every production source path forbidden.",
+        "Add M02-017 as the only serialized first live-QEMU integration leaf after M02-002. Rewire M02-003 to depend on M02-017 so no issue can confuse host materialization with safe guest execution.",
+        "Redirect M02-EPIC, M02-001, M04-EPIC, and M04-001 from M01-026 to this repair leaf so readiness cannot release against stale catalog state.",
+        "Make M02-001, M02-002, and M04-001 production C# implementation leaves with host evidence, exact stable markers, QEMU dry-run preflight only, and explicit no-live-I/O/non-production boundaries.",
+        "Update all catalog-size and contiguous-key invariants to 326 children, 342 keyed issues, 426 managed objects, M01 through 036, and M02 through 017.",
+        "Emit the exact host marker CLROS_M01_036_READY epics=16 children=326 issues=342 managed=426 m01Children=36 m02Children=17 adoptedM01Issue=425 duplicateKeys=0.",
+        "Use synchronizer -SelfTest and -Offline before review. Do not apply the live synchronizer until this repair is independently reviewed, merged, and issue #425 carries reviewed closure evidence.",
+        "After guarded merge and closure, adopt the manually bootstrapped M01-036 issue by hidden key, create only M02-017, close the eligible M01 epic only with its own reviewed evidence marker, and require a second live preview to report all 426 managed objects unchanged."
+      ],
+      "referenceInfluences": [],
+      "acceptanceCriteria": [
+        "The manifest contains exactly 16 epics plus 326 contiguous children, including M01-036 and M02-017, for 342 keyed issues and 426 total managed objects.",
+        "M01-026 remains closed/done with exact accepted r16 evidence and no claim broader than the bounded local-QEMU pre-ExitBootServices tuple.",
+        "M02-001, M02-002, and M04-001 are type:implementation/evidence:host production C# leaves with no non-dry-run QEMU command; M02-017 alone owns the first safe guest integration boundary.",
+        "M02-003 depends on M02-017, while M02-EPIC, M02-001, M04-EPIC, and M04-001 depend on M01-036.",
+        "Focused manifest, repository-recovery, and M01 prerequisite tests reject stale counts, missing keys, incorrect dependencies, unsafe evidence promotion, or ownership drift.",
+        "The exact CLROS_M01_036_READY epics=16 children=326 issues=342 managed=426 m01Children=36 m02Children=17 adoptedM01Issue=425 duplicateKeys=0 marker appears once between TEST_START m01.036 and TEST_PASS m01.036.",
+        "Solution build, HostTests build/run, naming/source firewall, QEMU dry-run, synchronizer self-test/offline validation, and diff checks pass with stable M01-036 markers.",
+        "Independent review confirms that only the declared repository tooling, tests, canonical docs, and one freshly reserved done ledger changed.",
+        "The live synchronizer is not applied before merge; after merge and closure it adopts issue #425, creates only M02-017, converges the M01 epic only with reviewed evidence, computes the smallest collision-safe ready production leaf, and reruns idempotently."
+      ],
+      "requiredMarkers": [
+        "TEST_START m01.036",
+        "CLROS_M01_036_READY epics=16 children=326 issues=342 managed=426 m01Children=36 m02Children=17 adoptedM01Issue=425 duplicateKeys=0",
+        "TEST_PASS m01.036",
+        "TEST_FAIL m01.036 <reason>"
+      ],
+      "requiredCommands": [
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\sync-gitea-backlog.ps1 -SelfTest",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\sync-gitea-backlog.ps1 -Offline",
+        "dotnet build .\\CLROS.slnx --nologo -m:1",
+        "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check-naming.ps1",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\build-efi-shell.ps1",
+        "git diff --check",
+        "git status --short"
+      ],
+      "documentationPaths": [
+        "docs/issue-labels.md",
+        "docs/repo-audit.md"
+      ],
+      "evidenceBoundary": "This issue proves only canonical backlog, synchronization, dependency, ownership, and readiness-policy correctness through host evidence. It changes no production C# source and does not prove live CPU port I/O, executable diagnostic-stub guest integration, real ExitBootServices, owned post-firmware diagnostics, physical hardware, provider behavior, CloudReady status, or production readiness.",
+      "desiredState": "closed"
     },
     {
       "key": "M02-EPIC",
@@ -6067,7 +6162,7 @@
       "milestone": "M02",
       "parentKey": null,
       "dependencyKeys": [
-        "M01-026"
+        "M01-036"
       ],
       "labels": [
         "agent:blocked",
@@ -6088,6 +6183,7 @@
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
+        "M02-001 and M02-002 are host-evidence production C# leaves. M02-017 is their serialized safe guest-integration leaf; only it may touch the EFI/project/QEMU boundary, and it must not invoke In8 or Out8.",
         "Close only after every child issue is closed with accepted evidence and the milestone exit criterion is satisfied."
       ],
       "referenceInfluences": [
@@ -6098,7 +6194,7 @@
         }
       ],
       "acceptanceCriteria": [
-        "All 16 keyed child issues are closed with reviewed evidence.",
+        "All 17 keyed child issues are closed with reviewed evidence.",
         "Prove owned COM1 and descriptor/fault handling under real QEMU.",
         "Canonical documentation and completion gates state only what current first-party evidence proves."
       ],
@@ -6119,20 +6215,21 @@
     },
     {
       "key": "M02-001",
-      "title": "[M02-001] Write the managed x64-stub strategy ADR: use existing audited byte plans for the first live stubs and introduce a generator only after a second demonstrated need.",
+      "title": "[M02-001] Encode and test the managed x64-stub authoring strategy: existing audited In8/Out8 plans first; generator eligibility only after a second independent live-stub need.",
       "milestone": "M02",
       "parentKey": "M02-EPIC",
       "dependencyKeys": [
-        "M01-026"
+        "M01-036"
       ],
       "labels": [
         "agent:blocked",
         "priority:p1",
-        "type:docs",
-        "evidence:qemu",
+        "type:implementation",
+        "evidence:host",
         "component:diagnostics",
         "phase:m02-diagnostics",
-        "reference:adapt"
+        "reference:adapt",
+        "lane:central-docs"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -6142,28 +6239,33 @@
         "docs/boot-order.md"
       ],
       "forbiddenPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
+        "src/OS.Kernel/Diagnostics/PortIoOperationPlan.cs (read-only)",
+        "src/OS.Kernel/Diagnostics/PortIoStubPlan.cs (read-only)",
+        ".gitea/backlog/**",
+        "scripts/**",
+        "tools/**",
         "README.md",
         "docs/completion-gates.md",
-        "references/** (read-only except the dedicated references/AGENTS.override.md issue)",
+        "references/** (read-only)",
         "done/** (reserve a new step only after implementation evidence exists)"
       ],
-      "collisionLane": null,
-      "summary": "Write the managed x64-stub strategy ADR: use existing audited byte plans for the first live stubs and introduce a generator only after a second demonstrated need.",
-      "currentEvidence": "Diagnostic descriptor/stub plans are host-tested; owned COM1, loaded GDT/TSS/IDT, and controlled live faults are unproven.",
+      "collisionLane": "lane:central-docs",
+      "summary": "Implement an allocation-free production C# strategy result that selects existing audited byte plans for the first demonstrated x64 stub family and makes generator eligibility an explicit default-deny threshold decision.",
+      "currentEvidence": "Production PortIoStubPlan already emits the exact reviewed Out8 bytes 66 89 CA 88 D0 EE C3 (7 bytes) and In8 bytes 66 89 CA EC C3 (5 bytes), while the executable-stub bundle/materialization/page-transition surfaces remain host-tested contracts only. There is one demonstrated byte-plan family, so a generator is not yet justified; no live port I/O, executable guest binding, or owned COM1 output has been proven.",
       "implementationNotes": [
-        "Implement exactly one bounded slice: Write the managed x64-stub strategy ADR: use existing audited byte plans for the first live stubs and introduce a generator only after a second demonstrated need.",
-        "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
-        "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
+        "Implement ManagedX64StubStrategyADRUseExistingAudited.cs as production C# 14 code with value-only enums/results, explicit initialization, status-coded invalid/default cases, no exceptions, no reflection, no dynamic invocation, and no hidden allocation on the successful decision path.",
+        "Return strategy=ExistingAuditedBytePlans, families=1, generatorThreshold=2, generatorEligible=false, out8Bytes=7, in8Bytes=5, writeThenExecute=true, and permanentRwx=false only when the exact existing PortIoStubPlan lengths and policy inputs validate.",
+        "Treat generator eligibility as false until at least two independent demonstrated stub families require generation; do not count Out8 and In8 as separate families because they share one port-I/O plan family.",
+        "Require the exact Out8 bytes 66 89 CA 88 D0 EE C3 and In8 bytes 66 89 CA EC C3 in tests. Reject changed lengths, missing families, a threshold below two, execute-while-write, permanent RWX, and default/zero result-success promotion.",
+        "This issue records the write-then-execute policy only; it does not allocate a page, copy bytes into executable storage, change page protection, bind a function pointer, or perform port I/O. M02-002 owns materialization and M02-017 owns the first safe guest integration.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
         "The proposed owned paths are exact for this slice: src/OS.Kernel/Diagnostics/ManagedX64StubStrategyADRUseExistingAudited.cs, tests/OS.HostTests/ManagedX64StubStrategyADRUseExistingAuditedTests.cs, docs/diagnostics.md, docs/boot-order.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Demonstrate the exact successful repository/evidence behavior required by: Write the managed x64-stub strategy ADR: use existing audited byte plans for the first live stubs and introduce a generator only after a second demonstrated need.",
-        "Failure cases: Cover missing file/tool, duplicate key, malformed input, stale path/claim, nonzero process exit, missing marker, hash mismatch, and unauthorized write as applicable.",
-        "Explicitly inapplicable here: Live device I/O, packet loss, runtime unwind, and cloud cleanup are outside this repository/tooling slice.",
-        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
+        "Emit the exact host marker CLROS_M02_001_READY strategy=ExistingAuditedBytePlans families=1 generatorThreshold=2 generatorEligible=false out8Bytes=7 in8Bytes=5 writeThenExecute=true permanentRwx=false.",
+        "Close from focused and complete host evidence. QEMU dry-run is tooling preflight only; no real-QEMU marker or serial evidence is required or permitted for this policy leaf."
       ],
       "referenceInfluences": [
         {
@@ -6173,39 +6275,41 @@
         }
       ],
       "acceptanceCriteria": [
-        "The repository implements and tests the scoped behavior: Write the managed x64-stub strategy ADR: use existing audited byte plans for the first live stubs and introduce a generator only after a second demonstrated need.",
+        "Production C# returns the exact initialized ExistingAuditedBytePlans decision for one demonstrated family and rejects malformed/default policy inputs without throwing.",
+        "Tests independently verify the exact 7-byte Out8 and 5-byte In8 plans, family/threshold semantics, write-then-execute=true, permanentRwx=false, and default-result failure.",
+        "The exact CLROS_M02_001_READY strategy=ExistingAuditedBytePlans families=1 generatorThreshold=2 generatorEligible=false out8Bytes=7 in8Bytes=5 writeThenExecute=true permanentRwx=false host marker appears once between the M02-001 start/pass markers.",
         "Only declared owned paths are changed; lane-controlled integration files are touched only when this issue owns that lane.",
         "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
         "Affected canonical documentation is updated without promoting unsupported completion gates.",
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Demonstrate the exact successful repository/evidence behavior required by: Write the managed x64-stub strategy ADR: use existing audited byte plans for the first live stubs and introduce a generator only after a second demonstrated need.",
-        "Applicable failure cases are asserted: Cover missing file/tool, duplicate key, malformed input, stale path/claim, nonzero process exit, missing marker, hash mismatch, and unauthorized write as applicable.",
-        "The evidence report explicitly records these non-goals: Live device I/O, packet loss, runtime unwind, and cloud cleanup are outside this repository/tooling slice."
+        "Evidence explicitly leaves page materialization to M02-002 and safe guest integration to M02-017; it makes no live In8/Out8, COM1, descriptor, fault, ExitBootServices, provider, CloudReady, or production-readiness claim."
       ],
       "requiredMarkers": [
         "TEST_START m02.001",
+        "CLROS_M02_001_READY strategy=ExistingAuditedBytePlans families=1 generatorThreshold=2 generatorEligible=false out8Bytes=7 in8Bytes=5 writeThenExecute=true permanentRwx=false",
         "TEST_PASS m02.001",
-        "TEST_FAIL m02.001 <reason>",
-        "CLROS_M02_001_READY"
+        "TEST_FAIL m02.001 <reason>"
       ],
       "requiredCommands": [
         "dotnet build .\\CLROS.slnx --nologo -m:1",
+        "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
         "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
         "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check-naming.ps1",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\build-efi-shell.ps1",
         "git diff --check",
-        "git status --short",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M02_001_READY\""
+        "git status --short"
       ],
       "documentationPaths": [
         "docs/diagnostics.md",
         "docs/boot-order.md"
       ],
-      "evidenceBoundary": "This issue proves only \"Write the managed x64-stub strategy ADR: use existing audited byte plans for the first live stubs and introduce a generator only after a second demonstrated need.\" It does not by itself prove the M02 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
+      "evidenceBoundary": "This issue proves only an allocation-free host-tested production C# strategy decision over the existing exact Out8/In8 audited byte plans: one port-I/O family uses existing plans, a generator remains ineligible until two independent families exist, bytes must be written before execution, and permanent RWX is forbidden. It does not allocate, materialize, protect, bind, or execute a page; invoke In8/Out8; configure COM1; install descriptors; capture faults; cross ExitBootServices; or prove QEMU, hardware, provider, CloudReady, or production readiness.",
       "desiredState": "open"
     },
     {
       "key": "M02-002",
-      "title": "[M02-002] Materialize the existing In8/Out8 stub bytes into RW pages and finalize them RX.",
+      "title": "[M02-002] Materialize and read back the fixed safe/In8/Out8 page with no-stdlib pointer emitters and audit RW+NX to RO+X finalization metadata.",
       "milestone": "M02",
       "parentKey": "M02-EPIC",
       "dependencyKeys": [
@@ -6215,41 +6319,48 @@
         "agent:blocked",
         "priority:p1",
         "type:implementation",
-        "evidence:qemu",
+        "evidence:host",
         "component:diagnostics",
         "phase:m02-diagnostics",
-        "reference:adapt"
+        "reference:adapt",
+        "lane:central-docs"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
+        "src/OS.Kernel/Diagnostics/PortIoOperationPlan.cs",
+        "src/OS.Kernel/Diagnostics/PortIoStubPlan.cs",
         "src/OS.Kernel/Diagnostics/ExistingIn8Out8StubBytesRWPagesFinalize.cs",
         "tests/OS.HostTests/ExistingIn8Out8StubBytesRWPagesFinalizeTests.cs",
         "docs/diagnostics.md",
         "docs/boot-order.md"
       ],
       "forbiddenPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
+        ".gitea/backlog/**",
+        "scripts/**",
+        "tools/**",
         "README.md",
         "docs/completion-gates.md",
-        "references/** (read-only except the dedicated references/AGENTS.override.md issue)",
+        "references/** (read-only)",
         "done/** (reserve a new step only after implementation evidence exists)"
       ],
-      "collisionLane": null,
-      "summary": "Materialize the existing In8/Out8 stub bytes into RW pages and finalize them RX.",
-      "currentEvidence": "Diagnostic descriptor/stub plans are host-tested; owned COM1, loaded GDT/TSS/IDT, and controlled live faults are unproven.",
+      "collisionLane": "lane:central-docs",
+      "summary": "Implement a deterministic, allocation-free production C# materializer for one caller-owned 4096-byte page containing a safe constant-return stub plus the exact audited Out8/In8 bytes at fixed disjoint offsets, and return a value-only RW+NX-to-RO+X transition plan without changing live page protection.",
+      "currentEvidence": "PortIoStubPlan already emits the exact 7-byte Out8 and 5-byte In8 sequences, and existing runtime contracts model executable-stub bundles and protection transitions. No production contract currently fixes a complete page layout, independently hashes every byte, supports the no-stdlib pointer boundary, or separates safe guest execution from the privileged port-I/O entries. No live page protection or diagnostic stub execution is proven.",
       "implementationNotes": [
-        "Implement exactly one bounded slice: Materialize the existing In8/Out8 stub bytes into RW pages and finalize them RX.",
-        "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
-        "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
+        "Implement ExistingIn8Out8StubBytesRWPagesFinalize.cs as allocation-free production C# with initialized value-only status/results, a Span-based host surface, and an explicit pointer-plus-length materializer that compiles under the NOSTDLIB_EFI no-framework-reference profile.",
+        "The output is exactly one 4096-byte page: safe constant-return bytes B8 4B 4F 53 4F C3 at offset 0, exact Out8 bytes 66 89 CA 88 D0 EE C3 at offset 16, exact In8 bytes 66 89 CA EC C3 at offset 32, and zero in every other byte.",
+        "The complete page must have FNV-1a64 F85393074A792B1E and SHA-256 F8DAF2F093F6FCD3CB6CA764DCC294EC9B4DBF2B392D222946F11250BFCE353D. Production kernel code may compute the allocation-free FNV; the independent SHA-256 oracle belongs in host tests.",
+        "Require a caller-declared initial RW+NX state, exact successful full-page materialization/readback, and a final RO+X plan. Reject W+X at either state, execute-before-finalize, undersized/oversized destinations, overlapping or changed offsets, changed bytes, partial writes, nonzero padding, default results, arithmetic overflow, and stale/double finalization.",
+        "Return liveProtection=false and liveExecution=false. This issue records and validates a transition plan/receipt only; it must not call a mapper, modify PTEs, invalidate TLBs, bind a function pointer, execute the safe stub, or invoke the Out8/In8 entries.",
+        "Extend PortIoOperationPlan.cs and PortIoStubPlan.cs only as needed to append MissingDestination = 3 without renumbering existing values and expose always-compiled pointer cores; keep host Span wrappers under #if !NOSTDLIB_EFI and do not duplicate privileged byte definitions.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
-        "The proposed owned paths are exact for this slice: src/OS.Kernel/Diagnostics/ExistingIn8Out8StubBytesRWPagesFinalize.cs, tests/OS.HostTests/ExistingIn8Out8StubBytesRWPagesFinalizeTests.cs, docs/diagnostics.md, docs/boot-order.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Exercise a valid aligned, non-overflowing case for: Materialize the existing In8/Out8 stub bytes into RW pages and finalize them RX.",
-        "Failure cases: Cover zero/default addresses, size overflow, end-address wrap, misalignment, overlap, exhaustion, stale ownership, double release, and prohibited writable-executable state as applicable.",
-        "Explicitly inapplicable here: Packet loss, disk path traversal, and cloud resource cleanup are outside this address/memory slice.",
-        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
+        "The proposed owned paths are exact for this slice: src/OS.Kernel/Diagnostics/PortIoOperationPlan.cs, src/OS.Kernel/Diagnostics/PortIoStubPlan.cs, src/OS.Kernel/Diagnostics/ExistingIn8Out8StubBytesRWPagesFinalize.cs, tests/OS.HostTests/ExistingIn8Out8StubBytesRWPagesFinalizeTests.cs, docs/diagnostics.md, docs/boot-order.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Emit the exact host marker CLROS_M02_002_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E sha256=F8DAF2F093F6FCD3CB6CA764DCC294EC9B4DBF2B392D222946F11250BFCE353D initial=RW+NX final=RO+X liveProtection=false liveExecution=false.",
+        "Close from focused no-stdlib and complete host evidence. QEMU dry-run is tooling preflight only; M02-017 exclusively owns fresh EFI linkage, real-QEMU execution of offset 0, and guest marker evidence."
       ],
       "referenceInfluences": [
         {
@@ -6259,34 +6370,38 @@
         }
       ],
       "acceptanceCriteria": [
-        "The repository implements and tests the scoped behavior: Materialize the existing In8/Out8 stub bytes into RW pages and finalize them RX.",
+        "Production C# deterministically writes the exact 4096-byte image with the safe stub at 0, Out8 at 16, In8 at 32, zero padding everywhere else, FNV-1a64 F85393074A792B1E, and a successful value-only RW+NX-to-RO+X plan.",
+        "An independent host oracle proves SHA-256 F8DAF2F093F6FCD3CB6CA764DCC294EC9B4DBF2B392D222946F11250BFCE353D and rejects every single-byte layout/offset/opcode/padding mutation used by the focused suite.",
+        "The exact production source compiles and runs its pointer materializer under NOSTDLIB_EFI with framework references disabled and no managed-reference result fields.",
+        "Negative cases fail atomically for invalid destination length/alignment, changed/overlapping offsets, invalid source plans, partial materialization, nonzero padding, unsafe W+X states, execute-before-finalize, stale/double finalization, overflow, and default/zero result-success promotion.",
+        "The exact CLROS_M02_002_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E sha256=F8DAF2F093F6FCD3CB6CA764DCC294EC9B4DBF2B392D222946F11250BFCE353D initial=RW+NX final=RO+X liveProtection=false liveExecution=false host marker appears once between the M02-002 start/pass markers.",
         "Only declared owned paths are changed; lane-controlled integration files are touched only when this issue owns that lane.",
         "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
         "Affected canonical documentation is updated without promoting unsupported completion gates.",
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Exercise a valid aligned, non-overflowing case for: Materialize the existing In8/Out8 stub bytes into RW pages and finalize them RX.",
-        "Applicable failure cases are asserted: Cover zero/default addresses, size overflow, end-address wrap, misalignment, overlap, exhaustion, stale ownership, double release, and prohibited writable-executable state as applicable.",
-        "The evidence report explicitly records these non-goals: Packet loss, disk path traversal, and cloud resource cleanup are outside this address/memory slice."
+        "Evidence explicitly defers live page protection, TLB invalidation, function-pointer binding, safe-stub execution, and all In8/Out8 invocation to later serialized issues."
       ],
       "requiredMarkers": [
         "TEST_START m02.002",
+        "CLROS_M02_002_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E sha256=F8DAF2F093F6FCD3CB6CA764DCC294EC9B4DBF2B392D222946F11250BFCE353D initial=RW+NX final=RO+X liveProtection=false liveExecution=false",
         "TEST_PASS m02.002",
-        "TEST_FAIL m02.002 <reason>",
-        "CLROS_M02_002_READY"
+        "TEST_FAIL m02.002 <reason>"
       ],
       "requiredCommands": [
         "dotnet build .\\CLROS.slnx --nologo -m:1",
+        "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
         "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
         "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check-naming.ps1",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\build-efi-shell.ps1",
         "git diff --check",
-        "git status --short",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M02_002_READY\""
+        "git status --short"
       ],
       "documentationPaths": [
         "docs/diagnostics.md",
         "docs/boot-order.md"
       ],
-      "evidenceBoundary": "This issue proves only \"Materialize the existing In8/Out8 stub bytes into RW pages and finalize them RX.\" It does not by itself prove the M02 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
+      "evidenceBoundary": "This issue proves only deterministic allocation-free host materialization of one exact caller-owned 4096-byte safe/Out8/In8 page image plus a value-only RW+NX-to-RO+X finalization plan. The source has a tested no-stdlib pointer boundary and the complete page is bound to FNV-1a64 F85393074A792B1E and SHA-256 F8DAF2F093F6FCD3CB6CA764DCC294EC9B4DBF2B392D222946F11250BFCE353D. It does not allocate or map a live page, change a PTE, invalidate a TLB, bind or execute any entry, perform In8/Out8, configure COM1, emit guest serial, cross ExitBootServices, or prove QEMU, physical hardware, provider, CloudReady, Kestrel, or production readiness; M02-017 owns the first safe offset-0 guest proof.",
       "desiredState": "open"
     },
     {
@@ -6295,7 +6410,7 @@
       "milestone": "M02",
       "parentKey": "M02-EPIC",
       "dependencyKeys": [
-        "M02-002"
+        "M02-017"
       ],
       "labels": [
         "agent:blocked",
@@ -7494,6 +7609,131 @@
       "desiredState": "open"
     },
     {
+      "key": "M02-017",
+      "title": "[M02-017] Integrate the fixed M02 stub page into the reversible pre-EBS owned-root probe and execute only its safe return-cookie entry.",
+      "milestone": "M02",
+      "parentKey": "M02-EPIC",
+      "dependencyKeys": [
+        "M02-002"
+      ],
+      "labels": [
+        "agent:blocked",
+        "priority:p1",
+        "type:implementation",
+        "evidence:qemu",
+        "component:boot",
+        "component:diagnostics",
+        "component:qemu",
+        "phase:m02-diagnostics",
+        "lane:efi-entry"
+      ],
+      "priority": "priority:p1",
+      "ownedPaths": [
+        "src/OS/OS.csproj",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/Boot/M02SafeStubPageIntegration.cs",
+        "scripts/build-efi-shell.ps1",
+        "scripts/run-qemu-smoke.ps1",
+        "tests/OS.HostTests/M02SafeStubPageEfiEntryTests.cs",
+        "tests/OS.HostTests/BuildEfiShellPreflightTests.cs",
+        "tests/OS.HostTests/QemuRunnerTests.cs",
+        "docs/diagnostics.md",
+        "docs/boot.md",
+        "docs/boot-order.md",
+        "docs/efi-build.md",
+        "docs/qemu.md",
+        "docs/completion-gates.md"
+      ],
+      "forbiddenPaths": [
+        ".gitea/backlog/**",
+        "src/OS/Boot/X64InstructionPublication.cs",
+        "src/OS/Runtime/**",
+        "src/OS.Kernel/Diagnostics/PortIoOperationPlan.cs (read-only)",
+        "src/OS.Kernel/Diagnostics/PortIoStubPlan.cs (read-only)",
+        "src/OS.Kernel/Diagnostics/ExistingIn8Out8StubBytesRWPagesFinalize.cs (read-only)",
+        "src/OS.Kernel/Diagnostics/X64ProtectionProbeStubPlan.cs (read-only)",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Boot/BootSequencePlan.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "tests/OS.HostTests/ManagedX64StubStrategyADRUseExistingAuditedTests.cs",
+        "tests/OS.HostTests/ExistingIn8Out8StubBytesRWPagesFinalizeTests.cs",
+        "tools/**",
+        "README.md",
+        "references/** (read-only)",
+        "done/** (reserve one new step only after fresh real-QEMU evidence exists)"
+      ],
+      "collisionLane": "lane:efi-entry",
+      "summary": "Materialize the fixed M02 page into the existing reversible M01 protection-probe page and execute only its offset-zero constant-return entry under the already audited temporary owned-root gate.",
+      "currentEvidence": "M01-026 proves one bounded reversible pre-ExitBootServices owned-root execution interval under local QEMU/OVMF. M02-001 and M02-002 are planned host-only production-C# policy/materialization leaves. No M02 page is linked into the EFI artifact, no offset-zero M02 entry has executed, and no In8/Out8 or owned COM1 behavior has been proven.",
+      "implementationNotes": [
+        "Add the opt-in EnableM02SafeStubProbe=false project property and M02_SAFE_STUB_PROBE compile symbol. The M02 switch must require EnableM01LoadedImageStackProbe, EnableM01LiveAllocatorProbe, and EnableM01OwnedPagingProbe; default EFI behavior must remain unchanged.",
+        "Consume the reviewed M02-002 fixed 4096-byte page layout and materialize it into the existing M01 protection-probe page: safe bytes B8 4B 4F 53 4F C3 at offset 0, Out8 at 16, In8 at 32, and zero everywhere else.",
+        "Verify the whole-page FNV-1a64 value F85393074A792B1E, use the existing immutable-publication epoch contract, and use the existing reversible owned-root execution gate.",
+        "Execute only entry offset 0 and require return cookie 0x4F534F4B. Never call, jump to, or otherwise target offsets 16 or 32; provide no port/value argument and execute no In8 or Out8 instruction.",
+        "Emit no serial output and call no firmware service while the owned CR3 is active. Restore the existing root, protection, CR4, RFLAGS, and continuation state before public diagnostics.",
+        "Preserve all 42 accepted M01 issue guest markers in their existing order and uniqueness contract, plus the five M02-017 success-envelope markers.",
+        "Merge the M02 forbidden policy with all 25 accepted M01 forbidden markers. The runner must not let callers weaken or replace either required or forbidden policy.",
+        "The proposed owned paths are exact for this slice: src/OS/OS.csproj, src/OS/Boot/EfiEntry.cs, src/OS/Boot/M02SafeStubPageIntegration.cs, scripts/build-efi-shell.ps1, scripts/run-qemu-smoke.ps1, tests/OS.HostTests/M02SafeStubPageEfiEntryTests.cs, tests/OS.HostTests/BuildEfiShellPreflightTests.cs, tests/OS.HostTests/QemuRunnerTests.cs, docs/diagnostics.md, docs/boot.md, docs/boot-order.md, docs/efi-build.md, docs/qemu.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Reserve a unique done/stepNN.md only after fresh complete-host and real-QEMU evidence exists, and preserve source/tool/artifact/serial/summary/raw-observation hashes plus independent review.",
+        "Do not claim port I/O, COM1, permanent page-table adoption, descriptors, controlled faults, real ExitBootServices, hardware/provider behavior, CloudReady status, hosted .NET, Kestrel, or production readiness."
+      ],
+      "referenceInfluences": [
+        {
+          "path": "references/SharpOS-main/bootasm/BootAsm.Generator/BootAsmGenerator.cs",
+          "use": "test-only",
+          "notes": "Cross-check fixed x64 byte encoding only; do not import generated assembly or architecture."
+        }
+      ],
+      "acceptanceCriteria": [
+        "With all three M01 switches and EnableM02SafeStubProbe enabled, a fresh canonical EFI artifact materializes the exact M02 page into the existing protection-probe page and verifies FNV-1a64 F85393074A792B1E.",
+        "The guest executes only offset 0 under the temporary owned-root RX mapping, returns 0x4F534F4B, restores the existing state, and reports portIoExecuted=false.",
+        "Offsets 16 and 32 are never targeted, In8/Out8 are never executed, and no port number or value enters the live path.",
+        "All 42 accepted M01 guest markers remain present, ordered, and unique; the M02 start/materialized/readback/safe-executed/ready/pass sequence appears exactly once in the documented cross-stage order.",
+        "The runner rejects every accepted M01 forbidden marker plus M02_STUB_PAGE_MATERIALIZATION_FAILED, M02_STUB_PAGE_READBACK_FAILED, M02_STUB_PAGE_HASH_MISMATCH, M02_SAFE_PROBE_FAILED, M02_OUT8_EXECUTED, M02_IN8_EXECUTED, M02_PORT_IO_ATTEMPTED, M02_PRIVILEGED_STUB_TARGETED, and TEST_FAIL m02.017.",
+        "The complete host gate immediately preceding real QEMU passes, and fresh evidence binds the exact source commit/tree, EFI, serial, QEMU summary, raw observations, required-marker ordering/uniqueness, forbidden-marker absence, and independent review.",
+        "Only declared owned paths and one newly reserved done ledger change; consumed M02 production contracts, BootSequence, Probes, runtime source, tools, README, references, and existing done ledgers remain unchanged.",
+        "Evidence remains a local pre-ExitBootServices safe offset-zero cookie proof and makes no privileged-I/O, COM1, permanent-root, provider, CloudReady, hosted .NET, Kestrel, or production-readiness claim."
+      ],
+      "requiredMarkers": [
+        "TEST_START m02.017",
+        "M02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E",
+        "M02_STUB_PAGE_READBACK_VERIFIED fnv1a64=F85393074A792B1E",
+        "M02_SAFE_PROBE_EXECUTED offset=0 return=0x4F534F4B",
+        "CLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E temporaryOwnedRootRx=true portIoExecuted=false",
+        "TEST_PASS m02.017",
+        "M02_STUB_PAGE_MATERIALIZATION_FAILED",
+        "M02_STUB_PAGE_READBACK_FAILED",
+        "M02_STUB_PAGE_HASH_MISMATCH",
+        "M02_SAFE_PROBE_FAILED",
+        "M02_OUT8_EXECUTED",
+        "M02_IN8_EXECUTED",
+        "M02_PORT_IO_ATTEMPTED",
+        "M02_PRIVILEGED_STUB_TARGETED",
+        "TEST_FAIL m02.017 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build .\\CLROS.slnx --nologo -m:1",
+        "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check-naming.ps1",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\build-efi-shell.ps1",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -BuildEfi -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe -EnableM02SafeStubProbe -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 30",
+        "git diff --check",
+        "git status --short"
+      ],
+      "documentationPaths": [
+        "docs/diagnostics.md",
+        "docs/boot.md",
+        "docs/boot-order.md",
+        "docs/efi-build.md",
+        "docs/qemu.md",
+        "docs/completion-gates.md"
+      ],
+      "evidenceBoundary": "This issue proves only local pre-ExitBootServices materialization, whole-page readback, temporary owned-root RX execution of the fixed safe entry at offset 0, return cookie 0x4F534F4B, and restoration under the recorded QEMU/OVMF configuration. It explicitly proves portIoExecuted=false and does not execute or prove In8, Out8, COM1, general I/O, permanent page-table adoption, IDT/GDT/TSS behavior, controlled faults, real ExitBootServices, physical hardware, provider support, CloudReady status, hosted .NET, Kestrel, or production readiness.",
+      "desiredState": "open"
+    },
+    {
       "key": "M03-EPIC",
       "title": "[M03-EPIC] Real Firmware Exit",
       "milestone": "M03",
@@ -8573,7 +8813,7 @@
       "milestone": "M04",
       "parentKey": null,
       "dependencyKeys": [
-        "M01-026"
+        "M01-036"
       ],
       "labels": [
         "agent:blocked",
@@ -8630,20 +8870,21 @@
     },
     {
       "key": "M04-001",
-      "title": "[M04-001] Create the .NET 10 System.* compatibility ledger with implemented, stubbed, and forbidden symbols.",
+      "title": "[M04-001] Implement the OS.Std.* .NET 10 helper compatibility ledger with narrowly implemented, stubbed, and forbidden symbols.",
       "milestone": "M04",
       "parentKey": "M04-EPIC",
       "dependencyKeys": [
-        "M01-026"
+        "M01-036"
       ],
       "labels": [
         "agent:blocked",
         "priority:p1",
-        "type:docs",
-        "evidence:qemu",
+        "type:implementation",
+        "evidence:host",
         "component:runtime",
         "phase:m04-runtime",
-        "reference:test-only"
+        "reference:test-only",
+        "lane:central-docs"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -8661,19 +8902,19 @@
         "references/** (read-only except the dedicated references/AGENTS.override.md issue)",
         "done/** (reserve a new step only after implementation evidence exists)"
       ],
-      "collisionLane": null,
-      "summary": "Create the .NET 10 System.* compatibility ledger with implemented, stubbed, and forbidden symbols.",
+      "collisionLane": "lane:central-docs",
+      "summary": "Implement an allocation-free OS.Std.* compatibility ledger that classifies the current NativeAOT helper declarations without creating a canonical System.* surface or promoting runtime completion Gate 4.",
       "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
       "implementationNotes": [
-        "Implement exactly one bounded slice: Create the .NET 10 System.* compatibility ledger with implemented, stubbed, and forbidden symbols.",
-        "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
-        "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
+        "Implement production C# under OS.Std.* with stable helper categories, support states, readonly value entries, allocation-free indexed retrieval, and fail-closed handling of unknown values; do not add any canonical System.* namespace surface.",
+        "Classify helpers as unknown, narrowly implemented, stubbed, or forbidden without adding runtime implementation behavior.",
+        "Derive the current MinimalRuntime declaration count from production source rather than hard-coding a claim; the audited snapshot is 40 MinimalRuntime declarations.",
+        "Cross-check the 17 RuntimeExports ledger entries and preserve the exact distinction between four link-only no-op helpers, twelve fail-fast helpers, and one audited stack-probe helper.",
+        "Prove that no classified helper satisfies runtime completion Gate 4 and keep Gate 4 failing.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
         "The proposed owned paths are exact for this slice: std/no-runtime/shared/DotNetN10SystemExportCompatibilityLedgerImplementedStubbed.cs, tests/OS.HostTests/DotNetN10SystemExportCompatibilityLedgerImplementedStubbedTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Demonstrate the exact successful repository/evidence behavior required by: Create the .NET 10 System.* compatibility ledger with implemented, stubbed, and forbidden symbols.",
-        "Failure cases: Cover missing file/tool, duplicate key, malformed input, stale path/claim, nonzero process exit, missing marker, hash mismatch, and unauthorized write as applicable.",
-        "Explicitly inapplicable here: Live device I/O, packet loss, runtime unwind, and cloud cleanup are outside this repository/tooling slice.",
-        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
+        "Emit the exact host marker CLROS_M04_001_READY declarations=40 runtimeExports=17 linkOnlyNoOp=4 failFast=12 auditedStackProbe=1 gate4=Fail canonicalSystemNamespace=false.",
+        "Close from focused and complete host evidence. QEMU dry-run is tooling preflight only; no real-QEMU or guest evidence belongs to this ledger leaf."
       ],
       "referenceInfluences": [
         {
@@ -8688,34 +8929,37 @@
         }
       ],
       "acceptanceCriteria": [
-        "The repository implements and tests the scoped behavior: Create the .NET 10 System.* compatibility ledger with implemented, stubbed, and forbidden symbols.",
+        "Production OS.Std.* C# exposes an initialized allocation-free ledger with stable categories and unknown/narrowly-implemented/stubbed/forbidden states while adding no canonical System.* namespace.",
+        "Tests derive and classify all 40 current MinimalRuntime declarations, cross-check all 17 RuntimeExports entries, and preserve the 4 link-only no-op, 12 fail-fast, and 1 audited stack-probe split.",
+        "Unknown or default values fail closed, and no ledger entry promotes NativeAOT runtime completion Gate 4.",
+        "The exact CLROS_M04_001_READY declarations=40 runtimeExports=17 linkOnlyNoOp=4 failFast=12 auditedStackProbe=1 gate4=Fail canonicalSystemNamespace=false host marker appears once between the M04-001 start/pass markers.",
         "Only declared owned paths are changed; lane-controlled integration files are touched only when this issue owns that lane.",
         "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
         "Affected canonical documentation is updated without promoting unsupported completion gates.",
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Demonstrate the exact successful repository/evidence behavior required by: Create the .NET 10 System.* compatibility ledger with implemented, stubbed, and forbidden symbols.",
-        "Applicable failure cases are asserted: Cover missing file/tool, duplicate key, malformed input, stale path/claim, nonzero process exit, missing marker, hash mismatch, and unauthorized write as applicable.",
-        "The evidence report explicitly records these non-goals: Live device I/O, packet loss, runtime unwind, and cloud cleanup are outside this repository/tooling slice."
+        "Evidence remains host-only and explicitly excludes guest/runtime execution, allocation or GC support, exceptions/metadata/dispatch completion, provider behavior, CloudReady status, Kestrel, and production readiness."
       ],
       "requiredMarkers": [
         "TEST_START m04.001",
+        "CLROS_M04_001_READY declarations=40 runtimeExports=17 linkOnlyNoOp=4 failFast=12 auditedStackProbe=1 gate4=Fail canonicalSystemNamespace=false",
         "TEST_PASS m04.001",
-        "TEST_FAIL m04.001 <reason>",
-        "CLROS_M04_001_READY"
+        "TEST_FAIL m04.001 <reason>"
       ],
       "requiredCommands": [
         "dotnet build .\\CLROS.slnx --nologo -m:1",
+        "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
         "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
         "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check-naming.ps1",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\build-efi-shell.ps1",
         "git diff --check",
-        "git status --short",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M04_001_READY\""
+        "git status --short"
       ],
       "documentationPaths": [
         "docs/nativeaot-nostdlib-limits.md",
         "docs/completion-gates.md"
       ],
-      "evidenceBoundary": "This issue proves only \"Create the .NET 10 System.* compatibility ledger with implemented, stubbed, and forbidden symbols.\" It does not by itself prove the M04 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
+      "evidenceBoundary": "This issue proves only an allocation-free host-tested OS.Std.* classification ledger over the current 40 MinimalRuntime declarations and 17 RuntimeExports entries. The ledger records four link-only no-op helpers, twelve fail-fast helpers, and one audited stack-probe helper, adds no runtime behavior or canonical System.* surface, and deliberately leaves completion Gate 4 failing. It does not prove live runtime execution, allocation, GC, metadata, dispatch, exceptions, guest behavior, provider support, CloudReady status, Kestrel, or production readiness.",
       "desiredState": "open"
     },
     {

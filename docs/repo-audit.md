@@ -2,7 +2,7 @@
 
 ## Current Status
 
-Audit date: 2026-07-28.
+Audit date: 2026-07-30.
 
 The first-party workspace began as an empty baseline under the former `OS`
 solution/repository identity. The current canonical solution is `CLROS.slnx`,
@@ -41,27 +41,43 @@ and the reachable local Gitea tracker:
   the serialized M01-029 through M01-032 prerequisites before M01-025. Its
   321-child, 337-keyed-issue, 421-managed-object inventory is preserved as the
   preceding historical applied snapshot.
-- The current durable manifest and live tracker add M01-033 through M01-035
-  after M01-025 and before M01-026: deterministic C# AMD64 COFF serializer and
-  encoded unwind intent, canonical EFI
-  link/authoritative-exception-directory verification, and four-epoch
-  EfiEntry checked-cookie publication ordering through stack-switch-persistent
-  state. The guarded 2026-07-28 apply closed reviewed M01-025 issue `#332`,
-  created issues `#411` through `#413`, and converged at 324 children, 340
-  keyed issues, and 424 managed objects. M01-033 implementation commit
-  `55a4da3` merged through PR #416 as `b3b1dc8`, and issue comment #6336
-  preserves the reviewed object-only evidence. M01-034 implementation commit
-  `eb06fda1` merged through PR #418 as `5226b2a`; `done/step886.md` and issue
-  comment #6366 preserve reviewed static final-PE/link/unwind evidence. The
-  M01-035 implementation commit `6d43176` merged through PR #420 as `a32b4cb`;
-  `done/step887.md` and issue comment #6388 preserve reviewed source-order,
-  host, and fresh-build evidence. The durable manifest and live tracker record
-  all three instruction-publication leaves closed/done. A guarded
-  synchronization from this merged state verifies those closures and computes
-  M01-026 `#333` as the sole next ready issue and owner of cumulative
-  real-QEMU/OVMF evidence. This does not prove serializer execution or returned
-  cookies, guest markers, SCSB exclusion, cross-core or DMA-written-code
-  publication, live paging, or a completion gate.
+- The M01-033 through M01-035 instruction-publication expansion produced the
+  now-historical 324-child, 340-keyed-issue, 424-managed-object tracker
+  snapshot. Its reviewed object, final-PE/unwind, and EfiEntry state-order
+  evidence remains in `done/step884.md`, `done/step886.md`, and
+  `done/step887.md`.
+- M01-026 issue `#333` then passed the complete host gate and one fresh
+  all-switch local QEMU/OVMF r16 run from implementation commit
+  `8f1edea17f2de425520e239af58d37aa3b182146` and tree
+  `6b5359e36293d770e3dc0d074b1baabf8d4fdbf8`. The reviewed
+  documentation/evidence head `26219cc5327e9b32935f4e5b06fe5eb014cca93c`
+  merged through PR #422 as
+  `6aaf046362d0a3187f551ee06f1456d05ce5021f`. Issue comments #6472 and
+  #6477 and `done/step890.md` preserve the review and merge proof. The evidence
+  manifest SHA-256 is
+  `94A28FE683FC068C88F42AB806B3E9A06DB5467FD35488B6ADF397AC8F8A8188`;
+  all 47 artifacts rehashed independently, all 42 issue guest markers were
+  ordered and unique, all 25 issue forbidden markers were absent, and the
+  serial SHA-256 is
+  `CC51100244A8A20865DB9D16CE5D73B0930F43EA98835DFA57027A00B126C661`.
+  M01-026 is reviewed, merged, live-closed, and `agent:done`.
+- M01-036 is the final host-only repository-state repair leaf. Live issue
+  `#425` was bootstrapped and claimed without applying the stale synchronizer.
+  The repaired canonical target is 16 epics, 326 children, 342 keyed issues,
+  and 426 managed objects. It adds M01-036 and M02-017, makes M01-026 closure
+  durable, and corrects the first M02/M04 evidence boundaries. These are
+  manifest target totals, not a live-convergence claim; hidden-key adoption of
+  `#425`, creation of only M02-017, eligible M01 epic closure, and a final
+  426-object unchanged preview remain post-merge acceptance steps.
+  Implementation commit `f14a26f9267fc3e1cc32fcd5e847818d7dbe252c`
+  passed the complete host-only gate with 3,329 starts, 3,330 passes, zero
+  failures, and exactly one M01-036 start/ready/pass envelope.
+  `done/step891.md` preserves the exact source tuple, log hashes,
+  wrapper-timeout recovery, and evidence boundary.
+- M02-001, M02-002, and M04-001 are production-C# leaves with host evidence
+  only. M02-017 is the sole serialized real-QEMU integration leaf before
+  M02-003 and may execute only the fixed safe offset-zero return-cookie entry.
+  It explicitly must not invoke In8 or Out8.
 
 ## Implemented Behavior
 
@@ -206,7 +222,7 @@ Current M00 recovery evidence from 2026-07-25:
 - Generated evidence is under
   `artifacts/logs/m00-final/32a8f3b91e17-20260725T213702Z/` and is not
   committed as first-party source.
-- The verified live Gitea tracker snapshot now contains 68 labels, 16 open
+- The verified pre-M01-036 live Gitea snapshot contained 68 labels, 16 open
   milestones, 324 children, 340 uniquely keyed issues, and 424 total managed
   objects. The earlier guarded M00-023 apply recognized issue
   #321, created only M01-016 through M01-026 as issues #323 through #333,
@@ -228,17 +244,20 @@ Current M00 recovery evidence from 2026-07-25:
   likewise merged and closed with static final-artifact evidence in
   `done/step886.md` and issue comment #6366. M01-035 is merged and closed with
   source-order, host, and fresh-build evidence in `done/step887.md` and issue
-  comment #6388. Guarded synchronization verifies all three closures and
-  computes M01-026 as the sole ready issue. The first leaf proves object bytes
+  comment #6388. Guarded synchronization verified all three closures and
+  computed M01-026 as the sole ready issue. The first leaf proves object bytes
   and relocatable unwind intent; the second proves the authoritative linked PE
   exception directory statically; the third proves the exact
   `0 -> 1 -> 3 -> 7 -> 15` publication state across the one-way stack switch
   and places epoch 3 inside `CaptureArchitecturalPreflight` before its first
-  generated-code invocation, all without guest execution. M01-026 retains the
-  cumulative real-QEMU/OVMF evidence boundary.
-  M02 and M04
-  entry work still
-  depends on the final M01-026 cumulative paging proof. Only `M15-013`, the
+  generated-code invocation, all without guest execution. M01-026 subsequently
+  closed with the bounded r16 cumulative local-QEMU/OVMF evidence described
+  above. M01-036 now owns the final repository/tracker durability boundary.
+  Its repaired manifest targets 326 children, 342 keyed issues, and 426 managed
+  objects, but the live tracker must not be reported at those totals until
+  guarded post-merge synchronization and final preview pass. M02-001,
+  M02-002, and M04-001 are host-only production-C# slices; M02-017 alone owns
+  safe guest execution before M02-003. Only `M15-013`, the
   isolated optional DOOM/WAD boundary, retains
   `reference:license-blocked`. This is administrative tracker evidence, not
   additional kernel capability evidence.
@@ -255,7 +274,11 @@ Current M00 recovery evidence from 2026-07-25:
 
 ## Next Steps
 
-1. Finish UEFI platform interfaces and post-firmware diagnostics before real `ExitBootServices`.
-2. Convert the opt-in ACPI SDT/MCFG probe evidence into a durable platform discovery handoff, then feed parsed ECAM metadata into a live PCI reader after physical-memory/MMIO ownership rules are defined.
-3. Build live virtio-blk and virtio-net drivers on top of the existing planning contracts.
-4. Add libvirt real-smoke proof and cloud image validation when host tools and live device paths are ready.
+1. Review and merge M01-036, post exact host evidence to issue `#425`, and run
+   guarded preview/apply/preview synchronization from merged canonical source.
+2. Verify adoption of `#425`, creation of only M02-017, M01 epic closure, and
+   final idempotent 426-object convergence.
+3. Claim and implement M02-001 production C#, then M02-002, with focused and
+   complete host evidence.
+4. Run the serialized M02-017 safe-return-cookie EFI/QEMU slice before any
+   M02-003 attempt to bind privileged In8/Out8 entries.
