@@ -1203,7 +1203,9 @@ function Clear-M01OutputPublicationLeaves {
                     -AllowEmpty `
                     -RequireSingleLink))
         }
-        Assert-M01DistinctAuthorityRecords -Records $existingRecords.ToArray()
+        if ($existingRecords.Count -gt 0) {
+            Assert-M01DistinctAuthorityRecords -Records $existingRecords.ToArray()
+        }
     }
     finally {
         Close-M01AuthorityRecords -Records $existingRecords

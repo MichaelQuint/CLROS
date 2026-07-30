@@ -30,6 +30,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const uint SerializerExpectedSuccessCookie = 0x53524c43;
     private const int MaximumRuntimeFunctionRecords = 2048;
     private const int MaximumLinkResponseTokens = 4096;
+    private const int VerifierFixtureProcessTimeoutMilliseconds = 45_000;
     private const int ExpectedSourceClosureInputCount = 57;
     private const string SerializerSymbol =
         "CLROS_X64_SerializeInstructionPublication";
@@ -3220,13 +3221,14 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static bool TestParserCapacityBounds(string tempRoot)
     {
-        const long maximumVerifierProcessElapsedMilliseconds = 30_000;
+        const long maximumVerifierProcessSafetyMilliseconds = 45_000;
+        const long maximumLinkResponseTokenScanElapsedMilliseconds = 1_000;
         const long maximumRuntimeScanElapsedMilliseconds = 1_000;
 
         string atCapacityResponse = string.Join(
             "\r\n",
             Enumerable.Range(0, MaximumLinkResponseTokens - 7)
-                .Select(index => "/NOOP" + index));
+                .Select(index => "relative-object-" + index + ".obj"));
         ProcessResult responseAtCapacityResult = RunFixtureWithEvidence(
             tempRoot,
             "response-token-at-capacity",
@@ -3270,21 +3272,62 @@ internal static class EfiArtifactVerificationScriptTests
         bool responseAtCapacityBounded = CompletedWithin(
             "response-token-at-capacity",
             responseAtCapacityResult,
-            maximumVerifierProcessElapsedMilliseconds);
+            maximumVerifierProcessSafetyMilliseconds);
+        System.Text.RegularExpressions.MatchCollection responseTokenScanMatches =
+            System.Text.RegularExpressions.Regex.Matches(
+                responseAtCapacityResult.Output,
+                @"^EFI_ARTIFACT_LINK_RESPONSE_SCAN tokens=4096 elapsedMs=([0-9]+) maximumTokens=4096\r?$",
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant |
+                    System.Text.RegularExpressions.RegexOptions.Multiline);
+        bool responseAtCapacityModeledTokenScan =
+            responseTokenScanMatches.Count == 1;
+        System.Text.RegularExpressions.Match responseTokenScanMatch =
+            responseAtCapacityModeledTokenScan
+                ? responseTokenScanMatches[0]
+                : System.Text.RegularExpressions.Match.Empty;
+        if (!responseAtCapacityModeledTokenScan)
+        {
+            WriteFixtureDiagnostic(
+                "response-token-scan-marker-missing",
+                responseAtCapacityResult);
+        }
+        long responseTokenScanElapsedMilliseconds = long.MaxValue;
+        bool responseTokenScanParsed = responseAtCapacityModeledTokenScan &&
+            long.TryParse(
+                responseTokenScanMatch.Groups[1].Value,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out responseTokenScanElapsedMilliseconds);
+        bool responseTokenScanBounded = responseTokenScanParsed &&
+            responseTokenScanElapsedMilliseconds <=
+                maximumLinkResponseTokenScanElapsedMilliseconds;
+        if (!responseTokenScanBounded)
+        {
+            WriteFixtureDiagnostic(
+                "response-token-scan-maximum-elapsed-" +
+                    maximumLinkResponseTokenScanElapsedMilliseconds,
+                responseAtCapacityResult);
+        }
         bool responseOverCapacityFailed = FailedWith(
             responseOverCapacityResult,
             "link_response_token_count_out_of_range");
         bool responseOverCapacityBounded = CompletedWithin(
             "response-token-over-capacity",
             responseOverCapacityResult,
-            maximumVerifierProcessElapsedMilliseconds);
+            maximumVerifierProcessSafetyMilliseconds);
         bool runtimeAtCapacityPassed = PassedVerifier(runtimeAtCapacityResult);
-        System.Text.RegularExpressions.Match runtimeScanMatch =
-            System.Text.RegularExpressions.Regex.Match(
+        System.Text.RegularExpressions.MatchCollection runtimeScanMatches =
+            System.Text.RegularExpressions.Regex.Matches(
                 runtimeAtCapacityResult.Output,
-                @"EFI_ARTIFACT_RUNTIME_SCAN records=2048 distinctUnwind=2048 elapsedMs=([0-9]+) maximumRecords=2048",
-                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
-        bool runtimeAtCapacityModeledDistinctUnwind = runtimeScanMatch.Success;
+                @"^EFI_ARTIFACT_RUNTIME_SCAN records=2048 distinctUnwind=2048 elapsedMs=([0-9]+) maximumRecords=2048\r?$",
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant |
+                    System.Text.RegularExpressions.RegexOptions.Multiline);
+        bool runtimeAtCapacityModeledDistinctUnwind =
+            runtimeScanMatches.Count == 1;
+        System.Text.RegularExpressions.Match runtimeScanMatch =
+            runtimeAtCapacityModeledDistinctUnwind
+                ? runtimeScanMatches[0]
+                : System.Text.RegularExpressions.Match.Empty;
         if (!runtimeAtCapacityModeledDistinctUnwind)
         {
             WriteFixtureDiagnostic(
@@ -3292,7 +3335,7 @@ internal static class EfiArtifactVerificationScriptTests
                 runtimeAtCapacityResult);
         }
         long runtimeScanElapsedMilliseconds = long.MaxValue;
-        bool runtimeScanParsed = runtimeScanMatch.Success &&
+        bool runtimeScanParsed = runtimeAtCapacityModeledDistinctUnwind &&
             long.TryParse(
                 runtimeScanMatch.Groups[1].Value,
                 NumberStyles.None,
@@ -3311,19 +3354,27 @@ internal static class EfiArtifactVerificationScriptTests
         bool runtimeAtCapacityBounded = CompletedWithin(
             "runtime-function-distinct-unwind-at-capacity",
             runtimeAtCapacityResult,
-            maximumVerifierProcessElapsedMilliseconds);
+            maximumVerifierProcessSafetyMilliseconds);
         Console.WriteLine(
-            "EFI_ARTIFACT_PERFORMANCE distinctUnwindRecords=" +
+            "EFI_ARTIFACT_PERFORMANCE responseTokens=" +
+            MaximumLinkResponseTokens +
+            " responseScanElapsedMs=" +
+            (responseAtCapacityModeledTokenScan
+                ? responseTokenScanMatch.Groups[1].Value
+                : "missing") +
+            " distinctUnwindRecords=" +
             MaximumRuntimeFunctionRecords +
             " processElapsedMs=" +
             runtimeAtCapacityResult.ElapsedMilliseconds +
             " scanElapsedMs=" +
-            (runtimeScanMatch.Success
+            (runtimeAtCapacityModeledDistinctUnwind
                 ? runtimeScanMatch.Groups[1].Value
                 : "missing") +
-            " processBudgetMs=" +
-            maximumVerifierProcessElapsedMilliseconds +
-            " scanBudgetMs=" +
+            " processSafetyBudgetMs=" +
+            maximumVerifierProcessSafetyMilliseconds +
+            " responseScanBudgetMs=" +
+            maximumLinkResponseTokenScanElapsedMilliseconds +
+            " runtimeScanBudgetMs=" +
             maximumRuntimeScanElapsedMilliseconds);
         bool runtimeOverCapacityFailed = FailedWith(
             runtimeOverCapacityResult,
@@ -3331,10 +3382,12 @@ internal static class EfiArtifactVerificationScriptTests
         bool runtimeOverCapacityBounded = CompletedWithin(
             "runtime-function-over-capacity",
             runtimeOverCapacityResult,
-            maximumVerifierProcessElapsedMilliseconds);
+            maximumVerifierProcessSafetyMilliseconds);
 
         return responseAtCapacityPassed
             && responseAtCapacityBounded
+            && responseAtCapacityModeledTokenScan
+            && responseTokenScanBounded
             && responseOverCapacityFailed
             && responseOverCapacityBounded
             && runtimeAtCapacityPassed
@@ -5370,7 +5423,8 @@ internal static class EfiArtifactVerificationScriptTests
             ?? throw new InvalidOperationException("Failed to start PowerShell.");
         Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
         Task<string> standardError = process.StandardError.ReadToEndAsync();
-        bool completed = process.WaitForExit(30_000);
+        bool completed = process.WaitForExit(
+            VerifierFixtureProcessTimeoutMilliseconds);
         if (!completed)
         {
             try
