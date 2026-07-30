@@ -4151,8 +4151,10 @@ internal static class QemuRunnerTests
                 + " firmware=" + firmwareStatus
                 + " free_arena=" + arenaCleanupStatus;
             List<string> serialLines = CreateM01StageTwoFailurePrefixLines();
+            // The runner fails closed on the first forbidden marker and may
+            // terminate the child before a following marker is written.
+            // Every forbidden marker is exercised separately below.
             serialLines.Add("TEST_FAIL m01.stage2 " + detail);
-            serialLines.Add("M01_STAGE2_FAIL " + detail);
             string qemuPath = CreatePersistentFakeQemuScript(
                 tempRoot,
                 serialLines);
@@ -4171,7 +4173,7 @@ internal static class QemuRunnerTests
                     "TEST_FAIL qemu.smoke forbidden_marker",
                     StringComparison.Ordinal)
                 || !summary.Contains(
-                    "FORBIDDEN_MARKER_HIT TEST_FAIL;M01_STAGE2_FAIL",
+                    "FORBIDDEN_MARKER_HIT TEST_FAIL",
                     StringComparison.Ordinal)
                 || !summary.Contains(
                     detail,
@@ -4179,13 +4181,17 @@ internal static class QemuRunnerTests
                 || !summary.Contains(
                     "TEST_FAIL m01.stage2 " + detail,
                     StringComparison.Ordinal)
-                || !summary.Contains(
-                    "M01_STAGE2_FAIL " + detail,
-                    StringComparison.Ordinal)
                 || result.Output.Contains(
                     "TEST_PASS qemu.smoke",
                     StringComparison.Ordinal))
             {
+                Console.WriteLine(
+                    "QEMU_M01_STAGE2_FAILURE_CLASSIFICATION_DIAGNOSTIC"
+                    + " scenario=" + scenario
+                    + " adapter=" + adapterStatus
+                    + " exit=" + result.ExitCode
+                    + " output=" + EscapeDiagnostic(result.Output)
+                    + " summary=" + EscapeDiagnostic(summary));
                 return false;
             }
         }
@@ -4674,8 +4680,10 @@ internal static class QemuRunnerTests
                 + " free_c=" + codeCleanupStatus;
             List<string> serialLines =
                 CreateM01StageThreeFailurePrefixLines();
+            // The runner fails closed on the first forbidden marker and may
+            // terminate the child before a following marker is written.
+            // Every forbidden marker is exercised separately above.
             serialLines.Add("TEST_FAIL m01.stage3 " + detail);
-            serialLines.Add("M01_STAGE3_FAIL " + detail);
             string qemuPath = CreatePersistentFakeQemuScript(
                 tempRoot,
                 serialLines);
@@ -4694,23 +4702,34 @@ internal static class QemuRunnerTests
                     "TEST_FAIL qemu.smoke forbidden_marker",
                     StringComparison.Ordinal)
                 || !summary.Contains(
-                    "FORBIDDEN_MARKER_HIT TEST_FAIL;M01_STAGE3_FAIL",
+                    "FORBIDDEN_MARKER_HIT TEST_FAIL",
                     StringComparison.Ordinal)
                 || !summary.Contains(
                     "TEST_FAIL m01.stage3 " + detail,
-                    StringComparison.Ordinal)
-                || !summary.Contains(
-                    "M01_STAGE3_FAIL " + detail,
                     StringComparison.Ordinal)
                 || result.Output.Contains(
                     "TEST_PASS qemu.smoke",
                     StringComparison.Ordinal))
             {
+                Console.WriteLine(
+                    "QEMU_M01_STAGE3_FAILURE_CLASSIFICATION_DIAGNOSTIC"
+                    + " adapter=" + adapterStatus
+                    + " exit=" + result.ExitCode
+                    + " output=" + EscapeDiagnostic(result.Output)
+                    + " summary=" + EscapeDiagnostic(summary));
                 return false;
             }
         }
 
         return true;
+    }
+
+    private static string EscapeDiagnostic(string value)
+    {
+        return value
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("\r", "\\r", StringComparison.Ordinal)
+            .Replace("\n", "\\n", StringComparison.Ordinal);
     }
 
     private static bool TestM01StageThreeTimeoutIsDeterministic(
