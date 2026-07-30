@@ -129,10 +129,14 @@ Accepted fresh post-reboot wave:
   - Zero lines matching `^TEST_FAIL `.
   - Exactly one terminal `TEST_PASS host.tests`.
   - Exactly one M01-034 aggregate start, ready, and pass.
-  - Exact passes for verifier process-tree termination, link-binding
-    rejection, bounded external evaluation, duplicate-success-terminal
-    classification, delayed nonzero-exit classification, and CI-smoke
-    failed-command propagation.
+  - Exactly one pass for each decisive repair check:
+    `m01.034 bounds verifier execution and reaps its process tree`,
+    `efi artifact verifier rejects missing, duplicate, and fallback serializer
+    link bindings`,
+    `efi artifact verifier bounds response and runtime parsing`,
+    `qemu real mode rejects duplicate success terminals`,
+    `qemu drain classifies nonzero exit before kill`, and
+    `ci.smoke returns nonzero on failed command`.
 - `powershell -NoProfile -ExecutionPolicy Bypass -File
   .\scripts\build-efi-shell.ps1 -EnableM01LoadedImageStackProbe
   -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe`
@@ -178,6 +182,13 @@ commit=fa5950c11091201077648d65e021b0f15b0dfc3b
 tree=1dbd6708ac0f9a501680dcfe7db4a407d3890a3f
 PASS|waveCommit=fa5950c11091201077648d65e021b0f15b0dfc3b|waveTree=1dbd6708ac0f9a501680dcfe7db4a407d3890a3f
 ```
+
+The accepted executable-source tree is
+`1dbd6708ac0f9a501680dcfe7db4a407d3890a3f`. `done/step889.md` was the
+sole untracked path during the gate and was committed afterward as a distinct
+documentation-only evidence record. Its staged content passed
+`git diff --cached --check`; no executable or test evidence is attributed to
+the later documentation commit.
 
 The eight accepted steps and UTC intervals were:
 
