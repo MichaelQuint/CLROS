@@ -111,6 +111,7 @@ internal static class M01LivePagingPrerequisiteManifestTests
                     .Select(number =>
                         "M01-" + number.ToString("000")))
             .Append("M01-026")
+            .Append("M01-036")
             .ToArray();
         string[] actualM01Order = issueByKey.Values
             .Select(issue =>
@@ -140,6 +141,7 @@ internal static class M01LivePagingPrerequisiteManifestTests
                 "M01-031",
                 "M01-032") &&
             DependenciesEqual(issueByKey["M01-026"], "M01-035") &&
+            DependenciesEqual(issueByKey["M01-036"], "M01-026") &&
             DependsTransitively(
                 issueByKey,
                 "M01-032",
@@ -155,6 +157,10 @@ internal static class M01LivePagingPrerequisiteManifestTests
             DependsTransitively(
                 issueByKey,
                 "M01-026",
+                "M01-032") &&
+            DependsTransitively(
+                issueByKey,
+                "M01-036",
                 "M01-032");
     }
 
