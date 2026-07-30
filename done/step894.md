@@ -52,9 +52,27 @@ TEST_PASS m02.002
 TEST_PASS m02.002.focused-runner
 ```
 
-The authoritative clean-source complete gate is intentionally not claimed in
-this implementation checkpoint. Its exact commands, evidence root, native exit
-codes, marker counts, and hashes will be added before evidence review.
+The authoritative r1 gate ran from clean implementation commit
+`06a38803b8bf4d5bc35e29948e626dbd8fb164bd` and tree
+`09bc5e263a3ab624ea3232655957d9ae79b2d042`:
+
+```powershell
+dotnet build .\CLROS.slnx --nologo -m:1
+dotnet build .\tests\OS.HostTests\OS.HostTests.csproj --nologo
+dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-qemu-smoke.ps1 -DryRun
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-naming.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-efi-shell.ps1
+git diff --check
+git status --short
+```
+
+All eight commands captured native exit `0`. Both builds completed with zero
+warnings and zero errors. The complete HostTests process ran for 2,180.123
+seconds and ended with exactly one `TEST_PASS host.tests`. QEMU execution was
+limited to the explicit dry-run; no QEMU/OVMF guest boot ran. The EFI command
+was the canonical repository regression/preflight build only and does not prove
+that M02-002 is linked into `BOOTX64.EFI`.
 
 ## Evidence
 
@@ -98,6 +116,70 @@ Independent read-only production review found no remaining contract defect
 after the state/page-alias and exact-source `NOSTDLIB_EFI` execution
 corrections.
 
+Authoritative evidence root:
+
+```text
+C:\Projects\CLROS\artifacts\logs\m02-002-final\06a38803-20260730T220052Z-r1
+```
+
+Host marker results:
+
+- `TEST_START`: 3,338
+- `TEST_PASS`: 3,339
+- `TEST_FAIL`: 0
+- terminal `TEST_PASS host.tests`: exactly 1
+- `TEST_START m02.002`: exactly 1, line 1,538
+- exact `CLROS_M02_002_READY ...`: exactly 1, line 1,539
+- `TEST_PASS m02.002`: exactly 1, line 1,540
+- HostTests stderr: 0 bytes
+- final `git status --short` stdout: 0 bytes
+
+Required command durations and native results:
+
+| Command | Seconds | Exit |
+|---|---:|---:|
+| solution build | 14.063 | 0 |
+| HostTests build | 6.014 | 0 |
+| complete HostTests | 2,180.123 | 0 |
+| QEMU dry-run | 4.019 | 0 |
+| naming/source firewall | 34.093 | 0 |
+| canonical EFI build | 42.145 | 0 |
+| `git diff --check` | 1.999 | 0 |
+| `git status --short` | 2.013 | 0 |
+
+Evidence SHA-256 anchors:
+
+- evidence summary:
+  `7AF214CCF75F8D05F6A7E1E667B56698633DD5EB57B22544A450B0FF1F584935`
+- 37-artifact final hash ledger:
+  `44D9E3F31EA3E3AFA9F66C9F3766B0A38BD84C32934145FCCD8809CFC0A9B8C7`
+- solution build:
+  `7C688F91856CBA961336088CD3EC1589C7D6A55DBBE457C7D4D014046D6B3A1E`
+- HostTests build:
+  `2573C14E5A377B06A8834119458868D02C057BAFC569773209D5E202D6E0E5DF`
+- complete HostTests stdout:
+  `2913C5F6475097B0AD83D5D03F14E477FD30E29320D5972EAA3C895583CCBB73`
+- QEMU dry-run:
+  `1D89BEBC2418F4BF887D21B84366BBE7AF2E555908570CCF1B87B415F5C91C95`
+- naming/source firewall:
+  `F859FFF4688D92C662BD161F4DEDF4C64778B133B7ABDBED70D634D8A2F4B651`
+- canonical EFI build:
+  `BE3183FC415BD168ADBEDCB4249B6146437003FE347B199DA6D617BCD5547522`
+- generated `artifacts/efi/BOOTX64.EFI`:
+  `158432A6F1BA692561A8CA047AD4E1C1362E3549E5CA8A7EF4E7288ABECD1741`
+- command summary:
+  `49D534F41640520602F000AF07349AC11A48EC26EC72425992FA0EAB18BF58EB`
+- runner events:
+  `1D2D67790828DEDD497998E45081BCAB058147263CB4827B3FEB8BD7F78A8B0B`
+- empty diff/status output:
+  `E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855`
+
+Every entry in `final-file-sha256.json` was independently rehashed after the
+runner exited: 37 checked, zero missing, zero byte-count mismatches, and zero
+hash mismatches. PR #431 carries the frozen implementation branch. Evidence
+review and merge remain separate tracker actions and are not claimed by this
+ledger entry.
+
 ## Failures
 
 - An initial foreground complete HostTests attempt used a three-minute command
@@ -118,6 +200,10 @@ corrections.
 - Independent review found the original zero-reference probe was compiled but
   not runnable. The retained zero-reference compile is now paired with a
   bounded exact-source `NOSTDLIB_EFI` host execution probe.
+- The first independent hash-ledger verification one-liner wrapped the
+  PowerShell `ConvertFrom-Json` array as one object and failed before validating
+  any entry. It changed no evidence file. The corrected verifier checked all 37
+  entries with zero failures and matched the ledger sidecar hash.
 
 ## Deferred work
 
