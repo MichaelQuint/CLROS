@@ -57,12 +57,25 @@ commit `acec50b47056e7c538ca5225d32898ff2c0bc93f` and evidence head
 `85528a5513f1cf24396ff29acc6787bc015ec9c5`. Issue #41 evidence comment #6578,
 merge-proof comment #6584, and `done/step892.md` preserve native HostTests exit
 0, 3,336 starts, 3,337 passes, zero failures, the exact one-family
-ExistingAuditedBytePlans decision, and the host-only evidence boundary. Issue
-#41 intentionally remains open in `agent:review` until its closed intent is
-committed by an issue that owns the catalog.
+ExistingAuditedBytePlans decision, and the host-only evidence boundary. At the
+M02-018 evidence-source checkpoint, issue #41 remained open in `agent:review`
+pending the post-merge manifest-owned closure transaction.
 
 M02-018 live issue `#429` is that serialized host-only durability transaction.
-Its canonical target adds the eighteenth M02 child for 16 epics, 327 children,
+Implementation commit `8c1f0d8d2b6dfd06433840f973de6aa7aa08e532`,
+tree `4e1dfbe4bad969af26e534a0cf12b10c61401d7f`, and evidence-source
+commit `79f318f25389cee411e65bc745f2cb052be0058d`, tree
+`13e86bf0164bb0e52b3f4e2c2d53f341f351e3f4`, are carried by draft PR #430
+and `done/step893.md`. The complete r4 gate under
+`artifacts/logs/m02-018-final/79f318f2-20260730T201222Z-r4` passed all ten
+commands. Summary SHA-256
+`99A39D223A9D208B0E985E6A50CA1E617F4A52F33B2954B0294595325B676D7F`
+records native HostTests exit 0, 3,337 starts, 3,338 passes, zero failures, one
+exact M02-018 start/ready/pass envelope, one terminal host pass, and empty
+stderr. Offline validation reported 427 skipped managed objects, managed-body
+and state-policy self-tests passed, and no real QEMU ran.
+
+The canonical target adds the eighteenth M02 child for 16 epics, 327 children,
 343 keyed issues, and 427 managed objects; records M02-001 as
 `desiredState=closed`/`agent:done`; and rewires M02-002 to depend on M02-018 so
 materialization cannot become ready after a partial closure. M02-002 still owns
@@ -70,9 +83,11 @@ the fixed 4 KiB page materializer/readback production C#, M04-001 owns the
 `OS.Std.*` runtime-helper classification production C#, and M02-017 remains the
 sole serialized EFI/QEMU integration leaf before M02-003. M02-017 may execute
 only the safe offset-zero return-cookie entry, never the In8 or Out8 entries.
-None of the repository-state or M02-001 host evidence advances a completion
+None of this repository-state or M02-001 host evidence advances a completion
 gate or proves real `ExitBootServices`, live port I/O, provider behavior,
-CloudReady status, hosted .NET, Kestrel, or production readiness.
+CloudReady status, hosted .NET, Kestrel, or production readiness. Live closure
+and 427-object convergence remain pending until the post-merge synchronizer
+sequence passes.
 
 The guarded earlier M00-023 apply recognized existing M00-023 as issue #321,
 created only M01-016 through M01-026 as issues #323 through #333, updated
@@ -198,9 +213,9 @@ closure contract.
 
 ## Next Steps
 
-1. Complete M02-018 host evidence and independent review, merge its
-   manifest-owned source, and post the exact reviewed marker to live issue
-   `#429`.
+1. Independently review the source-bound M02-018 r4 evidence and final
+   evidence-only delta, post exactly one reviewed marker to issue `#429` while
+   it is open, and merge PR #430 only at the reviewed head.
 2. From clean canonical master, run guarded preview/apply/repeated-apply/final
    preview; require issues `#41` and `#429` closed with `agent:done`, no
    duplicate hidden keys, M02-002 ready, and all 427 managed objects
