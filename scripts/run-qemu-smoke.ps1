@@ -38,6 +38,7 @@ param(
     [switch] $EnableM01LoadedImageStackProbe,
     [switch] $EnableM01LiveAllocatorProbe,
     [switch] $EnableM01OwnedPagingProbe,
+    [switch] $EnableM02SafeStubProbe,
     [switch] $SkipImageBuild
 )
 
@@ -51,6 +52,92 @@ $nativeAppRequiredMarkers = @(
     "APP_EXEC_MEMORY_READY",
     "APP_INVOCATION_READY",
     "APP_ENTRY_READY"
+)
+$script:M02SafeStubRequiredMarkers = @(
+    "TEST_START m01.stage1",
+    "M01_LOADED_IMAGE_CAPTURED",
+    "M01_STACK_SWITCH_STUB_READY",
+    "M01_STACK_ARENA_ALLOCATED",
+    "M01_STACK_GUARD_RESERVED",
+    "M01_STAGE1_MAP_RECAPTURED",
+    "M01_STAGE1_RESERVATIONS_VALIDATED",
+    "M01_OWNED_STACK_READY",
+    "M01_OWNED_STACK_SWITCHED",
+    "M01_RSP_CONTAINED",
+    "TEST_PASS m01.stage1",
+    "TEST_START m01.stage2",
+    "M01_ALLOCATOR_ARENA_ALLOCATED",
+    "M01_STAGE2_MAP_RECAPTURED",
+    "M01_RESERVATIONS_APPLIED",
+    "M01_LIVE_ALLOCATED_4K",
+    "M01_LIVE_PAGE_WITHIN_ARENA",
+    "M01_LIVE_FREED_4K",
+    "M01_DOUBLE_FREE_REJECTED",
+    "TEST_PASS m01.stage2",
+    "TEST_START m01.stage3",
+    "M01_CR3_STUB_PAGE_ALLOCATED",
+    "M01_PROTECTION_PROBE_PAGE_ALLOCATED",
+    "M01_PAGE_TABLE_STATE_ARENA_ALLOCATED",
+    "M01_STAGE3_MAP_RECAPTURED",
+    "TEST_START m02.017",
+    "M02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E",
+    "M02_STUB_PAGE_READBACK_VERIFIED fnv1a64=F85393074A792B1E",
+    "M01_CR3_STUB_MATERIALIZED",
+    "M01_PAGE_TABLES_BUILT",
+    "M01_PAGING_MODE_VALIDATED",
+    "M01_PRE_CR3",
+    "M01_FIRMWARE_CR3_RESTORED",
+    "M01_RFLAGS_RESTORED",
+    "M01_PGE_CYCLE_VERIFIED",
+    "M01_OWNED_CR3_CANARY_VERIFIED",
+    "M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED",
+    "M01_POST_CR3",
+    "M01_RW_TO_RX_VERIFIED",
+    "M01_TLB_INVALIDATION_COMPLETE",
+    "M01_RX_PROBE_EXECUTED",
+    "M01_PAGE_ZERO_ABSENT",
+    "M02_SAFE_PROBE_EXECUTED offset=0 return=0x4F534F4B",
+    "CLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E temporaryOwnedRootRx=true portIoExecuted=false",
+    "TEST_PASS m02.017",
+    "TEST_PASS m01.stage3",
+    "CLROS_M01_LIVE_BOOT_MEMORY_READY",
+    "OS_SMOKE_PASS"
+)
+$script:M02SafeStubForbiddenMarkers = @(
+    "LIVE_ALLOCATOR_NOT_INSTALLED",
+    "BOOT_PAGE_ALLOCATOR_NOT_READY",
+    "M01_ARBITRARY_CONVENTIONAL_PAGE_USED",
+    "M01_PAGE_OUTSIDE_ALLOCATOR_ARENA",
+    "M01_PAGE_TABLE_OUTSIDE_ARENA",
+    "M01_PROTECTION_PROBE_ALLOCATION_FAILED",
+    "M01_PROTECTION_PROBE_ALIAS",
+    "M01_CR3_STUB_READBACK_FAILED",
+    "M01_PAGING_MODE_VALIDATION_FAILED",
+    "M01_PGE_CLEAR_FAILED",
+    "M01_PGE_RESTORE_FAILED",
+    "M01_EXECUTABLE_TABLE_DATA",
+    "M01_INSTRUCTION_PUBLICATION_COOKIE_FAILED",
+    "M01_FIRMWARE_CALLBACK_DURING_OWNED_CR3",
+    "M01_FIRMWARE_CR3_RESTORE_FAILED",
+    "M01_CR4_RESTORE_FAILED",
+    "M01_RFLAGS_RESTORE_FAILED",
+    "M01_OWNED_CR3_CANARY_FAILED",
+    "M01_RX_PROBE_FAILED",
+    "TEST_FAIL",
+    "OS_SMOKE_FAIL",
+    "M01_INTEGRATION_FAIL",
+    "M01_STAGE1_FAIL",
+    "M01_STAGE2_FAIL",
+    "M01_STAGE3_FAIL",
+    "M02_STUB_PAGE_MATERIALIZATION_FAILED",
+    "M02_STUB_PAGE_READBACK_FAILED",
+    "M02_STUB_PAGE_HASH_MISMATCH",
+    "M02_SAFE_PROBE_FAILED",
+    "M02_OUT8_EXECUTED",
+    "M02_IN8_EXECUTED",
+    "M02_PORT_IO_ATTEMPTED",
+    "M02_PRIVILEGED_STUB_TARGETED",
+    "TEST_FAIL m02.017"
 )
 
 function Invoke-NativeCommand {
@@ -457,6 +544,58 @@ internal static class Program
         "OS_SMOKE_PASS"
     };
 
+    private static readonly string[] M02GuestMarkers =
+    {
+        "TEST_START m01.stage1",
+        "M01_LOADED_IMAGE_CAPTURED",
+        "M01_STACK_SWITCH_STUB_READY",
+        "M01_STACK_ARENA_ALLOCATED",
+        "M01_STACK_GUARD_RESERVED",
+        "M01_STAGE1_MAP_RECAPTURED",
+        "M01_STAGE1_RESERVATIONS_VALIDATED",
+        "M01_OWNED_STACK_READY",
+        "M01_OWNED_STACK_SWITCHED",
+        "M01_RSP_CONTAINED",
+        "TEST_PASS m01.stage1",
+        "TEST_START m01.stage2",
+        "M01_ALLOCATOR_ARENA_ALLOCATED",
+        "M01_STAGE2_MAP_RECAPTURED",
+        "M01_RESERVATIONS_APPLIED",
+        "M01_LIVE_ALLOCATED_4K",
+        "M01_LIVE_PAGE_WITHIN_ARENA",
+        "M01_LIVE_FREED_4K",
+        "M01_DOUBLE_FREE_REJECTED",
+        "TEST_PASS m01.stage2",
+        "TEST_START m01.stage3",
+        "M01_CR3_STUB_PAGE_ALLOCATED",
+        "M01_PROTECTION_PROBE_PAGE_ALLOCATED",
+        "M01_PAGE_TABLE_STATE_ARENA_ALLOCATED",
+        "M01_STAGE3_MAP_RECAPTURED",
+        "TEST_START m02.017",
+        "M02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E",
+        "M02_STUB_PAGE_READBACK_VERIFIED fnv1a64=F85393074A792B1E",
+        "M01_CR3_STUB_MATERIALIZED",
+        "M01_PAGE_TABLES_BUILT",
+        "M01_PAGING_MODE_VALIDATED",
+        "M01_PRE_CR3",
+        "M01_FIRMWARE_CR3_RESTORED",
+        "M01_RFLAGS_RESTORED",
+        "M01_PGE_CYCLE_VERIFIED",
+        "M01_OWNED_CR3_CANARY_VERIFIED",
+        "M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED",
+        "M01_POST_CR3",
+        "M01_RW_TO_RX_VERIFIED",
+        "M01_TLB_INVALIDATION_COMPLETE",
+        "M01_RX_PROBE_EXECUTED",
+        "M01_PAGE_ZERO_ABSENT",
+        "M02_SAFE_PROBE_EXECUTED offset=0 return=0x4F534F4B",
+        "CLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E temporaryOwnedRootRx=true portIoExecuted=false",
+        "TEST_PASS m02.017",
+        "TEST_PASS m01.stage3",
+        "CLROS_M01_LIVE_BOOT_MEMORY_READY",
+        "OS_SMOKE_PASS"
+    };
+
     private static readonly string[] ForbiddenMarkers =
     {
         "LIVE_ALLOCATOR_NOT_INSTALLED",
@@ -484,6 +623,44 @@ internal static class Program
         "M01_STAGE1_FAIL",
         "M01_STAGE2_FAIL",
         "M01_STAGE3_FAIL"
+    };
+
+    private static readonly string[] M02ForbiddenMarkers =
+    {
+        "LIVE_ALLOCATOR_NOT_INSTALLED",
+        "BOOT_PAGE_ALLOCATOR_NOT_READY",
+        "M01_ARBITRARY_CONVENTIONAL_PAGE_USED",
+        "M01_PAGE_OUTSIDE_ALLOCATOR_ARENA",
+        "M01_PAGE_TABLE_OUTSIDE_ARENA",
+        "M01_PROTECTION_PROBE_ALLOCATION_FAILED",
+        "M01_PROTECTION_PROBE_ALIAS",
+        "M01_CR3_STUB_READBACK_FAILED",
+        "M01_PAGING_MODE_VALIDATION_FAILED",
+        "M01_PGE_CLEAR_FAILED",
+        "M01_PGE_RESTORE_FAILED",
+        "M01_EXECUTABLE_TABLE_DATA",
+        "M01_INSTRUCTION_PUBLICATION_COOKIE_FAILED",
+        "M01_FIRMWARE_CALLBACK_DURING_OWNED_CR3",
+        "M01_FIRMWARE_CR3_RESTORE_FAILED",
+        "M01_CR4_RESTORE_FAILED",
+        "M01_RFLAGS_RESTORE_FAILED",
+        "M01_OWNED_CR3_CANARY_FAILED",
+        "M01_RX_PROBE_FAILED",
+        "TEST_FAIL",
+        "OS_SMOKE_FAIL",
+        "M01_INTEGRATION_FAIL",
+        "M01_STAGE1_FAIL",
+        "M01_STAGE2_FAIL",
+        "M01_STAGE3_FAIL",
+        "M02_STUB_PAGE_MATERIALIZATION_FAILED",
+        "M02_STUB_PAGE_READBACK_FAILED",
+        "M02_STUB_PAGE_HASH_MISMATCH",
+        "M02_SAFE_PROBE_FAILED",
+        "M02_OUT8_EXECUTED",
+        "M02_IN8_EXECUTED",
+        "M02_PORT_IO_ATTEMPTED",
+        "M02_PRIVILEGED_STUB_TARGETED",
+        "TEST_FAIL m02.017"
     };
 
     private static readonly object LogLock = new object();
@@ -528,6 +705,8 @@ internal static class Program
             "CLROS_M01_GUEST_TIMEOUT_SECONDS");
         int captureTimeoutSeconds = RequiredPositiveInt(
             "CLROS_M01_CAPTURE_TIMEOUT_SECONDS");
+        bool m02SafeStubEnabled = RequiredBoolean(
+            "CLROS_M02_SAFE_STUB_PROBE");
 
         RequireCreateNewPath(privateSerial, "private_serial");
         RequireCreateNewPath(observationLog, "observation_log");
@@ -657,8 +836,10 @@ internal static class Program
                     FileOptions.WriteThrough);
                 SerialTerminalGate gate = new SerialTerminalGate(
                     publicStream,
-                    GuestMarkers,
-                    ForbiddenMarkers);
+                    m02SafeStubEnabled ? M02GuestMarkers : GuestMarkers,
+                    m02SafeStubEnabled
+                        ? M02ForbiddenMarkers
+                        : ForbiddenMarkers);
                 long privateOffset = 0;
                 DateTime guestDeadline =
                     DateTime.UtcNow.AddSeconds(guestTimeoutSeconds);
@@ -1166,6 +1347,21 @@ internal static class Program
                 "invalid_environment_" + name);
         }
         return parsed;
+    }
+
+    private static bool RequiredBoolean(string name)
+    {
+        string value = RequiredEnvironment(name);
+        if (string.Equals(value, "true", StringComparison.Ordinal))
+        {
+            return true;
+        }
+        if (string.Equals(value, "false", StringComparison.Ordinal))
+        {
+            return false;
+        }
+        throw new InvalidOperationException(
+            "invalid_boolean_environment_" + name);
     }
 
     private static string FullPath(string path)
@@ -2414,7 +2610,8 @@ function New-M01RawObservationCapture {
         [string] $RequestedObservationLog,
         [string] $PublicSerialLog,
         [string] $SummaryLog,
-        [int] $GuestTimeoutSeconds
+        [int] $GuestTimeoutSeconds,
+        [bool] $M02SafeStubEnabled
     )
 
     if ($GuestTimeoutSeconds -lt 1 -or $GuestTimeoutSeconds -gt 300) {
@@ -2535,6 +2732,7 @@ function New-M01RawObservationCapture {
         QmpTranscriptPath = $qmpTranscriptPath
         CaptureScratchPath = $captureScratchPath
         GuestTimeoutSeconds = $GuestTimeoutSeconds
+        M02SafeStubEnabled = $M02SafeStubEnabled
         CaptureTimeoutSeconds = $captureTimeoutSeconds
         RunnerTimeoutSeconds = $runnerTimeoutSeconds
         SourceSha256 = Get-M01FileSha256 -Path $sourcePath
@@ -2556,6 +2754,8 @@ function Enter-M01RawObservationEnvironment {
         CLROS_M01_CAPTURE_SCRATCH = $Capture.CaptureScratchPath
         CLROS_M01_GUEST_TIMEOUT_SECONDS = [string] $Capture.GuestTimeoutSeconds
         CLROS_M01_CAPTURE_TIMEOUT_SECONDS = [string] $Capture.CaptureTimeoutSeconds
+        CLROS_M02_SAFE_STUB_PROBE = (
+            Format-QemuSmokeBoolean $Capture.M02SafeStubEnabled)
     }
     $entries = @()
     try {
@@ -3328,6 +3528,36 @@ try {
     $uniqueMarkers = @(
         ConvertTo-QemuSmokeMarkerList -Values $RequireUniqueMarker
     )
+    $forbiddenMarkers = @(
+        ConvertTo-QemuSmokeMarkerList -Values $ForbidMarker
+    )
+
+    if ($EnableM02SafeStubProbe) {
+        $requiredMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $requiredMarkers
+                $script:M02SafeStubRequiredMarkers
+            )
+        )
+        $orderedMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $orderedMarkers
+                $script:M02SafeStubRequiredMarkers
+            )
+        )
+        $uniqueMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $uniqueMarkers
+                $script:M02SafeStubRequiredMarkers
+            )
+        )
+        $forbiddenMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $forbiddenMarkers
+                $script:M02SafeStubForbiddenMarkers
+            )
+        )
+    }
 
     if ($RequireNativeAppMarkers) {
         foreach ($marker in $nativeAppRequiredMarkers) {
@@ -3375,11 +3605,62 @@ try {
         " dryRun=" +
         (Format-QemuSmokeBoolean $DryRun.IsPresent))
     Write-Host (
+        "QEMU_SCRIPT_M02_SAFE_STUB_PROBE enabled=" +
+        (Format-QemuSmokeBoolean $EnableM02SafeStubProbe.IsPresent) +
+        " ownedPaging=" +
+        (Format-QemuSmokeBoolean $EnableM01OwnedPagingProbe.IsPresent) +
+        " liveAllocator=" +
+        (Format-QemuSmokeBoolean $EnableM01LiveAllocatorProbe.IsPresent) +
+        " loadedImageStack=" +
+        (Format-QemuSmokeBoolean $EnableM01LoadedImageStackProbe.IsPresent) +
+        " buildEfi=" +
+        (Format-QemuSmokeBoolean $BuildEfi.IsPresent) +
+        " skipImageBuild=" +
+        (Format-QemuSmokeBoolean $SkipImageBuild.IsPresent) +
+        " dryRun=" +
+        (Format-QemuSmokeBoolean $DryRun.IsPresent) +
+        " profileRequired=48 profileForbidden=34")
+    Write-Host (
         "QEMU_SCRIPT_REQUIRE_ORDERED_MARKERS " +
         (Format-QemuSmokeMarkerList $orderedMarkers))
     Write-Host (
         "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS " +
         (Format-QemuSmokeMarkerList $uniqueMarkers))
+
+    if ($EnableM02SafeStubProbe -and -not $EnableM01LoadedImageStackProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_safe_stub_probe_requires_loaded_image_stack")
+        exit 1
+    }
+
+    if ($EnableM02SafeStubProbe -and -not $EnableM01LiveAllocatorProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_safe_stub_probe_requires_live_allocator")
+        exit 1
+    }
+
+    if ($EnableM02SafeStubProbe -and -not $EnableM01OwnedPagingProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_safe_stub_probe_requires_owned_paging")
+        exit 1
+    }
+
+    if ($EnableM02SafeStubProbe -and -not $BuildEfi) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_safe_stub_probe_requires_build_efi")
+        exit 1
+    }
+
+    if ($EnableM02SafeStubProbe -and $SkipImageBuild) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_safe_stub_probe_forbids_skip_image_build")
+        exit 1
+    }
 
     if ($EnableM01OwnedPagingProbe -and -not $EnableM01LiveAllocatorProbe) {
         Write-Host (
@@ -3479,10 +3760,6 @@ try {
         Write-Host ("QEMU_MARKER_PRESETS " + ($markerPresets -join ";"))
     }
 
-    $forbiddenMarkers = @(
-        ConvertTo-QemuSmokeMarkerList -Values $ForbidMarker
-    )
-
     if (-not $DryRun) {
         $hostPreflight = Invoke-QemuSmokeHostPreflight -RequestedQemu $Qemu -RequestedOvmfCode $OvmfCode
         $Qemu = $hostPreflight.QemuPath
@@ -3524,6 +3801,10 @@ try {
             $buildArguments += "-EnableM01OwnedPagingProbe"
         }
 
+        if ($EnableM02SafeStubProbe) {
+            $buildArguments += "-EnableM02SafeStubProbe"
+        }
+
         Invoke-NativeCommand {
             & powershell.exe @buildArguments
         }
@@ -3556,7 +3837,8 @@ try {
                     -RequestedObservationLog $M01RawObservationLog `
                     -PublicSerialLog $SerialLog `
                     -SummaryLog $SummaryLog `
-                    -GuestTimeoutSeconds $TimeoutSeconds
+                    -GuestTimeoutSeconds $TimeoutSeconds `
+                    -M02SafeStubEnabled $EnableM02SafeStubProbe.IsPresent
         }
         catch {
             Write-Host (
