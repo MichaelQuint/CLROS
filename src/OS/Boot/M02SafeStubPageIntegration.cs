@@ -494,8 +494,7 @@ public static unsafe class M02SafeStubPageIntegration
                 M02SafeStubPageIntegrationStatus.ProbePageMismatch);
         }
 
-        if (runtimeState->ProbeEntry
-                != modeledProbePageAddress + SafeOffset
+        if (runtimeState->ProbeEntry != modeledProbePageAddress + SafeOffset
             || runtimeState->InvlpgTarget
                 != runtimeState->ProbeEntry)
         {

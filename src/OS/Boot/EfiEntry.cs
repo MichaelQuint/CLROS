@@ -1062,6 +1062,24 @@ public static unsafe class EfiEntry
                         tableAllocated);
                 }
 
+#if M02_SAFE_STUB_PROBE
+                if (!PrepareM02SafeStubPage(
+                        console,
+                        serial,
+                        bootServices,
+                        mapFirmwareStatus,
+                        codeAddress,
+                        codeAllocated,
+                        probeAddress,
+                        probeAllocated,
+                        tableAddress,
+                        tablePageCount,
+                        tableAllocated))
+                {
+                    return false;
+                }
+#endif
+
                 fixed (M01OwnedCr3CompositeCallGateResult*
                     gateMaterialization =
                         &s_gateMaterialization)
@@ -1083,125 +1101,6 @@ public static unsafe class EfiEntry
                                 SemanticRecordCount,
                                 SemanticRecordCount);
                 }
-#if M02_SAFE_STUB_PROBE
-                if (!s_gateReadback.IsReadbackVerified
-                    || s_gateReadback.GateEntryAddress
-                        != codeAddress
-                            + M01OwnedCr3CompositeTransition
-                                .CallGateOffset
-                    || s_gateReadback.ReturnSiteAddress
-                        != codeAddress
-                            + M01OwnedCr3CompositeTransition
-                                .CallNextReturnSiteOffset
-                    || s_gateReadback.Fnv1a64
-                        != M01OwnedCr3CompositeTransition
-                            .RequiredCombinedFnv1a64
-                    || !ValidateTransferThunkReadback(
-                        stageOneCodeAllocation,
-                        transferEntry)
-                    || !ValidatePlannerCallThunkReadback(
-                        stageOneCodeAllocation,
-                        plannerCallEntry))
-                {
-                    return FailBeforeEntry(
-                        console,
-                        serial,
-                        bootServices,
-                        M01StageThreeAdapterStatus
-                            .FinalReadbackRejected,
-                        mapFirmwareStatus,
-                        codeAddress,
-                        codeAllocated,
-                        probeAddress,
-                        probeAllocated,
-                        tableAddress,
-                        tablePageCount,
-                        tableAllocated);
-                }
-
-                WriteM02SuccessLine(console, serial, 0);
-                fixed (OS.Kernel.Diagnostics
-                    .ExistingIn8Out8StubPageState*
-                        m02PageState = &s_m02PageState)
-                {
-                    s_m02MaterializationAudit =
-                        M02SafeStubPageIntegration.Materialize(
-                            (byte*)probeAddress,
-                            probeAddress,
-                            PageSize,
-                            m02PageState,
-                            out s_m02Materialization);
-                    if (!s_m02MaterializationAudit.Succeeded)
-                    {
-                        return FailBeforeEntry(
-                            console,
-                            serial,
-                            bootServices,
-                            M01StageThreeAdapterStatus
-                                .FinalReadbackRejected,
-                            mapFirmwareStatus,
-                            codeAddress,
-                            codeAllocated,
-                            probeAddress,
-                            probeAllocated,
-                            tableAddress,
-                            tablePageCount,
-                            tableAllocated);
-                    }
-                    WriteM02SuccessLine(console, serial, 1);
-
-                    s_m02ReadbackAudit =
-                        M02SafeStubPageIntegration.ValidateReadback(
-                            (byte*)probeAddress,
-                            probeAddress,
-                            PageSize,
-                            s_m02Materialization,
-                            m02PageState,
-                            out s_m02Readback);
-                    if (!s_m02ReadbackAudit.Succeeded)
-                    {
-                        return FailBeforeEntry(
-                            console,
-                            serial,
-                            bootServices,
-                            M01StageThreeAdapterStatus
-                                .FinalReadbackRejected,
-                            mapFirmwareStatus,
-                            codeAddress,
-                            codeAllocated,
-                            probeAddress,
-                            probeAllocated,
-                            tableAddress,
-                            tablePageCount,
-                            tableAllocated);
-                    }
-                    WriteM02SuccessLine(console, serial, 2);
-
-                    s_m02FinalizationAudit =
-                        M02SafeStubPageIntegration.AuditFinalization(
-                            s_m02Readback,
-                            probeAddress,
-                            m02PageState,
-                            out s_m02Finalization);
-                    if (!s_m02FinalizationAudit.Succeeded)
-                    {
-                        return FailBeforeEntry(
-                            console,
-                            serial,
-                            bootServices,
-                            M01StageThreeAdapterStatus
-                                .FinalReadbackRejected,
-                            mapFirmwareStatus,
-                            codeAddress,
-                            codeAllocated,
-                            probeAddress,
-                            probeAllocated,
-                            tableAddress,
-                            tablePageCount,
-                            tableAllocated);
-                    }
-                }
-#endif
                 if (!s_gateReadback.IsReadbackVerified
                     || s_gateReadback.GateEntryAddress
                         != codeAddress
@@ -1352,28 +1251,6 @@ public static unsafe class EfiEntry
                         (ulong)s_gateAudit.Status);
                 }
 
-#if M02_SAFE_STUB_PROBE
-                fixed (M01OwnedCr3CompositeCallGateResult*
-                    gateAudit = &s_gateAudit)
-                {
-                    s_m02ExecutionAudit =
-                        M02SafeStubPageIntegration.AuditExecution(
-                            (byte*)probeAddress,
-                            probeAddress,
-                            PageSize,
-                            s_m02Finalization,
-                            runtimeState,
-                            gateAudit);
-                }
-                if (!s_m02ExecutionAudit.Succeeded)
-                {
-                    return FailAfterEntry(
-                        M01StageThreeAdapterStatus
-                            .PostReturnAuditRejected,
-                        (ulong)s_m02ExecutionAudit.Status);
-                }
-#endif
-
                 for (int lineIndex = 9;
                     lineIndex
                         < BootSequencePlan
@@ -1397,14 +1274,6 @@ public static unsafe class EfiEntry
                                 console,
                                 serial);
                     }
-#if M02_SAFE_STUB_PROBE
-                    if (lineIndex == 18)
-                    {
-                        WriteM02SuccessLine(console, serial, 3);
-                        WriteM02SuccessLine(console, serial, 4);
-                        WriteM02SuccessLine(console, serial, 5);
-                    }
-#endif
                     WriteSuccessLine(
                         console,
                         serial,
@@ -2794,6 +2663,133 @@ public static unsafe class EfiEntry
                 && binding.Provenance == provenance;
         }
 
+#if M02_SAFE_STUB_PROBE
+        private static bool PrepareM02SafeStubPage(
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial,
+            EfiBootServices* bootServices,
+            ulong mapFirmwareStatus,
+            ulong codeAddress,
+            bool codeAllocated,
+            ulong probeAddress,
+            bool probeAllocated,
+            ulong tableAddress,
+            ulong tablePageCount,
+            bool tableAllocated)
+        {
+            if (!ValidateOriginalProtectionProbeBeforeM02(
+                    (byte*)probeAddress))
+            {
+                return FailBeforeEntry(
+                    console,
+                    serial,
+                    bootServices,
+                    M01StageThreeAdapterStatus
+                        .FinalReadbackRejected,
+                    mapFirmwareStatus,
+                    codeAddress,
+                    codeAllocated,
+                    probeAddress,
+                    probeAllocated,
+                    tableAddress,
+                    tablePageCount,
+                    tableAllocated);
+            }
+
+            WriteM02SuccessLine(console, serial, 0);
+            fixed (OS.Kernel.Diagnostics
+                .ExistingIn8Out8StubPageState*
+                    m02PageState = &s_m02PageState)
+            {
+                s_m02MaterializationAudit =
+                    M02SafeStubPageIntegration.Materialize(
+                        (byte*)probeAddress,
+                        probeAddress,
+                        PageSize,
+                        m02PageState,
+                        out s_m02Materialization);
+                if (!s_m02MaterializationAudit.Succeeded)
+                {
+                    return FailBeforeEntry(
+                        console,
+                        serial,
+                        bootServices,
+                        M01StageThreeAdapterStatus
+                            .FinalReadbackRejected,
+                        mapFirmwareStatus,
+                        codeAddress,
+                        codeAllocated,
+                        probeAddress,
+                        probeAllocated,
+                        tableAddress,
+                        tablePageCount,
+                        tableAllocated);
+                }
+                WriteM02SuccessLine(console, serial, 1);
+
+                s_m02ReadbackAudit =
+                    M02SafeStubPageIntegration.ValidateReadback(
+                        (byte*)probeAddress,
+                        probeAddress,
+                        PageSize,
+                        s_m02Materialization,
+                        m02PageState,
+                        out s_m02Readback);
+                if (!s_m02ReadbackAudit.Succeeded)
+                {
+                    return FailBeforeEntry(
+                        console,
+                        serial,
+                        bootServices,
+                        M01StageThreeAdapterStatus
+                            .FinalReadbackRejected,
+                        mapFirmwareStatus,
+                        codeAddress,
+                        codeAllocated,
+                        probeAddress,
+                        probeAllocated,
+                        tableAddress,
+                        tablePageCount,
+                        tableAllocated);
+                }
+                WriteM02SuccessLine(console, serial, 2);
+
+                s_m02FinalizationAudit =
+                    M02SafeStubPageIntegration.AuditFinalization(
+                        s_m02Readback,
+                        probeAddress,
+                        m02PageState,
+                        out s_m02Finalization);
+                if (!s_m02FinalizationAudit.Succeeded)
+                {
+                    return FailBeforeEntry(
+                        console,
+                        serial,
+                        bootServices,
+                        M01StageThreeAdapterStatus
+                            .FinalReadbackRejected,
+                        mapFirmwareStatus,
+                        codeAddress,
+                        codeAllocated,
+                        probeAddress,
+                        probeAllocated,
+                        tableAddress,
+                        tablePageCount,
+                        tableAllocated);
+                }
+            }
+
+            return true;
+        }
+
+        private static bool
+            ValidateOriginalProtectionProbeBeforeM02(
+                byte* probePage)
+        {
+            return ValidateProtectionProbeReadback(probePage);
+        }
+#endif
+
         private static bool ValidateProtectionProbeReadback(
             byte* probePage)
         {
@@ -2803,20 +2799,28 @@ public static unsafe class EfiEntry
             }
 
 #if M02_SAFE_STUB_PROBE
-            return s_m02MaterializationAudit.Succeeded
-                && s_m02ReadbackAudit.Succeeded
-                && s_m02FinalizationAudit.Succeeded
-                && s_m02Materialization.Succeeded
-                && s_m02Readback.ReadBackVerified
-                && s_m02Finalization.FinalizationAudited
-                && M02SafeStubPageIntegration.ValidateExactPage(
-                    probePage,
-                    (ulong)probePage,
-                    PageSize,
-                    out ulong observedFnv1a64)
-                && observedFnv1a64
-                    == M02SafeStubPageIntegration.ExpectedFnv1a64;
-#else
+            if (s_m02FinalizationAudit.Succeeded)
+            {
+                if (!s_m02MaterializationAudit.Succeeded
+                    || !s_m02ReadbackAudit.Succeeded
+                    || !s_m02Materialization.Succeeded
+                    || !s_m02Readback.ReadBackVerified
+                    || !s_m02Finalization.FinalizationAudited
+                    || !M02SafeStubPageIntegration.ValidateExactPage(
+                        probePage,
+                        (ulong)probePage,
+                        PageSize,
+                        out ulong observedFnv1a64)
+                    || observedFnv1a64
+                        != M02SafeStubPageIntegration.ExpectedFnv1a64)
+                {
+                    return false;
+                }
+
+                return s_m02FinalizationAudit.Succeeded;
+            }
+#endif
+
             OS.Kernel.Memory.X64ProtectionProbeStubPlanResult
                 readback =
                     OS.Kernel.Memory.X64ProtectionProbeStubPlan
@@ -2847,7 +2851,6 @@ public static unsafe class EfiEntry
             }
 
             return true;
-#endif
         }
 
         private static bool MaterializeTransferThunk(
@@ -3560,6 +3563,45 @@ public static unsafe class EfiEntry
             EfiSerialIoProtocol* serial,
             int lineIndex)
         {
+#if M02_SAFE_STUB_PROBE
+            if (lineIndex == 9)
+            {
+                ulong probeAddress =
+                    s_m02FinalizationAudit.ModeledPageAddress;
+                ulong runtimeStateAddress =
+                    s_gateAudit.PreparedState.ExpectedSelfAddress;
+                fixed (M01OwnedCr3CompositeCallGateResult*
+                    gateAudit = &s_gateAudit)
+                {
+                    s_m02ExecutionAudit =
+                        M02SafeStubPageIntegration.AuditExecution(
+                            (byte*)probeAddress,
+                            probeAddress,
+                            PageSize,
+                            s_m02Finalization,
+                            (M01OwnedCr3CompositeTransitionRuntimeState*)
+                                (void*)runtimeStateAddress,
+                            gateAudit);
+                }
+
+                if (!s_m02ExecutionAudit.Succeeded)
+                {
+                    _ = FailAfterEntry(
+                        M01StageThreeAdapterStatus
+                            .PostReturnAuditRejected,
+                        (ulong)s_m02ExecutionAudit.Status);
+                    return;
+                }
+            }
+
+            if (lineIndex == 18)
+            {
+                WriteM02SuccessLine(console, serial, 3);
+                WriteM02SuccessLine(console, serial, 4);
+                WriteM02SuccessLine(console, serial, 5);
+            }
+#endif
+
             int length =
                 BootSequencePlan
                     .GetM01StageThreeSuccessLineLength(

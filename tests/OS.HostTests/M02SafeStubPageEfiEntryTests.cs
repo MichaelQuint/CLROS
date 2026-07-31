@@ -234,9 +234,38 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
         int stageThreeRecaptured = source.IndexOf(
             "WriteSuccessLine(console, serial, 4);",
             StringComparison.Ordinal);
+        int gateMaterialized = source.IndexOf(
+            "if (!s_gateMaterialization.IsMaterialized)",
+            stageThreeRecaptured,
+            StringComparison.Ordinal);
+        int prepareCall = source.IndexOf(
+            "if (!PrepareM02SafeStubPage(",
+            gateMaterialized,
+            StringComparison.Ordinal);
+        int gateReadback = source.IndexOf(
+            "gateMaterialization =",
+            prepareCall,
+            StringComparison.Ordinal);
+        int preCr3 = source.IndexOf(
+            "WriteSuccessLine(console, serial, 8);",
+            gateReadback,
+            StringComparison.Ordinal);
+        int transfer = source.IndexOf(
+            "transfer(",
+            preCr3,
+            StringComparison.Ordinal);
+
+        int prepareMethod = source.IndexOf(
+            "private static bool PrepareM02SafeStubPage(",
+            transfer,
+            StringComparison.Ordinal);
+        int originalProbeReadback = source.IndexOf(
+            "ValidateOriginalProtectionProbeBeforeM02(",
+            prepareMethod,
+            StringComparison.Ordinal);
         int start = source.IndexOf(
             "WriteM02SuccessLine(console, serial, 0);",
-            stageThreeRecaptured,
+            originalProbeReadback,
             StringComparison.Ordinal);
         int materialize = source.IndexOf(
             "M02SafeStubPageIntegration.Materialize(",
@@ -258,17 +287,18 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
             "M02SafeStubPageIntegration.AuditFinalization(",
             readbackMarker,
             StringComparison.Ordinal);
-        int preCr3 = source.IndexOf(
-            "WriteSuccessLine(console, serial, 8);",
+
+        int writer = source.IndexOf(
+            "private static void WriteSuccessLine(",
             finalization,
             StringComparison.Ordinal);
-        int transfer = source.IndexOf(
-            "transfer(",
-            preCr3,
+        int executionGuard = source.IndexOf(
+            "if (lineIndex == 9)",
+            writer,
             StringComparison.Ordinal);
         int executionAudit = source.IndexOf(
             "M02SafeStubPageIntegration.AuditExecution(",
-            transfer,
+            executionGuard,
             StringComparison.Ordinal);
         int lastThreeGuard = source.IndexOf(
             "if (lineIndex == 18)",
@@ -288,15 +318,22 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
             StringComparison.Ordinal);
 
         return stageThreeRecaptured >= 0
-            && stageThreeRecaptured < start
+            && stageThreeRecaptured < gateMaterialized
+            && gateMaterialized < prepareCall
+            && prepareCall < gateReadback
+            && gateReadback < preCr3
+            && preCr3 < transfer
+            && transfer < prepareMethod
+            && prepareMethod < originalProbeReadback
+            && originalProbeReadback < start
             && start < materialize
             && materialize < materializedMarker
             && materializedMarker < readback
             && readback < readbackMarker
             && readbackMarker < finalization
-            && finalization < preCr3
-            && preCr3 < transfer
-            && transfer < executionAudit
+            && finalization < writer
+            && writer < executionGuard
+            && executionGuard < executionAudit
             && executionAudit < lastThreeGuard
             && lastThreeGuard < safeMarker
             && safeMarker < readyMarker
