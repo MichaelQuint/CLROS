@@ -106,12 +106,16 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Memory\X64InvlpgStubPlan.cs|Memory\X64InvlpgStubPlan.cs',
     '..\OS.Kernel\Memory\X64ProtectionProbeStubPlan.cs|Memory\X64ProtectionProbeStubPlan.cs',
     '..\OS.Kernel\Memory\PageZeroMappingPolicy.cs|Memory\PageZeroMappingPolicy.cs',
+    '..\OS.Kernel\Diagnostics\PortIoOperationPlan.cs|Diagnostics\PortIoOperationPlan.cs',
+    '..\OS.Kernel\Diagnostics\PortIoStubPlan.cs|Diagnostics\PortIoStubPlan.cs',
+    '..\OS.Kernel\Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs|Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs',
     '..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs|Boot\M01LoadedImageStackIntegration.cs',
     '..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs|Boot\M01LiveAllocatorIntegration.cs',
     '..\OS.Kernel\Boot\M01LivePagingIntegration.cs|Boot\M01LivePagingIntegration.cs',
     '..\OS.Kernel\Boot\M01OwnedCr3CompositeTransition.cs|Boot\M01OwnedCr3CompositeTransition.cs',
     'Boot\EfiConsoleAdapter.cs|',
     'Boot\EfiEntry.cs|',
+    'Boot\M02SafeStubPageIntegration.cs|',
     'Boot\X64InstructionPublication.cs|',
     'Runtime\RuntimeImportAttribute.cs|',
     'Runtime\MethodImplAttribute.cs|',
@@ -4052,7 +4056,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 44 -or
+    if ($compileItems.Count -ne 48 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
