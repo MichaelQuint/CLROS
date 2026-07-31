@@ -254,10 +254,22 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
             "transfer(",
             preCr3,
             StringComparison.Ordinal);
+        int observedAuditGuard = source.IndexOf(
+            "if (!s_gateAudit.IsObservedAudit)",
+            transfer,
+            StringComparison.Ordinal);
+        int postReturnLoop = source.IndexOf(
+            "for (int lineIndex = 9;",
+            observedAuditGuard,
+            StringComparison.Ordinal);
+        int writerCall = source.IndexOf(
+            "WriteSuccessLine(",
+            postReturnLoop,
+            StringComparison.Ordinal);
 
         int prepareMethod = source.IndexOf(
             "private static bool PrepareM02SafeStubPage(",
-            transfer,
+            writerCall,
             StringComparison.Ordinal);
         int originalProbeReadback = source.IndexOf(
             "ValidateOriginalProtectionProbeBeforeM02(",
@@ -323,7 +335,10 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
             && prepareCall < gateReadback
             && gateReadback < preCr3
             && preCr3 < transfer
-            && transfer < prepareMethod
+            && transfer < observedAuditGuard
+            && observedAuditGuard < postReturnLoop
+            && postReturnLoop < writerCall
+            && writerCall < prepareMethod
             && prepareMethod < originalProbeReadback
             && originalProbeReadback < start
             && start < materialize
@@ -555,6 +570,21 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
             && efiEntry.Contains(
                 "M02SafeStubPageIntegration.AuditExecution(",
                 StringComparison.Ordinal)
+            && CountOccurrences(
+                efiEntry,
+                "M02SafeStubPageIntegration.AuditExecution(") == 1
+            && efiEntry.Contains(
+                "s_gateAudit.PreparedState.ExpectedSelfAddress;",
+                StringComparison.Ordinal)
+            && efiEntry.Contains(
+                "(void*)runtimeStateAddress,",
+                StringComparison.Ordinal)
+            && efiEntry.Contains(
+                "gateAudit = &s_gateAudit",
+                StringComparison.Ordinal)
+            && efiEntry.Contains(
+                "_ = FailAfterEntry(",
+                StringComparison.Ordinal)
             && !efiEntry.Contains(
                 "M02_OUT8_EXECUTED",
                 StringComparison.Ordinal)
@@ -747,6 +777,30 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
             "M01_STAGE2_FAIL",
             "M01_STAGE3_FAIL"
         ];
+    }
+
+    private static int CountOccurrences(
+        string source,
+        string value)
+    {
+        int count = 0;
+        int searchIndex = 0;
+        while (searchIndex <= source.Length - value.Length)
+        {
+            int match = source.IndexOf(
+                value,
+                searchIndex,
+                StringComparison.Ordinal);
+            if (match < 0)
+            {
+                break;
+            }
+
+            count++;
+            searchIndex = match + value.Length;
+        }
+
+        return count;
     }
 
     private static string Normalize(string value)
