@@ -303,12 +303,18 @@ function Get-HiddenIssueKey {
         return ""
     }
 
-    $match = [regex]::Match($Body, '<!--\s*clros-issue-key:([A-Z0-9-]+)\s*-->', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
-    if (-not $match.Success) {
+    $matches = [regex]::Matches(
+        $Body,
+        '<!--\s*clros-issue-key:([A-Z0-9-]+)\s*-->',
+        [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    if ($matches.Count -eq 0) {
         return ""
     }
+    if ($matches.Count -ne 1) {
+        throw "Issue body must contain at most one hidden CLROS issue key marker; found $($matches.Count)."
+    }
 
-    return $match.Groups[1].Value.ToUpperInvariant()
+    return $matches[0].Groups[1].Value.ToUpperInvariant()
 }
 
 function Get-ClosureEvidenceMarker {
@@ -509,8 +515,8 @@ function Test-Manifest {
     if ($milestones.Count -ne 16) {
         throw "Manifest must contain exactly 16 milestones; found $($milestones.Count)."
     }
-    if ($issues.Count -ne 343) {
-        throw "Manifest must contain 16 epics plus 327 children; found $($issues.Count)."
+    if ($issues.Count -ne 344) {
+        throw "Manifest must contain 16 epics plus 328 children; found $($issues.Count)."
     }
 
     $milestoneByKey = @{}
@@ -621,7 +627,7 @@ function Test-Manifest {
     }
 
     $expectedChildren = @{
-        M00 = 23; M01 = 36; M02 = 18; M03 = 11; M04 = 23; M05 = 21; M06 = 19; M07 = 25
+        M00 = 23; M01 = 36; M02 = 19; M03 = 11; M04 = 23; M05 = 21; M06 = 19; M07 = 25
         M08 = 20; M09 = 30; M10 = 14; M11 = 18; M12 = 18; M13 = 18; M14 = 18; M15 = 15
     }
     foreach ($milestoneKey in $expectedChildren.Keys) {
@@ -1874,7 +1880,7 @@ try {
     }
     $manifest = Get-Content -LiteralPath $resolvedManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $validated = Test-Manifest -Manifest $manifest
-    Write-SyncLine "SYNC_MANIFEST_VALID milestones=$($validated.milestones.Count) labels=$($validated.labels.Count) epics=16 children=327 issues=$($validated.issues.Count)"
+    Write-SyncLine "SYNC_MANIFEST_VALID milestones=$($validated.milestones.Count) labels=$($validated.labels.Count) epics=16 children=328 issues=$($validated.issues.Count)"
 
     if ($SelfTest) {
         if ($Apply) {
@@ -1905,6 +1911,43 @@ USER_NOTE_AFTER
             throw "Managed body self-test failed to preserve user text or replace exactly one managed region."
         }
         Write-SyncLine "SYNC_SELF_TEST_MANAGED_BODY_PASS"
+
+        $bootstrapKey = Get-HiddenIssueKey -Body "<!-- clros-issue-key:M02-019 -->"
+        $duplicateHiddenKeyRejected = $false
+        try {
+            [void](Get-HiddenIssueKey -Body @"
+<!-- clros-issue-key:M02-019 -->
+<!-- clros-issue-key:M02-019 -->
+"@)
+        }
+        catch {
+            $duplicateHiddenKeyRejected = $_.Exception.Message.Contains(
+                "at most one hidden CLROS issue key marker")
+        }
+        $bootstrapRemoteState = @{
+            issueByKey = @{
+                "M02-019" = [pscustomobject]@{
+                    number = 432
+                    state = "open"
+                    body = "<!-- clros-issue-key:M02-019 -->"
+                }
+            }
+        }
+        $wouldCreateBeforeAdoption = $script:Counters.wouldCreate
+        Create-MissingIssues `
+            -ManifestIssues @($validated.issueByKey["M02-019"]) `
+            -ManifestMilestoneByKey @{} `
+            -ManifestIssueByKey $validated.issueByKey `
+            -ManagedLabelNames @{} `
+            -RemoteState $bootstrapRemoteState
+        $bootstrapCreateKey = "issue:M02-019"
+        if ($bootstrapKey -ne "M02-019" -or
+            -not $duplicateHiddenKeyRejected -or
+            $script:Counters.wouldCreate -ne $wouldCreateBeforeAdoption -or
+            $script:ActionKeys.wouldCreate.Contains($bootstrapCreateKey)) {
+            throw "Hidden-key adoption self-test did not adopt exactly one pre-keyed M02-019 issue without proposing a duplicate."
+        }
+        Write-SyncLine "SYNC_SELF_TEST_HIDDEN_KEY_ADOPTION_PASS key=M02-019 markers=1 wouldCreate=0 duplicateMarkersRejected=true"
 
         $dependencyIssue = [pscustomobject]@{
             key = "SELFTEST-DEPENDENCY"

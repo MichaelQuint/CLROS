@@ -80,34 +80,41 @@ and the reachable local Gitea tracker:
   policy, and the host-only nonclaims. At the M02-018 evidence-source
   checkpoint, issue #41 remained open in `agent:review` pending catalog-owned
   post-merge convergence.
-- At the source-bound r4 ledger checkpoint, M02-018 issue `#429`,
-  implementation commit
-  `8c1f0d8d2b6dfd06433840f973de6aa7aa08e532`/tree
-  `4e1dfbe4bad969af26e534a0cf12b10c61401d7f`, and evidence-source commit
-  `79f318f25389cee411e65bc745f2cb052be0058d`/tree
-  `13e86bf0164bb0e52b3f4e2c2d53f341f351e3f4` were carried by draft PR #430
-  and `done/step893.md`. The complete source-bound r4 gate at
+- M02-018 issue `#429` completed the M02-001 durability transaction. Its
+  source-bound r4 gate at
   `artifacts/logs/m02-018-final/79f318f2-20260730T201222Z-r4` passed all ten
   commands. Summary SHA-256
   `99A39D223A9D208B0E985E6A50CA1E617F4A52F33B2954B0294595325B676D7F`
   records native HostTests exit 0, 3,337 starts, 3,338 passes, zero failures,
-  one exact M02-018 envelope, one terminal host pass, and empty stderr. Offline
-  validation skipped all 427 managed objects, synchronizer self-tests passed,
-  the 42-file hash ledger is
-  `2FE2BA2A97FEED0577AD1499074D2878455885BACF6136129640697242DADBFE`,
-  and no QEMU/OVMF guest boot ran. QEMU-related execution was limited to host
-  preflight/version probes and the explicit dry-run, so no guest or serial
-  evidence is attached.
-- M02-018's target is 16 epics, 327 children, 343 keyed issues, and 427
-  managed objects. It records M02-001 as closed/done and gates M02-002 on
-  M02-018 so a partial tracker update cannot release production
-  materialization. M02-002 and M04-001 remain production-C# leaves with host
-  evidence only. M02-017 remains the sole serialized real-QEMU integration
-  leaf before M02-003 and may execute only the fixed safe offset-zero
-  return-cookie entry, never In8 or Out8. At the r4 ledger checkpoint, live
-  closure and convergence were pending; later tracker comments and synchronizer
-  logs are the authority for completion of the required reviewed-merge and
-  guarded-convergence sequence.
+  one exact M02-018 envelope, one terminal host pass, and empty stderr.
+  Reviewed PR #430 merged as
+  `8566f44cf493d7138d500b0cdad17b75d34b3405`; guarded synchronization then
+  closed issues #41 and #429 with `agent:done` and converged the historical
+  16-epic, 327-child, 343-keyed-issue, 427-managed-object snapshot. Comments
+  #6605, #6615, and #6630 preserve review, merge, and convergence proof.
+- M02-002 is now reviewed production C#, not remaining planned work. Accepted
+  base `8566f44cf493d7138d500b0cdad17b75d34b3405`,
+  implementation/evidence-source commit
+  `06a38803b8bf4d5bc35e29948e626dbd8fb164bd`/tree
+  `09bc5e263a3ab624ea3232655957d9ae79b2d042`, and reviewed head
+  `88df315bcca0bf3302d25ca88451b1d51f1ce31b`/tree
+  `c272b6991a68309a7e348bd20d85819977b7a264` merged through PR #431 as
+  `da856db657575d8f8d67713c7afe96e113854e54`. Issue #42 comments #6644 and
+  #6651 and `done/step894.md` preserve native exit 0, 3,338 starts, 3,339
+  passes, zero failures, the exact 4 KiB page identities, no-stdlib
+  compile/pointer evidence, and the host-only boundary. QEMU was dry-run only,
+  the EFI build was regression/preflight only, and no M02 page was linked or
+  executed in a guest.
+- M02-019 live issue `#432` is the claimed durability transaction for
+  M02-002. Its canonical target is 16 epics, 328 children, 344 keyed issues,
+  and 428 managed objects with 19 M02 children. It records M02-002 as
+  closed/done and gates M02-017 on M02-019 so a partial tracker update cannot
+  release safe EFI integration. Until independent review, merge, and guarded
+  convergence complete, issue #42 remains open in `agent:review` and #432
+  remains open in `agent:claimed`; the target counts are not live-convergence
+  evidence. M02-017 remains the sole serialized real-QEMU integration leaf
+  before M02-003 and may execute only the fixed safe offset-zero return-cookie
+  entry, never In8 or Out8.
 
 ## Implemented Behavior
 
@@ -125,6 +132,10 @@ and the reachable local Gitea tracker:
   now provides the reviewed allocation-free, status-coded M02-001 strategy
   decision over the exact audited Out8/In8 plans. It does not materialize or
   execute those bytes.
+- `src/OS.Kernel/Diagnostics/ExistingIn8Out8StubBytesRWPagesFinalize.cs`
+  now provides the reviewed allocation-free M02-002 fixed-page
+  materialization, full-page readback, and value-only RW+NX-to-RO+X
+  finalization audit. It does not change live protection or execute any entry.
 - `tests/OS.HostTests` verifies marker emission, boot event ring-buffer behavior, boot info, typed handoff metadata, UEFI memory-map contracts, normalized memory-map conversion, UEFI-gone simulation behavior, diagnostics, manifest validation, libvirt XML generation, source firewall behavior, storage/network parser primitives, ACPI/PCI/virtio planning contracts, and the current `OS.Std.Ascii`, endian, and `OS.Std.MemoryExtensions` helper slices.
 - `tools/OS.QemuRunner` can dry-run and run a QEMU/OVMF smoke, capture serial logs, and require `OS_SMOKE_PASS`.
 - `tools/OS.ManifestTool` validates manifest v0 JSON with machine-readable markers.
@@ -289,12 +300,12 @@ Current M00 recovery evidence from 2026-07-25:
   above. M01-036 then closed the final M01 repository/tracker durability
   boundary, closed M01-EPIC, and produced the applied 326-child,
   342-keyed-issue, 426-managed-object snapshot. M02-001 subsequently merged
-  reviewed host-only production C# through PR #428. At the M02-018 r4
-  checkpoint, M02-018 owned the follow-on target of 327 children, 343 keyed
-  issues, and 427 managed objects and had to converge issues #41 and #429
-  before M02-002 could be ready. M02-002 and M04-001 remain host-only
-  production-C# slices; M02-017 alone owns safe guest execution before
-  M02-003. Only `M15-013`, the
+  reviewed host-only production C# through PR #428. M02-018 then converged
+  issues #41 and #429 at the historical 327-child, 343-keyed-issue,
+  427-managed-object checkpoint. M02-002 subsequently merged reviewed
+  host-only production C# through PR #431. M02-019 now owns its 328-child,
+  344-keyed-issue, 428-managed-object durability transaction before M02-017
+  alone may perform safe guest execution ahead of M02-003. Only `M15-013`, the
   isolated optional DOOM/WAD boundary, retains
   `reference:license-blocked`. This is administrative tracker evidence, not
   additional kernel capability evidence.
@@ -309,18 +320,20 @@ Current M00 recovery evidence from 2026-07-25:
   provenance, boundary, first-party review, and CLROS tests. File-local vendor,
   GPL, CoreCLR, WAD, and media rights remain separate.
 
-## Required Post-r4 Sequence
+## Required Post-M02-002 Sequence
 
-The r4 checkpoint requires this ordered sequence. Later tracker comments and
-synchronizer logs prove which steps completed.
+The accepted M02-002 merge requires this ordered durability sequence. Later
+tracker comments and synchronizer logs prove which steps completed.
 
-1. Complete independent review of the accepted M02-018 r4 source tuple and
-   evidence-only delta, post the exact reviewed marker to issue `#429`, and
-   merge PR #430 only if its head still matches the reviewed evidence head.
-2. From clean canonical master run guarded preview/apply/repeated-apply/final
-   preview; require issues `#41` and `#429` closed with `agent:done`, M02-002
-   ready, no duplicate hidden keys, and final 427-object convergence.
-3. Claim and implement M02-002 production C# with focused checks followed by
-   the complete host evidence gate.
-4. Run the serialized M02-017 safe-return-cookie EFI/QEMU slice before any
-   M02-003 attempt to bind privileged In8/Out8 entries.
+1. Implement and independently review M02-019 from the exact six owned
+   catalog/synchronizer/test/document paths and one newly reserved done step.
+2. Post the exact `<!-- clros-evidence-reviewed:M02-019 -->` marker to issue
+   `#432` while it remains open, and merge only the reviewed source head.
+3. From clean canonical master, verify unique M02-002 and M02-019 hidden keys
+   and both reviewed markers, then run guarded
+   preview/apply/repeated-apply/final-preview.
+4. Require issues `#42` and `#432` closed with exactly `agent:done`, no
+   duplicate hidden keys, M02-017 ready, and final 428-object convergence with
+   zero failures or proposed writes.
+5. Claim and implement the serialized M02-017 safe-return-cookie EFI/QEMU slice
+   before any M02-003 attempt to bind privileged In8/Out8 entries.

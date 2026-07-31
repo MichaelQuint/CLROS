@@ -51,47 +51,51 @@ with 3,329 starts, 3,330 passes, zero failures, and exactly one M01-036
 start/ready/pass envelope; `done/step891.md` preserves the exact logs, hashes,
 wrapper-timeout recovery, and evidence boundary.
 
-M02-001 is now actual reviewed production C#, not planned work. Implementation
+M02-001 is actual reviewed production C#, not planned work. Implementation
 commit `acec50b47056e7c538ca5225d32898ff2c0bc93f` and evidence head
 `5a4234a5b6e0fadcd1a4db9a01374340723ba4e8` merged through PR #428 as
 `85528a5513f1cf24396ff29acc6787bc015ec9c5`. Issue #41 evidence comment #6578,
 merge-proof comment #6584, and `done/step892.md` preserve native HostTests exit
 0, 3,336 starts, 3,337 passes, zero failures, the exact one-family
-ExistingAuditedBytePlans decision, and the host-only evidence boundary. At the
-M02-018 evidence-source checkpoint, issue #41 remained open in `agent:review`
-pending the post-merge manifest-owned closure transaction.
+ExistingAuditedBytePlans decision, and the host-only evidence boundary.
 
-At the source-bound r4 ledger checkpoint, M02-018 live issue `#429` was that
-serialized host-only durability transaction. Implementation commit
-`8c1f0d8d2b6dfd06433840f973de6aa7aa08e532`, tree
-`4e1dfbe4bad969af26e534a0cf12b10c61401d7f`, and evidence-source commit
-`79f318f25389cee411e65bc745f2cb052be0058d`, tree
-`13e86bf0164bb0e52b3f4e2c2d53f341f351e3f4`, were carried by draft PR #430
-and `done/step893.md`. The complete r4 gate under
+M02-018 issue `#429` completed M02-001's serialized host-only durability
+transaction. Its r4 source-bound evidence at
 `artifacts/logs/m02-018-final/79f318f2-20260730T201222Z-r4` passed all ten
-commands. Summary SHA-256
+commands; summary SHA-256
 `99A39D223A9D208B0E985E6A50CA1E617F4A52F33B2954B0294595325B676D7F`
 records native HostTests exit 0, 3,337 starts, 3,338 passes, zero failures, one
-exact M02-018 start/ready/pass envelope, one terminal host pass, and empty
-stderr. Offline validation reported 427 skipped managed objects, managed-body
-and state-policy self-tests passed. No QEMU/OVMF guest boot ran; QEMU-related
-execution was limited to host preflight/version probes and the explicit
-dry-run, so no guest or serial evidence is attached.
+exact M02-018 envelope, one terminal host pass, and empty stderr. Reviewed PR
+#430 merged as `8566f44cf493d7138d500b0cdad17b75d34b3405`; guarded synchronization
+closed issues #41 and #429 with `agent:done` and converged the historical
+16-epic, 327-child, 343-keyed-issue, 427-managed-object snapshot. Comments
+#6605, #6615, and #6630 preserve review, merge, and convergence proof.
 
-The canonical target adds the eighteenth M02 child for 16 epics, 327 children,
-343 keyed issues, and 427 managed objects; records M02-001 as
-`desiredState=closed`/`agent:done`; and rewires M02-002 to depend on M02-018 so
-materialization cannot become ready after a partial closure. M02-002 still owns
-the fixed 4 KiB page materializer/readback production C#, M04-001 owns the
-`OS.Std.*` runtime-helper classification production C#, and M02-017 remains the
-sole serialized EFI/QEMU integration leaf before M02-003. M02-017 may execute
-only the safe offset-zero return-cookie entry, never the In8 or Out8 entries.
-None of this repository-state or M02-001 host evidence advances a completion
-gate or proves real `ExitBootServices`, live port I/O, provider behavior,
-CloudReady status, hosted .NET, Kestrel, or production readiness. At the r4
-ledger checkpoint, live closure and 427-object convergence were pending; later
-tracker comments and synchronizer logs are the authority for completion of the
-required post-merge sequence.
+M02-002 is now the second actual reviewed M02 production-C# leaf.
+Implementation/evidence-source commit
+`06a38803b8bf4d5bc35e29948e626dbd8fb164bd`, tree
+`09bc5e263a3ab624ea3232655957d9ae79b2d042`, and reviewed evidence head
+`88df315bcca0bf3302d25ca88451b1d51f1ce31b`, tree
+`c272b6991a68309a7e348bd20d85819977b7a264`, merged through PR #431 as
+`da856db657575d8f8d67713c7afe96e113854e54`. Issue #42 comments #6644 and
+#6651 and `done/step894.md` preserve the exact fixed 4 KiB page, FNV/SHA
+identities, no-stdlib pointer boundary, 3,338 starts, 3,339 passes, zero
+failures, and host-only evidence. QEMU was dry-run only, and the EFI build was
+regression/preflight only; no M02 guest execution occurred.
+
+M02-019 issue `#432` is the claimed durability transaction for M02-002. The
+canonical target is 16 epics, 328 children, 344 keyed issues, and 428 managed
+objects with 19 M02 children. It records M02-002 as
+`desiredState=closed`/`agent:done`, inserts M02-019 after M02-002, and rewires
+M02-017 to depend on M02-019 so safe EFI integration cannot become ready after
+a partial closure. M02-017 remains the sole serialized EFI/QEMU integration
+leaf before M02-003 and may execute only the safe offset-zero return-cookie
+entry, never In8 or Out8. Until M02-019 is independently reviewed, merged, and
+converged, issue #42 remains open in `agent:review`, issue #432 remains open in
+`agent:claimed`, and the 428-object target is not live-convergence evidence.
+None of this repository-state or host evidence advances a completion gate or
+proves real `ExitBootServices`, live port I/O, provider behavior, CloudReady
+status, hosted .NET, Kestrel, or production readiness.
 
 The guarded earlier M00-023 apply recognized existing M00-023 as issue #321,
 created only M01-016 through M01-026 as issues #323 through #333, updated
@@ -144,10 +148,11 @@ advances a capability or completion gate.
   across the one-way owned-stack switch without guest execution. M01-026 is
   now reviewed, merged, and closed from the bounded r16 local-QEMU evidence.
   M01-036 is the completed final M01 host-only durability repair. M02-001 is
-  reviewed production C# merged through PR #428; M02-018 owns its durable
-  catalog/tracker closure and prevents M02-002 readiness until the complete
-  427-object transaction converges. M02-017 remains the sole safe live
-  integration boundary for the fixed M02 page.
+  reviewed production C# merged through PR #428, and M02-018 completed its
+  durable catalog/tracker closure. M02-002 is reviewed production C# merged
+  through PR #431; M02-019 owns its durable closure and prevents M02-017
+  readiness until the complete 428-object transaction converges. M02-017
+  remains the sole safe live integration boundary for the fixed M02 page.
 - One `phase:mxx-*` label identifies each milestone from M00 through M15.
 
 Only issues whose complete transitive dependency tree is manifest-closed,
@@ -215,19 +220,21 @@ The 16 milestone objects intentionally remain open and have no fabricated due
 dates; the keyed epic and child issue states carry the durable evidence-review
 closure contract.
 
-## Required Post-r4 Sequence
+## Required Post-M02-002 Sequence
 
-The r4 checkpoint requires this ordered sequence. Later tracker comments and
-synchronizer logs prove which steps completed.
+The accepted M02-002 merge requires this ordered durability sequence. Later
+tracker comments and synchronizer logs prove which steps completed.
 
-1. Independently review the source-bound M02-018 r4 evidence and final
-   evidence-only delta, post exactly one reviewed marker to issue `#429` while
-   it is open, and merge PR #430 only at the reviewed head.
-2. From clean canonical master, run guarded preview/apply/repeated-apply/final
-   preview; require issues `#41` and `#429` closed with `agent:done`, no
-   duplicate hidden keys, M02-002 ready, and all 427 managed objects
-   unchanged/skipped with zero proposed writes.
-3. Claim and implement M02-002 as the smallest collision-safe production-C#
-   leaf, then run the complete host evidence gate.
-4. Continue with the serialized M02-017 safe-QEMU integration boundary before
-   M02-003; do not treat its safe offset-zero cookie as live In8/Out8 evidence.
+1. Implement and independently review M02-019 from the exact six owned
+   catalog/synchronizer/test/document paths and one newly reserved done step.
+2. Post exactly one `<!-- clros-evidence-reviewed:M02-019 -->` marker to issue
+   `#432` while it remains open, then merge only the reviewed source head.
+3. From clean canonical master, verify the unique M02-002 and M02-019 hidden
+   keys and both reviewed markers, then run guarded
+   preview/apply/repeated-apply/final-preview.
+4. Require issues `#42` and `#432` closed with exactly `agent:done`, no
+   duplicate hidden keys, M02-017 as the smallest collision-safe ready issue,
+   and all 428 managed objects unchanged/skipped with zero proposed writes.
+5. Claim and implement the serialized M02-017 safe-QEMU integration boundary
+   before M02-003; do not treat its safe offset-zero cookie as live In8/Out8
+   evidence.
