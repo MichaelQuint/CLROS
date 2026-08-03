@@ -2478,7 +2478,7 @@ internal static class QemuRunnerTests
         string[] discoveredEnvironmentNames =
             System.Text.RegularExpressions.Regex.Matches(
                     environmentTable,
-                    @"CLROS_M01_[A-Z_]+")
+                    @"CLROS_M0[12]_[A-Z_]+")
                 .Cast<System.Text.RegularExpressions.Match>()
                 .Select(match => match.Value)
                 .Distinct(StringComparer.Ordinal)
@@ -2515,13 +2515,18 @@ internal static class QemuRunnerTests
                 name => CountOccurrences(
                     source,
                     "RequiredEnvironment(\"" + name + "\")") == 1)
-            && environmentNames.All(
-                name => script.Contains(
-                    name + " = $Capture.",
-                    StringComparison.Ordinal)
-                    || script.Contains(
-                        name + " = [string] $Capture.",
-                        StringComparison.Ordinal))
+            && environmentNames
+                .Where(name => name != "CLROS_M02_SAFE_STUB_PROBE")
+                .All(
+                    name => script.Contains(
+                        name + " = $Capture.",
+                        StringComparison.Ordinal)
+                        || script.Contains(
+                            name + " = [string] $Capture.",
+                            StringComparison.Ordinal))
+            && compactScript.Contains(
+                "CLROS_M02_SAFE_STUB_PROBE=(Format-QemuSmokeBoolean$Capture.M02SafeStubEnabled)",
+                StringComparison.Ordinal)
             && script.Contains(
                 "[System.EnvironmentVariableTarget]::Process",
                 StringComparison.Ordinal)
