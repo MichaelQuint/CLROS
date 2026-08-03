@@ -135,6 +135,28 @@ public static unsafe class EfiEntry
             s_gateReadback;
         private static M01OwnedCr3CompositeCallGateResult
             s_gateAudit;
+#if M02_SAFE_STUB_PROBE
+        private static OS.Kernel.Diagnostics
+            .ExistingIn8Out8StubPageState
+                s_m02PageState;
+        private static OS.Kernel.Diagnostics
+            .ExistingIn8Out8StubPageResult
+                s_m02Materialization;
+        private static OS.Kernel.Diagnostics
+            .ExistingIn8Out8StubPageResult
+                s_m02Readback;
+        private static OS.Kernel.Diagnostics
+            .ExistingIn8Out8StubPageResult
+                s_m02Finalization;
+        private static M02SafeStubPageIntegrationResult
+            s_m02MaterializationAudit;
+        private static M02SafeStubPageIntegrationResult
+            s_m02ReadbackAudit;
+        private static M02SafeStubPageIntegrationResult
+            s_m02FinalizationAudit;
+        private static M02SafeStubPageIntegrationResult
+            s_m02ExecutionAudit;
+#endif
         private static ulong s_rawIa32Pat;
 
         // NativeAOT emits GS-cookie reads for the prerequisite planners'
@@ -1040,6 +1062,24 @@ public static unsafe class EfiEntry
                         tableAllocated);
                 }
 
+#if M02_SAFE_STUB_PROBE
+                if (!PrepareM02SafeStubPage(
+                        console,
+                        serial,
+                        bootServices,
+                        mapFirmwareStatus,
+                        codeAddress,
+                        codeAllocated,
+                        probeAddress,
+                        probeAllocated,
+                        tableAddress,
+                        tablePageCount,
+                        tableAllocated))
+                {
+                    return false;
+                }
+#endif
+
                 fixed (M01OwnedCr3CompositeCallGateResult*
                     gateMaterialization =
                         &s_gateMaterialization)
@@ -1352,6 +1392,17 @@ public static unsafe class EfiEntry
             s_gateMaterialization = default;
             s_gateReadback = default;
             s_gateAudit = default;
+#if M02_SAFE_STUB_PROBE
+            s_m02PageState =
+                M02SafeStubPageIntegration.CreatePageState();
+            s_m02Materialization = default;
+            s_m02Readback = default;
+            s_m02Finalization = default;
+            s_m02MaterializationAudit = default;
+            s_m02ReadbackAudit = default;
+            s_m02FinalizationAudit = default;
+            s_m02ExecutionAudit = default;
+#endif
         }
 
         private static bool CaptureArchitecturalPreflight(
@@ -2612,6 +2663,133 @@ public static unsafe class EfiEntry
                 && binding.Provenance == provenance;
         }
 
+#if M02_SAFE_STUB_PROBE
+        private static bool PrepareM02SafeStubPage(
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial,
+            EfiBootServices* bootServices,
+            ulong mapFirmwareStatus,
+            ulong codeAddress,
+            bool codeAllocated,
+            ulong probeAddress,
+            bool probeAllocated,
+            ulong tableAddress,
+            ulong tablePageCount,
+            bool tableAllocated)
+        {
+            if (!ValidateOriginalProtectionProbeBeforeM02(
+                    (byte*)probeAddress))
+            {
+                return FailBeforeEntry(
+                    console,
+                    serial,
+                    bootServices,
+                    M01StageThreeAdapterStatus
+                        .FinalReadbackRejected,
+                    mapFirmwareStatus,
+                    codeAddress,
+                    codeAllocated,
+                    probeAddress,
+                    probeAllocated,
+                    tableAddress,
+                    tablePageCount,
+                    tableAllocated);
+            }
+
+            WriteM02SuccessLine(console, serial, 0);
+            fixed (OS.Kernel.Diagnostics
+                .ExistingIn8Out8StubPageState*
+                    m02PageState = &s_m02PageState)
+            {
+                s_m02MaterializationAudit =
+                    M02SafeStubPageIntegration.Materialize(
+                        (byte*)probeAddress,
+                        probeAddress,
+                        PageSize,
+                        m02PageState,
+                        out s_m02Materialization);
+                if (!s_m02MaterializationAudit.Succeeded)
+                {
+                    return FailBeforeEntry(
+                        console,
+                        serial,
+                        bootServices,
+                        M01StageThreeAdapterStatus
+                            .FinalReadbackRejected,
+                        mapFirmwareStatus,
+                        codeAddress,
+                        codeAllocated,
+                        probeAddress,
+                        probeAllocated,
+                        tableAddress,
+                        tablePageCount,
+                        tableAllocated);
+                }
+                WriteM02SuccessLine(console, serial, 1);
+
+                s_m02ReadbackAudit =
+                    M02SafeStubPageIntegration.ValidateReadback(
+                        (byte*)probeAddress,
+                        probeAddress,
+                        PageSize,
+                        s_m02Materialization,
+                        m02PageState,
+                        out s_m02Readback);
+                if (!s_m02ReadbackAudit.Succeeded)
+                {
+                    return FailBeforeEntry(
+                        console,
+                        serial,
+                        bootServices,
+                        M01StageThreeAdapterStatus
+                            .FinalReadbackRejected,
+                        mapFirmwareStatus,
+                        codeAddress,
+                        codeAllocated,
+                        probeAddress,
+                        probeAllocated,
+                        tableAddress,
+                        tablePageCount,
+                        tableAllocated);
+                }
+                WriteM02SuccessLine(console, serial, 2);
+
+                s_m02FinalizationAudit =
+                    M02SafeStubPageIntegration.AuditFinalization(
+                        s_m02Readback,
+                        probeAddress,
+                        m02PageState,
+                        out s_m02Finalization);
+                if (!s_m02FinalizationAudit.Succeeded)
+                {
+                    return FailBeforeEntry(
+                        console,
+                        serial,
+                        bootServices,
+                        M01StageThreeAdapterStatus
+                            .FinalReadbackRejected,
+                        mapFirmwareStatus,
+                        codeAddress,
+                        codeAllocated,
+                        probeAddress,
+                        probeAllocated,
+                        tableAddress,
+                        tablePageCount,
+                        tableAllocated);
+                }
+            }
+
+            return true;
+        }
+
+        private static bool
+            ValidateOriginalProtectionProbeBeforeM02(
+                byte* probePage)
+        {
+            return ValidateProtectionProbeReadback(probePage);
+        }
+#endif
+
         private static bool ValidateProtectionProbeReadback(
             byte* probePage)
         {
@@ -2619,6 +2797,29 @@ public static unsafe class EfiEntry
             {
                 return false;
             }
+
+#if M02_SAFE_STUB_PROBE
+            if (s_m02FinalizationAudit.Succeeded)
+            {
+                if (!s_m02MaterializationAudit.Succeeded
+                    || !s_m02ReadbackAudit.Succeeded
+                    || !s_m02Materialization.Succeeded
+                    || !s_m02Readback.ReadBackVerified
+                    || !s_m02Finalization.FinalizationAudited
+                    || !M02SafeStubPageIntegration.ValidateExactPage(
+                        probePage,
+                        (ulong)probePage,
+                        PageSize,
+                        out ulong observedFnv1a64)
+                    || observedFnv1a64
+                        != M02SafeStubPageIntegration.ExpectedFnv1a64)
+                {
+                    return false;
+                }
+
+                return s_m02FinalizationAudit.Succeeded;
+            }
+#endif
 
             OS.Kernel.Memory.X64ProtectionProbeStubPlanResult
                 readback =
@@ -3362,6 +3563,45 @@ public static unsafe class EfiEntry
             EfiSerialIoProtocol* serial,
             int lineIndex)
         {
+#if M02_SAFE_STUB_PROBE
+            if (lineIndex == 9)
+            {
+                ulong probeAddress =
+                    s_m02FinalizationAudit.ModeledPageAddress;
+                ulong runtimeStateAddress =
+                    s_gateAudit.PreparedState.ExpectedSelfAddress;
+                fixed (M01OwnedCr3CompositeCallGateResult*
+                    gateAudit = &s_gateAudit)
+                {
+                    s_m02ExecutionAudit =
+                        M02SafeStubPageIntegration.AuditExecution(
+                            (byte*)probeAddress,
+                            probeAddress,
+                            PageSize,
+                            s_m02Finalization,
+                            (M01OwnedCr3CompositeTransitionRuntimeState*)
+                                (void*)runtimeStateAddress,
+                            gateAudit);
+                }
+
+                if (!s_m02ExecutionAudit.Succeeded)
+                {
+                    _ = FailAfterEntry(
+                        M01StageThreeAdapterStatus
+                            .PostReturnAuditRejected,
+                        (ulong)s_m02ExecutionAudit.Status);
+                    return;
+                }
+            }
+
+            if (lineIndex == 18)
+            {
+                WriteM02SuccessLine(console, serial, 3);
+                WriteM02SuccessLine(console, serial, 4);
+                WriteM02SuccessLine(console, serial, 5);
+            }
+#endif
+
             int length =
                 BootSequencePlan
                     .GetM01StageThreeSuccessLineLength(
@@ -3380,6 +3620,617 @@ public static unsafe class EfiEntry
             }
             EfiEntry.WriteCrLf(console, serial);
         }
+
+#if M02_SAFE_STUB_PROBE
+        private static void WriteM02SuccessLine(
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial,
+            int lineIndex)
+        {
+            switch (lineIndex)
+            {
+                case 0:
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'T',
+                        (byte)'E',
+                        (byte)'S',
+                        (byte)'T',
+                        (byte)'_',
+                        (byte)'S',
+                        (byte)'T',
+                        (byte)'A');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'R',
+                        (byte)'T',
+                        (byte)' ',
+                        (byte)'m',
+                        (byte)'0',
+                        (byte)'2',
+                        (byte)'.',
+                        (byte)'0');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'1',
+                        (byte)'7',
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0);
+                    break;
+                case 1:
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'M',
+                        (byte)'0',
+                        (byte)'2',
+                        (byte)'_',
+                        (byte)'S',
+                        (byte)'T',
+                        (byte)'U',
+                        (byte)'B');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'_',
+                        (byte)'P',
+                        (byte)'A',
+                        (byte)'G',
+                        (byte)'E',
+                        (byte)'_',
+                        (byte)'M',
+                        (byte)'A');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'T',
+                        (byte)'E',
+                        (byte)'R',
+                        (byte)'I',
+                        (byte)'A',
+                        (byte)'L',
+                        (byte)'I',
+                        (byte)'Z');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'E',
+                        (byte)'D',
+                        (byte)' ',
+                        (byte)'p',
+                        (byte)'a',
+                        (byte)'g',
+                        (byte)'e',
+                        (byte)'B');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'y',
+                        (byte)'t',
+                        (byte)'e',
+                        (byte)'s',
+                        (byte)'=',
+                        (byte)'4',
+                        (byte)'0',
+                        (byte)'9');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'6',
+                        (byte)' ',
+                        (byte)'s',
+                        (byte)'a',
+                        (byte)'f',
+                        (byte)'e',
+                        (byte)'O',
+                        (byte)'f');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'f',
+                        (byte)'s',
+                        (byte)'e',
+                        (byte)'t',
+                        (byte)'=',
+                        (byte)'0',
+                        (byte)' ',
+                        (byte)'o');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'u',
+                        (byte)'t',
+                        (byte)'8',
+                        (byte)'O',
+                        (byte)'f',
+                        (byte)'f',
+                        (byte)'s',
+                        (byte)'e');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'t',
+                        (byte)'=',
+                        (byte)'1',
+                        (byte)'6',
+                        (byte)' ',
+                        (byte)'i',
+                        (byte)'n',
+                        (byte)'8');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'O',
+                        (byte)'f',
+                        (byte)'f',
+                        (byte)'s',
+                        (byte)'e',
+                        (byte)'t',
+                        (byte)'=',
+                        (byte)'3');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'2',
+                        (byte)' ',
+                        (byte)'f',
+                        (byte)'n',
+                        (byte)'v',
+                        (byte)'1',
+                        (byte)'a',
+                        (byte)'6');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'4',
+                        (byte)'=',
+                        (byte)'F',
+                        (byte)'8',
+                        (byte)'5',
+                        (byte)'3',
+                        (byte)'9',
+                        (byte)'3');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'0',
+                        (byte)'7',
+                        (byte)'4',
+                        (byte)'A',
+                        (byte)'7',
+                        (byte)'9',
+                        (byte)'2',
+                        (byte)'B');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'1',
+                        (byte)'E',
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0);
+                    break;
+                case 2:
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'M',
+                        (byte)'0',
+                        (byte)'2',
+                        (byte)'_',
+                        (byte)'S',
+                        (byte)'T',
+                        (byte)'U',
+                        (byte)'B');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'_',
+                        (byte)'P',
+                        (byte)'A',
+                        (byte)'G',
+                        (byte)'E',
+                        (byte)'_',
+                        (byte)'R',
+                        (byte)'E');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'A',
+                        (byte)'D',
+                        (byte)'B',
+                        (byte)'A',
+                        (byte)'C',
+                        (byte)'K',
+                        (byte)'_',
+                        (byte)'V');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'E',
+                        (byte)'R',
+                        (byte)'I',
+                        (byte)'F',
+                        (byte)'I',
+                        (byte)'E',
+                        (byte)'D',
+                        (byte)' ');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'f',
+                        (byte)'n',
+                        (byte)'v',
+                        (byte)'1',
+                        (byte)'a',
+                        (byte)'6',
+                        (byte)'4',
+                        (byte)'=');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'F',
+                        (byte)'8',
+                        (byte)'5',
+                        (byte)'3',
+                        (byte)'9',
+                        (byte)'3',
+                        (byte)'0',
+                        (byte)'7');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'4',
+                        (byte)'A',
+                        (byte)'7',
+                        (byte)'9',
+                        (byte)'2',
+                        (byte)'B',
+                        (byte)'1',
+                        (byte)'E');
+                    break;
+                case 3:
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'M',
+                        (byte)'0',
+                        (byte)'2',
+                        (byte)'_',
+                        (byte)'S',
+                        (byte)'A',
+                        (byte)'F',
+                        (byte)'E');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'_',
+                        (byte)'P',
+                        (byte)'R',
+                        (byte)'O',
+                        (byte)'B',
+                        (byte)'E',
+                        (byte)'_',
+                        (byte)'E');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'X',
+                        (byte)'E',
+                        (byte)'C',
+                        (byte)'U',
+                        (byte)'T',
+                        (byte)'E',
+                        (byte)'D',
+                        (byte)' ');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'o',
+                        (byte)'f',
+                        (byte)'f',
+                        (byte)'s',
+                        (byte)'e',
+                        (byte)'t',
+                        (byte)'=',
+                        (byte)'0');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)' ',
+                        (byte)'r',
+                        (byte)'e',
+                        (byte)'t',
+                        (byte)'u',
+                        (byte)'r',
+                        (byte)'n',
+                        (byte)'=');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'0',
+                        (byte)'x',
+                        (byte)'4',
+                        (byte)'F',
+                        (byte)'5',
+                        (byte)'3',
+                        (byte)'4',
+                        (byte)'F');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'4',
+                        (byte)'B',
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0);
+                    break;
+                case 4:
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'C',
+                        (byte)'L',
+                        (byte)'R',
+                        (byte)'O',
+                        (byte)'S',
+                        (byte)'_',
+                        (byte)'M',
+                        (byte)'0');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'2',
+                        (byte)'_',
+                        (byte)'0',
+                        (byte)'1',
+                        (byte)'7',
+                        (byte)'_',
+                        (byte)'R',
+                        (byte)'E');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'A',
+                        (byte)'D',
+                        (byte)'Y',
+                        (byte)' ',
+                        (byte)'p',
+                        (byte)'a',
+                        (byte)'g',
+                        (byte)'e');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'B',
+                        (byte)'y',
+                        (byte)'t',
+                        (byte)'e',
+                        (byte)'s',
+                        (byte)'=',
+                        (byte)'4',
+                        (byte)'0');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'9',
+                        (byte)'6',
+                        (byte)' ',
+                        (byte)'s',
+                        (byte)'a',
+                        (byte)'f',
+                        (byte)'e',
+                        (byte)'O');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'f',
+                        (byte)'f',
+                        (byte)'s',
+                        (byte)'e',
+                        (byte)'t',
+                        (byte)'=',
+                        (byte)'0',
+                        (byte)' ');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'o',
+                        (byte)'u',
+                        (byte)'t',
+                        (byte)'8',
+                        (byte)'O',
+                        (byte)'f',
+                        (byte)'f',
+                        (byte)'s');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'e',
+                        (byte)'t',
+                        (byte)'=',
+                        (byte)'1',
+                        (byte)'6',
+                        (byte)' ',
+                        (byte)'i',
+                        (byte)'n');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'8',
+                        (byte)'O',
+                        (byte)'f',
+                        (byte)'f',
+                        (byte)'s',
+                        (byte)'e',
+                        (byte)'t',
+                        (byte)'=');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'3',
+                        (byte)'2',
+                        (byte)' ',
+                        (byte)'f',
+                        (byte)'n',
+                        (byte)'v',
+                        (byte)'1',
+                        (byte)'a');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'6',
+                        (byte)'4',
+                        (byte)'=',
+                        (byte)'F',
+                        (byte)'8',
+                        (byte)'5',
+                        (byte)'3',
+                        (byte)'9');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'3',
+                        (byte)'0',
+                        (byte)'7',
+                        (byte)'4',
+                        (byte)'A',
+                        (byte)'7',
+                        (byte)'9',
+                        (byte)'2');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'B',
+                        (byte)'1',
+                        (byte)'E',
+                        (byte)' ',
+                        (byte)'t',
+                        (byte)'e',
+                        (byte)'m',
+                        (byte)'p');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'o',
+                        (byte)'r',
+                        (byte)'a',
+                        (byte)'r',
+                        (byte)'y',
+                        (byte)'O',
+                        (byte)'w',
+                        (byte)'n');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'e',
+                        (byte)'d',
+                        (byte)'R',
+                        (byte)'o',
+                        (byte)'o',
+                        (byte)'t',
+                        (byte)'R',
+                        (byte)'x');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'=',
+                        (byte)'t',
+                        (byte)'r',
+                        (byte)'u',
+                        (byte)'e',
+                        (byte)' ',
+                        (byte)'p',
+                        (byte)'o');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'r',
+                        (byte)'t',
+                        (byte)'I',
+                        (byte)'o',
+                        (byte)'E',
+                        (byte)'x',
+                        (byte)'e',
+                        (byte)'c');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'u',
+                        (byte)'t',
+                        (byte)'e',
+                        (byte)'d',
+                        (byte)'=',
+                        (byte)'f',
+                        (byte)'a',
+                        (byte)'l');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'s',
+                        (byte)'e',
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0);
+                    break;
+                case 5:
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'T',
+                        (byte)'E',
+                        (byte)'S',
+                        (byte)'T',
+                        (byte)'_',
+                        (byte)'P',
+                        (byte)'A',
+                        (byte)'S');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'S',
+                        (byte)' ',
+                        (byte)'m',
+                        (byte)'0',
+                        (byte)'2',
+                        (byte)'.',
+                        (byte)'0',
+                        (byte)'1');
+                    WriteAscii(
+                        console,
+                        serial,
+                        (byte)'7',
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0);
+                    break;
+                default:
+                    return;
+            }
+
+            EfiEntry.WriteCrLf(console, serial);
+        }
+#endif
 
         private static void WriteFailure(
             EfiSimpleTextOutputProtocol* console,

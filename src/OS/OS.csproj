@@ -36,6 +36,7 @@
 		<EnableM01LoadedImageStackProbe Condition="'$(EnableM01LoadedImageStackProbe)' == ''">false</EnableM01LoadedImageStackProbe>
 		<EnableM01LiveAllocatorProbe Condition="'$(EnableM01LiveAllocatorProbe)' == ''">false</EnableM01LiveAllocatorProbe>
 		<EnableM01OwnedPagingProbe Condition="'$(EnableM01OwnedPagingProbe)' == ''">false</EnableM01OwnedPagingProbe>
+		<EnableM02SafeStubProbe Condition="'$(EnableM02SafeStubProbe)' == ''">false</EnableM02SafeStubProbe>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM01LoadedImageStackProbe)' == 'true'">
@@ -48,6 +49,10 @@
 
 	<PropertyGroup Condition="'$(EnableM01OwnedPagingProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M01_OWNED_PAGING_PROBE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM02SafeStubProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M02_SAFE_STUB_PROBE</DefineConstants>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableUefiGoneSimulationProbe)' == 'true'">
@@ -97,12 +102,16 @@
 		<Compile Include="..\OS.Kernel\Memory\X64InvlpgStubPlan.cs" Link="Memory\X64InvlpgStubPlan.cs" />
 		<Compile Include="..\OS.Kernel\Memory\X64ProtectionProbeStubPlan.cs" Link="Memory\X64ProtectionProbeStubPlan.cs" />
 		<Compile Include="..\OS.Kernel\Memory\PageZeroMappingPolicy.cs" Link="Memory\PageZeroMappingPolicy.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\PortIoOperationPlan.cs" Link="Diagnostics\PortIoOperationPlan.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\PortIoStubPlan.cs" Link="Diagnostics\PortIoStubPlan.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs" Link="Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs" Link="Boot\M01LoadedImageStackIntegration.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs" Link="Boot\M01LiveAllocatorIntegration.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LivePagingIntegration.cs" Link="Boot\M01LivePagingIntegration.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01OwnedCr3CompositeTransition.cs" Link="Boot\M01OwnedCr3CompositeTransition.cs" />
 		<Compile Include="Boot\EfiConsoleAdapter.cs" />
 		<Compile Include="Boot\EfiEntry.cs" />
+		<Compile Include="Boot\M02SafeStubPageIntegration.cs" />
 		<Compile Include="Boot\X64InstructionPublication.cs" />
 		<Compile Include="Runtime\RuntimeImportAttribute.cs" />
 		<Compile Include="Runtime\MethodImplAttribute.cs" />
@@ -135,6 +144,15 @@
 		<Error
 			Condition="'$(EnableM01OwnedPagingProbe)' == 'true' and '$(EnableM01LiveAllocatorProbe)' != 'true'"
 			Text="EnableM01OwnedPagingProbe requires EnableM01LiveAllocatorProbe=true." />
+		<Error
+			Condition="'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM01LoadedImageStackProbe)' != 'true'"
+			Text="EnableM02SafeStubProbe requires EnableM01LoadedImageStackProbe=true." />
+		<Error
+			Condition="'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM01LiveAllocatorProbe)' != 'true'"
+			Text="EnableM02SafeStubProbe requires EnableM01LiveAllocatorProbe=true." />
+		<Error
+			Condition="'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM01OwnedPagingProbe)' != 'true'"
+			Text="EnableM02SafeStubProbe requires EnableM01OwnedPagingProbe=true." />
 	</Target>
 
 	<Target Name="CustomizeReferences"

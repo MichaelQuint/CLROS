@@ -32,7 +32,8 @@ param(
     [switch] $EnableAcpiPhysicalDiscoveryProbe,
     [switch] $EnableM01LoadedImageStackProbe,
     [switch] $EnableM01LiveAllocatorProbe,
-    [switch] $EnableM01OwnedPagingProbe
+    [switch] $EnableM01OwnedPagingProbe,
+    [switch] $EnableM02SafeStubProbe
 )
 
 $ErrorActionPreference = "Stop"
@@ -74,12 +75,16 @@ $script:ExpectedEfiCompileItems = @(
     '..\OS.Kernel\Memory\X64InvlpgStubPlan.cs|Memory\X64InvlpgStubPlan.cs',
     '..\OS.Kernel\Memory\X64ProtectionProbeStubPlan.cs|Memory\X64ProtectionProbeStubPlan.cs',
     '..\OS.Kernel\Memory\PageZeroMappingPolicy.cs|Memory\PageZeroMappingPolicy.cs',
+    '..\OS.Kernel\Diagnostics\PortIoOperationPlan.cs|Diagnostics\PortIoOperationPlan.cs',
+    '..\OS.Kernel\Diagnostics\PortIoStubPlan.cs|Diagnostics\PortIoStubPlan.cs',
+    '..\OS.Kernel\Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs|Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs',
     '..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs|Boot\M01LoadedImageStackIntegration.cs',
     '..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs|Boot\M01LiveAllocatorIntegration.cs',
     '..\OS.Kernel\Boot\M01LivePagingIntegration.cs|Boot\M01LivePagingIntegration.cs',
     '..\OS.Kernel\Boot\M01OwnedCr3CompositeTransition.cs|Boot\M01OwnedCr3CompositeTransition.cs',
     'Boot\EfiConsoleAdapter.cs|',
     'Boot\EfiEntry.cs|',
+    'Boot\M02SafeStubPageIntegration.cs|',
     'Boot\X64InstructionPublication.cs|',
     'Runtime\RuntimeImportAttribute.cs|',
     'Runtime\MethodImplAttribute.cs|',
@@ -285,6 +290,9 @@ $script:ExpectedM01ReviewedSourceIncludes = @(
     '..\OS.Kernel\Memory\X64InvlpgStubPlan.cs',
     '..\OS.Kernel\Memory\X64ProtectionProbeStubPlan.cs',
     '..\OS.Kernel\Memory\PageZeroMappingPolicy.cs',
+    '..\OS.Kernel\Diagnostics\PortIoOperationPlan.cs',
+    '..\OS.Kernel\Diagnostics\PortIoStubPlan.cs',
+    '..\OS.Kernel\Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs',
     '..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs',
     '..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs',
     '..\OS.Kernel\Boot\M01LivePagingIntegration.cs',
@@ -354,6 +362,18 @@ $script:M01SourceContractTokens = @{
         'StateTableStateArenaStartOffset',
         'StateCanaryAddressOffset',
         'PostRestoreCanaryReadback'
+    )
+    '..\OS.Kernel\Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs' = @(
+        'public const ulong PageSize = 4096;',
+        'public const ulong Out8Offset = 16;',
+        'public const ulong In8Offset = 32;',
+        'public const ulong ExpectedFnv1a64 = 0xf853_9307_4a79_2b1e;',
+        'public const bool PerformsLiveExecution = false;',
+        'public const bool InvokesSafeStub = false;',
+        'public const bool InvokesPortIo = false;',
+        'public static ExistingIn8Out8StubPageResult Materialize(',
+        'public static ExistingIn8Out8StubPageResult ValidateReadback(',
+        'public static ExistingIn8Out8StubPageResult AuditFinalization('
     )
 }
 
@@ -5023,6 +5043,7 @@ function Test-M01EvaluatedSourceClosure {
         [bool] $LoadedImageStackEnabled,
         [bool] $LiveAllocatorEnabled,
         [bool] $OwnedPagingEnabled,
+        [bool] $M02SafeStubEnabled,
         [bool] $UefiGoneSimulationEnabled,
         [bool] $ExitBootServicesFreshMapEnabled,
         [bool] $AcpiPhysicalDiscoveryEnabled
@@ -5049,11 +5070,14 @@ function Test-M01EvaluatedSourceClosure {
             $LiveAllocatorEnabled.ToString().ToLowerInvariant()
         "EnableM01OwnedPagingProbe" =
             $OwnedPagingEnabled.ToString().ToLowerInvariant()
+        "EnableM02SafeStubProbe" =
+            $M02SafeStubEnabled.ToString().ToLowerInvariant()
     }
     $expectedSwitchSymbols = [ordered] @{
         "M01_LOADED_IMAGE_STACK_PROBE" = $LoadedImageStackEnabled
         "M01_LIVE_ALLOCATOR_PROBE" = $LiveAllocatorEnabled
         "M01_OWNED_PAGING_PROBE" = $OwnedPagingEnabled
+        "M02_SAFE_STUB_PROBE" = $M02SafeStubEnabled
         "UEFI_GONE_SIMULATION_PROBE" = $UefiGoneSimulationEnabled
         "EXIT_BOOT_SERVICES_FRESH_MAP_PROBE" =
             $ExitBootServicesFreshMapEnabled
@@ -5077,6 +5101,7 @@ function Test-M01EvaluatedSourceClosure {
                 "EnableM01LoadedImageStackProbe," +
                 "EnableM01LiveAllocatorProbe," +
                 "EnableM01OwnedPagingProbe," +
+                "EnableM02SafeStubProbe," +
                 "DefineConstants," +
                 "EnableDefaultCompileItems," +
                 "NoStdLib," +
@@ -5137,6 +5162,9 @@ function Test-M01EvaluatedSourceClosure {
         }
         if ($OwnedPagingEnabled) {
             $arguments += "-p:EnableM01OwnedPagingProbe=true"
+        }
+        if ($M02SafeStubEnabled) {
+            $arguments += "-p:EnableM02SafeStubProbe=true"
         }
         if ($UefiGoneSimulationEnabled) {
             $arguments += "-p:EnableUefiGoneSimulationProbe=true"
@@ -5656,6 +5684,7 @@ function Test-M01SourceClosure {
         [bool] $LoadedImageStackEnabled,
         [bool] $LiveAllocatorEnabled,
         [bool] $OwnedPagingEnabled,
+        [bool] $M02SafeStubEnabled,
         [bool] $UefiGoneSimulationEnabled,
         [bool] $ExitBootServicesFreshMapEnabled,
         [bool] $AcpiPhysicalDiscoveryEnabled
@@ -5705,7 +5734,7 @@ function Test-M01SourceClosure {
 
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "e72e12278a638dd6e20a1660639b4a14717568b59d636bf68b98a1a210f9aefe") {
+        "787cf7b6a67ab1129ae2c5c56dfcc3cdf11365fa200225d4dd61c26b1b9238a3") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `
@@ -5762,6 +5791,7 @@ function Test-M01SourceClosure {
         "EnableM01LoadedImageStackProbe" = "M01_LOADED_IMAGE_STACK_PROBE"
         "EnableM01LiveAllocatorProbe" = "M01_LIVE_ALLOCATOR_PROBE"
         "EnableM01OwnedPagingProbe" = "M01_OWNED_PAGING_PROBE"
+        "EnableM02SafeStubProbe" = "M02_SAFE_STUB_PROBE"
         "EnableUefiGoneSimulationProbe" = "UEFI_GONE_SIMULATION_PROBE"
         "EnableExitBootServicesFreshMapProbe" = "EXIT_BOOT_SERVICES_FRESH_MAP_PROBE"
         "EnableAcpiPhysicalDiscoveryProbe" = "ACPI_PHYSICAL_DISCOVERY_PROBE"
@@ -5802,6 +5832,7 @@ function Test-M01SourceClosure {
         "EnableM01LoadedImageStackProbe" = "M01_LOADED_IMAGE_STACK_PROBE"
         "EnableM01LiveAllocatorProbe" = "M01_LIVE_ALLOCATOR_PROBE"
         "EnableM01OwnedPagingProbe" = "M01_OWNED_PAGING_PROBE"
+        "EnableM02SafeStubProbe" = "M02_SAFE_STUB_PROBE"
     }
     foreach ($entry in $switchSymbols.GetEnumerator()) {
         $defaultNodes = @($project.SelectNodes(
@@ -5847,9 +5878,21 @@ function Test-M01SourceClosure {
     $pagingDependencyCondition =
         "'" + '$' + "(EnableM01OwnedPagingProbe)' == 'true' and '" +
         '$' + "(EnableM01LiveAllocatorProbe)' != 'true'"
+    $m02LoadedImageDependencyCondition =
+        "'" + '$' + "(EnableM02SafeStubProbe)' == 'true' and '" +
+        '$' + "(EnableM01LoadedImageStackProbe)' != 'true'"
+    $m02AllocatorDependencyCondition =
+        "'" + '$' + "(EnableM02SafeStubProbe)' == 'true' and '" +
+        '$' + "(EnableM01LiveAllocatorProbe)' != 'true'"
+    $m02PagingDependencyCondition =
+        "'" + '$' + "(EnableM02SafeStubProbe)' == 'true' and '" +
+        '$' + "(EnableM01OwnedPagingProbe)' != 'true'"
     $requiredErrorConditions = @(
         $allocatorDependencyCondition,
-        $pagingDependencyCondition
+        $pagingDependencyCondition,
+        $m02LoadedImageDependencyCondition,
+        $m02AllocatorDependencyCondition,
+        $m02PagingDependencyCondition
     )
     if ($errorConditions.Count -ne $requiredErrorConditions.Count -or
         $validationTargets[0].SelectNodes("*").Count -ne $errorNodes.Count) {
@@ -6153,6 +6196,7 @@ function Test-M01SourceClosure {
         -LoadedImageStackEnabled $LoadedImageStackEnabled `
         -LiveAllocatorEnabled $LiveAllocatorEnabled `
         -OwnedPagingEnabled $OwnedPagingEnabled `
+        -M02SafeStubEnabled $M02SafeStubEnabled `
         -UefiGoneSimulationEnabled $UefiGoneSimulationEnabled `
         -ExitBootServicesFreshMapEnabled $ExitBootServicesFreshMapEnabled `
         -AcpiPhysicalDiscoveryEnabled $AcpiPhysicalDiscoveryEnabled
@@ -6325,8 +6369,8 @@ try {
             (Format-EvidenceValue $_.Exception.Message))
         exit 1
     }
-    if ($sourceSnapshotBeforePublish.InputCount -ne 57 -or
-        $sourceSnapshotAfterLock.InputCount -ne 57 -or
+    if ($sourceSnapshotBeforePublish.InputCount -ne 61 -or
+        $sourceSnapshotAfterLock.InputCount -ne 61 -or
         $sourceSnapshotBeforePublish.AggregateSha256 -cne
             $sourceSnapshotAfterLock.AggregateSha256 -or
         $sourceSnapshotBeforePublish.AuthoritySha256 -cne
@@ -6339,7 +6383,7 @@ try {
         exit 1
     }
     Write-Host "EFI_PUBLISH_SOURCE_LOCK status=ok"
-    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=57"
+    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=61"
 
 Write-EfiPreflightLine "EFI_PREFLIGHT_START"
 
@@ -6358,10 +6402,51 @@ $liveAllocatorProbeEnabled =
     $EnableM01LiveAllocatorProbe.IsPresent.ToString().ToLowerInvariant()
 $ownedPagingProbeEnabled =
     $EnableM01OwnedPagingProbe.IsPresent.ToString().ToLowerInvariant()
+$m02SafeStubProbeEnabled =
+    $EnableM02SafeStubProbe.IsPresent.ToString().ToLowerInvariant()
 $m01SwitchEvidence =
     "loadedImageStack=" + $loadedImageStackProbeEnabled +
     " liveAllocator=" + $liveAllocatorProbeEnabled +
+    " ownedPaging=" + $ownedPagingProbeEnabled +
+    " m02SafeStub=" + $m02SafeStubProbeEnabled
+$m02SwitchEvidence =
+    "enabled=" + $m02SafeStubProbeEnabled +
+    " loadedImageStack=" + $loadedImageStackProbeEnabled +
+    " liveAllocator=" + $liveAllocatorProbeEnabled +
     " ownedPaging=" + $ownedPagingProbeEnabled
+
+if ($EnableM02SafeStubProbe -and -not $EnableM01LoadedImageStackProbe) {
+    Stop-EfiPreflight `
+        -Marker (
+            "EFI_PREFLIGHT_M02_SWITCHES " + $m02SwitchEvidence +
+            " reason=safe_stub_requires_loaded_image_stack") `
+        -Reason "m02_safe_stub_requires_loaded_image_stack" `
+        -LogFullPath $logFullPath `
+        -ReportedLogPath $LogPath `
+        -Status "invalid"
+}
+
+if ($EnableM02SafeStubProbe -and -not $EnableM01LiveAllocatorProbe) {
+    Stop-EfiPreflight `
+        -Marker (
+            "EFI_PREFLIGHT_M02_SWITCHES " + $m02SwitchEvidence +
+            " reason=safe_stub_requires_live_allocator") `
+        -Reason "m02_safe_stub_requires_live_allocator" `
+        -LogFullPath $logFullPath `
+        -ReportedLogPath $LogPath `
+        -Status "invalid"
+}
+
+if ($EnableM02SafeStubProbe -and -not $EnableM01OwnedPagingProbe) {
+    Stop-EfiPreflight `
+        -Marker (
+            "EFI_PREFLIGHT_M02_SWITCHES " + $m02SwitchEvidence +
+            " reason=safe_stub_requires_owned_paging") `
+        -Reason "m02_safe_stub_requires_owned_paging" `
+        -LogFullPath $logFullPath `
+        -ReportedLogPath $LogPath `
+        -Status "invalid"
+}
 
 if ($EnableM01LiveAllocatorProbe -and -not $EnableM01LoadedImageStackProbe) {
     Stop-EfiPreflight `
@@ -6448,6 +6533,8 @@ $script:VerifiedMsbuildExtensionsPath =
 
 Write-EfiPreflightLine (
     "EFI_PREFLIGHT_M01_SWITCHES status=ok " + $m01SwitchEvidence)
+Write-EfiPreflightLine (
+    "EFI_PREFLIGHT_M02_SWITCHES status=ok " + $m02SwitchEvidence)
 
 $m01SourceClosure = Test-M01SourceClosure `
     -RepositoryRoot $repositoryRoot `
@@ -6456,6 +6543,7 @@ $m01SourceClosure = Test-M01SourceClosure `
     -LoadedImageStackEnabled $EnableM01LoadedImageStackProbe.IsPresent `
     -LiveAllocatorEnabled $EnableM01LiveAllocatorProbe.IsPresent `
     -OwnedPagingEnabled $EnableM01OwnedPagingProbe.IsPresent `
+    -M02SafeStubEnabled $EnableM02SafeStubProbe.IsPresent `
     -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
     -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
     -AcpiPhysicalDiscoveryEnabled $EnableAcpiPhysicalDiscoveryProbe.IsPresent
@@ -7022,6 +7110,11 @@ if ($EnableM01OwnedPagingProbe) {
     Write-Host "EFI_PROBE M01_OWNED_PAGING"
 }
 
+if ($EnableM02SafeStubProbe) {
+    $arguments += "-p:EnableM02SafeStubProbe=true"
+    Write-Host "EFI_PROBE M02_SAFE_STUB"
+}
+
 if ($EnableUefiGoneSimulationProbe) {
     $arguments += "-p:EnableUefiGoneSimulationProbe=true"
     Write-Host "EFI_PROBE UEFI_GONE_SIMULATION"
@@ -7130,6 +7223,7 @@ $methodImplAttributeSourcePath = Join-Path $repositoryRoot (
         -LoadedImageStackEnabled $EnableM01LoadedImageStackProbe.IsPresent `
         -LiveAllocatorEnabled $EnableM01LiveAllocatorProbe.IsPresent `
         -OwnedPagingEnabled $EnableM01OwnedPagingProbe.IsPresent `
+        -M02SafeStubEnabled $EnableM02SafeStubProbe.IsPresent `
         -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
         -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
         -AcpiPhysicalDiscoveryEnabled $EnableAcpiPhysicalDiscoveryProbe.IsPresent

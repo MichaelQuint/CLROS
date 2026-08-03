@@ -34,6 +34,14 @@ internal static class BuildEfiShellPreflightTests
                 TestM01AllThreeSwitchCompile,
                 ref m01Failures);
             Run(
+                "EFI preflight M02 safe-stub switch DAG and propagation",
+                () => TestM02SafeStubSwitchDagAndPropagation(tempRoot),
+                ref m01Failures);
+            Run(
+                "EFI project M02 all-four-switch compile",
+                TestM02AllFourSwitchCompile,
+                ref m01Failures);
+            Run(
                 "m01.020 rejects forbidden source surfaces and guards",
                 () => TestM01ForbiddenSourceAndGuardMatrix(tempRoot),
                 ref m01Failures);
@@ -199,7 +207,7 @@ internal static class BuildEfiShellPreflightTests
 
         return IsM01SourceClosureSuccess(
             result,
-            "loadedImageStack=false liveAllocator=false ownedPaging=false");
+            "loadedImageStack=false liveAllocator=false ownedPaging=false m02SafeStub=false");
     }
 
     private static bool TestM01StagedSwitchDagAndPropagation(string tempRoot)
@@ -273,13 +281,13 @@ internal static class BuildEfiShellPreflightTests
         bool passed =
             IsM01SourceClosureSuccess(
                 stackOnly,
-                "loadedImageStack=true liveAllocator=false ownedPaging=false")
+                "loadedImageStack=true liveAllocator=false ownedPaging=false m02SafeStub=false")
             && IsM01SourceClosureSuccess(
                 stackAndAllocator,
-                "loadedImageStack=true liveAllocator=true ownedPaging=false")
+                "loadedImageStack=true liveAllocator=true ownedPaging=false m02SafeStub=false")
             && IsM01SourceClosureSuccess(
                 allThree,
-                "loadedImageStack=true liveAllocator=true ownedPaging=true")
+                "loadedImageStack=true liveAllocator=true ownedPaging=true m02SafeStub=false")
             && IsM01SwitchFailure(
                 allocatorWithoutStack,
                 "live_allocator_requires_loaded_image_stack")
@@ -291,16 +299,16 @@ internal static class BuildEfiShellPreflightTests
             && !unknownSwitch.Output.Contains("EFI_PREFLIGHT_OK", StringComparison.Ordinal)
             && IsM01SourceClosureSuccess(
                 uefiGoneSimulation,
-                "loadedImageStack=false liveAllocator=false ownedPaging=false")
+                "loadedImageStack=false liveAllocator=false ownedPaging=false m02SafeStub=false")
             && IsM01SourceClosureSuccess(
                 exitBootServicesFreshMap,
-                "loadedImageStack=false liveAllocator=false ownedPaging=false")
+                "loadedImageStack=false liveAllocator=false ownedPaging=false m02SafeStub=false")
             && IsM01SourceClosureSuccess(
                 acpiPhysicalDiscovery,
-                "loadedImageStack=false liveAllocator=false ownedPaging=false")
+                "loadedImageStack=false liveAllocator=false ownedPaging=false m02SafeStub=false")
             && IsM01SourceClosureSuccess(
                 debugConfiguration,
-                "loadedImageStack=false liveAllocator=false ownedPaging=false")
+                "loadedImageStack=false liveAllocator=false ownedPaging=false m02SafeStub=false")
             && unsupportedConfiguration.ExitCode != 0
             && unsupportedConfiguration.Output.Contains(
                 "ValidateSet",
@@ -370,6 +378,120 @@ internal static class BuildEfiShellPreflightTests
         bool passed = result.ExitCode == 0
             && result.Output.Contains("Build succeeded.", StringComparison.Ordinal)
             && !result.Output.Contains(": error ", StringComparison.OrdinalIgnoreCase);
+        if (!passed)
+        {
+            Console.WriteLine(result.Output);
+        }
+
+        return passed;
+    }
+
+    private static bool TestM02SafeStubSwitchDagAndPropagation(
+        string tempRoot)
+    {
+        ToolFixture tools = CreateCompleteToolFixture(
+            tempRoot,
+            "m02-safe-stub-switch-tools");
+        SourceClosureFixture source = CreateSourceClosureFixture(
+            tempRoot,
+            "m02-safe-stub-switches");
+
+        ProcessResult allFour = RunPreflight(
+            tools,
+            false,
+            source.ScriptPath,
+            "-EnableM01LoadedImageStackProbe",
+            "-EnableM01LiveAllocatorProbe",
+            "-EnableM01OwnedPagingProbe",
+            "-EnableM02SafeStubProbe");
+        ProcessResult missingLoadedImage = RunPreflight(
+            tools,
+            false,
+            source.ScriptPath,
+            "-EnableM02SafeStubProbe");
+        ProcessResult missingAllocator = RunPreflight(
+            tools,
+            false,
+            source.ScriptPath,
+            "-EnableM01LoadedImageStackProbe",
+            "-EnableM02SafeStubProbe");
+        ProcessResult missingOwnedPaging = RunPreflight(
+            tools,
+            false,
+            source.ScriptPath,
+            "-EnableM01LoadedImageStackProbe",
+            "-EnableM01LiveAllocatorProbe",
+            "-EnableM02SafeStubProbe");
+
+        string script = File.ReadAllText(source.ScriptPath);
+        bool passed = IsM01SourceClosureSuccess(
+                allFour,
+                "loadedImageStack=true liveAllocator=true ownedPaging=true m02SafeStub=true")
+            && allFour.Output.Contains(
+                "EFI_PREFLIGHT_M02_SWITCHES status=ok enabled=true loadedImageStack=true liveAllocator=true ownedPaging=true",
+                StringComparison.Ordinal)
+            && IsM02SwitchFailure(
+                missingLoadedImage,
+                "safe_stub_requires_loaded_image_stack")
+            && IsM02SwitchFailure(
+                missingAllocator,
+                "safe_stub_requires_live_allocator")
+            && IsM02SwitchFailure(
+                missingOwnedPaging,
+                "safe_stub_requires_owned_paging")
+            && Regex.Matches(
+                script,
+                Regex.Escape("[switch] $EnableM02SafeStubProbe"),
+                RegexOptions.CultureInvariant).Count == 1
+            && script.Contains(
+                "\"-p:EnableM02SafeStubProbe=true\"",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "Write-Host \"EFI_PROBE M02_SAFE_STUB\"",
+                StringComparison.Ordinal);
+
+        if (!passed)
+        {
+            Console.WriteLine(
+                "M02 switch outputs:\n"
+                + allFour.Output
+                + missingLoadedImage.Output
+                + missingAllocator.Output
+                + missingOwnedPaging.Output);
+        }
+
+        return passed;
+    }
+
+    private static bool TestM02AllFourSwitchCompile()
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string projectPath = Path.Combine(
+            repositoryRoot,
+            "src",
+            "OS",
+            "OS.csproj");
+        ProcessResult result = RunProcess(
+            "dotnet",
+            repositoryRoot,
+            timeoutMilliseconds: 120000,
+            "build",
+            projectPath,
+            "--nologo",
+            "-m:1",
+            "--disable-build-servers",
+            "-p:EnableM01LoadedImageStackProbe=true",
+            "-p:EnableM01LiveAllocatorProbe=true",
+            "-p:EnableM01OwnedPagingProbe=true",
+            "-p:EnableM02SafeStubProbe=true");
+
+        bool passed = result.ExitCode == 0
+            && result.Output.Contains(
+                "Build succeeded.",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                ": error ",
+                StringComparison.OrdinalIgnoreCase);
         if (!passed)
         {
             Console.WriteLine(result.Output);
@@ -1869,7 +1991,7 @@ internal static class BuildEfiShellPreflightTests
             scriptPath: source.ScriptPath);
         return IsM01SourceClosureSuccess(
             result,
-            "loadedImageStack=false liveAllocator=false ownedPaging=false")
+            "loadedImageStack=false liveAllocator=false ownedPaging=false m02SafeStub=false")
             && !result.Output.Contains(
                 "stale project-extension target executed",
                 StringComparison.Ordinal);
@@ -2326,7 +2448,7 @@ internal static class BuildEfiShellPreflightTests
             logPath: logPath);
         return IsM01SourceClosureSuccess(
                 result,
-                "loadedImageStack=false liveAllocator=false ownedPaging=false")
+                "loadedImageStack=false liveAllocator=false ownedPaging=false m02SafeStub=false")
             && !result.Output.Contains(
                 "poison",
                 StringComparison.OrdinalIgnoreCase);
@@ -3189,7 +3311,7 @@ internal static class BuildEfiShellPreflightTests
         string script = File.ReadAllText(buildScriptPath);
         string[] requiredText =
         [
-            "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=57",
+            "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=61",
             "EFI_PUBLISH_OUTPUT_AUTHORITY status=ok leaves=5",
             "EFI_PUBLISH_VERIFIER_INPUT_AUTHORITY status=ok inputs=8",
             "EFI_PUBLISH_VERIFIER_INPUTS_UNCHANGED status=ok inputs=8",
@@ -3558,7 +3680,7 @@ internal static class BuildEfiShellPreflightTests
         string switchMarker =
             "EFI_PREFLIGHT_M01_SWITCHES status=ok " + expectedSwitches;
         const string closureMarker =
-            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=28 prerequisites=3 compileItems=44 prerequisiteGap=UefiMemoryType";
+            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=48 prerequisiteGap=UefiMemoryType";
         bool passed = result.ExitCode == 0
             && result.Output.Contains(switchMarker, StringComparison.Ordinal)
             && result.Output.Contains(closureMarker, StringComparison.Ordinal)
@@ -3596,6 +3718,34 @@ internal static class BuildEfiShellPreflightTests
             && !result.Output.Contains("EFI_PREFLIGHT_M01_SOURCE_CLOSURE", StringComparison.Ordinal)
             && !result.Output.Contains("EFI_PREFLIGHT_MSVC_LINKER", StringComparison.Ordinal)
             && log.Contains("reason=" + expectedReason, StringComparison.Ordinal);
+    }
+
+    private static bool IsM02SwitchFailure(
+        ProcessResult result,
+        string expectedReason)
+    {
+        string log = File.Exists(result.LogPath)
+            ? File.ReadAllText(result.LogPath)
+            : string.Empty;
+        return result.ExitCode == 1
+            && result.Output.Contains(
+                "EFI_PREFLIGHT_M02_SWITCHES",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "reason=" + expectedReason,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "TEST_FAIL efi.shell.publish m02_" + expectedReason,
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "EFI_PREFLIGHT_M01_SOURCE_CLOSURE",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "EFI_PREFLIGHT_MSVC_LINKER",
+                StringComparison.Ordinal)
+            && log.Contains(
+                "reason=" + expectedReason,
+                StringComparison.Ordinal);
     }
 
     private static bool ExpectM01SourceClosureFailure(
@@ -4165,8 +4315,9 @@ internal static class BuildEfiShellPreflightTests
         string log = File.ReadAllText(result.LogPath);
         string[] requiredOutput =
         [
-            "EFI_PREFLIGHT_M01_SWITCHES status=ok loadedImageStack=false liveAllocator=false ownedPaging=false",
-            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=28 prerequisites=3 compileItems=44 prerequisiteGap=UefiMemoryType",
+            "EFI_PREFLIGHT_M01_SWITCHES status=ok loadedImageStack=false liveAllocator=false ownedPaging=false m02SafeStub=false",
+            "EFI_PREFLIGHT_M02_SWITCHES status=ok enabled=false loadedImageStack=false liveAllocator=false ownedPaging=false",
+            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=48 prerequisiteGap=UefiMemoryType",
             "EFI_PREFLIGHT_DOTNET path=\"",
             "sdkVersion=\"10.0.3",
             "EFI_PREFLIGHT_MSVC_LINKER path=\"" + Path.GetFullPath(tools.LinkerPath) + "\" version=\"14.40.33807\"",

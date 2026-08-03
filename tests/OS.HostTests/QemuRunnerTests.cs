@@ -132,6 +132,34 @@ internal static class QemuRunnerTests
         "M01_STAGE2_FAIL",
         "M01_STAGE3_FAIL"
     ];
+    private static readonly string[] M02IssueSuccessMarkers =
+    [
+        "TEST_START m02.017",
+        "M02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E",
+        "M02_STUB_PAGE_READBACK_VERIFIED fnv1a64=F85393074A792B1E",
+        "M02_SAFE_PROBE_EXECUTED offset=0 return=0x4F534F4B",
+        "CLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E temporaryOwnedRootRx=true portIoExecuted=false",
+        "TEST_PASS m02.017"
+    ];
+    private static readonly string[] M02IssueForbiddenMarkers =
+    [
+        "M02_STUB_PAGE_MATERIALIZATION_FAILED",
+        "M02_STUB_PAGE_READBACK_FAILED",
+        "M02_STUB_PAGE_HASH_MISMATCH",
+        "M02_SAFE_PROBE_FAILED",
+        "M02_OUT8_EXECUTED",
+        "M02_IN8_EXECUTED",
+        "M02_PORT_IO_ATTEMPTED",
+        "M02_PRIVILEGED_STUB_TARGETED",
+        "TEST_FAIL m02.017"
+    ];
+    private static readonly string[] M02GuestMarkers =
+        BuildM02GuestMarkers();
+    private static readonly string[] M02ForbiddenMarkers =
+    [
+        .. M01StageThreeForbiddenMarkers,
+        .. M02IssueForbiddenMarkers
+    ];
 
     [ModuleInitializer]
     public static void Initialize()
@@ -196,6 +224,10 @@ internal static class QemuRunnerTests
             Run("qemu smoke script rejects invalid M01 stage-three probe selection", () => TestSmokeScriptRejectsInvalidM01StageThreeProbeSelection(tempRoot), ref failures);
             Run("qemu M01 raw-observation shim source compiles strictly", () => TestM01RawObservationShimSourceCompiles(tempRoot), ref failures);
             Run("qemu M01 raw-observation shim markers match stage three", TestM01RawObservationShimMarkerParity, ref failures);
+            Run("qemu M02-017 manifest marker contract is exact", TestM02SafeStubManifestMarkerContract, ref failures);
+            Run("qemu smoke script enforces the M02-017 evidence profile", () => TestSmokeScriptEnforcesM02SafeStubEvidenceProfile(tempRoot), ref failures);
+            Run("qemu smoke script rejects invalid M02-017 probe selection", () => TestSmokeScriptRejectsInvalidM02SafeStubSelection(tempRoot), ref failures);
+            Run("qemu M02-017 raw-observation shim markers match the profile", TestM02RawObservationShimMarkerParity, ref failures);
             Run("qemu M01 raw-observation dry-run is inactive and side-effect free", () => TestM01RawObservationDryRunIsInactiveAndSideEffectFree(tempRoot), ref failures);
             Run("qemu M01 raw-observation log requires owned paging", () => TestM01RawObservationLogRequiresOwnedPaging(tempRoot), ref failures);
             Run("qemu M01 raw-observation rejects summary path overlap before launch", () => TestM01RawObservationRejectsSummaryPathOverlap(tempRoot), ref failures);
@@ -1949,6 +1981,277 @@ internal static class QemuRunnerTests
                 StringComparer.Ordinal).Count() == forbiddenMarkers.Length;
     }
 
+    private static bool TestM02SafeStubManifestMarkerContract()
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string manifestPath = Path.Combine(
+            repositoryRoot,
+            ".gitea",
+            "backlog",
+            "clros-issues.json");
+        using JsonDocument manifest = JsonDocument.Parse(
+            File.ReadAllText(manifestPath));
+        JsonElement issue = default;
+        bool found = false;
+        foreach (JsonElement candidate in
+            manifest.RootElement.GetProperty("issues").EnumerateArray())
+        {
+            if (candidate.GetProperty("key").GetString() == "M02-017")
+            {
+                issue = candidate;
+                found = true;
+                break;
+            }
+        }
+
+        if (!found
+            || M02GuestMarkers.Length != 48
+            || M02ForbiddenMarkers.Length != 34
+            || M02GuestMarkers.Distinct(
+                StringComparer.Ordinal).Count() != 48
+            || M02ForbiddenMarkers.Distinct(
+                StringComparer.Ordinal).Count() != 34)
+        {
+            return false;
+        }
+
+        string[] expectedManifestMarkers =
+        [
+            .. M02IssueSuccessMarkers,
+            .. M02IssueForbiddenMarkers.Take(8),
+            "TEST_FAIL m02.017 <reason>"
+        ];
+        string[] manifestMarkers = issue
+            .GetProperty("requiredMarkers")
+            .EnumerateArray()
+            .Select(value => value.GetString() ?? string.Empty)
+            .ToArray();
+        if (!manifestMarkers.SequenceEqual(
+                expectedManifestMarkers,
+                StringComparer.Ordinal))
+        {
+            return false;
+        }
+
+        string[] commands = issue
+            .GetProperty("requiredCommands")
+            .EnumerateArray()
+            .Select(value => value.GetString() ?? string.Empty)
+            .ToArray();
+        string? realQemuCommand = commands.SingleOrDefault(command =>
+            command.Contains(
+                "run-qemu-smoke.ps1 -BuildEfi",
+                StringComparison.Ordinal)
+            && command.Contains(
+                "-EnableM02SafeStubProbe",
+                StringComparison.Ordinal));
+
+        return realQemuCommand is not null
+            && realQemuCommand.Contains(
+                "-EnableM01LoadedImageStackProbe",
+                StringComparison.Ordinal)
+            && realQemuCommand.Contains(
+                "-EnableM01LiveAllocatorProbe",
+                StringComparison.Ordinal)
+            && realQemuCommand.Contains(
+                "-EnableM01OwnedPagingProbe",
+                StringComparison.Ordinal)
+            && realQemuCommand.Contains(
+                "-Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\"",
+                StringComparison.Ordinal)
+            && realQemuCommand.Contains(
+                "-OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\"",
+                StringComparison.Ordinal)
+            && !realQemuCommand.Contains(
+                "-DryRun",
+                StringComparison.Ordinal);
+    }
+
+    private static bool TestSmokeScriptEnforcesM02SafeStubEvidenceProfile(
+        string tempRoot)
+    {
+        string suffix = Guid.NewGuid().ToString("N");
+        string imagePath = Path.Combine(
+            tempRoot,
+            "m02-safe-stub-dry-" + suffix + ".raw");
+        string serialLog = Path.Combine(
+            tempRoot,
+            "m02-safe-stub-dry-" + suffix + "-serial.log");
+        string summaryLog = Path.Combine(
+            tempRoot,
+            "m02-safe-stub-dry-" + suffix + "-summary.log");
+        string formattedGuest = string.Join(";", M02GuestMarkers);
+        string normalizedRequired =
+            SmokeScriptDefaultRequiredMarkers
+            + ";"
+            + string.Join(
+                ";",
+                M02GuestMarkers.Where(marker => marker != "OS_SMOKE_PASS"));
+        string[] runnerForbidden =
+        [
+            "OS_SMOKE_FAIL",
+            "TEST_FAIL",
+            .. M02ForbiddenMarkers.Where(
+                marker => marker != "OS_SMOKE_FAIL"
+                    && marker != "TEST_FAIL")
+        ];
+        string formattedForbidden = string.Join(";", runnerForbidden);
+
+        ProcessResult result = RunQemuSmokeScript(
+            "-DryRun",
+            "-BuildEfi",
+            "-EnableM01LoadedImageStackProbe",
+            "-EnableM01LiveAllocatorProbe",
+            "-EnableM01OwnedPagingProbe",
+            "-EnableM02SafeStubProbe",
+            "-Image",
+            imagePath,
+            "-SerialLog",
+            serialLog,
+            "-SummaryLog",
+            summaryLog);
+
+        return result.ExitCode == 0
+            && result.Output.Contains(
+                "QEMU_SCRIPT_M02_SAFE_STUB_PROBE enabled=true ownedPaging=true liveAllocator=true loadedImageStack=true buildEfi=true skipImageBuild=false dryRun=true profileRequired=48 profileForbidden=34",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "QEMU_SCRIPT_REQUIRE_ORDERED_MARKERS " + formattedGuest,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS " + formattedGuest,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "REQUIRED_MARKERS " + normalizedRequired,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "ORDERED_MARKERS " + formattedGuest,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "UNIQUE_MARKERS " + formattedGuest,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "FORBIDDEN_MARKERS " + formattedForbidden,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal)
+            && !File.Exists(imagePath)
+            && !File.Exists(serialLog)
+            && !File.Exists(summaryLog);
+    }
+
+    private static bool TestSmokeScriptRejectsInvalidM02SafeStubSelection(
+        string tempRoot)
+    {
+        string staleEfi = Path.Combine(
+            tempRoot,
+            "stale-m02-safe-stub-BOOTX64.EFI");
+        File.WriteAllBytes(staleEfi, [0x4d, 0x5a, 0x02, 0x17]);
+        byte[] before = File.ReadAllBytes(staleEfi);
+
+        ProcessResult missingLoadedImage = RunQemuSmokeScript(
+            "-DryRun",
+            "-EnableM02SafeStubProbe",
+            "-EfiArtifact",
+            staleEfi);
+        ProcessResult missingAllocator = RunQemuSmokeScript(
+            "-DryRun",
+            "-EnableM01LoadedImageStackProbe",
+            "-EnableM02SafeStubProbe",
+            "-EfiArtifact",
+            staleEfi);
+        ProcessResult missingOwnedPaging = RunQemuSmokeScript(
+            "-DryRun",
+            "-EnableM01LoadedImageStackProbe",
+            "-EnableM01LiveAllocatorProbe",
+            "-EnableM02SafeStubProbe",
+            "-EfiArtifact",
+            staleEfi);
+        ProcessResult missingBuild = RunQemuSmokeScript(
+            "-DryRun",
+            "-EnableM01LoadedImageStackProbe",
+            "-EnableM01LiveAllocatorProbe",
+            "-EnableM01OwnedPagingProbe",
+            "-EnableM02SafeStubProbe",
+            "-EfiArtifact",
+            staleEfi);
+        ProcessResult skippedImage = RunQemuSmokeScript(
+            "-DryRun",
+            "-BuildEfi",
+            "-EnableM01LoadedImageStackProbe",
+            "-EnableM01LiveAllocatorProbe",
+            "-EnableM01OwnedPagingProbe",
+            "-EnableM02SafeStubProbe",
+            "-SkipImageBuild",
+            "-EfiArtifact",
+            staleEfi);
+
+        return missingLoadedImage.ExitCode == 1
+            && missingAllocator.ExitCode == 1
+            && missingOwnedPaging.ExitCode == 1
+            && missingBuild.ExitCode == 1
+            && skippedImage.ExitCode == 1
+            && missingLoadedImage.Output.Contains(
+                "m02_safe_stub_probe_requires_loaded_image_stack",
+                StringComparison.Ordinal)
+            && missingAllocator.Output.Contains(
+                "m02_safe_stub_probe_requires_live_allocator",
+                StringComparison.Ordinal)
+            && missingOwnedPaging.Output.Contains(
+                "m02_safe_stub_probe_requires_owned_paging",
+                StringComparison.Ordinal)
+            && missingBuild.Output.Contains(
+                "m02_safe_stub_probe_requires_build_efi",
+                StringComparison.Ordinal)
+            && skippedImage.Output.Contains(
+                "m02_safe_stub_probe_forbids_skip_image_build",
+                StringComparison.Ordinal)
+            && !missingLoadedImage.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal)
+            && !missingAllocator.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal)
+            && !missingOwnedPaging.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal)
+            && !missingBuild.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal)
+            && !skippedImage.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal)
+            && before.AsSpan().SequenceEqual(File.ReadAllBytes(staleEfi));
+    }
+
+    private static bool TestM02RawObservationShimMarkerParity()
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string script = File.ReadAllText(
+            Path.Combine(repositoryRoot, "scripts", "run-qemu-smoke.ps1"));
+        string source = ExtractM01RawObservationShimSource(script);
+        string[] guestMarkers = ExtractM01RawObservationShimArray(
+            source,
+            "M02GuestMarkers");
+        string[] forbiddenMarkers = ExtractM01RawObservationShimArray(
+            source,
+            "M02ForbiddenMarkers");
+
+        return guestMarkers.Length == 48
+            && forbiddenMarkers.Length == 34
+            && guestMarkers.SequenceEqual(
+                M02GuestMarkers,
+                StringComparer.Ordinal)
+            && forbiddenMarkers.SequenceEqual(
+                M02ForbiddenMarkers,
+                StringComparer.Ordinal)
+            && guestMarkers.Distinct(
+                StringComparer.Ordinal).Count() == 48
+            && forbiddenMarkers.Distinct(
+                StringComparer.Ordinal).Count() == 34;
+    }
+
     private static bool TestM01RawObservationDryRunIsInactiveAndSideEffectFree(
         string tempRoot)
     {
@@ -2175,7 +2478,7 @@ internal static class QemuRunnerTests
         string[] discoveredEnvironmentNames =
             System.Text.RegularExpressions.Regex.Matches(
                     environmentTable,
-                    @"CLROS_M01_[A-Z_]+")
+                    @"CLROS_M0[12]_[A-Z_]+")
                 .Cast<System.Text.RegularExpressions.Match>()
                 .Select(match => match.Value)
                 .Distinct(StringComparer.Ordinal)
@@ -2212,13 +2515,18 @@ internal static class QemuRunnerTests
                 name => CountOccurrences(
                     source,
                     "RequiredEnvironment(\"" + name + "\")") == 1)
-            && environmentNames.All(
-                name => script.Contains(
-                    name + " = $Capture.",
-                    StringComparison.Ordinal)
-                    || script.Contains(
-                        name + " = [string] $Capture.",
-                        StringComparison.Ordinal))
+            && environmentNames
+                .Where(name => name != "CLROS_M02_SAFE_STUB_PROBE")
+                .All(
+                    name => script.Contains(
+                        name + " = $Capture.",
+                        StringComparison.Ordinal)
+                        || script.Contains(
+                            name + " = [string] $Capture.",
+                            StringComparison.Ordinal))
+            && compactScript.Contains(
+                "CLROS_M02_SAFE_STUB_PROBE=(Format-QemuSmokeBoolean$Capture.M02SafeStubEnabled)",
+                StringComparison.Ordinal)
             && script.Contains(
                 "[System.EnvironmentVariableTarget]::Process",
                 StringComparison.Ordinal)
@@ -6061,6 +6369,17 @@ internal static class QemuRunnerTests
         return result;
     }
 
+    private static string[] BuildM02GuestMarkers()
+    {
+        List<string> markers = [];
+        markers.AddRange(M01StageThreeGuestMarkers.Take(25));
+        markers.AddRange(M02IssueSuccessMarkers.Take(3));
+        markers.AddRange(M01StageThreeGuestMarkers.Skip(25).Take(14));
+        markers.AddRange(M02IssueSuccessMarkers.Skip(3));
+        markers.AddRange(M01StageThreeGuestMarkers.Skip(39));
+        return markers.ToArray();
+    }
+
     private static string SanitizeFileName(string value)
     {
         char[] characters = value.ToCharArray();
@@ -7122,7 +7441,8 @@ internal static class QemuRunnerTests
             "CLROS_M01_QMP_TRANSCRIPT_LOG",
             "CLROS_M01_CAPTURE_SCRATCH",
             "CLROS_M01_GUEST_TIMEOUT_SECONDS",
-            "CLROS_M01_CAPTURE_TIMEOUT_SECONDS"
+            "CLROS_M01_CAPTURE_TIMEOUT_SECONDS",
+            "CLROS_M02_SAFE_STUB_PROBE"
         ];
     }
 
