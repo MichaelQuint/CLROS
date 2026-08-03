@@ -106,11 +106,13 @@ canonical target is 16 epics, 329 children, 345 keyed issues, and 429 managed
 objects with 20 M02 children. It records M02-017 as
 `desiredState=closed`/`agent:done`, inserts M02-020 after M02-017, and rewires
 M02-003 to depend on M02-020 so privileged I/O cannot become ready after a
-partial closure. Until M02-020 is independently reviewed, merged, and
-converged, issues #427 and #436 remain open in review/claimed state and the
-429-object target is not live-convergence evidence. This repository-state
-transaction proves no new guest behavior, In8/Out8, COM1, descriptors/faults,
-real `ExitBootServices`, hardware/provider behavior, CloudReady status, hosted
+partial closure. PR #435 auto-closed issue #427, but #427 still carries
+`agent:review`; issue #436 remains open with `agent:claimed`. Until M02-020 is
+independently reviewed, merged, and converged, neither issue has reached the
+manifest's exact `agent:done` target and the 429-object target is not
+live-convergence evidence. This repository-state transaction proves no new
+guest behavior, In8/Out8, COM1, descriptors/faults, real
+`ExitBootServices`, hardware/provider behavior, CloudReady status, hosted
 .NET, Kestrel, or production readiness.
 
 The guarded earlier M00-023 apply recognized existing M00-023 as issue #321,

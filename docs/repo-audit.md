@@ -124,12 +124,14 @@ and the reachable local Gitea tracker:
   M02-017. Its canonical target is 16 epics, 329 children, 345 keyed issues,
   and 429 managed objects with 20 M02 children. It records M02-017 as
   closed/done and gates M02-003 on M02-020 so privileged I/O cannot release
-  against a partial tracker transaction. Until independent review, merge, and
-  guarded convergence complete, issues #427 and #436 remain open and the
-  target counts are not live-convergence evidence. This repository-state
-  transaction proves no new live behavior, In8/Out8, COM1, descriptors/faults,
-  real `ExitBootServices`, hardware/provider behavior, hosted .NET/Kestrel,
-  CloudReady status, or production readiness.
+  against a partial tracker transaction. PR #435 auto-closed issue #427, but
+  it still carries `agent:review`; issue #436 remains open with
+  `agent:claimed`. Until independent review, merge, and guarded convergence
+  complete, neither issue has reached the manifest's exact `agent:done`
+  target and the target counts are not live-convergence evidence. This
+  repository-state transaction proves no new live behavior, In8/Out8, COM1,
+  descriptors/faults, real `ExitBootServices`, hardware/provider behavior,
+  hosted .NET/Kestrel, CloudReady status, or production readiness.
 
 ## Implemented Behavior
 
