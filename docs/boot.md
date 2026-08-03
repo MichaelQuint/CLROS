@@ -3555,6 +3555,48 @@ networking, applications, hosted .NET, Minimal API, Kestrel, libvirt/provider
 support, CloudReady status, or production readiness. The deliberate null read
 and captured fault remain M02-014.
 
+### Fixed M02 page safe-entry QEMU proof (M02-017)
+
+M02-017 was executed from clean, pushed implementation commit
+`cf8ce63c37a9c62a0f8f736adda14b6bd3e19a9a`, tree
+`d18f520cee19aa0c89dfb41f326c92afd0284c02`. The default-off integration adds
+the fixed M02 page to the existing M01 stage-three allocation and call gate; it
+does not add or bypass a `BootSequence` phase. A complete immediately preceding
+host stream passed with 3,346 starts, 3,347 passes including the sole terminal
+host pass, zero failures, and empty stderr.
+
+The fresh all-four-switch QEMU/OVMF run materialized the exact 4,096-byte page,
+verified FNV-1a64 `F85393074A792B1E`, and preserved the accepted M01 marker and
+raw-observation envelope. During the inherited temporary owned-root interval,
+the call gate targeted only offset zero. The six-byte `mov eax,0x4F534F4B;
+ret` entry returned cookie `0x4F534F4B`; no port or value argument was supplied.
+The post-return audit emitted
+`M02_SAFE_PROBE_EXECUTED offset=0 return=0x4F534F4B` and the final ready line
+reported `temporaryOwnedRootRx=true portIoExecuted=false` only after the
+inherited restoration and readback checks.
+
+All 48 cumulative M01/M02 markers occurred once and in order; all 34 forbidden
+markers were absent. The 44-key QMP sidecar independently confirms firmware
+CR3, raw CR4, and RFLAGS before/after equality and sixteen bounded `pmemsave`
+chunks. EFI, serial, summary, raw-observation, and QMP-transcript SHA-256 values
+are
+`D30B508AC06F592756C36ABD2B5CFAE2469ED31DF234BFDCD37134A7DBEB4EA5`,
+`6F223E27E4180855DA64F4785C13B9B44649F0C8EF1590AA9B65A89CEF508AD0`,
+`B934A1E5C2E2EEB095BDE1EE374A0B129DE99CE203AAA7F992E1F0CAC8137B0C`,
+`D764684446C21497EE3816FF170F46E2B73F8228B429242B11BDAB47BCA16EF5`,
+and
+`9C2C8EBC64BCA601CE6CDB2D231DA784EE9555B546FB7426A46A433B71353965`.
+The ignored evidence root is
+`artifacts/logs/m02-017-final/cf8ce63c-20260803T211323Z-r1/`, and
+`done/step897.md` is the durable ledger.
+
+This proof does not execute the `Out8` bytes at offset 16 or the `In8` bytes at
+offset 32. It proves no privileged I/O, COM1 ownership, permanent page-table
+adoption, descriptor-table installation, controlled fault, real
+`ExitBootServices`, hardware/provider behavior, hosted .NET, Kestrel,
+CloudReady status, or production readiness, and it changes no numbered
+completion-gate status.
+
 ### Live-paging feasibility and prerequisite recovery (M01-028)
 
 M01-028 records a backlog and evidence-boundary repair; it implements no paging

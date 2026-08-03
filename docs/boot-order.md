@@ -197,10 +197,15 @@ Host tests assert:
   zero-reference no-stdlib pointer compile closure, separate exact-source
   `NOSTDLIB_EFI` host pointer execution, and a caller-owned state progression
   from materialized RW+NX metadata through readback to finalized RO+X metadata.
-  M02-002 adds no `BootSequence` phase, EFI linkage, firmware-visible marker,
-  live protection change, or execution. M02-017 remains the exclusive owner of
-  later guest integration and may execute only safe offset 0; privileged
-  offsets 16 and 32 remain unexecuted.
+  M02-002 itself adds no `BootSequence` phase, EFI linkage, firmware-visible
+  marker, live protection change, or execution.
+- M02-017 integrates that exact page only in the existing default-off M01
+  stage-three EFI path. Its source-bound QEMU/OVMF tuple materializes and reads
+  back the page before the inherited temporary owned-root interval, executes
+  only safe offset 0, requires cookie `0x4F534F4B`, restores the inherited
+  state, and then emits the six-line M02 envelope ending in
+  `portIoExecuted=false`. It adds no `BootSequence` phase. Offsets 16 and 32
+  remain data-layout positions and forbidden execution targets.
 - Descriptor-table instruction-plan tests prove deterministic `lidt [rip+disp32]`, `lgdt [rip+disp32]`, and `ltr ax` bytes and status-coded invalid-input handling.
 - Descriptor-table install-stub tests prove callable `lidt`, `lgdt`, and `ltr` stubs preserve descriptor payloads/selectors and handle invalid inputs without execution.
 - Descriptor-table install-readiness tests prove IDT/IDTR/GDT/TSS/IST and install-stub buffer prerequisites are aggregated before any future privileged install.
@@ -275,10 +280,9 @@ permission changes, relocation, or native-tier or hosted .NET app launch.
 
 1. Wire the transition marker helper only after the live EFI path can perform a real `ExitBootServices` call and preserve diagnostics afterward.
 2. Add an owned serial diagnostics phase only after a real serial writer exists.
-3. Integrate the host-verified M02-002 fixed page through M02-017's bounded
-   safe-cookie guest path before any privileged `In8`/`Out8` binding or
-   execution; only offset 0 may execute in M02-017, while offsets 16 and 32
-   remain forbidden targets.
+3. Begin M02-003 from the accepted M02-017 safe-cookie boundary, keeping its
+   checked unmanaged-function-pointer contract distinct from any later live
+   privileged `In8`/`Out8` or COM1 claim.
 4. Wire the early diagnostics readiness helper only after generated stubs can be copied to executable memory and safely invoked under W^X policy.
 5. Wire the controlled fault-probe readiness helper only after early diagnostics can survive generated-stub execution and fault handling.
 6. Wire the app-selection readiness helper only after live block-device package reads can supply the manifest/package/descriptor prerequisites.

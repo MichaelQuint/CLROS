@@ -178,6 +178,82 @@ bypass, devices, storage, networking, applications, hosted .NET, Minimal API,
 Kestrel, libvirt/provider support, CloudReady status, or production readiness.
 It does not replace the ordinary default Gate 2 tuple.
 
+### M02-017 safe-stub offset-zero proof
+
+M02-017 adds a second cumulative, opt-in, source-bound local-QEMU tuple from
+clean, pushed implementation commit
+`cf8ce63c37a9c62a0f8f736adda14b6bd3e19a9a`, tree
+`d18f520cee19aa0c89dfb41f326c92afd0284c02`. The immediately preceding host
+gate passed solution and HostTests builds, naming/source firewall, default and
+all-four-switch dry runs, the 61-input/48-compile-item EFI closure, diff/status
+checks, and a complete stream with 3,346 `TEST_START`, 3,347 `TEST_PASS`
+including exactly one terminal `TEST_PASS host.tests`, zero `TEST_FAIL`, and
+empty stderr. The host stream SHA-256 is
+`C293C89AA5A48675E78380B571935B8F3EAC3E4F6A0E4F29D019F77B8E2911BB`.
+
+The fresh real command ran from `2026-08-03T21:57:26.3487831Z` through
+`2026-08-03T21:58:36.8814446Z` with `-BuildEfi`, all three M01 switches,
+`-EnableM02SafeStubProbe`, a 30-second guest timeout, QEMU SHA-256
+`B396EB9B669F6282EC60F0D46E6ADDCA8C669992E67A34365BE44CD3CB97C9A7`,
+and OVMF SHA-256
+`33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`.
+The immutable profile enforced 48 ordered and unique cumulative M01/M02
+markers and 34 cumulative forbidden markers. The runner reported
+`terminal=Success`, `orderedSeen=48`, `outOfOrder=0`, `uniqueSeen=48`,
+`duplicateUnique=0`, `TEST_PASS qemu.smoke`, and
+`TEST_PASS m01.026.raw-observations`.
+
+The six M02 lines occurred exactly once and in the documented cross-stage
+order:
+
+```text
+TEST_START m02.017
+M02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E
+M02_STUB_PAGE_READBACK_VERIFIED fnv1a64=F85393074A792B1E
+M02_SAFE_PROBE_EXECUTED offset=0 return=0x4F534F4B
+CLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E temporaryOwnedRootRx=true portIoExecuted=false
+TEST_PASS m02.017
+```
+
+No forbidden marker appeared. In particular, no M02 materialization, readback,
+hash, safe-probe, `Out8`, `In8`, port-I/O, privileged-target, or test-failure
+marker was present. Offsets 16 and 32 were never targeted; their occurrence in
+the materialization metadata does not report execution.
+
+The stopped-QMP proxy again scanned sixteen 16 MiB chunks of the 256 MiB guest
+and retained no memory dump. The exact 44-key sidecar records one preflight POD
+candidate; CR0 `0x0000000080010033`; firmware CR3
+`0x000000000F801000`; temporary owned CR3 `0x0000000000100000`; raw CR4
+`0x0000000000000668`; EFER `0x0000000000000D00`; physical-address width 40;
+and RFLAGS `0x0000000000000246`. Firmware CR3, raw CR4, and RFLAGS equal their
+post-return runtime readbacks. The predicted, private, and released public
+serial hashes are identical.
+
+The raw image, EFI, serial, summary, raw-observation, QMP-transcript, real-run
+stdout, and 91-entry preliminary hash-ledger SHA-256 values are, respectively,
+`C8E8F0DE57D7E7AB1A4A606882CB05A77DD92915FEB99B7C0D35A5D37D377823`,
+`D30B508AC06F592756C36ABD2B5CFAE2469ED31DF234BFDCD37134A7DBEB4EA5`,
+`6F223E27E4180855DA64F4785C13B9B44649F0C8EF1590AA9B65A89CEF508AD0`,
+`B934A1E5C2E2EEB095BDE1EE374A0B129DE99CE203AAA7F992E1F0CAC8137B0C`,
+`D764684446C21497EE3816FF170F46E2B73F8228B429242B11BDAB47BCA16EF5`,
+`9C2C8EBC64BCA601CE6CDB2D231DA784EE9555B546FB7426A46A433B71353965`,
+`31890CB0D67AAE93CBE65F279977ADE2D4F2764833151F1D01B1D926F68D55D3`,
+and
+`458FA410B63F08DA27D2064A7F098C14D9DC87DB7B06295A4A8AF4A7D9559637`.
+The ignored evidence root is
+`artifacts/logs/m02-017-final/cf8ce63c-20260803T211323Z-r1/`; the durable
+ledgers are `done/step896.md` for the supplemental source-closure verifier and
+`done/step897.md` for the integrated guest proof.
+
+This tuple proves only local pre-`ExitBootServices` materialization and
+full-page readback of the fixed M02 page, temporary owned-root RX execution of
+safe offset zero, return cookie `0x4F534F4B`, and inherited state restoration.
+It explicitly records `portIoExecuted=false`. It does not prove `In8`, `Out8`,
+COM1, general port I/O, a permanent root, descriptor tables, controlled faults,
+real `ExitBootServices`, physical hardware/provider behavior, hosted .NET,
+Minimal API, Kestrel, CloudReady status, or production readiness, and it does
+not change a numbered completion-gate status.
+
 ## Implemented Behavior
 
 - `tools/OS.QemuRunner` builds a QEMU command line for a raw or qcow2 GPT/FAT32 image, OVMF pflash, serial-file capture, AHCI disk attachment, and user-mode virtio networking.

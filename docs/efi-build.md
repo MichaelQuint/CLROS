@@ -431,9 +431,40 @@ nonexecutable. The verifier also requires the exact map symbol, linker-response
 input, no ordinary imports, and the exact managed-assembly hash and managed-PE
 shape recorded by the same build. The host integration test independently
 decodes that assembly's metadata and requires the exact
-`RuntimeImport`/`InternalCall` no-body binding. M01-035 must still place the
-checked call at every current publication epoch. M01-026 remains blocked until
-that invocation slice has implementation and build-audit evidence.
+`RuntimeImport`/`InternalCall` no-body binding. M01-035 now places and audits
+the checked call at every current publication epoch, and the accepted M01-026
+tuple supplies the bounded all-switch guest execution prerequisite used by
+M02-017.
+
+### M02 safe-stub EFI closure (M02-017)
+
+M02-017 adds `Boot/M02SafeStubPageIntegration.cs` plus the three reviewed
+diagnostics contracts required to materialize the fixed page. The explicit EFI
+compile closure is now 48 items, and the canonical build/verifier source
+snapshot is 61 inputs. `scripts/build-efi-shell.ps1` and
+`scripts/test-efi-artifact.ps1` both pin those exact ordered closures; missing,
+duplicate, reordered, substituted, wildcard-imported, or stale project-input
+variants fail closed. The default switch remains false. Enabling
+`M02_SAFE_STUB_PROBE` requires all three M01 probe symbols in the same fresh
+publish.
+
+The accepted source-bound build from commit
+`cf8ce63c37a9c62a0f8f736adda14b6bd3e19a9a`, tree
+`d18f520cee19aa0c89dfb41f326c92afd0284c02`, reported
+`EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=61` and
+`EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3
+compileItems=48`. The post-QEMU same-build verifier accepted PE32+ AMD64, EFI
+subsystem 10, no import directories, 843 runtime-function records, the exact
+20-byte instruction-publication serializer, and EFI SHA-256
+`D30B508AC06F592756C36ABD2B5CFAE2469ED31DF234BFDCD37134A7DBEB4EA5`.
+The five-file copied EFI bundle and publish log are preserved under
+`artifacts/logs/m02-017-final/cf8ce63c-20260803T211323Z-r1/`.
+
+This build evidence establishes the exact freestanding source and artifact
+identity consumed by the separate M02-017 QEMU tuple. It does not by itself
+prove guest execution, privileged port I/O, owned COM1, real
+`ExitBootServices`, provider behavior, hosted .NET, Kestrel, CloudReady status,
+or production readiness.
 
 ### Linked instruction-publication serializer (M01-034)
 
@@ -463,8 +494,9 @@ The direct no-stdlib binding consists of
 `Boot/X64InstructionPublication.cs`,
 `Runtime/RuntimeImportAttribute.cs`, and
 `Runtime/MethodImplAttribute.cs`. Those three files are ordered before
-`Runtime/MinimalRuntime.cs`, bringing the exact EFI compile closure to 44
-items. `X64InstructionPublication.Serialize()` binds
+`Runtime/MinimalRuntime.cs`. M02-017 later adds the three reviewed diagnostics
+page contracts and `Boot/M02SafeStubPageIntegration.cs`, bringing the exact EFI
+compile closure to 48 items. `X64InstructionPublication.Serialize()` binds
 `CLROS_X64_SerializeInstructionPublication` from module `*` as an
 `InternalCall` and expects success cookie `0x53524C43`; no managed fallback
 body is present.
@@ -489,7 +521,7 @@ independent verifier. Consequently, stale or hostile
 override, or user/machine ImportBefore/ImportAfter file cannot influence an
 accepted evaluation.
 
-The build takes a 57-input source snapshot that also includes `global.json`
+The build takes a 61-input source snapshot that also includes `global.json`
 plus the build and verifier scripts. It opens read/share-read handles that deny
 writes and replacement before authoritative source validation, holds them for
 the entire restore/publish/evidence/verification interval, and confirms the
@@ -816,12 +848,11 @@ Any next-step EFI build work must keep the freestanding constraints explicit. If
 
 ## Next Steps
 
-1. Under M01-035, place the M01-034 linked serializer at every current publication
-   epoch and host-audit each checked cookie transition without claiming guest
-   execution.
-2. Only after M01-035 closes, run M01-026's cumulative all-switch QEMU/OVMF
-   proof with captured serial, artifact hashes, required/forbidden marker
-   validation, and deterministic timeout/reset/triple-fault classification.
+1. Preserve the accepted M01-035/M01-026/M02-017 serializer, owned-root, and
+   offset-zero safe-cookie closures while M02-003 adds only its separately
+   owned checked-function-pointer behavior.
+2. Keep offsets 16 and 32 unexecuted until a later issue owns the live
+   privileged port-I/O integration and fresh QEMU evidence.
 3. Move UEFI structs behind platform interfaces.
    - Keep the low-level UEFI table pointers isolated to the EFI boundary.
    - Expose only the narrow operations required for console diagnostics, memory-map ownership, firmware shutdown state, and optional filesystem/protocol discovery.

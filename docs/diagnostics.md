@@ -80,6 +80,16 @@ The owned diagnostics subsystem is host-testable only. No real IDT load, fault h
   zero-corelib artifact itself is compile-closure evidence, not a CLR-runnable
   binary. The implementation changes no live page protection and invokes
   neither the safe entry nor either privileged port-I/O entry.
+- `M02SafeStubPageIntegration` is the no-stdlib M02-017 EFI adapter for that
+  reviewed page contract. Behind the default-off `M02_SAFE_STUB_PROBE` switch,
+  it materializes the complete 4,096-byte page into the existing M01
+  protection-probe allocation, verifies the full-page FNV-1a64
+  `F85393074A792B1E`, carries the page through the inherited immutable
+  publication and temporary owned-root RX boundary, and audits only the
+  offset-zero return-cookie entry. The call supplies no port or value
+  arguments, never targets offsets 16 or 32, requires return cookie
+  `0x4F534F4B`, and records `portIoExecuted=false` only after the inherited
+  CR3/CR4/RFLAGS and protection restoration checks have completed.
 - `DescriptorTableInstructionPlan` emits deterministic x64 `lidt [rip+disp32]`, `lgdt [rip+disp32]`, and `ltr ax` instruction bytes into caller-owned storage for future descriptor-table installation stubs.
 - `DescriptorTableInstallStubPlan` emits deterministic callable x64 `lidt`, `lgdt`, and `ltr` stubs into caller-owned storage. `lidt` and `lgdt` stubs embed the 10-byte descriptor payload after the executable bytes and use RIP-relative addressing; the `ltr` stub loads a caller-provided TSS selector into `AX`. The descriptor payload copy path uses the shared `OS.Std.Memory.BufferOperations.MemoryCopy` helper after validation and maps unexpected copy-helper failure to the existing output-buffer-too-small status.
 - `FaultProbeStubPlan` emits deterministic non-executed destructive fault probe bytes for future QEMU tests: `ud2; ret` and a null-address byte write followed by `ret`. Its metadata is tied to the disabled-by-default destructive probe toggles, and it rejects default/zero result values or incomplete byte-count metadata as successful evidence.
@@ -666,7 +676,21 @@ must not be interpreted as guest evidence. Likewise, M01-019 freezes and
 presents a host-only stage-three result without enabling any probe or emitting
 from the ordinary boot path.
 
-`SerialDiagnosticsGuard` is a readiness contract only. `SerialPortConfiguration`, `Com1SerialWriter`, `Com1PlatformSerialTransport`, `PortIoOperationPlan`, `PortIoStubPlan`, `ManagedX64StubStrategyADRUseExistingAudited`, `ExistingIn8Out8StubBytesRWPagesFinalize`, and owned-serial readiness derivation are configuration, polling, abstract backend, status, adapter, instruction-byte, authoring-policy, caller-owned page-byte, readback, and metadata-audit contracts only. The M02-001 strategy allocates, materializes, protects, binds, and executes no page; it provides no generator implementation and does not perform CPU port I/O or prove serial output survives real firmware shutdown. M02-002 proves exact host page bytes and no-stdlib pointer compile closure, but `src/OS/OS.csproj` does not link this contract and M02-002 owns no EFI integration path. It performs no live protection mutation, binds or invokes no function pointer, executes neither offset 0 nor privileged offsets 16 and 32, emits no guest marker, and advances no completion gate. M02-017 exclusively owns the later EFI linkage and bounded real-QEMU execution of the safe offset-zero return-cookie entry; the privileged `In8` and `Out8` entries remain unexecuted.
+`SerialDiagnosticsGuard` is a readiness contract only. `SerialPortConfiguration`, `Com1SerialWriter`, `Com1PlatformSerialTransport`, `PortIoOperationPlan`, `PortIoStubPlan`, `ManagedX64StubStrategyADRUseExistingAudited`, `ExistingIn8Out8StubBytesRWPagesFinalize`, and owned-serial readiness derivation remain configuration, polling, abstract backend, status, adapter, instruction-byte, authoring-policy, caller-owned page-byte, readback, and metadata-audit contracts. The M02-001 strategy allocates, materializes, protects, binds, and executes no page; it provides no generator implementation and does not perform CPU port I/O or prove serial output survives real firmware shutdown. M02-002 is the consumed host-only page contract; by itself it still proves no EFI linkage or live execution.
+
+M02-017 adds one distinct, source-bound local QEMU/OVMF result from clean,
+pushed implementation commit
+`cf8ce63c37a9c62a0f8f736adda14b6bd3e19a9a`, tree
+`d18f520cee19aa0c89dfb41f326c92afd0284c02`. All six M02 markers occurred
+exactly once and in order, the 34 cumulative forbidden markers were absent,
+and the ready line reported `temporaryOwnedRootRx=true` and
+`portIoExecuted=false`. The public serial SHA-256 is
+`6F223E27E4180855DA64F4785C13B9B44649F0C8EF1590AA9B65A89CEF508AD0`.
+This proves only pre-`ExitBootServices` materialization, full-page readback,
+temporary owned-root execution of offset zero, the return cookie, and
+restoration on that recorded virtual platform. It does not bind or execute the
+privileged `In8` or `Out8` entries, own COM1, install diagnostics or descriptor
+tables, trigger a fault, or advance a numbered completion gate.
 
 ## Next Steps
 
@@ -680,8 +704,8 @@ from the ordinary boot path.
    toggles only in their dedicated issues; M02-014 must consume the disabled
    M01-015 intent after owned diagnostics exist.
 8. Wire real handler register capture into `CpuFaultFrame` through the deterministic fault-entry layout.
-9. Integrate the reviewed M02-002 fixed page through M02-017 only after this
-   host-only materialization, full-page readback, and RW+NX-to-RO+X metadata
-   audit is accepted. M02-017 may execute only the safe offset-zero cookie and
-   must preserve the M01-026 tuple only as bounded pre-EBS prerequisite
-   evidence; offsets 16 and 32 remain privileged and unexecuted.
+9. Consume the accepted M02-017 safe-cookie boundary in M02-003's checked
+   unmanaged-function-pointer work without treating offset-zero execution as
+   evidence for offsets 16 or 32. Live `In8`/`Out8`, COM1 ownership, and port
+   I/O remain blocked until their own scoped implementation and QEMU evidence
+   pass.
