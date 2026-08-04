@@ -107,11 +107,11 @@ internal static class ManagedX64StubStrategyADRUseExistingAuditedTests
         return out8Result.Succeeded &&
             in8Result.Succeeded &&
             out8.Length == 7 &&
-            out8[0] == 0x66 &&
-            out8[1] == 0x89 &&
-            out8[2] == 0xca &&
-            out8[3] == 0x88 &&
-            out8[4] == 0xd0 &&
+            out8[0] == 0x88 &&
+            out8[1] == 0xd0 &&
+            out8[2] == 0x66 &&
+            out8[3] == 0x89 &&
+            out8[4] == 0xca &&
             out8[5] == 0xee &&
             out8[6] == 0xc3 &&
             in8.Length == 5 &&

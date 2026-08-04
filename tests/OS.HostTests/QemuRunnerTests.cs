@@ -135,10 +135,10 @@ internal static class QemuRunnerTests
     private static readonly string[] M02IssueSuccessMarkers =
     [
         "TEST_START m02.017",
-        "M02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E",
-        "M02_STUB_PAGE_READBACK_VERIFIED fnv1a64=F85393074A792B1E",
+        "M02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56",
+        "M02_STUB_PAGE_READBACK_VERIFIED fnv1a64=982E5B7E3EE58E56",
         "M02_SAFE_PROBE_EXECUTED offset=0 return=0x4F534F4B",
-        "CLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E temporaryOwnedRootRx=true portIoExecuted=false",
+        "CLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56 temporaryOwnedRootRx=true portIoExecuted=false",
         "TEST_PASS m02.017"
     ];
     private static readonly string[] M02IssueForbiddenMarkers =

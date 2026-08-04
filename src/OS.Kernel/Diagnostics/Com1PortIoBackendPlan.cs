@@ -344,25 +344,28 @@ public readonly struct Com1PortIoBackendPlan
         }
 
         if (result.BytesWritten != expectedRequiredBytes
-            || result.RequiredBytes != expectedRequiredBytes
-            || bytes[0] != PortIoStubPlan.OperandSizeOverridePrefix
-            || bytes[1] != PortIoStubPlan.MovR16ToRm16Opcode
-            || bytes[2] != PortIoStubPlan.MovCxToDxModRm)
+            || result.RequiredBytes != expectedRequiredBytes)
         {
             return PortIoStubPlanStatus.InvalidOperationKind;
         }
 
         if (expectedOperationKind == PortIoOperationKind.Out8)
         {
-            return bytes[3] == PortIoStubPlan.MovR8ToRm8Opcode
-                && bytes[4] == PortIoStubPlan.MovDlToAlModRm
+            return bytes[0] == PortIoStubPlan.MovR8ToRm8Opcode
+                && bytes[1] == PortIoStubPlan.MovDlToAlModRm
+                && bytes[2] == PortIoStubPlan.OperandSizeOverridePrefix
+                && bytes[3] == PortIoStubPlan.MovR16ToRm16Opcode
+                && bytes[4] == PortIoStubPlan.MovCxToDxModRm
                 && bytes[5] == PortIoOperationPlan.Out8Opcode
                 && bytes[6] == PortIoStubPlan.RetOpcode
                     ? PortIoStubPlanStatus.Success
                     : PortIoStubPlanStatus.InvalidOperationKind;
         }
 
-        return bytes[3] == PortIoOperationPlan.In8Opcode
+        return bytes[0] == PortIoStubPlan.OperandSizeOverridePrefix
+            && bytes[1] == PortIoStubPlan.MovR16ToRm16Opcode
+            && bytes[2] == PortIoStubPlan.MovCxToDxModRm
+            && bytes[3] == PortIoOperationPlan.In8Opcode
             && bytes[4] == PortIoStubPlan.RetOpcode
                 ? PortIoStubPlanStatus.Success
                 : PortIoStubPlanStatus.InvalidOperationKind;

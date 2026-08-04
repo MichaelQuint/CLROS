@@ -10,7 +10,7 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
 {
     private const string TestName = "m02.017";
     private const string ExpectedSha256 =
-        "F8DAF2F093F6FCD3CB6CA764DCC294EC9B4DBF2B392D222946F11250BFCE353D";
+        "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     private const ulong ModeledPageAddress = 0x0040_0000;
     private const ulong PublicationEpoch = 7;
     private const PageProtection ReadWrite =
@@ -21,10 +21,10 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
     private static readonly string[] M02SuccessMarkers =
     [
         "TEST_START m02.017",
-        "M02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E",
-        "M02_STUB_PAGE_READBACK_VERIFIED fnv1a64=F85393074A792B1E",
+        "M02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56",
+        "M02_STUB_PAGE_READBACK_VERIFIED fnv1a64=982E5B7E3EE58E56",
         "M02_SAFE_PROBE_EXECUTED offset=0 return=0x4F534F4B",
-        "CLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E temporaryOwnedRootRx=true portIoExecuted=false",
+        "CLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56 temporaryOwnedRootRx=true portIoExecuted=false",
         "TEST_PASS m02.017"
     ];
 
@@ -208,7 +208,7 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
                 && finalized.FinalizationAudited
                 && state.FinalizationCount == 1
                 && HasExactPage(page)
-                && ComputeFnv1a64(page) == 0xf853_9307_4a79_2b1e
+                && ComputeFnv1a64(page) == 0x982e_5b7e_3ee5_8e56
                 && Convert.ToHexString(SHA256.HashData(page))
                     == ExpectedSha256;
         }
@@ -415,7 +415,7 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
                 "[switch] $EnableM02SafeStubProbe",
                 StringComparison.Ordinal)
             && script.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=63",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=65",
                 StringComparison.Ordinal)
             && script.Contains(
                 "reviewed=\" + $m01SourceClosure.ReviewedSourceCount",
@@ -534,7 +534,7 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
                 "public const uint SafeReturnValue = 0x4f53_4f4b;",
                 StringComparison.Ordinal)
             && helper.Contains(
-                "public const ulong ExpectedFnv1a64 = 0xf853_9307_4a79_2b1e;",
+                "public const ulong ExpectedFnv1a64 = 0x982e_5b7e_3ee5_8e56;",
                 StringComparison.Ordinal)
             && helper.Contains(
                 "public const bool PortIoExecuted = false;",
@@ -604,7 +604,7 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
         }
 
         ReadOnlySpan<byte> safe = [0xb8, 0x4b, 0x4f, 0x53, 0x4f, 0xc3];
-        ReadOnlySpan<byte> out8 = [0x66, 0x89, 0xca, 0x88, 0xd0, 0xee, 0xc3];
+        ReadOnlySpan<byte> out8 = [0x88, 0xd0, 0x66, 0x89, 0xca, 0xee, 0xc3];
         ReadOnlySpan<byte> in8 = [0x66, 0x89, 0xca, 0xec, 0xc3];
         for (int index = 0; index < page.Length; index++)
         {

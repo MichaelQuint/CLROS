@@ -38,6 +38,7 @@
 		<EnableM01OwnedPagingProbe Condition="'$(EnableM01OwnedPagingProbe)' == ''">false</EnableM01OwnedPagingProbe>
 		<EnableM02SafeStubProbe Condition="'$(EnableM02SafeStubProbe)' == ''">false</EnableM02SafeStubProbe>
 		<EnableM02CheckedPortIoBindingProbe Condition="'$(EnableM02CheckedPortIoBindingProbe)' == ''">false</EnableM02CheckedPortIoBindingProbe>
+		<EnableM02Com1OwnedPortIoProbe Condition="'$(EnableM02Com1OwnedPortIoProbe)' == ''">false</EnableM02Com1OwnedPortIoProbe>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM01LoadedImageStackProbe)' == 'true'">
@@ -58,6 +59,10 @@
 
 	<PropertyGroup Condition="'$(EnableM02CheckedPortIoBindingProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M02_CHECKED_PORT_IO_BINDING_PROBE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM02Com1OwnedPortIoProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M02_COM1_OWNED_PORT_IO_PROBE</DefineConstants>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableUefiGoneSimulationProbe)' == 'true'">
@@ -111,6 +116,7 @@
 		<Compile Include="..\OS.Kernel\Diagnostics\PortIoStubPlan.cs" Link="Diagnostics\PortIoStubPlan.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs" Link="Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs" Link="Diagnostics\InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\COM1OwnedPortIOBackend.cs" Link="Diagnostics\COM1OwnedPortIOBackend.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs" Link="Boot\M01LoadedImageStackIntegration.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs" Link="Boot\M01LiveAllocatorIntegration.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LivePagingIntegration.cs" Link="Boot\M01LivePagingIntegration.cs" />
@@ -118,6 +124,7 @@
 		<Compile Include="Boot\EfiConsoleAdapter.cs" />
 		<Compile Include="Boot\EfiEntry.cs" />
 		<Compile Include="Boot\M02CheckedPortIoFunctionPointerIntegration.cs" />
+		<Compile Include="Boot\M02Com1OwnedPortIoBackendIntegration.cs" />
 		<Compile Include="Boot\M02SafeStubPageIntegration.cs" />
 		<Compile Include="Boot\X64InstructionPublication.cs" />
 		<Compile Include="Runtime\RuntimeImportAttribute.cs" />
@@ -163,6 +170,9 @@
 		<Error
 			Condition="'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM02SafeStubProbe)' != 'true'"
 			Text="EnableM02CheckedPortIoBindingProbe requires EnableM02SafeStubProbe=true." />
+		<Error
+			Condition="'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' != 'true'"
+			Text="EnableM02Com1OwnedPortIoProbe requires EnableM02CheckedPortIoBindingProbe=true." />
 	</Target>
 
 	<Target Name="CustomizeReferences"

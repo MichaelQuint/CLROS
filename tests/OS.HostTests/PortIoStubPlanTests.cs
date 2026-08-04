@@ -52,18 +52,18 @@ internal static class PortIoStubPlanTests
             && result.BytesWritten == PortIoStubPlan.Out8RequiredByteLength
             && result.RequiredBytes == PortIoStubPlan.Out8RequiredByteLength
             && PortIoStubPlan.Out8.OperationKind == PortIoOperationKind.Out8
-            && bytes[0] == PortIoStubPlan.OperandSizeOverridePrefix
-            && bytes[1] == PortIoStubPlan.MovR16ToRm16Opcode
-            && bytes[2] == PortIoStubPlan.MovCxToDxModRm
-            && bytes[3] == PortIoStubPlan.MovR8ToRm8Opcode
-            && bytes[4] == PortIoStubPlan.MovDlToAlModRm
+            && bytes[0] == PortIoStubPlan.MovR8ToRm8Opcode
+            && bytes[1] == PortIoStubPlan.MovDlToAlModRm
+            && bytes[2] == PortIoStubPlan.OperandSizeOverridePrefix
+            && bytes[3] == PortIoStubPlan.MovR16ToRm16Opcode
+            && bytes[4] == PortIoStubPlan.MovCxToDxModRm
             && bytes[5] == PortIoOperationPlan.Out8Opcode
             && bytes[6] == PortIoStubPlan.RetOpcode
-            && bytes[0] == 0x66
-            && bytes[1] == 0x89
-            && bytes[2] == 0xca
-            && bytes[3] == 0x88
-            && bytes[4] == 0xd0
+            && bytes[0] == 0x88
+            && bytes[1] == 0xd0
+            && bytes[2] == 0x66
+            && bytes[3] == 0x89
+            && bytes[4] == 0xca
             && bytes[5] == 0xee
             && bytes[6] == 0xc3;
     }

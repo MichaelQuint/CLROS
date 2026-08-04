@@ -466,6 +466,32 @@ prove guest execution, privileged port I/O, owned COM1, real
 `ExitBootServices`, provider behavior, hosted .NET, Kestrel, CloudReady status,
 or production readiness.
 
+### Checked COM1 configuration EFI closure (M02-003/M02-004)
+
+The current serialized profile adds
+`Diagnostics/InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs`,
+`Diagnostics/COM1OwnedPortIOBackend.cs`,
+`Boot/M02CheckedPortIoFunctionPointerIntegration.cs`, and
+`Boot/M02Com1OwnedPortIoBackendIntegration.cs`. The explicit EFI compile
+closure is 52 items and the canonical build/verifier authority snapshot is 65
+inputs. `EnableM02Com1OwnedPortIoProbe` defaults false and requires
+`EnableM02CheckedPortIoBindingProbe`, which in turn requires the complete
+M02-017/M01 probe tuple.
+
+With every required switch enabled, preflight reports
+`EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=65` and
+`EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=52`.
+The same-build verifier accepts PE32+ AMD64, EFI subsystem 10, no ordinary or
+delay imports, the exact `EfiMain` association, and the linked instruction
+serializer. The current 485,888-byte artifact SHA-256 is
+`61CA5D6879DA1AE7DC0A6938AA61AD64DCEFBD61AA937C0DF2D8C3BF0809820E`.
+
+This artifact evidence establishes the no-stdlib closure and PE/link contract.
+The separate QEMU tuple proves seven pre-`ExitBootServices` COM1 configuration
+writes. Neither result proves `In8` polling, owned serial payload transport,
+post-`ExitBootServices` diagnostics, a provider, CloudReady status, hosted .NET,
+Kestrel, or production readiness.
+
 ### Linked instruction-publication serializer (M01-034)
 
 `src/OS/OS.csproj` imports the single allowlisted
@@ -849,10 +875,10 @@ Any next-step EFI build work must keep the freestanding constraints explicit. If
 ## Next Steps
 
 1. Preserve the accepted M01-035/M01-026/M02-017 serializer, owned-root, and
-   offset-zero safe-cookie closures while M02-003 adds only its separately
-   owned checked-function-pointer behavior.
-2. Keep offsets 16 and 32 unexecuted until a later issue owns the live
-   privileged port-I/O integration and fresh QEMU evidence.
+   offset-zero safe-cookie closures plus the M02-003 checked binding and
+   M02-004 seven-write `Out8` result.
+2. Keep offset 32 unexecuted until a later issue owns `In8`; keep serial payload
+   writes separate from the M02-004 configuration-only evidence.
 3. Move UEFI structs behind platform interfaces.
    - Keep the low-level UEFI table pointers isolated to the EFI boundary.
    - Expose only the narrow operations required for console diagnostics, memory-map ownership, firmware shutdown state, and optional filesystem/protocol discovery.
