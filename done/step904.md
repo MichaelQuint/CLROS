@@ -120,6 +120,14 @@ existing M01-026 shim.
   process envelope was raised to 120 seconds while preserving kill-on-timeout
   and the verifier suite's independent performance ceilings; the incomplete
   wave was rejected.
+- The following complete wave passed both repaired timeout boundaries and
+  reached 1,313 starts / 1,311 passes before the inherited M02-003 integration
+  test rejected its compile-switch graph. Its broad condition search found the
+  new downstream `M02 COM1 -> checked binding` error edge as well as the
+  existing `checked binding -> safe stub` prerequisite, while still asserting
+  exactly one match. The owned test now requires exactly those two directed
+  edges; the 167,654-byte incomplete stdout stream and 294-byte exception-only
+  stderr stream were rejected.
 
 ## Deferred work
 

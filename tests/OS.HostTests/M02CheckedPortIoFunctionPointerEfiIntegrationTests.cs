@@ -116,6 +116,24 @@ internal static class M02CheckedPortIoFunctionPointerEfiIntegrationTests
                 "EnableM02CheckedPortIoBindingProbe",
                 StringComparison.Ordinal))
             .ToArray();
+        string[] prerequisiteConditions = errorConditions
+            .Where(value =>
+                value.Contains(
+                    "'$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
+                    StringComparison.Ordinal) &&
+                value.Contains(
+                    "'$(EnableM02SafeStubProbe)' != 'true'",
+                    StringComparison.Ordinal))
+            .ToArray();
+        string[] dependentConditions = errorConditions
+            .Where(value =>
+                value.Contains(
+                    "'$(EnableM02Com1OwnedPortIoProbe)' == 'true'",
+                    StringComparison.Ordinal) &&
+                value.Contains(
+                    "'$(EnableM02CheckedPortIoBindingProbe)' != 'true'",
+                    StringComparison.Ordinal))
+            .ToArray();
         string buildScript = File.ReadAllText(
             Path.Combine(root, "scripts", "build-efi-shell.ps1"));
         string artifactScript = File.ReadAllText(
@@ -141,10 +159,9 @@ internal static class M02CheckedPortIoFunctionPointerEfiIntegrationTests
             && symbols.Length == 1
             && symbols[0].Elements("DefineConstants").Single().Value ==
                 "$(DefineConstants);M02_CHECKED_PORT_IO_BINDING_PROBE"
-            && errorConditions.Length == 1
-            && errorConditions[0].Contains(
-                "EnableM02SafeStubProbe",
-                StringComparison.Ordinal)
+            && errorConditions.Length == 2
+            && prerequisiteConditions.Length == 1
+            && dependentConditions.Length == 1
             && buildScript.Contains(
                 "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=65",
                 StringComparison.Ordinal)
