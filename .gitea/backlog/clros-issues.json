@@ -6415,7 +6415,7 @@
         "M02-020"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -6490,7 +6490,7 @@
         "docs/boot-order.md"
       ],
       "evidenceBoundary": "This issue proves only \"Bind and invoke In8/Out8 through checked unmanaged function pointers.\" It does not by itself prove the M02 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M02-004",
@@ -9172,7 +9172,7 @@
         "M01-036"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:host",
@@ -9255,7 +9255,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves only an allocation-free host-tested OS.Std.* classification ledger over the current 40 MinimalRuntime declarations and 17 RuntimeExports entries. The ledger records four link-only no-op helpers, twelve fail-fast helpers, and one audited stack-probe helper, adds no runtime behavior or canonical System.* surface, and deliberately leaves completion Gate 4 failing. It does not prove live runtime execution, allocation, GC, metadata, dispatch, exceptions, guest behavior, provider support, CloudReady status, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M04-002",

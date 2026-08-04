@@ -2142,7 +2142,9 @@ internal static class GiteaBacklogManifestTests
                     "tests/OS.HostTests/DotNetN10SystemExportCompatibilityLedgerImplementedStubbedTests.cs",
                     "docs/nativeaot-nostdlib-limits.md",
                     "docs/completion-gates.md"
-                ]))
+                ],
+                "agent:done",
+                "closed"))
         {
             return false;
         }

@@ -33,30 +33,36 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 
 ### Current implementation checkpoint (2026-08-04)
 
-- The local Gitea tracker has **279 open issues** (issues only, excluding pull
-  requests). The backlog is intentionally granular, so issue count is not a
-  completion percentage.
-- M02-003 now has production C# for validating and binding checked unmanaged
-  `Out8`/`In8` function pointers, plus host tests that invoke safe unmanaged
-  callbacks. Supplemental issue #438 compiles the same binder into the
-  no-stdlib EFI closure and verifies the two checked guest addresses without
-  executing privileged device I/O.
-- Frozen implementation commit `84032f4` passed the complete 2,516-second host
+- The local Gitea tracker has **276 open issues** (issues only, excluding pull
+  requests), down from 279 before this merge wave. The backlog is intentionally
+  granular, so issue count is not a completion percentage. M02-003, its
+  supplemental EFI integration issue #438, and M04-001 are now reviewed,
+  merged, evidence-backed, and tracker-closed.
+- PR #439 merged the M02-003 production C# checked `Out8`/`In8` function-pointer
+  binder, safe unmanaged host-callback tests, and no-stdlib EFI integration.
+  Frozen implementation commit `84032f4` passed the complete 2,516-second host
   harness with zero failures and fresh real QEMU/OVMF evidence for the exact
   `CLROS_M02_003_READY ... guestInvocation=false portIoExecuted=false` marker.
-  The guest did not invoke offsets 16/32, and all privileged-I/O markers were
-  absent.
-- M02-003 and #438 are **not done**: their source, accepted evidence, and
-  canonical ledgers are pushed in PR #439, where independent review is
-  requested and still pending. Merge, tracker transitions, and backlog
-  synchronization remain. No completion-gate status changes are claimed by
-  this checkpoint.
-- M04-001 is **claimed and in progress** on a separate collision-safe branch.
-  Its first production C# checkpoint adds the `OS.Std.NoRuntime` .NET 10 helper
-  compatibility ledger and source-bound host tests. The focused contract passes
-  with 40 declarations and 17 runtime exports, while Gate 4 remains `Fail` and
-  no canonical `System.*` surface is added. The complete evidence wave,
-  canonical docs, unique done step, and review are still pending.
+  The guest verified the checked addresses but did not invoke offsets 16/32;
+  all privileged-I/O markers were absent. Independent review #4 approved the
+  exact PR head before merge. Steps 899 and 900 retain the evidence boundary.
+- PR #440 merged the M04-001 production `OS.Std.NoRuntime` .NET 10 helper
+  compatibility ledger and source-bound host tests. The complete 2,693-second
+  host harness passed with 3,348 starts, 3,349 passes, zero failures, and the
+  exact `CLROS_M04_001_READY` marker. The ledger classifies 40 declarations and
+  17 runtime exports without adding a canonical `System.*` surface or runtime
+  behavior. Independent review #5 approved the exact PR head before merge;
+  step 901 retains the evidence boundary.
+- The canonical backlog now records M02-003 and M04-001 as closed/done. An
+  idempotent synchronization makes M02-004 and M04-002 ready; the next session
+  must claim the smaller collision-safe issue, M02-004, before changing its
+  owned files. No issue is intentionally left claimed across this reboot-safe
+  checkpoint.
+- These changes do not advance a numbered completion gate. Gate 2 remains the
+  only passing gate, scoped to the firmware-visible QEMU/OVMF marker path;
+  Gate 4 remains `Fail`. There is still no proof of live port I/O, real
+  `ExitBootServices`, owned storage/networking, guest app execution, hosted
+  .NET, Kestrel, Azure/AWS support, CloudReady status, or production readiness.
 
 ## What Works Today
 
