@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 internal static class BuildEfiShellPreflightTests
 {
     private const string SecretCanary = "CLROS_PREFLIGHT_SECRET_MUST_NOT_APPEAR";
+    private const int PreflightProcessTimeoutMilliseconds = 120000;
 
     [ModuleInitializer]
     internal static void Run()
@@ -4612,10 +4613,13 @@ internal static class BuildEfiShellPreflightTests
             ?? throw new InvalidOperationException("Failed to start PowerShell.");
         Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
         Task<string> standardError = process.StandardError.ReadToEndAsync();
-        if (!process.WaitForExit(30000))
+        if (!process.WaitForExit(PreflightProcessTimeoutMilliseconds))
         {
             process.Kill(entireProcessTree: true);
-            throw new TimeoutException("EFI preflight did not exit within 30 seconds.");
+            throw new TimeoutException(
+                "EFI preflight did not exit within " +
+                PreflightProcessTimeoutMilliseconds +
+                "ms.");
         }
 
         return new ProcessResult(

@@ -105,6 +105,13 @@ existing M01-026 shim.
   `TEST_FAIL`. The underlying dry-run exited `0` with
   `TEST_PASS qemu.runner.dryrun`; the aggregate wrapper result was rejected and
   the parser was narrowed to actual line-leading failure markers.
+- The first complete exact-head host wave after reboot was stopped after 390
+  starts, 385 passes, and three line-leading failures. All three were
+  `BuildEfiShellPreflightTests` process timeouts at its fixed 30-second limit;
+  adjacent compile cases passed, stderr was empty, and the standalone exact
+  preflight completed in 12.348 seconds. The owned test-process envelope was
+  increased to a still-bounded 120 seconds with the existing whole-tree kill
+  on timeout; no partial result from the rejected wave was promoted.
 
 ## Deferred work
 
