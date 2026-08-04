@@ -3311,7 +3311,7 @@ internal static class BuildEfiShellPreflightTests
         string script = File.ReadAllText(buildScriptPath);
         string[] requiredText =
         [
-            "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=61",
+            "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=63",
             "EFI_PUBLISH_OUTPUT_AUTHORITY status=ok leaves=5",
             "EFI_PUBLISH_VERIFIER_INPUT_AUTHORITY status=ok inputs=8",
             "EFI_PUBLISH_VERIFIER_INPUTS_UNCHANGED status=ok inputs=8",
