@@ -258,7 +258,8 @@ public readonly unsafe struct CheckedPortIoFunctionPointerBindingResult
     public bool Succeeded =>
         IsInitialized &&
         Status == CheckedPortIoFunctionPointerBindingStatus.Ready &&
-        ConfiguredBasePort == SerialPortConfiguration.Com1BasePort &&
+        ConfiguredBasePort ==
+            InvokeIn8Out8CheckedUnmanagedFunctionPointers.RequiredCom1BasePort &&
         ConfiguredEndPort >= ConfiguredBasePort &&
         PayloadBaseAddress != 0 &&
         PayloadEndAddress > PayloadBaseAddress &&
@@ -369,6 +370,9 @@ public readonly unsafe struct CheckedPortIoFunctionPointerBindingResult
 
 public static unsafe class InvokeIn8Out8CheckedUnmanagedFunctionPointers
 {
+    public const ushort RequiredCom1BasePort = 0x03f8;
+    public const int MaximumCom1RegisterOffset = 7;
+
 #if !NOSTDLIB_EFI
     public static CheckedPortIoFunctionPointerBindingResult Bind(
         DiagnosticStubCallableBindingPlanResult bindingPlan)
@@ -397,7 +401,7 @@ public static unsafe class InvokeIn8Out8CheckedUnmanagedFunctionPointers
                 0);
         }
 
-        if (request.ConfiguredBasePort != SerialPortConfiguration.Com1BasePort)
+        if (request.ConfiguredBasePort != RequiredCom1BasePort)
         {
             return CheckedPortIoFunctionPointerBindingResult.Fail(
                 CheckedPortIoFunctionPointerBindingStatus.InvalidConfiguredBasePort,
@@ -406,7 +410,7 @@ public static unsafe class InvokeIn8Out8CheckedUnmanagedFunctionPointers
         }
 
         uint configuredEndPort =
-            (uint)request.ConfiguredBasePort + SerialPortConfiguration.MaximumRegisterOffset;
+            (uint)request.ConfiguredBasePort + MaximumCom1RegisterOffset;
         if (configuredEndPort > ushort.MaxValue)
         {
             return CheckedPortIoFunctionPointerBindingResult.Fail(
