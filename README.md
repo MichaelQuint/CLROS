@@ -46,10 +46,17 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
   `CLROS_M02_003_READY ... guestInvocation=false portIoExecuted=false` marker.
   The guest did not invoke offsets 16/32, and all privileged-I/O markers were
   absent.
-- M02-003 and #438 are **not done**: their accepted evidence and canonical
-  ledgers still require push, independent review, merge, tracker transitions,
-  and backlog synchronization. No completion-gate status changes are claimed
-  by this checkpoint.
+- M02-003 and #438 are **not done**: their source, accepted evidence, and
+  canonical ledgers are pushed in PR #439, where independent review is
+  requested and still pending. Merge, tracker transitions, and backlog
+  synchronization remain. No completion-gate status changes are claimed by
+  this checkpoint.
+- M04-001 is **claimed and in progress** on a separate collision-safe branch.
+  Its first production C# checkpoint adds the `OS.Std.NoRuntime` .NET 10 helper
+  compatibility ledger and source-bound host tests. The focused contract passes
+  with 40 declarations and 17 runtime exports, while Gate 4 remains `Fail` and
+  no canonical `System.*` surface is added. The complete evidence wave,
+  canonical docs, unique done step, and review are still pending.
 
 ## What Works Today
 
