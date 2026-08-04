@@ -105,16 +105,33 @@ and the reachable local Gitea tracker:
   compile/pointer evidence, and the host-only boundary. QEMU was dry-run only,
   the EFI build was regression/preflight only, and no M02 page was linked or
   executed in a guest.
-- M02-019 live issue `#432` is the claimed durability transaction for
-  M02-002. Its canonical target is 16 epics, 328 children, 344 keyed issues,
-  and 428 managed objects with 19 M02 children. It records M02-002 as
-  closed/done and gates M02-017 on M02-019 so a partial tracker update cannot
-  release safe EFI integration. Until independent review, merge, and guarded
-  convergence complete, issue #42 remains open in `agent:review` and #432
-  remains open in `agent:claimed`; the target counts are not live-convergence
-  evidence. M02-017 remains the sole serialized real-QEMU integration leaf
-  before M02-003 and may execute only the fixed safe offset-zero return-cookie
-  entry, never In8 or Out8.
+- M02-019 issue `#432` completed the M02-002 durability transaction through
+  reviewed PR #433 and guarded convergence. Issues #42 and #432 are closed
+  with `agent:done`; its 16-epic, 328-child, 344-keyed-issue,
+  428-managed-object inventory with 19 M02 children is now historical.
+- M02-017 is reviewed and merged production C#/EFI integration. Accepted
+  implementation/evidence commit
+  `cf8ce63c37a9c62a0f8f736adda14b6bd3e19a9a`, tree
+  `d18f520cee19aa0c89dfb41f326c92afd0284c02`, and reviewed head
+  `abb82e4cd5ccb8751fabbf0d3095796f626bb6e7` merged through PR #435 as
+  `d2872746059a7200431b6d3bc89c6e02cb42fa8b`. Issue #427 comment #6742,
+  `done/step896.md`, and `done/step897.md` preserve complete HostTests with
+  3,346 starts, 3,347 passes, zero failures, plus fresh local QEMU/OVMF with
+  all 48 required markers once/in order and all 34 forbidden markers absent.
+  The tuple executes only offset zero, returns `0x4F534F4B`, records
+  `portIoExecuted=false`, and never targets offsets 16 or 32.
+- M02-020 live issue `#436` is the claimed durability transaction for
+  M02-017. Its canonical target is 16 epics, 329 children, 345 keyed issues,
+  and 429 managed objects with 20 M02 children. It records M02-017 as
+  closed/done and gates M02-003 on M02-020 so privileged I/O cannot release
+  against a partial tracker transaction. PR #435 auto-closed issue #427, but
+  it still carries `agent:review`; issue #436 remains open with
+  `agent:claimed`. Until independent review, merge, and guarded convergence
+  complete, neither issue has reached the manifest's exact `agent:done`
+  target and the target counts are not live-convergence evidence. This
+  repository-state transaction proves no new live behavior, In8/Out8, COM1,
+  descriptors/faults, real `ExitBootServices`, hardware/provider behavior,
+  hosted .NET/Kestrel, CloudReady status, or production readiness.
 
 ## Implemented Behavior
 
@@ -303,9 +320,11 @@ Current M00 recovery evidence from 2026-07-25:
   reviewed host-only production C# through PR #428. M02-018 then converged
   issues #41 and #429 at the historical 327-child, 343-keyed-issue,
   427-managed-object checkpoint. M02-002 subsequently merged reviewed
-  host-only production C# through PR #431. M02-019 now owns its 328-child,
-  344-keyed-issue, 428-managed-object durability transaction before M02-017
-  alone may perform safe guest execution ahead of M02-003. Only `M15-013`, the
+  host-only production C# through PR #431, and M02-019 completed its durable
+  closure. M02-017 then merged the bounded safe-cookie EFI/QEMU slice through
+  PR #435. M02-020 now owns its 329-child, 345-keyed-issue,
+  429-managed-object durability transaction before M02-003 may attempt
+  privileged In8/Out8 execution. Only `M15-013`, the
   isolated optional DOOM/WAD boundary, retains
   `reference:license-blocked`. This is administrative tracker evidence, not
   additional kernel capability evidence.
@@ -320,20 +339,20 @@ Current M00 recovery evidence from 2026-07-25:
   provenance, boundary, first-party review, and CLROS tests. File-local vendor,
   GPL, CoreCLR, WAD, and media rights remain separate.
 
-## Required Post-M02-002 Sequence
+## Required Post-M02-017 Sequence
 
-The accepted M02-002 merge requires this ordered durability sequence. Later
+The accepted M02-017 merge requires this ordered durability sequence. Later
 tracker comments and synchronizer logs prove which steps completed.
 
-1. Implement and independently review M02-019 from the exact six owned
+1. Implement and independently review M02-020 from the exact six owned
    catalog/synchronizer/test/document paths and one newly reserved done step.
-2. Post the exact `<!-- clros-evidence-reviewed:M02-019 -->` marker to issue
-   `#432` while it remains open, and merge only the reviewed source head.
-3. From clean canonical master, verify unique M02-002 and M02-019 hidden keys
+2. Post the exact `<!-- clros-evidence-reviewed:M02-020 -->` marker to issue
+   `#436` while it remains open, and merge only the reviewed source head.
+3. From clean canonical master, verify unique M02-017 and M02-020 hidden keys
    and both reviewed markers, then run guarded
    preview/apply/repeated-apply/final-preview.
-4. Require issues `#42` and `#432` closed with exactly `agent:done`, no
-   duplicate hidden keys, M02-017 ready, and final 428-object convergence with
+4. Require issues `#427` and `#436` closed with exactly `agent:done`, no
+   duplicate hidden keys, M02-003 ready, and final 429-object convergence with
    zero failures or proposed writes.
-5. Claim and implement the serialized M02-017 safe-return-cookie EFI/QEMU slice
-   before any M02-003 attempt to bind privileged In8/Out8 entries.
+5. Claim M02-003 only after convergence and keep its privileged In8/Out8 proof
+   separate from M02-017's bounded offset-zero safe-cookie evidence.

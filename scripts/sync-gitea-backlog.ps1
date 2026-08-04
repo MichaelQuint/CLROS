@@ -515,8 +515,8 @@ function Test-Manifest {
     if ($milestones.Count -ne 16) {
         throw "Manifest must contain exactly 16 milestones; found $($milestones.Count)."
     }
-    if ($issues.Count -ne 344) {
-        throw "Manifest must contain 16 epics plus 328 children; found $($issues.Count)."
+    if ($issues.Count -ne 345) {
+        throw "Manifest must contain 16 epics plus 329 children; found $($issues.Count)."
     }
 
     $milestoneByKey = @{}
@@ -1880,7 +1880,7 @@ try {
     }
     $manifest = Get-Content -LiteralPath $resolvedManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $validated = Test-Manifest -Manifest $manifest
-    Write-SyncLine "SYNC_MANIFEST_VALID milestones=$($validated.milestones.Count) labels=$($validated.labels.Count) epics=16 children=328 issues=$($validated.issues.Count)"
+    Write-SyncLine "SYNC_MANIFEST_VALID milestones=$($validated.milestones.Count) labels=$($validated.labels.Count) epics=16 children=329 issues=$($validated.issues.Count)"
 
     if ($SelfTest) {
         if ($Apply) {
@@ -1912,12 +1912,12 @@ USER_NOTE_AFTER
         }
         Write-SyncLine "SYNC_SELF_TEST_MANAGED_BODY_PASS"
 
-        $bootstrapKey = Get-HiddenIssueKey -Body "<!-- clros-issue-key:M02-019 -->"
+        $bootstrapKey = Get-HiddenIssueKey -Body "<!-- clros-issue-key:M02-020 -->"
         $duplicateHiddenKeyRejected = $false
         try {
             [void](Get-HiddenIssueKey -Body @"
-<!-- clros-issue-key:M02-019 -->
-<!-- clros-issue-key:M02-019 -->
+<!-- clros-issue-key:M02-020 -->
+<!-- clros-issue-key:M02-020 -->
 "@)
         }
         catch {
@@ -1926,28 +1926,28 @@ USER_NOTE_AFTER
         }
         $bootstrapRemoteState = @{
             issueByKey = @{
-                "M02-019" = [pscustomobject]@{
-                    number = 432
+                "M02-020" = [pscustomobject]@{
+                    number = 436
                     state = "open"
-                    body = "<!-- clros-issue-key:M02-019 -->"
+                    body = "<!-- clros-issue-key:M02-020 -->"
                 }
             }
         }
         $wouldCreateBeforeAdoption = $script:Counters.wouldCreate
         Create-MissingIssues `
-            -ManifestIssues @($validated.issueByKey["M02-019"]) `
+            -ManifestIssues @($validated.issueByKey["M02-020"]) `
             -ManifestMilestoneByKey @{} `
             -ManifestIssueByKey $validated.issueByKey `
             -ManagedLabelNames @{} `
             -RemoteState $bootstrapRemoteState
-        $bootstrapCreateKey = "issue:M02-019"
-        if ($bootstrapKey -ne "M02-019" -or
+        $bootstrapCreateKey = "issue:M02-020"
+        if ($bootstrapKey -ne "M02-020" -or
             -not $duplicateHiddenKeyRejected -or
             $script:Counters.wouldCreate -ne $wouldCreateBeforeAdoption -or
             $script:ActionKeys.wouldCreate.Contains($bootstrapCreateKey)) {
-            throw "Hidden-key adoption self-test did not adopt exactly one pre-keyed M02-019 issue without proposing a duplicate."
+            throw "Hidden-key adoption self-test did not adopt exactly one pre-keyed M02-020 issue without proposing a duplicate."
         }
-        Write-SyncLine "SYNC_SELF_TEST_HIDDEN_KEY_ADOPTION_PASS key=M02-019 markers=1 wouldCreate=0 duplicateMarkersRejected=true"
+        Write-SyncLine "SYNC_SELF_TEST_HIDDEN_KEY_ADOPTION_PASS key=M02-020 markers=1 wouldCreate=0 duplicateMarkersRejected=true"
 
         $dependencyIssue = [pscustomobject]@{
             key = "SELFTEST-DEPENDENCY"

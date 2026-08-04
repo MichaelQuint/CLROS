@@ -83,19 +83,37 @@ identities, no-stdlib pointer boundary, 3,338 starts, 3,339 passes, zero
 failures, and host-only evidence. QEMU was dry-run only, and the EFI build was
 regression/preflight only; no M02 guest execution occurred.
 
-M02-019 issue `#432` is the claimed durability transaction for M02-002. The
-canonical target is 16 epics, 328 children, 344 keyed issues, and 428 managed
-objects with 19 M02 children. It records M02-002 as
-`desiredState=closed`/`agent:done`, inserts M02-019 after M02-002, and rewires
-M02-017 to depend on M02-019 so safe EFI integration cannot become ready after
-a partial closure. M02-017 remains the sole serialized EFI/QEMU integration
-leaf before M02-003 and may execute only the safe offset-zero return-cookie
-entry, never In8 or Out8. Until M02-019 is independently reviewed, merged, and
-converged, issue #42 remains open in `agent:review`, issue #432 remains open in
-`agent:claimed`, and the 428-object target is not live-convergence evidence.
-None of this repository-state or host evidence advances a completion gate or
-proves real `ExitBootServices`, live port I/O, provider behavior, CloudReady
-status, hosted .NET, Kestrel, or production readiness.
+M02-019 issue `#432` completed M02-002's durability transaction through
+reviewed PR #433 and guarded convergence. Issues #42 and #432 are closed with
+`agent:done`; the resulting 16-epic, 328-child, 344-keyed-issue,
+428-managed-object inventory with 19 M02 children is now a historical applied
+snapshot.
+
+M02-017 is now reviewed and merged production C#/EFI integration rather than
+planned work. Accepted source commit
+`cf8ce63c37a9c62a0f8f736adda14b6bd3e19a9a`, tree
+`d18f520cee19aa0c89dfb41f326c92afd0284c02`, and reviewed head
+`abb82e4cd5ccb8751fabbf0d3095796f626bb6e7` merged through PR #435 as
+`d2872746059a7200431b6d3bc89c6e02cb42fa8b`. Issue #427 comment #6742 and
+`done/step896.md`/`done/step897.md` preserve complete HostTests with 3,346
+starts, 3,347 passes, zero failures, and fresh local QEMU/OVMF evidence with
+all 48 required markers once/in order and all 34 forbidden markers absent.
+That tuple proves only the offset-zero return-cookie entry and records
+`portIoExecuted=false`; offsets 16 and 32 were not targeted.
+
+M02-020 issue `#436` is the claimed durability transaction for M02-017. Its
+canonical target is 16 epics, 329 children, 345 keyed issues, and 429 managed
+objects with 20 M02 children. It records M02-017 as
+`desiredState=closed`/`agent:done`, inserts M02-020 after M02-017, and rewires
+M02-003 to depend on M02-020 so privileged I/O cannot become ready after a
+partial closure. PR #435 auto-closed issue #427, but #427 still carries
+`agent:review`; issue #436 remains open with `agent:claimed`. Until M02-020 is
+independently reviewed, merged, and converged, neither issue has reached the
+manifest's exact `agent:done` target and the 429-object target is not
+live-convergence evidence. This repository-state transaction proves no new
+guest behavior, In8/Out8, COM1, descriptors/faults, real
+`ExitBootServices`, hardware/provider behavior, CloudReady status, hosted
+.NET, Kestrel, or production readiness.
 
 The guarded earlier M00-023 apply recognized existing M00-023 as issue #321,
 created only M01-016 through M01-026 as issues #323 through #333, updated
@@ -150,9 +168,10 @@ advances a capability or completion gate.
   M01-036 is the completed final M01 host-only durability repair. M02-001 is
   reviewed production C# merged through PR #428, and M02-018 completed its
   durable catalog/tracker closure. M02-002 is reviewed production C# merged
-  through PR #431; M02-019 owns its durable closure and prevents M02-017
-  readiness until the complete 428-object transaction converges. M02-017
-  remains the sole safe live integration boundary for the fixed M02 page.
+  through PR #431, and M02-019 completed its durable closure. M02-017 is
+  reviewed safe-cookie production C#/EFI integration merged through PR #435;
+  M02-020 owns its durable closure and prevents M02-003 readiness until the
+  complete 429-object transaction converges.
 - One `phase:mxx-*` label identifies each milestone from M00 through M15.
 
 Only issues whose complete transitive dependency tree is manifest-closed,
@@ -220,21 +239,20 @@ The 16 milestone objects intentionally remain open and have no fabricated due
 dates; the keyed epic and child issue states carry the durable evidence-review
 closure contract.
 
-## Required Post-M02-002 Sequence
+## Required Post-M02-017 Sequence
 
-The accepted M02-002 merge requires this ordered durability sequence. Later
+The accepted M02-017 merge requires this ordered durability sequence. Later
 tracker comments and synchronizer logs prove which steps completed.
 
-1. Implement and independently review M02-019 from the exact six owned
+1. Implement and independently review M02-020 from the exact six owned
    catalog/synchronizer/test/document paths and one newly reserved done step.
-2. Post exactly one `<!-- clros-evidence-reviewed:M02-019 -->` marker to issue
-   `#432` while it remains open, then merge only the reviewed source head.
-3. From clean canonical master, verify the unique M02-002 and M02-019 hidden
+2. Post exactly one `<!-- clros-evidence-reviewed:M02-020 -->` marker to issue
+   `#436` while it remains open, then merge only the reviewed source head.
+3. From clean canonical master, verify the unique M02-017 and M02-020 hidden
    keys and both reviewed markers, then run guarded
    preview/apply/repeated-apply/final-preview.
-4. Require issues `#42` and `#432` closed with exactly `agent:done`, no
-   duplicate hidden keys, M02-017 as the smallest collision-safe ready issue,
-   and all 428 managed objects unchanged/skipped with zero proposed writes.
-5. Claim and implement the serialized M02-017 safe-QEMU integration boundary
-   before M02-003; do not treat its safe offset-zero cookie as live In8/Out8
-   evidence.
+4. Require issues `#427` and `#436` closed with exactly `agent:done`, no
+   duplicate hidden keys, M02-003 as the smallest collision-safe ready issue,
+   and all 429 managed objects unchanged/skipped with zero proposed writes.
+5. Claim M02-003 only after that convergence; its privileged In8/Out8 evidence
+   must remain distinct from M02-017's safe offset-zero cookie tuple.

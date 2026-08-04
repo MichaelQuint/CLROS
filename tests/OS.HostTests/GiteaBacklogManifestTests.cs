@@ -13,13 +13,15 @@ internal static class GiteaBacklogManifestTests
         "CLROS_M02_018_READY epics=16 children=327 issues=343 managed=427 m02Children=18 m02001Issue=41 m02001Pr=428 m02001Merge=85528a5513f1cf24396ff29acc6787bc015ec9c5 closureMarkers=2";
     private const string M02MaterializerDurableClosureMarker =
         "CLROS_M02_019_READY epics=16 children=328 issues=344 managed=428 m02Children=19 m02002Issue=42 m02002Pr=431 m02002Merge=da856db657575d8f8d67713c7afe96e113854e54 closureMarkers=2";
+    private const string M02SafeStubDurableClosureMarker =
+        "CLROS_M02_020_READY epics=16 children=329 issues=345 managed=429 m02Children=20 m02017Issue=427 m02017Pr=435 m02017Merge=d2872746059a7200431b6d3bc89c6e02cb42fa8b closureMarkers=2";
 
     private static readonly IReadOnlyDictionary<string, int> ExpectedChildren =
         new Dictionary<string, int>(StringComparer.Ordinal)
         {
             ["M00"] = 23,
             ["M01"] = 36,
-            ["M02"] = 19,
+            ["M02"] = 20,
             ["M03"] = 11,
             ["M04"] = 23,
             ["M05"] = 21,
@@ -51,6 +53,7 @@ internal static class GiteaBacklogManifestTests
             RunTest("m01.036", () => TestM01DurabilityRepairMarker(manifestPath), ref failures);
             RunTest("m02.018", () => TestM02DurableClosureMarker(manifestPath), ref failures);
             RunTest("m02.019", () => TestM02MaterializerDurableClosureMarker(manifestPath), ref failures);
+            RunTest("m02.020", () => TestM02SafeStubDurableClosureMarker(manifestPath), ref failures);
             RunTest("gitea backlog offline preview validates without writes", () => TestOfflinePreview(scriptPath, manifestPath), ref failures);
             RunTest("gitea backlog managed body preserves human notes", () => TestManagedBodySelfTest(scriptPath), ref failures);
             RunTest("gitea backlog replaces labels through the dedicated endpoint", () => TestDedicatedIssueLabelEndpoint(scriptPath), ref failures);
@@ -145,7 +148,7 @@ internal static class GiteaBacklogManifestTests
         JsonElement milestones = root.GetProperty("milestones");
         JsonElement labels = root.GetProperty("labels");
         JsonElement issues = root.GetProperty("issues");
-        if (milestones.GetArrayLength() != 16 || labels.GetArrayLength() != 68 || issues.GetArrayLength() != 344)
+        if (milestones.GetArrayLength() != 16 || labels.GetArrayLength() != 68 || issues.GetArrayLength() != 345)
         {
             return false;
         }
@@ -333,6 +336,28 @@ internal static class GiteaBacklogManifestTests
         }
 
         Console.WriteLine(M02MaterializerDurableClosureMarker);
+        return true;
+    }
+
+    private static bool TestM02SafeStubDurableClosureMarker(
+        string manifestPath)
+    {
+        using JsonDocument document = JsonDocument.Parse(
+            File.ReadAllText(manifestPath));
+        Dictionary<string, JsonElement> issueByKey =
+            document.RootElement.GetProperty("issues")
+                .EnumerateArray()
+                .ToDictionary(
+                    issue => issue.GetProperty("key").GetString()
+                        ?? string.Empty,
+                    issue => issue,
+                    StringComparer.Ordinal);
+        if (!ValidateM02SafeStubDurableClosureContracts(issueByKey))
+        {
+            return false;
+        }
+
+        Console.WriteLine(M02SafeStubDurableClosureMarker);
         return true;
     }
 
@@ -2217,7 +2242,7 @@ internal static class GiteaBacklogManifestTests
             CountExact(
                 safeIntegration.GetProperty("requiredCommands"),
                 "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -BuildEfi -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe -EnableM02SafeStubProbe -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 30") != 1 ||
-            !DependenciesEqual(issueByKey["M02-003"], "M02-017") ||
+            !DependenciesEqual(issueByKey["M02-003"], "M02-020") ||
             !DependenciesEqual(issueByKey["M02-EPIC"], "M01-036") ||
             !DependenciesEqual(issueByKey["M04-EPIC"], "M01-036") ||
             !DependenciesEqual(
@@ -2437,10 +2462,10 @@ internal static class GiteaBacklogManifestTests
             !closureCommands.Contains(" -OvmfCode \"", StringComparison.Ordinal) &&
             DependenciesEqual(materializer, "M02-018") &&
             DependenciesEqual(safeIntegration, "M02-019") &&
-            DependenciesEqual(livePortIo, "M02-017") &&
+            DependenciesEqual(livePortIo, "M02-020") &&
             JsonElementContains(
                 epic.GetProperty("acceptanceCriteria"),
-                "All 19 keyed child issues") &&
+                "All 20 keyed child issues") &&
             closure.GetProperty("ownedPaths")
                 .EnumerateArray()
                 .Select(path => path.GetString() ?? string.Empty)
@@ -2641,10 +2666,10 @@ internal static class GiteaBacklogManifestTests
             !closureCommands.Contains(" -Qemu \"", StringComparison.Ordinal) &&
             !closureCommands.Contains(" -OvmfCode \"", StringComparison.Ordinal) &&
             DependenciesEqual(safeIntegration, "M02-019") &&
-            DependenciesEqual(livePortIo, "M02-017") &&
+            DependenciesEqual(livePortIo, "M02-020") &&
             JsonElementContains(
                 epic.GetProperty("acceptanceCriteria"),
-                "All 19 keyed child issues") &&
+                "All 20 keyed child issues") &&
             closure.GetProperty("ownedPaths")
                 .EnumerateArray()
                 .Select(path => path.GetString() ?? string.Empty)
@@ -2657,6 +2682,270 @@ internal static class GiteaBacklogManifestTests
                 StringComparison.Ordinal) &&
             closureBoundary.Contains(
                 "does not prove live page materialization",
+                StringComparison.Ordinal) &&
+            closureBoundary.Contains(
+                "CloudReady status",
+                StringComparison.Ordinal) &&
+            closureBoundary.Contains(
+                "production readiness",
+                StringComparison.Ordinal);
+    }
+
+    private static bool ValidateM02SafeStubDurableClosureContracts(
+        IReadOnlyDictionary<string, JsonElement> issueByKey)
+    {
+        string[] requiredKeys =
+        [
+            "M02-EPIC",
+            "M02-003",
+            "M02-017",
+            "M02-019",
+            "M02-020"
+        ];
+        if (requiredKeys.Any(key => !issueByKey.ContainsKey(key)))
+        {
+            return false;
+        }
+
+        JsonElement epic = issueByKey["M02-EPIC"];
+        JsonElement livePortIo = issueByKey["M02-003"];
+        JsonElement safeIntegration = issueByKey["M02-017"];
+        JsonElement materializerClosure = issueByKey["M02-019"];
+        JsonElement closure = issueByKey["M02-020"];
+        JsonElement safeLabels = safeIntegration.GetProperty("labels");
+        JsonElement closureLabels = closure.GetProperty("labels");
+        string safeEvidence =
+            safeIntegration.GetProperty("currentEvidence").GetString()
+            ?? string.Empty;
+        string closureEvidence =
+            closure.GetProperty("currentEvidence").GetString()
+            ?? string.Empty;
+        string closureNotes =
+            JsonArrayText(closure.GetProperty("implementationNotes"));
+        string closureAcceptance =
+            JsonArrayText(closure.GetProperty("acceptanceCriteria"));
+        string closureCommands =
+            JsonArrayText(closure.GetProperty("requiredCommands"));
+        string closureBoundary =
+            closure.GetProperty("evidenceBoundary").GetString()
+            ?? string.Empty;
+        string[] safeEvidenceAnchors =
+        [
+            "cf8ce63c37a9c62a0f8f736adda14b6bd3e19a9a",
+            "d18f520cee19aa0c89dfb41f326c92afd0284c02",
+            "abb82e4cd5ccb8751fabbf0d3095796f626bb6e7",
+            "910d19ece794d5f2a7d3f3df63b4d1dac749dba5",
+            "d2872746059a7200431b6d3bc89c6e02cb42fa8b",
+            "issue #427",
+            "PR #435",
+            "PR review #1",
+            "comment #6742",
+            "done/step896.md",
+            "done/step897.md",
+            "artifacts/logs/m02-017-final/cf8ce63c-20260803T211323Z-r1",
+            "native exit 0",
+            "3,346 TEST_START",
+            "3,347 TEST_PASS",
+            "zero TEST_FAIL",
+            "C293C89AA5A48675E78380B571935B8F3EAC3E4F6A0E4F29D019F77B8E2911BB",
+            "C8E8F0DE57D7E7AB1A4A606882CB05A77DD92915FEB99B7C0D35A5D37D377823",
+            "D30B508AC06F592756C36ABD2B5CFAE2469ED31DF234BFDCD37134A7DBEB4EA5",
+            "6F223E27E4180855DA64F4785C13B9B44649F0C8EF1590AA9B65A89CEF508AD0",
+            "B934A1E5C2E2EEB095BDE1EE374A0B129DE99CE203AAA7F992E1F0CAC8137B0C",
+            "D764684446C21497EE3816FF170F46E2B73F8228B429242B11BDAB47BCA16EF5",
+            "9C2C8EBC64BCA601CE6CDB2D231DA784EE9555B546FB7426A46A433B71353965"
+        ];
+
+        return DependenciesEqual(safeIntegration, "M02-019") &&
+            string.Equals(
+                safeIntegration.GetProperty("desiredState").GetString(),
+                "closed",
+                StringComparison.Ordinal) &&
+            JsonStringArrayEquals(
+                safeLabels,
+                "agent:done",
+                "priority:p1",
+                "type:implementation",
+                "evidence:qemu",
+                "component:boot",
+                "component:diagnostics",
+                "component:qemu",
+                "phase:m02-diagnostics",
+                "lane:efi-entry") &&
+            OwnedPathsEqual(
+                safeIntegration,
+                "src/OS/OS.csproj",
+                "src/OS/Boot/EfiEntry.cs",
+                "src/OS/Boot/M02SafeStubPageIntegration.cs",
+                "scripts/build-efi-shell.ps1",
+                "scripts/run-qemu-smoke.ps1",
+                "tests/OS.HostTests/M02SafeStubPageEfiEntryTests.cs",
+                "tests/OS.HostTests/BuildEfiShellPreflightTests.cs",
+                "tests/OS.HostTests/QemuRunnerTests.cs",
+                "docs/diagnostics.md",
+                "docs/boot.md",
+                "docs/boot-order.md",
+                "docs/efi-build.md",
+                "docs/qemu.md",
+                "docs/completion-gates.md") &&
+            JsonStringArrayEquals(
+                safeIntegration.GetProperty("forbiddenPaths"),
+                ".gitea/backlog/**",
+                "src/OS/Boot/X64InstructionPublication.cs",
+                "src/OS/Runtime/**",
+                "src/OS.Kernel/Diagnostics/PortIoOperationPlan.cs (read-only)",
+                "src/OS.Kernel/Diagnostics/PortIoStubPlan.cs (read-only)",
+                "src/OS.Kernel/Diagnostics/ExistingIn8Out8StubBytesRWPagesFinalize.cs (read-only)",
+                "src/OS.Kernel/Diagnostics/X64ProtectionProbeStubPlan.cs (read-only)",
+                "src/OS.Kernel/Boot/BootSequence.cs",
+                "src/OS.Kernel/Boot/BootSequencePlan.cs",
+                "src/OS.Kernel/Diagnostics/Probes.cs",
+                "tests/OS.HostTests/ManagedX64StubStrategyADRUseExistingAuditedTests.cs",
+                "tests/OS.HostTests/ExistingIn8Out8StubBytesRWPagesFinalizeTests.cs",
+                "tools/**",
+                "README.md",
+                "references/** (read-only)",
+                "done/** (reserve one new step only after fresh real-QEMU evidence exists)") &&
+            JsonStringArrayEquals(
+                safeIntegration.GetProperty("requiredMarkers"),
+                "TEST_START m02.017",
+                "M02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E",
+                "M02_STUB_PAGE_READBACK_VERIFIED fnv1a64=F85393074A792B1E",
+                "M02_SAFE_PROBE_EXECUTED offset=0 return=0x4F534F4B",
+                "CLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E temporaryOwnedRootRx=true portIoExecuted=false",
+                "TEST_PASS m02.017",
+                "M02_STUB_PAGE_MATERIALIZATION_FAILED",
+                "M02_STUB_PAGE_READBACK_FAILED",
+                "M02_STUB_PAGE_HASH_MISMATCH",
+                "M02_SAFE_PROBE_FAILED",
+                "M02_OUT8_EXECUTED",
+                "M02_IN8_EXECUTED",
+                "M02_PORT_IO_ATTEMPTED",
+                "M02_PRIVILEGED_STUB_TARGETED",
+                "TEST_FAIL m02.017 <reason>") &&
+            safeEvidenceAnchors.All(anchor =>
+                safeEvidence.Contains(anchor, StringComparison.Ordinal)) &&
+            string.Equals(
+                closure.GetProperty("title").GetString(),
+                "[M02-020] Persist reviewed M02-017 safe-stub closure and converge the tracker before privileged I/O.",
+                StringComparison.Ordinal) &&
+            DependenciesEqual(closure, "M02-017") &&
+            string.Equals(
+                closure.GetProperty("desiredState").GetString(),
+                "closed",
+                StringComparison.Ordinal) &&
+            string.Equals(
+                closure.GetProperty("collisionLane").GetString(),
+                "lane:solution-baseline",
+                StringComparison.Ordinal) &&
+            JsonStringArrayEquals(
+                closureLabels,
+                "agent:done",
+                "priority:p0",
+                "type:tooling",
+                "evidence:host",
+                "component:repo",
+                "phase:m02-diagnostics",
+                "lane:solution-baseline") &&
+            OwnedPathsEqual(
+                closure,
+                ".gitea/backlog/clros-issues.json",
+                "scripts/sync-gitea-backlog.ps1",
+                "tests/OS.HostTests/GiteaBacklogManifestTests.cs",
+                "tests/OS.HostTests/RepositoryRecoveryTests.cs",
+                "docs/issue-labels.md",
+                "docs/repo-audit.md") &&
+            JsonStringArrayEquals(
+                closure.GetProperty("forbiddenPaths"),
+                "src/**",
+                "std/**",
+                "apps/**",
+                "scripts/build-efi-shell.ps1",
+                "scripts/run-qemu-smoke.ps1",
+                "scripts/test-efi-artifact.ps1",
+                "tests/OS.HostTests/M02SafeStubPageEfiEntryTests.cs",
+                "tests/OS.HostTests/BuildEfiShellPreflightTests.cs",
+                "tests/OS.HostTests/QemuRunnerTests.cs",
+                "tests/OS.HostTests/EfiArtifactVerificationScriptTests.cs",
+                "docs/diagnostics.md",
+                "docs/boot.md",
+                "docs/boot-order.md",
+                "docs/efi-build.md",
+                "docs/qemu.md",
+                "docs/completion-gates.md",
+                "tools/**",
+                "README.md",
+                "references/** (read-only)",
+                "done/** (reserve one new step only after implementation evidence exists)") &&
+            JsonStringArrayEquals(
+                closure.GetProperty("requiredMarkers"),
+                "TEST_START m02.020",
+                M02SafeStubDurableClosureMarker,
+                "TEST_PASS m02.020",
+                "TEST_FAIL m02.020 <reason>") &&
+            JsonStringArrayEquals(
+                closure.GetProperty("documentationPaths"),
+                "docs/issue-labels.md",
+                "docs/repo-audit.md") &&
+            closureEvidence.Contains("live issue #436", StringComparison.Ordinal) &&
+            closureEvidence.Contains("PR #435", StringComparison.Ordinal) &&
+            closureEvidence.Contains(
+                "d2872746059a7200431b6d3bc89c6e02cb42fa8b",
+                StringComparison.Ordinal) &&
+            closureNotes.Contains(
+                "The proposed owned paths are exact for this slice:",
+                StringComparison.Ordinal) &&
+            closureNotes.Contains(
+                M02SafeStubDurableClosureMarker,
+                StringComparison.Ordinal) &&
+            closureNotes.Contains(
+                "<!-- clros-evidence-reviewed:M02-020 -->",
+                StringComparison.Ordinal) &&
+            closureAcceptance.Contains(
+                "all 429 objects unchanged/skipped",
+                StringComparison.Ordinal) &&
+            closureAcceptance.Contains(
+                "M02-003 the smallest collision-safe ready issue",
+                StringComparison.Ordinal) &&
+            closureCommands.Contains(
+                "dotnet build .\\CLROS.slnx --nologo -m:1",
+                StringComparison.Ordinal) &&
+            closureCommands.Contains(
+                "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
+                StringComparison.Ordinal) &&
+            closureCommands.Contains(
+                "sync-gitea-backlog.ps1 -Offline",
+                StringComparison.Ordinal) &&
+            closureCommands.Contains(
+                "sync-gitea-backlog.ps1 -SelfTest",
+                StringComparison.Ordinal) &&
+            closureCommands.Contains(
+                "run-qemu-smoke.ps1 -DryRun",
+                StringComparison.Ordinal) &&
+            closureCommands.Contains(
+                "build-efi-shell.ps1",
+                StringComparison.Ordinal) &&
+            !closureCommands.Contains(" -Qemu \"", StringComparison.Ordinal) &&
+            !closureCommands.Contains(" -OvmfCode \"", StringComparison.Ordinal) &&
+            DependenciesEqual(materializerClosure, "M02-002") &&
+            DependenciesEqual(safeIntegration, "M02-019") &&
+            DependenciesEqual(closure, "M02-017") &&
+            DependenciesEqual(livePortIo, "M02-020") &&
+            JsonElementContains(
+                epic.GetProperty("acceptanceCriteria"),
+                "All 20 keyed child issues") &&
+            closure.GetProperty("ownedPaths")
+                .EnumerateArray()
+                .Select(path => path.GetString() ?? string.Empty)
+                .All(path =>
+                    !path.StartsWith("src/", StringComparison.Ordinal) &&
+                    !path.StartsWith("std/", StringComparison.Ordinal) &&
+                    !path.StartsWith("apps/", StringComparison.Ordinal)) &&
+            closureBoundary.Contains(
+                "changes no production C#",
+                StringComparison.Ordinal) &&
+            closureBoundary.Contains(
+                "does not prove new live page behavior",
                 StringComparison.Ordinal) &&
             closureBoundary.Contains(
                 "CloudReady status",
@@ -2951,11 +3240,11 @@ internal static class GiteaBacklogManifestTests
         byte[] after = SHA256.HashData(File.ReadAllBytes(manifestPath));
         DateTime afterWriteTime = File.GetLastWriteTimeUtc(manifestPath);
         return result.ExitCode == 0 &&
-            result.Output.Contains("SYNC_MANIFEST_VALID milestones=16 labels=68 epics=16 children=328 issues=344", StringComparison.Ordinal) &&
+            result.Output.Contains("SYNC_MANIFEST_VALID milestones=16 labels=68 epics=16 children=329 issues=345", StringComparison.Ordinal) &&
             result.Output.Contains("SYNC_MODE preview", StringComparison.Ordinal) &&
             result.Output.Contains("SYNC_OFFLINE manifest_only", StringComparison.Ordinal) &&
-            result.Output.Contains("SYNC_KEYS action=skipped count=428", StringComparison.Ordinal) &&
-            result.Output.Contains("SYNC_SUMMARY created=0 updated=0 unchanged=0 skipped=428 failed=0 wouldCreate=0 wouldUpdate=0", StringComparison.Ordinal) &&
+            result.Output.Contains("SYNC_KEYS action=skipped count=429", StringComparison.Ordinal) &&
+            result.Output.Contains("SYNC_SUMMARY created=0 updated=0 unchanged=0 skipped=429 failed=0 wouldCreate=0 wouldUpdate=0", StringComparison.Ordinal) &&
             result.Output.Contains("TEST_PASS gitea.backlog.sync", StringComparison.Ordinal) &&
             before.AsSpan().SequenceEqual(after) &&
             beforeWriteTime == afterWriteTime;
@@ -2966,7 +3255,7 @@ internal static class GiteaBacklogManifestTests
         ProcessResult result = RunScript(scriptPath, "-SelfTest");
         return result.ExitCode == 0 &&
             result.Output.Contains("SYNC_SELF_TEST_MANAGED_BODY_PASS", StringComparison.Ordinal) &&
-            result.Output.Contains("SYNC_SELF_TEST_HIDDEN_KEY_ADOPTION_PASS key=M02-019 markers=1 wouldCreate=0 duplicateMarkersRejected=true", StringComparison.Ordinal) &&
+            result.Output.Contains("SYNC_SELF_TEST_HIDDEN_KEY_ADOPTION_PASS key=M02-020 markers=1 wouldCreate=0 duplicateMarkersRejected=true", StringComparison.Ordinal) &&
             result.Output.Contains("SYNC_SELF_TEST_STATE_POLICY_PASS", StringComparison.Ordinal) &&
             result.Output.Contains("TEST_PASS gitea.backlog.sync", StringComparison.Ordinal);
     }
