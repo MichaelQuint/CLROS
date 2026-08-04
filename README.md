@@ -31,20 +31,25 @@ partial gates and many prerequisite contracts, but it has not yet passed
 `ExitBootServices`, owned-driver, live storage, live networking, native-app
 execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 
-### Current implementation checkpoint (2026-08-03)
+### Current implementation checkpoint (2026-08-04)
 
 - The local Gitea tracker has **279 open issues** (issues only, excluding pull
   requests). The backlog is intentionally granular, so issue count is not a
   completion percentage.
 - M02-003 now has production C# for validating and binding checked unmanaged
   `Out8`/`In8` function pointers, plus host tests that invoke safe unmanaged
-  callbacks. This work is preserved in commit `bef76b9` on the active branch.
-- The follow-on EFI integration is in progress under supplemental issue #438.
-  Its C# boundary computes and verifies the checked callable addresses without
-  executing privileged device I/O in the guest.
-- M02-003 and #438 are **not done**: the combined no-stdlib EFI preflight, full
-  host suite, and fresh real-QEMU/OVMF marker evidence still have to pass. No
-  completion-gate status changes are claimed by this checkpoint.
+  callbacks. Supplemental issue #438 compiles the same binder into the
+  no-stdlib EFI closure and verifies the two checked guest addresses without
+  executing privileged device I/O.
+- Frozen implementation commit `84032f4` passed the complete 2,516-second host
+  harness with zero failures and fresh real QEMU/OVMF evidence for the exact
+  `CLROS_M02_003_READY ... guestInvocation=false portIoExecuted=false` marker.
+  The guest did not invoke offsets 16/32, and all privileged-I/O markers were
+  absent.
+- M02-003 and #438 are **not done**: their accepted evidence and canonical
+  ledgers still require push, independent review, merge, tracker transitions,
+  and backlog synchronization. No completion-gate status changes are claimed
+  by this checkpoint.
 
 ## What Works Today
 
