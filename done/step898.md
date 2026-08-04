@@ -15,12 +15,22 @@ M02-017 and also requests closed/`agent:done`; only M02-003 was rewired:
 M02-019 -> M02-017 -> M02-020 -> M02-003
 ```
 
+Independent review found two pre-merge defects. Candidate comment #6768 had
+quoted the dedicated M02-020 closure marker twice, which could have made a
+pre-review synchronizer preview fail open. Both quotes were removed before any
+merge or apply, and fresh live snapshots prove zero exact M02-020 review-marker
+comments. Review also found that PR #435 had already auto-closed issue #427
+with `agent:review`, while the first candidate documentation said #427 was
+open. Correction commit `aceaaa41984a06c505f417f666abd7424299ce07`
+records the actual live boundary in both owned canonical documents.
+
 ## Why
 
-M02-017 was reviewed and merged through PR #435, but the pre-transaction
-manifest still requested an open state and M02-003 still depended directly on
-M02-017. Closing #427 manually would therefore be nondurable: the canonical
-synchronizer could reopen or relabel it, and privileged I/O could be released
+M02-017 was reviewed and merged through PR #435, and that merge auto-closed
+issue #427, but the pre-transaction manifest still requested an open state,
+#427 still carried `agent:review`, and M02-003 still depended directly on
+M02-017. Leaving that state unmanaged would be nondurable: the canonical
+synchronizer could reopen or relabel #427, and privileged I/O could be released
 against a partial tracker transaction. M02-020 provides the guarded,
 idempotent closure boundary without changing production C# or EFI source.
 
@@ -37,14 +47,20 @@ paths:
 - `docs/issue-labels.md`
 - `docs/repo-audit.md`
 
-This evidence commit adds only the uniquely reserved `done/step898.md`. No
-`src/**`, `std/**`, application, EFI integration, QEMU runner, artifact
-verifier, tool, README, completion-gate, reference, or existing ledger path
+Evidence commit `a1ed191ee78aeeb7ceb7c3e18ea06c101638ec1c` added only the
+uniquely reserved `done/step898.md`. Correction commit
+`aceaaa41984a06c505f417f666abd7424299ce07`, tree
+`9758dea411cd148662d7d6e007e08e844dd2dcde`, changes only the two already
+owned canonical documents. This replacement evidence commit updates only
+`done/step898.md`.
+
+No `src/**`, `std/**`, application, EFI integration, QEMU runner, artifact
+verifier, tool, README, completion-gate, reference, or other ledger path
 changed.
 
 ## Tests run
 
-The frozen-source evidence wave ran:
+The corrected frozen-source evidence wave ran:
 
 ```powershell
 dotnet build .\CLROS.slnx --nologo -m:1
@@ -65,28 +81,29 @@ M02-017's accepted real-QEMU tuple remains separate.
 
 ## Evidence
 
-Evidence root:
+Accepted evidence root:
 
 ```text
-C:\Projects\CLROS-M02-020\artifacts\logs\m02-020-final\e72d82e-20260803T223210Z-r1
+C:\Projects\CLROS-M02-020\artifacts\logs\m02-020-final\aceaaa4-20260804T005516Z-r3
 ```
 
 The source was clean and upstream-exact at commit
-`e72d82e9d3baabe220b5372ef5a2cf9f7442a4e8`, tree
-`1604a2c10e5c8947247ff69f9b23c16d9827b4a9`, before and after the gate.
+`aceaaa41984a06c505f417f666abd7424299ce07`, tree
+`9758dea411cd148662d7d6e007e08e844dd2dcde`, before and after the gate.
 
-| Step | Seconds | stdout SHA-256 |
-|---|---:|---|
-| solution build | 23.291 | `465D2AE87D34C782B0E472115E44415D5576F2C201C1635115728B7C04EE57B9` |
-| HostTests build | 3.057 | `3D222E6CAB7AE4034B19883E5D241251896108BB2909C7DCA1A8BED120B44CBE` |
-| complete HostTests | 3309.144 | `5A2754CB3B185525D79AE9ADDF89C9AB9F33EB6432522CE5574E56221F86FB8C` |
-| naming/source firewall | 51.474 | `F859FFF4688D92C662BD161F4DEDF4C64778B133B7ABDBED70D634D8A2F4B651` |
-| accepted QEMU dry-run | 4.127 | `4018E45606DE0E30F562422ADBEB620285BE0AD40A1F4238BF357555EADB9F15` |
-| EFI build/preflight | 69.903 | `C72418215F3A11701DA337E56286799D0F74B298393683A6445AB5CF6E6D0CE4` |
-| synchronizer offline | 5.100 | `B574722E46540D1C377727F66DDFA256A3D914CE1D8AC51A3969FFF0633E8FBC` |
-| synchronizer self-test | 4.848 | `3A22FCA78906E2F4A64D257C40A482CE9BFC1EA641CD22A847839A798EFD2545` |
-| `git diff --check` | 0.041 | `E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855` |
-| clean `git status --short` | 0.046 | `E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855` |
+| Step | Exit | Seconds | stdout SHA-256 |
+|---|---:|---:|---|
+| corrected-state live preview | 1 (intended) | 45.251 | `598773D1E4B75864259D5803DF5F861231290021A59B1AB56F4871F33849A3DD` |
+| solution build | 0 | 21.137 | `93D70DA9FCE6C935050773F595A628F519547ABEF1D1FD576D19A3DB10D4A627` |
+| HostTests build | 0 | 5.359 | `2ABBC043955D3F1864DA8697142AF5B2287781F95733E4C3670660B91D87FB0D` |
+| complete HostTests | 0 | 2417.342 | `B2CB3425FCAE2EB75046AC44570F2694612264D16FE57321A7424869A6969642` |
+| naming/source firewall | 0 | 31.752 | `F859FFF4688D92C662BD161F4DEDF4C64778B133B7ABDBED70D634D8A2F4B651` |
+| accepted QEMU dry-run | 0 | 2.282 | `46951645587E4E5420D88F14640884D30240647BF93522E7994002E28BA7DF95` |
+| EFI build/preflight | 0 | 47.611 | `28C08FE1684BD23370E17BE34EA276072B76A11BEED40E50471C2E186B57B6CD` |
+| synchronizer offline | 0 | 4.882 | `A5D0559FC38C49D9002D349017D412954CF9DB189B1C7492497ECD6CD4AA3E17` |
+| synchronizer self-test | 0 | 3.960 | `B98D7525FE25ED811EA330CA97D82D05A8D21A110CCDD17BDCFFE25425F1C335` |
+| `git diff --check` | 0 | 0.043 | `E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855` |
+| clean `git status --short` | 0 | 0.056 | `E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855` |
 
 Complete HostTests recorded:
 
@@ -112,36 +129,60 @@ canonical EFI build/preflight produced a 55,808-byte `BOOTX64.EFI` with
 SHA-256
 `158432A6F1BA692561A8CA047AD4E1C1362E3549E5CA8A7EF4E7288ABECD1741`.
 
-The authenticated pre-review live preview exited `1` intentionally and made
-no writes. It read 68 labels, 16 milestones, and 345 keyed issues; proposed no
-issue creation; and rejected only M02-020 because
-`<!-- clros-evidence-reviewed:M02-020 -->` was absent. Its stdout SHA-256 is
-`64221875BA0B09AB495777D13D5F7FFF5FA910D5623087606B12143D5C486332`.
+The fresh authenticated pre-review preview made no writes and exited `1`
+intentionally. Its before/after live snapshots are byte-identical. It read 68
+labels, 16 milestones, and 345 keyed issues; proposed no issue creation; found
+issue #427 closed with `agent:review`, issue #436 open with `agent:claimed`,
+and zero exact M02-020 review-marker comments; and rejected only M02-020
+because independent review evidence is intentionally withheld. The earlier
+preview hash `64221875BA0B09AB495777D13D5F7FFF5FA910D5623087606B12143D5C486332`
+is stale and is not current-state proof.
 
-The independently rehashed 38-entry evidence ledger SHA-256 is
-`D73B7B7B1B36C9A0B54B01440DB091FEB59CBA4B40465068513B81F32C492D7E`.
+The independently validated 41-entry accepted evidence ledger SHA-256 is
+`547C6F054D64901591C431DFFE8041E571CB21978D7B798658ACF76BB549B9A2`.
+The terminal summary SHA-256 is
+`1749680BF9E9D9F1A044E68973E10315EB2E87F953813BB2482A5B20C4DD8B55`.
 
 ## Failures
 
-The initial evidence wrapper had a one-hour outer limit. Complete HostTests
-had already exited `0` after 3,309.144 seconds and naming had passed, but
-`Start-Process -Wait` remained attached to reusable build-server descendants
-after the first QEMU dry-run child wrote its pass output. The outer wrapper
-expired before it recorded that child's native exit. That partial step is
-explicitly retained as `05-qemu-dryrun.partial-rejected.txt` with
-`promoted=False`.
+Candidate comment #6768 initially quoted the exact M02-020 closure marker
+twice. Independent review caught the fail-open tracker-state hazard before any
+marker, merge, apply, or state transition. The quotes were removed, and live
+marker count zero was verified. Checkpoint comments #6775 and #6779 preserve
+the correction and the separate stale-documentation finding.
 
-Only steps 05 through 10 were resumed from the unchanged clean source using
-direct native-exit capture. The accepted `05r` dry-run exited `0` with empty
-stderr; the complete HostTests evidence was not rerun, altered, or replaced.
-No build, host test, naming check, accepted dry-run, EFI preflight, offline
-sync, self-test, diff check, or source-state acceptance condition failed.
+The first corrected-source full-gate attempt is retained outside the accepted
+root at:
+
+```text
+C:\Projects\CLROS-M02-020\artifacts\logs\m02-020-final\aceaaa4-20260803T234955Z-r2
+```
+
+Its solution and HostTests builds passed, but complete HostTests hit four
+45-second EFI-artifact fixture process timeouts and exited `-532462766`; its
+stdout and stderr SHA-256 values are respectively
+`3189AB1620540FECE1B95F398B6E3A616AFE19C04DC15A2CF0C647EEFFF4903B`
+and `5057AFD03F8700A027730D7EAF946CF93B272F2E18C84E294D46D85AA46F0518`.
+That attempt is rejected and contributes no acceptance evidence. Standard
+`dotnet build-server shutdown` completed, then eight verified orphaned
+MSBuild/Roslyn compiler-server processes created by the evidence runs were
+terminated. The unchanged-source `r3` rerun passed the complete harness in
+2,417.342 seconds with zero failures.
+
+After all ten `r3` commands passed, the ignored evidence helper expected an
+incorrect self-test pass-marker spelling and rejected its own post-processing.
+The captured self-test actually contains the canonical sync start, all three
+self-test submarkers, and `TEST_PASS gitea.backlog.sync`. The helper assertion
+was corrected, and an independent finalizer rehashed every captured stdout and
+stderr against its metadata, revalidated all command/marker/source-state
+contracts, and sealed the accepted ledger above. No required command was
+rerun, altered, or promoted from a failure by that post-processing correction.
 
 ## Deferred work
 
-- Push this ledger commit and obtain independent review of the exact head and
-  evidence package.
-- Post `<!-- clros-evidence-reviewed:M02-020 -->` only after that review.
+- Push this replacement ledger commit and obtain independent review of the
+  exact head and accepted evidence package.
+- Post the dedicated M02-020 closure marker only after that review.
 - Merge only the reviewed head, then run canonical
   preview/apply/repeated-apply/final-preview.
 - Require issues #427 and #436 closed with exactly `agent:done`, supplemental
