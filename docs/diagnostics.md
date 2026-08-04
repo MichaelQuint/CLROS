@@ -154,6 +154,13 @@ The owned diagnostics subsystem is host-testable only. No real IDT load, fault h
   `[UnmanagedCallersOnly]` targets to prove both calls and their argument/return
   flow; they intentionally do not execute the privileged generated `in`/`out`
   bytes or perform live device I/O.
+- `M02CheckedPortIoFunctionPointerIntegration` compiles that same production
+  binder into the explicit no-stdlib EFI closure. After the accepted M02-017
+  safe-offset execution audit has completed and firmware paging state has been
+  restored, it derives the checked offset-16/offset-32 addresses from the
+  accepted page metadata and requires a ready binding. It returns value-only
+  status and never calls `InvokeOut8` or `InvokeIn8`; the guest marker therefore
+  reports `guestInvocation=false portIoExecuted=false`.
 - `DiagnosticStubCallableBindingPlanDiagnosticFormatter` formats initialized
   callable-binding plan metadata into stable caller-owned ASCII
   `DIAGNOSTIC_STUB_CALLABLE_BINDING status=` marker bytes. It reports required
@@ -723,23 +730,38 @@ restoration on that recorded virtual platform. It does not bind or execute the
 privileged `In8` or `Out8` entries, own COM1, install diagnostics or descriptor
 tables, trigger a fault, or advance a numbered completion gate.
 
+M02-003 adds a distinct checked-binding result from clean implementation commit
+`84032f4b78804194d3352410a1f2749112d94e5f`, tree
+`a02bbe8b8ccf6ce7cd13b8957dd081d5476130b3`. The complete host harness exited
+zero with one `TEST_PASS host.tests`, no `TEST_FAIL`, and exact M02-003 host and
+EFI-integration marker sets. A fresh all-five-switch QEMU/OVMF run emitted
+exactly one
+`CLROS_M02_003_READY bindingReady=true out8AddressChecked=true in8AddressChecked=true guestInvocation=false portIoExecuted=false`
+after `TEST_PASS m02.017` and before `TEST_PASS m01.stage3`; all 35 forbidden
+markers were absent. The EFI and public serial SHA-256 values are respectively
+`C7666C1580A1C362DB3165166B005478910C5F3FD53C4F451E1A8F4EB57CE794`
+and
+`CC1DDEBBD8C5355D9C318BADE9F7778349D4EF6949EFA1160E40A304263AADCC`.
+This proves the checked addresses and binder readiness in the no-stdlib guest,
+not guest invocation of offsets 16/32, live port I/O, COM1 ownership, or
+post-`ExitBootServices` diagnostics. Review and merge remain separate tracker
+requirements and this result changes no numbered completion gate.
+
 ## Next Steps
 
 1. Wire `PanicSerialReporter` into a real panic-safe serial path after the owned serial platform boundary has a live COM1 backend.
 2. Add an OS-owned COM1 port-I/O backend for `Com1SerialWriter` using the operation, callable-stub, backend-readiness, backend-contract, executable-stub memory, and `IPlatformSerial` contracts, and wire it through `SerialDiagnosticsGuard`.
 3. Add IDT/GDT/TSS/IST setup using the descriptor, IDTR, GDT, TSS/IST, readiness, install-readiness, table-plan, vector, descriptor-instruction, and descriptor-install stub contracts.
 4. Add real executable-stub page transitions using the W^X layout, materialization, and page-transition plan contracts.
-5. Integrate the checked unmanaged binding with the generated diagnostic page
-   only after the page is safely mapped executable, range-checked, and
-   cache-flushed if required; prove the privileged target and result in its own
-   live guest lane rather than inferring it from the host callback evidence.
+5. Consume the now guest-checked M02-003 binding only in a separately owned
+   privileged-I/O lane that deliberately invokes offsets 16/32 and proves the
+   exact target/result. Do not infer live port I/O from address readiness or
+   from the safe host callback evidence.
 6. Wire the COM1 backend contract into an owned serial writer only after generated stubs can be safely mapped executable and invoked.
 7. Add the controlled null-read and invalid-opcode probes behind `Probes.cs`
    toggles only in their dedicated issues; M02-014 must consume the disabled
    M01-015 intent after owned diagnostics exist.
 8. Wire real handler register capture into `CpuFaultFrame` through the deterministic fault-entry layout.
-9. Carry M02-003's checked unmanaged-function-pointer result into a separately
-   owned EFI/shared integration lane without treating M02-017 offset-zero
-   execution or the safe host callback calls as evidence for privileged offsets
-   16 or 32. Live `In8`/`Out8`, COM1 ownership, and port I/O remain blocked
-   until their own scoped implementation and QEMU evidence pass.
+9. Keep M02-003's accepted guest binding-readiness marker distinct from future
+   live `In8`/`Out8`, COM1 ownership, and port-I/O evidence; those claims remain
+   blocked until their own scoped implementation and QEMU evidence pass.
