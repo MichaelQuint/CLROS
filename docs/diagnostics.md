@@ -50,7 +50,7 @@ The owned diagnostics subsystem is host-testable only. No real IDT load, fault h
 - `Com1SerialWriter` initializes and writes ASCII through an abstract byte port backend, polls transmit readiness, rejects invalid ASCII, reports backend failures without executing real port I/O, and rejects default/zero writer results as successful evidence.
 - `Com1PlatformSerialTransport` adapts `Com1SerialWriter` to `IPlatformSerialTransport`. It lazily initializes the writer, exposes itself as an owned serial transport, maps writer initialization, timeout, backend, invalid-ASCII, unavailable-readiness, and partial-write states into `PlatformSerialTransportResult`, and preserves compact encoded COM1 backend status for diagnostics. The current tests use fake byte-port backends only.
 - `PortIoOperationPlan` emits deterministic x64 `out dx, al` and `in al, dx` instruction bytes into caller-owned storage for a future C# shellcode port-I/O backend. It rejects default/zero result values and incomplete byte-count metadata as not successful.
-- `PortIoStubPlan` emits deterministic callable x64 COM1 byte-port stubs for future unmanaged `Out8` and `In8` delegates, reusing `PortIoOperationPlan` for the final privileged operation byte and ending each stub with `ret`. It rejects default/zero result values and incomplete byte-count metadata as not successful.
+- `PortIoStubPlan` emits deterministic callable x64 COM1 byte-port stubs for unmanaged `Out8` and `In8` function pointers, reusing `PortIoOperationPlan` for the final privileged operation byte and ending each stub with `ret`. It rejects default/zero result values and incomplete byte-count metadata as not successful.
 - `ManagedX64StubStrategyADRUseExistingAudited` records the allocation-free,
   status-coded M02-001 authoring decision over those exact plans. One
   demonstrated port-I/O family selects `ExistingAuditedBytePlans`; a build-time
@@ -142,6 +142,18 @@ The owned diagnostics subsystem is host-testable only. No real IDT load, fault h
   overlapping `Out8`/`In8` target ranges. It does not create delegates,
   dereference addresses, execute generated stubs, perform port I/O, or write
   serial output.
+- `InvokeIn8Out8CheckedUnmanagedFunctionPointers.Bind` consumes only a fully
+  initialized callable-binding plan, independently rechecks the configured
+  COM1 register window, payload bounds, byte counts, address/offset identity,
+  and non-overlapping callable ranges, and only then casts the two addresses to
+  the exact `delegate* unmanaged<ushort, byte, void>` `Out8` and
+  `delegate* unmanaged<ushort, byte>` `In8` signatures. The returned value-only
+  binding invokes each pointer independently, rejects calls outside COM1 ports
+  `0x3f8` through `0x3ff` before control transfer, creates no managed delegate,
+  and reports a status result after a call returns. Host tests execute safe
+  `[UnmanagedCallersOnly]` targets to prove both calls and their argument/return
+  flow; they intentionally do not execute the privileged generated `in`/`out`
+  bytes or perform live device I/O.
 - `DiagnosticStubCallableBindingPlanDiagnosticFormatter` formats initialized
   callable-binding plan metadata into stable caller-owned ASCII
   `DIAGNOSTIC_STUB_CALLABLE_BINDING status=` marker bytes. It reports required
@@ -553,6 +565,17 @@ TEST_PASS diagnostics.stub_callable binding rejects target beyond materialized p
 TEST_PASS diagnostics.stub_callable binding rejects overlapping targets
 TEST_PASS diagnostics.stub_callable binding default result is not success
 TEST_PASS diagnostics.stub_callable binding result contains no managed references
+TEST_START m02.003
+TEST_PASS m02.003 binds and invokes checked unmanaged out8 and in8 targets
+TEST_PASS m02.003 rejects an unready binding plan before invocation
+TEST_PASS m02.003 rejects an out8 target whose checked offset mismatches
+TEST_PASS m02.003 rejects a callable range outside the checked payload
+TEST_PASS m02.003 rejects overlapping checked callable ranges
+TEST_PASS m02.003 rejects ports outside the configured com1 register window
+TEST_PASS m02.003 default results cannot invoke unmanaged targets
+TEST_PASS m02.003 results contain no managed references
+CLROS_M02_003_READY
+TEST_PASS m02.003
 ```
 
 `tests/OS.HostTests/DiagnosticStubCallableBindingPlanDiagnosticFormatterTests.cs`
@@ -653,7 +676,15 @@ output, or QEMU fault behavior.
 
 `DiagnosticsChainReadiness` and `BootSequence.RunDiagnosticsChainReadiness` are host-tested aggregate readiness/marker contracts only. They do not install descriptor tables, execute generated stubs, perform COM1 port I/O, trigger controlled faults, wire a real panic path, or prove QEMU fault handling.
 
-`DiagnosticStubInvocationReadiness`, `DiagnosticStubCallableBindingPlan`, and `BootSequence.RunDiagnosticStubInvocationReadiness` are host-tested address-range, callable-binding metadata, and marker contracts only. They do not dereference generated stub addresses, create delegates, perform CPU port I/O, change page permissions, flush instruction caches, or prove QEMU serial output from an OS-owned COM1 backend. Live unmanaged function-pointer binding and invocation remain future work.
+`DiagnosticStubInvocationReadiness`, `DiagnosticStubCallableBindingPlan`, and
+`BootSequence.RunDiagnosticStubInvocationReadiness` remain host-tested
+address-range, callable-binding metadata, and marker contracts only.
+`InvokeIn8Out8CheckedUnmanagedFunctionPointers` now consumes that checked
+metadata and performs real unmanaged `Out8`/`In8` control transfers, but the
+accepted host targets are safe `[UnmanagedCallersOnly]` test entry points. This
+does not prove that the generated privileged stub bytes were the targets, does
+not perform CPU port I/O, does not change page permissions or flush instruction
+caches, and does not prove QEMU serial output from an OS-owned COM1 backend.
 
 `DiagnosticStubInvocationReadinessFormatter` is caller-owned marker-format evidence only. It does not write to serial, invoke stubs, mutate page permissions, or replace the managed `BootSequence` marker path.
 
@@ -698,14 +729,17 @@ tables, trigger a fault, or advance a numbered completion gate.
 2. Add an OS-owned COM1 port-I/O backend for `Com1SerialWriter` using the operation, callable-stub, backend-readiness, backend-contract, executable-stub memory, and `IPlatformSerial` contracts, and wire it through `SerialDiagnosticsGuard`.
 3. Add IDT/GDT/TSS/IST setup using the descriptor, IDTR, GDT, TSS/IST, readiness, install-readiness, table-plan, vector, descriptor-instruction, and descriptor-install stub contracts.
 4. Add real executable-stub page transitions using the W^X layout, materialization, and page-transition plan contracts.
-5. Add live diagnostic-stub invocation only after generated stubs can be safely mapped executable, range-checked, callable-binding metadata has been consumed by a real unmanaged binding path, cache-flushed if required, and called through unmanaged function pointers.
+5. Integrate the checked unmanaged binding with the generated diagnostic page
+   only after the page is safely mapped executable, range-checked, and
+   cache-flushed if required; prove the privileged target and result in its own
+   live guest lane rather than inferring it from the host callback evidence.
 6. Wire the COM1 backend contract into an owned serial writer only after generated stubs can be safely mapped executable and invoked.
 7. Add the controlled null-read and invalid-opcode probes behind `Probes.cs`
    toggles only in their dedicated issues; M02-014 must consume the disabled
    M01-015 intent after owned diagnostics exist.
 8. Wire real handler register capture into `CpuFaultFrame` through the deterministic fault-entry layout.
-9. Consume the accepted M02-017 safe-cookie boundary in M02-003's checked
-   unmanaged-function-pointer work without treating offset-zero execution as
-   evidence for offsets 16 or 32. Live `In8`/`Out8`, COM1 ownership, and port
-   I/O remain blocked until their own scoped implementation and QEMU evidence
-   pass.
+9. Carry M02-003's checked unmanaged-function-pointer result into a separately
+   owned EFI/shared integration lane without treating M02-017 offset-zero
+   execution or the safe host callback calls as evidence for privileged offsets
+   16 or 32. Live `In8`/`Out8`, COM1 ownership, and port I/O remain blocked
+   until their own scoped implementation and QEMU evidence pass.

@@ -219,6 +219,13 @@ Host tests assert:
 - Fault-probe readiness tests prove disabled destructive defaults, probe stub emission, and executable-stub memory capacity are aggregated before any future controlled fault probe.
 - COM1 backend-readiness tests prove serial configuration, port operation/stub plans, and executable-stub memory capacity are aggregated before any future port-I/O backend install.
 - COM1 backend contract tests prove planned `Out8` and `In8` stub offsets can be resolved into future backend addresses without invoking function pointers or performing port I/O.
+- M02-003 checked-function-pointer tests prove that a production value-only
+  binder revalidates callable-plan metadata before casting the exact unmanaged
+  `Out8` and `In8` signatures, invokes safe unmanaged host targets with the
+  expected ports/value/return byte, and rejects unready, mismatched,
+  out-of-payload, overlapping, and out-of-COM1-range inputs without invocation.
+  This test surface is not part of the default `BootSequence` and does not
+  execute privileged `in`/`out` instructions.
 - Fault-entry frame layout tests prove future interrupt-stub storage can round-trip formatter-compatible page-fault and invalid-opcode frames, reject inconsistent error-code metadata, reject undersized buffers, and reject unknown vectors.
 - ExitBootServices transition-boundary tests prove success and blocked markers while leaving default boot markers unchanged.
 - Early diagnostics readiness tests prove serial backend and descriptor-table readiness are aggregated into stable boot markers while leaving default boot markers unchanged.
@@ -280,9 +287,11 @@ permission changes, relocation, or native-tier or hosted .NET app launch.
 
 1. Wire the transition marker helper only after the live EFI path can perform a real `ExitBootServices` call and preserve diagnostics afterward.
 2. Add an owned serial diagnostics phase only after a real serial writer exists.
-3. Begin M02-003 from the accepted M02-017 safe-cookie boundary, keeping its
-   checked unmanaged-function-pointer contract distinct from any later live
-   privileged `In8`/`Out8` or COM1 claim.
+3. Integrate the implemented, host-tested M02-003 checked
+   unmanaged-function-pointer contract with the accepted M02-017 page only
+   through a separately owned shared-file lane, keeping safe host callback
+   execution distinct from any later live privileged `In8`/`Out8` or COM1
+   claim.
 4. Wire the early diagnostics readiness helper only after generated stubs can be copied to executable memory and safely invoked under W^X policy.
 5. Wire the controlled fault-probe readiness helper only after early diagnostics can survive generated-stub execution and fault handling.
 6. Wire the app-selection readiness helper only after live block-device package reads can supply the manifest/package/descriptor prerequisites.
