@@ -375,8 +375,8 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
         string[] errorConditions = project
             .Descendants("Error")
             .Select(error => error.Attribute("Condition")?.Value ?? string.Empty)
-            .Where(value => value.Contains(
-                "EnableM02SafeStubProbe",
+            .Where(value => value.StartsWith(
+                "'$(EnableM02SafeStubProbe)' == 'true'",
                 StringComparison.Ordinal))
             .ToArray();
         string script = File.ReadAllText(
