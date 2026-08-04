@@ -5747,7 +5747,7 @@ function Test-M01SourceClosure {
 
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "112482097b5596c63ba6243e52c7f7b6153607e0fa6dad22cf702e5ff0f7d816") {
+        "d7f0cdd41d3d742e5f62f45ac5242f8763b9476a2ce19713fbe8d3c9540723b6") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `

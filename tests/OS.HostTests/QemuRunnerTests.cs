@@ -160,6 +160,15 @@ internal static class QemuRunnerTests
         .. M01StageThreeForbiddenMarkers,
         .. M02IssueForbiddenMarkers
     ];
+    private const string M02CheckedPortIoBindingReadyMarker =
+        "CLROS_M02_003_READY bindingReady=true out8AddressChecked=true in8AddressChecked=true guestInvocation=false portIoExecuted=false";
+    private static readonly string[] M02CheckedPortIoBindingGuestMarkers =
+        BuildM02CheckedPortIoBindingGuestMarkers();
+    private static readonly string[] M02CheckedPortIoBindingForbiddenMarkers =
+    [
+        .. M02ForbiddenMarkers,
+        "M02_CHECKED_PORT_IO_BINDING_FAILED"
+    ];
 
     [ModuleInitializer]
     public static void Initialize()
@@ -228,6 +237,8 @@ internal static class QemuRunnerTests
             Run("qemu smoke script enforces the M02-017 evidence profile", () => TestSmokeScriptEnforcesM02SafeStubEvidenceProfile(tempRoot), ref failures);
             Run("qemu smoke script rejects invalid M02-017 probe selection", () => TestSmokeScriptRejectsInvalidM02SafeStubSelection(tempRoot), ref failures);
             Run("qemu M02-017 raw-observation shim markers match the profile", TestM02RawObservationShimMarkerParity, ref failures);
+            Run("qemu smoke script enforces the M02-003 checked-binding profile", () => TestSmokeScriptEnforcesM02CheckedPortIoBindingProfile(tempRoot), ref failures);
+            Run("qemu smoke script rejects invalid M02-003 checked-binding selection", () => TestSmokeScriptRejectsInvalidM02CheckedPortIoBindingSelection(tempRoot), ref failures);
             Run("qemu M01 raw-observation dry-run is inactive and side-effect free", () => TestM01RawObservationDryRunIsInactiveAndSideEffectFree(tempRoot), ref failures);
             Run("qemu M01 raw-observation log requires owned paging", () => TestM01RawObservationLogRequiresOwnedPaging(tempRoot), ref failures);
             Run("qemu M01 raw-observation rejects summary path overlap before launch", () => TestM01RawObservationRejectsSummaryPathOverlap(tempRoot), ref failures);
@@ -2214,6 +2225,144 @@ internal static class QemuRunnerTests
                 "TEST_PASS qemu.runner.dryrun",
                 StringComparison.Ordinal)
             && !missingOwnedPaging.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal)
+            && !missingBuild.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal)
+            && !skippedImage.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal)
+            && before.AsSpan().SequenceEqual(File.ReadAllBytes(staleEfi));
+    }
+
+    private static bool TestSmokeScriptEnforcesM02CheckedPortIoBindingProfile(
+        string tempRoot)
+    {
+        string suffix = Guid.NewGuid().ToString("N");
+        string imagePath = Path.Combine(
+            tempRoot,
+            "m02-checked-binding-dry-" + suffix + ".raw");
+        string serialLog = Path.Combine(
+            tempRoot,
+            "m02-checked-binding-dry-" + suffix + "-serial.log");
+        string summaryLog = Path.Combine(
+            tempRoot,
+            "m02-checked-binding-dry-" + suffix + "-summary.log");
+        string formattedGuest = string.Join(
+            ";",
+            M02CheckedPortIoBindingGuestMarkers);
+        string normalizedRequired =
+            SmokeScriptDefaultRequiredMarkers
+            + ";"
+            + string.Join(
+                ";",
+                M02CheckedPortIoBindingGuestMarkers.Where(
+                    marker => marker != "OS_SMOKE_PASS"));
+        string[] runnerForbidden =
+        [
+            "OS_SMOKE_FAIL",
+            "TEST_FAIL",
+            .. M02CheckedPortIoBindingForbiddenMarkers.Where(
+                marker => marker != "OS_SMOKE_FAIL"
+                    && marker != "TEST_FAIL")
+        ];
+        string formattedForbidden = string.Join(";", runnerForbidden);
+
+        ProcessResult result = RunQemuSmokeScript(
+            "-DryRun",
+            "-BuildEfi",
+            "-EnableM01LoadedImageStackProbe",
+            "-EnableM01LiveAllocatorProbe",
+            "-EnableM01OwnedPagingProbe",
+            "-EnableM02SafeStubProbe",
+            "-EnableM02CheckedPortIoBindingProbe",
+            "-Image",
+            imagePath,
+            "-SerialLog",
+            serialLog,
+            "-SummaryLog",
+            summaryLog);
+
+        return result.ExitCode == 0
+            && result.Output.Contains(
+                "QEMU_SCRIPT_M02_CHECKED_PORT_IO_BINDING_PROBE enabled=true safeStub=true buildEfi=true skipImageBuild=false dryRun=true profileRequired=49 profileForbidden=35",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "QEMU_SCRIPT_REQUIRE_ORDERED_MARKERS " + formattedGuest,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS " + formattedGuest,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "REQUIRED_MARKERS " + normalizedRequired,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "ORDERED_MARKERS " + formattedGuest,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "UNIQUE_MARKERS " + formattedGuest,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "FORBIDDEN_MARKERS " + formattedForbidden,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal)
+            && !File.Exists(imagePath)
+            && !File.Exists(serialLog)
+            && !File.Exists(summaryLog);
+    }
+
+    private static bool TestSmokeScriptRejectsInvalidM02CheckedPortIoBindingSelection(
+        string tempRoot)
+    {
+        string staleEfi = Path.Combine(
+            tempRoot,
+            "stale-m02-checked-binding-BOOTX64.EFI");
+        File.WriteAllBytes(staleEfi, [0x4d, 0x5a, 0x02, 0x03]);
+        byte[] before = File.ReadAllBytes(staleEfi);
+
+        ProcessResult missingSafeStub = RunQemuSmokeScript(
+            "-DryRun",
+            "-BuildEfi",
+            "-EnableM02CheckedPortIoBindingProbe",
+            "-EfiArtifact",
+            staleEfi);
+        ProcessResult missingBuild = RunQemuSmokeScript(
+            "-DryRun",
+            "-EnableM01LoadedImageStackProbe",
+            "-EnableM01LiveAllocatorProbe",
+            "-EnableM01OwnedPagingProbe",
+            "-EnableM02SafeStubProbe",
+            "-EnableM02CheckedPortIoBindingProbe",
+            "-EfiArtifact",
+            staleEfi);
+        ProcessResult skippedImage = RunQemuSmokeScript(
+            "-DryRun",
+            "-BuildEfi",
+            "-EnableM01LoadedImageStackProbe",
+            "-EnableM01LiveAllocatorProbe",
+            "-EnableM01OwnedPagingProbe",
+            "-EnableM02SafeStubProbe",
+            "-EnableM02CheckedPortIoBindingProbe",
+            "-SkipImageBuild",
+            "-EfiArtifact",
+            staleEfi);
+
+        return missingSafeStub.ExitCode == 1
+            && missingBuild.ExitCode == 1
+            && skippedImage.ExitCode == 1
+            && missingSafeStub.Output.Contains(
+                "m02_checked_port_io_binding_probe_requires_safe_stub",
+                StringComparison.Ordinal)
+            && missingBuild.Output.Contains(
+                "m02_checked_port_io_binding_probe_requires_build_efi",
+                StringComparison.Ordinal)
+            && skippedImage.Output.Contains(
+                "m02_checked_port_io_binding_probe_forbids_skip_image_build",
+                StringComparison.Ordinal)
+            && !missingSafeStub.Output.Contains(
                 "TEST_PASS qemu.runner.dryrun",
                 StringComparison.Ordinal)
             && !missingBuild.Output.Contains(
@@ -6377,6 +6526,20 @@ internal static class QemuRunnerTests
         markers.AddRange(M01StageThreeGuestMarkers.Skip(25).Take(14));
         markers.AddRange(M02IssueSuccessMarkers.Skip(3));
         markers.AddRange(M01StageThreeGuestMarkers.Skip(39));
+        return markers.ToArray();
+    }
+
+    private static string[] BuildM02CheckedPortIoBindingGuestMarkers()
+    {
+        List<string> markers = [];
+        foreach (string marker in M02GuestMarkers)
+        {
+            markers.Add(marker);
+            if (marker == "TEST_PASS m02.017")
+            {
+                markers.Add(M02CheckedPortIoBindingReadyMarker);
+            }
+        }
         return markers.ToArray();
     }
 

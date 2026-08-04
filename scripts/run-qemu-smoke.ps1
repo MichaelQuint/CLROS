@@ -39,6 +39,7 @@ param(
     [switch] $EnableM01LiveAllocatorProbe,
     [switch] $EnableM01OwnedPagingProbe,
     [switch] $EnableM02SafeStubProbe,
+    [switch] $EnableM02CheckedPortIoBindingProbe,
     [switch] $SkipImageBuild
 )
 
@@ -138,6 +139,20 @@ $script:M02SafeStubForbiddenMarkers = @(
     "M02_PORT_IO_ATTEMPTED",
     "M02_PRIVILEGED_STUB_TARGETED",
     "TEST_FAIL m02.017"
+)
+$script:M02CheckedPortIoBindingReadyMarker =
+    "CLROS_M02_003_READY bindingReady=true out8AddressChecked=true in8AddressChecked=true guestInvocation=false portIoExecuted=false"
+$script:M02CheckedPortIoBindingRequiredMarkers = @()
+foreach ($marker in $script:M02SafeStubRequiredMarkers) {
+    $script:M02CheckedPortIoBindingRequiredMarkers += $marker
+    if ($marker -eq "TEST_PASS m02.017") {
+        $script:M02CheckedPortIoBindingRequiredMarkers +=
+            $script:M02CheckedPortIoBindingReadyMarker
+    }
+}
+$script:M02CheckedPortIoBindingForbiddenMarkers = @(
+    $script:M02SafeStubForbiddenMarkers
+    "M02_CHECKED_PORT_IO_BINDING_FAILED"
 )
 
 function Invoke-NativeCommand {
@@ -3532,7 +3547,33 @@ try {
         ConvertTo-QemuSmokeMarkerList -Values $ForbidMarker
     )
 
-    if ($EnableM02SafeStubProbe) {
+    if ($EnableM02CheckedPortIoBindingProbe) {
+        $requiredMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $requiredMarkers
+                $script:M02CheckedPortIoBindingRequiredMarkers
+            )
+        )
+        $orderedMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $orderedMarkers
+                $script:M02CheckedPortIoBindingRequiredMarkers
+            )
+        )
+        $uniqueMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $uniqueMarkers
+                $script:M02CheckedPortIoBindingRequiredMarkers
+            )
+        )
+        $forbiddenMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $forbiddenMarkers
+                $script:M02CheckedPortIoBindingForbiddenMarkers
+            )
+        )
+    }
+    elseif ($EnableM02SafeStubProbe) {
         $requiredMarkers = @(
             ConvertTo-QemuSmokeMarkerList -Values @(
                 $requiredMarkers
@@ -3621,11 +3662,45 @@ try {
         (Format-QemuSmokeBoolean $DryRun.IsPresent) +
         " profileRequired=48 profileForbidden=34")
     Write-Host (
+        "QEMU_SCRIPT_M02_CHECKED_PORT_IO_BINDING_PROBE enabled=" +
+        (Format-QemuSmokeBoolean $EnableM02CheckedPortIoBindingProbe.IsPresent) +
+        " safeStub=" +
+        (Format-QemuSmokeBoolean $EnableM02SafeStubProbe.IsPresent) +
+        " buildEfi=" +
+        (Format-QemuSmokeBoolean $BuildEfi.IsPresent) +
+        " skipImageBuild=" +
+        (Format-QemuSmokeBoolean $SkipImageBuild.IsPresent) +
+        " dryRun=" +
+        (Format-QemuSmokeBoolean $DryRun.IsPresent) +
+        " profileRequired=49 profileForbidden=35")
+    Write-Host (
         "QEMU_SCRIPT_REQUIRE_ORDERED_MARKERS " +
         (Format-QemuSmokeMarkerList $orderedMarkers))
     Write-Host (
         "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS " +
         (Format-QemuSmokeMarkerList $uniqueMarkers))
+
+    if ($EnableM02CheckedPortIoBindingProbe -and
+        -not $EnableM02SafeStubProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_checked_port_io_binding_probe_requires_safe_stub")
+        exit 1
+    }
+
+    if ($EnableM02CheckedPortIoBindingProbe -and -not $BuildEfi) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_checked_port_io_binding_probe_requires_build_efi")
+        exit 1
+    }
+
+    if ($EnableM02CheckedPortIoBindingProbe -and $SkipImageBuild) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_checked_port_io_binding_probe_forbids_skip_image_build")
+        exit 1
+    }
 
     if ($EnableM02SafeStubProbe -and -not $EnableM01LoadedImageStackProbe) {
         Write-Host (
@@ -3803,6 +3878,10 @@ try {
 
         if ($EnableM02SafeStubProbe) {
             $buildArguments += "-EnableM02SafeStubProbe"
+        }
+
+        if ($EnableM02CheckedPortIoBindingProbe) {
+            $buildArguments += "-EnableM02CheckedPortIoBindingProbe"
         }
 
         Invoke-NativeCommand {

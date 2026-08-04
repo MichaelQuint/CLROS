@@ -45,7 +45,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const string EmptySha256 =
         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     private const string CompileClosureSha256 =
-        "1b0913ec87b97adc2bd8e26cd2d8c5f29d5161f7250b86a618e7d5e41c948012";
+        "b7d84d152bce07fc4c246f12c729fe05e691336b1606da9104f5aff7aff1158d";
     private const string AnalyzerClosureSha256 =
         "bea3e700acbeec374acb02a39b8c154e03291cf380edf850fea2114193b7ea14";
     private const string ManagedFixtureConfiguration = "Release";

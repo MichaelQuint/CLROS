@@ -42,6 +42,14 @@ internal static class BuildEfiShellPreflightTests
                 TestM02AllFourSwitchCompile,
                 ref m01Failures);
             Run(
+                "EFI preflight M02 checked-binding switch DAG and propagation",
+                () => TestM02CheckedBindingSwitchDagAndPropagation(tempRoot),
+                ref m01Failures);
+            Run(
+                "EFI project M02 all-five-switch compile",
+                TestM02AllFiveSwitchCompile,
+                ref m01Failures);
+            Run(
                 "m01.020 rejects forbidden source surfaces and guards",
                 () => TestM01ForbiddenSourceAndGuardMatrix(tempRoot),
                 ref m01Failures);
@@ -484,6 +492,105 @@ internal static class BuildEfiShellPreflightTests
             "-p:EnableM01LiveAllocatorProbe=true",
             "-p:EnableM01OwnedPagingProbe=true",
             "-p:EnableM02SafeStubProbe=true");
+
+        bool passed = result.ExitCode == 0
+            && result.Output.Contains(
+                "Build succeeded.",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                ": error ",
+                StringComparison.OrdinalIgnoreCase);
+        if (!passed)
+        {
+            Console.WriteLine(result.Output);
+        }
+
+        return passed;
+    }
+
+    private static bool TestM02CheckedBindingSwitchDagAndPropagation(
+        string tempRoot)
+    {
+        ToolFixture tools = CreateCompleteToolFixture(
+            tempRoot,
+            "m02-checked-binding-switch-tools");
+        SourceClosureFixture source = CreateSourceClosureFixture(
+            tempRoot,
+            "m02-checked-binding-switches");
+
+        ProcessResult allFive = RunPreflight(
+            tools,
+            false,
+            source.ScriptPath,
+            "-EnableM01LoadedImageStackProbe",
+            "-EnableM01LiveAllocatorProbe",
+            "-EnableM01OwnedPagingProbe",
+            "-EnableM02SafeStubProbe",
+            "-EnableM02CheckedPortIoBindingProbe");
+        ProcessResult missingSafeStub = RunPreflight(
+            tools,
+            false,
+            source.ScriptPath,
+            "-EnableM01LoadedImageStackProbe",
+            "-EnableM01LiveAllocatorProbe",
+            "-EnableM01OwnedPagingProbe",
+            "-EnableM02CheckedPortIoBindingProbe");
+
+        string script = File.ReadAllText(source.ScriptPath);
+        bool passed = IsM01SourceClosureSuccess(
+                allFive,
+                "loadedImageStack=true liveAllocator=true ownedPaging=true m02SafeStub=true")
+            && allFive.Output.Contains(
+                "EFI_PREFLIGHT_M02_SWITCHES status=ok enabled=true loadedImageStack=true liveAllocator=true ownedPaging=true checkedPortIoBinding=true",
+                StringComparison.Ordinal)
+            && IsM02SwitchFailure(
+                missingSafeStub,
+                "checked_binding_requires_safe_stub")
+            && Regex.Matches(
+                script,
+                Regex.Escape(
+                    "[switch] $EnableM02CheckedPortIoBindingProbe"),
+                RegexOptions.CultureInvariant).Count == 1
+            && script.Contains(
+                "\"-p:EnableM02CheckedPortIoBindingProbe=true\"",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "Write-Host \"EFI_PROBE M02_CHECKED_PORT_IO_BINDING\"",
+                StringComparison.Ordinal);
+
+        if (!passed)
+        {
+            Console.WriteLine(
+                "M02 checked-binding switch outputs:\n"
+                + allFive.Output
+                + missingSafeStub.Output);
+        }
+
+        return passed;
+    }
+
+    private static bool TestM02AllFiveSwitchCompile()
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string projectPath = Path.Combine(
+            repositoryRoot,
+            "src",
+            "OS",
+            "OS.csproj");
+        ProcessResult result = RunProcess(
+            "dotnet",
+            repositoryRoot,
+            timeoutMilliseconds: 120000,
+            "build",
+            projectPath,
+            "--nologo",
+            "-m:1",
+            "--disable-build-servers",
+            "-p:EnableM01LoadedImageStackProbe=true",
+            "-p:EnableM01LiveAllocatorProbe=true",
+            "-p:EnableM01OwnedPagingProbe=true",
+            "-p:EnableM02SafeStubProbe=true",
+            "-p:EnableM02CheckedPortIoBindingProbe=true");
 
         bool passed = result.ExitCode == 0
             && result.Output.Contains(
