@@ -411,7 +411,7 @@ public static unsafe class InvokeIn8Out8CheckedUnmanagedFunctionPointers
 
         uint configuredEndPort =
             (uint)request.ConfiguredBasePort + MaximumCom1RegisterOffset;
-        if (configuredEndPort > ushort.MaxValue)
+        if (configuredEndPort > 0xffffu)
         {
             return CheckedPortIoFunctionPointerBindingResult.Fail(
                 CheckedPortIoFunctionPointerBindingStatus.ConfiguredPortRangeOverflow,
