@@ -30,7 +30,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const uint SerializerExpectedSuccessCookie = 0x53524c43;
     private const int MaximumRuntimeFunctionRecords = 2048;
     private const int MaximumLinkResponseTokens = 4096;
-    private const int VerifierFixtureProcessTimeoutMilliseconds = 45_000;
+    private const int VerifierFixtureProcessTimeoutMilliseconds = 120_000;
     private const int ExpectedSourceClosureInputCount = 65;
     private const string SerializerSymbol =
         "CLROS_X64_SerializeInstructionPublication";

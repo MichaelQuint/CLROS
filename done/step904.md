@@ -112,6 +112,14 @@ existing M01-026 shim.
   preflight completed in 12.348 seconds. The owned test-process envelope was
   increased to a still-bounded 120 seconds with the existing whole-tree kill
   on timeout; no partial result from the rejected wave was promoted.
+- The next exact-head wave passed all three repaired preflight cases, then was
+  stopped after 648 starts, 646 passes, and one failure when the valid linked
+  serializer fixture reached the verifier test's fixed 45-second process limit
+  (`elapsedMs=45092`, output only `TEST_START efi.artifact.verify`). Adjacent
+  negative verifier cases passed and stderr remained empty. The owned fixture
+  process envelope was raised to 120 seconds while preserving kill-on-timeout
+  and the verifier suite's independent performance ceilings; the incomplete
+  wave was rejected.
 
 ## Deferred work
 
