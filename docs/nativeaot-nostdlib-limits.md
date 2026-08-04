@@ -75,6 +75,15 @@ The no-stdlib surface is not implemented beyond the first EFI shell boundary. `s
 - `OS.Std.Math` provides a host-tested partial integer helper slice for BCL-shaped `Min`, `Max`, `Clamp`, and `Abs` behavior over `int`, `uint`, `long`, and `ulong` where applicable. `Clamp` follows the BCL invalid-bound throwing behavior, and `Abs(int.MinValue)` / `Abs(long.MinValue)` throw overflow rather than wrapping.
 - `OS.Std.ArrayHelpers` provides a host-tested partial unmanaged-span helper slice for `Clear`, `Fill`, `IndexOf`, `LastIndexOf`, BCL-shaped `BinarySearch` insertion-point results, full-span `Sort`, status-coded range-limited `TrySort`, and status-coded `TryBinarySearch` over caller-specified ranges. The current slice is no-throw, allocation-free, deterministic for small buffers, and constrained to unmanaged element types.
 - `src/OS/Runtime/MinimalRuntime.cs` defines the current compiler-required primitive stubs, throw helpers, memory helpers, fail-fast type-cast placeholders, `IDynamicInterfaceCastable` metadata shape, and reverse-P/Invoke exports needed by the explicit EFI shell project.
+- `OS.Std.NoRuntime.DotNetN10SystemExportCompatibilityLedgerImplementedStubbed`
+  records a source-bound compatibility snapshot for all 40 current canonical
+  `System.*` declarations and all 17 `[RuntimeExport]` methods in
+  `MinimalRuntime.cs`. It uses readonly reference-free entries and
+  switch-indexed retrieval without arrays, reflection, LINQ, exceptions, or a
+  canonical `System.*` namespace surface. Unknown indices and default entries
+  fail closed. The ledger classifies the runtime exports as four link-only
+  no-ops, twelve fail-fast helpers, and one audited stack-probe helper; it adds
+  no runtime behavior and cannot satisfy completion Gate 4.
 - `BootPageFreeListBuilder`, `BootPageAllocatorStateInitializer`,
   `BootPageAllocatorMutation`, `BootPageAllocatorReadinessComposer`, and
   `NativeAotHeapBootstrapPlanner` are host-tested prerequisites for future
@@ -157,6 +166,18 @@ Boundary rules:
 
 `src/OS.Kernel/Runtime/NativeAotHelperLedger.cs` is the host-testable ledger for NativeAOT helper status. It records helper symbol or contract detail, evidence, required contract, allowed milestone stub behavior, current test coverage, owner subsystem, next step, and completion-gate applicability only; it does not implement helpers and does not make EFI-only stubs count toward kernel/runtime completion.
 
+`std/no-runtime/shared/DotNetN10SystemExportCompatibilityLedgerImplementedStubbed.cs`
+is the allocation-free declaration/export classification companion to that
+planning ledger. Its 40 declaration identities follow current
+`MinimalRuntime.cs` source order and carry stable unknown,
+narrowly-implemented, stubbed, or forbidden support states. Its 17 export
+identities preserve source order and distinguish four link-only no-op
+transition helpers, eleven fail-fast type-cast helpers plus
+`RhpFallbackFailFast`, and the audited `RhpStackProbe` bridge. These entries
+describe the EFI shim as it exists; they neither copy the shim into the normal
+host build nor implement allocation, GC, metadata, dispatch, exceptions, or
+runtime execution.
+
 | Helper area | Current status | Evidence / boundary |
 | --- | --- | --- |
 | Primitive/CoreLib type stubs | Implemented only for EFI compile boundary | `src/OS/OS.csproj` explicitly includes `Runtime/MinimalRuntime.cs`; host boundary tests verify it is not compiled by `src/OS.Kernel` or `std/no-runtime/shared` |
@@ -180,7 +201,13 @@ Boundary rules:
 
 ## Unsupported Behavior
 
-The required BCL subset, real NativeAOT helpers, GC, class constructor runner, exceptions, thread statics, TypeManager/RTR scans, hosted .NET 10 runtime boundary, ASP.NET Minimal API hosting, and Kestrel prerequisites are not implemented.
+The required BCL subset, real NativeAOT helpers, GC, class constructor runner,
+exceptions, thread statics, TypeManager/RTR scans, hosted .NET 10 runtime
+boundary, ASP.NET Minimal API hosting, and Kestrel prerequisites are not
+implemented. The `OS.Std.NoRuntime` declaration/export ledger is
+classification metadata only: it does not make the EFI shim callable by the
+kernel, replace the canonical `System.*` stubs, or promote any narrowly
+implemented, stubbed, or forbidden entry into Gate 4 evidence.
 
 ## Tests
 
@@ -343,6 +370,19 @@ std.buffer memorycopy zero length and layout`.
 `tests/OS.HostTests/StdArrayHelpersTests.cs` covers the current partial unmanaged-span array helper slice: empty-span clear/fill behavior, full-span clear, partial-span fill, first/last/missing search over duplicate values, BCL-shaped binary-search exact matches, insertion-point complements, duplicate-match tolerance, full-span sort for empty, single-element, already-sorted, reverse, and duplicate values, status-coded range-limited `TrySort` success/invalid-range behavior, status-coded range-limited `TryBinarySearch` found/not-found/invalid-range behavior, and default-result rejection. It emits `TEST_PASS std.arrayhelpers clear fill unmanaged spans`, `TEST_PASS std.arrayhelpers indexof unmanaged spans`, `TEST_PASS std.arrayhelpers binarysearch insertion points`, `TEST_PASS std.arrayhelpers sort unmanaged spans`, `TEST_PASS std.arrayhelpers trysort range and status`, `TEST_PASS std.arrayhelpers trysort default result is not success`, `TEST_PASS std.arrayhelpers trybinarysearch found range`, `TEST_PASS std.arrayhelpers trybinarysearch notfound range`, `TEST_PASS std.arrayhelpers trybinarysearch invalid range`, and `TEST_PASS std.arrayhelpers trybinarysearch default result is not success`.
 
 `tests/OS.HostTests/NativeAotHelperLedgerTests.cs` verifies that the helper ledger contains the required runtime helper areas, carries symbol/contract detail, evidence, required contract, allowed milestone stub behavior, current test coverage, owner subsystem, next-step text, and completion-gate applicability, leaves incomplete runtime helpers unmarked as complete, prevents EFI-only helpers from satisfying kernel/runtime completion, represents all 17 current EFI `[RuntimeExport]` symbols from `src/OS/Runtime/MinimalRuntime.cs` in exactly one ledger entry, keeps `RhpStackProbe` separate from the four reverse-P/Invoke and twelve type-cast symbols, preserves existing append-only enum values, and keeps `BootPageAllocatorMutation` evidence below the object/array/string allocation helper completion boundary. It emits `TEST_PASS runtime.nativeaot helper ledger structured columns`, `TEST_PASS runtime.nativeaot helper ledger append-only values`, and `TEST_PASS runtime.nativeaot helper ledger allocator mutation boundary`.
+
+`tests/OS.HostTests/DotNetN10SystemExportCompatibilityLedgerImplementedStubbedTests.cs`
+derives the 40 current canonical `System.*` declarations and 17
+`[RuntimeExport]` methods directly from `src/OS/Runtime/MinimalRuntime.cs`, then
+binds their source order and observed helper bodies to the allocation-free
+`OS.Std.NoRuntime` ledger. It verifies the four link-only no-op, twelve
+fail-fast, and one audited stack-probe split; stable categories and support
+states; reference-free entries; switch-indexed retrieval; fail-closed unknown
+and default values; absence of a canonical `System.*` namespace; and the
+unchanged failing Gate 4 boundary. It emits exactly one
+`CLROS_M04_001_READY declarations=40 runtimeExports=17 linkOnlyNoOp=4
+failFast=12 auditedStackProbe=1 gate4=Fail canonicalSystemNamespace=false`
+marker between `TEST_START m04.001` and `TEST_PASS m04.001`.
 
 `tests/OS.HostTests/BootPageFreeListPlanTests.cs` covers the caller-owned boot page free-list node construction prerequisite for future allocation work. It emits `TEST_PASS memory.boot freelist nodes constructs`, `TEST_PASS memory.boot freelist nodes rejects failed planner`, `TEST_PASS memory.boot freelist nodes reports destination capacity`, `TEST_PASS memory.boot freelist nodes rejects invalid segment shape`, and `TEST_PASS memory.boot freelist nodes rejects arithmetic overflow`.
 
@@ -562,7 +602,9 @@ preflight, and work-item plan results for future runner diagnostics.
 
 1. Add host-safe `OS.Std.*` string, memory query, and remaining integer helper overloads where they do not collide with CoreLib.
 2. Move all shared utilities into `std/no-runtime/shared` before use by kernel or apps.
-3. Add a compatibility ledger for every `System.*` type implemented.
+3. Keep compatibility ledgers source-bound and append-only as `System.*`
+   declarations or runtime exports change; do not promote a classification to
+   Gate 4 until the underlying behavior has matching host and guest evidence.
 4. Migrate IPv4, ICMP, UDP, and TCP checksum paths onto `OS.Std.Net.InternetChecksum` where it reduces duplicated packet-local checksum loops.
 5. Replace shell-only runtime placeholders with tested runtime helpers as the boot path starts using them.
 6. Reserve heap pages from a live allocator state and define GC root/write-barrier ownership before changing object allocation helper status.
