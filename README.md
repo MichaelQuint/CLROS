@@ -31,6 +31,33 @@ partial gates and many prerequisite contracts, but it has not yet passed
 `ExitBootServices`, owned-driver, live storage, live networking, native-app
 execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 
+### Current implementation checkpoint (2026-08-04)
+
+- The local Gitea tracker has **279 open issues** (issues only, excluding pull
+  requests). The backlog is intentionally granular, so issue count is not a
+  completion percentage.
+- M02-003 now has production C# for validating and binding checked unmanaged
+  `Out8`/`In8` function pointers, plus host tests that invoke safe unmanaged
+  callbacks. Supplemental issue #438 compiles the same binder into the
+  no-stdlib EFI closure and verifies the two checked guest addresses without
+  executing privileged device I/O.
+- Frozen implementation commit `84032f4` passed the complete 2,516-second host
+  harness with zero failures and fresh real QEMU/OVMF evidence for the exact
+  `CLROS_M02_003_READY ... guestInvocation=false portIoExecuted=false` marker.
+  The guest did not invoke offsets 16/32, and all privileged-I/O markers were
+  absent.
+- M02-003 and #438 are **not done**: their source, accepted evidence, and
+  canonical ledgers are pushed in PR #439, where independent review is
+  requested and still pending. Merge, tracker transitions, and backlog
+  synchronization remain. No completion-gate status changes are claimed by
+  this checkpoint.
+- M04-001 is **claimed and in progress** on a separate collision-safe branch.
+  Its first production C# checkpoint adds the `OS.Std.NoRuntime` .NET 10 helper
+  compatibility ledger and source-bound host tests. The focused contract passes
+  with 40 declarations and 17 runtime exports, while Gate 4 remains `Fail` and
+  no canonical `System.*` surface is added. The complete evidence wave,
+  canonical docs, unique done step, and review are still pending.
+
 ## What Works Today
 
 | Area | Current evidence |

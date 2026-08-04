@@ -375,8 +375,8 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
         string[] errorConditions = project
             .Descendants("Error")
             .Select(error => error.Attribute("Condition")?.Value ?? string.Empty)
-            .Where(value => value.Contains(
-                "EnableM02SafeStubProbe",
+            .Where(value => value.StartsWith(
+                "'$(EnableM02SafeStubProbe)' == 'true'",
                 StringComparison.Ordinal))
             .ToArray();
         string script = File.ReadAllText(
@@ -415,7 +415,7 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
                 "[switch] $EnableM02SafeStubProbe",
                 StringComparison.Ordinal)
             && script.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=61",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=63",
                 StringComparison.Ordinal)
             && script.Contains(
                 "reviewed=\" + $m01SourceClosure.ReviewedSourceCount",

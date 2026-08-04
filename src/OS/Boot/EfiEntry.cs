@@ -157,6 +157,10 @@ public static unsafe class EfiEntry
         private static M02SafeStubPageIntegrationResult
             s_m02ExecutionAudit;
 #endif
+#if M02_CHECKED_PORT_IO_BINDING_PROBE
+        private static M02CheckedPortIoFunctionPointerIntegrationResult
+            s_m02CheckedPortIoBinding;
+#endif
         private static ulong s_rawIa32Pat;
 
         // NativeAOT emits GS-cookie reads for the prerequisite planners'
@@ -1402,6 +1406,9 @@ public static unsafe class EfiEntry
             s_m02ReadbackAudit = default;
             s_m02FinalizationAudit = default;
             s_m02ExecutionAudit = default;
+#endif
+#if M02_CHECKED_PORT_IO_BINDING_PROBE
+            s_m02CheckedPortIoBinding = default;
 #endif
         }
 
@@ -3592,6 +3599,30 @@ public static unsafe class EfiEntry
                         (ulong)s_m02ExecutionAudit.Status);
                     return;
                 }
+
+#if M02_CHECKED_PORT_IO_BINDING_PROBE
+                s_m02CheckedPortIoBinding =
+                    M02CheckedPortIoFunctionPointerIntegration.Bind(
+                        s_m02Finalization.ModeledPageAddress,
+                        s_m02Finalization.PageByteCount,
+                        s_m02Finalization.Out8Offset,
+                        s_m02Finalization.In8Offset,
+                        s_m02Finalization.FinalizationAudited,
+                        s_m02ExecutionAudit.Succeeded,
+                        s_m02ExecutionAudit.PortIoExecuted,
+                        s_m02ExecutionAudit.PrivilegedStubTargeted);
+                if (!s_m02CheckedPortIoBinding.Succeeded)
+                {
+                    WriteM02CheckedPortIoBindingFailureLine(
+                        console,
+                        serial);
+                    _ = FailAfterEntry(
+                        M01StageThreeAdapterStatus
+                            .PostReturnAuditRejected,
+                        (ulong)s_m02CheckedPortIoBinding.Status);
+                    return;
+                }
+#endif
             }
 
             if (lineIndex == 18)
@@ -3599,6 +3630,11 @@ public static unsafe class EfiEntry
                 WriteM02SuccessLine(console, serial, 3);
                 WriteM02SuccessLine(console, serial, 4);
                 WriteM02SuccessLine(console, serial, 5);
+#if M02_CHECKED_PORT_IO_BINDING_PROBE
+                WriteM02CheckedPortIoBindingSuccessLine(
+                    console,
+                    serial);
+#endif
             }
 #endif
 
@@ -4228,6 +4264,253 @@ public static unsafe class EfiEntry
                     return;
             }
 
+            EfiEntry.WriteCrLf(console, serial);
+        }
+#endif
+
+#if M02_CHECKED_PORT_IO_BINDING_PROBE
+        private static void WriteM02CheckedPortIoBindingSuccessLine(
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial)
+        {
+            WriteAscii(
+                console,
+                serial,
+                (byte)'C',
+                (byte)'L',
+                (byte)'R',
+                (byte)'O',
+                (byte)'S',
+                (byte)'_',
+                (byte)'M',
+                (byte)'0');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'2',
+                (byte)'_',
+                (byte)'0',
+                (byte)'0',
+                (byte)'3',
+                (byte)'_',
+                (byte)'R',
+                (byte)'E');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'A',
+                (byte)'D',
+                (byte)'Y',
+                (byte)' ',
+                (byte)'b',
+                (byte)'i',
+                (byte)'n',
+                (byte)'d');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'i',
+                (byte)'n',
+                (byte)'g',
+                (byte)'R',
+                (byte)'e',
+                (byte)'a',
+                (byte)'d',
+                (byte)'y');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'=',
+                (byte)'t',
+                (byte)'r',
+                (byte)'u',
+                (byte)'e',
+                (byte)' ',
+                (byte)'o',
+                (byte)'u');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'t',
+                (byte)'8',
+                (byte)'A',
+                (byte)'d',
+                (byte)'d',
+                (byte)'r',
+                (byte)'e',
+                (byte)'s');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'s',
+                (byte)'C',
+                (byte)'h',
+                (byte)'e',
+                (byte)'c',
+                (byte)'k',
+                (byte)'e',
+                (byte)'d');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'=',
+                (byte)'t',
+                (byte)'r',
+                (byte)'u',
+                (byte)'e',
+                (byte)' ',
+                (byte)'i',
+                (byte)'n');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'8',
+                (byte)'A',
+                (byte)'d',
+                (byte)'d',
+                (byte)'r',
+                (byte)'e',
+                (byte)'s',
+                (byte)'s');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'C',
+                (byte)'h',
+                (byte)'e',
+                (byte)'c',
+                (byte)'k',
+                (byte)'e',
+                (byte)'d',
+                (byte)'=');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'t',
+                (byte)'r',
+                (byte)'u',
+                (byte)'e',
+                (byte)' ',
+                (byte)'g',
+                (byte)'u',
+                (byte)'e');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'s',
+                (byte)'t',
+                (byte)'I',
+                (byte)'n',
+                (byte)'v',
+                (byte)'o',
+                (byte)'c',
+                (byte)'a');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'t',
+                (byte)'i',
+                (byte)'o',
+                (byte)'n',
+                (byte)'=',
+                (byte)'f',
+                (byte)'a',
+                (byte)'l');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'s',
+                (byte)'e',
+                (byte)' ',
+                (byte)'p',
+                (byte)'o',
+                (byte)'r',
+                (byte)'t',
+                (byte)'I');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'o',
+                (byte)'E',
+                (byte)'x',
+                (byte)'e',
+                (byte)'c',
+                (byte)'u',
+                (byte)'t',
+                (byte)'e');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'d',
+                (byte)'=',
+                (byte)'f',
+                (byte)'a',
+                (byte)'l',
+                (byte)'s',
+                (byte)'e',
+                0);
+            EfiEntry.WriteCrLf(console, serial);
+        }
+
+        private static void WriteM02CheckedPortIoBindingFailureLine(
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial)
+        {
+            WriteAscii(
+                console,
+                serial,
+                (byte)'M',
+                (byte)'0',
+                (byte)'2',
+                (byte)'_',
+                (byte)'C',
+                (byte)'H',
+                (byte)'E',
+                (byte)'C');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'K',
+                (byte)'E',
+                (byte)'D',
+                (byte)'_',
+                (byte)'P',
+                (byte)'O',
+                (byte)'R',
+                (byte)'T');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'_',
+                (byte)'I',
+                (byte)'O',
+                (byte)'_',
+                (byte)'B',
+                (byte)'I',
+                (byte)'N',
+                (byte)'D');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'I',
+                (byte)'N',
+                (byte)'G',
+                (byte)'_',
+                (byte)'F',
+                (byte)'A',
+                (byte)'I',
+                (byte)'L');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'E',
+                (byte)'D',
+                0,
+                0,
+                0,
+                0,
+                0,
+                0);
             EfiEntry.WriteCrLf(console, serial);
         }
 #endif
