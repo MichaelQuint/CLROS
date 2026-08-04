@@ -31,6 +31,21 @@ partial gates and many prerequisite contracts, but it has not yet passed
 `ExitBootServices`, owned-driver, live storage, live networking, native-app
 execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 
+### Current implementation checkpoint (2026-08-03)
+
+- The local Gitea tracker has **279 open issues** (issues only, excluding pull
+  requests). The backlog is intentionally granular, so issue count is not a
+  completion percentage.
+- M02-003 now has production C# for validating and binding checked unmanaged
+  `Out8`/`In8` function pointers, plus host tests that invoke safe unmanaged
+  callbacks. This work is preserved in commit `bef76b9` on the active branch.
+- The follow-on EFI integration is in progress under supplemental issue #438.
+  Its C# boundary computes and verifies the checked callable addresses without
+  executing privileged device I/O in the guest.
+- M02-003 and #438 are **not done**: the combined no-stdlib EFI preflight, full
+  host suite, and fresh real-QEMU/OVMF marker evidence still have to pass. No
+  completion-gate status changes are claimed by this checkpoint.
+
 ## What Works Today
 
 | Area | Current evidence |
