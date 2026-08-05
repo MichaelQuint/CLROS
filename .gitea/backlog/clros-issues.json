@@ -9266,7 +9266,7 @@
         "M04-001"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -9345,7 +9345,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves only \"Add independent endian and BinaryPrimitives conformance vectors derived from MOSA.\" It does not by itself prove the M04 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M04-003",
