@@ -77,9 +77,36 @@ errors. The exact-file focused harness emitted one ordered M04-002
 start/ready/pass envelope and no failure marker. Naming and source-firewall
 checks passed. QEMU dry-run passed and remains host tooling preflight only.
 
-The complete source-frozen HostTests run, EFI publish, and real QEMU run are
-not yet recorded in this checkpoint; their final commands, logs, exit codes,
-hashes, and rejected attempts must be added before review.
+The source-frozen post-reboot gate then ran from clean, pushed commit
+`8ee0311d2a7c225b77b4efa7d86bce6831c71826`, tree
+`6a599b8dd076c49fe4ba69c2b1b5c04a53fe07eb`:
+
+```powershell
+dotnet build .\CLROS.slnx --nologo -m:1
+dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
+dotnet build .\tests\OS.HostTests\OS.HostTests.csproj --nologo
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-naming.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-qemu-smoke.ps1 -DryRun
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-efi-shell.ps1
+git diff --check
+git status --short
+```
+
+The solution build exited `0` after 33.675 seconds. The complete host command
+exited `0` after 3,089.039 seconds with 3,367 `TEST_START` lines, 3,368
+`TEST_PASS` lines, zero line-leading `TEST_FAIL`, empty stderr, one exact
+M04-002 start/ready/pass envelope at lines 2210-2212, and terminal
+`TEST_PASS host.tests` at line 6782. Host stdout is 863,790 bytes with SHA-256
+`6F98CEE6C07F749F17DC28F9D3C797D52E4B1F0062F0DD4CC4DF078D77D51493`;
+the exact audit record SHA-256 is
+`84798710CCEDC985A562A062DDCA74DE5D2076F5EB8E3AEEF94906B491DE5354`.
+
+The focused host build, naming/source firewall, dry-run, diff, and empty-status
+checks all exited `0`; their summary SHA-256 is
+`138B09787D251B08115AF15D53014EFBB3D690216DEA215DC250437723967731`.
+The default EFI publish exited `0` after 51.601 seconds and produced the
+55,808-byte `BOOTX64.EFI` with SHA-256
+`158432A6F1BA692561A8CA047AD4E1C1362E3549E5CA8A7EF4E7288ABECD1741`.
 
 ## Evidence
 
@@ -109,6 +136,10 @@ NEXT_DONE_STEP done/step906.md
 TEST_PASS done.step.allocate
 ```
 
+All accepted post-reboot logs are under the ignored evidence root
+`artifacts/logs/m04-002-8ee0311-postreboot-20260805T051322Z`. Generated logs,
+EFI/image artifacts, and audit JSON did not enter Git.
+
 ## Failures
 
 - The first reference search exceeded its 30-second bound after already
@@ -118,23 +149,43 @@ TEST_PASS done.step.allocate
   `std/no-runtime/shared/EndianPrimitives.cs`. The canonical existing helper is
   `std/no-runtime/shared/Binary/EndianPrimitives.cs`; no repository file was
   changed by the failed read.
+- The pre-reboot complete-host attempt was interrupted for the requested
+  machine reboot and is rejected. Its exact child process survived the wrapper
+  cancellation, was identified by command line after reboot, and was terminated
+  before the source-frozen post-reboot run started; no output from that attempt
+  is acceptance evidence.
+- The post-reboot host command itself exited `0`, but the outer evidence wrapper
+  returned `1` because its post-check expected obsolete capitalization
+  `TEST_PASS OS.HostTests`. The preserved log's canonical terminal marker is
+  exactly `TEST_PASS host.tests`; an exact whole-line audit accepted the run
+  without rerunning or weakening any repository test.
 - The current issue cannot yet satisfy its real-QEMU marker requirement from
   its four declared implementation/document paths. The EFI project uses an
-  explicit source closure, while M04-002 forbids `src/OS/EfiEntry.cs` and
-  `src/OS/OS.csproj`. Those files are also still owned by open PR #444. No
-  guest marker, QEMU pass, or broader runtime claim is fabricated here.
+  explicit source closure, while M04-002 does not own the actual
+  `src/OS/Boot/EfiEntry.cs`, `src/OS/OS.csproj`, or source-authority verifier
+  paths. Those files are also still owned by open PR #444. No guest marker,
+  QEMU pass, or broader runtime claim is fabricated here.
+- The required real-QEMU command was run against the unintegrated default EFI
+  as negative evidence. It exited `4`; serial contained exactly one
+  `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and `OS_SMOKE_PASS`, no guest failure
+  marker, and zero `CLROS_M04_002_READY`. The summary recorded
+  `QEMU_SMOKE_STATUS fail`, `MISSING_MARKERS CLROS_M04_002_READY`, and
+  `FAIL_REASON timeout`. The 7,947-byte serial SHA-256 is
+  `0F16CC0FB978B3AE9555AA978408D857CDEFA70F989549C9BCE5086DB73041F1`;
+  the negative-boundary audit SHA-256 is
+  `BA039DAF71649028C9BC7042D5AA99ACE216DBE213EC127F1303B9F71A81F590`.
+  This attempt is explicitly not positive QEMU acceptance.
 
 ## Deferred work
 
-- Run and preserve one complete uncompromised HostTests gate from a clean,
-  pushed M04 source head.
 - Wait for independent review of exact PR #444 head
   `314d674f40923a94ba0fe251c12fbc70799e2086`, then merge/converge M02-004
-  before claiming a separate serialized EFI integration issue for the two
-  shared files.
-- Add only the separately owned no-stdlib EFI catalog validation/marker path,
-  then run a fresh EFI publish and real QEMU/OVMF command requiring
-  `CLROS_M04_002_READY`.
+  before creating and claiming a separate serialized EFI integration issue for
+  the entry point, explicit project/source-authority closure, integration test,
+  and required canonical EFI/QEMU documentation.
+- Add only that separately owned, opt-in no-stdlib EFI catalog
+  validation/marker path, then run a fresh EFI publish, complete host gate, and
+  real QEMU/OVMF command requiring `CLROS_M04_002_READY`.
 - Update this step with final source heads, command logs, hashes, failures,
   deferred work, and independent-review boundary before moving issue #71 from
   claimed to review.

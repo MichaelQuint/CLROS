@@ -385,6 +385,29 @@ uint16Series=7 fingerprint=E81E4451E8D999F6 ... hostConformance=true
 guestIntegrated=false gate4=Fail`. The MOSA snapshot is not required at test
 runtime and does not become first-party build input or CLROS evidence.
 
+The source-frozen post-reboot gate at pushed commit
+`8ee0311d2a7c225b77b4efa7d86bce6831c71826`, tree
+`6a599b8dd076c49fe4ba69c2b1b5c04a53fe07eb`, built the complete solution and
+ran the complete host harness. The host command exited `0` after 3,089.039
+seconds with 3,367 `TEST_START` lines, 3,368 `TEST_PASS` lines, zero
+line-leading `TEST_FAIL`, empty stderr, exactly one ordered M04-002
+start/ready/pass envelope, and terminal `TEST_PASS host.tests`. Its stdout
+SHA-256 is `6F98CEE6C07F749F17DC28F9D3C797D52E4B1F0062F0DD4CC4DF078D77D51493`.
+The exact audit record SHA-256 is
+`84798710CCEDC985A562A062DDCA74DE5D2076F5EB8E3AEEF94906B491DE5354`.
+
+The default no-stdlib EFI publish also passed and produced SHA-256
+`158432A6F1BA692561A8CA047AD4E1C1362E3549E5CA8A7EF4E7288ABECD1741`.
+A real QEMU/OVMF run then demonstrated the current negative boundary: the
+guest emitted `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and `OS_SMOKE_PASS`, but
+emitted no M04-002 marker. The summary recorded exactly
+`MISSING_MARKERS CLROS_M04_002_READY` and failed as required. Its serial
+SHA-256 is `0F16CC0FB978B3AE9555AA978408D857CDEFA70F989549C9BCE5086DB73041F1`.
+This is rejected positive evidence; it confirms that `guestIntegrated=false`
+remains authoritative until a separately claimed serialized EFI integration
+issue supplies the explicit no-stdlib source closure and a passing real-QEMU
+tuple.
+
 `tests/OS.HostTests/StdCrc32Tests.cs` covers the empty-input CRC32 value, the standard ASCII `123456789` vector (`0xCBF43926`), a binary byte-range vector (`0x456CD746`), and incremental update/finalization over a split binary payload (`0x7C9CA35A`). It emits `std.crc32` markers for each scenario.
 
 `tests/OS.HostTests/StdInternetChecksumTests.cs` covers the empty input result (`0xFFFF`), the RFC 1071 sample vector (`0x220D`), odd trailing byte padding, two- and four-segment odd-byte boundary carryover, accumulator pending-byte behavior, packet validation after checksum insertion, and accumulator reset behavior. It emits `std.internet.checksum` markers for each scenario.
