@@ -48,6 +48,14 @@ lane explicitly.
   `C:\Program Files\qemu\share\edk2-x86_64-code.fd`, and 30-second timeout
   - Exit `0`; `TEST_PASS qemu.smoke` and
     `TEST_PASS m01.026.raw-observations`.
+- Focused historical/live M02-017 marker split
+  - `dotnet build .\tests\OS.HostTests\OS.HostTests.csproj --nologo` exited
+    `0` with zero warnings and zero errors.
+  - Build-log SHA-256:
+    `268867C503639450569627A6735BB5076C5CCA526E0638D8A5D8A1AC26D1E39B`.
+  - The immutable manifest retains exactly three `F85393074A792B1E`
+    marker occurrences, while the current live QEMU profile retains exactly
+    three `982E5B7E3EE58E56` occurrences.
 - Complete HostTests acceptance wave
   - Final exact pushed-head counts and hashes are posted to Gitea.
 
@@ -143,6 +151,18 @@ existing M01-026 shim.
   later `IndexOf` and threw. The owned source test now asserts the local guard
   and makes every chained search fail closed; the 168,499-byte stdout and
   282-byte exception-only stderr streams were rejected.
+- The next exact pushed-head wave at
+  `a6e9e2d404b2b570b3fda1cb347b2e8ddfd8abc6` passed the M02-004 backend,
+  Out8 ABI repair, and EFI integration tests, then stopped in the owned QEMU
+  runner group after 2,298 starts / 2,297 passes. The stale manifest test used
+  the repaired live `982E5B7E3EE58E56` profile to compare the immutable
+  historical M02-017 backlog markers, which correctly remain
+  `F85393074A792B1E`. The test now holds separate historical and current-live
+  marker arrays and leaves the backlog file untouched. The rejected stdout was
+  291,897 bytes with SHA-256
+  `37169EBEFF7E476469AB4724EF1B16C5FCD461EC57CC1CF61F47DD387EC5E405`;
+  stderr was empty with SHA-256
+  `E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855`.
 
 ## Deferred work
 
