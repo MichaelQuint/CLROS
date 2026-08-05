@@ -292,6 +292,70 @@ post-`ExitBootServices` output, physical hardware/provider behavior, hosted
 .NET, Minimal API, Kestrel, CloudReady status, production readiness, or
 numbered completion-gate advancement.
 
+### M04-002 fixed endian-catalog guest proof
+
+The M04-002 profile is opt-in and independent of the cumulative M01/M02 live
+profiles. It requires `-BuildEfi`, rejects `-SkipImageBuild`, preserves the
+default profile when disabled, and automatically adds the exact success marker
+as required and unique. It requires this three-line order:
+
+```text
+EFI_CONSOLE_READY
+CLROS_M04_002_READY readVectors=25 reverseVectors=7 byteSeries=5 uint16Series=7 fingerprint=E81E4451E8D999F6 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
+UEFI_MEMORY_MAP_READY
+```
+
+It also forbids `M04_ENDIAN_CONFORMANCE_FAILED` and every `TEST_FAIL` marker.
+These invocation errors are stable and fail before build or guest execution:
+
+- enabling the probe without `-BuildEfi` emits
+  `TEST_FAIL qemu.smoke.invalid_args
+  m04_independent_endian_conformance_probe_requires_build_efi`;
+- combining the probe with `-SkipImageBuild` emits
+  `TEST_FAIL qemu.smoke.invalid_args
+  m04_independent_endian_conformance_probe_forbids_skip_image_build`.
+
+The fresh real 2026-08-05 command was:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 15 `
+  -BuildEfi `
+  -EnableM04IndependentEndianConformanceProbe `
+  -EfiArtifact .\artifacts\efi\BOOTX64-M04-002-QEMU.EFI `
+  -Image .\artifacts\images\m04-002-qemu.raw `
+  -SerialLog .\artifacts\logs\m04-002-qemu-serial.log `
+  -SummaryLog .\artifacts\logs\m04-002-qemu-summary.log
+```
+
+The run used QEMU `11.0.50` and the 3,653,632-byte OVMF image with SHA-256
+`33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`.
+The source-authority preflight reported 66 inputs and 53 compile items; the EFI
+artifact verifier passed before image creation. The serial state machine
+reported `status=Passed terminal=Success bytes=8140 lines=27 invalidBytes=207
+invalidLines=2 orderedSeen=3 outOfOrder=0 uniqueSeen=1 duplicateUnique=0`, and
+the summary recorded `MISSING_MARKERS none`, `OUT_OF_ORDER_MARKERS none`,
+`DUPLICATE_UNIQUE_MARKERS none`, `FORBIDDEN_MARKER_HIT none`, and
+`FAIL_REASON none`.
+
+The EFI, image, serial, and summary SHA-256 values are respectively
+`44F4A7B5E2929884869F324E998ABC5B89559707ACC4BA65412EB818B18D9CA0`,
+`024E42220A5543529E4A0D5F8BD7C4052062E8A9FF9E46457D913E9AF9462CD8`,
+`05EE15A753899894F86CCA0318CC724DC22671C78D12E4C7CD87E3BA2F262453`,
+and `646A1AFDF8572317F71381F11EB8E6646E2DAD1236FEF03E2483DCA9B7ADBDB6`.
+The exact M04 marker appeared once; no `TEST_FAIL` or
+`M04_ENDIAN_CONFORMANCE_FAILED` appeared.
+
+This proves only fixed-catalog copy/validation inside the no-stdlib,
+pre-`ExitBootServices` EFI guest. `hostConformance=false` distinguishes this
+marker from the separate host/.NET comparison marker. It does not prove a
+canonical `System.Buffers.Binary.BinaryPrimitives` surface, allocation, GC,
+exceptions, general runtime completion, real `ExitBootServices`, hosted .NET,
+Minimal API, Kestrel, physical/provider support, CloudReady status, production
+readiness, or a numbered-gate advancement.
+
 ## Implemented Behavior
 
 - `tools/OS.QemuRunner` builds a QEMU command line for a raw or qcow2 GPT/FAT32 image, OVMF pflash, serial-file capture, AHCI disk attachment, and user-mode virtio networking.

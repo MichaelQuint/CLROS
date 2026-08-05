@@ -6,7 +6,8 @@ param(
     [string]$LinkerMapPath = "",
     [string]$LinkResponsePath = "",
     [string]$LinkEvidencePath = "",
-    [string]$SerializerObjectPath = ""
+    [string]$SerializerObjectPath = "",
+    [switch]$EnableM04IndependentEndianConformanceProbe
 )
 
 $ErrorActionPreference = "Stop"
@@ -28,7 +29,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 65
+$expectedSourceClosureInputCount = 66
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -111,6 +112,7 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs|Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs',
     '..\OS.Kernel\Diagnostics\InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs|Diagnostics\InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs',
     '..\OS.Kernel\Diagnostics\COM1OwnedPortIOBackend.cs|Diagnostics\COM1OwnedPortIOBackend.cs',
+    '..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs',
     '..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs|Boot\M01LoadedImageStackIntegration.cs',
     '..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs|Boot\M01LiveAllocatorIntegration.cs',
     '..\OS.Kernel\Boot\M01LivePagingIntegration.cs|Boot\M01LivePagingIntegration.cs',
@@ -3772,6 +3774,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "-getProperty:" +
             "_targetOS,_targetArchitecture,RuntimeIdentifier," +
             "TargetFramework,PublishAot,SelfContained,PublishTrimmed," +
+            "EnableM04IndependentEndianConformanceProbe," +
             "ImportProjectExtensionProps,ImportProjectExtensionTargets," +
             "ExcludeRestorePackageImports,ILCompilerTargetsPath," +
             "ILLinkTargetsPath,ILLinkTasksAssembly,IlcBuildTasksPath," +
@@ -3866,6 +3869,10 @@ function Invoke-PostRestoreEvaluationSnapshot {
         ("-p:CSharpTargetsPath=" + $CanonicalPaths.CSharpTargetsPath),
         ("-p:CommonTargetsPath=" + $CanonicalPaths.CommonTargetsPath)
     )
+    if ($EnableM04IndependentEndianConformanceProbe) {
+        $arguments +=
+            "-p:EnableM04IndependentEndianConformanceProbe=true"
+    }
 
     $previousLink = $env:LINK
     $previousTrailingLink = $env:_LINK_
@@ -4005,6 +4012,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
         PublishAot = "true"
         SelfContained = "true"
         PublishTrimmed = "true"
+        EnableM04IndependentEndianConformanceProbe =
+            $EnableM04IndependentEndianConformanceProbe.IsPresent.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
         ImportProjectExtensionTargets = "false"
         ExcludeRestorePackageImports = "true"
@@ -4060,7 +4069,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 52 -or
+    if ($compileItems.Count -ne 53 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
