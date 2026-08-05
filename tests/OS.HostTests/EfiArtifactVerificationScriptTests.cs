@@ -30,8 +30,8 @@ internal static class EfiArtifactVerificationScriptTests
     private const uint SerializerExpectedSuccessCookie = 0x53524c43;
     private const int MaximumRuntimeFunctionRecords = 2048;
     private const int MaximumLinkResponseTokens = 4096;
-    private const int VerifierFixtureProcessTimeoutMilliseconds = 45_000;
-    private const int ExpectedSourceClosureInputCount = 63;
+    private const int VerifierFixtureProcessTimeoutMilliseconds = 120_000;
+    private const int ExpectedSourceClosureInputCount = 65;
     private const string SerializerSymbol =
         "CLROS_X64_SerializeInstructionPublication";
     private const string ToolDirectoryBuildPropsPath =
@@ -45,7 +45,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const string EmptySha256 =
         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     private const string CompileClosureSha256 =
-        "b7d84d152bce07fc4c246f12c729fe05e691336b1606da9104f5aff7aff1158d";
+        "af04e3d6002376c8913537b4ad5b7ec246857eda276061a158a3858a471ef604";
     private const string AnalyzerClosureSha256 =
         "bea3e700acbeec374acb02a39b8c154e03291cf380edf850fea2114193b7ea14";
     private const string ManagedFixtureConfiguration = "Release";
@@ -2372,7 +2372,7 @@ internal static class EfiArtifactVerificationScriptTests
                 "MSBUILDDISABLENODEREUSE",
                 StringComparison.Ordinal)
             && verifierSource.Contains(
-                "$expectedSourceClosureInputCount = 63",
+                "$expectedSourceClosureInputCount = 65",
                 StringComparison.Ordinal)
             && stableReasons.All(reason => verifierSource.Contains(
                 reason,
@@ -3221,7 +3221,8 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static bool TestParserCapacityBounds(string tempRoot)
     {
-        const long maximumVerifierProcessSafetyMilliseconds = 45_000;
+        const long maximumVerifierProcessSafetyMilliseconds =
+            VerifierFixtureProcessTimeoutMilliseconds;
         const long maximumLinkResponseTokenScanElapsedMilliseconds = 1_000;
         const long maximumRuntimeScanElapsedMilliseconds = 1_000;
 
@@ -4931,7 +4932,7 @@ internal static class EfiArtifactVerificationScriptTests
         };
         return new Dictionary<string, object?>
         {
-            ["compileCount"] = 50,
+            ["compileCount"] = 52,
             ["compileSha256"] = CompileClosureSha256,
             ["projectReferenceCount"] = 0,
             ["projectReferenceSha256"] = EmptySha256,

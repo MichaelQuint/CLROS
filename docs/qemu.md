@@ -254,6 +254,44 @@ real `ExitBootServices`, physical hardware/provider behavior, hosted .NET,
 Minimal API, Kestrel, CloudReady status, or production readiness, and it does
 not change a numbered completion-gate status.
 
+### M02-004 corrected Out8 and COM1 configuration proof
+
+The M02-004 integration profile extends the cumulative M01/M02 guest sequence
+with a corrected Windows x64 `Out8` stub. The historical M02-002/M02-017 tuple
+above remains evidence for its exact old page; current live-use code emits
+`88 D0 66 89 CA EE C3`, preserving incoming `DL` in `AL` before copying `CX`
+to `DX`. The resulting page has FNV-1a64 `982E5B7E3EE58E56` and independently
+verified SHA-256
+`B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2`.
+
+The fresh real run used QEMU `11.0.50`, the 3,653,632-byte OVMF image with
+SHA-256
+`33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`,
+`-BuildEfi`, all three M01 switches, and all three M02 switches. The runner
+reported `status=Passed terminal=Success`, `orderedSeen=50`, `outOfOrder=0`,
+`uniqueSeen=50`, `duplicateUnique=0`, `TEST_PASS qemu.smoke`, and
+`TEST_PASS m01.026.raw-observations`. The exact new marker appeared once:
+
+```text
+CLROS_M02_004_READY configurationWrites=7 bindingReady=true guestPortIo=true guestIn8=false markerTransport=uefiSerial postExitBootServices=false
+```
+
+The EFI, raw image, serial, and summary SHA-256 values are respectively
+`61CA5D6879DA1AE7DC0A6938AA61AD64DCEFBD61AA937C0DF2D8C3BF0809820E`,
+`4A49E7F30493BBF59DA14BF9F756B7A349037CD0D2B7AAA941DEA2A45E49D522`,
+`E452EF725FAF34775EE00C310E86245F217CA2638926B70B3194C711A0F2876D`,
+and
+`56162B8BBEE02FCF80C62E4D38456F623EEA558F3D646F1E1654B951DB49E190`.
+No `TEST_FAIL`, `M02_COM1_CONFIGURATION_FAILED`, or other configured forbidden
+marker appeared.
+
+This proves exactly seven checked pre-`ExitBootServices` COM1 configuration
+writes on the recorded QEMU/OVMF platform. The marker is still transported
+through UEFI serial. It proves no `In8`, owned-backend marker payload,
+post-`ExitBootServices` output, physical hardware/provider behavior, hosted
+.NET, Minimal API, Kestrel, CloudReady status, production readiness, or
+numbered completion-gate advancement.
+
 ## Implemented Behavior
 
 - `tools/OS.QemuRunner` builds a QEMU command line for a raw or qcow2 GPT/FAT32 image, OVMF pflash, serial-file capture, AHCI disk attachment, and user-mode virtio networking.

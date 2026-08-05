@@ -14,11 +14,11 @@ internal static unsafe class ExistingIn8Out8StubBytesRWPagesFinalizeTests
     private const string TestName = "m02.002";
     private const string ReadyMarker =
         "CLROS_M02_002_READY pageBytes=4096 safeOffset=0 out8Offset=16 " +
-        "in8Offset=32 fnv1a64=F85393074A792B1E " +
-        "sha256=F8DAF2F093F6FCD3CB6CA764DCC294EC9B4DBF2B392D222946F11250BFCE353D " +
+        "in8Offset=32 fnv1a64=982E5B7E3EE58E56 " +
+        "sha256=B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2 " +
         "initial=RW+NX final=RO+X liveProtection=false liveExecution=false";
     private const string ExpectedSha256 =
-        "F8DAF2F093F6FCD3CB6CA764DCC294EC9B4DBF2B392D222946F11250BFCE353D";
+        "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     private const ulong ModeledPageAddress = 0x0040_0000;
     private const ulong OtherModeledPageAddress = 0x0041_0000;
     private const ulong PublicationEpoch = 7;
@@ -166,7 +166,7 @@ internal static unsafe class ExistingIn8Out8StubBytesRWPagesFinalizeTests
             && ExistingIn8Out8StubBytesRWPagesFinalize
                 .SafeReturnValue == 0x4f53_4f4b
             && ExistingIn8Out8StubBytesRWPagesFinalize
-                .ExpectedFnv1a64 == 0xf853_9307_4a79_2b1e
+                .ExpectedFnv1a64 == 0x982e_5b7e_3ee5_8e56
             && ExistingIn8Out8StubBytesRWPagesFinalize
                 .ReadWriteProtection == ReadWrite
             && ExistingIn8Out8StubBytesRWPagesFinalize
@@ -259,7 +259,7 @@ internal static unsafe class ExistingIn8Out8StubBytesRWPagesFinalizeTests
             && stubBytes[0] == Sentinel
             && stubBytes[8] == Sentinel
             && new ReadOnlySpan<byte>(stubBytes + 1, 7).SequenceEqual(
-                new byte[] { 0x66, 0x89, 0xca, 0x88, 0xd0, 0xee, 0xc3 })
+                new byte[] { 0x88, 0xd0, 0x66, 0x89, 0xca, 0xee, 0xc3 })
             && missingStub.Status
                 == PortIoStubPlanStatus.MissingDestination
             && shortStub.Status
@@ -270,7 +270,7 @@ internal static unsafe class ExistingIn8Out8StubBytesRWPagesFinalizeTests
             && hostOperation[0] == 0xee
             && hostStubResult.Succeeded
             && hostOut8.SequenceEqual(
-                new byte[] { 0x66, 0x89, 0xca, 0x88, 0xd0, 0xee, 0xc3 });
+                new byte[] { 0x88, 0xd0, 0x66, 0x89, 0xca, 0xee, 0xc3 });
     }
 
     private static bool TestPointerPagePath()
@@ -1031,7 +1031,7 @@ internal static unsafe class ExistingIn8Out8StubBytesRWPagesFinalizeTests
             && result.BytesWrittenOrVerified == 4096
             && result.InstructionByteCount == 18
             && result.OccupiedExtent == 37
-            && result.Fnv1a64 == 0xf853_9307_4a79_2b1e
+            && result.Fnv1a64 == 0x982e_5b7e_3ee5_8e56
             && result.PublicationEpoch == PublicationEpoch
             && result.TransitionVersion == 1
             && result.InitialProtection == ReadWrite
@@ -1097,7 +1097,7 @@ internal static unsafe class ExistingIn8Out8StubBytesRWPagesFinalizeTests
             || !page.Slice(0, 6).SequenceEqual(
                 new byte[] { 0xb8, 0x4b, 0x4f, 0x53, 0x4f, 0xc3 })
             || !page.Slice(16, 7).SequenceEqual(
-                new byte[] { 0x66, 0x89, 0xca, 0x88, 0xd0, 0xee, 0xc3 })
+                new byte[] { 0x88, 0xd0, 0x66, 0x89, 0xca, 0xee, 0xc3 })
             || !page.Slice(32, 5).SequenceEqual(
                 new byte[] { 0x66, 0x89, 0xca, 0xec, 0xc3 }))
         {

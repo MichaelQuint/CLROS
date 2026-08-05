@@ -50,7 +50,7 @@ The owned diagnostics subsystem is host-testable only. No real IDT load, fault h
 - `Com1SerialWriter` initializes and writes ASCII through an abstract byte port backend, polls transmit readiness, rejects invalid ASCII, reports backend failures without executing real port I/O, and rejects default/zero writer results as successful evidence.
 - `Com1PlatformSerialTransport` adapts `Com1SerialWriter` to `IPlatformSerialTransport`. It lazily initializes the writer, exposes itself as an owned serial transport, maps writer initialization, timeout, backend, invalid-ASCII, unavailable-readiness, and partial-write states into `PlatformSerialTransportResult`, and preserves compact encoded COM1 backend status for diagnostics. The current tests use fake byte-port backends only.
 - `PortIoOperationPlan` emits deterministic x64 `out dx, al` and `in al, dx` instruction bytes into caller-owned storage for a future C# shellcode port-I/O backend. It rejects default/zero result values and incomplete byte-count metadata as not successful.
-- `PortIoStubPlan` emits deterministic callable x64 COM1 byte-port stubs for unmanaged `Out8` and `In8` function pointers, reusing `PortIoOperationPlan` for the final privileged operation byte and ending each stub with `ret`. It rejects default/zero result values and incomplete byte-count metadata as not successful.
+- `PortIoStubPlan` emits deterministic callable x64 COM1 byte-port stubs for unmanaged `Out8` and `In8` function pointers, reusing `PortIoOperationPlan` for the final privileged operation byte and ending each stub with `ret`. The Windows x64 `Out8(ushort port, byte value)` sequence is exactly `88 D0 66 89 CA EE C3`: it copies incoming `DL` to `AL` before loading `CX` into `DX`, so loading the port cannot clobber the byte value. `In8` remains exactly `66 89 CA EC C3`. It rejects default/zero result values and incomplete byte-count metadata as not successful.
 - `ManagedX64StubStrategyADRUseExistingAudited` records the allocation-free,
   status-coded M02-001 authoring decision over those exact plans. One
   demonstrated port-I/O family selects `ExistingAuditedBytePlans`; a build-time
@@ -64,9 +64,9 @@ The owned diagnostics subsystem is host-testable only. No real IDT load, fault h
   `B8 4B 4F 53 4F C3` at offset 0, the existing seven-byte `Out8` plan at
   offset 16, the existing five-byte `In8` plan at offset 32, and zeroes
   everywhere else. Its occupied extent is 37 bytes, its instruction-byte count
-  is 18, its full-page FNV-1a64 is `F85393074A792B1E`, and its independently
+  is 18, its full-page FNV-1a64 is `982E5B7E3EE58E56`, and its independently
   host-verified SHA-256 is
-  `F8DAF2F093F6FCD3CB6CA764DCC294EC9B4DBF2B392D222946F11250BFCE353D`.
+  `B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2`.
   Always-compiled pointer cores provide materialize, full-page readback, and
   metadata-only finalization operations; normal host builds additionally expose
   `Span<T>` wrappers under `#if !NOSTDLIB_EFI`. A caller-owned value state
@@ -84,7 +84,7 @@ The owned diagnostics subsystem is host-testable only. No real IDT load, fault h
   reviewed page contract. Behind the default-off `M02_SAFE_STUB_PROBE` switch,
   it materializes the complete 4,096-byte page into the existing M01
   protection-probe allocation, verifies the full-page FNV-1a64
-  `F85393074A792B1E`, carries the page through the inherited immutable
+  `982E5B7E3EE58E56`, carries the page through the inherited immutable
   publication and temporary owned-root RX boundary, and audits only the
   offset-zero return-cookie entry. The call supplies no port or value
   arguments, never targets offsets 16 or 32, requires return cookie
@@ -103,7 +103,7 @@ The owned diagnostics subsystem is host-testable only. No real IDT load, fault h
 - `BootSequence.RunExitBootServicesPreflight` emits host-tested `UEFI_EBS_PREFLIGHT_READY` or `UEFI_EBS_PREFLIGHT_BLOCKED diagnostics=<status> plan=<status>` markers from post-firmware diagnostics and `UefiExitBootServicesPlanResult` readiness without calling firmware.
 - `FaultEntryStubPlan` emits deterministic, non-executed bytes for future CPU fault-entry stubs for `#UD` and `#PF`. The plan validates vector/error-code metadata, writes caller-owned byte buffers only, and terminates planned bytes with `ud2; ret` so accidental execution remains fail-fast during development.
 - `FaultProbeReadiness` validates disabled-by-default destructive probe toggles, invalid-opcode and null-write probe stub emission into caller-owned buffers, and executable-stub memory capacity before any future controlled CPU fault probe is wired into boot.
-- `Com1PortIoBackendPlan` validates the host-tested prerequisites for a future OS-owned COM1 port-I/O backend: serial configuration, byte-port operation plans, callable stub plans, and executable-stub memory layout capacity. It rejects default/zero result values and incomplete success metadata as successful evidence.
+- `Com1PortIoBackendPlan` validates the host-tested prerequisites for an OS-owned COM1 port-I/O backend: serial configuration, byte-port operation plans, the ABI-preserving callable stub order, and executable-stub memory layout capacity. It rejects default/zero result values and incomplete success metadata as successful evidence.
 - `Com1PortIoBackendContract` resolves planned COM1 `Out8` and `In8` stub offsets into absolute future backend addresses from an executable payload base address while rejecting failed readiness, missing slots, invalid COM1 base ports, zero payload bases, address overflow, and default/zero result values. It does not dereference or invoke function pointers.
 - `OwnedSerialDiagnosticsReadinessResult` derives OS-owned serial diagnostics readiness from a successful `Com1PortIoBackendPlanResult` and a successful `Com1PortIoBackendContractResult`, rejects default/zero readiness results, and requires resolved COM1 backend addresses. `SerialDiagnosticsGuard.MarkOwnedSerialReady(readiness)` marks owned serial ready only when that derived readiness succeeded.
 - `OwnedCom1DiagnosticsReadiness` composes the existing COM1 backend plan, backend contract, owned-serial readiness derivation, `SerialDiagnosticsGuard`, and `BootSequence.RunPostFirmwareDiagnosticsReadiness` marker boundary into one host-tested aggregate result. It reports nested backend, contract, guard, and marker statuses without installing a live port-I/O backend or calling firmware, and rejects default/zero aggregate readiness as success.
@@ -161,6 +161,21 @@ The owned diagnostics subsystem is host-testable only. No real IDT load, fault h
   accepted page metadata and requires a ready binding. It returns value-only
   status and never calls `InvokeOut8` or `InvokeIn8`; the guest marker therefore
   reports `guestInvocation=false portIoExecuted=false`.
+- `COM1OwnedPortIOBackend` wraps the checked value-only binding with a bounded
+  COM1 register window and status-coded `Out8`/`In8` results. Its default
+  configuration path performs exactly seven writes in order: IER `0x00`, LCR
+  `0x80`, divisor low `0x01`, divisor high `0x00`, LCR `0x03`, FCR `0xC7`, and
+  MCR `0x0B`. It rejects an unready binding and ports outside `0x3F8..0x3FF`.
+  Host tests use safe unmanaged callbacks and separately prove the existing
+  serial writer adapter and line-status read path.
+- `M02Com1OwnedPortIoBackendIntegration` compiles that backend into the
+  default-off no-stdlib EFI profile. Only after M02-017 safe execution,
+  firmware paging/restoration audits, and M02-003 checked binding succeed, it
+  calls `ConfigureDefault()` once and requires seven completed writes. Fresh
+  QEMU/OVMF evidence emitted exactly one
+  `CLROS_M02_004_READY configurationWrites=7 bindingReady=true guestPortIo=true guestIn8=false markerTransport=uefiSerial postExitBootServices=false`.
+  The marker still travels through UEFI serial; this slice does not poll `In8`
+  or write payload bytes through the owned backend.
 - `DiagnosticStubCallableBindingPlanDiagnosticFormatter` formats initialized
   callable-binding plan metadata into stable caller-owned ASCII
   `DIAGNOSTIC_STUB_CALLABLE_BINDING status=` marker bytes. It reports required
@@ -747,21 +762,36 @@ not guest invocation of offsets 16/32, live port I/O, COM1 ownership, or
 post-`ExitBootServices` diagnostics. Review and merge remain separate tracker
 requirements and this result changes no numbered completion gate.
 
+M02-004 supersedes the old host-only `Out8` byte order for live-use suitability.
+The earlier M02-002 ledger remains accurate for its historical bytes, while the
+current callable sequence preserves `DL` before `DX` is repurposed and binds the
+page to FNV-1a64 `982E5B7E3EE58E56` and SHA-256
+`B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2`.
+The current 485,888-byte EFI artifact has SHA-256
+`61CA5D6879DA1AE7DC0A6938AA61AD64DCEFBD61AA937C0DF2D8C3BF0809820E`.
+One real QEMU/OVMF run observed the exact M02-004 ready marker once, all 50
+ordered/unique cumulative markers, and no forbidden marker. The 2,753-byte
+serial log SHA-256 is
+`E452EF725FAF34775EE00C310E86245F217CA2638926B70B3194C711A0F2876D`.
+This proves seven pre-`ExitBootServices` COM1 configuration writes on that
+virtual platform. It does not prove `In8` polling, owned-backend serial payload
+transport, post-`ExitBootServices` diagnostics, physical hardware, or a numbered
+completion-gate advancement.
+
 ## Next Steps
 
 1. Wire `PanicSerialReporter` into a real panic-safe serial path after the owned serial platform boundary has a live COM1 backend.
-2. Add an OS-owned COM1 port-I/O backend for `Com1SerialWriter` using the operation, callable-stub, backend-readiness, backend-contract, executable-stub memory, and `IPlatformSerial` contracts, and wire it through `SerialDiagnosticsGuard`.
+2. Route a bounded marker payload through the now guest-executed COM1 backend,
+   then wire that writer through `SerialDiagnosticsGuard`; do not infer owned
+   payload transport from the seven configuration writes.
 3. Add IDT/GDT/TSS/IST setup using the descriptor, IDTR, GDT, TSS/IST, readiness, install-readiness, table-plan, vector, descriptor-instruction, and descriptor-install stub contracts.
 4. Add real executable-stub page transitions using the W^X layout, materialization, and page-transition plan contracts.
-5. Consume the now guest-checked M02-003 binding only in a separately owned
-   privileged-I/O lane that deliberately invokes offsets 16/32 and proves the
-   exact target/result. Do not infer live port I/O from address readiness or
-   from the safe host callback evidence.
+5. Keep M02-004's proved `Out8` configuration sequence distinct from future
+   `In8` polling, owned marker payload output, and post-firmware diagnostics.
 6. Wire the COM1 backend contract into an owned serial writer only after generated stubs can be safely mapped executable and invoked.
 7. Add the controlled null-read and invalid-opcode probes behind `Probes.cs`
    toggles only in their dedicated issues; M02-014 must consume the disabled
    M01-015 intent after owned diagnostics exist.
 8. Wire real handler register capture into `CpuFaultFrame` through the deterministic fault-entry layout.
-9. Keep M02-003's accepted guest binding-readiness marker distinct from future
-   live `In8`/`Out8`, COM1 ownership, and port-I/O evidence; those claims remain
-   blocked until their own scoped implementation and QEMU evidence pass.
+9. Keep M02-003's accepted binding-readiness marker and M02-004's seven-write
+   guest marker distinct from future owned serial-output and post-EBS claims.

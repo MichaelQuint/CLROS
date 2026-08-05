@@ -250,8 +250,17 @@ public static class ManagedX64StubStrategyADRUseExistingAudited
         return ManagedX64StubStrategyStatus.Success;
     }
 
-    private static bool HasExactAuditedBytePlanContract()
+    private static unsafe bool HasExactAuditedBytePlanContract()
     {
+        byte* out8 = stackalloc byte[PortIoStubPlan.Out8RequiredByteLength];
+        byte* in8 = stackalloc byte[PortIoStubPlan.In8RequiredByteLength];
+        PortIoStubPlanResult out8Result = PortIoStubPlan.Out8.Emit(
+            out8,
+            PortIoStubPlan.Out8RequiredByteLength);
+        PortIoStubPlanResult in8Result = PortIoStubPlan.In8.Emit(
+            in8,
+            PortIoStubPlan.In8RequiredByteLength);
+
         return PortIoStubPlan.Out8RequiredByteLength == 7 &&
             PortIoStubPlan.In8RequiredByteLength == 5 &&
             PortIoStubPlan.OperandSizeOverridePrefix == 0x66 &&
@@ -261,6 +270,20 @@ public static class ManagedX64StubStrategyADRUseExistingAudited
             PortIoStubPlan.MovDlToAlModRm == 0xd0 &&
             PortIoOperationPlan.Out8Opcode == 0xee &&
             PortIoOperationPlan.In8Opcode == 0xec &&
-            PortIoStubPlan.RetOpcode == 0xc3;
+            PortIoStubPlan.RetOpcode == 0xc3 &&
+            out8Result.Succeeded &&
+            in8Result.Succeeded &&
+            out8[0] == PortIoStubPlan.MovR8ToRm8Opcode &&
+            out8[1] == PortIoStubPlan.MovDlToAlModRm &&
+            out8[2] == PortIoStubPlan.OperandSizeOverridePrefix &&
+            out8[3] == PortIoStubPlan.MovR16ToRm16Opcode &&
+            out8[4] == PortIoStubPlan.MovCxToDxModRm &&
+            out8[5] == PortIoOperationPlan.Out8Opcode &&
+            out8[6] == PortIoStubPlan.RetOpcode &&
+            in8[0] == PortIoStubPlan.OperandSizeOverridePrefix &&
+            in8[1] == PortIoStubPlan.MovR16ToRm16Opcode &&
+            in8[2] == PortIoStubPlan.MovCxToDxModRm &&
+            in8[3] == PortIoOperationPlan.In8Opcode &&
+            in8[4] == PortIoStubPlan.RetOpcode;
     }
 }

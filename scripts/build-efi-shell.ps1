@@ -34,7 +34,8 @@ param(
     [switch] $EnableM01LiveAllocatorProbe,
     [switch] $EnableM01OwnedPagingProbe,
     [switch] $EnableM02SafeStubProbe,
-    [switch] $EnableM02CheckedPortIoBindingProbe
+    [switch] $EnableM02CheckedPortIoBindingProbe,
+    [switch] $EnableM02Com1OwnedPortIoProbe
 )
 
 $ErrorActionPreference = "Stop"
@@ -80,6 +81,7 @@ $script:ExpectedEfiCompileItems = @(
     '..\OS.Kernel\Diagnostics\PortIoStubPlan.cs|Diagnostics\PortIoStubPlan.cs',
     '..\OS.Kernel\Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs|Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs',
     '..\OS.Kernel\Diagnostics\InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs|Diagnostics\InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs',
+    '..\OS.Kernel\Diagnostics\COM1OwnedPortIOBackend.cs|Diagnostics\COM1OwnedPortIOBackend.cs',
     '..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs|Boot\M01LoadedImageStackIntegration.cs',
     '..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs|Boot\M01LiveAllocatorIntegration.cs',
     '..\OS.Kernel\Boot\M01LivePagingIntegration.cs|Boot\M01LivePagingIntegration.cs',
@@ -87,6 +89,7 @@ $script:ExpectedEfiCompileItems = @(
     'Boot\EfiConsoleAdapter.cs|',
     'Boot\EfiEntry.cs|',
     'Boot\M02CheckedPortIoFunctionPointerIntegration.cs|',
+    'Boot\M02Com1OwnedPortIoBackendIntegration.cs|',
     'Boot\M02SafeStubPageIntegration.cs|',
     'Boot\X64InstructionPublication.cs|',
     'Runtime\RuntimeImportAttribute.cs|',
@@ -370,7 +373,7 @@ $script:M01SourceContractTokens = @{
         'public const ulong PageSize = 4096;',
         'public const ulong Out8Offset = 16;',
         'public const ulong In8Offset = 32;',
-        'public const ulong ExpectedFnv1a64 = 0xf853_9307_4a79_2b1e;',
+        'public const ulong ExpectedFnv1a64 = 0x982e_5b7e_3ee5_8e56;',
         'public const bool PerformsLiveExecution = false;',
         'public const bool InvokesSafeStub = false;',
         'public const bool InvokesPortIo = false;',
@@ -5048,6 +5051,7 @@ function Test-M01EvaluatedSourceClosure {
         [bool] $OwnedPagingEnabled,
         [bool] $M02SafeStubEnabled,
         [bool] $M02CheckedPortIoBindingEnabled,
+        [bool] $M02Com1OwnedPortIoEnabled,
         [bool] $UefiGoneSimulationEnabled,
         [bool] $ExitBootServicesFreshMapEnabled,
         [bool] $AcpiPhysicalDiscoveryEnabled
@@ -5078,6 +5082,8 @@ function Test-M01EvaluatedSourceClosure {
             $M02SafeStubEnabled.ToString().ToLowerInvariant()
         "EnableM02CheckedPortIoBindingProbe" =
             $M02CheckedPortIoBindingEnabled.ToString().ToLowerInvariant()
+        "EnableM02Com1OwnedPortIoProbe" =
+            $M02Com1OwnedPortIoEnabled.ToString().ToLowerInvariant()
     }
     $expectedSwitchSymbols = [ordered] @{
         "M01_LOADED_IMAGE_STACK_PROBE" = $LoadedImageStackEnabled
@@ -5086,6 +5092,7 @@ function Test-M01EvaluatedSourceClosure {
         "M02_SAFE_STUB_PROBE" = $M02SafeStubEnabled
         "M02_CHECKED_PORT_IO_BINDING_PROBE" =
             $M02CheckedPortIoBindingEnabled
+        "M02_COM1_OWNED_PORT_IO_PROBE" = $M02Com1OwnedPortIoEnabled
         "UEFI_GONE_SIMULATION_PROBE" = $UefiGoneSimulationEnabled
         "EXIT_BOOT_SERVICES_FRESH_MAP_PROBE" =
             $ExitBootServicesFreshMapEnabled
@@ -5111,6 +5118,7 @@ function Test-M01EvaluatedSourceClosure {
                 "EnableM01OwnedPagingProbe," +
                 "EnableM02SafeStubProbe," +
                 "EnableM02CheckedPortIoBindingProbe," +
+                "EnableM02Com1OwnedPortIoProbe," +
                 "DefineConstants," +
                 "EnableDefaultCompileItems," +
                 "NoStdLib," +
@@ -5177,6 +5185,9 @@ function Test-M01EvaluatedSourceClosure {
         }
         if ($M02CheckedPortIoBindingEnabled) {
             $arguments += "-p:EnableM02CheckedPortIoBindingProbe=true"
+        }
+        if ($M02Com1OwnedPortIoEnabled) {
+            $arguments += "-p:EnableM02Com1OwnedPortIoProbe=true"
         }
         if ($UefiGoneSimulationEnabled) {
             $arguments += "-p:EnableUefiGoneSimulationProbe=true"
@@ -5698,6 +5709,7 @@ function Test-M01SourceClosure {
         [bool] $OwnedPagingEnabled,
         [bool] $M02SafeStubEnabled,
         [bool] $M02CheckedPortIoBindingEnabled,
+        [bool] $M02Com1OwnedPortIoEnabled,
         [bool] $UefiGoneSimulationEnabled,
         [bool] $ExitBootServicesFreshMapEnabled,
         [bool] $AcpiPhysicalDiscoveryEnabled
@@ -5747,7 +5759,7 @@ function Test-M01SourceClosure {
 
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "d7f0cdd41d3d742e5f62f45ac5242f8763b9476a2ce19713fbe8d3c9540723b6") {
+        "5747fab8e5e16e391e0ad13db56aca9ee8104fda5c654e9447ffa17aec6b0b39") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `
@@ -5806,6 +5818,7 @@ function Test-M01SourceClosure {
         "EnableM01OwnedPagingProbe" = "M01_OWNED_PAGING_PROBE"
         "EnableM02SafeStubProbe" = "M02_SAFE_STUB_PROBE"
         "EnableM02CheckedPortIoBindingProbe" = "M02_CHECKED_PORT_IO_BINDING_PROBE"
+        "EnableM02Com1OwnedPortIoProbe" = "M02_COM1_OWNED_PORT_IO_PROBE"
         "EnableUefiGoneSimulationProbe" = "UEFI_GONE_SIMULATION_PROBE"
         "EnableExitBootServicesFreshMapProbe" = "EXIT_BOOT_SERVICES_FRESH_MAP_PROBE"
         "EnableAcpiPhysicalDiscoveryProbe" = "ACPI_PHYSICAL_DISCOVERY_PROBE"
@@ -5848,6 +5861,7 @@ function Test-M01SourceClosure {
         "EnableM01OwnedPagingProbe" = "M01_OWNED_PAGING_PROBE"
         "EnableM02SafeStubProbe" = "M02_SAFE_STUB_PROBE"
         "EnableM02CheckedPortIoBindingProbe" = "M02_CHECKED_PORT_IO_BINDING_PROBE"
+        "EnableM02Com1OwnedPortIoProbe" = "M02_COM1_OWNED_PORT_IO_PROBE"
     }
     foreach ($entry in $switchSymbols.GetEnumerator()) {
         $defaultNodes = @($project.SelectNodes(
@@ -5905,13 +5919,17 @@ function Test-M01SourceClosure {
     $m02CheckedBindingDependencyCondition =
         "'" + '$' + "(EnableM02CheckedPortIoBindingProbe)' == 'true' and '" +
         '$' + "(EnableM02SafeStubProbe)' != 'true'"
+    $m02Com1OwnedPortIoDependencyCondition =
+        "'" + '$' + "(EnableM02Com1OwnedPortIoProbe)' == 'true' and '" +
+        '$' + "(EnableM02CheckedPortIoBindingProbe)' != 'true'"
     $requiredErrorConditions = @(
         $allocatorDependencyCondition,
         $pagingDependencyCondition,
         $m02LoadedImageDependencyCondition,
         $m02AllocatorDependencyCondition,
         $m02PagingDependencyCondition,
-        $m02CheckedBindingDependencyCondition
+        $m02CheckedBindingDependencyCondition,
+        $m02Com1OwnedPortIoDependencyCondition
     )
     if ($errorConditions.Count -ne $requiredErrorConditions.Count -or
         $validationTargets[0].SelectNodes("*").Count -ne $errorNodes.Count) {
@@ -6217,6 +6235,7 @@ function Test-M01SourceClosure {
         -OwnedPagingEnabled $OwnedPagingEnabled `
         -M02SafeStubEnabled $M02SafeStubEnabled `
         -M02CheckedPortIoBindingEnabled $M02CheckedPortIoBindingEnabled `
+        -M02Com1OwnedPortIoEnabled $M02Com1OwnedPortIoEnabled `
         -UefiGoneSimulationEnabled $UefiGoneSimulationEnabled `
         -ExitBootServicesFreshMapEnabled $ExitBootServicesFreshMapEnabled `
         -AcpiPhysicalDiscoveryEnabled $AcpiPhysicalDiscoveryEnabled
@@ -6389,8 +6408,8 @@ try {
             (Format-EvidenceValue $_.Exception.Message))
         exit 1
     }
-    if ($sourceSnapshotBeforePublish.InputCount -ne 63 -or
-        $sourceSnapshotAfterLock.InputCount -ne 63 -or
+    if ($sourceSnapshotBeforePublish.InputCount -ne 65 -or
+        $sourceSnapshotAfterLock.InputCount -ne 65 -or
         $sourceSnapshotBeforePublish.AggregateSha256 -cne
             $sourceSnapshotAfterLock.AggregateSha256 -or
         $sourceSnapshotBeforePublish.AuthoritySha256 -cne
@@ -6403,7 +6422,7 @@ try {
         exit 1
     }
     Write-Host "EFI_PUBLISH_SOURCE_LOCK status=ok"
-    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=63"
+    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=65"
 
 Write-EfiPreflightLine "EFI_PREFLIGHT_START"
 
@@ -6426,6 +6445,8 @@ $m02SafeStubProbeEnabled =
     $EnableM02SafeStubProbe.IsPresent.ToString().ToLowerInvariant()
 $m02CheckedPortIoBindingProbeEnabled =
     $EnableM02CheckedPortIoBindingProbe.IsPresent.ToString().ToLowerInvariant()
+$m02Com1OwnedPortIoProbeEnabled =
+    $EnableM02Com1OwnedPortIoProbe.IsPresent.ToString().ToLowerInvariant()
 $m01SwitchEvidence =
     "loadedImageStack=" + $loadedImageStackProbeEnabled +
     " liveAllocator=" + $liveAllocatorProbeEnabled +
@@ -6436,7 +6457,8 @@ $m02SwitchEvidence =
     " loadedImageStack=" + $loadedImageStackProbeEnabled +
     " liveAllocator=" + $liveAllocatorProbeEnabled +
     " ownedPaging=" + $ownedPagingProbeEnabled +
-    " checkedPortIoBinding=" + $m02CheckedPortIoBindingProbeEnabled
+    " checkedPortIoBinding=" + $m02CheckedPortIoBindingProbeEnabled +
+    " com1OwnedPortIo=" + $m02Com1OwnedPortIoProbeEnabled
 
 if ($EnableM02SafeStubProbe -and -not $EnableM01LoadedImageStackProbe) {
     Stop-EfiPreflight `
@@ -6477,6 +6499,18 @@ if ($EnableM02CheckedPortIoBindingProbe -and -not $EnableM02SafeStubProbe) {
             "EFI_PREFLIGHT_M02_SWITCHES " + $m02SwitchEvidence +
             " reason=checked_binding_requires_safe_stub") `
         -Reason "m02_checked_binding_requires_safe_stub" `
+        -LogFullPath $logFullPath `
+        -ReportedLogPath $LogPath `
+        -Status "invalid"
+}
+
+if ($EnableM02Com1OwnedPortIoProbe -and
+    -not $EnableM02CheckedPortIoBindingProbe) {
+    Stop-EfiPreflight `
+        -Marker (
+            "EFI_PREFLIGHT_M02_SWITCHES " + $m02SwitchEvidence +
+            " reason=com1_owned_port_io_requires_checked_binding") `
+        -Reason "m02_com1_owned_port_io_requires_checked_binding" `
         -LogFullPath $logFullPath `
         -ReportedLogPath $LogPath `
         -Status "invalid"
@@ -6579,6 +6613,7 @@ $m01SourceClosure = Test-M01SourceClosure `
     -OwnedPagingEnabled $EnableM01OwnedPagingProbe.IsPresent `
     -M02SafeStubEnabled $EnableM02SafeStubProbe.IsPresent `
     -M02CheckedPortIoBindingEnabled $EnableM02CheckedPortIoBindingProbe.IsPresent `
+    -M02Com1OwnedPortIoEnabled $EnableM02Com1OwnedPortIoProbe.IsPresent `
     -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
     -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
     -AcpiPhysicalDiscoveryEnabled $EnableAcpiPhysicalDiscoveryProbe.IsPresent
@@ -7155,6 +7190,11 @@ if ($EnableM02CheckedPortIoBindingProbe) {
     Write-Host "EFI_PROBE M02_CHECKED_PORT_IO_BINDING"
 }
 
+if ($EnableM02Com1OwnedPortIoProbe) {
+    $arguments += "-p:EnableM02Com1OwnedPortIoProbe=true"
+    Write-Host "EFI_PROBE M02_COM1_OWNED_PORT_IO"
+}
+
 if ($EnableUefiGoneSimulationProbe) {
     $arguments += "-p:EnableUefiGoneSimulationProbe=true"
     Write-Host "EFI_PROBE UEFI_GONE_SIMULATION"
@@ -7265,6 +7305,7 @@ $methodImplAttributeSourcePath = Join-Path $repositoryRoot (
         -OwnedPagingEnabled $EnableM01OwnedPagingProbe.IsPresent `
         -M02SafeStubEnabled $EnableM02SafeStubProbe.IsPresent `
         -M02CheckedPortIoBindingEnabled $EnableM02CheckedPortIoBindingProbe.IsPresent `
+        -M02Com1OwnedPortIoEnabled $EnableM02Com1OwnedPortIoProbe.IsPresent `
         -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
         -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
         -AcpiPhysicalDiscoveryEnabled $EnableAcpiPhysicalDiscoveryProbe.IsPresent

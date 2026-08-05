@@ -6501,7 +6501,7 @@
         "M02-003"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -6576,7 +6576,7 @@
         "docs/boot-order.md"
       ],
       "evidenceBoundary": "This issue proves only \"Configure COM1 through the owned port-I/O backend.\" It does not by itself prove the M02 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M02-005",

@@ -3597,6 +3597,38 @@ adoption, descriptor-table installation, controlled fault, real
 CloudReady status, or production readiness, and it changes no numbered
 completion-gate status.
 
+### Out8 ABI repair and COM1 configuration QEMU proof (M02-004)
+
+The historical M02-017 evidence above remains accurate for the old host-only
+page image it recorded. The first M02-004 privileged invocation exposed that
+the old `66 89 CA 88 D0 EE C3` order copied `CX` into `DX` before preserving
+the Windows x64 byte argument in `DL`. The production C# emitter now writes
+exactly `88 D0 66 89 CA EE C3`, so `AL` receives the requested byte before
+`DX` is repurposed for the port. `In8`, the fixed offsets, lengths,
+instruction-byte count, and occupied extent are unchanged. The current page is
+bound to FNV-1a64 `982E5B7E3EE58E56` and SHA-256
+`B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2`.
+
+The default-off M02-004 integration runs only after the accepted safe-entry,
+instruction-publication, firmware-CR3, CR4/RFLAGS, W^X, TLB, and page-zero
+audits. It reuses the checked M02-003 binding, calls the status-coded COM1
+backend's default configuration once, and requires seven successful writes in
+order: IER `0x00`, LCR `0x80`, divisor low `0x01`, divisor high `0x00`, LCR
+`0x03`, FCR `0xC7`, and MCR `0x0B`.
+
+A fresh real QEMU/OVMF run observed all 50 cumulative markers exactly once and
+in order, no forbidden marker, and one exact
+`CLROS_M02_004_READY configurationWrites=7 bindingReady=true guestPortIo=true guestIn8=false markerTransport=uefiSerial postExitBootServices=false`.
+The 485,888-byte EFI artifact and 2,753-byte serial log SHA-256 values are
+`61CA5D6879DA1AE7DC0A6938AA61AD64DCEFBD61AA937C0DF2D8C3BF0809820E`
+and
+`E452EF725FAF34775EE00C310E86245F217CA2638926B70B3194C711A0F2876D`.
+
+This adds no `BootSequence` phase and proves no `In8`, serial payload written
+through the owned backend, post-`ExitBootServices` diagnostics, physical
+hardware/provider behavior, hosted .NET, Minimal API, Kestrel, CloudReady
+status, production readiness, or numbered completion-gate advancement.
+
 ### Live-paging feasibility and prerequisite recovery (M01-028)
 
 M01-028 records a backlog and evidence-boundary repair; it implements no paging
