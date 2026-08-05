@@ -136,6 +136,13 @@ existing M01-026 shim.
   assertion now uses the same bounded 120-second fixture-process ceiling while
   both parser-performance limits remain unchanged; the 89,174-byte stdout and
   264-byte exception-only stderr streams were rejected.
+- The following wave passed the repaired capacity/performance envelope and
+  reached the M02-004 EFI integration tests at 1,318 starts / 1,316 passes. Its
+  marker-order test still searched for the rejected static result name instead
+  of the accepted local `com1Configuration`, then passed the missing index to a
+  later `IndexOf` and threw. The owned source test now asserts the local guard
+  and makes every chained search fail closed; the 168,499-byte stdout and
+  282-byte exception-only stderr streams were rejected.
 
 ## Deferred work
 

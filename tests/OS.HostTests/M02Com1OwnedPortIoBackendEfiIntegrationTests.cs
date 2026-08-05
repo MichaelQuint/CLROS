@@ -239,27 +239,33 @@ internal static class M02Com1OwnedPortIoBackendEfiIntegrationTests
         int executionAudit = source.IndexOf(
             "if (!s_m02ExecutionAudit.Succeeded)",
             StringComparison.Ordinal);
-        int checkedBinding = source.IndexOf(
+        int checkedBinding = IndexOfAfter(
+            source,
             "M02CheckedPortIoFunctionPointerIntegration.Bind(",
             executionAudit,
             StringComparison.Ordinal);
-        int checkedGuard = source.IndexOf(
+        int checkedGuard = IndexOfAfter(
+            source,
             "if (!s_m02CheckedPortIoBinding.Succeeded)",
             checkedBinding,
             StringComparison.Ordinal);
-        int configuration = source.IndexOf(
+        int configuration = IndexOfAfter(
+            source,
             "M02Com1OwnedPortIoBackendIntegration.Configure(",
             checkedGuard,
             StringComparison.Ordinal);
-        int configurationGuard = source.IndexOf(
-            "if (!s_m02Com1OwnedPortIoConfiguration.Succeeded)",
+        int configurationGuard = IndexOfAfter(
+            source,
+            "if (!com1Configuration.Succeeded)",
             configuration,
             StringComparison.Ordinal);
-        int checkedReady = source.IndexOf(
+        int checkedReady = IndexOfAfter(
+            source,
             "WriteM02CheckedPortIoBindingSuccessLine(",
             configurationGuard,
             StringComparison.Ordinal);
-        int com1Ready = source.IndexOf(
+        int com1Ready = IndexOfAfter(
+            source,
             "WriteM02Com1OwnedPortIoSuccessLine(",
             checkedReady,
             StringComparison.Ordinal);
@@ -358,5 +364,19 @@ internal static class M02Com1OwnedPortIoBackendEfiIntegrationTests
         }
 
         return count;
+    }
+
+    private static int IndexOfAfter(
+        string source,
+        string value,
+        int startIndex,
+        StringComparison comparison)
+    {
+        if (startIndex < 0 || startIndex > source.Length)
+        {
+            return -1;
+        }
+
+        return source.IndexOf(value, startIndex, comparison);
     }
 }
