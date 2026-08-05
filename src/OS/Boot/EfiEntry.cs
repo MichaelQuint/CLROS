@@ -5402,6 +5402,18 @@ public static unsafe class EfiEntry
     private static AcpiEcamSegmentScratchBuffer s_acpiEcamSegmentScratch;
 #endif
 
+#if M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE && !M01_OWNED_PAGING_PROBE
+    // This profile has bounded stackalloc workspaces but does not enable the
+    // M01 paging adapter that normally owns the no-CRT GS-cookie symbol. The
+    // method is never called; its code bytes are only linker-visible storage.
+    // Randomized cookie initialization remains a later hardening milestone.
+    [System.Runtime.RuntimeExport("__security_cookie")]
+    private static ulong M04SecurityCookieStorageAnchor()
+    {
+        return 0x434c_524f_5347_5334UL;
+    }
+#endif
+
     [System.Runtime.RuntimeExport("EfiMain")]
     private static long EfiMain(void* imageHandle, EfiSystemTable* systemTable)
     {
@@ -5470,6 +5482,12 @@ public static unsafe class EfiEntry
     {
         WriteEfiMainStart(console, serial);
         WriteEfiConsoleReady(console, serial);
+#if M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE
+        if (!WriteM04IndependentEndianConformanceProbe(console, serial))
+        {
+            return;
+        }
+#endif
         if (TryCaptureUefiMemoryMap(systemTable))
         {
             WriteUefiMemoryMapReady(console, serial);
@@ -5603,6 +5621,150 @@ public static unsafe class EfiEntry
         Write(console, serial, 89);
         WriteCrLf(console, serial);
     }
+
+#if M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE
+    private static bool WriteM04IndependentEndianConformanceProbe(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        OS.Std.Binary.IndependentEndianReadVector* readVectors =
+            stackalloc OS.Std.Binary.IndependentEndianReadVector[
+                OS.Std.Binary
+                    .IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa
+                    .ReadVectorCount];
+        OS.Std.Binary.IndependentEndianReverseVector* reverseVectors =
+            stackalloc OS.Std.Binary.IndependentEndianReverseVector[
+                OS.Std.Binary
+                    .IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa
+                    .ReverseVectorCount];
+
+        OS.Std.Binary.IndependentEndianConformanceResult copyResult =
+            OS.Std.Binary
+                .IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa
+                .CopyBuiltInCatalog(
+                    readVectors,
+                    OS.Std.Binary
+                        .IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa
+                        .ReadVectorCount,
+                    reverseVectors,
+                    OS.Std.Binary
+                        .IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa
+                        .ReverseVectorCount);
+        OS.Std.Binary.IndependentEndianConformanceResult validationResult =
+            OS.Std.Binary
+                .IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa
+                .ValidateCatalog(
+                    readVectors,
+                    OS.Std.Binary
+                        .IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa
+                        .ReadVectorCount,
+                    reverseVectors,
+                    OS.Std.Binary
+                        .IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa
+                        .ReverseVectorCount,
+                    OS.Std.Binary
+                        .IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa
+                        .ExpectedCatalogFingerprint);
+
+        if (!copyResult.Succeeded ||
+            !validationResult.Succeeded ||
+            copyResult.ReadVectorCount != 25 ||
+            copyResult.ReverseVectorCount != 7 ||
+            validationResult.ReadVectorCount != 25 ||
+            validationResult.ReverseVectorCount != 7 ||
+            validationResult.ActualFingerprint != 0xE81E4451E8D999F6UL ||
+            OS.Std.Binary
+                .IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa
+                .ByteSeriesCount != 5 ||
+            OS.Std.Binary
+                .IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa
+                .UInt16SeriesCount != 7 ||
+            OS.Std.Binary
+                .IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa
+                .ReferenceFilesRequired ||
+            OS.Std.Binary
+                .IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa
+                .RequiresHostConformance ||
+            OS.Std.Binary
+                .IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa
+                .AddsCanonicalSystemNamespace ||
+            OS.Std.Binary
+                .IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa
+                .SatisfiesRuntimeCompletionGate4 ||
+            validationResult.SatisfiesRuntimeCompletionGate4)
+        {
+            WriteM04IndependentEndianConformanceFailureLine(console, serial);
+            return false;
+        }
+
+        WriteM04IndependentEndianConformanceSuccessLine(console, serial);
+        return true;
+    }
+
+    private static void WriteM04IndependentEndianConformanceSuccessLine(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        WriteM04Ascii(console, serial, (byte)'C', (byte)'L', (byte)'R', (byte)'O', (byte)'S', (byte)'_', (byte)'M', (byte)'0');
+        WriteM04Ascii(console, serial, (byte)'4', (byte)'_', (byte)'0', (byte)'0', (byte)'2', (byte)'_', (byte)'R', (byte)'E');
+        WriteM04Ascii(console, serial, (byte)'A', (byte)'D', (byte)'Y', (byte)' ', (byte)'r', (byte)'e', (byte)'a', (byte)'d');
+        WriteM04Ascii(console, serial, (byte)'V', (byte)'e', (byte)'c', (byte)'t', (byte)'o', (byte)'r', (byte)'s', (byte)'=');
+        WriteM04Ascii(console, serial, (byte)'2', (byte)'5', (byte)' ', (byte)'r', (byte)'e', (byte)'v', (byte)'e', (byte)'r');
+        WriteM04Ascii(console, serial, (byte)'s', (byte)'e', (byte)'V', (byte)'e', (byte)'c', (byte)'t', (byte)'o', (byte)'r');
+        WriteM04Ascii(console, serial, (byte)'s', (byte)'=', (byte)'7', (byte)' ', (byte)'b', (byte)'y', (byte)'t', (byte)'e');
+        WriteM04Ascii(console, serial, (byte)'S', (byte)'e', (byte)'r', (byte)'i', (byte)'e', (byte)'s', (byte)'=', (byte)'5');
+        WriteM04Ascii(console, serial, (byte)' ', (byte)'u', (byte)'i', (byte)'n', (byte)'t', (byte)'1', (byte)'6', (byte)'S');
+        WriteM04Ascii(console, serial, (byte)'e', (byte)'r', (byte)'i', (byte)'e', (byte)'s', (byte)'=', (byte)'7', (byte)' ');
+        WriteM04Ascii(console, serial, (byte)'f', (byte)'i', (byte)'n', (byte)'g', (byte)'e', (byte)'r', (byte)'p', (byte)'r');
+        WriteM04Ascii(console, serial, (byte)'i', (byte)'n', (byte)'t', (byte)'=', (byte)'E', (byte)'8', (byte)'1', (byte)'E');
+        WriteM04Ascii(console, serial, (byte)'4', (byte)'4', (byte)'5', (byte)'1', (byte)'E', (byte)'8', (byte)'D', (byte)'9');
+        WriteM04Ascii(console, serial, (byte)'9', (byte)'9', (byte)'F', (byte)'6', (byte)' ', (byte)'r', (byte)'e', (byte)'f');
+        WriteM04Ascii(console, serial, (byte)'e', (byte)'r', (byte)'e', (byte)'n', (byte)'c', (byte)'e', (byte)'F', (byte)'i');
+        WriteM04Ascii(console, serial, (byte)'l', (byte)'e', (byte)'s', (byte)'R', (byte)'e', (byte)'q', (byte)'u', (byte)'i');
+        WriteM04Ascii(console, serial, (byte)'r', (byte)'e', (byte)'d', (byte)'=', (byte)'f', (byte)'a', (byte)'l', (byte)'s');
+        WriteM04Ascii(console, serial, (byte)'e', (byte)' ', (byte)'h', (byte)'o', (byte)'s', (byte)'t', (byte)'C', (byte)'o');
+        WriteM04Ascii(console, serial, (byte)'n', (byte)'f', (byte)'o', (byte)'r', (byte)'m', (byte)'a', (byte)'n', (byte)'c');
+        WriteM04Ascii(console, serial, (byte)'e', (byte)'=', (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ');
+        WriteM04Ascii(console, serial, (byte)'g', (byte)'u', (byte)'e', (byte)'s', (byte)'t', (byte)'I', (byte)'n', (byte)'t');
+        WriteM04Ascii(console, serial, (byte)'e', (byte)'g', (byte)'r', (byte)'a', (byte)'t', (byte)'e', (byte)'d', (byte)'=');
+        WriteM04Ascii(console, serial, (byte)'t', (byte)'r', (byte)'u', (byte)'e', (byte)' ', (byte)'g', (byte)'a', (byte)'t');
+        WriteM04Ascii(console, serial, (byte)'e', (byte)'4', (byte)'=', (byte)'F', (byte)'a', (byte)'i', (byte)'l', 0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM04IndependentEndianConformanceFailureLine(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        WriteM04Ascii(console, serial, (byte)'M', (byte)'0', (byte)'4', (byte)'_', (byte)'E', (byte)'N', (byte)'D', (byte)'I');
+        WriteM04Ascii(console, serial, (byte)'A', (byte)'N', (byte)'_', (byte)'C', (byte)'O', (byte)'N', (byte)'F', (byte)'O');
+        WriteM04Ascii(console, serial, (byte)'R', (byte)'M', (byte)'A', (byte)'N', (byte)'C', (byte)'E', (byte)'_', (byte)'F');
+        WriteM04Ascii(console, serial, (byte)'A', (byte)'I', (byte)'L', (byte)'E', (byte)'D', 0, 0, 0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM04Ascii(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial,
+        byte b0,
+        byte b1,
+        byte b2,
+        byte b3,
+        byte b4,
+        byte b5,
+        byte b6,
+        byte b7)
+    {
+        if (b0 != 0) Write(console, serial, b0);
+        if (b1 != 0) Write(console, serial, b1);
+        if (b2 != 0) Write(console, serial, b2);
+        if (b3 != 0) Write(console, serial, b3);
+        if (b4 != 0) Write(console, serial, b4);
+        if (b5 != 0) Write(console, serial, b5);
+        if (b6 != 0) Write(console, serial, b6);
+        if (b7 != 0) Write(console, serial, b7);
+    }
+#endif
 
     private static void WriteUefiMemoryMapReady(EfiSimpleTextOutputProtocol* console, EfiSerialIoProtocol* serial)
     {

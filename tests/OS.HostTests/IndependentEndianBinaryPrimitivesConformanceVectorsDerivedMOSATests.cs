@@ -491,7 +491,11 @@ internal static class
             IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa
                 .SatisfiesRuntimeCompletionGate4 ||
             IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa
-                .AddsCanonicalSystemNamespace)
+                .AddsCanonicalSystemNamespace ||
+            IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa
+                .ReferenceFilesRequired ||
+            IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa
+                .RequiresHostConformance)
         {
             throw new InvalidOperationException(
                 "Default result or compatibility boundary promoted success.");
@@ -559,6 +563,12 @@ internal static class
             "public const ulong ExpectedCatalogFingerprint = 0xE81E4451E8D999F6UL;",
             "public const bool AddsCanonicalSystemNamespace = false;",
             "public const bool SatisfiesRuntimeCompletionGate4 = false;",
+            "public const bool ReferenceFilesRequired = false;",
+            "public const bool RequiresHostConformance = false;",
+            "#if !NOSTDLIB_EFI",
+            "public static unsafe IndependentEndianConformanceResult CopyBuiltInCatalog(",
+            "IndependentEndianConformanceStatus.ReadVectorPointerNull",
+            "IndependentEndianConformanceStatus.ReverseVectorPointerNull",
             "return index switch",
             "ReadOnlySpan<IndependentEndianReadVector>",
             "ReadOnlySpan<IndependentEndianReverseVector>"

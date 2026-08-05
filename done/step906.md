@@ -23,6 +23,18 @@ CLROS_M04_002_READY readVectors=25 reverseVectors=7 byteSeries=5 uint16Series=7 
 
 Completion Gate 4 remains `Fail`.
 
+The separately claimed serialized integration issue #446 now consumes this
+catalog in the explicit no-stdlib EFI closure without changing the host API. An
+opt-in real QEMU/OVMF run emitted the distinct guest marker exactly once:
+
+```text
+CLROS_M04_002_READY readVectors=25 reverseVectors=7 byteSeries=5 uint16Series=7 fingerprint=E81E4451E8D999F6 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
+```
+
+That marker proves only the frozen catalog copied and validated in the EFI
+guest; it does not turn the host comparison marker into guest evidence or
+satisfy Gate 4.
+
 ## Why
 
 The existing endian helper had ordinary host tests, but no independent,
@@ -108,6 +120,18 @@ The default EFI publish exited `0` after 51.601 seconds and produced the
 55,808-byte `BOOTX64.EFI` with SHA-256
 `158432A6F1BA692561A8CA047AD4E1C1362E3549E5CA8A7EF4E7288ABECD1741`.
 
+The separately owned integration wave then passed focused host compilation,
+the 53-compile-item/66-input no-stdlib EFI publish and verifier, default QEMU
+dry-run, both M04 invalid-argument cases, the valid M04 dry-run profile, and a
+fresh real QEMU/OVMF run. The positive EFI, image, serial, and summary SHA-256
+values are respectively
+`44F4A7B5E2929884869F324E998ABC5B89559707ACC4BA65412EB818B18D9CA0`,
+`024E42220A5543529E4A0D5F8BD7C4052062E8A9FF9E46457D913E9AF9462CD8`,
+`05EE15A753899894F86CCA0318CC724DC22671C78D12E4C7CD87E3BA2F262453`,
+and `646A1AFDF8572317F71381F11EB8E6646E2DAD1236FEF03E2483DCA9B7ADBDB6`.
+The serial contained the exact guest marker once, no line-leading `TEST_FAIL`,
+and no `M04_ENDIAN_CONFORMANCE_FAILED`.
+
 ## Evidence
 
 Reference inspection was read-only. No reference file is required by the build
@@ -159,12 +183,11 @@ EFI/image artifacts, and audit JSON did not enter Git.
   `TEST_PASS OS.HostTests`. The preserved log's canonical terminal marker is
   exactly `TEST_PASS host.tests`; an exact whole-line audit accepted the run
   without rerunning or weakening any repository test.
-- The current issue cannot yet satisfy its real-QEMU marker requirement from
-  its four declared implementation/document paths. The EFI project uses an
-  explicit source closure, while M04-002 does not own the actual
-  `src/OS/Boot/EfiEntry.cs`, `src/OS/OS.csproj`, or source-authority verifier
-  paths. Those files are also still owned by open PR #444. No guest marker,
-  QEMU pass, or broader runtime claim is fabricated here.
+- The main managed issue could not satisfy its real-QEMU marker requirement
+  from its four declared implementation/document paths. The EFI project uses
+  an explicit source closure, so issue #446 was created and claimed for the
+  serialized EFI/project/verifier/QEMU paths only after PR #444 merged. That
+  ownership blocker is now resolved without expanding #71's managed paths.
 - The required real-QEMU command was run against the unintegrated default EFI
   as negative evidence. It exited `4`; serial contained exactly one
   `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and `OS_SMOKE_PASS`, no guest failure
@@ -174,26 +197,25 @@ EFI/image artifacts, and audit JSON did not enter Git.
   `0F16CC0FB978B3AE9555AA978408D857CDEFA70F989549C9BCE5086DB73041F1`;
   the negative-boundary audit SHA-256 is
   `BA039DAF71649028C9BC7042D5AA99ACE216DBE213EC127F1303B9F71A81F590`.
-  This attempt is explicitly not positive QEMU acceptance.
+  This attempt is explicitly not positive QEMU acceptance. It remains useful
+  default-off negative evidence and is superseded only for the separately
+  enabled M04 integration profile by the passing tuple above.
 
 ## Deferred work
 
-- Wait for independent review of exact PR #444 head
-  `314d674f40923a94ba0fe251c12fbc70799e2086`, then merge/converge M02-004
-  before creating and claiming a separate serialized EFI integration issue for
-  the entry point, explicit project/source-authority closure, integration test,
-  and required canonical EFI/QEMU documentation.
-- Add only that separately owned, opt-in no-stdlib EFI catalog
-  validation/marker path, then run a fresh EFI publish, complete host gate, and
-  real QEMU/OVMF command requiring `CLROS_M04_002_READY`.
-- Update this step with final source heads, command logs, hashes, failures,
-  deferred work, and independent-review boundary before moving issue #71 from
-  claimed to review.
+- The combined #71/#446 wave still requires its one uncompromised complete
+  build/host/EFI/QEMU gate from the clean pushed review head and independent
+  `admin` approval tied to that exact PR head before either issue can move from
+  review to done.
+- Complete the broader Gate 4 runtime surface: object/array/string allocation,
+  GC/root scanning, metadata and interface dispatch, class-constructor
+  execution, exceptions/unwind, thread statics, and matching guest evidence.
 - Hosted .NET 10, Minimal API, Kestrel, provider support, CloudReady status,
   and production readiness remain unproven.
 
-The current evidence boundary is an allocation-free, host-tested conformance
-catalog over 25 `UInt16` read vectors and seven reverse vectors. It proves no
-guest integration, runtime helper execution, allocation/GC, canonical BCL
+The evidence boundary is an allocation-free host conformance catalog over 25
+`UInt16` read vectors and seven reverse vectors plus a separately owned,
+opt-in, fixed-catalog copy/validation proof in the no-stdlib EFI guest. It
+proves no general runtime helper execution, allocation/GC, canonical BCL
 surface, real `ExitBootServices`, live driver/storage/network behavior, hosted
 .NET, Kestrel, provider support, CloudReady status, or production readiness.

@@ -492,6 +492,61 @@ writes. Neither result proves `In8` polling, owned serial payload transport,
 post-`ExitBootServices` diagnostics, a provider, CloudReady status, hosted .NET,
 Kestrel, or production readiness.
 
+### M04-002 fixed endian-catalog EFI closure
+
+`EnableM04IndependentEndianConformanceProbe` is a default-false, independent
+profile. It adds exactly one explicit compile item:
+`std/no-runtime/shared/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs`.
+The accepted project closure therefore has 53 compile items and the canonical
+build/verifier authority has 66 inputs; the scripts reject compatibility
+counts, missing/reordered sources, stale hashes, wildcard imports, or a
+post-restore property mismatch.
+
+Under `NOSTDLIB_EFI`, the catalog exposes caller-owned unsafe pointer APIs
+instead of its normal host span APIs. The EFI entry point stack-allocates
+exactly 25 read-vector records and seven reverse-vector records after console
+and serial discovery, copies and validates the catalog, and requires the exact
+counts, `E81E4451E8D999F6` fingerprint, five/seven source-series counts,
+`referenceFilesRequired=false`, `hostConformance=false`,
+`canonicalSystemNamespace=false`, and Gate 4 `Fail`. Any mismatch emits
+`M04_ENDIAN_CONFORMANCE_FAILED` and returns before the normal memory-map marker
+path. Success emits exactly:
+
+```text
+CLROS_M04_002_READY readVectors=25 reverseVectors=7 byteSeries=5 uint16Series=7 fingerprint=E81E4451E8D999F6 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
+```
+
+Build and verification use:
+
+```powershell
+.\scripts\build-efi-shell.ps1 `
+  -EfiOutputPath .\artifacts\efi\BOOTX64-M04-002.EFI `
+  -LogPath .\artifacts\logs\m04-002-efi-build.log `
+  -EnableM04IndependentEndianConformanceProbe
+```
+
+The build reports `EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=66`,
+`compileItems=53`, and `EFI_PROBE M04_INDEPENDENT_ENDIAN_CONFORMANCE`. The
+same-build verifier independently re-evaluates the M04 project property as a
+typed Boolean, pins the 53/66 closures, and validates PE32+ AMD64, EFI subsystem
+10, absent ordinary/delay imports, the exact `EfiMain` map association, and the
+linked serializer. The verified 62,464-byte development artifact has SHA-256
+`44F4A7B5E2929884869F324E998ABC5B89559707ACC4BA65412EB818B18D9CA0`;
+its link-evidence JSON has SHA-256
+`1C50CB90373C7BB4D4B123BB5ADD8B4F7971C5BE66A544F4A07AA76246AD0708`.
+
+The bounded stack workspace causes NativeAOT to require the compiler GS-cookie
+symbol in this otherwise independent profile. The EFI source supplies a
+profile-local deterministic linker-visible anchor only when the M01 paging
+profile is absent. It is not randomized-cookie initialization or production
+hardening evidence.
+
+This closure and its separate QEMU tuple prove only fixed-catalog validation in
+the pre-`ExitBootServices` EFI application. They do not prove general
+`BinaryPrimitives` compatibility, object allocation, GC, exceptions, runtime
+completion, real `ExitBootServices`, owned post-firmware diagnostics, hosted
+.NET, Kestrel, provider support, CloudReady status, or production readiness.
+
 ### Linked instruction-publication serializer (M01-034)
 
 `src/OS/OS.csproj` imports the single allowlisted

@@ -18,7 +18,9 @@ public enum IndependentEndianConformanceStatus : byte
     ReverseVectorExpectedValueMismatch = 13,
     ReadVectorOrderMismatch = 14,
     ReverseVectorOrderMismatch = 15,
-    CatalogFingerprintMismatch = 16
+    CatalogFingerprintMismatch = 16,
+    ReadVectorPointerNull = 17,
+    ReverseVectorPointerNull = 18
 }
 
 public readonly struct IndependentEndianReadVector
@@ -186,6 +188,10 @@ public static class
 
     public const bool SatisfiesRuntimeCompletionGate4 = false;
 
+    public const bool ReferenceFilesRequired = false;
+
+    public const bool RequiresHostConformance = false;
+
     public static bool TryGetByteSeriesValue(int index, out byte value)
     {
         value = index switch
@@ -282,6 +288,7 @@ public static class
         };
     }
 
+#if !NOSTDLIB_EFI
     public static IndependentEndianConformanceResult CopyBuiltInCatalog(
         Span<IndependentEndianReadVector> readDestination,
         Span<IndependentEndianReverseVector> reverseDestination)
@@ -563,6 +570,341 @@ public static class
 
         return hash;
     }
+#else
+    public static unsafe IndependentEndianConformanceResult CopyBuiltInCatalog(
+        IndependentEndianReadVector* readDestination,
+        int readDestinationCapacity,
+        IndependentEndianReverseVector* reverseDestination,
+        int reverseDestinationCapacity)
+    {
+        if (readDestination == null)
+        {
+            return Failure(
+                IndependentEndianConformanceStatus.ReadVectorPointerNull,
+                problemIndex: -1,
+                conflictIndex: -1,
+                readVectorCount: 0,
+                reverseVectorCount: 0,
+                ExpectedCatalogFingerprint,
+                actualFingerprint: 0);
+        }
+
+        if (readDestinationCapacity < ReadVectorCount)
+        {
+            return Failure(
+                IndependentEndianConformanceStatus.ReadDestinationTooSmall,
+                problemIndex: readDestinationCapacity,
+                conflictIndex: -1,
+                readVectorCount: 0,
+                reverseVectorCount: 0,
+                ExpectedCatalogFingerprint,
+                actualFingerprint: 0);
+        }
+
+        if (reverseDestination == null)
+        {
+            return Failure(
+                IndependentEndianConformanceStatus.ReverseVectorPointerNull,
+                problemIndex: -1,
+                conflictIndex: -1,
+                readVectorCount: 0,
+                reverseVectorCount: 0,
+                ExpectedCatalogFingerprint,
+                actualFingerprint: 0);
+        }
+
+        if (reverseDestinationCapacity < ReverseVectorCount)
+        {
+            return Failure(
+                IndependentEndianConformanceStatus
+                    .ReverseDestinationTooSmall,
+                problemIndex: reverseDestinationCapacity,
+                conflictIndex: -1,
+                readVectorCount: 0,
+                reverseVectorCount: 0,
+                ExpectedCatalogFingerprint,
+                actualFingerprint: 0);
+        }
+
+        for (int index = 0; index < ReadVectorCount; index++)
+        {
+            readDestination[index] = GetReadVector(index);
+        }
+
+        for (int index = 0; index < ReverseVectorCount; index++)
+        {
+            reverseDestination[index] = GetReverseVector(index);
+        }
+
+        return ValidateCatalog(
+            readDestination,
+            ReadVectorCount,
+            reverseDestination,
+            ReverseVectorCount,
+            ExpectedCatalogFingerprint);
+    }
+
+    public static unsafe IndependentEndianConformanceResult ValidateCatalog(
+        IndependentEndianReadVector* readVectors,
+        int readVectorCount,
+        IndependentEndianReverseVector* reverseVectors,
+        int reverseVectorCount,
+        ulong expectedFingerprint)
+    {
+        if (readVectors == null)
+        {
+            return Failure(
+                IndependentEndianConformanceStatus.ReadVectorPointerNull,
+                problemIndex: -1,
+                conflictIndex: -1,
+                readVectorCount,
+                reverseVectorCount,
+                expectedFingerprint,
+                actualFingerprint: 0);
+        }
+
+        if (reverseVectors == null)
+        {
+            return Failure(
+                IndependentEndianConformanceStatus.ReverseVectorPointerNull,
+                problemIndex: -1,
+                conflictIndex: -1,
+                readVectorCount,
+                reverseVectorCount,
+                expectedFingerprint,
+                actualFingerprint: 0);
+        }
+
+        if (readVectorCount != ReadVectorCount)
+        {
+            return Failure(
+                IndependentEndianConformanceStatus.ReadVectorCountMismatch,
+                readVectorCount,
+                -1,
+                readVectorCount,
+                reverseVectorCount,
+                expectedFingerprint,
+                actualFingerprint: 0);
+        }
+
+        if (reverseVectorCount != ReverseVectorCount)
+        {
+            return Failure(
+                IndependentEndianConformanceStatus.ReverseVectorCountMismatch,
+                reverseVectorCount,
+                -1,
+                readVectorCount,
+                reverseVectorCount,
+                expectedFingerprint,
+                actualFingerprint: 0);
+        }
+
+        for (int index = 0; index < readVectorCount; index++)
+        {
+            IndependentEndianReadVector vector = readVectors[index];
+            if (!vector.IsInitialized)
+            {
+                return Failure(
+                    IndependentEndianConformanceStatus.ReadVectorUninitialized,
+                    index,
+                    -1,
+                    readVectorCount,
+                    reverseVectorCount,
+                    expectedFingerprint,
+                    actualFingerprint: 0);
+            }
+
+            if (vector.Key == 0 || vector.Key > ReadVectorCount)
+            {
+                return Failure(
+                    IndependentEndianConformanceStatus.ReadVectorKeyOutOfRange,
+                    index,
+                    -1,
+                    readVectorCount,
+                    reverseVectorCount,
+                    expectedFingerprint,
+                    actualFingerprint: 0);
+            }
+
+            ushort expectedLittle = (ushort)(
+                vector.FirstByte | (vector.SecondByte << 8));
+            ushort expectedBig = (ushort)(
+                (vector.FirstByte << 8) | vector.SecondByte);
+            if (vector.ExpectedLittleEndian != expectedLittle ||
+                vector.ExpectedBigEndian != expectedBig)
+            {
+                return Failure(
+                    IndependentEndianConformanceStatus
+                        .ReadVectorExpectedValueMismatch,
+                    index,
+                    -1,
+                    readVectorCount,
+                    reverseVectorCount,
+                    expectedFingerprint,
+                    actualFingerprint: 0);
+            }
+        }
+
+        for (int index = 0; index < reverseVectorCount; index++)
+        {
+            IndependentEndianReverseVector vector = reverseVectors[index];
+            if (!vector.IsInitialized)
+            {
+                return Failure(
+                    IndependentEndianConformanceStatus
+                        .ReverseVectorUninitialized,
+                    index,
+                    -1,
+                    readVectorCount,
+                    reverseVectorCount,
+                    expectedFingerprint,
+                    actualFingerprint: 0);
+            }
+
+            if (vector.Key == 0 || vector.Key > ReverseVectorCount)
+            {
+                return Failure(
+                    IndependentEndianConformanceStatus
+                        .ReverseVectorKeyOutOfRange,
+                    index,
+                    -1,
+                    readVectorCount,
+                    reverseVectorCount,
+                    expectedFingerprint,
+                    actualFingerprint: 0);
+            }
+
+            if (vector.Expected != ReverseUInt16(vector.Input))
+            {
+                return Failure(
+                    IndependentEndianConformanceStatus
+                        .ReverseVectorExpectedValueMismatch,
+                    index,
+                    -1,
+                    readVectorCount,
+                    reverseVectorCount,
+                    expectedFingerprint,
+                    actualFingerprint: 0);
+            }
+        }
+
+        for (int index = 0; index < readVectorCount; index++)
+        {
+            for (int prior = 0; prior < index; prior++)
+            {
+                if (readVectors[index].Key == readVectors[prior].Key)
+                {
+                    return Failure(
+                        IndependentEndianConformanceStatus
+                            .DuplicateReadVectorKey,
+                        index,
+                        prior,
+                        readVectorCount,
+                        reverseVectorCount,
+                        expectedFingerprint,
+                        actualFingerprint: 0);
+                }
+            }
+
+            if (readVectors[index].Key != index + 1)
+            {
+                return Failure(
+                    IndependentEndianConformanceStatus.ReadVectorOrderMismatch,
+                    index,
+                    -1,
+                    readVectorCount,
+                    reverseVectorCount,
+                    expectedFingerprint,
+                    actualFingerprint: 0);
+            }
+        }
+
+        for (int index = 0; index < reverseVectorCount; index++)
+        {
+            for (int prior = 0; prior < index; prior++)
+            {
+                if (reverseVectors[index].Key == reverseVectors[prior].Key)
+                {
+                    return Failure(
+                        IndependentEndianConformanceStatus
+                            .DuplicateReverseVectorKey,
+                        index,
+                        prior,
+                        readVectorCount,
+                        reverseVectorCount,
+                        expectedFingerprint,
+                        actualFingerprint: 0);
+                }
+            }
+
+            if (reverseVectors[index].Key != index + 1)
+            {
+                return Failure(
+                    IndependentEndianConformanceStatus
+                        .ReverseVectorOrderMismatch,
+                    index,
+                    -1,
+                    readVectorCount,
+                    reverseVectorCount,
+                    expectedFingerprint,
+                    actualFingerprint: 0);
+            }
+        }
+
+        ulong actualFingerprint = ComputeCatalogFingerprint(
+            readVectors,
+            readVectorCount,
+            reverseVectors,
+            reverseVectorCount);
+        if (actualFingerprint != expectedFingerprint ||
+            expectedFingerprint != ExpectedCatalogFingerprint)
+        {
+            return Failure(
+                IndependentEndianConformanceStatus.CatalogFingerprintMismatch,
+                problemIndex: -1,
+                conflictIndex: -1,
+                readVectorCount,
+                reverseVectorCount,
+                expectedFingerprint,
+                actualFingerprint);
+        }
+
+        return IndependentEndianConformanceResult.Success(
+            readVectorCount,
+            reverseVectorCount,
+            actualFingerprint);
+    }
+
+    public static unsafe ulong ComputeCatalogFingerprint(
+        IndependentEndianReadVector* readVectors,
+        int readVectorCount,
+        IndependentEndianReverseVector* reverseVectors,
+        int reverseVectorCount)
+    {
+        const ulong FnvOffset = 14695981039346656037UL;
+        ulong hash = FnvOffset;
+
+        for (int index = 0; index < readVectorCount; index++)
+        {
+            IndependentEndianReadVector vector = readVectors[index];
+            hash = AppendFingerprintByte(hash, vector.Key);
+            hash = AppendFingerprintByte(hash, vector.FirstByte);
+            hash = AppendFingerprintByte(hash, vector.SecondByte);
+            hash = AppendFingerprintUInt16(hash, vector.ExpectedLittleEndian);
+            hash = AppendFingerprintUInt16(hash, vector.ExpectedBigEndian);
+        }
+
+        for (int index = 0; index < reverseVectorCount; index++)
+        {
+            IndependentEndianReverseVector vector = reverseVectors[index];
+            hash = AppendFingerprintByte(hash, vector.Key);
+            hash = AppendFingerprintUInt16(hash, vector.Input);
+            hash = AppendFingerprintUInt16(hash, vector.Expected);
+        }
+
+        return hash;
+    }
+#endif
 
     private static IndependentEndianReadVector ReadVector(
         byte key,

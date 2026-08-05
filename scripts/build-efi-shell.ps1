@@ -35,7 +35,8 @@ param(
     [switch] $EnableM01OwnedPagingProbe,
     [switch] $EnableM02SafeStubProbe,
     [switch] $EnableM02CheckedPortIoBindingProbe,
-    [switch] $EnableM02Com1OwnedPortIoProbe
+    [switch] $EnableM02Com1OwnedPortIoProbe,
+    [switch] $EnableM04IndependentEndianConformanceProbe
 )
 
 $ErrorActionPreference = "Stop"
@@ -82,6 +83,7 @@ $script:ExpectedEfiCompileItems = @(
     '..\OS.Kernel\Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs|Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs',
     '..\OS.Kernel\Diagnostics\InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs|Diagnostics\InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs',
     '..\OS.Kernel\Diagnostics\COM1OwnedPortIOBackend.cs|Diagnostics\COM1OwnedPortIOBackend.cs',
+    '..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs',
     '..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs|Boot\M01LoadedImageStackIntegration.cs',
     '..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs|Boot\M01LiveAllocatorIntegration.cs',
     '..\OS.Kernel\Boot\M01LivePagingIntegration.cs|Boot\M01LivePagingIntegration.cs',
@@ -1788,7 +1790,8 @@ function Invoke-M01PostRestoreEvaluation {
         [string] $IlcMibcPath,
         [string] $LanguageTargetsPath,
         [string] $CSharpTargetsPath,
-        [string] $CommonTargetsPath
+        [string] $CommonTargetsPath,
+        [bool] $M04IndependentEndianConformanceEnabled
     )
 
     $canonicalRootPropsPath = Join-Path $RepositoryRoot "Directory.Build.props"
@@ -1805,6 +1808,7 @@ function Invoke-M01PostRestoreEvaluation {
             "-getProperty:" +
             "_targetOS,_targetArchitecture,RuntimeIdentifier," +
             "TargetFramework,PublishAot,SelfContained,PublishTrimmed," +
+            "EnableM04IndependentEndianConformanceProbe," +
             "ImportProjectExtensionProps,ImportProjectExtensionTargets," +
             "ExcludeRestorePackageImports,ILCompilerTargetsPath," +
             "ILLinkTargetsPath,ILLinkTasksAssembly,IlcBuildTasksPath," +
@@ -1894,6 +1898,9 @@ function Invoke-M01PostRestoreEvaluation {
         ("-p:CSharpTargetsPath=" + $CSharpTargetsPath),
         ("-p:CommonTargetsPath=" + $CommonTargetsPath)
     )
+    $arguments += (
+        "-p:EnableM04IndependentEndianConformanceProbe=" +
+        $M04IndependentEndianConformanceEnabled.ToString().ToLowerInvariant())
     $arguments += $msbuildIsolation.Arguments
     $processResult = Invoke-M01BoundedProcess `
         -FilePath $script:DotnetHostPath `
@@ -1938,6 +1945,8 @@ function Invoke-M01PostRestoreEvaluation {
         PublishAot = "true"
         SelfContained = "true"
         PublishTrimmed = "true"
+        EnableM04IndependentEndianConformanceProbe =
+            $M04IndependentEndianConformanceEnabled.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
         ImportProjectExtensionTargets = "false"
         ExcludeRestorePackageImports = "true"
@@ -3910,9 +3919,18 @@ for ($index = 5; $index -lt $verifierArguments.Count; $index += 2) {
     if ($verifierParameters.ContainsKey($parameterName)) {
         exit 127
     }
-    $verifierParameters.Add(
-        $parameterName,
-        [string]$verifierArguments[$index + 1])
+    $parameterValue = [string]$verifierArguments[$index + 1]
+    if ($parameterName -ceq "EnableM04IndependentEndianConformanceProbe") {
+        if ($parameterValue -cne "true" -and $parameterValue -cne "false") {
+            exit 127
+        }
+        $verifierParameters.Add(
+            $parameterName,
+            [System.Boolean]::Parse($parameterValue))
+    }
+    else {
+        $verifierParameters.Add($parameterName, $parameterValue)
+    }
 }
 & $verifierScript @verifierParameters
 exit $LASTEXITCODE
@@ -5052,6 +5070,7 @@ function Test-M01EvaluatedSourceClosure {
         [bool] $M02SafeStubEnabled,
         [bool] $M02CheckedPortIoBindingEnabled,
         [bool] $M02Com1OwnedPortIoEnabled,
+        [bool] $M04IndependentEndianConformanceEnabled,
         [bool] $UefiGoneSimulationEnabled,
         [bool] $ExitBootServicesFreshMapEnabled,
         [bool] $AcpiPhysicalDiscoveryEnabled
@@ -5084,6 +5103,8 @@ function Test-M01EvaluatedSourceClosure {
             $M02CheckedPortIoBindingEnabled.ToString().ToLowerInvariant()
         "EnableM02Com1OwnedPortIoProbe" =
             $M02Com1OwnedPortIoEnabled.ToString().ToLowerInvariant()
+        "EnableM04IndependentEndianConformanceProbe" =
+            $M04IndependentEndianConformanceEnabled.ToString().ToLowerInvariant()
     }
     $expectedSwitchSymbols = [ordered] @{
         "M01_LOADED_IMAGE_STACK_PROBE" = $LoadedImageStackEnabled
@@ -5093,6 +5114,8 @@ function Test-M01EvaluatedSourceClosure {
         "M02_CHECKED_PORT_IO_BINDING_PROBE" =
             $M02CheckedPortIoBindingEnabled
         "M02_COM1_OWNED_PORT_IO_PROBE" = $M02Com1OwnedPortIoEnabled
+        "M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE" =
+            $M04IndependentEndianConformanceEnabled
         "UEFI_GONE_SIMULATION_PROBE" = $UefiGoneSimulationEnabled
         "EXIT_BOOT_SERVICES_FRESH_MAP_PROBE" =
             $ExitBootServicesFreshMapEnabled
@@ -5119,6 +5142,7 @@ function Test-M01EvaluatedSourceClosure {
                 "EnableM02SafeStubProbe," +
                 "EnableM02CheckedPortIoBindingProbe," +
                 "EnableM02Com1OwnedPortIoProbe," +
+                "EnableM04IndependentEndianConformanceProbe," +
                 "DefineConstants," +
                 "EnableDefaultCompileItems," +
                 "NoStdLib," +
@@ -5188,6 +5212,10 @@ function Test-M01EvaluatedSourceClosure {
         }
         if ($M02Com1OwnedPortIoEnabled) {
             $arguments += "-p:EnableM02Com1OwnedPortIoProbe=true"
+        }
+        if ($M04IndependentEndianConformanceEnabled) {
+            $arguments +=
+                "-p:EnableM04IndependentEndianConformanceProbe=true"
         }
         if ($UefiGoneSimulationEnabled) {
             $arguments += "-p:EnableUefiGoneSimulationProbe=true"
@@ -5710,6 +5738,7 @@ function Test-M01SourceClosure {
         [bool] $M02SafeStubEnabled,
         [bool] $M02CheckedPortIoBindingEnabled,
         [bool] $M02Com1OwnedPortIoEnabled,
+        [bool] $M04IndependentEndianConformanceEnabled,
         [bool] $UefiGoneSimulationEnabled,
         [bool] $ExitBootServicesFreshMapEnabled,
         [bool] $AcpiPhysicalDiscoveryEnabled
@@ -5759,7 +5788,7 @@ function Test-M01SourceClosure {
 
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "5747fab8e5e16e391e0ad13db56aca9ee8104fda5c654e9447ffa17aec6b0b39") {
+        "94db27a020fec85a4dfb3d2aaea76539b141ac35233af737ddd26c6d5a373149") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `
@@ -5819,6 +5848,8 @@ function Test-M01SourceClosure {
         "EnableM02SafeStubProbe" = "M02_SAFE_STUB_PROBE"
         "EnableM02CheckedPortIoBindingProbe" = "M02_CHECKED_PORT_IO_BINDING_PROBE"
         "EnableM02Com1OwnedPortIoProbe" = "M02_COM1_OWNED_PORT_IO_PROBE"
+        "EnableM04IndependentEndianConformanceProbe" =
+            "M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE"
         "EnableUefiGoneSimulationProbe" = "UEFI_GONE_SIMULATION_PROBE"
         "EnableExitBootServicesFreshMapProbe" = "EXIT_BOOT_SERVICES_FRESH_MAP_PROBE"
         "EnableAcpiPhysicalDiscoveryProbe" = "ACPI_PHYSICAL_DISCOVERY_PROBE"
@@ -5862,6 +5893,8 @@ function Test-M01SourceClosure {
         "EnableM02SafeStubProbe" = "M02_SAFE_STUB_PROBE"
         "EnableM02CheckedPortIoBindingProbe" = "M02_CHECKED_PORT_IO_BINDING_PROBE"
         "EnableM02Com1OwnedPortIoProbe" = "M02_COM1_OWNED_PORT_IO_PROBE"
+        "EnableM04IndependentEndianConformanceProbe" =
+            "M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE"
     }
     foreach ($entry in $switchSymbols.GetEnumerator()) {
         $defaultNodes = @($project.SelectNodes(
@@ -6236,6 +6269,7 @@ function Test-M01SourceClosure {
         -M02SafeStubEnabled $M02SafeStubEnabled `
         -M02CheckedPortIoBindingEnabled $M02CheckedPortIoBindingEnabled `
         -M02Com1OwnedPortIoEnabled $M02Com1OwnedPortIoEnabled `
+        -M04IndependentEndianConformanceEnabled $M04IndependentEndianConformanceEnabled `
         -UefiGoneSimulationEnabled $UefiGoneSimulationEnabled `
         -ExitBootServicesFreshMapEnabled $ExitBootServicesFreshMapEnabled `
         -AcpiPhysicalDiscoveryEnabled $AcpiPhysicalDiscoveryEnabled
@@ -6408,8 +6442,8 @@ try {
             (Format-EvidenceValue $_.Exception.Message))
         exit 1
     }
-    if ($sourceSnapshotBeforePublish.InputCount -ne 65 -or
-        $sourceSnapshotAfterLock.InputCount -ne 65 -or
+    if ($sourceSnapshotBeforePublish.InputCount -ne 66 -or
+        $sourceSnapshotAfterLock.InputCount -ne 66 -or
         $sourceSnapshotBeforePublish.AggregateSha256 -cne
             $sourceSnapshotAfterLock.AggregateSha256 -or
         $sourceSnapshotBeforePublish.AuthoritySha256 -cne
@@ -6422,7 +6456,7 @@ try {
         exit 1
     }
     Write-Host "EFI_PUBLISH_SOURCE_LOCK status=ok"
-    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=65"
+    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=66"
 
 Write-EfiPreflightLine "EFI_PREFLIGHT_START"
 
@@ -6447,6 +6481,8 @@ $m02CheckedPortIoBindingProbeEnabled =
     $EnableM02CheckedPortIoBindingProbe.IsPresent.ToString().ToLowerInvariant()
 $m02Com1OwnedPortIoProbeEnabled =
     $EnableM02Com1OwnedPortIoProbe.IsPresent.ToString().ToLowerInvariant()
+$m04IndependentEndianConformanceProbeEnabled =
+    $EnableM04IndependentEndianConformanceProbe.IsPresent.ToString().ToLowerInvariant()
 $m01SwitchEvidence =
     "loadedImageStack=" + $loadedImageStackProbeEnabled +
     " liveAllocator=" + $liveAllocatorProbeEnabled +
@@ -6459,6 +6495,9 @@ $m02SwitchEvidence =
     " ownedPaging=" + $ownedPagingProbeEnabled +
     " checkedPortIoBinding=" + $m02CheckedPortIoBindingProbeEnabled +
     " com1OwnedPortIo=" + $m02Com1OwnedPortIoProbeEnabled
+$m04SwitchEvidence =
+    "independentEndianConformance=" +
+    $m04IndependentEndianConformanceProbeEnabled
 
 if ($EnableM02SafeStubProbe -and -not $EnableM01LoadedImageStackProbe) {
     Stop-EfiPreflight `
@@ -6603,6 +6642,8 @@ Write-EfiPreflightLine (
     "EFI_PREFLIGHT_M01_SWITCHES status=ok " + $m01SwitchEvidence)
 Write-EfiPreflightLine (
     "EFI_PREFLIGHT_M02_SWITCHES status=ok " + $m02SwitchEvidence)
+Write-EfiPreflightLine (
+    "EFI_PREFLIGHT_M04_SWITCHES status=ok " + $m04SwitchEvidence)
 
 $m01SourceClosure = Test-M01SourceClosure `
     -RepositoryRoot $repositoryRoot `
@@ -6614,6 +6655,7 @@ $m01SourceClosure = Test-M01SourceClosure `
     -M02SafeStubEnabled $EnableM02SafeStubProbe.IsPresent `
     -M02CheckedPortIoBindingEnabled $EnableM02CheckedPortIoBindingProbe.IsPresent `
     -M02Com1OwnedPortIoEnabled $EnableM02Com1OwnedPortIoProbe.IsPresent `
+    -M04IndependentEndianConformanceEnabled $EnableM04IndependentEndianConformanceProbe.IsPresent `
     -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
     -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
     -AcpiPhysicalDiscoveryEnabled $EnableAcpiPhysicalDiscoveryProbe.IsPresent
@@ -7195,6 +7237,12 @@ if ($EnableM02Com1OwnedPortIoProbe) {
     Write-Host "EFI_PROBE M02_COM1_OWNED_PORT_IO"
 }
 
+if ($EnableM04IndependentEndianConformanceProbe) {
+    $arguments +=
+        "-p:EnableM04IndependentEndianConformanceProbe=true"
+    Write-Host "EFI_PROBE M04_INDEPENDENT_ENDIAN_CONFORMANCE"
+}
+
 if ($EnableUefiGoneSimulationProbe) {
     $arguments += "-p:EnableUefiGoneSimulationProbe=true"
     Write-Host "EFI_PROBE UEFI_GONE_SIMULATION"
@@ -7306,6 +7354,7 @@ $methodImplAttributeSourcePath = Join-Path $repositoryRoot (
         -M02SafeStubEnabled $EnableM02SafeStubProbe.IsPresent `
         -M02CheckedPortIoBindingEnabled $EnableM02CheckedPortIoBindingProbe.IsPresent `
         -M02Com1OwnedPortIoEnabled $EnableM02Com1OwnedPortIoProbe.IsPresent `
+        -M04IndependentEndianConformanceEnabled $EnableM04IndependentEndianConformanceProbe.IsPresent `
         -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
         -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
         -AcpiPhysicalDiscoveryEnabled $EnableAcpiPhysicalDiscoveryProbe.IsPresent
@@ -7524,7 +7573,9 @@ try {
         -IlcMibcPath $ilcMibcPath `
         -LanguageTargetsPath $languageTargetsPath `
         -CSharpTargetsPath $csharpTargetsPath `
-        -CommonTargetsPath $commonTargetsPath
+        -CommonTargetsPath $commonTargetsPath `
+        -M04IndependentEndianConformanceEnabled `
+            $EnableM04IndependentEndianConformanceProbe.IsPresent
     $activePackageImportGraphSha256 = Get-M01Utf8Sha256 -Text (
         ($script:ExpectedActivePackageImportEdges -join "`n") + "`n")
     $packageTaskBindingsSha256 = Get-M01Utf8Sha256 -Text (
@@ -7682,7 +7733,9 @@ if ($exitCode -eq 0) {
                 -IlcMibcPath $ilcMibcPath `
                 -LanguageTargetsPath $languageTargetsPath `
                 -CSharpTargetsPath $csharpTargetsPath `
-                -CommonTargetsPath $commonTargetsPath
+                -CommonTargetsPath $commonTargetsPath `
+                -M04IndependentEndianConformanceEnabled `
+                    $EnableM04IndependentEndianConformanceProbe.IsPresent
     }
     catch {
         Write-Host (
@@ -8042,6 +8095,11 @@ if ($exitCode -eq 0) {
         "-LinkEvidencePath",
         $linkEvidenceOutputPath
     )
+    if ($EnableM04IndependentEndianConformanceProbe) {
+        $verificationArguments += @(
+            "-EnableM04IndependentEndianConformanceProbe",
+            "true")
+    }
     $verificationStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     try {
         $verificationResult = Invoke-M01ArtifactVerifier `

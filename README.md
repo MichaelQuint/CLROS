@@ -31,38 +31,41 @@ partial gates and many prerequisite contracts, but it has not yet passed
 `ExitBootServices`, owned-driver, live storage, live networking, native-app
 execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 
-### Current implementation checkpoint (2026-08-04)
+### Current implementation checkpoint (2026-08-05)
 
-- The local Gitea tracker has **276 open issues** (issues only, excluding pull
-  requests), down from 279 before this merge wave. The backlog is intentionally
-  granular, so issue count is not a completion percentage. M02-003, its
-  supplemental EFI integration issue #438, and M04-001 are now reviewed,
-  merged, evidence-backed, and tracker-closed.
-- PR #439 merged the M02-003 production C# checked `Out8`/`In8` function-pointer
-  binder, safe unmanaged host-callback tests, and no-stdlib EFI integration.
-  Frozen implementation commit `84032f4` passed the complete 2,516-second host
-  harness with zero failures and fresh real QEMU/OVMF evidence for the exact
-  `CLROS_M02_003_READY ... guestInvocation=false portIoExecuted=false` marker.
-  The guest verified the checked addresses but did not invoke offsets 16/32;
-  all privileged-I/O markers were absent. Independent review #4 approved the
-  exact PR head before merge. Steps 899 and 900 retain the evidence boundary.
-- PR #440 merged the M04-001 production `OS.Std.NoRuntime` .NET 10 helper
-  compatibility ledger and source-bound host tests. The complete 2,693-second
-  host harness passed with 3,348 starts, 3,349 passes, zero failures, and the
-  exact `CLROS_M04_001_READY` marker. The ledger classifies 40 declarations and
-  17 runtime exports without adding a canonical `System.*` surface or runtime
-  behavior. Independent review #5 approved the exact PR head before merge;
-  step 901 retains the evidence boundary.
-- The canonical backlog now records M02-003 and M04-001 as closed/done. An
-  idempotent synchronization makes M02-004 and M04-002 ready; the next session
-  must claim the smaller collision-safe issue, M02-004, before changing its
-  owned files. No issue is intentionally left claimed across this reboot-safe
-  checkpoint.
+- The live local Gitea tracker has **276 open issues** (issues only, excluding
+  pull requests). That is seven fewer than the earlier 283-issue snapshot even
+  though several narrowly scoped integration/review issues were added to make
+  shared-file ownership explicit. The reconstructed backlog is intentionally
+  granular: its raw count is a queue size, not a completion percentage.
+- M02-004 is now reviewed, merged, evidence-backed, and closed together with
+  its three supplemental integration issues. Its production C# corrected the
+  Windows x64 `Out8` register flow, bound the checked port-I/O function
+  pointers, and executed exactly seven pre-`ExitBootServices` COM1
+  configuration writes under QEMU/OVMF. The exact guest marker records
+  `guestPortIo=true`, `guestIn8=false`, `markerTransport=uefiSerial`, and
+  `postExitBootServices=false`; it is not owned post-firmware serial evidence.
+- The active M04-002 wave is substantial C# implementation work, not a
+  documentation-only change. Against current `master`, it adds 1,129 lines of
+  production C# across the allocation-free endian catalog and no-stdlib EFI
+  entry integration, plus more than 1,000 lines of C# host/integration tests.
+  The catalog contains 25 explicit read vectors and seven reverse vectors with
+  fail-closed null, capacity, malformed, duplicate, order, and fingerprint
+  handling. An opt-in real QEMU/OVMF run emitted the exact fixed-catalog marker
+  once between `EFI_CONSOLE_READY` and `UEFI_MEMORY_MAP_READY` and emitted no
+  `TEST_FAIL` or `M04_ENDIAN_CONFORMANCE_FAILED`.
+- At this source-writing snapshot, M02-005 (#45) is the sole `agent:ready`
+  issue. Managed M04-002 (#71) and its serialized EFI integration issue (#446)
+  remain `agent:claimed` until the complete final-head gate and independent
+  exact-head review pass. The M04 wave therefore does not skip or silently
+  close acceptance work merely to reduce the issue count.
 - These changes do not advance a numbered completion gate. Gate 2 remains the
   only passing gate, scoped to the firmware-visible QEMU/OVMF marker path;
-  Gate 4 remains `Fail`. There is still no proof of live port I/O, real
-  `ExitBootServices`, owned storage/networking, guest app execution, hosted
-  .NET, Kestrel, Azure/AWS support, CloudReady status, or production readiness.
+  Gate 4 remains `Fail`. The M04 marker proves only fixed-catalog validation in
+  the EFI guest. There is still no proof of general `BinaryPrimitives`
+  compatibility, allocation/GC/exception completion, real `ExitBootServices`,
+  owned storage/networking, guest app execution, hosted .NET, Kestrel,
+  Azure/AWS support, CloudReady status, or production readiness.
 
 ## What Works Today
 
@@ -75,7 +78,7 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 | UEFI handoff | The EFI path captures UEFI memory-map metadata, copies descriptor bytes into OS-owned storage, normalizes compact boot-region records, and carries ACPI RSDP provenance into the handoff. |
 | ACPI discovery | The default path carries ACPI RSDP provenance. An explicit opt-in ACPI probe artifact has QEMU evidence for pre-`ExitBootServices` RSDP, root SDT, and MCFG discovery markers. |
 | Diagnostics planning | Host-tested COM1, panic-text, panic-serial, boot-event records, diagnostics-chain readiness, GDT, TSS/IST, IDT, descriptor-table, fault-entry, diagnostic-stub invocation, diagnostic-stub callable-binding formatting, and controlled-fault-probe planning contracts exist. |
-| `std/no-runtime` base | Host-tested no-runtime-compatible helpers exist for ASCII byte/text behavior, decimal and hexadecimal formatting/parsing, memory/buffer operations, endian primitives, native integer arithmetic, math helpers, CRC32, internet checksum, and `ArrayHelpers` search/sort contracts. Runtime-helper gaps are tracked instead of hidden. |
+| `std/no-runtime` base | Host-tested no-runtime-compatible helpers exist for ASCII byte/text behavior, decimal and hexadecimal formatting/parsing, memory/buffer operations, endian primitives, native integer arithmetic, math helpers, CRC32, internet checksum, and `ArrayHelpers` search/sort contracts. The opt-in EFI path now validates the fixed 25-read/7-reverse M04-002 endian catalog under real QEMU/OVMF, but this does not create a canonical BCL surface or complete Gate 4. Runtime-helper gaps remain explicit. |
 | PAL contracts | `OSHost_*` POD-style status/result contracts and host-tested mock tables/facades exist for memory, package files, config/environment, sockets, socket connect metadata, timers, waits/events, threads, random bytes, status formatting, and app logs. Recent work hardened default/zero result values so they do not accidentally count as success evidence. |
 | Storage groundwork | GPT, caller-owned GPT partition selection, FAT32, package parser, package filesystem, package file staging, native-app package/payload staging, generated image package placement, manifest loading, caller-buffer package-loader GPT selector integration, and virtio-blk planning slices are host-tested. |
 | Networking groundwork | Ethernet, ARP, IPv4, ICMPv4, UDP, DHCP, DNS, TCP handshake/connection-table/close/payload planning, active close FIN/ACK generation, receive dispatch, checksum validation/generation, HTTP request parsing, HTTP response writing, static HTTP transactions, and mock HTTP GET transactions are host-tested. |

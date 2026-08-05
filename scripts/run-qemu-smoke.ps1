@@ -41,6 +41,7 @@ param(
     [switch] $EnableM02SafeStubProbe,
     [switch] $EnableM02CheckedPortIoBindingProbe,
     [switch] $EnableM02Com1OwnedPortIoProbe,
+    [switch] $EnableM04IndependentEndianConformanceProbe,
     [switch] $SkipImageBuild
 )
 
@@ -168,6 +169,17 @@ foreach ($marker in $script:M02CheckedPortIoBindingRequiredMarkers) {
 $script:M02Com1OwnedPortIoForbiddenMarkers = @(
     $script:M02CheckedPortIoBindingForbiddenMarkers
     "M02_COM1_CONFIGURATION_FAILED"
+)
+$script:M04IndependentEndianConformanceReadyMarker =
+    "CLROS_M04_002_READY readVectors=25 reverseVectors=7 byteSeries=5 uint16Series=7 fingerprint=E81E4451E8D999F6 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail"
+$script:M04IndependentEndianConformanceRequiredMarkers = @(
+    "EFI_CONSOLE_READY"
+    $script:M04IndependentEndianConformanceReadyMarker
+    "UEFI_MEMORY_MAP_READY"
+)
+$script:M04IndependentEndianConformanceForbiddenMarkers = @(
+    "M04_ENDIAN_CONFORMANCE_FAILED"
+    "TEST_FAIL"
 )
 
 function Invoke-NativeCommand {
@@ -3562,6 +3574,33 @@ try {
         ConvertTo-QemuSmokeMarkerList -Values $ForbidMarker
     )
 
+    if ($EnableM04IndependentEndianConformanceProbe) {
+        $requiredMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $requiredMarkers
+                $script:M04IndependentEndianConformanceRequiredMarkers
+            )
+        )
+        $orderedMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $orderedMarkers
+                $script:M04IndependentEndianConformanceRequiredMarkers
+            )
+        )
+        $uniqueMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $uniqueMarkers
+                $script:M04IndependentEndianConformanceReadyMarker
+            )
+        )
+        $forbiddenMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $forbiddenMarkers
+                $script:M04IndependentEndianConformanceForbiddenMarkers
+            )
+        )
+    }
+
     if ($EnableM02Com1OwnedPortIoProbe) {
         $requiredMarkers = @(
             ConvertTo-QemuSmokeMarkerList -Values @(
@@ -3727,11 +3766,35 @@ try {
         (Format-QemuSmokeBoolean $DryRun.IsPresent) +
         " profileRequired=50 profileForbidden=36")
     Write-Host (
+        "QEMU_SCRIPT_M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE enabled=" +
+        (Format-QemuSmokeBoolean $EnableM04IndependentEndianConformanceProbe.IsPresent) +
+        " buildEfi=" +
+        (Format-QemuSmokeBoolean $BuildEfi.IsPresent) +
+        " skipImageBuild=" +
+        (Format-QemuSmokeBoolean $SkipImageBuild.IsPresent) +
+        " dryRun=" +
+        (Format-QemuSmokeBoolean $DryRun.IsPresent) +
+        " profileRequired=15 profileForbidden=3")
+    Write-Host (
         "QEMU_SCRIPT_REQUIRE_ORDERED_MARKERS " +
         (Format-QemuSmokeMarkerList $orderedMarkers))
     Write-Host (
         "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS " +
         (Format-QemuSmokeMarkerList $uniqueMarkers))
+
+    if ($EnableM04IndependentEndianConformanceProbe -and -not $BuildEfi) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m04_independent_endian_conformance_probe_requires_build_efi")
+        exit 1
+    }
+
+    if ($EnableM04IndependentEndianConformanceProbe -and $SkipImageBuild) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m04_independent_endian_conformance_probe_forbids_skip_image_build")
+        exit 1
+    }
 
     if ($EnableM02Com1OwnedPortIoProbe -and
         -not $EnableM02CheckedPortIoBindingProbe) {
@@ -3961,6 +4024,11 @@ try {
 
         if ($EnableM02Com1OwnedPortIoProbe) {
             $buildArguments += "-EnableM02Com1OwnedPortIoProbe"
+        }
+
+        if ($EnableM04IndependentEndianConformanceProbe) {
+            $buildArguments +=
+                "-EnableM04IndependentEndianConformanceProbe"
         }
 
         Invoke-NativeCommand {
