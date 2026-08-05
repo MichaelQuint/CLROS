@@ -128,6 +128,14 @@ existing M01-026 shim.
   exactly one match. The owned test now requires exactly those two directed
   edges; the 167,654-byte incomplete stdout stream and 294-byte exception-only
   stderr stream were rejected.
+- The next wave passed that dependency audit and every earlier repair, then
+  failed the verifier capacity test's stale 45-second whole-process safety
+  assertion. Both verifier invocations completed successfully (53,347 ms and
+  48,965 ms); their actual 4,096-token and 2,048-unwind-record scans took 633 ms
+  and 380 ms, below the unchanged 1,000 ms parser budgets. The outer safety
+  assertion now uses the same bounded 120-second fixture-process ceiling while
+  both parser-performance limits remain unchanged; the 89,174-byte stdout and
+  264-byte exception-only stderr streams were rejected.
 
 ## Deferred work
 

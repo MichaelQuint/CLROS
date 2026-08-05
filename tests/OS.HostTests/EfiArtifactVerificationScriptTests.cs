@@ -3221,7 +3221,8 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static bool TestParserCapacityBounds(string tempRoot)
     {
-        const long maximumVerifierProcessSafetyMilliseconds = 45_000;
+        const long maximumVerifierProcessSafetyMilliseconds =
+            VerifierFixtureProcessTimeoutMilliseconds;
         const long maximumLinkResponseTokenScanElapsedMilliseconds = 1_000;
         const long maximumRuntimeScanElapsedMilliseconds = 1_000;
 
