@@ -69,6 +69,16 @@ The no-stdlib surface is not implemented beyond the first EFI shell boundary. `s
   preserves memmove-style overlap behavior and rejects short destinations
   before writing.
 - `OS.Std.Binary.EndianPrimitives` provides allocation-free span-based `UInt16`, `UInt32`, and `UInt64` little-endian and big-endian read/write helpers plus non-throwing `TryRead`/`TryWrite` variants for parser-facing kernel code.
+- `OS.Std.Binary.IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa`
+  provides an allocation-free, reference-free catalog of 25 explicit
+  `UInt16` read vectors and seven explicit `UInt16` reverse-endian vectors.
+  The five-byte and seven-`UInt16` source series are independently projected
+  from the MOSA test-vector snapshot without compiling, copying, or importing
+  its runtime. Caller-owned catalog copies are validated for exact counts,
+  initialization, key range, duplicate keys, expected values, append-only
+  ordering, and the frozen FNV-1a64 fingerprint `E81E4451E8D999F6` through
+  status-coded results. The catalog adds no canonical `System.*` API and
+  cannot satisfy completion Gate 4.
 - `OS.Std.Hash.Crc32` provides an allocation-free reflected IEEE CRC32 helper using polynomial `0xEDB88320`, initial state `0xFFFFFFFF`, and final XOR `0xFFFFFFFF`. It supports one-shot `Compute`, incremental `Update`, and `Finish` over caller-provided `ReadOnlySpan<byte>` buffers without lazy static lookup tables.
 - `OS.Std.Net.InternetChecksum` provides allocation-free 16-bit ones-complement internet checksum support for network-order packet buffers. It supports one-shot checksums, two-, three-, and four-segment checksum overloads, validity checks, and an `InternetChecksumAccumulator` that preserves odd pending bytes across segment boundaries without allocating.
 - `OS.Std.NativeInt` provides a small pointer-sized unsigned arithmetic helper slice over `nuint`: checked add/subtract, power-of-two detection, alignment checks, and checked align-up/align-down results. It uses status-coded results so kernel/runtime planning paths can avoid exception-driven overflow handling.
@@ -359,6 +369,22 @@ std.buffer memorycopy zero length and layout`.
 
 `tests/OS.HostTests/StdEndianPrimitivesTests.cs` covers exact little-endian and big-endian byte order, too-short `TryRead`/`TryWrite` buffers, no-write failure behavior, and round trips for `UInt16`, `UInt32`, and `UInt64`.
 
+`tests/OS.HostTests/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSATests.cs`
+covers the M04-002 independent conformance catalog. It verifies all 25 MOSA
+byte-pair projections against both `OS.Std.Binary.EndianPrimitives` and .NET
+10 `System.Buffers.Binary.BinaryPrimitives`, verifies the seven `ushort`
+reverse vectors and double-reverse identity, validates the frozen catalog
+fingerprint, rejects missing/short catalog storage, uninitialized and malformed
+vectors, out-of-range and duplicate keys, reordered entries, mismatched hashes,
+unknown indexes, default-result success, and managed-reference layouts, and
+guards the production source against canonical `System.*`, reference imports,
+reflection, dynamic invocation, exceptions, static reference catalogs, and
+host-path dependencies. Its stable host marker is
+`CLROS_M04_002_READY readVectors=25 reverseVectors=7 byteSeries=5
+uint16Series=7 fingerprint=E81E4451E8D999F6 ... hostConformance=true
+guestIntegrated=false gate4=Fail`. The MOSA snapshot is not required at test
+runtime and does not become first-party build input or CLROS evidence.
+
 `tests/OS.HostTests/StdCrc32Tests.cs` covers the empty-input CRC32 value, the standard ASCII `123456789` vector (`0xCBF43926`), a binary byte-range vector (`0x456CD746`), and incremental update/finalization over a split binary payload (`0x7C9CA35A`). It emits `std.crc32` markers for each scenario.
 
 `tests/OS.HostTests/StdInternetChecksumTests.cs` covers the empty input result (`0xFFFF`), the RFC 1071 sample vector (`0x220D`), odd trailing byte padding, two- and four-segment odd-byte boundary carryover, accumulator pending-byte behavior, packet validation after checksum insertion, and accumulator reset behavior. It emits `std.internet.checksum` markers for each scenario.
@@ -556,6 +582,13 @@ formatting.
 
 The current `OS.Std.Binary.EndianPrimitives` type intentionally lives under `OS.Std.Binary`, not `System.Buffers.Binary`, because it is an OS-specific no-runtime helper. Direct read/write methods require spans of the correct minimum length; storage and network parsers should use the `TryRead`/`TryWrite` variants when malformed input must be status-coded instead of exception-driven.
 
+The M04-002 independent conformance catalog is test-vector and catalog-integrity
+evidence only. It does not add signed integer overloads, 128-bit or native-int
+overloads, a canonical `System.Buffers.Binary.BinaryPrimitives` surface,
+runtime helper behavior, guest integration, or a general BCL compatibility
+claim. The host marker's `guestIntegrated=false` field is authoritative until
+a separately owned EFI integration lane produces matching real-QEMU evidence.
+
 The current `OS.Std.Hash.Crc32` type intentionally lives under `OS.Std.Hash`, not a canonical `System.*` namespace, because .NET does not expose this exact no-runtime contract as a BCL compatibility surface. It uses a compact bitwise loop rather than a static table so it can migrate toward freestanding NativeAOT without lazy static reference fields. Callers that need maximum throughput can add a separately reviewed table-driven variant later only after static-data and boot-time initialization rules are documented.
 
 The current `OS.Std.Net.InternetChecksum` type intentionally lives under `OS.Std.Net`, not a canonical `System.*` namespace, because the public BCL does not expose this exact packet-checksum contract. It is a compact shared primitive for IPv4, ICMP, UDP, and TCP checksum work. This slice does not migrate existing packet code, does not add pseudo-header builders, and does not provide vectorized or table-driven acceleration.
@@ -605,7 +638,10 @@ preflight, and work-item plan results for future runner diagnostics.
 3. Keep compatibility ledgers source-bound and append-only as `System.*`
    declarations or runtime exports change; do not promote a classification to
    Gate 4 until the underlying behavior has matching host and guest evidence.
-4. Migrate IPv4, ICMP, UDP, and TCP checksum paths onto `OS.Std.Net.InternetChecksum` where it reduces duplicated packet-local checksum loops.
-5. Replace shell-only runtime placeholders with tested runtime helpers as the boot path starts using them.
-6. Reserve heap pages from a live allocator state and define GC root/write-barrier ownership before changing object allocation helper status.
-7. Add helper-specific QEMU probes before changing any panic-stubbed helper to successful behavior.
+4. Keep the independent endian catalog fingerprint and append-only vector keys
+   frozen; add new width/signedness families as separate reviewed slices rather
+   than changing the M04-002 vector identities.
+5. Migrate IPv4, ICMP, UDP, and TCP checksum paths onto `OS.Std.Net.InternetChecksum` where it reduces duplicated packet-local checksum loops.
+6. Replace shell-only runtime placeholders with tested runtime helpers as the boot path starts using them.
+7. Reserve heap pages from a live allocator state and define GC root/write-barrier ownership before changing object allocation helper status.
+8. Add helper-specific QEMU probes before changing any panic-stubbed helper to successful behavior.
