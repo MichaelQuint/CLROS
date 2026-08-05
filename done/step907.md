@@ -78,6 +78,7 @@ Focused development commands:
 
 ```powershell
 dotnet build .\tests\OS.HostTests\OS.HostTests.csproj --nologo
+dotnet run --project .\artifacts\focused-m04-regression\FocusedM04Regression.csproj --nologo
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-efi-shell.ps1 -PreflightOnly -EfiOutputPath .\artifacts\efi\BOOTX64-M04-002-DEV.EFI -LogPath .\artifacts\logs\m04-002-efi-preflight.log -EnableM04IndependentEndianConformanceProbe
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-efi-shell.ps1 -EfiOutputPath .\artifacts\efi\BOOTX64-M04-002-DEV.EFI -LogPath .\artifacts\logs\m04-002-efi-build.log -EnableM04IndependentEndianConformanceProbe
 .\scripts\run-qemu-smoke.ps1 -DryRun
@@ -88,6 +89,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-efi-shell.ps
 ```
 
 The host-test project build reported zero warnings and zero errors. The
+ignored focused regression harness linked only the existing M01-025 and
+M04-002 EFI-integration module initializers against `OS.Kernel`; all 16
+M01-025 cases and all four M04-002 integration cases passed, including the
+formerly failing `no-CRT security cookie closure stays local` case. The
 positive preflight reported `inputs=66`, `compileItems=53`, and
 `independentEndianConformance=true`. The accepted EFI build independently
 verified PE32+ AMD64, EFI subsystem 10, no ordinary/delay imports, the exact
@@ -170,6 +175,22 @@ All generated logs, EFI/link files, and images remain ignored under
   fixture now includes `EnableM04IndependentEndianConformanceProbe=false` and
   adds explicit missing/enabled-without-switch negative mutations. A fresh
   complete run is required.
+- The first complete run from pushed head
+  `a753354c06e1a3fcc688cd0f0645b576b9513d28` is also rejected. It reached the
+  M01-025 group after 2,541 seconds, where the M04-only linker storage method
+  in `EfiEntry.cs` remained visible to M01-025's default textual source
+  profile. That produced one case failure (`security-cookie-default-profile`),
+  one group failure, no terminal host pass, and an unhandled test exception;
+  the additional line-leading failure markers were consequences of the one
+  source-bound regression, not independent defects. The M04-only export now
+  lives in the M04 catalog behind the no-stdlib/M04/non-M01 compile condition,
+  while `EfiEntry.cs` again contains only the M01-owned cookie export. The
+  focused M01-025 and M04 integration groups both pass, and a fresh flagged EFI
+  publish/verifier passes with 53 compile items, 66 authority inputs, a
+  62,464-byte artifact, and SHA-256
+  `909CD07A58BBEFED495097276EF3557CC31B3BA961BAFCB2B69C431348150180`.
+  These focused results repair the disclosed regression but do not replace the
+  required fresh complete pushed-head HostTests gate.
 
 ## Deferred work
 

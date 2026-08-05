@@ -5402,18 +5402,6 @@ public static unsafe class EfiEntry
     private static AcpiEcamSegmentScratchBuffer s_acpiEcamSegmentScratch;
 #endif
 
-#if M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE && !M01_OWNED_PAGING_PROBE
-    // This profile has bounded stackalloc workspaces but does not enable the
-    // M01 paging adapter that normally owns the no-CRT GS-cookie symbol. The
-    // method is never called; its code bytes are only linker-visible storage.
-    // Randomized cookie initialization remains a later hardening milestone.
-    [System.Runtime.RuntimeExport("__security_cookie")]
-    private static ulong M04SecurityCookieStorageAnchor()
-    {
-        return 0x434c_524f_5347_5334UL;
-    }
-#endif
-
     [System.Runtime.RuntimeExport("EfiMain")]
     private static long EfiMain(void* imageHandle, EfiSystemTable* systemTable)
     {

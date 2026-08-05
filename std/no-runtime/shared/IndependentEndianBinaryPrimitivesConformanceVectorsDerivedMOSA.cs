@@ -906,6 +906,18 @@ public static class
     }
 #endif
 
+#if NOSTDLIB_EFI && M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE && !M01_OWNED_PAGING_PROBE
+    // The opt-in EFI profile uses bounded stackalloc workspaces without the
+    // M01 paging adapter that otherwise owns the no-CRT GS-cookie symbol.
+    // RuntimeExport keeps these deterministic code bytes linker-visible as
+    // temporary storage; randomized initialization belongs to hardening work.
+    [System.Runtime.RuntimeExport("__security_cookie")]
+    private static ulong M04SecurityCookieStorageAnchor()
+    {
+        return 0x434c_524f_5347_5334UL;
+    }
+#endif
+
     private static IndependentEndianReadVector ReadVector(
         byte key,
         byte firstByte,

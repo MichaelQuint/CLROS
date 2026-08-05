@@ -201,6 +201,16 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
             && efiSource.Contains(
                 "public static unsafe ulong ComputeCatalogFingerprint(",
                 StringComparison.Ordinal)
+            && source.Contains(
+                "#if NOSTDLIB_EFI && M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE && !M01_OWNED_PAGING_PROBE",
+                StringComparison.Ordinal)
+            && source.Contains(
+                "[System.Runtime.RuntimeExport(\"__security_cookie\")]",
+                StringComparison.Ordinal)
+            && source.Contains(
+                "private static ulong M04SecurityCookieStorageAnchor()",
+                StringComparison.Ordinal)
+            && CountOccurrences(source, "\"__security_cookie\"") == 1
             && !efiSource.Contains("Span<", StringComparison.Ordinal)
             && !efiSource.Contains("throw ", StringComparison.Ordinal)
             && !efiSource.Contains("new ", StringComparison.Ordinal);
@@ -264,6 +274,10 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
             && CountOccurrences(
                 source,
                 "WriteM04IndependentEndianConformanceFailureLine(") == 2
+            && CountOccurrences(source, "\"__security_cookie\"") == 1
+            && !source.Contains(
+                "M04SecurityCookieStorageAnchor",
+                StringComparison.Ordinal)
             && CountOccurrences(source, ReadyMarker) == 0
             && CountOccurrences(source, FailureMarker) == 0;
     }
