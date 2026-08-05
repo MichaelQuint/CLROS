@@ -234,6 +234,14 @@ Host tests assert:
   the binding's invoke methods, so offsets 16/32 remain unexecuted and the
   marker reports `guestInvocation=false portIoExecuted=false`. This adds no
   `BootSequence` phase and does not alter the default probe path.
+- The default-off M02-004 EFI profile consumes that checked binding only after
+  the inherited M01 restoration audits, invokes the corrected Windows x64
+  `Out8` stub exactly seven times for the 115200 8N1 COM1 configuration, and
+  emits one `CLROS_M02_004_READY ... guestPortIo=true guestIn8=false` marker
+  before `TEST_PASS m01.stage3`. The current cumulative QEMU profile observed
+  all 50 ordered and unique markers and no forbidden marker. The marker remains
+  UEFI-serial output; there is no new `BootSequence` phase, `In8` polling,
+  owned-backend payload write, or post-`ExitBootServices` behavior.
 - Fault-entry frame layout tests prove future interrupt-stub storage can round-trip formatter-compatible page-fault and invalid-opcode frames, reject inconsistent error-code metadata, reject undersized buffers, and reject unknown vectors.
 - ExitBootServices transition-boundary tests prove success and blocked markers while leaving default boot markers unchanged.
 - Early diagnostics readiness tests prove serial backend and descriptor-table readiness are aggregated into stable boot markers while leaving default boot markers unchanged.
@@ -295,9 +303,9 @@ permission changes, relocation, or native-tier or hosted .NET app launch.
 
 1. Wire the transition marker helper only after the live EFI path can perform a real `ExitBootServices` call and preserve diagnostics afterward.
 2. Add an owned serial diagnostics phase only after a real serial writer exists.
-3. Invoke the now integrated M02-003 checked binding only through a separately
-   owned privileged-I/O lane, keeping safe host callback execution and guest
-   address readiness distinct from any later live `In8`/`Out8` or COM1 claim.
+3. Add the separately owned M02-005 serial-payload slice over the proved
+   M02-004 configuration path, keeping the UEFI marker transport active until
+   owned output itself is evidenced.
 4. Wire the early diagnostics readiness helper only after generated stubs can be copied to executable memory and safely invoked under W^X policy.
 5. Wire the controlled fault-probe readiness helper only after early diagnostics can survive generated-stub execution and fault handling.
 6. Wire the app-selection readiness helper only after live block-device package reads can supply the manifest/package/descriptor prerequisites.

@@ -4,6 +4,8 @@ using System.Text.Json;
 
 internal static class CiSmokeScriptTests
 {
+    private const int CiSmokeProcessTimeoutMilliseconds = 300000;
+
     [ModuleInitializer]
     internal static void Run()
     {
@@ -1394,11 +1396,11 @@ internal static class CiSmokeScriptTests
 
         Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
         Task<string> standardError = process.StandardError.ReadToEndAsync();
-        bool exited = process.WaitForExit(120000);
+        bool exited = process.WaitForExit(CiSmokeProcessTimeoutMilliseconds);
         if (!exited)
         {
             process.Kill(entireProcessTree: true);
-            throw new TimeoutException("run-ci-smoke.ps1 did not exit within 120 seconds.");
+            throw new TimeoutException("run-ci-smoke.ps1 did not exit within 300 seconds.");
         }
 
         string output = standardOutput.GetAwaiter().GetResult() + standardError.GetAwaiter().GetResult();

@@ -102,17 +102,21 @@ public readonly struct PortIoStubPlan
             return PortIoStubPlanResult.Fail(PortIoStubPlanStatus.InvalidOperationKind, requiredBytes);
         }
 
-        destination[0] = OperandSizeOverridePrefix;
-        destination[1] = MovR16ToRm16Opcode;
-        destination[2] = MovCxToDxModRm;
-
+        int portMoveOffset = 0;
         int operationOffset = 3;
         if (OperationKind == PortIoOperationKind.Out8)
         {
-            destination[3] = MovR8ToRm8Opcode;
-            destination[4] = MovDlToAlModRm;
+            // Windows x64 passes the port in CX and the byte value in DL.
+            // Preserve DL in AL before repurposing DX for the port.
+            destination[0] = MovR8ToRm8Opcode;
+            destination[1] = MovDlToAlModRm;
+            portMoveOffset = 2;
             operationOffset = 5;
         }
+
+        destination[portMoveOffset] = OperandSizeOverridePrefix;
+        destination[portMoveOffset + 1] = MovR16ToRm16Opcode;
+        destination[portMoveOffset + 2] = MovCxToDxModRm;
 
         destination[operationOffset] = operationByte;
         destination[operationOffset + PortIoOperationPlan.RequiredByteLength] = RetOpcode;

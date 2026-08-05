@@ -40,6 +40,7 @@ param(
     [switch] $EnableM01OwnedPagingProbe,
     [switch] $EnableM02SafeStubProbe,
     [switch] $EnableM02CheckedPortIoBindingProbe,
+    [switch] $EnableM02Com1OwnedPortIoProbe,
     [switch] $SkipImageBuild
 )
 
@@ -81,8 +82,8 @@ $script:M02SafeStubRequiredMarkers = @(
     "M01_PAGE_TABLE_STATE_ARENA_ALLOCATED",
     "M01_STAGE3_MAP_RECAPTURED",
     "TEST_START m02.017",
-    "M02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E",
-    "M02_STUB_PAGE_READBACK_VERIFIED fnv1a64=F85393074A792B1E",
+    "M02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56",
+    "M02_STUB_PAGE_READBACK_VERIFIED fnv1a64=982E5B7E3EE58E56",
     "M01_CR3_STUB_MATERIALIZED",
     "M01_PAGE_TABLES_BUILT",
     "M01_PAGING_MODE_VALIDATED",
@@ -98,7 +99,7 @@ $script:M02SafeStubRequiredMarkers = @(
     "M01_RX_PROBE_EXECUTED",
     "M01_PAGE_ZERO_ABSENT",
     "M02_SAFE_PROBE_EXECUTED offset=0 return=0x4F534F4B",
-    "CLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E temporaryOwnedRootRx=true portIoExecuted=false",
+    "CLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56 temporaryOwnedRootRx=true portIoExecuted=false",
     "TEST_PASS m02.017",
     "TEST_PASS m01.stage3",
     "CLROS_M01_LIVE_BOOT_MEMORY_READY",
@@ -153,6 +154,20 @@ foreach ($marker in $script:M02SafeStubRequiredMarkers) {
 $script:M02CheckedPortIoBindingForbiddenMarkers = @(
     $script:M02SafeStubForbiddenMarkers
     "M02_CHECKED_PORT_IO_BINDING_FAILED"
+)
+$script:M02Com1OwnedPortIoReadyMarker =
+    "CLROS_M02_004_READY configurationWrites=7 bindingReady=true guestPortIo=true guestIn8=false markerTransport=uefiSerial postExitBootServices=false"
+$script:M02Com1OwnedPortIoRequiredMarkers = @()
+foreach ($marker in $script:M02CheckedPortIoBindingRequiredMarkers) {
+    $script:M02Com1OwnedPortIoRequiredMarkers += $marker
+    if ($marker -eq $script:M02CheckedPortIoBindingReadyMarker) {
+        $script:M02Com1OwnedPortIoRequiredMarkers +=
+            $script:M02Com1OwnedPortIoReadyMarker
+    }
+}
+$script:M02Com1OwnedPortIoForbiddenMarkers = @(
+    $script:M02CheckedPortIoBindingForbiddenMarkers
+    "M02_COM1_CONFIGURATION_FAILED"
 )
 
 function Invoke-NativeCommand {
@@ -587,8 +602,8 @@ internal static class Program
         "M01_PAGE_TABLE_STATE_ARENA_ALLOCATED",
         "M01_STAGE3_MAP_RECAPTURED",
         "TEST_START m02.017",
-        "M02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E",
-        "M02_STUB_PAGE_READBACK_VERIFIED fnv1a64=F85393074A792B1E",
+        "M02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56",
+        "M02_STUB_PAGE_READBACK_VERIFIED fnv1a64=982E5B7E3EE58E56",
         "M01_CR3_STUB_MATERIALIZED",
         "M01_PAGE_TABLES_BUILT",
         "M01_PAGING_MODE_VALIDATED",
@@ -604,7 +619,7 @@ internal static class Program
         "M01_RX_PROBE_EXECUTED",
         "M01_PAGE_ZERO_ABSENT",
         "M02_SAFE_PROBE_EXECUTED offset=0 return=0x4F534F4B",
-        "CLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E temporaryOwnedRootRx=true portIoExecuted=false",
+        "CLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56 temporaryOwnedRootRx=true portIoExecuted=false",
         "TEST_PASS m02.017",
         "TEST_PASS m01.stage3",
         "CLROS_M01_LIVE_BOOT_MEMORY_READY",
@@ -3547,7 +3562,33 @@ try {
         ConvertTo-QemuSmokeMarkerList -Values $ForbidMarker
     )
 
-    if ($EnableM02CheckedPortIoBindingProbe) {
+    if ($EnableM02Com1OwnedPortIoProbe) {
+        $requiredMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $requiredMarkers
+                $script:M02Com1OwnedPortIoRequiredMarkers
+            )
+        )
+        $orderedMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $orderedMarkers
+                $script:M02Com1OwnedPortIoRequiredMarkers
+            )
+        )
+        $uniqueMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $uniqueMarkers
+                $script:M02Com1OwnedPortIoRequiredMarkers
+            )
+        )
+        $forbiddenMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $forbiddenMarkers
+                $script:M02Com1OwnedPortIoForbiddenMarkers
+            )
+        )
+    }
+    elseif ($EnableM02CheckedPortIoBindingProbe) {
         $requiredMarkers = @(
             ConvertTo-QemuSmokeMarkerList -Values @(
                 $requiredMarkers
@@ -3674,11 +3715,45 @@ try {
         (Format-QemuSmokeBoolean $DryRun.IsPresent) +
         " profileRequired=49 profileForbidden=35")
     Write-Host (
+        "QEMU_SCRIPT_M02_COM1_OWNED_PORT_IO_PROBE enabled=" +
+        (Format-QemuSmokeBoolean $EnableM02Com1OwnedPortIoProbe.IsPresent) +
+        " checkedBinding=" +
+        (Format-QemuSmokeBoolean $EnableM02CheckedPortIoBindingProbe.IsPresent) +
+        " buildEfi=" +
+        (Format-QemuSmokeBoolean $BuildEfi.IsPresent) +
+        " skipImageBuild=" +
+        (Format-QemuSmokeBoolean $SkipImageBuild.IsPresent) +
+        " dryRun=" +
+        (Format-QemuSmokeBoolean $DryRun.IsPresent) +
+        " profileRequired=50 profileForbidden=36")
+    Write-Host (
         "QEMU_SCRIPT_REQUIRE_ORDERED_MARKERS " +
         (Format-QemuSmokeMarkerList $orderedMarkers))
     Write-Host (
         "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS " +
         (Format-QemuSmokeMarkerList $uniqueMarkers))
+
+    if ($EnableM02Com1OwnedPortIoProbe -and
+        -not $EnableM02CheckedPortIoBindingProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_com1_owned_port_io_probe_requires_checked_binding")
+        exit 1
+    }
+
+    if ($EnableM02Com1OwnedPortIoProbe -and -not $BuildEfi) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_com1_owned_port_io_probe_requires_build_efi")
+        exit 1
+    }
+
+    if ($EnableM02Com1OwnedPortIoProbe -and $SkipImageBuild) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_com1_owned_port_io_probe_forbids_skip_image_build")
+        exit 1
+    }
 
     if ($EnableM02CheckedPortIoBindingProbe -and
         -not $EnableM02SafeStubProbe) {
@@ -3882,6 +3957,10 @@ try {
 
         if ($EnableM02CheckedPortIoBindingProbe) {
             $buildArguments += "-EnableM02CheckedPortIoBindingProbe"
+        }
+
+        if ($EnableM02Com1OwnedPortIoProbe) {
+            $buildArguments += "-EnableM02Com1OwnedPortIoProbe"
         }
 
         Invoke-NativeCommand {

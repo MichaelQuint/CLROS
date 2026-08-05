@@ -241,7 +241,7 @@ public static unsafe class M02SafeStubPageIntegration
     public const ulong Out8Offset = 16;
     public const ulong In8Offset = 32;
     public const uint SafeReturnValue = 0x4f53_4f4b;
-    public const ulong ExpectedFnv1a64 = 0xf853_9307_4a79_2b1e;
+    public const ulong ExpectedFnv1a64 = 0x982e_5b7e_3ee5_8e56;
     public const ulong RequiredPublicationEpoch = 7;
     public const ulong ExactProbeInvocationCount = 1;
     public const ulong Fnv1a64OffsetBasis = 0xcbf2_9ce4_8422_2325;

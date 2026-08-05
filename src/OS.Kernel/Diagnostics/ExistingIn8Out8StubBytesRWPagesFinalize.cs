@@ -445,7 +445,7 @@ public static unsafe class ExistingIn8Out8StubBytesRWPagesFinalize
     public const ulong InstructionByteCount = 18;
     public const ulong OccupiedExtent = 37;
     public const uint SafeReturnValue = 0x4f53_4f4b;
-    public const ulong ExpectedFnv1a64 = 0xf853_9307_4a79_2b1e;
+    public const ulong ExpectedFnv1a64 = 0x982e_5b7e_3ee5_8e56;
     public const ulong Fnv1a64OffsetBasis = 0xcbf2_9ce4_8422_2325;
     public const ulong Fnv1a64Prime = 0x0000_0100_0000_01b3UL;
     public const bool PerformsLiveProtectionChange = false;
@@ -1119,11 +1119,11 @@ public static unsafe class ExistingIn8Out8StubBytesRWPagesFinalize
 
     private static bool HasExactOut8Bytes(byte* bytes)
     {
-        return bytes[0] == PortIoStubPlan.OperandSizeOverridePrefix
-            && bytes[1] == PortIoStubPlan.MovR16ToRm16Opcode
-            && bytes[2] == PortIoStubPlan.MovCxToDxModRm
-            && bytes[3] == PortIoStubPlan.MovR8ToRm8Opcode
-            && bytes[4] == PortIoStubPlan.MovDlToAlModRm
+        return bytes[0] == PortIoStubPlan.MovR8ToRm8Opcode
+            && bytes[1] == PortIoStubPlan.MovDlToAlModRm
+            && bytes[2] == PortIoStubPlan.OperandSizeOverridePrefix
+            && bytes[3] == PortIoStubPlan.MovR16ToRm16Opcode
+            && bytes[4] == PortIoStubPlan.MovCxToDxModRm
             && bytes[5] == PortIoOperationPlan.Out8Opcode
             && bytes[6] == PortIoStubPlan.RetOpcode;
     }
