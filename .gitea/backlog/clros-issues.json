@@ -6834,7 +6834,7 @@
         "docs/boot-order.md"
       ],
       "evidenceBoundary": "This issue proves only \"Encode an owned x64 GDT containing null, 64-bit code, data, and TSS descriptors.\" It does not by itself prove the M02 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M02-008",
