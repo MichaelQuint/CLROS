@@ -6748,7 +6748,7 @@
         "docs/boot-order.md"
       ],
       "evidenceBoundary": "This issue proves only \"Route panic-safe formatting and serial reporting through owned COM1.\" It does not by itself prove the M02 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M02-007",
