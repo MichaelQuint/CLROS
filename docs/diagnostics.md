@@ -2,7 +2,7 @@
 
 ## Current Status
 
-The owned diagnostics subsystem remains host-testable except for the accepted bounded pre-`ExitBootServices` M02-004 configuration and M02-005 marker paths and the active M02-006 development readiness path. No real IDT load, fault handlers, GDT/TSS/IST setup, live CPU-fault panic route, or owned serial path across real `ExitBootServices` exists yet. The accepted M01-026 tuple uses firmware-visible serial plus an issue-specific host QMP/physical-memory capture mechanism while firmware is still available; that observation mechanism is not OS-owned diagnostics and does not prove or provide an OS-owned diagnostic channel across real `ExitBootServices`. The repository now has host contracts for serial diagnostics readiness, COM1 configuration planning, a COM1-backed platform serial transport over a fakeable byte-port backend, owned-serial readiness derivation from COM1 backend prerequisites, aggregate owned COM1 diagnostics readiness metadata, CPU fault-frame formatting, deterministic CPU fault-entry frame storage, caller-owned panic text buffering, a bounded allocation-free panic formatter/reporting route over the checked COM1 backend, x64 IDT gate descriptors, IDT table planning, required fault-vector metadata, x64 instruction-byte plans for future port-I/O, descriptor-table, and fault-entry shellcode stubs, byte-copy materialization of planned diagnostic stubs into caller-owned buffers, a page-transition plan contract for future W^X handoff, a host-only diagnostics-chain readiness aggregate across the current prerequisite contracts, a post-chain diagnostic-stub invocation readiness guard that validates resolved COM1 stub addresses against the planned executable payload range without invoking them, and a value-only diagnostic-stub callable-binding plan that checks materialized COM1 callable preconditions before any live COM1/serial invocation.
+The owned diagnostics subsystem remains host-testable except for the accepted bounded pre-`ExitBootServices` M02-004 configuration, M02-005 marker, and M02-006 panic-readiness paths. M02-007 now adds a host-validated, allocation-free owned GDT encoder; guest encoding evidence still requires a separately owned EFI integration lane. No real IDT load, fault handlers, GDT/TSS/IST installation, live CPU-fault panic route, or owned serial path across real `ExitBootServices` exists yet. The accepted M01-026 tuple uses firmware-visible serial plus an issue-specific host QMP/physical-memory capture mechanism while firmware is still available; that observation mechanism is not OS-owned diagnostics and does not prove or provide an OS-owned diagnostic channel across real `ExitBootServices`. The repository now has host contracts for serial diagnostics readiness, COM1 configuration planning, a COM1-backed platform serial transport over a fakeable byte-port backend, owned-serial readiness derivation from COM1 backend prerequisites, aggregate owned COM1 diagnostics readiness metadata, CPU fault-frame formatting, deterministic CPU fault-entry frame storage, caller-owned panic text buffering, a bounded allocation-free panic formatter/reporting route over the checked COM1 backend, x64 IDT gate descriptors, IDT table planning, required fault-vector metadata, x64 instruction-byte plans for future port-I/O, descriptor-table, and fault-entry shellcode stubs, byte-copy materialization of planned diagnostic stubs into caller-owned buffers, a page-transition plan contract for future W^X handoff, a host-only diagnostics-chain readiness aggregate across the current prerequisite contracts, a post-chain diagnostic-stub invocation readiness guard that validates resolved COM1 stub addresses against the planned executable payload range without invoking them, and a value-only diagnostic-stub callable-binding plan that checks materialized COM1 callable preconditions before any live COM1/serial invocation.
 
 ## Implemented Behavior
 
@@ -24,6 +24,17 @@ The owned diagnostics subsystem remains host-testable except for the accepted bo
 - `IdtTablePlan` builds and validates a caller-owned 256-entry IDT descriptor table plan for the required early fault vectors and writes deterministic 4096-byte descriptor storage without loading it.
 - `IdtrDescriptor` models the x64 IDTR pointer for the 4096-byte table, including limit/base validation and deterministic packed 10-byte output.
 - `GdtDescriptorPlan` models a minimal x64 GDT byte layout for null, kernel code, kernel data, and available 64-bit TSS descriptors.
+- `OwnedX64GdtContainingNullN64BitCode` is the M02-007 pointer-first encoder for
+  a caller-owned 40-byte GDT. It emits an all-zero null descriptor, conventional
+  flat 64-bit ring-zero code and data descriptors, and one 16-byte available
+  64-bit TSS descriptor at selectors `0x08`, `0x10`, and `0x18`; the resulting
+  GDTR limit metadata is 39. It validates destination capacity, nonzero
+  canonical 48-bit x64 TSS addresses, and TSS limits from 103 through
+  `0xFFFFF` before mutation. It then reads back all 40 bytes and records an
+  FNV-1a64 fingerprint without allocation. Host `Span` wrappers are excluded
+  under `NOSTDLIB_EFI`; the always-compiled core uses explicit pointers and
+  lengths. This owns bytes only: it does not execute `lgdt` or `ltr`, install a
+  TSS, change `BootSequence`, or enable a probe.
 - `TssIstPlan` models the x64 TSS bytes needed for `RSP0` and IST entries, including double-fault IST stack top, stack-size, and guard-size validation.
 - `FaultInfrastructureReadiness` combines serial, IDT, IDTR, GDT, TSS/IST, and double-fault IST readiness into a single pre-privileged-install gate.
 - `BootSequence.RunFaultInfrastructureReadiness` emits host-tested `FAULT_INFRA_READY` or `FAULT_INFRA_NOT_READY status=<status>` markers from the readiness result without changing the default boot path.
@@ -213,8 +224,8 @@ The owned diagnostics subsystem remains host-testable except for the accepted bo
   `postExitBootServices=false`, all before `TEST_PASS m01.stage3`; the failure
   marker and every `TEST_FAIL` were absent. This is harmless readiness evidence,
   not a triggered CPU fault, live panic route, or post-`ExitBootServices`
-  diagnostic path. The final exact-tree gate and independent review remain
-  pending.
+  diagnostic path. The exact-head implementation, EFI integration, independent
+  review, tracker closure, and canonical manifest closure are merged.
 - `DiagnosticStubCallableBindingPlanDiagnosticFormatter` formats initialized
   callable-binding plan metadata into stable caller-owned ASCII
   `DIAGNOSTIC_STUB_CALLABLE_BINDING status=` marker bytes. It reports required
@@ -363,6 +374,9 @@ TEST_PASS fault vectors include page fault metadata
 TEST_PASS gdt descriptor plan encodes kernel segments
 TEST_PASS gdt descriptor plan encodes tss descriptor
 TEST_PASS gdt descriptor plan rejects invalid inputs
+TEST_START m02.007
+CLROS_M02_007_READY encoding=hostValidated callerOwned=true readBack=true guestEncoding=false guestLgdt=false guestLtr=false allocationFree=true
+TEST_PASS m02.007
 TEST_PASS fault infra readiness accepts complete plan
 TEST_PASS fault infra readiness rejects missing serial
 TEST_PASS fault infra readiness rejects incomplete descriptor plans
@@ -695,6 +709,17 @@ The current managed formatter and guard contracts allocate managed strings and a
 
 `IdtGateDescriptor`, `IdtTablePlan`, `IdtrDescriptor`, `GdtDescriptorPlan`, `TssIstPlan`, `FaultInfrastructureReadiness`, `DescriptorTableInstructionPlan`, and `DescriptorTableInstallStubPlan` are descriptor encoding, table-layout, instruction-byte, and readiness contracts only. They do not execute `lidt`, `lgdt`, `ltr`, install handlers, configure a live TSS/IST, or prove QEMU fault behavior.
 
+`OwnedX64GdtContainingNullN64BitCode` strengthens only the caller-owned GDT
+encoding boundary. Its fixed descriptor order makes duplicate/cyclic capability
+lists, BARs, queues, descriptor leasing, timeouts, reset, and DMA ownership
+inapplicable; there is no device transaction in this slice. Applicable failures
+are destination range/capacity, null or noncanonical TSS addresses, invalid TSS
+limits, default results, and byte-level readback corruption, all of which are
+host-tested. PE import policy and hosted-runtime exception behavior remain
+outside M02-007. Guest encoding is not the same as loading the table, and neither
+host nor future guest marker evidence may be promoted to live `lgdt`, `ltr`,
+fault handling, provider, cloud-readiness, Kestrel, or production claims.
+
 `FaultProbeStubPlan` is a byte-plan contract only. It intentionally does not execute `ud2` or write to address zero, and it is not QEMU fault evidence.
 
 `NullPageFaultProbePlan` is metadata only and is distinct from
@@ -725,7 +750,7 @@ diagnostics exist.
 
 `BootSequence.RunExitBootServicesPreflight` is a marker/readiness helper only. It does not call firmware, execute generated stubs, or prove live post-firmware output.
 
-`Com1PortIoBackendContract` is address metadata only. It resolves future function-pointer target addresses from planned stub offsets, but it does not create delegates, invoke function pointers, or perform port I/O. `OwnedSerialDiagnosticsReadinessResult` and `OwnedCom1DiagnosticsReadiness` only consume that status-coded metadata to decide whether the guard and marker boundary may be marked ready. `IPlatformSerial`, `GuardedPlatformSerial`, and `Com1PlatformSerialTransport` route host-test bytes to injected/fakeable transports only; they do not prove real COM1 port I/O or output after real `ExitBootServices`. The separate M02-005 EFI profile executes `OwnedCom1ReadyExclusivelyOwnedWriter` over checked generated `In8`/`Out8` targets under QEMU, and the active M02-006 development profile executes the harmless readiness method of `PanicSafeFormattingSerialReportingOwnedCom1` through that same checked backend. Both remain bounded pre-`ExitBootServices` marker paths. They do not make those readiness/guard abstractions live after firmware shutdown or prove a live panic route.
+`Com1PortIoBackendContract` is address metadata only. It resolves future function-pointer target addresses from planned stub offsets, but it does not create delegates, invoke function pointers, or perform port I/O. `OwnedSerialDiagnosticsReadinessResult` and `OwnedCom1DiagnosticsReadiness` only consume that status-coded metadata to decide whether the guard and marker boundary may be marked ready. `IPlatformSerial`, `GuardedPlatformSerial`, and `Com1PlatformSerialTransport` route host-test bytes to injected/fakeable transports only; they do not prove real COM1 port I/O or output after real `ExitBootServices`. The accepted M02-005 EFI profile executes `OwnedCom1ReadyExclusivelyOwnedWriter` over checked generated `In8`/`Out8` targets under QEMU, and the accepted M02-006 profile executes the harmless readiness method of `PanicSafeFormattingSerialReportingOwnedCom1` through that same checked backend. Both remain bounded pre-`ExitBootServices` marker paths. They do not make those readiness/guard abstractions live after firmware shutdown or prove a live panic route.
 
 `CpuFaultEntryFrameLayout`, `CpuFaultPanicReadiness`, and
 `CpuFaultPanicReadinessFormatter` are storage/layout, composition, and
@@ -859,15 +884,25 @@ allocations. It does not prove that privileged guest `In8`/`Out8` executed; the
 host marker explicitly records `guestPortIo=false`, and real QEMU/OVMF evidence
 requires a separately owned EFI integration lane.
 
+M02-007 host tests encode the exact 40-byte table, prove the conventional code
+and data bytes plus the full 64-bit TSS base and 20-bit limit, reject all
+applicable invalid metadata before mutation, detect the first corrupted readback
+byte, preserve bytes beyond the owned prefix, and measure zero managed
+allocations across 1,024 pointer-core encodings. The host marker intentionally
+reports `guestEncoding=false`, `guestLgdt=false`, and `guestLtr=false`. A fresh
+real-QEMU/OVMF run over a separately owned default-off EFI adapter is still
+required before M02-007 can close.
+
 ## Next Steps
 
-1. Integrate the M02-006 formatter/reporter through a separately owned,
-   default-off EFI lane and obtain fresh real-QEMU/OVMF evidence before claiming
-   privileged guest port I/O.
+1. Integrate the M02-007 pointer encoder through a separately owned, default-off
+   EFI lane and obtain fresh real-QEMU/OVMF evidence for guest byte generation
+   and readback without loading the GDT or TSS.
 2. Preserve the M02-005 bounded owned-COM1 marker proof, then wire the writer
    through `SerialDiagnosticsGuard` only when a later issue owns the live
    post-firmware diagnostic boundary.
-3. Add IDT/GDT/TSS/IST setup using the descriptor, IDTR, GDT, TSS/IST, readiness, install-readiness, table-plan, vector, descriptor-instruction, and descriptor-install stub contracts.
+3. Add IDT/GDT/TSS/IST setup only in later issues that own the live descriptor
+   installation boundary; M02-007 does not execute `lgdt` or `ltr`.
 4. Add real executable-stub page transitions using the W^X layout, materialization, and page-transition plan contracts.
 5. Keep M02-004's configuration-only marker, M02-005's pre-firmware direct
    COM1 payload, M02-006's panic-safe route, and future post-firmware diagnostics
