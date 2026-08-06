@@ -91,7 +91,7 @@ The no-stdlib EFI artifact also has an `EXIT_BOOT_SERVICES_FRESH_MAP_PROBE` buil
 
 All real hardware phases are pending: OS-owned UEFI snapshot, `ExitBootServices`, owned serial, IDT load, ACPI, PCI, storage, network, manifest loading, and app launch.
 
-The IDT descriptor, IDTR descriptor, GDT descriptor, TSS/IST layout, readiness-gate, IDT table-plan, descriptor-table instruction-byte/install-stub/readiness plans, fault-probe stub plans, and fault-vector metadata contracts are host-tested, but no emitted boot phase loads an IDT/GDT/TSS, installs handlers, or triggers controlled CPU faults yet. The serial diagnostics guard, COM1 configuration plan, abstract COM1 writer, port-I/O instruction-byte plan, callable port-I/O stub plan, and COM1 backend-readiness plan are host-tested, but no emitted boot phase has an OS-owned serial driver yet.
+The IDT descriptor, IDTR descriptor, GDT descriptor, M02-007 caller-owned GDT encoder, TSS/IST layout, readiness-gate, IDT table-plan, descriptor-table instruction-byte/install-stub/readiness plans, fault-probe stub plans, and fault-vector metadata contracts are host-tested, but no emitted boot phase loads an IDT/GDT/TSS, installs handlers, or triggers controlled CPU faults yet. The serial diagnostics guard, COM1 configuration plan, abstract COM1 writer, port-I/O instruction-byte plan, callable port-I/O stub plan, and COM1 backend-readiness plan are host-tested, but no emitted boot phase has an OS-owned serial driver yet.
 
 `BootSequence.RunFaultInfrastructureReadiness` is a host-tested helper only. It emits `FAULT_INFRA_READY` for a successful `FaultInfrastructureReadinessResult` and `FAULT_INFRA_NOT_READY status=<status>` for a failed result. The default boot path does not call it yet.
 
@@ -176,6 +176,12 @@ Host tests assert:
 - ExitBootServices live-wiring plan tests prove the intended call order and prove the plan stops before a firmware call while the call is disabled.
 - ExitBootServices firmware-result tests prove success, stale-map-key retry mapping, missing function pointer, and guard denial remain status-coded before the live call is enabled.
 - GDT descriptor tests prove kernel segment and TSS descriptor bytes are deterministic and invalid TSS metadata is rejected.
+- M02-007 owned-GDT tests prove the exact 40-byte null/code/data/TSS layout,
+  selectors, table limit, full canonical TSS base, TSS-limit bounds, bounded
+  caller ownership, byte-level readback/corruption detection, default-result
+  rejection, deterministic FNV-1a64 identity, and allocation-free pointer path.
+  The host marker explicitly reports `guestEncoding=false`, `guestLgdt=false`,
+  and `guestLtr=false`.
 - TSS/IST plan tests prove `RSP0` and double-fault IST bytes are deterministic and invalid IST stack metadata is rejected.
 - Fault-infrastructure readiness tests prove serial readiness is required before descriptor-plan readiness and each missing plan has a distinct status.
 - Boot sequence fault-readiness helper tests prove `FAULT_INFRA_READY` and `FAULT_INFRA_NOT_READY status=<status>` marker behavior without changing the default `BootSequence.Run` marker order.
@@ -272,8 +278,18 @@ Host tests assert:
   configuration writes, 127 first-ready polls, `guestPortIo=true`,
   `guestIn8=true`, `firmwareFallback=false`, and
   `postExitBootServices=false`. This is not a default `BootSequence` phase,
-  does not trigger a fault or panic, and proves no output after firmware exit;
-  the final exact-tree gate and independent review remain pending.
+  does not trigger a fault or panic, and proves no output after firmware exit.
+  The exact-head implementation, integration, independent review, tracker
+  closure, and manifest closure are merged.
+- M02-007 adds a 40-byte caller-owned GDT encoder with a pointer-first
+  no-stdlib core and exact readback verification. It fixes the descriptor order
+  as null, 64-bit ring-zero code, ring-zero data, and available 64-bit TSS;
+  validates canonical TSS metadata before mutation; and never touches
+  `BootSequence`, `Probes`, `EfiEntry`, or `OS.csproj` in its implementation
+  lane. Current evidence is host-only. A separate default-off EFI lane must
+  execute the same encoder under QEMU/OVMF before issue closure, and even that
+  guest result will not load the table or prove `lgdt`, `ltr`, handlers, faults,
+  or post-`ExitBootServices` diagnostics.
 - Fault-entry frame layout tests prove future interrupt-stub storage can round-trip formatter-compatible page-fault and invalid-opcode frames, reject inconsistent error-code metadata, reject undersized buffers, and reject unknown vectors.
 - ExitBootServices transition-boundary tests prove success and blocked markers while leaving default boot markers unchanged.
 - Early diagnostics readiness tests prove serial backend and descriptor-table readiness are aggregated into stable boot markers while leaving default boot markers unchanged.
@@ -339,9 +355,11 @@ permission changes, relocation, or native-tier or hosted .NET app launch.
    marker proofs, keep their UEFI evidence lines distinct from the direct
    transport, and do not treat either as the future post-firmware diagnostic
    path.
-4. Wire the early diagnostics readiness helper only after generated stubs can be copied to executable memory and safely invoked under W^X policy.
-5. Wire the controlled fault-probe readiness helper only after early diagnostics can survive generated-stub execution and fault handling.
-6. Wire the app-selection readiness helper only after live block-device package reads can supply the manifest/package/descriptor prerequisites.
-7. Add probe toggles for destructive fault tests.
-8. Promote future placeholder phases from documented ledger entries to emitted phases only when the required subsystem evidence exists.
-9. Prevent any subsystem from bypassing `BootSequence`.
+4. Add M02-007 guest encoding/readback through a separately owned default-off
+   EFI adapter without executing `lgdt` or `ltr`.
+5. Wire the early diagnostics readiness helper only after generated stubs can be copied to executable memory and safely invoked under W^X policy.
+6. Wire the controlled fault-probe readiness helper only after early diagnostics can survive generated-stub execution and fault handling.
+7. Wire the app-selection readiness helper only after live block-device package reads can supply the manifest/package/descriptor prerequisites.
+8. Add probe toggles for destructive fault tests.
+9. Promote future placeholder phases from documented ledger entries to emitted phases only when the required subsystem evidence exists.
+10. Prevent any subsystem from bypassing `BootSequence`.
