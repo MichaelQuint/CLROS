@@ -202,6 +202,25 @@ tracker review comment must carry fresh exact-pushed-head hashes.
   it records 1,319 line-leading starts, 1,317 passes, two failures, a nonzero
   process exit, and no terminal host pass. It is not acceptance evidence, and
   a complete fresh run remains required.
+- The first literal pushed-head HostTests repetition at commit
+  `71a88a2a2791d24b9f7b56f5aa0fd8476d68a9a3` was stopped immediately when the
+  pre-existing 42-iteration stage-three missing-marker runner test failed after
+  passing in the complete pre-push run. Its rejected 582,440-byte partial log
+  has SHA-256
+  `413686B855478EA1F45B77C1789D0598540BD1C2227D4A961C1E3843EE0F4765`
+  and records 2,289 line-leading starts, 2,287 passes, one failure, no terminal
+  host pass, and an intentional interrupt. The original runner group then
+  passed all 155 cases in isolation; its 40,920-byte focused log has SHA-256
+  `1DD458BD3DEA754E364C649A83F6C35071AC26F0F6FC8C21CB00B3699EB815F4`.
+  This demonstrated a load-sensitive five-second subprocess allowance rather
+  than marker-contract drift. The affected stage-three loop now uses the same
+  eight-second budget as its complete stage-three success case and emits
+  failure-only marker, exit, output, summary, and unexpected-pass diagnostics.
+  The hardened 155-case repeat also passed with zero failures and no diagnostic
+  line; because success output is unchanged, its log is byte-identical to the
+  focused reproduction above. Stage-two timing and all runner classification
+  semantics remain unchanged. The rejected pushed head is not acceptance
+  evidence; a new commit and full exact-head gate are required.
 
 ## Deferred work
 

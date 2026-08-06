@@ -4908,7 +4908,7 @@ internal static class QemuRunnerTests
                 qemuPath,
                 includeOrdered: true,
                 includeUnique: true,
-                timeoutSeconds: 5,
+                timeoutSeconds: 8,
                 out string summary);
 
             if (result.ExitCode != 5
@@ -4928,6 +4928,25 @@ internal static class QemuRunnerTests
                     "TEST_PASS qemu.smoke",
                     StringComparison.Ordinal))
             {
+                Console.WriteLine(
+                    "QEMU_M01_STAGE3_MISSING_DIAGNOSTIC marker="
+                    + SanitizeFileName(missingMarker)
+                    + " exit="
+                    + result.ExitCode
+                    + " outputMissingMarker="
+                    + result.Output.Contains(
+                        "TEST_FAIL qemu.smoke missing_marker",
+                        StringComparison.Ordinal)
+                    + " summaryMarker="
+                    + summary.Contains(missingMarker, StringComparison.Ordinal)
+                    + " summaryReason="
+                    + summary.Contains(
+                        "FAIL_REASON missing_marker",
+                        StringComparison.Ordinal)
+                    + " unexpectedPass="
+                    + result.Output.Contains(
+                        "TEST_PASS qemu.smoke",
+                        StringComparison.Ordinal));
                 return false;
             }
         }
