@@ -43,6 +43,7 @@ param(
     [switch] $EnableM02Com1OwnedPortIoProbe,
     [switch] $EnableM02OwnedCom1ReadyProbe,
     [switch] $EnableM02PanicSafeOwnedCom1Probe,
+    [switch] $EnableM02OwnedX64GdtEncodingProbe,
     [switch] $EnableM04IndependentEndianConformanceProbe,
     [switch] $SkipImageBuild
 )
@@ -206,6 +207,20 @@ foreach ($marker in $script:M02OwnedCom1ReadyRequiredMarkers) {
 $script:M02PanicSafeOwnedCom1ForbiddenMarkers = @(
     $script:M02OwnedCom1ReadyForbiddenMarkers
     "M02_PANIC_SAFE_OWNED_COM1_FAILED"
+)
+$script:M02OwnedX64GdtEncodingReadyMarker =
+    "CLROS_M02_007_READY encoding=guestValidated callerOwned=true readBack=true gdtBytes=40 tssBytes=104 tableLimit=39 selectors=0,8,16,24 guestEncoding=true guestLgdt=false guestLtr=false allocationFree=true markerTransport=uefiSerial postExitBootServices=false"
+$script:M02OwnedX64GdtEncodingRequiredMarkers = @()
+foreach ($marker in $script:M02PanicSafeOwnedCom1RequiredMarkers) {
+    $script:M02OwnedX64GdtEncodingRequiredMarkers += $marker
+    if ($marker -eq $script:M02PanicSafeOwnedCom1EvidenceMarker) {
+        $script:M02OwnedX64GdtEncodingRequiredMarkers +=
+            $script:M02OwnedX64GdtEncodingReadyMarker
+    }
+}
+$script:M02OwnedX64GdtEncodingForbiddenMarkers = @(
+    $script:M02PanicSafeOwnedCom1ForbiddenMarkers
+    "M02_OWNED_X64_GDT_ENCODING_FAILED"
 )
 $script:M04IndependentEndianConformanceReadyMarker =
     "CLROS_M04_002_READY readVectors=25 reverseVectors=7 byteSeries=5 uint16Series=7 fingerprint=E81E4451E8D999F6 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail"
@@ -527,6 +542,27 @@ function ConvertTo-QemuSmokeMarkerList {
             if ($seen.Add($normalized)) {
                 $markers.Add($normalized)
             }
+        }
+    }
+
+    return $markers.ToArray()
+}
+
+function Merge-QemuSmokeMarkerList {
+    param(
+        [AllowNull()] [string[]] $Values
+    )
+
+    $markers = New-Object System.Collections.Generic.List[string]
+    $seen = New-Object "System.Collections.Generic.HashSet[string]" ([System.StringComparer]::Ordinal)
+    foreach ($markerValue in $Values) {
+        if ([string]::IsNullOrWhiteSpace($markerValue)) {
+            continue
+        }
+
+        $normalized = $markerValue.Trim()
+        if ($seen.Add($normalized)) {
+            $markers.Add($normalized)
         }
     }
 
@@ -3596,7 +3632,8 @@ try {
         exit 1
     }
 
-    if (($EnableM02PanicSafeOwnedCom1Probe -or
+    if (($EnableM02OwnedX64GdtEncodingProbe -or
+            $EnableM02PanicSafeOwnedCom1Probe -or
             $EnableM02OwnedCom1ReadyProbe) -and
         $EnableM02Com1OwnedPortIoProbe -and
         $EnableM02CheckedPortIoBindingProbe -and
@@ -3654,7 +3691,33 @@ try {
         )
     }
 
-    if ($EnableM02PanicSafeOwnedCom1Probe) {
+    if ($EnableM02OwnedX64GdtEncodingProbe) {
+        $requiredMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $requiredMarkers
+                $script:M02OwnedX64GdtEncodingRequiredMarkers
+            )
+        )
+        $orderedMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $orderedMarkers
+                $script:M02OwnedX64GdtEncodingRequiredMarkers
+            )
+        )
+        $uniqueMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $uniqueMarkers
+                $script:M02OwnedX64GdtEncodingRequiredMarkers
+            )
+        )
+        $forbiddenMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $forbiddenMarkers
+                $script:M02OwnedX64GdtEncodingForbiddenMarkers
+            )
+        )
+    }
+    elseif ($EnableM02PanicSafeOwnedCom1Probe) {
         $requiredMarkers = @(
             ConvertTo-QemuSmokeMarkerList -Values @(
                 $requiredMarkers
@@ -3895,6 +3958,18 @@ try {
         (Format-QemuSmokeBoolean $DryRun.IsPresent) +
         " profileRequired=54 profileForbidden=38")
     Write-Host (
+        "QEMU_SCRIPT_M02_OWNED_X64_GDT_ENCODING_PROBE enabled=" +
+        (Format-QemuSmokeBoolean $EnableM02OwnedX64GdtEncodingProbe.IsPresent) +
+        " panicSafeOwnedCom1=" +
+        (Format-QemuSmokeBoolean $EnableM02PanicSafeOwnedCom1Probe.IsPresent) +
+        " buildEfi=" +
+        (Format-QemuSmokeBoolean $BuildEfi.IsPresent) +
+        " skipImageBuild=" +
+        (Format-QemuSmokeBoolean $SkipImageBuild.IsPresent) +
+        " dryRun=" +
+        (Format-QemuSmokeBoolean $DryRun.IsPresent) +
+        " profileRequired=55 profileForbidden=39")
+    Write-Host (
         "QEMU_SCRIPT_M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE enabled=" +
         (Format-QemuSmokeBoolean $EnableM04IndependentEndianConformanceProbe.IsPresent) +
         " buildEfi=" +
@@ -3922,6 +3997,28 @@ try {
         Write-Host (
             "TEST_FAIL qemu.smoke.invalid_args " +
             "m04_independent_endian_conformance_probe_forbids_skip_image_build")
+        exit 1
+    }
+
+    if ($EnableM02OwnedX64GdtEncodingProbe -and
+        -not $EnableM02PanicSafeOwnedCom1Probe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_owned_x64_gdt_encoding_probe_requires_panic_safe_owned_com1")
+        exit 1
+    }
+
+    if ($EnableM02OwnedX64GdtEncodingProbe -and -not $BuildEfi) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_owned_x64_gdt_encoding_probe_requires_build_efi")
+        exit 1
+    }
+
+    if ($EnableM02OwnedX64GdtEncodingProbe -and $SkipImageBuild) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_owned_x64_gdt_encoding_probe_forbids_skip_image_build")
         exit 1
     }
 
@@ -4205,6 +4302,10 @@ try {
 
         if ($EnableM02PanicSafeOwnedCom1Probe) {
             $buildArguments += "-EnableM02PanicSafeOwnedCom1Probe"
+        }
+
+        if ($EnableM02OwnedX64GdtEncodingProbe) {
+            $buildArguments += "-EnableM02OwnedX64GdtEncodingProbe"
         }
 
         if ($EnableM04IndependentEndianConformanceProbe) {
