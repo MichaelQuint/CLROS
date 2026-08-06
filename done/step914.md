@@ -81,6 +81,14 @@ provides guest execution evidence while deliberately stopping before `lgdt`,
   timed out and cleaned up QEMU. Internal profile composition now uses a
   no-split, ordinal-deduplicating merge while CLI-supplied marker lists retain
   their compatibility parser; the next real run passed 55/55 markers.
+- The first frozen exact-head full host run passed all five new M02-007
+  integration checks, then exposed an M02-006 regression: its dependency
+  firewall counted both the M02-006 prerequisite and the new M02-007
+  dependency because it matched any condition containing the older switch.
+  The firewall now selects only conditions whose left-hand switch is M02-006,
+  retaining the one-prerequisite assertion while allowing later probes to
+  depend on the reviewed M02-006 lane. That failed head was not reviewed or
+  merged; only the successor exact head is eligible for final evidence.
 
 ## Deferred work
 

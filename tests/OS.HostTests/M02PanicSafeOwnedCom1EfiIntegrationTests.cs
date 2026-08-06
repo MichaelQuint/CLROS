@@ -125,8 +125,8 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
         string[] dependencyConditions = project
             .Descendants("Error")
             .Select(element => element.Attribute("Condition")?.Value ?? string.Empty)
-            .Where(value => value.Contains(
-                "EnableM02PanicSafeOwnedCom1Probe",
+            .Where(value => value.StartsWith(
+                "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'",
                 StringComparison.Ordinal))
             .ToArray();
 
