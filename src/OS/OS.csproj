@@ -39,6 +39,7 @@
 		<EnableM02SafeStubProbe Condition="'$(EnableM02SafeStubProbe)' == ''">false</EnableM02SafeStubProbe>
 		<EnableM02CheckedPortIoBindingProbe Condition="'$(EnableM02CheckedPortIoBindingProbe)' == ''">false</EnableM02CheckedPortIoBindingProbe>
 		<EnableM02Com1OwnedPortIoProbe Condition="'$(EnableM02Com1OwnedPortIoProbe)' == ''">false</EnableM02Com1OwnedPortIoProbe>
+		<EnableM02OwnedCom1ReadyProbe Condition="'$(EnableM02OwnedCom1ReadyProbe)' == ''">false</EnableM02OwnedCom1ReadyProbe>
 		<EnableM04IndependentEndianConformanceProbe Condition="'$(EnableM04IndependentEndianConformanceProbe)' == ''">false</EnableM04IndependentEndianConformanceProbe>
 	</PropertyGroup>
 
@@ -64,6 +65,10 @@
 
 	<PropertyGroup Condition="'$(EnableM02Com1OwnedPortIoProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M02_COM1_OWNED_PORT_IO_PROBE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM02OwnedCom1ReadyProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M02_OWNED_COM1_READY_PROBE</DefineConstants>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM04IndependentEndianConformanceProbe)' == 'true'">
@@ -122,6 +127,7 @@
 		<Compile Include="..\OS.Kernel\Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs" Link="Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs" Link="Diagnostics\InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\COM1OwnedPortIOBackend.cs" Link="Diagnostics\COM1OwnedPortIOBackend.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs" Link="Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" Link="Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs" Link="Boot\M01LoadedImageStackIntegration.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs" Link="Boot\M01LiveAllocatorIntegration.cs" />
@@ -179,6 +185,9 @@
 		<Error
 			Condition="'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' != 'true'"
 			Text="EnableM02Com1OwnedPortIoProbe requires EnableM02CheckedPortIoBindingProbe=true." />
+		<Error
+			Condition="'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM02Com1OwnedPortIoProbe)' != 'true'"
+			Text="EnableM02OwnedCom1ReadyProbe requires EnableM02Com1OwnedPortIoProbe=true." />
 	</Target>
 
 	<Target Name="CustomizeReferences"

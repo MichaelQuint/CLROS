@@ -3656,6 +3656,38 @@ public static unsafe class EfiEntry
                 WriteM02Com1OwnedPortIoSuccessLine(
                     console,
                     serial);
+#if M02_OWNED_COM1_READY_PROBE
+                OS.Kernel.Diagnostics.Com1OwnedPortIoBackend
+                    ownedCom1Backend =
+                        new OS.Kernel.Diagnostics.Com1OwnedPortIoBackend(
+                            s_m02CheckedPortIoBinding.Binding);
+                OS.Kernel.Diagnostics.OwnedCom1ReadyWriterResult
+                    ownedCom1Ready =
+                        OS.Kernel.Diagnostics
+                            .OwnedCom1ReadyExclusivelyOwnedWriter
+                                .Emit(ownedCom1Backend);
+                if (!ownedCom1Ready.Succeeded ||
+                    ownedCom1Ready.Configuration.WritesCompleted != 7 ||
+                    ownedCom1Ready.MarkerBytesWritten != 16 ||
+                    ownedCom1Ready.LineEndingBytesWritten != 2 ||
+                    ownedCom1Ready.LineStatusPolls != 18 ||
+                    !ownedCom1Ready.OwnedBackendUsed ||
+                    ownedCom1Ready.FirmwareFallbackUsed)
+                {
+                    WriteM02OwnedCom1ReadyFailureLine(
+                        console,
+                        serial);
+                    _ = FailAfterEntry(
+                        M01StageThreeAdapterStatus
+                            .PostReturnAuditRejected,
+                        (ulong)ownedCom1Ready.Status);
+                    return;
+                }
+
+                WriteM02OwnedCom1ReadySuccessLine(
+                    console,
+                    serial);
+#endif
 #endif
 #endif
             }
@@ -4801,6 +4833,429 @@ public static unsafe class EfiEntry
                 (byte)'L',
                 (byte)'E',
                 (byte)'D',
+                0,
+                0,
+                0);
+            EfiEntry.WriteCrLf(console, serial);
+        }
+#endif
+
+#if M02_OWNED_COM1_READY_PROBE
+        private static void WriteM02OwnedCom1ReadySuccessLine(
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial)
+        {
+            WriteAscii(
+                console,
+                serial,
+                (byte)'C',
+                (byte)'L',
+                (byte)'R',
+                (byte)'O',
+                (byte)'S',
+                (byte)'_',
+                (byte)'M',
+                (byte)'0');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'2',
+                (byte)'_',
+                (byte)'0',
+                (byte)'0',
+                (byte)'5',
+                (byte)'_',
+                (byte)'R',
+                (byte)'E');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'A',
+                (byte)'D',
+                (byte)'Y',
+                (byte)' ',
+                (byte)'m',
+                (byte)'a',
+                (byte)'r',
+                (byte)'k');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'e',
+                (byte)'r',
+                (byte)'=',
+                (byte)'O',
+                (byte)'W',
+                (byte)'N',
+                (byte)'E',
+                (byte)'D');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'_',
+                (byte)'C',
+                (byte)'O',
+                (byte)'M',
+                (byte)'1',
+                (byte)'_',
+                (byte)'R',
+                (byte)'E');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'A',
+                (byte)'D',
+                (byte)'Y',
+                (byte)' ',
+                (byte)'m',
+                (byte)'a',
+                (byte)'r',
+                (byte)'k');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'e',
+                (byte)'r',
+                (byte)'B',
+                (byte)'y',
+                (byte)'t',
+                (byte)'e',
+                (byte)'s',
+                (byte)'=');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'1',
+                (byte)'6',
+                (byte)' ',
+                (byte)'l',
+                (byte)'i',
+                (byte)'n',
+                (byte)'e',
+                (byte)'E');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'n',
+                (byte)'d',
+                (byte)'i',
+                (byte)'n',
+                (byte)'g',
+                (byte)'B',
+                (byte)'y',
+                (byte)'t');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'e',
+                (byte)'s',
+                (byte)'=',
+                (byte)'2',
+                (byte)' ',
+                (byte)'c',
+                (byte)'o',
+                (byte)'n');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'f',
+                (byte)'i',
+                (byte)'g',
+                (byte)'u',
+                (byte)'r',
+                (byte)'a',
+                (byte)'t',
+                (byte)'i');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'o',
+                (byte)'n',
+                (byte)'W',
+                (byte)'r',
+                (byte)'i',
+                (byte)'t',
+                (byte)'e',
+                (byte)'s');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'=',
+                (byte)'7',
+                (byte)' ',
+                (byte)'l',
+                (byte)'i',
+                (byte)'n',
+                (byte)'e',
+                (byte)'S');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'t',
+                (byte)'a',
+                (byte)'t',
+                (byte)'u',
+                (byte)'s',
+                (byte)'P',
+                (byte)'o',
+                (byte)'l');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'l',
+                (byte)'s',
+                (byte)'=',
+                (byte)'1',
+                (byte)'8',
+                (byte)' ',
+                (byte)'o',
+                (byte)'w');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'n',
+                (byte)'e',
+                (byte)'d',
+                (byte)'W',
+                (byte)'r',
+                (byte)'i',
+                (byte)'t',
+                (byte)'e');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'r',
+                (byte)'=',
+                (byte)'t',
+                (byte)'r',
+                (byte)'u',
+                (byte)'e',
+                (byte)' ',
+                (byte)'o');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'w',
+                (byte)'n',
+                (byte)'e',
+                (byte)'d',
+                (byte)'M',
+                (byte)'a',
+                (byte)'r',
+                (byte)'k');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'e',
+                (byte)'r',
+                (byte)'T',
+                (byte)'r',
+                (byte)'a',
+                (byte)'n',
+                (byte)'s',
+                (byte)'p');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'o',
+                (byte)'r',
+                (byte)'t',
+                (byte)'=',
+                (byte)'c',
+                (byte)'o',
+                (byte)'m',
+                (byte)'1');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'P',
+                (byte)'o',
+                (byte)'r',
+                (byte)'t',
+                (byte)'I',
+                (byte)'o',
+                (byte)' ',
+                (byte)'e');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'v',
+                (byte)'i',
+                (byte)'d',
+                (byte)'e',
+                (byte)'n',
+                (byte)'c',
+                (byte)'e',
+                (byte)'M');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'a',
+                (byte)'r',
+                (byte)'k',
+                (byte)'e',
+                (byte)'r',
+                (byte)'T',
+                (byte)'r',
+                (byte)'a');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'n',
+                (byte)'s',
+                (byte)'p',
+                (byte)'o',
+                (byte)'r',
+                (byte)'t',
+                (byte)'=',
+                (byte)'u');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'e',
+                (byte)'f',
+                (byte)'i',
+                (byte)'S',
+                (byte)'e',
+                (byte)'r',
+                (byte)'i',
+                (byte)'a');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'l',
+                (byte)' ',
+                (byte)'g',
+                (byte)'u',
+                (byte)'e',
+                (byte)'s',
+                (byte)'t',
+                (byte)'P');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'o',
+                (byte)'r',
+                (byte)'t',
+                (byte)'I',
+                (byte)'o',
+                (byte)'=',
+                (byte)'t',
+                (byte)'r');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'u',
+                (byte)'e',
+                (byte)' ',
+                (byte)'g',
+                (byte)'u',
+                (byte)'e',
+                (byte)'s',
+                (byte)'t');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'I',
+                (byte)'n',
+                (byte)'8',
+                (byte)'=',
+                (byte)'t',
+                (byte)'r',
+                (byte)'u',
+                (byte)'e');
+            WriteAscii(
+                console,
+                serial,
+                (byte)' ',
+                (byte)'p',
+                (byte)'o',
+                (byte)'s',
+                (byte)'t',
+                (byte)'E',
+                (byte)'x',
+                (byte)'i');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'t',
+                (byte)'B',
+                (byte)'o',
+                (byte)'o',
+                (byte)'t',
+                (byte)'S',
+                (byte)'e',
+                (byte)'r');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'v',
+                (byte)'i',
+                (byte)'c',
+                (byte)'e',
+                (byte)'s',
+                (byte)'=',
+                (byte)'f',
+                (byte)'a');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'l',
+                (byte)'s',
+                (byte)'e',
+                0,
+                0,
+                0,
+                0,
+                0);
+            EfiEntry.WriteCrLf(console, serial);
+        }
+
+        private static void WriteM02OwnedCom1ReadyFailureLine(
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial)
+        {
+            WriteAscii(
+                console,
+                serial,
+                (byte)'M',
+                (byte)'0',
+                (byte)'2',
+                (byte)'_',
+                (byte)'O',
+                (byte)'W',
+                (byte)'N',
+                (byte)'E');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'D',
+                (byte)'_',
+                (byte)'C',
+                (byte)'O',
+                (byte)'M',
+                (byte)'1',
+                (byte)'_',
+                (byte)'R');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'E',
+                (byte)'A',
+                (byte)'D',
+                (byte)'Y',
+                (byte)'_',
+                (byte)'F',
+                (byte)'A',
+                (byte)'I');
+            WriteAscii(
+                console,
+                serial,
+                (byte)'L',
+                (byte)'E',
+                (byte)'D',
+                0,
+                0,
                 0,
                 0,
                 0);

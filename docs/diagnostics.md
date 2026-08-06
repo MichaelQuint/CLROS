@@ -176,6 +176,21 @@ The owned diagnostics subsystem is host-testable only. No real IDT load, fault h
   `CLROS_M02_004_READY configurationWrites=7 bindingReady=true guestPortIo=true guestIn8=false markerTransport=uefiSerial postExitBootServices=false`.
   The marker still travels through UEFI serial; this slice does not poll `In8`
   or write payload bytes through the owned backend.
+- `OwnedCom1ReadyExclusivelyOwnedWriter` is the allocation-free M02-005
+  payload writer over `Com1OwnedPortIoBackend`. It configures COM1 with the
+  accepted seven-write sequence, polls line-status register `0x3FD` through
+  checked `In8`, and writes exactly `OWNED_COM1_READY\r\n` to data register
+  `0x3F8` through checked `Out8`. The result records configuration, byte and
+  polling counts, the failed byte index, and explicit owned-backend/no-firmware-
+  fallback evidence; invalid limits, an unready backend, and transmit timeout
+  fail closed. Host tests use safe unmanaged callbacks; the separately claimed
+  default-off EFI integration then links this exact source, calls it once after
+  the accepted M02-004 path, and fails the optional profile if any count or
+  ownership result differs. A development QEMU/OVMF run observed the standalone
+  `OWNED_COM1_READY` line exactly once from the checked COM1 transport, followed
+  by a distinct UEFI-serial evidence line reporting `guestPortIo=true`,
+  `guestIn8=true`, and `postExitBootServices=false`. Final-head review remains
+  pending, and this pre-firmware proof is not owned post-firmware diagnostics.
 - `DiagnosticStubCallableBindingPlanDiagnosticFormatter` formats initialized
   callable-binding plan metadata into stable caller-owned ASCII
   `DIAGNOSTIC_STUB_CALLABLE_BINDING status=` marker bytes. It reports required
@@ -686,7 +701,7 @@ diagnostics exist.
 
 `BootSequence.RunExitBootServicesPreflight` is a marker/readiness helper only. It does not call firmware, execute generated stubs, or prove live post-firmware output.
 
-`Com1PortIoBackendContract` is address metadata only. It resolves future function-pointer target addresses from planned stub offsets, but it does not create delegates, invoke function pointers, or perform port I/O. `OwnedSerialDiagnosticsReadinessResult` and `OwnedCom1DiagnosticsReadiness` only consume that status-coded metadata to decide whether the guard and marker boundary may be marked ready. `IPlatformSerial`, `GuardedPlatformSerial`, and `Com1PlatformSerialTransport` route host-test bytes to injected/fakeable transports only; they do not prove real COM1 port I/O or output after real `ExitBootServices`.
+`Com1PortIoBackendContract` is address metadata only. It resolves future function-pointer target addresses from planned stub offsets, but it does not create delegates, invoke function pointers, or perform port I/O. `OwnedSerialDiagnosticsReadinessResult` and `OwnedCom1DiagnosticsReadiness` only consume that status-coded metadata to decide whether the guard and marker boundary may be marked ready. `IPlatformSerial`, `GuardedPlatformSerial`, and `Com1PlatformSerialTransport` route host-test bytes to injected/fakeable transports only; they do not prove real COM1 port I/O or output after real `ExitBootServices`. The separate M02-005 EFI profile does execute `OwnedCom1ReadyExclusivelyOwnedWriter` over the checked generated `In8`/`Out8` targets under QEMU, but only for one bounded pre-`ExitBootServices` marker. It does not make those readiness/guard abstractions live after firmware shutdown.
 
 `CpuFaultEntryFrameLayout`, `CpuFaultPanicReadiness`, and
 `CpuFaultPanicReadinessFormatter` are storage/layout, composition, and
@@ -778,20 +793,43 @@ virtual platform. It does not prove `In8` polling, owned-backend serial payload
 transport, post-`ExitBootServices` diagnostics, physical hardware, or a numbered
 completion-gate advancement.
 
+M02-005 builds on that accepted configuration path without changing the normal
+boot profile. Its production writer repeats the seven configuration writes,
+polls THRE through checked `In8(0x3FD)` once per emitted byte in the accepted
+QEMU case, and writes the 16 marker bytes plus CR/LF through checked
+`Out8(0x3F8)`. The development real-QEMU runner observed all 52 cumulative
+required/ordered/unique markers, including exactly one standalone:
+
+```text
+OWNED_COM1_READY
+```
+
+followed by exactly one separately transported evidence line:
+
+```text
+CLROS_M02_005_READY marker=OWNED_COM1_READY markerBytes=16 lineEndingBytes=2 configurationWrites=7 lineStatusPolls=18 ownedWriter=true ownedMarkerTransport=com1PortIo evidenceMarkerTransport=uefiSerial guestPortIo=true guestIn8=true postExitBootServices=false
+```
+
+No `TEST_FAIL` or `M02_OWNED_COM1_READY_FAILED` marker appeared. This proves the
+bounded checked COM1 read/write path only on the recorded QEMU/OVMF platform
+before `ExitBootServices`; exact final-head gate and review evidence remain
+required. It proves no panic routing, post-firmware output, physical hardware,
+provider behavior, or numbered completion-gate advancement.
+
 ## Next Steps
 
 1. Wire `PanicSerialReporter` into a real panic-safe serial path after the owned serial platform boundary has a live COM1 backend.
-2. Route a bounded marker payload through the now guest-executed COM1 backend,
-   then wire that writer through `SerialDiagnosticsGuard`; do not infer owned
-   payload transport from the seven configuration writes.
+2. Preserve the M02-005 bounded owned-COM1 marker proof, then wire the writer
+   through `SerialDiagnosticsGuard` only when a later issue owns the live
+   post-firmware diagnostic boundary.
 3. Add IDT/GDT/TSS/IST setup using the descriptor, IDTR, GDT, TSS/IST, readiness, install-readiness, table-plan, vector, descriptor-instruction, and descriptor-install stub contracts.
 4. Add real executable-stub page transitions using the W^X layout, materialization, and page-transition plan contracts.
-5. Keep M02-004's proved `Out8` configuration sequence distinct from future
-   `In8` polling, owned marker payload output, and post-firmware diagnostics.
+5. Keep M02-004's configuration-only marker, M02-005's pre-firmware direct
+   COM1 payload, and future post-firmware diagnostics as distinct evidence.
 6. Wire the COM1 backend contract into an owned serial writer only after generated stubs can be safely mapped executable and invoked.
 7. Add the controlled null-read and invalid-opcode probes behind `Probes.cs`
    toggles only in their dedicated issues; M02-014 must consume the disabled
    M01-015 intent after owned diagnostics exist.
 8. Wire real handler register capture into `CpuFaultFrame` through the deterministic fault-entry layout.
-9. Keep M02-003's accepted binding-readiness marker and M02-004's seven-write
-   guest marker distinct from future owned serial-output and post-EBS claims.
+9. Keep M02-003 binding readiness, M02-004 configuration, M02-005 bounded
+   payload output, and future post-EBS claims distinct.

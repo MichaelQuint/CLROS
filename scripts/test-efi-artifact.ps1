@@ -7,6 +7,7 @@ param(
     [string]$LinkResponsePath = "",
     [string]$LinkEvidencePath = "",
     [string]$SerializerObjectPath = "",
+    [switch]$EnableM02OwnedCom1ReadyProbe,
     [switch]$EnableM04IndependentEndianConformanceProbe
 )
 
@@ -29,7 +30,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 66
+$expectedSourceClosureInputCount = 67
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -112,6 +113,7 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs|Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs',
     '..\OS.Kernel\Diagnostics\InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs|Diagnostics\InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs',
     '..\OS.Kernel\Diagnostics\COM1OwnedPortIOBackend.cs|Diagnostics\COM1OwnedPortIOBackend.cs',
+    '..\OS.Kernel\Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs|Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs',
     '..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs',
     '..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs|Boot\M01LoadedImageStackIntegration.cs',
     '..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs|Boot\M01LiveAllocatorIntegration.cs',
@@ -3774,6 +3776,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "-getProperty:" +
             "_targetOS,_targetArchitecture,RuntimeIdentifier," +
             "TargetFramework,PublishAot,SelfContained,PublishTrimmed," +
+            "EnableM02OwnedCom1ReadyProbe," +
             "EnableM04IndependentEndianConformanceProbe," +
             "ImportProjectExtensionProps,ImportProjectExtensionTargets," +
             "ExcludeRestorePackageImports,ILCompilerTargetsPath," +
@@ -3872,6 +3875,9 @@ function Invoke-PostRestoreEvaluationSnapshot {
     if ($EnableM04IndependentEndianConformanceProbe) {
         $arguments +=
             "-p:EnableM04IndependentEndianConformanceProbe=true"
+    }
+    if ($EnableM02OwnedCom1ReadyProbe) {
+        $arguments += "-p:EnableM02OwnedCom1ReadyProbe=true"
     }
 
     $previousLink = $env:LINK
@@ -4012,6 +4018,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
         PublishAot = "true"
         SelfContained = "true"
         PublishTrimmed = "true"
+        EnableM02OwnedCom1ReadyProbe =
+            $EnableM02OwnedCom1ReadyProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04IndependentEndianConformanceProbe =
             $EnableM04IndependentEndianConformanceProbe.IsPresent.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
@@ -4069,7 +4077,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 53 -or
+    if ($compileItems.Count -ne 54 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or

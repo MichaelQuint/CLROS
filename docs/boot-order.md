@@ -242,6 +242,19 @@ Host tests assert:
   all 50 ordered and unique markers and no forbidden marker. The marker remains
   UEFI-serial output; there is no new `BootSequence` phase, `In8` polling,
   owned-backend payload write, or post-`ExitBootServices` behavior.
+- M02-005 adds an allocation-free production writer that accepts only the
+  checked `Com1OwnedPortIoBackend`, repeats the accepted seven-write COM1
+  configuration, polls transmit readiness through `In8(0x3FD)`, and emits
+  exactly `OWNED_COM1_READY\r\n` through `Out8(0x3F8)`. Host tests currently
+  execute safe unmanaged callbacks and prove exact port/byte order, delayed
+  readiness, timeout, invalid-limit, unready-binding, default-result, and
+  no-firmware-fallback behavior. The separately claimed default-off EFI lane
+  links the writer and calls it once after M02-004. A development QEMU/OVMF run
+  observed the standalone owned marker and separate detailed evidence marker
+  exactly once in the 52-marker cumulative order before `TEST_PASS m01.stage3`,
+  with `guestPortIo=true`, `guestIn8=true`, and
+  `postExitBootServices=false`. This adds no `BootSequence` phase and proves no
+  output after firmware exit; exact final-head review remains pending.
 - Fault-entry frame layout tests prove future interrupt-stub storage can round-trip formatter-compatible page-fault and invalid-opcode frames, reject inconsistent error-code metadata, reject undersized buffers, and reject unknown vectors.
 - ExitBootServices transition-boundary tests prove success and blocked markers while leaving default boot markers unchanged.
 - Early diagnostics readiness tests prove serial backend and descriptor-table readiness are aggregated into stable boot markers while leaving default boot markers unchanged.
@@ -303,9 +316,9 @@ permission changes, relocation, or native-tier or hosted .NET app launch.
 
 1. Wire the transition marker helper only after the live EFI path can perform a real `ExitBootServices` call and preserve diagnostics afterward.
 2. Add an owned serial diagnostics phase only after a real serial writer exists.
-3. Add the separately owned M02-005 serial-payload slice over the proved
-   M02-004 configuration path, keeping the UEFI marker transport active until
-   owned output itself is evidenced.
+3. Preserve the separately owned M02-005 pre-firmware serial-payload proof and
+   keep its direct COM1 marker distinct from the UEFI evidence line and future
+   post-firmware diagnostic transport.
 4. Wire the early diagnostics readiness helper only after generated stubs can be copied to executable memory and safely invoked under W^X policy.
 5. Wire the controlled fault-probe readiness helper only after early diagnostics can survive generated-stub execution and fault handling.
 6. Wire the app-selection readiness helper only after live block-device package reads can supply the manifest/package/descriptor prerequisites.
