@@ -20,7 +20,7 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
     private const string CanonicalProjectSha256 =
         "d44a5571337c8b5d7bebb2e016ee5cdcf946e569a333a238ec69382bf4ad4444";
 
-    private static readonly (string Path, string Sha256)[] ReadOnlyInputs =
+    private static readonly (string Path, string Sha256)[] ImmutableReviewedInputs =
     [
         (
             "src/OS.Kernel/Diagnostics/OwnedX64GDTContainingNullN64BitCode.cs",
@@ -28,12 +28,6 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
         (
             "tests/OS.HostTests/OwnedX64GDTContainingNullN64BitCodeTests.cs",
             "c41be0cec03ec6acbd07e0325f747c2265314ab839c1f5ebb417ba53f66f4910"),
-        (
-            "docs/diagnostics.md",
-            "5020366c52db1d35079ff9200ac3584b05c9090289e19e4fd249d8b406a29d31"),
-        (
-            "docs/boot-order.md",
-            "74263be6dca0ab9ddb158905075e9adeaab5c31a4547e3b840bac7b0c3040776"),
         (
             "done/step913.md",
             "f5122c30b8b1282ebe7616ecee14cf56df529ee7f6c640d620645938281114cb")
@@ -62,8 +56,8 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
             TestQemuProfileSource,
             ref failures);
         RunCase(
-            "m02.007 reviewed leaf inputs remain byte-identical",
-            TestReadOnlyInputHashes,
+            "m02.007 immutable inputs and documentation boundaries remain exact",
+            TestImmutableInputsAndDocumentationBoundaries,
             ref failures);
 
         if (failures != 0)
@@ -455,10 +449,10 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
             && panicProfile > gdtProfile;
     }
 
-    private static bool TestReadOnlyInputHashes()
+    private static bool TestImmutableInputsAndDocumentationBoundaries()
     {
         string root = HostToolProcess.FindRepositoryRoot();
-        foreach ((string relativePath, string expectedSha256) in ReadOnlyInputs)
+        foreach ((string relativePath, string expectedSha256) in ImmutableReviewedInputs)
         {
             string path = Path.Combine(
                 root,
@@ -477,7 +471,275 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
             }
         }
 
-        return true;
+        string diagnostics = File.ReadAllText(
+            Path.Combine(root, "docs", "diagnostics.md"));
+        string bootOrder = File.ReadAllText(
+            Path.Combine(root, "docs", "boot-order.md"));
+        if (!HasRequiredDocumentationBoundaries(diagnostics, bootOrder))
+        {
+            return false;
+        }
+
+        string fixtureRoot = Path.Combine(
+            Path.GetTempPath(),
+            "clros-m02-007-documentation-boundaries-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(fixtureRoot);
+            return WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "missing-issue-identity",
+                    diagnostics.Replace(
+                        "outside M02-007",
+                        "outside a removed issue",
+                        StringComparison.Ordinal),
+                    bootOrder) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "missing-guest-install-boundary",
+                    diagnostics.Replace(
+                        "Guest encoding is not the same as loading the table",
+                        "Guest encoding loads the table",
+                        StringComparison.Ordinal),
+                    bootOrder) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "missing-claim-boundary",
+                    diagnostics.Replace(
+                        "provider, cloud-readiness, Kestrel, or production claims",
+                        "provider behavior",
+                        StringComparison.Ordinal),
+                    bootOrder) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "missing-evidence-size",
+                    diagnostics.Replace(
+                        "M02-007 host tests encode the exact 40-byte table",
+                        "M02-007 host tests encode an unspecified table",
+                        StringComparison.Ordinal),
+                    bootOrder) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "missing-evidence-lifecycle",
+                    RemoveEvidenceLifecycleBoundary(diagnostics),
+                    bootOrder) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "missing-boot-size",
+                    diagnostics,
+                    bootOrder.Replace(
+                        "M02-007 adds a 40-byte caller-owned GDT encoder",
+                        "M02-007 adds an unspecified encoder",
+                        StringComparison.Ordinal)) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "missing-boot-install-boundary",
+                    diagnostics,
+                    RemoveBootInstallBoundary(bootOrder)) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "missing-boot-lifecycle",
+                    diagnostics,
+                    RemoveBootLifecycleBoundary(bootOrder));
+        }
+        finally
+        {
+            if (Directory.Exists(fixtureRoot))
+            {
+                Directory.Delete(fixtureRoot, recursive: true);
+            }
+        }
+    }
+
+    private static bool HasRequiredDocumentationBoundaries(
+        string diagnostics,
+        string bootOrder)
+    {
+        const string DiagnosticsSectionStart =
+            "`OwnedX64GdtContainingNullN64BitCode` strengthens";
+        const string DiagnosticsSectionEnd = "`FaultProbeStubPlan`";
+        const string DiagnosticsEvidenceStart = "M02-007 host tests encode";
+        const string DiagnosticsEvidenceEnd = "## Next Steps";
+        const string BootOrderSectionStart =
+            "- M02-007 adds a 40-byte caller-owned GDT encoder";
+        const string BootOrderSectionEnd = "- Fault-entry frame layout tests";
+
+        string diagnosticsBoundary = ExtractSection(
+            diagnostics,
+            DiagnosticsSectionStart,
+            DiagnosticsSectionEnd);
+        string diagnosticsEvidence = ExtractSection(
+            diagnostics,
+            DiagnosticsEvidenceStart,
+            DiagnosticsEvidenceEnd);
+        string bootOrderBoundary = ExtractSection(
+            bootOrder,
+            BootOrderSectionStart,
+            BootOrderSectionEnd);
+        bool bootOrderDeniesInstall =
+            bootOrderBoundary.Contains(
+                "will not load the table or prove `lgdt`, `ltr`",
+                StringComparison.Ordinal) ||
+            bootOrderBoundary.Contains(
+                "explicitly reports no `lgdt` or `ltr`",
+                StringComparison.Ordinal) ||
+            bootOrderBoundary.Contains(
+                "without executing `lgdt` or `ltr`",
+                StringComparison.Ordinal);
+        bool diagnosticsEvidenceHasLifecycleBoundary =
+            (diagnosticsEvidence.Contains(
+                    "`guestEncoding=false`",
+                    StringComparison.Ordinal) &&
+                diagnosticsEvidence.Contains(
+                    "required before M02-007 can close",
+                    StringComparison.Ordinal)) ||
+            (diagnosticsEvidence.Contains(
+                    "pre-`ExitBootServices`",
+                    StringComparison.Ordinal) &&
+                diagnosticsEvidence.Contains(
+                    "does not install the GDT or TSS",
+                    StringComparison.Ordinal));
+        bool bootOrderHasLifecycleBoundary =
+            (bootOrderBoundary.Contains(
+                    "Current evidence is host-only",
+                    StringComparison.Ordinal) &&
+                bootOrderBoundary.Contains(
+                    "post-`ExitBootServices` diagnostics",
+                    StringComparison.Ordinal)) ||
+            (bootOrderBoundary.Contains(
+                    "pre-firmware-exit",
+                    StringComparison.Ordinal) &&
+                bootOrderBoundary.Contains(
+                    "post-`ExitBootServices` diagnostics",
+                    StringComparison.Ordinal));
+        bool diagnosticsEvidenceDeniesPostFirmwareClaim =
+            !diagnosticsEvidence.Contains(
+                "postExitBootServices=true",
+                StringComparison.Ordinal) &&
+            !diagnosticsEvidence.Contains(
+                "guest result remains post-`ExitBootServices`",
+                StringComparison.Ordinal) &&
+            !diagnosticsEvidence.Contains(
+                "guest result survives `ExitBootServices`",
+                StringComparison.Ordinal);
+        bool bootOrderDeniesPostFirmwareClaim =
+            !bootOrderBoundary.Contains(
+                "guest marker remains post-firmware-exit",
+                StringComparison.Ordinal) &&
+            !bootOrderBoundary.Contains(
+                "guest result proves post-`ExitBootServices` diagnostics",
+                StringComparison.Ordinal);
+
+        return diagnosticsBoundary.Contains("outside M02-007", StringComparison.Ordinal) &&
+            diagnosticsBoundary.Contains(
+                "Guest encoding is not the same as loading the table",
+                StringComparison.Ordinal) &&
+            diagnosticsBoundary.Contains(
+                "live `lgdt`, `ltr`",
+                StringComparison.Ordinal) &&
+            diagnosticsBoundary.Contains(
+                "provider, cloud-readiness, Kestrel, or production claims",
+                StringComparison.Ordinal) &&
+            diagnosticsEvidence.Contains("exact 40-byte table", StringComparison.Ordinal) &&
+            diagnosticsEvidence.Contains("`guestLgdt=false`", StringComparison.Ordinal) &&
+            diagnosticsEvidence.Contains("`guestLtr=false`", StringComparison.Ordinal) &&
+            diagnosticsEvidenceHasLifecycleBoundary &&
+            diagnosticsEvidenceDeniesPostFirmwareClaim &&
+            bootOrderBoundary.Contains(
+                "M02-007 adds a 40-byte caller-owned GDT encoder",
+                StringComparison.Ordinal) &&
+            bootOrderBoundary.Contains(
+                "no-stdlib core and exact readback verification",
+                StringComparison.Ordinal) &&
+            bootOrderDeniesInstall &&
+            bootOrderHasLifecycleBoundary &&
+            bootOrderDeniesPostFirmwareClaim;
+    }
+
+    private static bool WriteHostileFixtureAndRequireRejection(
+        string fixtureRoot,
+        string caseName,
+        string diagnostics,
+        string bootOrder)
+    {
+        string caseRoot = Path.Combine(fixtureRoot, caseName);
+        Directory.CreateDirectory(caseRoot);
+        string diagnosticsPath = Path.Combine(caseRoot, "diagnostics.md");
+        string bootOrderPath = Path.Combine(caseRoot, "boot-order.md");
+        File.WriteAllText(diagnosticsPath, diagnostics);
+        File.WriteAllText(bootOrderPath, bootOrder);
+        return !HasRequiredDocumentationBoundaries(
+            File.ReadAllText(diagnosticsPath),
+            File.ReadAllText(bootOrderPath));
+    }
+
+    private static string RemoveEvidenceLifecycleBoundary(string diagnostics)
+    {
+        return diagnostics
+            .Replace(
+                "`guestEncoding=false`",
+                "`guestEncoding=unknown`",
+                StringComparison.Ordinal)
+            .Replace(
+                "required before M02-007 can close",
+                "deferred without an issue boundary",
+                StringComparison.Ordinal)
+            .Replace(
+                "pre-`ExitBootServices`",
+                "at an unspecified lifecycle point",
+                StringComparison.Ordinal)
+            .Replace(
+                "does not install the GDT or TSS",
+                "installation status is unspecified",
+                StringComparison.Ordinal);
+    }
+
+    private static string RemoveBootInstallBoundary(string bootOrder)
+    {
+        return bootOrder
+            .Replace(
+                "will not load the table or prove `lgdt`, `ltr`",
+                "loads the table and executes descriptor instructions",
+                StringComparison.Ordinal)
+            .Replace(
+                "explicitly reports no `lgdt` or `ltr`",
+                "reports active descriptor instructions",
+                StringComparison.Ordinal)
+            .Replace(
+                "without executing `lgdt` or `ltr`",
+                "after executing descriptor instructions",
+                StringComparison.Ordinal);
+    }
+
+    private static string RemoveBootLifecycleBoundary(string bootOrder)
+    {
+        return bootOrder
+            .Replace(
+                "Current evidence is host-only",
+                "Current lifecycle is unspecified",
+                StringComparison.Ordinal)
+            .Replace(
+                "pre-firmware-exit",
+                "at an unspecified lifecycle point",
+                StringComparison.Ordinal)
+            .Replace(
+                "post-`ExitBootServices` diagnostics",
+                "diagnostics at an unspecified lifecycle point",
+                StringComparison.Ordinal);
+    }
+
+    private static string ExtractSection(
+        string source,
+        string startToken,
+        string endToken)
+    {
+        int start = source.IndexOf(startToken, StringComparison.Ordinal);
+        int end = start < 0
+            ? -1
+            : source.IndexOf(endToken, start + startToken.Length, StringComparison.Ordinal);
+        return start >= 0 && end > start
+            ? source[start..end]
+            : string.Empty;
     }
 
     private static string ExtractAsciiMarker(string source, string methodToken)
