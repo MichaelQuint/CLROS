@@ -115,6 +115,29 @@ guest behavior, In8/Out8, COM1, descriptors/faults, real
 `ExitBootServices`, hardware/provider behavior, CloudReady status, hosted
 .NET, Kestrel, or production readiness.
 
+The reviewed dependency chain has subsequently advanced through M02-003,
+M02-004, and M02-005. Live issues `#43`, `#44`, and `#45` are closed with
+`agent:done`. Their implementation PRs `#439`, `#444`, and `#452` merged as
+`126bf112e2f645555329acb64241d596d30bc5fa`,
+`c002d01dab1392c0768559e7a8eef84b384627f1`, and
+`399aaa123dcac75bdd20780dc91d91cd87586552`; the separately reviewed M02-004
+and M02-005 closure PRs `#445` and `#454` then merged as
+`de160ad749533e40c20ccb7a028ae2c61614d76c` and
+`b78b23e7a561ecf111c6e77533102a5f2c247652`. M02-006 implementation and EFI
+evidence head `f0c07821f8dc9ed65ff6d99311c189fdd9c267da`, tree
+`485f1e3398966c49c8c1b810f36e30dfd54f8094`, received undismissed review
+`#11` from independent `admin` at that exact head and merged through PR `#456`
+as `d0376d3fe061b9e63a14b083561897a624a25bc5`. Managed issue `#46` remains
+open with `agent:review` while supplemental issue `#457` owns this exact
+manifest/documentation/evidence-ledger transaction. This source records only
+the reviewed intent to close M02-006; it is not live convergence evidence until
+the independently reviewed closure PR merges and guarded apply, repeated
+apply, and final preview prove #46 closed with `agent:done` and recompute
+M02-007 readiness. These administrative transitions add no live panic or fault
+route, descriptor-table installation, post-firmware serial ownership, real
+`ExitBootServices`, hosted .NET, Kestrel, provider, CloudReady, production, or
+completion-gate evidence.
+
 The guarded earlier M00-023 apply recognized existing M00-023 as issue #321,
 created only M01-016 through M01-026 as issues #323 through #333, updated
 exactly 24 existing managed issues, and emitted
