@@ -253,8 +253,27 @@ Host tests assert:
   observed the standalone owned marker and separate detailed evidence marker
   exactly once in the 52-marker cumulative order before `TEST_PASS m01.stage3`,
   with `guestPortIo=true`, `guestIn8=true`, and
-  `postExitBootServices=false`. This adds no `BootSequence` phase and proves no
-  output after firmware exit; exact final-head review remains pending.
+  `postExitBootServices=false`. The exact-head implementation and tracker
+  closure are merged. This adds no `BootSequence` phase and proves no output
+  after firmware exit.
+- M02-006 adds a bounded allocation-free fault-record formatter and reporter
+  that accepts only caller-owned scratch and the checked
+  `Com1OwnedPortIoBackend`. It formats the complete `OS_SMOKE_FAIL` record
+  before any I/O, configures COM1, polls THRE through `In8(0x3FD)`, and writes
+  each byte through `Out8(0x3F8)` without a firmware fallback. Host callbacks
+  prove exact bytes/order, delayed readiness, timeout, invalid-input,
+  short-buffer atomicity, status/default, unmanaged-layout, and allocation-free
+  behavior. The host marker explicitly reports `guestPortIo=false`. The
+  separately claimed default-off EFI integration links the no-stdlib pointer
+  core and invokes only its harmless readiness emitter exactly once after the
+  accepted M02-005 pair and before `TEST_PASS m01.stage3`. A fresh development
+  QEMU/OVMF run observed the direct M02-006 marker and distinct UEFI evidence
+  marker exactly once in the 54-marker cumulative order, with seven
+  configuration writes, 127 first-ready polls, `guestPortIo=true`,
+  `guestIn8=true`, `firmwareFallback=false`, and
+  `postExitBootServices=false`. This is not a default `BootSequence` phase,
+  does not trigger a fault or panic, and proves no output after firmware exit;
+  the final exact-tree gate and independent review remain pending.
 - Fault-entry frame layout tests prove future interrupt-stub storage can round-trip formatter-compatible page-fault and invalid-opcode frames, reject inconsistent error-code metadata, reject undersized buffers, and reject unknown vectors.
 - ExitBootServices transition-boundary tests prove success and blocked markers while leaving default boot markers unchanged.
 - Early diagnostics readiness tests prove serial backend and descriptor-table readiness are aggregated into stable boot markers while leaving default boot markers unchanged.
@@ -316,9 +335,10 @@ permission changes, relocation, or native-tier or hosted .NET app launch.
 
 1. Wire the transition marker helper only after the live EFI path can perform a real `ExitBootServices` call and preserve diagnostics afterward.
 2. Add an owned serial diagnostics phase only after a real serial writer exists.
-3. Preserve the separately owned M02-005 pre-firmware serial-payload proof and
-   keep its direct COM1 marker distinct from the UEFI evidence line and future
-   post-firmware diagnostic transport.
+3. Preserve the separately owned M02-005 and M02-006 pre-firmware direct COM1
+   marker proofs, keep their UEFI evidence lines distinct from the direct
+   transport, and do not treat either as the future post-firmware diagnostic
+   path.
 4. Wire the early diagnostics readiness helper only after generated stubs can be copied to executable memory and safely invoked under W^X policy.
 5. Wire the controlled fault-probe readiness helper only after early diagnostics can survive generated-stub execution and fault handling.
 6. Wire the app-selection readiness helper only after live block-device package reads can supply the manifest/package/descriptor prerequisites.

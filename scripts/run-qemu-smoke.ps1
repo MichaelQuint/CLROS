@@ -42,6 +42,7 @@ param(
     [switch] $EnableM02CheckedPortIoBindingProbe,
     [switch] $EnableM02Com1OwnedPortIoProbe,
     [switch] $EnableM02OwnedCom1ReadyProbe,
+    [switch] $EnableM02PanicSafeOwnedCom1Probe,
     [switch] $EnableM04IndependentEndianConformanceProbe,
     [switch] $SkipImageBuild
 )
@@ -187,6 +188,24 @@ foreach ($marker in $script:M02Com1OwnedPortIoRequiredMarkers) {
 $script:M02OwnedCom1ReadyForbiddenMarkers = @(
     $script:M02Com1OwnedPortIoForbiddenMarkers
     "M02_OWNED_COM1_READY_FAILED"
+)
+$script:M02PanicSafeOwnedCom1ReadyMarker =
+    "CLROS_M02_006_READY panicFormatter=bounded ownedCom1Transport=true callerScratch=true statusCoded=true firmwareFallback=false"
+$script:M02PanicSafeOwnedCom1EvidenceMarker =
+    "CLROS_M02_006_EVIDENCE markerBytes=125 serialBytes=127 configurationWrites=7 lineStatusPolls=127 markerTransport=com1PortIo evidenceTransport=uefiSerial guestPortIo=true guestIn8=true panicFormatter=linked panicReporter=ownedCom1 callerScratch=true statusCoded=true firmwareFallback=false postExitBootServices=false"
+$script:M02PanicSafeOwnedCom1RequiredMarkers = @()
+foreach ($marker in $script:M02OwnedCom1ReadyRequiredMarkers) {
+    $script:M02PanicSafeOwnedCom1RequiredMarkers += $marker
+    if ($marker -eq $script:M02OwnedCom1ReadyEvidenceMarker) {
+        $script:M02PanicSafeOwnedCom1RequiredMarkers +=
+            $script:M02PanicSafeOwnedCom1ReadyMarker
+        $script:M02PanicSafeOwnedCom1RequiredMarkers +=
+            $script:M02PanicSafeOwnedCom1EvidenceMarker
+    }
+}
+$script:M02PanicSafeOwnedCom1ForbiddenMarkers = @(
+    $script:M02OwnedCom1ReadyForbiddenMarkers
+    "M02_PANIC_SAFE_OWNED_COM1_FAILED"
 )
 $script:M04IndependentEndianConformanceReadyMarker =
     "CLROS_M04_002_READY readVectors=25 reverseVectors=7 byteSeries=5 uint16Series=7 fingerprint=E81E4451E8D999F6 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail"
@@ -3577,7 +3596,8 @@ try {
         exit 1
     }
 
-    if ($EnableM02OwnedCom1ReadyProbe -and
+    if (($EnableM02PanicSafeOwnedCom1Probe -or
+            $EnableM02OwnedCom1ReadyProbe) -and
         $EnableM02Com1OwnedPortIoProbe -and
         $EnableM02CheckedPortIoBindingProbe -and
         $EnableM02SafeStubProbe) {
@@ -3634,7 +3654,33 @@ try {
         )
     }
 
-    if ($EnableM02OwnedCom1ReadyProbe) {
+    if ($EnableM02PanicSafeOwnedCom1Probe) {
+        $requiredMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $requiredMarkers
+                $script:M02PanicSafeOwnedCom1RequiredMarkers
+            )
+        )
+        $orderedMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $orderedMarkers
+                $script:M02PanicSafeOwnedCom1RequiredMarkers
+            )
+        )
+        $uniqueMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $uniqueMarkers
+                $script:M02PanicSafeOwnedCom1RequiredMarkers
+            )
+        )
+        $forbiddenMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $forbiddenMarkers
+                $script:M02PanicSafeOwnedCom1ForbiddenMarkers
+            )
+        )
+    }
+    elseif ($EnableM02OwnedCom1ReadyProbe) {
         $requiredMarkers = @(
             ConvertTo-QemuSmokeMarkerList -Values @(
                 $requiredMarkers
@@ -3837,6 +3883,18 @@ try {
         (Format-QemuSmokeBoolean $DryRun.IsPresent) +
         " profileRequired=52 profileForbidden=37")
     Write-Host (
+        "QEMU_SCRIPT_M02_PANIC_SAFE_OWNED_COM1_PROBE enabled=" +
+        (Format-QemuSmokeBoolean $EnableM02PanicSafeOwnedCom1Probe.IsPresent) +
+        " ownedCom1Ready=" +
+        (Format-QemuSmokeBoolean $EnableM02OwnedCom1ReadyProbe.IsPresent) +
+        " buildEfi=" +
+        (Format-QemuSmokeBoolean $BuildEfi.IsPresent) +
+        " skipImageBuild=" +
+        (Format-QemuSmokeBoolean $SkipImageBuild.IsPresent) +
+        " dryRun=" +
+        (Format-QemuSmokeBoolean $DryRun.IsPresent) +
+        " profileRequired=54 profileForbidden=38")
+    Write-Host (
         "QEMU_SCRIPT_M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE enabled=" +
         (Format-QemuSmokeBoolean $EnableM04IndependentEndianConformanceProbe.IsPresent) +
         " buildEfi=" +
@@ -3872,6 +3930,28 @@ try {
         Write-Host (
             "TEST_FAIL qemu.smoke.invalid_args " +
             "m02_owned_com1_ready_probe_requires_com1_owned_port_io")
+        exit 1
+    }
+
+    if ($EnableM02PanicSafeOwnedCom1Probe -and
+        -not $EnableM02OwnedCom1ReadyProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_panic_safe_owned_com1_probe_requires_owned_com1_ready")
+        exit 1
+    }
+
+    if ($EnableM02PanicSafeOwnedCom1Probe -and -not $BuildEfi) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_panic_safe_owned_com1_probe_requires_build_efi")
+        exit 1
+    }
+
+    if ($EnableM02PanicSafeOwnedCom1Probe -and $SkipImageBuild) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_panic_safe_owned_com1_probe_forbids_skip_image_build")
         exit 1
     }
 
@@ -4121,6 +4201,10 @@ try {
 
         if ($EnableM02OwnedCom1ReadyProbe) {
             $buildArguments += "-EnableM02OwnedCom1ReadyProbe"
+        }
+
+        if ($EnableM02PanicSafeOwnedCom1Probe) {
+            $buildArguments += "-EnableM02PanicSafeOwnedCom1Probe"
         }
 
         if ($EnableM04IndependentEndianConformanceProbe) {

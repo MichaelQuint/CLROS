@@ -497,9 +497,11 @@ Kestrel, or production readiness.
 The default-false `EnableM02OwnedCom1ReadyProbe` profile adds exactly one
 explicit compile item,
 `Diagnostics/OWNEDCOM1READYExclusivelyOwnedWriter.cs`, immediately after the
-owned COM1 backend and before the independent endian catalog. The current
-project closure is therefore 54 compile items and the canonical build/verifier
-authority snapshot is 67 inputs. The flag requires
+owned COM1 backend and before the independent endian catalog. Its accepted
+closure was 54 compile items and 67 build/verifier authority inputs. The active
+M02-006 development tree is now 55/68 after inserting its separately owned
+reporter immediately after the M02-005 writer; this does not alter the accepted
+M02-005 artifact evidence below. The M02-005 flag requires
 `EnableM02Com1OwnedPortIoProbe=true`; the QEMU wrapper additionally requires
 `-BuildEfi`, rejects `-SkipImageBuild`, and rebuilds both EFI and image inputs.
 
@@ -544,15 +546,88 @@ EFI application. They do not prove owned serial diagnostics after firmware
 exit, panic routing, physical hardware/provider behavior, hosted .NET, Kestrel,
 CloudReady status, production readiness, or a numbered-gate advancement.
 
+### M02-006 panic-safe owned-COM1 EFI closure
+
+The default-false `EnableM02PanicSafeOwnedCom1Probe` profile adds exactly one
+explicit compile item,
+`Diagnostics/PanicSafeFormattingSerialReportingOwnedCOM1.cs`, after the
+M02-005 writer and before the independent endian catalog. The current closure
+is 55 compile items and the canonical build/verifier authority snapshot is 68
+inputs. Under `NOSTDLIB_EFI`, the production source exposes only unsafe
+pointer/length formatting and its allocation-free readiness byte catalog; the
+host `Span` overloads are excluded. The flag requires
+`EnableM02OwnedCom1ReadyProbe=true`. The QEMU wrapper additionally requires
+`-BuildEfi`, rejects `-SkipImageBuild`, and rebuilds both EFI and image inputs.
+
+After the accepted M02-005 direct marker and evidence line succeed and before
+`TEST_PASS m01.stage3`, `EfiEntry` reconstructs the checked
+`Com1OwnedPortIoBackend` and calls `EmitReadinessMarker` exactly once. It
+accepts only seven configuration writes, 125 marker bytes, 127 serial bytes,
+127 first-ready polls in the recorded QEMU profile, a final successful LF write
+to `0x3F8`, the owned backend selected, and firmware fallback absent. Failure
+emits `M02_PANIC_SAFE_OWNED_COM1_FAILED` through the existing UEFI diagnostic
+path and suppresses both M02-006 success lines.
+
+The direct marker is emitted only by the production reporter through checked
+COM1 port I/O:
+
+```text
+CLROS_M02_006_READY panicFormatter=bounded ownedCom1Transport=true callerScratch=true statusCoded=true firmwareFallback=false
+```
+
+Only after that direct path succeeds, `EfiEntry` emits this separate fixed UEFI
+serial evidence line:
+
+```text
+CLROS_M02_006_EVIDENCE markerBytes=125 serialBytes=127 configurationWrites=7 lineStatusPolls=127 markerTransport=com1PortIo evidenceTransport=uefiSerial guestPortIo=true guestIn8=true panicFormatter=linked panicReporter=ownedCom1 callerScratch=true statusCoded=true firmwareFallback=false postExitBootServices=false
+```
+
+Build and verification use the complete cumulative profile:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -BuildEfi `
+  -EnableM02SafeStubProbe `
+  -EnableM02CheckedPortIoBindingProbe `
+  -EnableM02Com1OwnedPortIoProbe `
+  -EnableM02OwnedCom1ReadyProbe `
+  -EnableM02PanicSafeOwnedCom1Probe
+```
+
+The development publish reported
+`EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=68`, `compileItems=55`,
+`TEST_PASS efi.artifact.verify`, and `TEST_PASS efi.shell.publish`. Its
+500,736-byte EFI artifact SHA-256 is
+`004006C004248406E7EF504F7CE5CEC0A04E8340EB6BF4168C316780008617C9`.
+The artifact remains PE32+ AMD64, EFI subsystem 10, with no ordinary, bound,
+IAT, or delay imports. The compile-closure and canonical-project SHA-256 values
+are respectively
+`5E04CF9C3F932FB0F794394CC69389F9B0EEF85766368C39D7DEE46069D36337`
+and
+`83719D2344EFED633C9CA133339EBE4091C1E6CCA07E75491996CAE42E539CC0`.
+The development hashes above do not substitute for the complete exact-tree
+gate; that gate is bound to the pushed review head in Gitea. Independent
+exact-head review remains required.
+
+This closure proves that the allocation-free reporter is linked and that its
+harmless readiness method can execute over the checked COM1 backend before
+firmware exit. It does not trigger a panic or fault and does not prove live
+IDT/GDT/TSS/IST handling, post-firmware diagnostics, real `ExitBootServices`,
+physical hardware/provider behavior, hosted .NET, Kestrel, CloudReady status,
+production readiness, or a numbered-gate advancement.
+
 ### M04-002 fixed endian-catalog EFI closure
 
 `EnableM04IndependentEndianConformanceProbe` is a default-false, independent
 profile. At its acceptance head it added exactly one explicit compile item:
 `std/no-runtime/shared/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs`.
 That historical accepted project closure had 53 compile items and the canonical
-build/verifier authority had 66 inputs. The current tree has 54/67 after the
-later M02-005 writer was inserted before the catalog; this does not alter or
-reinterpret the M04-002 artifact evidence below. The scripts reject
+build/verifier authority had 66 inputs. The current tree has 55/68 after the
+later M02-005 writer and M02-006 reporter were inserted before the catalog; this
+does not alter or reinterpret the M04-002 artifact evidence below. The scripts reject
 compatibility counts, missing/reordered sources, stale hashes, wildcard imports,
 or a post-restore property mismatch.
 
@@ -987,16 +1062,18 @@ Any next-step EFI build work must keep the freestanding constraints explicit. If
    offset-zero safe-cookie closures plus the M02-003 checked binding and
    M02-004 seven-write `Out8` result.
 2. Preserve M02-005's bounded offset-32 `In8` polling and direct COM1 payload
-   evidence while keeping it distinct from M02-004's configuration-only marker
-   and any future post-firmware serial path.
-3. Move UEFI structs behind platform interfaces.
+   evidence while keeping it distinct from M02-004's configuration-only marker.
+3. Preserve M02-006's harmless panic-reporter readiness marker and distinct
+   UEFI evidence line without treating either as a live panic or post-firmware
+   serial path.
+4. Move UEFI structs behind platform interfaces.
    - Keep the low-level UEFI table pointers isolated to the EFI boundary.
    - Expose only the narrow operations required for console diagnostics, memory-map ownership, firmware shutdown state, and optional filesystem/protocol discovery.
-4. Implement post-firmware COM1 before enabling any real firmware shutdown.
-5. Copy required firmware data, add the typed `ExitBootServices` call adapter,
+5. Implement post-firmware COM1 before enabling any real firmware shutdown.
+6. Copy required firmware data, add the typed `ExitBootServices` call adapter,
    and implement the bounded stale-map-key retry only after its M01/M02
    dependencies pass.
-6. Route additional platform interfaces through the UEFI-gone simulation path
+7. Route additional platform interfaces through the UEFI-gone simulation path
    as they are introduced.
-7. Replace permissive shell-only runtime placeholders with audited runtime
+8. Replace permissive shell-only runtime placeholders with audited runtime
    helpers as subsystems require them.

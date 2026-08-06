@@ -365,6 +365,85 @@ panic routing, real `ExitBootServices`, physical hardware/provider behavior,
 hosted .NET, Minimal API, Kestrel, CloudReady status, production readiness, or
 numbered completion-gate advancement.
 
+### M02-006 panic-reporter direct owned-COM1 readiness proof
+
+The default-false M02-006 profile extends the cumulative M01/M02 sequence after
+the accepted M02-005 direct marker and evidence line. It requires the M02-005
+switch together with `-BuildEfi`; it rejects a missing dependency, a missing
+build, or `-SkipImageBuild` with these stable reasons:
+
+- `m02_panic_safe_owned_com1_probe_requires_owned_com1_ready`;
+- `m02_panic_safe_owned_com1_probe_requires_build_efi`;
+- `m02_panic_safe_owned_com1_probe_forbids_skip_image_build`.
+
+The default profile remains unchanged when the M02-006 flag is absent. The
+enabled profile requires and uniquely orders all 54 cumulative markers and
+forbids 38 cumulative failure markers including
+`M02_PANIC_SAFE_OWNED_COM1_FAILED` and every `TEST_FAIL`. The M02-006 pair occurs
+after M02-005 and before `TEST_PASS m01.stage3`:
+
+```text
+CLROS_M02_006_READY panicFormatter=bounded ownedCom1Transport=true callerScratch=true statusCoded=true firmwareFallback=false
+CLROS_M02_006_EVIDENCE markerBytes=125 serialBytes=127 configurationWrites=7 lineStatusPolls=127 markerTransport=com1PortIo evidenceTransport=uefiSerial guestPortIo=true guestIn8=true panicFormatter=linked panicReporter=ownedCom1 callerScratch=true statusCoded=true firmwareFallback=false postExitBootServices=false
+```
+
+The first line is emitted exclusively by the production reporter through
+checked `Out8(0x3F8)` after checked `In8(0x3FD)` reports THRE for each of 125
+marker bytes plus CR/LF. The second line is deliberately sent through the
+existing UEFI serial path so the marker and evidence transports remain
+explicitly distinct.
+
+The development real command was:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -BuildEfi `
+  -EnableM02SafeStubProbe `
+  -EnableM02CheckedPortIoBindingProbe `
+  -EnableM02Com1OwnedPortIoProbe `
+  -EnableM02OwnedCom1ReadyProbe `
+  -EnableM02PanicSafeOwnedCom1Probe
+```
+
+The nested runner emitted `QEMU_SMOKE_STATUS pass`,
+`SERIAL_MARKER_STREAM status=Passed terminal=Success bytes=3476 lines=76
+invalidBytes=15 invalidLines=1 orderedSeen=54 outOfOrder=0 uniqueSeen=54
+duplicateUnique=0`, `TEST_PASS qemu.smoke`, and
+`TEST_PASS m01.026.raw-observations`. The summary records
+`MISSING_MARKERS none`, `OUT_OF_ORDER_MARKERS none`,
+`DUPLICATE_UNIQUE_MARKERS none`, `FORBIDDEN_MARKER_HIT none`, and
+`FAIL_REASON none`. The direct and evidence lines each occur exactly once; the
+M02-006 failure marker and `TEST_FAIL` occur zero times.
+
+The development EFI, raw image, serial, summary, runner stdout, raw-observation,
+and QMP-transcript SHA-256 values are respectively
+`004006C004248406E7EF504F7CE5CEC0A04E8340EB6BF4168C316780008617C9`,
+`75C19BDCFD9AD3DDFE60E1C145C749FE559E191647743A3DC68C86F761F5D31F`,
+`0EFD3387E10CE92FD22A5980EC6857580730DAD73FBAC9987AEFA56BF66E6EE4`,
+`977346FBF91070993835B434B3FFEBA47DCE2771F946FB80F3C1AAACDFF0EF9D`,
+`E35A685349FA3AB0DE2A736335F177307C566BBD118EFC7D80824EB64136F5F9`,
+`44A6968B0145DAED99C9B3457E5EC111E6C42C11D6DB79A2378B018C04924CB2`,
+and
+`22AAAD84ABACD673A9A7332736A66E7FFEBADA2F4E3F04D69921D96E0168F17E`.
+The captured stderr is empty with SHA-256
+`E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855`.
+The outer development `Start-Process -Wait` capture wrapper was interrupted
+after the nested script and QEMU had emitted terminal success because reusable
+MSBuild descendants kept the wrapper waiting; this tuple therefore remains
+development evidence rather than the required final process-exit capture. The
+complete direct process-exit gate is bound to the pushed review head in Gitea;
+independent exact-head review remains required.
+
+This proves only harmless pre-`ExitBootServices` execution of the linked panic
+reporter's readiness emitter through checked COM1 on the recorded QEMU/OVMF
+platform. It does not trigger a live panic or fault, install IDT/GDT/TSS/IST,
+prove post-firmware diagnostics or real `ExitBootServices`, establish physical
+hardware/provider behavior, run hosted .NET or Kestrel, advance a numbered
+completion gate, or establish CloudReady or production readiness.
+
 ### M04-002 fixed endian-catalog guest proof
 
 The M04-002 profile is opt-in and independent of the cumulative M01/M02 live
