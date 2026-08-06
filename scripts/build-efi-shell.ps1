@@ -38,6 +38,7 @@ param(
     [switch] $EnableM02Com1OwnedPortIoProbe,
     [switch] $EnableM02OwnedCom1ReadyProbe,
     [switch] $EnableM02PanicSafeOwnedCom1Probe,
+    [switch] $EnableM02OwnedX64GdtEncodingProbe,
     [switch] $EnableM04IndependentEndianConformanceProbe
 )
 
@@ -87,6 +88,7 @@ $script:ExpectedEfiCompileItems = @(
     '..\OS.Kernel\Diagnostics\COM1OwnedPortIOBackend.cs|Diagnostics\COM1OwnedPortIOBackend.cs',
     '..\OS.Kernel\Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs|Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs',
     '..\OS.Kernel\Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs|Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs',
+    '..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs|Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs',
     '..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs',
     '..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs|Boot\M01LoadedImageStackIntegration.cs',
     '..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs|Boot\M01LiveAllocatorIntegration.cs',
@@ -1797,6 +1799,7 @@ function Invoke-M01PostRestoreEvaluation {
         [string] $CommonTargetsPath,
         [bool] $M02OwnedCom1ReadyEnabled,
         [bool] $M02PanicSafeOwnedCom1Enabled,
+        [bool] $M02OwnedX64GdtEncodingEnabled,
         [bool] $M04IndependentEndianConformanceEnabled
     )
 
@@ -1816,6 +1819,7 @@ function Invoke-M01PostRestoreEvaluation {
             "TargetFramework,PublishAot,SelfContained,PublishTrimmed," +
             "EnableM02OwnedCom1ReadyProbe," +
             "EnableM02PanicSafeOwnedCom1Probe," +
+            "EnableM02OwnedX64GdtEncodingProbe," +
             "EnableM04IndependentEndianConformanceProbe," +
             "ImportProjectExtensionProps,ImportProjectExtensionTargets," +
             "ExcludeRestorePackageImports,ILCompilerTargetsPath," +
@@ -1913,6 +1917,9 @@ function Invoke-M01PostRestoreEvaluation {
         "-p:EnableM02PanicSafeOwnedCom1Probe=" +
         $M02PanicSafeOwnedCom1Enabled.ToString().ToLowerInvariant())
     $arguments += (
+        "-p:EnableM02OwnedX64GdtEncodingProbe=" +
+        $M02OwnedX64GdtEncodingEnabled.ToString().ToLowerInvariant())
+    $arguments += (
         "-p:EnableM04IndependentEndianConformanceProbe=" +
         $M04IndependentEndianConformanceEnabled.ToString().ToLowerInvariant())
     $arguments += $msbuildIsolation.Arguments
@@ -1963,6 +1970,8 @@ function Invoke-M01PostRestoreEvaluation {
             $M02OwnedCom1ReadyEnabled.ToString().ToLowerInvariant()
         EnableM02PanicSafeOwnedCom1Probe =
             $M02PanicSafeOwnedCom1Enabled.ToString().ToLowerInvariant()
+        EnableM02OwnedX64GdtEncodingProbe =
+            $M02OwnedX64GdtEncodingEnabled.ToString().ToLowerInvariant()
         EnableM04IndependentEndianConformanceProbe =
             $M04IndependentEndianConformanceEnabled.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
@@ -3940,7 +3949,8 @@ for ($index = 5; $index -lt $verifierArguments.Count; $index += 2) {
     $parameterValue = [string]$verifierArguments[$index + 1]
     if ($parameterName -ceq "EnableM04IndependentEndianConformanceProbe" -or
         $parameterName -ceq "EnableM02OwnedCom1ReadyProbe" -or
-        $parameterName -ceq "EnableM02PanicSafeOwnedCom1Probe") {
+        $parameterName -ceq "EnableM02PanicSafeOwnedCom1Probe" -or
+        $parameterName -ceq "EnableM02OwnedX64GdtEncodingProbe") {
         if ($parameterValue -cne "true" -and $parameterValue -cne "false") {
             exit 127
         }
@@ -5092,6 +5102,7 @@ function Test-M01EvaluatedSourceClosure {
         [bool] $M02Com1OwnedPortIoEnabled,
         [bool] $M02OwnedCom1ReadyEnabled,
         [bool] $M02PanicSafeOwnedCom1Enabled,
+        [bool] $M02OwnedX64GdtEncodingEnabled,
         [bool] $M04IndependentEndianConformanceEnabled,
         [bool] $UefiGoneSimulationEnabled,
         [bool] $ExitBootServicesFreshMapEnabled,
@@ -5129,6 +5140,8 @@ function Test-M01EvaluatedSourceClosure {
             $M02OwnedCom1ReadyEnabled.ToString().ToLowerInvariant()
         "EnableM02PanicSafeOwnedCom1Probe" =
             $M02PanicSafeOwnedCom1Enabled.ToString().ToLowerInvariant()
+        "EnableM02OwnedX64GdtEncodingProbe" =
+            $M02OwnedX64GdtEncodingEnabled.ToString().ToLowerInvariant()
         "EnableM04IndependentEndianConformanceProbe" =
             $M04IndependentEndianConformanceEnabled.ToString().ToLowerInvariant()
     }
@@ -5142,6 +5155,7 @@ function Test-M01EvaluatedSourceClosure {
         "M02_COM1_OWNED_PORT_IO_PROBE" = $M02Com1OwnedPortIoEnabled
         "M02_OWNED_COM1_READY_PROBE" = $M02OwnedCom1ReadyEnabled
         "M02_PANIC_SAFE_OWNED_COM1_PROBE" = $M02PanicSafeOwnedCom1Enabled
+        "M02_OWNED_X64_GDT_ENCODING_PROBE" = $M02OwnedX64GdtEncodingEnabled
         "M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE" =
             $M04IndependentEndianConformanceEnabled
         "UEFI_GONE_SIMULATION_PROBE" = $UefiGoneSimulationEnabled
@@ -5172,6 +5186,7 @@ function Test-M01EvaluatedSourceClosure {
                 "EnableM02Com1OwnedPortIoProbe," +
                 "EnableM02OwnedCom1ReadyProbe," +
                 "EnableM02PanicSafeOwnedCom1Probe," +
+                "EnableM02OwnedX64GdtEncodingProbe," +
                 "EnableM04IndependentEndianConformanceProbe," +
                 "DefineConstants," +
                 "EnableDefaultCompileItems," +
@@ -5248,6 +5263,9 @@ function Test-M01EvaluatedSourceClosure {
         }
         if ($M02PanicSafeOwnedCom1Enabled) {
             $arguments += "-p:EnableM02PanicSafeOwnedCom1Probe=true"
+        }
+        if ($M02OwnedX64GdtEncodingEnabled) {
+            $arguments += "-p:EnableM02OwnedX64GdtEncodingProbe=true"
         }
         if ($M04IndependentEndianConformanceEnabled) {
             $arguments +=
@@ -5776,6 +5794,7 @@ function Test-M01SourceClosure {
         [bool] $M02Com1OwnedPortIoEnabled,
         [bool] $M02OwnedCom1ReadyEnabled,
         [bool] $M02PanicSafeOwnedCom1Enabled,
+        [bool] $M02OwnedX64GdtEncodingEnabled,
         [bool] $M04IndependentEndianConformanceEnabled,
         [bool] $UefiGoneSimulationEnabled,
         [bool] $ExitBootServicesFreshMapEnabled,
@@ -5826,7 +5845,7 @@ function Test-M01SourceClosure {
 
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "83719d2344efed633c9ca133339ebe4091c1e6cca07e75491996cae42e539cc0") {
+        "d44a5571337c8b5d7bebb2e016ee5cdcf946e569a333a238ec69382bf4ad4444") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `
@@ -5888,6 +5907,7 @@ function Test-M01SourceClosure {
         "EnableM02Com1OwnedPortIoProbe" = "M02_COM1_OWNED_PORT_IO_PROBE"
         "EnableM02OwnedCom1ReadyProbe" = "M02_OWNED_COM1_READY_PROBE"
         "EnableM02PanicSafeOwnedCom1Probe" = "M02_PANIC_SAFE_OWNED_COM1_PROBE"
+        "EnableM02OwnedX64GdtEncodingProbe" = "M02_OWNED_X64_GDT_ENCODING_PROBE"
         "EnableM04IndependentEndianConformanceProbe" =
             "M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE"
         "EnableUefiGoneSimulationProbe" = "UEFI_GONE_SIMULATION_PROBE"
@@ -5935,6 +5955,7 @@ function Test-M01SourceClosure {
         "EnableM02Com1OwnedPortIoProbe" = "M02_COM1_OWNED_PORT_IO_PROBE"
         "EnableM02OwnedCom1ReadyProbe" = "M02_OWNED_COM1_READY_PROBE"
         "EnableM02PanicSafeOwnedCom1Probe" = "M02_PANIC_SAFE_OWNED_COM1_PROBE"
+        "EnableM02OwnedX64GdtEncodingProbe" = "M02_OWNED_X64_GDT_ENCODING_PROBE"
         "EnableM04IndependentEndianConformanceProbe" =
             "M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE"
     }
@@ -6003,6 +6024,9 @@ function Test-M01SourceClosure {
     $m02PanicSafeOwnedCom1DependencyCondition =
         "'" + '$' + "(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '" +
         '$' + "(EnableM02OwnedCom1ReadyProbe)' != 'true'"
+    $m02OwnedX64GdtEncodingDependencyCondition =
+        "'" + '$' + "(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '" +
+        '$' + "(EnableM02PanicSafeOwnedCom1Probe)' != 'true'"
     $requiredErrorConditions = @(
         $allocatorDependencyCondition,
         $pagingDependencyCondition,
@@ -6012,7 +6036,8 @@ function Test-M01SourceClosure {
         $m02CheckedBindingDependencyCondition,
         $m02Com1OwnedPortIoDependencyCondition,
         $m02OwnedCom1ReadyDependencyCondition,
-        $m02PanicSafeOwnedCom1DependencyCondition
+        $m02PanicSafeOwnedCom1DependencyCondition,
+        $m02OwnedX64GdtEncodingDependencyCondition
     )
     if ($errorConditions.Count -ne $requiredErrorConditions.Count -or
         $validationTargets[0].SelectNodes("*").Count -ne $errorNodes.Count) {
@@ -6321,6 +6346,7 @@ function Test-M01SourceClosure {
         -M02Com1OwnedPortIoEnabled $M02Com1OwnedPortIoEnabled `
         -M02OwnedCom1ReadyEnabled $M02OwnedCom1ReadyEnabled `
         -M02PanicSafeOwnedCom1Enabled $M02PanicSafeOwnedCom1Enabled `
+        -M02OwnedX64GdtEncodingEnabled $M02OwnedX64GdtEncodingEnabled `
         -M04IndependentEndianConformanceEnabled $M04IndependentEndianConformanceEnabled `
         -UefiGoneSimulationEnabled $UefiGoneSimulationEnabled `
         -ExitBootServicesFreshMapEnabled $ExitBootServicesFreshMapEnabled `
@@ -6494,8 +6520,8 @@ try {
             (Format-EvidenceValue $_.Exception.Message))
         exit 1
     }
-    if ($sourceSnapshotBeforePublish.InputCount -ne 68 -or
-        $sourceSnapshotAfterLock.InputCount -ne 68 -or
+    if ($sourceSnapshotBeforePublish.InputCount -ne 69 -or
+        $sourceSnapshotAfterLock.InputCount -ne 69 -or
         $sourceSnapshotBeforePublish.AggregateSha256 -cne
             $sourceSnapshotAfterLock.AggregateSha256 -or
         $sourceSnapshotBeforePublish.AuthoritySha256 -cne
@@ -6508,7 +6534,7 @@ try {
         exit 1
     }
     Write-Host "EFI_PUBLISH_SOURCE_LOCK status=ok"
-    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=68"
+    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=69"
 
 Write-EfiPreflightLine "EFI_PREFLIGHT_START"
 
@@ -6537,6 +6563,8 @@ $m02OwnedCom1ReadyProbeEnabled =
     $EnableM02OwnedCom1ReadyProbe.IsPresent.ToString().ToLowerInvariant()
 $m02PanicSafeOwnedCom1ProbeEnabled =
     $EnableM02PanicSafeOwnedCom1Probe.IsPresent.ToString().ToLowerInvariant()
+$m02OwnedX64GdtEncodingProbeEnabled =
+    $EnableM02OwnedX64GdtEncodingProbe.IsPresent.ToString().ToLowerInvariant()
 $m04IndependentEndianConformanceProbeEnabled =
     $EnableM04IndependentEndianConformanceProbe.IsPresent.ToString().ToLowerInvariant()
 $m01SwitchEvidence =
@@ -6552,7 +6580,8 @@ $m02SwitchEvidence =
     " checkedPortIoBinding=" + $m02CheckedPortIoBindingProbeEnabled +
     " com1OwnedPortIo=" + $m02Com1OwnedPortIoProbeEnabled +
     " ownedCom1Ready=" + $m02OwnedCom1ReadyProbeEnabled +
-    " panicSafeOwnedCom1=" + $m02PanicSafeOwnedCom1ProbeEnabled
+    " panicSafeOwnedCom1=" + $m02PanicSafeOwnedCom1ProbeEnabled +
+    " ownedX64GdtEncoding=" + $m02OwnedX64GdtEncodingProbeEnabled
 $m04SwitchEvidence =
     "independentEndianConformance=" +
     $m04IndependentEndianConformanceProbeEnabled
@@ -6632,6 +6661,18 @@ if ($EnableM02PanicSafeOwnedCom1Probe -and
             "EFI_PREFLIGHT_M02_SWITCHES " + $m02SwitchEvidence +
             " reason=panic_safe_owned_com1_requires_owned_com1_ready") `
         -Reason "m02_panic_safe_owned_com1_requires_owned_com1_ready" `
+        -LogFullPath $logFullPath `
+        -ReportedLogPath $LogPath `
+        -Status "invalid"
+}
+
+if ($EnableM02OwnedX64GdtEncodingProbe -and
+    -not $EnableM02PanicSafeOwnedCom1Probe) {
+    Stop-EfiPreflight `
+        -Marker (
+            "EFI_PREFLIGHT_M02_SWITCHES " + $m02SwitchEvidence +
+            " reason=owned_x64_gdt_encoding_requires_panic_safe_owned_com1") `
+        -Reason "m02_owned_x64_gdt_encoding_requires_panic_safe_owned_com1" `
         -LogFullPath $logFullPath `
         -ReportedLogPath $LogPath `
         -Status "invalid"
@@ -6739,6 +6780,7 @@ $m01SourceClosure = Test-M01SourceClosure `
     -M02Com1OwnedPortIoEnabled $EnableM02Com1OwnedPortIoProbe.IsPresent `
     -M02OwnedCom1ReadyEnabled $EnableM02OwnedCom1ReadyProbe.IsPresent `
     -M02PanicSafeOwnedCom1Enabled $EnableM02PanicSafeOwnedCom1Probe.IsPresent `
+    -M02OwnedX64GdtEncodingEnabled $EnableM02OwnedX64GdtEncodingProbe.IsPresent `
     -M04IndependentEndianConformanceEnabled $EnableM04IndependentEndianConformanceProbe.IsPresent `
     -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
     -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
@@ -7331,6 +7373,11 @@ if ($EnableM02PanicSafeOwnedCom1Probe) {
     Write-Host "EFI_PROBE M02_PANIC_SAFE_OWNED_COM1"
 }
 
+if ($EnableM02OwnedX64GdtEncodingProbe) {
+    $arguments += "-p:EnableM02OwnedX64GdtEncodingProbe=true"
+    Write-Host "EFI_PROBE M02_OWNED_X64_GDT_ENCODING"
+}
+
 if ($EnableM04IndependentEndianConformanceProbe) {
     $arguments +=
         "-p:EnableM04IndependentEndianConformanceProbe=true"
@@ -7450,6 +7497,7 @@ $methodImplAttributeSourcePath = Join-Path $repositoryRoot (
         -M02Com1OwnedPortIoEnabled $EnableM02Com1OwnedPortIoProbe.IsPresent `
         -M02OwnedCom1ReadyEnabled $EnableM02OwnedCom1ReadyProbe.IsPresent `
         -M02PanicSafeOwnedCom1Enabled $EnableM02PanicSafeOwnedCom1Probe.IsPresent `
+        -M02OwnedX64GdtEncodingEnabled $EnableM02OwnedX64GdtEncodingProbe.IsPresent `
         -M04IndependentEndianConformanceEnabled $EnableM04IndependentEndianConformanceProbe.IsPresent `
         -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
         -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
@@ -7672,6 +7720,7 @@ try {
         -CommonTargetsPath $commonTargetsPath `
         -M02OwnedCom1ReadyEnabled $EnableM02OwnedCom1ReadyProbe.IsPresent `
         -M02PanicSafeOwnedCom1Enabled $EnableM02PanicSafeOwnedCom1Probe.IsPresent `
+        -M02OwnedX64GdtEncodingEnabled $EnableM02OwnedX64GdtEncodingProbe.IsPresent `
         -M04IndependentEndianConformanceEnabled `
             $EnableM04IndependentEndianConformanceProbe.IsPresent
     $activePackageImportGraphSha256 = Get-M01Utf8Sha256 -Text (
@@ -7834,6 +7883,7 @@ if ($exitCode -eq 0) {
                 -CommonTargetsPath $commonTargetsPath `
                 -M02OwnedCom1ReadyEnabled $EnableM02OwnedCom1ReadyProbe.IsPresent `
                 -M02PanicSafeOwnedCom1Enabled $EnableM02PanicSafeOwnedCom1Probe.IsPresent `
+                -M02OwnedX64GdtEncodingEnabled $EnableM02OwnedX64GdtEncodingProbe.IsPresent `
                 -M04IndependentEndianConformanceEnabled `
                     $EnableM04IndependentEndianConformanceProbe.IsPresent
     }
@@ -8208,6 +8258,11 @@ if ($exitCode -eq 0) {
     if ($EnableM02PanicSafeOwnedCom1Probe) {
         $verificationArguments += @(
             "-EnableM02PanicSafeOwnedCom1Probe",
+            "true")
+    }
+    if ($EnableM02OwnedX64GdtEncodingProbe) {
+        $verificationArguments += @(
+            "-EnableM02OwnedX64GdtEncodingProbe",
             "true")
     }
     $verificationStopwatch = [System.Diagnostics.Stopwatch]::StartNew()

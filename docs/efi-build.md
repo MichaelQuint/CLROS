@@ -619,14 +619,74 @@ IDT/GDT/TSS/IST handling, post-firmware diagnostics, real `ExitBootServices`,
 physical hardware/provider behavior, hosted .NET, Kestrel, CloudReady status,
 production readiness, or a numbered-gate advancement.
 
+### M02-007 caller-owned x64 GDT encoding EFI closure
+
+The default-false `EnableM02OwnedX64GdtEncodingProbe` profile adds exactly one
+explicit compile item,
+`Diagnostics/OwnedX64GDTContainingNullN64BitCode.cs`, after the accepted
+M02-006 reporter and before the independent endian catalog. The current closure
+is 56 compile items and the canonical build/verifier authority snapshot is 69
+inputs. The flag requires `EnableM02PanicSafeOwnedCom1Probe=true`; the QEMU
+wrapper additionally requires `-BuildEfi`, rejects `-SkipImageBuild`, rebuilds
+both EFI and image inputs, and composes the accepted M01 prerequisites.
+
+After the M02-006 direct marker and distinct evidence line succeed and before
+`TEST_PASS m01.stage3`, `EfiEntry` creates one zero-initialized, fixed-size local
+stack workspace containing exactly 104 TSS bytes and 40 GDT bytes. It calls
+`OwnedX64GdtContainingNullN64BitCode.Encode` exactly once with the actual TSS
+buffer address and limit 103. Success requires initialized success statuses,
+40 bytes written and required, table limit 39, reported destination mutation,
+an exact 40-byte readback with first mismatch `-1`, equal result/observed/
+expected fingerprints, selectors 0/8/16/24, and an unchanged zeroed TSS image.
+Failure emits `M02_OWNED_X64_GDT_ENCODING_FAILED` through UEFI diagnostics,
+suppresses the success marker, and aborts the optional path.
+
+Only after every gate passes, the EFI path emits this fixed evidence line:
+
+```text
+CLROS_M02_007_READY encoding=guestValidated callerOwned=true readBack=true gdtBytes=40 tssBytes=104 tableLimit=39 selectors=0,8,16,24 guestEncoding=true guestLgdt=false guestLtr=false allocationFree=true markerTransport=uefiSerial postExitBootServices=false
+```
+
+Build, artifact verification, image creation, and QEMU use the complete
+cumulative profile:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -BuildEfi `
+  -EnableM02SafeStubProbe `
+  -EnableM02CheckedPortIoBindingProbe `
+  -EnableM02Com1OwnedPortIoProbe `
+  -EnableM02OwnedCom1ReadyProbe `
+  -EnableM02PanicSafeOwnedCom1Probe `
+  -EnableM02OwnedX64GdtEncodingProbe
+```
+
+The corrected development publish reported 69 source-authority inputs, 56
+compile items, and `TEST_PASS efi.artifact.verify`. Its 506,880-byte PE32+ AMD64
+EFI artifact has SHA-256
+`88B31B1DEB6B4C1DF3A1FCFDFDCA8BC23CC152039D4D9A767B445672D97861F1`,
+subsystem 10, and no ordinary, bound, IAT, or delay imports. The complete
+exact-head host/QEMU gate and independent review remain required.
+
+This closure proves only pre-`ExitBootServices` execution of the reviewed
+encoder into caller-owned guest memory and byte-for-byte readback observed via
+UEFI serial. It does not execute `lgdt` or `ltr`, install active GDT/TSS state,
+trigger or handle a live fault, prove post-firmware diagnostics or real
+`ExitBootServices`, establish hardware/provider support, run hosted .NET or
+Kestrel, advance a numbered completion gate, or establish CloudReady or
+production readiness.
+
 ### M04-002 fixed endian-catalog EFI closure
 
 `EnableM04IndependentEndianConformanceProbe` is a default-false, independent
 profile. At its acceptance head it added exactly one explicit compile item:
 `std/no-runtime/shared/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs`.
 That historical accepted project closure had 53 compile items and the canonical
-build/verifier authority had 66 inputs. The current tree has 55/68 after the
-later M02-005 writer and M02-006 reporter were inserted before the catalog; this
+build/verifier authority had 66 inputs. The current tree has 56/69 after the
+later M02-005 writer, M02-006 reporter, and M02-007 GDT encoder were inserted before the catalog; this
 does not alter or reinterpret the M04-002 artifact evidence below. The scripts reject
 compatibility counts, missing/reordered sources, stale hashes, wildcard imports,
 or a post-restore property mismatch.
@@ -1066,11 +1126,13 @@ Any next-step EFI build work must keep the freestanding constraints explicit. If
 3. Preserve M02-006's harmless panic-reporter readiness marker and distinct
    UEFI evidence line without treating either as a live panic or post-firmware
    serial path.
-4. Move UEFI structs behind platform interfaces.
+4. Preserve M02-007's caller-owned GDT encoding/readback marker without
+   treating it as `lgdt`, `ltr`, active TSS installation, or a live fault path.
+5. Move UEFI structs behind platform interfaces.
    - Keep the low-level UEFI table pointers isolated to the EFI boundary.
    - Expose only the narrow operations required for console diagnostics, memory-map ownership, firmware shutdown state, and optional filesystem/protocol discovery.
-5. Implement post-firmware COM1 before enabling any real firmware shutdown.
-6. Copy required firmware data, add the typed `ExitBootServices` call adapter,
+6. Implement post-firmware COM1 before enabling any real firmware shutdown.
+7. Copy required firmware data, add the typed `ExitBootServices` call adapter,
    and implement the bounded stale-map-key retry only after its M01/M02
    dependencies pass.
 7. Route additional platform interfaces through the UEFI-gone simulation path

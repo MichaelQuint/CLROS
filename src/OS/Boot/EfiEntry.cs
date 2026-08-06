@@ -3741,6 +3741,100 @@ public static unsafe class EfiEntry
                 WriteM02PanicSafeOwnedCom1EvidenceLine(
                     console,
                     serial);
+#if M02_OWNED_X64_GDT_ENCODING_PROBE
+                const int m02OwnedTssByteCount = 104;
+                M02OwnedX64GdtEncodingStackWorkspace
+                    m02OwnedWorkspace = default;
+                byte* m02OwnedTss =
+                    m02OwnedWorkspace.TssBytes;
+                for (int tssOffset = 0;
+                    tssOffset < m02OwnedTssByteCount;
+                    tssOffset++)
+                {
+                    m02OwnedTss[tssOffset] = 0;
+                }
+
+                byte* m02OwnedGdt =
+                    m02OwnedWorkspace.GdtBytes;
+                OS.Kernel.Diagnostics.OwnedX64GdtEncodingResult
+                    m02OwnedGdtEncoding =
+                        OS.Kernel.Diagnostics
+                            .OwnedX64GdtContainingNullN64BitCode
+                            .Encode(
+                                m02OwnedGdt,
+                                OS.Kernel.Diagnostics
+                                    .OwnedX64GdtContainingNullN64BitCode
+                                    .RequiredByteCount,
+                                (ulong)m02OwnedTss,
+                                OS.Kernel.Diagnostics
+                                    .OwnedX64GdtContainingNullN64BitCode
+                                    .MinimumTssLimit);
+                bool m02OwnedTssRemainsZero = true;
+                for (int tssOffset = 0;
+                    tssOffset < m02OwnedTssByteCount;
+                    tssOffset++)
+                {
+                    if (m02OwnedTss[tssOffset] != 0)
+                    {
+                        m02OwnedTssRemainsZero = false;
+                        break;
+                    }
+                }
+
+                if (!m02OwnedGdtEncoding.IsInitialized ||
+                    !m02OwnedGdtEncoding.Succeeded ||
+                    m02OwnedGdtEncoding.Status !=
+                        OS.Kernel.Diagnostics
+                            .OwnedX64GdtEncodingStatus.Success ||
+                    m02OwnedGdtEncoding.BytesWritten != 40 ||
+                    m02OwnedGdtEncoding.RequiredBytes != 40 ||
+                    m02OwnedGdtEncoding.TableLimit != 39 ||
+                    !m02OwnedGdtEncoding.DestinationMutated ||
+                    !m02OwnedGdtEncoding.Verification.IsInitialized ||
+                    !m02OwnedGdtEncoding.Verification.Succeeded ||
+                    m02OwnedGdtEncoding.Verification.Status !=
+                        OS.Kernel.Diagnostics
+                            .OwnedX64GdtVerificationStatus.Success ||
+                    m02OwnedGdtEncoding.Verification.BytesCompared != 40 ||
+                    m02OwnedGdtEncoding.Verification.FirstMismatchOffset != -1 ||
+                    m02OwnedGdtEncoding.Fingerprint !=
+                        m02OwnedGdtEncoding.Verification.ObservedFingerprint ||
+                    m02OwnedGdtEncoding.Verification.ObservedFingerprint !=
+                        m02OwnedGdtEncoding.Verification.ExpectedFingerprint ||
+                    !m02OwnedTssRemainsZero ||
+                    OS.Kernel.Diagnostics
+                        .OwnedX64GdtContainingNullN64BitCode
+                        .RequiredByteCount != 40 ||
+                    OS.Kernel.Diagnostics
+                        .OwnedX64GdtContainingNullN64BitCode
+                        .TableLimit != 39 ||
+                    OS.Kernel.Diagnostics
+                        .OwnedX64GdtContainingNullN64BitCode
+                        .NullSelector != 0 ||
+                    OS.Kernel.Diagnostics
+                        .OwnedX64GdtContainingNullN64BitCode
+                        .KernelCodeSelector != 8 ||
+                    OS.Kernel.Diagnostics
+                        .OwnedX64GdtContainingNullN64BitCode
+                        .KernelDataSelector != 16 ||
+                    OS.Kernel.Diagnostics
+                        .OwnedX64GdtContainingNullN64BitCode
+                        .TssSelector != 24)
+                {
+                    WriteM02OwnedX64GdtEncodingFailureLine(
+                        console,
+                        serial);
+                    _ = FailAfterEntry(
+                        M01StageThreeAdapterStatus
+                            .PostReturnAuditRejected,
+                        (ulong)m02OwnedGdtEncoding.Status);
+                    return;
+                }
+
+                WriteM02OwnedX64GdtEncodingSuccessLine(
+                    console,
+                    serial);
+#endif
 #endif
 #endif
 #endif
@@ -5818,6 +5912,60 @@ public static unsafe class EfiEntry
         }
 #endif
 
+#if M02_OWNED_X64_GDT_ENCODING_PROBE
+        private static void WriteM02OwnedX64GdtEncodingSuccessLine(
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial)
+        {
+            WriteAscii(console, serial, (byte)'C', (byte)'L', (byte)'R', (byte)'O', (byte)'S', (byte)'_', (byte)'M', (byte)'0');
+            WriteAscii(console, serial, (byte)'2', (byte)'_', (byte)'0', (byte)'0', (byte)'7', (byte)'_', (byte)'R', (byte)'E');
+            WriteAscii(console, serial, (byte)'A', (byte)'D', (byte)'Y', (byte)' ', (byte)'e', (byte)'n', (byte)'c', (byte)'o');
+            WriteAscii(console, serial, (byte)'d', (byte)'i', (byte)'n', (byte)'g', (byte)'=', (byte)'g', (byte)'u', (byte)'e');
+            WriteAscii(console, serial, (byte)'s', (byte)'t', (byte)'V', (byte)'a', (byte)'l', (byte)'i', (byte)'d', (byte)'a');
+            WriteAscii(console, serial, (byte)'t', (byte)'e', (byte)'d', (byte)' ', (byte)'c', (byte)'a', (byte)'l', (byte)'l');
+            WriteAscii(console, serial, (byte)'e', (byte)'r', (byte)'O', (byte)'w', (byte)'n', (byte)'e', (byte)'d', (byte)'=');
+            WriteAscii(console, serial, (byte)'t', (byte)'r', (byte)'u', (byte)'e', (byte)' ', (byte)'r', (byte)'e', (byte)'a');
+            WriteAscii(console, serial, (byte)'d', (byte)'B', (byte)'a', (byte)'c', (byte)'k', (byte)'=', (byte)'t', (byte)'r');
+            WriteAscii(console, serial, (byte)'u', (byte)'e', (byte)' ', (byte)'g', (byte)'d', (byte)'t', (byte)'B', (byte)'y');
+            WriteAscii(console, serial, (byte)'t', (byte)'e', (byte)'s', (byte)'=', (byte)'4', (byte)'0', (byte)' ', (byte)'t');
+            WriteAscii(console, serial, (byte)'s', (byte)'s', (byte)'B', (byte)'y', (byte)'t', (byte)'e', (byte)'s', (byte)'=');
+            WriteAscii(console, serial, (byte)'1', (byte)'0', (byte)'4', (byte)' ', (byte)'t', (byte)'a', (byte)'b', (byte)'l');
+            WriteAscii(console, serial, (byte)'e', (byte)'L', (byte)'i', (byte)'m', (byte)'i', (byte)'t', (byte)'=', (byte)'3');
+            WriteAscii(console, serial, (byte)'9', (byte)' ', (byte)'s', (byte)'e', (byte)'l', (byte)'e', (byte)'c', (byte)'t');
+            WriteAscii(console, serial, (byte)'o', (byte)'r', (byte)'s', (byte)'=', (byte)'0', (byte)',', (byte)'8', (byte)',');
+            WriteAscii(console, serial, (byte)'1', (byte)'6', (byte)',', (byte)'2', (byte)'4', (byte)' ', (byte)'g', (byte)'u');
+            WriteAscii(console, serial, (byte)'e', (byte)'s', (byte)'t', (byte)'E', (byte)'n', (byte)'c', (byte)'o', (byte)'d');
+            WriteAscii(console, serial, (byte)'i', (byte)'n', (byte)'g', (byte)'=', (byte)'t', (byte)'r', (byte)'u', (byte)'e');
+            WriteAscii(console, serial, (byte)' ', (byte)'g', (byte)'u', (byte)'e', (byte)'s', (byte)'t', (byte)'L', (byte)'g');
+            WriteAscii(console, serial, (byte)'d', (byte)'t', (byte)'=', (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e');
+            WriteAscii(console, serial, (byte)' ', (byte)'g', (byte)'u', (byte)'e', (byte)'s', (byte)'t', (byte)'L', (byte)'t');
+            WriteAscii(console, serial, (byte)'r', (byte)'=', (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ');
+            WriteAscii(console, serial, (byte)'a', (byte)'l', (byte)'l', (byte)'o', (byte)'c', (byte)'a', (byte)'t', (byte)'i');
+            WriteAscii(console, serial, (byte)'o', (byte)'n', (byte)'F', (byte)'r', (byte)'e', (byte)'e', (byte)'=', (byte)'t');
+            WriteAscii(console, serial, (byte)'r', (byte)'u', (byte)'e', (byte)' ', (byte)'m', (byte)'a', (byte)'r', (byte)'k');
+            WriteAscii(console, serial, (byte)'e', (byte)'r', (byte)'T', (byte)'r', (byte)'a', (byte)'n', (byte)'s', (byte)'p');
+            WriteAscii(console, serial, (byte)'o', (byte)'r', (byte)'t', (byte)'=', (byte)'u', (byte)'e', (byte)'f', (byte)'i');
+            WriteAscii(console, serial, (byte)'S', (byte)'e', (byte)'r', (byte)'i', (byte)'a', (byte)'l', (byte)' ', (byte)'p');
+            WriteAscii(console, serial, (byte)'o', (byte)'s', (byte)'t', (byte)'E', (byte)'x', (byte)'i', (byte)'t', (byte)'B');
+            WriteAscii(console, serial, (byte)'o', (byte)'o', (byte)'t', (byte)'S', (byte)'e', (byte)'r', (byte)'v', (byte)'i');
+            WriteAscii(console, serial, (byte)'c', (byte)'e', (byte)'s', (byte)'=', (byte)'f', (byte)'a', (byte)'l', (byte)'s');
+            WriteAscii(console, serial, (byte)'e', 0, 0, 0, 0, 0, 0, 0);
+            EfiEntry.WriteCrLf(console, serial);
+        }
+
+        private static void WriteM02OwnedX64GdtEncodingFailureLine(
+            EfiSimpleTextOutputProtocol* console,
+            EfiSerialIoProtocol* serial)
+        {
+            WriteAscii(console, serial, (byte)'M', (byte)'0', (byte)'2', (byte)'_', (byte)'O', (byte)'W', (byte)'N', (byte)'E');
+            WriteAscii(console, serial, (byte)'D', (byte)'_', (byte)'X', (byte)'6', (byte)'4', (byte)'_', (byte)'G', (byte)'D');
+            WriteAscii(console, serial, (byte)'T', (byte)'_', (byte)'E', (byte)'N', (byte)'C', (byte)'O', (byte)'D', (byte)'I');
+            WriteAscii(console, serial, (byte)'N', (byte)'G', (byte)'_', (byte)'F', (byte)'A', (byte)'I', (byte)'L', (byte)'E');
+            WriteAscii(console, serial, (byte)'D', 0, 0, 0, 0, 0, 0, 0);
+            EfiEntry.WriteCrLf(console, serial);
+        }
+#endif
+
         private static void WriteFailure(
             EfiSimpleTextOutputProtocol* console,
             EfiSerialIoProtocol* serial,
@@ -6350,6 +6498,14 @@ public static unsafe class EfiEntry
             public fixed ulong Values[
                 PlannerStackUlongCount];
         }
+
+#if M02_OWNED_X64_GDT_ENCODING_PROBE
+        private unsafe struct M02OwnedX64GdtEncodingStackWorkspace
+        {
+            public fixed byte TssBytes[104];
+            public fixed byte GdtBytes[40];
+        }
+#endif
 
         private unsafe struct
             M01StageThreePreparationCallContext

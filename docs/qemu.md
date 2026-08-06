@@ -444,6 +444,75 @@ prove post-firmware diagnostics or real `ExitBootServices`, establish physical
 hardware/provider behavior, run hosted .NET or Kestrel, advance a numbered
 completion gate, or establish CloudReady or production readiness.
 
+### M02-007 caller-owned x64 GDT encoding proof
+
+The default-false M02-007 profile extends the cumulative M01/M02 sequence after
+the accepted M02-006 direct marker and evidence line. It requires the M02-006
+switch together with `-BuildEfi`; it rejects a missing dependency, a missing
+build, or `-SkipImageBuild` with these stable reasons:
+
+- `m02_owned_x64_gdt_encoding_probe_requires_panic_safe_owned_com1`;
+- `m02_owned_x64_gdt_encoding_probe_requires_build_efi`;
+- `m02_owned_x64_gdt_encoding_probe_forbids_skip_image_build`.
+
+The default profile remains unchanged when the flag is absent. The enabled
+profile requires and uniquely orders all 55 cumulative success markers and
+forbids 39 cumulative failure markers including
+`M02_OWNED_X64_GDT_ENCODING_FAILED` and every `TEST_FAIL`. This marker must
+occur after `CLROS_M02_006_EVIDENCE` and before `TEST_PASS m01.stage3`:
+
+```text
+CLROS_M02_007_READY encoding=guestValidated callerOwned=true readBack=true gdtBytes=40 tssBytes=104 tableLimit=39 selectors=0,8,16,24 guestEncoding=true guestLgdt=false guestLtr=false allocationFree=true markerTransport=uefiSerial postExitBootServices=false
+```
+
+The real evidence command is:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -BuildEfi `
+  -EnableM02SafeStubProbe `
+  -EnableM02CheckedPortIoBindingProbe `
+  -EnableM02Com1OwnedPortIoProbe `
+  -EnableM02OwnedCom1ReadyProbe `
+  -EnableM02PanicSafeOwnedCom1Probe `
+  -EnableM02OwnedX64GdtEncodingProbe
+```
+
+The wrapper composes the three accepted M01 prerequisites before validating and
+rebuilding the EFI/image inputs. The corrected development run reported
+`SERIAL_MARKER_STREAM status=Passed terminal=Success bytes=3735 lines=77
+invalidBytes=15 invalidLines=1 orderedSeen=55 outOfOrder=0 uniqueSeen=55
+duplicateUnique=0`, `TEST_PASS qemu.smoke`, and
+`TEST_PASS m01.026.raw-observations`. The summary records
+`MISSING_MARKERS none`, `OUT_OF_ORDER_MARKERS none`,
+`DUPLICATE_UNIQUE_MARKERS none`, `FORBIDDEN_MARKER_HIT none`, and
+`FAIL_REASON none`. The M02-007 marker occurred exactly once with its literal
+selector commas preserved.
+
+The development EFI, raw image, serial log, summary, raw-observation log, and
+QMP-transcript SHA-256 values are respectively
+`88B31B1DEB6B4C1DF3A1FCFDFDCA8BC23CC152039D4D9A767B445672D97861F1`,
+`082BE0DB6F5C5B8DF4B610B302364E444824138306F00A9AAA7125666DC11F24`,
+`3638F55E4E556A497AE9FBC3DAF6366293DD93D99D58344F8223662B0CFEE06D`,
+`EA9BA295A9D0B6A2584F17832EEFCE947D3A8971BCF255EEC940232CB38FF137`,
+`7B5996B09F40753DE25524528C4BDBA500987085A4523FC989B4B01C695D1ACD1`,
+and
+`E32B424A56C0A70C1DC5BD18EF7CB0B91EF0593A97E14F7B7D821158035705DB`.
+The source-bound integration tests, 56-compile-item/69-input verifier, and this
+development real-QEMU tuple pass; the complete frozen exact-head gate remains
+required before issues #47 and #460 can close.
+
+This profile proves only that QEMU/OVMF executed the reviewed encoder against
+an actual caller-owned guest TSS address, read back the 40 encoded bytes, and
+reported the fixed result through UEFI serial before `ExitBootServices`. It
+does not execute `lgdt` or `ltr`, install active GDT/TSS state, prove a live
+fault or post-firmware diagnostic path, establish physical/provider support,
+run hosted .NET or Kestrel, advance a numbered completion gate, or establish
+CloudReady or production readiness.
+
 ### M04-002 fixed endian-catalog guest proof
 
 The M04-002 profile is opt-in and independent of the cumulative M01/M02 live
