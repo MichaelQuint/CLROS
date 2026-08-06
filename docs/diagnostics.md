@@ -2,7 +2,7 @@
 
 ## Current Status
 
-The owned diagnostics subsystem is host-testable only. No real IDT load, fault handlers, GDT/TSS/IST setup, live CPU port-I/O serial writer, or live panic-safe output path exists yet. The accepted M01-026 tuple uses firmware-visible serial plus an issue-specific host QMP/physical-memory capture mechanism while firmware is still available; that observation mechanism is not OS-owned diagnostics and does not prove or provide an OS-owned diagnostic channel across real `ExitBootServices`. The repository now has host contracts for serial diagnostics readiness, COM1 configuration planning, a COM1-backed platform serial transport over a fakeable byte-port backend, owned-serial readiness derivation from COM1 backend prerequisites, aggregate owned COM1 diagnostics readiness metadata, CPU fault-frame formatting, deterministic CPU fault-entry frame storage, caller-owned panic text buffering, x64 IDT gate descriptors, IDT table planning, required fault-vector metadata, x64 instruction-byte plans for future port-I/O, descriptor-table, and fault-entry shellcode stubs, byte-copy materialization of planned diagnostic stubs into caller-owned buffers, a page-transition plan contract for future W^X handoff, a host-only diagnostics-chain readiness aggregate across the current prerequisite contracts, a post-chain diagnostic-stub invocation readiness guard that validates resolved COM1 stub addresses against the planned executable payload range without invoking them, and a value-only diagnostic-stub callable-binding plan that checks materialized COM1 callable preconditions before any live COM1/serial invocation.
+The owned diagnostics subsystem remains host-testable except for the accepted bounded pre-`ExitBootServices` M02-004 configuration and M02-005 marker paths and the active M02-006 development readiness path. No real IDT load, fault handlers, GDT/TSS/IST setup, live CPU-fault panic route, or owned serial path across real `ExitBootServices` exists yet. The accepted M01-026 tuple uses firmware-visible serial plus an issue-specific host QMP/physical-memory capture mechanism while firmware is still available; that observation mechanism is not OS-owned diagnostics and does not prove or provide an OS-owned diagnostic channel across real `ExitBootServices`. The repository now has host contracts for serial diagnostics readiness, COM1 configuration planning, a COM1-backed platform serial transport over a fakeable byte-port backend, owned-serial readiness derivation from COM1 backend prerequisites, aggregate owned COM1 diagnostics readiness metadata, CPU fault-frame formatting, deterministic CPU fault-entry frame storage, caller-owned panic text buffering, a bounded allocation-free panic formatter/reporting route over the checked COM1 backend, x64 IDT gate descriptors, IDT table planning, required fault-vector metadata, x64 instruction-byte plans for future port-I/O, descriptor-table, and fault-entry shellcode stubs, byte-copy materialization of planned diagnostic stubs into caller-owned buffers, a page-transition plan contract for future W^X handoff, a host-only diagnostics-chain readiness aggregate across the current prerequisite contracts, a post-chain diagnostic-stub invocation readiness guard that validates resolved COM1 stub addresses against the planned executable payload range without invoking them, and a value-only diagnostic-stub callable-binding plan that checks materialized COM1 callable preconditions before any live COM1/serial invocation.
 
 ## Implemented Behavior
 
@@ -189,8 +189,32 @@ The owned diagnostics subsystem is host-testable only. No real IDT load, fault h
   ownership result differs. A development QEMU/OVMF run observed the standalone
   `OWNED_COM1_READY` line exactly once from the checked COM1 transport, followed
   by a distinct UEFI-serial evidence line reporting `guestPortIo=true`,
-  `guestIn8=true`, and `postExitBootServices=false`. Final-head review remains
-  pending, and this pre-firmware proof is not owned post-firmware diagnostics.
+  `guestIn8=true`, and `postExitBootServices=false`. The exact-head
+  implementation and tracker closure are merged; this pre-firmware proof is
+  still not owned post-firmware diagnostics.
+- `PanicSafeFormattingSerialReportingOwnedCom1` is the M02-006 production
+  formatter and reporter over `Com1OwnedPortIoBackend`. It validates bounded
+  ASCII subsystem/reason tokens and x64 vector metadata, calculates the complete
+  record size before mutation, and writes an exact `OS_SMOKE_FAIL` fault record
+  plus CR/LF into caller-owned scratch. The reporting path configures COM1,
+  polls THRE through checked `In8(0x3FD)`, and writes every formatted byte
+  through checked `Out8(0x3F8)` with status-coded configuration, read, timeout,
+  and write failures and no firmware fallback. `EmitReadinessMarker` uses the
+  same owned path for one harmless `CLROS_M02_006_READY ...` line. The
+  no-stdlib core uses explicit pointers and lengths; its `Span` convenience
+  overloads are excluded from the EFI closure. Eleven focused host cases use
+  safe unmanaged callbacks and report `guestPortIo=false`.
+- The separately claimed default-off M02-006 EFI integration links exactly that
+  production source as compile item 55 of 55, after the M02-005 writer. A fresh
+  development QEMU/OVMF run configured COM1 with seven writes, performed 127
+  checked line-status polls, and emitted the 125 marker bytes plus CR/LF through
+  checked COM1. It observed exactly one direct marker followed by exactly one
+  fixed UEFI evidence line with `guestPortIo=true`, `guestIn8=true`, and
+  `postExitBootServices=false`, all before `TEST_PASS m01.stage3`; the failure
+  marker and every `TEST_FAIL` were absent. This is harmless readiness evidence,
+  not a triggered CPU fault, live panic route, or post-`ExitBootServices`
+  diagnostic path. The final exact-tree gate and independent review remain
+  pending.
 - `DiagnosticStubCallableBindingPlanDiagnosticFormatter` formats initialized
   callable-binding plan metadata into stable caller-owned ASCII
   `DIAGNOSTIC_STUB_CALLABLE_BINDING status=` marker bytes. It reports required
@@ -701,7 +725,7 @@ diagnostics exist.
 
 `BootSequence.RunExitBootServicesPreflight` is a marker/readiness helper only. It does not call firmware, execute generated stubs, or prove live post-firmware output.
 
-`Com1PortIoBackendContract` is address metadata only. It resolves future function-pointer target addresses from planned stub offsets, but it does not create delegates, invoke function pointers, or perform port I/O. `OwnedSerialDiagnosticsReadinessResult` and `OwnedCom1DiagnosticsReadiness` only consume that status-coded metadata to decide whether the guard and marker boundary may be marked ready. `IPlatformSerial`, `GuardedPlatformSerial`, and `Com1PlatformSerialTransport` route host-test bytes to injected/fakeable transports only; they do not prove real COM1 port I/O or output after real `ExitBootServices`. The separate M02-005 EFI profile does execute `OwnedCom1ReadyExclusivelyOwnedWriter` over the checked generated `In8`/`Out8` targets under QEMU, but only for one bounded pre-`ExitBootServices` marker. It does not make those readiness/guard abstractions live after firmware shutdown.
+`Com1PortIoBackendContract` is address metadata only. It resolves future function-pointer target addresses from planned stub offsets, but it does not create delegates, invoke function pointers, or perform port I/O. `OwnedSerialDiagnosticsReadinessResult` and `OwnedCom1DiagnosticsReadiness` only consume that status-coded metadata to decide whether the guard and marker boundary may be marked ready. `IPlatformSerial`, `GuardedPlatformSerial`, and `Com1PlatformSerialTransport` route host-test bytes to injected/fakeable transports only; they do not prove real COM1 port I/O or output after real `ExitBootServices`. The separate M02-005 EFI profile executes `OwnedCom1ReadyExclusivelyOwnedWriter` over checked generated `In8`/`Out8` targets under QEMU, and the active M02-006 development profile executes the harmless readiness method of `PanicSafeFormattingSerialReportingOwnedCom1` through that same checked backend. Both remain bounded pre-`ExitBootServices` marker paths. They do not make those readiness/guard abstractions live after firmware shutdown or prove a live panic route.
 
 `CpuFaultEntryFrameLayout`, `CpuFaultPanicReadiness`, and
 `CpuFaultPanicReadinessFormatter` are storage/layout, composition, and
@@ -812,24 +836,47 @@ CLROS_M02_005_READY marker=OWNED_COM1_READY markerBytes=16 lineEndingBytes=2 con
 
 No `TEST_FAIL` or `M02_OWNED_COM1_READY_FAILED` marker appeared. This proves the
 bounded checked COM1 read/write path only on the recorded QEMU/OVMF platform
-before `ExitBootServices`; exact final-head gate and review evidence remain
-required. It proves no panic routing, post-firmware output, physical hardware,
+before `ExitBootServices`. The exact-head implementation and tracker closure are
+merged. It proves no panic routing, post-firmware output, physical hardware,
 provider behavior, or numbered completion-gate advancement.
+
+M02-006 now has a host-validated production formatter/reporting route over the
+same checked backend. The complete host harness emitted:
+
+```text
+TEST_START m02.006
+CLROS_M02_006_READY panicFormatting=hostValidated ownedCom1Transport=hostCallbacks guestPortIo=false allocationFree=true
+TEST_PASS m02.006
+TEST_PASS host.tests
+```
+
+The captured 874,888-byte host log has SHA-256
+`A675033BD054AB13508FBF9BA9E903DF0745170F048E08A3F667D009FD69E9BA`
+and contains zero `TEST_FAIL` lines. This proves exact caller-owned formatting,
+checked callback routing, THRE polling, timeout and invalid-input failures,
+short-buffer atomicity, unmanaged result layouts, and zero hot-path managed
+allocations. It does not prove that privileged guest `In8`/`Out8` executed; the
+host marker explicitly records `guestPortIo=false`, and real QEMU/OVMF evidence
+requires a separately owned EFI integration lane.
 
 ## Next Steps
 
-1. Wire `PanicSerialReporter` into a real panic-safe serial path after the owned serial platform boundary has a live COM1 backend.
+1. Integrate the M02-006 formatter/reporter through a separately owned,
+   default-off EFI lane and obtain fresh real-QEMU/OVMF evidence before claiming
+   privileged guest port I/O.
 2. Preserve the M02-005 bounded owned-COM1 marker proof, then wire the writer
    through `SerialDiagnosticsGuard` only when a later issue owns the live
    post-firmware diagnostic boundary.
 3. Add IDT/GDT/TSS/IST setup using the descriptor, IDTR, GDT, TSS/IST, readiness, install-readiness, table-plan, vector, descriptor-instruction, and descriptor-install stub contracts.
 4. Add real executable-stub page transitions using the W^X layout, materialization, and page-transition plan contracts.
 5. Keep M02-004's configuration-only marker, M02-005's pre-firmware direct
-   COM1 payload, and future post-firmware diagnostics as distinct evidence.
+   COM1 payload, M02-006's panic-safe route, and future post-firmware diagnostics
+   as distinct evidence.
 6. Wire the COM1 backend contract into an owned serial writer only after generated stubs can be safely mapped executable and invoked.
 7. Add the controlled null-read and invalid-opcode probes behind `Probes.cs`
    toggles only in their dedicated issues; M02-014 must consume the disabled
    M01-015 intent after owned diagnostics exist.
 8. Wire real handler register capture into `CpuFaultFrame` through the deterministic fault-entry layout.
 9. Keep M02-003 binding readiness, M02-004 configuration, M02-005 bounded
-   payload output, and future post-EBS claims distinct.
+   payload output, M02-006 panic-safe routing, and future post-EBS claims
+   distinct.

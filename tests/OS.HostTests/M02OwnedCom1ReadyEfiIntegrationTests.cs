@@ -15,7 +15,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
         "guestPortIo=true guestIn8=true postExitBootServices=false";
     private const string FailureMarker = "M02_OWNED_COM1_READY_FAILED";
     private const string CompileClosureSha256 =
-        "af4f0558712e2d1d4ab61104b0505ce9ca8256be61adad98f74ebb0c703020de";
+        "5e04cf9c3f932fb0f794394cc69389f9b0eef85766368c39d7dee46069d36337";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -97,10 +97,13 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
             @"..\OS.Kernel\Diagnostics\COM1OwnedPortIOBackend.cs|Diagnostics\COM1OwnedPortIOBackend.cs";
         const string WriterKey =
             @"..\OS.Kernel\Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs|Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs";
+        const string PanicReporterKey =
+            @"..\OS.Kernel\Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs|Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs";
         const string CatalogKey =
             @"..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
         int backendIndex = Array.IndexOf(compileKeys, BackendKey);
         int writerIndex = Array.IndexOf(compileKeys, WriterKey);
+        int panicReporterIndex = Array.IndexOf(compileKeys, PanicReporterKey);
         int catalogIndex = Array.IndexOf(compileKeys, CatalogKey);
 
         XElement[] defaults = project
@@ -116,8 +119,8 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
         string[] dependencyConditions = project
             .Descendants("Error")
             .Select(element => element.Attribute("Condition")?.Value ?? string.Empty)
-            .Where(value => value.Contains(
-                "EnableM02OwnedCom1ReadyProbe",
+            .Where(value => value.StartsWith(
+                "'$(EnableM02OwnedCom1ReadyProbe)' == 'true'",
                 StringComparison.Ordinal))
             .ToArray();
 
@@ -126,12 +129,14 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 54
+        return compileItems.Length == 55
             && compileHash == CompileClosureSha256
             && backendIndex >= 0
             && writerIndex == backendIndex + 1
-            && catalogIndex == writerIndex + 1
+            && panicReporterIndex == writerIndex + 1
+            && catalogIndex == panicReporterIndex + 1
             && compileKeys.Count(key => key == WriterKey) == 1
+            && compileKeys.Count(key => key == PanicReporterKey) == 1
             && defaults.Length == 1
             && defaults[0].Value == "false"
             && defaults[0].Attribute("Condition")?.Value ==
@@ -153,7 +158,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
                 "m02_owned_com1_ready_requires_com1_owned_port_io",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=67",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=68",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 "\"-EnableM02OwnedCom1ReadyProbe\",\n            \"true\"",
@@ -165,10 +170,10 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
                 "[switch]$EnableM02OwnedCom1ReadyProbe",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 67",
+                "$expectedSourceClosureInputCount = 68",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 54",
+                "$compileItems.Count -ne 55",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
                 "-p:EnableM02OwnedCom1ReadyProbe=true",

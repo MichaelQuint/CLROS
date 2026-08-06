@@ -31,13 +31,13 @@ partial gates and many prerequisite contracts, but it has not yet passed
 `ExitBootServices`, owned-driver, live storage, live networking, native-app
 execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 
-### Current implementation checkpoint (2026-08-05)
+### Current implementation checkpoint (2026-08-06)
 
-- The live local Gitea tracker has **276 open issues** (issues only, excluding
-  pull requests). That is seven fewer than the earlier 283-issue snapshot even
-  though several narrowly scoped integration/review issues were added to make
-  shared-file ownership explicit. The reconstructed backlog is intentionally
-  granular: its raw count is a queue size, not a completion percentage.
+- The live local Gitea tracker has **274 open issues** (issues only, excluding
+  pull requests). That is nine fewer than the earlier 283-issue snapshot even
+  though narrowly scoped integration/review issues were added to make shared-
+  file ownership explicit. The reconstructed backlog is intentionally granular:
+  its raw count is a queue size, not a completion percentage.
 - M02-004 is now reviewed, merged, evidence-backed, and closed together with
   its three supplemental integration issues. Its production C# corrected the
   Windows x64 `Out8` register flow, bound the checked port-I/O function
@@ -51,22 +51,32 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
   QEMU/OVMF marker still records `hostConformance=false`,
   `guestIntegrated=true`, and `gate4=Fail`; the slice did not complete general
   `BinaryPrimitives` compatibility or NativeAOT runtime correctness.
-- The active M02-005 wave is real production and integration work. Managed
-  issue #45 adds the 303-line allocation-free
-  `OwnedCom1ReadyExclusivelyOwnedWriter`; supplemental issue #450 links and
-  calls it from the explicit no-stdlib EFI closure; and bounded tooling issue
-  #451 raises only the QEMU runner's marker ceiling from 256 to 320 characters.
-  Focused C# tests cover exact COM1 port/byte order, delayed readiness,
-  timeout, invalid limits, an unready binding, default-result safety, transport
-  separation, EFI ordering, and the 259/320/321-character runner boundary.
-- A development QEMU/OVMF run of that claimed wave has already observed the
-  standalone `OWNED_COM1_READY` line from checked `In8(0x3FD)` /
-  `Out8(0x3F8)` execution, followed exactly once by the separate UEFI-serial
-  `CLROS_M02_005_READY ... guestPortIo=true guestIn8=true
-  postExitBootServices=false` evidence line. Issues #45, #450, and #451 remain
-  `agent:claimed` until the complete final-head gate and exact-head independent
-  review pass. M04-003 (#72) is the sole `agent:ready` issue and will not be
-  claimed across this serialized integration wave.
+- M02-005 is reviewed, merged, evidence-backed, and closed. Its allocation-free
+  C# writer emits `OWNED_COM1_READY` directly through checked
+  `In8(0x3FD)`/`Out8(0x3F8)` under QEMU/OVMF, followed by a separately identified
+  UEFI-serial evidence line. This remains a bounded pre-`ExitBootServices`
+  marker path, not owned post-firmware diagnostics.
+- The active M02-006 wave is production C# plus serialized EFI integration.
+  Managed issue #46 adds a no-stdlib-compatible, status-coded panic formatter
+  and reporter over `Com1OwnedPortIoBackend`; supplemental issue #455 owns the
+  shared EFI entry, project, verifier, QEMU, README, and evidence paths. The
+  formatter writes the complete fault record into caller-owned storage without
+  hidden allocation or firmware fallback, while a harmless readiness method
+  exercises the same checked COM1 transport without triggering a real fault.
+- Eleven focused formatter/reporter tests and four source-bound EFI integration
+  tests pass. A development 55-compile-item/68-authority-input EFI artifact also
+  passes structural verification. Its SHA-256 is
+  `004006C004248406E7EF504F7CE5CEC0A04E8340EB6BF4168C316780008617C9`.
+- A fresh development QEMU/OVMF run observed exactly one direct
+  `CLROS_M02_006_READY ... ownedCom1Transport=true ... firmwareFallback=false`
+  line and exactly one distinct `CLROS_M02_006_EVIDENCE ... guestPortIo=true
+  guestIn8=true ... postExitBootServices=false` line after M02-005 and before
+  `TEST_PASS m01.stage3`. All 54 ordered/unique markers were accepted, all 38
+  forbidden markers were absent, and `TEST_PASS qemu.smoke` was recorded.
+  Issues #46 and #455 remain `agent:claimed` until the complete exact-tree gate,
+  clean pushed head, and independent exact-head review pass. M04-003 (#72) is
+  still the sole `agent:ready` issue and will not be claimed across this
+  serialized integration wave.
 - These changes do not advance a numbered completion gate. Gate 2 remains the
   only passing gate, scoped to the firmware-visible QEMU/OVMF marker path;
   Gate 4 remains `Fail`. The M04 marker proves only fixed-catalog validation in
@@ -85,7 +95,7 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 | Boot ordering | `src/OS.Kernel/Boot/BootSequence.cs` is the boot-order source of truth. Host tests verify ordered boot phases and marker emission. |
 | UEFI handoff | The EFI path captures UEFI memory-map metadata, copies descriptor bytes into OS-owned storage, normalizes compact boot-region records, and carries ACPI RSDP provenance into the handoff. |
 | ACPI discovery | The default path carries ACPI RSDP provenance. An explicit opt-in ACPI probe artifact has QEMU evidence for pre-`ExitBootServices` RSDP, root SDT, and MCFG discovery markers. |
-| Diagnostics planning | Host-tested COM1, panic-text, panic-serial, boot-event records, diagnostics-chain readiness, GDT, TSS/IST, IDT, descriptor-table, fault-entry, diagnostic-stub invocation, diagnostic-stub callable-binding formatting, and controlled-fault-probe planning contracts exist. The opt-in M02-005 EFI profile now has development QEMU/OVMF evidence for a bounded pre-`ExitBootServices` COM1 line-status read and exact marker payload write; final-head review is pending and no post-firmware serial claim follows. |
+| Diagnostics planning | Host-tested COM1, panic-text, panic-serial, boot-event records, diagnostics-chain readiness, GDT, TSS/IST, IDT, descriptor-table, fault-entry, diagnostic-stub invocation, diagnostic-stub callable-binding formatting, and controlled-fault-probe planning contracts exist. The accepted M02-005 profile and active M02-006 development profile exercise bounded direct COM1 marker writes before `ExitBootServices`; M02-006 now links the allocation-free panic reporter into the EFI guest, but no real panic/fault or post-firmware serial claim follows. |
 | `std/no-runtime` base | Host-tested no-runtime-compatible helpers exist for ASCII byte/text behavior, decimal and hexadecimal formatting/parsing, memory/buffer operations, endian primitives, native integer arithmetic, math helpers, CRC32, internet checksum, and `ArrayHelpers` search/sort contracts. The opt-in EFI path now validates the fixed 25-read/7-reverse M04-002 endian catalog under real QEMU/OVMF, but this does not create a canonical BCL surface or complete Gate 4. Runtime-helper gaps remain explicit. |
 | PAL contracts | `OSHost_*` POD-style status/result contracts and host-tested mock tables/facades exist for memory, package files, config/environment, sockets, socket connect metadata, timers, waits/events, threads, random bytes, status formatting, and app logs. Recent work hardened default/zero result values so they do not accidentally count as success evidence. |
 | Storage groundwork | GPT, caller-owned GPT partition selection, FAT32, package parser, package filesystem, package file staging, native-app package/payload staging, generated image package placement, manifest loading, caller-buffer package-loader GPT selector integration, and virtio-blk planning slices are host-tested. |
@@ -101,7 +111,7 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 | Area | Missing before claim |
 | --- | --- |
 | Real firmware transition | No live `ExitBootServices` transition has completed. Fresh-map and transition planning exist, but the real firmware shutdown path is still future work. |
-| Owned post-firmware diagnostics | The opt-in M02-005 profile can emit one bounded marker directly through COM1 before firmware exit, but the live boot path does not yet own serial output after firmware services are gone and panic routing is not live. |
+| Owned post-firmware diagnostics | The opt-in M02-005 and M02-006 profiles can emit bounded markers directly through COM1 before firmware exit, but the live boot path does not yet own serial output after firmware services are gone and panic routing is not live. |
 | Allocator and paging | The live EFI path initializes bounded static free-list state from conventional-memory records and emits `BOOT_PAGE_ALLOCATOR_READY`, but it does not yet subtract every reservation, execute a live allocation/free/coalesce cycle, configure page tables, enforce NX/W^X, or provide a managed heap. |
 | CPU fault handling | Descriptor and fault plans exist, but real IDT/GDT/TSS loading, handlers, register capture, and QEMU fault probes are not implemented. |
 | Runtime correctness | GC, exceptions, interface dispatch, reflection policy, thread/runtime helpers, and hosted-runtime integration are not complete. |
@@ -175,16 +185,18 @@ Real QEMU smoke on the current Windows host:
 .\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
 ```
 
-Optional pre-`ExitBootServices` owned-COM1 marker profile:
+Optional pre-`ExitBootServices` panic-reporter/owned-COM1 readiness profile:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30 -BuildEfi -EnableM02SafeStubProbe -EnableM02CheckedPortIoBindingProbe -EnableM02Com1OwnedPortIoProbe -EnableM02OwnedCom1ReadyProbe
+.\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30 -BuildEfi -EnableM02SafeStubProbe -EnableM02CheckedPortIoBindingProbe -EnableM02Com1OwnedPortIoProbe -EnableM02OwnedCom1ReadyProbe -EnableM02PanicSafeOwnedCom1Probe
 ```
 
-That optional profile rebuilds the EFI/image inputs, requires the standalone
-owned-COM1 marker and its separate evidence marker exactly once, and forbids
-the M02-005 failure marker. It is not post-`ExitBootServices`, physical-device,
-provider, CloudReady, or production evidence.
+That optional profile rebuilds the EFI/image inputs, preserves the accepted
+M02-005 marker pair, then requires the direct M02-006 reporter marker and its
+separate UEFI evidence marker exactly once. It forbids both M02-005 and M02-006
+failure markers. It triggers no panic or fault and is not post-
+`ExitBootServices`, physical-device, provider, CloudReady, or production
+evidence.
 
 Optional ACPI physical discovery probe:
 
