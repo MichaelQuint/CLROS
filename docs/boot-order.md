@@ -286,10 +286,23 @@ Host tests assert:
   as null, 64-bit ring-zero code, ring-zero data, and available 64-bit TSS;
   validates canonical TSS metadata before mutation; and never touches
   `BootSequence`, `Probes`, `EfiEntry`, or `OS.csproj` in its implementation
-  lane. Current evidence is host-only. A separate default-off EFI lane must
-  execute the same encoder under QEMU/OVMF before issue closure, and even that
-  guest result will not load the table or prove `lgdt`, `ltr`, handlers, faults,
-  or post-`ExitBootServices` diagnostics.
+  lane. A separately reviewed default-off EFI lane executed the same encoder and
+  exact readback under fresh QEMU/OVMF evidence before the implementation and
+  manifest closure merged. The observed guest marker remains pre-firmware-exit
+  and explicitly reports no `lgdt` or `ltr`; it proves no active table, handler,
+  fault path, or post-`ExitBootServices` diagnostics.
+- M02-008 adds a host-tested, allocation-free guarded-IST arena allocator for
+  double fault, page fault, and NMI. It deterministically places three adjacent
+  guard-plus-stack reservations, fixes IST indices 1/2/3, marks guards absent and
+  stacks writable/non-executable in the result metadata, and binds allocation and
+  release to an owner token plus monotonic generation. It rejects zero/default or
+  noncanonical addresses, canonical-hole crossing, page misalignment, size
+  overflow, end wrap, exhaustion,
+  reserved-range overlap, RWX metadata, duplicate allocation, wrong/stale owners,
+  invalid leases, and double release before mutation. It does not add a
+  `BootSequence` phase, map pages, write TSS IST slots, install handlers, or prove
+  guest behavior. A separately claimed EFI lane and fresh real-QEMU/OVMF marker
+  are still required before managed M02-008 can close.
 - Fault-entry frame layout tests prove future interrupt-stub storage can round-trip formatter-compatible page-fault and invalid-opcode frames, reject inconsistent error-code metadata, reject undersized buffers, and reject unknown vectors.
 - ExitBootServices transition-boundary tests prove success and blocked markers while leaving default boot markers unchanged.
 - Early diagnostics readiness tests prove serial backend and descriptor-table readiness are aggregated into stable boot markers while leaving default boot markers unchanged.

@@ -707,7 +707,13 @@ in `docs/qemu.md`, `docs/boot.md`, and `done/step890.md`.
 
 The current managed formatter and guard contracts allocate managed strings and are only safe for host tests or normal boot diagnostics. `BootEventRingBuffer` is still the managed string mirror used by normal host-tested boot logging. `BootEventRecordRingBuffer` and `BootEventRecordFormatter` are caller-storage based, but they are not wired into `BootSequence`, a real panic dump, or the live EFI path yet. `PanicTextBuffer` and `PanicSerialReporter` are caller-storage based, but they are not wired into a real panic path yet. `CpuFaultFrame` is a data contract and formatter input only; it is not evidence that CPU handlers can capture those registers yet.
 
-`IdtGateDescriptor`, `IdtTablePlan`, `IdtrDescriptor`, `GdtDescriptorPlan`, `TssIstPlan`, `FaultInfrastructureReadiness`, `DescriptorTableInstructionPlan`, and `DescriptorTableInstallStubPlan` are descriptor encoding, table-layout, instruction-byte, and readiness contracts only. They do not execute `lidt`, `lgdt`, `ltr`, install handlers, configure a live TSS/IST, or prove QEMU fault behavior.
+`IdtGateDescriptor`, `IdtTablePlan`, `IdtrDescriptor`, `GdtDescriptorPlan`,
+`TssIstPlan`, `GuardedISTStacksDoubleFaultPageFaultNMI`,
+`FaultInfrastructureReadiness`, `DescriptorTableInstructionPlan`, and
+`DescriptorTableInstallStubPlan` are descriptor encoding, table/range-layout,
+instruction-byte, ownership, and readiness contracts only. They do not map
+guard/stack pages, execute `lidt`, `lgdt`, or `ltr`, install handlers, configure
+a live TSS/IST, or prove QEMU fault behavior.
 
 `OwnedX64GdtContainingNullN64BitCode` strengthens only the caller-owned GDT
 encoding boundary. Its fixed descriptor order makes duplicate/cyclic capability
@@ -888,21 +894,40 @@ M02-007 host tests encode the exact 40-byte table, prove the conventional code
 and data bytes plus the full 64-bit TSS base and 20-bit limit, reject all
 applicable invalid metadata before mutation, detect the first corrupted readback
 byte, preserve bytes beyond the owned prefix, and measure zero managed
-allocations across 1,024 pointer-core encodings. The host marker intentionally
-reports `guestEncoding=false`, `guestLgdt=false`, and `guestLtr=false`. A fresh
-real-QEMU/OVMF run over a separately owned default-off EFI adapter is still
-required before M02-007 can close.
+allocations across 1,024 pointer-core encodings. Its separately owned default-off
+EFI adapter has also executed that same encoder and exact readback under fresh
+QEMU/OVMF evidence. That guest result remains pre-`ExitBootServices` and reports
+`guestLgdt=false` and `guestLtr=false`; it does not install the GDT or TSS. The
+independently reviewed implementation, integration, and manifest closure are
+merged, and managed M02-007 is closed.
+
+M02-008 adds a caller-owned guarded-IST arena allocator for double fault, page
+fault, and NMI. It deterministically reserves one non-present guard range followed
+by one writable, non-executable downward-growing stack range for each fixed IST
+index. Initialization rejects null/noncanonical/misaligned arenas, invalid page
+multiples, total-size overflow, end-address wrap, noncanonical ends, exhaustion,
+reserved-range overlap, missing ownership, and writable-executable metadata before
+state mutation. Arena and reserved ranges must keep their inclusive end in the
+same x64 canonical half as their start, so a huge range cannot bridge the
+noncanonical address hole. Generation-bound leases reject duplicate allocation,
+wrong owners, stale ownership, invalid leases, and double release. The production
+path uses value/status structs only and allocates no managed memory. Current evidence is
+host-only: it plans address ownership but does not allocate physical pages, change
+page tables, write TSS IST slots, load descriptor tables, install handlers, or
+execute a fault. A separately claimed default-off EFI integration is still required
+for the issue's real-QEMU marker.
 
 ## Next Steps
 
-1. Integrate the M02-007 pointer encoder through a separately owned, default-off
-   EFI lane and obtain fresh real-QEMU/OVMF evidence for guest byte generation
-   and readback without loading the GDT or TSS.
+1. Integrate the M02-008 guarded-IST allocator through a separately owned,
+   default-off EFI lane and obtain fresh real-QEMU/OVMF evidence for guest range
+   planning without mapping pages, writing TSS slots, or installing handlers.
 2. Preserve the M02-005 bounded owned-COM1 marker proof, then wire the writer
    through `SerialDiagnosticsGuard` only when a later issue owns the live
    post-firmware diagnostic boundary.
-3. Add IDT/GDT/TSS/IST setup only in later issues that own the live descriptor
-   installation boundary; M02-007 does not execute `lgdt` or `ltr`.
+3. Add live IDT/GDT/TSS/IST setup only in later issues that own page-table and
+   descriptor installation; M02-007 does not execute `lgdt` or `ltr`, and
+   M02-008 does not map its planned guard/stack ranges.
 4. Add real executable-stub page transitions using the W^X layout, materialization, and page-transition plan contracts.
 5. Keep M02-004's configuration-only marker, M02-005's pre-firmware direct
    COM1 payload, M02-006's panic-safe route, and future post-firmware diagnostics
