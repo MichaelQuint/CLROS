@@ -492,15 +492,69 @@ writes. Neither result proves `In8` polling, owned serial payload transport,
 post-`ExitBootServices` diagnostics, a provider, CloudReady status, hosted .NET,
 Kestrel, or production readiness.
 
+### M02-005 owned COM1 payload EFI closure
+
+The default-false `EnableM02OwnedCom1ReadyProbe` profile adds exactly one
+explicit compile item,
+`Diagnostics/OWNEDCOM1READYExclusivelyOwnedWriter.cs`, immediately after the
+owned COM1 backend and before the independent endian catalog. The current
+project closure is therefore 54 compile items and the canonical build/verifier
+authority snapshot is 67 inputs. The flag requires
+`EnableM02Com1OwnedPortIoProbe=true`; the QEMU wrapper additionally requires
+`-BuildEfi`, rejects `-SkipImageBuild`, and rebuilds both EFI and image inputs.
+
+After the accepted M02-004 binding/configuration path succeeds and before
+`TEST_PASS m01.stage3`, `EfiEntry` constructs `Com1OwnedPortIoBackend` from the
+already checked binding and calls the writer exactly once. It accepts only a
+result with seven configuration writes, 16 marker bytes, two line-ending bytes,
+18 first-ready polls in the recorded QEMU profile, the owned backend selected,
+and firmware fallback absent. Failure emits `M02_OWNED_COM1_READY_FAILED` over
+the existing UEFI diagnostic channel and aborts the optional path. Success
+leaves the standalone `OWNED_COM1_READY\r\n` bytes exclusively on checked COM1
+`Out8`, then emits a separate fixed UEFI-serial evidence line whose transport is
+explicit.
+
+Build and verification use the complete cumulative profile through the QEMU
+wrapper:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -BuildEfi `
+  -EnableM02SafeStubProbe `
+  -EnableM02CheckedPortIoBindingProbe `
+  -EnableM02Com1OwnedPortIoProbe `
+  -EnableM02OwnedCom1ReadyProbe
+```
+
+The development accepted publish reported
+`EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=67`, `compileItems=54`,
+`TEST_PASS efi.artifact.verify`, and `TEST_PASS efi.shell.publish`. Its
+492,032-byte EFI artifact SHA-256 is
+`8E9F1F70738158858AC319BB4C9085D3DB7005DEF3E6A080585CCB20559F9097`.
+The artifact remained PE32+ AMD64, EFI subsystem 10, without ordinary or delay
+imports, with the exact `EfiMain` association and audited serializer closure.
+Final-head review evidence is still required.
+
+This closure and the separately recorded real-QEMU tuple prove only one bounded
+checked COM1 line-status read/payload-write path in the pre-`ExitBootServices`
+EFI application. They do not prove owned serial diagnostics after firmware
+exit, panic routing, physical hardware/provider behavior, hosted .NET, Kestrel,
+CloudReady status, production readiness, or a numbered-gate advancement.
+
 ### M04-002 fixed endian-catalog EFI closure
 
 `EnableM04IndependentEndianConformanceProbe` is a default-false, independent
-profile. It adds exactly one explicit compile item:
+profile. At its acceptance head it added exactly one explicit compile item:
 `std/no-runtime/shared/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs`.
-The accepted project closure therefore has 53 compile items and the canonical
-build/verifier authority has 66 inputs; the scripts reject compatibility
-counts, missing/reordered sources, stale hashes, wildcard imports, or a
-post-restore property mismatch.
+That historical accepted project closure had 53 compile items and the canonical
+build/verifier authority had 66 inputs. The current tree has 54/67 after the
+later M02-005 writer was inserted before the catalog; this does not alter or
+reinterpret the M04-002 artifact evidence below. The scripts reject
+compatibility counts, missing/reordered sources, stale hashes, wildcard imports,
+or a post-restore property mismatch.
 
 Under `NOSTDLIB_EFI`, the catalog exposes caller-owned unsafe pointer APIs
 instead of its normal host span APIs. The EFI entry point stack-allocates
@@ -932,8 +986,9 @@ Any next-step EFI build work must keep the freestanding constraints explicit. If
 1. Preserve the accepted M01-035/M01-026/M02-017 serializer, owned-root, and
    offset-zero safe-cookie closures plus the M02-003 checked binding and
    M02-004 seven-write `Out8` result.
-2. Keep offset 32 unexecuted until a later issue owns `In8`; keep serial payload
-   writes separate from the M02-004 configuration-only evidence.
+2. Preserve M02-005's bounded offset-32 `In8` polling and direct COM1 payload
+   evidence while keeping it distinct from M02-004's configuration-only marker
+   and any future post-firmware serial path.
 3. Move UEFI structs behind platform interfaces.
    - Keep the low-level UEFI table pointers isolated to the EFI boundary.
    - Expose only the narrow operations required for console diagnostics, memory-map ownership, firmware shutdown state, and optional filesystem/protocol discovery.

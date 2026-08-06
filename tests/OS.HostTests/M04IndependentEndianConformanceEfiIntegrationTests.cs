@@ -12,7 +12,7 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
     private const string FailureMarker =
         "M04_ENDIAN_CONFORMANCE_FAILED";
     private const string CompileClosureSha256 =
-        "7e4f410d0e273bef68da2226ec9abc2e786bd094804629999479192cd8eaee70";
+        "af4f0558712e2d1d4ab61104b0505ce9ca8256be61adad98f74ebb0c703020de";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -94,6 +94,9 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
         int backendIndex = Array.IndexOf(
             compileKeys,
             @"..\OS.Kernel\Diagnostics\COM1OwnedPortIOBackend.cs|Diagnostics\COM1OwnedPortIOBackend.cs");
+        int ownedWriterIndex = Array.IndexOf(
+            compileKeys,
+            @"..\OS.Kernel\Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs|Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs");
         int catalogIndex = Array.IndexOf(compileKeys, CatalogKey);
 
         XElement[] defaults = project
@@ -112,10 +115,11 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 53
+        return compileItems.Length == 54
             && compileHash == CompileClosureSha256
             && backendIndex >= 0
-            && catalogIndex == backendIndex + 1
+            && ownedWriterIndex == backendIndex + 1
+            && catalogIndex == ownedWriterIndex + 1
             && compileKeys.Count(key => key == CatalogKey) == 1
             && defaults.Length == 1
             && defaults[0].Value == "false"
@@ -131,7 +135,7 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
                 "$arguments +=\n                \"-p:EnableM04IndependentEndianConformanceProbe=true\"",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=66",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=67",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 "\"-EnableM04IndependentEndianConformanceProbe\",\n            \"true\"",
@@ -146,10 +150,10 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
                 "[switch]$EnableM04IndependentEndianConformanceProbe",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 66",
+                "$expectedSourceClosureInputCount = 67",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 53",
+                "$compileItems.Count -ne 54",
                 StringComparison.Ordinal);
     }
 

@@ -31,7 +31,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const int MaximumRuntimeFunctionRecords = 2048;
     private const int MaximumLinkResponseTokens = 4096;
     private const int VerifierFixtureProcessTimeoutMilliseconds = 120_000;
-    private const int ExpectedSourceClosureInputCount = 66;
+    private const int ExpectedSourceClosureInputCount = 67;
     private const string SerializerSymbol =
         "CLROS_X64_SerializeInstructionPublication";
     private const string ToolDirectoryBuildPropsPath =
@@ -45,7 +45,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const string EmptySha256 =
         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     private const string CompileClosureSha256 =
-        "7e4f410d0e273bef68da2226ec9abc2e786bd094804629999479192cd8eaee70";
+        "af4f0558712e2d1d4ab61104b0505ce9ca8256be61adad98f74ebb0c703020de";
     private const string AnalyzerClosureSha256 =
         "bea3e700acbeec374acb02a39b8c154e03291cf380edf850fea2114193b7ea14";
     private const string ManagedFixtureConfiguration = "Release";
@@ -2101,6 +2101,26 @@ internal static class EfiArtifactVerificationScriptTests
             "post_restore_evidence_count_mismatch");
         passed &= EvidenceMutationFails(
             tempRoot,
+            "post-restore-m02-owned-com1-property-missing",
+            evidence =>
+            {
+                JsonObject properties = evidence[
+                    "postRestoreEvaluation"]!["properties"]!.AsObject();
+                properties.Remove("EnableM02OwnedCom1ReadyProbe");
+            },
+            "post_restore_evidence_property_set_invalid");
+        passed &= EvidenceMutationFails(
+            tempRoot,
+            "post-restore-m02-owned-com1-property-enabled-without-switch",
+            evidence =>
+            {
+                JsonObject properties = evidence[
+                    "postRestoreEvaluation"]!["properties"]!.AsObject();
+                properties["EnableM02OwnedCom1ReadyProbe"] = "true";
+            },
+            "post_restore_evidence_property_mismatch");
+        passed &= EvidenceMutationFails(
+            tempRoot,
             "post-restore-m04-property-missing",
             evidence =>
             {
@@ -2392,7 +2412,7 @@ internal static class EfiArtifactVerificationScriptTests
                 "MSBUILDDISABLENODEREUSE",
                 StringComparison.Ordinal)
             && verifierSource.Contains(
-                "$expectedSourceClosureInputCount = 66",
+                "$expectedSourceClosureInputCount = 67",
                 StringComparison.Ordinal)
             && stableReasons.All(reason => verifierSource.Contains(
                 reason,
@@ -4850,6 +4870,7 @@ internal static class EfiArtifactVerificationScriptTests
             ["PublishAot"] = "true",
             ["SelfContained"] = "true",
             ["PublishTrimmed"] = "true",
+            ["EnableM02OwnedCom1ReadyProbe"] = "false",
             ["EnableM04IndependentEndianConformanceProbe"] = "false",
             ["ImportProjectExtensionProps"] = "false",
             ["ImportProjectExtensionTargets"] = "false",
@@ -4953,7 +4974,7 @@ internal static class EfiArtifactVerificationScriptTests
         };
         return new Dictionary<string, object?>
         {
-            ["compileCount"] = 53,
+            ["compileCount"] = 54,
             ["compileSha256"] = CompileClosureSha256,
             ["projectReferenceCount"] = 0,
             ["projectReferenceSha256"] = EmptySha256,

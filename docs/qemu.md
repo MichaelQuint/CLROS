@@ -292,6 +292,79 @@ post-`ExitBootServices` output, physical hardware/provider behavior, hosted
 .NET, Minimal API, Kestrel, CloudReady status, production readiness, or
 numbered completion-gate advancement.
 
+### M02-005 checked In8 and direct owned-COM1 marker proof
+
+The default-false M02-005 profile extends the cumulative M01/M02 sequence after
+the accepted M02-004 configuration marker. It requires the safe-stub,
+checked-binding, and owned-COM1 switches together with `-BuildEfi`; it rejects a
+missing M02-004 dependency, a missing build, or `-SkipImageBuild` with these
+stable reasons:
+
+- `m02_owned_com1_ready_probe_requires_com1_owned_port_io`;
+- `m02_owned_com1_ready_probe_requires_build_efi`;
+- `m02_owned_com1_ready_probe_forbids_skip_image_build`.
+
+For the exact documented M02 tuple, the wrapper also composes the three already
+accepted M01 loaded-image-stack, live-allocator, and owned-paging prerequisites
+and emits `QEMU_SCRIPT_M02_OWNED_COM1_READY_PREREQUISITES ...` before building.
+The default profile remains unchanged when the M02-005 flag is absent.
+
+The profile requires and uniquely orders all 52 cumulative markers, requires
+the standalone marker and detailed evidence marker exactly once, and forbids 37
+cumulative failure markers including `M02_OWNED_COM1_READY_FAILED` and every
+`TEST_FAIL`. The owned pair occurs after M02-004 and before
+`TEST_PASS m01.stage3`:
+
+```text
+OWNED_COM1_READY
+CLROS_M02_005_READY marker=OWNED_COM1_READY markerBytes=16 lineEndingBytes=2 configurationWrites=7 lineStatusPolls=18 ownedWriter=true ownedMarkerTransport=com1PortIo evidenceMarkerTransport=uefiSerial guestPortIo=true guestIn8=true postExitBootServices=false
+```
+
+The first line is emitted exclusively by checked `Out8(0x3F8)` after checked
+`In8(0x3FD)` reports THRE for each byte. The second line is deliberately sent
+through the existing UEFI serial path so the evidence transport is not
+misrepresented.
+
+The 259-character detailed marker disclosed a bounded host-tool limit. The
+separately claimed tooling slice raises only
+`SerialMarkerStateMachine.MaximumMarkerLength` from 256 to 320. It preserves the
+128-marker limit, 4096-byte default line capacity, 1 MiB maximum line capacity,
+exact/prefix/order/unique behavior, and terminal/noise policy. Host tests accept
+259 and 320 characters and still reject 321.
+
+The development real command was:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -BuildEfi `
+  -EnableM02SafeStubProbe `
+  -EnableM02CheckedPortIoBindingProbe `
+  -EnableM02Com1OwnedPortIoProbe `
+  -EnableM02OwnedCom1ReadyProbe
+```
+
+The runner reported `status=Passed terminal=Success bytes=3032 lines=74
+invalidBytes=15 invalidLines=1 orderedSeen=52 outOfOrder=0 uniqueSeen=52
+duplicateUnique=0`, `TEST_PASS qemu.smoke`, `MISSING_MARKERS none`,
+`OUT_OF_ORDER_MARKERS none`, `DUPLICATE_UNIQUE_MARKERS none`,
+`FORBIDDEN_MARKER_HIT none`, and `FAIL_REASON none`. The development EFI, raw
+image, serial, summary, and raw-observation SHA-256 values are respectively
+`8E9F1F70738158858AC319BB4C9085D3DB7005DEF3E6A080585CCB20559F9097`,
+`0C676D8F5F2F94E52AA57401D74D1295BABD240ACF6CB7196A0FD3C88056DBE0`,
+`F4FA71ACE78D1E900AB3E16B8273F8F58639A99754CB2AD4B5E08FD284E11424`,
+`12EA4D15FBEE8D08AF6D663CF1D633C9C578E6D9C14C2F94B26763BFDC194A2A`,
+and `04568D63A2E2C192140AEFDEDAF237F02FCE68C84D65C45D0B6A4D4CCD58B5BA`.
+The complete final-head gate and independent review remain pending.
+
+This proves only the bounded pre-`ExitBootServices` checked COM1 read/write path
+on the recorded QEMU/OVMF platform. It does not prove post-firmware diagnostics,
+panic routing, real `ExitBootServices`, physical hardware/provider behavior,
+hosted .NET, Minimal API, Kestrel, CloudReady status, production readiness, or
+numbered completion-gate advancement.
+
 ### M04-002 fixed endian-catalog guest proof
 
 The M04-002 profile is opt-in and independent of the cumulative M01/M02 live

@@ -19,6 +19,7 @@ internal static class SerialMarkerStateMachineTests
         RunCase("duplicate and conflicting terminal markers", TestDuplicateAndConflictingTerminalMarkers, ref failures);
         RunCase("invalid byte noise policy", TestInvalidByteNoisePolicy, ref failures);
         RunCase("line and total capacity failures", TestCapacityFailures, ref failures);
+        RunCase("m02.005 long marker boundary", TestM02005LongMarkerBoundary, ref failures);
         RunCase("configuration overflow and defaults", TestConfigurationAndDefaultResults, ref failures);
         RunCase("finalization is stable", TestFinalizationIsStable, ref failures);
 
@@ -455,6 +456,46 @@ internal static class SerialMarkerStateMachineTests
             && defaultCompletion.MissingRequiredMarkers is null
             && defaultCompletion.ForbiddenMarkerHits is null
             && !defaultCompletion.Passed;
+    }
+
+    private static bool TestM02005LongMarkerBoundary()
+    {
+        const string M02005Marker =
+            "CLROS_M02_005_READY marker=OWNED_COM1_READY markerBytes=16 lineEndingBytes=2 " +
+            "configurationWrites=7 lineStatusPolls=18 ownedWriter=true " +
+            "ownedMarkerTransport=com1PortIo evidenceMarkerTransport=uefiSerial " +
+            "guestPortIo=true guestIn8=true postExitBootServices=false";
+        if (M02005Marker.Length != 259 ||
+            SerialMarkerStateMachine.MaximumMarkerLength != 320)
+        {
+            return false;
+        }
+
+        SerialMarkerStateMachine m02005Parser = new(
+            [M02005Marker, "OS_SMOKE_PASS"],
+            []);
+        SerialMarkerFeedResult m02005Feed = m02005Parser.Feed(
+            Encoding.ASCII.GetBytes(M02005Marker + "\r\nOS_SMOKE_PASS\r\n"));
+        SerialMarkerCompletionResult m02005Result = m02005Parser.Complete();
+
+        string maximumMarker = new('M', 320);
+        SerialMarkerStateMachine maximumParser = new(
+            [maximumMarker, "OS_SMOKE_PASS"],
+            []);
+        SerialMarkerFeedResult maximumFeed = maximumParser.Feed(
+            Encoding.ASCII.GetBytes(maximumMarker + "\nOS_SMOKE_PASS\n"));
+        SerialMarkerCompletionResult maximumResult = maximumParser.Complete();
+
+        bool overMaximumRejected = Throws<ArgumentOutOfRangeException>(
+            () => new SerialMarkerStateMachine([new string('M', 321)], []));
+
+        return m02005Feed.Succeeded
+            && m02005Result.Passed
+            && m02005Result.RequiredSeenCount == 2
+            && maximumFeed.Succeeded
+            && maximumResult.Passed
+            && maximumResult.RequiredSeenCount == 2
+            && overMaximumRejected;
     }
 
     private static bool TestFinalizationIsStable()
