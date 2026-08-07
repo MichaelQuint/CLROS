@@ -32,7 +32,10 @@ namespace System
     public struct Int32 { }
     public struct UInt32 { }
     public struct Int64 { }
-    public struct UInt64 { }
+    public struct UInt64
+    {
+        public const ulong MaxValue = 0xffff_ffff_ffff_ffffUL;
+    }
     public struct IntPtr { }
     public struct UIntPtr { }
     public struct Single { }

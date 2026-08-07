@@ -787,7 +787,7 @@ internal static class BuildEfiShellPreflightTests
                     source,
                     "Memory",
                     "PageProtection.cs",
-                    "\ninternal static class InjectedConstant { public const ulong Value = ulong.MaxValue; }\n"),
+                    "\ninternal static class InjectedConstant { public const int Value = int.MaxValue; }\n"),
                 "forbidden_active_source"),
             (
                 "ambiguous-positive-nostdlib",
@@ -3419,7 +3419,7 @@ internal static class BuildEfiShellPreflightTests
         string script = File.ReadAllText(buildScriptPath);
         string[] requiredText =
         [
-            "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=69",
+            "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=70",
             "EFI_PUBLISH_OUTPUT_AUTHORITY status=ok leaves=5",
             "EFI_PUBLISH_VERIFIER_INPUT_AUTHORITY status=ok inputs=8",
             "EFI_PUBLISH_VERIFIER_INPUTS_UNCHANGED status=ok inputs=8",
@@ -3788,7 +3788,7 @@ internal static class BuildEfiShellPreflightTests
         string switchMarker =
             "EFI_PREFLIGHT_M01_SWITCHES status=ok " + expectedSwitches;
         const string closureMarker =
-            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=56 prerequisiteGap=UefiMemoryType";
+            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=57 prerequisiteGap=UefiMemoryType";
         bool passed = result.ExitCode == 0
             && result.Output.Contains(switchMarker, StringComparison.Ordinal)
             && result.Output.Contains(closureMarker, StringComparison.Ordinal)
@@ -4425,7 +4425,7 @@ internal static class BuildEfiShellPreflightTests
         [
             "EFI_PREFLIGHT_M01_SWITCHES status=ok loadedImageStack=false liveAllocator=false ownedPaging=false m02SafeStub=false",
             "EFI_PREFLIGHT_M02_SWITCHES status=ok enabled=false loadedImageStack=false liveAllocator=false ownedPaging=false checkedPortIoBinding=false",
-            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=56 prerequisiteGap=UefiMemoryType",
+            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=57 prerequisiteGap=UefiMemoryType",
             "EFI_PREFLIGHT_DOTNET path=\"",
             "sdkVersion=\"10.0.3",
             "EFI_PREFLIGHT_MSVC_LINKER path=\"" + Path.GetFullPath(tools.LinkerPath) + "\" version=\"14.40.33807\"",

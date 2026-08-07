@@ -19,9 +19,9 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
         "statusCoded=true firmwareFallback=false postExitBootServices=false";
     private const string FailureMarker = "M02_PANIC_SAFE_OWNED_COM1_FAILED";
     private const string CompileClosureSha256 =
-        "b19e83c1f421460ade201addcfaee4b579871ac4a15eeb3d84618ef9de686a77";
+        "39395b3906e8875aad6c08386e807d0c9568780091fe2401b69d121ca2454b83";
     private const string CanonicalProjectSha256 =
-        "d44a5571337c8b5d7bebb2e016ee5cdcf946e569a333a238ec69382bf4ad4444";
+        "ab9195a9121f99096fd5bdde228e75d01a1c375303a1cc14379d23ef8487f7a7";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -105,11 +105,14 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
             @"..\OS.Kernel\Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs|Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs";
         const string GdtKey =
             @"..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs|Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs";
+        const string GuardedIstKey =
+            @"..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs";
         const string CatalogKey =
             @"..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
         int writerIndex = Array.IndexOf(compileKeys, WriterKey);
         int reporterIndex = Array.IndexOf(compileKeys, ReporterKey);
         int gdtIndex = Array.IndexOf(compileKeys, GdtKey);
+        int guardedIstIndex = Array.IndexOf(compileKeys, GuardedIstKey);
         int catalogIndex = Array.IndexOf(compileKeys, CatalogKey);
 
         XElement[] defaults = project
@@ -135,12 +138,13 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 56
+        return compileItems.Length == 57
             && compileHash == CompileClosureSha256
             && writerIndex >= 0
             && reporterIndex == writerIndex + 1
             && gdtIndex == reporterIndex + 1
-            && catalogIndex == gdtIndex + 1
+            && guardedIstIndex == gdtIndex + 1
+            && catalogIndex == guardedIstIndex + 1
             && compileKeys.Count(key => key == ReporterKey) == 1
             && defaults.Length == 1
             && defaults[0].Value == "false"
@@ -163,7 +167,7 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
                 "m02_panic_safe_owned_com1_requires_owned_com1_ready",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=69",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=70",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 CanonicalProjectSha256,
@@ -175,10 +179,10 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
                 "[switch]$EnableM02PanicSafeOwnedCom1Probe",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 69",
+                "$expectedSourceClosureInputCount = 70",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 56",
+                "$compileItems.Count -ne 57",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
                 "-p:EnableM02PanicSafeOwnedCom1Probe=true",

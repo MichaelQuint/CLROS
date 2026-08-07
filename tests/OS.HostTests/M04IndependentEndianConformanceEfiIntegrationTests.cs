@@ -12,7 +12,7 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
     private const string FailureMarker =
         "M04_ENDIAN_CONFORMANCE_FAILED";
     private const string CompileClosureSha256 =
-        "b19e83c1f421460ade201addcfaee4b579871ac4a15eeb3d84618ef9de686a77";
+        "39395b3906e8875aad6c08386e807d0c9568780091fe2401b69d121ca2454b83";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -91,6 +91,8 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
             .ToLowerInvariant();
         const string CatalogKey =
             @"..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
+        const string GuardedIstKey =
+            @"..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs";
         int backendIndex = Array.IndexOf(
             compileKeys,
             @"..\OS.Kernel\Diagnostics\COM1OwnedPortIOBackend.cs|Diagnostics\COM1OwnedPortIOBackend.cs");
@@ -103,6 +105,7 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
         int gdtIndex = Array.IndexOf(
             compileKeys,
             @"..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs|Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs");
+        int guardedIstIndex = Array.IndexOf(compileKeys, GuardedIstKey);
         int catalogIndex = Array.IndexOf(compileKeys, CatalogKey);
 
         XElement[] defaults = project
@@ -121,13 +124,14 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 56
+        return compileItems.Length == 57
             && compileHash == CompileClosureSha256
             && backendIndex >= 0
             && ownedWriterIndex == backendIndex + 1
             && panicReporterIndex == ownedWriterIndex + 1
             && gdtIndex == panicReporterIndex + 1
-            && catalogIndex == gdtIndex + 1
+            && guardedIstIndex == gdtIndex + 1
+            && catalogIndex == guardedIstIndex + 1
             && compileKeys.Count(key => key == CatalogKey) == 1
             && defaults.Length == 1
             && defaults[0].Value == "false"
@@ -143,7 +147,7 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
                 "$arguments +=\n                \"-p:EnableM04IndependentEndianConformanceProbe=true\"",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=69",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=70",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 "\"-EnableM04IndependentEndianConformanceProbe\",\n            \"true\"",
@@ -158,10 +162,10 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
                 "[switch]$EnableM04IndependentEndianConformanceProbe",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 69",
+                "$expectedSourceClosureInputCount = 70",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 56",
+                "$compileItems.Count -ne 57",
                 StringComparison.Ordinal);
     }
 

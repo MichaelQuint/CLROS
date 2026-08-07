@@ -217,7 +217,7 @@ public static unsafe class EfiEntry
             }
             s_runState = 1;
 
-            WriteSuccessLine(console, serial, 0);
+            WriteSuccessLine(console, serial, bootServices, 0);
 
             if (stageTwoState == null
                 || !stageTwoState->IsCompleted
@@ -318,7 +318,7 @@ public static unsafe class EfiEntry
                     tablePageCount,
                     tableAllocated);
             }
-            WriteSuccessLine(console, serial, 1);
+            WriteSuccessLine(console, serial, bootServices, 1);
 
             firmwareStatus = bootServices->AllocatePages(
                 AllocateAnyPages,
@@ -362,7 +362,7 @@ public static unsafe class EfiEntry
                     tablePageCount,
                     tableAllocated);
             }
-            WriteSuccessLine(console, serial, 2);
+            WriteSuccessLine(console, serial, bootServices, 2);
 
             fixed (M01StageThreeAllocationRecordBuffer*
                 allocationStorage = &s_allocationRecords)
@@ -597,7 +597,7 @@ public static unsafe class EfiEntry
                         tablePageCount,
                         tableAllocated);
                 }
-                WriteSuccessLine(console, serial, 3);
+                WriteSuccessLine(console, serial, bootServices, 3);
 
                 if (!M01StageOneAdapter
                         .TryRecaptureStageTwoMemoryMap(
@@ -703,7 +703,7 @@ public static unsafe class EfiEntry
                         tablePageCount,
                         tableAllocated);
                 }
-                WriteSuccessLine(console, serial, 4);
+                WriteSuccessLine(console, serial, bootServices, 4);
 
                 ClearRanges(ranges);
                 if (!RunPreparationOnPlannerStack(
@@ -1142,9 +1142,9 @@ public static unsafe class EfiEntry
                         tableAllocated);
                 }
 
-                WriteSuccessLine(console, serial, 5);
-                WriteSuccessLine(console, serial, 6);
-                WriteSuccessLine(console, serial, 7);
+                WriteSuccessLine(console, serial, bootServices, 5);
+                WriteSuccessLine(console, serial, bootServices, 6);
+                WriteSuccessLine(console, serial, bootServices, 7);
 
                 if (!ValidatePreTransferState(
                         preflightObservation,
@@ -1182,7 +1182,7 @@ public static unsafe class EfiEntry
                             ulong,
                             uint>)(void*)transferEntry;
 
-                WriteSuccessLine(console, serial, 8);
+                WriteSuccessLine(console, serial, bootServices, 8);
 
                 if (EfiEntry
                         .s_m01InstructionPublicationEpochMask
@@ -1281,6 +1281,7 @@ public static unsafe class EfiEntry
                     WriteSuccessLine(
                         console,
                         serial,
+                        bootServices,
                         lineIndex);
                 }
 
@@ -3568,6 +3569,7 @@ public static unsafe class EfiEntry
         private static void WriteSuccessLine(
             EfiSimpleTextOutputProtocol* console,
             EfiSerialIoProtocol* serial,
+            EfiBootServices* bootServices,
             int lineIndex)
         {
 #if M02_SAFE_STUB_PROBE
@@ -3834,6 +3836,296 @@ public static unsafe class EfiEntry
                 WriteM02OwnedX64GdtEncodingSuccessLine(
                     console,
                     serial);
+#if M02_GUARDED_IST_STACK_ALLOCATION_PROBE
+                const ulong m02GuardedPageCount = 6;
+                const ulong m02GuardedPageSize = 4096;
+                const ulong m02GuardedArenaSize =
+                    m02GuardedPageCount * m02GuardedPageSize;
+                const ulong m02GuardedOwnerToken =
+                    0x004D30322D303038UL;
+                ulong m02GuardedArenaAddress = 0;
+
+                if (bootServices == null ||
+                    bootServices->AllocatePages == null ||
+                    bootServices->FreePages == null)
+                {
+                    WriteM02GuardedIstStackAllocationFailureLine(
+                        console,
+                        serial);
+                    _ = FailAfterEntry(
+                        M01StageThreeAdapterStatus
+                            .PostReturnAuditRejected,
+                        1);
+                    return;
+                }
+
+                ulong m02GuardedFirmwareStatus =
+                    bootServices->AllocatePages(
+                        AllocateAnyPages,
+                        EfiLoaderData,
+                        m02GuardedPageCount,
+                        &m02GuardedArenaAddress);
+                if (m02GuardedFirmwareStatus != EfiSuccess ||
+                    m02GuardedArenaAddress == 0 ||
+                    (m02GuardedArenaAddress &
+                        (m02GuardedPageSize - 1)) != 0 ||
+                    !OS.Kernel.Diagnostics
+                        .GuardedISTStacksDoubleFaultPageFaultNMI
+                        .IsCanonicalX64Address(
+                            m02GuardedArenaAddress) ||
+                    m02GuardedArenaAddress >
+                        ulong.MaxValue - m02GuardedArenaSize ||
+                    !OS.Kernel.Diagnostics
+                        .GuardedISTStacksDoubleFaultPageFaultNMI
+                        .IsCanonicalX64Address(
+                            m02GuardedArenaAddress +
+                                m02GuardedArenaSize - 1))
+                {
+                    if (m02GuardedFirmwareStatus == EfiSuccess &&
+                        m02GuardedArenaAddress != 0)
+                    {
+                        _ = bootServices->FreePages(
+                            m02GuardedArenaAddress,
+                            m02GuardedPageCount);
+                    }
+
+                    WriteM02GuardedIstStackAllocationFailureLine(
+                        console,
+                        serial);
+                    _ = FailAfterEntry(
+                        M01StageThreeAdapterStatus
+                            .PostReturnAuditRejected,
+                        m02GuardedFirmwareStatus == EfiSuccess
+                            ? 2UL
+                            : m02GuardedFirmwareStatus);
+                    return;
+                }
+
+                OS.Kernel.Diagnostics.GuardedIstStackArenaRequest
+                    m02GuardedRequest =
+                        new OS.Kernel.Diagnostics
+                            .GuardedIstStackArenaRequest(
+                                m02GuardedArenaAddress,
+                                m02GuardedArenaSize,
+                                m02GuardedPageSize,
+                                m02GuardedPageSize,
+                                m02GuardedOwnerToken,
+                                stackWritable: true,
+                                stackExecutable: false);
+                OS.Kernel.Diagnostics
+                    .GuardedIstStackArenaInitializationResult
+                        m02GuardedInitialization =
+                            OS.Kernel.Diagnostics
+                                .GuardedISTStacksDoubleFaultPageFaultNMI
+                                .Initialize(
+                                    m02GuardedRequest,
+                                    out OS.Kernel.Diagnostics
+                                        .GuardedIstStackAllocatorState
+                                            m02GuardedState);
+                OS.Kernel.Diagnostics.GuardedIstStackAllocationResult
+                    m02GuardedAllocation =
+                        OS.Kernel.Diagnostics
+                            .GuardedISTStacksDoubleFaultPageFaultNMI
+                            .Allocate(ref m02GuardedState);
+
+                OS.Kernel.Diagnostics.GuardedIstStackDescriptor
+                    m02GuardedDoubleFault =
+                        m02GuardedAllocation.DoubleFault;
+                OS.Kernel.Diagnostics.GuardedIstStackDescriptor
+                    m02GuardedPageFault =
+                        m02GuardedAllocation.PageFault;
+                OS.Kernel.Diagnostics.GuardedIstStackDescriptor
+                    m02GuardedNmi =
+                        m02GuardedAllocation.NonMaskableInterrupt;
+                ulong m02GuardedDoubleFaultGuard =
+                    m02GuardedArenaAddress;
+                ulong m02GuardedDoubleFaultStack =
+                    m02GuardedArenaAddress + m02GuardedPageSize;
+                ulong m02GuardedPageFaultGuard =
+                    m02GuardedArenaAddress +
+                        (2 * m02GuardedPageSize);
+                ulong m02GuardedPageFaultStack =
+                    m02GuardedArenaAddress +
+                        (3 * m02GuardedPageSize);
+                ulong m02GuardedNmiGuard =
+                    m02GuardedArenaAddress +
+                        (4 * m02GuardedPageSize);
+                ulong m02GuardedNmiStack =
+                    m02GuardedArenaAddress +
+                        (5 * m02GuardedPageSize);
+
+                bool m02GuardedLayoutValid =
+                    m02GuardedInitialization.IsInitialized &&
+                    m02GuardedInitialization.Succeeded &&
+                    m02GuardedInitialization.Status ==
+                        OS.Kernel.Diagnostics
+                            .GuardedIstStackArenaStatus.Success &&
+                    m02GuardedInitialization.RequiredBytes ==
+                        m02GuardedArenaSize &&
+                    m02GuardedInitialization.AvailableBytes ==
+                        m02GuardedArenaSize &&
+                    m02GuardedState.IsInitialized &&
+                    m02GuardedState.HasActiveLease &&
+                    m02GuardedState.ArenaBaseAddress ==
+                        m02GuardedArenaAddress &&
+                    m02GuardedState.ArenaSizeBytes ==
+                        m02GuardedArenaSize &&
+                    m02GuardedState.RequiredBytes ==
+                        m02GuardedArenaSize &&
+                    m02GuardedState.OwnerToken ==
+                        m02GuardedOwnerToken &&
+                    m02GuardedAllocation.IsInitialized &&
+                    m02GuardedAllocation.Succeeded &&
+                    m02GuardedAllocation.Status ==
+                        OS.Kernel.Diagnostics
+                            .GuardedIstStackAllocationStatus.Success &&
+                    m02GuardedAllocation.RequiredBytes ==
+                        m02GuardedArenaSize &&
+                    m02GuardedAllocation.AvailableBytes ==
+                        m02GuardedArenaSize &&
+                    m02GuardedAllocation.StateMutated &&
+                    m02GuardedAllocation.Lease.IsUsable &&
+                    m02GuardedAllocation.Lease.OwnerToken ==
+                        m02GuardedOwnerToken &&
+                    m02GuardedAllocation.Lease.Generation ==
+                        m02GuardedState.ActiveGeneration &&
+                    m02GuardedAllocation.Lease.ArenaBaseAddress ==
+                        m02GuardedArenaAddress &&
+                    m02GuardedAllocation.Lease.RequiredBytes ==
+                        m02GuardedArenaSize &&
+                    m02GuardedDoubleFault.IsUsable &&
+                    m02GuardedDoubleFault.Kind ==
+                        OS.Kernel.Diagnostics
+                            .GuardedIstStackKind.DoubleFault &&
+                    m02GuardedDoubleFault.IstIndex == 1 &&
+                    m02GuardedDoubleFault.GuardBaseAddress ==
+                        m02GuardedDoubleFaultGuard &&
+                    m02GuardedDoubleFault.GuardSizeBytes ==
+                        m02GuardedPageSize &&
+                    m02GuardedDoubleFault.StackBaseAddress ==
+                        m02GuardedDoubleFaultStack &&
+                    m02GuardedDoubleFault.StackSizeBytes ==
+                        m02GuardedPageSize &&
+                    m02GuardedDoubleFault.StackTopAddress ==
+                        m02GuardedDoubleFaultStack +
+                            m02GuardedPageSize &&
+                    !m02GuardedDoubleFault.GuardPagePresent &&
+                    m02GuardedDoubleFault.StackWritable &&
+                    !m02GuardedDoubleFault.StackExecutable &&
+                    m02GuardedPageFault.IsUsable &&
+                    m02GuardedPageFault.Kind ==
+                        OS.Kernel.Diagnostics
+                            .GuardedIstStackKind.PageFault &&
+                    m02GuardedPageFault.IstIndex == 2 &&
+                    m02GuardedPageFault.GuardBaseAddress ==
+                        m02GuardedPageFaultGuard &&
+                    m02GuardedPageFault.GuardSizeBytes ==
+                        m02GuardedPageSize &&
+                    m02GuardedPageFault.StackBaseAddress ==
+                        m02GuardedPageFaultStack &&
+                    m02GuardedPageFault.StackSizeBytes ==
+                        m02GuardedPageSize &&
+                    m02GuardedPageFault.StackTopAddress ==
+                        m02GuardedPageFaultStack +
+                            m02GuardedPageSize &&
+                    !m02GuardedPageFault.GuardPagePresent &&
+                    m02GuardedPageFault.StackWritable &&
+                    !m02GuardedPageFault.StackExecutable &&
+                    m02GuardedNmi.IsUsable &&
+                    m02GuardedNmi.Kind ==
+                        OS.Kernel.Diagnostics
+                            .GuardedIstStackKind.NonMaskableInterrupt &&
+                    m02GuardedNmi.IstIndex == 3 &&
+                    m02GuardedNmi.GuardBaseAddress ==
+                        m02GuardedNmiGuard &&
+                    m02GuardedNmi.GuardSizeBytes ==
+                        m02GuardedPageSize &&
+                    m02GuardedNmi.StackBaseAddress ==
+                        m02GuardedNmiStack &&
+                    m02GuardedNmi.StackSizeBytes ==
+                        m02GuardedPageSize &&
+                    m02GuardedNmi.StackTopAddress ==
+                        m02GuardedNmiStack + m02GuardedPageSize &&
+                    !m02GuardedNmi.GuardPagePresent &&
+                    m02GuardedNmi.StackWritable &&
+                    !m02GuardedNmi.StackExecutable;
+
+                bool m02GuardedStackReadBack = false;
+                if (m02GuardedLayoutValid)
+                {
+                    byte* m02GuardedDoubleFaultBytes =
+                        (byte*)m02GuardedDoubleFault.StackBaseAddress;
+                    byte* m02GuardedPageFaultBytes =
+                        (byte*)m02GuardedPageFault.StackBaseAddress;
+                    byte* m02GuardedNmiBytes =
+                        (byte*)m02GuardedNmi.StackBaseAddress;
+                    m02GuardedDoubleFaultBytes[0] = 0xD1;
+                    m02GuardedDoubleFaultBytes[m02GuardedPageSize - 1] =
+                        0xD2;
+                    m02GuardedPageFaultBytes[0] = 0xA1;
+                    m02GuardedPageFaultBytes[m02GuardedPageSize - 1] =
+                        0xA2;
+                    m02GuardedNmiBytes[0] = 0xB1;
+                    m02GuardedNmiBytes[m02GuardedPageSize - 1] =
+                        0xB2;
+                    m02GuardedStackReadBack =
+                        m02GuardedDoubleFaultBytes[0] == 0xD1 &&
+                        m02GuardedDoubleFaultBytes[
+                            m02GuardedPageSize - 1] == 0xD2 &&
+                        m02GuardedPageFaultBytes[0] == 0xA1 &&
+                        m02GuardedPageFaultBytes[
+                            m02GuardedPageSize - 1] == 0xA2 &&
+                        m02GuardedNmiBytes[0] == 0xB1 &&
+                        m02GuardedNmiBytes[
+                            m02GuardedPageSize - 1] == 0xB2;
+                }
+
+                OS.Kernel.Diagnostics.GuardedIstStackReleaseResult
+                    m02GuardedRelease = default;
+                if (m02GuardedAllocation.Succeeded &&
+                    m02GuardedAllocation.Lease.IsUsable)
+                {
+                    m02GuardedRelease =
+                        OS.Kernel.Diagnostics
+                            .GuardedISTStacksDoubleFaultPageFaultNMI
+                            .Release(
+                                ref m02GuardedState,
+                                m02GuardedAllocation.Lease);
+                }
+
+                ulong m02GuardedFreeStatus =
+                    bootServices->FreePages(
+                        m02GuardedArenaAddress,
+                        m02GuardedPageCount);
+                if (!m02GuardedLayoutValid ||
+                    !m02GuardedStackReadBack ||
+                    !m02GuardedRelease.IsInitialized ||
+                    !m02GuardedRelease.Succeeded ||
+                    m02GuardedRelease.Status !=
+                        OS.Kernel.Diagnostics
+                            .GuardedIstStackReleaseStatus.Success ||
+                    m02GuardedRelease.ReleasedGeneration !=
+                        m02GuardedAllocation.Lease.Generation ||
+                    !m02GuardedRelease.StateMutated ||
+                    m02GuardedState.HasActiveLease ||
+                    m02GuardedFreeStatus != EfiSuccess)
+                {
+                    WriteM02GuardedIstStackAllocationFailureLine(
+                        console,
+                        serial);
+                    _ = FailAfterEntry(
+                        M01StageThreeAdapterStatus
+                            .PostReturnAuditRejected,
+                        m02GuardedFreeStatus != EfiSuccess
+                            ? m02GuardedFreeStatus
+                            : 3UL);
+                    return;
+                }
+
+                WriteM02GuardedIstStackAllocationSuccessLine(
+                    console,
+                    serial);
+#endif
 #endif
 #endif
 #endif
@@ -5962,6 +6254,69 @@ public static unsafe class EfiEntry
             WriteAscii(console, serial, (byte)'T', (byte)'_', (byte)'E', (byte)'N', (byte)'C', (byte)'O', (byte)'D', (byte)'I');
             WriteAscii(console, serial, (byte)'N', (byte)'G', (byte)'_', (byte)'F', (byte)'A', (byte)'I', (byte)'L', (byte)'E');
             WriteAscii(console, serial, (byte)'D', 0, 0, 0, 0, 0, 0, 0);
+            EfiEntry.WriteCrLf(console, serial);
+        }
+#endif
+
+#if M02_GUARDED_IST_STACK_ALLOCATION_PROBE
+        private static void
+            WriteM02GuardedIstStackAllocationSuccessLine(
+                EfiSimpleTextOutputProtocol* console,
+                EfiSerialIoProtocol* serial)
+        {
+            WriteAscii(console, serial, (byte)'C', (byte)'L', (byte)'R', (byte)'O', (byte)'S', (byte)'_', (byte)'M', (byte)'0');
+            WriteAscii(console, serial, (byte)'2', (byte)'_', (byte)'0', (byte)'0', (byte)'8', (byte)'_', (byte)'R', (byte)'E');
+            WriteAscii(console, serial, (byte)'A', (byte)'D', (byte)'Y', (byte)' ', (byte)'s', (byte)'t', (byte)'a', (byte)'c');
+            WriteAscii(console, serial, (byte)'k', (byte)'s', (byte)'=', (byte)'3', (byte)' ', (byte)'g', (byte)'u', (byte)'a');
+            WriteAscii(console, serial, (byte)'r', (byte)'d', (byte)'s', (byte)'=', (byte)'3', (byte)' ', (byte)'d', (byte)'o');
+            WriteAscii(console, serial, (byte)'u', (byte)'b', (byte)'l', (byte)'e', (byte)'F', (byte)'a', (byte)'u', (byte)'l');
+            WriteAscii(console, serial, (byte)'t', (byte)'I', (byte)'s', (byte)'t', (byte)'=', (byte)'1', (byte)' ', (byte)'p');
+            WriteAscii(console, serial, (byte)'a', (byte)'g', (byte)'e', (byte)'F', (byte)'a', (byte)'u', (byte)'l', (byte)'t');
+            WriteAscii(console, serial, (byte)'I', (byte)'s', (byte)'t', (byte)'=', (byte)'2', (byte)' ', (byte)'n', (byte)'m');
+            WriteAscii(console, serial, (byte)'i', (byte)'I', (byte)'s', (byte)'t', (byte)'=', (byte)'3', (byte)' ', (byte)'w');
+            WriteAscii(console, serial, (byte)'r', (byte)'i', (byte)'t', (byte)'a', (byte)'b', (byte)'l', (byte)'e', (byte)'M');
+            WriteAscii(console, serial, (byte)'e', (byte)'t', (byte)'a', (byte)'d', (byte)'a', (byte)'t', (byte)'a', (byte)'=');
+            WriteAscii(console, serial, (byte)'t', (byte)'r', (byte)'u', (byte)'e', (byte)' ', (byte)'e', (byte)'x', (byte)'e');
+            WriteAscii(console, serial, (byte)'c', (byte)'u', (byte)'t', (byte)'a', (byte)'b', (byte)'l', (byte)'e', (byte)'M');
+            WriteAscii(console, serial, (byte)'e', (byte)'t', (byte)'a', (byte)'d', (byte)'a', (byte)'t', (byte)'a', (byte)'=');
+            WriteAscii(console, serial, (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ', (byte)'a', (byte)'l');
+            WriteAscii(console, serial, (byte)'l', (byte)'o', (byte)'c', (byte)'a', (byte)'t', (byte)'i', (byte)'o', (byte)'n');
+            WriteAscii(console, serial, (byte)'F', (byte)'r', (byte)'e', (byte)'e', (byte)'=', (byte)'t', (byte)'r', (byte)'u');
+            WriteAscii(console, serial, (byte)'e', (byte)' ', (byte)'g', (byte)'u', (byte)'e', (byte)'s', (byte)'t', (byte)'A');
+            WriteAscii(console, serial, (byte)'r', (byte)'e', (byte)'n', (byte)'a', (byte)'A', (byte)'l', (byte)'l', (byte)'o');
+            WriteAscii(console, serial, (byte)'c', (byte)'a', (byte)'t', (byte)'e', (byte)'d', (byte)'=', (byte)'t', (byte)'r');
+            WriteAscii(console, serial, (byte)'u', (byte)'e', (byte)' ', (byte)'g', (byte)'u', (byte)'e', (byte)'s', (byte)'t');
+            WriteAscii(console, serial, (byte)'S', (byte)'t', (byte)'a', (byte)'c', (byte)'k', (byte)'W', (byte)'r', (byte)'i');
+            WriteAscii(console, serial, (byte)'t', (byte)'e', (byte)'s', (byte)'=', (byte)'t', (byte)'r', (byte)'u', (byte)'e');
+            WriteAscii(console, serial, (byte)' ', (byte)'g', (byte)'u', (byte)'e', (byte)'s', (byte)'t', (byte)'G', (byte)'u');
+            WriteAscii(console, serial, (byte)'a', (byte)'r', (byte)'d', (byte)'M', (byte)'a', (byte)'p', (byte)'p', (byte)'i');
+            WriteAscii(console, serial, (byte)'n', (byte)'g', (byte)'s', (byte)'=', (byte)'f', (byte)'a', (byte)'l', (byte)'s');
+            WriteAscii(console, serial, (byte)'e', (byte)' ', (byte)'g', (byte)'u', (byte)'e', (byte)'s', (byte)'t', (byte)'T');
+            WriteAscii(console, serial, (byte)'s', (byte)'s', (byte)'=', (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e');
+            WriteAscii(console, serial, (byte)' ', (byte)'g', (byte)'u', (byte)'e', (byte)'s', (byte)'t', (byte)'I', (byte)'d');
+            WriteAscii(console, serial, (byte)'t', (byte)'=', (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ');
+            WriteAscii(console, serial, (byte)'a', (byte)'r', (byte)'e', (byte)'n', (byte)'a', (byte)'F', (byte)'r', (byte)'e');
+            WriteAscii(console, serial, (byte)'e', (byte)'d', (byte)'=', (byte)'t', (byte)'r', (byte)'u', (byte)'e', (byte)' ');
+            WriteAscii(console, serial, (byte)'m', (byte)'a', (byte)'r', (byte)'k', (byte)'e', (byte)'r', (byte)'T', (byte)'r');
+            WriteAscii(console, serial, (byte)'a', (byte)'n', (byte)'s', (byte)'p', (byte)'o', (byte)'r', (byte)'t', (byte)'=');
+            WriteAscii(console, serial, (byte)'u', (byte)'e', (byte)'f', (byte)'i', (byte)'S', (byte)'e', (byte)'r', (byte)'i');
+            WriteAscii(console, serial, (byte)'a', (byte)'l', (byte)' ', (byte)'p', (byte)'o', (byte)'s', (byte)'t', (byte)'E');
+            WriteAscii(console, serial, (byte)'x', (byte)'i', (byte)'t', (byte)'B', (byte)'o', (byte)'o', (byte)'t', (byte)'S');
+            WriteAscii(console, serial, (byte)'e', (byte)'r', (byte)'v', (byte)'i', (byte)'c', (byte)'e', (byte)'s', (byte)'=');
+            WriteAscii(console, serial, (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e', 0, 0, 0);
+            EfiEntry.WriteCrLf(console, serial);
+        }
+
+        private static void
+            WriteM02GuardedIstStackAllocationFailureLine(
+                EfiSimpleTextOutputProtocol* console,
+                EfiSerialIoProtocol* serial)
+        {
+            WriteAscii(console, serial, (byte)'M', (byte)'0', (byte)'2', (byte)'_', (byte)'G', (byte)'U', (byte)'A', (byte)'R');
+            WriteAscii(console, serial, (byte)'D', (byte)'E', (byte)'D', (byte)'_', (byte)'I', (byte)'S', (byte)'T', (byte)'_');
+            WriteAscii(console, serial, (byte)'S', (byte)'T', (byte)'A', (byte)'C', (byte)'K', (byte)'_', (byte)'A', (byte)'L');
+            WriteAscii(console, serial, (byte)'L', (byte)'O', (byte)'C', (byte)'A', (byte)'T', (byte)'I', (byte)'O', (byte)'N');
+            WriteAscii(console, serial, (byte)'_', (byte)'F', (byte)'A', (byte)'I', (byte)'L', (byte)'E', (byte)'D', 0);
             EfiEntry.WriteCrLf(console, serial);
         }
 #endif

@@ -44,6 +44,7 @@ param(
     [switch] $EnableM02OwnedCom1ReadyProbe,
     [switch] $EnableM02PanicSafeOwnedCom1Probe,
     [switch] $EnableM02OwnedX64GdtEncodingProbe,
+    [switch] $EnableM02GuardedIstStackAllocationProbe,
     [switch] $EnableM04IndependentEndianConformanceProbe,
     [switch] $SkipImageBuild
 )
@@ -221,6 +222,20 @@ foreach ($marker in $script:M02PanicSafeOwnedCom1RequiredMarkers) {
 $script:M02OwnedX64GdtEncodingForbiddenMarkers = @(
     $script:M02PanicSafeOwnedCom1ForbiddenMarkers
     "M02_OWNED_X64_GDT_ENCODING_FAILED"
+)
+$script:M02GuardedIstStackAllocationReadyMarker =
+    "CLROS_M02_008_READY stacks=3 guards=3 doubleFaultIst=1 pageFaultIst=2 nmiIst=3 writableMetadata=true executableMetadata=false allocationFree=true guestArenaAllocated=true guestStackWrites=true guestGuardMappings=false guestTss=false guestIdt=false arenaFreed=true markerTransport=uefiSerial postExitBootServices=false"
+$script:M02GuardedIstStackAllocationRequiredMarkers = @()
+foreach ($marker in $script:M02OwnedX64GdtEncodingRequiredMarkers) {
+    $script:M02GuardedIstStackAllocationRequiredMarkers += $marker
+    if ($marker -eq $script:M02OwnedX64GdtEncodingReadyMarker) {
+        $script:M02GuardedIstStackAllocationRequiredMarkers +=
+            $script:M02GuardedIstStackAllocationReadyMarker
+    }
+}
+$script:M02GuardedIstStackAllocationForbiddenMarkers = @(
+    $script:M02OwnedX64GdtEncodingForbiddenMarkers
+    "M02_GUARDED_IST_STACK_ALLOCATION_FAILED"
 )
 $script:M04IndependentEndianConformanceReadyMarker =
     "CLROS_M04_002_READY readVectors=25 reverseVectors=7 byteSeries=5 uint16Series=7 fingerprint=E81E4451E8D999F6 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail"
@@ -3632,7 +3647,8 @@ try {
         exit 1
     }
 
-    if (($EnableM02OwnedX64GdtEncodingProbe -or
+    if (($EnableM02GuardedIstStackAllocationProbe -or
+            $EnableM02OwnedX64GdtEncodingProbe -or
             $EnableM02PanicSafeOwnedCom1Probe -or
             $EnableM02OwnedCom1ReadyProbe) -and
         $EnableM02Com1OwnedPortIoProbe -and
@@ -3691,7 +3707,33 @@ try {
         )
     }
 
-    if ($EnableM02OwnedX64GdtEncodingProbe) {
+    if ($EnableM02GuardedIstStackAllocationProbe) {
+        $requiredMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $requiredMarkers
+                $script:M02GuardedIstStackAllocationRequiredMarkers
+            )
+        )
+        $orderedMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $orderedMarkers
+                $script:M02GuardedIstStackAllocationRequiredMarkers
+            )
+        )
+        $uniqueMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $uniqueMarkers
+                $script:M02GuardedIstStackAllocationRequiredMarkers
+            )
+        )
+        $forbiddenMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $forbiddenMarkers
+                $script:M02GuardedIstStackAllocationForbiddenMarkers
+            )
+        )
+    }
+    elseif ($EnableM02OwnedX64GdtEncodingProbe) {
         $requiredMarkers = @(
             Merge-QemuSmokeMarkerList -Values @(
                 $requiredMarkers
@@ -3970,6 +4012,18 @@ try {
         (Format-QemuSmokeBoolean $DryRun.IsPresent) +
         " profileRequired=55 profileForbidden=39")
     Write-Host (
+        "QEMU_SCRIPT_M02_GUARDED_IST_STACK_ALLOCATION_PROBE enabled=" +
+        (Format-QemuSmokeBoolean $EnableM02GuardedIstStackAllocationProbe.IsPresent) +
+        " ownedX64GdtEncoding=" +
+        (Format-QemuSmokeBoolean $EnableM02OwnedX64GdtEncodingProbe.IsPresent) +
+        " buildEfi=" +
+        (Format-QemuSmokeBoolean $BuildEfi.IsPresent) +
+        " skipImageBuild=" +
+        (Format-QemuSmokeBoolean $SkipImageBuild.IsPresent) +
+        " dryRun=" +
+        (Format-QemuSmokeBoolean $DryRun.IsPresent) +
+        " profileRequired=56 profileForbidden=40")
+    Write-Host (
         "QEMU_SCRIPT_M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE enabled=" +
         (Format-QemuSmokeBoolean $EnableM04IndependentEndianConformanceProbe.IsPresent) +
         " buildEfi=" +
@@ -3997,6 +4051,28 @@ try {
         Write-Host (
             "TEST_FAIL qemu.smoke.invalid_args " +
             "m04_independent_endian_conformance_probe_forbids_skip_image_build")
+        exit 1
+    }
+
+    if ($EnableM02GuardedIstStackAllocationProbe -and
+        -not $EnableM02OwnedX64GdtEncodingProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_guarded_ist_stack_allocation_probe_requires_owned_x64_gdt_encoding")
+        exit 1
+    }
+
+    if ($EnableM02GuardedIstStackAllocationProbe -and -not $BuildEfi) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_guarded_ist_stack_allocation_probe_requires_build_efi")
+        exit 1
+    }
+
+    if ($EnableM02GuardedIstStackAllocationProbe -and $SkipImageBuild) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_guarded_ist_stack_allocation_probe_forbids_skip_image_build")
         exit 1
     }
 
@@ -4306,6 +4382,11 @@ try {
 
         if ($EnableM02OwnedX64GdtEncodingProbe) {
             $buildArguments += "-EnableM02OwnedX64GdtEncodingProbe"
+        }
+
+        if ($EnableM02GuardedIstStackAllocationProbe) {
+            $buildArguments +=
+                "-EnableM02GuardedIstStackAllocationProbe"
         }
 
         if ($EnableM04IndependentEndianConformanceProbe) {

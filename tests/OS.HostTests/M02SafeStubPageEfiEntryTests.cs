@@ -232,7 +232,7 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
         }
 
         int stageThreeRecaptured = source.IndexOf(
-            "WriteSuccessLine(console, serial, 4);",
+            "WriteSuccessLine(console, serial, bootServices, 4);",
             StringComparison.Ordinal);
         int gateMaterialized = source.IndexOf(
             "if (!s_gateMaterialization.IsMaterialized)",
@@ -247,7 +247,7 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
             prepareCall,
             StringComparison.Ordinal);
         int preCr3 = source.IndexOf(
-            "WriteSuccessLine(console, serial, 8);",
+            "WriteSuccessLine(console, serial, bootServices, 8);",
             gateReadback,
             StringComparison.Ordinal);
         int transfer = source.IndexOf(
@@ -415,7 +415,7 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
                 "[switch] $EnableM02SafeStubProbe",
                 StringComparison.Ordinal)
             && script.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=69",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=70",
                 StringComparison.Ordinal)
             && script.Contains(
                 "reviewed=\" + $m01SourceClosure.ReviewedSourceCount",

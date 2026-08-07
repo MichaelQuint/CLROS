@@ -521,13 +521,13 @@ internal static class M01LivePagingEfiEntryTests
             || tablePriorMap <= tableGeometry
             || CountOccurrences(
                 runCompact,
-                "WriteSuccessLine(console,serial,1);") != 1
+                "WriteSuccessLine(console,serial,bootServices,1);") != 1
             || CountOccurrences(
                 runCompact,
-                "WriteSuccessLine(console,serial,2);") != 1
+                "WriteSuccessLine(console,serial,bootServices,2);") != 1
             || CountOccurrences(
                 runCompact,
-                "WriteSuccessLine(console,serial,3);") != 1)
+                "WriteSuccessLine(console,serial,bootServices,3);") != 1)
         {
             return Failure("allocation-order-or-markers");
         }
@@ -1683,7 +1683,7 @@ internal static class M01LivePagingEfiEntryTests
         }
 
         if (!Compact(beforeTransfer).Contains(
-                "WriteSuccessLine(console,serial,8);",
+                "WriteSuccessLine(console,serial,bootServices,8);",
                 StringComparison.Ordinal)
             || !intervalCompact.Contains(
                 "M01OwnedCr3CompositeTransitionTerminalKind.Returned",
@@ -1738,7 +1738,7 @@ internal static class M01LivePagingEfiEntryTests
         {
             if (CountOccurrences(
                     compact,
-                    "WriteSuccessLine(console,serial,"
+                    "WriteSuccessLine(console,serial,bootServices,"
                         + line.ToString(
                             CultureInfo.InvariantCulture)
                         + ");") != 1)
@@ -1754,7 +1754,7 @@ internal static class M01LivePagingEfiEntryTests
                     + "lineIndex++)",
                 StringComparison.Ordinal)
             || !compact.Contains(
-                "WriteSuccessLine(console,serial,lineIndex);",
+                "WriteSuccessLine(console,serial,bootServices,lineIndex);",
                 StringComparison.Ordinal)
             || compact.Contains(
                 "M01_OWNED_CR3_ENTERED",

@@ -513,6 +513,64 @@ fault or post-firmware diagnostic path, establish physical/provider support,
 run hosted .NET or Kestrel, advance a numbered completion gate, or establish
 CloudReady or production readiness.
 
+### M02-008 guarded IST arena guest proof
+
+The default-false M02-008 profile extends the cumulative M01/M02 sequence after
+the accepted M02-007 marker. It requires the M02-007 switch and `-BuildEfi`, and
+rejects a missing dependency, missing build, or `-SkipImageBuild` with these
+stable reasons:
+
+- `m02_guarded_ist_stack_allocation_probe_requires_owned_x64_gdt_encoding`;
+- `m02_guarded_ist_stack_allocation_probe_requires_build_efi`;
+- `m02_guarded_ist_stack_allocation_probe_forbids_skip_image_build`.
+
+The default profile remains unchanged when the flag is absent. The enabled
+profile requires and uniquely orders 56 cumulative success markers, forbids 40
+cumulative failure markers including
+`M02_GUARDED_IST_STACK_ALLOCATION_FAILED` and every `TEST_FAIL`, and requires
+this line after `CLROS_M02_007_READY` and before `TEST_PASS m01.stage3`:
+
+```text
+CLROS_M02_008_READY stacks=3 guards=3 doubleFaultIst=1 pageFaultIst=2 nmiIst=3 writableMetadata=true executableMetadata=false allocationFree=true guestArenaAllocated=true guestStackWrites=true guestGuardMappings=false guestTss=false guestIdt=false arenaFreed=true markerTransport=uefiSerial postExitBootServices=false
+```
+
+The exact real-evidence command is:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -BuildEfi `
+  -EnableM02SafeStubProbe `
+  -EnableM02CheckedPortIoBindingProbe `
+  -EnableM02Com1OwnedPortIoProbe `
+  -EnableM02OwnedCom1ReadyProbe `
+  -EnableM02PanicSafeOwnedCom1Probe `
+  -EnableM02OwnedX64GdtEncodingProbe `
+  -EnableM02GuardedIstStackAllocationProbe `
+  -RequireMarker "CLROS_M02_008_READY"
+```
+
+The profile allocates a temporary six-page UEFI LoaderData arena before
+`ExitBootServices`, executes the reviewed three-stack layout and lease contract,
+writes and reads only the stack ranges, releases the lease, and frees the arena.
+The source-bound real-QEMU tuple passed on 2026-08-06 with the 517,632-byte EFI
+artifact SHA-256
+`58464cd09ece7ce392252588d5c3327ccf64cfe19af4087454292e6646366d05`.
+The streaming classifier accepted all 56 ordered/unique markers, rejected all
+40 forbidden markers, and reported `bytes=4054`, `lines=78`,
+`outOfOrder=0`, and `duplicateUnique=0`. `artifacts/logs/qemu-smoke.log`
+has SHA-256
+`96eaea7e7126332514b3ffa1316152e7471d5b67a82e20839f18d3ed620f865c`;
+the summary reported `QEMU_SMOKE_STATUS pass`, `MISSING_MARKERS none`,
+`FORBIDDEN_MARKER_HIT none`, and `FAIL_REASON none`. This proves only
+pre-firmware-exit behavior on the recorded QEMU/OVMF platform. It does not
+make guard pages non-present, enforce NX, install a TSS, IST, GDT, or IDT,
+switch stacks, trigger or handle a fault, prove post-firmware diagnostics,
+establish physical/provider support, run hosted .NET or Kestrel, advance a
+numbered completion gate, or establish CloudReady or production readiness.
+
 ### M04-002 fixed endian-catalog guest proof
 
 The M04-002 profile is opt-in and independent of the cumulative M01/M02 live

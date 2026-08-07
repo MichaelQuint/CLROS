@@ -33,8 +33,8 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 
 ### Current implementation checkpoint (2026-08-06)
 
-- The live local Gitea tracker has **273 open issues** (issues only, excluding
-  pull requests). That is ten fewer than the earlier 283-issue snapshot even
+- The live local Gitea tracker has **275 open issues** (issues only, excluding
+  pull requests). That is eight fewer than the earlier 283-issue snapshot even
   though narrowly scoped integration/review issues were added to make shared-
   file ownership explicit. The reconstructed backlog is intentionally granular:
   its raw count is a queue size, not a completion percentage.
@@ -61,29 +61,39 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
   `Com1OwnedPortIoBackend`. The accepted guest profile emitted its harmless
   readiness marker directly through checked COM1 and separate evidence through
   UEFI serial; it did not trigger a panic or prove post-firmware diagnostics.
-- The active M02-007 wave is production C# plus serialized EFI integration.
-  The reviewed and merged encoder creates the exact 40-byte x64 GDT containing
-  null, 64-bit code, data, and 16-byte TSS descriptors and verifies its bytes
-  and fingerprint without allocation. Supplemental issue #460 owns the shared
-  EFI/project/verifier/QEMU/README paths that execute the encoder once against
-  a zeroed 104-byte caller-owned local TSS image.
-- The development 56-compile-item/69-authority-input NativeAOT EFI artifact
-  passes structural verification with SHA-256
-  `88B31B1DEB6B4C1DF3A1FCFDFDCA8BC23CC152039D4D9A767B445672D97861F1`.
+- M02-007 is reviewed, merged, and backed by real QEMU/OVMF evidence. Its
+  allocation-free encoder creates and reads back the exact 40-byte x64 GDT in
+  caller-owned guest memory without executing `lgdt` or `ltr`.
+- The M02-008 serialized integration links the reviewed guarded-IST
+  arena contract into the explicit no-stdlib EFI closure. The opt-in path uses
+  a temporary six-page UEFI LoaderData arena, validates the three guard/stack
+  layouts, writes and reads back only the stack ranges, releases the lease, and
+  frees the arena before returning. The development source closure is now 57
+  compile items and 70 source-authority inputs.
   The complete host run caught an older M01-025 source-firewall regression in
   the first implementation; the integration now uses a fixed-size local stack
   workspace instead of `stackalloc`, preserving both the 104/40-byte caller-
   owned contract and the established firewall. A corrected development
-  QEMU/OVMF run then accepted all 55 ordered/unique markers, rejected all 39
-  forbidden markers, and observed the intact `selectors=0,8,16,24` marker once.
-  The complete frozen-head host/QEMU gate, pushed review head, and independent
-  approval are still required before #47 or #460 can close. M04-003 (#72) remains the sole
-  `agent:ready` issue and will not be claimed across this serialized wave.
-- A pinned SharpOS comparison has been preserved as nine detailed Gitea design
-  comments covering future .NET 10 dispatch, MMIO/HPET, PCI/USB, bounded FAT32
-  writes, wait semantics, and probe-census work. Each note includes provenance,
-  a CLROS C# sketch, dependencies, hostile tests, and claim boundaries. No
-  SharpOS code has been imported into first-party CLROS source by that review.
+  QEMU/OVMF run then accepted all 56 ordered/unique markers, rejected all 40
+  forbidden markers, and observed the intact `selectors=0,8,16,24` and
+  `CLROS_M02_008_READY` markers exactly once. The artifact SHA-256 is
+  `58464cd09ece7ce392252588d5c3327ccf64cfe19af4087454292e6646366d05`;
+  the serial-log SHA-256 is
+  `96eaea7e7126332514b3ffa1316152e7471d5b67a82e20839f18d3ed620f865c`.
+  The uncompromised host gate then completed 3,446 starts and 3,447 passes with
+  zero failures and one terminal `TEST_PASS host.tests`. Independent exact-head
+  PR approval and merge remain required before integration issue #467 and
+  managed backlog issue #48 can close. M04-003 (#72) remains the sole
+  `agent:ready` issue and is intentionally not claimed during this wrap-up.
+- A pinned SharpOS comparison has been preserved in seven detailed addenda on
+  existing Gitea issues #85, #94, #96, #229, #236, #315, and #316, plus three
+  new blocked supplemental issues: #468 for bounded in-place FAT32 boot-log
+  writes, #469 for bounded xHCI/USB discovery, and #470 for bounded console
+  input/wait/terminal-feed semantics. Every entry pins upstream source and
+  provenance, includes relevant source excerpts and CLROS C# contract sketches,
+  identifies dependencies and hostile tests, and preserves evidence/claim
+  boundaries. No SharpOS code has been imported into first-party CLROS source
+  by that review.
 - These changes do not advance a numbered completion gate. Gate 2 remains the
   only passing gate, scoped to the firmware-visible QEMU/OVMF marker path;
   Gate 4 remains `Fail`. The M04 marker proves only fixed-catalog validation in
@@ -102,7 +112,7 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 | Boot ordering | `src/OS.Kernel/Boot/BootSequence.cs` is the boot-order source of truth. Host tests verify ordered boot phases and marker emission. |
 | UEFI handoff | The EFI path captures UEFI memory-map metadata, copies descriptor bytes into OS-owned storage, normalizes compact boot-region records, and carries ACPI RSDP provenance into the handoff. |
 | ACPI discovery | The default path carries ACPI RSDP provenance. An explicit opt-in ACPI probe artifact has QEMU evidence for pre-`ExitBootServices` RSDP, root SDT, and MCFG discovery markers. |
-| Diagnostics planning | Host-tested COM1, panic-text, panic-serial, boot-event records, diagnostics-chain readiness, GDT, TSS/IST, IDT, descriptor-table, fault-entry, diagnostic-stub invocation, diagnostic-stub callable-binding formatting, and controlled-fault-probe planning contracts exist. The accepted M02-005/M02-006 profiles exercise bounded direct COM1 marker writes before `ExitBootServices`. The active M02-007 integration links the allocation-free GDT encoder into the EFI guest and validates caller-owned output bytes, but does not execute `lgdt`/`ltr`, install a TSS, trigger a fault, or prove post-firmware diagnostics. |
+| Diagnostics planning | Host-tested COM1, panic-text, panic-serial, boot-event records, diagnostics-chain readiness, GDT, TSS/IST, IDT, descriptor-table, fault-entry, diagnostic-stub invocation, diagnostic-stub callable-binding formatting, and controlled-fault-probe planning contracts exist. The accepted M02-005/M02-006 profiles exercise bounded direct COM1 marker writes before `ExitBootServices`, and M02-007 validates caller-owned GDT bytes in the EFI guest. The active M02-008 integration executes the reviewed guarded-IST arena layout and lease contract against temporary UEFI memory, but does not install a TSS, IST, GDT, or IDT, activate guard mappings, trigger a fault, or prove post-firmware diagnostics. |
 | `std/no-runtime` base | Host-tested no-runtime-compatible helpers exist for ASCII byte/text behavior, decimal and hexadecimal formatting/parsing, memory/buffer operations, endian primitives, native integer arithmetic, math helpers, CRC32, internet checksum, and `ArrayHelpers` search/sort contracts. The opt-in EFI path now validates the fixed 25-read/7-reverse M04-002 endian catalog under real QEMU/OVMF, but this does not create a canonical BCL surface or complete Gate 4. Runtime-helper gaps remain explicit. |
 | PAL contracts | `OSHost_*` POD-style status/result contracts and host-tested mock tables/facades exist for memory, package files, config/environment, sockets, socket connect metadata, timers, waits/events, threads, random bytes, status formatting, and app logs. Recent work hardened default/zero result values so they do not accidentally count as success evidence. |
 | Storage groundwork | GPT, caller-owned GPT partition selection, FAT32, package parser, package filesystem, package file staging, native-app package/payload staging, generated image package placement, manifest loading, caller-buffer package-loader GPT selector integration, and virtio-blk planning slices are host-tested. |
@@ -118,7 +128,7 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 | Area | Missing before claim |
 | --- | --- |
 | Real firmware transition | No live `ExitBootServices` transition has completed. Fresh-map and transition planning exist, but the real firmware shutdown path is still future work. |
-| Owned post-firmware diagnostics | The opt-in M02-005 and M02-006 profiles can emit bounded markers directly through COM1 before firmware exit, while M02-007 only validates GDT bytes in caller-owned guest memory. The live boot path does not yet own serial output after firmware services are gone and panic routing is not live. |
+| Owned post-firmware diagnostics | The opt-in M02-005 and M02-006 profiles can emit bounded markers directly through COM1 before firmware exit, M02-007 validates GDT bytes in caller-owned guest memory, and M02-008 remains a pre-firmware-exit temporary-arena profile. The live boot path does not yet own serial output after firmware services are gone and panic routing is not live. |
 | Allocator and paging | The live EFI path initializes bounded static free-list state from conventional-memory records and emits `BOOT_PAGE_ALLOCATOR_READY`, but it does not yet subtract every reservation, execute a live allocation/free/coalesce cycle, configure page tables, enforce NX/W^X, or provide a managed heap. |
 | CPU fault handling | Descriptor and fault plans exist, but real IDT/GDT/TSS loading, handlers, register capture, and QEMU fault probes are not implemented. |
 | Runtime correctness | GC, exceptions, interface dispatch, reflection policy, thread/runtime helpers, and hosted-runtime integration are not complete. |
@@ -192,19 +202,22 @@ Real QEMU smoke on the current Windows host:
 .\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
 ```
 
-Optional cumulative pre-`ExitBootServices` owned-COM1 and GDT-encoding profile:
+Optional cumulative pre-`ExitBootServices` owned-COM1, GDT-encoding, and guarded
+IST arena profile:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30 -BuildEfi -EnableM02SafeStubProbe -EnableM02CheckedPortIoBindingProbe -EnableM02Com1OwnedPortIoProbe -EnableM02OwnedCom1ReadyProbe -EnableM02PanicSafeOwnedCom1Probe -EnableM02OwnedX64GdtEncodingProbe
+.\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30 -BuildEfi -EnableM02SafeStubProbe -EnableM02CheckedPortIoBindingProbe -EnableM02Com1OwnedPortIoProbe -EnableM02OwnedCom1ReadyProbe -EnableM02PanicSafeOwnedCom1Probe -EnableM02OwnedX64GdtEncodingProbe -EnableM02GuardedIstStackAllocationProbe
 ```
 
 That optional profile rebuilds the EFI/image inputs, preserves the accepted
-M02-005 marker pair and M02-006 reporter/evidence pair, then requires the fixed
-M02-007 encoder marker exactly once. It forbids every cumulative failure marker.
-It only encodes and reads back a GDT in caller-owned guest memory: it does not
-execute `lgdt`/`ltr`, trigger a panic or fault, install active descriptor state,
-or provide post-`ExitBootServices`, physical-device, provider, CloudReady, or
-production evidence.
+M02-005 marker pair, M02-006 reporter/evidence pair, and M02-007 encoder marker,
+then requires the fixed M02-008 marker exactly once. It forbids every cumulative
+failure marker. M02-008 proves only temporary guest-arena allocation, reviewed
+layout metadata, stack-range write/readback, lease release, and firmware
+`FreePages` before `ExitBootServices`. It does not make guard pages non-present,
+enforce NX, execute `lgdt`/`ltr`, install active descriptor state, trigger a
+panic or fault, or provide post-`ExitBootServices`, physical-device, provider,
+CloudReady, or production evidence.
 
 Optional ACPI physical discovery probe:
 
