@@ -16,9 +16,9 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
     private const string FailureMarker =
         "M02_OWNED_X64_GDT_ENCODING_FAILED";
     private const string CompileClosureSha256 =
-        "b19e83c1f421460ade201addcfaee4b579871ac4a15eeb3d84618ef9de686a77";
+        "39395b3906e8875aad6c08386e807d0c9568780091fe2401b69d121ca2454b83";
     private const string CanonicalProjectSha256 =
-        "d44a5571337c8b5d7bebb2e016ee5cdcf946e569a333a238ec69382bf4ad4444";
+        "ab9195a9121f99096fd5bdde228e75d01a1c375303a1cc14379d23ef8487f7a7";
 
     private static readonly (string Path, string Sha256)[] ImmutableReviewedInputs =
     [
@@ -117,10 +117,13 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
             @"..\OS.Kernel\Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs|Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs";
         const string GdtKey =
             @"..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs|Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs";
+        const string GuardedIstKey =
+            @"..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs";
         const string EndianKey =
             @"..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
         int reporterIndex = Array.IndexOf(compileKeys, ReporterKey);
         int gdtIndex = Array.IndexOf(compileKeys, GdtKey);
+        int guardedIstIndex = Array.IndexOf(compileKeys, GuardedIstKey);
         int endianIndex = Array.IndexOf(compileKeys, EndianKey);
 
         XElement[] defaults = project
@@ -136,8 +139,8 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
         string[] dependencyConditions = project
             .Descendants("Error")
             .Select(element => element.Attribute("Condition")?.Value ?? string.Empty)
-            .Where(value => value.Contains(
-                "EnableM02OwnedX64GdtEncodingProbe",
+            .Where(value => value.StartsWith(
+                "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'",
                 StringComparison.Ordinal))
             .ToArray();
 
@@ -150,11 +153,12 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 56
+        return compileItems.Length == 57
             && compileHash == CompileClosureSha256
             && reporterIndex >= 0
             && gdtIndex == reporterIndex + 1
-            && endianIndex == gdtIndex + 1
+            && guardedIstIndex == gdtIndex + 1
+            && endianIndex == guardedIstIndex + 1
             && compileKeys.Count(key => key == GdtKey) == 1
             && defaults.Length == 1
             && defaults[0].Value == "false"
@@ -177,17 +181,17 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
                 "m02_owned_x64_gdt_encoding_requires_panic_safe_owned_com1",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=69",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=70",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 CanonicalProjectSha256,
                 StringComparison.Ordinal)
             && buildScript.Contains(GdtKey, StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 69",
+                "$expectedSourceClosureInputCount = 70",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 56",
+                "$compileItems.Count -ne 57",
                 StringComparison.Ordinal)
             && verifierScript.Contains(GdtKey, StringComparison.Ordinal)
             && verifierScript.Contains(
@@ -207,7 +211,7 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
                 "            \"-EnableM02OwnedX64GdtEncodingProbe\",",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "$parameterName -ceq \"EnableM02OwnedX64GdtEncodingProbe\")",
+                "$parameterName -ceq \"EnableM02OwnedX64GdtEncodingProbe\" -or",
                 StringComparison.Ordinal);
     }
 

@@ -1822,7 +1822,7 @@ internal static class M01InstructionPublicationEfiEntryTests
                 "ValidatePlannerCallThunkReadback(",
                 "ValidatePreTransferState(",
                 "void*)transferEntry;",
-                "WriteSuccessLine(console,serial,8);"))
+                "WriteSuccessLine(console,serial,bootServices,8);"))
         {
             failure = "epoch=3 epoch=4 final-readback-binding";
             return false;
@@ -2182,7 +2182,7 @@ internal static class M01InstructionPublicationEfiEntryTests
                 "ValidatePlannerCallThunkReadback(",
                 "ValidatePreTransferState(",
                 "void*)transferEntry;",
-                "WriteSuccessLine(console,serial,8);",
+                "WriteSuccessLine(console,serial,bootServices,8);",
                 "s_m01InstructionPublicationEpochMask!=7",
                 "uintepochFourPublicationCookie="
                     + SerializerCall
@@ -2197,7 +2197,7 @@ internal static class M01InstructionPublicationEfiEntryTests
                 "if(lineIndex==13)",
                 "s_m01InstructionPublicationEpochMask!=15",
                 EpochsVerifiedWriter + "(console,serial);",
-                "WriteSuccessLine(console,serial,lineIndex);"))
+                "WriteSuccessLine(console,serial,bootServices,lineIndex);"))
         {
             failure = "epoch=4 placement-order-or-marker";
             return false;
@@ -2218,9 +2218,9 @@ internal static class M01InstructionPublicationEfiEntryTests
                     + "gateMaterialization=&s_gateMaterialization){"
                     + "s_gateReadback=",
                 "if(" + PublicationMask + "!=7)",
-                1819,
-                "05206471b0aa1b153dff9abc7b474c57"
-                    + "5efb5a1503495655fea794afd90063f5"))
+                1871,
+                "7a0cc8c360fbc0d25d5ce189ee799601"
+                    + "e465643cb5ad45f3112f0327cfe4425e"))
         {
             failure = "epoch=4 final-binding-to-guard";
             return false;
@@ -2458,7 +2458,7 @@ internal static class M01InstructionPublicationEfiEntryTests
                 StringComparison.Ordinal)
             || !Compact(
                 stageThreeRun[lineThirteenEnd..]).StartsWith(
-                    "WriteSuccessLine(console,serial,lineIndex);",
+                    "WriteSuccessLine(console,serial,bootServices,lineIndex);",
                     StringComparison.Ordinal))
         {
             failure = "epoch=4 aggregate-mask-or-placement";
@@ -2539,7 +2539,7 @@ internal static class M01InstructionPublicationEfiEntryTests
             mutated,
             "M01StageThreeAdapter",
             "RunAfterStageTwo",
-            "WriteSuccessLine(console, serial, 8);",
+            "WriteSuccessLine(console, serial, bootServices, 8);",
             "_ = " + SerializerCall + "; ");
     }
 
@@ -3108,7 +3108,6 @@ internal static class M01InstructionPublicationEfiEntryTests
         {
             return false;
         }
-
         string window = compact.Substring(start, length);
         byte[] hash =
             System.Security.Cryptography.SHA256.HashData(

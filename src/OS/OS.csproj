@@ -42,6 +42,7 @@
 		<EnableM02OwnedCom1ReadyProbe Condition="'$(EnableM02OwnedCom1ReadyProbe)' == ''">false</EnableM02OwnedCom1ReadyProbe>
 		<EnableM02PanicSafeOwnedCom1Probe Condition="'$(EnableM02PanicSafeOwnedCom1Probe)' == ''">false</EnableM02PanicSafeOwnedCom1Probe>
 		<EnableM02OwnedX64GdtEncodingProbe Condition="'$(EnableM02OwnedX64GdtEncodingProbe)' == ''">false</EnableM02OwnedX64GdtEncodingProbe>
+		<EnableM02GuardedIstStackAllocationProbe Condition="'$(EnableM02GuardedIstStackAllocationProbe)' == ''">false</EnableM02GuardedIstStackAllocationProbe>
 		<EnableM04IndependentEndianConformanceProbe Condition="'$(EnableM04IndependentEndianConformanceProbe)' == ''">false</EnableM04IndependentEndianConformanceProbe>
 	</PropertyGroup>
 
@@ -79,6 +80,10 @@
 
 	<PropertyGroup Condition="'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M02_OWNED_X64_GDT_ENCODING_PROBE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM02GuardedIstStackAllocationProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M02_GUARDED_IST_STACK_ALLOCATION_PROBE</DefineConstants>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM04IndependentEndianConformanceProbe)' == 'true'">
@@ -140,6 +145,7 @@
 		<Compile Include="..\OS.Kernel\Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs" Link="Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs" Link="Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs" Link="Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs" Link="Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" Link="Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs" Link="Boot\M01LoadedImageStackIntegration.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs" Link="Boot\M01LiveAllocatorIntegration.cs" />
@@ -206,6 +212,9 @@
 		<Error
 			Condition="'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM02PanicSafeOwnedCom1Probe)' != 'true'"
 			Text="EnableM02OwnedX64GdtEncodingProbe requires EnableM02PanicSafeOwnedCom1Probe=true." />
+		<Error
+			Condition="'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM02OwnedX64GdtEncodingProbe)' != 'true'"
+			Text="EnableM02GuardedIstStackAllocationProbe requires EnableM02OwnedX64GdtEncodingProbe=true." />
 	</Target>
 
 	<Target Name="CustomizeReferences"
