@@ -911,17 +911,22 @@ state mutation. Arena and reserved ranges must keep their inclusive end in the
 same x64 canonical half as their start, so a huge range cannot bridge the
 noncanonical address hole. Generation-bound leases reject duplicate allocation,
 wrong owners, stale ownership, invalid leases, and double release. The production
-path uses value/status structs only and allocates no managed memory. Current evidence is
-host-only: it plans address ownership but does not allocate physical pages, change
-page tables, write TSS IST slots, load descriptor tables, install handlers, or
-execute a fault. A separately claimed default-off EFI integration is still required
-for the issue's real-QEMU marker.
+path uses value/status structs only and allocates no managed memory. A separately
+owned default-off EFI integration now allocates a temporary six-page UEFI
+LoaderData arena, runs the same layout contract, writes and reads back only the
+three stack ranges, releases the lease, and frees the same arena before return.
+Fresh real-QEMU/OVMF evidence accepted all 56 required ordered/unique markers
+and rejected all 40 forbidden markers. The independently reviewed integration
+and manifest closure are merged, and managed M02-008 is closed. The proof does
+not change page tables, map guards non-present, write TSS IST slots, load
+descriptor tables, install handlers, execute a fault, or cross real
+`ExitBootServices`.
 
 ## Next Steps
 
-1. Integrate the M02-008 guarded-IST allocator through a separately owned,
-   default-off EFI lane and obtain fresh real-QEMU/OVMF evidence for guest range
-   planning without mapping pages, writing TSS slots, or installing handlers.
+1. Map M02-008's planned guard/stack ranges and write the fixed IST indices into
+   owned TSS state only in later issues that own page-table and descriptor-table
+   installation; the accepted EFI profile remains temporary pre-firmware proof.
 2. Preserve the M02-005 bounded owned-COM1 marker proof, then wire the writer
    through `SerialDiagnosticsGuard` only when a later issue owns the live
    post-firmware diagnostic boundary.
