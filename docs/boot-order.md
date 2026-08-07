@@ -301,8 +301,13 @@ Host tests assert:
   reserved-range overlap, RWX metadata, duplicate allocation, wrong/stale owners,
   invalid leases, and double release before mutation. It does not add a
   `BootSequence` phase, map pages, write TSS IST slots, install handlers, or prove
-  guest behavior. A separately claimed EFI lane and fresh real-QEMU/OVMF marker
-  are still required before managed M02-008 can close.
+  guest behavior by itself. The separately owned, default-off EFI lane now has
+  fresh real-QEMU/OVMF evidence for temporary six-page LoaderData allocation,
+  layout validation, stack-only write/readback, lease release, and same-base
+  `FreePages` before return. Exact-head independent review and the manifest
+  closure are merged, so managed M02-008 is closed. The guest evidence still
+  proves no guard mapping, TSS/IDT installation, fault execution, or real
+  `ExitBootServices` transition.
 - Fault-entry frame layout tests prove future interrupt-stub storage can round-trip formatter-compatible page-fault and invalid-opcode frames, reject inconsistent error-code metadata, reject undersized buffers, and reject unknown vectors.
 - ExitBootServices transition-boundary tests prove success and blocked markers while leaving default boot markers unchanged.
 - Early diagnostics readiness tests prove serial backend and descriptor-table readiness are aggregated into stable boot markers while leaving default boot markers unchanged.

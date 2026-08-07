@@ -33,8 +33,8 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 
 ### Current implementation checkpoint (2026-08-06)
 
-- The live local Gitea tracker has **275 open issues** (issues only, excluding
-  pull requests). That is eight fewer than the earlier 283-issue snapshot even
+- The live local Gitea tracker has **273 open issues** (issues only, excluding
+  pull requests). That is ten fewer than the earlier 283-issue snapshot even
   though narrowly scoped integration/review issues were added to make shared-
   file ownership explicit. The reconstructed backlog is intentionally granular:
   its raw count is a queue size, not a completion percentage.
@@ -64,7 +64,8 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 - M02-007 is reviewed, merged, and backed by real QEMU/OVMF evidence. Its
   allocation-free encoder creates and reads back the exact 40-byte x64 GDT in
   caller-owned guest memory without executing `lgdt` or `ltr`.
-- The M02-008 serialized integration links the reviewed guarded-IST
+- M02-008 is reviewed, merged, evidence-backed, and closed. Its serialized
+  integration links the reviewed guarded-IST
   arena contract into the explicit no-stdlib EFI closure. The opt-in path uses
   a temporary six-page UEFI LoaderData arena, validates the three guard/stack
   layouts, writes and reads back only the stack ranges, releases the lease, and
@@ -81,9 +82,12 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
   the serial-log SHA-256 is
   `96eaea7e7126332514b3ffa1316152e7471d5b67a82e20839f18d3ed620f865c`.
   The uncompromised host gate then completed 3,446 starts and 3,447 passes with
-  zero failures and one terminal `TEST_PASS host.tests`. Independent exact-head
-  PR approval and merge remain required before integration issue #467 and
-  managed backlog issue #48 can close. M04-003 (#72) remains the sole
+  zero failures and one terminal `TEST_PASS host.tests`. Independent `admin`
+  review #20 approved exact head
+  `845798836c010c388262c062efdac04cefbb80d3`; PR #471 merged that exact tree as
+  `5b6de7d08b348c9094dcb38dc7183f2c8182cb16`. Supplemental issue #467 and
+  managed backlog issue #48 are closed, with the latter reconciled through the
+  canonical idempotent manifest synchronizer. M04-003 (#72) remains the sole
   `agent:ready` issue and is intentionally not claimed during this wrap-up.
 - A pinned SharpOS comparison has been preserved in seven detailed addenda on
   existing Gitea issues #85, #94, #96, #229, #236, #315, and #316, plus three
@@ -112,7 +116,7 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 | Boot ordering | `src/OS.Kernel/Boot/BootSequence.cs` is the boot-order source of truth. Host tests verify ordered boot phases and marker emission. |
 | UEFI handoff | The EFI path captures UEFI memory-map metadata, copies descriptor bytes into OS-owned storage, normalizes compact boot-region records, and carries ACPI RSDP provenance into the handoff. |
 | ACPI discovery | The default path carries ACPI RSDP provenance. An explicit opt-in ACPI probe artifact has QEMU evidence for pre-`ExitBootServices` RSDP, root SDT, and MCFG discovery markers. |
-| Diagnostics planning | Host-tested COM1, panic-text, panic-serial, boot-event records, diagnostics-chain readiness, GDT, TSS/IST, IDT, descriptor-table, fault-entry, diagnostic-stub invocation, diagnostic-stub callable-binding formatting, and controlled-fault-probe planning contracts exist. The accepted M02-005/M02-006 profiles exercise bounded direct COM1 marker writes before `ExitBootServices`, and M02-007 validates caller-owned GDT bytes in the EFI guest. The active M02-008 integration executes the reviewed guarded-IST arena layout and lease contract against temporary UEFI memory, but does not install a TSS, IST, GDT, or IDT, activate guard mappings, trigger a fault, or prove post-firmware diagnostics. |
+| Diagnostics planning | Host-tested COM1, panic-text, panic-serial, boot-event records, diagnostics-chain readiness, GDT, TSS/IST, IDT, descriptor-table, fault-entry, diagnostic-stub invocation, diagnostic-stub callable-binding formatting, and controlled-fault-probe planning contracts exist. The accepted M02-005/M02-006 profiles exercise bounded direct COM1 marker writes before `ExitBootServices`, M02-007 validates caller-owned GDT bytes in the EFI guest, and the accepted M02-008 profile executes the reviewed guarded-IST arena layout and lease contract against temporary UEFI memory. M02-008 does not install a TSS, IST, GDT, or IDT, activate guard mappings, trigger a fault, or prove post-firmware diagnostics. |
 | `std/no-runtime` base | Host-tested no-runtime-compatible helpers exist for ASCII byte/text behavior, decimal and hexadecimal formatting/parsing, memory/buffer operations, endian primitives, native integer arithmetic, math helpers, CRC32, internet checksum, and `ArrayHelpers` search/sort contracts. The opt-in EFI path now validates the fixed 25-read/7-reverse M04-002 endian catalog under real QEMU/OVMF, but this does not create a canonical BCL surface or complete Gate 4. Runtime-helper gaps remain explicit. |
 | PAL contracts | `OSHost_*` POD-style status/result contracts and host-tested mock tables/facades exist for memory, package files, config/environment, sockets, socket connect metadata, timers, waits/events, threads, random bytes, status formatting, and app logs. Recent work hardened default/zero result values so they do not accidentally count as success evidence. |
 | Storage groundwork | GPT, caller-owned GPT partition selection, FAT32, package parser, package filesystem, package file staging, native-app package/payload staging, generated image package placement, manifest loading, caller-buffer package-loader GPT selector integration, and virtio-blk planning slices are host-tested. |

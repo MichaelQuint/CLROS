@@ -6845,7 +6845,7 @@
         "M02-007"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -6872,7 +6872,7 @@
       ],
       "collisionLane": null,
       "summary": "Allocate guarded IST stacks for double fault, page fault, and NMI.",
-      "currentEvidence": "Diagnostic descriptor/stub plans are host-tested; owned COM1, loaded GDT/TSS/IDT, and controlled live faults are unproven.",
+      "currentEvidence": "Reviewed M02-008 implementation PR #466 and serialized EFI integration PR #471 are merged. The exact approved integration head 845798836c010c388262c062efdac04cefbb80d3 has merged tree 857ca4451c9731cdbc82a234ef4795bb57791bef and merge commit 5b6de7d08b348c9094dcb38dc7183f2c8182cb16; independent admin review #20 approved that exact head. done/step915.md records the accepted evidence. The complete HostTests run produced 3,446 TEST_START, 3,447 TEST_PASS, exactly one terminal TEST_PASS host.tests, and zero TEST_FAIL; its log SHA-256 is 461C8639CA87DFA4508A578769D0534C44303CAD65B76E7AAC3D363A6F3F76E3. Fresh real QEMU/OVMF evidence passed all 56 required ordered and unique markers with all 40 forbidden markers absent, zero out-of-order markers, and zero duplicate-unique markers. The EFI artifact SHA-256 is 58464CD09ECE7CE392252588D5C3327CCF64CFE19AF4087454292E6646366D05, serial SHA-256 is 96EAEA7E7126332514B3FFA1316152E7471D5B67A82E20839F18D3ED620F865C, and summary SHA-256 is 20ED7AE4664677A016F4071D6BE17C45C60C868E1BE10286E095401B183F366B. The guest proof allocates a temporary six-page UEFI LoaderData arena, validates three guard/stack layouts, writes and reads back only the stack ranges, releases the lease, and frees the same arena before return. It does not map guard pages, write TSS IST slots, install or load GDT/IDT/TSS state, execute a fault, cross real ExitBootServices, or prove hosted .NET, Kestrel, provider, CloudReady, or production behavior.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Allocate guarded IST stacks for double fault, page fault, and NMI.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -6920,7 +6920,7 @@
         "docs/boot-order.md"
       ],
       "evidenceBoundary": "This issue proves only \"Allocate guarded IST stacks for double fault, page fault, and NMI.\" It does not by itself prove the M02 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M02-009",
