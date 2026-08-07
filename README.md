@@ -87,8 +87,9 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
   `845798836c010c388262c062efdac04cefbb80d3`; PR #471 merged that exact tree as
   `5b6de7d08b348c9094dcb38dc7183f2c8182cb16`. Supplemental issue #467 and
   managed backlog issue #48 are closed, with the latter reconciled through the
-  canonical idempotent manifest synchronizer. M04-003 (#72) remains the sole
-  `agent:ready` issue and is intentionally not claimed during this wrap-up.
+  canonical idempotent manifest synchronizer. That dependency closure makes
+  M02-009 (#49) ready alongside M04-003 (#72); neither `agent:ready` issue is
+  claimed during this wrap-up.
 - A pinned SharpOS comparison has been preserved in seven detailed addenda on
   existing Gitea issues #85, #94, #96, #229, #236, #315, and #316, plus three
   new blocked supplemental issues: #468 for bounded in-place FAT32 boot-log
