@@ -7342,6 +7342,27 @@ public static unsafe class EfiEntry
         SpinM02OwnedGdtTssTerminalProbe();
     }
 
+    private static byte GetM02OwnedGdtTssTerminalCleanupPlan(
+        bool codeAllocated,
+        ulong codeAddress,
+        bool dataAllocated,
+        ulong dataAddress)
+    {
+        byte plan = 0;
+        if (dataAllocated)
+        {
+            plan |= 1;
+        }
+
+        if (codeAllocated &&
+            (!dataAllocated || codeAddress != dataAddress))
+        {
+            plan |= 2;
+        }
+
+        return plan;
+    }
+
     private static bool FailM02OwnedGdtTssTerminalBeforeEntry(
         EfiSimpleTextOutputProtocol* console,
         EfiSerialIoProtocol* serial,
@@ -7351,16 +7372,21 @@ public static unsafe class EfiEntry
         ulong dataAddress,
         bool dataAllocated)
     {
+        byte cleanupPlan = GetM02OwnedGdtTssTerminalCleanupPlan(
+            codeAllocated,
+            codeAddress,
+            dataAllocated,
+            dataAddress);
         if (bootServices != null && bootServices->FreePages != null)
         {
-            if (dataAllocated)
+            if ((cleanupPlan & 1) != 0)
             {
                 _ = bootServices->FreePages(
                     dataAddress,
                     M02OwnedGdtTssTerminalPageCount);
             }
 
-            if (codeAllocated)
+            if ((cleanupPlan & 2) != 0)
             {
                 _ = bootServices->FreePages(
                     codeAddress,

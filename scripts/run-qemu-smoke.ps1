@@ -3743,25 +3743,21 @@ try {
     if ($EnableM02OwnedGdtTssTerminalProbe) {
         $requiredMarkers = @(
             Merge-QemuSmokeMarkerList -Values @(
-                $requiredMarkers
                 $script:M02OwnedGdtTssTerminalRequiredMarkers
             )
         )
         $orderedMarkers = @(
             Merge-QemuSmokeMarkerList -Values @(
-                $orderedMarkers
                 $script:M02OwnedGdtTssTerminalRequiredMarkers
             )
         )
         $uniqueMarkers = @(
             Merge-QemuSmokeMarkerList -Values @(
-                $uniqueMarkers
                 $script:M02OwnedGdtTssTerminalRequiredMarkers
             )
         )
         $forbiddenMarkers = @(
             Merge-QemuSmokeMarkerList -Values @(
-                $forbiddenMarkers
                 $script:M02OwnedGdtTssTerminalForbiddenMarkers
             )
         )
@@ -4585,6 +4581,10 @@ try {
         "--summary-log", $SummaryLog,
         "--timeout", "$runnerTimeoutSeconds"
     )
+
+    if ($EnableM02OwnedGdtTssTerminalProbe) {
+        $arguments += "--replace-default-required-markers"
+    }
 
     foreach ($marker in $requiredMarkers) {
         $arguments += @("--require-marker", $marker)

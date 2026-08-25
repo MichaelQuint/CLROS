@@ -1722,6 +1722,8 @@ sealed class RunnerOptions
     private readonly List<string> markerPresets = new List<string>();
     private readonly List<string> orderedMarkers = new List<string>();
     private readonly List<string> uniqueMarkers = new List<string>();
+    private bool markerConfigurationStarted;
+    private bool defaultRequiredMarkersReplaced;
 
     public string QemuPath { get; private set; } = "qemu-system-x86_64";
 
@@ -1815,6 +1817,9 @@ sealed class RunnerOptions
                 case "--workload-profile":
                     options.WorkloadProfile = NormalizeWorkloadProfile(RequireNonEmpty(ReadValue(args, ref i, arg), arg));
                     break;
+                case "--replace-default-required-markers":
+                    options.ReplaceDefaultRequiredMarkers();
+                    break;
                 case "--require-marker":
                     options.AddRequiredMarker(RequireNonEmpty(ReadValue(args, ref i, arg), arg));
                     break;
@@ -1856,12 +1861,31 @@ sealed class RunnerOptions
 
     public static void PrintHelp()
     {
-        Console.WriteLine("OS.QemuRunner [preflight|--preflight] --image <raw|qcow2 image> [--disk-format raw|qcow2] [--workload-profile SingleMinimalApi|MultiMinimalApi] [--ovmf-code <OVMF_CODE.fd>] [--serial-log <path>] [--summary-log <path>] [--timeout <seconds>] [--require-marker <marker>]... [--require-ordered-marker <marker>]... [--require-unique-marker <marker>]... [--marker-preset " + SmokeMarkerPreset.SupportedValues + "]... [--forbid-marker <marker>]... [--http-probe-url <http-url>] [--http-probe-expected-status <100-599>] [--http-probe-expected-body <text>] [--http-probe-timeout <seconds>] [--dry-run]");
+        Console.WriteLine("OS.QemuRunner [preflight|--preflight] --image <raw|qcow2 image> [--disk-format raw|qcow2] [--workload-profile SingleMinimalApi|MultiMinimalApi] [--ovmf-code <OVMF_CODE.fd>] [--serial-log <path>] [--summary-log <path>] [--timeout <seconds>] [--replace-default-required-markers] [--require-marker <marker>]... [--require-ordered-marker <marker>]... [--require-unique-marker <marker>]... [--marker-preset " + SmokeMarkerPreset.SupportedValues + "]... [--forbid-marker <marker>]... [--http-probe-url <http-url>] [--http-probe-expected-status <100-599>] [--http-probe-expected-body <text>] [--http-probe-timeout <seconds>] [--dry-run]");
         Console.WriteLine("preflight validates local runner inputs and image format hints without launching QEMU or requiring libvirt.");
+    }
+
+    private void ReplaceDefaultRequiredMarkers()
+    {
+        if (defaultRequiredMarkersReplaced)
+        {
+            throw new ArgumentException(
+                "--replace-default-required-markers may be specified only once.");
+        }
+
+        if (markerConfigurationStarted)
+        {
+            throw new ArgumentException(
+                "--replace-default-required-markers must precede marker arguments.");
+        }
+
+        requiredMarkers.Clear();
+        defaultRequiredMarkersReplaced = true;
     }
 
     private void AddRequiredMarker(string marker)
     {
+        markerConfigurationStarted = true;
         AddDistinct(requiredMarkers, marker);
     }
 
@@ -1895,6 +1919,7 @@ sealed class RunnerOptions
 
     private void AddForbiddenMarker(string marker)
     {
+        markerConfigurationStarted = true;
         AddDistinct(forbiddenMarkers, marker);
     }
 
