@@ -86,10 +86,12 @@ The no-stdlib surface is not implemented beyond the first EFI shell boundary. `s
 - `OS.Std.Memory.SpanOverlapMemoryCastUnsafeWidthConformanceVectors` provides
   an allocation-free, reference-free catalog of exactly 16 deterministic
   vectors: four slice boundaries, five memmove-style overlap shapes, three
-  byte-to-`uint` memory-cast shapes, and four unaligned access widths
-  (`1/2/4/8`). The catalog records successful and rejected slice boundaries,
-  both overlap directions, equal and zero-length ranges, trailing-byte and
-  unaligned `MemoryMarshal.Cast` behavior, and unsigned
+  distinct memory-cast shapes (divisible byte-to-`ushort`, combined unaligned
+  byte-to-`uint` with trailing-byte truncation, and `uint`-to-byte expansion),
+  and four unaligned access widths (`1/2/4/8`). Every cast binds both its exact
+  output bytes and result-element count. The catalog records successful and
+  rejected slice boundaries, both overlap directions, equal and zero-length
+  ranges, trailing-byte and unaligned `MemoryMarshal.Cast` behavior, and unsigned
   `Unsafe.ReadUnaligned<T>`/`Unsafe.WriteUnaligned<T>` widths followed by zero
   extension, sign extension, widening, native-width preservation, and
   truncation. Its cast policy explicitly allows unaligned starts and uses
@@ -97,12 +99,18 @@ The no-stdlib surface is not implemented beyond the first EFI shell boundary. `s
   It validates exact count,
   initialization, key and operation ranges, malformed metadata, duplicate and
   append-only key order, and frozen FNV-1a64 fingerprint
-  `DE0413BBC2C1453E`. Copy validates all source and destination preconditions
-  before mutating caller-owned storage. Host builds expose only `Span<T>` APIs;
-  `NOSTDLIB_EFI` exposes unsafe pointer/count APIs with explicit capacity and a
-  distinct null-pointer status. The POD catalog adds no canonical `System.*`
-  surface, requires no reference files at runtime, fixes the audited pointer
-  width at eight bytes, and does not satisfy completion Gate 4.
+  `F03FF59D36F39ECD`. Copy and `ExecuteCatalog` validate every pointer/span,
+  count, capacity, alias range, catalog entry, and fingerprint before mutating
+  caller-owned scratch or output storage. Execution emits 16 POD result records
+  with operation status, exact output bytes/count, result-element count, raw
+  unsigned width value, scratch observation, and rejected-slice preservation.
+  Host builds expose only `Span<T>` APIs; `NOSTDLIB_EFI` exposes unsafe
+  pointer/count/capacity APIs with distinct null, negative, undersized, address
+  wrap, alias, catalog, and execution statuses. That branch uses no arrays,
+  spans, exceptions, reflection, LINQ, or managed allocation. The POD catalog
+  adds no canonical `System.*` surface, requires no reference files at runtime,
+  fixes the audited pointer width at eight bytes, and does not satisfy
+  completion Gate 4.
 - `OS.Std.Hash.Crc32` provides an allocation-free reflected IEEE CRC32 helper using polynomial `0xEDB88320`, initial state `0xFFFFFFFF`, and final XOR `0xFFFFFFFF`. It supports one-shot `Compute`, incremental `Update`, and `Finish` over caller-provided `ReadOnlySpan<byte>` buffers without lazy static lookup tables.
 - `OS.Std.Net.InternetChecksum` provides allocation-free 16-bit ones-complement internet checksum support for network-order packet buffers. It supports one-shot checksums, two-, three-, and four-segment checksum overloads, validity checks, and an `InternetChecksumAccumulator` that preserves odd pending bytes across segment boundaries without allocating.
 - `OS.Std.NativeInt` provides a small pointer-sized unsigned arithmetic helper slice over `nuint`: checked add/subtract, power-of-two detection, alignment checks, and checked align-up/align-down results. It uses status-coded results so kernel/runtime planning paths can avoid exception-driven overflow handling.
@@ -414,25 +422,33 @@ cross-checks the 16-vector M04-003 catalog against .NET 10 span copy,
 `MemoryMarshal.Cast`, `Unsafe.ReadUnaligned<T>`, `Unsafe.WriteUnaligned<T>`,
 and `BinaryPrimitives` behavior. It covers full, middle, empty, and rejected
 slices; forward/backward/equal/zero/non-overlapping copies; divisible,
-trailing-byte, and unaligned casts; unsigned widths `1/2/4/8`; widening,
-sign/zero extension, native-width preservation, and truncation. It also rejects
+combined unaligned/remainder-truncated, and expansion casts with exact complete
+output byte sequences and result counts; unsigned widths `1/2/4/8`; widening,
+sign/zero extension, native-width preservation, and truncation. Each unsafe
+width is asserted before conversion, and a source-hostile test proves that a
+width-8 `Unsafe.ReadUnaligned<ulong>` cannot be weakened to `uint`. It also rejects
 short destinations without mutation, default/uninitialized/malformed entries,
 count/key/operation errors, every operation-specific invalid shape, duplicate
 and reordered keys, stale fingerprints, managed-reference layouts, forbidden
 production dependencies, and host-only APIs in the `NOSTDLIB_EFI` pointer
-branch, and checks warmed catalog copy plus validation for zero host allocation.
-Its host marker is:
+branch. Host execution tests bind every result record, expected rejected slice,
+overlap direction, cast policy, raw unsigned read, scratch/output canaries and
+tails, atomic failures, and all three alias pairs. Warmed catalog copy,
+validation, and execution allocate zero managed bytes. Its host marker is:
 
 ```text
-CLROS_M04_003_READY vectors=16 spanVectors=4 overlapVectors=5 memoryCastVectors=3 unsafeWidthVectors=4 fingerprint=DE0413BBC2C1453E pointerWidth=8 referenceFilesRequired=false hostConformance=true guestIntegrated=false gate4=Fail
+CLROS_M04_003_READY vectors=16 spanVectors=4 overlapVectors=5 memoryCastVectors=3 unsafeWidthVectors=4 fingerprint=F03FF59D36F39ECD pointerWidth=8 referenceFilesRequired=false hostConformance=true guestIntegrated=false gate4=Fail
 ```
 
-This is audited host-catalog evidence only. A separately owned integration
+This is audited host-catalog and constrained-core execution evidence only. A
+separately owned integration
 issue must explicitly compile the pointer branch into the no-stdlib EFI source
-closure, validate all 16 vectors under fresh QEMU/OVMF, and emit exactly one:
+closure, call the already-reviewed `ExecuteCatalog` pointer core against fixed
+guest-owned buffers, validate all 16 result records under fresh QEMU/OVMF, and
+emit exactly one:
 
 ```text
-CLROS_M04_003_READY vectors=16 spanVectors=4 overlapVectors=5 memoryCastVectors=3 unsafeWidthVectors=4 fingerprint=DE0413BBC2C1453E pointerWidth=8 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
+CLROS_M04_003_READY vectors=16 spanVectors=4 overlapVectors=5 memoryCastVectors=3 unsafeWidthVectors=4 fingerprint=F03FF59D36F39ECD pointerWidth=8 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
 ```
 
 Its exact failure marker is `M04_SPAN_MEMORY_CONFORMANCE_FAILED`. Until that

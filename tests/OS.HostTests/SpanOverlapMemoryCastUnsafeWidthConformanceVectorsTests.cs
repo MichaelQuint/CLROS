@@ -19,6 +19,9 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
             TestOverlapVectorsAgainstDotNet10();
             TestMemoryCastVectorsAgainstDotNet10();
             TestUnalignedWidthVectorsAgainstDotNet10();
+            TestExecuteCatalogResultsAndCanaries();
+            TestExecuteCatalogFailuresAreAtomic();
+            TestExecuteCatalogRejectsAliases();
             TestShortDestinationIsAtomic();
             TestMalformedVectorsFailClosed();
             TestOperationSpecificHostileVectorsFailClosed();
@@ -26,6 +29,7 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
             TestFingerprintFailure();
             TestDefaultValuesFailClosed();
             TestAllocationFreeValidation();
+            TestUnsafeWidthSourceMutationRejected();
             TestSourceBoundary();
 
             string readinessMarker =
@@ -44,7 +48,7 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
             const string ExpectedReadinessMarker =
                 "CLROS_M04_003_READY vectors=16 spanVectors=4"
                 + " overlapVectors=5 memoryCastVectors=3 unsafeWidthVectors=4"
-                + " fingerprint=DE0413BBC2C1453E pointerWidth=8"
+                + " fingerprint=F03FF59D36F39ECD pointerWidth=8"
                 + " referenceFilesRequired=false hostConformance=true"
                 + " guestIntegrated=false gate4=Fail";
             ExpectEqual(
@@ -77,6 +81,12 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
             SpanOverlapMemoryCastUnsafeWidthConformanceVectors.TotalVectorCount);
         ExpectEqual("pointer width", 8,
             SpanOverlapMemoryCastUnsafeWidthConformanceVectors.PointerWidth);
+        ExpectEqual("scratch bytes", 16,
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .RequiredScratchBytes);
+        ExpectEqual("execution records", 16,
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .RequiredExecutionRecordCount);
         ExpectEqual("host pointer width", 8, IntPtr.Size);
 
         if (SpanOverlapMemoryCastUnsafeWidthConformanceVectors
@@ -95,7 +105,11 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
         if (RuntimeHelpers.IsReferenceOrContainsReferences<
                 SpanMemoryConformanceVector>() ||
             RuntimeHelpers.IsReferenceOrContainsReferences<
-                SpanMemoryConformanceResult>())
+                SpanMemoryConformanceResult>() ||
+            RuntimeHelpers.IsReferenceOrContainsReferences<
+                SpanMemoryVectorExecutionRecord>() ||
+            RuntimeHelpers.IsReferenceOrContainsReferences<
+                SpanMemoryExecutionResult>())
         {
             throw new InvalidOperationException("Catalog vector/result are not POD.");
         }
@@ -182,7 +196,7 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
         ExpectSuccess("built-in copy", result);
         ExpectEqual(
             "frozen fingerprint",
-            0xDE0413BBC2C1453EUL,
+            0xF03FF59D36F39ECDUL,
             result.ActualFingerprint);
 
         SpanMemoryConformanceResult validation =
@@ -251,28 +265,61 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
         {
             SpanMemoryConformanceVector vector = Get(index);
             byte[] storage = new byte[16];
-            GetInputBytes(vector.Input).CopyTo(storage, vector.SourceOffset);
-            ReadOnlySpan<byte> bytes = storage.AsSpan(
-                vector.SourceOffset,
-                vector.ByteCount);
-            ReadOnlySpan<uint> cast = MemoryMarshal.Cast<byte, uint>(bytes);
-            ExpectEqual("memory cast element count", vector.Expected, (ulong)cast.Length);
+            WritePackedInput(
+                storage.AsSpan(vector.SourceOffset),
+                vector.ByteCount,
+                vector.Input);
+            byte[] castBytes = ExecuteDotNetMemoryCast(
+                vector,
+                storage,
+                out int resultElementCount);
             ExpectEqual(
-                "memory cast floor truncation",
-                vector.ByteCount / sizeof(uint),
-                cast.Length);
-            if (!cast.IsEmpty)
+                "memory cast result element count",
+                (int)vector.ExpectedElementCount,
+                resultElementCount);
+            ExpectEqual(
+                "memory cast output byte count",
+                (int)vector.ExpectedByteCount,
+                castBytes.Length);
+            ExpectEqual(
+                "memory cast exact output bytes",
+                vector.Expected,
+                Pack(castBytes));
+            for (int byteIndex = 0; byteIndex < castBytes.Length; byteIndex++)
             {
-                uint expectedFirst = BinaryPrimitives.ReadUInt32LittleEndian(bytes);
-                ExpectEqual("memory cast first value", expectedFirst, cast[0]);
+                ExpectEqual(
+                    "memory cast output byte",
+                    (byte)(vector.Expected >> (byteIndex * 8)),
+                    castBytes[byteIndex]);
             }
 
-            int ignoredTrailingBytes = vector.ByteCount - (cast.Length * sizeof(uint));
+            int ignoredTrailingBytes = vector.ByteCount - castBytes.Length;
             ExpectEqual(
                 "memory cast trailing byte count",
-                vector.ByteCount % sizeof(uint),
+                vector.ByteCount % vector.DestinationWidth,
                 ignoredTrailingBytes);
         }
+
+        SpanMemoryConformanceVector divisible = Get(9);
+        ExpectEqual("divisible cast source width", 1, divisible.SourceWidth);
+        ExpectEqual("divisible cast destination width", 2,
+            divisible.DestinationWidth);
+        ExpectEqual("divisible cast source bytes", 8, divisible.ByteCount);
+
+        SpanMemoryConformanceVector unalignedRemainder = Get(10);
+        ExpectEqual("unaligned cast source offset", 1,
+            unalignedRemainder.SourceOffset);
+        ExpectEqual("remainder cast source bytes", 6,
+            unalignedRemainder.ByteCount);
+        ExpectEqual("remainder cast destination width", 4,
+            unalignedRemainder.DestinationWidth);
+
+        SpanMemoryConformanceVector expansion = Get(11);
+        ExpectEqual("expansion cast source width", 4, expansion.SourceWidth);
+        ExpectEqual("expansion cast destination width", 1,
+            expansion.DestinationWidth);
+        ExpectEqual("expansion cast element count", 4,
+            expansion.ExpectedElementCount);
     }
 
     private static void TestUnalignedWidthVectorsAgainstDotNet10()
@@ -289,6 +336,15 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
             ulong read = ReadWidth(
                 storage.Slice(vector.SourceOffset),
                 vector.SourceWidth);
+            ulong expectedRaw = ConvertWidth(
+                vector.Input,
+                vector.SourceWidth,
+                destinationWidth: 8,
+                signExtend: false);
+            ExpectEqual(
+                "unaligned raw unsigned read",
+                expectedRaw,
+                read);
             ulong converted = ConvertWidth(
                 read,
                 vector.SourceWidth,
@@ -296,6 +352,266 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
                 vector.SignExtend);
             ExpectEqual("unaligned converted value", vector.Expected, converted);
         }
+    }
+
+    private static void TestExecuteCatalogResultsAndCanaries()
+    {
+        SpanMemoryConformanceVector[] catalogWithTail =
+            new SpanMemoryConformanceVector[17];
+        ExpectSuccess(
+            "execution catalog fixture",
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .CopyBuiltInCatalog(catalogWithTail));
+        SpanMemoryConformanceVector catalogTail = new(
+            99,
+            SpanMemoryConformanceOperation.Slice,
+            0,
+            0,
+            0,
+            1,
+            1,
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .ExpectedSuccessFlag,
+            0,
+            0,
+            99,
+            0);
+        catalogWithTail[16] = catalogTail;
+
+        byte[] warmScratch = new byte[
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .RequiredScratchBytes];
+        SpanMemoryVectorExecutionRecord[] warmOutput =
+            new SpanMemoryVectorExecutionRecord[16];
+        SpanMemoryExecutionResult warm =
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors.ExecuteCatalog(
+                catalogWithTail.AsSpan(0, 16),
+                warmScratch,
+                warmOutput,
+                SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                    .ExpectedCatalogFingerprint);
+        ExpectExecutionSuccess("warm execution", warm);
+        SpanMemoryVectorExecutionRecord outputTail = warmOutput[0];
+
+        byte[] scratch = new byte[
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .RequiredScratchBytes + 3];
+        Array.Fill(scratch, (byte)0xA5);
+        SpanMemoryVectorExecutionRecord[] output =
+            new SpanMemoryVectorExecutionRecord[18];
+        Array.Fill(output, outputTail);
+
+        SpanMemoryExecutionResult result =
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors.ExecuteCatalog(
+                catalogWithTail.AsSpan(0, 16),
+                scratch.AsSpan(
+                    1,
+                    SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                        .RequiredScratchBytes + 1),
+                output,
+                SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                    .ExpectedCatalogFingerprint);
+        ExpectExecutionSuccess("catalog execution", result);
+        ExpectEqual("executed vector count", 16, result.ExecutedVectorCount);
+        ExpectEqual("execution problem index", -1, result.ProblemIndex);
+
+        for (int index = 0; index < 16; index++)
+        {
+            SpanMemoryConformanceVector vector = catalogWithTail[index];
+            SpanMemoryVectorExecutionRecord record = output[index];
+            if (!record.Succeeded)
+            {
+                throw new InvalidOperationException(
+                    "Execution record failed at index " + index + ".");
+            }
+
+            ExpectEqual("execution key", vector.Key, record.Key);
+            ExpectEqual("execution operation", vector.Operation, record.Operation);
+            ExpectEqual(
+                "execution output byte count",
+                vector.ExpectedByteCount,
+                record.OutputByteCount);
+            ExpectEqual(
+                "execution element count",
+                vector.ExpectedElementCount,
+                record.ResultElementCount);
+            ExpectEqual(
+                "execution exact output bytes",
+                vector.Expected,
+                record.OutputBytes);
+
+            ulong expectedRaw =
+                vector.Operation == SpanMemoryConformanceOperation.UnalignedWidth
+                ? ConvertWidth(
+                    vector.Input,
+                    vector.SourceWidth,
+                    destinationWidth: 8,
+                    signExtend: false)
+                : 0;
+            ExpectEqual(
+                "execution raw unsigned width",
+                expectedRaw,
+                record.RawUnsignedValue);
+
+            bool expectedRejection =
+                vector.Operation == SpanMemoryConformanceOperation.Slice &&
+                !vector.ExpectedSuccess;
+            ExpectEqual(
+                "execution record status",
+                expectedRejection
+                    ? SpanMemoryVectorExecutionStatus.ExpectedRejection
+                    : SpanMemoryVectorExecutionStatus.Success,
+                record.Status);
+            ExpectEqual(
+                "execution rejected input preservation",
+                expectedRejection,
+                record.RejectedInputPreserved);
+            if (expectedRejection)
+            {
+                ExpectEqual(
+                    "rejected slice scratch preservation",
+                    vector.Input,
+                    record.ScratchAfter);
+            }
+        }
+
+        ExpectEqual("scratch leading canary", (byte)0xA5, scratch[0]);
+        ExpectEqual(
+            "scratch in-span tail",
+            (byte)0xA5,
+            scratch[SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .RequiredScratchBytes + 1]);
+        ExpectEqual("scratch trailing canary", (byte)0xA5, scratch[^1]);
+        ExpectRecordEqual("output first tail", outputTail, output[16]);
+        ExpectRecordEqual("output second tail", outputTail, output[17]);
+        ExpectEqual("catalog tail key", 99, catalogWithTail[16].Key);
+    }
+
+    private static void TestExecuteCatalogFailuresAreAtomic()
+    {
+        SpanMemoryConformanceVector[] vectors = CreateCopiedCatalog();
+        SpanMemoryVectorExecutionRecord sentinel = CreateExecutionSentinel(vectors);
+
+        AssertExecutionFailureAtomic(
+            "stale execution fingerprint",
+            vectors,
+            SpanMemoryExecutionStatus.CatalogValidationFailed,
+            SpanMemoryConformanceStatus.CatalogFingerprintMismatch,
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .ExpectedCatalogFingerprint ^ 1UL,
+            scratchLength: 16,
+            outputLength: 16,
+            sentinel);
+
+        SpanMemoryConformanceVector[] malformed = CreateCopiedCatalog();
+        malformed[9] = Clone(
+            malformed[9],
+            expectedByteCount: (byte)(malformed[9].ExpectedByteCount - 1));
+        AssertExecutionFailureAtomic(
+            "malformed execution catalog",
+            malformed,
+            SpanMemoryExecutionStatus.CatalogValidationFailed,
+            SpanMemoryConformanceStatus.VectorMalformed,
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .ExpectedCatalogFingerprint,
+            scratchLength: 16,
+            outputLength: 16,
+            sentinel);
+
+        AssertExecutionFailureAtomic(
+            "short execution scratch",
+            vectors,
+            SpanMemoryExecutionStatus.ScratchCapacityTooSmall,
+            expectedCatalogStatus: null,
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .ExpectedCatalogFingerprint,
+            scratchLength: 15,
+            outputLength: 16,
+            sentinel);
+        AssertExecutionFailureAtomic(
+            "short execution output",
+            vectors,
+            SpanMemoryExecutionStatus.OutputCapacityTooSmall,
+            expectedCatalogStatus: null,
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .ExpectedCatalogFingerprint,
+            scratchLength: 16,
+            outputLength: 15,
+            sentinel);
+
+        SpanMemoryConformanceVector[] oversized = new SpanMemoryConformanceVector[17];
+        Array.Copy(vectors, oversized, vectors.Length);
+        AssertExecutionFailureAtomic(
+            "execution vector count mismatch",
+            oversized,
+            SpanMemoryExecutionStatus.CatalogValidationFailed,
+            SpanMemoryConformanceStatus.VectorCountMismatch,
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .ExpectedCatalogFingerprint,
+            scratchLength: 16,
+            outputLength: 16,
+            sentinel);
+    }
+
+    private static void TestExecuteCatalogRejectsAliases()
+    {
+        SpanMemoryConformanceVector[] vectors = CreateCopiedCatalog();
+        SpanMemoryVectorExecutionRecord[] output =
+            new SpanMemoryVectorExecutionRecord[16];
+        Span<byte> vectorBytes = MemoryMarshal.AsBytes(vectors.AsSpan());
+        SpanMemoryExecutionResult vectorScratchAlias =
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors.ExecuteCatalog(
+                vectors,
+                vectorBytes[..16],
+                output,
+                SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                    .ExpectedCatalogFingerprint);
+        ExpectExecutionStatus(
+            "vector scratch alias",
+            SpanMemoryExecutionStatus.BufferAlias,
+            vectorScratchAlias);
+        ExpectEqual("vector scratch alias preserved", 1, vectors[0].Key);
+
+        int recordBytes = Unsafe.SizeOf<SpanMemoryVectorExecutionRecord>() * 16;
+        byte[] outputStorage = new byte[recordBytes];
+        Span<SpanMemoryVectorExecutionRecord> aliasedOutput =
+            MemoryMarshal.Cast<byte, SpanMemoryVectorExecutionRecord>(
+                outputStorage.AsSpan());
+        SpanMemoryExecutionResult scratchOutputAlias =
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors.ExecuteCatalog(
+                vectors,
+                outputStorage.AsSpan(0, 16),
+                aliasedOutput,
+                SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                    .ExpectedCatalogFingerprint);
+        ExpectExecutionStatus(
+            "scratch output alias",
+            SpanMemoryExecutionStatus.BufferAlias,
+            scratchOutputAlias);
+
+        byte[] vectorOutputStorage = new byte[recordBytes];
+        Span<SpanMemoryConformanceVector> aliasedVectors =
+            MemoryMarshal.Cast<byte, SpanMemoryConformanceVector>(
+                vectorOutputStorage.AsSpan())[..16];
+        ExpectSuccess(
+            "vector output alias fixture",
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .CopyBuiltInCatalog(aliasedVectors));
+        Span<SpanMemoryVectorExecutionRecord> vectorAliasedOutput =
+            MemoryMarshal.Cast<byte, SpanMemoryVectorExecutionRecord>(
+                vectorOutputStorage.AsSpan())[..16];
+        SpanMemoryExecutionResult vectorOutputAlias =
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors.ExecuteCatalog(
+                aliasedVectors,
+                new byte[16],
+                vectorAliasedOutput,
+                SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                    .ExpectedCatalogFingerprint);
+        ExpectExecutionStatus(
+            "vector output alias",
+            SpanMemoryExecutionStatus.BufferAlias,
+            vectorOutputAlias);
+        ExpectEqual("vector output alias preserved", 1, aliasedVectors[0].Key);
     }
 
     private static void TestShortDestinationIsAtomic()
@@ -306,6 +622,8 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
             0,
             0,
             0,
+            1,
+            1,
             1,
             1,
             1,
@@ -435,6 +753,10 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
             Clone(slice, sourceOffset: 7, byteCount: 4));
         ExpectMalformed("slice expected value", 1,
             Clone(slice, expected: slice.Expected ^ 1UL));
+        ExpectMalformed("slice expected byte count", 1,
+            Clone(slice, expectedByteCount: 3));
+        ExpectMalformed("slice expected element count", 1,
+            Clone(slice, expectedElementCount: 3));
 
         SpanMemoryConformanceVector rejectedSlice = Get(3);
         ExpectMalformed("slice valid rejected range", 3,
@@ -455,12 +777,16 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
             Clone(overlap, destinationOffset: 6));
         ExpectMalformed("overlap expected value", 4,
             Clone(overlap, expected: overlap.Expected ^ 1UL));
+        ExpectMalformed("overlap expected byte count", 4,
+            Clone(overlap, expectedByteCount: 7));
+        ExpectMalformed("overlap expected element count", 4,
+            Clone(overlap, expectedElementCount: 7));
 
         SpanMemoryConformanceVector memoryCast = Get(9);
         ExpectMalformed("memory cast source width", 9,
-            Clone(memoryCast, sourceWidth: 2));
+            Clone(memoryCast, sourceWidth: 3));
         ExpectMalformed("memory cast destination width", 9,
-            Clone(memoryCast, destinationWidth: 2));
+            Clone(memoryCast, destinationWidth: 3));
         ExpectMalformed("memory cast destination offset", 9,
             Clone(memoryCast, destinationOffset: 1));
         ExpectMalformed("memory cast sign extension", 9,
@@ -470,7 +796,17 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
         ExpectMalformed("memory cast source range", 9,
             Clone(memoryCast, sourceOffset: 15));
         ExpectMalformed("memory cast expected count", 9,
-            Clone(memoryCast, expected: memoryCast.Expected + 1));
+            Clone(memoryCast,
+                expectedElementCount: (byte)(memoryCast.ExpectedElementCount + 1)));
+        ExpectMalformed("memory cast expected byte count", 9,
+            Clone(memoryCast,
+                expectedByteCount: (byte)(memoryCast.ExpectedByteCount - 1)));
+        ExpectMalformed("memory cast expected bytes", 9,
+            Clone(memoryCast, expected: memoryCast.Expected ^ 1UL));
+
+        SpanMemoryConformanceVector expansionCast = Get(11);
+        ExpectMalformed("memory cast partial source element", 11,
+            Clone(expansionCast, byteCount: 3));
 
         SpanMemoryConformanceVector width = Get(13);
         ExpectMalformed("unsafe unsupported source width", 13,
@@ -488,6 +824,10 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
                 .SignExtendFlag));
         ExpectMalformed("unsafe expected value", 13,
             Clone(width, expected: width.Expected ^ 1UL));
+        ExpectMalformed("unsafe expected byte count", 13,
+            Clone(width, expectedByteCount: 7));
+        ExpectMalformed("unsafe expected element count", 13,
+            Clone(width, expectedElementCount: 2));
 
         SpanMemoryConformanceVector truncatingWidth = Get(15);
         ExpectMalformed("unsafe invalid sign extension", 15,
@@ -558,6 +898,15 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
         {
             throw new InvalidOperationException("Default vector initialized.");
         }
+
+        SpanMemoryExecutionResult execution = default;
+        SpanMemoryVectorExecutionRecord record = default;
+        if (execution.IsInitialized || execution.Succeeded ||
+            record.IsInitialized || record.Succeeded)
+        {
+            throw new InvalidOperationException(
+                "Default execution result or record succeeded.");
+        }
     }
 
     private static void TestAllocationFreeValidation()
@@ -566,6 +915,13 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
             stackalloc SpanMemoryConformanceVector[
                 SpanOverlapMemoryCastUnsafeWidthConformanceVectors
                     .TotalVectorCount];
+        Span<byte> scratch = stackalloc byte[
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .RequiredScratchBytes];
+        Span<SpanMemoryVectorExecutionRecord> output =
+            stackalloc SpanMemoryVectorExecutionRecord[
+                SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                    .RequiredExecutionRecordCount];
         ExpectSuccess(
             "allocation warmup copy",
             SpanOverlapMemoryCastUnsafeWidthConformanceVectors
@@ -574,6 +930,14 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
             "allocation warmup validation",
             SpanOverlapMemoryCastUnsafeWidthConformanceVectors.ValidateCatalog(
                 vectors,
+                SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                    .ExpectedCatalogFingerprint));
+        ExpectExecutionSuccess(
+            "allocation warmup execution",
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors.ExecuteCatalog(
+                vectors,
+                scratch,
+                output,
                 SpanOverlapMemoryCastUnsafeWidthConformanceVectors
                     .ExpectedCatalogFingerprint));
         long before = GC.GetAllocatedBytesForCurrentThread();
@@ -587,7 +951,14 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
                     vectors,
                     SpanOverlapMemoryCastUnsafeWidthConformanceVectors
                         .ExpectedCatalogFingerprint);
-            if (!copy.Succeeded || !validation.Succeeded)
+            SpanMemoryExecutionResult execution =
+                SpanOverlapMemoryCastUnsafeWidthConformanceVectors.ExecuteCatalog(
+                    vectors,
+                    scratch,
+                    output,
+                    SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                        .ExpectedCatalogFingerprint);
+            if (!copy.Succeeded || !validation.Succeeded || !execution.Succeeded)
             {
                 throw new InvalidOperationException(
                     "Warmed allocation-free catalog operation failed.");
@@ -595,7 +966,73 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
         }
 
         long after = GC.GetAllocatedBytesForCurrentThread();
-        ExpectEqual("copy and validation allocation", before, after);
+        ExpectEqual("copy validation and execution allocation", before, after);
+    }
+
+    private static void TestUnsafeWidthSourceMutationRejected()
+    {
+        string root = FindRepositoryRoot();
+        string testPath = Path.Combine(
+            root,
+            "tests",
+            "OS.HostTests",
+            "SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests.cs");
+        string source = File.ReadAllText(testPath);
+        int readWidthStart = source.LastIndexOf(
+            "private static ulong ReadWidth(",
+            StringComparison.Ordinal);
+        int readWidthEnd = source.IndexOf(
+            "private static ulong ConvertWidth(",
+            readWidthStart,
+            StringComparison.Ordinal);
+        if (readWidthStart < 0 || readWidthEnd <= readWidthStart)
+        {
+            throw new InvalidOperationException(
+                "Unsafe-width read source boundary is malformed.");
+        }
+
+        string readWidthSource = source[readWidthStart..readWidthEnd];
+        if (!HasExactUnsafeWidthReadBranches(readWidthSource))
+        {
+            throw new InvalidOperationException(
+                "Accepted unsafe-width read source failed its own boundary.");
+        }
+
+        const string Width8 =
+            "8 => Unsafe.ReadUnaligned<ulong>(ref start),";
+        const string HostileWidth8 =
+            "8 => Unsafe.ReadUnaligned<uint>(ref start),";
+        string hostile = readWidthSource.Replace(
+            Width8,
+            HostileWidth8,
+            StringComparison.Ordinal);
+        if (hostile == readWidthSource || HasExactUnsafeWidthReadBranches(hostile))
+        {
+            throw new InvalidOperationException(
+                "uint-for-ulong unsafe-width source mutation was accepted.");
+        }
+    }
+
+    private static bool HasExactUnsafeWidthReadBranches(string source)
+    {
+        string[] required =
+        [
+            "1 => Unsafe.ReadUnaligned<byte>(ref start),",
+            "2 => Unsafe.ReadUnaligned<ushort>(ref start),",
+            "4 => Unsafe.ReadUnaligned<uint>(ref start),",
+            "8 => Unsafe.ReadUnaligned<ulong>(ref start),"
+        ];
+        for (int index = 0; index < required.Length; index++)
+        {
+            if (CountOccurrences(source, required[index]) != 1)
+            {
+                return false;
+            }
+        }
+
+        return !source.Contains(
+            "8 => Unsafe.ReadUnaligned<uint>(ref start),",
+            StringComparison.Ordinal);
     }
 
     private static void TestSourceBoundary()
@@ -645,12 +1082,19 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
         RequireContains(source, "#if !NOSTDLIB_EFI");
         RequireContains(source, "SpanMemoryConformanceVector* destination");
         RequireContains(source, "SpanMemoryConformanceVector* vectors");
+        RequireContains(source, "public static unsafe SpanMemoryExecutionResult ExecuteCatalog(");
+        RequireContains(source, "SpanMemoryVectorExecutionRecord* output");
         RequireContains(source, "SpanMemoryConformanceStatus.VectorPointerNull");
+        RequireContains(source, "SpanMemoryExecutionStatus.PointerRangeWrap");
+        RequireContains(source, "SpanMemoryExecutionStatus.BufferAlias");
         RequireContains(source, "stackalloc SpanMemoryConformanceVector[TotalVectorCount]");
-        RequireContains(source, "ExpectedCatalogFingerprint = 0xDE0413BBC2C1453EUL");
+        RequireContains(source, "ExpectedCatalogFingerprint = 0xF03FF59D36F39ECDUL");
         RequireContains(source, "14695981039346656037UL");
         RequireContains(source, "1099511628211UL");
         RequireContains(source, "public const int PointerWidth = 8;");
+        RequireContains(source, "public const int RequiredScratchBytes = 16;");
+        RequireContains(source,
+            "public const int RequiredExecutionRecordCount = TotalVectorCount;");
         RequireContains(source, "public const bool MemoryCastAllowsUnalignedStart = true;");
         RequireContains(source,
             "public const bool MemoryCastFloorTruncatesTrailingBytes = true;");
@@ -660,6 +1104,7 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
         RequireContains(source, "public const bool RequiresHostConformance = false;");
         RequireContains(source, "public const bool SatisfiesRuntimeCompletionGate4 = false;");
         RequireContains(source, "public bool SatisfiesRuntimeCompletionGate4 => false;");
+        RequireContains(source, "record.RawUnsignedValue == expectedRawUnsignedValue");
 
         int hostBranchStart = source.IndexOf(
             "#if !NOSTDLIB_EFI",
@@ -686,6 +1131,14 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
             "System.",
             "ReadOnlySpan<",
             "Span<",
+            "[]",
+            "List<",
+            "Dictionary<",
+            "Enumerable.",
+            "Reflection",
+            "dynamic ",
+            "throw ",
+            "Exception",
             "GC.",
             "Array.",
             "new "
@@ -740,6 +1193,115 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
                 .ExpectedCatalogFingerprint);
     }
 
+    private static SpanMemoryVectorExecutionRecord CreateExecutionSentinel(
+        SpanMemoryConformanceVector[] vectors)
+    {
+        byte[] scratch = new byte[16];
+        SpanMemoryVectorExecutionRecord[] output =
+            new SpanMemoryVectorExecutionRecord[16];
+        ExpectExecutionSuccess(
+            "execution sentinel fixture",
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors.ExecuteCatalog(
+                vectors,
+                scratch,
+                output,
+                SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                    .ExpectedCatalogFingerprint));
+        return output[0];
+    }
+
+    private static void AssertExecutionFailureAtomic(
+        string name,
+        SpanMemoryConformanceVector[] vectors,
+        SpanMemoryExecutionStatus expectedStatus,
+        SpanMemoryConformanceStatus? expectedCatalogStatus,
+        ulong fingerprint,
+        int scratchLength,
+        int outputLength,
+        SpanMemoryVectorExecutionRecord sentinel)
+    {
+        byte[] scratch = new byte[scratchLength];
+        Array.Fill(scratch, (byte)0xA5);
+        SpanMemoryVectorExecutionRecord[] output =
+            new SpanMemoryVectorExecutionRecord[outputLength];
+        Array.Fill(output, sentinel);
+
+        SpanMemoryExecutionResult result =
+            SpanOverlapMemoryCastUnsafeWidthConformanceVectors.ExecuteCatalog(
+                vectors,
+                scratch,
+                output,
+                fingerprint);
+        ExpectExecutionStatus(name, expectedStatus, result);
+        if (expectedCatalogStatus.HasValue)
+        {
+            if (!result.CatalogValidation.IsInitialized)
+            {
+                throw new InvalidOperationException(
+                    name + " did not preserve catalog failure detail.");
+            }
+
+            ExpectEqual(
+                name + " catalog status",
+                expectedCatalogStatus.Value,
+                result.CatalogValidation.Status);
+        }
+
+        for (int index = 0; index < scratch.Length; index++)
+        {
+            ExpectEqual(name + " scratch atomic", (byte)0xA5, scratch[index]);
+        }
+
+        for (int index = 0; index < output.Length; index++)
+        {
+            ExpectRecordEqual(name + " output atomic", sentinel, output[index]);
+        }
+    }
+
+    private static void ExpectExecutionSuccess(
+        string name,
+        SpanMemoryExecutionResult result)
+    {
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException(
+                name + " failed with " + result.Status + ".");
+        }
+    }
+
+    private static void ExpectExecutionStatus(
+        string name,
+        SpanMemoryExecutionStatus expected,
+        SpanMemoryExecutionResult result)
+    {
+        if (!result.IsInitialized || result.Status != expected || result.Succeeded)
+        {
+            throw new InvalidOperationException(
+                name + " expected " + expected + " but got "
+                + result.Status + ".");
+        }
+    }
+
+    private static void ExpectRecordEqual(
+        string name,
+        SpanMemoryVectorExecutionRecord expected,
+        SpanMemoryVectorExecutionRecord actual)
+    {
+        if (expected.IsInitialized != actual.IsInitialized ||
+            expected.Key != actual.Key ||
+            expected.Operation != actual.Operation ||
+            expected.Status != actual.Status ||
+            expected.OutputByteCount != actual.OutputByteCount ||
+            expected.ResultElementCount != actual.ResultElementCount ||
+            expected.RawUnsignedValue != actual.RawUnsignedValue ||
+            expected.OutputBytes != actual.OutputBytes ||
+            expected.ScratchAfter != actual.ScratchAfter ||
+            expected.RejectedInputPreserved != actual.RejectedInputPreserved)
+        {
+            throw new InvalidOperationException(name + " record changed.");
+        }
+    }
+
     private static void ExpectMalformed(
         string name,
         int index,
@@ -765,6 +1327,8 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
         byte? sourceWidth = null,
         byte? destinationWidth = null,
         byte? flags = null,
+        byte? expectedByteCount = null,
+        byte? expectedElementCount = null,
         ulong? input = null,
         ulong? expected = null)
     {
@@ -777,6 +1341,8 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
             sourceWidth ?? vector.SourceWidth,
             destinationWidth ?? vector.DestinationWidth,
             flags ?? vector.Flags,
+            expectedByteCount ?? vector.ExpectedByteCount,
+            expectedElementCount ?? vector.ExpectedElementCount,
             input ?? vector.Input,
             expected ?? vector.Expected);
     }
@@ -786,6 +1352,51 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
         byte[] bytes = new byte[8];
         BinaryPrimitives.WriteUInt64LittleEndian(bytes, value);
         return bytes;
+    }
+
+    private static void WritePackedInput(
+        Span<byte> destination,
+        int count,
+        ulong value)
+    {
+        for (int index = 0; index < count; index++)
+        {
+            destination[index] = (byte)(value >> (index * 8));
+        }
+    }
+
+    private static byte[] ExecuteDotNetMemoryCast(
+        SpanMemoryConformanceVector vector,
+        byte[] storage,
+        out int resultElementCount)
+    {
+        ReadOnlySpan<byte> bytes = storage.AsSpan(
+            vector.SourceOffset,
+            vector.ByteCount);
+        if (vector.SourceWidth == 1 && vector.DestinationWidth == 2)
+        {
+            ReadOnlySpan<ushort> cast = MemoryMarshal.Cast<byte, ushort>(bytes);
+            resultElementCount = cast.Length;
+            return MemoryMarshal.AsBytes(cast).ToArray();
+        }
+
+        if (vector.SourceWidth == 1 && vector.DestinationWidth == 4)
+        {
+            ReadOnlySpan<uint> cast = MemoryMarshal.Cast<byte, uint>(bytes);
+            resultElementCount = cast.Length;
+            return MemoryMarshal.AsBytes(cast).ToArray();
+        }
+
+        if (vector.SourceWidth == 4 && vector.DestinationWidth == 1)
+        {
+            ReadOnlySpan<uint> source = MemoryMarshal.Cast<byte, uint>(bytes);
+            ReadOnlySpan<byte> cast = MemoryMarshal.Cast<uint, byte>(source);
+            resultElementCount = cast.Length;
+            return cast.ToArray();
+        }
+
+        throw new InvalidOperationException(
+            "Unexpected frozen memory-cast shape.");
     }
 
     private static ulong Pack(ReadOnlySpan<byte> bytes)
@@ -897,6 +1508,25 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
         }
     }
 
+    private static int CountOccurrences(string source, string value)
+    {
+        int count = 0;
+        int offset = 0;
+        while (offset <= source.Length - value.Length)
+        {
+            int index = source.IndexOf(value, offset, StringComparison.Ordinal);
+            if (index < 0)
+            {
+                break;
+            }
+
+            count++;
+            offset = index + value.Length;
+        }
+
+        return count;
+    }
+
     private static void ExpectSuccess(
         string name,
         SpanMemoryConformanceResult result)
@@ -921,9 +1551,8 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
     }
 
     private static void ExpectEqual<T>(string name, T expected, T actual)
-        where T : IEquatable<T>
     {
-        if (!actual.Equals(expected))
+        if (!EqualityComparer<T>.Default.Equals(actual, expected))
         {
             throw new InvalidOperationException(
                 name + " expected " + expected + " but got " + actual + ".");
