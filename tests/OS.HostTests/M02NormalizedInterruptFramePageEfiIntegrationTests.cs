@@ -913,7 +913,8 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
                 StringComparison.Ordinal));
         if (line is null)
         {
-            return [];
+            throw new InvalidOperationException(
+                "Missing QEMU marker summary line: " + prefix);
         }
 
         string value = line[prefix.Length..];
