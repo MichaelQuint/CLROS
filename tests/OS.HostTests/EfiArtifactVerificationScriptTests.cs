@@ -4914,6 +4914,7 @@ internal static class EfiArtifactVerificationScriptTests
             ["EnableM02PanicSafeOwnedCom1Probe"] = "false",
             ["EnableM02OwnedX64GdtEncodingProbe"] = "false",
             ["EnableM02GuardedIstStackAllocationProbe"] = "false",
+            ["EnableM02OwnedGdtTssTerminalProbe"] = "false",
             ["EnableM04IndependentEndianConformanceProbe"] = "false",
             ["ImportProjectExtensionProps"] = "false",
             ["ImportProjectExtensionTargets"] = "false",
