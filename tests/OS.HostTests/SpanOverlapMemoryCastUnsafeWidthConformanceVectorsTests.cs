@@ -1193,6 +1193,7 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
                     public struct Boolean { }
                     public struct Byte { }
                     public struct Int32 { }
+                    public struct UInt32 { }
                     public struct UInt64 { }
                     public struct IntPtr { }
                     public struct UIntPtr { }
