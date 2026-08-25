@@ -2615,6 +2615,24 @@ internal static class QemuRunnerTests
         string source = ExtractM01RawObservationShimSource(script);
         string compactScript = RemoveWhitespace(script);
         string compactSource = RemoveWhitespace(source);
+        const string FileHashFunctionStart =
+            "function Get-M01FileSha256 {";
+        int fileHashFunctionStart = script.IndexOf(
+            FileHashFunctionStart,
+            StringComparison.Ordinal);
+        int fileHashFunctionEnd = fileHashFunctionStart < 0
+            ? -1
+            : script.IndexOf(
+                "function Get-M01ByteSha256 {",
+                fileHashFunctionStart,
+                StringComparison.Ordinal);
+        string fileHashFunction =
+            fileHashFunctionStart >= 0
+                && fileHashFunctionEnd > fileHashFunctionStart
+                    ? script.Substring(
+                        fileHashFunctionStart,
+                        fileHashFunctionEnd - fileHashFunctionStart)
+                    : string.Empty;
         string[] environmentNames = GetM01RawObservationEnvironmentNames();
         const string EnvironmentTableStart =
             "$environmentValues = [ordered]@{";
@@ -2830,6 +2848,27 @@ internal static class QemuRunnerTests
                 "Assert-M01RawObservationSidecar",
                 "TEST_PASS m01.026.raw-observations");
 
+        bool fileHashSourceContract =
+            fileHashFunction.Length > 0
+            && fileHashFunction.Contains(
+                "[System.IO.File]::Open(",
+                StringComparison.Ordinal)
+            && fileHashFunction.Contains(
+                "[System.Security.Cryptography.SHA256]::Create()",
+                StringComparison.Ordinal)
+            && fileHashFunction.Contains(
+                "$sha256.ComputeHash($stream)",
+                StringComparison.Ordinal)
+            && fileHashFunction.Contains(
+                "$stream.Dispose()",
+                StringComparison.Ordinal)
+            && fileHashFunction.Contains(
+                "$sha256.Dispose()",
+                StringComparison.Ordinal)
+            && !fileHashFunction.Contains(
+                "Get-FileHash",
+                StringComparison.Ordinal);
+
         bool qmpContract =
             fatalQmpEvents.SequenceEqual(
                 expectedFatalQmpEvents,
@@ -2869,6 +2908,7 @@ internal static class QemuRunnerTests
             && substitutionAndTimeoutContract
             && terminalGateContract
             && sidecarPodAndHashContract
+            && fileHashSourceContract
             && qmpContract;
     }
 
@@ -7344,6 +7384,10 @@ internal static class QemuRunnerTests
                     exit 97
                 }
                 . ([scriptblock]::Create($matching[0].Extent.Text))
+            }
+
+            function Get-FileHash {
+                throw "poisoned Get-FileHash command executed"
             }
 
             $capture = [PSCustomObject]@{
