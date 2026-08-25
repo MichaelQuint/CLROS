@@ -83,6 +83,22 @@ The no-stdlib surface is not implemented beyond the first EFI shell boundary. `s
   fail-closed null-pointer statuses; that branch uses no spans, arrays,
   exceptions, allocation, reflection, or dynamic invocation. The catalog adds
   no canonical `System.*` API and cannot satisfy completion Gate 4.
+- `OS.Std.Memory.SpanOverlapMemoryCastUnsafeWidthConformanceVectors` provides
+  an allocation-free, reference-free catalog of exactly 16 deterministic
+  vectors: four slice boundaries, five memmove-style overlap shapes, three
+  byte-to-`uint` memory-cast shapes, and four unaligned access widths
+  (`1/2/4/8`). The catalog records successful and rejected slice boundaries,
+  both overlap directions, equal and zero-length ranges, trailing-byte and
+  unaligned `MemoryMarshal.Cast` behavior, and zero extension, sign extension,
+  widening, native-width reads, and truncation. It validates exact count,
+  initialization, key and operation ranges, malformed metadata, duplicate and
+  append-only key order, and frozen FNV-1a64 fingerprint
+  `DE0413BBC2C1453E`. Copy validates all source and destination preconditions
+  before mutating caller-owned storage. Host builds expose only `Span<T>` APIs;
+  `NOSTDLIB_EFI` exposes unsafe pointer/count APIs with explicit capacity and a
+  distinct null-pointer status. The POD catalog adds no canonical `System.*`
+  surface, requires no reference files at runtime, fixes the audited pointer
+  width at eight bytes, and does not satisfy completion Gate 4.
 - `OS.Std.Hash.Crc32` provides an allocation-free reflected IEEE CRC32 helper using polynomial `0xEDB88320`, initial state `0xFFFFFFFF`, and final XOR `0xFFFFFFFF`. It supports one-shot `Compute`, incremental `Update`, and `Finish` over caller-provided `ReadOnlySpan<byte>` buffers without lazy static lookup tables.
 - `OS.Std.Net.InternetChecksum` provides allocation-free 16-bit ones-complement internet checksum support for network-order packet buffers. It supports one-shot checksums, two-, three-, and four-segment checksum overloads, validity checks, and an `InternetChecksumAccumulator` that preserves odd pending bytes across segment boundaries without allocating.
 - `OS.Std.NativeInt` provides a small pointer-sized unsigned arithmetic helper slice over `nuint`: checked add/subtract, power-of-two detection, alignment checks, and checked align-up/align-down results. It uses status-coded results so kernel/runtime planning paths can avoid exception-driven overflow handling.
@@ -388,6 +404,29 @@ host-path dependencies. Its stable host marker is
 uint16Series=7 fingerprint=E81E4451E8D999F6 ... hostConformance=true
 guestIntegrated=false gate4=Fail`. The MOSA snapshot is not required at test
 runtime and does not become first-party build input or CLROS evidence.
+
+`tests/OS.HostTests/SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests.cs`
+cross-checks the 16-vector M04-003 catalog against .NET 10 span copy,
+`MemoryMarshal.Cast`, and `BinaryPrimitives` behavior. It covers full, middle,
+empty, and invalid slices; forward/backward/equal/zero/non-overlapping copies;
+divisible, trailing-byte, and unaligned casts; widths `1/2/4/8`; widening,
+sign/zero extension, native-width preservation, and truncation. It also rejects
+short destinations without mutation, default/uninitialized/malformed entries,
+count/key/operation errors, duplicate and reordered keys, stale fingerprints,
+managed-reference layouts, and production `System` namespace/import leakage,
+and checks warmed catalog validation for zero host allocation. Its host marker
+is:
+
+```text
+CLROS_M04_003_READY vectors=16 slice=4 overlap=5 memoryCast=3 unalignedWidths=4 pointerWidth=8 fingerprint=DE0413BBC2C1453E referenceFilesRequired=false hostConformance=true guestIntegrated=false gate4=Fail
+```
+
+This is audited host-catalog evidence only. A separately owned integration
+issue must explicitly compile the pointer branch into the no-stdlib EFI source
+closure, validate all 16 vectors under fresh QEMU/OVMF, and emit exactly one
+`CLROS_M04_003_READY ... hostConformance=false guestIntegrated=true
+gate4=Fail`; its failure marker is `M04_SPAN_MEMORY_CONFORMANCE_FAILED`. Until
+that work exists, `guestIntegrated=false` and Gate 4 remains `Fail`.
 
 The source-frozen post-reboot gate at pushed commit
 `8ee0311d2a7c225b77b4efa7d86bce6831c71826`, tree
