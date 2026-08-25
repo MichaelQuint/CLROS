@@ -12,6 +12,7 @@ param(
     [switch]$EnableM02OwnedX64GdtEncodingProbe,
     [switch]$EnableM02GuardedIstStackAllocationProbe,
     [switch]$EnableM02OwnedGdtTssTerminalProbe,
+    [switch]$EnableM02NormalizedInterruptFramePageProbe,
     [switch]$EnableM04IndependentEndianConformanceProbe,
     [switch]$EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe
 )
@@ -35,7 +36,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 72
+$expectedSourceClosureInputCount = 73
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -123,6 +124,7 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs|Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs',
     '..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs',
     '..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs',
+    '..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs',
     '..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs',
     '..\..\std\no-runtime\shared\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs|Std\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs',
     '..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs|Boot\M01LoadedImageStackIntegration.cs',
@@ -3791,6 +3793,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM02OwnedX64GdtEncodingProbe," +
             "EnableM02GuardedIstStackAllocationProbe," +
             "EnableM02OwnedGdtTssTerminalProbe," +
+            "EnableM02NormalizedInterruptFramePageProbe," +
             "EnableM04IndependentEndianConformanceProbe," +
             "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe," +
             "ImportProjectExtensionProps,ImportProjectExtensionTargets," +
@@ -3911,6 +3914,10 @@ function Invoke-PostRestoreEvaluationSnapshot {
     if ($EnableM02OwnedGdtTssTerminalProbe) {
         $arguments +=
             "-p:EnableM02OwnedGdtTssTerminalProbe=true"
+    }
+    if ($EnableM02NormalizedInterruptFramePageProbe) {
+        $arguments +=
+            "-p:EnableM02NormalizedInterruptFramePageProbe=true"
     }
 
     $previousLink = $env:LINK
@@ -4061,6 +4068,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM02GuardedIstStackAllocationProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM02OwnedGdtTssTerminalProbe =
             $EnableM02OwnedGdtTssTerminalProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM02NormalizedInterruptFramePageProbe =
+            $EnableM02NormalizedInterruptFramePageProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04IndependentEndianConformanceProbe =
             $EnableM04IndependentEndianConformanceProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe =
@@ -4120,7 +4129,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 59 -or
+    if ($compileItems.Count -ne 60 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4245,6 +4254,11 @@ function Assert-PostRestoreEvidenceMatchesSnapshot {
 }
 
 Write-Output "TEST_START $testName"
+
+if ($EnableM02NormalizedInterruptFramePageProbe -and
+    $EnableM02OwnedGdtTssTerminalProbe) {
+    Write-Failure "m02_normalized_interrupt_frame_page_probe_forbids_owned_gdt_tss_terminal"
+}
 
 if ($EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -and
     -not $EnableM04IndependentEndianConformanceProbe) {

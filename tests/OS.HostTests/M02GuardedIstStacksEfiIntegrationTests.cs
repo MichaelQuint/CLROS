@@ -18,11 +18,11 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
     private const string FailureMarker =
         "M02_GUARDED_IST_STACK_ALLOCATION_FAILED";
     private const string CompileClosureSha256 =
-        "9e424befdb74433b2b179aefc15996e693d835099c196b2e8dc3716c5d7c4f6d";
+        "805e39822e162fd57be8421d6d19282267d8b71222602bb359c81ace9e7ba2e1";
     private const string ProjectFileSha256 =
-        "c50f1741e31e1bcfc95b8795bc20ed99532bab79dcd51cbbf6d60711b7435eef";
+        "90a9243917910a9516388abb301d9bec92f661c6a839dbfa25e24497288c2769";
     private const string CanonicalProjectShapeSha256 =
-        "9c7077357c7d060b4faf426c73e4d9f5f09fe5df87efac12a60decd3694bfbcf";
+        "05c6372ada146e1cf78dff3fb1d2c63601f788cf650172292f4d8724e15dbf45";
 
     private static readonly (string Path, string Sha256)[] ImmutableReviewedInputs =
     [
@@ -130,11 +130,15 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
             @"..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs";
         const string TerminalKey =
             @"..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs";
+        const string NormalizedInterruptFrameKey =
+            @"..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs";
         const string EndianKey =
             @"..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
         int gdtIndex = Array.IndexOf(compileKeys, GdtKey);
         int guardedIstIndex = Array.IndexOf(compileKeys, GuardedIstKey);
         int terminalIndex = Array.IndexOf(compileKeys, TerminalKey);
+        int normalizedInterruptFrameIndex =
+            Array.IndexOf(compileKeys, NormalizedInterruptFrameKey);
         int endianIndex = Array.IndexOf(compileKeys, EndianKey);
 
         XElement[] defaults = project
@@ -166,13 +170,14 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
 
         return maxValueDeclarations.Count == 1
             && runtime.Contains("public struct UInt64", StringComparison.Ordinal)
-            && compileItems.Length == 59
+            && compileItems.Length == 60
             && compileHash == CompileClosureSha256
             && projectHash == ProjectFileSha256
             && gdtIndex >= 0
             && guardedIstIndex == gdtIndex + 1
             && terminalIndex == guardedIstIndex + 1
-            && endianIndex == terminalIndex + 1
+            && normalizedInterruptFrameIndex == terminalIndex + 1
+            && endianIndex == normalizedInterruptFrameIndex + 1
             && compileKeys.Count(key => key == GuardedIstKey) == 1
             && defaults.Length == 1
             && defaults[0].Value == "false"
@@ -195,17 +200,17 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
                 "guarded_ist_stack_allocation_requires_owned_x64_gdt_encoding",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=72",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=73",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 CanonicalProjectShapeSha256,
                 StringComparison.Ordinal)
             && buildScript.Contains(GuardedIstKey, StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 72",
+                "$expectedSourceClosureInputCount = 73",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 59",
+                "$compileItems.Count -ne 60",
                 StringComparison.Ordinal)
             && verifierScript.Contains(GuardedIstKey, StringComparison.Ordinal)
             && verifierScript.Contains(

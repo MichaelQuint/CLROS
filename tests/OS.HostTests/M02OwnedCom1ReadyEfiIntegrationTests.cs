@@ -15,7 +15,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
         "guestPortIo=true guestIn8=true postExitBootServices=false";
     private const string FailureMarker = "M02_OWNED_COM1_READY_FAILED";
     private const string CompileClosureSha256 =
-        "9e424befdb74433b2b179aefc15996e693d835099c196b2e8dc3716c5d7c4f6d";
+        "805e39822e162fd57be8421d6d19282267d8b71222602bb359c81ace9e7ba2e1";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -105,6 +105,8 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
             @"..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs";
         const string TerminalKey =
             @"..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs";
+        const string NormalizedInterruptFrameKey =
+            @"..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs";
         const string CatalogKey =
             @"..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
         int backendIndex = Array.IndexOf(compileKeys, BackendKey);
@@ -113,6 +115,8 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
         int gdtIndex = Array.IndexOf(compileKeys, GdtKey);
         int guardedIstIndex = Array.IndexOf(compileKeys, GuardedIstKey);
         int terminalIndex = Array.IndexOf(compileKeys, TerminalKey);
+        int normalizedInterruptFrameIndex =
+            Array.IndexOf(compileKeys, NormalizedInterruptFrameKey);
         int catalogIndex = Array.IndexOf(compileKeys, CatalogKey);
 
         XElement[] defaults = project
@@ -138,7 +142,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 59
+        return compileItems.Length == 60
             && compileHash == CompileClosureSha256
             && backendIndex >= 0
             && writerIndex == backendIndex + 1
@@ -146,7 +150,8 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
             && gdtIndex == panicReporterIndex + 1
             && guardedIstIndex == gdtIndex + 1
             && terminalIndex == guardedIstIndex + 1
-            && catalogIndex == terminalIndex + 1
+            && normalizedInterruptFrameIndex == terminalIndex + 1
+            && catalogIndex == normalizedInterruptFrameIndex + 1
             && compileKeys.Count(key => key == WriterKey) == 1
             && compileKeys.Count(key => key == PanicReporterKey) == 1
             && defaults.Length == 1
@@ -170,7 +175,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
                 "m02_owned_com1_ready_requires_com1_owned_port_io",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=72",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=73",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 "\"-EnableM02OwnedCom1ReadyProbe\",\n            \"true\"",
@@ -182,10 +187,10 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
                 "[switch]$EnableM02OwnedCom1ReadyProbe",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 72",
+                "$expectedSourceClosureInputCount = 73",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 59",
+                "$compileItems.Count -ne 60",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
                 "-p:EnableM02OwnedCom1ReadyProbe=true",

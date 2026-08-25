@@ -7613,6 +7613,15 @@ public static unsafe class EfiEntry
             return;
         }
 #endif
+#if M02_NORMALIZED_INTERRUPT_FRAME_PAGE_PROBE
+        if (!WriteM02NormalizedInterruptFramePageProbe(
+                console,
+                serial,
+                systemTable))
+        {
+            return;
+        }
+#endif
         if (TryCaptureUefiMemoryMap(systemTable))
         {
             WriteUefiMemoryMapReady(console, serial);
@@ -8430,6 +8439,306 @@ public static unsafe class EfiEntry
     }
 
     private static void WriteM04SpanMemoryAscii(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial,
+        byte b0,
+        byte b1,
+        byte b2,
+        byte b3,
+        byte b4,
+        byte b5,
+        byte b6,
+        byte b7)
+    {
+        if (b0 != 0) Write(console, serial, b0);
+        if (b1 != 0) Write(console, serial, b1);
+        if (b2 != 0) Write(console, serial, b2);
+        if (b3 != 0) Write(console, serial, b3);
+        if (b4 != 0) Write(console, serial, b4);
+        if (b5 != 0) Write(console, serial, b5);
+        if (b6 != 0) Write(console, serial, b6);
+        if (b7 != 0) Write(console, serial, b7);
+    }
+#endif
+
+#if M02_NORMALIZED_INTERRUPT_FRAME_PAGE_PROBE
+    private const uint M02NormalizedInterruptFrameAllocateAnyPages = 0;
+    private const uint M02NormalizedInterruptFrameEfiLoaderData = 2;
+    private const ulong M02NormalizedInterruptFramePageCount = 1;
+    private const ulong M02NormalizedInterruptFramePageBytes = 4096;
+    private const ulong M02NormalizedInterruptFrameExpectedFnv1A64 =
+        0x428D0353A96B7ACEUL;
+
+    private static bool WriteM02NormalizedInterruptFramePageProbe(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial,
+        EfiSystemTable* systemTable)
+    {
+        WriteM02NormalizedInterruptFramePageStartLine(console, serial);
+
+        EfiBootServices* bootServices =
+            systemTable == null ? null : systemTable->BootServices;
+        if (bootServices == null ||
+            bootServices->AllocatePages == null ||
+            bootServices->FreePages == null)
+        {
+            WriteM02NormalizedInterruptFramePageFailureLines(
+                console,
+                serial);
+            return false;
+        }
+
+        ulong pageAddress = 0;
+        ulong allocationStatus = bootServices->AllocatePages(
+            M02NormalizedInterruptFrameAllocateAnyPages,
+            M02NormalizedInterruptFrameEfiLoaderData,
+            M02NormalizedInterruptFramePageCount,
+            &pageAddress);
+        bool pageOwned = allocationStatus == 0 && pageAddress != 0;
+        if (!pageOwned)
+        {
+            WriteM02NormalizedInterruptFramePageFailureLines(
+                console,
+                serial);
+            return false;
+        }
+
+        bool addressValid =
+            pageAddress != 0 &&
+            (pageAddress &
+                (M02NormalizedInterruptFramePageBytes - 1)) == 0 &&
+            OS.Kernel.Diagnostics
+                .NormalizeErrorCodeNonErrorCodeInterruptFrame
+                .IsCanonicalX64Address(pageAddress) &&
+            pageAddress <=
+                ~0UL - M02NormalizedInterruptFramePageBytes;
+        ulong commonTargetAddress = addressValid
+            ? pageAddress + M02NormalizedInterruptFramePageBytes
+            : 0;
+        addressValid =
+            addressValid &&
+            OS.Kernel.Diagnostics
+                .NormalizeErrorCodeNonErrorCodeInterruptFrame
+                .IsCanonicalX64Address(
+                    pageAddress +
+                    M02NormalizedInterruptFramePageBytes - 1) &&
+            OS.Kernel.Diagnostics
+                .NormalizeErrorCodeNonErrorCodeInterruptFrame
+                .IsCanonicalX64Address(commonTargetAddress);
+
+        bool resultsMatch = false;
+        if (addressValid)
+        {
+            OS.Kernel.Diagnostics.NormalizeInterruptFramePageResult
+                materializeResult =
+                OS.Kernel.Diagnostics
+                    .NormalizeErrorCodeNonErrorCodeInterruptFrame
+                    .Materialize(
+                        (byte*)pageAddress,
+                        M02NormalizedInterruptFramePageBytes,
+                        pageAddress,
+                        commonTargetAddress);
+            OS.Kernel.Diagnostics.NormalizeInterruptFramePageResult
+                readBackResult =
+                OS.Kernel.Diagnostics
+                    .NormalizeErrorCodeNonErrorCodeInterruptFrame
+                    .ValidateReadBack(
+                        (byte*)pageAddress,
+                        M02NormalizedInterruptFramePageBytes,
+                        pageAddress,
+                        commonTargetAddress);
+
+            resultsMatch =
+                OS.Kernel.Diagnostics
+                    .NormalizeErrorCodeNonErrorCodeInterruptFrame
+                    .VectorCount == 256 &&
+                OS.Kernel.Diagnostics
+                    .NormalizeErrorCodeNonErrorCodeInterruptFrame
+                    .SlotByteCount == 16 &&
+                OS.Kernel.Diagnostics
+                    .NormalizeErrorCodeNonErrorCodeInterruptFrame
+                    .PageByteCount == 4096 &&
+                OS.Kernel.Diagnostics
+                    .NormalizeErrorCodeNonErrorCodeInterruptFrame
+                    .PageAlignment == 4096 &&
+                OS.Kernel.Diagnostics
+                    .NormalizeErrorCodeNonErrorCodeInterruptFrame
+                    .NormalizedSemanticSlotCount == 3 &&
+                OS.Kernel.Diagnostics
+                    .NormalizeErrorCodeNonErrorCodeInterruptFrame
+                    .HardwareErrorCodeVectorCount == 9 &&
+                OS.Kernel.Diagnostics
+                    .NormalizeErrorCodeNonErrorCodeInterruptFrame
+                    .SyntheticErrorCodeVectorCount == 247 &&
+                M02NormalizedInterruptFramePageResultMatches(
+                    materializeResult,
+                    OS.Kernel.Diagnostics
+                        .NormalizeInterruptFramePageOperation
+                        .Materialize,
+                    pageAddress,
+                    commonTargetAddress,
+                    true) &&
+                M02NormalizedInterruptFramePageResultMatches(
+                    readBackResult,
+                    OS.Kernel.Diagnostics
+                        .NormalizeInterruptFramePageOperation
+                        .ValidateReadBack,
+                    pageAddress,
+                    commonTargetAddress,
+                    false) &&
+                materializeResult.Fingerprint ==
+                    readBackResult.Fingerprint;
+        }
+
+        ulong releaseStatus = bootServices->FreePages(
+            pageAddress,
+            M02NormalizedInterruptFramePageCount);
+        if (!addressValid || !resultsMatch || releaseStatus != 0)
+        {
+            WriteM02NormalizedInterruptFramePageFailureLines(
+                console,
+                serial);
+            return false;
+        }
+
+        WriteM02NormalizedInterruptFramePageSuccessLine(console, serial);
+        WriteM02NormalizedInterruptFramePagePassLine(console, serial);
+        return true;
+    }
+
+    private static bool M02NormalizedInterruptFramePageResultMatches(
+        OS.Kernel.Diagnostics.NormalizeInterruptFramePageResult result,
+        OS.Kernel.Diagnostics.NormalizeInterruptFramePageOperation operation,
+        ulong pageAddress,
+        ulong commonTargetAddress,
+        bool materialized)
+    {
+        return result.IsInitialized &&
+            result.Operation == operation &&
+            result.Status ==
+                OS.Kernel.Diagnostics
+                    .NormalizeInterruptFramePageStatus.Success &&
+            result.ModeledPageAddress == pageAddress &&
+            result.CommonTargetAddress == commonTargetAddress &&
+            result.PageCapacity ==
+                M02NormalizedInterruptFramePageBytes &&
+            result.RequiredBytes ==
+                (int)M02NormalizedInterruptFramePageBytes &&
+            result.BytesWritten ==
+                (materialized
+                    ? (int)M02NormalizedInterruptFramePageBytes
+                    : 0) &&
+            result.BytesCompared ==
+                (int)M02NormalizedInterruptFramePageBytes &&
+            result.FirstMismatchOffset == -1 &&
+            result.HardwareErrorCodeVectorCount == 9 &&
+            result.SyntheticErrorCodeVectorCount == 247 &&
+            result.Fingerprint ==
+                M02NormalizedInterruptFrameExpectedFnv1A64 &&
+            result.DestinationMutated == materialized &&
+            result.ReadBackPerformed &&
+            result.Materialized == materialized &&
+            result.ReadBackValidated == !materialized &&
+            result.Succeeded;
+    }
+
+    private static void WriteM02NormalizedInterruptFramePageStartLine(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'T', (byte)'E', (byte)'S', (byte)'T', (byte)'_', (byte)'S', (byte)'T', (byte)'A');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'R', (byte)'T', (byte)' ', (byte)'m', (byte)'0', (byte)'2', (byte)'.', (byte)'0');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'1', (byte)'0', 0, 0, 0, 0, 0, 0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM02NormalizedInterruptFramePageSuccessLine(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'C', (byte)'L', (byte)'R', (byte)'O', (byte)'S', (byte)'_', (byte)'M', (byte)'0');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'2', (byte)'_', (byte)'0', (byte)'1', (byte)'0', (byte)'_', (byte)'R', (byte)'E');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'A', (byte)'D', (byte)'Y', (byte)' ', (byte)'v', (byte)'e', (byte)'c', (byte)'t');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'o', (byte)'r', (byte)'s', (byte)'=', (byte)'2', (byte)'5', (byte)'6', (byte)' ');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'h', (byte)'a', (byte)'r', (byte)'d', (byte)'w', (byte)'a', (byte)'r', (byte)'e');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'E', (byte)'r', (byte)'r', (byte)'o', (byte)'r', (byte)'C', (byte)'o', (byte)'d');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'e', (byte)'V', (byte)'e', (byte)'c', (byte)'t', (byte)'o', (byte)'r', (byte)'s');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'=', (byte)'9', (byte)' ', (byte)'s', (byte)'y', (byte)'n', (byte)'t', (byte)'h');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'e', (byte)'t', (byte)'i', (byte)'c', (byte)'E', (byte)'r', (byte)'r', (byte)'o');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'r', (byte)'C', (byte)'o', (byte)'d', (byte)'e', (byte)'V', (byte)'e', (byte)'c');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'t', (byte)'o', (byte)'r', (byte)'s', (byte)'=', (byte)'2', (byte)'4', (byte)'7');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)' ', (byte)'s', (byte)'l', (byte)'o', (byte)'t', (byte)'B', (byte)'y', (byte)'t');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'e', (byte)'s', (byte)'=', (byte)'1', (byte)'6', (byte)' ', (byte)'p', (byte)'a');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'g', (byte)'e', (byte)'B', (byte)'y', (byte)'t', (byte)'e', (byte)'s', (byte)'=');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'4', (byte)'0', (byte)'9', (byte)'6', (byte)' ', (byte)'n', (byte)'o', (byte)'r');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'m', (byte)'a', (byte)'l', (byte)'i', (byte)'z', (byte)'e', (byte)'d', (byte)'S');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'l', (byte)'o', (byte)'t', (byte)'s', (byte)'=', (byte)'3', (byte)' ', (byte)'c');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'o', (byte)'m', (byte)'m', (byte)'o', (byte)'n', (byte)'T', (byte)'a', (byte)'r');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'g', (byte)'e', (byte)'t', (byte)'D', (byte)'e', (byte)'l', (byte)'t', (byte)'a');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'=', (byte)'4', (byte)'0', (byte)'9', (byte)'6', (byte)' ', (byte)'f', (byte)'n');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'v', (byte)'1', (byte)'a', (byte)'6', (byte)'4', (byte)'=', (byte)'4', (byte)'2');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'8', (byte)'D', (byte)'0', (byte)'3', (byte)'5', (byte)'3', (byte)'A', (byte)'9');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'6', (byte)'B', (byte)'7', (byte)'A', (byte)'C', (byte)'E', (byte)' ', (byte)'r');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'e', (byte)'a', (byte)'d', (byte)'B', (byte)'a', (byte)'c', (byte)'k', (byte)'=');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'t', (byte)'r', (byte)'u', (byte)'e', (byte)' ', (byte)'g', (byte)'u', (byte)'e');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'s', (byte)'t', (byte)'M', (byte)'a', (byte)'t', (byte)'e', (byte)'r', (byte)'i');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'a', (byte)'l', (byte)'i', (byte)'z', (byte)'a', (byte)'t', (byte)'i', (byte)'o');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'n', (byte)'=', (byte)'t', (byte)'r', (byte)'u', (byte)'e', (byte)' ', (byte)'l');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'o', (byte)'a', (byte)'d', (byte)'e', (byte)'r', (byte)'D', (byte)'a', (byte)'t');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'a', (byte)'=', (byte)'t', (byte)'r', (byte)'u', (byte)'e', (byte)' ', (byte)'p');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'a', (byte)'g', (byte)'e', (byte)'R', (byte)'e', (byte)'l', (byte)'e', (byte)'a');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'s', (byte)'e', (byte)'d', (byte)'=', (byte)'t', (byte)'r', (byte)'u', (byte)'e');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)' ', (byte)'s', (byte)'t', (byte)'u', (byte)'b', (byte)'E', (byte)'x', (byte)'e');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'c', (byte)'u', (byte)'t', (byte)'i', (byte)'o', (byte)'n', (byte)'=', (byte)'f');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ', (byte)'i', (byte)'d', (byte)'t');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'I', (byte)'n', (byte)'s', (byte)'t', (byte)'a', (byte)'l', (byte)'l', (byte)'e');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'d', (byte)'=', (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'f', (byte)'a', (byte)'u', (byte)'l', (byte)'t', (byte)'T', (byte)'r', (byte)'i');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'g', (byte)'g', (byte)'e', (byte)'r', (byte)'e', (byte)'d', (byte)'=', (byte)'f');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ', (byte)'m', (byte)'a', (byte)'r');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'k', (byte)'e', (byte)'r', (byte)'T', (byte)'r', (byte)'a', (byte)'n', (byte)'s');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'p', (byte)'o', (byte)'r', (byte)'t', (byte)'=', (byte)'u', (byte)'e', (byte)'f');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'i', (byte)'S', (byte)'e', (byte)'r', (byte)'i', (byte)'a', (byte)'l', (byte)' ');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'p', (byte)'o', (byte)'s', (byte)'t', (byte)'E', (byte)'x', (byte)'i', (byte)'t');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'B', (byte)'o', (byte)'o', (byte)'t', (byte)'S', (byte)'e', (byte)'r', (byte)'v');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'i', (byte)'c', (byte)'e', (byte)'s', (byte)'=', (byte)'f', (byte)'a', (byte)'l');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'s', (byte)'e', 0, 0, 0, 0, 0, 0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM02NormalizedInterruptFramePagePassLine(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'T', (byte)'E', (byte)'S', (byte)'T', (byte)'_', (byte)'P', (byte)'A', (byte)'S');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'S', (byte)' ', (byte)'m', (byte)'0', (byte)'2', (byte)'.', (byte)'0', (byte)'1');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'0', 0, 0, 0, 0, 0, 0, 0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM02NormalizedInterruptFramePageFailureLines(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'M', (byte)'0', (byte)'2', (byte)'_', (byte)'N', (byte)'O', (byte)'R', (byte)'M');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'A', (byte)'L', (byte)'I', (byte)'Z', (byte)'E', (byte)'D', (byte)'_', (byte)'I');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'N', (byte)'T', (byte)'E', (byte)'R', (byte)'R', (byte)'U', (byte)'P', (byte)'T');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'_', (byte)'F', (byte)'R', (byte)'A', (byte)'M', (byte)'E', (byte)'_', (byte)'P');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'A', (byte)'G', (byte)'E', (byte)'_', (byte)'F', (byte)'A', (byte)'I', (byte)'L');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'E', (byte)'D', 0, 0, 0, 0, 0, 0);
+        WriteCrLf(console, serial);
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'T', (byte)'E', (byte)'S', (byte)'T', (byte)'_', (byte)'F', (byte)'A', (byte)'I');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'L', (byte)' ', (byte)'m', (byte)'0', (byte)'2', (byte)'.', (byte)'0', (byte)'1');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'0', (byte)' ', (byte)'g', (byte)'u', (byte)'e', (byte)'s', (byte)'t', (byte)'_');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'m', (byte)'a', (byte)'t', (byte)'e', (byte)'r', (byte)'i', (byte)'a', (byte)'l');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'i', (byte)'z', (byte)'a', (byte)'t', (byte)'i', (byte)'o', (byte)'n', (byte)'_');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'r', (byte)'e', (byte)'a', (byte)'d', (byte)'b', (byte)'a', (byte)'c', (byte)'k');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'_', (byte)'o', (byte)'r', (byte)'_', (byte)'c', (byte)'l', (byte)'e', (byte)'a');
+        WriteM02NormalizedInterruptFramePageAscii(console, serial, (byte)'n', (byte)'u', (byte)'p', 0, 0, 0, 0, 0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM02NormalizedInterruptFramePageAscii(
         EfiSimpleTextOutputProtocol* console,
         EfiSerialIoProtocol* serial,
         byte b0,

@@ -20,6 +20,7 @@ internal static class SerialMarkerStateMachineTests
         RunCase("invalid byte noise policy", TestInvalidByteNoisePolicy, ref failures);
         RunCase("line and total capacity failures", TestCapacityFailures, ref failures);
         RunCase("m02.005 long marker boundary", TestM02005LongMarkerBoundary, ref failures);
+        RunCase("m02.010 long marker and transcript boundary", TestM02010LongMarkerBoundary, ref failures);
         RunCase("configuration overflow and defaults", TestConfigurationAndDefaultResults, ref failures);
         RunCase("finalization is stable", TestFinalizationIsStable, ref failures);
 
@@ -466,7 +467,7 @@ internal static class SerialMarkerStateMachineTests
             "ownedMarkerTransport=com1PortIo evidenceMarkerTransport=uefiSerial " +
             "guestPortIo=true guestIn8=true postExitBootServices=false";
         if (M02005Marker.Length != 259 ||
-            SerialMarkerStateMachine.MaximumMarkerLength != 320)
+            SerialMarkerStateMachine.MaximumMarkerLength != 512)
         {
             return false;
         }
@@ -478,7 +479,9 @@ internal static class SerialMarkerStateMachineTests
             Encoding.ASCII.GetBytes(M02005Marker + "\r\nOS_SMOKE_PASS\r\n"));
         SerialMarkerCompletionResult m02005Result = m02005Parser.Complete();
 
-        string maximumMarker = new('M', 320);
+        string maximumMarker = new(
+            'M',
+            SerialMarkerStateMachine.MaximumMarkerLength);
         SerialMarkerStateMachine maximumParser = new(
             [maximumMarker, "OS_SMOKE_PASS"],
             []);
@@ -487,7 +490,11 @@ internal static class SerialMarkerStateMachineTests
         SerialMarkerCompletionResult maximumResult = maximumParser.Complete();
 
         bool overMaximumRejected = Throws<ArgumentOutOfRangeException>(
-            () => new SerialMarkerStateMachine([new string('M', 321)], []));
+            () => new SerialMarkerStateMachine(
+                [new string(
+                    'M',
+                    SerialMarkerStateMachine.MaximumMarkerLength + 1)],
+                []));
 
         return m02005Feed.Succeeded
             && m02005Result.Passed
@@ -496,6 +503,129 @@ internal static class SerialMarkerStateMachineTests
             && maximumResult.Passed
             && maximumResult.RequiredSeenCount == 2
             && overMaximumRejected;
+    }
+
+    private static bool TestM02010LongMarkerBoundary()
+    {
+        const string Start = "TEST_START m02.010";
+        const string Ready =
+            "CLROS_M02_010_READY vectors=256 hardwareErrorCodeVectors=9 " +
+            "syntheticErrorCodeVectors=247 slotBytes=16 pageBytes=4096 " +
+            "normalizedSlots=3 commonTargetDelta=4096 " +
+            "fnv1a64=428D0353A96B7ACE readBack=true " +
+            "guestMaterialization=true loaderData=true pageReleased=true " +
+            "stubExecution=false idtInstalled=false faultTriggered=false " +
+            "markerTransport=uefiSerial postExitBootServices=false";
+        const string Pass = "TEST_PASS m02.010";
+        const string Failure =
+            "M02_NORMALIZED_INTERRUPT_FRAME_PAGE_FAILED";
+        string[] required = ["OS_SMOKE_PASS"];
+        string[] ordered =
+        [
+            "EFI_CONSOLE_READY",
+            Start,
+            Ready,
+            Pass,
+            "UEFI_MEMORY_MAP_READY"
+        ];
+        string[] unique = [Start, Ready, Pass];
+        string[] forbidden = ["OS_SMOKE_FAIL", "TEST_FAIL", Failure];
+
+        if (Ready.Length != 370 ||
+            SerialMarkerStateMachine.MaximumMarkerLength != 512)
+        {
+            return false;
+        }
+
+        SerialMarkerCompletionResult success = ParseM02010Transcript(
+            required,
+            forbidden,
+            ordered,
+            unique,
+            ordered.Concat(["OS_SMOKE_PASS"]));
+        SerialMarkerCompletionResult missing = ParseM02010Transcript(
+            required,
+            forbidden,
+            ordered,
+            unique,
+            ordered.Where(marker => marker != Ready).Concat(["OS_SMOKE_PASS"]));
+        SerialMarkerCompletionResult reordered = ParseM02010Transcript(
+            required,
+            forbidden,
+            ordered,
+            unique,
+            new[]
+            {
+                Start,
+                "EFI_CONSOLE_READY",
+                Ready,
+                Pass,
+                "UEFI_MEMORY_MAP_READY",
+                "OS_SMOKE_PASS"
+            });
+        SerialMarkerCompletionResult duplicate = ParseM02010Transcript(
+            required,
+            forbidden,
+            ordered,
+            unique,
+            ordered.Take(3).Concat([Ready]).Concat(ordered.Skip(3))
+                .Concat(["OS_SMOKE_PASS"]));
+        SerialMarkerCompletionResult injectedFailure = ParseM02010Transcript(
+            required,
+            forbidden,
+            ordered,
+            unique,
+            ordered.Concat([Failure, "OS_SMOKE_PASS"]));
+
+        string maximumMarker = new(
+            'M',
+            SerialMarkerStateMachine.MaximumMarkerLength);
+        SerialMarkerStateMachine maximumParser = new(
+            [maximumMarker, "OS_SMOKE_PASS"],
+            []);
+        SerialMarkerFeedResult maximumFeed = maximumParser.Feed(
+            Encoding.ASCII.GetBytes(maximumMarker + "\nOS_SMOKE_PASS\n"));
+        SerialMarkerCompletionResult maximum = maximumParser.Complete();
+        bool overMaximumRejected = Throws<ArgumentOutOfRangeException>(
+            () => new SerialMarkerStateMachine(
+                [new string(
+                    'M',
+                    SerialMarkerStateMachine.MaximumMarkerLength + 1)],
+                []));
+
+        return success.Passed
+            && success.RequiredSeenCount == 6
+            && success.OrderedSeenCount == 5
+            && success.UniqueSeenCount == 3
+            && missing.MissingRequiredMarkers is { Count: 1 }
+            && missing.MissingRequiredMarkers[0] == Ready
+            && !missing.Passed
+            && reordered.OutOfOrderOccurrenceCount != 0
+            && !reordered.Passed
+            && duplicate.DuplicateUniqueOccurrenceCount != 0
+            && !duplicate.Passed
+            && injectedFailure.ForbiddenOccurrenceCount != 0
+            && !injectedFailure.Passed
+            && maximumFeed.Succeeded
+            && maximum.Passed
+            && overMaximumRejected;
+    }
+
+    private static SerialMarkerCompletionResult ParseM02010Transcript(
+        IReadOnlyList<string> required,
+        IReadOnlyList<string> forbidden,
+        IReadOnlyList<string> ordered,
+        IReadOnlyList<string> unique,
+        IEnumerable<string> lines)
+    {
+        SerialMarkerStateMachine parser = new(
+            required,
+            forbidden,
+            orderedMarkers: ordered,
+            uniqueMarkers: unique);
+        string transcript = string.Join("\n", lines) + "\n";
+        parser.Feed(Encoding.ASCII.GetBytes(transcript));
+        return parser.Complete();
     }
 
     private static bool TestFinalizationIsStable()

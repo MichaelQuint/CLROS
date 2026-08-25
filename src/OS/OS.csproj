@@ -44,6 +44,7 @@
 		<EnableM02OwnedX64GdtEncodingProbe Condition="'$(EnableM02OwnedX64GdtEncodingProbe)' == ''">false</EnableM02OwnedX64GdtEncodingProbe>
 		<EnableM02GuardedIstStackAllocationProbe Condition="'$(EnableM02GuardedIstStackAllocationProbe)' == ''">false</EnableM02GuardedIstStackAllocationProbe>
 		<EnableM02OwnedGdtTssTerminalProbe Condition="'$(EnableM02OwnedGdtTssTerminalProbe)' == ''">false</EnableM02OwnedGdtTssTerminalProbe>
+		<EnableM02NormalizedInterruptFramePageProbe Condition="'$(EnableM02NormalizedInterruptFramePageProbe)' == ''">false</EnableM02NormalizedInterruptFramePageProbe>
 		<EnableM04IndependentEndianConformanceProbe Condition="'$(EnableM04IndependentEndianConformanceProbe)' == ''">false</EnableM04IndependentEndianConformanceProbe>
 		<EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe Condition="'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == ''">false</EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe>
 	</PropertyGroup>
@@ -90,6 +91,10 @@
 
 	<PropertyGroup Condition="'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M02_OWNED_GDT_TSS_TERMINAL_PROBE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M02_NORMALIZED_INTERRUPT_FRAME_PAGE_PROBE</DefineConstants>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM04IndependentEndianConformanceProbe)' == 'true'">
@@ -157,6 +162,7 @@
 		<Compile Include="..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs" Link="Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs" Link="Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs" Link="Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs" Link="Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" Link="Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs" Link="Std\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs" Link="Boot\M01LoadedImageStackIntegration.cs" />
@@ -230,6 +236,9 @@
 		<Error
 			Condition="'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' and '$(EnableM02GuardedIstStackAllocationProbe)' != 'true'"
 			Text="EnableM02OwnedGdtTssTerminalProbe requires EnableM02GuardedIstStackAllocationProbe=true." />
+		<Error
+			Condition="'$(EnableM02NormalizedInterruptFramePageProbe)' == 'true' and '$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'"
+			Text="EnableM02NormalizedInterruptFramePageProbe cannot be combined with EnableM02OwnedGdtTssTerminalProbe=true." />
 		<Error
 			Condition="'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true' and '$(EnableM04IndependentEndianConformanceProbe)' != 'true'"
 			Text="EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe requires EnableM04IndependentEndianConformanceProbe=true." />
