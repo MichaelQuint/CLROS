@@ -18,11 +18,11 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
     private const string FailureMarker =
         "M02_GUARDED_IST_STACK_ALLOCATION_FAILED";
     private const string CompileClosureSha256 =
-        "39395b3906e8875aad6c08386e807d0c9568780091fe2401b69d121ca2454b83";
+        "40f45634fc87d66d875d2859a5fe7ad6f5bc09d531af81d785ef2a497f5f6e33";
     private const string ProjectFileSha256 =
-        "1f089d541f1451560b1b0801bdf8dcdd05ba282a79a0e9711f6ef089c53284df";
+        "7f401ada2a652bd35827f87dc4d7eabbfa331164eab1e055c8782a338683f248";
     private const string CanonicalProjectShapeSha256 =
-        "ab9195a9121f99096fd5bdde228e75d01a1c375303a1cc14379d23ef8487f7a7";
+        "1e37233e70e923e8fb59716cc31fc26b7d748c4be26f5e5cf76fbd759b4a5cd9";
 
     private static readonly (string Path, string Sha256)[] ImmutableReviewedInputs =
     [
@@ -128,10 +128,13 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
             @"..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs|Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs";
         const string GuardedIstKey =
             @"..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs";
+        const string TerminalKey =
+            @"..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs";
         const string EndianKey =
             @"..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
         int gdtIndex = Array.IndexOf(compileKeys, GdtKey);
         int guardedIstIndex = Array.IndexOf(compileKeys, GuardedIstKey);
+        int terminalIndex = Array.IndexOf(compileKeys, TerminalKey);
         int endianIndex = Array.IndexOf(compileKeys, EndianKey);
 
         XElement[] defaults = project
@@ -147,8 +150,8 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
         string[] dependencyConditions = project
             .Descendants("Error")
             .Select(element => element.Attribute("Condition")?.Value ?? string.Empty)
-            .Where(value => value.Contains(
-                "EnableM02GuardedIstStackAllocationProbe",
+            .Where(value => value.StartsWith(
+                "'$(EnableM02GuardedIstStackAllocationProbe)' == 'true'",
                 StringComparison.Ordinal))
             .ToArray();
 
@@ -163,12 +166,13 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
 
         return maxValueDeclarations.Count == 1
             && runtime.Contains("public struct UInt64", StringComparison.Ordinal)
-            && compileItems.Length == 57
+            && compileItems.Length == 58
             && compileHash == CompileClosureSha256
             && projectHash == ProjectFileSha256
             && gdtIndex >= 0
             && guardedIstIndex == gdtIndex + 1
-            && endianIndex == guardedIstIndex + 1
+            && terminalIndex == guardedIstIndex + 1
+            && endianIndex == terminalIndex + 1
             && compileKeys.Count(key => key == GuardedIstKey) == 1
             && defaults.Length == 1
             && defaults[0].Value == "false"
@@ -191,17 +195,17 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
                 "guarded_ist_stack_allocation_requires_owned_x64_gdt_encoding",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=70",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=71",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 CanonicalProjectShapeSha256,
                 StringComparison.Ordinal)
             && buildScript.Contains(GuardedIstKey, StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 70",
+                "$expectedSourceClosureInputCount = 71",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 57",
+                "$compileItems.Count -ne 58",
                 StringComparison.Ordinal)
             && verifierScript.Contains(GuardedIstKey, StringComparison.Ordinal)
             && verifierScript.Contains(
@@ -422,9 +426,13 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
         string root = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(root, "scripts", "run-qemu-smoke.ps1"));
-        int guardedProfile = source.IndexOf(
-            "if ($EnableM02GuardedIstStackAllocationProbe) {",
+        int terminalProfile = source.IndexOf(
+            "if ($EnableM02OwnedGdtTssTerminalProbe) {",
             StringComparison.Ordinal);
+        int guardedProfile = IndexOfAfter(
+            source,
+            "elseif ($EnableM02GuardedIstStackAllocationProbe) {",
+            terminalProfile);
         int gdtProfile = IndexOfAfter(
             source,
             "elseif ($EnableM02OwnedX64GdtEncodingProbe) {",
@@ -471,6 +479,7 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
             && CountOccurrences(
                 profile,
                 "Merge-QemuSmokeMarkerList -Values @(") == 4
+            && terminalProfile >= 0
             && guardedProfile >= 0
             && gdtProfile > guardedProfile;
     }

@@ -684,7 +684,9 @@ production readiness.
 The default-false `EnableM02GuardedIstStackAllocationProbe` profile links
 `Diagnostics/GuardedISTStacksDoubleFaultPageFaultNMI.cs` immediately after the
 accepted M02-007 encoder and before the independent endian catalog. The current
-development closure is exactly 57 compile items and 70 source-authority inputs.
+development closure is exactly 58 compile items and 71 source-authority inputs
+after the default-off M02-009 terminal stub source was added after this
+historically accepted slice.
 The flag requires `EnableM02OwnedX64GdtEncodingProbe=true`; the QEMU wrapper
 also requires `-BuildEfi`, rejects `-SkipImageBuild`, and rebuilds both the EFI
 artifact and raw image.
@@ -742,15 +744,87 @@ completed 3,446 starts and 3,447 passes with zero failures and one final
 `TEST_PASS host.tests`. Independent exact-head review remains a separate merge
 requirement.
 
+### M02-009 owned GDT/TSS terminal EFI integration
+
+The default-false `EnableM02OwnedGdtTssTerminalProbe` profile links the reviewed
+`Diagnostics/OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs` source immediately
+after the M02-008 guarded-IST dependency and before the independent endian
+catalog. The explicit development closure is therefore 58 compile items and 71
+source-authority inputs. The flag requires
+`EnableM02GuardedIstStackAllocationProbe=true`; the build and artifact-verifier
+paths propagate the same property and require the exact
+`M02_OWNED_GDT_TSS_TERMINAL_PROBE` symbol.
+
+After firmware console and serial discovery, but before `WriteBootMarkers`, the
+opt-in EFI path requires live UEFI `AllocatePages` and `FreePages`. It allocates
+exactly one 4096-byte `EfiLoaderCode` page followed by one disjoint 4096-byte
+`EfiLoaderData` page. Both addresses must be nonzero, page aligned, canonical
+through the last byte, free of arithmetic overflow, and non-overlapping. The
+path zeroes both complete pages, places `OwnedGdtTssTerminalContext` at data-page
+offset zero, then calls the reviewed `PrepareContext`, `Emit`, and
+`ValidateReadBack` operations in that order. It requires the exact 168-byte
+context, 2,987-byte stub, `C9C04DEE967D640A` FNV-1a fingerprint, shared context
+fingerprint, exact result counts, and zero tails on both pages. A pre-entry
+failure frees the data page before the code page and emits
+`M02_OWNED_GDT_TSS_PREENTRY_FAILED` through the still-live firmware diagnostic
+path.
+
+Only after the successful cumulative M01 continuation has emitted the boot
+sequence plan, including `OS_SMOKE_PASS`, does the terminal path revalidate both
+pages. It emits `TEST_START m02.009` directly through the existing checked,
+owned COM1 binding, calls the required instruction-publication serializer, and
+invokes the code-page address as a Windows-x64 unmanaged function pointer with
+the context pointer in the first argument register (RCX). The reviewed stub
+performs the descriptor-table transition and emits these terminal success
+records directly through owned COM1:
+
+```text
+CLROS_M02_009_READY gdtr=true tr=true gdtBytes=40 tssBytes=104 gdtrLimit=39 trSelector=24 ownedCom1=true terminalHalt=true postExitBootServices=false
+TEST_PASS m02.009
+```
+
+The stub intentionally halts and does not return. A readback or stub-side
+verification failure emits `M02_OWNED_GDT_TSS_VERIFY_FAILED` and halts. If the
+terminal call unexpectedly returns, the caller attempts the direct-COM1
+`M02_OWNED_GDT_TSS_UNEXPECTED_RETURN` marker and spins without calling firmware.
+
+The complete acceptance command is:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -BuildEfi `
+  -EnableM02SafeStubProbe `
+  -EnableM02CheckedPortIoBindingProbe `
+  -EnableM02Com1OwnedPortIoProbe `
+  -EnableM02OwnedCom1ReadyProbe `
+  -EnableM02PanicSafeOwnedCom1Probe `
+  -EnableM02OwnedX64GdtEncodingProbe `
+  -EnableM02GuardedIstStackAllocationProbe `
+  -EnableM02OwnedGdtTssTerminalProbe
+```
+
+No fresh real-QEMU acceptance is recorded for this development integration
+yet. The allocation types express intended code/data use, but UEFI allocation
+types do not enforce page permissions; this implementation does not prove W^X
+or NX. All M02-009 evidence remains pre-`ExitBootServices`. The profile does not
+install an IDT or fault handler, trigger a fault, prove post-firmware owned
+diagnostics, survive real firmware exit, advance a numbered completion gate,
+run hosted .NET or Kestrel, establish provider support, or establish CloudReady
+or production readiness.
+
 ### M04-002 fixed endian-catalog EFI closure
 
 `EnableM04IndependentEndianConformanceProbe` is a default-false, independent
 profile. At its acceptance head it added exactly one explicit compile item:
 `std/no-runtime/shared/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs`.
 That historical accepted project closure had 53 compile items and the canonical
-build/verifier authority had 66 inputs. The current development tree has 57/70
+build/verifier authority had 66 inputs. The current development tree has 58/71
 after the later M02-005 writer, M02-006 reporter, M02-007 GDT encoder, and
-M02-008 guarded-IST arena contract were inserted before the catalog; this
+M02-008 guarded-IST arena contract plus the default-off M02-009 terminal stub
+were inserted before the catalog; this
 does not alter or reinterpret the M04-002 artifact evidence below. The scripts reject
 compatibility counts, missing/reordered sources, stale hashes, wildcard imports,
 or a post-restore property mismatch.

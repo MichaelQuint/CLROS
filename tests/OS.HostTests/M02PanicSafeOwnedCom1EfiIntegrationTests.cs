@@ -19,9 +19,9 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
         "statusCoded=true firmwareFallback=false postExitBootServices=false";
     private const string FailureMarker = "M02_PANIC_SAFE_OWNED_COM1_FAILED";
     private const string CompileClosureSha256 =
-        "39395b3906e8875aad6c08386e807d0c9568780091fe2401b69d121ca2454b83";
+        "40f45634fc87d66d875d2859a5fe7ad6f5bc09d531af81d785ef2a497f5f6e33";
     private const string CanonicalProjectSha256 =
-        "ab9195a9121f99096fd5bdde228e75d01a1c375303a1cc14379d23ef8487f7a7";
+        "1e37233e70e923e8fb59716cc31fc26b7d748c4be26f5e5cf76fbd759b4a5cd9";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -107,12 +107,15 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
             @"..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs|Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs";
         const string GuardedIstKey =
             @"..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs";
+        const string TerminalKey =
+            @"..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs";
         const string CatalogKey =
             @"..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
         int writerIndex = Array.IndexOf(compileKeys, WriterKey);
         int reporterIndex = Array.IndexOf(compileKeys, ReporterKey);
         int gdtIndex = Array.IndexOf(compileKeys, GdtKey);
         int guardedIstIndex = Array.IndexOf(compileKeys, GuardedIstKey);
+        int terminalIndex = Array.IndexOf(compileKeys, TerminalKey);
         int catalogIndex = Array.IndexOf(compileKeys, CatalogKey);
 
         XElement[] defaults = project
@@ -138,13 +141,14 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 57
+        return compileItems.Length == 58
             && compileHash == CompileClosureSha256
             && writerIndex >= 0
             && reporterIndex == writerIndex + 1
             && gdtIndex == reporterIndex + 1
             && guardedIstIndex == gdtIndex + 1
-            && catalogIndex == guardedIstIndex + 1
+            && terminalIndex == guardedIstIndex + 1
+            && catalogIndex == terminalIndex + 1
             && compileKeys.Count(key => key == ReporterKey) == 1
             && defaults.Length == 1
             && defaults[0].Value == "false"
@@ -167,7 +171,7 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
                 "m02_panic_safe_owned_com1_requires_owned_com1_ready",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=70",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=71",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 CanonicalProjectSha256,
@@ -179,10 +183,10 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
                 "[switch]$EnableM02PanicSafeOwnedCom1Probe",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 70",
+                "$expectedSourceClosureInputCount = 71",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 57",
+                "$compileItems.Count -ne 58",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
                 "-p:EnableM02PanicSafeOwnedCom1Probe=true",
@@ -322,7 +326,7 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
             Path.Combine(root, "scripts", "run-qemu-smoke.ps1"));
 
         int panicProfile = source.IndexOf(
-            "if ($EnableM02PanicSafeOwnedCom1Probe) {",
+            "elseif ($EnableM02PanicSafeOwnedCom1Probe) {",
             StringComparison.Ordinal);
         int priorProfile = IndexOfAfter(
             source,

@@ -43,6 +43,7 @@
 		<EnableM02PanicSafeOwnedCom1Probe Condition="'$(EnableM02PanicSafeOwnedCom1Probe)' == ''">false</EnableM02PanicSafeOwnedCom1Probe>
 		<EnableM02OwnedX64GdtEncodingProbe Condition="'$(EnableM02OwnedX64GdtEncodingProbe)' == ''">false</EnableM02OwnedX64GdtEncodingProbe>
 		<EnableM02GuardedIstStackAllocationProbe Condition="'$(EnableM02GuardedIstStackAllocationProbe)' == ''">false</EnableM02GuardedIstStackAllocationProbe>
+		<EnableM02OwnedGdtTssTerminalProbe Condition="'$(EnableM02OwnedGdtTssTerminalProbe)' == ''">false</EnableM02OwnedGdtTssTerminalProbe>
 		<EnableM04IndependentEndianConformanceProbe Condition="'$(EnableM04IndependentEndianConformanceProbe)' == ''">false</EnableM04IndependentEndianConformanceProbe>
 	</PropertyGroup>
 
@@ -84,6 +85,10 @@
 
 	<PropertyGroup Condition="'$(EnableM02GuardedIstStackAllocationProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M02_GUARDED_IST_STACK_ALLOCATION_PROBE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M02_OWNED_GDT_TSS_TERMINAL_PROBE</DefineConstants>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM04IndependentEndianConformanceProbe)' == 'true'">
@@ -146,6 +151,7 @@
 		<Compile Include="..\OS.Kernel\Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs" Link="Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs" Link="Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs" Link="Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs" Link="Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" Link="Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs" Link="Boot\M01LoadedImageStackIntegration.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs" Link="Boot\M01LiveAllocatorIntegration.cs" />
@@ -215,6 +221,9 @@
 		<Error
 			Condition="'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM02OwnedX64GdtEncodingProbe)' != 'true'"
 			Text="EnableM02GuardedIstStackAllocationProbe requires EnableM02OwnedX64GdtEncodingProbe=true." />
+		<Error
+			Condition="'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' and '$(EnableM02GuardedIstStackAllocationProbe)' != 'true'"
+			Text="EnableM02OwnedGdtTssTerminalProbe requires EnableM02GuardedIstStackAllocationProbe=true." />
 	</Target>
 
 	<Target Name="CustomizeReferences"
