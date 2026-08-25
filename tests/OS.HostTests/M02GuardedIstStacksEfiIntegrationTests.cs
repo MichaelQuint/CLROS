@@ -564,6 +564,15 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
                     bootOrder) &&
                 WriteHostileFixtureAndRequireRejection(
                     fixtureRoot,
+                    "diagnostics-missing-capability-negation",
+                    Regex.Replace(
+                        diagnostics,
+                        @"The proof does\s+not change page tables",
+                        "The proof does change page tables",
+                        RegexOptions.CultureInvariant),
+                    bootOrder) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
                     "diagnostics-missing-guard-nonclaim",
                     diagnostics.Replace(
                         "map guards non-present",
@@ -778,6 +787,14 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
                 StringComparison.Ordinal)
             && diagnosticsBoundary.Contains(
                 "releases the lease, and frees the same arena before return",
+                StringComparison.Ordinal)
+            && diagnosticsBoundary.Contains(
+                "The proof does not change page tables, map guards non-present, " +
+                "write TSS IST slots, load descriptor tables, install handlers, " +
+                "execute a fault, or cross real `ExitBootServices`.",
+                StringComparison.Ordinal)
+            && !diagnosticsBoundary.Contains(
+                "The proof does change page tables",
                 StringComparison.Ordinal)
             && diagnosticsBoundary.Contains(
                 "map guards non-present",
