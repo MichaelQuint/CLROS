@@ -13,6 +13,8 @@ internal static class M01InstructionPublicationEfiEntryTests
         "M01_LIVE_ALLOCATOR_PROBE";
     private const string StageThreeSymbol =
         "M01_OWNED_PAGING_PROBE";
+    private const string M02OwnedGdtTssTerminalSymbol =
+        "M02_OWNED_GDT_TSS_TERMINAL_PROBE";
     private const string SerializerBinding =
         "global::OS.Boot.X64InstructionPublication";
     private const string SerializerCall =
@@ -41,6 +43,10 @@ internal static class M01InstructionPublicationEfiEntryTests
         Run(
             "m01.035 profile matrix binds exactly four direct calls",
             TestProfileMatrixAndDirectBinding,
+            ref failures);
+        Run(
+            "m01.035 terminal M02 profile adds exactly one direct call",
+            TestTerminalM02ProfileAddsOneDirectCall,
             ref failures);
         Run(
             "m01.035 shared state initializes once and survives switch",
@@ -121,22 +127,26 @@ internal static class M01InstructionPublicationEfiEntryTests
             source,
             stageOneEnabled: false,
             stageTwoEnabled: false,
-            stageThreeEnabled: false);
+            stageThreeEnabled: false,
+            terminalEnabled: false);
         string profile100 = SelectProfile(
             source,
             stageOneEnabled: true,
             stageTwoEnabled: false,
-            stageThreeEnabled: false);
+            stageThreeEnabled: false,
+            terminalEnabled: false);
         string profile110 = SelectProfile(
             source,
             stageOneEnabled: true,
             stageTwoEnabled: true,
-            stageThreeEnabled: false);
+            stageThreeEnabled: false,
+            terminalEnabled: false);
         string profile111 = SelectProfile(
             source,
             stageOneEnabled: true,
             stageTwoEnabled: true,
-            stageThreeEnabled: true);
+            stageThreeEnabled: true,
+            terminalEnabled: false);
 
         if (CountDirectSerializerCalls(profile000) != 0
             || CountDirectSerializerCalls(profile100) != 2
@@ -181,6 +191,75 @@ internal static class M01InstructionPublicationEfiEntryTests
 
         return ValidateContract(profile111, out string failure)
             || Failure("positive-contract=" + failure);
+    }
+
+    private static bool TestTerminalM02ProfileAddsOneDirectCall()
+    {
+        string historicalProfile = LoadAllSwitchProfile();
+        string terminalProfile = LoadM02TerminalProfile();
+        string failure = string.Empty;
+        if (CountDirectSerializerCalls(historicalProfile) != 4
+            || CountDirectSerializerCalls(terminalProfile) != 5
+            || !ValidateM02TerminalProfile(
+                terminalProfile,
+                out failure))
+        {
+            return Failure(
+                "terminal-positive-contract=" + failure);
+        }
+
+        MutationCase[] mutations =
+        [
+            new(
+                "terminal serializer call missing",
+                "terminal-binding-total",
+                value => ReplaceInMethod(
+                    value,
+                    "EfiEntry",
+                    "EnterM02OwnedGdtTssTerminalProbe",
+                    "X64InstructionPublication.Serialize()",
+                    "X64InstructionPublication.ExpectedSuccessCookie")),
+            new(
+                "terminal serializer result bypassed",
+                "terminal-preentry-guard",
+                value => ReplaceInMethod(
+                    value,
+                    "EfiEntry",
+                    "EnterM02OwnedGdtTssTerminalProbe",
+                    "X64InstructionPublication.Serialize() !=",
+                    "X64InstructionPublication.Serialize() ==")),
+            new(
+                "terminal serializer call duplicated",
+                "terminal-binding-total",
+                value => ReplaceInMethod(
+                    value,
+                    "EfiEntry",
+                    "EnterM02OwnedGdtTssTerminalProbe",
+                    "X64InstructionPublication.Serialize() !=",
+                    "X64InstructionPublication.Serialize() == "
+                        + "X64InstructionPublication.ExpectedSuccessCookie || "
+                        + "X64InstructionPublication.Serialize() !="))
+        ];
+
+        foreach (MutationCase mutation in mutations)
+        {
+            string mutated = mutation.Apply(terminalProfile);
+            if (ValidateM02TerminalProfile(
+                    mutated,
+                    out string mutationFailure)
+                || !mutationFailure.Contains(
+                    mutation.ExpectedFailure,
+                    StringComparison.Ordinal))
+            {
+                return Failure(
+                    "terminal-mutation="
+                    + mutation.Name
+                    + " failure="
+                    + mutationFailure);
+            }
+        }
+
+        return true;
     }
 
     private static bool TestSharedStateInitializationAndSurvival()
@@ -1418,7 +1497,8 @@ internal static class M01InstructionPublicationEfiEntryTests
             source,
             stageOneEnabled: false,
             stageTwoEnabled: false,
-            stageThreeEnabled: false);
+            stageThreeEnabled: false,
+            terminalEnabled: false);
         string allProfile = LoadAllSwitchProfile();
         string compact = Compact(allProfile);
         string[] failClosedTokens =
@@ -1524,6 +1604,116 @@ internal static class M01InstructionPublicationEfiEntryTests
         {
             failure =
                 "epoch=1 epoch=2 epoch=3 epoch=4 binding-total";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool ValidateM02TerminalProfile(
+        string source,
+        out string failure)
+    {
+        failure = string.Empty;
+        string terminal = FindTopLevelMethodBody(
+                source,
+                "EfiEntry",
+                "EnterM02OwnedGdtTssTerminalProbe")
+            ?? string.Empty;
+        string stageOne =
+            FindTypeBody(source, "M01StageOneAdapter")
+            ?? string.Empty;
+        string continuation =
+            FindMethodBody(
+                stageOne,
+                "M01StageOneContinuation")
+            ?? string.Empty;
+        if (terminal.Length == 0 || continuation.Length == 0)
+        {
+            failure = "terminal-required-method-missing";
+            return false;
+        }
+
+        if (CountDirectSerializerCalls(source) != 5
+            || CountDirectExpectedCookieReferences(source) != 5
+            || CountDirectSerializerCalls(terminal) != 1
+            || CountDirectExpectedCookieReferences(terminal) != 1
+            || CountIdentifierOccurrences(
+                terminal,
+                "X64InstructionPublication") != 2)
+        {
+            failure = "terminal-binding-total";
+            return false;
+        }
+
+        const string exactGuard =
+            "!ValidateM02OwnedGdtTssTerminalResources()||"
+            + "!M01StageThreeAdapter."
+            + "TryWriteM02OwnedGdtTssTerminalStartLine()||"
+            + "X64InstructionPublication.Serialize()!="
+            + "X64InstructionPublication.ExpectedSuccessCookie";
+        if (!TryFindExactIfBlock(
+                terminal,
+                exactGuard,
+                out SourceRegion guardFailure,
+                out int guardEnd))
+        {
+            failure = "terminal-preentry-guard";
+            return false;
+        }
+
+        string guardBody = terminal[
+            guardFailure.ContentStart..guardFailure.ContentEnd];
+        string guardCompact = Compact(guardBody);
+        if (!guardCompact.StartsWith(
+                "_=FailM02OwnedGdtTssTerminalBeforeEntry(",
+                StringComparison.Ordinal)
+            || !RequireOrdered(
+                guardCompact,
+                "_=FailM02OwnedGdtTssTerminalBeforeEntry(",
+                "SpinM02OwnedGdtTssTerminalProbe();")
+            || !guardCompact.EndsWith(
+                "SpinM02OwnedGdtTssTerminalProbe();",
+                StringComparison.Ordinal)
+            || CountUnqualifiedCalls(
+                guardBody,
+                "FailM02OwnedGdtTssTerminalBeforeEntry") != 1
+            || CountUnqualifiedCalls(
+                guardBody,
+                "SpinM02OwnedGdtTssTerminalProbe") != 1
+            || CountTopLevelKeyword(guardBody, "return") != 0
+            || guardCompact.Contains('{')
+            || guardCompact.Contains('}'))
+        {
+            failure = "terminal-preentry-failure";
+            return false;
+        }
+
+        string terminalSuccess = Compact(terminal[guardEnd..]);
+        if (!RequireOrdered(
+                terminalSuccess,
+                "s_m02OwnedGdtTssTerminalState="
+                    + "M02OwnedGdtTssTerminalEnteredState;",
+                "terminalEntry=(delegate*unmanaged<",
+                "terminalEntry(",
+                "TryWriteM02OwnedGdtTssTerminalUnexpectedReturnLine();",
+                "SpinM02OwnedGdtTssTerminalProbe();"))
+        {
+            failure = "terminal-entry-order";
+            return false;
+        }
+
+        string continuationCompact = Compact(continuation);
+        if (CountScopedCalls(
+                continuation,
+                "EnterM02OwnedGdtTssTerminalProbe") != 1
+            || !RequireOrdered(
+                continuationCompact,
+                "EfiEntry.WriteBootSequencePlan(",
+                "EfiEntry.EnterM02OwnedGdtTssTerminalProbe(",
+                "Spin();"))
+        {
+            failure = "terminal-invocation-order";
             return false;
         }
 
@@ -3016,10 +3206,22 @@ internal static class M01InstructionPublicationEfiEntryTests
     {
         return Regex.Matches(
             SanitizeCode(source),
-            @"(?<![A-Za-z0-9_])"
-                + @"global\s*::\s*OS\s*\.\s*Boot\s*\.\s*"
+            @"(?<![A-Za-z0-9_.])"
+                + @"(?:global\s*::\s*OS\s*\.\s*Boot\s*\.\s*)?"
                 + @"X64InstructionPublication\s*\.\s*"
                 + @"Serialize\s*\(",
+            RegexOptions.CultureInvariant).Count;
+    }
+
+    private static int CountDirectExpectedCookieReferences(
+        string source)
+    {
+        return Regex.Matches(
+            SanitizeCode(source),
+            @"(?<![A-Za-z0-9_.])"
+                + @"(?:global\s*::\s*OS\s*\.\s*Boot\s*\.\s*)?"
+                + @"X64InstructionPublication\s*\.\s*"
+                + @"ExpectedSuccessCookie\b",
             RegexOptions.CultureInvariant).Count;
     }
 
@@ -3540,7 +3742,18 @@ internal static class M01InstructionPublicationEfiEntryTests
             LoadEfiEntrySource(),
             stageOneEnabled: true,
             stageTwoEnabled: true,
-            stageThreeEnabled: true);
+            stageThreeEnabled: true,
+            terminalEnabled: false);
+    }
+
+    private static string LoadM02TerminalProfile()
+    {
+        return SelectProfile(
+            LoadEfiEntrySource(),
+            stageOneEnabled: true,
+            stageTwoEnabled: true,
+            stageThreeEnabled: true,
+            terminalEnabled: true);
     }
 
     private static string LoadEfiEntrySource()
@@ -3561,7 +3774,8 @@ internal static class M01InstructionPublicationEfiEntryTests
         string source,
         bool stageOneEnabled,
         bool stageTwoEnabled,
-        bool stageThreeEnabled)
+        bool stageThreeEnabled,
+        bool terminalEnabled)
     {
         StringBuilder output = new();
         Stack<PreprocessorFrame> stack = new();
@@ -3585,6 +3799,10 @@ internal static class M01InstructionPublicationEfiEntryTests
                     || string.Equals(
                         condition,
                         StageThreeSymbol,
+                        StringComparison.Ordinal)
+                    || string.Equals(
+                        condition,
+                        M02OwnedGdtTssTerminalSymbol,
                         StringComparison.Ordinal);
                 bool selectedValue =
                     string.Equals(
@@ -3597,7 +3815,12 @@ internal static class M01InstructionPublicationEfiEntryTests
                             StageTwoSymbol,
                             StringComparison.Ordinal)
                             ? stageTwoEnabled
-                            : stageThreeEnabled;
+                            : string.Equals(
+                                condition,
+                                StageThreeSymbol,
+                                StringComparison.Ordinal)
+                                ? stageThreeEnabled
+                                : terminalEnabled;
                 stack.Push(
                     new PreprocessorFrame(
                         selected,
