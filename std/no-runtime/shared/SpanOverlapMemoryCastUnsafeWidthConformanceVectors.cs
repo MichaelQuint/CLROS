@@ -181,6 +181,18 @@ public static class SpanOverlapMemoryCastUnsafeWidthConformanceVectors
 
     public const int PointerWidth = 8;
 
+    // MemoryMarshal.Cast permits unaligned input and truncates only the
+    // incomplete trailing destination element. Keep both policies explicit so
+    // a future no-stdlib implementation cannot silently tighten either rule.
+    public const bool MemoryCastAllowsUnalignedStart = true;
+
+    public const bool MemoryCastFloorTruncatesTrailingBytes = true;
+
+    // The width vectors model unsigned Unsafe.ReadUnaligned<T> reads for
+    // byte/ushort/uint/ulong. Sign extension, when requested by a vector, is a
+    // separate conversion after the unsigned read.
+    public const bool UnsafeWidthUsesUnsignedReads = true;
+
     public const byte ExpectedSuccessFlag = 1;
 
     public const byte SignExtendFlag = 2;
@@ -571,6 +583,7 @@ public static class SpanOverlapMemoryCastUnsafeWidthConformanceVectors
             case SpanMemoryConformanceOperation.Slice:
                 if (vector.SourceWidth != 1 ||
                     vector.DestinationWidth != 1 ||
+                    vector.DestinationOffset != 0 ||
                     vector.SignExtend ||
                     vector.ExpectedSuccess != IsRangeValid(
                         PointerWidth,
@@ -609,7 +622,8 @@ public static class SpanOverlapMemoryCastUnsafeWidthConformanceVectors
                 break;
             case SpanMemoryConformanceOperation.MemoryCast:
                 if (vector.SourceWidth != 1 ||
-                    !IsSupportedWidth(vector.DestinationWidth) ||
+                    vector.DestinationWidth != 4 ||
+                    vector.DestinationOffset != 0 ||
                     vector.SignExtend ||
                     !vector.ExpectedSuccess ||
                     !IsRangeValid(16, vector.SourceOffset, vector.ByteCount) ||
@@ -622,9 +636,13 @@ public static class SpanOverlapMemoryCastUnsafeWidthConformanceVectors
             case SpanMemoryConformanceOperation.UnalignedWidth:
                 if (!IsSupportedWidth(vector.SourceWidth) ||
                     !IsSupportedWidth(vector.DestinationWidth) ||
+                    vector.SourceOffset != 1 ||
+                    vector.DestinationOffset != 0 ||
                     vector.ByteCount != vector.SourceWidth ||
                     !vector.ExpectedSuccess ||
-                    vector.SourceOffset == 0 ||
+                    !IsRangeValid(16, vector.SourceOffset, vector.ByteCount) ||
+                    (vector.SignExtend &&
+                        vector.DestinationWidth <= vector.SourceWidth) ||
                     vector.Expected != ConvertWidth(
                         vector.Input,
                         vector.SourceWidth,

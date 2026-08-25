@@ -89,8 +89,12 @@ The no-stdlib surface is not implemented beyond the first EFI shell boundary. `s
   byte-to-`uint` memory-cast shapes, and four unaligned access widths
   (`1/2/4/8`). The catalog records successful and rejected slice boundaries,
   both overlap directions, equal and zero-length ranges, trailing-byte and
-  unaligned `MemoryMarshal.Cast` behavior, and zero extension, sign extension,
-  widening, native-width reads, and truncation. It validates exact count,
+  unaligned `MemoryMarshal.Cast` behavior, and unsigned
+  `Unsafe.ReadUnaligned<T>`/`Unsafe.WriteUnaligned<T>` widths followed by zero
+  extension, sign extension, widening, native-width preservation, and
+  truncation. Its cast policy explicitly allows unaligned starts and uses
+  floor division to discard only an incomplete trailing destination element.
+  It validates exact count,
   initialization, key and operation ranges, malformed metadata, duplicate and
   append-only key order, and frozen FNV-1a64 fingerprint
   `DE0413BBC2C1453E`. Copy validates all source and destination preconditions
@@ -407,15 +411,17 @@ runtime and does not become first-party build input or CLROS evidence.
 
 `tests/OS.HostTests/SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests.cs`
 cross-checks the 16-vector M04-003 catalog against .NET 10 span copy,
-`MemoryMarshal.Cast`, and `BinaryPrimitives` behavior. It covers full, middle,
-empty, and invalid slices; forward/backward/equal/zero/non-overlapping copies;
-divisible, trailing-byte, and unaligned casts; widths `1/2/4/8`; widening,
+`MemoryMarshal.Cast`, `Unsafe.ReadUnaligned<T>`, `Unsafe.WriteUnaligned<T>`,
+and `BinaryPrimitives` behavior. It covers full, middle, empty, and rejected
+slices; forward/backward/equal/zero/non-overlapping copies; divisible,
+trailing-byte, and unaligned casts; unsigned widths `1/2/4/8`; widening,
 sign/zero extension, native-width preservation, and truncation. It also rejects
 short destinations without mutation, default/uninitialized/malformed entries,
-count/key/operation errors, duplicate and reordered keys, stale fingerprints,
-managed-reference layouts, and production `System` namespace/import leakage,
-and checks warmed catalog validation for zero host allocation. Its host marker
-is:
+count/key/operation errors, every operation-specific invalid shape, duplicate
+and reordered keys, stale fingerprints, managed-reference layouts, forbidden
+production dependencies, and host-only APIs in the `NOSTDLIB_EFI` pointer
+branch, and checks warmed catalog copy plus validation for zero host allocation.
+Its host marker is:
 
 ```text
 CLROS_M04_003_READY vectors=16 spanVectors=4 overlapVectors=5 memoryCastVectors=3 unsafeWidthVectors=4 fingerprint=DE0413BBC2C1453E pointerWidth=8 referenceFilesRequired=false hostConformance=true guestIntegrated=false gate4=Fail

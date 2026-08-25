@@ -627,8 +627,12 @@ isolation, supervisor, restart, port-conflict, and crash-isolation evidence.
 - Host tests verify the M04-003 catalog contains exactly four slice, five
   overlap, three memory-cast, and four unaligned-width vectors; uses the frozen
   FNV-1a64 fingerprint `DE0413BBC2C1453E`; preserves atomic failure; rejects
-  malformed, duplicate, reordered, default, and stale-fingerprint inputs; and
-  cross-checks its supported behavior against .NET 10. The exact host marker
+  malformed, operation-specific hostile, duplicate, reordered, default, and
+  stale-fingerprint inputs; and cross-checks its supported behavior against
+  .NET 10, including unaligned `MemoryMarshal.Cast` with floor-truncated
+  trailing bytes and unsigned `Unsafe.ReadUnaligned<T>` widths `1/2/4/8`. The
+  `NOSTDLIB_EFI` source boundary remains caller-owned, status-coded,
+  allocation-free, and free of host-only span APIs. The exact host marker
   remains `hostConformance=true guestIntegrated=false gate4=Fail`. A later
   serialized EFI integration must own source/project/script changes, emit the
   same marker with `hostConformance=false guestIntegrated=true`, forbid
