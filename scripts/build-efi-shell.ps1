@@ -4138,44 +4138,117 @@ function Test-NativeAotRuntimePack {
     }
 }
 
-function Test-OvmfCodeImage {
+function Get-OvmfCodeImageEvidence {
     param([string] $Path)
+
+    $resolvedPath = Resolve-ExactFilePath -Candidate $Path
+    if ($null -eq $resolvedPath) {
+        return [pscustomobject] @{
+            Status = "missing"
+            Path = ""
+            Length = 0L
+            Sha256 = ""
+        }
+    }
 
     try {
         $stream = [System.IO.File]::Open(
-            $Path,
+            $resolvedPath,
             [System.IO.FileMode]::Open,
             [System.IO.FileAccess]::Read,
             [System.IO.FileShare]::Read)
         try {
-            if ($stream.Length -lt 65536) {
-                return $false
-            }
+            $length = $stream.Length
+            $signatureFound = $false
 
-            $probeLength = [int] [System.Math]::Min(4096L, $stream.Length)
+            $probeLength = [int] [System.Math]::Min(4096L, $length)
             $probe = New-Object byte[] $probeLength
-            if ($stream.Read($probe, 0, $probe.Length) -ne $probe.Length) {
-                return $false
+            $probeBytesRead = 0
+            while ($probeBytesRead -lt $probe.Length) {
+                $read = $stream.Read(
+                    $probe,
+                    $probeBytesRead,
+                    $probe.Length - $probeBytesRead)
+                if ($read -eq 0) {
+                    break
+                }
+                $probeBytesRead += $read
             }
 
-            for ($index = 0; $index -le $probe.Length - 4; $index++) {
+            for ($index = 0; $index -le $probeBytesRead - 4; $index++) {
                 if ($probe[$index] -eq 0x5f -and
                     $probe[$index + 1] -eq 0x46 -and
                     $probe[$index + 2] -eq 0x56 -and
                     $probe[$index + 3] -eq 0x48) {
-                    return $true
+                    $signatureFound = $true
+                    break
                 }
             }
 
-            return $false
+            if ($length -lt 65536 -or -not $signatureFound) {
+                return [pscustomobject] @{
+                    Status = "invalid"
+                    Path = $resolvedPath
+                    Length = $length
+                    Sha256 = ""
+                }
+            }
+
+            [void] $stream.Seek(0L, [System.IO.SeekOrigin]::Begin)
+            $sha256 = [System.Security.Cryptography.SHA256]::Create()
+            try {
+                $hashBytes = $sha256.ComputeHash($stream)
+            }
+            finally {
+                $sha256.Dispose()
+            }
+
+            return [pscustomobject] @{
+                Status = "ok"
+                Path = $resolvedPath
+                Length = $length
+                Sha256 = [System.BitConverter]::ToString($hashBytes).Replace("-", "")
+            }
         }
         finally {
             $stream.Dispose()
         }
     }
     catch {
-        return $false
+        return [pscustomobject] @{
+            Status = "evidence_unavailable"
+            Path = $resolvedPath
+            Length = 0L
+            Sha256 = ""
+        }
     }
+}
+
+$script:OvmfCodeImageEvidenceByPath = @{}
+$script:OvmfCodeImageEvidenceAttempts =
+    New-Object System.Collections.Generic.List[object]
+
+function Get-CachedOvmfCodeImageEvidence {
+    param([string] $Path)
+
+    $resolvedPath = Resolve-ExactFilePath -Candidate $Path
+    if ($null -ne $resolvedPath -and
+        $script:OvmfCodeImageEvidenceByPath.ContainsKey($resolvedPath)) {
+        return $script:OvmfCodeImageEvidenceByPath[$resolvedPath]
+    }
+
+    $evidence = Get-OvmfCodeImageEvidence -Path $Path
+    if (-not [string]::IsNullOrWhiteSpace($evidence.Path)) {
+        $script:OvmfCodeImageEvidenceByPath[$evidence.Path] = $evidence
+    }
+    $script:OvmfCodeImageEvidenceAttempts.Add($evidence)
+    return $evidence
+}
+
+function Test-OvmfCodeImage {
+    param([string] $Path)
+
+    return (Get-CachedOvmfCodeImageEvidence -Path $Path).Status -eq "ok"
 }
 
 function Resolve-ExactFilePath {
@@ -7153,11 +7226,14 @@ Write-EfiPreflightLine (
     "EFI_PREFLIGHT_QEMU_IMG path=" + (Format-EvidenceValue $resolvedQemuImgPath) +
     " version=" + (Format-EvidenceValue $qemuImgVersion))
 
+$ovmfEvidence = $null
 if (-not [string]::IsNullOrWhiteSpace($OvmfCodePath)) {
-    $resolvedOvmfCodePath = Resolve-ExactFilePath -Candidate $OvmfCodePath
-    if ($null -ne $resolvedOvmfCodePath -and
-        -not (Test-OvmfCodeImage -Path $resolvedOvmfCodePath)) {
-        $resolvedOvmfCodePath = $null
+    $ovmfEvidence = Get-CachedOvmfCodeImageEvidence -Path $OvmfCodePath
+    $resolvedOvmfCodePath = if ($ovmfEvidence.Status -eq "ok") {
+        $ovmfEvidence.Path
+    }
+    else {
+        $null
     }
 }
 elseif ($OvmfSearchRoot.Count -gt 0) {
@@ -7173,21 +7249,55 @@ elseif ($OvmfSearchRoot.Count -gt 0) {
             -PathPattern "" `
             -Validator ${function:Test-OvmfCodeImage}
     }
+    if ($null -ne $resolvedOvmfCodePath) {
+        $ovmfEvidence = Get-CachedOvmfCodeImageEvidence `
+            -Path $resolvedOvmfCodePath
+    }
 }
 else {
     $resolvedOvmfCodePath = $null
     foreach ($candidate in $defaultOvmfPaths) {
-        $resolvedOvmfCodePath = Resolve-ExactFilePath -Candidate $candidate
-        if ($null -ne $resolvedOvmfCodePath -and
-            (Test-OvmfCodeImage -Path $resolvedOvmfCodePath)) {
+        $candidateEvidence = Get-CachedOvmfCodeImageEvidence -Path $candidate
+        if ($candidateEvidence.Status -eq "ok") {
+            $ovmfEvidence = $candidateEvidence
+            $resolvedOvmfCodePath = $candidateEvidence.Path
             break
         }
-
-        $resolvedOvmfCodePath = $null
     }
 }
 
 if ($null -eq $resolvedOvmfCodePath) {
+    $ovmfFailureStatus = "missing"
+    if ($null -ne $ovmfEvidence -and $ovmfEvidence.Status -ne "ok") {
+        $ovmfFailureStatus = $ovmfEvidence.Status
+    }
+    elseif (@($script:OvmfCodeImageEvidenceAttempts | Where-Object {
+                $_.Status -eq "evidence_unavailable"
+            }).Count -gt 0) {
+        $ovmfFailureStatus = "evidence_unavailable"
+    }
+    elseif (@($script:OvmfCodeImageEvidenceAttempts | Where-Object {
+                $_.Status -eq "invalid"
+            }).Count -gt 0) {
+        $ovmfFailureStatus = "invalid"
+    }
+
+    if ($ovmfFailureStatus -eq "evidence_unavailable") {
+        Stop-EfiPreflight `
+            -Marker "EFI_PREFLIGHT_OVMF" `
+            -Reason "ovmf_evidence_unavailable" `
+            -LogFullPath $logFullPath `
+            -ReportedLogPath $LogPath `
+            -Status "evidence_unavailable"
+    }
+    if ($ovmfFailureStatus -eq "invalid") {
+        Stop-EfiPreflight `
+            -Marker "EFI_PREFLIGHT_OVMF" `
+            -Reason "ovmf_invalid" `
+            -LogFullPath $logFullPath `
+            -ReportedLogPath $LogPath `
+            -Status "invalid"
+    }
     Stop-EfiPreflight `
         -Marker "EFI_PREFLIGHT_OVMF" `
         -Reason "ovmf_not_found" `
@@ -7195,20 +7305,10 @@ if ($null -eq $resolvedOvmfCodePath) {
         -ReportedLogPath $LogPath
 }
 
-try {
-    $ovmfHash = (Get-FileHash -LiteralPath $resolvedOvmfCodePath -Algorithm SHA256).Hash
-    $ovmfLength = (Get-Item -LiteralPath $resolvedOvmfCodePath).Length
-}
-catch {
-    Stop-EfiPreflight `
-        -Marker "EFI_PREFLIGHT_OVMF" `
-        -Reason "ovmf_evidence_unavailable" `
-        -LogFullPath $logFullPath `
-        -ReportedLogPath $LogPath `
-        -Status "evidence_unavailable"
-}
+$ovmfHash = $ovmfEvidence.Sha256
+$ovmfLength = $ovmfEvidence.Length
 Write-EfiPreflightLine (
-    "EFI_PREFLIGHT_OVMF path=" + (Format-EvidenceValue $resolvedOvmfCodePath) +
+    "EFI_PREFLIGHT_OVMF path=" + (Format-EvidenceValue $ovmfEvidence.Path) +
     " bytes=" + $ovmfLength +
     " sha256=" + $ovmfHash)
 

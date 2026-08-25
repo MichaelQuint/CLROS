@@ -34,10 +34,10 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
             "dd82e2462b84effa3f3ec03fc3b64ee8916b0913c6cdb34bac2f3fe276f98f00"),
         (
             "docs/diagnostics.md",
-            "d4120bf0627ed0031254ebeb158e31cf56d6b36ea2083c23afa7498400ff5a72"),
+            "bc1a9ffddfe8f71eaf6b729609366efffed7693b92e8851e784624470bfce76a"),
         (
             "docs/boot-order.md",
-            "23b68554f71eaaeb1fa982bc61f00b2fa66acfb9e22003c74f93f16a16ff9045")
+            "16d88fac99cbb273a4426841cb55e541ad9a2a4ffe151cf435cc02bedd59beac")
     ];
 
     [ModuleInitializer]

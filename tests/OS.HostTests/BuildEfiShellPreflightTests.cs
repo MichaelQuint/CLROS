@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -133,6 +134,12 @@ internal static class BuildEfiShellPreflightTests
             Run("efi preflight passes with injected search roots", () => TestInjectedSearchRootsPass(tempRoot), ref failures);
             Run("efi preflight selects newest credible numeric toolsets", () => TestNewestCredibleToolsetsWin(tempRoot), ref failures);
             Run("efi preflight rejects undersized ovmf", () => TestUndersizedOvmfFails(tempRoot), ref failures);
+            Run("efi preflight rejects malformed ovmf signature", () => TestMalformedOvmfSignatureFails(tempRoot), ref failures);
+            Run("efi preflight preserves ovmf paths with spaces", () => TestOvmfPathWithSpacesPasses(tempRoot), ref failures);
+            Run("efi preflight ignores poisoned Get-FileHash module", () => TestOvmfEvidenceIgnoresPoisonedFileHashModule(tempRoot), ref failures);
+            Run("efi preflight shares one stable ovmf read", () => TestOvmfEvidenceWithConcurrentReader(tempRoot), ref failures);
+            Run("efi preflight releases repeated ovmf evidence reads", () => TestRepeatedOvmfEvidenceReleasesHandles(tempRoot), ref failures);
+            Run("efi preflight separates unavailable ovmf evidence", () => TestUnavailableOvmfEvidenceFails(tempRoot), ref failures);
         }
         finally
         {
@@ -3242,11 +3249,25 @@ internal static class BuildEfiShellPreflightTests
                 . ([scriptblock]::Create($matches[0].Extent.Text))
             }
 
+            function Get-TestFileSha256 {
+                param([string] $Path)
+
+                $stream = [System.IO.File]::Open(
+                    $Path,
+                    [System.IO.FileMode]::Open,
+                    [System.IO.FileAccess]::Read,
+                    [System.IO.FileShare]::Read)
+                try {
+                    return Get-M01StreamSha256 -Stream $stream
+                }
+                finally {
+                    $stream.Dispose()
+                }
+            }
+
             $sourcePath = Join-Path $CaseRoot "source.txt"
             [System.IO.File]::WriteAllText($sourcePath, "before")
-            $sourceHash = (
-                Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256
-            ).Hash.ToLowerInvariant()
+            $sourceHash = Get-TestFileSha256 -Path $sourcePath
             $inputs = @([pscustomobject]@{
                     path = "source.txt"
                     sha256 = $sourceHash
@@ -3298,9 +3319,7 @@ internal static class BuildEfiShellPreflightTests
                 -ItemType HardLink `
                 -Path $hardlinkAlias `
                 -Target $hardlinkSource | Out-Null
-            $hardlinkHash = (
-                Get-FileHash -LiteralPath $hardlinkAlias -Algorithm SHA256
-            ).Hash.ToLowerInvariant()
+            $hardlinkHash = Get-TestFileSha256 -Path $hardlinkAlias
             $hardlinkRejected = $false
             try {
                 $unused = Open-M01PublishSourceLocks `
@@ -3327,9 +3346,7 @@ internal static class BuildEfiShellPreflightTests
                 -ItemType Junction `
                 -Path $junctionRoot `
                 -Target $junctionTarget | Out-Null
-            $junctionHash = (
-                Get-FileHash -LiteralPath $junctionSource -Algorithm SHA256
-            ).Hash.ToLowerInvariant()
+            $junctionHash = Get-TestFileSha256 -Path $junctionSource
             $junctionRejected = $false
             try {
                 $unused = Open-M01PublishSourceLocks `
@@ -3364,9 +3381,7 @@ internal static class BuildEfiShellPreflightTests
                 # Symlink creation can be policy restricted on Windows.
             }
             if ($leafLinkCreated) {
-                $leafHash = (
-                    Get-FileHash -LiteralPath $leafLink -Algorithm SHA256
-                ).Hash.ToLowerInvariant()
+                $leafHash = Get-TestFileSha256 -Path $leafLink
                 $leafRejected = $false
                 try {
                     $unused = Open-M01PublishSourceLocks `
@@ -4387,9 +4402,122 @@ internal static class BuildEfiShellPreflightTests
         ProcessResult result = RunPreflight(tools);
         return IsMissingFailure(
             result,
-            "EFI_PREFLIGHT_OVMF missing",
-            "ovmf_not_found",
+            "EFI_PREFLIGHT_OVMF invalid",
+            "ovmf_invalid",
             unexpectedMarker: "EFI_PREFLIGHT_OK");
+    }
+
+    private static bool TestOvmfEvidenceIgnoresPoisonedFileHashModule(string tempRoot)
+    {
+        ToolFixture tools = CreateCompleteToolFixture(tempRoot, "ovmf-no-modules");
+        tools.PowerShellModulePath = Path.Combine(tools.Root, "poisoned-modules");
+        string poisonModule = Path.Combine(
+            tools.PowerShellModulePath,
+            "PoisonedHash");
+        Directory.CreateDirectory(poisonModule);
+        File.WriteAllText(
+            Path.Combine(poisonModule, "PoisonedHash.psm1"),
+            "function Get-FileHash { throw 'poisoned Get-FileHash executed' }\n" +
+            "Export-ModuleMember -Function Get-FileHash\n");
+        File.WriteAllText(
+            Path.Combine(poisonModule, "PoisonedHash.psd1"),
+            "@{ RootModule='PoisonedHash.psm1'; ModuleVersion='1.0.0'; " +
+            "GUID='3de78631-b4c0-42b6-8c70-9f48d0c44a62'; " +
+            "FunctionsToExport=@('Get-FileHash') }");
+
+        ProcessResult result = RunPreflight(tools);
+        return IsSuccessfulEvidence(result, tools);
+    }
+
+    private static bool TestMalformedOvmfSignatureFails(string tempRoot)
+    {
+        ToolFixture tools = CreateCompleteToolFixture(tempRoot, "malformed-ovmf");
+        File.WriteAllBytes(tools.OvmfCodePath, new byte[65536]);
+
+        ProcessResult result = RunPreflight(tools);
+        return IsMissingFailure(
+            result,
+            "EFI_PREFLIGHT_OVMF invalid",
+            "ovmf_invalid",
+            unexpectedMarker: "EFI_PREFLIGHT_OK");
+    }
+
+    private static bool TestOvmfPathWithSpacesPasses(string tempRoot)
+    {
+        ToolFixture tools = CreateCompleteToolFixture(
+            tempRoot,
+            "injected ovmf path with spaces");
+
+        ProcessResult result = RunPreflight(tools);
+        return IsSuccessfulEvidence(result, tools);
+    }
+
+    private static bool TestOvmfEvidenceWithConcurrentReader(string tempRoot)
+    {
+        ToolFixture tools = CreateCompleteToolFixture(tempRoot, "ovmf-concurrent-reader");
+        string expectedHash = Convert.ToHexString(
+            SHA256.HashData(File.ReadAllBytes(tools.OvmfCodePath)));
+
+        using FileStream reader = new FileStream(
+            tools.OvmfCodePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read);
+        ProcessResult result = RunPreflight(tools);
+
+        string exactEvidence =
+            "EFI_PREFLIGHT_OVMF path=\"" +
+            Path.GetFullPath(tools.OvmfCodePath) +
+            "\" bytes=65536 sha256=" +
+            expectedHash;
+        return IsSuccessfulEvidence(result, tools)
+            && result.Output.Contains(exactEvidence, StringComparison.Ordinal)
+            && reader.Length == 65536;
+    }
+
+    private static bool TestUnavailableOvmfEvidenceFails(string tempRoot)
+    {
+        ToolFixture tools = CreateCompleteToolFixture(tempRoot, "ovmf-exclusive-reader");
+        using FileStream exclusiveReader = new FileStream(
+            tools.OvmfCodePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.None);
+
+        ProcessResult result = RunPreflight(tools);
+        return IsMissingFailure(
+            result,
+            "EFI_PREFLIGHT_OVMF evidence_unavailable",
+            "ovmf_evidence_unavailable",
+            unexpectedMarker: "EFI_PREFLIGHT_OK")
+            && exclusiveReader.Length == 65536;
+    }
+
+    private static bool TestRepeatedOvmfEvidenceReleasesHandles(string tempRoot)
+    {
+        ToolFixture tools = CreateCompleteToolFixture(tempRoot, "ovmf-repeat");
+        ProcessResult first = RunPreflight(tools);
+        ProcessResult second = RunPreflight(tools);
+        if (!IsSuccessfulEvidence(first, tools) ||
+            !IsSuccessfulEvidence(second, tools))
+        {
+            return false;
+        }
+
+        using (FileStream exclusive = new FileStream(
+            tools.OvmfCodePath,
+            FileMode.Open,
+            FileAccess.ReadWrite,
+            FileShare.None))
+        {
+            if (exclusive.Length != 65536)
+            {
+                return false;
+            }
+        }
+
+        File.Delete(tools.OvmfCodePath);
+        return !File.Exists(tools.OvmfCodePath);
     }
 
     private static bool IsMissingFailure(
@@ -4581,6 +4709,10 @@ internal static class BuildEfiShellPreflightTests
         };
 
         start.Environment["CLROS_PREFLIGHT_SECRET_CANARY"] = SecretCanary;
+        if (!string.IsNullOrWhiteSpace(tools.PowerShellModulePath))
+        {
+            start.Environment["PSModulePath"] = tools.PowerShellModulePath;
+        }
         AddArgument(start, "-NoProfile");
         AddArgument(start, "-ExecutionPolicy", "Bypass");
         AddArgument(start, "-File", scriptPath);
@@ -4728,5 +4860,7 @@ internal static class BuildEfiShellPreflightTests
         public required string OvmfSearchRoot { get; init; }
 
         public required string OvmfCodePath { get; set; }
+
+        public string? PowerShellModulePath { get; set; }
     }
 }
