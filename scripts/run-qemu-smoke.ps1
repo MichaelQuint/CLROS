@@ -47,6 +47,7 @@ param(
     [switch] $EnableM02GuardedIstStackAllocationProbe,
     [switch] $EnableM02OwnedGdtTssTerminalProbe,
     [switch] $EnableM04IndependentEndianConformanceProbe,
+    [switch] $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe,
     [switch] $SkipImageBuild
 )
 
@@ -261,6 +262,23 @@ $script:M04IndependentEndianConformanceRequiredMarkers = @(
 )
 $script:M04IndependentEndianConformanceForbiddenMarkers = @(
     "M04_ENDIAN_CONFORMANCE_FAILED"
+    "TEST_FAIL"
+)
+$script:M04SpanMemoryConformanceReadyMarker =
+    "CLROS_M04_003_READY vectors=16 spanVectors=4 overlapVectors=5 memoryCastVectors=3 unsafeWidthVectors=4 fingerprint=F03FF59D36F39ECD pointerWidth=8 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail"
+$script:M04SpanMemoryConformanceRequiredMarkers = @(
+    "EFI_CONSOLE_READY"
+    $script:M04IndependentEndianConformanceReadyMarker
+    $script:M04SpanMemoryConformanceReadyMarker
+    "UEFI_MEMORY_MAP_READY"
+)
+$script:M04SpanMemoryConformanceUniqueMarkers = @(
+    $script:M04IndependentEndianConformanceReadyMarker
+    $script:M04SpanMemoryConformanceReadyMarker
+)
+$script:M04SpanMemoryConformanceForbiddenMarkers = @(
+    "M04_ENDIAN_CONFORMANCE_FAILED"
+    "M04_SPAN_MEMORY_CONFORMANCE_FAILED"
     "TEST_FAIL"
 )
 
@@ -3713,7 +3731,31 @@ try {
         ConvertTo-QemuSmokeMarkerList -Values $ForbidMarker
     )
 
-    if ($EnableM04IndependentEndianConformanceProbe) {
+    if ($EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe) {
+        $requiredMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $requiredMarkers
+                $script:M04SpanMemoryConformanceRequiredMarkers
+            )
+        )
+        $orderedMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $script:M04SpanMemoryConformanceRequiredMarkers
+            )
+        )
+        $uniqueMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $script:M04SpanMemoryConformanceUniqueMarkers
+            )
+        )
+        $forbiddenMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $forbiddenMarkers
+                $script:M04SpanMemoryConformanceForbiddenMarkers
+            )
+        )
+    }
+    elseif ($EnableM04IndependentEndianConformanceProbe) {
         $requiredMarkers = @(
             ConvertTo-QemuSmokeMarkerList -Values @(
                 $requiredMarkers
@@ -4102,11 +4144,57 @@ try {
         (Format-QemuSmokeBoolean $DryRun.IsPresent) +
         " profileRequired=15 profileForbidden=3")
     Write-Host (
+        "QEMU_SCRIPT_M04_SPAN_MEMORY_CONFORMANCE_PROBE enabled=" +
+        (Format-QemuSmokeBoolean $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe.IsPresent) +
+        " independentEndianConformance=" +
+        (Format-QemuSmokeBoolean $EnableM04IndependentEndianConformanceProbe.IsPresent) +
+        " ownedGdtTssTerminal=" +
+        (Format-QemuSmokeBoolean $EnableM02OwnedGdtTssTerminalProbe.IsPresent) +
+        " buildEfi=" +
+        (Format-QemuSmokeBoolean $BuildEfi.IsPresent) +
+        " skipImageBuild=" +
+        (Format-QemuSmokeBoolean $SkipImageBuild.IsPresent) +
+        " dryRun=" +
+        (Format-QemuSmokeBoolean $DryRun.IsPresent) +
+        " profileRequired=16 profileOrdered=4 profileUnique=2 profileForbidden=4")
+    Write-Host (
         "QEMU_SCRIPT_REQUIRE_ORDERED_MARKERS " +
         (Format-QemuSmokeMarkerList $orderedMarkers))
     Write-Host (
         "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS " +
         (Format-QemuSmokeMarkerList $uniqueMarkers))
+
+    if ($EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -and
+        -not $EnableM04IndependentEndianConformanceProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m04_span_memory_conformance_probe_requires_independent_endian_conformance")
+        exit 1
+    }
+
+    if ($EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -and
+        $EnableM02OwnedGdtTssTerminalProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m04_span_memory_conformance_probe_forbids_owned_gdt_tss_terminal")
+        exit 1
+    }
+
+    if ($EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -and
+        -not $BuildEfi) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m04_span_memory_conformance_probe_requires_build_efi")
+        exit 1
+    }
+
+    if ($EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -and
+        $SkipImageBuild) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m04_span_memory_conformance_probe_forbids_skip_image_build")
+        exit 1
+    }
 
     if ($EnableM04IndependentEndianConformanceProbe -and -not $BuildEfi) {
         Write-Host (
@@ -4501,6 +4589,11 @@ try {
         if ($EnableM04IndependentEndianConformanceProbe) {
             $buildArguments +=
                 "-EnableM04IndependentEndianConformanceProbe"
+        }
+
+        if ($EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe) {
+            $buildArguments +=
+                "-EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"
         }
 
         Invoke-NativeCommand {

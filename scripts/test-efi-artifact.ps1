@@ -12,7 +12,8 @@ param(
     [switch]$EnableM02OwnedX64GdtEncodingProbe,
     [switch]$EnableM02GuardedIstStackAllocationProbe,
     [switch]$EnableM02OwnedGdtTssTerminalProbe,
-    [switch]$EnableM04IndependentEndianConformanceProbe
+    [switch]$EnableM04IndependentEndianConformanceProbe,
+    [switch]$EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe
 )
 
 $ErrorActionPreference = "Stop"
@@ -34,7 +35,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 71
+$expectedSourceClosureInputCount = 72
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -123,6 +124,7 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs',
     '..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs',
     '..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs',
+    '..\..\std\no-runtime\shared\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs|Std\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs',
     '..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs|Boot\M01LoadedImageStackIntegration.cs',
     '..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs|Boot\M01LiveAllocatorIntegration.cs',
     '..\OS.Kernel\Boot\M01LivePagingIntegration.cs|Boot\M01LivePagingIntegration.cs',
@@ -3790,6 +3792,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM02GuardedIstStackAllocationProbe," +
             "EnableM02OwnedGdtTssTerminalProbe," +
             "EnableM04IndependentEndianConformanceProbe," +
+            "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe," +
             "ImportProjectExtensionProps,ImportProjectExtensionTargets," +
             "ExcludeRestorePackageImports,ILCompilerTargetsPath," +
             "ILLinkTargetsPath,ILLinkTasksAssembly,IlcBuildTasksPath," +
@@ -3887,6 +3890,10 @@ function Invoke-PostRestoreEvaluationSnapshot {
     if ($EnableM04IndependentEndianConformanceProbe) {
         $arguments +=
             "-p:EnableM04IndependentEndianConformanceProbe=true"
+    }
+    if ($EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe) {
+        $arguments +=
+            "-p:EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe=true"
     }
     if ($EnableM02OwnedCom1ReadyProbe) {
         $arguments += "-p:EnableM02OwnedCom1ReadyProbe=true"
@@ -4056,6 +4063,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM02OwnedGdtTssTerminalProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04IndependentEndianConformanceProbe =
             $EnableM04IndependentEndianConformanceProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe =
+            $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe.IsPresent.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
         ImportProjectExtensionTargets = "false"
         ExcludeRestorePackageImports = "true"
@@ -4111,7 +4120,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 58 -or
+    if ($compileItems.Count -ne 59 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4236,6 +4245,15 @@ function Assert-PostRestoreEvidenceMatchesSnapshot {
 }
 
 Write-Output "TEST_START $testName"
+
+if ($EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -and
+    -not $EnableM04IndependentEndianConformanceProbe) {
+    Write-Failure "m04_span_memory_conformance_requires_independent_endian_conformance"
+}
+if ($EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -and
+    $EnableM02OwnedGdtTssTerminalProbe) {
+    Write-Failure "m04_span_memory_conformance_forbids_owned_gdt_tss_terminal"
+}
 
 if (-not [System.BitConverter]::IsLittleEndian) {
     Write-Failure "unsupported_host_endianness"

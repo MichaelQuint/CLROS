@@ -684,9 +684,9 @@ production readiness.
 The default-false `EnableM02GuardedIstStackAllocationProbe` profile links
 `Diagnostics/GuardedISTStacksDoubleFaultPageFaultNMI.cs` immediately after the
 accepted M02-007 encoder and before the independent endian catalog. The current
-development closure is exactly 58 compile items and 71 source-authority inputs
-after the default-off M02-009 terminal stub source was added after this
-historically accepted slice.
+development closure is exactly 59 compile items and 72 source-authority inputs
+after the default-off M02-009 terminal stub and M04-003 span/memory catalog
+sources were added after this historically accepted slice.
 The flag requires `EnableM02OwnedX64GdtEncodingProbe=true`; the QEMU wrapper
 also requires `-BuildEfi`, rejects `-SkipImageBuild`, and rebuilds both the EFI
 artifact and raw image.
@@ -749,8 +749,9 @@ requirement.
 The default-false `EnableM02OwnedGdtTssTerminalProbe` profile links the reviewed
 `Diagnostics/OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs` source immediately
 after the M02-008 guarded-IST dependency and before the independent endian
-catalog. The explicit development closure is therefore 58 compile items and 71
-source-authority inputs. The flag requires
+catalog. The current explicit development closure is therefore 59 compile items
+and 72 source-authority inputs after the later default-off M04-003 catalog was
+inserted after the endian catalog. The flag requires
 `EnableM02GuardedIstStackAllocationProbe=true`; the build and artifact-verifier
 paths propagate the same property and require the exact
 `M02_OWNED_GDT_TSS_TERMINAL_PROBE` symbol.
@@ -829,10 +830,10 @@ or production readiness.
 profile. At its acceptance head it added exactly one explicit compile item:
 `std/no-runtime/shared/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs`.
 That historical accepted project closure had 53 compile items and the canonical
-build/verifier authority had 66 inputs. The current development tree has 58/71
+build/verifier authority had 66 inputs. The current development tree has 59/72
 after the later M02-005 writer, M02-006 reporter, M02-007 GDT encoder, and
 M02-008 guarded-IST arena contract plus the default-off M02-009 terminal stub
-were inserted before the catalog; this
+and M04-003 span/memory catalog were added; this
 does not alter or reinterpret the M04-002 artifact evidence below. The scripts reject
 compatibility counts, missing/reordered sources, stale hashes, wildcard imports,
 or a post-restore property mismatch.
@@ -881,6 +882,57 @@ the pre-`ExitBootServices` EFI application. They do not prove general
 `BinaryPrimitives` compatibility, object allocation, GC, exceptions, runtime
 completion, real `ExitBootServices`, owned post-firmware diagnostics, hosted
 .NET, Kestrel, provider support, CloudReady status, or production readiness.
+
+### M04-003 span/memory conformance EFI integration (pre-evidence)
+
+`EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe` is a default-false,
+returning development profile. It requires
+`EnableM04IndependentEndianConformanceProbe=true` and is rejected when the
+terminal `EnableM02OwnedGdtTssTerminalProbe` profile is enabled. The explicit
+project links exactly one frozen source immediately after the M04-002 endian
+catalog and before `M01LoadedImageStackIntegration.cs`:
+`std/no-runtime/shared/SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs`.
+The current build and artifact-verifier closure is 59 compile items and 72
+source-authority inputs. Both scripts carry the exact property and
+`M04_SPAN_OVERLAP_MEMORY_CAST_UNSAFE_WIDTH_CONFORMANCE_PROBE` symbol without
+silently enabling the M04-002 dependency.
+
+When enabled, the EFI entry path runs after accepted M04-002 validation and
+before memory-map capture. It uses caller-owned stack storage for exactly 16
+catalog vectors, 16 scratch bytes, and 16 execution records. It calls the
+no-stdlib pointer `CopyBuiltInCatalog` operation and exactly one
+`ExecuteCatalog` operation with fingerprint `F03FF59D36F39ECD`. The guest path
+audits every vector and every output record: keys, operations, status,
+result-element and output-byte counts, exact outputs, rejected-slice
+preservation, overlap-direction scratch results, and raw unsigned observations
+`FF`, `FF80`, `89ABCDEF`, and `1122334455667788`. The complete key-16 raw value
+is checked before its four-byte output truncation.
+
+Any mismatch emits only `M04_SPAN_MEMORY_CONFORMANCE_FAILED`, suppresses the
+success record, and returns before `UEFI_MEMORY_MAP_READY`. A successful run is
+expected to emit exactly:
+
+```text
+CLROS_M04_003_READY vectors=16 spanVectors=4 overlapVectors=5 memoryCastVectors=3 unsafeWidthVectors=4 fingerprint=F03FF59D36F39ECD pointerWidth=8 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
+```
+
+The exact-head publish command for the later evidence pass is:
+
+```powershell
+.\scripts\build-efi-shell.ps1 `
+  -EfiOutputPath .\artifacts\efi\BOOTX64-M04-003.EFI `
+  -LogPath .\artifacts\logs\m04-003-efi-build.log `
+  -EnableM04IndependentEndianConformanceProbe `
+  -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe
+```
+
+No real QEMU/OVMF acceptance is recorded for this integration yet. Until a
+fresh exact-head run succeeds, the marker above is an expected contract, not
+guest evidence, and the M04-003 leaf documentation remains host-only. Gate 4
+remains `Fail`. This pre-evidence integration does not prove general
+`System.Span<T>` or `MemoryMarshal`, unsafe memory safety, allocation, GC,
+exceptions, metadata or dispatch, real `ExitBootServices`, hosted .NET 10,
+Minimal API/Kestrel, cloud readiness, or production readiness.
 
 ### Linked instruction-publication serializer (M01-034)
 

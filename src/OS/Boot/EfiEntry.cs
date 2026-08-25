@@ -7607,6 +7607,12 @@ public static unsafe class EfiEntry
             return;
         }
 #endif
+#if M04_SPAN_OVERLAP_MEMORY_CAST_UNSAFE_WIDTH_CONFORMANCE_PROBE
+        if (!WriteM04SpanMemoryConformanceProbe(console, serial))
+        {
+            return;
+        }
+#endif
         if (TryCaptureUefiMemoryMap(systemTable))
         {
             WriteUefiMemoryMapReady(console, serial);
@@ -7863,6 +7869,567 @@ public static unsafe class EfiEntry
     }
 
     private static void WriteM04Ascii(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial,
+        byte b0,
+        byte b1,
+        byte b2,
+        byte b3,
+        byte b4,
+        byte b5,
+        byte b6,
+        byte b7)
+    {
+        if (b0 != 0) Write(console, serial, b0);
+        if (b1 != 0) Write(console, serial, b1);
+        if (b2 != 0) Write(console, serial, b2);
+        if (b3 != 0) Write(console, serial, b3);
+        if (b4 != 0) Write(console, serial, b4);
+        if (b5 != 0) Write(console, serial, b5);
+        if (b6 != 0) Write(console, serial, b6);
+        if (b7 != 0) Write(console, serial, b7);
+    }
+#endif
+
+#if M04_SPAN_OVERLAP_MEMORY_CAST_UNSAFE_WIDTH_CONFORMANCE_PROBE
+    private static bool WriteM04SpanMemoryConformanceProbe(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        OS.Std.Memory.SpanMemoryConformanceVector* vectors =
+            stackalloc OS.Std.Memory.SpanMemoryConformanceVector[16];
+        byte* scratch = stackalloc byte[16];
+        OS.Std.Memory.SpanMemoryVectorExecutionRecord* records =
+            stackalloc OS.Std.Memory.SpanMemoryVectorExecutionRecord[16];
+
+        OS.Std.Memory.SpanMemoryConformanceResult copyResult =
+            OS.Std.Memory
+                .SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .CopyBuiltInCatalog(vectors, 16);
+        OS.Std.Memory.SpanMemoryExecutionResult executionResult =
+            OS.Std.Memory
+                .SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .ExecuteCatalog(
+                    vectors,
+                    16,
+                    scratch,
+                    16,
+                    records,
+                    16,
+                    0xF03FF59D36F39ECDUL);
+
+        if (!M04SpanMemoryCatalogResultMatches(copyResult) ||
+            !executionResult.IsInitialized ||
+            !executionResult.Succeeded ||
+            executionResult.Status !=
+                OS.Std.Memory.SpanMemoryExecutionStatus.Success ||
+            !M04SpanMemoryCatalogResultMatches(
+                executionResult.CatalogValidation) ||
+            executionResult.RequiredScratchBytes != 16 ||
+            executionResult.AvailableScratchBytes != 16 ||
+            executionResult.RequiredOutputCount != 16 ||
+            executionResult.AvailableOutputCount != 16 ||
+            executionResult.ExecutedVectorCount != 16 ||
+            executionResult.ProblemIndex != -1 ||
+            executionResult.CatalogFingerprint !=
+                0xF03FF59D36F39ECDUL ||
+            OS.Std.Memory
+                .SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .SliceVectorCount != 4 ||
+            OS.Std.Memory
+                .SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .OverlapVectorCount != 5 ||
+            OS.Std.Memory
+                .SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .MemoryCastVectorCount != 3 ||
+            OS.Std.Memory
+                .SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .UnalignedWidthVectorCount != 4 ||
+            OS.Std.Memory
+                .SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .TotalVectorCount != 16 ||
+            OS.Std.Memory
+                .SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .PointerWidth != 8 ||
+            OS.Std.Memory
+                .SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .RequiredScratchBytes != 16 ||
+            OS.Std.Memory
+                .SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .RequiredExecutionRecordCount != 16 ||
+            !OS.Std.Memory
+                .SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .MemoryCastAllowsUnalignedStart ||
+            !OS.Std.Memory
+                .SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .MemoryCastFloorTruncatesTrailingBytes ||
+            !OS.Std.Memory
+                .SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .UnsafeWidthUsesUnsignedReads ||
+            OS.Std.Memory
+                .SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .AddsCanonicalSystemNamespace ||
+            OS.Std.Memory
+                .SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .ReferenceFilesRequired ||
+            OS.Std.Memory
+                .SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .RequiresHostConformance ||
+            OS.Std.Memory
+                .SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                .SatisfiesRuntimeCompletionGate4)
+        {
+            WriteM04SpanMemoryConformanceFailureLine(console, serial);
+            return false;
+        }
+
+        const ulong Seed = 0x0807060504030201UL;
+        if (!M04SpanMemoryVectorMatches(
+                vectors[0],
+                1,
+                OS.Std.Memory.SpanMemoryConformanceOperation.Slice,
+                0,
+                0,
+                8,
+                1,
+                1,
+                1,
+                8,
+                8,
+                Seed,
+                Seed) ||
+            !M04SpanMemoryVectorMatches(
+                vectors[1],
+                2,
+                OS.Std.Memory.SpanMemoryConformanceOperation.Slice,
+                2,
+                0,
+                4,
+                1,
+                1,
+                1,
+                4,
+                4,
+                Seed,
+                0x0000000006050403UL) ||
+            !M04SpanMemoryVectorMatches(
+                vectors[2],
+                3,
+                OS.Std.Memory.SpanMemoryConformanceOperation.Slice,
+                8,
+                0,
+                0,
+                1,
+                1,
+                1,
+                0,
+                0,
+                Seed,
+                0) ||
+            !M04SpanMemoryVectorMatches(
+                vectors[3],
+                4,
+                OS.Std.Memory.SpanMemoryConformanceOperation.Slice,
+                7,
+                0,
+                2,
+                1,
+                1,
+                0,
+                0,
+                0,
+                Seed,
+                0) ||
+            !M04SpanMemoryVectorMatches(
+                vectors[4],
+                5,
+                OS.Std.Memory.SpanMemoryConformanceOperation.Overlap,
+                2,
+                0,
+                4,
+                1,
+                1,
+                1,
+                8,
+                8,
+                Seed,
+                0x0807060506050403UL) ||
+            !M04SpanMemoryVectorMatches(
+                vectors[5],
+                6,
+                OS.Std.Memory.SpanMemoryConformanceOperation.Overlap,
+                0,
+                2,
+                4,
+                1,
+                1,
+                1,
+                8,
+                8,
+                Seed,
+                0x0807040302010201UL) ||
+            !M04SpanMemoryVectorMatches(
+                vectors[6],
+                7,
+                OS.Std.Memory.SpanMemoryConformanceOperation.Overlap,
+                1,
+                1,
+                4,
+                1,
+                1,
+                1,
+                8,
+                8,
+                Seed,
+                Seed) ||
+            !M04SpanMemoryVectorMatches(
+                vectors[7],
+                8,
+                OS.Std.Memory.SpanMemoryConformanceOperation.Overlap,
+                8,
+                8,
+                0,
+                1,
+                1,
+                1,
+                8,
+                8,
+                Seed,
+                Seed) ||
+            !M04SpanMemoryVectorMatches(
+                vectors[8],
+                9,
+                OS.Std.Memory.SpanMemoryConformanceOperation.Overlap,
+                0,
+                4,
+                4,
+                1,
+                1,
+                1,
+                8,
+                8,
+                Seed,
+                0x0403020104030201UL) ||
+            !M04SpanMemoryVectorMatches(
+                vectors[9],
+                10,
+                OS.Std.Memory.SpanMemoryConformanceOperation.MemoryCast,
+                0,
+                0,
+                8,
+                1,
+                2,
+                1,
+                8,
+                4,
+                Seed,
+                Seed) ||
+            !M04SpanMemoryVectorMatches(
+                vectors[10],
+                11,
+                OS.Std.Memory.SpanMemoryConformanceOperation.MemoryCast,
+                1,
+                0,
+                6,
+                1,
+                4,
+                1,
+                4,
+                1,
+                Seed,
+                0x0000000004030201UL) ||
+            !M04SpanMemoryVectorMatches(
+                vectors[11],
+                12,
+                OS.Std.Memory.SpanMemoryConformanceOperation.MemoryCast,
+                0,
+                0,
+                4,
+                4,
+                1,
+                1,
+                4,
+                4,
+                0x00000000A1B2C3D4UL,
+                0x00000000A1B2C3D4UL) ||
+            !M04SpanMemoryVectorMatches(
+                vectors[12],
+                13,
+                OS.Std.Memory.SpanMemoryConformanceOperation.UnalignedWidth,
+                1,
+                0,
+                1,
+                1,
+                8,
+                1,
+                8,
+                1,
+                0xFF,
+                0xFF) ||
+            !M04SpanMemoryVectorMatches(
+                vectors[13],
+                14,
+                OS.Std.Memory.SpanMemoryConformanceOperation.UnalignedWidth,
+                1,
+                0,
+                2,
+                2,
+                8,
+                3,
+                8,
+                1,
+                0xFF80,
+                0xFFFFFFFFFFFFFF80UL) ||
+            !M04SpanMemoryVectorMatches(
+                vectors[14],
+                15,
+                OS.Std.Memory.SpanMemoryConformanceOperation.UnalignedWidth,
+                1,
+                0,
+                4,
+                4,
+                8,
+                1,
+                8,
+                1,
+                0x89ABCDEF,
+                0x0000000089ABCDEFUL) ||
+            !M04SpanMemoryVectorMatches(
+                vectors[15],
+                16,
+                OS.Std.Memory.SpanMemoryConformanceOperation.UnalignedWidth,
+                1,
+                0,
+                8,
+                8,
+                4,
+                1,
+                4,
+                1,
+                0x1122334455667788UL,
+                0x0000000055667788UL))
+        {
+            WriteM04SpanMemoryConformanceFailureLine(console, serial);
+            return false;
+        }
+
+        if (!M04SpanMemoryRecordMatches(
+                records[0], 1,
+                OS.Std.Memory.SpanMemoryConformanceOperation.Slice,
+                OS.Std.Memory.SpanMemoryVectorExecutionStatus.Success,
+                8, 8, 0, Seed, Seed, false) ||
+            !M04SpanMemoryRecordMatches(
+                records[1], 2,
+                OS.Std.Memory.SpanMemoryConformanceOperation.Slice,
+                OS.Std.Memory.SpanMemoryVectorExecutionStatus.Success,
+                4, 4, 0, 0x0000000006050403UL, Seed, false) ||
+            !M04SpanMemoryRecordMatches(
+                records[2], 3,
+                OS.Std.Memory.SpanMemoryConformanceOperation.Slice,
+                OS.Std.Memory.SpanMemoryVectorExecutionStatus.Success,
+                0, 0, 0, 0, Seed, false) ||
+            !M04SpanMemoryRecordMatches(
+                records[3], 4,
+                OS.Std.Memory.SpanMemoryConformanceOperation.Slice,
+                OS.Std.Memory.SpanMemoryVectorExecutionStatus.ExpectedRejection,
+                0, 0, 0, 0, Seed, true) ||
+            !M04SpanMemoryRecordMatches(
+                records[4], 5,
+                OS.Std.Memory.SpanMemoryConformanceOperation.Overlap,
+                OS.Std.Memory.SpanMemoryVectorExecutionStatus.Success,
+                8, 8, 0, 0x0807060506050403UL,
+                0x0807060506050403UL, false) ||
+            !M04SpanMemoryRecordMatches(
+                records[5], 6,
+                OS.Std.Memory.SpanMemoryConformanceOperation.Overlap,
+                OS.Std.Memory.SpanMemoryVectorExecutionStatus.Success,
+                8, 8, 0, 0x0807040302010201UL,
+                0x0807040302010201UL, false) ||
+            !M04SpanMemoryRecordMatches(
+                records[6], 7,
+                OS.Std.Memory.SpanMemoryConformanceOperation.Overlap,
+                OS.Std.Memory.SpanMemoryVectorExecutionStatus.Success,
+                8, 8, 0, Seed, Seed, false) ||
+            !M04SpanMemoryRecordMatches(
+                records[7], 8,
+                OS.Std.Memory.SpanMemoryConformanceOperation.Overlap,
+                OS.Std.Memory.SpanMemoryVectorExecutionStatus.Success,
+                8, 8, 0, Seed, Seed, false) ||
+            !M04SpanMemoryRecordMatches(
+                records[8], 9,
+                OS.Std.Memory.SpanMemoryConformanceOperation.Overlap,
+                OS.Std.Memory.SpanMemoryVectorExecutionStatus.Success,
+                8, 8, 0, 0x0403020104030201UL,
+                0x0403020104030201UL, false) ||
+            !M04SpanMemoryRecordMatches(
+                records[9], 10,
+                OS.Std.Memory.SpanMemoryConformanceOperation.MemoryCast,
+                OS.Std.Memory.SpanMemoryVectorExecutionStatus.Success,
+                8, 4, 0, Seed, Seed, false) ||
+            !M04SpanMemoryRecordMatches(
+                records[10], 11,
+                OS.Std.Memory.SpanMemoryConformanceOperation.MemoryCast,
+                OS.Std.Memory.SpanMemoryVectorExecutionStatus.Success,
+                4, 1, 0, 0x0000000004030201UL,
+                0x0006050403020100UL, false) ||
+            !M04SpanMemoryRecordMatches(
+                records[11], 12,
+                OS.Std.Memory.SpanMemoryConformanceOperation.MemoryCast,
+                OS.Std.Memory.SpanMemoryVectorExecutionStatus.Success,
+                4, 4, 0, 0x00000000A1B2C3D4UL,
+                0x00000000A1B2C3D4UL, false) ||
+            !M04SpanMemoryRecordMatches(
+                records[12], 13,
+                OS.Std.Memory.SpanMemoryConformanceOperation.UnalignedWidth,
+                OS.Std.Memory.SpanMemoryVectorExecutionStatus.Success,
+                8, 1, 0xFF, 0xFF, 0x000000000000FF00UL, false) ||
+            !M04SpanMemoryRecordMatches(
+                records[13], 14,
+                OS.Std.Memory.SpanMemoryConformanceOperation.UnalignedWidth,
+                OS.Std.Memory.SpanMemoryVectorExecutionStatus.Success,
+                8, 1, 0xFF80, 0xFFFFFFFFFFFFFF80UL,
+                0x0000000000FF8000UL, false) ||
+            !M04SpanMemoryRecordMatches(
+                records[14], 15,
+                OS.Std.Memory.SpanMemoryConformanceOperation.UnalignedWidth,
+                OS.Std.Memory.SpanMemoryVectorExecutionStatus.Success,
+                8, 1, 0x89ABCDEF, 0x0000000089ABCDEFUL,
+                0x00000089ABCDEF00UL, false) ||
+            !M04SpanMemoryRecordMatches(
+                records[15], 16,
+                OS.Std.Memory.SpanMemoryConformanceOperation.UnalignedWidth,
+                OS.Std.Memory.SpanMemoryVectorExecutionStatus.Success,
+                4, 1, 0x1122334455667788UL, 0x0000000055667788UL,
+                0x2233445566778800UL, false))
+        {
+            WriteM04SpanMemoryConformanceFailureLine(console, serial);
+            return false;
+        }
+
+        WriteM04SpanMemoryConformanceSuccessLine(console, serial);
+        return true;
+    }
+
+    private static bool M04SpanMemoryCatalogResultMatches(
+        OS.Std.Memory.SpanMemoryConformanceResult result)
+    {
+        return result.IsInitialized &&
+            result.Succeeded &&
+            result.Status == OS.Std.Memory.SpanMemoryConformanceStatus.Success &&
+            result.ProblemIndex == -1 &&
+            result.ConflictIndex == -1 &&
+            result.VectorCount == 16 &&
+            result.ExpectedFingerprint == 0xF03FF59D36F39ECDUL &&
+            result.ActualFingerprint == 0xF03FF59D36F39ECDUL &&
+            !result.SatisfiesRuntimeCompletionGate4;
+    }
+
+    private static bool M04SpanMemoryVectorMatches(
+        OS.Std.Memory.SpanMemoryConformanceVector vector,
+        byte key,
+        OS.Std.Memory.SpanMemoryConformanceOperation operation,
+        int sourceOffset,
+        int destinationOffset,
+        int byteCount,
+        byte sourceWidth,
+        byte destinationWidth,
+        byte flags,
+        byte expectedByteCount,
+        byte expectedElementCount,
+        ulong input,
+        ulong expected)
+    {
+        return vector.IsInitialized &&
+            vector.Key == key &&
+            vector.Operation == operation &&
+            vector.SourceOffset == sourceOffset &&
+            vector.DestinationOffset == destinationOffset &&
+            vector.ByteCount == byteCount &&
+            vector.SourceWidth == sourceWidth &&
+            vector.DestinationWidth == destinationWidth &&
+            vector.Flags == flags &&
+            vector.ExpectedByteCount == expectedByteCount &&
+            vector.ExpectedElementCount == expectedElementCount &&
+            vector.Input == input &&
+            vector.Expected == expected &&
+            vector.ExpectedSuccess == ((flags & 1) != 0) &&
+            vector.SignExtend == ((flags & 2) != 0);
+    }
+
+    private static bool M04SpanMemoryRecordMatches(
+        OS.Std.Memory.SpanMemoryVectorExecutionRecord record,
+        byte key,
+        OS.Std.Memory.SpanMemoryConformanceOperation operation,
+        OS.Std.Memory.SpanMemoryVectorExecutionStatus status,
+        byte outputByteCount,
+        byte resultElementCount,
+        ulong rawUnsignedValue,
+        ulong outputBytes,
+        ulong scratchAfter,
+        bool rejectedInputPreserved)
+    {
+        return record.IsInitialized &&
+            record.Succeeded &&
+            record.Key == key &&
+            record.Operation == operation &&
+            record.Status == status &&
+            record.OutputByteCount == outputByteCount &&
+            record.ResultElementCount == resultElementCount &&
+            record.RawUnsignedValue == rawUnsignedValue &&
+            record.OutputBytes == outputBytes &&
+            record.ScratchAfter == scratchAfter &&
+            record.RejectedInputPreserved == rejectedInputPreserved;
+    }
+
+    private static void WriteM04SpanMemoryConformanceSuccessLine(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        WriteM04SpanMemoryAscii(console, serial, (byte)'C', (byte)'L', (byte)'R', (byte)'O', (byte)'S', (byte)'_', (byte)'M', (byte)'0');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'4', (byte)'_', (byte)'0', (byte)'0', (byte)'3', (byte)'_', (byte)'R', (byte)'E');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'A', (byte)'D', (byte)'Y', (byte)' ', (byte)'v', (byte)'e', (byte)'c', (byte)'t');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'o', (byte)'r', (byte)'s', (byte)'=', (byte)'1', (byte)'6', (byte)' ', (byte)'s');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'p', (byte)'a', (byte)'n', (byte)'V', (byte)'e', (byte)'c', (byte)'t', (byte)'o');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'r', (byte)'s', (byte)'=', (byte)'4', (byte)' ', (byte)'o', (byte)'v', (byte)'e');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'r', (byte)'l', (byte)'a', (byte)'p', (byte)'V', (byte)'e', (byte)'c', (byte)'t');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'o', (byte)'r', (byte)'s', (byte)'=', (byte)'5', (byte)' ', (byte)'m', (byte)'e');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'m', (byte)'o', (byte)'r', (byte)'y', (byte)'C', (byte)'a', (byte)'s', (byte)'t');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'V', (byte)'e', (byte)'c', (byte)'t', (byte)'o', (byte)'r', (byte)'s', (byte)'=');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'3', (byte)' ', (byte)'u', (byte)'n', (byte)'s', (byte)'a', (byte)'f', (byte)'e');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'W', (byte)'i', (byte)'d', (byte)'t', (byte)'h', (byte)'V', (byte)'e', (byte)'c');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'t', (byte)'o', (byte)'r', (byte)'s', (byte)'=', (byte)'4', (byte)' ', (byte)'f');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'i', (byte)'n', (byte)'g', (byte)'e', (byte)'r', (byte)'p', (byte)'r', (byte)'i');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'n', (byte)'t', (byte)'=', (byte)'F', (byte)'0', (byte)'3', (byte)'F', (byte)'F');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'5', (byte)'9', (byte)'D', (byte)'3', (byte)'6', (byte)'F', (byte)'3', (byte)'9');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'E', (byte)'C', (byte)'D', (byte)' ', (byte)'p', (byte)'o', (byte)'i', (byte)'n');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'t', (byte)'e', (byte)'r', (byte)'W', (byte)'i', (byte)'d', (byte)'t', (byte)'h');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'=', (byte)'8', (byte)' ', (byte)'r', (byte)'e', (byte)'f', (byte)'e', (byte)'r');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'e', (byte)'n', (byte)'c', (byte)'e', (byte)'F', (byte)'i', (byte)'l', (byte)'e');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'s', (byte)'R', (byte)'e', (byte)'q', (byte)'u', (byte)'i', (byte)'r', (byte)'e');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'d', (byte)'=', (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'h', (byte)'o', (byte)'s', (byte)'t', (byte)'C', (byte)'o', (byte)'n', (byte)'f');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'o', (byte)'r', (byte)'m', (byte)'a', (byte)'n', (byte)'c', (byte)'e', (byte)'=');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ', (byte)'g', (byte)'u');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'e', (byte)'s', (byte)'t', (byte)'I', (byte)'n', (byte)'t', (byte)'e', (byte)'g');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'r', (byte)'a', (byte)'t', (byte)'e', (byte)'d', (byte)'=', (byte)'t', (byte)'r');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'u', (byte)'e', (byte)' ', (byte)'g', (byte)'a', (byte)'t', (byte)'e', (byte)'4');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'=', (byte)'F', (byte)'a', (byte)'i', (byte)'l', 0, 0, 0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM04SpanMemoryConformanceFailureLine(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        WriteM04SpanMemoryAscii(console, serial, (byte)'M', (byte)'0', (byte)'4', (byte)'_', (byte)'S', (byte)'P', (byte)'A', (byte)'N');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'_', (byte)'M', (byte)'E', (byte)'M', (byte)'O', (byte)'R', (byte)'Y', (byte)'_');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'C', (byte)'O', (byte)'N', (byte)'F', (byte)'O', (byte)'R', (byte)'M', (byte)'A');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'N', (byte)'C', (byte)'E', (byte)'_', (byte)'F', (byte)'A', (byte)'I', (byte)'L');
+        WriteM04SpanMemoryAscii(console, serial, (byte)'E', (byte)'D', 0, 0, 0, 0, 0, 0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM04SpanMemoryAscii(
         EfiSimpleTextOutputProtocol* console,
         EfiSerialIoProtocol* serial,
         byte b0,

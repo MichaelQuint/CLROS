@@ -45,6 +45,7 @@
 		<EnableM02GuardedIstStackAllocationProbe Condition="'$(EnableM02GuardedIstStackAllocationProbe)' == ''">false</EnableM02GuardedIstStackAllocationProbe>
 		<EnableM02OwnedGdtTssTerminalProbe Condition="'$(EnableM02OwnedGdtTssTerminalProbe)' == ''">false</EnableM02OwnedGdtTssTerminalProbe>
 		<EnableM04IndependentEndianConformanceProbe Condition="'$(EnableM04IndependentEndianConformanceProbe)' == ''">false</EnableM04IndependentEndianConformanceProbe>
+		<EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe Condition="'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == ''">false</EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM01LoadedImageStackProbe)' == 'true'">
@@ -93,6 +94,10 @@
 
 	<PropertyGroup Condition="'$(EnableM04IndependentEndianConformanceProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_SPAN_OVERLAP_MEMORY_CAST_UNSAFE_WIDTH_CONFORMANCE_PROBE</DefineConstants>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableUefiGoneSimulationProbe)' == 'true'">
@@ -153,6 +158,7 @@
 		<Compile Include="..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs" Link="Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs" Link="Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" Link="Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" />
+		<Compile Include="..\..\std\no-runtime\shared\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs" Link="Std\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs" Link="Boot\M01LoadedImageStackIntegration.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs" Link="Boot\M01LiveAllocatorIntegration.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LivePagingIntegration.cs" Link="Boot\M01LivePagingIntegration.cs" />
@@ -224,6 +230,12 @@
 		<Error
 			Condition="'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' and '$(EnableM02GuardedIstStackAllocationProbe)' != 'true'"
 			Text="EnableM02OwnedGdtTssTerminalProbe requires EnableM02GuardedIstStackAllocationProbe=true." />
+		<Error
+			Condition="'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true' and '$(EnableM04IndependentEndianConformanceProbe)' != 'true'"
+			Text="EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe requires EnableM04IndependentEndianConformanceProbe=true." />
+		<Error
+			Condition="'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true' and '$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'"
+			Text="EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe cannot be combined with EnableM02OwnedGdtTssTerminalProbe=true." />
 	</Target>
 
 	<Target Name="CustomizeReferences"

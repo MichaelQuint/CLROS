@@ -704,6 +704,48 @@ exceptions, general runtime completion, real `ExitBootServices`, hosted .NET,
 Minimal API, Kestrel, physical/provider support, CloudReady status, production
 readiness, or a numbered-gate advancement.
 
+### M04-003 span/memory conformance profile (pre-evidence)
+
+The default-false M04-003 profile requires both `-BuildEfi` and
+`-EnableM04IndependentEndianConformanceProbe`, rejects `-SkipImageBuild`, and
+rejects combination with the terminal `-EnableM02OwnedGdtTssTerminalProbe`
+profile. It preserves the default 12-required/zero-ordered/zero-unique/
+one-wrapper-forbidden profile and the M04-002-only 15/3/1/3 profile. The
+generic runner still adds `TEST_FAIL`, so an unprofiled dry-run reports two
+effective forbidden markers without changing the wrapper's default input.
+With M04-003 enabled, the generated runner contract has exactly 16 required,
+four ordered, two unique, and four forbidden records. The required order is:
+
+```text
+EFI_CONSOLE_READY
+CLROS_M04_002_READY readVectors=25 reverseVectors=7 byteSeries=5 uint16Series=7 fingerprint=E81E4451E8D999F6 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
+CLROS_M04_003_READY vectors=16 spanVectors=4 overlapVectors=5 memoryCastVectors=3 unsafeWidthVectors=4 fingerprint=F03FF59D36F39ECD pointerWidth=8 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
+UEFI_MEMORY_MAP_READY
+```
+
+Both M04 ready lines must be unique. The forbidden set is exactly
+`OS_SMOKE_FAIL`, `M04_ENDIAN_CONFORMANCE_FAILED`,
+`M04_SPAN_MEMORY_CONFORMANCE_FAILED`, and `TEST_FAIL`. Stable invalid-argument
+reasons reject a missing M04-002 dependency, a missing `-BuildEfi`,
+`-SkipImageBuild`, or the M02 terminal combination before any guest execution.
+The profile can be inspected without build or boot proof using:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -DryRun `
+  -BuildEfi `
+  -EnableM04IndependentEndianConformanceProbe `
+  -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe
+```
+
+The later exact-head evidence run must use fresh issue-specific EFI, image,
+serial, summary, stdout, and stderr paths. No such real QEMU/OVMF run is
+accepted yet. The readiness line above is therefore only the enforced expected
+profile contract at this stage; it is not current guest evidence. Gate 4
+remains `Fail`, and no general span/memory surface, memory safety, runtime,
+hosted .NET 10, Minimal API/Kestrel, cloud, or production capability follows
+from this pre-evidence integration.
+
 ## Implemented Behavior
 
 - `tools/OS.QemuRunner` builds a QEMU command line for a raw or qcow2 GPT/FAT32 image, OVMF pflash, serial-file capture, AHCI disk attachment, and user-mode virtio networking.

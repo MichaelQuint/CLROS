@@ -70,9 +70,9 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
   a temporary six-page UEFI LoaderData arena, validates the three guard/stack
   layouts, writes and reads back only the stack ranges, releases the lease, and
   frees the arena before returning. M02-008 does not install a TSS, IST, GDT, or IDT.
-  The development source closure is now 58
-  compile items and 71 source-authority inputs after the next default-off
-  integration source was added.
+  The development source closure is now 59
+  compile items and 72 source-authority inputs after the later default-off
+  M02-009 terminal stub and M04-003 span/memory catalog sources were added.
   The complete host run caught an older M01-025 source-firewall regression in
   the first implementation; the integration now uses a fixed-size local stack
   workspace instead of `stackalloc`, preserving both the 104/40-byte caller-
@@ -252,6 +252,20 @@ acceptance for the exact terminal contract; the implementation is still
 pre-`ExitBootServices` and does not prove page permission enforcement,
 W^X/NX, an IDT or fault handler, post-firmware diagnostics, hosted .NET,
 Kestrel, cloud readiness, or production readiness.
+
+Optional M04-003 span/memory conformance development profile:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 -DryRun -BuildEfi -EnableM04IndependentEndianConformanceProbe -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe
+```
+
+The default-false M04-003 switch requires the M04-002 endian switch and cannot
+be combined with the terminal M02-009 switch. Its dry-run contract contains 16
+required, four ordered, two unique, and four forbidden records, including the
+expected exact `CLROS_M04_003_READY` line after M04-002 and before the memory-map
+marker. This command only inspects the planned profile. No fresh real QEMU/OVMF
+evidence has accepted M04-003 yet, so the leaf remains host-only and Gate 4
+remains `Fail`.
 
 Optional ACPI physical discovery probe:
 
