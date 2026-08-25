@@ -9356,7 +9356,7 @@
         "M04-002"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -9382,7 +9382,7 @@
       ],
       "collisionLane": null,
       "summary": "Add span, overlap, memory-cast, and unsafe-width conformance vectors.",
-      "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
+      "currentEvidence": "Accepted host and guest evidence is bound to reviewed merges. Leaf PR #485 was approved by official exact-head review #29 at 4aba409f5f6a65e2c0a7e0ae4b0562a30791f68a and merged as 453a8cb88624d2ef8b8965f995eb7e466c08574a with tree 739190c55986ff3e626439c555ed662939ef7f8a. Supplemental PR #488 was approved by official exact-head review #31 at d6a74ad5d6c5aa3a386ebead4050bba41952c18c and merged as canonical c7e0fed5bee34a6c8b520b3ff467697bef0bedb2 with reviewed tree 136aa5442c79cacd88d60d8d8b3dd4bb409b3373; the QEMU-tested implementation/evidence source was dedb55c3ddb155336ef4c7f387cf14b533c37f09 with tree 3ce99d70fe4607e5ed5858e86863ed49d0e47381. Immutable evidence is done/step919.md, blob 3c087ae88965fed78606fbfb623f8f8916424f18, SHA-256 CE6C475AFA0C6713D03781A2F470E4CC322C011A86F656F49F48E75E3F33468F. Exact-source HostTests exited 0 with 3,469 starts, 3,470 passes, zero failures, and one terminal host.tests pass; its log SHA-256 is 66A36EB56F81013C53EF9CB88CF00913DDEED51DA169675DC5EDAEF553D97F80. The same-build EFI closure contained 59 compile items and 72 authority inputs. Fresh QEMU/OVMF evidence passed all 16 required, four ordered, two unique, and four forbidden marker checks: M04-002 preceded the exact M04-003 marker, which preceded UEFI_MEMORY_MAP_READY; each required and unique marker occurred once, OS_SMOKE_PASS occurred once, and no forbidden or failure marker appeared. EFI SHA-256 is 0F8A7E3FB5D626E7017D2839DA0E3C966D86A53E769B9D39A3D0275F974A550B, serial SHA-256 is 65E677830952D0C1657ECF6F038BA1441AC1CC30F556185502BDE7FE53EDDDDC, and summary SHA-256 is E54F101CA318F9A1A1BD26C3785CD689380B3ADC35DF2DB6D5E71FCD258AA487. Two preliminary HostTests runs were rejected for stale 71-to-72 authority and 58-to-59 compile-count fixtures and are not acceptance evidence. This remains a default-off fixed 16-vector pre-ExitBootServices QEMU/OVMF proof only; it does not prove general Span or MemoryMarshal support, arbitrary memory safety, allocation, GC, exceptions, metadata, dispatch, a post-firmware kernel, Gate 4, hosted .NET 10, Minimal API/Kestrel, cloud readiness, or production readiness. Gate 4 remains Fail.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add span, overlap, memory-cast, and unsafe-width conformance vectors.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -9435,7 +9435,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves only \"Add span, overlap, memory-cast, and unsafe-width conformance vectors.\" It does not by itself prove the M04 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M04-004",
