@@ -94,9 +94,18 @@ All real hardware phases are pending: OS-owned UEFI snapshot, `ExitBootServices`
 The IDT descriptor, IDTR descriptor, GDT descriptor, M02-007 caller-owned GDT encoder, TSS/IST layout, readiness-gate, IDT table-plan, descriptor-table instruction-byte/install-stub/readiness plans, fault-probe stub plans, and fault-vector metadata contracts are host-tested, but no emitted boot phase loads an IDT/GDT/TSS, installs handlers, or triggers controlled CPU faults yet. The serial diagnostics guard, COM1 configuration plan, abstract COM1 writer, port-I/O instruction-byte plan, callable port-I/O stub plan, and COM1 backend-readiness plan are host-tested, but no emitted boot phase has an OS-owned serial driver yet.
 
 M02-009 adds a host-audited caller-owned GDT/TSS context and terminal composite
-instruction stream, but it deliberately adds no `BootSequence` phase and is not
-linked into EFI in this leaf. The default managed and firmware-visible marker
-orders are unchanged.
+instruction stream without adding a `BootSequence` phase. A separately merged
+default-off EFI integration now links that exact source and has accepted
+QEMU/OVMF evidence for its private GDTR/TR load/readback, owned COM1 transcript,
+and terminal halt. That profile runs only after `OS_SMOKE_PASS` and does not
+change the default managed or firmware-visible marker order.
+
+M02-010 adds one host-only 4,096-byte page of 256 fixed interrupt-entry slots.
+It normalizes hardware-error-code and synthetic-error-code entries to the same
+three-slot semantic prefix and checks every relative jump to one common target,
+but it deliberately adds no `BootSequence` phase, EFI linkage, executable
+mapping, IDT gate, handler invocation, or fault probe. The default managed and
+firmware-visible marker orders remain unchanged.
 
 `BootSequence.RunFaultInfrastructureReadiness` is a host-tested helper only. It emits `FAULT_INFRA_READY` for a successful `FaultInfrastructureReadinessResult` and `FAULT_INFRA_NOT_READY status=<status>` for a failed result. The default boot path does not call it yet.
 
@@ -321,6 +330,17 @@ Host tests assert:
   `cli; hlt; jmp` loops. Boundary, overlap, mutation, frozen-hash, and
   zero-allocation tests remain host-only: they never invoke privileged bytes,
   perform port I/O, or change the boot order.
+- M02-010 tests prove all 256 fixed 16-byte interrupt-entry slots and all 4,096
+  page bytes. They cross-check the nine-vector hardware-error-code mask against
+  `FaultVectorCatalog`, including `#SX` vector 30; prove that vectors 128 and
+  255 use positive immediate-32 pushes; decode the first, middle, and final
+  `rel32` target; mutate every byte; preserve a poison tail; reject every
+  pointer, modeled-address, capacity, alignment, canonical-range, wrap,
+  overlap, and displacement failure before mutation; compare pointer and
+  `Span` output; prove default/POD and zero-allocation behavior; and compile the
+  exact pointer source under `NOSTDLIB_EFI` with an empty `UIntPtr` shim. The
+  aggregate host marker explicitly reports `guestMaterialization=false`,
+  `stubExecution=false`, `idtInstalled=false`, and `faultTriggered=false`.
 - Fault-entry frame layout tests prove future interrupt-stub storage can round-trip formatter-compatible page-fault and invalid-opcode frames, reject inconsistent error-code metadata, reject undersized buffers, and reject unknown vectors.
 - ExitBootServices transition-boundary tests prove success and blocked markers while leaving default boot markers unchanged.
 - Early diagnostics readiness tests prove serial backend and descriptor-table readiness are aggregated into stable boot markers while leaving default boot markers unchanged.
@@ -351,10 +371,19 @@ QEMU smoke confirms the firmware-visible order in `artifacts/logs/qemu-smoke.log
 
 The current order is still a marker contract, not a full hardware boot sequence. It does not prove owned drivers, interrupts, page tables, storage, networking, or hosted workload launch.
 
-The M02-009 byte contract is not a firmware-visible phase. This leaf provides no
-EFI linkage, executable mapping, guest `lgdt`/`ltr`, owned COM1 output, observed
-terminal halt, or QEMU/OVMF evidence. Its host marker explicitly reports each of
-those live properties as false.
+The M02-009 byte contract is not a firmware-visible `BootSequence` phase. Its
+host marker correctly reports the live properties as false for the isolated
+leaf, while the separately merged default-off EFI profile now provides the
+accepted source-bound guest `lgdt`/`ltr`, owned COM1, terminal-halt, and
+QEMU/OVMF evidence. That terminal profile remains pre-`ExitBootServices`, runs
+after the ordinary smoke-success marker, and proves no IDT installation, live
+fault handling, post-firmware operation, or change to the default order.
+
+The M02-010 page is likewise not a firmware-visible phase. This leaf provides
+no EFI linkage, guest page allocation, executable publication, common-target
+execution, IDT installation, normalized live CPU frame, fault trigger, or
+QEMU/OVMF evidence. Its exact host marker reports all four live properties as
+false, and its materializer cannot be treated as boot-order evidence.
 
 The `BOOT_HANDOFF_READY`, `UEFI_MEMORY_MAP_NORMALIZED`, `BOOT_MEMORY_MAP_ACCEPTED`, `BOOT_MEMORY_REGIONS_READY`, `BOOT_MEMORY_REGION_COUNT`, `BOOT_ACPI_RSDP_HANDOFF_READY`, and `UEFI_ACPI_RSDP_READY` markers are now QEMU-proven through the live EFI artifact. The live EFI artifact still emits the allocation-free `BootSequencePlan` directly after handoff validation, normalization, acceptance, region materialization, and ACPI RSDP scan; it does not execute the managed `BootSequence.Run(BootHandoffRecord, EfiMemoryMapSummary, ...)` overload.
 
@@ -391,12 +420,12 @@ permission changes, relocation, or native-tier or hosted .NET app launch.
    marker proofs, keep their UEFI evidence lines distinct from the direct
    transport, and do not treat either as the future post-firmware diagnostic
    path.
-4. Integrate the M02-009 terminal stream only in a separately owned default-off
-   EFI lane. Its success transcript must be exactly
-   `CLROS_M02_009_READY gdtr=true tr=true gdtBytes=40 tssBytes=104 gdtrLimit=39 trSelector=24 ownedCom1=true terminalHalt=true postExitBootServices=false`
-   followed by `TEST_PASS m02.009`. Its failure transcript must be exactly
-   `M02_OWNED_GDT_TSS_VERIFY_FAILED` followed by
-   `TEST_FAIL m02.009 gdtr_or_tr_mismatch`. Unexpected return is forbidden.
+4. Integrate the reviewed M02-010 page only in a separately owned default-off
+   EFI lane. That lane must allocate one aligned page, use one canonical,
+   non-overlapping target reachable from every slot, materialize and read back
+   the exact bytes, and keep its guest marker distinct from the host marker.
+   Stub execution, IDT installation, and fault triggering remain later owned
+   boundaries.
 5. Wire the early diagnostics readiness helper only after generated stubs can be copied to executable memory and safely invoked under W^X policy.
 6. Wire the controlled fault-probe readiness helper only after early diagnostics can survive generated-stub execution and fault handling.
 7. Wire the app-selection readiness helper only after live block-device package reads can supply the manifest/package/descriptor prerequisites.

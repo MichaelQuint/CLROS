@@ -2,7 +2,39 @@
 
 ## Current Status
 
-The owned diagnostics subsystem remains host-testable except for the accepted bounded pre-`ExitBootServices` M02-004 configuration, M02-005 marker, and M02-006 panic-readiness paths. M02-007 adds a host-validated, allocation-free owned GDT encoder, and M02-009 adds a host-audited terminal GDT/TSS context and composite instruction-byte stream. M02-009 is not linked into EFI and has no guest execution evidence in this leaf. No real IDT load, fault handlers, GDT/TSS/IST installation, live CPU-fault panic route, or owned serial path across real `ExitBootServices` exists yet. The accepted M01-026 tuple uses firmware-visible serial plus an issue-specific host QMP/physical-memory capture mechanism while firmware is still available; that observation mechanism is not OS-owned diagnostics and does not prove or provide an OS-owned diagnostic channel across real `ExitBootServices`. The repository now has host contracts for serial diagnostics readiness, COM1 configuration planning, a COM1-backed platform serial transport over a fakeable byte-port backend, owned-serial readiness derivation from COM1 backend prerequisites, aggregate owned COM1 diagnostics readiness metadata, CPU fault-frame formatting, deterministic CPU fault-entry frame storage, caller-owned panic text buffering, a bounded allocation-free panic formatter/reporting route over the checked COM1 backend, x64 IDT gate descriptors, IDT table planning, required fault-vector metadata, x64 instruction-byte plans for future port-I/O, descriptor-table, and fault-entry shellcode stubs, byte-copy materialization of planned diagnostic stubs into caller-owned buffers, a page-transition plan contract for future W^X handoff, a host-only diagnostics-chain readiness aggregate across the current prerequisite contracts, a post-chain diagnostic-stub invocation readiness guard that validates resolved COM1 stub addresses against the planned executable payload range without invoking them, and a value-only diagnostic-stub callable-binding plan that checks materialized COM1 callable preconditions before any live COM1/serial invocation.
+The owned diagnostics subsystem remains host-testable except for the accepted
+bounded pre-`ExitBootServices` M02-004 configuration, M02-005 marker, M02-006
+panic-readiness, and M02-009 terminal GDT/TSS paths. M02-007 adds a
+host-validated, allocation-free owned GDT encoder. M02-009 adds a host-audited
+terminal GDT/TSS context and composite instruction-byte stream, and its
+separately merged default-off EFI integration has fresh QEMU/OVMF evidence for
+loading and reading back that private GDTR/TR state, emitting the exact owned
+COM1 transcript, and remaining in its terminal halt loop. M02-010 adds a
+host-only 4,096-byte interrupt-entry page that normalizes all 256 vectors to
+the semantic prefix `vector`, `hasHardwareErrorCode`, `errorCode`. No ordinary
+boot phase loads an IDT, installs fault handlers, activates IST routing, routes
+a live CPU fault to panic, or preserves an owned serial path across real
+`ExitBootServices`. The accepted M01-026 tuple uses firmware-visible serial plus
+an issue-specific host QMP/physical-memory capture mechanism while firmware is
+still available; that observation mechanism is not OS-owned diagnostics and
+does not prove or provide an OS-owned diagnostic channel across real
+`ExitBootServices`. The repository now has host contracts for serial
+diagnostics readiness, COM1 configuration planning, a COM1-backed platform
+serial transport over a fakeable byte-port backend, owned-serial readiness
+derivation from COM1 backend prerequisites, aggregate owned COM1 diagnostics
+readiness metadata, CPU fault-frame formatting, deterministic CPU fault-entry
+frame storage, caller-owned panic text buffering, a bounded allocation-free
+panic formatter/reporting route over the checked COM1 backend, x64 IDT gate
+descriptors, IDT table planning, required fault-vector metadata, x64
+instruction-byte plans for future port-I/O, descriptor-table, and fault-entry
+stubs, byte-copy materialization of planned diagnostic stubs into caller-owned
+buffers, a page-transition plan contract for future W^X handoff, a host-only
+diagnostics-chain readiness aggregate across the current prerequisite
+contracts, a post-chain diagnostic-stub invocation readiness guard that
+validates resolved COM1 stub addresses against the planned executable payload
+range without invoking them, and a value-only diagnostic-stub callable-binding
+plan that checks materialized COM1 callable preconditions before any live
+COM1/serial invocation.
 
 ## Implemented Behavior
 
@@ -60,6 +92,30 @@ The owned diagnostics subsystem remains host-testable except for the accepted bo
   `NOSTDLIB_EFI`. This leaf materializes and audits bytes only. Host tests never
   invoke the stream, and this leaf does not change `BootSequence`, `Probes`,
   `EfiEntry`, `OS.csproj`, or any build script.
+- The separately merged default-off M02-009 EFI integration consumes that exact
+  leaf after allocating disjoint temporary code and writable context pages. Its
+  accepted QEMU/OVMF profile enters the stream after `OS_SMOKE_PASS`, observes
+  the exact GDTR/TR success transcript through owned COM1, remains terminal,
+  and is stopped by the evidence runner. This bounded profile is recorded in
+  `done/step918.md`; it remains pre-`ExitBootServices` and is not a default
+  `BootSequence` phase.
+- `NormalizeErrorCodeNonErrorCodeInterruptFrame` is the M02-010 pointer-first,
+  allocation-free materializer for exactly one caller-owned 4,096-byte page of
+  256 fixed 16-byte interrupt-entry slots. Every slot pushes an immediate-32
+  positive vector before jumping through a checked `rel32` to one caller-named
+  common target. Vectors 8, 10, 11, 12, 13, 14, 17, 21, and 30 preserve the
+  CPU-pushed error code and add `hasHardwareErrorCode=1`; the remaining 247
+  vectors add a synthetic zero error code and
+  `hasHardwareErrorCode=0`. Both forms expose the same semantic stack prefix:
+  `vector`, `hasHardwareErrorCode`, `errorCode`.
+- The M02-010 pointer core validates actual and modeled page alignment,
+  canonical x64 ranges, capacity, wrap, canonical-hole crossing, common-target
+  overlap, and all 256 relative-jump displacements before writing. It mutates
+  only the first 4,096 bytes, calculates an FNV-1a64 fingerprint, immediately
+  reads back every byte, and exposes a separate readback operation that reports
+  the first mismatching byte. Host `Span` wrappers are excluded under
+  `NOSTDLIB_EFI`; the always-compiled path has no managed references,
+  allocation, exceptions, or dependency on `FaultVectorCatalog`.
 - `TssIstPlan` models the x64 TSS bytes needed for `RSP0` and IST entries, including double-fault IST stack top, stack-size, and guard-size validation.
 - `FaultInfrastructureReadiness` combines serial, IDT, IDTR, GDT, TSS/IST, and double-fault IST readiness into a single pre-privileged-install gate.
 - `BootSequence.RunFaultInfrastructureReadiness` emits host-tested `FAULT_INFRA_READY` or `FAULT_INFRA_NOT_READY status=<status>` markers from the readiness result without changing the default boot path.
@@ -754,10 +810,23 @@ fault handling, provider, cloud-readiness, Kestrel, or production claims.
 `OwnedGDTTSSGeneratedAuditedCSharpStubBytes` strengthens only the host-audited
 context and terminal instruction-byte boundary. The host harness does not enter
 ring-zero instructions, perform port I/O, load GDTR/TR, observe the hardware-set
-busy bit, or enter a halt loop. The stream is not linked into the EFI project in
-this leaf, and no `CLROS_M02_009_READY` or `TEST_PASS m02.009` line from host
-execution may be treated as guest evidence. A later integration must provide
-fresh QEMU/OVMF serial evidence and independently prove terminal non-return.
+busy bit, or enter a halt loop, and no `CLROS_M02_009_READY` or
+`TEST_PASS m02.009` line from host execution may be treated as guest evidence.
+The separately merged integration links this exact source into one default-off
+EFI profile and supplies fresh, source-bound QEMU/OVMF terminal evidence. That
+accepted proof is still only pre-`ExitBootServices` on the recorded virtual
+platform; it proves no installed IDT, active IST route, triggered fault,
+post-firmware execution, physical hardware, provider, cloud-readiness, Kestrel,
+or production behavior.
+
+`NormalizeErrorCodeNonErrorCodeInterruptFrame` strengthens only the
+caller-owned interrupt-entry byte layout and readback boundary. The page is not
+linked into the EFI project by this leaf, mapped executable, bound to IDT gates,
+or entered. The common target is address metadata used to encode checked
+relative jumps; the host tests never call it. Host classification and byte
+evidence do not prove guest materialization, instruction execution, IDT
+installation, a normalized live CPU frame, fault capture, panic routing, QEMU
+behavior, or any numbered completion gate.
 
 `FaultProbeStubPlan` is a byte-plan contract only. It intentionally does not execute `ud2` or write to address zero, and it is not QEMU fault evidence.
 
@@ -970,9 +1039,9 @@ CLROS_M02_009_HOST_READY contextBytes=168 stubBytes=2987 fnv1a64=C9C04DEE967D640
 TEST_PASS m02.009
 ```
 
-A later, separately owned default-off EFI integration must emit the following
-exact success lines, in order, only after entering the terminal stream and
-verifying GDTR/TR in the guest:
+The separately owned, default-off EFI integration has now emitted the following
+exact success lines, in order, after entering the terminal stream and verifying
+GDTR/TR in the guest:
 
 ```text
 CLROS_M02_009_READY gdtr=true tr=true gdtBytes=40 tssBytes=104 gdtrLimit=39 trSelector=24 ownedCom1=true terminalHalt=true postExitBootServices=false
@@ -986,16 +1055,40 @@ M02_OWNED_GDT_TSS_VERIFY_FAILED
 TEST_FAIL m02.009 gdtr_or_tr_mismatch
 ```
 
-An unexpected return from either terminal path is forbidden. None of these
-planned live markers is produced by this host-only leaf.
+An unexpected return from either terminal path remains forbidden. The host-only
+leaf does not produce those guest lines; the accepted source-bound QEMU/OVMF
+profile recorded in `done/step918.md` produced them exactly once, observed all
+59 required/ordered/unique records, observed none of 43 forbidden records, and
+ended with runner disposition `runner-terminated` while the guest remained in
+the terminal loop. This is bounded pre-`ExitBootServices` evidence only.
+
+M02-010 host tests independently classify all 256 vectors, cross-check every
+catalogued CPU exception including `#SX` vector 30, audit every opcode,
+immediate, displacement, and padding byte in all 4,096 bytes, and decode the
+first, middle, and final jump target. They also prove immediate-32 positive
+vectors 128 and 255, exact forward/backward `rel32` boundaries, a poison tail,
+every-byte mutation rejection with the exact first mismatch, pointer/`Span`
+equality, all storage/address failure classes, default/POD behavior, zero
+warmed-path allocation, and focused `NOSTDLIB_EFI` compile closure with an
+empty `UIntPtr` core shim. The aggregate emits exactly:
+
+```text
+TEST_START m02.010
+CLROS_M02_010_HOST_READY vectors=256 hardwareErrorCodeVectors=9 syntheticErrorCodeVectors=247 slotBytes=16 pageBytes=4096 normalizedSlots=3 readBack=true guestMaterialization=false stubExecution=false idtInstalled=false faultTriggered=false
+TEST_PASS m02.010
+```
+
+The M02-010 host marker is not guest evidence. This leaf does not link the page
+into EFI, allocate or publish executable guest memory, install an IDT, execute a
+slot or common handler, or trigger a CPU fault.
 
 ## Next Steps
 
-1. Integrate M02-009 only in a separately owned default-off EFI lane that can
-   allocate writable GDT/TSS context, place the audited stream under the
-   repository's W^X policy, enter it with RCX, capture the exact serial
-   transcript, enforce the unexpected-return prohibition, and preserve the
-   explicit pre-`ExitBootServices` evidence boundary.
+1. Integrate the reviewed M02-010 page only in a separately owned default-off
+   EFI lane that can allocate one aligned page, name a non-overlapping reachable
+   common target, materialize and read back the exact bytes, and emit distinct
+   guest evidence. Keep slot execution, IDT installation, and a triggered fault
+   deferred to issues that explicitly own those boundaries.
 2. Map M02-008's planned guard/stack ranges and write the fixed IST indices into
    owned TSS state only in later issues that own page-table and descriptor-table
    installation; the accepted EFI profile remains temporary pre-firmware proof.
