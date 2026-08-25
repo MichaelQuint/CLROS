@@ -423,10 +423,14 @@ CLROS_M04_003_READY vectors=16 slice=4 overlap=5 memoryCast=3 unalignedWidths=4 
 
 This is audited host-catalog evidence only. A separately owned integration
 issue must explicitly compile the pointer branch into the no-stdlib EFI source
-closure, validate all 16 vectors under fresh QEMU/OVMF, and emit exactly one
-`CLROS_M04_003_READY ... hostConformance=false guestIntegrated=true
-gate4=Fail`; its failure marker is `M04_SPAN_MEMORY_CONFORMANCE_FAILED`. Until
-that work exists, `guestIntegrated=false` and Gate 4 remains `Fail`.
+closure, validate all 16 vectors under fresh QEMU/OVMF, and emit exactly one:
+
+```text
+CLROS_M04_003_READY vectors=16 slice=4 overlap=5 memoryCast=3 unalignedWidths=4 pointerWidth=8 fingerprint=DE0413BBC2C1453E referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
+```
+
+Its exact failure marker is `M04_SPAN_MEMORY_CONFORMANCE_FAILED`. Until that
+work exists, `guestIntegrated=false` and Gate 4 remains `Fail`.
 
 The source-frozen post-reboot gate at pushed commit
 `8ee0311d2a7c225b77b4efa7d86bce6831c71826`, tree
