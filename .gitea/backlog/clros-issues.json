@@ -6931,7 +6931,7 @@
         "M02-008"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -6958,7 +6958,7 @@
       ],
       "collisionLane": null,
       "summary": "Load the owned GDT and TSS with generated/audited C# stub bytes.",
-      "currentEvidence": "Diagnostic descriptor/stub plans are host-tested; owned COM1, loaded GDT/TSS/IDT, and controlled live faults are unproven.",
+      "currentEvidence": "Reviewed M02-009 leaf PR #482 and serialized EFI integration PR #483 are merged. Canonical master fe6683b2f094efe15f44d54a726652620008a122 has tree 3703461c1b290dc50dcae2c04ce455ea35e792ad; official exact-head reviews #26 and #27 approved the leaf and integration. done/step918.md records the accepted implementation and evidence. The complete merged-master HostTests run produced 3,461 TEST_START, 3,462 TEST_PASS, exactly one terminal TEST_PASS host.tests, and zero TEST_FAIL; its log SHA-256 is E288F9C516F7AD29ADC5408726C97FC420C56A8AFF2C21C47A4EC9BD9CC84B9A. Fresh real QEMU/OVMF evidence passed the distinct 59 required, 59 ordered, 59 unique, and 43 forbidden marker profile with sequence-identical required/ordered/unique lists, one terminal M02-009 start/ready/pass sequence, zero TEST_FAIL, and runner-terminated disposition. The EFI SHA-256 is A22F5B2AF24682693C09E361C16EE89271CDB9D71FA5D9BBFA32ABA784F8D443, serial SHA-256 is 3AAF960E6ABCB7F27A4580BF8B8D554FDB66EA165F71816C38C7B81A050B6BAF, and merged summary SHA-256 is DC44E61663D7E81F4908EFCF5D8B5E85EB431E31308E2E8CF8B942A51E557005. The evidence proves only default-off pre-ExitBootServices GDTR/TR installation and readback with owned COM1 terminal output under the recorded QEMU/OVMF platform. It does not install an IDT, activate IST fault routing, trigger or handle a CPU fault, cross real ExitBootServices, or prove hosted .NET, Kestrel, provider, CloudReady, or production behavior.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Load the owned GDT and TSS with generated/audited C# stub bytes.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -7006,7 +7006,7 @@
         "docs/boot-order.md"
       ],
       "evidenceBoundary": "This issue proves only \"Load the owned GDT and TSS with generated/audited C# stub bytes.\" It does not by itself prove the M02 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M02-010",
