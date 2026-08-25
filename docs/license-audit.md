@@ -32,18 +32,19 @@ direct consolidation of its kernel, std, UEFI-exit, memory-management, and GC
 work with CLROS. The supplied 7,775-byte transcript has SHA-256
 `F244C8B21E90DA7627E2F12EA3E7F0CF7F2034F5417C20F0E6D49F0F5CC5E97D`;
 the private transcript itself is not committed because it contains unrelated
-personal conversation. The current upstream `main` branch was also checked at
-commit `b80ee3a4175e1522d1a12ba7fe371a49da3207f5`: it contains a top-level
-CC0-1.0 legal text and a README license section authorizing use,
-modification, and distribution for any purpose.
+personal conversation. A complete content comparison identifies the local
+archive as upstream commit `b80ee3a4175e1522d1a12ba7fe371a49da3207f5`
+except that the archive omits upstream's top-level `LICENSE`. The current
+reviewed upstream `main`, `0c00476fa6d9cfebb6e83d5da34ab8fb1074163b`,
+retains the top-level CC0-1.0 legal text and README license statement.
 
 This is sufficient to treat SharpOS-authored source as eligible for direct,
 selective adaptation rather than `reference:license-blocked`. It does not
 relicense separately identified third-party/vendor code, the GPL ManagedDoom
 fixture, WAD data, screenshots or other media with separate rights, or the
 absent CoreCLR fork. Because the supplied archive still lacks `.git` metadata,
-an adapting issue must record the exact local source path and SHA-256; if the
-archive revision is later recovered, record that commit as well.
+an adapting issue must record the identified commit, exact local source path,
+SHA-256, and copied-versus-reimplemented boundary.
 
 ### Sanitized SharpOS permission attestation
 
@@ -58,7 +59,7 @@ conversation is intentionally excluded.
 | Explicit permission | “my repo is cc0” and “Completely free to copy/steal, no need to write from scratch” |
 | Proposed reuse scope | Direct reuse from the SharpOS reference snapshot, including its kernel, std, UEFI exit, memory management, GC, and related source, while retaining CLROS project separation and cloud/Kestrel work |
 | Original attachment fingerprint | 7,775 bytes; SHA-256 `F244C8B21E90DA7627E2F12EA3E7F0CF7F2034F5417C20F0E6D49F0F5CC5E97D` |
-| Independent public corroboration | Current upstream commit `b80ee3a4175e1522d1a12ba7fe371a49da3207f5` contains a top-level CC0-1.0 license and matching README license statement |
+| Independent public corroboration | Identified archive commit `b80ee3a4175e1522d1a12ba7fe371a49da3207f5` and reviewed tip `0c00476fa6d9cfebb6e83d5da34ab8fb1074163b` contain a top-level CC0-1.0 license and matching README license statement |
 | Exclusions | File-local third-party/vendor terms, the GPL ManagedDoom subtree, WAD/media rights, and the separately versioned absent CoreCLR fork |
 
 The attestation establishes permission and scope without requiring future
@@ -68,8 +69,10 @@ it is not a claim that the private attachment is stored in Git.
 
 ## Snapshot Ledger
 
-`Revision` is `unknown` for every row because the supplied archives contain no
-`.git` metadata.
+Archive revision is `unknown` by default because the supplied snapshots contain
+no `.git` metadata. SharpOS is the documented exception: an independent,
+complete content comparison identifies its upstream commit while preserving the
+archive's missing-metadata caveat.
 
 | Snapshot | Local evidence | Default reuse disposition |
 | --- | --- | --- |
@@ -97,7 +100,7 @@ it is not a claim that the private attachment is stored in Git.
 | `PatienceOS-main` | No local project license evidence. | Test-pattern ideas only. |
 | `RoseOS-master` | No top-level license; EfiSharp carries a file called `RoseOS License`, but that copy is not provenance for this snapshot. | Negative UEFI/allocator tests only until exact RoseOS provenance is restored. |
 | `Sharpen-master` | No local project license evidence. | Historical conceptual use only. |
-| `SharpOS-main` | The supplied archive omits its top-level license and revision metadata, but the owner-supplied permission transcript identifies the repository as CC0 and authorizes copying/consolidation. Current upstream commit `b80ee3a4175e1522d1a12ba7fe371a49da3207f5` contains a top-level CC0-1.0 license. `vendor/Iced/LICENSE.txt`, `vendor/PeNet/LICENSE`, and `apps_native/GPL_AHEAD_WARNING_DOOM_managed/LICENSE` retain their separate scopes. | SharpOS-authored source is eligible for selective adaptation when the exact snapshot path/hash and CLROS adaptation boundary are recorded. Keep vendor notices and GPL DOOM code isolated; never commit a WAD. |
+| `SharpOS-main` | Content matches upstream `b80ee3a4175e1522d1a12ba7fe371a49da3207f5` except for the omitted top-level `LICENSE`; the owner permission record and upstream CC0-1.0 text authorize SharpOS-authored reuse. Current reviewed tip is `0c00476fa6d9cfebb6e83d5da34ab8fb1074163b`. `vendor/Iced/LICENSE.txt`, `vendor/PeNet/LICENSE`, and the ManagedDoom license retain separate scopes. | SharpOS-authored source is eligible for selective adaptation when the exact commit/path/hash and CLROS boundary are recorded. Keep every vendor notice and GPL/asset scope isolated; never commit a WAD. |
 | `SharpOS-master` | No local README or license file; source text refers to GPL version 3 but is not a complete license record. | Historical test census only; independently recreate tests. |
 | `smolsharp-main` | No top-level project license. Files under `src/BFlat.ZeroLib` carry explicit GNU Affero GPL version 3-or-later headers; the README also discusses external ZeroLib/bflat work whose complete provenance is not locally captured. | Size/security concepts only; no direct source import. The explicit AGPL source boundary is incompatible with copying those files into first-party CLROS kernel/std/app source. |
 | `xOS-main` | `CosmosOS-License` contains BSD-3-Clause terms for CosmosOS/COSMOS-derived material; no separate top-level xOS license is established. | No implementation use; do not extend the Cosmos notice to unrelated xOS/dependency code. |
@@ -106,8 +109,9 @@ it is not a claim that the private attachment is stored in Git.
 ## Upstream Candidates Recorded by Local Metadata
 
 These URLs are present in local READMEs, badges, project metadata, or the
-supplied project context. They identify a provenance investigation target; they
-do not identify the commit represented by the archive.
+supplied project context. They identify a provenance investigation target but,
+except for the independently content-identified SharpOS snapshot documented
+above, do not identify the commit represented by an archive.
 
 | Snapshot | Candidate upstream |
 | --- | --- |
@@ -125,7 +129,7 @@ do not identify the commit represented by the archive.
 | `nativeaot-patcher-main` | `https://github.com/valentinbreiz/nativeaot-patcher` |
 | `Nitrocid-main` | `https://github.com/Aptivi/Nitrocid` |
 | `PatienceOS-main` | `https://github.com/FrankRay78/PatienceOS` |
-| `SharpOS-main` | `https://github.com/daniilvaino/SharpOS`; current verified `main` commit `b80ee3a4175e1522d1a12ba7fe371a49da3207f5` carries CC0-1.0. The local archive predates or omits that metadata, so this commit is not asserted to be the archive revision. The README separately links `https://github.com/daniilvaino/dotnet-runtime-sharpos/tree/sharpos/coreclr-port` for its absent CoreCLR fork. |
+| `SharpOS-main` | `https://github.com/daniilvaino/SharpOS`; the local content matches `b80ee3a4175e1522d1a12ba7fe371a49da3207f5` except for its omitted `LICENSE`; reviewed `main` tip `0c00476fa6d9cfebb6e83d5da34ab8fb1074163b` retains CC0-1.0. The README separately links `https://github.com/daniilvaino/dotnet-runtime-sharpos/tree/sharpos/coreclr-port` for its absent CoreCLR fork. |
 | `smolsharp-main` | `https://github.com/ascpixi/smolsharp` |
 | `zerosharp-master` | `https://github.com/MichalStrehovsky/zerosharp` |
 
@@ -160,12 +164,14 @@ GPL, asset, and contributor notices still take precedence over that default.
 
 ## SharpOS-Specific Boundary
 
-The local SharpOS snapshot mixes several distinct scopes:
+The local SharpOS snapshot and the reviewed post-archive upstream delta mix
+several distinct scopes:
 
 - The owner-supplied permission record and current upstream CC0-1.0 license
   authorize selective reuse of SharpOS-authored kernel, std, boot, PAL, tools,
-  and app SDK source. The supplied archive still has no recoverable commit, so
-  adaptations must bind themselves to exact local file hashes.
+  and app SDK source. Content comparison identifies archive commit
+  `b80ee3a4175e1522d1a12ba7fe371a49da3207f5`; adaptations still bind to exact
+  source paths and hashes because the archive contains no Git metadata.
 - `vendor/Iced/LICENSE.txt` applies to the Iced vendor tree.
 - `vendor/PeNet/LICENSE` applies to the PeNet vendor tree.
 - The ManagedDoom application is isolated below
@@ -176,6 +182,15 @@ The local SharpOS snapshot mixes several distinct scopes:
   use requires the upstream .NET runtime license, fork commit, patch ledger,
   dependency closure, build provenance, and attribution to be preserved in a
   separately versioned dependency.
+- Post-archive XtermSharp material is MIT, Terminal.Gui v1.19.0 is MIT, and
+  TurboXml is BSD-2-Clause. Preserve those notices and dependency boundaries;
+  they are not relicensed by SharpOS CC0.
+- `dotnet/runtime`-derived no-stdlib/SIMD material is MIT. Prefer adapting from
+  an exact official runtime revision instead of copying SharpOS's intermediate
+  derivative.
+- Fami and TriCNES appear as external submodule gitlinks in the reviewed
+  upstream history and were not provenance-cleared by this audit. They remain
+  blocked from CLROS source or distribution.
 
 The SharpOS CC0 evidence does not supersede a file-local third-party license,
 and the absence of the external CoreCLR fork prevents reproducible
@@ -220,10 +235,10 @@ git diff --check
 
 ## Next Steps
 
-1. Recover the exact SharpOS archive revision if possible; until then bind each
-   SharpOS adaptation to exact local file hashes and the recorded CC0/owner
-   permission evidence. Separately recover canonical upstream URLs, immutable
-   revisions, retrieval dates, and complete license texts for
+1. Bind each SharpOS adaptation to the identified archive or reviewed upstream
+   commit, exact source path/hash, and recorded CC0/owner permission evidence.
+   Separately recover canonical upstream URLs, immutable revisions, retrieval
+   dates, and complete license texts for
    `nativeaot-patcher-main`, `zerosharp-master`, and `EfiSharp-main` before
    their first direct source adaptation.
 2. Add a machine-readable attribution/provenance ledger and SBOM generation

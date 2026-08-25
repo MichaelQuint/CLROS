@@ -69,7 +69,7 @@ captured logs, stable markers, and the matching entry in
 | `references/PatienceOS-main` | Test-vector reference | `src/` for host-testing unsafe console/buffer routines against caller-owned stack memory. | Do not adopt its 32-bit Multiboot, VGA, or assembly path. |
 | `references/RoseOS-master` | Test-vector reference | `Loader/`, `Kernel/`, and `WindowsTest/` for UEFI memory-map sizing, `ExitBootServices`, PE validation, reservation, and allocator regressions. | Do not copy its map-buffer sizing, loaded-image reclamation, fixed allocator assumptions, C, or assembly. |
 | `references/Sharpen-master` | Conceptual reference | `kernel/` and `user/` for a historical subsystem/device/filesystem/network census. | Do not copy the old native-heavy x86 implementation. |
-| `references/SharpOS-main` | Selective primary, owner-authorized CC0 reference | `OS/`, `std/`, `apps_native/`, `bootasm/`, `docs/`, and `done/` for modern C# NativeAOT boot/runtime, PE apps, PAL, scheduler, storage, and evidence patterns. The owner-supplied permission record and current upstream CC0-1.0 license permit selective reuse of SharpOS-authored source. | Adapt bounded slices and record the exact local source hash because the archive commit is unknown. The snapshot is net8 for its kernel/app tier, relies on an absent external CoreCLR fork, has no live network stack, and contains separately GPL-governed DOOM code. It is not CLROS architecture or evidence. |
+| `references/SharpOS-main` | Selective primary, owner-authorized CC0 reference | `OS/`, `std/`, `apps_native/`, `bootasm/`, `docs/`, and `done/` for modern C# NativeAOT boot/runtime, PE apps, PAL, scheduler, storage, and evidence patterns. The owner-supplied permission record and upstream CC0-1.0 license permit selective reuse of SharpOS-authored source. | The local archive's content matches upstream `b80ee3a4175e1522d1a12ba7fe371a49da3207f5` except for its omitted top-level `LICENSE`; still bind adaptations to exact paths and hashes. Current upstream `0c00476fa6d9cfebb6e83d5da34ab8fb1074163b` is research-only until selectively adapted. SharpOS relies on a separate CoreCLR fork, still has no network driver, and contains separately licensed/GPL material. It is not CLROS architecture or evidence. |
 | `references/SharpOS-master` | Test-vector reference | `Kernel/`, `AOT/`, and historical test material for arithmetic, casts, arrays, strings, generics, exceptions, delegates, interfaces, boxing, and cctor behavior. | Historical custom compiler/runtime; license is not locally established. Recreate tests independently and do not copy implementation. |
 | `references/smolsharp-main` | Conceptual reference | `src/` and build properties for binary-size, section-stripping, CRT-removal, and DirectPInvoke threat-model review. | Size cannot remove unwind/protection/diagnostic data. The snapshot has no top-level license evidence and points at AGPL ZeroLib work; do not copy it into CLROS. |
 | `references/xOS-main` | Ignore | `xOS/` and `xOSTests/` describe a Cosmos shell application. | It is not a kernel/runtime architecture; its bundled `CosmosOS-License` applies to Cosmos-derived material, not automatically to every dependency. |
@@ -92,6 +92,41 @@ CLROS backlog slices:
 | `references/SharpOS-main/OS/src/Hal/Fat32.cs` | FAT32 edge-case study. | Keep storage read-only first and add loop, bad-cluster, truncation, bounds, and long-name tests. |
 | `references/SharpOS-main/done/step076.md` | Historical account of a gated physical EBS experiment. | It is not CLROS proof and explicitly halts rather than entering the default launcher path. |
 | `references/SharpOS-main/done/step143.md` | Historical account of playable Managed DOOM with GOP, PS/2, and HPET. | It is not locally reproduced; GPL app code and WAD assets remain isolated and optional. |
+
+### SharpOS upstream refresh (2026-08-25)
+
+Static comparison against `https://github.com/daniilvaino/SharpOS` established
+these immutable anchors:
+
+- Local archive content: upstream
+  `b80ee3a4175e1522d1a12ba7fe371a49da3207f5`, with no content difference
+  except that the archive omits upstream's top-level `LICENSE`.
+- Current reviewed upstream `main`:
+  `0c00476fa6d9cfebb6e83d5da34ab8fb1074163b`, dated 2026-08-21.
+- Comparison:
+  `https://github.com/daniilvaino/SharpOS/compare/b80ee3a4175e1522d1a12ba7fe371a49da3207f5...0c00476fa6d9cfebb6e83d5da34ab8fb1074163b`.
+- Delta: 34 commits beyond the archive, including steps 144-165; 24 commits
+  are newer than the previously reviewed step-149 commit
+  `934b4fd8e4e8849d13d774bacfef063870a18d05`.
+
+The newer source is not copied into `references/`. CLROS uses the following
+findings as source-linked regression inputs to existing backlog issues:
+
+| Upstream finding | Immutable examples | Existing CLROS destination |
+| --- | --- | --- |
+| Variant interface dispatch must resolve the compatible interface and owning slot correctly | `25dafb69c43622fc5786a894ea63492c39745b29`, `c675b268f0901767a74c07113bd796894185a367` | #85 / M04-016 |
+| Unwind lookup needs the containing image base; SIMD makes XMM/MXCSR and `UWOP_SAVE_XMM128` handling live | `00e99fb23b0e44223101285856d2801b1eff043a`, `0c00476fa6d9cfebb6e83d5da34ab8fb1074163b` | #89, #91, and thread-context #183 |
+| Application GC/root/array coverage and mapped-image/page release require repeatable ownership tests | `c8f814b0caee22645198ea605e3b4eaabb155fd5`, `f2f21085a3f78d452052382d978f1981aa479b64` | #74-#91 and #172-#179 |
+| LAPIC preemption, stop-the-world, waits, locks, tasks, and preempted allocation expose atomic-publication and parked-root cases | `caa7713f42c56137be08fbcea30e2008e0c57a2a`, `b83cbf36ec63d444063c739b7b562980e32a8959`, `d08a170d10cb43b67ac0cd23a6a52cc4dd2b5684`, `6e4d6a67940fafcba163a3abdaab5ea01d886d48`, `491730dc46e3316171d745c33d25cd8db408b84c`, `c675b268f0901767a74c07113bd796894185a367` | #113 and #183-#194 |
+| Firmware can leave HPET enabled but stalled; inherited mappings and PCI enumeration must fail explicitly when repair/traversal is incomplete | `934b4fd8e4e8849d13d774bacfef063870a18d05` and steps 150-151 | #94, #96, and #99 |
+| Hosted runtime reuse can leak default-load-context/static state; release builds must reject unresolved host fallbacks | current steps 154-165 | #211 and #212 |
+| Embedded PE `RT_MANIFEST` metadata can cross-check a package but cannot replace CLROS's canonical workload manifest | `0c00476fa6d9cfebb6e83d5da34ab8fb1074163b` | #163, #164, #177, and #216 |
+
+Full USB/xHCI, terminal engines, Terminal.Gui, PowerShell, NES, and DOOM remain
+optional or deferred. SharpOS's current work still does not supply a network
+driver, so it does not shorten CLROS's M07 live-network or M10 Kestrel path.
+Every adopted case still requires CLROS-owned contracts, tests, and fresh guest
+evidence at the boundary it claims.
 
 ## Secondary NativeAOT/Cosmos Gen3 Crosswalk
 
@@ -129,7 +164,9 @@ does not build reference projects or turn them into first-party evidence.
 
 ## Next Steps
 
-1. Record an immutable upstream URL and revision before adapting any source.
+1. Use the recorded SharpOS base/tip anchors; for any adaptation, record the
+   exact upstream commit and source path plus the exact local or fetched file
+   hash.
 2. Record the exact source path, license evidence, changed CLROS paths, and
    adaptation boundary in the implementing issue and `done/stepNN.md`.
 3. Keep reference-derived tests independent and include negative cases that
