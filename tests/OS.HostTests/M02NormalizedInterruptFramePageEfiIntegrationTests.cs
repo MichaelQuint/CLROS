@@ -917,7 +917,8 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
         }
 
         string value = line[prefix.Length..];
-        return value.Length == 0
+        return value.Length == 0 ||
+            string.Equals(value, "none", StringComparison.Ordinal)
             ? []
             : value.Split(';', StringSplitOptions.RemoveEmptyEntries);
     }
