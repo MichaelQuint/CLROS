@@ -883,10 +883,10 @@ the pre-`ExitBootServices` EFI application. They do not prove general
 completion, real `ExitBootServices`, owned post-firmware diagnostics, hosted
 .NET, Kestrel, provider support, CloudReady status, or production readiness.
 
-### M04-003 span/memory conformance EFI integration (pre-evidence)
+### M04-003 span/memory conformance EFI integration
 
 `EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe` is a default-false,
-returning development profile. It requires
+returning opt-in profile. It requires
 `EnableM04IndependentEndianConformanceProbe=true` and is rejected when the
 terminal `EnableM02OwnedGdtTssTerminalProbe` profile is enabled. The explicit
 project links exactly one frozen source immediately after the M04-002 endian
@@ -909,27 +909,39 @@ preservation, overlap-direction scratch results, and raw unsigned observations
 is checked before its four-byte output truncation.
 
 Any mismatch emits only `M04_SPAN_MEMORY_CONFORMANCE_FAILED`, suppresses the
-success record, and returns before `UEFI_MEMORY_MAP_READY`. A successful run is
-expected to emit exactly:
+success record, and returns before `UEFI_MEMORY_MAP_READY`. The accepted guest
+run emitted exactly:
 
 ```text
 CLROS_M04_003_READY vectors=16 spanVectors=4 overlapVectors=5 memoryCastVectors=3 unsafeWidthVectors=4 fingerprint=F03FF59D36F39ECD pointerWidth=8 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
 ```
 
-The exact-head publish command for the later evidence pass is:
+The accepted build and artifact-verifier evidence was generated from source
+head `dedb55c3ddb155336ef4c7f387cf14b533c37f09`, tree
+`3ce99d70fe4607e5ed5858e86863ed49d0e47381`. The schema-three same-build link
+evidence records `Release`, `win-x64`, exactly 59 compile items, compile-key
+SHA-256 `9E424BEFDB74433B2B179AEFC15996E693D835099C196B2E8DC3716C5D7C4F6D`,
+exactly 72 source-authority inputs, and source-closure SHA-256
+`6CD53117395FFE7668E26A8FD9AB30F6F9154AA8A7911A5B99B92E89F493599A`.
+Both M04 properties evaluate to `true`; the terminal M02-009 property remains
+`false`.
 
-```powershell
-.\scripts\build-efi-shell.ps1 `
-  -EfiOutputPath .\artifacts\efi\BOOTX64-M04-003.EFI `
-  -LogPath .\artifacts\logs\m04-003-efi-build.log `
-  -EnableM04IndependentEndianConformanceProbe `
-  -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe
-```
+The artifact verifier accepted a PE32+ x64 EFI application with subsystem 10,
+the same-build `EfiMain` and serializer bindings, and no ordinary, bound, IAT,
+or delay imports. The resulting 82,944-byte EFI artifact has SHA-256
+`0F8A7E3FB5D626E7017D2839DA0E3C966D86A53E769B9D39A3D0275F974A550B`.
+The link map and response hashes are
+`7656D08CBCC932CEFC35303B19DEC981D437DD6FCC70FECA92084F8C2DAED2B3`
+and `C2A083629F7DC030ECBCA2347A6B4E8AD8C505CE107B233F078814B793C50E24`;
+the 398,199-byte link-evidence JSON has SHA-256
+`7136A51B7199AC0B0EBB76E0F6908FB09869EBD6E1584EDDA1E8C521A770FA2B`.
+The archived build log has SHA-256
+`31D76FACE1A612B7CEC24519C55BC9A89937023995CD5A9B0A9ADAAA4DDFAC70`.
+`docs/qemu.md` and `done/step919.md` preserve the command and complete guest
+tuple.
 
-No real QEMU/OVMF acceptance is recorded for this integration yet. Until a
-fresh exact-head run succeeds, the marker above is an expected contract, not
-guest evidence, and the M04-003 leaf documentation remains host-only. Gate 4
-remains `Fail`. This pre-evidence integration does not prove general
+This evidence proves only one fixed-catalog call in the pre-`ExitBootServices`
+EFI application. Gate 4 remains `Fail`. It does not prove general
 `System.Span<T>` or `MemoryMarshal`, unsafe memory safety, allocation, GC,
 exceptions, metadata or dispatch, real `ExitBootServices`, hosted .NET 10,
 Minimal API/Kestrel, cloud readiness, or production readiness.

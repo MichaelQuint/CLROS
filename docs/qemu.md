@@ -704,7 +704,7 @@ exceptions, general runtime completion, real `ExitBootServices`, hosted .NET,
 Minimal API, Kestrel, physical/provider support, CloudReady status, production
 readiness, or a numbered-gate advancement.
 
-### M04-003 span/memory conformance profile (pre-evidence)
+### M04-003 span/memory conformance profile
 
 The default-false M04-003 profile requires both `-BuildEfi` and
 `-EnableM04IndependentEndianConformanceProbe`, rejects `-SkipImageBuild`, and
@@ -738,13 +738,58 @@ The profile can be inspected without build or boot proof using:
   -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe
 ```
 
-The later exact-head evidence run must use fresh issue-specific EFI, image,
-serial, summary, stdout, and stderr paths. No such real QEMU/OVMF run is
-accepted yet. The readiness line above is therefore only the enforced expected
-profile contract at this stage; it is not current guest evidence. Gate 4
-remains `Fail`, and no general span/memory surface, memory safety, runtime,
-hosted .NET 10, Minimal API/Kestrel, cloud, or production capability follows
-from this pre-evidence integration.
+The accepted real-QEMU evidence run used fresh issue- and head-specific paths:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -WorkloadProfile SingleMinimalApi `
+  -DiskFormat raw `
+  -BuildEfi `
+  -EnableM04IndependentEndianConformanceProbe `
+  -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe `
+  -EfiArtifact .\artifacts\efi\BOOTX64-issue-476-m04-003-dedb55c3ddb155336ef4c7f387cf14b533c37f09.EFI `
+  -Image .\artifacts\images\issue-476-m04-003-dedb55c3ddb155336ef4c7f387cf14b533c37f09.raw `
+  -SerialLog .\artifacts\logs\issue-476-m04-003-dedb55c3ddb155336ef4c7f387cf14b533c37f09-qemu-serial.log `
+  -SummaryLog .\artifacts\logs\issue-476-m04-003-dedb55c3ddb155336ef4c7f387cf14b533c37f09-qemu-summary.log
+```
+
+The wrapper ran from `2026-08-25T21:22:18.1468401Z` through
+`2026-08-25T21:23:04.9883486Z` at source head
+`dedb55c3ddb155336ef4c7f387cf14b533c37f09`, tree
+`3ce99d70fe4607e5ed5858e86863ed49d0e47381`, and exited `0`. QEMU reported
+`11.0.50` (`v11.0.0-12631-g54e84cdc7a`); the 3,653,632-byte OVMF image has
+SHA-256 `33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`.
+The stream result was `status=Passed terminal=Success`, with
+`orderedSeen=4`, `outOfOrder=0`, `uniqueSeen=2`, `duplicateUnique=0`, and a
+750 ms terminal drain. Each complete M04 ready line occurred exactly once at
+serial line indices 4 and 5 (zero-based), between `EFI_CONSOLE_READY` and
+`UEFI_MEMORY_MAP_READY`. Exactly one `OS_SMOKE_PASS` occurred; none of
+`OS_SMOKE_FAIL`, `TEST_FAIL`, `M04_ENDIAN_CONFORMANCE_FAILED`, or
+`M04_SPAN_MEMORY_CONFORMANCE_FAILED` occurred. The runner then stopped QEMU and
+reported `QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=-1`.
+
+The 8,371-byte, 28-line serial log has SHA-256
+`65E677830952D0C1657ECF6F038BA1441AC1CC30F556185502BDE7FE53EDDDDC`.
+The 4,508-byte, 48-line summary has SHA-256
+`E54F101CA318F9A1A1BD26C3785CD689380B3ADC35DF2DB6D5E71FCD258AA487`
+and records `QEMU_SMOKE_STATUS pass`, `MISSING_MARKERS none`,
+`OUT_OF_ORDER_MARKERS none`, `DUPLICATE_UNIQUE_MARKERS none`,
+`FORBIDDEN_MARKER_HIT none`, and `FAIL_REASON none`. The 67,108,864-byte raw
+image has SHA-256
+`C8D06743C1DC96B2A2593A93CE7F7E6F59820AFA463EF8CC287B5E977E61FEB6`;
+the 14,091-byte stdout log has SHA-256
+`30E9518695F4C928CBF7591203C180E178035B581EF3591F45D2876CCF924F52`;
+stderr is empty with the standard empty-file SHA-256. The EFI artifact identity
+is recorded in `docs/efi-build.md`, and the complete immutable tuple is in
+`done/step919.md`.
+
+Gate 4 remains `Fail`. This run proves one returning, fixed-catalog,
+pre-`ExitBootServices` guest path only; no general span/memory surface, memory
+safety, runtime, hosted .NET 10, Minimal API/Kestrel, cloud, or production
+capability follows from it.
 
 ## Implemented Behavior
 
