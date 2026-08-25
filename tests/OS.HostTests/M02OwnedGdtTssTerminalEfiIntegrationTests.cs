@@ -552,6 +552,10 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
                 profile,
                 "Merge-QemuSmokeMarkerList -Values @(") == 4
             && cumulativeProfile.ExitCode == 0
+            && cumulativeProfile.Output.Contains(
+                "M01_RAW_OBSERVATION_CONFIG enabled=true "
+                    + "active=false terminalProfile=true dryRun=true",
+                StringComparison.Ordinal)
             && requiredMarkers.Length == 59
             && orderedMarkers.Length == 59
             && uniqueMarkers.Length == 59

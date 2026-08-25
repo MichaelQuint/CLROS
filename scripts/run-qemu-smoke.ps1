@@ -4356,18 +4356,21 @@ try {
         exit 1
     }
 
-    Write-Host (
+    $m01RawObservationConfig =
         "M01_RAW_OBSERVATION_CONFIG enabled=" +
         (Format-QemuSmokeBoolean $EnableM01OwnedPagingProbe.IsPresent) +
         " active=" +
         (Format-QemuSmokeBoolean (
             $EnableM01OwnedPagingProbe.IsPresent -and
             -not $EnableM02OwnedGdtTssTerminalProbe.IsPresent -and
-            -not $DryRun.IsPresent)) +
-        " terminalProfile=" +
-        (Format-QemuSmokeBoolean $EnableM02OwnedGdtTssTerminalProbe.IsPresent) +
+            -not $DryRun.IsPresent))
+    if ($EnableM02OwnedGdtTssTerminalProbe.IsPresent) {
+        $m01RawObservationConfig += " terminalProfile=true"
+    }
+    $m01RawObservationConfig +=
         " dryRun=" +
-        (Format-QemuSmokeBoolean $DryRun.IsPresent))
+        (Format-QemuSmokeBoolean $DryRun.IsPresent)
+    Write-Host $m01RawObservationConfig
 
     if ($EnableM01LiveAllocatorProbe -and -not $EnableM01LoadedImageStackProbe) {
         Write-Host (
