@@ -31,7 +31,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const int MaximumRuntimeFunctionRecords = 2048;
     private const int MaximumLinkResponseTokens = 4096;
     private const int VerifierFixtureProcessTimeoutMilliseconds = 120_000;
-    private const int ExpectedSourceClosureInputCount = 71;
+    private const int ExpectedSourceClosureInputCount = 72;
     private const string SerializerSymbol =
         "CLROS_X64_SerializeInstructionPublication";
     private const string ToolDirectoryBuildPropsPath =
@@ -45,7 +45,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const string EmptySha256 =
         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     private const string CompileClosureSha256 =
-        "40f45634fc87d66d875d2859a5fe7ad6f5bc09d531af81d785ef2a497f5f6e33";
+        "9e424befdb74433b2b179aefc15996e693d835099c196b2e8dc3716c5d7c4f6d";
     private const string AnalyzerClosureSha256 =
         "bea3e700acbeec374acb02a39b8c154e03291cf380edf850fea2114193b7ea14";
     private const string ManagedFixtureConfiguration = "Release";
@@ -2181,6 +2181,29 @@ internal static class EfiArtifactVerificationScriptTests
             "post_restore_evidence_property_mismatch");
         passed &= EvidenceMutationFails(
             tempRoot,
+            "post-restore-m04-span-memory-property-missing",
+            evidence =>
+            {
+                JsonObject properties = evidence[
+                    "postRestoreEvaluation"]!["properties"]!.AsObject();
+                properties.Remove(
+                    "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe");
+            },
+            "post_restore_evidence_property_set_invalid");
+        passed &= EvidenceMutationFails(
+            tempRoot,
+            "post-restore-m04-span-memory-property-enabled-without-switch",
+            evidence =>
+            {
+                JsonObject properties = evidence[
+                    "postRestoreEvaluation"]!["properties"]!.AsObject();
+                properties[
+                    "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"] =
+                    "true";
+            },
+            "post_restore_evidence_property_mismatch");
+        passed &= EvidenceMutationFails(
+            tempRoot,
             "post-restore-sdk-path",
             evidence =>
             {
@@ -2452,7 +2475,7 @@ internal static class EfiArtifactVerificationScriptTests
                 "MSBUILDDISABLENODEREUSE",
                 StringComparison.Ordinal)
             && verifierSource.Contains(
-                "$expectedSourceClosureInputCount = 71",
+                "$expectedSourceClosureInputCount = 72",
                 StringComparison.Ordinal)
             && stableReasons.All(reason => verifierSource.Contains(
                 reason,
@@ -4916,6 +4939,8 @@ internal static class EfiArtifactVerificationScriptTests
             ["EnableM02GuardedIstStackAllocationProbe"] = "false",
             ["EnableM02OwnedGdtTssTerminalProbe"] = "false",
             ["EnableM04IndependentEndianConformanceProbe"] = "false",
+            ["EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"] =
+                "false",
             ["ImportProjectExtensionProps"] = "false",
             ["ImportProjectExtensionTargets"] = "false",
             ["ExcludeRestorePackageImports"] = "true",
@@ -5018,7 +5043,7 @@ internal static class EfiArtifactVerificationScriptTests
         };
         return new Dictionary<string, object?>
         {
-            ["compileCount"] = 58,
+            ["compileCount"] = 59,
             ["compileSha256"] = CompileClosureSha256,
             ["projectReferenceCount"] = 0,
             ["projectReferenceSha256"] = EmptySha256,

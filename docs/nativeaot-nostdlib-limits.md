@@ -440,19 +440,30 @@ validation, and execution allocate zero managed bytes. Its host marker is:
 CLROS_M04_003_READY vectors=16 spanVectors=4 overlapVectors=5 memoryCastVectors=3 unsafeWidthVectors=4 fingerprint=F03FF59D36F39ECD pointerWidth=8 referenceFilesRequired=false hostConformance=true guestIntegrated=false gate4=Fail
 ```
 
-This is audited host-catalog and constrained-core execution evidence only. A
-separately owned integration
-issue must explicitly compile the pointer branch into the no-stdlib EFI source
-closure, call the already-reviewed `ExecuteCatalog` pointer core against fixed
-guest-owned buffers, validate all 16 result records under fresh QEMU/OVMF, and
-emit exactly one:
+This remains the audited host/.NET 10 cross-check. A separately owned and now
+accepted integration compiled the reviewed `NOSTDLIB_EFI` pointer branch into
+the 59-compile-item, 72-source-authority-input EFI closure. At evidence source
+head `dedb55c3ddb155336ef4c7f387cf14b533c37f09`, the guest copied the fixed
+catalog once into caller-owned storage, called `ExecuteCatalog` exactly once
+with 16 vectors, 16 scratch bytes, and 16 result records, audited every result,
+and emitted exactly one distinct guest marker:
 
 ```text
 CLROS_M04_003_READY vectors=16 spanVectors=4 overlapVectors=5 memoryCastVectors=3 unsafeWidthVectors=4 fingerprint=F03FF59D36F39ECD pointerWidth=8 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
 ```
 
-Its exact failure marker is `M04_SPAN_MEMORY_CONFORMANCE_FAILED`. Until that
-work exists, `guestIntegrated=false` and Gate 4 remains `Fail`.
+The real-QEMU serial order was `EFI_CONSOLE_READY`, the distinct M04-002 guest
+marker, the marker above, then `UEFI_MEMORY_MAP_READY`. Neither
+`M04_SPAN_MEMORY_CONFORMANCE_FAILED` nor any other forbidden/failure marker
+appeared, and the returning profile continued to `OS_SMOKE_PASS`. The separate
+host marker above deliberately remains `hostConformance=true
+guestIntegrated=false`; it describes a different execution and is not rewritten
+as guest evidence. `done/step919.md` preserves the exact source, tool, artifact,
+log, and marker tuple.
+
+This guest result is still one constrained fixed-catalog execution. It does not
+create canonical `System.Span<T>`, `MemoryMarshal`, `Unsafe`, or
+`BinaryPrimitives` behavior, and Gate 4 remains `Fail`.
 
 The source-frozen post-reboot gate at pushed commit
 `8ee0311d2a7c225b77b4efa7d86bce6831c71826`, tree
