@@ -40,6 +40,7 @@ param(
     [switch] $EnableM02PanicSafeOwnedCom1Probe,
     [switch] $EnableM02OwnedX64GdtEncodingProbe,
     [switch] $EnableM02GuardedIstStackAllocationProbe,
+    [switch] $EnableM02OwnedGdtTssTerminalProbe,
     [switch] $EnableM04IndependentEndianConformanceProbe
 )
 
@@ -91,6 +92,7 @@ $script:ExpectedEfiCompileItems = @(
     '..\OS.Kernel\Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs|Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs',
     '..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs|Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs',
     '..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs',
+    '..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs',
     '..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs',
     '..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs|Boot\M01LoadedImageStackIntegration.cs',
     '..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs|Boot\M01LiveAllocatorIntegration.cs',
@@ -1803,6 +1805,7 @@ function Invoke-M01PostRestoreEvaluation {
         [bool] $M02PanicSafeOwnedCom1Enabled,
         [bool] $M02OwnedX64GdtEncodingEnabled,
         [bool] $M02GuardedIstStackAllocationEnabled,
+        [bool] $M02OwnedGdtTssTerminalEnabled,
         [bool] $M04IndependentEndianConformanceEnabled
     )
 
@@ -1824,6 +1827,7 @@ function Invoke-M01PostRestoreEvaluation {
             "EnableM02PanicSafeOwnedCom1Probe," +
             "EnableM02OwnedX64GdtEncodingProbe," +
             "EnableM02GuardedIstStackAllocationProbe," +
+            "EnableM02OwnedGdtTssTerminalProbe," +
             "EnableM04IndependentEndianConformanceProbe," +
             "ImportProjectExtensionProps,ImportProjectExtensionTargets," +
             "ExcludeRestorePackageImports,ILCompilerTargetsPath," +
@@ -1927,6 +1931,9 @@ function Invoke-M01PostRestoreEvaluation {
         "-p:EnableM02GuardedIstStackAllocationProbe=" +
         $M02GuardedIstStackAllocationEnabled.ToString().ToLowerInvariant())
     $arguments += (
+        "-p:EnableM02OwnedGdtTssTerminalProbe=" +
+        $M02OwnedGdtTssTerminalEnabled.ToString().ToLowerInvariant())
+    $arguments += (
         "-p:EnableM04IndependentEndianConformanceProbe=" +
         $M04IndependentEndianConformanceEnabled.ToString().ToLowerInvariant())
     $arguments += $msbuildIsolation.Arguments
@@ -1981,6 +1988,8 @@ function Invoke-M01PostRestoreEvaluation {
             $M02OwnedX64GdtEncodingEnabled.ToString().ToLowerInvariant()
         EnableM02GuardedIstStackAllocationProbe =
             $M02GuardedIstStackAllocationEnabled.ToString().ToLowerInvariant()
+        EnableM02OwnedGdtTssTerminalProbe =
+            $M02OwnedGdtTssTerminalEnabled.ToString().ToLowerInvariant()
         EnableM04IndependentEndianConformanceProbe =
             $M04IndependentEndianConformanceEnabled.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
@@ -3960,7 +3969,8 @@ for ($index = 5; $index -lt $verifierArguments.Count; $index += 2) {
         $parameterName -ceq "EnableM02OwnedCom1ReadyProbe" -or
         $parameterName -ceq "EnableM02PanicSafeOwnedCom1Probe" -or
         $parameterName -ceq "EnableM02OwnedX64GdtEncodingProbe" -or
-        $parameterName -ceq "EnableM02GuardedIstStackAllocationProbe") {
+        $parameterName -ceq "EnableM02GuardedIstStackAllocationProbe" -or
+        $parameterName -ceq "EnableM02OwnedGdtTssTerminalProbe") {
         if ($parameterValue -cne "true" -and $parameterValue -cne "false") {
             exit 127
         }
@@ -5205,6 +5215,7 @@ function Test-M01EvaluatedSourceClosure {
         [bool] $M02PanicSafeOwnedCom1Enabled,
         [bool] $M02OwnedX64GdtEncodingEnabled,
         [bool] $M02GuardedIstStackAllocationEnabled,
+        [bool] $M02OwnedGdtTssTerminalEnabled,
         [bool] $M04IndependentEndianConformanceEnabled,
         [bool] $UefiGoneSimulationEnabled,
         [bool] $ExitBootServicesFreshMapEnabled,
@@ -5246,6 +5257,8 @@ function Test-M01EvaluatedSourceClosure {
             $M02OwnedX64GdtEncodingEnabled.ToString().ToLowerInvariant()
         "EnableM02GuardedIstStackAllocationProbe" =
             $M02GuardedIstStackAllocationEnabled.ToString().ToLowerInvariant()
+        "EnableM02OwnedGdtTssTerminalProbe" =
+            $M02OwnedGdtTssTerminalEnabled.ToString().ToLowerInvariant()
         "EnableM04IndependentEndianConformanceProbe" =
             $M04IndependentEndianConformanceEnabled.ToString().ToLowerInvariant()
     }
@@ -5262,6 +5275,8 @@ function Test-M01EvaluatedSourceClosure {
         "M02_OWNED_X64_GDT_ENCODING_PROBE" = $M02OwnedX64GdtEncodingEnabled
         "M02_GUARDED_IST_STACK_ALLOCATION_PROBE" =
             $M02GuardedIstStackAllocationEnabled
+        "M02_OWNED_GDT_TSS_TERMINAL_PROBE" =
+            $M02OwnedGdtTssTerminalEnabled
         "M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE" =
             $M04IndependentEndianConformanceEnabled
         "UEFI_GONE_SIMULATION_PROBE" = $UefiGoneSimulationEnabled
@@ -5294,6 +5309,7 @@ function Test-M01EvaluatedSourceClosure {
                 "EnableM02PanicSafeOwnedCom1Probe," +
                 "EnableM02OwnedX64GdtEncodingProbe," +
                 "EnableM02GuardedIstStackAllocationProbe," +
+                "EnableM02OwnedGdtTssTerminalProbe," +
                 "EnableM04IndependentEndianConformanceProbe," +
                 "DefineConstants," +
                 "EnableDefaultCompileItems," +
@@ -5377,6 +5393,10 @@ function Test-M01EvaluatedSourceClosure {
         if ($M02GuardedIstStackAllocationEnabled) {
             $arguments +=
                 "-p:EnableM02GuardedIstStackAllocationProbe=true"
+        }
+        if ($M02OwnedGdtTssTerminalEnabled) {
+            $arguments +=
+                "-p:EnableM02OwnedGdtTssTerminalProbe=true"
         }
         if ($M04IndependentEndianConformanceEnabled) {
             $arguments +=
@@ -5907,6 +5927,7 @@ function Test-M01SourceClosure {
         [bool] $M02PanicSafeOwnedCom1Enabled,
         [bool] $M02OwnedX64GdtEncodingEnabled,
         [bool] $M02GuardedIstStackAllocationEnabled,
+        [bool] $M02OwnedGdtTssTerminalEnabled,
         [bool] $M04IndependentEndianConformanceEnabled,
         [bool] $UefiGoneSimulationEnabled,
         [bool] $ExitBootServicesFreshMapEnabled,
@@ -5957,7 +5978,7 @@ function Test-M01SourceClosure {
 
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "ab9195a9121f99096fd5bdde228e75d01a1c375303a1cc14379d23ef8487f7a7") {
+        "1e37233e70e923e8fb59716cc31fc26b7d748c4be26f5e5cf76fbd759b4a5cd9") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `
@@ -6022,6 +6043,8 @@ function Test-M01SourceClosure {
         "EnableM02OwnedX64GdtEncodingProbe" = "M02_OWNED_X64_GDT_ENCODING_PROBE"
         "EnableM02GuardedIstStackAllocationProbe" =
             "M02_GUARDED_IST_STACK_ALLOCATION_PROBE"
+        "EnableM02OwnedGdtTssTerminalProbe" =
+            "M02_OWNED_GDT_TSS_TERMINAL_PROBE"
         "EnableM04IndependentEndianConformanceProbe" =
             "M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE"
         "EnableUefiGoneSimulationProbe" = "UEFI_GONE_SIMULATION_PROBE"
@@ -6072,6 +6095,8 @@ function Test-M01SourceClosure {
         "EnableM02OwnedX64GdtEncodingProbe" = "M02_OWNED_X64_GDT_ENCODING_PROBE"
         "EnableM02GuardedIstStackAllocationProbe" =
             "M02_GUARDED_IST_STACK_ALLOCATION_PROBE"
+        "EnableM02OwnedGdtTssTerminalProbe" =
+            "M02_OWNED_GDT_TSS_TERMINAL_PROBE"
         "EnableM04IndependentEndianConformanceProbe" =
             "M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE"
     }
@@ -6146,6 +6171,9 @@ function Test-M01SourceClosure {
     $m02GuardedIstStackAllocationDependencyCondition =
         "'" + '$' + "(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '" +
         '$' + "(EnableM02OwnedX64GdtEncodingProbe)' != 'true'"
+    $m02OwnedGdtTssTerminalDependencyCondition =
+        "'" + '$' + "(EnableM02OwnedGdtTssTerminalProbe)' == 'true' and '" +
+        '$' + "(EnableM02GuardedIstStackAllocationProbe)' != 'true'"
     $requiredErrorConditions = @(
         $allocatorDependencyCondition,
         $pagingDependencyCondition,
@@ -6157,7 +6185,8 @@ function Test-M01SourceClosure {
         $m02OwnedCom1ReadyDependencyCondition,
         $m02PanicSafeOwnedCom1DependencyCondition,
         $m02OwnedX64GdtEncodingDependencyCondition,
-        $m02GuardedIstStackAllocationDependencyCondition
+        $m02GuardedIstStackAllocationDependencyCondition,
+        $m02OwnedGdtTssTerminalDependencyCondition
     )
     if ($errorConditions.Count -ne $requiredErrorConditions.Count -or
         $validationTargets[0].SelectNodes("*").Count -ne $errorNodes.Count) {
@@ -6468,6 +6497,7 @@ function Test-M01SourceClosure {
         -M02PanicSafeOwnedCom1Enabled $M02PanicSafeOwnedCom1Enabled `
         -M02OwnedX64GdtEncodingEnabled $M02OwnedX64GdtEncodingEnabled `
         -M02GuardedIstStackAllocationEnabled $M02GuardedIstStackAllocationEnabled `
+        -M02OwnedGdtTssTerminalEnabled $M02OwnedGdtTssTerminalEnabled `
         -M04IndependentEndianConformanceEnabled $M04IndependentEndianConformanceEnabled `
         -UefiGoneSimulationEnabled $UefiGoneSimulationEnabled `
         -ExitBootServicesFreshMapEnabled $ExitBootServicesFreshMapEnabled `
@@ -6641,8 +6671,8 @@ try {
             (Format-EvidenceValue $_.Exception.Message))
         exit 1
     }
-    if ($sourceSnapshotBeforePublish.InputCount -ne 70 -or
-        $sourceSnapshotAfterLock.InputCount -ne 70 -or
+    if ($sourceSnapshotBeforePublish.InputCount -ne 71 -or
+        $sourceSnapshotAfterLock.InputCount -ne 71 -or
         $sourceSnapshotBeforePublish.AggregateSha256 -cne
             $sourceSnapshotAfterLock.AggregateSha256 -or
         $sourceSnapshotBeforePublish.AuthoritySha256 -cne
@@ -6655,7 +6685,7 @@ try {
         exit 1
     }
     Write-Host "EFI_PUBLISH_SOURCE_LOCK status=ok"
-    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=70"
+    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=71"
 
 Write-EfiPreflightLine "EFI_PREFLIGHT_START"
 
@@ -6688,6 +6718,8 @@ $m02OwnedX64GdtEncodingProbeEnabled =
     $EnableM02OwnedX64GdtEncodingProbe.IsPresent.ToString().ToLowerInvariant()
 $m02GuardedIstStackAllocationProbeEnabled =
     $EnableM02GuardedIstStackAllocationProbe.IsPresent.ToString().ToLowerInvariant()
+$m02OwnedGdtTssTerminalProbeEnabled =
+    $EnableM02OwnedGdtTssTerminalProbe.IsPresent.ToString().ToLowerInvariant()
 $m04IndependentEndianConformanceProbeEnabled =
     $EnableM04IndependentEndianConformanceProbe.IsPresent.ToString().ToLowerInvariant()
 $m01SwitchEvidence =
@@ -6706,7 +6738,8 @@ $m02SwitchEvidence =
     " panicSafeOwnedCom1=" + $m02PanicSafeOwnedCom1ProbeEnabled +
     " ownedX64GdtEncoding=" + $m02OwnedX64GdtEncodingProbeEnabled +
     " guardedIstStackAllocation=" +
-    $m02GuardedIstStackAllocationProbeEnabled
+    $m02GuardedIstStackAllocationProbeEnabled +
+    " ownedGdtTssTerminal=" + $m02OwnedGdtTssTerminalProbeEnabled
 $m04SwitchEvidence =
     "independentEndianConformance=" +
     $m04IndependentEndianConformanceProbeEnabled
@@ -6810,6 +6843,18 @@ if ($EnableM02GuardedIstStackAllocationProbe -and
             "EFI_PREFLIGHT_M02_SWITCHES " + $m02SwitchEvidence +
             " reason=guarded_ist_stack_allocation_requires_owned_x64_gdt_encoding") `
         -Reason "m02_guarded_ist_stack_allocation_requires_owned_x64_gdt_encoding" `
+        -LogFullPath $logFullPath `
+        -ReportedLogPath $LogPath `
+        -Status "invalid"
+}
+
+if ($EnableM02OwnedGdtTssTerminalProbe -and
+    -not $EnableM02GuardedIstStackAllocationProbe) {
+    Stop-EfiPreflight `
+        -Marker (
+            "EFI_PREFLIGHT_M02_SWITCHES " + $m02SwitchEvidence +
+            " reason=owned_gdt_tss_terminal_requires_guarded_ist_stack_allocation") `
+        -Reason "m02_owned_gdt_tss_terminal_requires_guarded_ist_stack_allocation" `
         -LogFullPath $logFullPath `
         -ReportedLogPath $LogPath `
         -Status "invalid"
@@ -6919,6 +6964,7 @@ $m01SourceClosure = Test-M01SourceClosure `
     -M02PanicSafeOwnedCom1Enabled $EnableM02PanicSafeOwnedCom1Probe.IsPresent `
     -M02OwnedX64GdtEncodingEnabled $EnableM02OwnedX64GdtEncodingProbe.IsPresent `
     -M02GuardedIstStackAllocationEnabled $EnableM02GuardedIstStackAllocationProbe.IsPresent `
+    -M02OwnedGdtTssTerminalEnabled $EnableM02OwnedGdtTssTerminalProbe.IsPresent `
     -M04IndependentEndianConformanceEnabled $EnableM04IndependentEndianConformanceProbe.IsPresent `
     -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
     -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
@@ -7548,6 +7594,11 @@ if ($EnableM02GuardedIstStackAllocationProbe) {
     Write-Host "EFI_PROBE M02_GUARDED_IST_STACK_ALLOCATION"
 }
 
+if ($EnableM02OwnedGdtTssTerminalProbe) {
+    $arguments += "-p:EnableM02OwnedGdtTssTerminalProbe=true"
+    Write-Host "EFI_PROBE M02_OWNED_GDT_TSS_TERMINAL"
+}
+
 if ($EnableM04IndependentEndianConformanceProbe) {
     $arguments +=
         "-p:EnableM04IndependentEndianConformanceProbe=true"
@@ -7669,6 +7720,7 @@ $methodImplAttributeSourcePath = Join-Path $repositoryRoot (
         -M02PanicSafeOwnedCom1Enabled $EnableM02PanicSafeOwnedCom1Probe.IsPresent `
         -M02OwnedX64GdtEncodingEnabled $EnableM02OwnedX64GdtEncodingProbe.IsPresent `
         -M02GuardedIstStackAllocationEnabled $EnableM02GuardedIstStackAllocationProbe.IsPresent `
+        -M02OwnedGdtTssTerminalEnabled $EnableM02OwnedGdtTssTerminalProbe.IsPresent `
         -M04IndependentEndianConformanceEnabled $EnableM04IndependentEndianConformanceProbe.IsPresent `
         -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
         -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
@@ -7893,6 +7945,7 @@ try {
         -M02PanicSafeOwnedCom1Enabled $EnableM02PanicSafeOwnedCom1Probe.IsPresent `
         -M02OwnedX64GdtEncodingEnabled $EnableM02OwnedX64GdtEncodingProbe.IsPresent `
         -M02GuardedIstStackAllocationEnabled $EnableM02GuardedIstStackAllocationProbe.IsPresent `
+        -M02OwnedGdtTssTerminalEnabled $EnableM02OwnedGdtTssTerminalProbe.IsPresent `
         -M04IndependentEndianConformanceEnabled `
             $EnableM04IndependentEndianConformanceProbe.IsPresent
     $activePackageImportGraphSha256 = Get-M01Utf8Sha256 -Text (
@@ -8057,6 +8110,7 @@ if ($exitCode -eq 0) {
                 -M02PanicSafeOwnedCom1Enabled $EnableM02PanicSafeOwnedCom1Probe.IsPresent `
                 -M02OwnedX64GdtEncodingEnabled $EnableM02OwnedX64GdtEncodingProbe.IsPresent `
                 -M02GuardedIstStackAllocationEnabled $EnableM02GuardedIstStackAllocationProbe.IsPresent `
+                -M02OwnedGdtTssTerminalEnabled $EnableM02OwnedGdtTssTerminalProbe.IsPresent `
                 -M04IndependentEndianConformanceEnabled `
                     $EnableM04IndependentEndianConformanceProbe.IsPresent
     }
@@ -8441,6 +8495,11 @@ if ($exitCode -eq 0) {
     if ($EnableM02GuardedIstStackAllocationProbe) {
         $verificationArguments += @(
             "-EnableM02GuardedIstStackAllocationProbe",
+            "true")
+    }
+    if ($EnableM02OwnedGdtTssTerminalProbe) {
+        $verificationArguments += @(
+            "-EnableM02OwnedGdtTssTerminalProbe",
             "true")
     }
     $verificationStopwatch = [System.Diagnostics.Stopwatch]::StartNew()

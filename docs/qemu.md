@@ -571,6 +571,75 @@ switch stacks, trigger or handle a fault, prove post-firmware diagnostics,
 establish physical/provider support, run hosted .NET or Kestrel, advance a
 numbered completion gate, or establish CloudReady or production readiness.
 
+### M02-009 terminal GDT/TSS runner profile
+
+The default-false M02-009 profile extends the cumulative M01/M02 sequence after
+the accepted M02-008 marker. It requires the M02-008 switch and `-BuildEfi`, and
+fails before build or guest execution for these stable invalid combinations:
+
+- `m02_owned_gdt_tss_terminal_probe_requires_guarded_ist_stack_allocation`;
+- `m02_owned_gdt_tss_terminal_probe_requires_build_efi`;
+- `m02_owned_gdt_tss_terminal_probe_forbids_skip_image_build`;
+- `m02_owned_gdt_tss_terminal_probe_forbids_m01_raw_observation_log`.
+
+The enabled profile requires and uniquely orders 59 required markers and
+rejects 43 forbidden markers. Its three new required records are:
+
+```text
+TEST_START m02.009
+CLROS_M02_009_READY gdtr=true tr=true gdtBytes=40 tssBytes=104 gdtrLimit=39 trSelector=24 ownedCom1=true terminalHalt=true postExitBootServices=false
+TEST_PASS m02.009
+```
+
+Its three new forbidden records are
+`M02_OWNED_GDT_TSS_PREENTRY_FAILED`,
+`M02_OWNED_GDT_TSS_VERIFY_FAILED`, and
+`M02_OWNED_GDT_TSS_UNEXPECTED_RETURN`. The success sequence is terminal: after
+the required records the guest intentionally remains halted. The streaming
+runner drains the serial stream, terminates the QEMU process itself, and must
+report `QEMU_PROCESS_RESULT disposition=runner-terminated`. A spontaneous clean
+guest exit remains a failure (`qemu_reboot_or_shutdown`) under this
+ordered/unique evidence profile.
+
+M02-009 bypasses the M01 raw-observation shim so the real QEMU executable is
+passed directly to `OS.QemuRunner`; an explicit `-M01RawObservationLog` is
+refused. This avoids classifying the expected terminal halt as an incomplete
+raw-observation capture. The complete real-evidence command is:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -BuildEfi `
+  -EnableM02SafeStubProbe `
+  -EnableM02CheckedPortIoBindingProbe `
+  -EnableM02Com1OwnedPortIoProbe `
+  -EnableM02OwnedCom1ReadyProbe `
+  -EnableM02PanicSafeOwnedCom1Probe `
+  -EnableM02OwnedX64GdtEncodingProbe `
+  -EnableM02GuardedIstStackAllocationProbe `
+  -EnableM02OwnedGdtTssTerminalProbe
+```
+
+Step 918 records a fresh generated EFI/image tuple and QEMU/OVMF execution for
+this 59/43 profile. The exact required, ordered, and unique lists each contained
+59 distinct, sequence-identical records; all 43 forbidden records were absent;
+the terminal start/ready/pass records each occurred once; and the runner
+reported `QEMU_PROCESS_RESULT disposition=runner-terminated`. Artifact hashes
+include EFI
+`A22F5B2AF24682693C09E361C16EE89271CDB9D71FA5D9BBFA32ABA784F8D443`,
+raw image
+`C4F76528B0B9726165684FF2E5EA5091760BB34DDB116B3156D55FBC9C19EDF1`,
+serial
+`3AAF960E6ABCB7F27A4580BF8B8D554FDB66EA165F71816C38C7B81A050B6BAF`,
+and summary
+`6077DB496B05555BA418FB045DBBABAC2EEA111493FBC4474D0FFE9203EA6632`.
+The marker explicitly remains
+`postExitBootServices=false`: it would not prove W^X/NX, an installed IDT or
+fault handler, post-firmware diagnostics, hosted .NET/Kestrel, provider support,
+CloudReady status, or production readiness.
+
 ### M04-002 fixed endian-catalog guest proof
 
 The M04-002 profile is opt-in and independent of the cumulative M01/M02 live

@@ -33,6 +33,25 @@ public static unsafe class EfiEntry
     private const int AcpiMcfgAllocationLength = 16;
 #endif
 
+#if M02_OWNED_GDT_TSS_TERMINAL_PROBE
+    private const ulong M02OwnedGdtTssTerminalEfiSuccess = 0;
+    private const uint M02OwnedGdtTssTerminalAllocateAnyPages = 0;
+    private const uint M02OwnedGdtTssTerminalEfiLoaderCode = 1;
+    private const uint M02OwnedGdtTssTerminalEfiLoaderData = 2;
+    private const ulong M02OwnedGdtTssTerminalPageSize = 4096;
+    private const ulong M02OwnedGdtTssTerminalPageCount = 1;
+    private const byte M02OwnedGdtTssTerminalPreparedState = 1;
+    private const byte M02OwnedGdtTssTerminalEnteredState = 2;
+    private const byte M02OwnedGdtTssTerminalFailedState = 3;
+    private const int M02OwnedGdtTssTerminalStartLine = 0;
+    private const int M02OwnedGdtTssTerminalPreEntryFailureLine = 1;
+    private const int M02OwnedGdtTssTerminalUnexpectedReturnLine = 2;
+
+    private static byte s_m02OwnedGdtTssTerminalState;
+    private static ulong s_m02OwnedGdtTssTerminalCodeAddress;
+    private static ulong s_m02OwnedGdtTssTerminalDataAddress;
+#endif
+
 #if M01_OWNED_PAGING_PROBE
     private static class M01StageThreeAdapter
     {
@@ -162,6 +181,93 @@ public static unsafe class EfiEntry
             s_m02CheckedPortIoBinding;
 #endif
         private static ulong s_rawIa32Pat;
+
+#if M02_OWNED_GDT_TSS_TERMINAL_PROBE
+        internal static bool TryWriteM02OwnedGdtTssTerminalStartLine()
+        {
+            return TryWriteM02OwnedGdtTssTerminalDirectLine(
+                M02OwnedGdtTssTerminalStartLine);
+        }
+
+        internal static bool TryWriteM02OwnedGdtTssTerminalUnexpectedReturnLine()
+        {
+            return TryWriteM02OwnedGdtTssTerminalDirectLine(
+                M02OwnedGdtTssTerminalUnexpectedReturnLine);
+        }
+
+        private static bool TryWriteM02OwnedGdtTssTerminalDirectLine(
+            int lineKind)
+        {
+            if (!s_m02CheckedPortIoBinding.Succeeded)
+            {
+                return false;
+            }
+
+            OS.Kernel.Diagnostics.Com1OwnedPortIoBackend backend =
+                new OS.Kernel.Diagnostics.Com1OwnedPortIoBackend(
+                    s_m02CheckedPortIoBinding.Binding);
+            if (!backend.IsReady)
+            {
+                return false;
+            }
+
+            int lineLength =
+                EfiEntry.GetM02OwnedGdtTssTerminalLineLength(lineKind);
+            for (int byteIndex = 0;
+                byteIndex < lineLength + 2;
+                byteIndex++)
+            {
+                byte value;
+                if (byteIndex < lineLength)
+                {
+                    if (!EfiEntry.TryGetM02OwnedGdtTssTerminalLineByte(
+                            lineKind,
+                            byteIndex,
+                            out value))
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    value = byteIndex == lineLength
+                        ? (byte)0x0d
+                        : (byte)0x0a;
+                }
+
+                bool transmitReady = false;
+                for (int poll = 0; poll < 128; poll++)
+                {
+                    OS.Kernel.Diagnostics.Com1OwnedPortIoOperationResult
+                        readResult = backend.ReadByte(
+                            OS.Kernel.Diagnostics.Com1OwnedPortIoBackend
+                                .LineStatusRegisterPort);
+                    if (!readResult.Succeeded)
+                    {
+                        return false;
+                    }
+
+                    if ((readResult.Value & 0x20) != 0)
+                    {
+                        transmitReady = true;
+                        break;
+                    }
+                }
+
+                if (!transmitReady ||
+                    !backend.WriteByte(
+                            OS.Kernel.Diagnostics.Com1OwnedPortIoBackend
+                                .DataRegisterPort,
+                            value)
+                        .Succeeded)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+#endif
 
         // NativeAOT emits GS-cookie reads for the prerequisite planners'
         // bounded stackalloc workspaces. The no-CRT EFI link therefore needs
@@ -6923,12 +7029,516 @@ public static unsafe class EfiEntry
     private static AcpiEcamSegmentScratchBuffer s_acpiEcamSegmentScratch;
 #endif
 
+#if M02_OWNED_GDT_TSS_TERMINAL_PROBE
+    private static bool PrepareM02OwnedGdtTssTerminalProbe(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial,
+        EfiSystemTable* systemTable)
+    {
+        ulong codeAddress = 0;
+        ulong dataAddress = 0;
+        bool codeAllocated = false;
+        bool dataAllocated = false;
+        EfiBootServices* bootServices = systemTable == null
+            ? null
+            : systemTable->BootServices;
+
+        if (s_m02OwnedGdtTssTerminalState != 0 ||
+            bootServices == null ||
+            bootServices->AllocatePages == null ||
+            bootServices->FreePages == null)
+        {
+            return FailM02OwnedGdtTssTerminalBeforeEntry(
+                console,
+                serial,
+                bootServices,
+                codeAddress,
+                codeAllocated,
+                dataAddress,
+                dataAllocated);
+        }
+
+        ulong firmwareStatus = bootServices->AllocatePages(
+            M02OwnedGdtTssTerminalAllocateAnyPages,
+            M02OwnedGdtTssTerminalEfiLoaderCode,
+            M02OwnedGdtTssTerminalPageCount,
+            &codeAddress);
+        codeAllocated = firmwareStatus == M02OwnedGdtTssTerminalEfiSuccess &&
+            codeAddress != 0;
+        if (!codeAllocated ||
+            !IsValidM02OwnedGdtTssTerminalPage(codeAddress))
+        {
+            return FailM02OwnedGdtTssTerminalBeforeEntry(
+                console,
+                serial,
+                bootServices,
+                codeAddress,
+                codeAllocated,
+                dataAddress,
+                dataAllocated);
+        }
+
+        firmwareStatus = bootServices->AllocatePages(
+            M02OwnedGdtTssTerminalAllocateAnyPages,
+            M02OwnedGdtTssTerminalEfiLoaderData,
+            M02OwnedGdtTssTerminalPageCount,
+            &dataAddress);
+        dataAllocated = firmwareStatus == M02OwnedGdtTssTerminalEfiSuccess &&
+            dataAddress != 0;
+        if (!dataAllocated ||
+            !IsValidM02OwnedGdtTssTerminalPage(dataAddress) ||
+            M02OwnedGdtTssTerminalPagesOverlap(codeAddress, dataAddress))
+        {
+            return FailM02OwnedGdtTssTerminalBeforeEntry(
+                console,
+                serial,
+                bootServices,
+                codeAddress,
+                codeAllocated,
+                dataAddress,
+                dataAllocated);
+        }
+
+        byte* codePage = (byte*)codeAddress;
+        byte* dataPage = (byte*)dataAddress;
+        for (ulong offset = 0;
+            offset < M02OwnedGdtTssTerminalPageSize;
+            offset++)
+        {
+            codePage[offset] = 0;
+            dataPage[offset] = 0;
+        }
+
+        if (!IsM02OwnedGdtTssTerminalPageZero(codePage, 0) ||
+            !IsM02OwnedGdtTssTerminalPageZero(dataPage, 0))
+        {
+            return FailM02OwnedGdtTssTerminalBeforeEntry(
+                console,
+                serial,
+                bootServices,
+                codeAddress,
+                codeAllocated,
+                dataAddress,
+                dataAllocated);
+        }
+
+        OS.Kernel.Diagnostics.OwnedGdtTssTerminalContext* context =
+            (OS.Kernel.Diagnostics.OwnedGdtTssTerminalContext*)dataAddress;
+        OS.Kernel.Diagnostics.OwnedGdtTssTerminalStubResult prepared =
+            OS.Kernel.Diagnostics
+                .OwnedGDTTSSGeneratedAuditedCSharpStubBytes
+                .PrepareContext(
+                    context,
+                    dataAddress,
+                    M02OwnedGdtTssTerminalPageSize);
+        OS.Kernel.Diagnostics.OwnedGdtTssTerminalStubResult emitted =
+            OS.Kernel.Diagnostics
+                .OwnedGDTTSSGeneratedAuditedCSharpStubBytes
+                .Emit(
+                    codePage,
+                    codeAddress,
+                    M02OwnedGdtTssTerminalPageSize,
+                    context,
+                    dataAddress,
+                    M02OwnedGdtTssTerminalPageSize);
+        OS.Kernel.Diagnostics.OwnedGdtTssTerminalStubResult validated =
+            OS.Kernel.Diagnostics
+                .OwnedGDTTSSGeneratedAuditedCSharpStubBytes
+                .ValidateReadBack(
+                    codePage,
+                    codeAddress,
+                    M02OwnedGdtTssTerminalPageSize,
+                    context,
+                    dataAddress,
+                    M02OwnedGdtTssTerminalPageSize);
+
+        if (!IsExactM02OwnedGdtTssTerminalPreparation(
+                prepared,
+                emitted,
+                validated) ||
+            !IsM02OwnedGdtTssTerminalPageZero(
+                codePage,
+                (ulong)OS.Kernel.Diagnostics
+                    .OwnedGDTTSSGeneratedAuditedCSharpStubBytes
+                    .StubByteCount) ||
+            !IsM02OwnedGdtTssTerminalPageZero(
+                dataPage,
+                (ulong)OS.Kernel.Diagnostics
+                    .OwnedGDTTSSGeneratedAuditedCSharpStubBytes
+                    .ContextByteCount))
+        {
+            return FailM02OwnedGdtTssTerminalBeforeEntry(
+                console,
+                serial,
+                bootServices,
+                codeAddress,
+                codeAllocated,
+                dataAddress,
+                dataAllocated);
+        }
+
+        s_m02OwnedGdtTssTerminalCodeAddress = codeAddress;
+        s_m02OwnedGdtTssTerminalDataAddress = dataAddress;
+        s_m02OwnedGdtTssTerminalState = M02OwnedGdtTssTerminalPreparedState;
+        return true;
+    }
+
+    private static bool IsExactM02OwnedGdtTssTerminalPreparation(
+        OS.Kernel.Diagnostics.OwnedGdtTssTerminalStubResult prepared,
+        OS.Kernel.Diagnostics.OwnedGdtTssTerminalStubResult emitted,
+        OS.Kernel.Diagnostics.OwnedGdtTssTerminalStubResult validated)
+    {
+        return OS.Kernel.Diagnostics
+                .OwnedGDTTSSGeneratedAuditedCSharpStubBytes
+                .ContextByteCount == 168 &&
+            OS.Kernel.Diagnostics
+                .OwnedGDTTSSGeneratedAuditedCSharpStubBytes
+                .StubByteCount == 2987 &&
+            OS.Kernel.Diagnostics
+                .OwnedGDTTSSGeneratedAuditedCSharpStubBytes
+                .StubFnv1A64 == 0xc9c0_4dee_967d_640aUL &&
+            prepared.ContextPrepared &&
+            prepared.ContextBytesWritten == 168 &&
+            prepared.ContextBytesCompared == 168 &&
+            prepared.StubBytesWritten == 0 &&
+            prepared.StubBytesCompared == 0 &&
+            prepared.FirstMismatchOffset == -1 &&
+            prepared.ContextFingerprint != 0 &&
+            emitted.StubEmitted &&
+            emitted.ContextBytesWritten == 0 &&
+            emitted.ContextBytesCompared == 168 &&
+            emitted.StubBytesWritten == 2987 &&
+            emitted.StubBytesCompared == 0 &&
+            emitted.FirstMismatchOffset == -1 &&
+            emitted.ContextFingerprint == prepared.ContextFingerprint &&
+            emitted.StubFingerprint == 0xc9c0_4dee_967d_640aUL &&
+            validated.ReadBackValidated &&
+            validated.ContextBytesWritten == 0 &&
+            validated.ContextBytesCompared == 168 &&
+            validated.StubBytesWritten == 0 &&
+            validated.StubBytesCompared == 2987 &&
+            validated.FirstMismatchOffset == -1 &&
+            validated.ContextFingerprint == prepared.ContextFingerprint &&
+            validated.StubFingerprint == 0xc9c0_4dee_967d_640aUL;
+    }
+
+    private static bool ValidateM02OwnedGdtTssTerminalResources()
+    {
+        ulong codeAddress = s_m02OwnedGdtTssTerminalCodeAddress;
+        ulong dataAddress = s_m02OwnedGdtTssTerminalDataAddress;
+        if (s_m02OwnedGdtTssTerminalState !=
+                M02OwnedGdtTssTerminalPreparedState ||
+            !IsValidM02OwnedGdtTssTerminalPage(codeAddress) ||
+            !IsValidM02OwnedGdtTssTerminalPage(dataAddress) ||
+            M02OwnedGdtTssTerminalPagesOverlap(codeAddress, dataAddress))
+        {
+            return false;
+        }
+
+        byte* codePage = (byte*)codeAddress;
+        byte* dataPage = (byte*)dataAddress;
+        OS.Kernel.Diagnostics.OwnedGdtTssTerminalContext* context =
+            (OS.Kernel.Diagnostics.OwnedGdtTssTerminalContext*)dataAddress;
+        OS.Kernel.Diagnostics.OwnedGdtTssTerminalStubResult validated =
+            OS.Kernel.Diagnostics
+                .OwnedGDTTSSGeneratedAuditedCSharpStubBytes
+                .ValidateReadBack(
+                    codePage,
+                    codeAddress,
+                    M02OwnedGdtTssTerminalPageSize,
+                    context,
+                    dataAddress,
+                    M02OwnedGdtTssTerminalPageSize);
+        return validated.ReadBackValidated &&
+            validated.ContextBytesCompared == 168 &&
+            validated.StubBytesCompared == 2987 &&
+            validated.ContextFingerprint != 0 &&
+            validated.StubFingerprint == 0xc9c0_4dee_967d_640aUL &&
+            IsM02OwnedGdtTssTerminalPageZero(codePage, 2987) &&
+            IsM02OwnedGdtTssTerminalPageZero(dataPage, 168);
+    }
+
+    private static bool IsValidM02OwnedGdtTssTerminalPage(ulong address)
+    {
+        return address != 0 &&
+            (address & (M02OwnedGdtTssTerminalPageSize - 1)) == 0 &&
+            address <= ~0UL - M02OwnedGdtTssTerminalPageSize &&
+            OS.Kernel.Diagnostics
+                .OwnedGDTTSSGeneratedAuditedCSharpStubBytes
+                .IsCanonicalX64Address(address) &&
+            OS.Kernel.Diagnostics
+                .OwnedGDTTSSGeneratedAuditedCSharpStubBytes
+                .IsCanonicalX64Address(
+                    address + M02OwnedGdtTssTerminalPageSize - 1);
+    }
+
+    private static bool M02OwnedGdtTssTerminalPagesOverlap(
+        ulong codeAddress,
+        ulong dataAddress)
+    {
+        ulong codeEnd = codeAddress + M02OwnedGdtTssTerminalPageSize;
+        ulong dataEnd = dataAddress + M02OwnedGdtTssTerminalPageSize;
+        return codeAddress < dataEnd && dataAddress < codeEnd;
+    }
+
+    private static bool IsM02OwnedGdtTssTerminalPageZero(
+        byte* page,
+        ulong startOffset)
+    {
+        if (page == null ||
+            startOffset > M02OwnedGdtTssTerminalPageSize)
+        {
+            return false;
+        }
+
+        for (ulong offset = startOffset;
+            offset < M02OwnedGdtTssTerminalPageSize;
+            offset++)
+        {
+            if (page[offset] != 0)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static void EnterM02OwnedGdtTssTerminalProbe(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial,
+        EfiBootServices* bootServices)
+    {
+        if (!ValidateM02OwnedGdtTssTerminalResources() ||
+            !M01StageThreeAdapter
+                .TryWriteM02OwnedGdtTssTerminalStartLine() ||
+            X64InstructionPublication.Serialize() !=
+                X64InstructionPublication.ExpectedSuccessCookie)
+        {
+            _ = FailM02OwnedGdtTssTerminalBeforeEntry(
+                console,
+                serial,
+                bootServices,
+                s_m02OwnedGdtTssTerminalCodeAddress,
+                s_m02OwnedGdtTssTerminalCodeAddress != 0,
+                s_m02OwnedGdtTssTerminalDataAddress,
+                s_m02OwnedGdtTssTerminalDataAddress != 0);
+            SpinM02OwnedGdtTssTerminalProbe();
+        }
+
+        s_m02OwnedGdtTssTerminalState = M02OwnedGdtTssTerminalEnteredState;
+        delegate* unmanaged<
+            OS.Kernel.Diagnostics.OwnedGdtTssTerminalContext*,
+            void> terminalEntry =
+                (delegate* unmanaged<
+                    OS.Kernel.Diagnostics.OwnedGdtTssTerminalContext*,
+                    void>)s_m02OwnedGdtTssTerminalCodeAddress;
+        terminalEntry(
+            (OS.Kernel.Diagnostics.OwnedGdtTssTerminalContext*)
+                s_m02OwnedGdtTssTerminalDataAddress);
+
+        _ = M01StageThreeAdapter
+            .TryWriteM02OwnedGdtTssTerminalUnexpectedReturnLine();
+        SpinM02OwnedGdtTssTerminalProbe();
+    }
+
+    private static byte GetM02OwnedGdtTssTerminalCleanupPlan(
+        bool codeAllocated,
+        ulong codeAddress,
+        bool dataAllocated,
+        ulong dataAddress)
+    {
+        byte plan = 0;
+        if (dataAllocated)
+        {
+            plan |= 1;
+        }
+
+        if (codeAllocated &&
+            (!dataAllocated || codeAddress != dataAddress))
+        {
+            plan |= 2;
+        }
+
+        return plan;
+    }
+
+    private static bool FailM02OwnedGdtTssTerminalBeforeEntry(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial,
+        EfiBootServices* bootServices,
+        ulong codeAddress,
+        bool codeAllocated,
+        ulong dataAddress,
+        bool dataAllocated)
+    {
+        byte cleanupPlan = GetM02OwnedGdtTssTerminalCleanupPlan(
+            codeAllocated,
+            codeAddress,
+            dataAllocated,
+            dataAddress);
+        if (bootServices != null && bootServices->FreePages != null)
+        {
+            if ((cleanupPlan & 1) != 0)
+            {
+                _ = bootServices->FreePages(
+                    dataAddress,
+                    M02OwnedGdtTssTerminalPageCount);
+            }
+
+            if ((cleanupPlan & 2) != 0)
+            {
+                _ = bootServices->FreePages(
+                    codeAddress,
+                    M02OwnedGdtTssTerminalPageCount);
+            }
+        }
+
+        s_m02OwnedGdtTssTerminalCodeAddress = 0;
+        s_m02OwnedGdtTssTerminalDataAddress = 0;
+        s_m02OwnedGdtTssTerminalState = M02OwnedGdtTssTerminalFailedState;
+        WriteM02OwnedGdtTssTerminalFirmwareLine(
+            console,
+            serial,
+            M02OwnedGdtTssTerminalPreEntryFailureLine);
+        return false;
+    }
+
+    private static void WriteM02OwnedGdtTssTerminalFirmwareLine(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial,
+        int lineKind)
+    {
+        int length = GetM02OwnedGdtTssTerminalLineLength(lineKind);
+        for (int index = 0; index < length; index++)
+        {
+            if (!TryGetM02OwnedGdtTssTerminalLineByte(
+                    lineKind,
+                    index,
+                    out byte value))
+            {
+                return;
+            }
+
+            Write(console, serial, value);
+        }
+
+        WriteCrLf(console, serial);
+    }
+
+    private static int GetM02OwnedGdtTssTerminalLineLength(int lineKind)
+    {
+        return lineKind switch
+        {
+            M02OwnedGdtTssTerminalStartLine => 18,
+            M02OwnedGdtTssTerminalPreEntryFailureLine => 33,
+            M02OwnedGdtTssTerminalUnexpectedReturnLine => 35,
+            _ => 0
+        };
+    }
+
+    private static bool TryGetM02OwnedGdtTssTerminalLineByte(
+        int lineKind,
+        int index,
+        out byte value)
+    {
+        if (lineKind == M02OwnedGdtTssTerminalStartLine)
+        {
+            value = index switch
+            {
+                0 => (byte)'T', 1 => (byte)'E', 2 => (byte)'S',
+                3 => (byte)'T', 4 => (byte)'_', 5 => (byte)'S',
+                6 => (byte)'T', 7 => (byte)'A', 8 => (byte)'R',
+                9 => (byte)'T', 10 => (byte)' ', 11 => (byte)'m',
+                12 => (byte)'0', 13 => (byte)'2', 14 => (byte)'.',
+                15 => (byte)'0', 16 => (byte)'0', 17 => (byte)'9',
+                _ => 0
+            };
+            return index >= 0 && index < 18;
+        }
+
+        if (index >= 0 && index < 18)
+        {
+            value = index switch
+            {
+                0 => (byte)'M', 1 => (byte)'0', 2 => (byte)'2',
+                3 => (byte)'_', 4 => (byte)'O', 5 => (byte)'W',
+                6 => (byte)'N', 7 => (byte)'E', 8 => (byte)'D',
+                9 => (byte)'_', 10 => (byte)'G', 11 => (byte)'D',
+                12 => (byte)'T', 13 => (byte)'_', 14 => (byte)'T',
+                15 => (byte)'S', 16 => (byte)'S', 17 => (byte)'_',
+                _ => 0
+            };
+            return true;
+        }
+
+        if (lineKind == M02OwnedGdtTssTerminalPreEntryFailureLine)
+        {
+            value = index switch
+            {
+                18 => (byte)'P', 19 => (byte)'R', 20 => (byte)'E',
+                21 => (byte)'E', 22 => (byte)'N', 23 => (byte)'T',
+                24 => (byte)'R', 25 => (byte)'Y', 26 => (byte)'_',
+                27 => (byte)'F', 28 => (byte)'A', 29 => (byte)'I',
+                30 => (byte)'L', 31 => (byte)'E', 32 => (byte)'D',
+                _ => 0
+            };
+            return index >= 18 && index < 33;
+        }
+
+        if (lineKind == M02OwnedGdtTssTerminalUnexpectedReturnLine)
+        {
+            value = index switch
+            {
+                18 => (byte)'U', 19 => (byte)'N', 20 => (byte)'E',
+                21 => (byte)'X', 22 => (byte)'P', 23 => (byte)'E',
+                24 => (byte)'C', 25 => (byte)'T', 26 => (byte)'E',
+                27 => (byte)'D', 28 => (byte)'_', 29 => (byte)'R',
+                30 => (byte)'E', 31 => (byte)'T', 32 => (byte)'U',
+                33 => (byte)'R', 34 => (byte)'N',
+                _ => 0
+            };
+            return index >= 18 && index < 35;
+        }
+
+        value = 0;
+        return false;
+    }
+
+    private static void SpinM02OwnedGdtTssTerminalProbe()
+    {
+        while (true)
+        {
+        }
+    }
+#endif
+
     [System.Runtime.RuntimeExport("EfiMain")]
     private static long EfiMain(void* imageHandle, EfiSystemTable* systemTable)
     {
         EfiSimpleTextOutputProtocol* console = GetFirmwareConsole(systemTable);
         EfiSerialIoProtocol* serial = console == null ? GetFirmwareSerial(systemTable) : null;
+#if M02_OWNED_GDT_TSS_TERMINAL_PROBE
+        if (!PrepareM02OwnedGdtTssTerminalProbe(
+                console,
+                serial,
+                systemTable))
+        {
+            return 0;
+        }
+#endif
         WriteBootMarkers(imageHandle, console, serial, systemTable);
+
+#if M02_OWNED_GDT_TSS_TERMINAL_PROBE
+        _ = FailM02OwnedGdtTssTerminalBeforeEntry(
+            console,
+            serial,
+            systemTable == null ? null : systemTable->BootServices,
+            s_m02OwnedGdtTssTerminalCodeAddress,
+            s_m02OwnedGdtTssTerminalCodeAddress != 0,
+            s_m02OwnedGdtTssTerminalDataAddress,
+            s_m02OwnedGdtTssTerminalDataAddress != 0);
+#endif
 
         return 0;
     }
@@ -11396,6 +12006,12 @@ public static unsafe class EfiEntry
                 EfiEntry.WriteBootSequencePlan(
                     s_console,
                     s_serial);
+#if M02_OWNED_GDT_TSS_TERMINAL_PROBE
+                EfiEntry.EnterM02OwnedGdtTssTerminalProbe(
+                    s_console,
+                    s_serial,
+                    s_bootServices);
+#endif
                 Spin();
             }
         }

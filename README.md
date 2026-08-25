@@ -69,8 +69,10 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
   arena contract into the explicit no-stdlib EFI closure. The opt-in path uses
   a temporary six-page UEFI LoaderData arena, validates the three guard/stack
   layouts, writes and reads back only the stack ranges, releases the lease, and
-  frees the arena before returning. The development source closure is now 57
-  compile items and 70 source-authority inputs.
+  frees the arena before returning. M02-008 does not install a TSS, IST, GDT, or IDT.
+  The development source closure is now 58
+  compile items and 71 source-authority inputs after the next default-off
+  integration source was added.
   The complete host run caught an older M01-025 source-firewall regression in
   the first implementation; the integration now uses a fixed-size local stack
   workspace instead of `stackalloc`, preserving both the 104/40-byte caller-
@@ -88,8 +90,18 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
   `5b6de7d08b348c9094dcb38dc7183f2c8182cb16`. Supplemental issue #467 and
   managed backlog issue #48 are closed, with the latter reconciled through the
   canonical idempotent manifest synchronizer. That dependency closure makes
-  M02-009 (#49) ready alongside M04-003 (#72); neither `agent:ready` issue is
-  claimed during this wrap-up.
+  the next terminal integration possible without changing M02-008 evidence.
+- M02-009 is implemented in this development tree behind the default-false
+  `EnableM02OwnedGdtTssTerminalProbe` switch. It prepares one disjoint
+  `EfiLoaderCode` page and one `EfiLoaderData` page before normal boot markers,
+  validates the reviewed 2,987-byte terminal stub and 168-byte context, then
+  enters it only after `OS_SMOKE_PASS` through a serialized Windows-x64 call.
+  The expected path loads its private GDT/TSS, emits its final records through
+  checked owned COM1, and halts. Source-bound tests and build preflight are in
+  place. `done/step918.md` records the fresh real QEMU/OVMF acceptance for the
+  exact 59-required/43-forbidden terminal profile. This remains
+  pre-`ExitBootServices` development work and does not prove W^X, an IDT/fault path, post-firmware
+  diagnostics, hosted .NET, Kestrel, cloud readiness, or production readiness.
 - A pinned SharpOS comparison has been preserved in seven detailed addenda on
   existing Gitea issues #85, #94, #96, #229, #236, #315, and #316, plus three
   new blocked supplemental issues: #468 for bounded in-place FAT32 boot-log
@@ -117,7 +129,7 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 | Boot ordering | `src/OS.Kernel/Boot/BootSequence.cs` is the boot-order source of truth. Host tests verify ordered boot phases and marker emission. |
 | UEFI handoff | The EFI path captures UEFI memory-map metadata, copies descriptor bytes into OS-owned storage, normalizes compact boot-region records, and carries ACPI RSDP provenance into the handoff. |
 | ACPI discovery | The default path carries ACPI RSDP provenance. An explicit opt-in ACPI probe artifact has QEMU evidence for pre-`ExitBootServices` RSDP, root SDT, and MCFG discovery markers. |
-| Diagnostics planning | Host-tested COM1, panic-text, panic-serial, boot-event records, diagnostics-chain readiness, GDT, TSS/IST, IDT, descriptor-table, fault-entry, diagnostic-stub invocation, diagnostic-stub callable-binding formatting, and controlled-fault-probe planning contracts exist. The accepted M02-005/M02-006 profiles exercise bounded direct COM1 marker writes before `ExitBootServices`, M02-007 validates caller-owned GDT bytes in the EFI guest, and the accepted M02-008 profile executes the reviewed guarded-IST arena layout and lease contract against temporary UEFI memory. M02-008 does not install a TSS, IST, GDT, or IDT, activate guard mappings, trigger a fault, or prove post-firmware diagnostics. |
+| Diagnostics planning | Host-tested COM1, panic-text, panic-serial, boot-event records, diagnostics-chain readiness, GDT, TSS/IST, IDT, descriptor-table, fault-entry, diagnostic-stub invocation, diagnostic-stub callable-binding formatting, and controlled-fault-probe planning contracts exist. The accepted M02-005/M02-006 profiles exercise bounded direct COM1 marker writes before `ExitBootServices`, M02-007 validates caller-owned GDT bytes in the EFI guest, and the accepted M02-008 profile executes the reviewed guarded-IST arena layout and lease contract against temporary UEFI memory. The default-off M02-009 profile has fresh QEMU/OVMF evidence for loading and reading back a terminal private GDT/TSS after `OS_SMOKE_PASS`, then emitting the exact terminal transcript through owned COM1. It does not install an IDT, trigger or handle a fault, or prove post-firmware diagnostics. |
 | `std/no-runtime` base | Host-tested no-runtime-compatible helpers exist for ASCII byte/text behavior, decimal and hexadecimal formatting/parsing, memory/buffer operations, endian primitives, native integer arithmetic, math helpers, CRC32, internet checksum, and `ArrayHelpers` search/sort contracts. The opt-in EFI path now validates the fixed 25-read/7-reverse M04-002 endian catalog under real QEMU/OVMF, but this does not create a canonical BCL surface or complete Gate 4. Runtime-helper gaps remain explicit. |
 | PAL contracts | `OSHost_*` POD-style status/result contracts and host-tested mock tables/facades exist for memory, package files, config/environment, sockets, socket connect metadata, timers, waits/events, threads, random bytes, status formatting, and app logs. Recent work hardened default/zero result values so they do not accidentally count as success evidence. |
 | Storage groundwork | GPT, caller-owned GPT partition selection, FAT32, package parser, package filesystem, package file staging, native-app package/payload staging, generated image package placement, manifest loading, caller-buffer package-loader GPT selector integration, and virtio-blk planning slices are host-tested. |
@@ -133,9 +145,9 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 | Area | Missing before claim |
 | --- | --- |
 | Real firmware transition | No live `ExitBootServices` transition has completed. Fresh-map and transition planning exist, but the real firmware shutdown path is still future work. |
-| Owned post-firmware diagnostics | The opt-in M02-005 and M02-006 profiles can emit bounded markers directly through COM1 before firmware exit, M02-007 validates GDT bytes in caller-owned guest memory, and M02-008 remains a pre-firmware-exit temporary-arena profile. The live boot path does not yet own serial output after firmware services are gone and panic routing is not live. |
+| Owned post-firmware diagnostics | The opt-in M02-005 and M02-006 profiles can emit bounded markers directly through COM1 before firmware exit, M02-007 validates GDT bytes in caller-owned guest memory, M02-008 remains a pre-firmware-exit temporary-arena profile, and the accepted M02-009 terminal profile is also explicitly pre-exit. The live boot path does not yet own serial output after firmware services are gone and panic routing is not live. |
 | Allocator and paging | The live EFI path initializes bounded static free-list state from conventional-memory records and emits `BOOT_PAGE_ALLOCATOR_READY`, but it does not yet subtract every reservation, execute a live allocation/free/coalesce cycle, configure page tables, enforce NX/W^X, or provide a managed heap. |
-| CPU fault handling | Descriptor and fault plans exist, but real IDT/GDT/TSS loading, handlers, register capture, and QEMU fault probes are not implemented. |
+| CPU fault handling | Descriptor and fault plans exist. The default-off M02-009 profile has fresh real-QEMU evidence for loading and reading back its private GDT and TSS before halting; no live IDT, fault handlers, register capture, guard enforcement, or QEMU fault probe exists. |
 | Runtime correctness | GC, exceptions, interface dispatch, reflection policy, thread/runtime helpers, and hosted-runtime integration are not complete. |
 | Scheduler and synchronization | Wait/event/timer mock tables exist, but there is no scheduler, blocking wait, thread parking, hardware timer interrupt path, ThreadPool, `Monitor`, or `Task` runtime support. |
 | Live platform drivers | ACPI/PCI/virtio/ENA/NVMe/Hyper-V/VMBus work is parser/planning evidence only. There is no live PCI ECAM mapping, BAR mapping, interrupt setup, device probing, or DMA-safe driver execution. |
@@ -223,6 +235,23 @@ layout metadata, stack-range write/readback, lease release, and firmware
 enforce NX, execute `lgdt`/`ltr`, install active descriptor state, trigger a
 panic or fault, or provide post-`ExitBootServices`, physical-device, provider,
 CloudReady, or production evidence.
+
+Optional cumulative M02-009 terminal GDT/TSS development profile:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30 -BuildEfi -EnableM02SafeStubProbe -EnableM02CheckedPortIoBindingProbe -EnableM02Com1OwnedPortIoProbe -EnableM02OwnedCom1ReadyProbe -EnableM02PanicSafeOwnedCom1Probe -EnableM02OwnedX64GdtEncodingProbe -EnableM02GuardedIstStackAllocationProbe -EnableM02OwnedGdtTssTerminalProbe
+```
+
+That profile adds `TEST_START m02.009`, the exact `CLROS_M02_009_READY`
+record, and `TEST_PASS m02.009` to the ordered/unique contract. The guest then
+intentionally remains halted, so the runner must terminate QEMU and report
+`disposition=runner-terminated`. It uses the real QEMU path directly rather
+than the M01 raw-observation shim and rejects an explicit
+`-M01RawObservationLog`. `done/step918.md` records the fresh real QEMU/OVMF
+acceptance for the exact terminal contract; the implementation is still
+pre-`ExitBootServices` and does not prove page permission enforcement,
+W^X/NX, an IDT or fault handler, post-firmware diagnostics, hosted .NET,
+Kestrel, cloud readiness, or production readiness.
 
 Optional ACPI physical discovery probe:
 

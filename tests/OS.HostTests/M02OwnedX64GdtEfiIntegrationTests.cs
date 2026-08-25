@@ -16,9 +16,9 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
     private const string FailureMarker =
         "M02_OWNED_X64_GDT_ENCODING_FAILED";
     private const string CompileClosureSha256 =
-        "39395b3906e8875aad6c08386e807d0c9568780091fe2401b69d121ca2454b83";
+        "40f45634fc87d66d875d2859a5fe7ad6f5bc09d531af81d785ef2a497f5f6e33";
     private const string CanonicalProjectSha256 =
-        "ab9195a9121f99096fd5bdde228e75d01a1c375303a1cc14379d23ef8487f7a7";
+        "1e37233e70e923e8fb59716cc31fc26b7d748c4be26f5e5cf76fbd759b4a5cd9";
 
     private static readonly (string Path, string Sha256)[] ImmutableReviewedInputs =
     [
@@ -119,11 +119,14 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
             @"..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs|Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs";
         const string GuardedIstKey =
             @"..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs";
+        const string TerminalKey =
+            @"..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs";
         const string EndianKey =
             @"..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
         int reporterIndex = Array.IndexOf(compileKeys, ReporterKey);
         int gdtIndex = Array.IndexOf(compileKeys, GdtKey);
         int guardedIstIndex = Array.IndexOf(compileKeys, GuardedIstKey);
+        int terminalIndex = Array.IndexOf(compileKeys, TerminalKey);
         int endianIndex = Array.IndexOf(compileKeys, EndianKey);
 
         XElement[] defaults = project
@@ -153,12 +156,13 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 57
+        return compileItems.Length == 58
             && compileHash == CompileClosureSha256
             && reporterIndex >= 0
             && gdtIndex == reporterIndex + 1
             && guardedIstIndex == gdtIndex + 1
-            && endianIndex == guardedIstIndex + 1
+            && terminalIndex == guardedIstIndex + 1
+            && endianIndex == terminalIndex + 1
             && compileKeys.Count(key => key == GdtKey) == 1
             && defaults.Length == 1
             && defaults[0].Value == "false"
@@ -181,17 +185,17 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
                 "m02_owned_x64_gdt_encoding_requires_panic_safe_owned_com1",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=70",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=71",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 CanonicalProjectSha256,
                 StringComparison.Ordinal)
             && buildScript.Contains(GdtKey, StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 70",
+                "$expectedSourceClosureInputCount = 71",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 57",
+                "$compileItems.Count -ne 58",
                 StringComparison.Ordinal)
             && verifierScript.Contains(GdtKey, StringComparison.Ordinal)
             && verifierScript.Contains(
@@ -381,7 +385,7 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
             Path.Combine(root, "scripts", "run-qemu-smoke.ps1"));
 
         int gdtProfile = source.IndexOf(
-            "if ($EnableM02OwnedX64GdtEncodingProbe) {",
+            "elseif ($EnableM02OwnedX64GdtEncodingProbe) {",
             StringComparison.Ordinal);
         int panicProfile = IndexOfAfter(
             source,

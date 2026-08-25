@@ -45,6 +45,7 @@ param(
     [switch] $EnableM02PanicSafeOwnedCom1Probe,
     [switch] $EnableM02OwnedX64GdtEncodingProbe,
     [switch] $EnableM02GuardedIstStackAllocationProbe,
+    [switch] $EnableM02OwnedGdtTssTerminalProbe,
     [switch] $EnableM04IndependentEndianConformanceProbe,
     [switch] $SkipImageBuild
 )
@@ -236,6 +237,20 @@ foreach ($marker in $script:M02OwnedX64GdtEncodingRequiredMarkers) {
 $script:M02GuardedIstStackAllocationForbiddenMarkers = @(
     $script:M02OwnedX64GdtEncodingForbiddenMarkers
     "M02_GUARDED_IST_STACK_ALLOCATION_FAILED"
+)
+$script:M02OwnedGdtTssTerminalReadyMarker =
+    "CLROS_M02_009_READY gdtr=true tr=true gdtBytes=40 tssBytes=104 gdtrLimit=39 trSelector=24 ownedCom1=true terminalHalt=true postExitBootServices=false"
+$script:M02OwnedGdtTssTerminalRequiredMarkers = @(
+    $script:M02GuardedIstStackAllocationRequiredMarkers
+    "TEST_START m02.009"
+    $script:M02OwnedGdtTssTerminalReadyMarker
+    "TEST_PASS m02.009"
+)
+$script:M02OwnedGdtTssTerminalForbiddenMarkers = @(
+    $script:M02GuardedIstStackAllocationForbiddenMarkers
+    "M02_OWNED_GDT_TSS_PREENTRY_FAILED"
+    "M02_OWNED_GDT_TSS_VERIFY_FAILED"
+    "M02_OWNED_GDT_TSS_UNEXPECTED_RETURN"
 )
 $script:M04IndependentEndianConformanceReadyMarker =
     "CLROS_M04_002_READY readVectors=25 reverseVectors=7 byteSeries=5 uint16Series=7 fingerprint=E81E4451E8D999F6 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail"
@@ -3664,7 +3679,8 @@ try {
         exit 1
     }
 
-    if (($EnableM02GuardedIstStackAllocationProbe -or
+    if (($EnableM02OwnedGdtTssTerminalProbe -or
+            $EnableM02GuardedIstStackAllocationProbe -or
             $EnableM02OwnedX64GdtEncodingProbe -or
             $EnableM02PanicSafeOwnedCom1Probe -or
             $EnableM02OwnedCom1ReadyProbe) -and
@@ -3724,7 +3740,29 @@ try {
         )
     }
 
-    if ($EnableM02GuardedIstStackAllocationProbe) {
+    if ($EnableM02OwnedGdtTssTerminalProbe) {
+        $requiredMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $script:M02OwnedGdtTssTerminalRequiredMarkers
+            )
+        )
+        $orderedMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $script:M02OwnedGdtTssTerminalRequiredMarkers
+            )
+        )
+        $uniqueMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $script:M02OwnedGdtTssTerminalRequiredMarkers
+            )
+        )
+        $forbiddenMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $script:M02OwnedGdtTssTerminalForbiddenMarkers
+            )
+        )
+    }
+    elseif ($EnableM02GuardedIstStackAllocationProbe) {
         $requiredMarkers = @(
             Merge-QemuSmokeMarkerList -Values @(
                 $requiredMarkers
@@ -4041,6 +4079,19 @@ try {
         (Format-QemuSmokeBoolean $DryRun.IsPresent) +
         " profileRequired=56 profileForbidden=40")
     Write-Host (
+        "QEMU_SCRIPT_M02_OWNED_GDT_TSS_TERMINAL_PROBE enabled=" +
+        (Format-QemuSmokeBoolean $EnableM02OwnedGdtTssTerminalProbe.IsPresent) +
+        " guardedIstStackAllocation=" +
+        (Format-QemuSmokeBoolean $EnableM02GuardedIstStackAllocationProbe.IsPresent) +
+        " buildEfi=" +
+        (Format-QemuSmokeBoolean $BuildEfi.IsPresent) +
+        " skipImageBuild=" +
+        (Format-QemuSmokeBoolean $SkipImageBuild.IsPresent) +
+        " rawObservationActive=false" +
+        " dryRun=" +
+        (Format-QemuSmokeBoolean $DryRun.IsPresent) +
+        " profileRequired=59 profileForbidden=43")
+    Write-Host (
         "QEMU_SCRIPT_M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE enabled=" +
         (Format-QemuSmokeBoolean $EnableM04IndependentEndianConformanceProbe.IsPresent) +
         " buildEfi=" +
@@ -4068,6 +4119,36 @@ try {
         Write-Host (
             "TEST_FAIL qemu.smoke.invalid_args " +
             "m04_independent_endian_conformance_probe_forbids_skip_image_build")
+        exit 1
+    }
+
+    if ($EnableM02OwnedGdtTssTerminalProbe -and
+        -not $EnableM02GuardedIstStackAllocationProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_owned_gdt_tss_terminal_probe_requires_guarded_ist_stack_allocation")
+        exit 1
+    }
+
+    if ($EnableM02OwnedGdtTssTerminalProbe -and -not $BuildEfi) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_owned_gdt_tss_terminal_probe_requires_build_efi")
+        exit 1
+    }
+
+    if ($EnableM02OwnedGdtTssTerminalProbe -and $SkipImageBuild) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_owned_gdt_tss_terminal_probe_forbids_skip_image_build")
+        exit 1
+    }
+
+    if ($EnableM02OwnedGdtTssTerminalProbe -and
+        -not [string]::IsNullOrWhiteSpace($M01RawObservationLog)) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_owned_gdt_tss_terminal_probe_forbids_m01_raw_observation_log")
         exit 1
     }
 
@@ -4275,15 +4356,21 @@ try {
         exit 1
     }
 
-    Write-Host (
+    $m01RawObservationConfig =
         "M01_RAW_OBSERVATION_CONFIG enabled=" +
         (Format-QemuSmokeBoolean $EnableM01OwnedPagingProbe.IsPresent) +
         " active=" +
         (Format-QemuSmokeBoolean (
             $EnableM01OwnedPagingProbe.IsPresent -and
-            -not $DryRun.IsPresent)) +
+            -not $EnableM02OwnedGdtTssTerminalProbe.IsPresent -and
+            -not $DryRun.IsPresent))
+    if ($EnableM02OwnedGdtTssTerminalProbe.IsPresent) {
+        $m01RawObservationConfig += " terminalProfile=true"
+    }
+    $m01RawObservationConfig +=
         " dryRun=" +
-        (Format-QemuSmokeBoolean $DryRun.IsPresent))
+        (Format-QemuSmokeBoolean $DryRun.IsPresent)
+    Write-Host $m01RawObservationConfig
 
     if ($EnableM01LiveAllocatorProbe -and -not $EnableM01LoadedImageStackProbe) {
         Write-Host (
@@ -4406,6 +4493,11 @@ try {
                 "-EnableM02GuardedIstStackAllocationProbe"
         }
 
+        if ($EnableM02OwnedGdtTssTerminalProbe) {
+            $buildArguments +=
+                "-EnableM02OwnedGdtTssTerminalProbe"
+        }
+
         if ($EnableM04IndependentEndianConformanceProbe) {
             $buildArguments +=
                 "-EnableM04IndependentEndianConformanceProbe"
@@ -4434,7 +4526,9 @@ try {
 
     $runnerQemu = $Qemu
     $runnerTimeoutSeconds = $TimeoutSeconds
-    if (-not $DryRun -and $EnableM01OwnedPagingProbe) {
+    if (-not $DryRun -and
+        $EnableM01OwnedPagingProbe -and
+        -not $EnableM02OwnedGdtTssTerminalProbe) {
         Write-Host "TEST_START m01.026.raw-observations"
         try {
             $m01RawObservationCapture =
@@ -4490,6 +4584,10 @@ try {
         "--summary-log", $SummaryLog,
         "--timeout", "$runnerTimeoutSeconds"
     )
+
+    if ($EnableM02OwnedGdtTssTerminalProbe) {
+        $arguments += "--replace-default-required-markers"
+    }
 
     foreach ($marker in $requiredMarkers) {
         $arguments += @("--require-marker", $marker)

@@ -11,6 +11,7 @@ param(
     [switch]$EnableM02PanicSafeOwnedCom1Probe,
     [switch]$EnableM02OwnedX64GdtEncodingProbe,
     [switch]$EnableM02GuardedIstStackAllocationProbe,
+    [switch]$EnableM02OwnedGdtTssTerminalProbe,
     [switch]$EnableM04IndependentEndianConformanceProbe
 )
 
@@ -33,7 +34,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 70
+$expectedSourceClosureInputCount = 71
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -120,6 +121,7 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs|Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs',
     '..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs|Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs',
     '..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs',
+    '..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs',
     '..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs',
     '..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs|Boot\M01LoadedImageStackIntegration.cs',
     '..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs|Boot\M01LiveAllocatorIntegration.cs',
@@ -3786,6 +3788,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM02PanicSafeOwnedCom1Probe," +
             "EnableM02OwnedX64GdtEncodingProbe," +
             "EnableM02GuardedIstStackAllocationProbe," +
+            "EnableM02OwnedGdtTssTerminalProbe," +
             "EnableM04IndependentEndianConformanceProbe," +
             "ImportProjectExtensionProps,ImportProjectExtensionTargets," +
             "ExcludeRestorePackageImports,ILCompilerTargetsPath," +
@@ -3897,6 +3900,10 @@ function Invoke-PostRestoreEvaluationSnapshot {
     if ($EnableM02GuardedIstStackAllocationProbe) {
         $arguments +=
             "-p:EnableM02GuardedIstStackAllocationProbe=true"
+    }
+    if ($EnableM02OwnedGdtTssTerminalProbe) {
+        $arguments +=
+            "-p:EnableM02OwnedGdtTssTerminalProbe=true"
     }
 
     $previousLink = $env:LINK
@@ -4045,6 +4052,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM02OwnedX64GdtEncodingProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM02GuardedIstStackAllocationProbe =
             $EnableM02GuardedIstStackAllocationProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM02OwnedGdtTssTerminalProbe =
+            $EnableM02OwnedGdtTssTerminalProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04IndependentEndianConformanceProbe =
             $EnableM04IndependentEndianConformanceProbe.IsPresent.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
@@ -4102,7 +4111,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 57 -or
+    if ($compileItems.Count -ne 58 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
