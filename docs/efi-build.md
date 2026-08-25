@@ -806,10 +806,18 @@ The complete acceptance command is:
   -EnableM02OwnedGdtTssTerminalProbe
 ```
 
-No fresh real-QEMU acceptance is recorded for this development integration
-yet. The allocation types express intended code/data use, but UEFI allocation
-types do not enforce page permissions; this implementation does not prove W^X
-or NX. All M02-009 evidence remains pre-`ExitBootServices`. The profile does not
+Step 918 records a fresh current-source QEMU/OVMF acceptance for this profile.
+QEMU 11.0.50 with OVMF SHA-256
+`33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`
+accepted all 59 required/ordered/unique markers, rejected all 43 forbidden
+markers, and reported `QEMU_PROCESS_RESULT disposition=runner-terminated`.
+The accepted EFI SHA-256 is
+`A22F5B2AF24682693C09E361C16EE89271CDB9D71FA5D9BBFA32ABA784F8D443`;
+the serial SHA-256 is
+`3AAF960E6ABCB7F27A4580BF8B8D554FDB66EA165F71816C38C7B81A050B6BAF`.
+The allocation types express intended code/data use, but UEFI allocation types
+do not enforce page permissions; this implementation does not prove W^X or NX.
+All M02-009 evidence remains pre-`ExitBootServices`. The profile does not
 install an IDT or fault handler, trigger a fault, prove post-firmware owned
 diagnostics, survive real firmware exit, advance a numbered completion gate,
 run hosted .NET or Kestrel, establish provider support, or establish CloudReady

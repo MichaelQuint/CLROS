@@ -622,10 +622,20 @@ raw-observation capture. The complete real-evidence command is:
   -EnableM02OwnedGdtTssTerminalProbe
 ```
 
-Real QEMU acceptance is pending for this development implementation. Until a
-fresh generated EFI/image tuple, OVMF execution, serial log, summary, and hashes
-pass the 59/43 profile, the section above is a runner and source contract only.
-Even after that acceptance, the marker explicitly remains
+Step 918 records a fresh generated EFI/image tuple and QEMU/OVMF execution for
+this 59/43 profile. The exact required, ordered, and unique lists each contained
+59 distinct, sequence-identical records; all 43 forbidden records were absent;
+the terminal start/ready/pass records each occurred once; and the runner
+reported `QEMU_PROCESS_RESULT disposition=runner-terminated`. Artifact hashes
+include EFI
+`A22F5B2AF24682693C09E361C16EE89271CDB9D71FA5D9BBFA32ABA784F8D443`,
+raw image
+`C4F76528B0B9726165684FF2E5EA5091760BB34DDB116B3156D55FBC9C19EDF1`,
+serial
+`3AAF960E6ABCB7F27A4580BF8B8D554FDB66EA165F71816C38C7B81A050B6BAF`,
+and summary
+`6077DB496B05555BA418FB045DBBABAC2EEA111493FBC4474D0FFE9203EA6632`.
+The marker explicitly remains
 `postExitBootServices=false`: it would not prove W^X/NX, an installed IDT or
 fault handler, post-firmware diagnostics, hosted .NET/Kestrel, provider support,
 CloudReady status, or production readiness.

@@ -964,7 +964,9 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
             && qemu.Contains("runner-terminated", StringComparison.Ordinal)
             && qemu.Contains("raw-observation shim", StringComparison.OrdinalIgnoreCase)
             && readme.Contains("M02-009", StringComparison.Ordinal)
-            && readme.Contains("real QEMU acceptance is pending", StringComparison.OrdinalIgnoreCase)
+            && readme.Contains(
+                "done/step918.md` records the fresh real QEMU/OVMF acceptance",
+                StringComparison.Ordinal)
             && readme.Contains("pre-`ExitBootServices`", StringComparison.Ordinal);
     }
 
