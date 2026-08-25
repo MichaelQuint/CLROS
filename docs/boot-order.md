@@ -93,6 +93,11 @@ All real hardware phases are pending: OS-owned UEFI snapshot, `ExitBootServices`
 
 The IDT descriptor, IDTR descriptor, GDT descriptor, M02-007 caller-owned GDT encoder, TSS/IST layout, readiness-gate, IDT table-plan, descriptor-table instruction-byte/install-stub/readiness plans, fault-probe stub plans, and fault-vector metadata contracts are host-tested, but no emitted boot phase loads an IDT/GDT/TSS, installs handlers, or triggers controlled CPU faults yet. The serial diagnostics guard, COM1 configuration plan, abstract COM1 writer, port-I/O instruction-byte plan, callable port-I/O stub plan, and COM1 backend-readiness plan are host-tested, but no emitted boot phase has an OS-owned serial driver yet.
 
+M02-009 adds a host-audited caller-owned GDT/TSS context and terminal composite
+instruction stream, but it deliberately adds no `BootSequence` phase and is not
+linked into EFI in this leaf. The default managed and firmware-visible marker
+orders are unchanged.
+
 `BootSequence.RunFaultInfrastructureReadiness` is a host-tested helper only. It emits `FAULT_INFRA_READY` for a successful `FaultInfrastructureReadinessResult` and `FAULT_INFRA_NOT_READY status=<status>` for a failed result. The default boot path does not call it yet.
 
 `BootSequence.RunExitBootServicesTransition` is a host-tested helper only. It consumes a `UefiExitBootServicesPlanResult`, emits `UEFI_EBS_TRANSITION_READY` only for a successful plan, emits `UEFI_EBS_TRANSITION_BLOCKED status=<status>` for blocked plans, and marks `FirmwareServicesGuard` as exited only in the successful case. The default boot path does not call it yet.
@@ -308,6 +313,14 @@ Host tests assert:
   closure are merged, so managed M02-008 is closed. The guest evidence still
   proves no guard mapping, TSS/IDT installation, fault execution, or real
   `ExitBootServices` transition.
+- M02-009 tests prove the exact 168-byte GDTR/GDT/TSS context and independently
+  decode all 2,987 bytes of a relocation-free Windows-x64 terminal stream. The
+  audit covers `cli`, `lgdt`, selector-`0x18` `ltr`, `sgdt`, `str`, full GDTR/TR
+  comparisons, the hardware-mutated `0x89`-to-`0x8B` writable TSS descriptor,
+  inline COM1 THRE polling/writes, exact success/failure transcripts, and both
+  `cli; hlt; jmp` loops. Boundary, overlap, mutation, frozen-hash, and
+  zero-allocation tests remain host-only: they never invoke privileged bytes,
+  perform port I/O, or change the boot order.
 - Fault-entry frame layout tests prove future interrupt-stub storage can round-trip formatter-compatible page-fault and invalid-opcode frames, reject inconsistent error-code metadata, reject undersized buffers, and reject unknown vectors.
 - ExitBootServices transition-boundary tests prove success and blocked markers while leaving default boot markers unchanged.
 - Early diagnostics readiness tests prove serial backend and descriptor-table readiness are aggregated into stable boot markers while leaving default boot markers unchanged.
@@ -337,6 +350,11 @@ QEMU smoke confirms the firmware-visible order in `artifacts/logs/qemu-smoke.log
 ## Known Limitations
 
 The current order is still a marker contract, not a full hardware boot sequence. It does not prove owned drivers, interrupts, page tables, storage, networking, or hosted workload launch.
+
+The M02-009 byte contract is not a firmware-visible phase. This leaf provides no
+EFI linkage, executable mapping, guest `lgdt`/`ltr`, owned COM1 output, observed
+terminal halt, or QEMU/OVMF evidence. Its host marker explicitly reports each of
+those live properties as false.
 
 The `BOOT_HANDOFF_READY`, `UEFI_MEMORY_MAP_NORMALIZED`, `BOOT_MEMORY_MAP_ACCEPTED`, `BOOT_MEMORY_REGIONS_READY`, `BOOT_MEMORY_REGION_COUNT`, `BOOT_ACPI_RSDP_HANDOFF_READY`, and `UEFI_ACPI_RSDP_READY` markers are now QEMU-proven through the live EFI artifact. The live EFI artifact still emits the allocation-free `BootSequencePlan` directly after handoff validation, normalization, acceptance, region materialization, and ACPI RSDP scan; it does not execute the managed `BootSequence.Run(BootHandoffRecord, EfiMemoryMapSummary, ...)` overload.
 
@@ -373,8 +391,12 @@ permission changes, relocation, or native-tier or hosted .NET app launch.
    marker proofs, keep their UEFI evidence lines distinct from the direct
    transport, and do not treat either as the future post-firmware diagnostic
    path.
-4. Add M02-007 guest encoding/readback through a separately owned default-off
-   EFI adapter without executing `lgdt` or `ltr`.
+4. Integrate the M02-009 terminal stream only in a separately owned default-off
+   EFI lane. Its success transcript must be exactly
+   `CLROS_M02_009_READY gdtr=true tr=true gdtBytes=40 tssBytes=104 gdtrLimit=39 trSelector=24 ownedCom1=true terminalHalt=true postExitBootServices=false`
+   followed by `TEST_PASS m02.009`. Its failure transcript must be exactly
+   `M02_OWNED_GDT_TSS_VERIFY_FAILED` followed by
+   `TEST_FAIL m02.009 gdtr_or_tr_mismatch`. Unexpected return is forbidden.
 5. Wire the early diagnostics readiness helper only after generated stubs can be copied to executable memory and safely invoked under W^X policy.
 6. Wire the controlled fault-probe readiness helper only after early diagnostics can survive generated-stub execution and fault handling.
 7. Wire the app-selection readiness helper only after live block-device package reads can supply the manifest/package/descriptor prerequisites.
