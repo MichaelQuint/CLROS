@@ -1,6 +1,8 @@
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 using OS.Std.Memory;
 
 internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
@@ -31,6 +33,7 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
             TestAllocationFreeValidation();
             TestUnsafeWidthSourceMutationRejected();
             TestSourceBoundary();
+            TestNoStdLibPointerBranchCompiles();
 
             string readinessMarker =
                 "CLROS_M04_003_READY vectors="
@@ -1105,6 +1108,12 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
         RequireContains(source, "public const bool SatisfiesRuntimeCompletionGate4 = false;");
         RequireContains(source, "public bool SatisfiesRuntimeCompletionGate4 => false;");
         RequireContains(source, "record.RawUnsignedValue == expectedRawUnsignedValue");
+        RequireContains(source, "byteCount / count != size");
+        if (source.Contains("nuint.MaxValue", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "Production source depends on unsupported UIntPtr.MaxValue.");
+        }
 
         int hostBranchStart = source.IndexOf(
             "#if !NOSTDLIB_EFI",
@@ -1154,6 +1163,203 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
                     + pointerForbidden[index] + ".");
             }
         }
+    }
+
+    private static void TestNoStdLibPointerBranchCompiles()
+    {
+        string root = FindRepositoryRoot();
+        string workspace = Path.Combine(
+            Path.GetTempPath(),
+            "clros-m04-003-nostdlib-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(workspace);
+
+        try
+        {
+            File.Copy(
+                Path.Combine(root, "global.json"),
+                Path.Combine(workspace, "global.json"));
+            File.WriteAllText(
+                Path.Combine(workspace, "NoStdLibShim.cs"),
+                """
+                namespace System
+                {
+                    public class Object { }
+                    public abstract class ValueType : Object { }
+                    public abstract class Enum : ValueType { }
+                    public abstract class Delegate : Object { }
+                    public abstract class MulticastDelegate : Delegate { }
+                    public class Attribute : Object { }
+                    public struct Void { }
+                    public struct Boolean { }
+                    public struct Byte { }
+                    public struct Int32 { }
+                    public struct UInt64 { }
+                    public struct IntPtr { }
+                    public struct UIntPtr { }
+                    public enum AttributeTargets { }
+                    public sealed class AttributeUsageAttribute : Attribute
+                    {
+                        public AttributeUsageAttribute(AttributeTargets validOn) { }
+                        public bool AllowMultiple { get; set; }
+                        public bool Inherited { get; set; }
+                    }
+                }
+
+                namespace System.Runtime.CompilerServices
+                {
+                    public sealed class IsReadOnlyAttribute : System.Attribute { }
+                    public sealed class CompilerGeneratedAttribute : System.Attribute { }
+                }
+                """,
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            File.WriteAllText(
+                Path.Combine(workspace, "Probe.cs"),
+                """
+                #if !NOSTDLIB_EFI
+                #error NOSTDLIB_EFI must be defined.
+                #endif
+
+                internal static unsafe class M04003NoStdLibProbe
+                {
+                    internal static byte Exercise(
+                        OS.Std.Memory.SpanMemoryConformanceVector* vectors,
+                        byte* scratch,
+                        OS.Std.Memory.SpanMemoryVectorExecutionRecord* output)
+                    {
+                        OS.Std.Memory.SpanMemoryConformanceResult copy =
+                            OS.Std.Memory
+                                .SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                                .CopyBuiltInCatalog(vectors, 16);
+                        OS.Std.Memory.SpanMemoryExecutionResult execution =
+                            OS.Std.Memory
+                                .SpanOverlapMemoryCastUnsafeWidthConformanceVectors
+                                .ExecuteCatalog(
+                                    vectors,
+                                    16,
+                                    scratch,
+                                    16,
+                                    output,
+                                    16,
+                                    0xF03FF59D36F39ECDUL);
+                        return copy.Succeeded && execution.Succeeded
+                            ? (byte)1
+                            : (byte)0;
+                    }
+                }
+                """,
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+            string productionPath = Path.Combine(
+                root,
+                "std",
+                "no-runtime",
+                "shared",
+                "SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs");
+            string project =
+                """
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                    <AssemblyName>CLROS.M04.SpanMemory.NoStdLib</AssemblyName>
+                    <TargetFramework>net10.0</TargetFramework>
+                    <LangVersion>14.0</LangVersion>
+                    <OutputType>Library</OutputType>
+                    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+                    <ImplicitUsings>disable</ImplicitUsings>
+                    <Nullable>disable</Nullable>
+                    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+                    <NoStdLib>true</NoStdLib>
+                    <NoConfig>true</NoConfig>
+                    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+                    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+                    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+                    <ComputeNETCoreBuildOutputFiles>false</ComputeNETCoreBuildOutputFiles>
+                    <RuntimeMetadataVersion>v4.0.30319</RuntimeMetadataVersion>
+                    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+                    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+                    <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
+                    <DefineConstants>NOSTDLIB_EFI</DefineConstants>
+                    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+                    <Deterministic>true</Deterministic>
+                    <DebugType>none</DebugType>
+                    <DebugSymbols>false</DebugSymbols>
+                    <RestoreIgnoreFailedSources>true</RestoreIgnoreFailedSources>
+                  </PropertyGroup>
+                  <ItemGroup>
+                    <Compile Include="NoStdLibShim.cs" />
+                    <Compile Include="__PRODUCTION__" Link="SpanMemory.cs" />
+                    <Compile Include="Probe.cs" />
+                  </ItemGroup>
+                  <Target Name="CustomizeReferences"
+                          BeforeTargets="BeforeCompile"
+                          AfterTargets="FindReferenceAssembliesForReferences">
+                    <ItemGroup>
+                      <ReferencePathWithRefAssemblies Remove="@(ReferencePathWithRefAssemblies)" />
+                      <ReferencePath Remove="@(ReferencePath)" />
+                    </ItemGroup>
+                  </Target>
+                </Project>
+                """
+                .Replace(
+                    "__PRODUCTION__",
+                    EscapeXml(productionPath),
+                    StringComparison.Ordinal);
+            string projectPath = Path.Combine(
+                workspace,
+                "M04.003.NoStdLib.csproj");
+            File.WriteAllText(
+                projectPath,
+                project,
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+            ProcessStartInfo start = new("dotnet")
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+                WorkingDirectory = workspace
+            };
+            start.ArgumentList.Add("build");
+            start.ArgumentList.Add(projectPath);
+            start.ArgumentList.Add("--nologo");
+            start.ArgumentList.Add("-m:1");
+            using Process process = Process.Start(start)
+                ?? throw new InvalidOperationException(
+                    "Failed to start M04-003 NOSTDLIB_EFI compile guard.");
+            Task<string> stdout = process.StandardOutput.ReadToEndAsync();
+            Task<string> stderr = process.StandardError.ReadToEndAsync();
+            bool exited = process.WaitForExit(90000);
+            if (!exited)
+            {
+                process.Kill(entireProcessTree: true);
+                process.WaitForExit();
+            }
+
+            Task.WaitAll(stdout, stderr);
+            if (!exited || process.ExitCode != 0)
+            {
+                string output = stdout.Result + Environment.NewLine + stderr.Result;
+                throw new InvalidOperationException(
+                    "M04-003 NOSTDLIB_EFI compile guard failed: "
+                    + output.Replace('\r', ' ').Replace('\n', ' ').Trim());
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(workspace))
+            {
+                Directory.Delete(workspace, recursive: true);
+            }
+        }
+    }
+
+    private static string EscapeXml(string value)
+    {
+        return value
+            .Replace("&", "&amp;", StringComparison.Ordinal)
+            .Replace("\"", "&quot;", StringComparison.Ordinal)
+            .Replace("<", "&lt;", StringComparison.Ordinal)
+            .Replace(">", "&gt;", StringComparison.Ordinal);
     }
 
     private static SpanMemoryConformanceVector[] CreateCatalog()

@@ -967,7 +967,7 @@ public static class SpanOverlapMemoryCastUnsafeWidthConformanceVectors
             actualFingerprint);
     }
 
-    public static unsafe ulong ComputeCatalogFingerprint(
+    private static unsafe ulong ComputeCatalogFingerprint(
         SpanMemoryConformanceVector* vectors,
         int vectorCount)
     {
@@ -1351,12 +1351,12 @@ public static class SpanOverlapMemoryCastUnsafeWidthConformanceVectors
 
         nuint count = (nuint)(uint)elementCount;
         nuint size = (nuint)(uint)elementSize;
-        if (count != 0 && size > nuint.MaxValue / count)
+        nuint byteCount = count * size;
+        if (count != 0 && byteCount / count != size)
         {
             return false;
         }
 
-        nuint byteCount = count * size;
         end = start + byteCount;
         return end >= start;
     }
