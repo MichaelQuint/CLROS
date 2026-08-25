@@ -1583,7 +1583,7 @@ public static class SpanOverlapMemoryCastUnsafeWidthConformanceVectors
         bool signExtend)
     {
         ulong sourceMask = sourceWidth == PointerWidth
-            ? ulong.MaxValue
+            ? ~0UL
             : (1UL << (sourceWidth * 8)) - 1;
         value &= sourceMask;
 
@@ -1597,7 +1597,7 @@ public static class SpanOverlapMemoryCastUnsafeWidthConformanceVectors
         }
 
         ulong destinationMask = destinationWidth == PointerWidth
-            ? ulong.MaxValue
+            ? ~0UL
             : (1UL << (destinationWidth * 8)) - 1;
         return value & destinationMask;
     }

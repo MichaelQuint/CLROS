@@ -1115,6 +1115,12 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
                 "Production source depends on unsupported UIntPtr.MaxValue.");
         }
 
+        if (source.Contains("ulong.MaxValue", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "Production source depends on unnecessary UInt64.MaxValue.");
+        }
+
         int hostBranchStart = source.IndexOf(
             "#if !NOSTDLIB_EFI",
             StringComparison.Ordinal);
