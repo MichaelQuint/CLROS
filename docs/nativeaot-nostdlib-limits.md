@@ -418,7 +418,7 @@ and checks warmed catalog validation for zero host allocation. Its host marker
 is:
 
 ```text
-CLROS_M04_003_READY vectors=16 slice=4 overlap=5 memoryCast=3 unalignedWidths=4 pointerWidth=8 fingerprint=DE0413BBC2C1453E referenceFilesRequired=false hostConformance=true guestIntegrated=false gate4=Fail
+CLROS_M04_003_READY vectors=16 spanVectors=4 overlapVectors=5 memoryCastVectors=3 unsafeWidthVectors=4 fingerprint=DE0413BBC2C1453E pointerWidth=8 referenceFilesRequired=false hostConformance=true guestIntegrated=false gate4=Fail
 ```
 
 This is audited host-catalog evidence only. A separately owned integration
@@ -426,7 +426,7 @@ issue must explicitly compile the pointer branch into the no-stdlib EFI source
 closure, validate all 16 vectors under fresh QEMU/OVMF, and emit exactly one:
 
 ```text
-CLROS_M04_003_READY vectors=16 slice=4 overlap=5 memoryCast=3 unalignedWidths=4 pointerWidth=8 fingerprint=DE0413BBC2C1453E referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
+CLROS_M04_003_READY vectors=16 spanVectors=4 overlapVectors=5 memoryCastVectors=3 unsafeWidthVectors=4 fingerprint=DE0413BBC2C1453E pointerWidth=8 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
 ```
 
 Its exact failure marker is `M04_SPAN_MEMORY_CONFORMANCE_FAILED`. Until that

@@ -26,18 +26,30 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
             TestAllocationFreeValidation();
             TestSourceBoundary();
 
-            Console.WriteLine(
+            string readinessMarker =
                 "CLROS_M04_003_READY vectors="
                 + SpanOverlapMemoryCastUnsafeWidthConformanceVectors
                     .TotalVectorCount
-                + " slice=4 overlap=5 memoryCast=3 unalignedWidths=4"
-                + " pointerWidth="
-                + SpanOverlapMemoryCastUnsafeWidthConformanceVectors.PointerWidth
+                + " spanVectors=4 overlapVectors=5 memoryCastVectors=3"
+                + " unsafeWidthVectors=4"
                 + " fingerprint="
                 + SpanOverlapMemoryCastUnsafeWidthConformanceVectors
                     .ExpectedCatalogFingerprint.ToString("X16")
+                + " pointerWidth="
+                + SpanOverlapMemoryCastUnsafeWidthConformanceVectors.PointerWidth
                 + " referenceFilesRequired=false hostConformance=true"
-                + " guestIntegrated=false gate4=Fail");
+                + " guestIntegrated=false gate4=Fail";
+            const string ExpectedReadinessMarker =
+                "CLROS_M04_003_READY vectors=16 spanVectors=4"
+                + " overlapVectors=5 memoryCastVectors=3 unsafeWidthVectors=4"
+                + " fingerprint=DE0413BBC2C1453E pointerWidth=8"
+                + " referenceFilesRequired=false hostConformance=true"
+                + " guestIntegrated=false gate4=Fail";
+            ExpectEqual(
+                "exact host readiness marker",
+                ExpectedReadinessMarker,
+                readinessMarker);
+            Console.WriteLine(readinessMarker);
             Console.WriteLine("TEST_PASS m04.003");
         }
         catch (Exception ex)
