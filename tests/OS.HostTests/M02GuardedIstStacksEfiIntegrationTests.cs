@@ -24,20 +24,14 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
     private const string CanonicalProjectShapeSha256 =
         "ab9195a9121f99096fd5bdde228e75d01a1c375303a1cc14379d23ef8487f7a7";
 
-    private static readonly (string Path, string Sha256)[] ReviewedInputs =
+    private static readonly (string Path, string Sha256)[] ImmutableReviewedInputs =
     [
         (
             "src/OS.Kernel/Diagnostics/GuardedISTStacksDoubleFaultPageFaultNMI.cs",
             "cb3deb08256d85ec85cc017aa30938498705ae65956d69235993a411e4fb5703"),
         (
             "tests/OS.HostTests/GuardedISTStacksDoubleFaultPageFaultNMITests.cs",
-            "dd82e2462b84effa3f3ec03fc3b64ee8916b0913c6cdb34bac2f3fe276f98f00"),
-        (
-            "docs/diagnostics.md",
-            "bc1a9ffddfe8f71eaf6b729609366efffed7693b92e8851e784624470bfce76a"),
-        (
-            "docs/boot-order.md",
-            "16d88fac99cbb273a4426841cb55e541ad9a2a4ffe151cf435cc02bedd59beac")
+            "dd82e2462b84effa3f3ec03fc3b64ee8916b0913c6cdb34bac2f3fe276f98f00")
     ];
 
     [ModuleInitializer]
@@ -63,8 +57,8 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
             TestQemuProfileSource,
             ref failures);
         RunCase(
-            "m02.008 reviewed inputs and documentation boundaries remain exact",
-            TestReviewedInputsAndDocumentationBoundaries,
+            "m02.008 immutable inputs remain exact and documentation boundaries remain semantic",
+            TestImmutableInputsAndDocumentationBoundaries,
             ref failures);
 
         if (failures != 0)
@@ -481,10 +475,10 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
             && gdtProfile > guardedProfile;
     }
 
-    private static bool TestReviewedInputsAndDocumentationBoundaries()
+    private static bool TestImmutableInputsAndDocumentationBoundaries()
     {
         string root = HostToolProcess.FindRepositoryRoot();
-        foreach ((string relativePath, string expectedSha256) in ReviewedInputs)
+        foreach ((string relativePath, string expectedSha256) in ImmutableReviewedInputs)
         {
             string path = Path.Combine(
                 root,
@@ -501,6 +495,205 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
             {
                 return false;
             }
+        }
+
+        string diagnostics = File.ReadAllText(
+            Path.Combine(root, "docs", "diagnostics.md"));
+        string bootOrder = File.ReadAllText(
+            Path.Combine(root, "docs", "boot-order.md"));
+        if (!HasRequiredDocumentationBoundaries(diagnostics, bootOrder))
+        {
+            return false;
+        }
+
+        string fixtureRoot = Path.Combine(
+            Path.GetTempPath(),
+            "clros-m02-008-documentation-boundaries-" + Guid.NewGuid().ToString("N"));
+        bool hostileFixturesRejected;
+        try
+        {
+            Directory.CreateDirectory(fixtureRoot);
+            hostileFixturesRejected =
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "diagnostics-missing-issue-identity",
+                    diagnostics.Replace(
+                        "M02-008 adds a caller-owned",
+                        "A removed issue adds a caller-owned",
+                        StringComparison.Ordinal),
+                    bootOrder) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "diagnostics-missing-three-guard-intent",
+                    diagnostics.Replace(
+                        "one non-present guard range followed",
+                        "one unspecified range followed",
+                        StringComparison.Ordinal),
+                    bootOrder) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "diagnostics-missing-three-stack-intent",
+                    diagnostics.Replace(
+                        "three stack ranges",
+                        "an unspecified set of stack ranges",
+                        StringComparison.Ordinal),
+                    bootOrder) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "diagnostics-missing-loaderdata-evidence",
+                    diagnostics.Replace(
+                        "temporary six-page UEFI",
+                        "temporary unspecified",
+                        StringComparison.Ordinal),
+                    bootOrder) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "diagnostics-missing-stack-only-readback",
+                    diagnostics.Replace(
+                        "writes and reads back only the",
+                        "touches an unspecified set of",
+                        StringComparison.Ordinal),
+                    bootOrder) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "diagnostics-missing-release-free-boundary",
+                    diagnostics.Replace(
+                        "releases the lease, and frees the same arena before return",
+                        "retains the lease and leaves cleanup unspecified",
+                        StringComparison.Ordinal),
+                    bootOrder) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "diagnostics-missing-guard-nonclaim",
+                    diagnostics.Replace(
+                        "map guards non-present",
+                        "activate guard mappings",
+                        StringComparison.Ordinal),
+                    bootOrder) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "diagnostics-missing-tss-nonclaim",
+                    diagnostics.Replace(
+                        "write TSS IST slots",
+                        "install live TSS IST slots",
+                        StringComparison.Ordinal),
+                    bootOrder) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "diagnostics-missing-idt-nonclaim",
+                    diagnostics.Replace(
+                        "descriptor tables",
+                        "active descriptor state",
+                        StringComparison.Ordinal),
+                    bootOrder) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "diagnostics-missing-fault-nonclaim",
+                    diagnostics.Replace(
+                        "execute a fault",
+                        "exercise live fault behavior",
+                        StringComparison.Ordinal),
+                    bootOrder) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "diagnostics-missing-exitbootservices-nonclaim",
+                    diagnostics.Replace(
+                        "cross real",
+                        "complete a live",
+                        StringComparison.Ordinal),
+                    bootOrder) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "boot-order-missing-issue-identity",
+                    diagnostics,
+                    bootOrder.Replace(
+                        "M02-008 adds a host-tested",
+                        "A removed issue adds a host-tested",
+                        StringComparison.Ordinal)) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "boot-order-missing-three-pair-intent",
+                    diagnostics,
+                    bootOrder.Replace(
+                        "three adjacent",
+                        "an unspecified number of adjacent",
+                        StringComparison.Ordinal)) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "boot-order-missing-loaderdata-evidence",
+                    diagnostics,
+                    bootOrder.Replace(
+                        "temporary six-page LoaderData allocation",
+                        "temporary allocation",
+                        StringComparison.Ordinal)) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "boot-order-missing-stack-only-readback",
+                    diagnostics,
+                    bootOrder.Replace(
+                        "stack-only write/readback",
+                        "unspecified memory access",
+                        StringComparison.Ordinal)) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "boot-order-missing-release-boundary",
+                    diagnostics,
+                    bootOrder.Replace(
+                        "lease release",
+                        "lease retention",
+                        StringComparison.Ordinal)) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "boot-order-missing-same-allocation-free-boundary",
+                    diagnostics,
+                    bootOrder.Replace(
+                        "same-base",
+                        "unbound",
+                        StringComparison.Ordinal)) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "boot-order-missing-guard-nonclaim",
+                    diagnostics,
+                    bootOrder.Replace(
+                        "no guard mapping",
+                        "active guard mapping",
+                        StringComparison.Ordinal)) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "boot-order-missing-tss-idt-nonclaim",
+                    diagnostics,
+                    bootOrder.Replace(
+                        "TSS/IDT installation",
+                        "active descriptor installation",
+                        StringComparison.Ordinal)) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "boot-order-missing-fault-nonclaim",
+                    diagnostics,
+                    bootOrder.Replace(
+                        "fault execution",
+                        "live fault behavior",
+                        StringComparison.Ordinal)) &&
+                WriteHostileFixtureAndRequireRejection(
+                    fixtureRoot,
+                    "boot-order-missing-exitbootservices-nonclaim",
+                    diagnostics,
+                    bootOrder.Replace(
+                        "`ExitBootServices` transition",
+                        "`ExitBootServices` success",
+                        StringComparison.Ordinal));
+        }
+        finally
+        {
+            if (Directory.Exists(fixtureRoot))
+            {
+                Directory.Delete(fixtureRoot, recursive: true);
+            }
+        }
+
+        if (!hostileFixturesRejected)
+        {
+            return false;
         }
 
         string efiBuild = File.ReadAllText(
@@ -541,6 +734,141 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
             && readme.Contains(
                 "does not install a TSS, IST, GDT, or IDT",
                 StringComparison.Ordinal);
+    }
+
+    private static bool HasRequiredDocumentationBoundaries(
+        string diagnostics,
+        string bootOrder)
+    {
+        const string DiagnosticsSectionStart =
+            "M02-008 adds a caller-owned guarded-IST arena allocator";
+        const string DiagnosticsNextIssueStart = "M02-009 host tests";
+        const string DiagnosticsSectionEnd = "## Next Steps";
+        const string BootOrderSectionStart =
+            "- M02-008 adds a host-tested, allocation-free guarded-IST arena allocator";
+        const string BootOrderSectionEnd = "- Fault-entry frame layout tests";
+
+        string diagnosticsBoundary = NormalizeDocumentationText(
+            ExtractSectionBeforeAny(
+                diagnostics,
+                DiagnosticsSectionStart,
+                DiagnosticsNextIssueStart,
+                DiagnosticsSectionEnd));
+        string bootOrderBoundary = NormalizeDocumentationText(
+            ExtractSectionBeforeAny(
+                bootOrder,
+                BootOrderSectionStart,
+                BootOrderSectionEnd));
+
+        return diagnosticsBoundary.Contains(
+                DiagnosticsSectionStart,
+                StringComparison.Ordinal)
+            && diagnosticsBoundary.Contains(
+                "double fault, page fault, and NMI",
+                StringComparison.Ordinal)
+            && diagnosticsBoundary.Contains(
+                "one non-present guard range followed by one writable, " +
+                "non-executable downward-growing stack range for each fixed IST index",
+                StringComparison.Ordinal)
+            && diagnosticsBoundary.Contains(
+                "temporary six-page UEFI LoaderData arena",
+                StringComparison.Ordinal)
+            && diagnosticsBoundary.Contains(
+                "writes and reads back only the three stack ranges",
+                StringComparison.Ordinal)
+            && diagnosticsBoundary.Contains(
+                "releases the lease, and frees the same arena before return",
+                StringComparison.Ordinal)
+            && diagnosticsBoundary.Contains(
+                "map guards non-present",
+                StringComparison.Ordinal)
+            && diagnosticsBoundary.Contains(
+                "write TSS IST slots",
+                StringComparison.Ordinal)
+            && diagnosticsBoundary.Contains(
+                "load descriptor tables",
+                StringComparison.Ordinal)
+            && diagnosticsBoundary.Contains(
+                "execute a fault",
+                StringComparison.Ordinal)
+            && diagnosticsBoundary.Contains(
+                "cross real `ExitBootServices`",
+                StringComparison.Ordinal)
+            && bootOrderBoundary.Contains(
+                BootOrderSectionStart,
+                StringComparison.Ordinal)
+            && bootOrderBoundary.Contains(
+                "double fault, page fault, and NMI",
+                StringComparison.Ordinal)
+            && bootOrderBoundary.Contains(
+                "three adjacent guard-plus-stack reservations",
+                StringComparison.Ordinal)
+            && bootOrderBoundary.Contains(
+                "temporary six-page LoaderData allocation",
+                StringComparison.Ordinal)
+            && bootOrderBoundary.Contains(
+                "stack-only write/readback",
+                StringComparison.Ordinal)
+            && bootOrderBoundary.Contains(
+                "lease release, and same-base `FreePages` before return",
+                StringComparison.Ordinal)
+            && bootOrderBoundary.Contains(
+                "no guard mapping, TSS/IDT installation, fault execution, or real " +
+                "`ExitBootServices` transition",
+                StringComparison.Ordinal);
+    }
+
+    private static bool WriteHostileFixtureAndRequireRejection(
+        string fixtureRoot,
+        string caseName,
+        string diagnostics,
+        string bootOrder)
+    {
+        string caseRoot = Path.Combine(fixtureRoot, caseName);
+        Directory.CreateDirectory(caseRoot);
+        string diagnosticsPath = Path.Combine(caseRoot, "diagnostics.md");
+        string bootOrderPath = Path.Combine(caseRoot, "boot-order.md");
+        File.WriteAllText(diagnosticsPath, diagnostics);
+        File.WriteAllText(bootOrderPath, bootOrder);
+        return !HasRequiredDocumentationBoundaries(
+            File.ReadAllText(diagnosticsPath),
+            File.ReadAllText(bootOrderPath));
+    }
+
+    private static string NormalizeDocumentationText(string source)
+    {
+        return Regex.Replace(
+            source,
+            @"\s+",
+            " ",
+            RegexOptions.CultureInvariant);
+    }
+
+    private static string ExtractSectionBeforeAny(
+        string source,
+        string startToken,
+        params string[] endTokens)
+    {
+        int start = source.IndexOf(startToken, StringComparison.Ordinal);
+        if (start < 0)
+        {
+            return string.Empty;
+        }
+
+        int end = -1;
+        foreach (string endToken in endTokens)
+        {
+            int candidate = source.IndexOf(
+                endToken,
+                start + startToken.Length,
+                StringComparison.Ordinal);
+            if (candidate >= 0 && (end < 0 || candidate < end))
+            {
+                end = candidate;
+            }
+        }
+
+        return end > start ? source[start..end] : string.Empty;
     }
 
     private static string ExtractAsciiMarker(string source, string methodToken)
