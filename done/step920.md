@@ -402,4 +402,3 @@ networking, a runtime-complete NativeAOT application, hosted .NET 10,
 ASP.NET Minimal API or Kestrel, physical/provider support, CloudReady status,
 security hardening, production readiness, or advancement of Gate 3, Gate 4,
 Gate 14, or any other numbered completion gate.
-
