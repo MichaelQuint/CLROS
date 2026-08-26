@@ -15,6 +15,8 @@ internal static class M01InstructionPublicationEfiEntryTests
         "M01_OWNED_PAGING_PROBE";
     private const string M02OwnedGdtTssTerminalSymbol =
         "M02_OWNED_GDT_TSS_TERMINAL_PROBE";
+    private const string M02IdtrContinuedExecutionSymbol =
+        "M02_IDTR_CONTINUED_EXECUTION_PROBE";
     private const string SerializerBinding =
         "global::OS.Boot.X64InstructionPublication";
     private const string SerializerCall =
@@ -3775,7 +3777,8 @@ internal static class M01InstructionPublicationEfiEntryTests
         bool stageOneEnabled,
         bool stageTwoEnabled,
         bool stageThreeEnabled,
-        bool terminalEnabled)
+        bool terminalEnabled,
+        bool idtrContinuedExecutionEnabled = false)
     {
         StringBuilder output = new();
         Stack<PreprocessorFrame> stack = new();
@@ -3803,6 +3806,10 @@ internal static class M01InstructionPublicationEfiEntryTests
                     || string.Equals(
                         condition,
                         M02OwnedGdtTssTerminalSymbol,
+                        StringComparison.Ordinal)
+                    || string.Equals(
+                        condition,
+                        M02IdtrContinuedExecutionSymbol,
                         StringComparison.Ordinal);
                 bool selectedValue =
                     string.Equals(
@@ -3816,11 +3823,16 @@ internal static class M01InstructionPublicationEfiEntryTests
                             StringComparison.Ordinal)
                             ? stageTwoEnabled
                             : string.Equals(
+                            condition,
+                            StageThreeSymbol,
+                            StringComparison.Ordinal)
+                            ? stageThreeEnabled
+                            : string.Equals(
                                 condition,
-                                StageThreeSymbol,
+                                M02OwnedGdtTssTerminalSymbol,
                                 StringComparison.Ordinal)
-                                ? stageThreeEnabled
-                                : terminalEnabled;
+                                ? terminalEnabled
+                                : idtrContinuedExecutionEnabled;
                 stack.Push(
                     new PreprocessorFrame(
                         selected,

@@ -46,6 +46,7 @@
 		<EnableM02OwnedGdtTssTerminalProbe Condition="'$(EnableM02OwnedGdtTssTerminalProbe)' == ''">false</EnableM02OwnedGdtTssTerminalProbe>
 		<EnableM02NormalizedInterruptFramePageProbe Condition="'$(EnableM02NormalizedInterruptFramePageProbe)' == ''">false</EnableM02NormalizedInterruptFramePageProbe>
 		<EnableM02OwnedIdtGatePopulationProbe Condition="'$(EnableM02OwnedIdtGatePopulationProbe)' == ''">false</EnableM02OwnedIdtGatePopulationProbe>
+		<EnableM02IdtrContinuedExecutionProbe Condition="'$(EnableM02IdtrContinuedExecutionProbe)' == ''">false</EnableM02IdtrContinuedExecutionProbe>
 		<EnableM04IndependentEndianConformanceProbe Condition="'$(EnableM04IndependentEndianConformanceProbe)' == ''">false</EnableM04IndependentEndianConformanceProbe>
 		<EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe Condition="'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == ''">false</EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe>
 	</PropertyGroup>
@@ -100,6 +101,10 @@
 
 	<PropertyGroup Condition="'$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M02_OWNED_IDT_GATE_POPULATION_PROBE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM02IdtrContinuedExecutionProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M02_IDTR_CONTINUED_EXECUTION_PROBE</DefineConstants>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM04IndependentEndianConformanceProbe)' == 'true'">
@@ -169,6 +174,7 @@
 		<Compile Include="..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs" Link="Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs" Link="Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs" Link="Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\IDTRContinuedExecution.cs" Link="Diagnostics\IDTRContinuedExecution.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" Link="Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs" Link="Std\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs" Link="Boot\M01LoadedImageStackIntegration.cs" />
@@ -251,6 +257,15 @@
 		<Error
 			Condition="'$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' and '$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'"
 			Text="EnableM02OwnedIdtGatePopulationProbe cannot be combined with EnableM02NormalizedInterruptFramePageProbe=true." />
+		<Error
+			Condition="'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'"
+			Text="EnableM02IdtrContinuedExecutionProbe cannot be combined with EnableM02OwnedGdtTssTerminalProbe=true." />
+		<Error
+			Condition="'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'"
+			Text="EnableM02IdtrContinuedExecutionProbe cannot be combined with EnableM02NormalizedInterruptFramePageProbe=true." />
+		<Error
+			Condition="'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'"
+			Text="EnableM02IdtrContinuedExecutionProbe cannot be combined with EnableM02OwnedIdtGatePopulationProbe=true." />
 		<Error
 			Condition="'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true' and '$(EnableM04IndependentEndianConformanceProbe)' != 'true'"
 			Text="EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe requires EnableM04IndependentEndianConformanceProbe=true." />

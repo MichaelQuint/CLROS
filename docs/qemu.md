@@ -824,6 +824,108 @@ continued. It does not prove executable publication, W^X/NX, common-entry code,
 fault capture, post-firmware diagnostics, hosted .NET, Kestrel, provider,
 CloudReady, security-hardening, or production behavior.
 
+### M02-012 reversible IDTR continued-execution runner profile
+
+The default-false M02-012 profile composes the frozen M02-010 normalized-slot,
+M02-011 owned-IDT, and M02-012 reversible-IDTR leaves. It is mutually exclusive
+with the nonreturning M02-009 and standalone M02-010/M02-011 profiles. It may be
+combined with returning M04-002/M04-003; their ready records remain between
+`EFI_CONSOLE_READY` and `TEST_START m02.012`. It requires `-BuildEfi`, rejects
+`-SkipImageBuild`, and fails before build or guest execution for these stable
+invalid combinations:
+
+- `m02_idtr_continued_execution_probe_forbids_owned_gdt_tss_terminal`;
+- `m02_idtr_continued_execution_probe_forbids_normalized_interrupt_frame_page_probe`;
+- `m02_idtr_continued_execution_probe_forbids_owned_idt_gate_population_probe`;
+- `m02_idtr_continued_execution_probe_requires_build_efi`;
+- `m02_idtr_continued_execution_probe_forbids_skip_image_build`;
+- `m02_idtr_continued_execution_marker_requires_typed_profile`.
+
+The default profile remains unchanged when the flag is absent. The enabled
+profile requires and orders all 17 acceptance records, and requires the three
+M02-012 transcript records plus the three ordinary terminal records to be
+unique. Its ordered records are:
+
+```text
+EFI_CONSOLE_READY
+TEST_START m02.012
+CLROS_M02_012_READY tableBytes=4096 idtrBytes=10 idtrLimit=4095 policyFnv=8514F42EBDFC5D55 firmwareGatesCopied=0 firmwareIdtrCaptured=true ownedIdtrLoaded=true ownedIdtrReadBack=true firmwareIdtrRestored=true restoreReadBack=true ownedIdtrActive=false continuedExecution=true cliWindow=true ifRestored=true instructionPublished=true allocationsReleased=true wxEnforced=false interruptTriggered=false faultTriggered=false markerTransport=uefiSerial postExitBootServices=false
+TEST_PASS m02.012
+UEFI_MEMORY_MAP_READY
+UEFI_MEMORY_MAP_OWNED
+BOOT_HANDOFF_READY
+UEFI_MEMORY_MAP_NORMALIZED
+BOOT_MEMORY_MAP_ACCEPTED
+BOOT_MEMORY_REGIONS_READY
+BOOT_MEMORY_REGION_COUNT
+BOOT_PAGE_ALLOCATOR_READY
+BOOT_ACPI_RSDP_HANDOFF_READY
+UEFI_ACPI_RSDP_READY
+OS_BOOT_OK
+TEST_PASS boot.sequence
+OS_SMOKE_PASS
+```
+
+The profile retains five forbidden markers: `OS_SMOKE_FAIL`, `TEST_FAIL`,
+`M02_IDTR_CONTINUED_EXECUTION_FAILED`, the exact host-only M02-012 ready marker,
+and the exact standalone M02-011 guest-ready marker. Therefore a host-only
+record, inherited standalone-M02-011 transcript, exact M02-012 failure, generic
+test failure, ordinary smoke failure, missing/reordered record, duplicate
+unique record, or non-exact ready line cannot satisfy this profile. `-no-reboot`,
+the bounded timeout, streaming drain, and process classifier continue to treat
+reset, triple fault, timeout, missing output, or spontaneous exit as failure.
+
+The verified dry-run command is:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -DryRun `
+  -BuildEfi `
+  -EnableM02IdtrContinuedExecutionProbe
+```
+
+It reports `profileRequired=17`, `profileOrdered=17`, `profileUnique=6`, and
+`profileForbidden=5`. Focused tests also pass the combined M04-002 and
+M04-002/M04-003 dry runs while retaining both M04 failure sentinels plus the
+complete M02-012 forbidden set.
+
+The required real evidence command is:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -BuildEfi `
+  -EnableM02IdtrContinuedExecutionProbe `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -EfiArtifact .\artifacts\efi\BOOTX64-M02-012-IDTR-QEMU.EFI `
+  -Image .\artifacts\images\m02-012-idtr-qemu.raw `
+  -SerialLog .\artifacts\logs\m02-012-idtr-qemu-serial.log `
+  -SummaryLog .\artifacts\logs\m02-012-idtr-qemu-summary.log `
+  -RequireMarker "CLROS_M02_012_READY tableBytes=4096 idtrBytes=10 idtrLimit=4095 policyFnv=8514F42EBDFC5D55 firmwareGatesCopied=0 firmwareIdtrCaptured=true ownedIdtrLoaded=true ownedIdtrReadBack=true firmwareIdtrRestored=true restoreReadBack=true ownedIdtrActive=false continuedExecution=true cliWindow=true ifRestored=true instructionPublished=true allocationsReleased=true wxEnforced=false interruptTriggered=false faultTriggered=false markerTransport=uefiSerial postExitBootServices=false"
+```
+
+The accepted 2026-08-26 run used QEMU 11.0.50 and the 3,653,632-byte OVMF code
+image with SHA-256
+`33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`.
+The marker stream passed with 17 ordered records, six unique records,
+`outOfOrder=0`, `duplicateUnique=0`, and no forbidden record; the runner then
+terminated QEMU after `OS_SMOKE_PASS`. The enabled 87,040-byte EFI artifact has
+SHA-256 `D7428017EB461F8678C5C6793DA9C8F6A9E6CFD2456DDACB23D1161D1759A69C`;
+the 67,108,864-byte image has SHA-256
+`1757D1D647103212CAC8CAD7082D64BBC30C6632DE559EA39683D90521A236FC`;
+the 8,462-byte serial log has SHA-256
+`4E97D1D61EAF5FCB5371F05889734D8A8103C1C3CD0126B5E0A6A5519A8947C6`;
+and the 5,844-byte passing summary has SHA-256
+`6302E3FC51D4869F017E54836BE41F8C99A2F2CAAE3F000E61854D7947C69669`.
+Host/dry-run results do not substitute for this tuple. The tuple proves only
+the recorded QEMU/OVMF CPU's temporary IDTR load/readback/restoration, IF
+restoration, return-cookie continuity, reverse cleanup, and continuation
+through ordinary pre-`ExitBootServices` smoke. No interrupt or fault is
+injected; W^X/NX, NMI/SMI/machine-check safety, persistent IDTR/GDT/TSS/IST
+state, real `ExitBootServices`, hosted .NET/Kestrel, CloudReady status, and
+production readiness remain unproved.
+
 ### M04-002 fixed endian-catalog guest proof
 
 The M04-002 profile is opt-in and independent of the cumulative M01/M02 live
@@ -1737,7 +1839,7 @@ the unchanged 12/0/0/2 default profile, the frozen M02-010 profile, the combined
 M04-002/M04-003/M02-011 order, all four stable invalid-argument reasons, and
 rejection of missing, reordered, duplicated, host-only, legacy M02-010, and
 failure-injected transcripts. The same module builds both default and enabled
-NativeAOT EFI artifacts from the exact 61-item/74-input no-stdlib closure, runs
+NativeAOT EFI artifacts from the current 62-item/75-input no-stdlib closure, runs
 the same-build verifier for each, proves default exclusion and enabled map
 presence, and validates the complete ordered source firewall, source-authority
 paths/hashes, configuration, and profile properties. The executable
@@ -1746,6 +1848,19 @@ page-aligned unmanaged memory and proves distinct page-zero result failure,
 page-one result failure, readback corruption, and exact-address cleanup on every
 EFI-successful allocation. The accepted complete aggregate host-run identity is
 recorded in the M02-011 done step after final-source verification.
+
+M02-012 integration tests pin its exact 17/17/6/5 dry-run profile, the unchanged
+default profile, the frozen standalone M02-010/M02-011 profiles, the returning
+M04-002/M04-003 combinations, all six stable invalid-argument reasons, and
+rejection of missing, reordered, duplicated, host-only, inherited M02-011,
+failure-injected, generic `TEST_FAIL`, and ordinary `OS_SMOKE_FAIL`
+transcripts. The same focused module publishes default and enabled no-stdlib
+NativeAOT EFI artifacts from the 62-item/75-input source closure, applies the
+same-build verifier, proves default map exclusion and enabled exact
+profile/provenance inclusion, exercises hostile fake firmware without invoking
+the privileged bytes, and source-binds the adapter's pre-callback restoration
+  checks and reverse cleanup. The accepted 2026-08-26 QEMU/OVMF tuple supplies
+  the separately required bounded processor evidence for the exact profile.
 
 The accepted r16 host gate also proves all 15 focused M01-026 groups:
 manifest/stage-three marker parity, switch forwarding, invalid-selector
@@ -1966,6 +2081,15 @@ QEMU evidence from 2026-05-21:
   gates, and release only. It does not prove executable publication, a common
   entry implementation, `lidt`, active descriptor/IST state, slot execution,
   interrupt delivery, a fault, or post-firmware diagnostics.
+- The M02-012 profile is designed to return only after loading and reading back
+  a temporary owned IDTR, restoring and reading back the raw firmware IDTR,
+  restoring IF, observing the return cookie, and releasing the LoaderData then
+  LoaderCode allocations. The accepted 2026-08-26 QEMU/OVMF serial tuple records
+  the exact ready/pass transcript and ordinary-smoke continuation, supplying
+  bounded processor-level reversible-IDTR evidence for that virtual platform.
+  The profile injects no interrupt or fault and does not prove W^X/NX,
+  NMI/SMI/machine-check safety, persistent
+  descriptor state, `ExitBootServices`, or post-firmware diagnostics.
 - OVMF discovery is best-effort. Pass `-OvmfCode <path>` for deterministic runs.
 
 ### Streaming serial-marker state machine
