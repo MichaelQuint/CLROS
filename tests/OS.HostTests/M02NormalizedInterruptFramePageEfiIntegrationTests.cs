@@ -681,6 +681,7 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
             }
 
             bool addressValid =
+                pageAddress != 0 &&
                 (pageAddress & 4095UL) == 0 &&
                 NormalizeErrorCodeNonErrorCodeInterruptFrame
                     .IsCanonicalX64Address(pageAddress) &&
