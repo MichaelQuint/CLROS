@@ -7189,7 +7189,7 @@
         "M02-011"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -7216,7 +7216,7 @@
       ],
       "collisionLane": null,
       "summary": "Load IDTR and prove continued execution.",
-      "currentEvidence": "Diagnostic descriptor/stub plans are host-tested; owned COM1, loaded GDT/TSS/IDT, and controlled live faults are unproven.",
+      "currentEvidence": "Reviewed host-leaf PR #498 and serialized EFI/QEMU integration PR #499 are merged. The frozen leaf implementation commit 3c14012 merged into canonical base 799719dc5a398e646d6c224c9bf6fd8793145069. The independently approved integration head dbc8b1b0341937d9461d28e47ffe754a5a642966 and tree 3a987f3e0463fe213baa2a65fbfd4366a72f7296 merged as canonical commit af01bef5a80e179c0bb024c76a90f99e741e82a5 with the same tree; PR comment #13271 records exact-head approval, issue #497 comment #13273 records reviewed integration evidence, and issue #52 comment #13274 carries the unique clros-evidence-reviewed:M02-012 marker. done/step922.md is the immutable evidence ledger. The final complete host run exited 0 with 3,491 TEST_START, 3,492 TEST_PASS, exactly one terminal TEST_PASS host.tests, zero TEST_FAIL, and log SHA-256 9D1E375E0CB672B4767F810D092CEE442560913AB743D691B830248E108C3EE9. Solution and host-test builds, naming, source firewall, script parsing, default/enabled NativeAOT publication, same-build verification, exact and composed dry runs, and git diff --check passed. The accepted QEMU/OVMF run observed the complete 17-record chronology, all six unique records exactly once, no forbidden, duplicate, failure, or reordered record, and ordinary OS_BOOT_OK / TEST_PASS boot.sequence / OS_SMOKE_PASS continuation. EFI SHA-256 is D7428017EB461F8678C5C6793DA9C8F6A9E6CFD2456DDACB23D1161D1759A69C, raw-image SHA-256 is 1757D1D647103212CAC8CAD7082D64BBC30C6632DE559EA39683D90521A236FC, serial SHA-256 is 4E97D1D61EAF5FCB5371F05889734D8A8103C1C3CD0126B5E0A6A5519A8947C6, and summary SHA-256 is 6302E3FC51D4869F017E54836BE41F8C99A2F2CAAE3F000E61854D7947C69669. This proves only a temporary reversible pre-ExitBootServices IDTR load/readback/raw-firmware-restore/readback, IF preservation, exact-cookie return, reverse cleanup, and continued smoke on the recorded virtual CPU. The owned IDTR is inactive on return. It does not prove interrupt/fault delivery, persistent descriptor state, W^X/NX, real ExitBootServices, live device I/O, runtime unwind, hosted .NET/Kestrel, provider, CloudReady, security, or production behavior; Gate 2 alone remains passing and Gates 3/4 remain failing.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Load IDTR and prove continued execution.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -7264,7 +7264,7 @@
         "docs/boot-order.md"
       ],
       "evidenceBoundary": "This issue proves only \"Load IDTR and prove continued execution.\" It does not by itself prove the M02 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M02-013",
