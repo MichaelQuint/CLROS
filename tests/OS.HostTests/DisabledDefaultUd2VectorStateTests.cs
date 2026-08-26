@@ -44,6 +44,8 @@ internal static class DisabledDefaultUd2VectorStateTests
             TestZeroAllocation, ref failures);
         RunCase("exact source compiles without the bcl",
             TestNoStdLibCompile, ref failures);
+        RunCase("no stdlib authorities have one source definition",
+            TestNoStdLibAuthorityFactoring, ref failures);
         RunCase("source firewall prevents hardware behavior",
             TestSourceFirewall, ref failures);
         RunCase("legacy 0f0bc3 plan remains unreferenced and uninvoked",
@@ -561,15 +563,36 @@ internal static class DisabledDefaultUd2VectorStateTests
         try
         {
             File.WriteAllText(
-                Path.Combine(workspace, "NoStdLibShim.cs"),
-                NoStdLibShimSource,
+                Path.Combine(workspace, "NoStdLibRuntime.cs"),
+                NoStdLibRuntimeSource,
                 new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
             string productionSource = Path.Combine(
                 repositoryRoot,
                 @"src\OS.Kernel\Diagnostics\DisabledDefaultUd2VectorState.cs");
+            string probeAuthoritySource = Path.Combine(
+                repositoryRoot,
+                @"src\OS.Kernel\Diagnostics\InvalidOpcodeProbeAuthority.cs");
+            string vectorAuthoritySource = Path.Combine(
+                repositoryRoot,
+                @"src\OS.Kernel\Diagnostics\InvalidOpcodeVectorAuthority.cs");
+            string cpuFaultFrameSource = Path.Combine(
+                repositoryRoot,
+                @"src\OS.Kernel\Diagnostics\CpuFaultFrame.cs");
             File.WriteAllText(
                 Path.Combine(workspace, "M02.013.NoStdLib.csproj"),
                 NoStdLibProjectSource.Replace(
+                    "__PROBE_AUTHORITY_SOURCE__",
+                    EscapeXml(probeAuthoritySource),
+                    StringComparison.Ordinal)
+                .Replace(
+                    "__VECTOR_AUTHORITY_SOURCE__",
+                    EscapeXml(vectorAuthoritySource),
+                    StringComparison.Ordinal)
+                .Replace(
+                    "__CPU_FAULT_FRAME_SOURCE__",
+                    EscapeXml(cpuFaultFrameSource),
+                    StringComparison.Ordinal)
+                .Replace(
                     "__PRODUCTION_SOURCE__",
                     EscapeXml(productionSource),
                     StringComparison.Ordinal),
@@ -630,6 +653,126 @@ internal static class DisabledDefaultUd2VectorStateTests
                 Directory.Delete(workspace, recursive: true);
             }
         }
+    }
+
+    private static bool TestNoStdLibAuthorityFactoring()
+    {
+        string diagnostics = Path.Combine(
+            HostToolProcess.FindRepositoryRoot(),
+            @"src\OS.Kernel\Diagnostics");
+        string probes = File.ReadAllText(
+            Path.Combine(diagnostics, "Probes.cs"));
+        string probeAuthority = File.ReadAllText(
+            Path.Combine(diagnostics, "InvalidOpcodeProbeAuthority.cs"));
+        string vectors = File.ReadAllText(
+            Path.Combine(diagnostics, "FaultVectorInfo.cs"));
+        string vectorAuthority = File.ReadAllText(
+            Path.Combine(diagnostics, "InvalidOpcodeVectorAuthority.cs"));
+        string panicFormatter = File.ReadAllText(
+            Path.Combine(diagnostics, "PanicFormatter.cs"));
+        string cpuFaultFrame = File.ReadAllText(
+            Path.Combine(diagnostics, "CpuFaultFrame.cs"));
+
+        int probeDefinitionCount = 0;
+        int vectorDefinitionCount = 0;
+        int frameDefinitionCount = 0;
+        string[] sources = Directory.GetFiles(diagnostics, "*.cs");
+        for (int index = 0; index < sources.Length; index++)
+        {
+            string source = File.ReadAllText(sources[index]);
+            probeDefinitionCount += CountOccurrences(
+                source,
+                "public const bool EnableInvalidOpcodePanicProbe");
+            vectorDefinitionCount += CountOccurrences(
+                source,
+                "public const byte InvalidOpcode = 6;");
+            frameDefinitionCount += CountOccurrences(
+                source,
+                "public readonly struct CpuFaultFrame");
+        }
+
+        string[] frameProperties =
+        [
+            "public int Vector { get; }",
+            "public bool HasErrorCode { get; }",
+            "public ulong ErrorCode { get; }",
+            "public ulong Rip { get; }",
+            "public ulong Rsp { get; }",
+            "public ulong Rbp { get; }",
+            "public ulong Rflags { get; }",
+            "public ulong Cr2 { get; }",
+            "public ulong Cr3 { get; }",
+            "public ulong Rax { get; }",
+            "public ulong Rbx { get; }",
+            "public ulong Rcx { get; }",
+            "public ulong Rdx { get; }",
+            "public ulong Rsi { get; }",
+            "public ulong Rdi { get; }",
+            "public ulong R8 { get; }",
+            "public ulong R9 { get; }",
+            "public ulong R10 { get; }",
+            "public ulong R11 { get; }",
+            "public ulong R12 { get; }",
+            "public ulong R13 { get; }",
+            "public ulong R14 { get; }",
+            "public ulong R15 { get; }"
+        ];
+        for (int index = 0; index < frameProperties.Length; index++)
+        {
+            if (CountOccurrences(cpuFaultFrame, frameProperties[index]) != 1)
+            {
+                return false;
+            }
+        }
+
+        return probes.Contains("public static partial class Probes",
+                StringComparison.Ordinal)
+            && !probes.Contains(
+                "public const bool EnableInvalidOpcodePanicProbe",
+                StringComparison.Ordinal)
+            && probeAuthority.Contains(
+                "public const bool EnableInvalidOpcodePanicProbe = false;",
+                StringComparison.Ordinal)
+            && vectors.Contains(
+                "public static partial class FaultVectorCatalog",
+                StringComparison.Ordinal)
+            && !vectors.Contains(
+                "public const byte InvalidOpcode = 6;",
+                StringComparison.Ordinal)
+            && vectorAuthority.Contains(
+                "public const byte InvalidOpcode = 6;",
+                StringComparison.Ordinal)
+            && !panicFormatter.Contains(
+                "public readonly struct CpuFaultFrame",
+                StringComparison.Ordinal)
+            && frameProperties.Length ==
+                DisabledDefaultUd2VectorState.CpuFaultFrameFieldCount
+            && probeDefinitionCount == 1
+            && vectorDefinitionCount == 1
+            && frameDefinitionCount == 1
+            && NoStdLibAuthoritySourceIsSafe(probeAuthority)
+            && NoStdLibAuthoritySourceIsSafe(vectorAuthority)
+            && NoStdLibAuthoritySourceIsSafe(cpuFaultFrame);
+    }
+
+    private static bool NoStdLibAuthoritySourceIsSafe(string source)
+    {
+        string[] forbidden =
+        [
+            "string", "Span<", "Nullable<", "throw ", "delegate",
+            "Console.", "Marshal.", "NativeMemory", "new byte["
+        ];
+        for (int index = 0; index < forbidden.Length; index++)
+        {
+            if (source.Contains(
+                    forbidden[index],
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static bool TestSourceFirewall()
@@ -1084,7 +1227,7 @@ internal static class DisabledDefaultUd2VectorStateTests
         return value.Replace(' ', '_').ToUpperInvariant();
     }
 
-    private const string NoStdLibShimSource =
+    private const string NoStdLibRuntimeSource =
         """
         namespace System
         {
@@ -1116,61 +1259,6 @@ internal static class DisabledDefaultUd2VectorStateTests
             public sealed class CompilerGeneratedAttribute : System.Attribute { }
         }
 
-        namespace OS.Kernel.Diagnostics
-        {
-            public static class Probes
-            {
-                public const bool EnableInvalidOpcodePanicProbe = false;
-            }
-
-            public static class FaultVectorCatalog
-            {
-                public const byte InvalidOpcode = 6;
-            }
-
-            public readonly struct CpuFaultFrame
-            {
-                public CpuFaultFrame(
-                    int vector, bool hasErrorCode, ulong errorCode,
-                    ulong rip, ulong rsp, ulong rbp, ulong rflags,
-                    ulong cr2, ulong cr3, ulong rax, ulong rbx, ulong rcx,
-                    ulong rdx, ulong rsi, ulong rdi, ulong r8, ulong r9,
-                    ulong r10, ulong r11, ulong r12, ulong r13, ulong r14,
-                    ulong r15)
-                {
-                    Vector = vector; HasErrorCode = hasErrorCode;
-                    ErrorCode = errorCode; Rip = rip; Rsp = rsp; Rbp = rbp;
-                    Rflags = rflags; Cr2 = cr2; Cr3 = cr3; Rax = rax;
-                    Rbx = rbx; Rcx = rcx; Rdx = rdx; Rsi = rsi; Rdi = rdi;
-                    R8 = r8; R9 = r9; R10 = r10; R11 = r11; R12 = r12;
-                    R13 = r13; R14 = r14; R15 = r15;
-                }
-
-                public int Vector { get; }
-                public bool HasErrorCode { get; }
-                public ulong ErrorCode { get; }
-                public ulong Rip { get; }
-                public ulong Rsp { get; }
-                public ulong Rbp { get; }
-                public ulong Rflags { get; }
-                public ulong Cr2 { get; }
-                public ulong Cr3 { get; }
-                public ulong Rax { get; }
-                public ulong Rbx { get; }
-                public ulong Rcx { get; }
-                public ulong Rdx { get; }
-                public ulong Rsi { get; }
-                public ulong Rdi { get; }
-                public ulong R8 { get; }
-                public ulong R9 { get; }
-                public ulong R10 { get; }
-                public ulong R11 { get; }
-                public ulong R12 { get; }
-                public ulong R13 { get; }
-                public ulong R14 { get; }
-                public ulong R15 { get; }
-            }
-        }
         """;
 
     private const string NoStdLibProjectSource =
@@ -1205,7 +1293,13 @@ internal static class DisabledDefaultUd2VectorStateTests
             <OutputPath>$(MSBuildProjectDirectory)\out\</OutputPath>
           </PropertyGroup>
           <ItemGroup>
-            <Compile Include="NoStdLibShim.cs" />
+            <Compile Include="NoStdLibRuntime.cs" />
+            <Compile Include="__PROBE_AUTHORITY_SOURCE__"
+                     Link="Diagnostics\InvalidOpcodeProbeAuthority.cs" />
+            <Compile Include="__VECTOR_AUTHORITY_SOURCE__"
+                     Link="Diagnostics\InvalidOpcodeVectorAuthority.cs" />
+            <Compile Include="__CPU_FAULT_FRAME_SOURCE__"
+                     Link="Diagnostics\CpuFaultFrame.cs" />
             <Compile Include="__PRODUCTION_SOURCE__"
                      Link="Diagnostics\DisabledDefaultUd2VectorState.cs" />
           </ItemGroup>

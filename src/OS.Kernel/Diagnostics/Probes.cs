@@ -1,6 +1,6 @@
 namespace OS.Kernel.Diagnostics;
 
-public static class Probes
+public static partial class Probes
 {
     public const int ProbeCatalogCount = 16;
 
@@ -45,8 +45,6 @@ public static class Probes
     public const bool EnableAcpiPhysicalDiscoveryProbe = false;
 
     public const bool EnableNullPointerPanicProbe = false;
-
-    public const bool EnableInvalidOpcodePanicProbe = false;
 
     public const bool EnablePacketDumpProbe = false;
 
