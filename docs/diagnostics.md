@@ -4,14 +4,19 @@
 
 The owned diagnostics subsystem remains host-testable except for the accepted
 bounded pre-`ExitBootServices` M02-004 configuration, M02-005 marker, M02-006
-panic-readiness, and M02-009 terminal GDT/TSS paths. M02-007 adds a
+panic-readiness, M02-009 terminal GDT/TSS, and M02-010 interrupt-entry-page
+materialization paths. M02-007 adds a
 host-validated, allocation-free owned GDT encoder. M02-009 adds a host-audited
 terminal GDT/TSS context and composite instruction-byte stream, and its
 separately merged default-off EFI integration has fresh QEMU/OVMF evidence for
 loading and reading back that private GDTR/TR state, emitting the exact owned
-COM1 transcript, and remaining in its terminal halt loop. M02-010 adds a
-host-only 4,096-byte interrupt-entry page that normalizes all 256 vectors to
-the semantic prefix `vector`, `hasHardwareErrorCode`, `errorCode`. No ordinary
+COM1 transcript, and remaining in its terminal halt loop. The M02-010 leaf adds
+a host-audited 4,096-byte interrupt-entry page that normalizes all 256 vectors
+to the semantic prefix `vector`, `hasHardwareErrorCode`, `errorCode`; its
+separately integrated default-off EFI profile now has QEMU/OVMF evidence for
+materializing and reading back that page in temporary LoaderData memory and
+freeing it before ordinary memory-map capture. No generated slot was executed.
+No ordinary
 boot phase loads an IDT, installs fault handlers, activates IST routing, routes
 a live CPU fault to panic, or preserves an owned serial path across real
 `ExitBootServices`. The accepted M01-026 tuple uses firmware-visible serial plus
@@ -116,6 +121,20 @@ COM1/serial invocation.
   the first mismatching byte. Host `Span` wrappers are excluded under
   `NOSTDLIB_EFI`; the always-compiled path has no managed references,
   allocation, exceptions, or dependency on `FaultVectorCatalog`.
+- The separately integrated default-off M02-010 EFI profile links that exact
+  pointer core after the M02-009 source and before the M04 conformance sources.
+  After firmware console discovery and any enabled M04 pre-memory-map checks,
+  it allocates exactly one 4,096-byte UEFI LoaderData page, uses the real page
+  address as the modeled address, and names `pageAddress + 4096` as a
+  non-overlapping modeled common target. It calls `Materialize` once and
+  `ValidateReadBack` once in that order, audits all 256 vectors, the nine/247
+  hardware/synthetic split, all 4,096 compared bytes, and both
+  `428D0353A96B7ACE` fingerprints, then calls `FreePages` exactly once after the
+  readback attempt. Ready/pass requires successful cleanup. The accepted
+  QEMU/OVMF run at source head
+  `c49148df816b9d7640d25ffc29fac9080a5d9ce7` observed the exact guest marker
+  once. This profile never calls a generated slot or common target and does not
+  install an IDT, IDTR, TSS, or IST.
 - `TssIstPlan` models the x64 TSS bytes needed for `RSP0` and IST entries, including double-fault IST stack top, stack-size, and guard-size validation.
 - `FaultInfrastructureReadiness` combines serial, IDT, IDTR, GDT, TSS/IST, and double-fault IST readiness into a single pre-privileged-install gate.
 - `BootSequence.RunFaultInfrastructureReadiness` emits host-tested `FAULT_INFRA_READY` or `FAULT_INFRA_NOT_READY status=<status>` markers from the readiness result without changing the default boot path.
@@ -820,13 +839,15 @@ post-firmware execution, physical hardware, provider, cloud-readiness, Kestrel,
 or production behavior.
 
 `NormalizeErrorCodeNonErrorCodeInterruptFrame` strengthens only the
-caller-owned interrupt-entry byte layout and readback boundary. The page is not
-linked into the EFI project by this leaf, mapped executable, bound to IDT gates,
-or entered. The common target is address metadata used to encode checked
-relative jumps; the host tests never call it. Host classification and byte
-evidence do not prove guest materialization, instruction execution, IDT
-installation, a normalized live CPU frame, fault capture, panic routing, QEMU
-behavior, or any numbered completion gate.
+caller-owned interrupt-entry byte layout and readback boundary. The leaf alone
+does not link itself into EFI, map executable memory, bind IDT gates, or enter a
+slot. The separately owned default-off profile now proves guest
+materialization, complete production readback, and cleanup in one temporary
+LoaderData page on the recorded QEMU/OVMF platform. The common target remains
+modeled address metadata used only to encode checked relative jumps. Neither
+the host leaf nor the guest integration proves instruction execution,
+executable publication, IDT/IDTR/IST installation, a normalized live CPU
+frame, fault capture, panic routing, or any numbered completion gate.
 
 `FaultProbeStubPlan` is a byte-plan contract only. It intentionally does not execute `ud2` or write to address zero, and it is not QEMU fault evidence.
 
@@ -1082,13 +1103,32 @@ The M02-010 host marker is not guest evidence. This leaf does not link the page
 into EFI, allocate or publish executable guest memory, install an IDT, execute a
 slot or common handler, or trigger a CPU fault.
 
+The separately owned EFI integration emitted this distinct exact guest
+transcript once under QEMU/OVMF:
+
+```text
+TEST_START m02.010
+CLROS_M02_010_READY vectors=256 hardwareErrorCodeVectors=9 syntheticErrorCodeVectors=247 slotBytes=16 pageBytes=4096 normalizedSlots=3 commonTargetDelta=4096 fnv1a64=428D0353A96B7ACE readBack=true guestMaterialization=true loaderData=true pageReleased=true stubExecution=false idtInstalled=false faultTriggered=false markerTransport=uefiSerial postExitBootServices=false
+TEST_PASS m02.010
+```
+
+The profile required 17 records, ordered five, required the three transcript
+records to be unique, and forbade `OS_SMOKE_FAIL`, every `TEST_FAIL`, and
+`M02_NORMALIZED_INTERRUPT_FRAME_PAGE_FAILED`. The accepted 8,358-byte serial
+log has SHA-256
+`4E03A7CFCF8BD78018E3ABF35897EE3371B6E299FED70F32E56D4CEDE6EEB678`;
+the summary reported no missing, out-of-order, duplicated, forbidden, or failed
+record. `done/step920.md` preserves the exact source, artifact, and platform
+tuple. This remains bounded pre-`ExitBootServices` materialization/readback/
+cleanup evidence, not generated-code or fault evidence.
+
 ## Next Steps
 
-1. Integrate the reviewed M02-010 page only in a separately owned default-off
-   EFI lane that can allocate one aligned page, name a non-overlapping reachable
-   common target, materialize and read back the exact bytes, and emit distinct
-   guest evidence. Keep slot execution, IDT installation, and a triggered fault
-   deferred to issues that explicitly own those boundaries.
+1. Preserve the accepted default-off M02-010 LoaderData materialization,
+   readback, cleanup, and guest-marker boundary. Add executable publication,
+   a reviewed common-entry/register-save contract, IDT/IDTR/IST installation,
+   and triggered faults only in later issues that explicitly own and test those
+   boundaries.
 2. Map M02-008's planned guard/stack ranges and write the fixed IST indices into
    owned TSS state only in later issues that own page-table and descriptor-table
    installation; the accepted EFI profile remains temporary pre-firmware proof.

@@ -325,12 +325,14 @@ The first line is emitted exclusively by checked `Out8(0x3F8)` after checked
 through the existing UEFI serial path so the evidence transport is not
 misrepresented.
 
-The 259-character detailed marker disclosed a bounded host-tool limit. The
-separately claimed tooling slice raises only
-`SerialMarkerStateMachine.MaximumMarkerLength` from 256 to 320. It preserves the
-128-marker limit, 4096-byte default line capacity, 1 MiB maximum line capacity,
-exact/prefix/order/unique behavior, and terminal/noise policy. Host tests accept
-259 and 320 characters and still reject 321.
+The 259-character detailed marker disclosed the first bounded host-tool limit.
+That historical tooling slice raised
+`SerialMarkerStateMachine.MaximumMarkerLength` from 256 to 320. The later exact
+370-character M02-010 marker required a second bounded increase from 320 to
+512. The current contract preserves the 128-marker limit, 4,096-byte default
+line capacity, 1 MiB maximum line capacity, exact/prefix/order/unique behavior,
+and terminal/noise policy. Host tests accept the exact 259- and 370-character
+records and the 512-character boundary, and reject 513 characters.
 
 The development real command was:
 
@@ -639,6 +641,104 @@ The marker explicitly remains
 `postExitBootServices=false`: it would not prove W^X/NX, an installed IDT or
 fault handler, post-firmware diagnostics, hosted .NET/Kestrel, provider support,
 CloudReady status, or production readiness.
+
+### M02-010 normalized interrupt-entry page runner profile
+
+The default-false M02-010 profile is independent of the cumulative returning
+M01/M02 chain and mutually exclusive with the nonreturning M02-009 terminal
+profile. It requires `-BuildEfi`, rejects `-SkipImageBuild`, and fails before
+build or guest execution for these stable invalid combinations:
+
+- `m02_normalized_interrupt_frame_page_probe_forbids_owned_gdt_tss_terminal`;
+- `m02_normalized_interrupt_frame_page_probe_requires_build_efi`;
+- `m02_normalized_interrupt_frame_page_probe_forbids_skip_image_build`.
+
+The default profile remains unchanged when the flag is absent. The enabled
+profile requires exactly 17 records, orders five, requires three to be unique,
+and forbids three. Its ordered records are:
+
+```text
+EFI_CONSOLE_READY
+TEST_START m02.010
+CLROS_M02_010_READY vectors=256 hardwareErrorCodeVectors=9 syntheticErrorCodeVectors=247 slotBytes=16 pageBytes=4096 normalizedSlots=3 commonTargetDelta=4096 fnv1a64=428D0353A96B7ACE readBack=true guestMaterialization=true loaderData=true pageReleased=true stubExecution=false idtInstalled=false faultTriggered=false markerTransport=uefiSerial postExitBootServices=false
+TEST_PASS m02.010
+UEFI_MEMORY_MAP_READY
+```
+
+The start, ready, and pass records are unique. `OS_SMOKE_FAIL`, every
+`TEST_FAIL`, and `M02_NORMALIZED_INTERRUPT_FRAME_PAGE_FAILED` are forbidden.
+Hostile fake-runner tests reject missing, reordered, duplicated, and
+failure-injected M02-010 transcripts. The exact 370-character ready record also
+drove the bounded `MaximumMarkerLength` increase from 320 to 512; focused tests
+accept 512 and reject 513 without changing the 128-marker or line-capacity
+limits.
+
+The accepted real command was:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -BuildEfi `
+  -EnableM02NormalizedInterruptFramePageProbe `
+  -EfiArtifact .\artifacts\efi\BOOTX64-M02-010-c49148df-QEMU.EFI `
+  -Image .\artifacts\images\m02-010-c49148df-qemu.raw `
+  -SerialLog .\artifacts\logs\issue-487-m02-010-c49148df-qemu-serial.log `
+  -SummaryLog .\artifacts\logs\issue-487-m02-010-c49148df-qemu-summary.log
+```
+
+The wrapper ran from `2026-08-26T00:34:29.6833668Z` through
+`2026-08-26T00:35:25.0573607Z`, completed in 55.374 seconds, and exited zero.
+It used exact implementation head
+`c49148df816b9d7640d25ffc29fac9080a5d9ce7`, tree
+`b4d658518c9c7a927a66e88ec25a5dd82856a63a`, QEMU `11.0.50`
+(`v11.0.0-12631-g54e84cdc7a`), and the 3,653,632-byte OVMF image with SHA-256
+`33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`.
+The 25,272,968-byte QEMU executable has SHA-256
+`B396EB9B669F6282EC60F0D46E6ADDCA8C669992E67A34365BE44CD3CB97C9A7`.
+
+Artifact identities are:
+
+| Artifact | Bytes | Lines | SHA-256 |
+| --- | ---: | ---: | --- |
+| EFI | 67,072 | n/a | `9F2061A0A7CADB9C0EC15F1A8F7148F0116AA56DBEAE8FD28E8ACECA4B4BA846` |
+| Raw image | 67,108,864 | n/a | `C4FE364F0E46005EF06F13B0D0A65E8013C781BAFFB4FEE1D705FBC4B15BBB5D` |
+| Serial log | 8,358 | 29 | `4E03A7CFCF8BD78018E3ABF35897EE3371B6E299FED70F32E56D4CEDE6EEB678` |
+| Summary log | 4,382 | 49 | `8FCD4EE9B1883D99A1D57068A840888CDCD49CDDD0D631A14CDC6B275957EC8F` |
+| Wrapper stdout | 13,706 | 107 | `53E5A581B0F487469B3C58D96291E38613CCFB617F92E2E1608BE5DE52269A2D` |
+| Wrapper stderr | 0 | 0 | `E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855` |
+
+The streaming classifier reported:
+
+```text
+SERIAL_MARKER_STREAM status=Passed terminal=Success bytes=8358 lines=29 invalidBytes=207 invalidLines=2 orderedSeen=5 outOfOrder=0 uniqueSeen=3 duplicateUnique=0
+SERIAL_MARKER_DRAIN milliseconds=750
+QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=-1
+```
+
+Independent exact-line parsing found the start, complete ready, and pass records
+once each and found zero failure records. The summary reported:
+
+```text
+QEMU_SMOKE_STATUS pass
+MISSING_MARKERS none
+OUT_OF_ORDER_MARKERS none
+DUPLICATE_UNIQUE_MARKERS none
+FORBIDDEN_MARKER_HIT none
+FAIL_REASON none
+```
+
+This profile proves only that the frozen C# materializer and production
+readback validator ran against one temporary firmware-allocated LoaderData page,
+produced the deterministic 4,096-byte identity, released the page, and then
+continued through ordinary pre-`ExitBootServices` boot smoke. The common target
+was modeled address metadata only. The page was not published executable; no
+generated slot or target was entered; no IDT/IDTR/IST was installed; and no
+interrupt, normalized live CPU frame, or fault was produced. It does not
+advance Gate 3 or prove hosted .NET, Kestrel, provider, CloudReady,
+security-hardening, or production behavior. `done/step920.md` is the durable
+ledger.
 
 ### M04-002 fixed endian-catalog guest proof
 
@@ -1538,6 +1638,16 @@ If `-OvmfCode` is omitted, the runner checks `OS_OVMF_CODE`, `OVMF_CODE`, `QEMU_
 
 Host tests validate the extracted QEMU command builder and runner contracts through dry-run output, including base command construction, serial log arguments, OVMF pflash arguments, default/custom required marker reporting, the script-level native app marker preset, currently supported virtio-net arguments, default raw disk format, qcow2 disk format, invalid disk format arguments, preflight pass/fail validation for raw image artifacts, missing images, and raw/qcow2 format mismatches, HTTP probe dry-run output, invalid HTTP probe arguments, real-mode local-loopback HTTP probe pass/fail/timeout behavior, app-exit summary output, and missing-image failure. Script-level host tests now also invoke `scripts/run-qemu-smoke.ps1` with fake paths to prove dry-run remains QEMU-free and real mode fails before the runner for missing QEMU, missing OVMF, and missing images. The QEMU runner CLI tests execute the already-built `tools/OS.QemuRunner/bin/<configuration>/net10.0/OS.QemuRunner.dll` with `dotnet <dll>`, not nested `dotnet run --project`. Host tests also validate `--summary-log` without requiring real QEMU by using deterministic fake QEMU command scripts that write serial markers, including app-exit summary artifact coverage. Focused parser tests validate that `SerialMarkerSummary` passes required markers, reports missing markers, rejects marker-substring false positives, reports forbidden markers, preserves observed marker order including `ACPI_` lines, reports ordered marker failures, observes `APP_EXIT` marker lines, extracts app-exit status records, reports absent app-exit status, reports malformed app-exit markers with reasons, and keeps required-marker behavior unchanged. QEMU preset host tests now cover the `app-args` preset and aliases `app_args`, `app-arguments`, and `native-app-args`, the `app-lifecycle` preset and aliases `app_lifecycle`, `native-app-lifecycle`, and `applifecycle`, the `fetch-http-endpoint` preset and aliases `fetch_endpoint`, `fetchhttp-endpoint`, and `fetchapp-http-endpoint`, the `fetch-http-tcp-exchange` preset and aliases `fetch_http_tcp_exchange`, `fetch-http-exchange`, and `fetchapp-http-tcp-exchange`, the `http-static-response` preset and aliases `http_static_response`, `tiny-http-static`, and `tinyhttp-static`, the `http-static-tcp-response` preset and aliases `http_static_tcp_response`, `tiny-http-tcp-static`, and `tinyhttp-tcp-static`, the `virtio-rx-tcp-dispatch` preset and aliases `virtio_rx_tcp_dispatch`, `virtio-net-rx-tcp-dispatch`, and `virtionet-rx-tcp-dispatch`, the `cctor-work-items` preset and aliases `cctor_work_items`, `cctor-workitem`, and `cctor-work-item`, and the `manifest-env` preset and aliases `native-manifest-env`, `manifest_environment`, and `manifestenv`, without claiming live argument-vector materialization, native app lifecycle execution, FetchApp, networking, TCP exchange, HTTP static response service, HTTP static TCP response service, virtio-net RX/TCP dispatch, manifest loading, environment materialization, app execution, or class-constructor execution proof. CI smoke host tests validate that `scripts/run-ci-smoke.ps1 -DryRun` writes the artifact plan and includes planned serial, summary, image, marker preset, and domain XML artifacts for raw QEMU dry-run, native-app marker dry-run, diagnostics marker-preset dry-run, app-args marker-preset dry-run, app-exit marker-preset dry-run, cctor-preflight marker-preset dry-run, fetch-http marker-preset dry-run, fetch-http-endpoint marker-preset dry-run, fetch-http-tcp-exchange marker-preset dry-run, http-static-response marker-preset dry-run, http-static-tcp-response marker-preset dry-run, virtio-rx-tcp-dispatch marker-preset dry-run, qcow2 smoke intent, and libvirt smoke intent. CI smoke tests also cover found and missing fake `qemu-img` discovery paths, including `CI_SMOKE_QEMU_IMG_DISCOVERY`, top-level `qemuImgDiscovery`/`qcow2ConversionIntent`, and matching qcow2-step fields without executing conversion. The executed CI failure-path test also verifies the diagnostics dry-run log contains `QEMU_MARKER_PRESETS diagnostics`, `MARKER_PRESETS diagnostics`, `DIAGNOSTICS_CHAIN_READY`, `DIAGNOSTIC_STUB_INVOCATION_READY`, and the ordered diagnostics marker chain; verifies the app-args dry-run log contains `QEMU_MARKER_PRESETS app-args`, `MARKER_PRESETS app-args`, and `APP_ARGS_VECTOR_READY`; verifies the app-exit dry-run log contains `QEMU_MARKER_PRESETS app-exit`, `MARKER_PRESETS app-exit`, and `APP_EXIT_OBSERVER_READY`; verifies the cctor-preflight dry-run log contains `QEMU_MARKER_PRESETS cctor-preflight`, `MARKER_PRESETS cctor-preflight`, and `NATIVEAOT_CCTOR_RUNNER_PREFLIGHT_READY`; verifies the fetch-http dry-run log contains `QEMU_MARKER_PRESETS fetch-http`, `MARKER_PRESETS fetch-http`, and `FETCH_APP_HTTP_COMPLETION_READY`; verifies the fetch-http-endpoint dry-run log contains `QEMU_MARKER_PRESETS fetch-http-endpoint`, `MARKER_PRESETS fetch-http-endpoint`, and `FETCHAPP_HTTP_ENDPOINT_READY`; verifies the fetch-http-tcp-exchange dry-run log contains `QEMU_MARKER_PRESETS fetch-http-tcp-exchange`, `MARKER_PRESETS fetch-http-tcp-exchange`, and `FETCH_APP_HTTP_TCP_EXCHANGE_READY`; verifies the http-static-response dry-run log contains `QEMU_MARKER_PRESETS http-static-response`, `MARKER_PRESETS http-static-response`, `HTTP_STATIC_RESPONSE_READY`, and `HTTP_STATIC_RESPONSE`; verifies the http-static-tcp-response dry-run log contains `QEMU_MARKER_PRESETS http-static-tcp-response`, `MARKER_PRESETS http-static-tcp-response`, `HTTP_STATIC_TCP_RESPONSE_READY`, and `HTTP_STATIC_TCP_RESPONSE`; verifies the virtio-rx-tcp-dispatch dry-run log contains `QEMU_MARKER_PRESETS virtio-rx-tcp-dispatch`, `MARKER_PRESETS virtio-rx-tcp-dispatch`, `VIRTIO_NET_RX_TCP_DISPATCH_READY`, and `VIRTIO_NET_RX_TCP_DISPATCH`; and verifies the execute summary records a passing `ci.smoke.git.diffcheck` lane. Baseline evidence script host tests verify qcow2 and libvirt intent lanes keep workload-profile propagation wired, execute `run-baseline-evidence.ps1 -PlanOnly` to validate the artifact-summary shape for diagnostics, qcow2, and libvirt intent lanes, and cover found/missing fake `qemu-img` discovery paths without executing conversion.
 
+M02-010 integration tests additionally pin the exact 17/5/3/3 dry-run profile,
+the three stable invalid-argument reasons, the exact 370-character success
+record, and rejection of missing, reordered, duplicated, and failure-injected
+transcripts. State-machine tests accept the 512-character marker boundary and
+reject 513. The complete accepted host run at exact source head
+`c49148df816b9d7640d25ffc29fac9080a5d9ce7` completed in 2,766.509 seconds
+with 3,475 starts, 3,476 passes, zero failures, and exactly one terminal
+`TEST_PASS host.tests`; its 446,609-byte, 7,007-line log has SHA-256
+`101C5C7FCA0D521161ED9F7CD32FE154E7D241705E3740E006B4328063CB4FFD`.
+
 The accepted r16 host gate also proves all 15 focused M01-026 groups:
 manifest/stage-three marker parity, switch forwarding, invalid-selector
 rejection, strict generated-shim compilation, shim/manifest parity, dry-run
@@ -1746,6 +1856,11 @@ QEMU evidence from 2026-05-21:
   return after the owned-stack transfer; after each validated transcript
   becomes quiet, the runner terminates QEMU. None of these behaviors is
   `ExitBootServices` evidence.
+- The M02-010 profile also returns to the ordinary smoke path after freeing its
+  temporary LoaderData page. Its exact guest marker proves materialization,
+  readback, and release only. It does not prove executable publication, slot or
+  common-target execution, an IDT/IDTR/IST, a normalized live CPU frame, a
+  fault, or post-firmware diagnostics.
 - OVMF discovery is best-effort. Pass `-OvmfCode <path>` for deterministic runs.
 
 ### Streaming serial-marker state machine
