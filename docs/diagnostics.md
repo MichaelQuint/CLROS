@@ -5,7 +5,8 @@
 The owned diagnostics subsystem remains host-testable except for the accepted
 bounded pre-`ExitBootServices` M02-004 configuration, M02-005 marker, M02-006
 panic-readiness, M02-009 terminal GDT/TSS, and M02-010 interrupt-entry-page
-materialization paths. M02-007 adds a
+materialization, plus M02-011 owned-IDT population/readback paths. The accepted
+M02-011 guest profile did not load IDTR. M02-007 adds a
 host-validated, allocation-free owned GDT encoder. M02-009 adds a host-audited
 terminal GDT/TSS context and composite instruction-byte stream, and its
 separately merged default-off EFI integration has fresh QEMU/OVMF evidence for
@@ -20,8 +21,17 @@ The M02-011 leaf now adds a host-audited 4,096-byte owned IDT page containing
 all 256 present DPL0 interrupt gates. Every handler is derived as the M02-010
 page base plus `vector * 16`; selector `0x0008` is fixed; NMI, double fault,
 and page fault use IST3, IST1, and IST2; the other 253 vectors use IST0; and the
-API accepts no firmware table or firmware gate source. The leaf has no EFI
-adapter or guest marker yet.
+API accepts no firmware table or firmware gate source. The leaf itself remains
+non-executing. Its accepted separate default-off EFI profile proves guest
+population, readback, and release only; it does not load IDTR.
+The M02-012 host leaf adds an exact 80-byte caller-owned IDTR transition
+context and a frozen 52-byte reversible Windows-x64 instruction stream. The
+stream is represented as ordinary bytes only: it captures IF, executes `cli`,
+captures the previous IDTR, temporarily loads and reads back the requested
+IDTR, restores and reads back the previous IDTR, conditionally restores IF,
+and returns cookie `0x4F53494454523132`. Host tests never invoke those bytes.
+The leaf has no EFI compile linkage or QEMU guest evidence yet, so it does not
+prove that any processor loaded or restored an IDTR or continued execution.
 No ordinary
 boot phase loads an IDT, installs fault handlers, activates IST routing, routes
 a live CPU fault to panic, or preserves an owned serial path across real
@@ -177,6 +187,50 @@ COM1/serial invocation.
   M02-011 profile. Its temporary allocation, two production materializations,
   two readbacks, and exactly-once release all finish before the ordinary
   memory-map capture begins, and the profile never calls `ExitBootServices`.
+- `IDTRContinuedExecution` is the M02-012 pointer-first, allocation-free byte
+  planner and synthetic evidence auditor. Its exact unmanaged RCX context is
+  80 bytes: requested, previous, loaded, and restored ten-byte IDTR images at
+  offsets 0, 16, 32, and 48 with six reserved-zero bytes after each image,
+  followed by entry and return RFLAGS at offsets 64 and 72. Context and stub
+  storage require 16-byte alignment; the independently supplied owned IDT
+  address requires 4,096-byte alignment and a complete canonical 4,096-byte
+  span. Null, short, misaligned, noncanonical, wrapping,
+  canonical-hole-crossing, actual-overlap, modeled-overlap, and IDT-overlap
+  failures are status-coded and reject before destination mutation.
+- The relocation-free 52-byte stream uses the Microsoft/UEFI x64 ABI with the
+  context in `RCX`, only volatile `RAX` and `RDX` scratch registers, balanced
+  `pushfq`/register-pop operations, no calls, two `lidt`, three `sidt`, one
+  `cli`, one conditional `sti`, and one `ret`. Its frozen FNV-1a64 is
+  `AFF59D6480DE7F3C`; its host-verified SHA-256 is
+  `41B9015D93354D734EC939531790C573CA1239EBC0413FB512B39A80DFC5E91E`.
+  Pointer cores prepare the context, emit the stub, validate all 52 bytes on
+  readback, and audit caller-supplied observations without managed allocation.
+  Normal host builds add `Span<T>` wrappers under `#if !NOSTDLIB_EFI`; host
+  tests compile the exact pointer source with `NOSTDLIB_EFI` and no BCL
+  references.
+- Synthetic execution audit requires the requested IDTR and all reserved bytes
+  to remain exact, cookie `0x4F53494454523132`, a captured previous IDTR that
+  differs from the request, loaded readback equal to `{ limit=4095,
+  base=ownedIdt }`, restored readback byte-equal to the captured previous
+  IDTR, and equality of the IF bit only between entry and return RFLAGS. It
+  accepts both entry-IF states and rejects wrong cookie, absent transition,
+  loaded/restored mismatch, reserved/request mutation, and IF mismatch. These
+  are synthetic host observations, not guest execution evidence.
+- The exact host transcript is:
+
+  ```text
+  TEST_START m02.012
+  CLROS_M02_012_HOST_READY contextBytes=80 stubBytes=52 idtrBytes=10 tableBytes=4096 limit=4095 lidtPlan=2 sidtPlan=3 cliPlan=1 stiPlan=1 returnCookie=4F53494454523132 readBack=true guestExecution=false idtrLoaded=false idtrRestored=false continuedExecution=false faultTriggered=false postExitBootServices=false
+  TEST_PASS m02.012
+  ```
+
+  The live success boundary is deliberately not claimed by this leaf. A
+  separately owned, default-off EFI/QEMU integration must link and publish the
+  reviewed bytes, invoke them synchronously, audit the real processor-written
+  observations, prove firmware IDTR and IF restoration, release owned
+  resources, and complete ordinary smoke before M02-012 can close. Even that
+  bounded proof will not establish interrupt/fault delivery, executable common
+  dispatch, active GDT/TSS/IST routing, real `ExitBootServices`, or Gate 3.
 - `TssIstPlan` models the x64 TSS bytes needed for `RSP0` and IST entries, including double-fault IST stack top, stack-size, and guard-size validation.
 - `FaultInfrastructureReadiness` combines serial, IDT, IDTR, GDT, TSS/IST, and double-fault IST readiness into a single pre-privileged-install gate.
 - `BootSequence.RunFaultInfrastructureReadiness` emits host-tested `FAULT_INFRA_READY` or `FAULT_INFRA_NOT_READY status=<status>` markers from the readiness result without changing the default boot path.
