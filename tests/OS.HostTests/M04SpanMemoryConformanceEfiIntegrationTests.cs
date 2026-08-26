@@ -15,9 +15,9 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
     private const string FailureMarker =
         "M04_SPAN_MEMORY_CONFORMANCE_FAILED";
     private const string CompileClosureSha256 =
-        "805e39822e162fd57be8421d6d19282267d8b71222602bb359c81ace9e7ba2e1";
+        "413ddc044a3469f2f0ac51c1190609edeaa8fbac0d90beb41ab2648559f6549e";
     private const string ProjectFileSha256 =
-        "90a9243917910a9516388abb301d9bec92f661c6a839dbfa25e24497288c2769";
+        "3ffb00e8ba1ebead05233ce2eee860cf1ab6baf8721b8bd29a2ab958f1c7b994";
     private const string FrozenProductionSha256 =
         "0c818f89ecc761a4e5692ce3970e98d577381b98bbe540f6ec5f154130c12153";
     private const string FrozenHostTestSha256 =
@@ -144,7 +144,7 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
             "SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests.cs");
         string production = File.ReadAllText(productionPath);
 
-        return compileItems.Length == 60
+        return compileItems.Length == 61
             && compileHash == CompileClosureSha256
             && Sha256File(projectPath) == ProjectFileSha256
             && endianIndex >= 0
@@ -329,7 +329,7 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
         return build.Contains("[switch] $" + Flag, StringComparison.Ordinal)
             && build.Contains(CompileKey, StringComparison.Ordinal)
             && build.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=73",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=74",
                 StringComparison.Ordinal)
             && build.Contains(
                 "-p:" + Flag + "=true",
@@ -351,20 +351,20 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
                 StringComparison.Ordinal)
             && verifier.Contains("[switch]$" + Flag, StringComparison.Ordinal)
             && verifier.Contains(
-                "$expectedSourceClosureInputCount = 73",
+                "$expectedSourceClosureInputCount = 74",
                 StringComparison.Ordinal)
             && verifierTests.Contains(
-                "ExpectedSourceClosureInputCount = 73",
+                "ExpectedSourceClosureInputCount = 74",
                 StringComparison.Ordinal)
             && verifierTests.Contains(
-                "[\"compileCount\"] = 60",
+                "[\"compileCount\"] = 61",
                 StringComparison.Ordinal)
             && verifierTests.Contains(
                 "[\"EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe\"] =\n                \"false\"",
                 StringComparison.Ordinal)
             && verifier.Contains(CompileKey, StringComparison.Ordinal)
             && verifier.Contains(
-                "$compileItems.Count -ne 60",
+                "$compileItems.Count -ne 61",
                 StringComparison.Ordinal)
             && verifier.Contains(
                 "-p:" + Flag + "=true",

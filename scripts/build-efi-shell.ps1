@@ -42,6 +42,7 @@ param(
     [switch] $EnableM02GuardedIstStackAllocationProbe,
     [switch] $EnableM02OwnedGdtTssTerminalProbe,
     [switch] $EnableM02NormalizedInterruptFramePageProbe,
+    [switch] $EnableM02OwnedIdtGatePopulationProbe,
     [switch] $EnableM04IndependentEndianConformanceProbe,
     [switch] $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe
 )
@@ -96,6 +97,7 @@ $script:ExpectedEfiCompileItems = @(
     '..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs',
     '..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs',
     '..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs',
+    '..\OS.Kernel\Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs|Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs',
     '..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs',
     '..\..\std\no-runtime\shared\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs|Std\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs',
     '..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs|Boot\M01LoadedImageStackIntegration.cs',
@@ -1811,6 +1813,7 @@ function Invoke-M01PostRestoreEvaluation {
         [bool] $M02GuardedIstStackAllocationEnabled,
         [bool] $M02OwnedGdtTssTerminalEnabled,
         [bool] $M02NormalizedInterruptFramePageEnabled,
+        [bool] $M02OwnedIdtGatePopulationEnabled,
         [bool] $M04IndependentEndianConformanceEnabled,
         [bool] $M04SpanMemoryConformanceEnabled
     )
@@ -1835,6 +1838,7 @@ function Invoke-M01PostRestoreEvaluation {
             "EnableM02GuardedIstStackAllocationProbe," +
             "EnableM02OwnedGdtTssTerminalProbe," +
             "EnableM02NormalizedInterruptFramePageProbe," +
+            "EnableM02OwnedIdtGatePopulationProbe," +
             "EnableM04IndependentEndianConformanceProbe," +
             "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe," +
             "ImportProjectExtensionProps,ImportProjectExtensionTargets," +
@@ -1945,6 +1949,9 @@ function Invoke-M01PostRestoreEvaluation {
         "-p:EnableM02NormalizedInterruptFramePageProbe=" +
         $M02NormalizedInterruptFramePageEnabled.ToString().ToLowerInvariant())
     $arguments += (
+        "-p:EnableM02OwnedIdtGatePopulationProbe=" +
+        $M02OwnedIdtGatePopulationEnabled.ToString().ToLowerInvariant())
+    $arguments += (
         "-p:EnableM04IndependentEndianConformanceProbe=" +
         $M04IndependentEndianConformanceEnabled.ToString().ToLowerInvariant())
     $arguments += (
@@ -2006,6 +2013,8 @@ function Invoke-M01PostRestoreEvaluation {
             $M02OwnedGdtTssTerminalEnabled.ToString().ToLowerInvariant()
         EnableM02NormalizedInterruptFramePageProbe =
             $M02NormalizedInterruptFramePageEnabled.ToString().ToLowerInvariant()
+        EnableM02OwnedIdtGatePopulationProbe =
+            $M02OwnedIdtGatePopulationEnabled.ToString().ToLowerInvariant()
         EnableM04IndependentEndianConformanceProbe =
             $M04IndependentEndianConformanceEnabled.ToString().ToLowerInvariant()
         EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe =
@@ -3986,6 +3995,7 @@ for ($index = 5; $index -lt $verifierArguments.Count; $index += 2) {
     if ($parameterName -ceq "EnableM04IndependentEndianConformanceProbe" -or
         $parameterName -ceq "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe" -or
         $parameterName -ceq "EnableM02NormalizedInterruptFramePageProbe" -or
+        $parameterName -ceq "EnableM02OwnedIdtGatePopulationProbe" -or
         $parameterName -ceq "EnableM02OwnedCom1ReadyProbe" -or
         $parameterName -ceq "EnableM02PanicSafeOwnedCom1Probe" -or
         $parameterName -ceq "EnableM02OwnedX64GdtEncodingProbe" -or
@@ -5237,6 +5247,7 @@ function Test-M01EvaluatedSourceClosure {
         [bool] $M02GuardedIstStackAllocationEnabled,
         [bool] $M02OwnedGdtTssTerminalEnabled,
         [bool] $M02NormalizedInterruptFramePageEnabled,
+        [bool] $M02OwnedIdtGatePopulationEnabled,
         [bool] $M04IndependentEndianConformanceEnabled,
         [bool] $M04SpanMemoryConformanceEnabled,
         [bool] $UefiGoneSimulationEnabled,
@@ -5283,6 +5294,8 @@ function Test-M01EvaluatedSourceClosure {
             $M02OwnedGdtTssTerminalEnabled.ToString().ToLowerInvariant()
         "EnableM02NormalizedInterruptFramePageProbe" =
             $M02NormalizedInterruptFramePageEnabled.ToString().ToLowerInvariant()
+        "EnableM02OwnedIdtGatePopulationProbe" =
+            $M02OwnedIdtGatePopulationEnabled.ToString().ToLowerInvariant()
         "EnableM04IndependentEndianConformanceProbe" =
             $M04IndependentEndianConformanceEnabled.ToString().ToLowerInvariant()
         "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe" =
@@ -5305,6 +5318,8 @@ function Test-M01EvaluatedSourceClosure {
             $M02OwnedGdtTssTerminalEnabled
         "M02_NORMALIZED_INTERRUPT_FRAME_PAGE_PROBE" =
             $M02NormalizedInterruptFramePageEnabled
+        "M02_OWNED_IDT_GATE_POPULATION_PROBE" =
+            $M02OwnedIdtGatePopulationEnabled
         "M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE" =
             $M04IndependentEndianConformanceEnabled
         "M04_SPAN_OVERLAP_MEMORY_CAST_UNSAFE_WIDTH_CONFORMANCE_PROBE" =
@@ -5341,6 +5356,7 @@ function Test-M01EvaluatedSourceClosure {
                 "EnableM02GuardedIstStackAllocationProbe," +
                 "EnableM02OwnedGdtTssTerminalProbe," +
                 "EnableM02NormalizedInterruptFramePageProbe," +
+                "EnableM02OwnedIdtGatePopulationProbe," +
                 "EnableM04IndependentEndianConformanceProbe," +
                 "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe," +
                 "DefineConstants," +
@@ -5433,6 +5449,10 @@ function Test-M01EvaluatedSourceClosure {
         if ($M02NormalizedInterruptFramePageEnabled) {
             $arguments +=
                 "-p:EnableM02NormalizedInterruptFramePageProbe=true"
+        }
+        if ($M02OwnedIdtGatePopulationEnabled) {
+            $arguments +=
+                "-p:EnableM02OwnedIdtGatePopulationProbe=true"
         }
         if ($M04IndependentEndianConformanceEnabled) {
             $arguments +=
@@ -5969,6 +5989,7 @@ function Test-M01SourceClosure {
         [bool] $M02GuardedIstStackAllocationEnabled,
         [bool] $M02OwnedGdtTssTerminalEnabled,
         [bool] $M02NormalizedInterruptFramePageEnabled,
+        [bool] $M02OwnedIdtGatePopulationEnabled,
         [bool] $M04IndependentEndianConformanceEnabled,
         [bool] $M04SpanMemoryConformanceEnabled,
         [bool] $UefiGoneSimulationEnabled,
@@ -6020,7 +6041,7 @@ function Test-M01SourceClosure {
 
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "05c6372ada146e1cf78dff3fb1d2c63601f788cf650172292f4d8724e15dbf45") {
+        "3f57cbb5de5561c86a0ad1809534bd5d0e6db8d8086bf667ba724666413f7181") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `
@@ -6089,6 +6110,8 @@ function Test-M01SourceClosure {
             "M02_OWNED_GDT_TSS_TERMINAL_PROBE"
         "EnableM02NormalizedInterruptFramePageProbe" =
             "M02_NORMALIZED_INTERRUPT_FRAME_PAGE_PROBE"
+        "EnableM02OwnedIdtGatePopulationProbe" =
+            "M02_OWNED_IDT_GATE_POPULATION_PROBE"
         "EnableM04IndependentEndianConformanceProbe" =
             "M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE"
         "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe" =
@@ -6145,6 +6168,8 @@ function Test-M01SourceClosure {
             "M02_OWNED_GDT_TSS_TERMINAL_PROBE"
         "EnableM02NormalizedInterruptFramePageProbe" =
             "M02_NORMALIZED_INTERRUPT_FRAME_PAGE_PROBE"
+        "EnableM02OwnedIdtGatePopulationProbe" =
+            "M02_OWNED_IDT_GATE_POPULATION_PROBE"
         "EnableM04IndependentEndianConformanceProbe" =
             "M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE"
         "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe" =
@@ -6227,6 +6252,12 @@ function Test-M01SourceClosure {
     $m02NormalizedInterruptFramePageTerminalExclusionCondition =
         "'" + '$' + "(EnableM02NormalizedInterruptFramePageProbe)' == 'true' and '" +
         '$' + "(EnableM02OwnedGdtTssTerminalProbe)' == 'true'"
+    $m02OwnedIdtGatePopulationTerminalExclusionCondition =
+        "'" + '$' + "(EnableM02OwnedIdtGatePopulationProbe)' == 'true' and '" +
+        '$' + "(EnableM02OwnedGdtTssTerminalProbe)' == 'true'"
+    $m02OwnedIdtGatePopulationNormalizedExclusionCondition =
+        "'" + '$' + "(EnableM02OwnedIdtGatePopulationProbe)' == 'true' and '" +
+        '$' + "(EnableM02NormalizedInterruptFramePageProbe)' == 'true'"
     $m04SpanMemoryDependencyCondition =
         "'" + '$' + "(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true' and '" +
         '$' + "(EnableM04IndependentEndianConformanceProbe)' != 'true'"
@@ -6247,6 +6278,8 @@ function Test-M01SourceClosure {
         $m02GuardedIstStackAllocationDependencyCondition,
         $m02OwnedGdtTssTerminalDependencyCondition,
         $m02NormalizedInterruptFramePageTerminalExclusionCondition,
+        $m02OwnedIdtGatePopulationTerminalExclusionCondition,
+        $m02OwnedIdtGatePopulationNormalizedExclusionCondition,
         $m04SpanMemoryDependencyCondition,
         $m04SpanMemoryTerminalExclusionCondition
     )
@@ -6561,6 +6594,7 @@ function Test-M01SourceClosure {
         -M02GuardedIstStackAllocationEnabled $M02GuardedIstStackAllocationEnabled `
         -M02OwnedGdtTssTerminalEnabled $M02OwnedGdtTssTerminalEnabled `
         -M02NormalizedInterruptFramePageEnabled $M02NormalizedInterruptFramePageEnabled `
+        -M02OwnedIdtGatePopulationEnabled $M02OwnedIdtGatePopulationEnabled `
         -M04IndependentEndianConformanceEnabled $M04IndependentEndianConformanceEnabled `
         -M04SpanMemoryConformanceEnabled $M04SpanMemoryConformanceEnabled `
         -UefiGoneSimulationEnabled $UefiGoneSimulationEnabled `
@@ -6735,8 +6769,8 @@ try {
             (Format-EvidenceValue $_.Exception.Message))
         exit 1
     }
-    if ($sourceSnapshotBeforePublish.InputCount -ne 73 -or
-        $sourceSnapshotAfterLock.InputCount -ne 73 -or
+    if ($sourceSnapshotBeforePublish.InputCount -ne 74 -or
+        $sourceSnapshotAfterLock.InputCount -ne 74 -or
         $sourceSnapshotBeforePublish.AggregateSha256 -cne
             $sourceSnapshotAfterLock.AggregateSha256 -or
         $sourceSnapshotBeforePublish.AuthoritySha256 -cne
@@ -6749,7 +6783,7 @@ try {
         exit 1
     }
     Write-Host "EFI_PUBLISH_SOURCE_LOCK status=ok"
-    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=73"
+    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=74"
 
 Write-EfiPreflightLine "EFI_PREFLIGHT_START"
 
@@ -6786,6 +6820,8 @@ $m02OwnedGdtTssTerminalProbeEnabled =
     $EnableM02OwnedGdtTssTerminalProbe.IsPresent.ToString().ToLowerInvariant()
 $m02NormalizedInterruptFramePageProbeEnabled =
     $EnableM02NormalizedInterruptFramePageProbe.IsPresent.ToString().ToLowerInvariant()
+$m02OwnedIdtGatePopulationProbeEnabled =
+    $EnableM02OwnedIdtGatePopulationProbe.IsPresent.ToString().ToLowerInvariant()
 $m04IndependentEndianConformanceProbeEnabled =
     $EnableM04IndependentEndianConformanceProbe.IsPresent.ToString().ToLowerInvariant()
 $m04SpanMemoryConformanceProbeEnabled =
@@ -6809,7 +6845,9 @@ $m02SwitchEvidence =
     $m02GuardedIstStackAllocationProbeEnabled +
     " ownedGdtTssTerminal=" + $m02OwnedGdtTssTerminalProbeEnabled +
     " normalizedInterruptFramePage=" +
-    $m02NormalizedInterruptFramePageProbeEnabled
+    $m02NormalizedInterruptFramePageProbeEnabled +
+    " ownedIdtGatePopulation=" +
+    $m02OwnedIdtGatePopulationProbeEnabled
 $m04SwitchEvidence =
     "independentEndianConformance=" +
     $m04IndependentEndianConformanceProbeEnabled +
@@ -6939,6 +6977,30 @@ if ($EnableM02NormalizedInterruptFramePageProbe -and
             "EFI_PREFLIGHT_M02_SWITCHES " + $m02SwitchEvidence +
             " reason=m02_normalized_interrupt_frame_page_probe_forbids_owned_gdt_tss_terminal") `
         -Reason "m02_normalized_interrupt_frame_page_probe_forbids_owned_gdt_tss_terminal" `
+        -LogFullPath $logFullPath `
+        -ReportedLogPath $LogPath `
+        -Status "invalid"
+}
+
+if ($EnableM02OwnedIdtGatePopulationProbe -and
+    $EnableM02OwnedGdtTssTerminalProbe) {
+    Stop-EfiPreflight `
+        -Marker (
+            "EFI_PREFLIGHT_M02_SWITCHES " + $m02SwitchEvidence +
+            " reason=m02_owned_idt_gate_population_probe_forbids_owned_gdt_tss_terminal") `
+        -Reason "m02_owned_idt_gate_population_probe_forbids_owned_gdt_tss_terminal" `
+        -LogFullPath $logFullPath `
+        -ReportedLogPath $LogPath `
+        -Status "invalid"
+}
+
+if ($EnableM02OwnedIdtGatePopulationProbe -and
+    $EnableM02NormalizedInterruptFramePageProbe) {
+    Stop-EfiPreflight `
+        -Marker (
+            "EFI_PREFLIGHT_M02_SWITCHES " + $m02SwitchEvidence +
+            " reason=m02_owned_idt_gate_population_probe_forbids_normalized_interrupt_frame_page_probe") `
+        -Reason "m02_owned_idt_gate_population_probe_forbids_normalized_interrupt_frame_page_probe" `
         -LogFullPath $logFullPath `
         -ReportedLogPath $LogPath `
         -Status "invalid"
@@ -7074,6 +7136,7 @@ $m01SourceClosure = Test-M01SourceClosure `
     -M02GuardedIstStackAllocationEnabled $EnableM02GuardedIstStackAllocationProbe.IsPresent `
     -M02OwnedGdtTssTerminalEnabled $EnableM02OwnedGdtTssTerminalProbe.IsPresent `
     -M02NormalizedInterruptFramePageEnabled $EnableM02NormalizedInterruptFramePageProbe.IsPresent `
+    -M02OwnedIdtGatePopulationEnabled $EnableM02OwnedIdtGatePopulationProbe.IsPresent `
     -M04IndependentEndianConformanceEnabled $EnableM04IndependentEndianConformanceProbe.IsPresent `
     -M04SpanMemoryConformanceEnabled $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe.IsPresent `
     -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
@@ -7714,6 +7777,11 @@ if ($EnableM02NormalizedInterruptFramePageProbe) {
     Write-Host "EFI_PROBE M02_NORMALIZED_INTERRUPT_FRAME_PAGE"
 }
 
+if ($EnableM02OwnedIdtGatePopulationProbe) {
+    $arguments += "-p:EnableM02OwnedIdtGatePopulationProbe=true"
+    Write-Host "EFI_PROBE M02_OWNED_IDT_GATE_POPULATION"
+}
+
 if ($EnableM04IndependentEndianConformanceProbe) {
     $arguments +=
         "-p:EnableM04IndependentEndianConformanceProbe=true"
@@ -7843,6 +7911,7 @@ $methodImplAttributeSourcePath = Join-Path $repositoryRoot (
         -M02GuardedIstStackAllocationEnabled $EnableM02GuardedIstStackAllocationProbe.IsPresent `
         -M02OwnedGdtTssTerminalEnabled $EnableM02OwnedGdtTssTerminalProbe.IsPresent `
         -M02NormalizedInterruptFramePageEnabled $EnableM02NormalizedInterruptFramePageProbe.IsPresent `
+        -M02OwnedIdtGatePopulationEnabled $EnableM02OwnedIdtGatePopulationProbe.IsPresent `
         -M04IndependentEndianConformanceEnabled $EnableM04IndependentEndianConformanceProbe.IsPresent `
         -M04SpanMemoryConformanceEnabled $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe.IsPresent `
         -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
@@ -8071,6 +8140,8 @@ try {
         -M02OwnedGdtTssTerminalEnabled $EnableM02OwnedGdtTssTerminalProbe.IsPresent `
         -M02NormalizedInterruptFramePageEnabled `
             $EnableM02NormalizedInterruptFramePageProbe.IsPresent `
+        -M02OwnedIdtGatePopulationEnabled `
+            $EnableM02OwnedIdtGatePopulationProbe.IsPresent `
         -M04IndependentEndianConformanceEnabled `
             $EnableM04IndependentEndianConformanceProbe.IsPresent `
         -M04SpanMemoryConformanceEnabled `
@@ -8240,6 +8311,8 @@ if ($exitCode -eq 0) {
                 -M02OwnedGdtTssTerminalEnabled $EnableM02OwnedGdtTssTerminalProbe.IsPresent `
                 -M02NormalizedInterruptFramePageEnabled `
                     $EnableM02NormalizedInterruptFramePageProbe.IsPresent `
+                -M02OwnedIdtGatePopulationEnabled `
+                    $EnableM02OwnedIdtGatePopulationProbe.IsPresent `
                 -M04IndependentEndianConformanceEnabled `
                     $EnableM04IndependentEndianConformanceProbe.IsPresent `
                 -M04SpanMemoryConformanceEnabled `
@@ -8641,6 +8714,11 @@ if ($exitCode -eq 0) {
     if ($EnableM02NormalizedInterruptFramePageProbe) {
         $verificationArguments += @(
             "-EnableM02NormalizedInterruptFramePageProbe",
+            "true")
+    }
+    if ($EnableM02OwnedIdtGatePopulationProbe) {
+        $verificationArguments += @(
+            "-EnableM02OwnedIdtGatePopulationProbe",
             "true")
     }
     $verificationStopwatch = [System.Diagnostics.Stopwatch]::StartNew()

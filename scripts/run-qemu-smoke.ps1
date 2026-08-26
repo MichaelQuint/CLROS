@@ -47,6 +47,7 @@ param(
     [switch] $EnableM02GuardedIstStackAllocationProbe,
     [switch] $EnableM02OwnedGdtTssTerminalProbe,
     [switch] $EnableM02NormalizedInterruptFramePageProbe,
+    [switch] $EnableM02OwnedIdtGatePopulationProbe,
     [switch] $EnableM04IndependentEndianConformanceProbe,
     [switch] $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe,
     [switch] $SkipImageBuild
@@ -270,6 +271,24 @@ $script:M02NormalizedInterruptFramePageUniqueMarkers = @(
 )
 $script:M02NormalizedInterruptFramePageForbiddenMarkers = @(
     "M02_NORMALIZED_INTERRUPT_FRAME_PAGE_FAILED"
+    "TEST_FAIL"
+)
+$script:M02OwnedIdtGatePopulationReadyMarker =
+    "CLROS_M02_011_READY vectors=256 gates=256 gateBytes=16 tableBytes=4096 selector=8 present=256 dpl0=256 interruptGates=256 ownedHandlers=256 firmwareGatesCopied=0 nmiIst=3 doubleFaultIst=1 pageFaultIst=2 normalizedFnv1a64=8514F42EBDFC5D55 readBack=true guestPopulation=true loaderData=true allocationPages=3 allocationReleased=true stubExecution=false idtrLoaded=false faultTriggered=false markerTransport=uefiSerial postExitBootServices=false"
+$script:M02OwnedIdtGatePopulationRequiredMarkers = @(
+    "EFI_CONSOLE_READY"
+    "TEST_START m02.011"
+    $script:M02OwnedIdtGatePopulationReadyMarker
+    "TEST_PASS m02.011"
+    "UEFI_MEMORY_MAP_READY"
+)
+$script:M02OwnedIdtGatePopulationUniqueMarkers = @(
+    "TEST_START m02.011"
+    $script:M02OwnedIdtGatePopulationReadyMarker
+    "TEST_PASS m02.011"
+)
+$script:M02OwnedIdtGatePopulationForbiddenMarkers = @(
+    "M02_OWNED_IDT_GATE_POPULATION_FAILED"
     "TEST_FAIL"
 )
 $script:M04IndependentEndianConformanceReadyMarker =
@@ -3833,6 +3852,38 @@ try {
         )
     }
 
+    if ($EnableM02OwnedIdtGatePopulationProbe) {
+        $requiredMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $requiredMarkers
+                $script:M02OwnedIdtGatePopulationRequiredMarkers
+            )
+        )
+        $orderedMarkersBeforeMemoryMap = @(
+            $orderedMarkers | Where-Object {
+                $_ -cne "UEFI_MEMORY_MAP_READY"
+            }
+        )
+        $orderedMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $orderedMarkersBeforeMemoryMap
+                $script:M02OwnedIdtGatePopulationRequiredMarkers
+            )
+        )
+        $uniqueMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $uniqueMarkers
+                $script:M02OwnedIdtGatePopulationUniqueMarkers
+            )
+        )
+        $forbiddenMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $forbiddenMarkers
+                $script:M02OwnedIdtGatePopulationForbiddenMarkers
+            )
+        )
+    }
+
     if ($EnableM02OwnedGdtTssTerminalProbe) {
         $requiredMarkers = @(
             Merge-QemuSmokeMarkerList -Values @(
@@ -4197,6 +4248,20 @@ try {
         (Format-QemuSmokeBoolean $DryRun.IsPresent) +
         " profileRequired=17 profileOrdered=5 profileUnique=3 profileForbidden=3")
     Write-Host (
+        "QEMU_SCRIPT_M02_OWNED_IDT_GATE_POPULATION_PROBE enabled=" +
+        (Format-QemuSmokeBoolean $EnableM02OwnedIdtGatePopulationProbe.IsPresent) +
+        " normalizedInterruptFrame=" +
+        (Format-QemuSmokeBoolean $EnableM02NormalizedInterruptFramePageProbe.IsPresent) +
+        " ownedGdtTssTerminal=" +
+        (Format-QemuSmokeBoolean $EnableM02OwnedGdtTssTerminalProbe.IsPresent) +
+        " buildEfi=" +
+        (Format-QemuSmokeBoolean $BuildEfi.IsPresent) +
+        " skipImageBuild=" +
+        (Format-QemuSmokeBoolean $SkipImageBuild.IsPresent) +
+        " dryRun=" +
+        (Format-QemuSmokeBoolean $DryRun.IsPresent) +
+        " profileRequired=17 profileOrdered=5 profileUnique=3 profileForbidden=3")
+    Write-Host (
         "QEMU_SCRIPT_M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE enabled=" +
         (Format-QemuSmokeBoolean $EnableM04IndependentEndianConformanceProbe.IsPresent) +
         " buildEfi=" +
@@ -4246,6 +4311,36 @@ try {
         Write-Host (
             "TEST_FAIL qemu.smoke.invalid_args " +
             "m02_normalized_interrupt_frame_page_probe_forbids_skip_image_build")
+        exit 1
+    }
+
+    if ($EnableM02OwnedIdtGatePopulationProbe -and
+        $EnableM02OwnedGdtTssTerminalProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_owned_idt_gate_population_probe_forbids_owned_gdt_tss_terminal")
+        exit 1
+    }
+
+    if ($EnableM02OwnedIdtGatePopulationProbe -and
+        $EnableM02NormalizedInterruptFramePageProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_owned_idt_gate_population_probe_forbids_normalized_interrupt_frame_page_probe")
+        exit 1
+    }
+
+    if ($EnableM02OwnedIdtGatePopulationProbe -and -not $BuildEfi) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_owned_idt_gate_population_probe_requires_build_efi")
+        exit 1
+    }
+
+    if ($EnableM02OwnedIdtGatePopulationProbe -and $SkipImageBuild) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_owned_idt_gate_population_probe_forbids_skip_image_build")
         exit 1
     }
 
@@ -4674,6 +4769,11 @@ try {
         if ($EnableM02NormalizedInterruptFramePageProbe) {
             $buildArguments +=
                 "-EnableM02NormalizedInterruptFramePageProbe"
+        }
+
+        if ($EnableM02OwnedIdtGatePopulationProbe) {
+            $buildArguments +=
+                "-EnableM02OwnedIdtGatePopulationProbe"
         }
 
         if ($EnableM04IndependentEndianConformanceProbe) {

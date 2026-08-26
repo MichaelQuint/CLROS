@@ -159,16 +159,24 @@ COM1/serial invocation.
   fingerprint `8514F42EBDFC5D55`. Host `Span` wrappers are excluded under
   `NOSTDLIB_EFI`; the always-compiled core has no managed references,
   allocation, exceptions, or external descriptor dependency.
-- This M02-011 leaf creates and validates ordinary bytes only. It does not link
-  into EFI, allocate guest memory, publish the M02-010 page as executable, load
-  IDTR, install GDT/TSS/IST state, execute a slot/common target, or trigger a
-  fault. `EFI_BUFFER_TOO_SMALL`, memory-map descriptor growth, stale map keys,
-  `ExitBootServices` retry exhaustion, firmware-table signatures/checksums,
-  and prohibited post-exit firmware calls are inapplicable to this API because
-  it accepts no firmware table, memory map, map key, or Boot Services pointer.
-  Real QEMU/OVMF closure requires a separately claimed serialized EFI
-  integration lane with its own applicable allocation/readback/release failure
-  cases.
+- The M02-011 leaf itself still creates and validates ordinary bytes only. The
+  separately integrated, default-off EFI profile composes it with the frozen
+  M02-010 pointer core inside one temporary three-page `EfiLoaderData` arena:
+  page zero holds the 256 normalized slots, page one holds the 256 owned IDT
+  gates, and page two owns the modeled common-target address at delta 8,192.
+  The profile materializes and reads back both 4,096-byte regions, audits the
+  M02-010 FNV-1a64 `641BA73668C75E0E` and the M02-011 normalized ownership
+  fingerprint `8514F42EBDFC5D55`, accepts no firmware gate input, and releases
+  all three pages before ordinary memory-map capture. A real QEMU/OVMF run
+  observed the exact M02-011 guest transcript once. This integration still
+  does not publish executable memory, load IDTR, install active GDT/TSS/IST
+  state, execute a slot or common target, trigger a fault, or operate after
+  `ExitBootServices`.
+- `EFI_BUFFER_TOO_SMALL`, memory-map descriptor growth, a stale map key, and
+  `ExitBootServices` retry exhaustion are deliberately inapplicable to the
+  M02-011 profile. Its temporary allocation, two production materializations,
+  two readbacks, and exactly-once release all finish before the ordinary
+  memory-map capture begins, and the profile never calls `ExitBootServices`.
 - `TssIstPlan` models the x64 TSS bytes needed for `RSP0` and IST entries, including double-fault IST stack top, stack-size, and guard-size validation.
 - `FaultInfrastructureReadiness` combines serial, IDT, IDTR, GDT, TSS/IST, and double-fault IST readiness into a single pre-privileged-install gate.
 - `BootSequence.RunFaultInfrastructureReadiness` emits host-tested `FAULT_INFRA_READY` or `FAULT_INFRA_NOT_READY status=<status>` markers from the readiness result without changing the default boot path.
@@ -883,15 +891,15 @@ the host leaf nor the guest integration proves instruction execution,
 executable publication, IDT/IDTR/IST installation, a normalized live CPU
 frame, fault capture, panic routing, or any numbered completion gate.
 
-`PopulateAllN256IDTVectorsOwnedGatesNever` strengthens only the caller-owned
-IDT-byte construction and readback boundary. Its 256 gates model future owned
-selector and IST state, but no current EFI application compiles or calls this
-leaf. The host marker is not guest evidence. No IDTR is loaded, no M02-010 page
-is executable, no GDT/TSS/IST state is activated, no generated slot or common
-target runs, and no fault is triggered. Issue-level real-QEMU closure therefore
-requires a separate integration issue owning `OS.csproj`, `EfiEntry.cs`, the
-smoke scripts, and an integration test. Gate 2 remains the only passing numbered
-gate; Gate 3 and Gate 4 remain `Fail`.
+`PopulateAllN256IDTVectorsOwnedGatesNever` strengthens the caller-owned IDT-byte
+construction and readback boundary. Its 256 gates model future owned selector
+and IST state. The separate default-off EFI profile now compiles and calls this
+leaf, composes it with the M02-010 normalized-slot leaf in a temporary
+three-page LoaderData arena, reads both regions back, and releases the arena.
+That source-bound QEMU evidence remains population-only: no M02-010 page is
+published executable, no IDTR is loaded, no GDT/TSS/IST state is activated, no
+generated slot or common target runs, and no fault is triggered. Gate 2 remains
+the only passing numbered gate; Gate 3 and Gate 4 remain `Fail`.
 
 `FaultProbeStubPlan` is a byte-plan contract only. It intentionally does not execute `ud2` or write to address zero, and it is not QEMU fault evidence.
 
@@ -1183,18 +1191,40 @@ CLROS_M02_011_HOST_READY vectors=256 gates=256 gateBytes=16 tableBytes=4096 sele
 TEST_PASS m02.011
 ```
 
-The M02-011 host marker is not `CLROS_M02_011_READY` and cannot satisfy the
-issue's required QEMU command. The unqualified marker remains reserved for a
-future source-bound EFI/OVMF run in a separately owned integration lane.
+The M02-011 host marker remains distinct from guest evidence. The separately
+owned default-off EFI integration emitted this exact transcript once under
+QEMU/OVMF:
+
+```text
+TEST_START m02.011
+CLROS_M02_011_READY vectors=256 gates=256 gateBytes=16 tableBytes=4096 selector=8 present=256 dpl0=256 interruptGates=256 ownedHandlers=256 firmwareGatesCopied=0 nmiIst=3 doubleFaultIst=1 pageFaultIst=2 normalizedFnv1a64=8514F42EBDFC5D55 readBack=true guestPopulation=true loaderData=true allocationPages=3 allocationReleased=true stubExecution=false idtrLoaded=false faultTriggered=false markerTransport=uefiSerial postExitBootServices=false
+TEST_PASS m02.011
+```
+
+The runner required 17 records, ordered the five-record subsequence from
+`EFI_CONSOLE_READY` through `UEFI_MEMORY_MAP_READY`, required the three M02-011
+records to be unique, and forbade `OS_SMOKE_FAIL`, every `TEST_FAIL`, and
+`M02_OWNED_IDT_GATE_POPULATION_FAILED`. The successful record is released only
+after both production readbacks and one successful three-page `FreePages` call.
+The host fake separately rejects missing services, allocation failure, invalid
+or canonical-hole-crossing addresses, mutation in either produced page, and
+release failure while proving exactly-once cleanup for every EFI-successful
+allocation.
+
+SharpOS remains a reference, not a source or runtime architecture for CLROS.
+M02-011 adopts only the general idea of deterministic C# descriptor and stub
+byte construction. It copies no SharpOS source, copies none of SharpOS's
+firmware vectors 32-255, rejects the reference selector `0x38` in favor of the
+owned CLROS selector `0x0008`, and executes neither `sidt` nor `lidt` at this
+stage.
 
 ## Next Steps
 
-1. Preserve the accepted default-off M02-010 LoaderData materialization,
-   readback, cleanup, and guest-marker boundary. Integrate M02-011 population
-   and readback only in a separately claimed default-off EFI lane; keep IDTR
-   load, executable publication, common-entry/register-save execution, active
-   IST routing, and triggered faults in later issues that explicitly own and
-   test those boundaries.
+1. Preserve the accepted default-off M02-010 and M02-011 LoaderData
+   materialization, readback, cleanup, and guest-marker boundaries. Implement
+   executable publication, a common interrupt entry/register-save path, IDTR
+   load, active IST routing, and a deliberately triggered fault only in later
+   issues that explicitly own and test those boundaries.
 2. Map M02-008's planned guard/stack ranges and write the fixed IST indices into
    owned TSS state only in later issues that own page-table and descriptor-table
    installation; the accepted EFI profile remains temporary pre-firmware proof.

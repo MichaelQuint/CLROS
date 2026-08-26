@@ -7622,6 +7622,15 @@ public static unsafe class EfiEntry
             return;
         }
 #endif
+#if M02_OWNED_IDT_GATE_POPULATION_PROBE
+        if (!WriteM02OwnedIdtGatePopulationProbe(
+                console,
+                serial,
+                systemTable))
+        {
+            return;
+        }
+#endif
         if (TryCaptureUefiMemoryMap(systemTable))
         {
             WriteUefiMemoryMapReady(console, serial);
@@ -8760,6 +8769,358 @@ public static unsafe class EfiEntry
         if (b7 != 0) Write(console, serial, b7);
     }
 #endif
+
+#if M02_OWNED_IDT_GATE_POPULATION_PROBE
+    private const uint M02OwnedIdtGateAllocateAnyPages = 0;
+    private const uint M02OwnedIdtGateEfiLoaderData = 2;
+    private const ulong M02OwnedIdtGateAllocationPages = 3;
+    private const ulong M02OwnedIdtGatePageBytes = 4096;
+    private const ulong M02OwnedIdtGateArenaBytes =
+        M02OwnedIdtGateAllocationPages * M02OwnedIdtGatePageBytes;
+    private const ulong M02OwnedIdtGateStubExpectedFnv1A64 =
+        0x641BA73668C75E0EUL;
+    private const ulong M02OwnedIdtGateNormalizedPolicyFnv1A64 =
+        0x8514F42EBDFC5D55UL;
+
+    private static bool WriteM02OwnedIdtGatePopulationProbe(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial,
+        EfiSystemTable* systemTable)
+    {
+        WriteM02OwnedIdtGatePopulationStartLine(console, serial);
+
+        EfiBootServices* bootServices =
+            systemTable == null ? null : systemTable->BootServices;
+        if (bootServices == null ||
+            bootServices->AllocatePages == null ||
+            bootServices->FreePages == null)
+        {
+            WriteM02OwnedIdtGatePopulationFailureLines(console, serial);
+            return false;
+        }
+
+        ulong arenaAddress = 0;
+        ulong allocationStatus = bootServices->AllocatePages(
+            M02OwnedIdtGateAllocateAnyPages,
+            M02OwnedIdtGateEfiLoaderData,
+            M02OwnedIdtGateAllocationPages,
+            &arenaAddress);
+        if (allocationStatus != 0)
+        {
+            WriteM02OwnedIdtGatePopulationFailureLines(console, serial);
+            return false;
+        }
+
+        bool addressValid =
+            arenaAddress != 0 &&
+            (arenaAddress & (M02OwnedIdtGatePageBytes - 1)) == 0 &&
+            OS.Kernel.Diagnostics
+                .PopulateAllN256IDTVectorsOwnedGatesNever
+                .IsCanonicalX64Address(arenaAddress) &&
+            arenaAddress <= ~0UL - M02OwnedIdtGateArenaBytes;
+        ulong idtPageAddress = addressValid
+            ? arenaAddress + M02OwnedIdtGatePageBytes
+            : 0;
+        ulong commonTargetAddress = addressValid
+            ? arenaAddress + (2 * M02OwnedIdtGatePageBytes)
+            : 0;
+        ulong arenaEndInclusive = addressValid
+            ? arenaAddress + M02OwnedIdtGateArenaBytes - 1
+            : 0;
+        addressValid =
+            addressValid &&
+            OS.Kernel.Diagnostics
+                .PopulateAllN256IDTVectorsOwnedGatesNever
+                .IsCanonicalX64Address(idtPageAddress) &&
+            OS.Kernel.Diagnostics
+                .PopulateAllN256IDTVectorsOwnedGatesNever
+                .IsCanonicalX64Address(commonTargetAddress) &&
+            OS.Kernel.Diagnostics
+                .PopulateAllN256IDTVectorsOwnedGatesNever
+                .IsCanonicalX64Address(arenaEndInclusive) &&
+            ((arenaAddress >> 47) & 1UL) ==
+                ((arenaEndInclusive >> 47) & 1UL);
+
+        bool resultsMatch = false;
+        if (addressValid)
+        {
+            OS.Kernel.Diagnostics.NormalizeInterruptFramePageResult
+                stubMaterializeResult =
+                OS.Kernel.Diagnostics
+                    .NormalizeErrorCodeNonErrorCodeInterruptFrame
+                    .Materialize(
+                        (byte*)arenaAddress,
+                        M02OwnedIdtGatePageBytes,
+                        arenaAddress,
+                        commonTargetAddress);
+            OS.Kernel.Diagnostics.NormalizeInterruptFramePageResult
+                stubReadBackResult =
+                OS.Kernel.Diagnostics
+                    .NormalizeErrorCodeNonErrorCodeInterruptFrame
+                    .ValidateReadBack(
+                        (byte*)arenaAddress,
+                        M02OwnedIdtGatePageBytes,
+                        arenaAddress,
+                        commonTargetAddress);
+            OS.Kernel.Diagnostics.OwnedIdtGateTableResult
+                idtMaterializeResult =
+                OS.Kernel.Diagnostics
+                    .PopulateAllN256IDTVectorsOwnedGatesNever
+                    .Materialize(
+                        (byte*)idtPageAddress,
+                        M02OwnedIdtGatePageBytes,
+                        idtPageAddress,
+                        arenaAddress);
+            OS.Kernel.Diagnostics.OwnedIdtGateTableResult
+                idtReadBackResult =
+                OS.Kernel.Diagnostics
+                    .PopulateAllN256IDTVectorsOwnedGatesNever
+                    .ValidateReadBack(
+                        (byte*)idtPageAddress,
+                        M02OwnedIdtGatePageBytes,
+                        idtPageAddress,
+                        arenaAddress);
+
+            resultsMatch =
+                M02OwnedIdtGateStubResultMatches(
+                    stubMaterializeResult,
+                    OS.Kernel.Diagnostics
+                        .NormalizeInterruptFramePageOperation.Materialize,
+                    arenaAddress,
+                    commonTargetAddress,
+                    true) &&
+                M02OwnedIdtGateStubResultMatches(
+                    stubReadBackResult,
+                    OS.Kernel.Diagnostics
+                        .NormalizeInterruptFramePageOperation
+                        .ValidateReadBack,
+                    arenaAddress,
+                    commonTargetAddress,
+                    false) &&
+                stubMaterializeResult.Fingerprint ==
+                    stubReadBackResult.Fingerprint &&
+                M02OwnedIdtGateTableResultMatches(
+                    idtMaterializeResult,
+                    OS.Kernel.Diagnostics
+                        .OwnedIdtGateTableOperation.Materialize,
+                    idtPageAddress,
+                    arenaAddress,
+                    true) &&
+                M02OwnedIdtGateTableResultMatches(
+                    idtReadBackResult,
+                    OS.Kernel.Diagnostics
+                        .OwnedIdtGateTableOperation.ValidateReadBack,
+                    idtPageAddress,
+                    arenaAddress,
+                    false) &&
+                idtMaterializeResult.Fingerprint ==
+                    idtReadBackResult.Fingerprint;
+        }
+
+        ulong releaseStatus = bootServices->FreePages(
+            arenaAddress,
+            M02OwnedIdtGateAllocationPages);
+        if (!addressValid || !resultsMatch || releaseStatus != 0)
+        {
+            WriteM02OwnedIdtGatePopulationFailureLines(console, serial);
+            return false;
+        }
+
+        WriteM02OwnedIdtGatePopulationSuccessLine(console, serial);
+        WriteM02OwnedIdtGatePopulationPassLine(console, serial);
+        return true;
+    }
+
+    private static bool M02OwnedIdtGateStubResultMatches(
+        OS.Kernel.Diagnostics.NormalizeInterruptFramePageResult result,
+        OS.Kernel.Diagnostics.NormalizeInterruptFramePageOperation operation,
+        ulong pageAddress,
+        ulong commonTargetAddress,
+        bool materialized)
+    {
+        return result.IsInitialized &&
+            result.Operation == operation &&
+            result.Status ==
+                OS.Kernel.Diagnostics
+                    .NormalizeInterruptFramePageStatus.Success &&
+            result.ModeledPageAddress == pageAddress &&
+            result.CommonTargetAddress == commonTargetAddress &&
+            result.PageCapacity == M02OwnedIdtGatePageBytes &&
+            result.RequiredBytes == (int)M02OwnedIdtGatePageBytes &&
+            result.BytesWritten ==
+                (materialized ? (int)M02OwnedIdtGatePageBytes : 0) &&
+            result.BytesCompared == (int)M02OwnedIdtGatePageBytes &&
+            result.FirstMismatchOffset == -1 &&
+            result.HardwareErrorCodeVectorCount == 9 &&
+            result.SyntheticErrorCodeVectorCount == 247 &&
+            result.Fingerprint == M02OwnedIdtGateStubExpectedFnv1A64 &&
+            result.DestinationMutated == materialized &&
+            result.ReadBackPerformed &&
+            result.Materialized == materialized &&
+            result.ReadBackValidated == !materialized &&
+            result.Succeeded;
+    }
+
+    private static bool M02OwnedIdtGateTableResultMatches(
+        OS.Kernel.Diagnostics.OwnedIdtGateTableResult result,
+        OS.Kernel.Diagnostics.OwnedIdtGateTableOperation operation,
+        ulong tableAddress,
+        ulong stubPageAddress,
+        bool materialized)
+    {
+        return result.IsInitialized &&
+            result.Operation == operation &&
+            result.Status ==
+                OS.Kernel.Diagnostics.OwnedIdtGateTableStatus.Success &&
+            result.ModeledTableAddress == tableAddress &&
+            result.OwnedStubPageAddress == stubPageAddress &&
+            result.TableCapacity == M02OwnedIdtGatePageBytes &&
+            result.RequiredBytes == (int)M02OwnedIdtGatePageBytes &&
+            result.DescriptorCount == 256 &&
+            result.PresentDescriptorCount == 256 &&
+            result.IstRoutedDescriptorCount == 3 &&
+            result.DefaultIstDescriptorCount == 253 &&
+            result.FirmwareGateCopyCount == 0 &&
+            result.BytesWritten ==
+                (materialized ? (int)M02OwnedIdtGatePageBytes : 0) &&
+            result.BytesCompared == (int)M02OwnedIdtGatePageBytes &&
+            result.FirstMismatchOffset == -1 &&
+            result.FirstMismatchVector == -1 &&
+            result.NormalizedPolicyFingerprint ==
+                M02OwnedIdtGateNormalizedPolicyFnv1A64 &&
+            result.DestinationMutated == materialized &&
+            result.ReadBackPerformed &&
+            result.Materialized == materialized &&
+            result.ReadBackValidated == !materialized &&
+            result.Succeeded;
+    }
+
+    private static void WriteM02OwnedIdtGatePopulationStartLine(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'T', (byte)'E', (byte)'S', (byte)'T', (byte)'_', (byte)'S', (byte)'T', (byte)'A');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'R', (byte)'T', (byte)' ', (byte)'m', (byte)'0', (byte)'2', (byte)'.', (byte)'0');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'1', (byte)'1', 0, 0, 0, 0, 0, 0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM02OwnedIdtGatePopulationSuccessLine(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'C', (byte)'L', (byte)'R', (byte)'O', (byte)'S', (byte)'_', (byte)'M', (byte)'0');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'2', (byte)'_', (byte)'0', (byte)'1', (byte)'1', (byte)'_', (byte)'R', (byte)'E');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'A', (byte)'D', (byte)'Y', (byte)' ', (byte)'v', (byte)'e', (byte)'c', (byte)'t');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'o', (byte)'r', (byte)'s', (byte)'=', (byte)'2', (byte)'5', (byte)'6', (byte)' ');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'g', (byte)'a', (byte)'t', (byte)'e', (byte)'s', (byte)'=', (byte)'2', (byte)'5');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'6', (byte)' ', (byte)'g', (byte)'a', (byte)'t', (byte)'e', (byte)'B', (byte)'y');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'t', (byte)'e', (byte)'s', (byte)'=', (byte)'1', (byte)'6', (byte)' ', (byte)'t');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'a', (byte)'b', (byte)'l', (byte)'e', (byte)'B', (byte)'y', (byte)'t', (byte)'e');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'s', (byte)'=', (byte)'4', (byte)'0', (byte)'9', (byte)'6', (byte)' ', (byte)'s');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'e', (byte)'l', (byte)'e', (byte)'c', (byte)'t', (byte)'o', (byte)'r', (byte)'=');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'8', (byte)' ', (byte)'p', (byte)'r', (byte)'e', (byte)'s', (byte)'e', (byte)'n');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'t', (byte)'=', (byte)'2', (byte)'5', (byte)'6', (byte)' ', (byte)'d', (byte)'p');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'l', (byte)'0', (byte)'=', (byte)'2', (byte)'5', (byte)'6', (byte)' ', (byte)'i');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'n', (byte)'t', (byte)'e', (byte)'r', (byte)'r', (byte)'u', (byte)'p', (byte)'t');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'G', (byte)'a', (byte)'t', (byte)'e', (byte)'s', (byte)'=', (byte)'2', (byte)'5');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'6', (byte)' ', (byte)'o', (byte)'w', (byte)'n', (byte)'e', (byte)'d', (byte)'H');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'a', (byte)'n', (byte)'d', (byte)'l', (byte)'e', (byte)'r', (byte)'s', (byte)'=');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'2', (byte)'5', (byte)'6', (byte)' ', (byte)'f', (byte)'i', (byte)'r', (byte)'m');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'w', (byte)'a', (byte)'r', (byte)'e', (byte)'G', (byte)'a', (byte)'t', (byte)'e');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'s', (byte)'C', (byte)'o', (byte)'p', (byte)'i', (byte)'e', (byte)'d', (byte)'=');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'0', (byte)' ', (byte)'n', (byte)'m', (byte)'i', (byte)'I', (byte)'s', (byte)'t');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'=', (byte)'3', (byte)' ', (byte)'d', (byte)'o', (byte)'u', (byte)'b', (byte)'l');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'e', (byte)'F', (byte)'a', (byte)'u', (byte)'l', (byte)'t', (byte)'I', (byte)'s');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'t', (byte)'=', (byte)'1', (byte)' ', (byte)'p', (byte)'a', (byte)'g', (byte)'e');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'F', (byte)'a', (byte)'u', (byte)'l', (byte)'t', (byte)'I', (byte)'s', (byte)'t');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'=', (byte)'2', (byte)' ', (byte)'n', (byte)'o', (byte)'r', (byte)'m', (byte)'a');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'l', (byte)'i', (byte)'z', (byte)'e', (byte)'d', (byte)'F', (byte)'n', (byte)'v');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'1', (byte)'a', (byte)'6', (byte)'4', (byte)'=', (byte)'8', (byte)'5', (byte)'1');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'4', (byte)'F', (byte)'4', (byte)'2', (byte)'E', (byte)'B', (byte)'D', (byte)'F');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'C', (byte)'5', (byte)'D', (byte)'5', (byte)'5', (byte)' ', (byte)'r', (byte)'e');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'a', (byte)'d', (byte)'B', (byte)'a', (byte)'c', (byte)'k', (byte)'=', (byte)'t');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'r', (byte)'u', (byte)'e', (byte)' ', (byte)'g', (byte)'u', (byte)'e', (byte)'s');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'t', (byte)'P', (byte)'o', (byte)'p', (byte)'u', (byte)'l', (byte)'a', (byte)'t');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'i', (byte)'o', (byte)'n', (byte)'=', (byte)'t', (byte)'r', (byte)'u', (byte)'e');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)' ', (byte)'l', (byte)'o', (byte)'a', (byte)'d', (byte)'e', (byte)'r', (byte)'D');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'a', (byte)'t', (byte)'a', (byte)'=', (byte)'t', (byte)'r', (byte)'u', (byte)'e');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)' ', (byte)'a', (byte)'l', (byte)'l', (byte)'o', (byte)'c', (byte)'a', (byte)'t');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'i', (byte)'o', (byte)'n', (byte)'P', (byte)'a', (byte)'g', (byte)'e', (byte)'s');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'=', (byte)'3', (byte)' ', (byte)'a', (byte)'l', (byte)'l', (byte)'o', (byte)'c');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'a', (byte)'t', (byte)'i', (byte)'o', (byte)'n', (byte)'R', (byte)'e', (byte)'l');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'e', (byte)'a', (byte)'s', (byte)'e', (byte)'d', (byte)'=', (byte)'t', (byte)'r');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'u', (byte)'e', (byte)' ', (byte)'s', (byte)'t', (byte)'u', (byte)'b', (byte)'E');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'x', (byte)'e', (byte)'c', (byte)'u', (byte)'t', (byte)'i', (byte)'o', (byte)'n');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'=', (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ', (byte)'i');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'d', (byte)'t', (byte)'r', (byte)'L', (byte)'o', (byte)'a', (byte)'d', (byte)'e');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'d', (byte)'=', (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'f', (byte)'a', (byte)'u', (byte)'l', (byte)'t', (byte)'T', (byte)'r', (byte)'i');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'g', (byte)'g', (byte)'e', (byte)'r', (byte)'e', (byte)'d', (byte)'=', (byte)'f');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ', (byte)'m', (byte)'a', (byte)'r');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'k', (byte)'e', (byte)'r', (byte)'T', (byte)'r', (byte)'a', (byte)'n', (byte)'s');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'p', (byte)'o', (byte)'r', (byte)'t', (byte)'=', (byte)'u', (byte)'e', (byte)'f');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'i', (byte)'S', (byte)'e', (byte)'r', (byte)'i', (byte)'a', (byte)'l', (byte)' ');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'p', (byte)'o', (byte)'s', (byte)'t', (byte)'E', (byte)'x', (byte)'i', (byte)'t');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'B', (byte)'o', (byte)'o', (byte)'t', (byte)'S', (byte)'e', (byte)'r', (byte)'v');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'i', (byte)'c', (byte)'e', (byte)'s', (byte)'=', (byte)'f', (byte)'a', (byte)'l');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'s', (byte)'e', 0, 0, 0, 0, 0, 0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM02OwnedIdtGatePopulationPassLine(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'T', (byte)'E', (byte)'S', (byte)'T', (byte)'_', (byte)'P', (byte)'A', (byte)'S');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'S', (byte)' ', (byte)'m', (byte)'0', (byte)'2', (byte)'.', (byte)'0', (byte)'1');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'1', 0, 0, 0, 0, 0, 0, 0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM02OwnedIdtGatePopulationFailureLines(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'M', (byte)'0', (byte)'2', (byte)'_', (byte)'O', (byte)'W', (byte)'N', (byte)'E');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'D', (byte)'_', (byte)'I', (byte)'D', (byte)'T', (byte)'_', (byte)'G', (byte)'A');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'T', (byte)'E', (byte)'_', (byte)'P', (byte)'O', (byte)'P', (byte)'U', (byte)'L');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'A', (byte)'T', (byte)'I', (byte)'O', (byte)'N', (byte)'_', (byte)'F', (byte)'A');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'I', (byte)'L', (byte)'E', (byte)'D', 0, 0, 0, 0);
+        WriteCrLf(console, serial);
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'T', (byte)'E', (byte)'S', (byte)'T', (byte)'_', (byte)'F', (byte)'A', (byte)'I');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'L', (byte)' ', (byte)'m', (byte)'0', (byte)'2', (byte)'.', (byte)'0', (byte)'1');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'1', (byte)' ', (byte)'g', (byte)'u', (byte)'e', (byte)'s', (byte)'t', (byte)'_');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'p', (byte)'o', (byte)'p', (byte)'u', (byte)'l', (byte)'a', (byte)'t', (byte)'i');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'o', (byte)'n', (byte)'_', (byte)'r', (byte)'e', (byte)'a', (byte)'d', (byte)'b');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'a', (byte)'c', (byte)'k', (byte)'_', (byte)'o', (byte)'r', (byte)'_', (byte)'c');
+        WriteM02OwnedIdtGatePopulationAscii(console, serial, (byte)'l', (byte)'e', (byte)'a', (byte)'n', (byte)'u', (byte)'p', 0, 0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM02OwnedIdtGatePopulationAscii(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial,
+        byte b0,
+        byte b1,
+        byte b2,
+        byte b3,
+        byte b4,
+        byte b5,
+        byte b6,
+        byte b7)
+    {
+        if (b0 != 0) Write(console, serial, b0);
+        if (b1 != 0) Write(console, serial, b1);
+        if (b2 != 0) Write(console, serial, b2);
+        if (b3 != 0) Write(console, serial, b3);
+        if (b4 != 0) Write(console, serial, b4);
+        if (b5 != 0) Write(console, serial, b5);
+        if (b6 != 0) Write(console, serial, b6);
+        if (b7 != 0) Write(console, serial, b7);
+    }
+#endif
+
 
     private static void WriteUefiMemoryMapReady(EfiSimpleTextOutputProtocol* console, EfiSerialIoProtocol* serial)
     {
