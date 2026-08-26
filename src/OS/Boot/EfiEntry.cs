@@ -7612,20 +7612,46 @@ public static unsafe class EfiEntry
     private static bool PrepareM02Ud2VectorStateProbe(
         EfiSimpleTextOutputProtocol* console,
         EfiSerialIoProtocol* serial,
-        EfiSystemTable* systemTable)
+        EfiBootServices* bootServices)
     {
         ulong codeAddress = 0;
         ulong dataAddress = 0;
         bool codeAllocated = false;
         bool dataAllocated = false;
-        EfiBootServices* bootServices = systemTable == null
-            ? null
-            : systemTable->BootServices;
 
-        if (s_m02Ud2VectorStateState != 0 ||
-            bootServices == null ||
-            bootServices->AllocatePages == null ||
-            bootServices->FreePages == null)
+        OS.Kernel.Diagnostics.DisabledDefaultUd2VectorStatePreTerminalResult
+            serviceEvaluation = OS.Kernel.Diagnostics
+                .DisabledDefaultUd2VectorStatePreTerminalContract
+                .EvaluateServices(
+                    s_m02Ud2VectorStateState,
+                    bootServices != null,
+                    bootServices != null &&
+                        bootServices->AllocatePages != null,
+                    bootServices != null &&
+                        bootServices->FreePages != null);
+        if (serviceEvaluation.Status == OS.Kernel.Diagnostics
+                .DisabledDefaultUd2VectorStatePreTerminalStatus
+                .ExistingState)
+        {
+            if (s_m02Ud2VectorStateState ==
+                    M02Ud2VectorStatePreparedState &&
+                bootServices != null &&
+                bootServices->FreePages != null)
+            {
+                return FailM02Ud2VectorStateBeforeEntry(
+                    console,
+                    serial,
+                    bootServices,
+                    s_m02Ud2VectorStateCodeAddress,
+                    true,
+                    s_m02Ud2VectorStateDataAddress,
+                    true);
+            }
+
+            return false;
+        }
+
+        if (!serviceEvaluation.Succeeded)
         {
             return FailM02Ud2VectorStateBeforeEntry(
                 console,
@@ -7642,12 +7668,12 @@ public static unsafe class EfiEntry
             M02Ud2VectorStateEfiLoaderCode,
             M02Ud2VectorStateCodePageCount,
             &codeAddress);
-        codeAllocated = firmwareStatus == M02Ud2VectorStateEfiSuccess &&
-            codeAddress != 0;
-        if (!codeAllocated ||
-            !IsValidM02Ud2VectorStateRange(
-                codeAddress,
-                M02Ud2VectorStateCodeByteCount))
+        codeAllocated = firmwareStatus == M02Ud2VectorStateEfiSuccess;
+        OS.Kernel.Diagnostics.DisabledDefaultUd2VectorStatePreTerminalResult
+            codeEvaluation = OS.Kernel.Diagnostics
+                .DisabledDefaultUd2VectorStatePreTerminalContract
+                .EvaluateCodeAllocation(firmwareStatus, codeAddress);
+        if (!codeEvaluation.Succeeded)
         {
             return FailM02Ud2VectorStateBeforeEntry(
                 console,
@@ -7664,17 +7690,15 @@ public static unsafe class EfiEntry
             M02Ud2VectorStateEfiLoaderData,
             M02Ud2VectorStateDataPageCount,
             &dataAddress);
-        dataAllocated = firmwareStatus == M02Ud2VectorStateEfiSuccess &&
-            dataAddress != 0;
-        if (!dataAllocated ||
-            !IsValidM02Ud2VectorStateRange(
-                dataAddress,
-                M02Ud2VectorStateDataByteCount) ||
-            M02Ud2VectorStateRangesOverlap(
-                codeAddress,
-                M02Ud2VectorStateCodeByteCount,
-                dataAddress,
-                M02Ud2VectorStateDataByteCount))
+        dataAllocated = firmwareStatus == M02Ud2VectorStateEfiSuccess;
+        OS.Kernel.Diagnostics.DisabledDefaultUd2VectorStatePreTerminalResult
+            dataEvaluation = OS.Kernel.Diagnostics
+                .DisabledDefaultUd2VectorStatePreTerminalContract
+                .EvaluateDataAllocation(
+                    codeAddress,
+                    firmwareStatus,
+                    dataAddress);
+        if (!dataEvaluation.Succeeded)
         {
             return FailM02Ud2VectorStateBeforeEntry(
                 console,
@@ -7820,38 +7844,22 @@ public static unsafe class EfiEntry
                     contextAddress + 64,
                     103);
 
-        if (!M02Ud2VectorStateNormalizedResultMatches(
+        bool materializationSucceeded =
+            M02Ud2VectorStateNormalizedResultMatches(
                 normalizedMaterialized,
                 OS.Kernel.Diagnostics.NormalizeInterruptFramePageOperation
                     .Materialize,
                 codeAddress,
                 commonTargetAddress,
-                true) ||
-            !M02Ud2VectorStateNormalizedResultMatches(
-                normalizedReadBack,
-                OS.Kernel.Diagnostics.NormalizeInterruptFramePageOperation
-                    .ValidateReadBack,
-                codeAddress,
-                commonTargetAddress,
-                false) ||
-            normalizedMaterialized.Fingerprint !=
-                normalizedReadBack.Fingerprint ||
-            !M02Ud2VectorStateIdtResultMatches(
+                true) &&
+            M02Ud2VectorStateIdtResultMatches(
                 idtMaterialized,
                 OS.Kernel.Diagnostics.OwnedIdtGateTableOperation
                     .Materialize,
                 idtAddress,
                 codeAddress,
-                true) ||
-            !M02Ud2VectorStateIdtResultMatches(
-                idtReadBack,
-                OS.Kernel.Diagnostics.OwnedIdtGateTableOperation
-                    .ValidateReadBack,
-                idtAddress,
-                codeAddress,
-                false) ||
-            idtMaterialized.Fingerprint != idtReadBack.Fingerprint ||
-            !M02Ud2VectorStateTransitionResultMatches(
+                true) &&
+            M02Ud2VectorStateTransitionResultMatches(
                 contextPrepared,
                 OS.Kernel.Diagnostics
                     .DisabledDefaultUd2VectorStateTransitionOperation
@@ -7859,8 +7867,8 @@ public static unsafe class EfiEntry
                 contextAddress,
                 0,
                 idtAddress,
-                true) ||
-            !M02Ud2VectorStateTransitionResultMatches(
+                true) &&
+            M02Ud2VectorStateTransitionResultMatches(
                 streamEmitted,
                 OS.Kernel.Diagnostics
                     .DisabledDefaultUd2VectorStateTransitionOperation
@@ -7868,8 +7876,47 @@ public static unsafe class EfiEntry
                 contextAddress,
                 commonTargetAddress,
                 idtAddress,
-                true) ||
-            !M02Ud2VectorStateTransitionResultMatches(
+                true) &&
+            contextPrepared.ContextFingerprint ==
+                streamEmitted.ContextFingerprint;
+        OS.Kernel.Diagnostics.DisabledDefaultUd2VectorStatePreTerminalResult
+            materializationEvaluation = OS.Kernel.Diagnostics
+                .DisabledDefaultUd2VectorStatePreTerminalContract
+                .EvaluateMaterialization(
+                    codeAddress,
+                    dataAddress,
+                    materializationSucceeded);
+        if (!materializationEvaluation.Succeeded)
+        {
+            return FailM02Ud2VectorStateBeforeEntry(
+                console,
+                serial,
+                bootServices,
+                codeAddress,
+                codeAllocated,
+                dataAddress,
+                dataAllocated);
+        }
+
+        bool readBackSucceeded =
+            M02Ud2VectorStateNormalizedResultMatches(
+                normalizedReadBack,
+                OS.Kernel.Diagnostics.NormalizeInterruptFramePageOperation
+                    .ValidateReadBack,
+                codeAddress,
+                commonTargetAddress,
+                false) &&
+            normalizedMaterialized.Fingerprint ==
+                normalizedReadBack.Fingerprint &&
+            M02Ud2VectorStateIdtResultMatches(
+                idtReadBack,
+                OS.Kernel.Diagnostics.OwnedIdtGateTableOperation
+                    .ValidateReadBack,
+                idtAddress,
+                codeAddress,
+                false) &&
+            idtMaterialized.Fingerprint == idtReadBack.Fingerprint &&
+            M02Ud2VectorStateTransitionResultMatches(
                 streamReadBack,
                 OS.Kernel.Diagnostics
                     .DisabledDefaultUd2VectorStateTransitionOperation
@@ -7877,21 +7924,27 @@ public static unsafe class EfiEntry
                 contextAddress,
                 commonTargetAddress,
                 idtAddress,
-                false) ||
-            contextPrepared.ContextFingerprint !=
-                streamEmitted.ContextFingerprint ||
-            contextPrepared.ContextFingerprint !=
-                streamReadBack.ContextFingerprint ||
-            streamEmitted.StreamFingerprint !=
-                streamReadBack.StreamFingerprint ||
-            !M02Ud2VectorStateGdtResultMatches(gdtReadBack) ||
-            !IsM02Ud2VectorStateRangeZero(
+                false) &&
+            contextPrepared.ContextFingerprint ==
+                streamReadBack.ContextFingerprint &&
+            streamEmitted.StreamFingerprint ==
+                streamReadBack.StreamFingerprint &&
+            M02Ud2VectorStateGdtResultMatches(gdtReadBack) &&
+            IsM02Ud2VectorStateRangeZero(
                 contextBytes,
                 (ulong)OS.Kernel.Diagnostics
                     .DisabledDefaultUd2VectorStateTransition
                     .ContextByteCount,
-                M02Ud2VectorStatePageSize) ||
-            !AreM02Ud2VectorStateIstPagesZero(data))
+                M02Ud2VectorStatePageSize) &&
+            AreM02Ud2VectorStateIstPagesZero(data);
+        OS.Kernel.Diagnostics.DisabledDefaultUd2VectorStatePreTerminalResult
+            readBackEvaluation = OS.Kernel.Diagnostics
+                .DisabledDefaultUd2VectorStatePreTerminalContract
+                .EvaluateReadBack(
+                    codeAddress,
+                    dataAddress,
+                    readBackSucceeded);
+        if (!readBackEvaluation.Succeeded)
         {
             return FailM02Ud2VectorStateBeforeEntry(
                 console,
@@ -8159,16 +8212,9 @@ public static unsafe class EfiEntry
         ulong address,
         ulong byteCount)
     {
-        return address != 0 &&
-            byteCount != 0 &&
-            (address & (M02Ud2VectorStatePageSize - 1)) == 0 &&
-            address <= ~0UL - byteCount &&
-            OS.Kernel.Diagnostics
-                .DisabledDefaultUd2VectorStateTransition
-                .IsCanonicalX64Address(address) &&
-            OS.Kernel.Diagnostics
-                .DisabledDefaultUd2VectorStateTransition
-                .IsCanonicalX64Address(address + byteCount - 1);
+        return OS.Kernel.Diagnostics
+            .DisabledDefaultUd2VectorStatePreTerminalContract
+            .IsValidRange(address, byteCount);
     }
 
     private static bool M02Ud2VectorStateRangesOverlap(
@@ -8177,9 +8223,13 @@ public static unsafe class EfiEntry
         ulong secondAddress,
         ulong secondByteCount)
     {
-        ulong firstEnd = firstAddress + firstByteCount;
-        ulong secondEnd = secondAddress + secondByteCount;
-        return firstAddress < secondEnd && secondAddress < firstEnd;
+        return OS.Kernel.Diagnostics
+            .DisabledDefaultUd2VectorStatePreTerminalContract
+            .RangesOverlap(
+                firstAddress,
+                firstByteCount,
+                secondAddress,
+                secondByteCount);
     }
 
     private static bool IsM02Ud2VectorStateRangeZero(
@@ -8224,8 +8274,35 @@ public static unsafe class EfiEntry
         EfiSerialIoProtocol* serial,
         EfiBootServices* bootServices)
     {
-        if (!ValidateM02Ud2VectorStateResources() ||
-            !M01StageThreeAdapter.TryWriteM02Ud2VectorStateStartLine())
+        OS.Kernel.Diagnostics.DisabledDefaultUd2VectorStatePreTerminalResult
+            readBackEvaluation = OS.Kernel.Diagnostics
+                .DisabledDefaultUd2VectorStatePreTerminalContract
+                .EvaluateReadBack(
+                    s_m02Ud2VectorStateCodeAddress,
+                    s_m02Ud2VectorStateDataAddress,
+                    ValidateM02Ud2VectorStateResources());
+        if (!readBackEvaluation.Succeeded)
+        {
+            _ = FailM02Ud2VectorStateBeforeEntry(
+                console,
+                serial,
+                bootServices,
+                s_m02Ud2VectorStateCodeAddress,
+                s_m02Ud2VectorStateCodeAddress != 0,
+                s_m02Ud2VectorStateDataAddress,
+                s_m02Ud2VectorStateDataAddress != 0);
+            SpinM02Ud2VectorStateProbe();
+        }
+
+        OS.Kernel.Diagnostics.DisabledDefaultUd2VectorStatePreTerminalResult
+            markerEvaluation = OS.Kernel.Diagnostics
+                .DisabledDefaultUd2VectorStatePreTerminalContract
+                .EvaluateMarkerTransport(
+                    s_m02Ud2VectorStateCodeAddress,
+                    s_m02Ud2VectorStateDataAddress,
+                    M01StageThreeAdapter
+                        .TryWriteM02Ud2VectorStateStartLine());
+        if (!markerEvaluation.Succeeded)
         {
             _ = FailM02Ud2VectorStateBeforeEntry(
                 console,
@@ -8256,9 +8333,15 @@ public static unsafe class EfiEntry
                     (s_m02Ud2VectorStateDataAddress +
                         M02Ud2VectorStatePageSize);
 
-        s_m02Ud2VectorStateState = M02Ud2VectorStateEnteredState;
-        if (X64InstructionPublication.Serialize() !=
-            X64InstructionPublication.ExpectedSuccessCookie)
+        OS.Kernel.Diagnostics.DisabledDefaultUd2VectorStatePreTerminalResult
+            publicationEvaluation = OS.Kernel.Diagnostics
+                .DisabledDefaultUd2VectorStatePreTerminalContract
+                .EvaluatePublication(
+                    s_m02Ud2VectorStateCodeAddress,
+                    s_m02Ud2VectorStateDataAddress,
+                    X64InstructionPublication.Serialize() ==
+                        X64InstructionPublication.ExpectedSuccessCookie);
+        if (!publicationEvaluation.Succeeded)
         {
             _ = FailM02Ud2VectorStateBeforeEntry(
                 console,
@@ -8270,6 +8353,7 @@ public static unsafe class EfiEntry
                 s_m02Ud2VectorStateDataAddress != 0);
             SpinM02Ud2VectorStateProbe();
         }
+        s_m02Ud2VectorStateState = M02Ud2VectorStateEnteredState;
         terminalEntry(context);
 
         SpinM02Ud2VectorStateProbe();
@@ -8281,24 +8365,13 @@ public static unsafe class EfiEntry
         bool dataAllocated,
         ulong dataAddress)
     {
-        byte plan = 0;
-        if (dataAllocated && dataAddress != 0)
-        {
-            plan |= 1;
-        }
-
-        if (codeAllocated &&
-            codeAddress != 0 &&
-            (!dataAllocated ||
-                dataAddress == 0 ||
-                M02Ud2VectorStateAllocationRangesDefinitelyDisjoint(
-                    codeAddress,
-                    dataAddress)))
-        {
-            plan |= 2;
-        }
-
-        return plan;
+        return OS.Kernel.Diagnostics
+            .DisabledDefaultUd2VectorStatePreTerminalContract
+            .PlanCleanup(
+                codeAllocated,
+                codeAddress,
+                dataAllocated,
+                dataAddress);
     }
 
     private static bool
@@ -8306,17 +8379,9 @@ public static unsafe class EfiEntry
             ulong codeAddress,
             ulong dataAddress)
     {
-        if (codeAddress > ~0UL - M02Ud2VectorStateCodeByteCount ||
-            dataAddress > ~0UL - M02Ud2VectorStateDataByteCount)
-        {
-            return false;
-        }
-
-        ulong codeEnd =
-            codeAddress + M02Ud2VectorStateCodeByteCount;
-        ulong dataEnd =
-            dataAddress + M02Ud2VectorStateDataByteCount;
-        return codeEnd <= dataAddress || dataEnd <= codeAddress;
+        return OS.Kernel.Diagnostics
+            .DisabledDefaultUd2VectorStatePreTerminalContract
+            .AllocationRangesDefinitelyDisjoint(codeAddress, dataAddress);
     }
 
     private static bool FailM02Ud2VectorStateBeforeEntry(
@@ -8484,15 +8549,6 @@ public static unsafe class EfiEntry
             return 0;
         }
 #endif
-#if M02_UD2_VECTOR_STATE_PROBE
-        if (!PrepareM02Ud2VectorStateProbe(
-                console,
-                serial,
-                systemTable))
-        {
-            return 0;
-        }
-#endif
         WriteBootMarkers(imageHandle, console, serial, systemTable);
 
 #if M02_OWNED_GDT_TSS_TERMINAL_PROBE
@@ -8505,17 +8561,6 @@ public static unsafe class EfiEntry
             s_m02OwnedGdtTssTerminalDataAddress,
             s_m02OwnedGdtTssTerminalDataAddress != 0);
 #endif
-#if M02_UD2_VECTOR_STATE_PROBE
-        _ = FailM02Ud2VectorStateBeforeEntry(
-            console,
-            serial,
-            systemTable == null ? null : systemTable->BootServices,
-            s_m02Ud2VectorStateCodeAddress,
-            s_m02Ud2VectorStateCodeAddress != 0,
-            s_m02Ud2VectorStateDataAddress,
-            s_m02Ud2VectorStateDataAddress != 0);
-#endif
-
         return 0;
     }
 
@@ -15076,6 +15121,13 @@ public static unsafe class EfiEntry
                     s_console,
                     s_serial);
 #if M02_UD2_VECTOR_STATE_PROBE
+                if (!EfiEntry.PrepareM02Ud2VectorStateProbe(
+                        s_console,
+                        s_serial,
+                        s_bootServices))
+                {
+                    Spin();
+                }
                 EfiEntry.EnterM02Ud2VectorStateProbe(
                     s_console,
                     s_serial,

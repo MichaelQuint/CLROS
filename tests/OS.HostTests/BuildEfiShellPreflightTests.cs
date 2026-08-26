@@ -647,6 +647,16 @@ internal static class BuildEfiShellPreflightTests
             false,
             source.ScriptPath,
             [.. enabledArguments, "-EnableM04IndependentEndianConformanceProbe"]);
+        ProcessResult ownedX64GdtConflict = RunPreflight(
+            tools,
+            false,
+            source.ScriptPath,
+            [.. enabledArguments, "-EnableM02OwnedX64GdtEncodingProbe"]);
+        ProcessResult guardedIstConflict = RunPreflight(
+            tools,
+            false,
+            source.ScriptPath,
+            [.. enabledArguments, "-EnableM02GuardedIstStackAllocationProbe"]);
         ProcessResult terminalConflict = RunPreflight(
             tools,
             false,
@@ -703,6 +713,12 @@ internal static class BuildEfiShellPreflightTests
                 "m02_ud2_vector_state_probe_explicit_false_prerequisite",
                 StringComparison.Ordinal)
             && IsM02ProfileSwitchFailure(
+                ownedX64GdtConflict,
+                "m02_ud2_vector_state_probe_forbids_owned_x64_gdt_encoding_probe")
+            && IsM02ProfileSwitchFailure(
+                guardedIstConflict,
+                "m02_ud2_vector_state_probe_forbids_guarded_ist_stack_allocation_probe")
+            && IsM02ProfileSwitchFailure(
                 terminalConflict,
                 "m02_ud2_vector_state_probe_forbids_owned_gdt_tss_terminal")
             && IsM02ProfileSwitchFailure(
@@ -740,6 +756,8 @@ internal static class BuildEfiShellPreflightTests
                 "M02-013 switch outputs:\n"
                 + enabled.Output
                 + independentM04Allowed.Output
+                + ownedX64GdtConflict.Output
+                + guardedIstConflict.Output
                 + terminalConflict.Output
                 + normalizedConflict.Output
                 + idtConflict.Output
@@ -781,6 +799,30 @@ internal static class BuildEfiShellPreflightTests
             "-p:EnableM02Ud2VectorStateProbe=true",
             "-p:EnableM02PanicSafeOwnedCom1Probe=false");
 
+        ProcessResult ownedX64GdtConflict = RunProcess(
+            "dotnet",
+            repositoryRoot,
+            timeoutMilliseconds: 120000,
+            "build",
+            projectPath,
+            "--nologo",
+            "-m:1",
+            "--disable-build-servers",
+            "-p:EnableM02Ud2VectorStateProbe=true",
+            "-p:EnableM02OwnedX64GdtEncodingProbe=true");
+
+        ProcessResult guardedIstConflict = RunProcess(
+            "dotnet",
+            repositoryRoot,
+            timeoutMilliseconds: 120000,
+            "build",
+            projectPath,
+            "--nologo",
+            "-m:1",
+            "--disable-build-servers",
+            "-p:EnableM02Ud2VectorStateProbe=true",
+            "-p:EnableM02GuardedIstStackAllocationProbe=true");
+
         bool passed = result.ExitCode == 0
             && result.Output.Contains(
                 "Build succeeded.",
@@ -791,10 +833,22 @@ internal static class BuildEfiShellPreflightTests
             && explicitFalse.ExitCode != 0
             && explicitFalse.Output.Contains(
                 "EnableM02Ud2VectorStateProbe requires EnableM02PanicSafeOwnedCom1Probe=true.",
+                StringComparison.Ordinal)
+            && ownedX64GdtConflict.ExitCode != 0
+            && ownedX64GdtConflict.Output.Contains(
+                "EnableM02Ud2VectorStateProbe cannot be combined with EnableM02OwnedX64GdtEncodingProbe=true.",
+                StringComparison.Ordinal)
+            && guardedIstConflict.ExitCode != 0
+            && guardedIstConflict.Output.Contains(
+                "EnableM02Ud2VectorStateProbe cannot be combined with EnableM02GuardedIstStackAllocationProbe=true.",
                 StringComparison.Ordinal);
         if (!passed)
         {
-            Console.WriteLine(result.Output + explicitFalse.Output);
+            Console.WriteLine(
+                result.Output
+                + explicitFalse.Output
+                + ownedX64GdtConflict.Output
+                + guardedIstConflict.Output);
         }
 
         return passed;

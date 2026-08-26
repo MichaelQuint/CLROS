@@ -64,7 +64,7 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
     private const string CompileClosureSha256 =
         "f118a012101e87abf5d1ac1299be82705b47942eae06abb669418977412d124c";
     private const string SourceClosureSha256 =
-        "7228def04b23c0fb97e9a924845d94851cd7f94d1ea220eb8342c56f2eba2f9d";
+        "559999ac08d30b1ff5629a8240d9e822774adc215d5e43b80910297b0c1e5de2";
     private const string FrozenProductionSha256 =
         "00EC277C3F6A0DB49CB54B34810202EE1D508318B29733C3F0392A7BC36CFA38";
     private const string FrozenHostLeafSha256 =
@@ -237,7 +237,7 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
             && normalizedIndex == terminalIndex + 1
             && idtIndex == normalizedIndex + 1
             && idtrIndex == idtIndex + 1
-            && endianIndex == idtrIndex + 1
+            && endianIndex == idtrIndex + 6
             && compileKeys.Count(key => key == IdtKey) == 1
             && compileKeys.Count(key => key == IdtrKey) == 1
             && compileItems.All(item =>

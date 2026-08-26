@@ -39,9 +39,18 @@ one LoaderData IDT page, and an aligned caller-stack context; publishes and
 synchronously invokes the exact reversible transition; verifies raw IDTR/IF
 restoration before any firmware callback; audits; frees data then code; and
 returns to ordinary memory-map capture. Default and enabled NativeAOT artifacts
-have passed same-build verification. Exact QEMU profile dry-run tests pass; a
-fresh real QEMU/OVMF execution remains required before guest execution is
-accepted.
+have passed same-build verification. Exact QEMU profile dry-run tests pass, and
+the accepted 2026-08-26 QEMU/OVMF tuple records the reversible transition and
+ordinary-smoke continuation.
+
+The later default-off `EnableM02Ud2VectorStateProbe` profile source-links its
+reviewed M01/M02 dependencies, allocates two LoaderCode and five LoaderData
+pages, builds fresh owned GDT/TSS/IDT/context/IST state, and enters a frozen
+terminal vector-6 transition only after `OS_SMOKE_PASS`. Default/enabled
+NativeAOT artifact, same-build verifier, typed dry-run, focused host, and real
+QEMU/OVMF evidence pass. This profile deliberately never returns and remains
+pre-`ExitBootServices`; it is not the reusable fault path or hosted-.NET app
+boundary.
 
 ## Implemented Behavior
 
@@ -1071,14 +1080,14 @@ numbered gate; Gate 3 and Gate 4 remain `Fail`.
 The default-false `EnableM02IdtrContinuedExecutionProbe` profile defines exact
 symbol `M02_IDTR_CONTINUED_EXECUTION_PROBE` and source-links the reviewed
 `Diagnostics/IDTRContinuedExecution.cs` leaf immediately after its frozen
-M02-010 and M02-011 dependencies. The current explicit closure is 62 compile
-items with compile-key SHA-256
+M02-010 and M02-011 dependencies. At the accepted M02-012 evidence head, the
+explicit closure was 62 compile items with compile-key SHA-256
 `9B243B135C05442631A0323654FDBE07C827F043703330D8BAA9E83A78A21757`
 and 75 source-authority inputs with closure SHA-256
 `F1543BCDE0DF38127068CF692188A8510DF9E41A61E49FA5CC5A90C785C37A26`.
-The raw project SHA-256 is
+At that evidence head, the raw project SHA-256 was
 `19831A8A437D6003B51D1E89B6B26325C17417EB38B869CE01C18C04C5952BAC`;
-its canonical evaluated XML-shape SHA-256 is
+and its canonical evaluated XML-shape SHA-256 was
 `DE242129BD59B0358211B606F666C0D99F65AB2E23096DA47EC9B182E7D2748E`.
 The integrated `EfiEntry.cs` SHA-256 is
 `FA3F7896078F024B6F5D5300E806B24AE6B739184C39A7292E24382F46E082B8`,
@@ -1187,6 +1196,143 @@ persistent GDT/TSS/IST/IDTR state, W^X/NX (`wxEnforced=false`), NMI/SMI/
 machine-check safety, real `ExitBootServices`, hosted .NET/Kestrel, CloudReady
 status, or production readiness. Gate 2 remains the only passing numbered
 gate; Gate 3 and Gate 4 remain `Fail`.
+
+### M02-013 terminal UD2 vector-state EFI integration
+
+The default-false `EnableM02Ud2VectorStateProbe` profile defines exact symbol
+`M02_UD2_VECTOR_STATE_PROBE`. The typed switch rejects any explicitly false
+prerequisite, otherwise implies the reviewed M01 owned-stack/allocator/paging
+and M02 safe-stub/checked-port/owned-COM1 chain. It is mutually exclusive with
+the returning M02-007/M02-008 descriptor profiles, M02-009 through M02-012
+standalone profiles, and M04-003 span/memory conformance. It requires
+`-BuildEfi`, rejects `-SkipImageBuild`, and rejects a typed M02-013 marker
+without the profile. The all-false build remains unchanged.
+
+The explicit enabled closure contains 67 compile items with compile-list
+SHA-256
+`F118A012101E87ABF5D1AC1299BE82705B47942EAE06ABB669418977412D124C`
+and 80 source-authority inputs with closure SHA-256
+`559999AC08D30B1FF5629A8240D9E822774ADC215D5E43B80910297B0C1E5DE2`.
+The raw `src/OS/OS.csproj` SHA-256 is
+`FF1EF01D1017123ECE5DC5EF81965C488382240937F088F1F35B28E57967FEEA`,
+and its canonical evaluated XML-shape SHA-256 is
+`B317CC30C4DD27D61B6349686BE68C3FD6F6702626DD5637D0C6A43A9C2BEA2D`.
+The integrated `EfiEntry.cs` SHA-256 is
+`5BC413EE69931A454EF5F4B084106D8E3AB7DF68C18351F785D2535B992FD7EB`.
+The current production transition source has SHA-256
+`F73C8F78FD1D5A1E0FD54C3FBE80716B40C61F1C05BC9F51CED8A505D61C407E`.
+Its exact 4,096-byte stream has FNV-1a64 `E5070E16F23533A3` and SHA-256
+`DB402C072CBD5E9C82F36D1802AAB526C347077BDD147031D83E83B563E195B7`.
+
+After the ordinary boot path has emitted `OS_BOOT_OK`,
+`TEST_PASS boot.sequence`, and `OS_SMOKE_PASS`, the terminal adapter emits
+`TEST_START m02.013` and requires live `AllocatePages`. Preparation makes
+exactly two allocations:
+
+- two contiguous `EfiLoaderCode` pages for the normalized vector-slot page and
+  common-handler/transition page; and
+- five contiguous, disjoint `EfiLoaderData` pages for the owned IDT,
+  transition context plus GDT/TSS, and three zero-initialized IST pages.
+
+Every returned half-open range must be nonzero, page-aligned, nonwrapping,
+canonical, complete, and disjoint before dereference. Preparation zeroes both
+ranges, materializes and production-readbacks the M02-010 page, M02-011 IDT,
+frozen terminal stream, context, owned GDT/TSS, and untouched IST pages, then
+publishes the exact instruction range. Any pre-entry failure releases data
+before code; if hostile ranges are not provably disjoint, code release is
+suppressed to prevent a double free. No cleanup callback is attempted after
+descriptor activation.
+
+The transition entry is at code offset `0x1800`, and its deliberate `ud2` is at
+offset `0x19CE`. It loads and verifies the fresh GDT/TSS/IDT state, seeds live
+pre-fault `RFLAGS=0x46`, records the expected state, loads 15 distinct GPR
+cookies, and executes the two-byte invalid opcode. Vector slot 6 normalizes the
+no-error-code frame into the common handler. The handler captures vector,
+error-code metadata, RIP/RSP/RBP/RFLAGS, CR2/CR3, and all GPRs; compares all 23
+fields; and emits either the exact success or failure transcript through an
+allocation-free owned-COM1 writer before a terminal `cli`/`hlt` loop. The exact
+saved fault-frame RFLAGS expectation is `0x10046`, not the live pre-fault
+`0x46`: Intel fault-class exception delivery sets RF, bit 16, in the saved
+image. No managed or firmware callback can occur after entry.
+
+The exact success tail is:
+
+```text
+OS_BOOT_OK
+TEST_PASS boot.sequence
+OS_SMOKE_PASS
+TEST_START m02.013
+CLROS_M02_013_READY vector=6 errorCodePresent=false errorCode=0 ud2RipMatched=true registerFields=23 registerStateCaptured=true registerStateMatched=true ownedGdtLoaded=true ownedTssLoaded=true ownedIdtrLoaded=true ownedCom1=true faultTriggered=true terminalHalt=true markerTransport=ownedCom1 postExitBootServices=false
+TEST_PASS m02.013
+```
+
+The generated failure path emits `M02_UD2_VECTOR_STATE_VERIFY_FAILED` followed
+by `TEST_FAIL m02.013 vector_or_register_mismatch`, then halts. The runner
+requires, orders, and uniquifies all six success-tail records; forbids eight
+failure, host-only, or inherited standalone-profile markers; and separately
+rejects any marker-like bytes after `TEST_PASS m02.013`.
+
+The accepted build/QEMU command was:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 45 `
+  -BuildEfi `
+  -EnableM02Ud2VectorStateProbe `
+  -EfiArtifact .\artifacts\efi\OS-M02-013-final-head.efi `
+  -Image .\artifacts\images\m02-013-final-head.raw `
+  -SerialLog .\artifacts\logs\m02-013-final-head-serial.log `
+  -SummaryLog .\artifacts\logs\m02-013-final-head-summary.log `
+  -RequireMarker "CLROS_M02_013_READY vector=6 errorCodePresent=false errorCode=0 ud2RipMatched=true registerFields=23 registerStateCaptured=true registerStateMatched=true ownedGdtLoaded=true ownedTssLoaded=true ownedIdtrLoaded=true ownedCom1=true faultTriggered=true terminalHalt=true markerTransport=ownedCom1 postExitBootServices=false"
+```
+
+The 2026-08-26 accepted tuple used QEMU 11.0.50 and the 3,653,632-byte OVMF
+code image with SHA-256
+`33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`.
+The artifact set is:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Enabled EFI | 543,744 | `E532250338F50AE5EE191C6A2661612711A1DDA541662C72F6A7ADAF01C264DF` |
+| Raw image | 67,108,864 | `E6D063ADEB790A2DE0B104A39827D2EDD75D16DE2CEAAF079A1353CDA9920C4D` |
+| Serial log | 3,837 | `39DF159E4990CEE91574B6240ED77375B10DAC8B43338BA232FC965DF11D2E3E` |
+| Passing summary | 17,000 | `75ED1E58513754E86579C6FD0B52F8BEC794EED9A7C205068BC9A5ADF9B7D99F` |
+| Link map | 251,264 | `85A0F8D3BB996B1269F22885C958A3983DA510EA5B2C610318FC4D6546BDAFA7` |
+| Link response | 500 | `70B1580FEC6721F70F1F9AAA71332055F1FD4BA6586B914156F8009F51A66B4D` |
+| Link evidence | 400,930 | `AE8C700A34B796EE893FB91C1B82F83141C0FBC93ABF5AF288DFB4A10BF10AFB` |
+| Publication object | 336 | `DA97E50C95E479541B65EB3F96D9C6DED163735857650BEE9416324086D55C7B` |
+| QEMU runner stdout | 30,235 | `3B06EB7C8967374491D2F4FD099028CAD30AC55B5D426171BC43385CD61B4162` |
+| QEMU runner stderr | 0 | `E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855` |
+
+The same-build verifier identified PE32+ AMD64, EFI subsystem 10, entry RVA
+`0x55980`, no imports, and 991 exception records. The marker state machine
+reported `status=Passed`, `bytes=3837`, `lines=79`, `orderedSeen=59`,
+`outOfOrder=0`, `uniqueSeen=59`, and `duplicateUnique=0`; QEMU was runner-
+terminated only after the complete terminal transcript. The additional audit
+reported `postSmokeSequence=true` and `postPassMarkerNoise=false`.
+
+The complete same-head host acceptance exited zero with 3,507 `TEST_START`,
+3,508 `TEST_PASS`, zero `TEST_FAIL`, and the terminal aggregate
+`TEST_PASS host.tests`. Its 454,016-byte stdout has SHA-256
+`DC9F1B87D2D4E528B21E4CD20547009AC2090AEB9BF9F5C9B87F2E171BE3D423`;
+its zero-byte stderr has SHA-256
+`E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855`.
+
+An initial real-QEMU run reached vector 6 with all register cookies and fresh
+descriptor addresses correct but emitted the exact failure transcript. A
+bounded QEMU instruction/exception trace isolated the comparison to saved
+RFLAGS: live `0x46` became architectural fault-frame `0x10046`. The corrected
+stream now asserts that exact RF-bearing value rather than masking high bits.
+
+This is bounded processor evidence for one terminal, pre-`ExitBootServices`
+profile. `EfiLoaderCode` allocation does not prove live W^X/NX enforcement;
+the profile neither restores descriptor state nor returns, frees resources,
+survives a second fault, reports after firmware exit, or supplies a reusable
+kernel interrupt path. It proves no hosted .NET/Kestrel, cloud-provider,
+CloudReady, security-hardening, or production behavior. Gate 2 remains the only
+passing numbered gate; Gate 3 and Gate 4 remain `Fail`.
 
 ### M04-002 fixed endian-catalog EFI closure
 
@@ -1565,11 +1711,14 @@ dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 .\scripts\build-efi-shell.ps1 -EnableM02OwnedIdtGatePopulationProbe -EfiOutputPath .\artifacts\efi\BOOTX64-M02-011.EFI -LogPath .\artifacts\logs\m02-011-efi-build.log
 .\scripts\build-efi-shell.ps1 -EnableM02IdtrContinuedExecutionProbe -EfiOutputPath .\artifacts\efi\BOOTX64-M02-012.EFI -LogPath .\artifacts\logs\m02-012-efi-build.log
 .\scripts\test-efi-artifact.ps1 -EfiArtifact .\artifacts\efi\BOOTX64-M02-012.EFI -EnableM02IdtrContinuedExecutionProbe
+.\scripts\build-efi-shell.ps1 -EnableM02Ud2VectorStateProbe -EfiOutputPath .\artifacts\efi\BOOTX64-M02-013.EFI -LogPath .\artifacts\logs\m02-013-efi-build.log
+.\scripts\test-efi-artifact.ps1 -EfiArtifact .\artifacts\efi\BOOTX64-M02-013.EFI -EnableM02Ud2VectorStateProbe
 .\scripts\build-efi-shell.ps1
 .\scripts\test-efi-artifact.ps1
 .\scripts\run-qemu-smoke.ps1 -DryRun -BuildEfi -EnableM02NormalizedInterruptFramePageProbe
 .\scripts\run-qemu-smoke.ps1 -DryRun -BuildEfi -EnableM02OwnedIdtGatePopulationProbe
 .\scripts\run-qemu-smoke.ps1 -DryRun -BuildEfi -EnableM02IdtrContinuedExecutionProbe
+.\scripts\run-qemu-smoke.ps1 -DryRun -BuildEfi -EnableM02Ud2VectorStateProbe
 .\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -RequireMarker OS_SMOKE_PASS,UEFI_MEMORY_MAP_OWNED,BOOT_HANDOFF_READY,UEFI_MEMORY_MAP_NORMALIZED,BOOT_MEMORY_MAP_ACCEPTED,BOOT_MEMORY_REGIONS_READY,BOOT_MEMORY_REGION_COUNT
 .\scripts\build-efi-shell.ps1 -EnableUefiGoneSimulationProbe -EfiOutputPath artifacts/efi/BOOTX64-SIM.EFI -LogPath artifacts/logs/efi-shell-publish-sim.log
 .\scripts\run-qemu-smoke.ps1 -EfiArtifact artifacts/efi/BOOTX64-SIM.EFI -Image artifacts/images/os-sim.raw -SerialLog artifacts/logs/qemu-smoke-sim.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -MarkerPreset uefi-gone

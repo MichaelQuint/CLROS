@@ -121,7 +121,15 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
 
         XElement[] defaults = project
             .Descendants("EnableM02OwnedCom1ReadyProbe")
-            .Where(element => element.Parent?.Name.LocalName == "PropertyGroup")
+            .Where(element => element.Attribute("Condition")?.Value ==
+                "'$(EnableM02OwnedCom1ReadyProbe)' == ''")
+            .ToArray();
+        XElement[] ud2ProfileOverrides = project
+            .Descendants("PropertyGroup")
+            .Where(group => group.Attribute("Condition")?.Value ==
+                "'$(EnableM02Ud2VectorStateProbe)' == 'true'")
+            .SelectMany(group => group.Elements(
+                "EnableM02OwnedCom1ReadyProbe"))
             .ToArray();
         XElement[] symbolGroups = project
             .Descendants("PropertyGroup")
@@ -151,13 +159,15 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
             && guardedIstIndex == gdtIndex + 1
             && terminalIndex == guardedIstIndex + 1
             && normalizedInterruptFrameIndex == terminalIndex + 1
-            && catalogIndex == normalizedInterruptFrameIndex + 3
+            && catalogIndex == normalizedInterruptFrameIndex + 8
             && compileKeys.Count(key => key == WriterKey) == 1
             && compileKeys.Count(key => key == PanicReporterKey) == 1
             && defaults.Length == 1
             && defaults[0].Value == "false"
             && defaults[0].Attribute("Condition")?.Value ==
                 "'$(EnableM02OwnedCom1ReadyProbe)' == ''"
+            && ud2ProfileOverrides.Length == 1
+            && ud2ProfileOverrides[0].Value == "true"
             && symbolGroups.Length == 1
             && symbolGroups[0].Elements("DefineConstants").Single().Value ==
                 "$(DefineConstants);M02_OWNED_COM1_READY_PROBE"
@@ -267,7 +277,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
             && CountOccurrences(source, ".Emit(ownedCom1Backend);") == 1
             && CountOccurrences(
                 source,
-                "new OS.Kernel.Diagnostics.Com1OwnedPortIoBackend(") == 2;
+                "new OS.Kernel.Diagnostics.Com1OwnedPortIoBackend(") == 3;
     }
 
     private static bool TestMarkerTransportSeparation()
@@ -356,7 +366,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
                 StringComparison.Ordinal)
             && CountOccurrences(
                 source,
-                "[System.Management.Automation.SwitchParameter]::new($true)") == 3
+                "[System.Management.Automation.SwitchParameter]::new($true)") == 11
             && source.Contains(
                 "profileRequired=52 profileForbidden=37",
                 StringComparison.Ordinal)

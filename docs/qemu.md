@@ -926,6 +926,115 @@ injected; W^X/NX, NMI/SMI/machine-check safety, persistent IDTR/GDT/TSS/IST
 state, real `ExitBootServices`, hosted .NET/Kestrel, CloudReady status, and
 production readiness remain unproved.
 
+### M02-013 terminal UD2 vector-state runner profile
+
+The default-false M02-013 profile is selected with
+`-EnableM02Ud2VectorStateProbe`. The runner implies its M01 owned-stack,
+allocator, and paging prerequisites plus the M02 safe-stub, checked-port, and
+owned-COM1 chain; an explicitly false prerequisite is rejected. The terminal
+profile is mutually exclusive with the returning M02-007/M02-008 descriptor
+profiles, M02-009, standalone M02-010/M02-011, M02-012, and M04-003. It
+requires `-BuildEfi`, rejects `-SkipImageBuild` and M01 raw-observation capture,
+and rejects any M02-013-owned required/ordered/unique marker unless the typed
+profile is enabled.
+
+Unlike the earlier M02 profiles, the runner moves the ordinary terminal smoke
+records in front of the issue-specific records. The exact required, ordered,
+and unique six-record suffix is:
+
+```text
+OS_BOOT_OK
+TEST_PASS boot.sequence
+OS_SMOKE_PASS
+TEST_START m02.013
+CLROS_M02_013_READY vector=6 errorCodePresent=false errorCode=0 ud2RipMatched=true registerFields=23 registerStateCaptured=true registerStateMatched=true ownedGdtLoaded=true ownedTssLoaded=true ownedIdtrLoaded=true ownedCom1=true faultTriggered=true terminalHalt=true markerTransport=ownedCom1 postExitBootServices=false
+TEST_PASS m02.013
+```
+
+The eight profile-forbidden markers are the generated verification-failure
+heading, exact issue failure line, generic `TEST_FAIL`, the M02-013 host-only
+prefix and exact host-only line, and the standalone M02-010, M02-011, and
+M02-012 ready records. The complete inherited marker profile can contain more
+records, but none may appear out of order or more than once when unique. A
+second terminal audit rejects any marker-like bytes after
+`TEST_PASS m02.013`; firmware UI output or a stale appended transcript cannot
+satisfy the run.
+
+The verified typed dry run is:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -DryRun `
+  -BuildEfi `
+  -EnableM02Ud2VectorStateProbe
+```
+
+It reports `profileRequired=6`, `profileOrdered=6`, `profileUnique=6`, and
+`profileForbidden=8` for the issue-specific profile, along with the implied
+prerequisite chain. Focused tests also prove the unchanged all-false profile,
+all stable invalid-argument reasons, exact transcript acceptance, and rejection
+of missing, reordered, duplicated, host-only, inherited-profile, failure, and
+post-pass-noise transcripts.
+
+The accepted real-evidence command was:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 45 `
+  -BuildEfi `
+  -EnableM02Ud2VectorStateProbe `
+  -EfiArtifact .\artifacts\efi\OS-M02-013-final-head.efi `
+  -Image .\artifacts\images\m02-013-final-head.raw `
+  -SerialLog .\artifacts\logs\m02-013-final-head-serial.log `
+  -SummaryLog .\artifacts\logs\m02-013-final-head-summary.log `
+  -RequireMarker "CLROS_M02_013_READY vector=6 errorCodePresent=false errorCode=0 ud2RipMatched=true registerFields=23 registerStateCaptured=true registerStateMatched=true ownedGdtLoaded=true ownedTssLoaded=true ownedIdtrLoaded=true ownedCom1=true faultTriggered=true terminalHalt=true markerTransport=ownedCom1 postExitBootServices=false"
+```
+
+The accepted 2026-08-26 run used QEMU 11.0.50 and the 3,653,632-byte OVMF code
+image with SHA-256
+`33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`.
+The enabled 543,744-byte EFI artifact has SHA-256
+`E532250338F50AE5EE191C6A2661612711A1DDA541662C72F6A7ADAF01C264DF`;
+the 67,108,864-byte raw image has SHA-256
+`E6D063ADEB790A2DE0B104A39827D2EDD75D16DE2CEAAF079A1353CDA9920C4D`;
+the 3,837-byte serial log has SHA-256
+`39DF159E4990CEE91574B6240ED77375B10DAC8B43338BA232FC965DF11D2E3E`;
+and the 17,000-byte passing summary has SHA-256
+`75ED1E58513754E86579C6FD0B52F8BEC794EED9A7C205068BC9A5ADF9B7D99F`.
+The QEMU runner's 30,235-byte stdout has SHA-256
+`3B06EB7C8967374491D2F4FD099028CAD30AC55B5D426171BC43385CD61B4162`;
+its zero-byte stderr has SHA-256
+`E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855`.
+
+The merged marker state machine reported `status=Passed`, `bytes=3837`,
+`lines=79`, `orderedSeen=59`, `outOfOrder=0`, `uniqueSeen=59`, and
+`duplicateUnique=0`. QEMU did not exit spontaneously: after the complete
+terminal transcript the runner classified and terminated the halted process as
+accepted. The issue-specific transcript audit reported
+`postSmokeSequence=true` and `postPassMarkerNoise=false`.
+
+The first real-QEMU attempt intentionally remains useful diagnostic evidence.
+It delivered vector 6 at the exact `ud2` RIP with all 15 GPR cookies, CR2/CR3,
+and fresh GDT/TSS/IDT addresses correct, but emitted
+`M02_UD2_VECTOR_STATE_VERIFY_FAILED`. A bounded exception/instruction trace
+proved the first failing compare was saved RFLAGS: the transition had seeded
+and verified live `0x46`, while the processor saved `0x10046`. This is the
+architectural RF behavior for fault-class exception delivery documented by the
+[Intel 64 and IA-32 Software Developer's Manual](https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developers-manual.pdf).
+The corrected stream asserts exact `0x10046`; it does not mask unknown high
+bits. Focused transition tests freeze that contract and both stream hashes.
+
+This tuple proves only that the recorded virtual CPU executed the exact
+pre-`ExitBootServices` profile: ordinary smoke completed; fresh GDT/TSS/IDT
+state was loaded; vector 6 reached the owned handler; all requested integer and
+control fields matched; the exact owned-COM1 transcript was emitted; and the
+generated code remained terminal. It does not prove W^X/NX, safe return or
+descriptor restoration, a second-fault path, persistent kernel descriptor
+state, post-firmware diagnostics, hosted .NET/Kestrel, cloud-provider behavior,
+CloudReady status, security hardening, or production readiness.
+
 ### M04-002 fixed endian-catalog guest proof
 
 The M04-002 profile is opt-in and independent of the cumulative M01/M02 live
@@ -1862,6 +1971,27 @@ the privileged bytes, and source-binds the adapter's pre-callback restoration
   checks and reverse cleanup. The accepted 2026-08-26 QEMU/OVMF tuple supplies
   the separately required bounded processor evidence for the exact profile.
 
+M02-013 integration tests pin its exact 6/6/6/8 issue profile, implied
+prerequisite chain, unchanged all-false behavior, current 67-item/80-input
+closure, default/enabled NativeAOT artifact verification, publication and
+readback order, hostile fake-firmware range/allocation/cleanup paths through the
+same production pre-terminal contract used by the EFI adapter, and the
+callback-free terminal boundary. The fake firmware does not invoke private
+`EfiEntry` callbacks or the privileged terminal bytes. Focused transition tests
+freeze the exact
+4,096 bytes, FNV-1a64 `E5070E16F23533A3`, SHA-256
+`DB402C072CBD5E9C82F36D1802AAB526C347077BDD147031D83E83B563E195B7`,
+live pre-fault `RFLAGS=0x46`, saved frame `RFLAGS=0x10046`, and all 23 register
+comparisons. The accepted 2026-08-26 QEMU/OVMF tuple supplies the separately
+required terminal processor evidence and post-pass-noise audit.
+
+The final complete host acceptance exited zero with 3,507 `TEST_START`, 3,508
+`TEST_PASS`, zero `TEST_FAIL`, and terminal `TEST_PASS host.tests`. Its
+454,016-byte stdout has SHA-256
+`DC9F1B87D2D4E528B21E4CD20547009AC2090AEB9BF9F5C9B87F2E171BE3D423`;
+its zero-byte stderr has SHA-256
+`E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855`.
+
 The accepted r16 host gate also proves all 15 focused M01-026 groups:
 manifest/stage-three marker parity, switch forwarding, invalid-selector
 rejection, strict generated-shim compilation, shim/manifest parity, dry-run
@@ -2090,6 +2220,14 @@ QEMU evidence from 2026-05-21:
   The profile injects no interrupt or fault and does not prove W^X/NX,
   NMI/SMI/machine-check safety, persistent
   descriptor state, `ExitBootServices`, or post-firmware diagnostics.
+- The M02-013 profile is deliberately terminal. It runs only after ordinary
+  `OS_SMOKE_PASS`, enters fresh owned GDT/TSS/IDT state, triggers `ud2`, emits
+  the exact vector/register result through owned COM1, and remains in
+  `cli`/`hlt`. The runner may terminate QEMU only after the complete unique
+  transcript and no-noise audit. No post-entry cleanup or restoration is
+  observed. `EfiLoaderCode` does not establish W^X/NX, and the tuple does not
+  prove safe continuation, persistent descriptor ownership, a second-fault
+  path, real `ExitBootServices`, or post-firmware diagnostics.
 - OVMF discovery is best-effort. Pass `-OvmfCode <path>` for deterministic runs.
 
 ### Streaming serial-marker state machine

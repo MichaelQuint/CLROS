@@ -4,12 +4,13 @@
 
 The owned diagnostics subsystem remains host-testable except for the accepted
 bounded pre-`ExitBootServices` M02-004 configuration, M02-005 marker, M02-006
-panic-readiness, M02-009 terminal GDT/TSS, and M02-010 interrupt-entry-page
-materialization, M02-011 owned-IDT population/readback, and the opt-in M02-012
-  reversible IDTR transition adapter. The accepted M02-011 guest profile did not
-  load IDTR. The M02-012 adapter has host, default/enabled NativeAOT artifact,
-  same-build verifier, dry-run, and accepted real QEMU/OVMF evidence for the
-  bounded reversible transition and ordinary-smoke continuation. M02-007 adds a
+panic-readiness, M02-009 terminal GDT/TSS, M02-010 interrupt-entry-page
+materialization, M02-011 owned-IDT population/readback, M02-012 reversible IDTR
+transition, and M02-013 terminal invalid-opcode profile. The accepted M02-011
+guest profile did not load IDTR. The M02-012 adapter has host,
+default/enabled NativeAOT artifact, same-build verifier, dry-run, and accepted
+real QEMU/OVMF evidence for the bounded reversible transition and
+ordinary-smoke continuation. M02-007 adds a
 host-validated, allocation-free owned GDT encoder. M02-009 adds a host-audited
 terminal GDT/TSS context and composite instruction-byte stream, and its
 separately merged default-off EFI integration has fresh QEMU/OVMF evidence for
@@ -41,13 +42,17 @@ dependent M02-010/M02-011 bytes, publishes and synchronously invokes the exact
   virtual platform; artifact and host evidence alone still do not substitute
   for that tuple.
 The M02-013 host leaf adds a disabled-by-default, allocation-free value contract
-for a future two-byte `ud2` observation. Its 32-byte request is bound to
+for a two-byte `ud2` observation. Its 32-byte request is bound to
 `Probes.EnableInvalidOpcodePanicProbe`, requires caller attestations for owned
 serial, GDT/TSS, IDT, and the invalid-opcode handler, and rejects enabled,
 requested, or attempted execution. Its 72-byte result can audit only synthetic
 `CpuFaultFrame` values, with deterministic first-mismatch reporting across all
-23 fields. It emits or invokes no bytes and supplies no guest fault evidence;
-the separate EFI/QEMU integration issue owns the live trigger and marker.
+23 fields. The leaf emits or invokes no bytes and supplies no guest fault
+evidence. Its separate default-off EFI integration now has accepted real
+QEMU/OVMF evidence for a terminal pre-firmware vector-6 delivery through fresh
+owned GDT/TSS/IDT state, exact integer/control-register capture, and exact
+allocation-free owned-COM1 output. This profile is not a reusable boot phase and
+does not safely return.
 
 No ordinary boot phase loads an IDT, installs fault handlers, activates IST
 routing, directs a live CPU fault to panic, or preserves an owned serial path
@@ -317,6 +322,34 @@ COM1/serial invocation.
   This transcript is host evidence only. It does not demonstrate a processor
   executing `ud2`, vector-6 delivery, a loaded owned IDTR, register capture from
   hardware, continuation after a fault, QEMU behavior, or any numbered gate.
+- `DisabledDefaultUd2VectorStateTransition` is the separate M02-013 privileged
+  byte-stream contract. Its 4,096-byte stream contains the M02-010 vector slots,
+  a common vector-6 handler, owned-COM1 writer, GDT/TSS/IDT activation
+  transition, deliberate `ud2`, and a terminal `cli`/`hlt` loop. The transition
+  seeds and verifies live pre-fault `RFLAGS=0x46`; the exact expected saved
+  fault-frame value is `0x10046` because fault-class exception delivery sets RF
+  in the saved image. The frozen stream has FNV-1a64
+  `E5070E16F23533A3` and SHA-256
+  `DB402C072CBD5E9C82F36D1802AAB526C347077BDD147031D83E83B563E195B7`.
+- The default-off `EnableM02Ud2VectorStateProbe` EFI adapter composes that
+  stream with fresh owned GDT/TSS/IDT/context/IST storage after ordinary
+  `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and `OS_SMOKE_PASS`. Its accepted
+  2026-08-26 QEMU/OVMF transcript reports vector 6, no hardware error code,
+  exact UD2 RIP, all 23 integer/control-register fields captured and matched,
+  owned GDTR/TR/IDTR and COM1, and terminal halt. The generated path writes:
+
+  ```text
+  TEST_START m02.013
+  CLROS_M02_013_READY vector=6 errorCodePresent=false errorCode=0 ud2RipMatched=true registerFields=23 registerStateCaptured=true registerStateMatched=true ownedGdtLoaded=true ownedTssLoaded=true ownedIdtrLoaded=true ownedCom1=true faultTriggered=true terminalHalt=true markerTransport=ownedCom1 postExitBootServices=false
+  TEST_PASS m02.013
+  ```
+
+  The 3,837-byte accepted serial log has SHA-256
+  `39DF159E4990CEE91574B6240ED77375B10DAC8B43338BA232FC965DF11D2E3E`.
+  The evidence is terminal, pre-`ExitBootServices`, and specific to the
+  recorded QEMU/OVMF tuple. It does not establish recovery, continuation,
+  persistent descriptor ownership, W^X/NX, post-firmware diagnostics, or a
+  numbered-gate promotion.
 - `TssIstPlan` models the x64 TSS bytes needed for `RSP0` and IST entries, including double-fault IST stack top, stack-size, and guard-size validation.
 - `FaultInfrastructureReadiness` combines serial, IDT, IDTR, GDT, TSS/IST, and double-fault IST readiness into a single pre-privileged-install gate.
 - `BootSequence.RunFaultInfrastructureReadiness` emits host-tested `FAULT_INFRA_READY` or `FAULT_INFRA_NOT_READY status=<status>` markers from the readiness result without changing the default boot path.
@@ -565,7 +598,13 @@ COM1/serial invocation.
 
 ## Unsupported Behavior
 
-Real IDT/GDT/TSS/IST setup, page-fault and invalid-opcode handlers, real CR2/CR3/register capture, owned serial hardware output after `ExitBootServices`, panic-safe framebuffer output, panic redaction, and halt/shutdown loops are pending.
+Default, reusable, recoverable IDT/GDT/TSS/IST setup; page-fault handling;
+post-`ExitBootServices` register capture and owned serial output; panic-safe
+framebuffer output; panic redaction; and general halt/shutdown policy remain
+pending. M02-013 is narrower: one default-off pre-firmware terminal profile has
+accepted QEMU evidence for a deliberate invalid-opcode delivery through fresh
+owned descriptor state, integer/control-state capture, direct owned-COM1 output,
+and a nonreturning halt. It is not the default interrupt or panic subsystem.
 
 ## Tests
 
@@ -987,7 +1026,18 @@ in `docs/qemu.md`, `docs/boot.md`, and `done/step890.md`.
 
 ## Known Limitations
 
-The current managed formatter and guard contracts allocate managed strings and are only safe for host tests or normal boot diagnostics. `BootEventRingBuffer` is still the managed string mirror used by normal host-tested boot logging. `BootEventRecordRingBuffer` and `BootEventRecordFormatter` are caller-storage based, but they are not wired into `BootSequence`, a real panic dump, or the live EFI path yet. `PanicTextBuffer` and `PanicSerialReporter` are caller-storage based, but they are not wired into a real panic path yet. `CpuFaultFrame` is a data contract and formatter input only; it is not evidence that CPU handlers can capture those registers yet.
+The current managed formatter and guard contracts allocate managed strings and
+are only safe for host tests or normal boot diagnostics. `BootEventRingBuffer`
+is still the managed string mirror used by normal host-tested boot logging.
+`BootEventRecordRingBuffer` and `BootEventRecordFormatter` are caller-storage
+based, but they are not wired into `BootSequence`, a real panic dump, or the
+live EFI path yet. `PanicTextBuffer` and `PanicSerialReporter` are likewise not
+wired into a real panic path.
+
+`CpuFaultFrame` remains only the managed data contract and formatter input; the
+M02-013 terminal profile uses its own frozen no-stdlib context layout to capture
+and compare the corresponding 23 integer/control fields. That bounded evidence
+does not wire a reusable CPU handler into `CpuFaultFrame`.
 
 `IdtGateDescriptor`, `IdtTablePlan`, `IdtrDescriptor`, `GdtDescriptorPlan`,
 `TssIstPlan`, `GuardedISTStacksDoubleFaultPageFaultNMI`,
@@ -1043,15 +1093,17 @@ the only passing numbered gate; Gate 3 and Gate 4 remain `Fail`.
 
 `FaultProbeStubPlan` is a byte-plan contract only. It intentionally does not execute `ud2` or write to address zero, and it is not QEMU fault evidence.
 
-`DisabledDefaultUd2VectorState` does not strengthen that byte plan into live
-execution. It accepts only caller-supplied synthetic frames while the probe is
-disabled and while execution is neither requested nor attempted. Its readiness
-booleans are attestations, not observations of installed GDT/TSS/IDT state or
-owned serial. The host marker explicitly reports guest execution, fault
-triggering, and IDTR loading as false. Live vector-6 delivery, terminal
-integer/control-register capture, owned-COM1 reporting, and QEMU/OVMF evidence
-remain owned by the separate M02-013 EFI integration. Safe continuation and
-descriptor restoration remain deferred beyond that terminal profile.
+`DisabledDefaultUd2VectorState` itself does not strengthen that byte plan into
+live execution. It accepts only caller-supplied synthetic frames while the
+probe is disabled and while execution is neither requested nor attempted. Its
+readiness booleans are attestations, not observations of installed GDT/TSS/IDT
+state or owned serial. The host marker explicitly reports guest execution,
+fault triggering, and IDTR loading as false. The separate default-off M02-013
+EFI adapter now supplies bounded terminal evidence for live vector-6 delivery,
+integer/control-register capture, and owned-COM1 reporting on one recorded
+QEMU/OVMF platform. It deliberately does not return; safe continuation,
+descriptor restoration, persistent descriptor ownership, W^X/NX, and
+post-`ExitBootServices` diagnostics remain deferred.
 
 `NullPageFaultProbePlan` is metadata only and is distinct from
 `FaultProbeStubPlan.NullWrite`: it models a supervisor read, not a write, and
@@ -1370,35 +1422,36 @@ stage.
 
 ## Next Steps
 
-1. Preserve the accepted default-off M02-010 and M02-011 LoaderData
-   materialization, readback, cleanup, and guest-marker boundaries. Implement
-   executable publication, a common interrupt entry/register-save path, IDTR
-   load, active IST routing, and a deliberately triggered fault only in later
-   issues that explicitly own and test those boundaries.
+1. Preserve the accepted default-off M02-010 and M02-011 returning LoaderData
+   materialization, readback, cleanup, and guest-marker boundaries and M02-013's
+   separate terminal fault-delivery evidence. Implement a reusable common entry,
+   recovery/return policy, and default descriptor ownership only in later issues
+   that explicitly own and test those boundaries.
 2. Map M02-008's planned guard/stack ranges and write the fixed IST indices into
    owned TSS state only in later issues that own page-table and descriptor-table
    installation; the accepted EFI profile remains temporary pre-firmware proof.
 3. Preserve the M02-005 bounded owned-COM1 marker proof, then wire the writer
    through `SerialDiagnosticsGuard` only when a later issue owns the live
    post-firmware diagnostic boundary.
-4. Add live IDT/GDT/TSS/IST setup only in later issues that own page-table and
-   descriptor installation; M02-007 does not execute `lgdt` or `ltr`, and
-   M02-008 does not map its planned guard/stack ranges.
+4. Add persistent/default IDT/GDT/TSS/IST setup only in later issues that own
+   page-table and descriptor installation. M02-013 proves one fresh terminal
+   setup, while M02-007 still does not execute `lgdt`/`ltr` and M02-008 still
+   does not map its planned guard/stack ranges.
 5. Add real executable-stub page transitions using the W^X layout, materialization, and page-transition plan contracts.
 6. Keep M02-004's configuration-only marker, M02-005's pre-firmware direct
    COM1 payload, M02-006's panic-safe route, and future post-firmware diagnostics
    as distinct evidence.
 7. Wire the COM1 backend contract into an owned serial writer only after generated stubs can be safely mapped executable and invoked.
-8. Preserve the M02-013 disabled host request/audit contract, then add the live
-   invalid-opcode trigger, terminal owned handler, integer/control-register
-   capture, owned-COM1 reporting, and QEMU/OVMF proof only in its dedicated
-   default-off EFI/QEMU issue. Keep the host marker distinct from its future
-   guest marker. Safe continuation and descriptor restoration remain separate
-   later work.
+8. Preserve the M02-013 host request/audit contract and its accepted default-off
+   terminal EFI/QEMU profile as distinct evidence. Keep the exact host and guest
+   markers separate. Add any safe continuation, descriptor restoration,
+   persistent descriptor ownership, or post-firmware route only in later work
+   that explicitly owns those boundaries.
 9. Add the controlled null-read probe behind its `Probes.cs` toggle only in its
    dedicated issue; M02-014 must consume the disabled M01-015 intent after
    owned diagnostics exist.
-10. Wire real handler register capture into `CpuFaultFrame` through the deterministic fault-entry layout.
+10. Wire a reusable handler's register capture into `CpuFaultFrame`; do not
+    substitute M02-013's private terminal context as that default boundary.
 11. Keep M02-003 binding readiness, M02-004 configuration, M02-005 bounded
    payload output, M02-006 panic-safe routing, and future post-EBS claims
    distinct.

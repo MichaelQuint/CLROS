@@ -17,6 +17,8 @@ internal static class M01InstructionPublicationEfiEntryTests
         "M02_OWNED_GDT_TSS_TERMINAL_PROBE";
     private const string M02IdtrContinuedExecutionSymbol =
         "M02_IDTR_CONTINUED_EXECUTION_PROBE";
+    private const string M02Ud2VectorStateSymbol =
+        "M02_UD2_VECTOR_STATE_PROBE";
     private const string SerializerBinding =
         "global::OS.Boot.X64InstructionPublication";
     private const string SerializerCall =
@@ -3778,7 +3780,8 @@ internal static class M01InstructionPublicationEfiEntryTests
         bool stageTwoEnabled,
         bool stageThreeEnabled,
         bool terminalEnabled,
-        bool idtrContinuedExecutionEnabled = false)
+        bool idtrContinuedExecutionEnabled = false,
+        bool ud2VectorStateEnabled = false)
     {
         StringBuilder output = new();
         Stack<PreprocessorFrame> stack = new();
@@ -3810,6 +3813,10 @@ internal static class M01InstructionPublicationEfiEntryTests
                     || string.Equals(
                         condition,
                         M02IdtrContinuedExecutionSymbol,
+                        StringComparison.Ordinal)
+                    || string.Equals(
+                        condition,
+                        M02Ud2VectorStateSymbol,
                         StringComparison.Ordinal);
                 bool selectedValue =
                     string.Equals(
@@ -3832,7 +3839,12 @@ internal static class M01InstructionPublicationEfiEntryTests
                                 M02OwnedGdtTssTerminalSymbol,
                                 StringComparison.Ordinal)
                                 ? terminalEnabled
-                                : idtrContinuedExecutionEnabled;
+                                : string.Equals(
+                                    condition,
+                                    M02IdtrContinuedExecutionSymbol,
+                                    StringComparison.Ordinal)
+                                    ? idtrContinuedExecutionEnabled
+                                    : ud2VectorStateEnabled;
                 stack.Push(
                     new PreprocessorFrame(
                         selected,

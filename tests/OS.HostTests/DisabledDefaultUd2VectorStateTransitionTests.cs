@@ -18,7 +18,7 @@ internal static unsafe class DisabledDefaultUd2VectorStateTransitionTests
     private const int AllocationByteCount = 8192;
     private const byte Sentinel = 0xa5;
     private const string ExpectedSha256 =
-        "F039C6576A04298C7C925B635C45FB476F770354BAEAAC282DC3392F7A84D115";
+        "DB402C072CBD5E9C82F36D1802AAB526C347077BDD147031D83E83B563E195B7";
     private const string SuccessTranscript =
         "CLROS_M02_013_READY vector=6 errorCodePresent=false errorCode=0 " +
         "ud2RipMatched=true registerFields=23 registerStateCaptured=true " +
@@ -166,7 +166,11 @@ internal static unsafe class DisabledDefaultUd2VectorStateTransitionTests
             && DisabledDefaultUd2VectorStateTransition.ContextAlignment == 16
             && DisabledDefaultUd2VectorStateTransition.StreamAlignment == 4096
             && DisabledDefaultUd2VectorStateTransition.IstStackTopAlignment == 16
-            && DisabledDefaultUd2VectorStateTransition.ExpectedRflags == 0x46
+            && DisabledDefaultUd2VectorStateTransition.SeededRflags == 0x46
+            && DisabledDefaultUd2VectorStateTransition
+                .FaultFrameResumeFlagMask == 0x0001_0000
+            && DisabledDefaultUd2VectorStateTransition.ExpectedRflags ==
+                0x0001_0046
             && DisabledDefaultUd2VectorStateTransition
                 .CaptureCompletionCookie == 0x4d30_3231_3343_4150UL
             && DisabledDefaultUd2VectorStateTransition.RegisterCookieBase ==
@@ -179,15 +183,15 @@ internal static unsafe class DisabledDefaultUd2VectorStateTransitionTests
             && DisabledDefaultUd2VectorStateTransition
                 .CanonicalModeledContextAddress == ContextAddress
             && DisabledDefaultUd2VectorStateTransition.StreamFnv1A64 ==
-                0xe57d_f95f_6f34_fc32UL
+                0xe507_0e16_f235_33a3UL
             && DisabledDefaultUd2VectorStateTransition
-                .StreamSha256Word0BigEndian == 0xf039_c657_6a04_298cUL
+                .StreamSha256Word0BigEndian == 0xdb40_2c07_2cbd_5e9cUL
             && DisabledDefaultUd2VectorStateTransition
-                .StreamSha256Word1BigEndian == 0x7c92_5b63_5c45_fb47UL
+                .StreamSha256Word1BigEndian == 0x82f3_6d18_02aa_b526UL
             && DisabledDefaultUd2VectorStateTransition
-                .StreamSha256Word2BigEndian == 0x6f77_0354_baea_ac28UL
+                .StreamSha256Word2BigEndian == 0xc347_077b_dd14_7031UL
             && DisabledDefaultUd2VectorStateTransition
-                .StreamSha256Word3BigEndian == 0x2dc3_392f_7a84_d115UL
+                .StreamSha256Word3BigEndian == 0xd83e_83b5_63e1_95b7UL
             && DisabledDefaultUd2VectorStateTransition
                 .AuditedConditionalFailureBranchCount == 37
             && DisabledDefaultUd2VectorStateTransition.AuditedSavedGprCount == 15
@@ -481,6 +485,7 @@ internal static unsafe class DisabledDefaultUd2VectorStateTransitionTests
                     ref branchCount) ||
                 branchCount != DisabledDefaultUd2VectorStateTransition
                     .AuditedConditionalFailureBranchCount ||
+                !AuditFaultFrameRflagsContract(bytes) ||
                 !AuditSuccessAndFailurePaths(bytes) ||
                 !AuditTransition(bytes) ||
                 !AuditTerminalOpcodes(bytes))
@@ -1138,7 +1143,7 @@ internal static unsafe class DisabledDefaultUd2VectorStateTransitionTests
             && source.Contains(
                 "DisabledDefaultUd2VectorState.CpuFaultFrameFieldCount",
                 StringComparison.Ordinal)
-            && source.Contains("StreamFnv1A64 = 0xe57d_f95f_6f34_fc32UL",
+            && source.Contains("StreamFnv1A64 = 0xe507_0e16_f235_33a3UL",
                 StringComparison.Ordinal)
             && source.Contains("HasCalls = false", StringComparison.Ordinal)
             && source.Contains("HasReturns = false", StringComparison.Ordinal)
@@ -1321,6 +1326,31 @@ internal static unsafe class DisabledDefaultUd2VectorStateTransitionTests
                 .NormalizedSsStackOffset == 176;
     }
 
+    private static bool AuditFaultFrameRflagsContract(
+        ReadOnlySpan<byte> bytes)
+    {
+        int currentCs = FindSequence(
+            bytes,
+            0,
+            DisabledDefaultUd2VectorStateTransition.SuccessSetupOffset,
+            [0x8c, 0xc8, 0x66, 0x3d, 0x08, 0x00]);
+        int capturedRflagsCompare = FindSequence(
+            bytes,
+            0,
+            DisabledDefaultUd2VectorStateTransition.SuccessSetupOffset,
+            [0x49, 0x81, 0xbf, 0x60, 0x01, 0x00, 0x00,
+                0x46, 0x00, 0x01, 0x00]);
+        if (currentCs < 0 || capturedRflagsCompare < 0)
+        {
+            return false;
+        }
+
+        int branchCursor = capturedRflagsCompare + 11;
+        return ExpectBytes(bytes, ref branchCursor, [0x0f, 0x85])
+            && ReadRel32Target(bytes, branchCursor) ==
+                DisabledDefaultUd2VectorStateTransition.FailureSetupOffset;
+    }
+
     private static bool AuditSuccessAndFailurePaths(ReadOnlySpan<byte> bytes)
     {
         int cursor = DisabledDefaultUd2VectorStateTransition
@@ -1477,7 +1507,7 @@ internal static unsafe class DisabledDefaultUd2VectorStateTransitionTests
                 DisabledDefaultUd2VectorStateTransition.TransitionEntryOffset,
                 DisabledDefaultUd2VectorStateTransition.Ud2Offset,
                 [0x49, 0xc7, 0x87, 0x00, 0x01, 0x00, 0x00,
-                    0x46, 0x00, 0x00, 0x00]) ||
+                    0x46, 0x00, 0x01, 0x00]) ||
             !ContainsSequence(
                 bytes,
                 DisabledDefaultUd2VectorStateTransition.TransitionEntryOffset,
@@ -1544,7 +1574,8 @@ internal static unsafe class DisabledDefaultUd2VectorStateTransitionTests
             CountByte(bytes, 0xc3) != 0 ||
             CountByte(bytes, 0xc2) != 0 ||
             CountByte(bytes, 0xca) != 0 ||
-            CountByte(bytes, 0xcb) != 0)
+            CountByte(bytes, 0xcb) != 1 ||
+            bytes[474] != 0xcb)
         {
             return false;
         }

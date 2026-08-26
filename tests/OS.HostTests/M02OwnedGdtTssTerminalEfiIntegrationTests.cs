@@ -15,9 +15,9 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
     private const string CompileClosureSha256 =
         "f118a012101e87abf5d1ac1299be82705b47942eae06abb669418977412d124c";
     private const string ProjectFileSha256 =
-        "19831a8a437d6003b51d1e89b6b26325c17417eb38b869ce01c18c04c5952bac";
+        "ff1ef01d1017123ece5dc5ef81965c488382240937f088f1f35b28e57967feea";
     private const string CanonicalProjectShapeSha256 =
-        "de242129bd59b0358211b606f666c0d99f65ab2e23096da47ec9b182e7d2748e";
+        "b317cc30c4dd27d61b6349686be68c3fd6f6702626dd5637d0c6a43a9c2bea2d";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -149,7 +149,7 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
             && guardedIndex >= 0
             && terminalIndex == guardedIndex + 1
             && normalizedInterruptFrameIndex == terminalIndex + 1
-            && endianIndex == normalizedInterruptFrameIndex + 3
+            && endianIndex == normalizedInterruptFrameIndex + 8
             && compileKeys.Count(key => key == TerminalKey) == 1
             && defaults.Length == 1
             && defaults[0].Value == "false"

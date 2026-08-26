@@ -17,7 +17,7 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
     private const string CompileClosureSha256 =
         "f118a012101e87abf5d1ac1299be82705b47942eae06abb669418977412d124c";
     private const string ProjectFileSha256 =
-        "19831a8a437d6003b51d1e89b6b26325c17417eb38b869ce01c18c04c5952bac";
+        "ff1ef01d1017123ece5dc5ef81965c488382240937f088f1f35b28e57967feea";
     private const string FrozenProductionSha256 =
         "0c818f89ecc761a4e5692ce3970e98d577381b98bbe540f6ec5f154130c12153";
     private const string FrozenHostTestSha256 =

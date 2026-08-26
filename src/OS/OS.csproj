@@ -261,6 +261,12 @@
 			Condition="'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM02OwnedCom1ReadyProbe)' != 'true'"
 			Text="EnableM02PanicSafeOwnedCom1Probe requires EnableM02OwnedCom1ReadyProbe=true." />
 		<Error
+			Condition="'$(EnableM02Ud2VectorStateProbe)' == 'true' and '$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'"
+			Text="EnableM02Ud2VectorStateProbe cannot be combined with EnableM02OwnedX64GdtEncodingProbe=true." />
+		<Error
+			Condition="'$(EnableM02Ud2VectorStateProbe)' == 'true' and '$(EnableM02GuardedIstStackAllocationProbe)' == 'true'"
+			Text="EnableM02Ud2VectorStateProbe cannot be combined with EnableM02GuardedIstStackAllocationProbe=true." />
+		<Error
 			Condition="'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM02PanicSafeOwnedCom1Probe)' != 'true'"
 			Text="EnableM02OwnedX64GdtEncodingProbe requires EnableM02PanicSafeOwnedCom1Probe=true." />
 		<Error

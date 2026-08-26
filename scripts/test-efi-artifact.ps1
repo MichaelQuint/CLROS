@@ -4364,6 +4364,16 @@ if ($EnableM02Ud2VectorStateProbe -and
 }
 
 if ($EnableM02Ud2VectorStateProbe -and
+    $EnableM02OwnedX64GdtEncodingProbe) {
+    Write-Failure "m02_ud2_vector_state_probe_forbids_owned_x64_gdt_encoding_probe"
+}
+
+if ($EnableM02Ud2VectorStateProbe -and
+    $EnableM02GuardedIstStackAllocationProbe) {
+    Write-Failure "m02_ud2_vector_state_probe_forbids_guarded_ist_stack_allocation_probe"
+}
+
+if ($EnableM02Ud2VectorStateProbe -and
     $EnableM02OwnedGdtTssTerminalProbe) {
     Write-Failure "m02_ud2_vector_state_probe_forbids_owned_gdt_tss_terminal"
 }

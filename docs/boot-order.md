@@ -89,9 +89,19 @@ The no-stdlib EFI artifact also has an `EXIT_BOOT_SERVICES_FRESH_MAP_PROBE` buil
 
 ## Unsupported Behavior
 
-All real hardware phases are pending: OS-owned UEFI snapshot, `ExitBootServices`, owned serial, IDT load, ACPI, PCI, storage, network, manifest loading, and app launch.
+All default reusable hardware phases are pending: OS-owned UEFI snapshot,
+`ExitBootServices`, persistent owned serial and descriptor state, ACPI, PCI,
+storage, network, manifest loading, and app launch. Default-off terminal EFI
+probes below are evidence paths, not emitted `BootSequence` phases.
 
-The IDT descriptor, IDTR descriptor, GDT descriptor, M02-007 caller-owned GDT encoder, TSS/IST layout, readiness-gate, IDT table-plan, descriptor-table instruction-byte/install-stub/readiness plans, fault-probe stub plans, and fault-vector metadata contracts are host-tested, but no emitted boot phase loads an IDT/GDT/TSS, installs handlers, or triggers controlled CPU faults yet. The serial diagnostics guard, COM1 configuration plan, abstract COM1 writer, port-I/O instruction-byte plan, callable port-I/O stub plan, and COM1 backend-readiness plan are host-tested, but no emitted boot phase has an OS-owned serial driver yet.
+The IDT descriptor, IDTR descriptor, GDT descriptor, M02-007 caller-owned GDT
+encoder, TSS/IST layout, readiness gate, table and instruction plans, fault-probe
+plans, and metadata contracts are host-tested, but no default emitted boot phase
+loads persistent IDT/GDT/TSS state or triggers a recoverable fault. M02-013's
+separate default-off terminal profile does load fresh private descriptor state
+and trigger one controlled UD2. The serial contracts are host-tested and the
+same terminal profile uses direct owned COM1, but no default emitted phase has a
+persistent OS-owned serial driver.
 
 M02-009 adds a host-audited caller-owned GDT/TSS context and terminal composite
 instruction stream without adding a `BootSequence` phase. A separately merged
@@ -172,7 +182,7 @@ order, all six unique records exactly once, no forbidden record, and ordinary
 continuation through `OS_SMOKE_PASS`. This is bounded processor evidence for
 the temporary reversible-IDTR transition on that recorded virtual platform.
 
-M02-013 adds only a host-audited disabled `ud2` request and synthetic
+M02-013 first adds a host-audited disabled `ud2` request and synthetic
 `CpuFaultFrame` comparison contract. It aliases the destructive default from
 `Probes.EnableInvalidOpcodePanicProbe` and vector 6 from
 `FaultVectorCatalog.InvalidOpcode`; requires caller attestations for owned
@@ -183,9 +193,31 @@ code, RIP at the first modeled `ud2` byte, and every remaining frame field in a
 deterministic order. It emits and invokes no instruction bytes, performs no I/O,
 loads no IDTR, installs no handler, triggers no fault, and adds no
 `BootSequence` phase. Its host marker reports `guestExecution=false`,
-`faultTriggered=false`, and `idtrLoaded=false`; the separate default-off
-EFI/QEMU integration owns any future guest marker and live evidence. Therefore
-the default managed and firmware-visible orders remain unchanged.
+`faultTriggered=false`, and `idtrLoaded=false`; it remains distinct from guest
+evidence.
+
+The separate default-off `EnableM02Ud2VectorStateProbe` profile now supplies
+accepted bounded guest evidence without adding a `BootSequence` phase. It runs
+only after the complete ordinary smoke transcript, owns two LoaderCode pages
+and five disjoint LoaderData pages, materializes fresh M02-010 slots, owned IDT,
+context/GDT/TSS, and three IST pages, then synchronously enters the frozen
+terminal transition. Once descriptor state is active, generated code alone
+triggers vector 6, captures and exactly verifies all 23 integer/control-register
+fields, writes the result through owned COM1, and remains in `cli`/`hlt`.
+Therefore its ordered terminal subsequence is:
+
+1. `OS_BOOT_OK`
+2. `TEST_PASS boot.sequence`
+3. `OS_SMOKE_PASS`
+4. `TEST_START m02.013`
+5. `CLROS_M02_013_READY ... faultTriggered=true ... terminalHalt=true ...`
+6. `TEST_PASS m02.013`
+
+The profile is nonreturning, so no firmware callback, cleanup callback, or
+later marker may occur after its pass record. The 2026-08-26 QEMU/OVMF run
+observed all six terminal records in order and exactly once, with no forbidden
+record and no post-pass marker noise. The all-false default managed and
+firmware-visible orders remain unchanged.
 
 `BootSequence.RunFaultInfrastructureReadiness` is a host-tested helper only. It emits `FAULT_INFRA_READY` for a successful `FaultInfrastructureReadinessResult` and `FAULT_INFRA_NOT_READY status=<status>` for a failed result. The default boot path does not call it yet.
 
@@ -466,6 +498,21 @@ Host tests assert:
   and retains five forbidden markers. The accepted 2026-08-26 QEMU/OVMF run
   satisfied that complete profile, reported `outOfOrder=0` and
   `duplicateUnique=0`, and continued through `OS_SMOKE_PASS`.
+- M02-013 EFI-integration tests pin the default-false switch, the implied M01
+  owned-paging and M02 owned-COM1 prerequisites, exact 67-item/80-input source
+  closure, standalone-profile collisions, two LoaderCode plus five LoaderData
+  pages, disjoint/canonical range validation, zero-initialized IST storage,
+  publication/readback before entry, no callbacks after descriptor activation,
+  and data-before-code cleanup for every pre-entry failure. Focused transition
+  tests pin the 4,096-byte stream, exact offsets, FNV-1a64
+  `E5070E16F23533A3`, SHA-256
+  `DB402C072CBD5E9C82F36D1802AAB526C347077BDD147031D83E83B563E195B7`,
+  seeded live `RFLAGS=0x46`, exact saved fault-frame `RFLAGS=0x10046`, and all
+  23 capture comparisons. The QEMU profile requires, orders, and uniquifies all
+  six terminal records while retaining eight forbidden markers. The accepted
+  2026-08-26 run reported `orderedSeen=59`, `outOfOrder=0`,
+  `uniqueSeen=59`, `duplicateUnique=0`, and no post-pass marker noise after the
+  inherited cumulative profile was merged with the six terminal records.
 - Fault-entry frame layout tests prove future interrupt-stub storage can round-trip formatter-compatible page-fault and invalid-opcode frames, reject inconsistent error-code metadata, reject undersized buffers, and reject unknown vectors.
 - ExitBootServices transition-boundary tests prove success and blocked markers while leaving default boot markers unchanged.
 - Early diagnostics readiness tests prove serial backend and descriptor-table readiness are aggregated into stable boot markers while leaving default boot markers unchanged.
@@ -533,6 +580,17 @@ delivery, executable common dispatch, persistent descriptor state, active
 GDT/TSS/IST routing, post-`ExitBootServices` operation, or a numbered-gate
 promotion.
 
+The M02-013 terminal profile is also not a firmware-visible `BootSequence`
+phase. It is entered only after `OS_SMOKE_PASS` under its default-off EFI switch
+and never returns after the deliberate invalid-opcode fault. Its accepted tuple
+proves that one recorded QEMU CPU delivered vector 6 to the fresh owned IDT,
+used the owned GDT/TSS state, captured and matched the requested integer/control
+state, and emitted the exact owned-COM1 terminal transcript. LoaderCode is an
+allocation type, not evidence of live W^X enforcement. The profile supplies no
+cleanup or descriptor-restoration observation after entry and proves no safe
+continuation, persistent descriptor state, post-`ExitBootServices` operation,
+or numbered-gate promotion.
+
 The `BOOT_HANDOFF_READY`, `UEFI_MEMORY_MAP_NORMALIZED`, `BOOT_MEMORY_MAP_ACCEPTED`, `BOOT_MEMORY_REGIONS_READY`, `BOOT_MEMORY_REGION_COUNT`, `BOOT_ACPI_RSDP_HANDOFF_READY`, and `UEFI_ACPI_RSDP_READY` markers are now QEMU-proven through the live EFI artifact. The live EFI artifact still emits the allocation-free `BootSequencePlan` directly after handoff validation, normalization, acceptance, region materialization, and ACPI RSDP scan; it does not execute the managed `BootSequence.Run(BootHandoffRecord, EfiMemoryMapSummary, ...)` overload.
 
 `APP_PACKAGE_READY` is managed host-test planning only. It is not part of the firmware-visible marker order, does not prove a disk-backed package load, and does not prove native-tier or hosted .NET app launch.
@@ -568,11 +626,12 @@ permission changes, relocation, or native-tier or hosted .NET app launch.
    marker proofs, keep their UEFI evidence lines distinct from the direct
    transport, and do not treat either as the future post-firmware diagnostic
    path.
-4. Preserve the accepted default-off M02-010/M02-011 materialization profiles
-   and the default-off M02-012 reversible IDTR adapter, including their exact
-   cleanup and distinct guest markers. Interrupt/fault delivery, executable
-   common dispatch, persistent IDTR state, active IST routing, and fault
-   triggering remain later owned boundaries.
+4. Preserve the accepted default-off M02-010/M02-011 materialization profiles,
+   M02-012 reversible IDTR adapter, and M02-013 terminal vector-6 profile,
+   including their distinct cleanup, continuation, terminal, and guest-marker
+   boundaries. Reusable common dispatch, safe fault continuation, persistent
+   descriptor state, live W^X/NX enforcement, and post-firmware diagnostics
+   remain later owned boundaries.
 5. Wire the early diagnostics readiness helper only after generated stubs can be copied to executable memory and safely invoked under W^X policy.
 6. Wire the controlled fault-probe readiness helper only after early diagnostics can survive generated-stub execution and fault handling.
 7. Wire the app-selection readiness helper only after live block-device package reads can supply the manifest/package/descriptor prerequisites.

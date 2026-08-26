@@ -101,7 +101,15 @@ internal static class M02CheckedPortIoFunctionPointerEfiIntegrationTests
 
         XElement[] defaults = project
             .Descendants("EnableM02CheckedPortIoBindingProbe")
-            .Where(element => element.Parent?.Name.LocalName == "PropertyGroup")
+            .Where(element => element.Attribute("Condition")?.Value ==
+                "'$(EnableM02CheckedPortIoBindingProbe)' == ''")
+            .ToArray();
+        XElement[] ud2ProfileOverrides = project
+            .Descendants("PropertyGroup")
+            .Where(group => group.Attribute("Condition")?.Value ==
+                "'$(EnableM02Ud2VectorStateProbe)' == 'true'")
+            .SelectMany(group => group.Elements(
+                "EnableM02CheckedPortIoBindingProbe"))
             .ToArray();
         XElement[] symbols = project
             .Descendants("PropertyGroup")
@@ -156,6 +164,8 @@ internal static class M02CheckedPortIoFunctionPointerEfiIntegrationTests
             && defaults[0].Value == "false"
             && defaults[0].Attribute("Condition")?.Value ==
                 "'$(EnableM02CheckedPortIoBindingProbe)' == ''"
+            && ud2ProfileOverrides.Length == 1
+            && ud2ProfileOverrides[0].Value == "true"
             && symbols.Length == 1
             && symbols[0].Elements("DefineConstants").Single().Value ==
                 "$(DefineConstants);M02_CHECKED_PORT_IO_BINDING_PROBE"

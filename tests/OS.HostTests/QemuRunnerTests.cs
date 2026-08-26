@@ -2437,7 +2437,7 @@ internal static class QemuRunnerTests
 
         return result.ExitCode == 0
             && result.Output.Contains(
-                "QEMU_SCRIPT_M02_UD2_VECTOR_STATE_PROBE enabled=true panicSafeOwnedCom1=true normalizedInterruptFrame=false ownedIdtGatePopulation=false idtrContinuedExecution=false ownedGdtTssTerminal=false buildEfi=true skipImageBuild=false dryRun=true profileRequired=6 profileOrdered=6 profileUnique=6 profileForbidden=8",
+                "QEMU_SCRIPT_M02_UD2_VECTOR_STATE_PROBE enabled=true panicSafeOwnedCom1=true ownedX64GdtEncoding=false guardedIstStackAllocation=false normalizedInterruptFrame=false ownedIdtGatePopulation=false idtrContinuedExecution=false ownedGdtTssTerminal=false buildEfi=true skipImageBuild=false dryRun=true profileRequired=6 profileOrdered=6 profileUnique=6 profileForbidden=8",
                 StringComparison.Ordinal)
             && result.Output.Contains(
                 "QEMU_SCRIPT_M02_UD2_VECTOR_STATE_PREREQUISITES status=implied m01LoadedImageStack=true m01LiveAllocator=true ownedPaging=true m02SafeStub=true checkedPortIoBinding=true com1OwnedPortIo=true ownedCom1Ready=true panicSafeOwnedCom1=true",
@@ -2501,6 +2501,10 @@ internal static class QemuRunnerTests
             enabled.Where(argument => argument != "-BuildEfi").ToArray());
         ProcessResult skippedImage = RunQemuSmokeScript(
             [.. enabled, "-SkipImageBuild"]);
+        ProcessResult ownedX64GdtConflict = RunQemuSmokeScript(
+            [.. enabled, "-EnableM02OwnedX64GdtEncodingProbe"]);
+        ProcessResult guardedIstConflict = RunQemuSmokeScript(
+            [.. enabled, "-EnableM02GuardedIstStackAllocationProbe"]);
         ProcessResult terminalConflict = RunQemuSmokeScript(
             [.. enabled, "-EnableM02OwnedGdtTssTerminalProbe"]);
         ProcessResult normalizedConflict = RunQemuSmokeScript(
@@ -2536,6 +2540,8 @@ internal static class QemuRunnerTests
         [
             missingBuild,
             skippedImage,
+            ownedX64GdtConflict,
+            guardedIstConflict,
             terminalConflict,
             normalizedConflict,
             idtConflict,
@@ -2558,6 +2564,12 @@ internal static class QemuRunnerTests
                 StringComparison.Ordinal)
             && skippedImage.Output.Contains(
                 "m02_ud2_vector_state_probe_forbids_skip_image_build",
+                StringComparison.Ordinal)
+            && ownedX64GdtConflict.Output.Contains(
+                "m02_ud2_vector_state_probe_forbids_owned_x64_gdt_encoding_probe",
+                StringComparison.Ordinal)
+            && guardedIstConflict.Output.Contains(
+                "m02_ud2_vector_state_probe_forbids_guarded_ist_stack_allocation_probe",
                 StringComparison.Ordinal)
             && terminalConflict.Output.Contains(
                 "m02_ud2_vector_state_probe_forbids_owned_gdt_tss_terminal",

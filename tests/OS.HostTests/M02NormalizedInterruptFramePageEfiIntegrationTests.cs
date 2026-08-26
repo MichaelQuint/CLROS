@@ -28,7 +28,7 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
     private const string CompileClosureSha256 =
         "f118a012101e87abf5d1ac1299be82705b47942eae06abb669418977412d124c";
     private const string CanonicalProjectShapeSha256 =
-        "de242129bd59b0358211b606f666c0d99f65ab2e23096da47ec9b182e7d2748e";
+        "b317cc30c4dd27d61b6349686be68c3fd6f6702626dd5637d0c6a43a9c2bea2d";
     private const string FrozenProductionSha256 =
         "B66CD19B45E8198897B837DF9EDA6934AFBE087DC141C468BD0DB44E62724DA1";
     private const string FrozenHostLeafSha256 =
@@ -174,7 +174,7 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
             && compileHash == CompileClosureSha256
             && terminalIndex >= 0
             && normalizedIndex == terminalIndex + 1
-            && endianIndex == normalizedIndex + 3
+            && endianIndex == normalizedIndex + 8
             && compileKeys.Count(key => key == NormalizedKey) == 1
             && compileItems.All(item =>
                 !(item.Attribute("Include")?.Value ?? string.Empty)

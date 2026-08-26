@@ -410,6 +410,22 @@ internal static class EfiArtifactVerificationScriptTests
             artifact,
             serializerObjectPath: paths.ObjectPath,
             additionalArguments: ["-EnableM02Ud2VectorStateProbe"]);
+        ProcessResult ownedX64GdtConflict = RunVerifier(
+            artifact,
+            serializerObjectPath: paths.ObjectPath,
+            additionalArguments:
+            [
+                "-EnableM02Ud2VectorStateProbe",
+                "-EnableM02OwnedX64GdtEncodingProbe"
+            ]);
+        ProcessResult guardedIstConflict = RunVerifier(
+            artifact,
+            serializerObjectPath: paths.ObjectPath,
+            additionalArguments:
+            [
+                "-EnableM02Ud2VectorStateProbe",
+                "-EnableM02GuardedIstStackAllocationProbe"
+            ]);
         ProcessResult m04Conflict = RunVerifier(
             artifact,
             serializerObjectPath: paths.ObjectPath,
@@ -431,6 +447,12 @@ internal static class EfiArtifactVerificationScriptTests
             && enabled.Output.Contains(
                 "TEST_PASS efi.artifact.verify",
                 StringComparison.Ordinal)
+            && FailedWith(
+                ownedX64GdtConflict,
+                "m02_ud2_vector_state_probe_forbids_owned_x64_gdt_encoding_probe")
+            && FailedWith(
+                guardedIstConflict,
+                "m02_ud2_vector_state_probe_forbids_guarded_ist_stack_allocation_probe")
             && m04Conflict.ExitCode != 0
             && m04Conflict.Output.Contains(
                 "m04_span_memory_conformance_forbids_m02_ud2_vector_state",
@@ -443,6 +465,8 @@ internal static class EfiArtifactVerificationScriptTests
             Console.WriteLine(
                 "M02-013 artifact implication outputs:\n"
                 + enabled.Output
+                + ownedX64GdtConflict.Output
+                + guardedIstConflict.Output
                 + m04Conflict.Output);
         }
 

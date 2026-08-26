@@ -21,7 +21,7 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
     private const string CompileClosureSha256 =
         "f118a012101e87abf5d1ac1299be82705b47942eae06abb669418977412d124c";
     private const string CanonicalProjectSha256 =
-        "de242129bd59b0358211b606f666c0d99f65ab2e23096da47ec9b182e7d2748e";
+        "b317cc30c4dd27d61b6349686be68c3fd6f6702626dd5637d0c6a43a9c2bea2d";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -124,7 +124,15 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
 
         XElement[] defaults = project
             .Descendants("EnableM02PanicSafeOwnedCom1Probe")
-            .Where(element => element.Parent?.Name.LocalName == "PropertyGroup")
+            .Where(element => element.Attribute("Condition")?.Value ==
+                "'$(EnableM02PanicSafeOwnedCom1Probe)' == ''")
+            .ToArray();
+        XElement[] ud2ProfileOverrides = project
+            .Descendants("PropertyGroup")
+            .Where(group => group.Attribute("Condition")?.Value ==
+                "'$(EnableM02Ud2VectorStateProbe)' == 'true'")
+            .SelectMany(group => group.Elements(
+                "EnableM02PanicSafeOwnedCom1Probe"))
             .ToArray();
         XElement[] symbolGroups = project
             .Descendants("PropertyGroup")
@@ -153,12 +161,14 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
             && guardedIstIndex == gdtIndex + 1
             && terminalIndex == guardedIstIndex + 1
             && normalizedInterruptFrameIndex == terminalIndex + 1
-            && catalogIndex == normalizedInterruptFrameIndex + 3
+            && catalogIndex == normalizedInterruptFrameIndex + 8
             && compileKeys.Count(key => key == ReporterKey) == 1
             && defaults.Length == 1
             && defaults[0].Value == "false"
             && defaults[0].Attribute("Condition")?.Value ==
                 "'$(EnableM02PanicSafeOwnedCom1Probe)' == ''"
+            && ud2ProfileOverrides.Length == 1
+            && ud2ProfileOverrides[0].Value == "true"
             && symbolGroups.Length == 1
             && symbolGroups[0].Elements("DefineConstants").Single().Value ==
                 "$(DefineConstants);M02_PANIC_SAFE_OWNED_COM1_PROBE"

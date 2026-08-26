@@ -6085,7 +6085,7 @@ function Test-M01SourceClosure {
 
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "d4c09668a27ccb8f8194407f165a515912d3e3b1523a2aa0bbb80da362dbe693") {
+        "b317cc30c4dd27d61b6349686be68c3fd6f6702626dd5637d0c6a43a9c2bea2d") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `
@@ -6383,6 +6383,12 @@ function Test-M01SourceClosure {
     $m02Ud2VectorStateDependencyCondition =
         "'" + '$' + "(EnableM02Ud2VectorStateProbe)' == 'true' and '" +
         '$' + "(EnableM02PanicSafeOwnedCom1Probe)' != 'true'"
+    $m02Ud2VectorStateOwnedX64GdtExclusionCondition =
+        "'" + '$' + "(EnableM02Ud2VectorStateProbe)' == 'true' and '" +
+        '$' + "(EnableM02OwnedX64GdtEncodingProbe)' == 'true'"
+    $m02Ud2VectorStateGuardedIstExclusionCondition =
+        "'" + '$' + "(EnableM02Ud2VectorStateProbe)' == 'true' and '" +
+        '$' + "(EnableM02GuardedIstStackAllocationProbe)' == 'true'"
     $m02Ud2VectorStateTerminalExclusionCondition =
         "'" + '$' + "(EnableM02Ud2VectorStateProbe)' == 'true' and '" +
         '$' + "(EnableM02OwnedGdtTssTerminalProbe)' == 'true'"
@@ -6424,6 +6430,8 @@ function Test-M01SourceClosure {
         $m02IdtrContinuedExecutionNormalizedExclusionCondition,
         $m02IdtrContinuedExecutionIdtExclusionCondition,
         $m02Ud2VectorStateDependencyCondition,
+        $m02Ud2VectorStateOwnedX64GdtExclusionCondition,
+        $m02Ud2VectorStateGuardedIstExclusionCondition,
         $m02Ud2VectorStateTerminalExclusionCondition,
         $m02Ud2VectorStateNormalizedExclusionCondition,
         $m02Ud2VectorStateIdtExclusionCondition,
@@ -7109,6 +7117,30 @@ if ($EnableM02Ud2VectorStateProbe -and
             "EFI_PREFLIGHT_M02_SWITCHES " + $m02SwitchEvidence +
             " reason=m02_ud2_vector_state_probe_requires_panic_safe_owned_com1") `
         -Reason "m02_ud2_vector_state_probe_requires_panic_safe_owned_com1" `
+        -LogFullPath $logFullPath `
+        -ReportedLogPath $LogPath `
+        -Status "invalid"
+}
+
+if ($EnableM02Ud2VectorStateProbe -and
+    $EnableM02OwnedX64GdtEncodingProbe) {
+    Stop-EfiPreflight `
+        -Marker (
+            "EFI_PREFLIGHT_M02_SWITCHES " + $m02SwitchEvidence +
+            " reason=m02_ud2_vector_state_probe_forbids_owned_x64_gdt_encoding_probe") `
+        -Reason "m02_ud2_vector_state_probe_forbids_owned_x64_gdt_encoding_probe" `
+        -LogFullPath $logFullPath `
+        -ReportedLogPath $LogPath `
+        -Status "invalid"
+}
+
+if ($EnableM02Ud2VectorStateProbe -and
+    $EnableM02GuardedIstStackAllocationProbe) {
+    Stop-EfiPreflight `
+        -Marker (
+            "EFI_PREFLIGHT_M02_SWITCHES " + $m02SwitchEvidence +
+            " reason=m02_ud2_vector_state_probe_forbids_guarded_ist_stack_allocation_probe") `
+        -Reason "m02_ud2_vector_state_probe_forbids_guarded_ist_stack_allocation_probe" `
         -LogFullPath $logFullPath `
         -ReportedLogPath $LogPath `
         -Status "invalid"

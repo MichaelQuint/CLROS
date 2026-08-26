@@ -317,6 +317,361 @@ public readonly struct DisabledDefaultUd2VectorStateTransitionResult
     }
 }
 
+public enum DisabledDefaultUd2VectorStatePreTerminalStage : byte
+{
+    None = 0,
+    Services = 1,
+    CodeAllocation = 2,
+    DataAllocation = 3,
+    Materialization = 4,
+    ReadBack = 5,
+    MarkerTransport = 6,
+    Publication = 7
+}
+
+public enum DisabledDefaultUd2VectorStatePreTerminalStatus : byte
+{
+    Uninitialized = 0,
+    Success = 1,
+    ExistingState = 2,
+    MissingBootServices = 3,
+    MissingAllocatePages = 4,
+    MissingFreePages = 5,
+    CodeAllocationFailed = 6,
+    InvalidCodeRange = 7,
+    DataAllocationFailed = 8,
+    InvalidDataRange = 9,
+    OverlappingRanges = 10,
+    MaterializationFailed = 11,
+    ReadBackFailed = 12,
+    MarkerTransportFailed = 13,
+    PublicationFailed = 14
+}
+
+/// <summary>
+/// Allocation-free result for one pre-terminal M02-013 adapter boundary. The
+/// caller owns firmware invocation; this result owns the exact accept/reject
+/// and cleanup decision shared by the EFI adapter and host fake-firmware tests.
+/// </summary>
+public readonly struct DisabledDefaultUd2VectorStatePreTerminalResult
+{
+    private readonly byte _isInitialized;
+    private readonly byte _cleanupPlan;
+
+    internal DisabledDefaultUd2VectorStatePreTerminalResult(
+        DisabledDefaultUd2VectorStatePreTerminalStage stage,
+        DisabledDefaultUd2VectorStatePreTerminalStatus status,
+        ulong codeAddress,
+        ulong dataAddress,
+        byte cleanupPlan)
+    {
+        _isInitialized = 1;
+        _cleanupPlan = cleanupPlan;
+        Stage = stage;
+        Status = status;
+        CodeAddress = codeAddress;
+        DataAddress = dataAddress;
+    }
+
+    public bool IsInitialized => _isInitialized == 1;
+
+    public DisabledDefaultUd2VectorStatePreTerminalStage Stage { get; }
+
+    public DisabledDefaultUd2VectorStatePreTerminalStatus Status { get; }
+
+    public ulong CodeAddress { get; }
+
+    public ulong DataAddress { get; }
+
+    public byte CleanupPlan => IsInitialized ? _cleanupPlan : (byte)0;
+
+    public bool ReleaseData => (CleanupPlan & 1) != 0;
+
+    public bool ReleaseCode => (CleanupPlan & 2) != 0;
+
+    public bool Succeeded =>
+        IsInitialized &&
+        Status == DisabledDefaultUd2VectorStatePreTerminalStatus.Success;
+}
+
+/// <summary>
+/// Pure pre-terminal authority for the M02-013 EFI adapter. Firmware calls and
+/// memory mutation stay with the caller; all stage acceptance, hostile-range
+/// rejection, and release ordering decisions pass through this shared contract.
+/// </summary>
+public static class DisabledDefaultUd2VectorStatePreTerminalContract
+{
+    public const ulong PageByteCount = 4096;
+    public const ulong CodePageCount = 2;
+    public const ulong DataPageCount = 5;
+    public const ulong CodeByteCount = CodePageCount * PageByteCount;
+    public const ulong DataByteCount = DataPageCount * PageByteCount;
+    public const byte ReleaseDataMask = 1;
+    public const byte ReleaseCodeMask = 2;
+
+    public static DisabledDefaultUd2VectorStatePreTerminalResult
+        EvaluateServices(
+            byte currentState,
+            bool bootServicesPresent,
+            bool allocatePagesPresent,
+            bool freePagesPresent)
+    {
+        DisabledDefaultUd2VectorStatePreTerminalStatus status =
+            currentState != 0
+                ? DisabledDefaultUd2VectorStatePreTerminalStatus.ExistingState
+                : !bootServicesPresent
+                    ? DisabledDefaultUd2VectorStatePreTerminalStatus
+                        .MissingBootServices
+                    : !allocatePagesPresent
+                        ? DisabledDefaultUd2VectorStatePreTerminalStatus
+                            .MissingAllocatePages
+                        : !freePagesPresent
+                            ? DisabledDefaultUd2VectorStatePreTerminalStatus
+                                .MissingFreePages
+                            : DisabledDefaultUd2VectorStatePreTerminalStatus
+                                .Success;
+        return NewResult(
+            DisabledDefaultUd2VectorStatePreTerminalStage.Services,
+            status,
+            0,
+            false,
+            0,
+            false);
+    }
+
+    public static DisabledDefaultUd2VectorStatePreTerminalResult
+        EvaluateCodeAllocation(
+            ulong firmwareStatus,
+            ulong codeAddress)
+    {
+        DisabledDefaultUd2VectorStatePreTerminalStatus status =
+            firmwareStatus != 0
+                ? DisabledDefaultUd2VectorStatePreTerminalStatus
+                    .CodeAllocationFailed
+                : !IsValidRange(codeAddress, CodeByteCount)
+                    ? DisabledDefaultUd2VectorStatePreTerminalStatus
+                        .InvalidCodeRange
+                    : DisabledDefaultUd2VectorStatePreTerminalStatus.Success;
+        return NewResult(
+            DisabledDefaultUd2VectorStatePreTerminalStage.CodeAllocation,
+            status,
+            codeAddress,
+            firmwareStatus == 0,
+            0,
+            false);
+    }
+
+    public static DisabledDefaultUd2VectorStatePreTerminalResult
+        EvaluateDataAllocation(
+            ulong codeAddress,
+            ulong firmwareStatus,
+            ulong dataAddress)
+    {
+        DisabledDefaultUd2VectorStatePreTerminalStatus status =
+            !IsValidRange(codeAddress, CodeByteCount)
+                ? DisabledDefaultUd2VectorStatePreTerminalStatus
+                    .InvalidCodeRange
+                : firmwareStatus != 0
+                    ? DisabledDefaultUd2VectorStatePreTerminalStatus
+                        .DataAllocationFailed
+                    : !IsValidRange(dataAddress, DataByteCount)
+                        ? DisabledDefaultUd2VectorStatePreTerminalStatus
+                            .InvalidDataRange
+                        : RangesOverlap(
+                            codeAddress,
+                            CodeByteCount,
+                            dataAddress,
+                            DataByteCount)
+                            ? DisabledDefaultUd2VectorStatePreTerminalStatus
+                                .OverlappingRanges
+                            : DisabledDefaultUd2VectorStatePreTerminalStatus
+                                .Success;
+        return NewResult(
+            DisabledDefaultUd2VectorStatePreTerminalStage.DataAllocation,
+            status,
+            codeAddress,
+            true,
+            dataAddress,
+            firmwareStatus == 0);
+    }
+
+    public static DisabledDefaultUd2VectorStatePreTerminalResult
+        EvaluateMaterialization(
+            ulong codeAddress,
+            ulong dataAddress,
+            bool materializationSucceeded)
+    {
+        return EvaluatePreparedStage(
+            DisabledDefaultUd2VectorStatePreTerminalStage.Materialization,
+            DisabledDefaultUd2VectorStatePreTerminalStatus
+                .MaterializationFailed,
+            codeAddress,
+            dataAddress,
+            materializationSucceeded);
+    }
+
+    public static DisabledDefaultUd2VectorStatePreTerminalResult
+        EvaluateReadBack(
+            ulong codeAddress,
+            ulong dataAddress,
+            bool readBackSucceeded)
+    {
+        return EvaluatePreparedStage(
+            DisabledDefaultUd2VectorStatePreTerminalStage.ReadBack,
+            DisabledDefaultUd2VectorStatePreTerminalStatus.ReadBackFailed,
+            codeAddress,
+            dataAddress,
+            readBackSucceeded);
+    }
+
+    public static DisabledDefaultUd2VectorStatePreTerminalResult
+        EvaluateMarkerTransport(
+            ulong codeAddress,
+            ulong dataAddress,
+            bool markerTransportSucceeded)
+    {
+        return EvaluatePreparedStage(
+            DisabledDefaultUd2VectorStatePreTerminalStage.MarkerTransport,
+            DisabledDefaultUd2VectorStatePreTerminalStatus
+                .MarkerTransportFailed,
+            codeAddress,
+            dataAddress,
+            markerTransportSucceeded);
+    }
+
+    public static DisabledDefaultUd2VectorStatePreTerminalResult
+        EvaluatePublication(
+            ulong codeAddress,
+            ulong dataAddress,
+            bool publicationSucceeded)
+    {
+        return EvaluatePreparedStage(
+            DisabledDefaultUd2VectorStatePreTerminalStage.Publication,
+            DisabledDefaultUd2VectorStatePreTerminalStatus.PublicationFailed,
+            codeAddress,
+            dataAddress,
+            publicationSucceeded);
+    }
+
+    public static byte PlanCleanup(
+        bool codeAllocated,
+        ulong codeAddress,
+        bool dataAllocated,
+        ulong dataAddress)
+    {
+        byte plan = dataAllocated ? ReleaseDataMask : (byte)0;
+        if (codeAllocated &&
+            (!dataAllocated ||
+                AllocationRangesDefinitelyDisjoint(codeAddress, dataAddress)))
+        {
+            plan |= ReleaseCodeMask;
+        }
+
+        return plan;
+    }
+
+    public static bool IsValidRange(ulong address, ulong byteCount)
+    {
+        return address != 0 &&
+            byteCount != 0 &&
+            (address & (PageByteCount - 1)) == 0 &&
+            address <= ~0UL - byteCount &&
+            DisabledDefaultUd2VectorStateTransition
+                .IsCanonicalX64Address(address) &&
+            DisabledDefaultUd2VectorStateTransition
+                .IsCanonicalX64Address(address + byteCount - 1);
+    }
+
+    public static bool RangesOverlap(
+        ulong firstAddress,
+        ulong firstByteCount,
+        ulong secondAddress,
+        ulong secondByteCount)
+    {
+        if (firstByteCount == 0 ||
+            secondByteCount == 0 ||
+            firstAddress > ~0UL - firstByteCount ||
+            secondAddress > ~0UL - secondByteCount)
+        {
+            return true;
+        }
+
+        ulong firstEnd = firstAddress + firstByteCount;
+        ulong secondEnd = secondAddress + secondByteCount;
+        return firstAddress < secondEnd && secondAddress < firstEnd;
+    }
+
+    public static bool AllocationRangesDefinitelyDisjoint(
+        ulong codeAddress,
+        ulong dataAddress)
+    {
+        if (codeAddress > ~0UL - CodeByteCount ||
+            dataAddress > ~0UL - DataByteCount)
+        {
+            return false;
+        }
+
+        ulong codeEnd = codeAddress + CodeByteCount;
+        ulong dataEnd = dataAddress + DataByteCount;
+        return codeEnd <= dataAddress || dataEnd <= codeAddress;
+    }
+
+    private static DisabledDefaultUd2VectorStatePreTerminalResult
+        EvaluatePreparedStage(
+            DisabledDefaultUd2VectorStatePreTerminalStage stage,
+            DisabledDefaultUd2VectorStatePreTerminalStatus failureStatus,
+            ulong codeAddress,
+            ulong dataAddress,
+            bool operationSucceeded)
+    {
+        DisabledDefaultUd2VectorStatePreTerminalStatus status =
+            !IsValidRange(codeAddress, CodeByteCount)
+                ? DisabledDefaultUd2VectorStatePreTerminalStatus
+                    .InvalidCodeRange
+                : !IsValidRange(dataAddress, DataByteCount)
+                    ? DisabledDefaultUd2VectorStatePreTerminalStatus
+                        .InvalidDataRange
+                    : RangesOverlap(
+                        codeAddress,
+                        CodeByteCount,
+                        dataAddress,
+                        DataByteCount)
+                        ? DisabledDefaultUd2VectorStatePreTerminalStatus
+                            .OverlappingRanges
+                        : !operationSucceeded
+                            ? failureStatus
+                            : DisabledDefaultUd2VectorStatePreTerminalStatus
+                                .Success;
+        return NewResult(
+            stage,
+            status,
+            codeAddress,
+            true,
+            dataAddress,
+            true);
+    }
+
+    private static DisabledDefaultUd2VectorStatePreTerminalResult NewResult(
+        DisabledDefaultUd2VectorStatePreTerminalStage stage,
+        DisabledDefaultUd2VectorStatePreTerminalStatus status,
+        ulong codeAddress,
+        bool codeAllocated,
+        ulong dataAddress,
+        bool dataAllocated)
+    {
+        return new DisabledDefaultUd2VectorStatePreTerminalResult(
+            stage,
+            status,
+            codeAddress,
+            dataAddress,
+            PlanCleanup(
+                codeAllocated,
+                codeAddress,
+                dataAllocated,
+                dataAddress));
+    }
+}
+
 /// <summary>
 /// Materializes and validates a frozen, placement-independent x64 terminal
 /// transition as ordinary caller-owned bytes. RCX names the prepared context.
@@ -434,7 +789,11 @@ public static unsafe class DisabledDefaultUd2VectorStateTransition
     public const ulong ContextAlignment = 16;
     public const ulong StreamAlignment = CodePageByteCount;
     public const ulong IstStackTopAlignment = 16;
-    public const ulong ExpectedRflags = 0x46;
+    public const ulong SeededRflags = 0x46;
+    // Fault-class exception delivery sets RF in the saved RFLAGS image.
+    public const ulong FaultFrameResumeFlagMask = 1UL << 16;
+    public const ulong ExpectedRflags =
+        SeededRflags | FaultFrameResumeFlagMask;
     public const ulong CaptureCompletionCookie = 0x4d30_3231_3343_4150UL;
     public const ulong RegisterCookieBase = 0x4d02_0130_0000_0000UL;
 
@@ -445,11 +804,11 @@ public static unsafe class DisabledDefaultUd2VectorStateTransition
     public const ulong Fnv1A64OffsetBasis = 14_695_981_039_346_656_037UL;
     public const ulong Fnv1A64Prime = 1_099_511_628_211UL;
     public const ulong CanonicalModeledContextAddress = 0x0030_1000UL;
-    public const ulong StreamFnv1A64 = 0xe57d_f95f_6f34_fc32UL;
-    public const ulong StreamSha256Word0BigEndian = 0xf039_c657_6a04_298cUL;
-    public const ulong StreamSha256Word1BigEndian = 0x7c92_5b63_5c45_fb47UL;
-    public const ulong StreamSha256Word2BigEndian = 0x6f77_0354_baea_ac28UL;
-    public const ulong StreamSha256Word3BigEndian = 0x2dc3_392f_7a84_d115UL;
+    public const ulong StreamFnv1A64 = 0xe507_0e16_f235_33a3UL;
+    public const ulong StreamSha256Word0BigEndian = 0xdb40_2c07_2cbd_5e9cUL;
+    public const ulong StreamSha256Word1BigEndian = 0x82f3_6d18_02aa_b526UL;
+    public const ulong StreamSha256Word2BigEndian = 0xc347_077b_dd14_7031UL;
+    public const ulong StreamSha256Word3BigEndian = 0xd83e_83b5_63e1_95b7UL;
 
     public const int AuditedConditionalFailureBranchCount = 37;
     public const int AuditedSavedGprCount = 15;
@@ -1539,7 +1898,7 @@ public static unsafe class DisabledDefaultUd2VectorStateTransition
         EmitMovAbs(ref builder, 0x48, 0xb8, CaptureCompletionCookie);
         EmitStoreRaxToContext(ref builder, CaptureCompletionOffset);
 
-        builder.Emit(0x31, 0xc0, 0x66, 0x8c, 0xc8);
+        builder.Emit(0x8c, 0xc8);
         builder.Emit(0x66, 0x3d, 0x08, 0x00);
         EmitJneFailure(ref builder);
         EmitMovRaxFromContext(ref builder, ExpectedCsOffset);
@@ -1561,8 +1920,8 @@ public static unsafe class DisabledDefaultUd2VectorStateTransition
         EmitCompareContextPair(ref builder, ExpectedRspOffset,
             CapturedRspOffset);
         EmitJneFailure(ref builder);
-        EmitCompareContextImmediate(ref builder, CapturedRflagsOffset,
-            (byte)ExpectedRflags);
+        EmitCompareContextImmediate32(ref builder, CapturedRflagsOffset,
+            (uint)ExpectedRflags);
         EmitJneFailure(ref builder);
         EmitCompareContextPair(ref builder, ExpectedCr2Offset,
             CapturedCr2Offset);
@@ -1710,10 +2069,10 @@ public static unsafe class DisabledDefaultUd2VectorStateTransition
         EmitMovAbs(ref builder, 0x48, 0xb8, RegisterCookieBase + 15);
         EmitStoreRaxToContext(ref builder, ExpectedR15Offset);
 
-        builder.Emit(0x6a, 0x46, 0x9d, 0x9c, 0x58);
-        builder.Emit(0x48, 0x83, 0xf8, 0x46);
+        builder.Emit(0x6a, (byte)SeededRflags, 0x9d, 0x9c, 0x58);
+        builder.Emit(0x48, 0x83, 0xf8, (byte)SeededRflags);
         EmitJneFailure(ref builder);
-        builder.Emit(0x6a, 0x46, 0x9d);
+        builder.Emit(0x6a, (byte)SeededRflags, 0x9d);
         builder.Emit(0x49, 0xc7, 0x87);
         builder.EmitU32(ExpectedRflagsOffset);
         builder.EmitU32((uint)ExpectedRflags);
@@ -1806,6 +2165,16 @@ public static unsafe class DisabledDefaultUd2VectorStateTransition
         builder.Emit(0x49, 0x83, 0xbf);
         builder.EmitU32(contextOffset);
         builder.Emit(value);
+    }
+
+    private static void EmitCompareContextImmediate32(
+        ref StreamBuilder builder,
+        int contextOffset,
+        uint value)
+    {
+        builder.Emit(0x49, 0x81, 0xbf);
+        builder.EmitU32(contextOffset);
+        builder.EmitU32(value);
     }
 
     private static void EmitCompareContextPair(

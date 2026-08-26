@@ -4599,6 +4599,10 @@ try {
         (Format-QemuSmokeBoolean $EnableM02Ud2VectorStateProbe.IsPresent) +
         " panicSafeOwnedCom1=" +
         (Format-QemuSmokeBoolean $EnableM02PanicSafeOwnedCom1Probe.IsPresent) +
+        " ownedX64GdtEncoding=" +
+        (Format-QemuSmokeBoolean $EnableM02OwnedX64GdtEncodingProbe.IsPresent) +
+        " guardedIstStackAllocation=" +
+        (Format-QemuSmokeBoolean $EnableM02GuardedIstStackAllocationProbe.IsPresent) +
         " normalizedInterruptFrame=" +
         (Format-QemuSmokeBoolean $EnableM02NormalizedInterruptFramePageProbe.IsPresent) +
         " ownedIdtGatePopulation=" +
@@ -4757,6 +4761,22 @@ try {
         Write-Host (
             "TEST_FAIL qemu.smoke.invalid_args " +
             "m02_ud2_vector_state_probe_requires_panic_safe_owned_com1")
+        exit 1
+    }
+
+    if ($EnableM02Ud2VectorStateProbe -and
+        $EnableM02OwnedX64GdtEncodingProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_ud2_vector_state_probe_forbids_owned_x64_gdt_encoding_probe")
+        exit 1
+    }
+
+    if ($EnableM02Ud2VectorStateProbe -and
+        $EnableM02GuardedIstStackAllocationProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_ud2_vector_state_probe_forbids_guarded_ist_stack_allocation_probe")
         exit 1
     }
 
