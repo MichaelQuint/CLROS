@@ -19,6 +19,13 @@ the accepted stage-two QEMU/OVMF tuple. The M01-025 stage-three artifact has
 host/source and PE-verification evidence only; it has not executed under
 QEMU/OVMF.
 
+A separate default-off M02-010 artifact has now been built, independently
+verified, and executed under QEMU/OVMF from exact source head
+`b88a485c8562a0022ffaae760fb47ca9d5addba2`. It materializes and reads back one
+temporary 4,096-byte normalized interrupt-entry page and releases it before
+ordinary memory-map capture. It does not execute the generated page or advance
+a numbered completion gate.
+
 ## Implemented Behavior
 
 - The project uses `NoStdLib`, `PublishAot`, `EntryPointSymbol=EfiMain`, and `LinkerSubsystem=EFI_APPLICATION`.
@@ -684,9 +691,10 @@ production readiness.
 The default-false `EnableM02GuardedIstStackAllocationProbe` profile links
 `Diagnostics/GuardedISTStacksDoubleFaultPageFaultNMI.cs` immediately after the
 accepted M02-007 encoder and before the independent endian catalog. The current
-development closure is exactly 59 compile items and 72 source-authority inputs
-after the default-off M02-009 terminal stub and M04-003 span/memory catalog
-sources were added after this historically accepted slice.
+development closure is exactly 60 compile items and 73 source-authority inputs
+after the default-off M02-009 terminal stub, M02-010 normalized interrupt-entry
+page, and M04-003 span/memory catalog sources were added after this historically
+accepted slice.
 The flag requires `EnableM02OwnedX64GdtEncodingProbe=true`; the QEMU wrapper
 also requires `-BuildEfi`, rejects `-SkipImageBuild`, and rebuilds both the EFI
 artifact and raw image.
@@ -749,9 +757,10 @@ requirement.
 The default-false `EnableM02OwnedGdtTssTerminalProbe` profile links the reviewed
 `Diagnostics/OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs` source immediately
 after the M02-008 guarded-IST dependency and before the independent endian
-catalog. The current explicit development closure is therefore 59 compile items
-and 72 source-authority inputs after the later default-off M04-003 catalog was
-inserted after the endian catalog. The flag requires
+catalog. The current explicit development closure is therefore 60 compile items
+and 73 source-authority inputs after the later default-off M02-010 page and
+M04-003 catalog were inserted before and after the endian catalog respectively.
+The flag requires
 `EnableM02GuardedIstStackAllocationProbe=true`; the build and artifact-verifier
 paths propagate the same property and require the exact
 `M02_OWNED_GDT_TSS_TERMINAL_PROBE` symbol.
@@ -824,16 +833,119 @@ diagnostics, survive real firmware exit, advance a numbered completion gate,
 run hosted .NET or Kestrel, establish provider support, or establish CloudReady
 or production readiness.
 
+### M02-010 normalized interrupt-entry page EFI integration
+
+The default-false `EnableM02NormalizedInterruptFramePageProbe` profile links
+the frozen
+`Diagnostics/NormalizeErrorCodeNonErrorCodeInterruptFrame.cs` source after the
+M02-009 terminal-stub source and before both M04 conformance sources. When
+enabled it defines exactly `M02_NORMALIZED_INTERRUPT_FRAME_PAGE_PROBE`. It does
+not silently enable an M01, M02, or M04 dependency, and it is mutually
+exclusive with the nonreturning M02-009 terminal profile.
+
+The explicit same-build closure is exactly 60 compile items with compile-key
+SHA-256
+`805E39822E162FD57BE8421D6D19282267D8B71222602BB359C81ACE9E7BA2E1`
+and 73 source-authority inputs with closure SHA-256
+`08DB2154F4E6A45B1F020CB9D0562C43A062E13EE6537AA46FA4169D2F314975`.
+The raw `OS.csproj` SHA-256 is
+`90A9243917910A9516388ABB301D9BEC92F661C6A839DBFA25E24497288C2769`;
+its canonical evaluated XML-shape SHA-256 is
+`05C6372ADA146E1CF78DFF3FB1D2C63601F788CF650172292F4D8724E15DBF45`.
+Post-restore evaluation found zero project references and zero ordinary
+references. The linked frozen source has SHA-256
+`B66CD19B45E8198897B837DF9EDA6934AFBE087DC141C468BD0DB44E62724DA1`.
+
+After firmware console discovery and optional M04 pre-memory-map checks, but
+before `TryCaptureUefiMemoryMap`, the profile emits `TEST_START m02.010`,
+requires live `AllocatePages` and `FreePages`, and allocates exactly one page
+using `AllocateAnyPages`, `EfiLoaderData`, and page count one. The address must
+be nonzero, 4,096-aligned, canonical through its final byte, and free of
+arithmetic wrap. The real page address is also the modeled page address; the
+modeled-only common target is exactly `pageAddress + 4096`. EFI success
+establishes page ownership before address validation, so a successful
+allocation returning address zero is released exactly once before failure.
+
+The path calls pointer `Materialize` exactly once and pointer
+`ValidateReadBack` exactly once afterward. It requires initialized successful
+results, the exact 4,096-byte capacity/write/compare counts, nine hardware-
+error-code vectors, 247 synthetic vectors, three normalized semantic slots,
+matching modeled addresses, no mismatch, and FNV-1a64
+`428D0353A96B7ACE` from both operations. It then calls `FreePages` exactly once
+after the readback attempt. All post-allocation failure paths clean up once;
+ready/pass requires successful release. The independent modeled page SHA-256
+is `71325A5633E1985BB22B4F8E1581399F63FEDEEB8CBFA1E3507A3F4ED73A71AF`.
+
+Success emits exactly:
+
+```text
+TEST_START m02.010
+CLROS_M02_010_READY vectors=256 hardwareErrorCodeVectors=9 syntheticErrorCodeVectors=247 slotBytes=16 pageBytes=4096 normalizedSlots=3 commonTargetDelta=4096 fnv1a64=428D0353A96B7ACE readBack=true guestMaterialization=true loaderData=true pageReleased=true stubExecution=false idtInstalled=false faultTriggered=false markerTransport=uefiSerial postExitBootServices=false
+TEST_PASS m02.010
+```
+
+Any missing service/function, allocation or address rejection, materialization
+or readback mismatch, result-audit failure, or cleanup failure emits
+`M02_NORMALIZED_INTERRUPT_FRAME_PAGE_FAILED` and
+`TEST_FAIL m02.010 guest_materialization_readback_or_cleanup`, suppresses the
+ready/pass records, and aborts the optional profile.
+
+The accepted real command was:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -BuildEfi `
+  -EnableM02NormalizedInterruptFramePageProbe `
+  -EfiArtifact .\artifacts\efi\BOOTX64-M02-010-b88a485c-QEMU.EFI `
+  -Image .\artifacts\images\m02-010-b88a485c-qemu.raw `
+  -SerialLog .\artifacts\logs\issue-487-m02-010-b88a485c-qemu-serial.log `
+  -SummaryLog .\artifacts\logs\issue-487-m02-010-b88a485c-qemu-summary.log
+```
+
+The schema-three link evidence was generated at
+`2026-08-25T22:25:56.1118242-04:00` from implementation head
+`b88a485c8562a0022ffaae760fb47ca9d5addba2`, tree
+`2c214fdee0ac2e08dd3df7a62523a5c69ca4a5fe`. The production `EfiEntry.cs`
+source has SHA-256
+`76C15B0296A3E4FD51D9EAEF943B57D846E93050110B636AE57E5DBADE39A48F`.
+The artifact verifier accepted a
+67,072-byte PE32+ AMD64 EFI application, subsystem 10, entry RVA `0x5330`, the
+same-build `EfiMain`/serializer bindings, and no ordinary, bound, IAT, or delay
+imports. Artifact identities are:
+
+| Artifact | Bytes | Lines | SHA-256 |
+| --- | ---: | ---: | --- |
+| EFI | 67,072 | n/a | `9D7EE566D93ED876DDBE1825CC5629330CF46DEEB92F23473F8C6E3A06249B6D` |
+| Serializer object | 336 | n/a | `DA97E50C95E479541B65EB3F96D9C6DED163735857650BEE9416324086D55C7B` |
+| Link map | 38,683 | 404 | `E8DDA9078650D6590963990F09C3387383EF15165FFD8FB94CE78338CDD4D1CF` |
+| Link response | 500 | 15 | `F88A91FBB859939851CCEBB865B680940F9ECE1193DDB8F8A1452BAF31B1A96C` |
+| Link-evidence JSON | 398,582 | 5,154 | `90589CAF8365E172824393F761E35195228B2B7860E518D4F82983CE9EFEF65C` |
+| Archived build log | 4,622 | 39 | `626C61613A9FFE189B040FE8BE904ED6F15CAD9C1DD8423FAB3027DDCDE9AF86` |
+
+The accepted QEMU/OVMF run observed the exact guest transcript once, then
+continued through the ordinary memory-map and boot-smoke markers. It proves
+only temporary pre-`ExitBootServices` LoaderData materialization, production
+readback, deterministic identity, and release. The page was not allocated as
+LoaderCode or published executable; no slot or common target was called or
+jumped to; no IDT/IDTR/IST was installed; and no live interrupt, normalized CPU
+frame, or fault was produced. This does not advance Gate 3 or any other
+numbered completion gate and does not prove hosted .NET, Kestrel, provider,
+CloudReady, security-hardening, or production behavior.
+
 ### M04-002 fixed endian-catalog EFI closure
 
 `EnableM04IndependentEndianConformanceProbe` is a default-false, independent
 profile. At its acceptance head it added exactly one explicit compile item:
 `std/no-runtime/shared/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs`.
 That historical accepted project closure had 53 compile items and the canonical
-build/verifier authority had 66 inputs. The current development tree has 59/72
+build/verifier authority had 66 inputs. The current development tree has 60/73
 after the later M02-005 writer, M02-006 reporter, M02-007 GDT encoder, and
-M02-008 guarded-IST arena contract plus the default-off M02-009 terminal stub
-and M04-003 span/memory catalog were added; this
+M02-008 guarded-IST arena contract plus the default-off M02-009 terminal stub,
+M02-010 normalized interrupt-entry page, and M04-003 span/memory catalog were
+added; this
 does not alter or reinterpret the M04-002 artifact evidence below. The scripts reject
 compatibility counts, missing/reordered sources, stale hashes, wildcard imports,
 or a post-restore property mismatch.
@@ -1194,8 +1306,10 @@ dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 .\scripts\build-efi-shell.ps1 -PreflightOnly
 .\scripts\build-efi-shell.ps1 -EnableM01LoadedImageStackProbe
 .\scripts\build-efi-shell.ps1 -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe
+.\scripts\build-efi-shell.ps1 -EnableM02NormalizedInterruptFramePageProbe -EfiOutputPath .\artifacts\efi\BOOTX64-M02-010.EFI -LogPath .\artifacts\logs\m02-010-efi-build.log
 .\scripts\build-efi-shell.ps1
 .\scripts\test-efi-artifact.ps1
+.\scripts\run-qemu-smoke.ps1 -DryRun -BuildEfi -EnableM02NormalizedInterruptFramePageProbe
 .\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -RequireMarker OS_SMOKE_PASS,UEFI_MEMORY_MAP_OWNED,BOOT_HANDOFF_READY,UEFI_MEMORY_MAP_NORMALIZED,BOOT_MEMORY_MAP_ACCEPTED,BOOT_MEMORY_REGIONS_READY,BOOT_MEMORY_REGION_COUNT
 .\scripts\build-efi-shell.ps1 -EnableUefiGoneSimulationProbe -EfiOutputPath artifacts/efi/BOOTX64-SIM.EFI -LogPath artifacts/logs/efi-shell-publish-sim.log
 .\scripts\run-qemu-smoke.ps1 -EfiArtifact artifacts/efi/BOOTX64-SIM.EFI -Image artifacts/images/os-sim.raw -SerialLog artifacts/logs/qemu-smoke-sim.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -MarkerPreset uefi-gone
@@ -1341,14 +1455,17 @@ Any next-step EFI build work must keep the freestanding constraints explicit. If
 5. Preserve M02-008's temporary guarded-IST arena allocation, stack readback,
    lease release, and firmware free marker without treating metadata as live
    guard mappings, NX enforcement, TSS/IST installation, or fault delivery.
-6. Move UEFI structs behind platform interfaces.
+6. Preserve M02-010's one-page LoaderData materialization, exact production
+   readback, release, and distinct guest marker without treating the modeled
+   common target as executed code or claiming an IDT, live frame, or fault.
+7. Move UEFI structs behind platform interfaces.
    - Keep the low-level UEFI table pointers isolated to the EFI boundary.
    - Expose only the narrow operations required for console diagnostics, memory-map ownership, firmware shutdown state, and optional filesystem/protocol discovery.
-7. Implement post-firmware COM1 before enabling any real firmware shutdown.
-8. Copy required firmware data, add the typed `ExitBootServices` call adapter,
+8. Implement post-firmware COM1 before enabling any real firmware shutdown.
+9. Copy required firmware data, add the typed `ExitBootServices` call adapter,
    and implement the bounded stale-map-key retry only after its M01/M02
    dependencies pass.
-7. Route additional platform interfaces through the UEFI-gone simulation path
+10. Route additional platform interfaces through the UEFI-gone simulation path
    as they are introduced.
-8. Replace permissive shell-only runtime placeholders with audited runtime
+11. Replace permissive shell-only runtime placeholders with audited runtime
    helpers as subsystems require them.

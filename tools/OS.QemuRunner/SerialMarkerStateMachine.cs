@@ -7,7 +7,7 @@ public sealed class SerialMarkerStateMachine
     public const int DefaultLineCapacity = 4096;
     public const long DefaultByteCapacity = 16L * 1024L * 1024L;
     public const int MaximumMarkerCount = 128;
-    public const int MaximumMarkerLength = 320;
+    public const int MaximumMarkerLength = 512;
     public const int MaximumLineCapacity = 1024 * 1024;
     public const string DefaultSuccessTerminalMarker = "OS_SMOKE_PASS";
     public const string DefaultFailureTerminalMarker = "OS_SMOKE_FAIL";

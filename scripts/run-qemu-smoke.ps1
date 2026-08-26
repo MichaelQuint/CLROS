@@ -46,6 +46,7 @@ param(
     [switch] $EnableM02OwnedX64GdtEncodingProbe,
     [switch] $EnableM02GuardedIstStackAllocationProbe,
     [switch] $EnableM02OwnedGdtTssTerminalProbe,
+    [switch] $EnableM02NormalizedInterruptFramePageProbe,
     [switch] $EnableM04IndependentEndianConformanceProbe,
     [switch] $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe,
     [switch] $SkipImageBuild
@@ -252,6 +253,24 @@ $script:M02OwnedGdtTssTerminalForbiddenMarkers = @(
     "M02_OWNED_GDT_TSS_PREENTRY_FAILED"
     "M02_OWNED_GDT_TSS_VERIFY_FAILED"
     "M02_OWNED_GDT_TSS_UNEXPECTED_RETURN"
+)
+$script:M02NormalizedInterruptFramePageReadyMarker =
+    "CLROS_M02_010_READY vectors=256 hardwareErrorCodeVectors=9 syntheticErrorCodeVectors=247 slotBytes=16 pageBytes=4096 normalizedSlots=3 commonTargetDelta=4096 fnv1a64=428D0353A96B7ACE readBack=true guestMaterialization=true loaderData=true pageReleased=true stubExecution=false idtInstalled=false faultTriggered=false markerTransport=uefiSerial postExitBootServices=false"
+$script:M02NormalizedInterruptFramePageRequiredMarkers = @(
+    "EFI_CONSOLE_READY"
+    "TEST_START m02.010"
+    $script:M02NormalizedInterruptFramePageReadyMarker
+    "TEST_PASS m02.010"
+    "UEFI_MEMORY_MAP_READY"
+)
+$script:M02NormalizedInterruptFramePageUniqueMarkers = @(
+    "TEST_START m02.010"
+    $script:M02NormalizedInterruptFramePageReadyMarker
+    "TEST_PASS m02.010"
+)
+$script:M02NormalizedInterruptFramePageForbiddenMarkers = @(
+    "M02_NORMALIZED_INTERRUPT_FRAME_PAGE_FAILED"
+    "TEST_FAIL"
 )
 $script:M04IndependentEndianConformanceReadyMarker =
     "CLROS_M04_002_READY readVectors=25 reverseVectors=7 byteSeries=5 uint16Series=7 fingerprint=E81E4451E8D999F6 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail"
@@ -3782,6 +3801,38 @@ try {
         )
     }
 
+    if ($EnableM02NormalizedInterruptFramePageProbe) {
+        $requiredMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $requiredMarkers
+                $script:M02NormalizedInterruptFramePageRequiredMarkers
+            )
+        )
+        $orderedMarkersBeforeMemoryMap = @(
+            $orderedMarkers | Where-Object {
+                $_ -cne "UEFI_MEMORY_MAP_READY"
+            }
+        )
+        $orderedMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $orderedMarkersBeforeMemoryMap
+                $script:M02NormalizedInterruptFramePageRequiredMarkers
+            )
+        )
+        $uniqueMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $uniqueMarkers
+                $script:M02NormalizedInterruptFramePageUniqueMarkers
+            )
+        )
+        $forbiddenMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $forbiddenMarkers
+                $script:M02NormalizedInterruptFramePageForbiddenMarkers
+            )
+        )
+    }
+
     if ($EnableM02OwnedGdtTssTerminalProbe) {
         $requiredMarkers = @(
             Merge-QemuSmokeMarkerList -Values @(
@@ -4134,6 +4185,18 @@ try {
         (Format-QemuSmokeBoolean $DryRun.IsPresent) +
         " profileRequired=59 profileForbidden=43")
     Write-Host (
+        "QEMU_SCRIPT_M02_NORMALIZED_INTERRUPT_FRAME_PAGE_PROBE enabled=" +
+        (Format-QemuSmokeBoolean $EnableM02NormalizedInterruptFramePageProbe.IsPresent) +
+        " ownedGdtTssTerminal=" +
+        (Format-QemuSmokeBoolean $EnableM02OwnedGdtTssTerminalProbe.IsPresent) +
+        " buildEfi=" +
+        (Format-QemuSmokeBoolean $BuildEfi.IsPresent) +
+        " skipImageBuild=" +
+        (Format-QemuSmokeBoolean $SkipImageBuild.IsPresent) +
+        " dryRun=" +
+        (Format-QemuSmokeBoolean $DryRun.IsPresent) +
+        " profileRequired=17 profileOrdered=5 profileUnique=3 profileForbidden=3")
+    Write-Host (
         "QEMU_SCRIPT_M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE enabled=" +
         (Format-QemuSmokeBoolean $EnableM04IndependentEndianConformanceProbe.IsPresent) +
         " buildEfi=" +
@@ -4163,6 +4226,28 @@ try {
     Write-Host (
         "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS " +
         (Format-QemuSmokeMarkerList $uniqueMarkers))
+
+    if ($EnableM02NormalizedInterruptFramePageProbe -and
+        $EnableM02OwnedGdtTssTerminalProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_normalized_interrupt_frame_page_probe_forbids_owned_gdt_tss_terminal")
+        exit 1
+    }
+
+    if ($EnableM02NormalizedInterruptFramePageProbe -and -not $BuildEfi) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_normalized_interrupt_frame_page_probe_requires_build_efi")
+        exit 1
+    }
+
+    if ($EnableM02NormalizedInterruptFramePageProbe -and $SkipImageBuild) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_normalized_interrupt_frame_page_probe_forbids_skip_image_build")
+        exit 1
+    }
 
     if ($EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -and
         -not $EnableM04IndependentEndianConformanceProbe) {
@@ -4584,6 +4669,11 @@ try {
         if ($EnableM02OwnedGdtTssTerminalProbe) {
             $buildArguments +=
                 "-EnableM02OwnedGdtTssTerminalProbe"
+        }
+
+        if ($EnableM02NormalizedInterruptFramePageProbe) {
+            $buildArguments +=
+                "-EnableM02NormalizedInterruptFramePageProbe"
         }
 
         if ($EnableM04IndependentEndianConformanceProbe) {
