@@ -15,7 +15,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
         "guestPortIo=true guestIn8=true postExitBootServices=false";
     private const string FailureMarker = "M02_OWNED_COM1_READY_FAILED";
     private const string CompileClosureSha256 =
-        "9b243b135c05442631a0323654fdbe07c827f043703330d8baa9e83a78a21757";
+        "f118a012101e87abf5d1ac1299be82705b47942eae06abb669418977412d124c";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -121,7 +121,15 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
 
         XElement[] defaults = project
             .Descendants("EnableM02OwnedCom1ReadyProbe")
-            .Where(element => element.Parent?.Name.LocalName == "PropertyGroup")
+            .Where(element => element.Attribute("Condition")?.Value ==
+                "'$(EnableM02OwnedCom1ReadyProbe)' == ''")
+            .ToArray();
+        XElement[] ud2ProfileOverrides = project
+            .Descendants("PropertyGroup")
+            .Where(group => group.Attribute("Condition")?.Value ==
+                "'$(EnableM02Ud2VectorStateProbe)' == 'true'")
+            .SelectMany(group => group.Elements(
+                "EnableM02OwnedCom1ReadyProbe"))
             .ToArray();
         XElement[] symbolGroups = project
             .Descendants("PropertyGroup")
@@ -142,7 +150,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 62
+        return compileItems.Length == 67
             && compileHash == CompileClosureSha256
             && backendIndex >= 0
             && writerIndex == backendIndex + 1
@@ -151,13 +159,15 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
             && guardedIstIndex == gdtIndex + 1
             && terminalIndex == guardedIstIndex + 1
             && normalizedInterruptFrameIndex == terminalIndex + 1
-            && catalogIndex == normalizedInterruptFrameIndex + 3
+            && catalogIndex == normalizedInterruptFrameIndex + 8
             && compileKeys.Count(key => key == WriterKey) == 1
             && compileKeys.Count(key => key == PanicReporterKey) == 1
             && defaults.Length == 1
             && defaults[0].Value == "false"
             && defaults[0].Attribute("Condition")?.Value ==
                 "'$(EnableM02OwnedCom1ReadyProbe)' == ''"
+            && ud2ProfileOverrides.Length == 1
+            && ud2ProfileOverrides[0].Value == "true"
             && symbolGroups.Length == 1
             && symbolGroups[0].Elements("DefineConstants").Single().Value ==
                 "$(DefineConstants);M02_OWNED_COM1_READY_PROBE"
@@ -175,7 +185,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
                 "m02_owned_com1_ready_requires_com1_owned_port_io",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=75",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=80",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 "\"-EnableM02OwnedCom1ReadyProbe\",\n            \"true\"",
@@ -187,10 +197,10 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
                 "[switch]$EnableM02OwnedCom1ReadyProbe",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 75",
+                "$expectedSourceClosureInputCount = 80",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 62",
+                "$compileItems.Count -ne 67",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
                 "-p:EnableM02OwnedCom1ReadyProbe=true",
@@ -267,7 +277,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
             && CountOccurrences(source, ".Emit(ownedCom1Backend);") == 1
             && CountOccurrences(
                 source,
-                "new OS.Kernel.Diagnostics.Com1OwnedPortIoBackend(") == 2;
+                "new OS.Kernel.Diagnostics.Com1OwnedPortIoBackend(") == 3;
     }
 
     private static bool TestMarkerTransportSeparation()
@@ -356,7 +366,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
                 StringComparison.Ordinal)
             && CountOccurrences(
                 source,
-                "[System.Management.Automation.SwitchParameter]::new($true)") == 3
+                "[System.Management.Automation.SwitchParameter]::new($true)") == 11
             && source.Contains(
                 "profileRequired=52 profileForbidden=37",
                 StringComparison.Ordinal)

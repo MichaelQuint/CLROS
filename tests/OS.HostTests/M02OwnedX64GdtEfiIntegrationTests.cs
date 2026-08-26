@@ -16,9 +16,9 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
     private const string FailureMarker =
         "M02_OWNED_X64_GDT_ENCODING_FAILED";
     private const string CompileClosureSha256 =
-        "9b243b135c05442631a0323654fdbe07c827f043703330d8baa9e83a78a21757";
+        "f118a012101e87abf5d1ac1299be82705b47942eae06abb669418977412d124c";
     private const string CanonicalProjectSha256 =
-        "de242129bd59b0358211b606f666c0d99f65ab2e23096da47ec9b182e7d2748e";
+        "b317cc30c4dd27d61b6349686be68c3fd6f6702626dd5637d0c6a43a9c2bea2d";
 
     private static readonly (string Path, string Sha256)[] ImmutableReviewedInputs =
     [
@@ -160,14 +160,14 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 62
+        return compileItems.Length == 67
             && compileHash == CompileClosureSha256
             && reporterIndex >= 0
             && gdtIndex == reporterIndex + 1
             && guardedIstIndex == gdtIndex + 1
             && terminalIndex == guardedIstIndex + 1
             && normalizedInterruptFrameIndex == terminalIndex + 1
-            && endianIndex == normalizedInterruptFrameIndex + 3
+            && endianIndex == normalizedInterruptFrameIndex + 8
             && compileKeys.Count(key => key == GdtKey) == 1
             && defaults.Length == 1
             && defaults[0].Value == "false"
@@ -190,17 +190,17 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
                 "m02_owned_x64_gdt_encoding_requires_panic_safe_owned_com1",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=75",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=80",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 CanonicalProjectSha256,
                 StringComparison.Ordinal)
             && buildScript.Contains(GdtKey, StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 75",
+                "$expectedSourceClosureInputCount = 80",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 62",
+                "$compileItems.Count -ne 67",
                 StringComparison.Ordinal)
             && verifierScript.Contains(GdtKey, StringComparison.Ordinal)
             && verifierScript.Contains(

@@ -13,7 +13,7 @@ internal static class M02Com1OwnedPortIoBackendEfiIntegrationTests
     private const string FailureMarker =
         "M02_COM1_CONFIGURATION_FAILED";
     private const string CompileClosureSha256 =
-        "9b243b135c05442631a0323654fdbe07c827f043703330d8baa9e83a78a21757";
+        "f118a012101e87abf5d1ac1299be82705b47942eae06abb669418977412d124c";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -106,7 +106,15 @@ internal static class M02Com1OwnedPortIoBackendEfiIntegrationTests
 
         XElement[] defaults = project
             .Descendants("EnableM02Com1OwnedPortIoProbe")
-            .Where(element => element.Parent?.Name.LocalName == "PropertyGroup")
+            .Where(element => element.Attribute("Condition")?.Value ==
+                "'$(EnableM02Com1OwnedPortIoProbe)' == ''")
+            .ToArray();
+        XElement[] ud2ProfileOverrides = project
+            .Descendants("PropertyGroup")
+            .Where(group => group.Attribute("Condition")?.Value ==
+                "'$(EnableM02Ud2VectorStateProbe)' == 'true'")
+            .SelectMany(group => group.Elements(
+                "EnableM02Com1OwnedPortIoProbe"))
             .ToArray();
         XElement[] symbols = project
             .Descendants("PropertyGroup")
@@ -127,7 +135,7 @@ internal static class M02Com1OwnedPortIoBackendEfiIntegrationTests
         string artifactScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 62
+        return compileItems.Length == 67
             && compileHash == CompileClosureSha256
             && checkedBinder >= 0
             && backend == checkedBinder + 1
@@ -143,6 +151,8 @@ internal static class M02Com1OwnedPortIoBackendEfiIntegrationTests
             && defaults[0].Value == "false"
             && defaults[0].Attribute("Condition")?.Value ==
                 "'$(EnableM02Com1OwnedPortIoProbe)' == ''"
+            && ud2ProfileOverrides.Length == 1
+            && ud2ProfileOverrides[0].Value == "true"
             && symbols.Length == 1
             && symbols[0].Elements("DefineConstants").Single().Value ==
                 "$(DefineConstants);M02_COM1_OWNED_PORT_IO_PROBE"
@@ -160,13 +170,13 @@ internal static class M02Com1OwnedPortIoBackendEfiIntegrationTests
                 "m02_com1_owned_port_io_requires_checked_binding",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=75",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=80",
                 StringComparison.Ordinal)
             && artifactScript.Contains(
-                "$expectedSourceClosureInputCount = 75",
+                "$expectedSourceClosureInputCount = 80",
                 StringComparison.Ordinal)
             && artifactScript.Contains(
-                "$compileItems.Count -ne 62",
+                "$compileItems.Count -ne 67",
                 StringComparison.Ordinal);
     }
 

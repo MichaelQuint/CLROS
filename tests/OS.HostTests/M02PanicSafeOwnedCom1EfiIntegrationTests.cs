@@ -19,9 +19,9 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
         "statusCoded=true firmwareFallback=false postExitBootServices=false";
     private const string FailureMarker = "M02_PANIC_SAFE_OWNED_COM1_FAILED";
     private const string CompileClosureSha256 =
-        "9b243b135c05442631a0323654fdbe07c827f043703330d8baa9e83a78a21757";
+        "f118a012101e87abf5d1ac1299be82705b47942eae06abb669418977412d124c";
     private const string CanonicalProjectSha256 =
-        "de242129bd59b0358211b606f666c0d99f65ab2e23096da47ec9b182e7d2748e";
+        "b317cc30c4dd27d61b6349686be68c3fd6f6702626dd5637d0c6a43a9c2bea2d";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -124,7 +124,15 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
 
         XElement[] defaults = project
             .Descendants("EnableM02PanicSafeOwnedCom1Probe")
-            .Where(element => element.Parent?.Name.LocalName == "PropertyGroup")
+            .Where(element => element.Attribute("Condition")?.Value ==
+                "'$(EnableM02PanicSafeOwnedCom1Probe)' == ''")
+            .ToArray();
+        XElement[] ud2ProfileOverrides = project
+            .Descendants("PropertyGroup")
+            .Where(group => group.Attribute("Condition")?.Value ==
+                "'$(EnableM02Ud2VectorStateProbe)' == 'true'")
+            .SelectMany(group => group.Elements(
+                "EnableM02PanicSafeOwnedCom1Probe"))
             .ToArray();
         XElement[] symbolGroups = project
             .Descendants("PropertyGroup")
@@ -145,7 +153,7 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 62
+        return compileItems.Length == 67
             && compileHash == CompileClosureSha256
             && writerIndex >= 0
             && reporterIndex == writerIndex + 1
@@ -153,12 +161,14 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
             && guardedIstIndex == gdtIndex + 1
             && terminalIndex == guardedIstIndex + 1
             && normalizedInterruptFrameIndex == terminalIndex + 1
-            && catalogIndex == normalizedInterruptFrameIndex + 3
+            && catalogIndex == normalizedInterruptFrameIndex + 8
             && compileKeys.Count(key => key == ReporterKey) == 1
             && defaults.Length == 1
             && defaults[0].Value == "false"
             && defaults[0].Attribute("Condition")?.Value ==
                 "'$(EnableM02PanicSafeOwnedCom1Probe)' == ''"
+            && ud2ProfileOverrides.Length == 1
+            && ud2ProfileOverrides[0].Value == "true"
             && symbolGroups.Length == 1
             && symbolGroups[0].Elements("DefineConstants").Single().Value ==
                 "$(DefineConstants);M02_PANIC_SAFE_OWNED_COM1_PROBE"
@@ -176,7 +186,7 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
                 "m02_panic_safe_owned_com1_requires_owned_com1_ready",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=75",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=80",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 CanonicalProjectSha256,
@@ -188,10 +198,10 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
                 "[switch]$EnableM02PanicSafeOwnedCom1Probe",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 75",
+                "$expectedSourceClosureInputCount = 80",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 62",
+                "$compileItems.Count -ne 67",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
                 "-p:EnableM02PanicSafeOwnedCom1Probe=true",

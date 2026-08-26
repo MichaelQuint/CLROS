@@ -31,7 +31,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const int MaximumRuntimeFunctionRecords = 2048;
     private const int MaximumLinkResponseTokens = 4096;
     private const int VerifierFixtureProcessTimeoutMilliseconds = 120_000;
-    private const int ExpectedSourceClosureInputCount = 75;
+    private const int ExpectedSourceClosureInputCount = 80;
     private const string SerializerSymbol =
         "CLROS_X64_SerializeInstructionPublication";
     private const string ToolDirectoryBuildPropsPath =
@@ -45,7 +45,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const string EmptySha256 =
         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     private const string CompileClosureSha256 =
-        "9b243b135c05442631a0323654fdbe07c827f043703330d8baa9e83a78a21757";
+        "f118a012101e87abf5d1ac1299be82705b47942eae06abb669418977412d124c";
     private const string AnalyzerClosureSha256 =
         "bea3e700acbeec374acb02a39b8c154e03291cf380edf850fea2114193b7ea14";
     private const string ManagedFixtureConfiguration = "Release";
@@ -199,6 +199,10 @@ internal static class EfiArtifactVerificationScriptTests
             Run(
                 "efi artifact verifier accepts linked serializer PE, map, object, and unwind evidence",
                 () => TestValidArtifactPasses(tempRoot),
+                ref failures);
+            Run(
+                "efi artifact verifier implies the M02-013 owned-COM1 chain from one switch",
+                () => TestM02Ud2VectorStateSingleSwitchImplication(tempRoot),
                 ref failures);
             Run(
                 "efi artifact verifier rejects missing and truncated inputs",
@@ -374,6 +378,96 @@ internal static class EfiArtifactVerificationScriptTests
         if (!passed)
         {
             WriteFixtureDiagnostic("valid", result);
+        }
+
+        return passed;
+    }
+
+    private static bool TestM02Ud2VectorStateSingleSwitchImplication(
+        string tempRoot)
+    {
+        string artifact = WriteFixture(
+            tempRoot,
+            "m02 ud2 vector state artifact",
+            CreateValidPe());
+        LinkEvidencePaths paths = WriteLinkEvidence(artifact);
+        string evidencePath = artifact + ".link.json";
+        JsonObject evidence = JsonNode.Parse(File.ReadAllText(evidencePath))!
+            .AsObject();
+        JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!
+            .AsObject();
+        properties["EnableM02OwnedCom1ReadyProbe"] = "true";
+        properties["EnableM02PanicSafeOwnedCom1Probe"] = "true";
+        properties["EnableM02Ud2VectorStateProbe"] = "true";
+        File.WriteAllText(
+            evidencePath,
+            evidence.ToJsonString(new JsonSerializerOptions
+            {
+                WriteIndented = true
+            }));
+
+        ProcessResult enabled = RunVerifier(
+            artifact,
+            serializerObjectPath: paths.ObjectPath,
+            additionalArguments: ["-EnableM02Ud2VectorStateProbe"]);
+        ProcessResult ownedX64GdtConflict = RunVerifier(
+            artifact,
+            serializerObjectPath: paths.ObjectPath,
+            additionalArguments:
+            [
+                "-EnableM02Ud2VectorStateProbe",
+                "-EnableM02OwnedX64GdtEncodingProbe"
+            ]);
+        ProcessResult guardedIstConflict = RunVerifier(
+            artifact,
+            serializerObjectPath: paths.ObjectPath,
+            additionalArguments:
+            [
+                "-EnableM02Ud2VectorStateProbe",
+                "-EnableM02GuardedIstStackAllocationProbe"
+            ]);
+        ProcessResult m04Conflict = RunVerifier(
+            artifact,
+            serializerObjectPath: paths.ObjectPath,
+            additionalArguments:
+            [
+                "-EnableM02Ud2VectorStateProbe",
+                "-EnableM04IndependentEndianConformanceProbe",
+                "-EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"
+            ]);
+        string verifierScript = File.ReadAllText(Path.Combine(
+            HostToolProcess.FindRepositoryRoot(),
+            "scripts",
+            "test-efi-artifact.ps1"));
+
+        bool passed = enabled.ExitCode == 0
+            && enabled.Output.Contains(
+                "EFI_ARTIFACT_M02_UD2_VECTOR_STATE_IMPLICATION status=ok m01LoadedImageStack=true m01LiveAllocator=true ownedPaging=true m02SafeStub=true checkedPortIoBinding=true com1OwnedPortIo=true ownedCom1Ready=true panicSafeOwnedCom1=true",
+                StringComparison.Ordinal)
+            && enabled.Output.Contains(
+                "TEST_PASS efi.artifact.verify",
+                StringComparison.Ordinal)
+            && FailedWith(
+                ownedX64GdtConflict,
+                "m02_ud2_vector_state_probe_forbids_owned_x64_gdt_encoding_probe")
+            && FailedWith(
+                guardedIstConflict,
+                "m02_ud2_vector_state_probe_forbids_guarded_ist_stack_allocation_probe")
+            && m04Conflict.ExitCode != 0
+            && m04Conflict.Output.Contains(
+                "m04_span_memory_conformance_forbids_m02_ud2_vector_state",
+                StringComparison.Ordinal)
+            && verifierScript.Contains(
+                "m02_ud2_vector_state_probe_explicit_false_prerequisite",
+                StringComparison.Ordinal);
+        if (!passed)
+        {
+            Console.WriteLine(
+                "M02-013 artifact implication outputs:\n"
+                + enabled.Output
+                + ownedX64GdtConflict.Output
+                + guardedIstConflict.Output
+                + m04Conflict.Output);
         }
 
         return passed;
@@ -2181,6 +2275,26 @@ internal static class EfiArtifactVerificationScriptTests
             "post_restore_evidence_property_mismatch");
         passed &= EvidenceMutationFails(
             tempRoot,
+            "post-restore-m02-ud2-vector-state-property-missing",
+            evidence =>
+            {
+                JsonObject properties = evidence[
+                    "postRestoreEvaluation"]!["properties"]!.AsObject();
+                properties.Remove("EnableM02Ud2VectorStateProbe");
+            },
+            "post_restore_evidence_property_set_invalid");
+        passed &= EvidenceMutationFails(
+            tempRoot,
+            "post-restore-m02-ud2-vector-state-property-enabled-without-switch",
+            evidence =>
+            {
+                JsonObject properties = evidence[
+                    "postRestoreEvaluation"]!["properties"]!.AsObject();
+                properties["EnableM02Ud2VectorStateProbe"] = "true";
+            },
+            "post_restore_evidence_property_mismatch");
+        passed &= EvidenceMutationFails(
+            tempRoot,
             "post-restore-m04-property-missing",
             evidence =>
             {
@@ -2495,7 +2609,7 @@ internal static class EfiArtifactVerificationScriptTests
                 "MSBUILDDISABLENODEREUSE",
                 StringComparison.Ordinal)
             && verifierSource.Contains(
-                "$expectedSourceClosureInputCount = 75",
+                "$expectedSourceClosureInputCount = 80",
                 StringComparison.Ordinal)
             && stableReasons.All(reason => verifierSource.Contains(
                 reason,
@@ -4961,6 +5075,7 @@ internal static class EfiArtifactVerificationScriptTests
             ["EnableM02NormalizedInterruptFramePageProbe"] = "false",
             ["EnableM02OwnedIdtGatePopulationProbe"] = "false",
             ["EnableM02IdtrContinuedExecutionProbe"] = "false",
+            ["EnableM02Ud2VectorStateProbe"] = "false",
             ["EnableM04IndependentEndianConformanceProbe"] = "false",
             ["EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"] =
                 "false",
@@ -5066,7 +5181,7 @@ internal static class EfiArtifactVerificationScriptTests
         };
         return new Dictionary<string, object?>
         {
-            ["compileCount"] = 62,
+            ["compileCount"] = 67,
             ["compileSha256"] = CompileClosureSha256,
             ["projectReferenceCount"] = 0,
             ["projectReferenceSha256"] = EmptySha256,
@@ -5504,7 +5619,8 @@ internal static class EfiArtifactVerificationScriptTests
         string artifactPath,
         string? projectPath = null,
         string? entrySourcePath = null,
-        string? serializerObjectPath = null)
+        string? serializerObjectPath = null,
+        string[]? additionalArguments = null)
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string canonicalScriptPath = Path.Combine(
@@ -5551,6 +5667,13 @@ internal static class EfiArtifactVerificationScriptTests
         {
             start.ArgumentList.Add("-SerializerObjectPath");
             start.ArgumentList.Add(serializerObjectPath);
+        }
+        if (additionalArguments is not null)
+        {
+            foreach (string argument in additionalArguments)
+            {
+                start.ArgumentList.Add(argument);
+            }
         }
 
         var stopwatch = Stopwatch.StartNew();
