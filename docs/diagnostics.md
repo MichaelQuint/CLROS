@@ -16,6 +16,12 @@ to the semantic prefix `vector`, `hasHardwareErrorCode`, `errorCode`; its
 separately integrated default-off EFI profile now has QEMU/OVMF evidence for
 materializing and reading back that page in temporary LoaderData memory and
 freeing it before ordinary memory-map capture. No generated slot was executed.
+The M02-011 leaf now adds a host-audited 4,096-byte owned IDT page containing
+all 256 present DPL0 interrupt gates. Every handler is derived as the M02-010
+page base plus `vector * 16`; selector `0x0008` is fixed; NMI, double fault,
+and page fault use IST3, IST1, and IST2; the other 253 vectors use IST0; and the
+API accepts no firmware table or firmware gate source. The leaf has no EFI
+adapter or guest marker yet.
 No ordinary
 boot phase loads an IDT, installs fault handlers, activates IST routing, routes
 a live CPU fault to panic, or preserves an owned serial path across real
@@ -137,6 +143,32 @@ COM1/serial invocation.
   `b88a485c8562a0022ffaae760fb47ca9d5addba2` observed the exact guest marker
   once. This profile never calls a generated slot or common target and does not
   install an IDT, IDTR, TSS, or IST.
+- `PopulateAllN256IDTVectorsOwnedGatesNever` is the M02-011 pointer-first,
+  allocation-free materializer for one caller-owned 4,096-byte IDT page. It
+  validates the actual pointer, modeled IDT address, and owned M02-010 stub-page
+  address for capacity, 4,096-byte alignment, canonical x64 ranges, wrap,
+  canonical-hole crossing, and overlap before the first write. It derives all
+  256 unique handlers as `ownedStubPageAddress + vector * 16`, fixes selector
+  `0x0008`, present DPL0 interrupt-gate attributes `0x8E`, reserved-zero bytes,
+  and the IST3/IST1/IST2 policy for NMI/#DF/#PF. All remaining gates use IST0.
+- The M02-011 API deliberately accepts no prior IDT, firmware gate, handler
+  array, selector, gate type, DPL, or present-bit input, so copied firmware
+  gates are structurally impossible. It writes only the first 4,096 bytes,
+  immediately reads every byte back, reports the first mismatch and the
+  address-dependent encoded FNV-1a64, and exposes stable normalized ownership
+  fingerprint `8514F42EBDFC5D55`. Host `Span` wrappers are excluded under
+  `NOSTDLIB_EFI`; the always-compiled core has no managed references,
+  allocation, exceptions, or external descriptor dependency.
+- This M02-011 leaf creates and validates ordinary bytes only. It does not link
+  into EFI, allocate guest memory, publish the M02-010 page as executable, load
+  IDTR, install GDT/TSS/IST state, execute a slot/common target, or trigger a
+  fault. `EFI_BUFFER_TOO_SMALL`, memory-map descriptor growth, stale map keys,
+  `ExitBootServices` retry exhaustion, firmware-table signatures/checksums,
+  and prohibited post-exit firmware calls are inapplicable to this API because
+  it accepts no firmware table, memory map, map key, or Boot Services pointer.
+  Real QEMU/OVMF closure requires a separately claimed serialized EFI
+  integration lane with its own applicable allocation/readback/release failure
+  cases.
 - `TssIstPlan` models the x64 TSS bytes needed for `RSP0` and IST entries, including double-fault IST stack top, stack-size, and guard-size validation.
 - `FaultInfrastructureReadiness` combines serial, IDT, IDTR, GDT, TSS/IST, and double-fault IST readiness into a single pre-privileged-install gate.
 - `BootSequence.RunFaultInfrastructureReadiness` emits host-tested `FAULT_INFRA_READY` or `FAULT_INFRA_NOT_READY status=<status>` markers from the readiness result without changing the default boot path.
@@ -851,6 +883,16 @@ the host leaf nor the guest integration proves instruction execution,
 executable publication, IDT/IDTR/IST installation, a normalized live CPU
 frame, fault capture, panic routing, or any numbered completion gate.
 
+`PopulateAllN256IDTVectorsOwnedGatesNever` strengthens only the caller-owned
+IDT-byte construction and readback boundary. Its 256 gates model future owned
+selector and IST state, but no current EFI application compiles or calls this
+leaf. The host marker is not guest evidence. No IDTR is loaded, no M02-010 page
+is executable, no GDT/TSS/IST state is activated, no generated slot or common
+target runs, and no fault is triggered. Issue-level real-QEMU closure therefore
+requires a separate integration issue owning `OS.csproj`, `EfiEntry.cs`, the
+smoke scripts, and an integration test. Gate 2 remains the only passing numbered
+gate; Gate 3 and Gate 4 remain `Fail`.
+
 `FaultProbeStubPlan` is a byte-plan contract only. It intentionally does not execute `ud2` or write to address zero, and it is not QEMU fault evidence.
 
 `NullPageFaultProbePlan` is metadata only and is distinct from
@@ -1124,13 +1166,35 @@ record. `done/step920.md` preserves the exact source, artifact, and platform
 tuple. This remains bounded pre-`ExitBootServices` materialization/readback/
 cleanup evidence, not generated-code or fault evidence.
 
+M02-011 host tests independently reconstruct all 256 x64 gate descriptors and
+all 4,096 bytes at both a low address and a canonical high-half address,
+cross-check the fixed selector and IST policy against the existing GDT/IST
+contracts, and prove that every unique 64-bit handler remains inside the one
+owned M02-010 page. They mutate every byte, preserve a poison suffix,
+reject actual/model address and overlap failures before mutation, compare
+pointer and `Span` output, prove zero managed allocations, and compile the exact
+pointer source with `NOSTDLIB_EFI` and no BCL references. The frozen host vector
+at stub base `0x00200000` is FNV-1a64 `7F505C7D14101415` and SHA-256
+`0AD787A760168953C74020131BCAC6CC6FD09B9D68413D487678382846F95C38`.
+
+```text
+TEST_START m02.011
+CLROS_M02_011_HOST_READY vectors=256 gates=256 gateBytes=16 tableBytes=4096 selector=8 present=256 dpl0=256 interruptGates=256 ownedHandlers=256 firmwareGatesCopied=0 nmiIst=3 doubleFaultIst=1 pageFaultIst=2 normalizedFnv1a64=8514F42EBDFC5D55 readBack=true guestPopulation=false idtrLoaded=false stubExecution=false faultTriggered=false postExitBootServices=false
+TEST_PASS m02.011
+```
+
+The M02-011 host marker is not `CLROS_M02_011_READY` and cannot satisfy the
+issue's required QEMU command. The unqualified marker remains reserved for a
+future source-bound EFI/OVMF run in a separately owned integration lane.
+
 ## Next Steps
 
 1. Preserve the accepted default-off M02-010 LoaderData materialization,
-   readback, cleanup, and guest-marker boundary. Add executable publication,
-   a reviewed common-entry/register-save contract, IDT/IDTR/IST installation,
-   and triggered faults only in later issues that explicitly own and test those
-   boundaries.
+   readback, cleanup, and guest-marker boundary. Integrate M02-011 population
+   and readback only in a separately claimed default-off EFI lane; keep IDTR
+   load, executable publication, common-entry/register-save execution, active
+   IST routing, and triggered faults in later issues that explicitly own and
+   test those boundaries.
 2. Map M02-008's planned guard/stack ranges and write the fixed IST indices into
    owned TSS state only in later issues that own page-table and descriptor-table
    installation; the accepted EFI profile remains temporary pre-firmware proof.
