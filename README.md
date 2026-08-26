@@ -110,11 +110,14 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
   page, materializes all 256 fixed interrupt-entry slots against a modeled
   common-target delta of 4,096, validates all bytes through the production
   readback operation, requires FNV-1a64 `428D0353A96B7ACE`, and releases the
-  page before ordinary memory-map capture. The accepted QEMU/OVMF run at exact
-  source head `c49148df816b9d7640d25ffc29fac9080a5d9ce7` observed the exact
-  start/ready/pass transcript once under the 17-required/five-ordered/
+  page before ordinary memory-map capture. An EFI-successful allocation is
+  treated as owned even when its returned address is invalid or zero, so that
+  rejected result is also released exactly once. The final accepted QEMU/OVMF
+  run at exact source head
+  `b88a485c8562a0022ffaae760fb47ca9d5addba2` observed the exact start/ready/pass
+  transcript once under the 17-required/five-ordered/
   three-unique/three-forbidden profile. Its 67,072-byte EFI artifact has
-  SHA-256 `9F2061A0A7CADB9C0EC15F1A8F7148F0116AA56DBEAE8FD28E8ACECA4B4BA846`;
+  SHA-256 `9D7EE566D93ED876DDBE1825CC5629330CF46DEEB92F23473F8C6E3A06249B6D`;
   the serial log has SHA-256
   `4E03A7CFCF8BD78018E3ABF35897EE3371B6E299FED70F32E56D4CEDE6EEB678`.
   `done/step920.md` records the bounded proof. No generated slot or common

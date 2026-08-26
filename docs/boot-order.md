@@ -108,7 +108,10 @@ materializes and reads back the page in temporary LoaderData memory after any
 enabled M04 checks and before ordinary memory-map capture. It deliberately adds
 no `BootSequence` phase, executable mapping, IDT gate, handler invocation, or
 fault probe. The default managed and firmware-visible marker orders remain
-unchanged. The opt-in profile's ordered auxiliary subsequence is:
+unchanged. The final accepted source head is
+`b88a485c8562a0022ffaae760fb47ca9d5addba2`; its ownership boundary frees every
+EFI-successful allocation exactly once, including a rejected zero-address
+result. The opt-in profile's ordered auxiliary subsequence is:
 
 1. `EFI_CONSOLE_READY`
 2. `TEST_START m02.010`

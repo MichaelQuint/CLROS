@@ -93,15 +93,15 @@ attributed as new implementation paths in this integration.
 
 ## Tests run
 
-At exact implementation/evidence head
-`c49148df816b9d7640d25ffc29fac9080a5d9ce7`:
+At final accepted implementation/evidence head
+`b88a485c8562a0022ffaae760fb47ca9d5addba2`:
 
 - `dotnet build .\CLROS.slnx --nologo -m:1`
-  - Exit `0`; zero warnings and zero errors; final refresh 10.34 seconds.
+  - Exit `0`; zero warnings and zero errors; 6.92 seconds.
 - `dotnet build .\tests\OS.HostTests\OS.HostTests.csproj --nologo`
-  - Exit `0`; zero warnings and zero errors.
+  - Exit `0`; zero warnings and zero errors; 8.96 seconds.
 - `dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build`
-  - Exit `0` after 2,766.509 seconds.
+  - Exit `0` after 2,292.006 seconds.
   - 3,475 `TEST_START`, 3,476 `TEST_PASS`, zero `TEST_FAIL`.
   - Exactly one terminal `TEST_PASS host.tests`.
   - M02-010 integration, host leaf, and exact 370/512/513 state-machine
@@ -130,39 +130,32 @@ Real NativeAOT EFI/QEMU command:
   -TimeoutSeconds 30 `
   -BuildEfi `
   -EnableM02NormalizedInterruptFramePageProbe `
-  -EfiArtifact .\artifacts\efi\BOOTX64-M02-010-c49148df-QEMU.EFI `
-  -Image .\artifacts\images\m02-010-c49148df-qemu.raw `
-  -SerialLog .\artifacts\logs\issue-487-m02-010-c49148df-qemu-serial.log `
-  -SummaryLog .\artifacts\logs\issue-487-m02-010-c49148df-qemu-summary.log
+  -EfiArtifact .\artifacts\efi\BOOTX64-M02-010-b88a485c-QEMU.EFI `
+  -Image .\artifacts\images\m02-010-b88a485c-qemu.raw `
+  -SerialLog .\artifacts\logs\issue-487-m02-010-b88a485c-qemu-serial.log `
+  -SummaryLog .\artifacts\logs\issue-487-m02-010-b88a485c-qemu-summary.log
 ```
 
-- Outer exit `0` after 55.374 seconds.
+- Outer exit `0` after 42.099 seconds.
 - Same-build NativeAOT publish, schema-three verification, raw-image build,
   QEMU marker evaluation, and summary generation all emitted terminal passes.
 
-Post-evidence validation after the canonical documentation edits completed:
+Repaired-head validation completed:
 
-- `dotnet build .\CLROS.slnx --nologo -m:1`: exit `0`; zero warnings and zero
-  errors; 2.05 seconds.
-- `.\scripts\check-naming.ps1`: `TEST_PASS naming.guard` and
-  `TEST_PASS source.firewall`.
-- PowerShell AST parsing passed for all three changed scripts.
-- Default QEMU dry run: exit `0`; unchanged 12-required, zero-ordered,
-  zero-unique profile.
-- M02-010 QEMU dry run with `-BuildEfi`: exit `0`; exact
-  17-required/five-ordered/three-unique/three-forbidden profile.
-- Combined M04-002+M04-003+M02-010 dry run: exit `0`; exact M04-002,
-  M04-003, M02-010 start/ready/pass, and memory-map ordering.
 - Direct M02-010 NativeAOT publish and artifact verification: exit `0` with
   `TEST_PASS efi.artifact.verify` and `TEST_PASS efi.shell.publish`; it
   reproduced EFI SHA-256
-  `9F2061A0A7CADB9C0EC15F1A8F7148F0116AA56DBEAE8FD28E8ACECA4B4BA846`.
-- `git diff --check` and the forbidden first-party source scan passed.
+  `9D7EE566D93ED876DDBE1825CC5629330CF46DEEB92F23473F8C6E3A06249B6D`.
+- After this evidence refresh, `dotnet build .\CLROS.slnx --nologo -m:1`
+  exited `0` with zero warnings and zero errors in 1.90 seconds.
+- After this evidence refresh, `.\scripts\check-naming.ps1` emitted
+  `TEST_PASS naming.guard` and `TEST_PASS source.firewall`; `git diff --check`
+  also passed.
 
-The complete HostTests and real-QEMU runs were not repeated after these
-documentation-only edits. Their guest identity remains the exact tested
-implementation head and tree; the later documentation commit is not
-represented as a different QEMU-tested source.
+The complete HostTests and real-QEMU runs were not repeated after this
+documentation-only refresh. Their guest identity remains the exact tested
+implementation head and tree; the refreshed documentation is not represented
+as a different QEMU-tested source.
 
 ## Evidence
 
@@ -172,15 +165,36 @@ represented as a different QEMU-tested source.
   `473cd6d3f630cb6eb2e7bbee117f8d13cd956543`.
 - Base tree: `5131a0a8648d23a454eae3d56cabe8245a65699a`.
 - Tested implementation head:
-  `c49148df816b9d7640d25ffc29fac9080a5d9ce7`.
-- Tested tree: `b4d658518c9c7a927a66e88ec25a5dd82856a63a`.
+  `b88a485c8562a0022ffaae760fb47ca9d5addba2`.
+- Tested tree: `2c214fdee0ac2e08dd3df7a62523a5c69ca4a5fe`.
 - Stable combined patch ID:
-  `d0c5fae05e5b185e7982b0a72abdb4ca74d3dbaf`.
-- Three commits and exactly 20 implementation/test/tool paths:
+  `c63a553843ff110da33ebb83e16975ff46c79a75`.
+- Seven commits lead from the canonical integration base through exact tested
+  source head `b88a485c8562a0022ffaae760fb47ca9d5addba2`, spanning exactly 27 total
+  changed paths. The containing documentation refresh is layered afterward:
   - `db86ecd9e0de0a3310f34d5a5e2d533b4de0711b`: main integration.
   - `636a66280c3fd6b0fd94c602cfeec6154f311cb1`: explicit `none` parsing.
   - `c49148df816b9d7640d25ffc29fac9080a5d9ce7`: fail closed on an absent
     requested summary line.
+  - `6adc2da5c05522fef5d4c5f2bf1bf6b929783bf1`: initial evidence documentation.
+  - `b17c1b89ce448e296308efd37c57e2ab1934a1d1`: step-file ending repair; later
+    rejected in review because a successful zero-address allocation was not
+    released.
+  - `d34fa46f1b7460b38e05b4fc15ee11a43588dd8e`: production and fixture
+    allocation-ownership cleanup repair; its first full host run was rejected.
+  - `b88a485c8562a0022ffaae760fb47ca9d5addba2`: mirrors the nonzero-address
+    success condition in the hostile fixture and is the sole final accepted
+    source/evidence head.
+
+Final repaired integration-path identities:
+
+- Production `src/OS/Boot/EfiEntry.cs` blob
+  `aaa6d529a75d43e9944a5e4ffc1802c15df8fb45`, 550,556 bytes, SHA-256
+  `76C15B0296A3E4FD51D9EAEF943B57D846E93050110B636AE57E5DBADE39A48F`.
+- Hostile integration test
+  `tests/OS.HostTests/M02NormalizedInterruptFramePageEfiIntegrationTests.cs`
+  blob `d1f2cabd87ed5941a5ec43b07ae5c326ad9320d6`, 41,766 bytes, SHA-256
+  `848AA0C2803758CEF81429EF35E5ADADAAF5F14A3F711B58FE11F3FB6B705BC2`.
 
 Final canonical PR #486 leaf identity:
 
@@ -213,12 +227,12 @@ commit. They are not claimed as a different QEMU-tested source identity.
 ### Complete host run
 
 - Log:
-  `artifacts/logs/issue-487-m02-010-c49148df816b9d7640d25ffc29fac9080a5d9ce7-hosttests.log`.
-- 446,609 bytes; 7,007 lines.
+  `artifacts/logs/issue-487-m02-010-b88a485c8562a0022ffaae760fb47ca9d5addba2-hosttests.log`.
+- 446,759 bytes; 7,011 lines.
 - SHA-256:
-  `101C5C7FCA0D521161ED9F7CD32FE154E7D241705E3740E006B4328063CB4FFD`.
-- Wrapper interval: `2026-08-25T23:45:14.5185991Z` through
-  `2026-08-26T00:31:21.0277334Z`.
+  `A4D309584496E19218BE0C794B04411EF6F09F4C4F5C71548FF1893ADEAD2878`.
+- Wrapper interval: `2026-08-26T01:43:44.7816205Z` through
+  `2026-08-26T02:21:56.7876860Z`; 2,292.006 seconds.
 - Exit `0`; 3,475 starts; 3,476 passes; zero failures; exactly one terminal
   `TEST_PASS host.tests`.
 
@@ -234,17 +248,19 @@ TEST_PASS m02.010
 
 ### Same-build EFI closure
 
-Schema-three evidence generated at `2026-08-26T00:35:00.3125869Z` records:
+Schema-three evidence generated at `2026-08-25T22:25:56.1118242-04:00` records:
 
 - Configuration `Release`; RID `win-x64`; .NET SDK `10.0.302`.
 - Exactly 60 compile items; compile-key SHA-256
   `805E39822E162FD57BE8421D6D19282267D8B71222602BB359C81ACE9E7BA2E1`.
 - Exactly 73 source inputs; source-closure SHA-256
-  `D9B71EC4E399B6F21E27C6CF14E5DD9AB143288FE63BFA71A78F31440B43E0E3`.
+  `08DB2154F4E6A45B1F020CB9D0562C43A062E13EE6537AA46FA4169D2F314975`.
 - Raw `src/OS/OS.csproj` SHA-256
   `90A9243917910A9516388ABB301D9BEC92F661C6A839DBFA25E24497288C2769`.
 - Canonical project-shape SHA-256
   `05C6372ADA146E1CF78DFF3FB1D2C63601F788CF650172292F4D8724E15DBF45`.
+- Production entry-source SHA-256
+  `76C15B0296A3E4FD51D9EAEF943B57D846E93050110B636AE57E5DBADE39A48F`.
 - Zero project references, zero ordinary references, and two pinned analyzers.
 - M02-010 `true`; M02-009, M04-002, and M04-003 `false`.
 - MSVC linker `14.51.36256.0`; Windows SDK `10.0.28000.0`;
@@ -254,17 +270,17 @@ Schema-three evidence generated at `2026-08-26T00:35:00.3125869Z` records:
 
 | Artifact | Bytes | Lines | SHA-256 |
 | --- | ---: | ---: | --- |
-| EFI | 67,072 | n/a | `9F2061A0A7CADB9C0EC15F1A8F7148F0116AA56DBEAE8FD28E8ACECA4B4BA846` |
+| EFI | 67,072 | n/a | `9D7EE566D93ED876DDBE1825CC5629330CF46DEEB92F23473F8C6E3A06249B6D` |
 | Serializer object | 336 | n/a | `DA97E50C95E479541B65EB3F96D9C6DED163735857650BEE9416324086D55C7B` |
-| Link map | 38,683 | 404 | `57C21B84F6C16FFE489C7598EAA57EF420CE8E8D1D4C4BAE8A1DD4C77A55E4FC` |
+| Link map | 38,683 | 404 | `E8DDA9078650D6590963990F09C3387383EF15165FFD8FB94CE78338CDD4D1CF` |
 | Link response | 500 | 15 | `F88A91FBB859939851CCEBB865B680940F9ECE1193DDB8F8A1452BAF31B1A96C` |
-| Link-evidence JSON | 398,582 | 5,154 | `CC0ECC0AF83B48AAB1FE0DA1757BC82345D808E68077F98CBD0A86C99DE5BD0F` |
-| Archived EFI build log | 4,624 | 39 | `4C60FBF044A2B91A18D5CC021BCF9237898DA612E8766CBD4EA99062FCF798A8` |
+| Link-evidence JSON | 398,582 | 5,154 | `90589CAF8365E172824393F761E35195228B2B7860E518D4F82983CE9EFEF65C` |
+| Archived QEMU EFI build log | 4,622 | 39 | `626C61613A9FFE189B040FE8BE904ED6F15CAD9C1DD8423FAB3027DDCDE9AF86` |
 
 ### Real QEMU/OVMF tuple
 
-- Wrapper: `2026-08-26T00:34:29.6833668Z` through
-  `2026-08-26T00:35:25.0573607Z`; 55.374 seconds; exit `0`.
+- Wrapper: `2026-08-26T02:25:34.2380064Z` through
+  `2026-08-26T02:26:16.3395590Z`; 42.099 seconds; exit `0`.
 - QEMU `11.0.50` (`v11.0.0-12631-g54e84cdc7a`):
   - 25,272,968 bytes; SHA-256
     `B396EB9B669F6282EC60F0D46E6ADDCA8C669992E67A34365BE44CD3CB97C9A7`.
@@ -273,16 +289,16 @@ Schema-three evidence generated at `2026-08-26T00:35:00.3125869Z` records:
     `33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`.
 - Raw image:
   - 67,108,864 bytes; SHA-256
-    `C4FE364F0E46005EF06F13B0D0A65E8013C781BAFFB4FEE1D705FBC4B15BBB5D`.
+    `26D3AF35EB557562959D4D74BD920CF39AB6AEDA88AE2B7FF064D7E7B68673C6`.
 - Serial log:
   - 8,358 bytes; 29 lines; SHA-256
     `4E03A7CFCF8BD78018E3ABF35897EE3371B6E299FED70F32E56D4CEDE6EEB678`.
 - Summary log:
   - 4,382 bytes; 49 lines; SHA-256
-    `8FCD4EE9B1883D99A1D57068A840888CDCD49CDDD0D631A14CDC6B275957EC8F`.
+    `FAAC616D952478B9FF523D4D62DF5A0658F8105E80F3A9C3685CCB3090540EEF`.
 - Stdout:
-  - 13,706 bytes; 107 lines; SHA-256
-    `53E5A581B0F487469B3C58D96291E38613CCFB617F92E2E1608BE5DE52269A2D`.
+  - 13,729 bytes; 107 lines; SHA-256
+    `20D2B201E0C4413E9ECDA49D503D516B2AA78B7ACC6AD379F0C999CB72744690`.
 - Stderr:
   - Zero bytes and lines; SHA-256
     `E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855`.
@@ -358,10 +374,30 @@ vector 255 6A006A0068FF000000E9020000009090
   - 390 starts, 388 passes, zero failures, no terminal host pass.
   - Stopped when independent review found that an entirely absent requested
     summary line could still masquerade as an empty list.
-- Final head `c49148df816b9d7640d25ffc29fac9080a5d9ce7` fails closed on an absent
-  requested summary line, passed focused independent review, and produced the
-  only accepted full HostTests and QEMU tuples.
-- The accepted real-QEMU run had no failed attempt and was not retried.
+- Head `c49148df816b9d7640d25ffc29fac9080a5d9ce7` produced an earlier green full
+  HostTests and QEMU tuple, but that tuple became superseded when independent
+  review required a source change. It is historical evidence, not the final
+  accepted tuple.
+- Independent review rejected
+  `b17c1b89ce448e296308efd37c57e2ab1934a1d1` because `AllocatePages` could
+  return EFI success with address zero and the owned allocation was not freed.
+- Head `d34fa46f1b7460b38e05b4fc15ee11a43588dd8e` repaired allocation ownership
+  in production and its fixture, but its first full run exposed that the hostile
+  fixture still omitted the production `address != 0` success condition:
+  - Log
+    `artifacts/logs/issue-487-m02-010-d34fa46f1b7460b38e05b4fc15ee11a43588dd8e-hosttests.log`.
+  - 172,825 bytes; 2,740 lines; SHA-256
+    `E34C3E9A148C202761AAFA6C1C85B8945A3ADC53155431A8F9398D57E0C8E498`.
+  - Wrapper interval `2026-08-26T01:07:50.5361138Z` through
+    `2026-08-26T01:42:53.4695481Z`; 2,102.933 seconds; exit `-532462766`.
+  - 1,347 starts, 1,345 passes, two failures, and no terminal host pass.
+  - Exact failures were
+    `TEST_FAIL fake Boot Services cover ownership cleanup and failure suppression`
+    and `TEST_FAIL m02.010.efi.integration host-contract failures=1`.
+- Final head `b88a485c8562a0022ffaae760fb47ca9d5addba2` corrected the hostile mirror,
+  passed the complete host run and real QEMU/OVMF run, and is the sole final
+  accepted tuple. Its accepted real-QEMU run had no failed attempt and was not
+  retried.
 
 ## Deferred work
 

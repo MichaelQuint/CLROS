@@ -126,13 +126,15 @@ COM1/serial invocation.
   After firmware console discovery and any enabled M04 pre-memory-map checks,
   it allocates exactly one 4,096-byte UEFI LoaderData page, uses the real page
   address as the modeled address, and names `pageAddress + 4096` as a
-  non-overlapping modeled common target. It calls `Materialize` once and
+  non-overlapping modeled common target. Any EFI-successful allocation becomes
+  owned before returned-address validation, so an invalid zero address is also
+  released exactly once. It calls `Materialize` once and
   `ValidateReadBack` once in that order, audits all 256 vectors, the nine/247
   hardware/synthetic split, all 4,096 compared bytes, and both
   `428D0353A96B7ACE` fingerprints, then calls `FreePages` exactly once after the
-  readback attempt. Ready/pass requires successful cleanup. The accepted
+  readback attempt. Ready/pass requires successful cleanup. The final accepted
   QEMU/OVMF run at source head
-  `c49148df816b9d7640d25ffc29fac9080a5d9ce7` observed the exact guest marker
+  `b88a485c8562a0022ffaae760fb47ca9d5addba2` observed the exact guest marker
   once. This profile never calls a generated slot or common target and does not
   install an IDT, IDTR, TSS, or IST.
 - `TssIstPlan` models the x64 TSS bytes needed for `RSP0` and IST entries, including double-fault IST stack top, stack-size, and guard-size validation.

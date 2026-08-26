@@ -21,7 +21,7 @@ QEMU/OVMF.
 
 A separate default-off M02-010 artifact has now been built, independently
 verified, and executed under QEMU/OVMF from exact source head
-`c49148df816b9d7640d25ffc29fac9080a5d9ce7`. It materializes and reads back one
+`b88a485c8562a0022ffaae760fb47ca9d5addba2`. It materializes and reads back one
 temporary 4,096-byte normalized interrupt-entry page and releases it before
 ordinary memory-map capture. It does not execute the generated page or advance
 a numbered completion gate.
@@ -847,7 +847,7 @@ The explicit same-build closure is exactly 60 compile items with compile-key
 SHA-256
 `805E39822E162FD57BE8421D6D19282267D8B71222602BB359C81ACE9E7BA2E1`
 and 73 source-authority inputs with closure SHA-256
-`D9B71EC4E399B6F21E27C6CF14E5DD9AB143288FE63BFA71A78F31440B43E0E3`.
+`08DB2154F4E6A45B1F020CB9D0562C43A062E13EE6537AA46FA4169D2F314975`.
 The raw `OS.csproj` SHA-256 is
 `90A9243917910A9516388ABB301D9BEC92F661C6A839DBFA25E24497288C2769`;
 its canonical evaluated XML-shape SHA-256 is
@@ -862,7 +862,9 @@ requires live `AllocatePages` and `FreePages`, and allocates exactly one page
 using `AllocateAnyPages`, `EfiLoaderData`, and page count one. The address must
 be nonzero, 4,096-aligned, canonical through its final byte, and free of
 arithmetic wrap. The real page address is also the modeled page address; the
-modeled-only common target is exactly `pageAddress + 4096`.
+modeled-only common target is exactly `pageAddress + 4096`. EFI success
+establishes page ownership before address validation, so a successful
+allocation returning address zero is released exactly once before failure.
 
 The path calls pointer `Materialize` exactly once and pointer
 `ValidateReadBack` exactly once afterward. It requires initialized successful
@@ -897,28 +899,31 @@ The accepted real command was:
   -TimeoutSeconds 30 `
   -BuildEfi `
   -EnableM02NormalizedInterruptFramePageProbe `
-  -EfiArtifact .\artifacts\efi\BOOTX64-M02-010-c49148df-QEMU.EFI `
-  -Image .\artifacts\images\m02-010-c49148df-qemu.raw `
-  -SerialLog .\artifacts\logs\issue-487-m02-010-c49148df-qemu-serial.log `
-  -SummaryLog .\artifacts\logs\issue-487-m02-010-c49148df-qemu-summary.log
+  -EfiArtifact .\artifacts\efi\BOOTX64-M02-010-b88a485c-QEMU.EFI `
+  -Image .\artifacts\images\m02-010-b88a485c-qemu.raw `
+  -SerialLog .\artifacts\logs\issue-487-m02-010-b88a485c-qemu-serial.log `
+  -SummaryLog .\artifacts\logs\issue-487-m02-010-b88a485c-qemu-summary.log
 ```
 
 The schema-three link evidence was generated at
-`2026-08-26T00:35:00.3125869Z` from implementation head
-`c49148df816b9d7640d25ffc29fac9080a5d9ce7`, tree
-`b4d658518c9c7a927a66e88ec25a5dd82856a63a`. The artifact verifier accepted a
+`2026-08-25T22:25:56.1118242-04:00` from implementation head
+`b88a485c8562a0022ffaae760fb47ca9d5addba2`, tree
+`2c214fdee0ac2e08dd3df7a62523a5c69ca4a5fe`. The production `EfiEntry.cs`
+source has SHA-256
+`76C15B0296A3E4FD51D9EAEF943B57D846E93050110B636AE57E5DBADE39A48F`.
+The artifact verifier accepted a
 67,072-byte PE32+ AMD64 EFI application, subsystem 10, entry RVA `0x5330`, the
 same-build `EfiMain`/serializer bindings, and no ordinary, bound, IAT, or delay
 imports. Artifact identities are:
 
 | Artifact | Bytes | Lines | SHA-256 |
 | --- | ---: | ---: | --- |
-| EFI | 67,072 | n/a | `9F2061A0A7CADB9C0EC15F1A8F7148F0116AA56DBEAE8FD28E8ACECA4B4BA846` |
+| EFI | 67,072 | n/a | `9D7EE566D93ED876DDBE1825CC5629330CF46DEEB92F23473F8C6E3A06249B6D` |
 | Serializer object | 336 | n/a | `DA97E50C95E479541B65EB3F96D9C6DED163735857650BEE9416324086D55C7B` |
-| Link map | 38,683 | 404 | `57C21B84F6C16FFE489C7598EAA57EF420CE8E8D1D4C4BAE8A1DD4C77A55E4FC` |
+| Link map | 38,683 | 404 | `E8DDA9078650D6590963990F09C3387383EF15165FFD8FB94CE78338CDD4D1CF` |
 | Link response | 500 | 15 | `F88A91FBB859939851CCEBB865B680940F9ECE1193DDB8F8A1452BAF31B1A96C` |
-| Link-evidence JSON | 398,582 | 5,154 | `CC0ECC0AF83B48AAB1FE0DA1757BC82345D808E68077F98CBD0A86C99DE5BD0F` |
-| Archived build log | 4,624 | 39 | `4C60FBF044A2B91A18D5CC021BCF9237898DA612E8766CBD4EA99062FCF798A8` |
+| Link-evidence JSON | 398,582 | 5,154 | `90589CAF8365E172824393F761E35195228B2B7860E518D4F82983CE9EFEF65C` |
+| Archived build log | 4,622 | 39 | `626C61613A9FFE189B040FE8BE904ED6F15CAD9C1DD8423FAB3027DDCDE9AF86` |
 
 The accepted QEMU/OVMF run observed the exact guest transcript once, then
 continued through the ordinary memory-map and boot-smoke markers. It proves

@@ -682,17 +682,17 @@ The accepted real command was:
   -TimeoutSeconds 30 `
   -BuildEfi `
   -EnableM02NormalizedInterruptFramePageProbe `
-  -EfiArtifact .\artifacts\efi\BOOTX64-M02-010-c49148df-QEMU.EFI `
-  -Image .\artifacts\images\m02-010-c49148df-qemu.raw `
-  -SerialLog .\artifacts\logs\issue-487-m02-010-c49148df-qemu-serial.log `
-  -SummaryLog .\artifacts\logs\issue-487-m02-010-c49148df-qemu-summary.log
+  -EfiArtifact .\artifacts\efi\BOOTX64-M02-010-b88a485c-QEMU.EFI `
+  -Image .\artifacts\images\m02-010-b88a485c-qemu.raw `
+  -SerialLog .\artifacts\logs\issue-487-m02-010-b88a485c-qemu-serial.log `
+  -SummaryLog .\artifacts\logs\issue-487-m02-010-b88a485c-qemu-summary.log
 ```
 
-The wrapper ran from `2026-08-26T00:34:29.6833668Z` through
-`2026-08-26T00:35:25.0573607Z`, completed in 55.374 seconds, and exited zero.
+The wrapper ran from `2026-08-26T02:25:34.2380064Z` through
+`2026-08-26T02:26:16.3395590Z`, completed in 42.099 seconds, and exited zero.
 It used exact implementation head
-`c49148df816b9d7640d25ffc29fac9080a5d9ce7`, tree
-`b4d658518c9c7a927a66e88ec25a5dd82856a63a`, QEMU `11.0.50`
+`b88a485c8562a0022ffaae760fb47ca9d5addba2`, tree
+`2c214fdee0ac2e08dd3df7a62523a5c69ca4a5fe`, QEMU `11.0.50`
 (`v11.0.0-12631-g54e84cdc7a`), and the 3,653,632-byte OVMF image with SHA-256
 `33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`.
 The 25,272,968-byte QEMU executable has SHA-256
@@ -702,11 +702,11 @@ Artifact identities are:
 
 | Artifact | Bytes | Lines | SHA-256 |
 | --- | ---: | ---: | --- |
-| EFI | 67,072 | n/a | `9F2061A0A7CADB9C0EC15F1A8F7148F0116AA56DBEAE8FD28E8ACECA4B4BA846` |
-| Raw image | 67,108,864 | n/a | `C4FE364F0E46005EF06F13B0D0A65E8013C781BAFFB4FEE1D705FBC4B15BBB5D` |
+| EFI | 67,072 | n/a | `9D7EE566D93ED876DDBE1825CC5629330CF46DEEB92F23473F8C6E3A06249B6D` |
+| Raw image | 67,108,864 | n/a | `26D3AF35EB557562959D4D74BD920CF39AB6AEDA88AE2B7FF064D7E7B68673C6` |
 | Serial log | 8,358 | 29 | `4E03A7CFCF8BD78018E3ABF35897EE3371B6E299FED70F32E56D4CEDE6EEB678` |
-| Summary log | 4,382 | 49 | `8FCD4EE9B1883D99A1D57068A840888CDCD49CDDD0D631A14CDC6B275957EC8F` |
-| Wrapper stdout | 13,706 | 107 | `53E5A581B0F487469B3C58D96291E38613CCFB617F92E2E1608BE5DE52269A2D` |
+| Summary log | 4,382 | 49 | `FAAC616D952478B9FF523D4D62DF5A0658F8105E80F3A9C3685CCB3090540EEF` |
+| Wrapper stdout | 13,729 | 107 | `20D2B201E0C4413E9ECDA49D503D516B2AA78B7ACC6AD379F0C999CB72744690` |
 | Wrapper stderr | 0 | 0 | `E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855` |
 
 The streaming classifier reported:
@@ -1643,10 +1643,10 @@ the three stable invalid-argument reasons, the exact 370-character success
 record, and rejection of missing, reordered, duplicated, and failure-injected
 transcripts. State-machine tests accept the 512-character marker boundary and
 reject 513. The complete accepted host run at exact source head
-`c49148df816b9d7640d25ffc29fac9080a5d9ce7` completed in 2,766.509 seconds
+`b88a485c8562a0022ffaae760fb47ca9d5addba2` completed in 2,292.006 seconds
 with 3,475 starts, 3,476 passes, zero failures, and exactly one terminal
-`TEST_PASS host.tests`; its 446,609-byte, 7,007-line log has SHA-256
-`101C5C7FCA0D521161ED9F7CD32FE154E7D241705E3740E006B4328063CB4FFD`.
+`TEST_PASS host.tests`; its 446,759-byte, 7,011-line log has SHA-256
+`A4D309584496E19218BE0C794B04411EF6F09F4C4F5C71548FF1893ADEAD2878`.
 
 The accepted r16 host gate also proves all 15 focused M01-026 groups:
 manifest/stage-three marker parity, switch forwarding, invalid-selector
