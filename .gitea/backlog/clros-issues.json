@@ -7103,7 +7103,7 @@
         "M02-010"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -7130,7 +7130,7 @@
       ],
       "collisionLane": null,
       "summary": "Populate all 256 IDT vectors with owned gates; never copy firmware gates.",
-      "currentEvidence": "Diagnostic descriptor/stub plans are host-tested; owned COM1, loaded GDT/TSS/IDT, and controlled live faults are unproven.",
+      "currentEvidence": "Reviewed M02-011 host leaf PR #493 and serialized EFI integration PR #495 are merged. The frozen host leaf 9562b057342fe02eb889eae44e48acd3b7267550 merged into baseline b5c289124a964b00c285a9b66f2b4cd4b026201f; the tested EFI implementation e1289c4b29ec1417e51dde71d2cc6bb524cfd4c5 and evidence head 9a8eed9b1b2ca658c5bfc6d32691927fdd8b0ea5 received an independent exact-head technical APPROVE with no findings, preserved as PR comment #13206, and merged as aac06d1f970f51c07e9e29a82c91e10a890b5eb7 with reviewed tree a92fb6fb61daf71448eb652927724e1ddcdca6ca. done/step921.md is the immutable evidence record. The accepted full HostTests run exited 0 with 3,483 TEST_START, 3,484 TEST_PASS, exactly one terminal TEST_PASS host.tests, and zero TEST_FAIL; log SHA-256 is D4831A01E7028A3E51DA2F115538DD8046129C0D2A16AEEF659816D79907C640. Fresh real QEMU/OVMF evidence passed the exact 17 required, 5 ordered, 3 unique, and 3 forbidden marker profile with one M02-011 start/ready/pass sequence, zero failures, and ordinary OS_SMOKE_PASS afterward. EFI SHA-256 is 433B087FB4D0ADBDE01DFF47F7DCB7DE7E061974ED7329138A5AD0B8250255ED, raw-image SHA-256 is 92F0C6D93B66169CFA44216C4B045BA7EE7D49019E77549ED4A73F95BC9DFB26, serial SHA-256 is 01CBB7C9179DB397FBD6C8E32D7A400667FEEE08119198F160966B661DF74600, and summary SHA-256 is C6E14CBC5A21CC733137B382D6F6B23C0C885044CE0D3D158393A950923BACC9. Rejected preliminary fake-alignment, Start-Process wrapper, superseded-log, PowerShell module-path, and review-gap attempts are ledgered and are not accepted evidence. This proves only default-off pre-ExitBootServices three-page LoaderData allocation, deterministic owned stub/IDT byte materialization and readback, exactly-once release, and continued ordinary smoke markers. It does not publish executable pages, load IDTR, execute an entry, trigger a fault, prove real ExitBootServices, hosted .NET 10/Kestrel, cloud readiness, security hardening, or production readiness; Gate 2 remains the only passing numbered gate and Gates 3 and 4 remain Fail.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Populate all 256 IDT vectors with owned gates; never copy firmware gates.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -7178,7 +7178,7 @@
         "docs/boot-order.md"
       ],
       "evidenceBoundary": "This issue proves only \"Populate all 256 IDT vectors with owned gates; never copy firmware gates.\" It does not by itself prove the M02 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M02-012",
