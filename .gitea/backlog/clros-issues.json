@@ -7017,7 +7017,7 @@
         "M02-009"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -7044,7 +7044,7 @@
       ],
       "collisionLane": null,
       "summary": "Normalize error-code and non-error-code interrupt-frame layouts.",
-      "currentEvidence": "Diagnostic descriptor/stub plans are host-tested; owned COM1, loaded GDT/TSS/IDT, and controlled live faults are unproven.",
+      "currentEvidence": "Reviewed M02-010 leaf PR #486 and serialized EFI integration PR #491 are merged. Leaf head 2267db3563bd7eafe2543192b7ee6fbedc6d7d3b received official exact-head approval #30 and merged as d41a2d39b0e63e893f542a673c6b8eb6a59f18f7; final integration head 51baf69c80c8e2e87a715fcf7559e3c6b30e1c3d received official exact-head approval #33 and merged as canonical master 4e25e2ac57adb4f11baf5861b091cea958cce784 with reviewed tree 4645ee216ee62af765c50a4184ae23375299a96d. done/step920.md is the immutable evidence record. The accepted tested source b88a485c8562a0022ffaae760fb47ca9d5addba2 completed the full HostTests run with 3,475 TEST_START, 3,476 TEST_PASS, exactly one terminal TEST_PASS host.tests, and zero TEST_FAIL; its log SHA-256 is A4D309584496E19218BE0C794B04411EF6F09F4C4F5C71548FF1893ADEAD2878. Fresh real QEMU/OVMF evidence passed the exact 17 required, 5 ordered, 3 unique, and 3 forbidden marker profile with one M02-010 start/ready/pass sequence and zero TEST_FAIL. The EFI SHA-256 is 9D7EE566D93ED876DDBE1825CC5629330CF46DEEB92F23473F8C6E3A06249B6D, serial SHA-256 is 4E03A7CFCF8BD78018E3ABF35897EE3371B6E299FED70F32E56D4CEDE6EEB678, and summary SHA-256 is FAAC616D952478B9FF523D4D62DF5A0658F8105E80F3A9C3685CCB3090540EEF. Review-rejected b17 leaked an EFI-successful zero-address allocation; d34 repaired production ownership but failed the hostile mirror tests; neither rejected tuple is accepted closure evidence. The evidence proves only default-off pre-ExitBootServices LoaderData allocation, interrupt-stub page materialization, byte-for-byte readback, and exactly-once release. It does not execute a slot or common target, install an IDT/IDTR/IST route, trigger a fault, cross real ExitBootServices, or prove hosted .NET, Kestrel, provider, CloudReady, or production behavior; Gate 3 remains Fail.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Normalize error-code and non-error-code interrupt-frame layouts.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -7092,7 +7092,7 @@
         "docs/boot-order.md"
       ],
       "evidenceBoundary": "This issue proves only \"Normalize error-code and non-error-code interrupt-frame layouts.\" It does not by itself prove the M02 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M02-011",
