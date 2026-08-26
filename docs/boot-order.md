@@ -137,6 +137,24 @@ ordered auxiliary subsequence is:
 4. `TEST_PASS m02.011`
 5. `UEFI_MEMORY_MAP_READY`
 
+M02-012 adds a host-audited 80-byte IDTR transition context and exact 52-byte
+reversible instruction plan without adding a `BootSequence` phase. The frozen
+Windows-x64 stream captures entry IF and the previous IDTR, executes `cli`,
+temporarily loads and reads back the requested `{ limit=4095, base=ownedIdt }`
+IDTR, restores and reads back the previous IDTR, conditionally restores IF,
+and returns cookie `0x4F53494454523132`. Pointer cores validate caller storage,
+modeled context/stub ranges, and the independent 4,096-byte IDT range before
+mutation; host tests verify exact FNV-1a64 `AFF59D6480DE7F3C`, SHA-256
+`41B9015D93354D734EC939531790C573CA1239EBC0413FB512B39A80DFC5E91E`,
+readback, synthetic success for both IF states, false-evidence rejection,
+no-stdlib compilation, and zero allocation. They never invoke privileged
+bytes. Therefore the default managed and firmware-visible orders remain
+unchanged, and the host marker explicitly reports `guestExecution=false`,
+`idtrLoaded=false`, `idtrRestored=false`, and `continuedExecution=false`.
+A separate default-off EFI/QEMU integration remains required to establish the
+temporary live load/readback/restoration and ordinary-smoke continuation
+boundary; no interrupt or fault is requested by this leaf.
+
 `BootSequence.RunFaultInfrastructureReadiness` is a host-tested helper only. It emits `FAULT_INFRA_READY` for a successful `FaultInfrastructureReadinessResult` and `FAULT_INFRA_NOT_READY status=<status>` for a failed result. The default boot path does not call it yet.
 
 `BootSequence.RunExitBootServicesTransition` is a host-tested helper only. It consumes a `UefiExitBootServicesPlanResult`, emits `UEFI_EBS_TRANSITION_READY` only for a successful plan, emits `UEFI_EBS_TRANSITION_BLOCKED status=<status>` for blocked plans, and marks `FirmwareServicesGuard` as exited only in the successful case. The default boot path does not call it yet.
