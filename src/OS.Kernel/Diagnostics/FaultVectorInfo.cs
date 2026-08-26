@@ -36,7 +36,7 @@ public readonly struct FaultVectorInfo
     }
 }
 
-public static class FaultVectorCatalog
+public static partial class FaultVectorCatalog
 {
     public const byte DivideError = 0;
     public const byte Debug = 1;
@@ -44,7 +44,6 @@ public static class FaultVectorCatalog
     public const byte Breakpoint = 3;
     public const byte Overflow = 4;
     public const byte BoundRangeExceeded = 5;
-    public const byte InvalidOpcode = 6;
     public const byte DeviceNotAvailable = 7;
     public const byte DoubleFault = 8;
     public const byte CoprocessorSegmentOverrun = 9;
