@@ -7631,6 +7631,15 @@ public static unsafe class EfiEntry
             return;
         }
 #endif
+#if M02_IDTR_CONTINUED_EXECUTION_PROBE
+        if (!WriteM02IdtrContinuedExecutionProbe(
+                console,
+                serial,
+                systemTable))
+        {
+            return;
+        }
+#endif
         if (TryCaptureUefiMemoryMap(systemTable))
         {
             WriteUefiMemoryMapReady(console, serial);
@@ -9118,6 +9127,853 @@ public static unsafe class EfiEntry
         if (b5 != 0) Write(console, serial, b5);
         if (b6 != 0) Write(console, serial, b6);
         if (b7 != 0) Write(console, serial, b7);
+    }
+#endif
+
+#if M02_IDTR_CONTINUED_EXECUTION_PROBE
+    private const uint M02IdtrContinuedExecutionAllocateAnyPages = 0;
+    private const uint M02IdtrContinuedExecutionEfiLoaderCode = 1;
+    private const uint M02IdtrContinuedExecutionEfiLoaderData = 2;
+    private const ulong M02IdtrContinuedExecutionPageBytes = 4096;
+    private const ulong M02IdtrContinuedExecutionCodePages = 2;
+    private const ulong M02IdtrContinuedExecutionDataPages = 1;
+    private const ulong M02IdtrContinuedExecutionCodeBytes = 8192;
+    private const ulong M02IdtrContinuedExecutionDataBytes = 4096;
+    private const ulong M02IdtrContinuedExecutionCommonTargetOffset = 4096;
+    private const ulong M02IdtrContinuedExecutionTransitionOffset = 0x1040;
+    private const ulong M02IdtrContinuedExecutionContextWorkspaceBytes = 96;
+    private const ulong M02IdtrContinuedExecutionNormalizedFnv1A64 =
+        0x428D0353A96B7ACEUL;
+    private const ulong M02IdtrContinuedExecutionPolicyFnv1A64 =
+        0x8514F42EBDFC5D55UL;
+
+    private static bool WriteM02IdtrContinuedExecutionProbe(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial,
+        EfiSystemTable* systemTable)
+    {
+        WriteM02IdtrContinuedExecutionStartLine(console, serial);
+
+        EfiBootServices* bootServices = systemTable == null
+            ? null
+            : systemTable->BootServices;
+        ulong codeAddress = 0;
+        ulong dataAddress = 0;
+        bool codeAllocated = false;
+        bool dataAllocated = false;
+
+        if (bootServices == null ||
+            bootServices->AllocatePages == null ||
+            bootServices->FreePages == null)
+        {
+            return FailM02IdtrContinuedExecutionBeforeInvocation(
+                console,
+                serial,
+                bootServices,
+                codeAddress,
+                codeAllocated,
+                dataAddress,
+                dataAllocated);
+        }
+
+        ulong allocationStatus = bootServices->AllocatePages(
+            M02IdtrContinuedExecutionAllocateAnyPages,
+            M02IdtrContinuedExecutionEfiLoaderCode,
+            M02IdtrContinuedExecutionCodePages,
+            &codeAddress);
+        codeAllocated = allocationStatus == 0;
+        if (!codeAllocated ||
+            !IsValidM02IdtrContinuedExecutionRange(
+                codeAddress,
+                M02IdtrContinuedExecutionCodeBytes,
+                M02IdtrContinuedExecutionPageBytes))
+        {
+            return FailM02IdtrContinuedExecutionBeforeInvocation(
+                console,
+                serial,
+                bootServices,
+                codeAddress,
+                codeAllocated,
+                dataAddress,
+                dataAllocated);
+        }
+
+        allocationStatus = bootServices->AllocatePages(
+            M02IdtrContinuedExecutionAllocateAnyPages,
+            M02IdtrContinuedExecutionEfiLoaderData,
+            M02IdtrContinuedExecutionDataPages,
+            &dataAddress);
+        dataAllocated = allocationStatus == 0;
+        if (!dataAllocated ||
+            !IsValidM02IdtrContinuedExecutionRange(
+                dataAddress,
+                M02IdtrContinuedExecutionDataBytes,
+                M02IdtrContinuedExecutionPageBytes) ||
+            M02IdtrContinuedExecutionRangesOverlap(
+                codeAddress,
+                M02IdtrContinuedExecutionCodeBytes,
+                dataAddress,
+                M02IdtrContinuedExecutionDataBytes))
+        {
+            return FailM02IdtrContinuedExecutionBeforeInvocation(
+                console,
+                serial,
+                bootServices,
+                codeAddress,
+                codeAllocated,
+                dataAddress,
+                dataAllocated);
+        }
+
+        M02IdtrContinuedExecutionStackWorkspace stackWorkspace = default;
+        byte* workspaceStart = stackWorkspace.Bytes;
+        ulong workspaceAddress = (ulong)workspaceStart;
+        if (workspaceAddress >
+            ~0UL -
+                (OS.Kernel.Diagnostics.IDTRContinuedExecution
+                    .ContextAlignment - 1))
+        {
+            return FailM02IdtrContinuedExecutionBeforeInvocation(
+                console,
+                serial,
+                bootServices,
+                codeAddress,
+                codeAllocated,
+                dataAddress,
+                dataAllocated);
+        }
+
+        ulong contextAddress =
+            (workspaceAddress +
+                (OS.Kernel.Diagnostics.IDTRContinuedExecution
+                    .ContextAlignment - 1)) &
+            ~(OS.Kernel.Diagnostics.IDTRContinuedExecution
+                .ContextAlignment - 1);
+        if (!IsValidM02IdtrContinuedExecutionRange(
+                contextAddress,
+                (ulong)OS.Kernel.Diagnostics.IDTRContinuedExecution
+                    .ContextByteCount,
+                OS.Kernel.Diagnostics.IDTRContinuedExecution
+                    .ContextAlignment) ||
+            contextAddress < workspaceAddress ||
+            contextAddress +
+                (ulong)OS.Kernel.Diagnostics.IDTRContinuedExecution
+                    .ContextByteCount >
+                workspaceAddress +
+                    M02IdtrContinuedExecutionContextWorkspaceBytes ||
+            M02IdtrContinuedExecutionRangesOverlap(
+                codeAddress,
+                M02IdtrContinuedExecutionCodeBytes,
+                contextAddress,
+                (ulong)OS.Kernel.Diagnostics.IDTRContinuedExecution
+                    .ContextByteCount) ||
+            M02IdtrContinuedExecutionRangesOverlap(
+                dataAddress,
+                M02IdtrContinuedExecutionDataBytes,
+                contextAddress,
+                (ulong)OS.Kernel.Diagnostics.IDTRContinuedExecution
+                    .ContextByteCount))
+        {
+            return FailM02IdtrContinuedExecutionBeforeInvocation(
+                console,
+                serial,
+                bootServices,
+                codeAddress,
+                codeAllocated,
+                dataAddress,
+                dataAllocated);
+        }
+
+        ulong commonTargetAddress =
+            codeAddress + M02IdtrContinuedExecutionCommonTargetOffset;
+        ulong transitionAddress =
+            codeAddress + M02IdtrContinuedExecutionTransitionOffset;
+        if (!IsValidM02IdtrContinuedExecutionRange(
+                commonTargetAddress,
+                6,
+                1) ||
+            !IsValidM02IdtrContinuedExecutionRange(
+                transitionAddress,
+                (ulong)OS.Kernel.Diagnostics.IDTRContinuedExecution
+                    .StubByteCount,
+                OS.Kernel.Diagnostics.IDTRContinuedExecution
+                    .StubAlignment))
+        {
+            return FailM02IdtrContinuedExecutionBeforeInvocation(
+                console,
+                serial,
+                bootServices,
+                codeAddress,
+                codeAllocated,
+                dataAddress,
+                dataAllocated);
+        }
+
+        byte* code = (byte*)codeAddress;
+        byte* data = (byte*)dataAddress;
+        for (ulong offset = 0;
+            offset < M02IdtrContinuedExecutionCodeBytes;
+            offset++)
+        {
+            code[offset] = 0;
+        }
+        for (ulong offset = 0;
+            offset < M02IdtrContinuedExecutionDataBytes;
+            offset++)
+        {
+            data[offset] = 0;
+        }
+
+        OS.Kernel.Diagnostics.NormalizeInterruptFramePageResult
+            normalizedMaterialized =
+                OS.Kernel.Diagnostics
+                    .NormalizeErrorCodeNonErrorCodeInterruptFrame
+                    .Materialize(
+                        code,
+                        M02IdtrContinuedExecutionPageBytes,
+                        codeAddress,
+                        commonTargetAddress);
+
+        byte* commonTarget = (byte*)commonTargetAddress;
+        commonTarget[0] = 0x48;
+        commonTarget[1] = 0x83;
+        commonTarget[2] = 0xC4;
+        commonTarget[3] = 0x18;
+        commonTarget[4] = 0x48;
+        commonTarget[5] = 0xCF;
+
+        OS.Kernel.Diagnostics.NormalizeInterruptFramePageResult
+            normalizedReadBack =
+                OS.Kernel.Diagnostics
+                    .NormalizeErrorCodeNonErrorCodeInterruptFrame
+                    .ValidateReadBack(
+                        code,
+                        M02IdtrContinuedExecutionPageBytes,
+                        codeAddress,
+                        commonTargetAddress);
+        OS.Kernel.Diagnostics.OwnedIdtGateTableResult idtMaterialized =
+            OS.Kernel.Diagnostics
+                .PopulateAllN256IDTVectorsOwnedGatesNever
+                .Materialize(
+                    data,
+                    M02IdtrContinuedExecutionDataBytes,
+                    dataAddress,
+                    codeAddress);
+        OS.Kernel.Diagnostics.OwnedIdtGateTableResult idtReadBack =
+            OS.Kernel.Diagnostics
+                .PopulateAllN256IDTVectorsOwnedGatesNever
+                .ValidateReadBack(
+                    data,
+                    M02IdtrContinuedExecutionDataBytes,
+                    dataAddress,
+                    codeAddress);
+
+        OS.Kernel.Diagnostics.IDTRContinuedExecutionContext* context =
+            (OS.Kernel.Diagnostics.IDTRContinuedExecutionContext*)
+                contextAddress;
+        OS.Kernel.Diagnostics.IDTRContinuedExecutionPlanResult
+            contextPrepared =
+                OS.Kernel.Diagnostics.IDTRContinuedExecution
+                    .PrepareContext(
+                        context,
+                        contextAddress,
+                        (ulong)OS.Kernel.Diagnostics
+                            .IDTRContinuedExecution.ContextByteCount,
+                        dataAddress);
+        OS.Kernel.Diagnostics.IDTRContinuedExecutionPlanResult stubEmitted =
+            OS.Kernel.Diagnostics.IDTRContinuedExecution.EmitStub(
+                (byte*)transitionAddress,
+                transitionAddress,
+                M02IdtrContinuedExecutionPageBytes - 0x40,
+                context,
+                contextAddress,
+                (ulong)OS.Kernel.Diagnostics.IDTRContinuedExecution
+                    .ContextByteCount,
+                dataAddress);
+        OS.Kernel.Diagnostics.IDTRContinuedExecutionPlanResult stubReadBack =
+            OS.Kernel.Diagnostics.IDTRContinuedExecution
+                .ValidateStubReadBack(
+                    (byte*)transitionAddress,
+                    transitionAddress,
+                    M02IdtrContinuedExecutionPageBytes - 0x40,
+                    context,
+                    contextAddress,
+                    (ulong)OS.Kernel.Diagnostics.IDTRContinuedExecution
+                        .ContextByteCount,
+                    dataAddress);
+
+        if (!M02IdtrContinuedExecutionNormalizedResultMatches(
+                normalizedMaterialized,
+                OS.Kernel.Diagnostics.NormalizeInterruptFramePageOperation
+                    .Materialize,
+                codeAddress,
+                commonTargetAddress,
+                true) ||
+            !M02IdtrContinuedExecutionNormalizedResultMatches(
+                normalizedReadBack,
+                OS.Kernel.Diagnostics.NormalizeInterruptFramePageOperation
+                    .ValidateReadBack,
+                codeAddress,
+                commonTargetAddress,
+                false) ||
+            normalizedMaterialized.Fingerprint !=
+                normalizedReadBack.Fingerprint ||
+            !M02IdtrContinuedExecutionIdtResultMatches(
+                idtMaterialized,
+                OS.Kernel.Diagnostics.OwnedIdtGateTableOperation.Materialize,
+                dataAddress,
+                codeAddress,
+                true) ||
+            !M02IdtrContinuedExecutionIdtResultMatches(
+                idtReadBack,
+                OS.Kernel.Diagnostics.OwnedIdtGateTableOperation
+                    .ValidateReadBack,
+                dataAddress,
+                codeAddress,
+                false) ||
+            idtMaterialized.Fingerprint != idtReadBack.Fingerprint ||
+            !M02IdtrContinuedExecutionPlanMatches(
+                contextPrepared,
+                OS.Kernel.Diagnostics.IDTRContinuedExecutionOperation
+                    .PrepareContext,
+                contextAddress,
+                transitionAddress,
+                dataAddress) ||
+            !M02IdtrContinuedExecutionPlanMatches(
+                stubEmitted,
+                OS.Kernel.Diagnostics.IDTRContinuedExecutionOperation
+                    .EmitStub,
+                contextAddress,
+                transitionAddress,
+                dataAddress) ||
+            !M02IdtrContinuedExecutionPlanMatches(
+                stubReadBack,
+                OS.Kernel.Diagnostics.IDTRContinuedExecutionOperation
+                    .ValidateStubReadBack,
+                contextAddress,
+                transitionAddress,
+                dataAddress) ||
+            contextPrepared.ContextFingerprint !=
+                stubEmitted.ContextFingerprint ||
+            contextPrepared.ContextFingerprint !=
+                stubReadBack.ContextFingerprint ||
+            !M02IdtrContinuedExecutionCommonTargetMatches(commonTarget) ||
+            OS.Kernel.Diagnostics.IDTRContinuedExecution.StubFnv1A64 !=
+                0xAFF59D6480DE7F3CUL ||
+            OS.Kernel.Diagnostics.IDTRContinuedExecution
+                .HasExternalRelocations)
+        {
+            return FailM02IdtrContinuedExecutionBeforeInvocation(
+                console,
+                serial,
+                bootServices,
+                codeAddress,
+                codeAllocated,
+                dataAddress,
+                dataAllocated);
+        }
+
+        uint publicationCookie = X64InstructionPublication.Serialize();
+        if (publicationCookie !=
+            X64InstructionPublication.ExpectedSuccessCookie)
+        {
+            return FailM02IdtrContinuedExecutionBeforeInvocation(
+                console,
+                serial,
+                bootServices,
+                codeAddress,
+                codeAllocated,
+                dataAddress,
+                dataAllocated);
+        }
+
+        delegate* unmanaged<
+            OS.Kernel.Diagnostics.IDTRContinuedExecutionContext*,
+            ulong> transition =
+                (delegate* unmanaged<
+                    OS.Kernel.Diagnostics.IDTRContinuedExecutionContext*,
+                    ulong>)(void*)transitionAddress;
+        ulong executionCookie = transition(context);
+
+        if (!M02IdtrContinuedExecutionSafetyRestored(
+                context,
+                dataAddress))
+        {
+            SpinM02IdtrContinuedExecutionAfterUnverifiedRestore();
+            return false;
+        }
+
+        OS.Kernel.Diagnostics.IDTRContinuedExecutionAuditResult audit =
+            OS.Kernel.Diagnostics.IDTRContinuedExecution.AuditExecution(
+                context,
+                contextAddress,
+                (ulong)OS.Kernel.Diagnostics.IDTRContinuedExecution
+                    .ContextByteCount,
+                dataAddress,
+                executionCookie);
+        if (!M02IdtrContinuedExecutionAuditMatches(
+                audit,
+                contextAddress,
+                dataAddress,
+                executionCookie))
+        {
+            _ = bootServices->FreePages(
+                dataAddress,
+                M02IdtrContinuedExecutionDataPages);
+            _ = bootServices->FreePages(
+                codeAddress,
+                M02IdtrContinuedExecutionCodePages);
+            WriteM02IdtrContinuedExecutionFailureLines(console, serial);
+            return false;
+        }
+
+        ulong dataReleaseStatus = bootServices->FreePages(
+            dataAddress,
+            M02IdtrContinuedExecutionDataPages);
+        ulong codeReleaseStatus = bootServices->FreePages(
+            codeAddress,
+            M02IdtrContinuedExecutionCodePages);
+        if (dataReleaseStatus != 0 || codeReleaseStatus != 0)
+        {
+            WriteM02IdtrContinuedExecutionFailureLines(console, serial);
+            return false;
+        }
+
+        WriteM02IdtrContinuedExecutionSuccessLine(console, serial);
+        WriteM02IdtrContinuedExecutionPassLine(console, serial);
+        return true;
+    }
+
+    private static bool M02IdtrContinuedExecutionNormalizedResultMatches(
+        OS.Kernel.Diagnostics.NormalizeInterruptFramePageResult result,
+        OS.Kernel.Diagnostics.NormalizeInterruptFramePageOperation operation,
+        ulong pageAddress,
+        ulong commonTargetAddress,
+        bool materialized)
+    {
+        return result.IsInitialized &&
+            result.Operation == operation &&
+            result.Status == OS.Kernel.Diagnostics
+                .NormalizeInterruptFramePageStatus.Success &&
+            result.ModeledPageAddress == pageAddress &&
+            result.CommonTargetAddress == commonTargetAddress &&
+            result.PageCapacity == M02IdtrContinuedExecutionPageBytes &&
+            result.RequiredBytes == 4096 &&
+            result.BytesWritten == (materialized ? 4096 : 0) &&
+            result.BytesCompared == 4096 &&
+            result.FirstMismatchOffset == -1 &&
+            result.HardwareErrorCodeVectorCount == 9 &&
+            result.SyntheticErrorCodeVectorCount == 247 &&
+            result.Fingerprint ==
+                M02IdtrContinuedExecutionNormalizedFnv1A64 &&
+            result.DestinationMutated == materialized &&
+            result.ReadBackPerformed &&
+            result.Materialized == materialized &&
+            result.ReadBackValidated == !materialized &&
+            result.Succeeded;
+    }
+
+    private static bool M02IdtrContinuedExecutionIdtResultMatches(
+        OS.Kernel.Diagnostics.OwnedIdtGateTableResult result,
+        OS.Kernel.Diagnostics.OwnedIdtGateTableOperation operation,
+        ulong tableAddress,
+        ulong stubPageAddress,
+        bool materialized)
+    {
+        return result.IsInitialized &&
+            result.Operation == operation &&
+            result.Status ==
+                OS.Kernel.Diagnostics.OwnedIdtGateTableStatus.Success &&
+            result.ModeledTableAddress == tableAddress &&
+            result.OwnedStubPageAddress == stubPageAddress &&
+            result.TableCapacity == M02IdtrContinuedExecutionDataBytes &&
+            result.RequiredBytes == 4096 &&
+            result.DescriptorCount == 256 &&
+            result.PresentDescriptorCount == 256 &&
+            result.IstRoutedDescriptorCount == 3 &&
+            result.DefaultIstDescriptorCount == 253 &&
+            result.FirmwareGateCopyCount == 0 &&
+            result.BytesWritten == (materialized ? 4096 : 0) &&
+            result.BytesCompared == 4096 &&
+            result.FirstMismatchOffset == -1 &&
+            result.FirstMismatchVector == -1 &&
+            result.NormalizedPolicyFingerprint ==
+                M02IdtrContinuedExecutionPolicyFnv1A64 &&
+            result.DestinationMutated == materialized &&
+            result.ReadBackPerformed &&
+            result.Materialized == materialized &&
+            result.ReadBackValidated == !materialized &&
+            result.Succeeded;
+    }
+
+    private static bool M02IdtrContinuedExecutionPlanMatches(
+        OS.Kernel.Diagnostics.IDTRContinuedExecutionPlanResult result,
+        OS.Kernel.Diagnostics.IDTRContinuedExecutionOperation operation,
+        ulong contextAddress,
+        ulong transitionAddress,
+        ulong idtAddress)
+    {
+        bool operationMatches = operation ==
+                OS.Kernel.Diagnostics.IDTRContinuedExecutionOperation
+                    .PrepareContext
+            ? result.ContextPrepared
+            : operation ==
+                OS.Kernel.Diagnostics.IDTRContinuedExecutionOperation
+                    .EmitStub
+                ? result.StubEmitted
+                : result.ReadBackValidated;
+        return operationMatches &&
+            result.Operation == operation &&
+            result.Status == OS.Kernel.Diagnostics
+                .IDTRContinuedExecutionStatus.Success &&
+            result.ModeledContextAddress == contextAddress &&
+            result.ModeledStubAddress ==
+                (operation ==
+                    OS.Kernel.Diagnostics.IDTRContinuedExecutionOperation
+                        .PrepareContext
+                    ? 0
+                    : transitionAddress) &&
+            result.OwnedIdtAddress == idtAddress &&
+            result.ContextCapacity == 80 &&
+            result.StubCapacity ==
+                (operation ==
+                    OS.Kernel.Diagnostics.IDTRContinuedExecutionOperation
+                        .PrepareContext
+                    ? 0
+                    : M02IdtrContinuedExecutionPageBytes - 0x40) &&
+            result.FirstMismatchOffset == -1 &&
+            result.ContextFingerprint != 0 &&
+            (operation ==
+                OS.Kernel.Diagnostics.IDTRContinuedExecutionOperation
+                    .PrepareContext ||
+                result.StubFingerprint == 0xAFF59D6480DE7F3CUL) &&
+            result.Succeeded;
+    }
+
+    private static bool M02IdtrContinuedExecutionAuditMatches(
+        OS.Kernel.Diagnostics.IDTRContinuedExecutionAuditResult audit,
+        ulong contextAddress,
+        ulong idtAddress,
+        ulong executionCookie)
+    {
+        return audit.IsInitialized &&
+            audit.Operation == OS.Kernel.Diagnostics
+                .IDTRContinuedExecutionOperation.AuditExecution &&
+            audit.Status == OS.Kernel.Diagnostics
+                .IDTRContinuedExecutionStatus.Success &&
+            audit.ModeledContextAddress == contextAddress &&
+            audit.OwnedIdtAddress == idtAddress &&
+            audit.ContextCapacity == 80 &&
+            audit.ExpectedCookie == 0x4F53494454523132UL &&
+            audit.ObservedCookie == executionCookie &&
+            executionCookie == 0x4F53494454523132UL &&
+            audit.ContextBytesCompared == 80 &&
+            audit.FirstMismatchOffset == -1 &&
+            audit.TransitionObserved &&
+            audit.OwnedIdtrLoaded &&
+            audit.FirmwareIdtrRestored &&
+            audit.InterruptFlagRestored &&
+            audit.ContinuedExecution &&
+            audit.Succeeded &&
+            (audit.PreviousLimit != audit.LoadedLimit ||
+                audit.PreviousBase != audit.LoadedBase);
+    }
+
+    private static bool M02IdtrContinuedExecutionSafetyRestored(
+        OS.Kernel.Diagnostics.IDTRContinuedExecutionContext* context,
+        ulong ownedIdtAddress)
+    {
+        byte* bytes = (byte*)context;
+        ushort loadedLimit = ReadM02IdtrContinuedExecutionU16(
+            bytes + OS.Kernel.Diagnostics.IDTRContinuedExecution
+                .LoadedIdtrOffset);
+        ulong loadedBase = ReadM02IdtrContinuedExecutionU64(
+            bytes + OS.Kernel.Diagnostics.IDTRContinuedExecution
+                .LoadedIdtrOffset + 2);
+        if (loadedLimit !=
+                OS.Kernel.Diagnostics.IDTRContinuedExecution.IdtrLimit ||
+            loadedBase != ownedIdtAddress)
+        {
+            return false;
+        }
+
+        for (int offset = 0;
+            offset < OS.Kernel.Diagnostics.IDTRContinuedExecution
+                .IdtrByteCount;
+            offset++)
+        {
+            if (bytes[
+                    OS.Kernel.Diagnostics.IDTRContinuedExecution
+                        .PreviousIdtrOffset + offset] !=
+                bytes[
+                    OS.Kernel.Diagnostics.IDTRContinuedExecution
+                        .RestoredIdtrOffset + offset])
+            {
+                return false;
+            }
+        }
+
+        ushort previousLimit = ReadM02IdtrContinuedExecutionU16(
+            bytes + OS.Kernel.Diagnostics.IDTRContinuedExecution
+                .PreviousIdtrOffset);
+        ulong previousBase = ReadM02IdtrContinuedExecutionU64(
+            bytes + OS.Kernel.Diagnostics.IDTRContinuedExecution
+                .PreviousIdtrOffset + 2);
+        if (previousLimit ==
+                OS.Kernel.Diagnostics.IDTRContinuedExecution.IdtrLimit &&
+            previousBase == ownedIdtAddress)
+        {
+            return false;
+        }
+
+        ulong rflagsBefore = ReadM02IdtrContinuedExecutionU64(
+            bytes + OS.Kernel.Diagnostics.IDTRContinuedExecution
+                .RflagsBeforeOffset);
+        ulong rflagsAfter = ReadM02IdtrContinuedExecutionU64(
+            bytes + OS.Kernel.Diagnostics.IDTRContinuedExecution
+                .RflagsAfterOffset);
+        return ((rflagsBefore ^ rflagsAfter) &
+            OS.Kernel.Diagnostics.IDTRContinuedExecution
+                .RflagsInterruptEnableBit) == 0;
+    }
+
+    private static ushort ReadM02IdtrContinuedExecutionU16(byte* source)
+    {
+        return (ushort)(source[0] | (source[1] << 8));
+    }
+
+    private static ulong ReadM02IdtrContinuedExecutionU64(byte* source)
+    {
+        return (ulong)source[0] |
+            ((ulong)source[1] << 8) |
+            ((ulong)source[2] << 16) |
+            ((ulong)source[3] << 24) |
+            ((ulong)source[4] << 32) |
+            ((ulong)source[5] << 40) |
+            ((ulong)source[6] << 48) |
+            ((ulong)source[7] << 56);
+    }
+
+    private static bool M02IdtrContinuedExecutionCommonTargetMatches(
+        byte* commonTarget)
+    {
+        return commonTarget[0] == 0x48 &&
+            commonTarget[1] == 0x83 &&
+            commonTarget[2] == 0xC4 &&
+            commonTarget[3] == 0x18 &&
+            commonTarget[4] == 0x48 &&
+            commonTarget[5] == 0xCF;
+    }
+
+    private static bool IsValidM02IdtrContinuedExecutionRange(
+        ulong address,
+        ulong length,
+        ulong alignment)
+    {
+        if (address == 0 ||
+            length == 0 ||
+            alignment == 0 ||
+            (address & (alignment - 1)) != 0 ||
+            !OS.Kernel.Diagnostics.IDTRContinuedExecution
+                .IsCanonicalX64Address(address) ||
+            address > ~0UL - length)
+        {
+            return false;
+        }
+
+        ulong endInclusive = address + length - 1;
+        return OS.Kernel.Diagnostics.IDTRContinuedExecution
+                .IsCanonicalX64Address(endInclusive) &&
+            ((address >> 47) & 1UL) ==
+                ((endInclusive >> 47) & 1UL);
+    }
+
+    private static bool M02IdtrContinuedExecutionRangesOverlap(
+        ulong firstAddress,
+        ulong firstLength,
+        ulong secondAddress,
+        ulong secondLength)
+    {
+        return firstAddress <= secondAddress
+            ? secondAddress - firstAddress < firstLength
+            : firstAddress - secondAddress < secondLength;
+    }
+
+    private static bool FailM02IdtrContinuedExecutionBeforeInvocation(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial,
+        EfiBootServices* bootServices,
+        ulong codeAddress,
+        bool codeAllocated,
+        ulong dataAddress,
+        bool dataAllocated)
+    {
+        if (bootServices != null && bootServices->FreePages != null)
+        {
+            if (dataAllocated)
+            {
+                _ = bootServices->FreePages(
+                    dataAddress,
+                    M02IdtrContinuedExecutionDataPages);
+            }
+            if (codeAllocated &&
+                (!dataAllocated ||
+                    !M02IdtrContinuedExecutionRangesOverlap(
+                        codeAddress,
+                        M02IdtrContinuedExecutionCodeBytes,
+                        dataAddress,
+                        M02IdtrContinuedExecutionDataBytes)))
+            {
+                _ = bootServices->FreePages(
+                    codeAddress,
+                    M02IdtrContinuedExecutionCodePages);
+            }
+        }
+
+        WriteM02IdtrContinuedExecutionFailureLines(console, serial);
+        return false;
+    }
+
+    private static void SpinM02IdtrContinuedExecutionAfterUnverifiedRestore()
+    {
+        while (true)
+        {
+        }
+    }
+
+    private static void WriteM02IdtrContinuedExecutionStartLine(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'T', (byte)'E', (byte)'S', (byte)'T', (byte)'_', (byte)'S', (byte)'T', (byte)'A');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'R', (byte)'T', (byte)' ', (byte)'m', (byte)'0', (byte)'2', (byte)'.', (byte)'0');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'1', (byte)'2', 0, 0, 0, 0, 0, 0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM02IdtrContinuedExecutionSuccessLine(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'C', (byte)'L', (byte)'R', (byte)'O', (byte)'S', (byte)'_', (byte)'M', (byte)'0');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'2', (byte)'_', (byte)'0', (byte)'1', (byte)'2', (byte)'_', (byte)'R', (byte)'E');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'A', (byte)'D', (byte)'Y', (byte)' ', (byte)'t', (byte)'a', (byte)'b', (byte)'l');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'e', (byte)'B', (byte)'y', (byte)'t', (byte)'e', (byte)'s', (byte)'=', (byte)'4');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'0', (byte)'9', (byte)'6', (byte)' ', (byte)'i', (byte)'d', (byte)'t', (byte)'r');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'B', (byte)'y', (byte)'t', (byte)'e', (byte)'s', (byte)'=', (byte)'1', (byte)'0');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)' ', (byte)'i', (byte)'d', (byte)'t', (byte)'r', (byte)'L', (byte)'i', (byte)'m');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'i', (byte)'t', (byte)'=', (byte)'4', (byte)'0', (byte)'9', (byte)'5', (byte)' ');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'p', (byte)'o', (byte)'l', (byte)'i', (byte)'c', (byte)'y', (byte)'F', (byte)'n');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'v', (byte)'=', (byte)'8', (byte)'5', (byte)'1', (byte)'4', (byte)'F', (byte)'4');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'2', (byte)'E', (byte)'B', (byte)'D', (byte)'F', (byte)'C', (byte)'5', (byte)'D');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'5', (byte)'5', (byte)' ', (byte)'f', (byte)'i', (byte)'r', (byte)'m', (byte)'w');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'a', (byte)'r', (byte)'e', (byte)'G', (byte)'a', (byte)'t', (byte)'e', (byte)'s');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'C', (byte)'o', (byte)'p', (byte)'i', (byte)'e', (byte)'d', (byte)'=', (byte)'0');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)' ', (byte)'f', (byte)'i', (byte)'r', (byte)'m', (byte)'w', (byte)'a', (byte)'r');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'e', (byte)'I', (byte)'d', (byte)'t', (byte)'r', (byte)'C', (byte)'a', (byte)'p');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'t', (byte)'u', (byte)'r', (byte)'e', (byte)'d', (byte)'=', (byte)'t', (byte)'r');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'u', (byte)'e', (byte)' ', (byte)'o', (byte)'w', (byte)'n', (byte)'e', (byte)'d');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'I', (byte)'d', (byte)'t', (byte)'r', (byte)'L', (byte)'o', (byte)'a', (byte)'d');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'e', (byte)'d', (byte)'=', (byte)'t', (byte)'r', (byte)'u', (byte)'e', (byte)' ');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'o', (byte)'w', (byte)'n', (byte)'e', (byte)'d', (byte)'I', (byte)'d', (byte)'t');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'r', (byte)'R', (byte)'e', (byte)'a', (byte)'d', (byte)'B', (byte)'a', (byte)'c');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'k', (byte)'=', (byte)'t', (byte)'r', (byte)'u', (byte)'e', (byte)' ', (byte)'f');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'i', (byte)'r', (byte)'m', (byte)'w', (byte)'a', (byte)'r', (byte)'e', (byte)'I');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'d', (byte)'t', (byte)'r', (byte)'R', (byte)'e', (byte)'s', (byte)'t', (byte)'o');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'r', (byte)'e', (byte)'d', (byte)'=', (byte)'t', (byte)'r', (byte)'u', (byte)'e');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)' ', (byte)'r', (byte)'e', (byte)'s', (byte)'t', (byte)'o', (byte)'r', (byte)'e');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'R', (byte)'e', (byte)'a', (byte)'d', (byte)'B', (byte)'a', (byte)'c', (byte)'k');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'=', (byte)'t', (byte)'r', (byte)'u', (byte)'e', (byte)' ', (byte)'o', (byte)'w');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'n', (byte)'e', (byte)'d', (byte)'I', (byte)'d', (byte)'t', (byte)'r', (byte)'A');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'c', (byte)'t', (byte)'i', (byte)'v', (byte)'e', (byte)'=', (byte)'f', (byte)'a');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'l', (byte)'s', (byte)'e', (byte)' ', (byte)'c', (byte)'o', (byte)'n', (byte)'t');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'i', (byte)'n', (byte)'u', (byte)'e', (byte)'d', (byte)'E', (byte)'x', (byte)'e');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'c', (byte)'u', (byte)'t', (byte)'i', (byte)'o', (byte)'n', (byte)'=', (byte)'t');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'r', (byte)'u', (byte)'e', (byte)' ', (byte)'c', (byte)'l', (byte)'i', (byte)'W');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'i', (byte)'n', (byte)'d', (byte)'o', (byte)'w', (byte)'=', (byte)'t', (byte)'r');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'u', (byte)'e', (byte)' ', (byte)'i', (byte)'f', (byte)'R', (byte)'e', (byte)'s');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'t', (byte)'o', (byte)'r', (byte)'e', (byte)'d', (byte)'=', (byte)'t', (byte)'r');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'u', (byte)'e', (byte)' ', (byte)'i', (byte)'n', (byte)'s', (byte)'t', (byte)'r');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'u', (byte)'c', (byte)'t', (byte)'i', (byte)'o', (byte)'n', (byte)'P', (byte)'u');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'b', (byte)'l', (byte)'i', (byte)'s', (byte)'h', (byte)'e', (byte)'d', (byte)'=');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'t', (byte)'r', (byte)'u', (byte)'e', (byte)' ', (byte)'a', (byte)'l', (byte)'l');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'o', (byte)'c', (byte)'a', (byte)'t', (byte)'i', (byte)'o', (byte)'n', (byte)'s');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'R', (byte)'e', (byte)'l', (byte)'e', (byte)'a', (byte)'s', (byte)'e', (byte)'d');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'=', (byte)'t', (byte)'r', (byte)'u', (byte)'e', (byte)' ', (byte)'w', (byte)'x');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'E', (byte)'n', (byte)'f', (byte)'o', (byte)'r', (byte)'c', (byte)'e', (byte)'d');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'=', (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ', (byte)'i');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'n', (byte)'t', (byte)'e', (byte)'r', (byte)'r', (byte)'u', (byte)'p', (byte)'t');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'T', (byte)'r', (byte)'i', (byte)'g', (byte)'g', (byte)'e', (byte)'r', (byte)'e');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'d', (byte)'=', (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'f', (byte)'a', (byte)'u', (byte)'l', (byte)'t', (byte)'T', (byte)'r', (byte)'i');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'g', (byte)'g', (byte)'e', (byte)'r', (byte)'e', (byte)'d', (byte)'=', (byte)'f');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ', (byte)'m', (byte)'a', (byte)'r');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'k', (byte)'e', (byte)'r', (byte)'T', (byte)'r', (byte)'a', (byte)'n', (byte)'s');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'p', (byte)'o', (byte)'r', (byte)'t', (byte)'=', (byte)'u', (byte)'e', (byte)'f');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'i', (byte)'S', (byte)'e', (byte)'r', (byte)'i', (byte)'a', (byte)'l', (byte)' ');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'p', (byte)'o', (byte)'s', (byte)'t', (byte)'E', (byte)'x', (byte)'i', (byte)'t');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'B', (byte)'o', (byte)'o', (byte)'t', (byte)'S', (byte)'e', (byte)'r', (byte)'v');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'i', (byte)'c', (byte)'e', (byte)'s', (byte)'=', (byte)'f', (byte)'a', (byte)'l');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'s', (byte)'e', 0, 0, 0, 0, 0, 0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM02IdtrContinuedExecutionPassLine(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'T', (byte)'E', (byte)'S', (byte)'T', (byte)'_', (byte)'P', (byte)'A', (byte)'S');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'S', (byte)' ', (byte)'m', (byte)'0', (byte)'2', (byte)'.', (byte)'0', (byte)'1');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'2', 0, 0, 0, 0, 0, 0, 0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM02IdtrContinuedExecutionFailureLines(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'M', (byte)'0', (byte)'2', (byte)'_', (byte)'I', (byte)'D', (byte)'T', (byte)'R');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'_', (byte)'C', (byte)'O', (byte)'N', (byte)'T', (byte)'I', (byte)'N', (byte)'U');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'E', (byte)'D', (byte)'_', (byte)'E', (byte)'X', (byte)'E', (byte)'C', (byte)'U');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'T', (byte)'I', (byte)'O', (byte)'N', (byte)'_', (byte)'F', (byte)'A', (byte)'I');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'L', (byte)'E', (byte)'D', 0, 0, 0, 0, 0);
+        WriteCrLf(console, serial);
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'T', (byte)'E', (byte)'S', (byte)'T', (byte)'_', (byte)'F', (byte)'A', (byte)'I');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'L', (byte)' ', (byte)'m', (byte)'0', (byte)'2', (byte)'.', (byte)'0', (byte)'1');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'2', (byte)' ', (byte)'i', (byte)'d', (byte)'t', (byte)'r', (byte)'_', (byte)'l');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'o', (byte)'a', (byte)'d', (byte)'_', (byte)'r', (byte)'e', (byte)'a', (byte)'d');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'b', (byte)'a', (byte)'c', (byte)'k', (byte)'_', (byte)'r', (byte)'e', (byte)'s');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'t', (byte)'o', (byte)'r', (byte)'e', (byte)'_', (byte)'r', (byte)'e', (byte)'t');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'u', (byte)'r', (byte)'n', (byte)'_', (byte)'o', (byte)'r', (byte)'_', (byte)'c');
+        WriteM02IdtrContinuedExecutionAscii(console, serial, (byte)'l', (byte)'e', (byte)'a', (byte)'n', (byte)'u', (byte)'p', 0, 0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM02IdtrContinuedExecutionAscii(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial,
+        byte b0,
+        byte b1,
+        byte b2,
+        byte b3,
+        byte b4,
+        byte b5,
+        byte b6,
+        byte b7)
+    {
+        if (b0 != 0) Write(console, serial, b0);
+        if (b1 != 0) Write(console, serial, b1);
+        if (b2 != 0) Write(console, serial, b2);
+        if (b3 != 0) Write(console, serial, b3);
+        if (b4 != 0) Write(console, serial, b4);
+        if (b5 != 0) Write(console, serial, b5);
+        if (b6 != 0) Write(console, serial, b6);
+        if (b7 != 0) Write(console, serial, b7);
+    }
+
+    private unsafe struct M02IdtrContinuedExecutionStackWorkspace
+    {
+        public fixed byte Bytes[96];
     }
 #endif
 

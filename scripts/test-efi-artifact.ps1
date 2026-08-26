@@ -14,6 +14,7 @@ param(
     [switch]$EnableM02OwnedGdtTssTerminalProbe,
     [switch]$EnableM02NormalizedInterruptFramePageProbe,
     [switch]$EnableM02OwnedIdtGatePopulationProbe,
+    [switch]$EnableM02IdtrContinuedExecutionProbe,
     [switch]$EnableM04IndependentEndianConformanceProbe,
     [switch]$EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe
 )
@@ -37,7 +38,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 74
+$expectedSourceClosureInputCount = 75
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -127,6 +128,7 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs',
     '..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs',
     '..\OS.Kernel\Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs|Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs',
+    '..\OS.Kernel\Diagnostics\IDTRContinuedExecution.cs|Diagnostics\IDTRContinuedExecution.cs',
     '..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs',
     '..\..\std\no-runtime\shared\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs|Std\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs',
     '..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs|Boot\M01LoadedImageStackIntegration.cs',
@@ -3797,6 +3799,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM02OwnedGdtTssTerminalProbe," +
             "EnableM02NormalizedInterruptFramePageProbe," +
             "EnableM02OwnedIdtGatePopulationProbe," +
+            "EnableM02IdtrContinuedExecutionProbe," +
             "EnableM04IndependentEndianConformanceProbe," +
             "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe," +
             "ImportProjectExtensionProps,ImportProjectExtensionTargets," +
@@ -3925,6 +3928,10 @@ function Invoke-PostRestoreEvaluationSnapshot {
     if ($EnableM02OwnedIdtGatePopulationProbe) {
         $arguments +=
             "-p:EnableM02OwnedIdtGatePopulationProbe=true"
+    }
+    if ($EnableM02IdtrContinuedExecutionProbe) {
+        $arguments +=
+            "-p:EnableM02IdtrContinuedExecutionProbe=true"
     }
 
     $previousLink = $env:LINK
@@ -4079,6 +4086,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM02NormalizedInterruptFramePageProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM02OwnedIdtGatePopulationProbe =
             $EnableM02OwnedIdtGatePopulationProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM02IdtrContinuedExecutionProbe =
+            $EnableM02IdtrContinuedExecutionProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04IndependentEndianConformanceProbe =
             $EnableM04IndependentEndianConformanceProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe =
@@ -4138,7 +4147,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 61 -or
+    if ($compileItems.Count -ne 62 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4277,6 +4286,21 @@ if ($EnableM02OwnedIdtGatePopulationProbe -and
 if ($EnableM02OwnedIdtGatePopulationProbe -and
     $EnableM02NormalizedInterruptFramePageProbe) {
     Write-Failure "m02_owned_idt_gate_population_probe_forbids_normalized_interrupt_frame_page_probe"
+}
+
+if ($EnableM02IdtrContinuedExecutionProbe -and
+    $EnableM02OwnedGdtTssTerminalProbe) {
+    Write-Failure "m02_idtr_continued_execution_probe_forbids_owned_gdt_tss_terminal"
+}
+
+if ($EnableM02IdtrContinuedExecutionProbe -and
+    $EnableM02NormalizedInterruptFramePageProbe) {
+    Write-Failure "m02_idtr_continued_execution_probe_forbids_normalized_interrupt_frame_page_probe"
+}
+
+if ($EnableM02IdtrContinuedExecutionProbe -and
+    $EnableM02OwnedIdtGatePopulationProbe) {
+    Write-Failure "m02_idtr_continued_execution_probe_forbids_owned_idt_gate_population_probe"
 }
 
 if ($EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -and

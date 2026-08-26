@@ -151,9 +151,26 @@ no-stdlib compilation, and zero allocation. They never invoke privileged
 bytes. Therefore the default managed and firmware-visible orders remain
 unchanged, and the host marker explicitly reports `guestExecution=false`,
 `idtrLoaded=false`, `idtrRestored=false`, and `continuedExecution=false`.
-A separate default-off EFI/QEMU integration remains required to establish the
-temporary live load/readback/restoration and ordinary-smoke continuation
-boundary; no interrupt or fault is requested by this leaf.
+The separate default-off EFI adapter now links and publishes those bytes after
+any returning M04 profile and before ordinary memory-map capture. It owns two
+contiguous LoaderCode pages plus one disjoint LoaderData page, prepares an
+aligned stack context, invokes the transition synchronously, verifies the raw
+loaded/restored IDTR and IF facts before any callback, runs the production
+audit, releases data then code, and continues the unchanged ordinary path. It
+still adds no `BootSequence` phase and requests no interrupt or fault. Its
+ordered auxiliary subsequence is:
+
+1. `EFI_CONSOLE_READY`
+2. `TEST_START m02.012`
+3. `CLROS_M02_012_READY ... firmwareIdtrRestored=true ... ownedIdtrActive=false ... allocationsReleased=true ...`
+4. `TEST_PASS m02.012`
+5. `UEFI_MEMORY_MAP_READY`
+
+Host, default/enabled same-build artifact, and exact QEMU-profile dry-run tests
+pass. The accepted 2026-08-26 QEMU/OVMF run observed the complete 17-record
+order, all six unique records exactly once, no forbidden record, and ordinary
+continuation through `OS_SMOKE_PASS`. This is bounded processor evidence for
+the temporary reversible-IDTR transition on that recorded virtual platform.
 
 `BootSequence.RunFaultInfrastructureReadiness` is a host-tested helper only. It emits `FAULT_INFRA_READY` for a successful `FaultInfrastructureReadinessResult` and `FAULT_INFRA_NOT_READY status=<status>` for a failed result. The default boot path does not call it yet.
 
@@ -393,8 +410,8 @@ Host tests assert:
   property and symbol, profile exclusions, one-page allocation/readback/cleanup
   flow, and absence of generated-slot invocation. The historical accepted
   M02-010 artifact has a 60-item/73-input closure; the current development
-  closure is 61 items and 74 inputs because it also links the later M02-011
-  source. The accepted source-bound QEMU/OVMF profile observed its exact
+  closure is 62 items and 75 inputs because it also links the later M02-011 and
+  M02-012 sources. The accepted source-bound QEMU/OVMF profile observed its exact
   five-record auxiliary subsequence once, reached the unchanged ordinary
   `OS_SMOKE_PASS`, and observed no failure record. This is not a new managed
   boot phase.
@@ -410,8 +427,8 @@ Host tests assert:
   `8514F42EBDFC5D55`; the host marker explicitly reports
   `guestPopulation=false`, `idtrLoaded=false`, `stubExecution=false`, and
   `faultTriggered=false`.
-- M02-011 EFI-integration tests pin the default-false switch, exact 61-item/
-  74-input source closure, mutual exclusions, three-page LoaderData ownership,
+- M02-011 EFI-integration tests pin the default-false switch, current exact
+  62-item/75-input source closure, mutual exclusions, three-page LoaderData ownership,
   marker order, and the absence of executable publication, IDTR load, slot
   execution, and fault generation. An executable aligned-memory fake covers
   missing Boot Services functions, allocation failure, invalid returned
@@ -419,6 +436,21 @@ Host tests assert:
   successful exactly-once release path. The source-bound QEMU/OVMF profile
   observed the exact five-record auxiliary subsequence once, then completed the
   unchanged ordinary smoke path.
+- M02-012 EFI-integration tests pin the default-false switch and exact compile
+  order after M02-010/M02-011, 62-item/75-input provenance, collisions with the
+  M02-009/M02-010/M02-011 standalone profiles, two-call code/data allocation
+  layout, caller-owned 80-byte stack context, publication-before-invocation,
+  raw restore safety before callbacks, audit-before-release, reverse cleanup,
+  and ready/pass-after-release. Fake firmware covers missing functions,
+  allocation failures, zero/misaligned/noncanonical/wrapping/top-ending and
+  canonical-hole ranges, equal and partial overlaps, byte/readback/publication
+  failures, all-zero/no-transition/loaded/restored/IF/cookie audit failures,
+  release failures, and success without executing privileged bytes. Default
+  and enabled NativeAOT artifacts pass same-build verification; the QEMU profile
+  requires and orders all 17 acceptance records, requires six unique records,
+  and retains five forbidden markers. The accepted 2026-08-26 QEMU/OVMF run
+  satisfied that complete profile, reported `outOfOrder=0` and
+  `duplicateUnique=0`, and continued through `OS_SMOKE_PASS`.
 - Fault-entry frame layout tests prove future interrupt-stub storage can round-trip formatter-compatible page-fault and invalid-opcode frames, reject inconsistent error-code metadata, reject undersized buffers, and reject unknown vectors.
 - ExitBootServices transition-boundary tests prove success and blocked markers while leaving default boot markers unchanged.
 - Early diagnostics readiness tests prove serial backend and descriptor-table readiness are aggregated into stable boot markers while leaving default boot markers unchanged.
@@ -475,6 +507,17 @@ executable slots, load IDTR, activate GDT/TSS/IST state, enter a slot/common
 target, deliver an interrupt, or trigger a fault. Its auxiliary profile cannot
 be promoted to a change in the default boot order.
 
+The M02-012 reversible IDTR profile is likewise not a firmware-visible
+`BootSequence` phase. It runs only under its default-off EFI switch before
+ordinary memory-map capture, and its success record states that the temporary
+owned IDTR is inactive and all allocations are released on return. If exact
+loaded-IDTR, raw restoration, non-owned previous IDTR, or IF restoration cannot
+be verified after entry, it deliberately spins without firmware output or
+cleanup callbacks. This bounded profile does not establish interrupt/fault
+delivery, executable common dispatch, persistent descriptor state, active
+GDT/TSS/IST routing, post-`ExitBootServices` operation, or a numbered-gate
+promotion.
+
 The `BOOT_HANDOFF_READY`, `UEFI_MEMORY_MAP_NORMALIZED`, `BOOT_MEMORY_MAP_ACCEPTED`, `BOOT_MEMORY_REGIONS_READY`, `BOOT_MEMORY_REGION_COUNT`, `BOOT_ACPI_RSDP_HANDOFF_READY`, and `UEFI_ACPI_RSDP_READY` markers are now QEMU-proven through the live EFI artifact. The live EFI artifact still emits the allocation-free `BootSequencePlan` directly after handoff validation, normalization, acceptance, region materialization, and ACPI RSDP scan; it does not execute the managed `BootSequence.Run(BootHandoffRecord, EfiMemoryMapSummary, ...)` overload.
 
 `APP_PACKAGE_READY` is managed host-test planning only. It is not part of the firmware-visible marker order, does not prove a disk-backed package load, and does not prove native-tier or hosted .NET app launch.
@@ -510,10 +553,11 @@ permission changes, relocation, or native-tier or hosted .NET app launch.
    marker proofs, keep their UEFI evidence lines distinct from the direct
    transport, and do not treat either as the future post-firmware diagnostic
    path.
-4. Preserve the accepted default-off M02-010 and M02-011 aligned LoaderData
-   materialization, readback, release, and distinct guest markers. Stub/common-
-   entry execution, executable publication, IDTR load, active IST routing, and
-   fault triggering remain later owned boundaries.
+4. Preserve the accepted default-off M02-010/M02-011 materialization profiles
+   and the default-off M02-012 reversible IDTR adapter, including their exact
+   cleanup and distinct guest markers. Interrupt/fault delivery, executable
+   common dispatch, persistent IDTR state, active IST routing, and fault
+   triggering remain later owned boundaries.
 5. Wire the early diagnostics readiness helper only after generated stubs can be copied to executable memory and safely invoked under W^X policy.
 6. Wire the controlled fault-probe readiness helper only after early diagnostics can survive generated-stub execution and fault handling.
 7. Wire the app-selection readiness helper only after live block-device package reads can supply the manifest/package/descriptor prerequisites.

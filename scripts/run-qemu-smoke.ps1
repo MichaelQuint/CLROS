@@ -48,6 +48,7 @@ param(
     [switch] $EnableM02OwnedGdtTssTerminalProbe,
     [switch] $EnableM02NormalizedInterruptFramePageProbe,
     [switch] $EnableM02OwnedIdtGatePopulationProbe,
+    [switch] $EnableM02IdtrContinuedExecutionProbe,
     [switch] $EnableM04IndependentEndianConformanceProbe,
     [switch] $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe,
     [switch] $SkipImageBuild
@@ -290,6 +291,46 @@ $script:M02OwnedIdtGatePopulationUniqueMarkers = @(
 $script:M02OwnedIdtGatePopulationForbiddenMarkers = @(
     "M02_OWNED_IDT_GATE_POPULATION_FAILED"
     "TEST_FAIL"
+)
+$script:M02IdtrContinuedExecutionReadyMarker =
+    "CLROS_M02_012_READY tableBytes=4096 idtrBytes=10 idtrLimit=4095 policyFnv=8514F42EBDFC5D55 firmwareGatesCopied=0 firmwareIdtrCaptured=true ownedIdtrLoaded=true ownedIdtrReadBack=true firmwareIdtrRestored=true restoreReadBack=true ownedIdtrActive=false continuedExecution=true cliWindow=true ifRestored=true instructionPublished=true allocationsReleased=true wxEnforced=false interruptTriggered=false faultTriggered=false markerTransport=uefiSerial postExitBootServices=false"
+$script:M02IdtrContinuedExecutionHostOnlyMarker =
+    "CLROS_M02_012_HOST_READY contextBytes=80 stubBytes=52 idtrBytes=10 tableBytes=4096 limit=4095 lidtPlan=2 sidtPlan=3 cliPlan=1 stiPlan=1 returnCookie=4F53494454523132 readBack=true guestExecution=false idtrLoaded=false idtrRestored=false continuedExecution=false faultTriggered=false postExitBootServices=false"
+$script:M02IdtrContinuedExecutionRequiredMarkers = @(
+    "EFI_CONSOLE_READY"
+    "TEST_START m02.012"
+    $script:M02IdtrContinuedExecutionReadyMarker
+    "TEST_PASS m02.012"
+    "UEFI_MEMORY_MAP_READY"
+    "UEFI_MEMORY_MAP_OWNED"
+    "BOOT_HANDOFF_READY"
+    "UEFI_MEMORY_MAP_NORMALIZED"
+    "BOOT_MEMORY_MAP_ACCEPTED"
+    "BOOT_MEMORY_REGIONS_READY"
+    "BOOT_MEMORY_REGION_COUNT"
+    "BOOT_PAGE_ALLOCATOR_READY"
+    "BOOT_ACPI_RSDP_HANDOFF_READY"
+    "UEFI_ACPI_RSDP_READY"
+    "OS_BOOT_OK"
+    "TEST_PASS boot.sequence"
+    "OS_SMOKE_PASS"
+)
+$script:M02IdtrContinuedExecutionOrderedMarkers = @(
+    $script:M02IdtrContinuedExecutionRequiredMarkers
+)
+$script:M02IdtrContinuedExecutionUniqueMarkers = @(
+    "TEST_START m02.012"
+    $script:M02IdtrContinuedExecutionReadyMarker
+    "TEST_PASS m02.012"
+    "OS_BOOT_OK"
+    "TEST_PASS boot.sequence"
+    "OS_SMOKE_PASS"
+)
+$script:M02IdtrContinuedExecutionForbiddenMarkers = @(
+    "M02_IDTR_CONTINUED_EXECUTION_FAILED"
+    "TEST_FAIL"
+    $script:M02IdtrContinuedExecutionHostOnlyMarker
+    $script:M02OwnedIdtGatePopulationReadyMarker
 )
 $script:M04IndependentEndianConformanceReadyMarker =
     "CLROS_M04_002_READY readVectors=25 reverseVectors=7 byteSeries=5 uint16Series=7 fingerprint=E81E4451E8D999F6 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail"
@@ -632,6 +673,36 @@ function ConvertTo-QemuSmokeMarkerList {
     }
 
     return $markers.ToArray()
+}
+
+function Test-M02IdtrContinuedExecutionOwnedMarker {
+    param(
+        [AllowNull()] [string] $Marker
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Marker)) {
+        return $false
+    }
+
+    $normalized = $Marker.Trim()
+    if ($normalized.StartsWith(
+            "TEST_START m02.012",
+            [System.StringComparison]::Ordinal) -or
+        $normalized.StartsWith(
+            "TEST_PASS m02.012",
+            [System.StringComparison]::Ordinal) -or
+        $normalized.StartsWith(
+            "CLROS_M02_012_READY",
+            [System.StringComparison]::Ordinal)) {
+        return $true
+    }
+
+    return $normalized.StartsWith(
+            "CLROS_M02_012",
+            [System.StringComparison]::Ordinal) -and
+        $script:M02IdtrContinuedExecutionReadyMarker.StartsWith(
+            $normalized,
+            [System.StringComparison]::Ordinal)
 }
 
 function Merge-QemuSmokeMarkerList {
@@ -3884,6 +3955,38 @@ try {
         )
     }
 
+    if ($EnableM02IdtrContinuedExecutionProbe) {
+        $requiredMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $script:M02IdtrContinuedExecutionRequiredMarkers
+                $requiredMarkers
+            )
+        )
+        $orderedMarkersBeforeMemoryMap = @(
+            $orderedMarkers | Where-Object {
+                $_ -cne "UEFI_MEMORY_MAP_READY"
+            }
+        )
+        $orderedMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $orderedMarkersBeforeMemoryMap
+                $script:M02IdtrContinuedExecutionOrderedMarkers
+            )
+        )
+        $uniqueMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $uniqueMarkers
+                $script:M02IdtrContinuedExecutionUniqueMarkers
+            )
+        )
+        $forbiddenMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $forbiddenMarkers
+                $script:M02IdtrContinuedExecutionForbiddenMarkers
+            )
+        )
+    }
+
     if ($EnableM02OwnedGdtTssTerminalProbe) {
         $requiredMarkers = @(
             Merge-QemuSmokeMarkerList -Values @(
@@ -4262,6 +4365,22 @@ try {
         (Format-QemuSmokeBoolean $DryRun.IsPresent) +
         " profileRequired=17 profileOrdered=5 profileUnique=3 profileForbidden=3")
     Write-Host (
+        "QEMU_SCRIPT_M02_IDTR_CONTINUED_EXECUTION_PROBE enabled=" +
+        (Format-QemuSmokeBoolean $EnableM02IdtrContinuedExecutionProbe.IsPresent) +
+        " normalizedInterruptFrame=" +
+        (Format-QemuSmokeBoolean $EnableM02NormalizedInterruptFramePageProbe.IsPresent) +
+        " ownedIdtGatePopulation=" +
+        (Format-QemuSmokeBoolean $EnableM02OwnedIdtGatePopulationProbe.IsPresent) +
+        " ownedGdtTssTerminal=" +
+        (Format-QemuSmokeBoolean $EnableM02OwnedGdtTssTerminalProbe.IsPresent) +
+        " buildEfi=" +
+        (Format-QemuSmokeBoolean $BuildEfi.IsPresent) +
+        " skipImageBuild=" +
+        (Format-QemuSmokeBoolean $SkipImageBuild.IsPresent) +
+        " dryRun=" +
+        (Format-QemuSmokeBoolean $DryRun.IsPresent) +
+        " profileRequired=17 profileOrdered=17 profileUnique=6 profileForbidden=5")
+    Write-Host (
         "QEMU_SCRIPT_M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE enabled=" +
         (Format-QemuSmokeBoolean $EnableM04IndependentEndianConformanceProbe.IsPresent) +
         " buildEfi=" +
@@ -4341,6 +4460,61 @@ try {
         Write-Host (
             "TEST_FAIL qemu.smoke.invalid_args " +
             "m02_owned_idt_gate_population_probe_forbids_skip_image_build")
+        exit 1
+    }
+
+    if ($EnableM02IdtrContinuedExecutionProbe -and
+        $EnableM02OwnedGdtTssTerminalProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_idtr_continued_execution_probe_forbids_owned_gdt_tss_terminal")
+        exit 1
+    }
+
+    if ($EnableM02IdtrContinuedExecutionProbe -and
+        $EnableM02NormalizedInterruptFramePageProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_idtr_continued_execution_probe_forbids_normalized_interrupt_frame_page_probe")
+        exit 1
+    }
+
+    if ($EnableM02IdtrContinuedExecutionProbe -and
+        $EnableM02OwnedIdtGatePopulationProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_idtr_continued_execution_probe_forbids_owned_idt_gate_population_probe")
+        exit 1
+    }
+
+    if ($EnableM02IdtrContinuedExecutionProbe -and -not $BuildEfi) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_idtr_continued_execution_probe_requires_build_efi")
+        exit 1
+    }
+
+    if ($EnableM02IdtrContinuedExecutionProbe -and $SkipImageBuild) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_idtr_continued_execution_probe_forbids_skip_image_build")
+        exit 1
+    }
+
+    $userRequestedM02IdtrContinuedExecutionMarker = @(
+        ConvertTo-QemuSmokeMarkerList -Values @(
+            $RequireMarker
+            $RequireOrderedMarker
+            $RequireUniqueMarker
+        ) | Where-Object {
+            Test-M02IdtrContinuedExecutionOwnedMarker -Marker $_
+        }
+    ).Count -ne 0
+    if (-not $EnableM02IdtrContinuedExecutionProbe -and
+        $userRequestedM02IdtrContinuedExecutionMarker) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_idtr_continued_execution_marker_requires_typed_profile")
         exit 1
     }
 
@@ -4774,6 +4948,11 @@ try {
         if ($EnableM02OwnedIdtGatePopulationProbe) {
             $buildArguments +=
                 "-EnableM02OwnedIdtGatePopulationProbe"
+        }
+
+        if ($EnableM02IdtrContinuedExecutionProbe) {
+            $buildArguments +=
+                "-EnableM02IdtrContinuedExecutionProbe"
         }
 
         if ($EnableM04IndependentEndianConformanceProbe) {

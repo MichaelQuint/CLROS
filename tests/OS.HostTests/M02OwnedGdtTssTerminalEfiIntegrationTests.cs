@@ -13,11 +13,11 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
         "tssBytes=104 gdtrLimit=39 trSelector=24 ownedCom1=true " +
         "terminalHalt=true postExitBootServices=false";
     private const string CompileClosureSha256 =
-        "413ddc044a3469f2f0ac51c1190609edeaa8fbac0d90beb41ab2648559f6549e";
+        "9b243b135c05442631a0323654fdbe07c827f043703330d8baa9e83a78a21757";
     private const string ProjectFileSha256 =
-        "3ffb00e8ba1ebead05233ce2eee860cf1ab6baf8721b8bd29a2ab958f1c7b994";
+        "19831a8a437d6003b51d1e89b6b26325c17417eb38b869ce01c18c04c5952bac";
     private const string CanonicalProjectShapeSha256 =
-        "3f57cbb5de5561c86a0ad1809534bd5d0e6db8d8086bf667ba724666413f7181";
+        "de242129bd59b0358211b606f666c0d99f65ab2e23096da47ec9b182e7d2748e";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -143,13 +143,13 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
         string verifier = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 61
+        return compileItems.Length == 62
             && compileHash == CompileClosureSha256
             && projectHash == ProjectFileSha256
             && guardedIndex >= 0
             && terminalIndex == guardedIndex + 1
             && normalizedInterruptFrameIndex == terminalIndex + 1
-            && endianIndex == normalizedInterruptFrameIndex + 2
+            && endianIndex == normalizedInterruptFrameIndex + 3
             && compileKeys.Count(key => key == TerminalKey) == 1
             && defaults.Length == 1
             && defaults[0].Value == "false"
@@ -176,7 +176,7 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
                 "owned_gdt_tss_terminal_requires_guarded_ist_stack_allocation",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=74",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=75",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 CanonicalProjectShapeSha256,
@@ -186,10 +186,10 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
                 StringComparison.Ordinal)
             && verifier.Contains(TerminalKey, StringComparison.Ordinal)
             && verifier.Contains(
-                "$expectedSourceClosureInputCount = 74",
+                "$expectedSourceClosureInputCount = 75",
                 StringComparison.Ordinal)
             && verifier.Contains(
-                "$compileItems.Count -ne 61",
+                "$compileItems.Count -ne 62",
                 StringComparison.Ordinal)
             && verifier.Contains(
                 "-p:EnableM02OwnedGdtTssTerminalProbe=true",

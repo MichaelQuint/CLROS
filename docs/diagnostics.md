@@ -5,8 +5,11 @@
 The owned diagnostics subsystem remains host-testable except for the accepted
 bounded pre-`ExitBootServices` M02-004 configuration, M02-005 marker, M02-006
 panic-readiness, M02-009 terminal GDT/TSS, and M02-010 interrupt-entry-page
-materialization, plus M02-011 owned-IDT population/readback paths. The accepted
-M02-011 guest profile did not load IDTR. M02-007 adds a
+materialization, M02-011 owned-IDT population/readback, and the opt-in M02-012
+  reversible IDTR transition adapter. The accepted M02-011 guest profile did not
+  load IDTR. The M02-012 adapter has host, default/enabled NativeAOT artifact,
+  same-build verifier, dry-run, and accepted real QEMU/OVMF evidence for the
+  bounded reversible transition and ordinary-smoke continuation. M02-007 adds a
 host-validated, allocation-free owned GDT encoder. M02-009 adds a host-audited
 terminal GDT/TSS context and composite instruction-byte stream, and its
 separately merged default-off EFI integration has fresh QEMU/OVMF evidence for
@@ -30,8 +33,13 @@ stream is represented as ordinary bytes only: it captures IF, executes `cli`,
 captures the previous IDTR, temporarily loads and reads back the requested
 IDTR, restores and reads back the previous IDTR, conditionally restores IF,
 and returns cookie `0x4F53494454523132`. Host tests never invoke those bytes.
-The leaf has no EFI compile linkage or QEMU guest evidence yet, so it does not
-prove that any processor loaded or restored an IDTR or continued execution.
+The default-off EFI adapter now source-links the frozen leaf, materializes the
+dependent M02-010/M02-011 bytes, publishes and synchronously invokes the exact
+  transition on the guest path, audits restoration, releases its owned pages,
+  and then resumes ordinary memory-map capture. The accepted 2026-08-26
+  QEMU/OVMF serial tuple proves those exact bounded observations on the recorded
+  virtual platform; artifact and host evidence alone still do not substitute
+  for that tuple.
 No ordinary
 boot phase loads an IDT, installs fault handlers, activates IST routing, routes
 a live CPU fault to panic, or preserves an owned serial path across real
@@ -224,13 +232,49 @@ COM1/serial invocation.
   TEST_PASS m02.012
   ```
 
-  The live success boundary is deliberately not claimed by this leaf. A
-  separately owned, default-off EFI/QEMU integration must link and publish the
-  reviewed bytes, invoke them synchronously, audit the real processor-written
-  observations, prove firmware IDTR and IF restoration, release owned
-  resources, and complete ordinary smoke before M02-012 can close. Even that
-  bounded proof will not establish interrupt/fault delivery, executable common
-  dispatch, active GDT/TSS/IST routing, real `ExitBootServices`, or Gate 3.
+  The default-off `EnableM02IdtrContinuedExecutionProbe` EFI adapter now links
+  this exact leaf after M02-010 and M02-011. It makes exactly two successful
+  allocation calls: two contiguous `EfiLoaderCode` pages and one disjoint
+  `EfiLoaderData` page. Code page zero owns the normalized slots; code page one
+  owns `48 83 C4 18 48 CF` at offset zero and the 52-byte transition at offset
+  `0x40`; the data page owns the complete IDT; and the 80-byte context remains
+  in 16-byte-aligned caller stack storage. Preparation/readback completes
+  before `X64InstructionPublication.Serialize()` and invocation through only
+  `delegate* unmanaged<IDTRContinuedExecutionContext*, ulong>`.
+- Immediately after return and before any C# or firmware callback, the adapter
+  independently requires loaded IDTR `{ limit=4095, base=ownedIdt }`, raw
+  byte equality between previous/restored IDTR, a previous IDTR distinct from
+  the owned IDT, and entry/return IF equality. Failure takes a callback-free
+  spin. This rejects an untouched all-zero context and prevents freeing a page
+  that may still be active. Once those safety facts hold, wrong-cookie or other
+  full-audit failure can safely release data then code and emit the exact
+  failure transcript. Pre-invocation cleanup also releases in reverse order
+  and suppresses a code free for any hostile equal or partial allocation-range
+  overlap.
+- Ready/pass is emitted only after the production audit succeeds and both
+  reverse-order frees return success. The exact guest transcript is:
+
+  ```text
+  TEST_START m02.012
+  CLROS_M02_012_READY tableBytes=4096 idtrBytes=10 idtrLimit=4095 policyFnv=8514F42EBDFC5D55 firmwareGatesCopied=0 firmwareIdtrCaptured=true ownedIdtrLoaded=true ownedIdtrReadBack=true firmwareIdtrRestored=true restoreReadBack=true ownedIdtrActive=false continuedExecution=true cliWindow=true ifRestored=true instructionPublished=true allocationsReleased=true wxEnforced=false interruptTriggered=false faultTriggered=false markerTransport=uefiSerial postExitBootServices=false
+  TEST_PASS m02.012
+  ```
+
+  Default and enabled no-stdlib NativeAOT publishes passed the same-build
+  verifier with 62 explicit compile items, compile-key SHA-256
+  `9B243B135C05442631A0323654FDBE07C827F043703330D8BAA9E83A78A21757`,
+  and 75 source-authority inputs, closure SHA-256
+  `F1543BCDE0DF38127068CF692188A8510DF9E41A61E49FA5CC5A90C785C37A26`.
+  Focused host tests prove the default artifact excludes the adapter, the
+  enabled artifact includes it, hostile fake-firmware cleanup/fail-closed
+  behavior, exact marker composition, and transcript rejection. The accepted
+  2026-08-26 QEMU/OVMF run observed all 17 ordered records, all six unique
+  records exactly once, none of the five forbidden records, and ordinary
+  continuation through `OS_SMOKE_PASS`. Its 8,462-byte serial log has SHA-256
+  `4E97D1D61EAF5FCB5371F05889734D8A8103C1C3CD0126B5E0A6A5519A8947C6`.
+  This is processor evidence only for the recorded temporary transition; it
+  does not establish interrupt/fault delivery, executable common dispatch,
+  active GDT/TSS/IST routing, real `ExitBootServices`, or Gate 3.
 - `TssIstPlan` models the x64 TSS bytes needed for `RSP0` and IST entries, including double-fault IST stack top, stack-size, and guard-size validation.
 - `FaultInfrastructureReadiness` combines serial, IDT, IDTR, GDT, TSS/IST, and double-fault IST readiness into a single pre-privileged-install gate.
 - `BootSequence.RunFaultInfrastructureReadiness` emits host-tested `FAULT_INFRA_READY` or `FAULT_INFRA_NOT_READY status=<status>` markers from the readiness result without changing the default boot path.

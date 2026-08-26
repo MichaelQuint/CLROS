@@ -26,9 +26,9 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
     private const string FailureTestMarker =
         "TEST_FAIL m02.010 guest_materialization_readback_or_cleanup";
     private const string CompileClosureSha256 =
-        "413ddc044a3469f2f0ac51c1190609edeaa8fbac0d90beb41ab2648559f6549e";
+        "9b243b135c05442631a0323654fdbe07c827f043703330d8baa9e83a78a21757";
     private const string CanonicalProjectShapeSha256 =
-        "3f57cbb5de5561c86a0ad1809534bd5d0e6db8d8086bf667ba724666413f7181";
+        "de242129bd59b0358211b606f666c0d99f65ab2e23096da47ec9b182e7d2748e";
     private const string FrozenProductionSha256 =
         "B66CD19B45E8198897B837DF9EDA6934AFBE087DC141C468BD0DB44E62724DA1";
     private const string FrozenHostLeafSha256 =
@@ -170,11 +170,11 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
                 "Probes.cs"));
 
         return ReadyMarker.Length == 370
-            && compileItems.Length == 61
+            && compileItems.Length == 62
             && compileHash == CompileClosureSha256
             && terminalIndex >= 0
             && normalizedIndex == terminalIndex + 1
-            && endianIndex == normalizedIndex + 2
+            && endianIndex == normalizedIndex + 3
             && compileKeys.Count(key => key == NormalizedKey) == 1
             && compileItems.All(item =>
                 !(item.Attribute("Include")?.Value ?? string.Empty)
@@ -203,7 +203,7 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
                 CanonicalProjectShapeSha256,
                 StringComparison.Ordinal)
             && build.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=74",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=75",
                 StringComparison.Ordinal)
             && build.Contains(NormalizedKey, StringComparison.Ordinal)
             && build.Contains(
@@ -213,10 +213,10 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
                 "[switch]$EnableM02NormalizedInterruptFramePageProbe",
                 StringComparison.Ordinal)
             && verifier.Contains(
-                "$expectedSourceClosureInputCount = 74",
+                "$expectedSourceClosureInputCount = 75",
                 StringComparison.Ordinal)
             && verifier.Contains(
-                "$compileItems.Count -ne 61",
+                "$compileItems.Count -ne 62",
                 StringComparison.Ordinal)
             && verifier.Contains(NormalizedKey, StringComparison.Ordinal)
             && verifier.Contains(

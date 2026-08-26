@@ -18,11 +18,11 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
     private const string FailureMarker =
         "M02_GUARDED_IST_STACK_ALLOCATION_FAILED";
     private const string CompileClosureSha256 =
-        "413ddc044a3469f2f0ac51c1190609edeaa8fbac0d90beb41ab2648559f6549e";
+        "9b243b135c05442631a0323654fdbe07c827f043703330d8baa9e83a78a21757";
     private const string ProjectFileSha256 =
-        "3ffb00e8ba1ebead05233ce2eee860cf1ab6baf8721b8bd29a2ab958f1c7b994";
+        "19831a8a437d6003b51d1e89b6b26325c17417eb38b869ce01c18c04c5952bac";
     private const string CanonicalProjectShapeSha256 =
-        "3f57cbb5de5561c86a0ad1809534bd5d0e6db8d8086bf667ba724666413f7181";
+        "de242129bd59b0358211b606f666c0d99f65ab2e23096da47ec9b182e7d2748e";
 
     private static readonly (string Path, string Sha256)[] ImmutableReviewedInputs =
     [
@@ -170,14 +170,14 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
 
         return maxValueDeclarations.Count == 1
             && runtime.Contains("public struct UInt64", StringComparison.Ordinal)
-            && compileItems.Length == 61
+            && compileItems.Length == 62
             && compileHash == CompileClosureSha256
             && projectHash == ProjectFileSha256
             && gdtIndex >= 0
             && guardedIstIndex == gdtIndex + 1
             && terminalIndex == guardedIstIndex + 1
             && normalizedInterruptFrameIndex == terminalIndex + 1
-            && endianIndex == normalizedInterruptFrameIndex + 2
+            && endianIndex == normalizedInterruptFrameIndex + 3
             && compileKeys.Count(key => key == GuardedIstKey) == 1
             && defaults.Length == 1
             && defaults[0].Value == "false"
@@ -200,17 +200,17 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
                 "guarded_ist_stack_allocation_requires_owned_x64_gdt_encoding",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=74",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=75",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 CanonicalProjectShapeSha256,
                 StringComparison.Ordinal)
             && buildScript.Contains(GuardedIstKey, StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 74",
+                "$expectedSourceClosureInputCount = 75",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 61",
+                "$compileItems.Count -ne 62",
                 StringComparison.Ordinal)
             && verifierScript.Contains(GuardedIstKey, StringComparison.Ordinal)
             && verifierScript.Contains(
