@@ -8494,8 +8494,8 @@ public static unsafe class EfiEntry
             M02NormalizedInterruptFrameEfiLoaderData,
             M02NormalizedInterruptFramePageCount,
             &pageAddress);
-        bool pageOwned = allocationStatus == 0 && pageAddress != 0;
-        if (!pageOwned)
+        bool allocationSucceeded = allocationStatus == 0;
+        if (!allocationSucceeded)
         {
             WriteM02NormalizedInterruptFramePageFailureLines(
                 console,

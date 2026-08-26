@@ -433,9 +433,7 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
             && allocationFailure.AllocateCalls == 1
             && allocationFailure.FreeCalls == 0
             && allocationFailure.FailureEmitted
-            && zeroAddress.AllocateCalls == 1
-            && zeroAddress.FreeCalls == 0
-            && zeroAddress.FailureEmitted
+            && FailedOwnedInvalidAddress(zeroAddress)
             && FailedOwnedInvalidAddress(misaligned)
             && FailedOwnedInvalidAddress(nonCanonical)
             && FailedOwnedInvalidAddress(wrapping)
@@ -660,8 +658,8 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
 
         try
         {
-            bool pageOwned = allocationStatus == 0 && pageAddress != 0;
-            if (!pageOwned)
+            bool allocationSucceeded = allocationStatus == 0;
+            if (!allocationSucceeded)
             {
                 return new FakeOutcome(
                     false,
