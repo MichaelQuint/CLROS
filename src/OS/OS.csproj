@@ -47,8 +47,20 @@
 		<EnableM02NormalizedInterruptFramePageProbe Condition="'$(EnableM02NormalizedInterruptFramePageProbe)' == ''">false</EnableM02NormalizedInterruptFramePageProbe>
 		<EnableM02OwnedIdtGatePopulationProbe Condition="'$(EnableM02OwnedIdtGatePopulationProbe)' == ''">false</EnableM02OwnedIdtGatePopulationProbe>
 		<EnableM02IdtrContinuedExecutionProbe Condition="'$(EnableM02IdtrContinuedExecutionProbe)' == ''">false</EnableM02IdtrContinuedExecutionProbe>
+		<EnableM02Ud2VectorStateProbe Condition="'$(EnableM02Ud2VectorStateProbe)' == ''">false</EnableM02Ud2VectorStateProbe>
 		<EnableM04IndependentEndianConformanceProbe Condition="'$(EnableM04IndependentEndianConformanceProbe)' == ''">false</EnableM04IndependentEndianConformanceProbe>
 		<EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe Condition="'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == ''">false</EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM02Ud2VectorStateProbe)' == 'true'">
+		<EnableM01LoadedImageStackProbe>true</EnableM01LoadedImageStackProbe>
+		<EnableM01LiveAllocatorProbe>true</EnableM01LiveAllocatorProbe>
+		<EnableM01OwnedPagingProbe>true</EnableM01OwnedPagingProbe>
+		<EnableM02SafeStubProbe>true</EnableM02SafeStubProbe>
+		<EnableM02CheckedPortIoBindingProbe>true</EnableM02CheckedPortIoBindingProbe>
+		<EnableM02Com1OwnedPortIoProbe>true</EnableM02Com1OwnedPortIoProbe>
+		<EnableM02OwnedCom1ReadyProbe>true</EnableM02OwnedCom1ReadyProbe>
+		<EnableM02PanicSafeOwnedCom1Probe>true</EnableM02PanicSafeOwnedCom1Probe>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM01LoadedImageStackProbe)' == 'true'">
@@ -105,6 +117,10 @@
 
 	<PropertyGroup Condition="'$(EnableM02IdtrContinuedExecutionProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M02_IDTR_CONTINUED_EXECUTION_PROBE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM02Ud2VectorStateProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M02_UD2_VECTOR_STATE_PROBE</DefineConstants>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM04IndependentEndianConformanceProbe)' == 'true'">
@@ -175,6 +191,11 @@
 		<Compile Include="..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs" Link="Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs" Link="Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\IDTRContinuedExecution.cs" Link="Diagnostics\IDTRContinuedExecution.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\InvalidOpcodeProbeAuthority.cs" Link="Diagnostics\InvalidOpcodeProbeAuthority.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\InvalidOpcodeVectorAuthority.cs" Link="Diagnostics\InvalidOpcodeVectorAuthority.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\CpuFaultFrame.cs" Link="Diagnostics\CpuFaultFrame.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\DisabledDefaultUd2VectorState.cs" Link="Diagnostics\DisabledDefaultUd2VectorState.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\DisabledDefaultUd2VectorStateTransition.cs" Link="Diagnostics\DisabledDefaultUd2VectorStateTransition.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" Link="Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs" Link="Std\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs" Link="Boot\M01LoadedImageStackIntegration.cs" />
@@ -267,11 +288,29 @@
 			Condition="'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'"
 			Text="EnableM02IdtrContinuedExecutionProbe cannot be combined with EnableM02OwnedIdtGatePopulationProbe=true." />
 		<Error
+			Condition="'$(EnableM02Ud2VectorStateProbe)' == 'true' and '$(EnableM02PanicSafeOwnedCom1Probe)' != 'true'"
+			Text="EnableM02Ud2VectorStateProbe requires EnableM02PanicSafeOwnedCom1Probe=true." />
+		<Error
+			Condition="'$(EnableM02Ud2VectorStateProbe)' == 'true' and '$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'"
+			Text="EnableM02Ud2VectorStateProbe cannot be combined with EnableM02OwnedGdtTssTerminalProbe=true." />
+		<Error
+			Condition="'$(EnableM02Ud2VectorStateProbe)' == 'true' and '$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'"
+			Text="EnableM02Ud2VectorStateProbe cannot be combined with EnableM02NormalizedInterruptFramePageProbe=true." />
+		<Error
+			Condition="'$(EnableM02Ud2VectorStateProbe)' == 'true' and '$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'"
+			Text="EnableM02Ud2VectorStateProbe cannot be combined with EnableM02OwnedIdtGatePopulationProbe=true." />
+		<Error
+			Condition="'$(EnableM02Ud2VectorStateProbe)' == 'true' and '$(EnableM02IdtrContinuedExecutionProbe)' == 'true'"
+			Text="EnableM02Ud2VectorStateProbe cannot be combined with EnableM02IdtrContinuedExecutionProbe=true." />
+		<Error
 			Condition="'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true' and '$(EnableM04IndependentEndianConformanceProbe)' != 'true'"
 			Text="EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe requires EnableM04IndependentEndianConformanceProbe=true." />
 		<Error
 			Condition="'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true' and '$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'"
 			Text="EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe cannot be combined with EnableM02OwnedGdtTssTerminalProbe=true." />
+		<Error
+			Condition="'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true' and '$(EnableM02Ud2VectorStateProbe)' == 'true'"
+			Text="EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe cannot be combined with EnableM02Ud2VectorStateProbe=true." />
 	</Target>
 
 	<Target Name="CustomizeReferences"

@@ -52,6 +52,14 @@ internal static class BuildEfiShellPreflightTests
                 TestM02AllFiveSwitchCompile,
                 ref m01Failures);
             Run(
+                "EFI preflight M02-013 terminal profile DAG and propagation",
+                () => TestM02Ud2VectorStateSwitchDagAndPropagation(tempRoot),
+                ref m01Failures);
+            Run(
+                "EFI project M02-013 terminal profile compile",
+                TestM02Ud2VectorStateProfileCompile,
+                ref m01Failures);
+            Run(
                 "m01.020 rejects forbidden source surfaces and guards",
                 () => TestM01ForbiddenSourceAndGuardMatrix(tempRoot),
                 ref m01Failures);
@@ -610,6 +618,183 @@ internal static class BuildEfiShellPreflightTests
         if (!passed)
         {
             Console.WriteLine(result.Output);
+        }
+
+        return passed;
+    }
+
+    private static bool TestM02Ud2VectorStateSwitchDagAndPropagation(
+        string tempRoot)
+    {
+        ToolFixture tools = CreateCompleteToolFixture(
+            tempRoot,
+            "m02-ud2-vector-state-switch-tools");
+        SourceClosureFixture source = CreateSourceClosureFixture(
+            tempRoot,
+            "m02-ud2-vector-state-switches");
+        string[] enabledArguments =
+        [
+            "-EnableM02Ud2VectorStateProbe"
+        ];
+
+        ProcessResult enabled = RunPreflight(
+            tools,
+            false,
+            source.ScriptPath,
+            enabledArguments);
+        ProcessResult independentM04Allowed = RunPreflight(
+            tools,
+            false,
+            source.ScriptPath,
+            [.. enabledArguments, "-EnableM04IndependentEndianConformanceProbe"]);
+        ProcessResult terminalConflict = RunPreflight(
+            tools,
+            false,
+            source.ScriptPath,
+            [.. enabledArguments, "-EnableM02OwnedGdtTssTerminalProbe"]);
+        ProcessResult normalizedConflict = RunPreflight(
+            tools,
+            false,
+            source.ScriptPath,
+            [.. enabledArguments, "-EnableM02NormalizedInterruptFramePageProbe"]);
+        ProcessResult idtConflict = RunPreflight(
+            tools,
+            false,
+            source.ScriptPath,
+            [.. enabledArguments, "-EnableM02OwnedIdtGatePopulationProbe"]);
+        ProcessResult idtrConflict = RunPreflight(
+            tools,
+            false,
+            source.ScriptPath,
+            [.. enabledArguments, "-EnableM02IdtrContinuedExecutionProbe"]);
+        ProcessResult m04Conflict = RunPreflight(
+            tools,
+            false,
+            source.ScriptPath,
+            [
+                .. enabledArguments,
+                "-EnableM04IndependentEndianConformanceProbe",
+                "-EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"
+            ]);
+
+        string script = File.ReadAllText(source.ScriptPath);
+        bool passed = IsM01SourceClosureSuccess(
+                enabled,
+                "loadedImageStack=true liveAllocator=true ownedPaging=true m02SafeStub=true")
+            && enabled.Output.Contains(
+                "panicSafeOwnedCom1=true",
+                StringComparison.Ordinal)
+            && enabled.Output.Contains(
+                "ud2VectorState=true",
+                StringComparison.Ordinal)
+            && enabled.Output.Contains(
+                "ownedX64GdtEncoding=false guardedIstStackAllocation=false",
+                StringComparison.Ordinal)
+            && enabled.Output.Contains(
+                "EFI_PREFLIGHT_M02_UD2_VECTOR_STATE_IMPLICATION status=ok m01LoadedImageStack=true m01LiveAllocator=true ownedPaging=true m02SafeStub=true checkedPortIoBinding=true com1OwnedPortIo=true ownedCom1Ready=true panicSafeOwnedCom1=true",
+                StringComparison.Ordinal)
+            && IsM01SourceClosureSuccess(
+                independentM04Allowed,
+                "loadedImageStack=true liveAllocator=true ownedPaging=true m02SafeStub=true")
+            && independentM04Allowed.Output.Contains(
+                "EFI_PREFLIGHT_M04_SWITCHES status=ok independentEndianConformance=true spanOverlapMemoryCastUnsafeWidthConformance=false",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "m02_ud2_vector_state_probe_explicit_false_prerequisite",
+                StringComparison.Ordinal)
+            && IsM02ProfileSwitchFailure(
+                terminalConflict,
+                "m02_ud2_vector_state_probe_forbids_owned_gdt_tss_terminal")
+            && IsM02ProfileSwitchFailure(
+                normalizedConflict,
+                "m02_ud2_vector_state_probe_forbids_normalized_interrupt_frame_page_probe")
+            && IsM02ProfileSwitchFailure(
+                idtConflict,
+                "m02_ud2_vector_state_probe_forbids_owned_idt_gate_population_probe")
+            && IsM02ProfileSwitchFailure(
+                idtrConflict,
+                "m02_ud2_vector_state_probe_forbids_idtr_continued_execution_probe")
+            && m04Conflict.ExitCode == 1
+            && m04Conflict.Output.Contains(
+                "reason=span_memory_conformance_forbids_m02_ud2_vector_state",
+                StringComparison.Ordinal)
+            && m04Conflict.Output.Contains(
+                "TEST_FAIL efi.shell.publish m04_span_memory_conformance_forbids_m02_ud2_vector_state",
+                StringComparison.Ordinal)
+            && !m04Conflict.Output.Contains(
+                "EFI_PREFLIGHT_M01_SOURCE_CLOSURE",
+                StringComparison.Ordinal)
+            && Regex.Matches(
+                script,
+                Regex.Escape("[switch] $EnableM02Ud2VectorStateProbe"),
+                RegexOptions.CultureInvariant).Count == 1
+            && script.Contains(
+                "\"-p:EnableM02Ud2VectorStateProbe=true\"",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "Write-Host \"EFI_PROBE M02_UD2_VECTOR_STATE\"",
+                StringComparison.Ordinal);
+        if (!passed)
+        {
+            Console.WriteLine(
+                "M02-013 switch outputs:\n"
+                + enabled.Output
+                + independentM04Allowed.Output
+                + terminalConflict.Output
+                + normalizedConflict.Output
+                + idtConflict.Output
+                + idtrConflict.Output
+                + m04Conflict.Output);
+        }
+
+        return passed;
+    }
+
+    private static bool TestM02Ud2VectorStateProfileCompile()
+    {
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string projectPath = Path.Combine(
+            repositoryRoot,
+            "src",
+            "OS",
+            "OS.csproj");
+        ProcessResult result = RunProcess(
+            "dotnet",
+            repositoryRoot,
+            timeoutMilliseconds: 120000,
+            "build",
+            projectPath,
+            "--nologo",
+            "-m:1",
+            "--disable-build-servers",
+            "-p:EnableM02Ud2VectorStateProbe=true");
+
+        ProcessResult explicitFalse = RunProcess(
+            "dotnet",
+            repositoryRoot,
+            timeoutMilliseconds: 120000,
+            "build",
+            projectPath,
+            "--nologo",
+            "-m:1",
+            "--disable-build-servers",
+            "-p:EnableM02Ud2VectorStateProbe=true",
+            "-p:EnableM02PanicSafeOwnedCom1Probe=false");
+
+        bool passed = result.ExitCode == 0
+            && result.Output.Contains(
+                "Build succeeded.",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                ": error ",
+                StringComparison.OrdinalIgnoreCase)
+            && explicitFalse.ExitCode != 0
+            && explicitFalse.Output.Contains(
+                "EnableM02Ud2VectorStateProbe requires EnableM02PanicSafeOwnedCom1Probe=true.",
+                StringComparison.Ordinal);
+        if (!passed)
+        {
+            Console.WriteLine(result.Output + explicitFalse.Output);
         }
 
         return passed;
@@ -3434,7 +3619,7 @@ internal static class BuildEfiShellPreflightTests
         string script = File.ReadAllText(buildScriptPath);
         string[] requiredText =
         [
-            "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=75",
+            "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=80",
             "EFI_PUBLISH_OUTPUT_AUTHORITY status=ok leaves=5",
             "EFI_PUBLISH_VERIFIER_INPUT_AUTHORITY status=ok inputs=8",
             "EFI_PUBLISH_VERIFIER_INPUTS_UNCHANGED status=ok inputs=8",
@@ -3803,7 +3988,7 @@ internal static class BuildEfiShellPreflightTests
         string switchMarker =
             "EFI_PREFLIGHT_M01_SWITCHES status=ok " + expectedSwitches;
         const string closureMarker =
-            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=62 prerequisiteGap=UefiMemoryType";
+            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=67 prerequisiteGap=UefiMemoryType";
         bool passed = result.ExitCode == 0
             && result.Output.Contains(switchMarker, StringComparison.Ordinal)
             && result.Output.Contains(closureMarker, StringComparison.Ordinal)
@@ -3859,6 +4044,34 @@ internal static class BuildEfiShellPreflightTests
                 StringComparison.Ordinal)
             && result.Output.Contains(
                 "TEST_FAIL efi.shell.publish m02_" + expectedReason,
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "EFI_PREFLIGHT_M01_SOURCE_CLOSURE",
+                StringComparison.Ordinal)
+            && !result.Output.Contains(
+                "EFI_PREFLIGHT_MSVC_LINKER",
+                StringComparison.Ordinal)
+            && log.Contains(
+                "reason=" + expectedReason,
+                StringComparison.Ordinal);
+    }
+
+    private static bool IsM02ProfileSwitchFailure(
+        ProcessResult result,
+        string expectedReason)
+    {
+        string log = File.Exists(result.LogPath)
+            ? File.ReadAllText(result.LogPath)
+            : string.Empty;
+        return result.ExitCode == 1
+            && result.Output.Contains(
+                "EFI_PREFLIGHT_M02_SWITCHES",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "reason=" + expectedReason,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "TEST_FAIL efi.shell.publish " + expectedReason,
                 StringComparison.Ordinal)
             && !result.Output.Contains(
                 "EFI_PREFLIGHT_M01_SOURCE_CLOSURE",
@@ -4553,7 +4766,7 @@ internal static class BuildEfiShellPreflightTests
         [
             "EFI_PREFLIGHT_M01_SWITCHES status=ok loadedImageStack=false liveAllocator=false ownedPaging=false m02SafeStub=false",
             "EFI_PREFLIGHT_M02_SWITCHES status=ok enabled=false loadedImageStack=false liveAllocator=false ownedPaging=false checkedPortIoBinding=false",
-            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=62 prerequisiteGap=UefiMemoryType",
+            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=67 prerequisiteGap=UefiMemoryType",
             "EFI_PREFLIGHT_DOTNET path=\"",
             "sdkVersion=\"10.0.3",
             "EFI_PREFLIGHT_MSVC_LINKER path=\"" + Path.GetFullPath(tools.LinkerPath) + "\" version=\"14.40.33807\"",

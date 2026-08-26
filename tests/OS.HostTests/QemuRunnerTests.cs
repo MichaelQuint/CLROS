@@ -178,6 +178,21 @@ internal static class QemuRunnerTests
         .. M02ForbiddenMarkers,
         "M02_CHECKED_PORT_IO_BINDING_FAILED"
     ];
+    private const string M02Ud2VectorStateReadyMarker =
+        "CLROS_M02_013_READY vector=6 errorCodePresent=false errorCode=0 ud2RipMatched=true registerFields=23 registerStateCaptured=true registerStateMatched=true ownedGdtLoaded=true ownedTssLoaded=true ownedIdtrLoaded=true ownedCom1=true faultTriggered=true terminalHalt=true markerTransport=ownedCom1 postExitBootServices=false";
+    private const string M02Ud2VectorStateHostOnlyMarker =
+        "CLROS_M02_013_HOST_READY requestBytes=32 resultBytes=72 ud2Bytes=2 vector=6 errorCodePresent=false errorCode=0 auditFields=23 probeEnabled=false executionRequested=false executionAttempted=false syntheticObservation=true guestExecution=false faultTriggered=false idtrLoaded=false postExitBootServices=false";
+    private const string M02Ud2VectorStateHostOnlyMarkerPrefix =
+        "CLROS_M02_013_HOST_READY";
+    private static readonly string[] M02Ud2VectorStateGuestMarkers =
+    [
+        "OS_BOOT_OK",
+        "TEST_PASS boot.sequence",
+        "OS_SMOKE_PASS",
+        "TEST_START m02.013",
+        M02Ud2VectorStateReadyMarker,
+        "TEST_PASS m02.013"
+    ];
 
     [ModuleInitializer]
     public static void Initialize()
@@ -248,6 +263,9 @@ internal static class QemuRunnerTests
             Run("qemu M02-017 raw-observation shim markers match the profile", TestM02RawObservationShimMarkerParity, ref failures);
             Run("qemu smoke script enforces the M02-003 checked-binding profile", () => TestSmokeScriptEnforcesM02CheckedPortIoBindingProfile(tempRoot), ref failures);
             Run("qemu smoke script rejects invalid M02-003 checked-binding selection", () => TestSmokeScriptRejectsInvalidM02CheckedPortIoBindingSelection(tempRoot), ref failures);
+            Run("qemu smoke script enforces the M02-013 UD2 vector-state terminal profile", () => TestSmokeScriptEnforcesM02Ud2VectorStateProfile(tempRoot), ref failures);
+            Run("qemu smoke script rejects invalid M02-013 UD2 vector-state selections", () => TestSmokeScriptRejectsInvalidM02Ud2VectorStateSelections(tempRoot), ref failures);
+            Run("qemu M02-013 terminal transcript validator rejects post-pass marker noise", () => TestM02Ud2VectorStateTerminalTranscriptValidation(tempRoot), ref failures);
             Run("qemu M01 raw-observation dry-run is inactive and side-effect free", () => TestM01RawObservationDryRunIsInactiveAndSideEffectFree(tempRoot), ref failures);
             Run("qemu M01 raw-observation log requires owned paging", () => TestM01RawObservationLogRequiresOwnedPaging(tempRoot), ref failures);
             Run("qemu M01 raw-observation rejects summary path overlap before launch", () => TestM01RawObservationRejectsSummaryPathOverlap(tempRoot), ref failures);
@@ -2381,6 +2399,319 @@ internal static class QemuRunnerTests
                 "TEST_PASS qemu.runner.dryrun",
                 StringComparison.Ordinal)
             && before.AsSpan().SequenceEqual(File.ReadAllBytes(staleEfi));
+    }
+
+    private static bool TestSmokeScriptEnforcesM02Ud2VectorStateProfile(
+        string tempRoot)
+    {
+        string suffix = Guid.NewGuid().ToString("N");
+        string imagePath = Path.Combine(
+            tempRoot,
+            "m02-ud2-vector-state-dry-" + suffix + ".raw");
+        string serialLog = Path.Combine(
+            tempRoot,
+            "m02-ud2-vector-state-dry-" + suffix + "-serial.log");
+        string summaryLog = Path.Combine(
+            tempRoot,
+            "m02-ud2-vector-state-dry-" + suffix + "-summary.log");
+        string terminalTail =
+            string.Join(";", M02Ud2VectorStateGuestMarkers);
+        string profileTail =
+            "TEST_START m02.013;"
+            + M02Ud2VectorStateReadyMarker
+            + ";TEST_PASS m02.013";
+
+        ProcessResult result = RunQemuSmokeScript(
+            "-DryRun",
+            "-BuildEfi",
+            "-EnableM02Ud2VectorStateProbe",
+            "-Image",
+            imagePath,
+            "-SerialLog",
+            serialLog,
+            "-SummaryLog",
+            summaryLog);
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string script = File.ReadAllText(
+            Path.Combine(repositoryRoot, "scripts", "run-qemu-smoke.ps1"));
+
+        return result.ExitCode == 0
+            && result.Output.Contains(
+                "QEMU_SCRIPT_M02_UD2_VECTOR_STATE_PROBE enabled=true panicSafeOwnedCom1=true normalizedInterruptFrame=false ownedIdtGatePopulation=false idtrContinuedExecution=false ownedGdtTssTerminal=false buildEfi=true skipImageBuild=false dryRun=true profileRequired=6 profileOrdered=6 profileUnique=6 profileForbidden=8",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "QEMU_SCRIPT_M02_UD2_VECTOR_STATE_PREREQUISITES status=implied m01LoadedImageStack=true m01LiveAllocator=true ownedPaging=true m02SafeStub=true checkedPortIoBinding=true com1OwnedPortIo=true ownedCom1Ready=true panicSafeOwnedCom1=true",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                terminalTail,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS ",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "REQUIRED_MARKERS " + SmokeScriptDefaultRequiredMarkers,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                profileTail,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "UNIQUE_MARKERS ",
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "M02_UD2_VECTOR_STATE_VERIFY_FAILED;TEST_FAIL m02.013 vector_or_register_mismatch;"
+                    + M02Ud2VectorStateHostOnlyMarkerPrefix
+                    + ";"
+                    + M02Ud2VectorStateHostOnlyMarker,
+                StringComparison.Ordinal)
+            && result.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "Assert-M02Ud2VectorStateTerminalTranscript",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "m02_ud2_vector_state_post_smoke_sequence_invalid",
+                StringComparison.Ordinal)
+            && script.Contains(
+                "postSmokeSequence=true postPassMarkerNoise=false",
+                StringComparison.Ordinal)
+            && !File.Exists(imagePath)
+            && !File.Exists(serialLog)
+            && !File.Exists(summaryLog);
+    }
+
+    private static bool TestSmokeScriptRejectsInvalidM02Ud2VectorStateSelections(
+        string tempRoot)
+    {
+        string staleEfi = Path.Combine(
+            tempRoot,
+            "stale-m02-ud2-vector-state-BOOTX64.EFI");
+        File.WriteAllBytes(staleEfi, [0x4d, 0x5a, 0x02, 0x13]);
+        byte[] before = File.ReadAllBytes(staleEfi);
+        string[] enabled =
+        [
+            "-DryRun",
+            "-BuildEfi",
+            "-EnableM02Ud2VectorStateProbe",
+            "-EfiArtifact",
+            staleEfi
+        ];
+
+        ProcessResult missingBuild = RunQemuSmokeScript(
+            enabled.Where(argument => argument != "-BuildEfi").ToArray());
+        ProcessResult skippedImage = RunQemuSmokeScript(
+            [.. enabled, "-SkipImageBuild"]);
+        ProcessResult terminalConflict = RunQemuSmokeScript(
+            [.. enabled, "-EnableM02OwnedGdtTssTerminalProbe"]);
+        ProcessResult normalizedConflict = RunQemuSmokeScript(
+            [.. enabled, "-EnableM02NormalizedInterruptFramePageProbe"]);
+        ProcessResult idtConflict = RunQemuSmokeScript(
+            [.. enabled, "-EnableM02OwnedIdtGatePopulationProbe"]);
+        ProcessResult idtrConflict = RunQemuSmokeScript(
+            [.. enabled, "-EnableM02IdtrContinuedExecutionProbe"]);
+        ProcessResult independentM04Allowed = RunQemuSmokeScript(
+            [.. enabled, "-EnableM04IndependentEndianConformanceProbe"]);
+        ProcessResult m04Conflict = RunQemuSmokeScript(
+            [
+                .. enabled,
+                "-EnableM04IndependentEndianConformanceProbe",
+                "-EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"
+            ]);
+        ProcessResult rawObservationConflict = RunQemuSmokeScript(
+            [
+                .. enabled,
+                "-M01RawObservationLog",
+                Path.Combine(tempRoot, "m02-013-raw-observation.json")
+            ]);
+        ProcessResult untypedMarker = RunQemuSmokeScript(
+            "-DryRun",
+            "-RequireMarker",
+            "CLROS_M02_013_READY");
+        ProcessResult untypedHostMarker = RunQemuSmokeScript(
+            "-DryRun",
+            "-RequireMarker",
+            "CLROS_M02_013_HOST_READY");
+
+        ProcessResult[] failures =
+        [
+            missingBuild,
+            skippedImage,
+            terminalConflict,
+            normalizedConflict,
+            idtConflict,
+            idtrConflict,
+            m04Conflict,
+            rawObservationConflict,
+            untypedMarker,
+            untypedHostMarker
+        ];
+        return failures.All(result => result.ExitCode == 1)
+            && independentM04Allowed.ExitCode == 0
+            && independentM04Allowed.Output.Contains(
+                "QEMU_SCRIPT_M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE enabled=true",
+                StringComparison.Ordinal)
+            && independentM04Allowed.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal)
+            && missingBuild.Output.Contains(
+                "m02_ud2_vector_state_probe_requires_build_efi",
+                StringComparison.Ordinal)
+            && skippedImage.Output.Contains(
+                "m02_ud2_vector_state_probe_forbids_skip_image_build",
+                StringComparison.Ordinal)
+            && terminalConflict.Output.Contains(
+                "m02_ud2_vector_state_probe_forbids_owned_gdt_tss_terminal",
+                StringComparison.Ordinal)
+            && normalizedConflict.Output.Contains(
+                "m02_ud2_vector_state_probe_forbids_normalized_interrupt_frame_page_probe",
+                StringComparison.Ordinal)
+            && idtConflict.Output.Contains(
+                "m02_ud2_vector_state_probe_forbids_owned_idt_gate_population_probe",
+                StringComparison.Ordinal)
+            && idtrConflict.Output.Contains(
+                "m02_ud2_vector_state_probe_forbids_idtr_continued_execution_probe",
+                StringComparison.Ordinal)
+            && m04Conflict.Output.Contains(
+                "m02_ud2_vector_state_probe_forbids_m04_span_memory_conformance_probe",
+                StringComparison.Ordinal)
+            && rawObservationConflict.Output.Contains(
+                "m02_ud2_vector_state_probe_forbids_m01_raw_observation_log",
+                StringComparison.Ordinal)
+            && untypedMarker.Output.Contains(
+                "m02_ud2_vector_state_marker_requires_typed_profile",
+                StringComparison.Ordinal)
+            && untypedHostMarker.Output.Contains(
+                "m02_ud2_vector_state_marker_requires_typed_profile",
+                StringComparison.Ordinal)
+            && File.ReadAllText(Path.Combine(
+                    HostToolProcess.FindRepositoryRoot(),
+                    "scripts",
+                    "run-qemu-smoke.ps1")).Contains(
+                "m02_ud2_vector_state_probe_explicit_false_prerequisite",
+                StringComparison.Ordinal)
+            && failures.All(result => !result.Output.Contains(
+                "TEST_PASS qemu.runner.dryrun",
+                StringComparison.Ordinal))
+            && before.AsSpan().SequenceEqual(File.ReadAllBytes(staleEfi));
+    }
+
+    private static bool TestM02Ud2VectorStateTerminalTranscriptValidation(
+        string tempRoot)
+    {
+        string directory = Path.Combine(
+            tempRoot,
+            "m02-ud2-vector-state-transcript-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        string successPath = Path.Combine(directory, "success.log");
+        string postPassNoisePath = Path.Combine(directory, "post-pass-noise.log");
+        string reorderedPath = Path.Combine(directory, "reordered.log");
+        string alteredReadyPath = Path.Combine(directory, "altered-ready.log");
+        string missingSmokePath = Path.Combine(directory, "missing-smoke.log");
+        string harnessPath = Path.Combine(directory, "validate-transcript.ps1");
+        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+        string productionScript = Path.Combine(
+            repositoryRoot,
+            "scripts",
+            "run-qemu-smoke.ps1");
+
+        string[] successLines =
+        [
+            "EFI_CONSOLE_READY",
+            "OS_BOOT_OK",
+            "TEST_PASS boot.sequence",
+            "OS_SMOKE_PASS",
+            "TEST_START m02.013",
+            M02Ud2VectorStateReadyMarker,
+            "TEST_PASS m02.013"
+        ];
+        File.WriteAllLines(successPath, successLines);
+        File.WriteAllLines(
+            postPassNoisePath,
+            [.. successLines, "OS_BOOT_OK"]);
+        File.WriteAllLines(
+            reorderedPath,
+            [
+                .. successLines[..4],
+                M02Ud2VectorStateReadyMarker,
+                "TEST_START m02.013",
+                "TEST_PASS m02.013"
+            ]);
+        File.WriteAllLines(
+            alteredReadyPath,
+            [
+                .. successLines[..5],
+                M02Ud2VectorStateReadyMarker.Replace(
+                    "registerFields=23",
+                    "registerFields=22",
+                    StringComparison.Ordinal),
+                "TEST_PASS m02.013"
+            ]);
+        File.WriteAllLines(
+            missingSmokePath,
+            successLines.Where(line => line != "OS_SMOKE_PASS"));
+        File.WriteAllText(
+            harnessPath,
+            GetM02Ud2VectorStateTranscriptHarness(),
+            new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+        ProcessResult success = RunM02Ud2VectorStateTranscriptHarness(
+            harnessPath,
+            productionScript,
+            successPath,
+            expectedReason: "none");
+        ProcessResult postPassNoise = RunM02Ud2VectorStateTranscriptHarness(
+            harnessPath,
+            productionScript,
+            postPassNoisePath,
+            expectedReason: "m02_ud2_vector_state_post_smoke_sequence_invalid");
+        ProcessResult reordered = RunM02Ud2VectorStateTranscriptHarness(
+            harnessPath,
+            productionScript,
+            reorderedPath,
+            expectedReason: "m02_ud2_vector_state_post_smoke_sequence_invalid");
+        ProcessResult alteredReady = RunM02Ud2VectorStateTranscriptHarness(
+            harnessPath,
+            productionScript,
+            alteredReadyPath,
+            expectedReason: "m02_ud2_vector_state_post_smoke_sequence_invalid");
+        ProcessResult missingSmoke = RunM02Ud2VectorStateTranscriptHarness(
+            harnessPath,
+            productionScript,
+            missingSmokePath,
+            expectedReason: "m02_ud2_vector_state_smoke_terminal_missing");
+
+        ProcessResult[] results =
+        [
+            success,
+            postPassNoise,
+            reordered,
+            alteredReady,
+            missingSmoke
+        ];
+        bool passed = results.All(result => result.ExitCode == 0)
+            && success.Output.Contains(
+                "M02_UD2_VECTOR_STATE_TRANSCRIPT_VALID",
+                StringComparison.Ordinal)
+            && postPassNoise.Output.Contains(
+                "M02_UD2_VECTOR_STATE_TRANSCRIPT_REJECTED reason=m02_ud2_vector_state_post_smoke_sequence_invalid",
+                StringComparison.Ordinal)
+            && reordered.Output.Contains(
+                "M02_UD2_VECTOR_STATE_TRANSCRIPT_REJECTED reason=m02_ud2_vector_state_post_smoke_sequence_invalid",
+                StringComparison.Ordinal)
+            && alteredReady.Output.Contains(
+                "M02_UD2_VECTOR_STATE_TRANSCRIPT_REJECTED reason=m02_ud2_vector_state_post_smoke_sequence_invalid",
+                StringComparison.Ordinal)
+            && missingSmoke.Output.Contains(
+                "M02_UD2_VECTOR_STATE_TRANSCRIPT_REJECTED reason=m02_ud2_vector_state_smoke_terminal_missing",
+                StringComparison.Ordinal);
+        if (!passed)
+        {
+            Console.WriteLine(
+                "M02-013 transcript validator outputs:\n"
+                + string.Join("\n", results.Select(result => result.Output)));
+        }
+
+        return passed;
     }
 
     private static bool TestM02RawObservationShimMarkerParity()
@@ -7804,6 +8135,137 @@ internal static class QemuRunnerTests
             count++;
             index += value.Length;
         }
+    }
+
+    private static string GetM02Ud2VectorStateTranscriptHarness()
+    {
+        return """
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory = $true)]
+    [string] $ProductionScript,
+    [Parameter(Mandatory = $true)]
+    [string] $SerialLog,
+    [Parameter(Mandatory = $true)]
+    [string] $ReadyMarker,
+    [Parameter(Mandatory = $true)]
+    [string] $ExpectedReason
+)
+
+$ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
+
+$tokens = $null
+$parseErrors = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile(
+    $ProductionScript,
+    [ref] $tokens,
+    [ref] $parseErrors)
+if ($parseErrors.Count -ne 0) {
+    Write-Output "M02_UD2_VECTOR_STATE_TRANSCRIPT_HARNESS_PARSE_FAILED"
+    exit 10
+}
+
+foreach ($functionName in @(
+        "Test-M02Ud2VectorStateTerminalMarkerLine",
+        "Assert-M02Ud2VectorStateTerminalTranscript")) {
+    $functionAst = $ast.Find({
+        param($node)
+        $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+            $node.Name -ceq $functionName
+    }, $true)
+    if ($null -eq $functionAst) {
+        Write-Output (
+            "M02_UD2_VECTOR_STATE_TRANSCRIPT_HARNESS_FUNCTION_MISSING name=" +
+            $functionName)
+        exit 11
+    }
+    Invoke-Expression $functionAst.Extent.Text
+}
+
+$script:root = Split-Path -Parent (Split-Path -Parent $ProductionScript)
+$script:M02Ud2VectorStateReadyMarker = $ReadyMarker
+try {
+    Assert-M02Ud2VectorStateTerminalTranscript -SerialLogPath $SerialLog
+    if ($ExpectedReason -cne "none") {
+        Write-Output (
+            "M02_UD2_VECTOR_STATE_TRANSCRIPT_UNEXPECTED_ACCEPT expected=" +
+            $ExpectedReason)
+        exit 12
+    }
+    Write-Output "M02_UD2_VECTOR_STATE_TRANSCRIPT_VALID"
+    exit 0
+}
+catch {
+    $actualReason = $_.Exception.Message
+    if ($actualReason -cne $ExpectedReason) {
+        Write-Output (
+            "M02_UD2_VECTOR_STATE_TRANSCRIPT_WRONG_REJECTION expected=" +
+            $ExpectedReason +
+            " actual=" +
+            $actualReason)
+        exit 13
+    }
+    Write-Output (
+        "M02_UD2_VECTOR_STATE_TRANSCRIPT_REJECTED reason=" +
+        $actualReason)
+    exit 0
+}
+""";
+    }
+
+    private static ProcessResult RunM02Ud2VectorStateTranscriptHarness(
+        string harnessPath,
+        string productionScript,
+        string serialLog,
+        string expectedReason)
+    {
+        ProcessStartInfo startInfo = new ProcessStartInfo("powershell.exe")
+        {
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            WorkingDirectory = HostToolProcess.FindRepositoryRoot()
+        };
+        string[] arguments =
+        [
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            harnessPath,
+            "-ProductionScript",
+            productionScript,
+            "-SerialLog",
+            serialLog,
+            "-ReadyMarker",
+            M02Ud2VectorStateReadyMarker,
+            "-ExpectedReason",
+            expectedReason
+        ];
+        foreach (string argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        using Process process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException(
+                "Failed to start M02-013 transcript harness.");
+        Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
+        Task<string> standardError = process.StandardError.ReadToEndAsync();
+        bool exited = process.WaitForExit(30000);
+        if (!exited)
+        {
+            process.Kill(entireProcessTree: true);
+            process.WaitForExit(5000);
+            throw new TimeoutException(
+                "M02-013 transcript harness did not exit within 30 seconds.");
+        }
+
+        return new ProcessResult(
+            process.ExitCode,
+            standardOutput.GetAwaiter().GetResult()
+                + standardError.GetAwaiter().GetResult());
     }
 
     private static ProcessResult RunQemuSmokeScript(params string[] args)

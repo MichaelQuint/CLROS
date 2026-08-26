@@ -15,6 +15,7 @@ param(
     [switch]$EnableM02NormalizedInterruptFramePageProbe,
     [switch]$EnableM02OwnedIdtGatePopulationProbe,
     [switch]$EnableM02IdtrContinuedExecutionProbe,
+    [switch]$EnableM02Ud2VectorStateProbe,
     [switch]$EnableM04IndependentEndianConformanceProbe,
     [switch]$EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe
 )
@@ -38,7 +39,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 75
+$expectedSourceClosureInputCount = 80
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -129,6 +130,11 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs',
     '..\OS.Kernel\Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs|Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs',
     '..\OS.Kernel\Diagnostics\IDTRContinuedExecution.cs|Diagnostics\IDTRContinuedExecution.cs',
+    '..\OS.Kernel\Diagnostics\InvalidOpcodeProbeAuthority.cs|Diagnostics\InvalidOpcodeProbeAuthority.cs',
+    '..\OS.Kernel\Diagnostics\InvalidOpcodeVectorAuthority.cs|Diagnostics\InvalidOpcodeVectorAuthority.cs',
+    '..\OS.Kernel\Diagnostics\CpuFaultFrame.cs|Diagnostics\CpuFaultFrame.cs',
+    '..\OS.Kernel\Diagnostics\DisabledDefaultUd2VectorState.cs|Diagnostics\DisabledDefaultUd2VectorState.cs',
+    '..\OS.Kernel\Diagnostics\DisabledDefaultUd2VectorStateTransition.cs|Diagnostics\DisabledDefaultUd2VectorStateTransition.cs',
     '..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs',
     '..\..\std\no-runtime\shared\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs|Std\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs',
     '..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs|Boot\M01LoadedImageStackIntegration.cs',
@@ -3800,6 +3806,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM02NormalizedInterruptFramePageProbe," +
             "EnableM02OwnedIdtGatePopulationProbe," +
             "EnableM02IdtrContinuedExecutionProbe," +
+            "EnableM02Ud2VectorStateProbe," +
             "EnableM04IndependentEndianConformanceProbe," +
             "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe," +
             "ImportProjectExtensionProps,ImportProjectExtensionTargets," +
@@ -3932,6 +3939,9 @@ function Invoke-PostRestoreEvaluationSnapshot {
     if ($EnableM02IdtrContinuedExecutionProbe) {
         $arguments +=
             "-p:EnableM02IdtrContinuedExecutionProbe=true"
+    }
+    if ($EnableM02Ud2VectorStateProbe) {
+        $arguments += "-p:EnableM02Ud2VectorStateProbe=true"
     }
 
     $previousLink = $env:LINK
@@ -4088,6 +4098,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM02OwnedIdtGatePopulationProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM02IdtrContinuedExecutionProbe =
             $EnableM02IdtrContinuedExecutionProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM02Ud2VectorStateProbe =
+            $EnableM02Ud2VectorStateProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04IndependentEndianConformanceProbe =
             $EnableM04IndependentEndianConformanceProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe =
@@ -4147,7 +4159,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 62 -or
+    if ($compileItems.Count -ne 67 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4273,6 +4285,49 @@ function Assert-PostRestoreEvidenceMatchesSnapshot {
 
 Write-Output "TEST_START $testName"
 
+if ($EnableM02Ud2VectorStateProbe) {
+    $m02Ud2VectorStatePrerequisites = @(
+        "EnableM01LoadedImageStackProbe",
+        "EnableM01LiveAllocatorProbe",
+        "EnableM01OwnedPagingProbe",
+        "EnableM02SafeStubProbe",
+        "EnableM02CheckedPortIoBindingProbe",
+        "EnableM02Com1OwnedPortIoProbe",
+        "EnableM02OwnedCom1ReadyProbe",
+        "EnableM02PanicSafeOwnedCom1Probe"
+    )
+    foreach ($prerequisiteName in $m02Ud2VectorStatePrerequisites) {
+        if ($PSBoundParameters.ContainsKey($prerequisiteName) -and
+            -not [bool]$PSBoundParameters[$prerequisiteName]) {
+            Write-Failure `
+                "m02_ud2_vector_state_probe_explicit_false_prerequisite" `
+                ("property=" + $prerequisiteName)
+        }
+    }
+
+    $EnableM01LoadedImageStackProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM01LiveAllocatorProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM01OwnedPagingProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM02SafeStubProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM02CheckedPortIoBindingProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM02Com1OwnedPortIoProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM02OwnedCom1ReadyProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM02PanicSafeOwnedCom1Probe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    Write-Output (
+        "EFI_ARTIFACT_M02_UD2_VECTOR_STATE_IMPLICATION status=ok " +
+        "m01LoadedImageStack=true m01LiveAllocator=true ownedPaging=true " +
+        "m02SafeStub=true checkedPortIoBinding=true com1OwnedPortIo=true " +
+        "ownedCom1Ready=true panicSafeOwnedCom1=true")
+}
+
 if ($EnableM02NormalizedInterruptFramePageProbe -and
     $EnableM02OwnedGdtTssTerminalProbe) {
     Write-Failure "m02_normalized_interrupt_frame_page_probe_forbids_owned_gdt_tss_terminal"
@@ -4303,6 +4358,31 @@ if ($EnableM02IdtrContinuedExecutionProbe -and
     Write-Failure "m02_idtr_continued_execution_probe_forbids_owned_idt_gate_population_probe"
 }
 
+if ($EnableM02Ud2VectorStateProbe -and
+    -not $EnableM02PanicSafeOwnedCom1Probe) {
+    Write-Failure "m02_ud2_vector_state_probe_requires_panic_safe_owned_com1"
+}
+
+if ($EnableM02Ud2VectorStateProbe -and
+    $EnableM02OwnedGdtTssTerminalProbe) {
+    Write-Failure "m02_ud2_vector_state_probe_forbids_owned_gdt_tss_terminal"
+}
+
+if ($EnableM02Ud2VectorStateProbe -and
+    $EnableM02NormalizedInterruptFramePageProbe) {
+    Write-Failure "m02_ud2_vector_state_probe_forbids_normalized_interrupt_frame_page_probe"
+}
+
+if ($EnableM02Ud2VectorStateProbe -and
+    $EnableM02OwnedIdtGatePopulationProbe) {
+    Write-Failure "m02_ud2_vector_state_probe_forbids_owned_idt_gate_population_probe"
+}
+
+if ($EnableM02Ud2VectorStateProbe -and
+    $EnableM02IdtrContinuedExecutionProbe) {
+    Write-Failure "m02_ud2_vector_state_probe_forbids_idtr_continued_execution_probe"
+}
+
 if ($EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -and
     -not $EnableM04IndependentEndianConformanceProbe) {
     Write-Failure "m04_span_memory_conformance_requires_independent_endian_conformance"
@@ -4310,6 +4390,10 @@ if ($EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -and
 if ($EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -and
     $EnableM02OwnedGdtTssTerminalProbe) {
     Write-Failure "m04_span_memory_conformance_forbids_owned_gdt_tss_terminal"
+}
+if ($EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -and
+    $EnableM02Ud2VectorStateProbe) {
+    Write-Failure "m04_span_memory_conformance_forbids_m02_ud2_vector_state"
 }
 
 if (-not [System.BitConverter]::IsLittleEndian) {

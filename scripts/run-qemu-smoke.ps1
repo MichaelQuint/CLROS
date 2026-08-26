@@ -49,6 +49,7 @@ param(
     [switch] $EnableM02NormalizedInterruptFramePageProbe,
     [switch] $EnableM02OwnedIdtGatePopulationProbe,
     [switch] $EnableM02IdtrContinuedExecutionProbe,
+    [switch] $EnableM02Ud2VectorStateProbe,
     [switch] $EnableM04IndependentEndianConformanceProbe,
     [switch] $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe,
     [switch] $SkipImageBuild
@@ -331,6 +332,36 @@ $script:M02IdtrContinuedExecutionForbiddenMarkers = @(
     "TEST_FAIL"
     $script:M02IdtrContinuedExecutionHostOnlyMarker
     $script:M02OwnedIdtGatePopulationReadyMarker
+)
+$script:M02Ud2VectorStateReadyMarker =
+    "CLROS_M02_013_READY vector=6 errorCodePresent=false errorCode=0 ud2RipMatched=true registerFields=23 registerStateCaptured=true registerStateMatched=true ownedGdtLoaded=true ownedTssLoaded=true ownedIdtrLoaded=true ownedCom1=true faultTriggered=true terminalHalt=true markerTransport=ownedCom1 postExitBootServices=false"
+$script:M02Ud2VectorStateHostOnlyMarker =
+    "CLROS_M02_013_HOST_READY requestBytes=32 resultBytes=72 ud2Bytes=2 vector=6 errorCodePresent=false errorCode=0 auditFields=23 probeEnabled=false executionRequested=false executionAttempted=false syntheticObservation=true guestExecution=false faultTriggered=false idtrLoaded=false postExitBootServices=false"
+$script:M02Ud2VectorStateHostOnlyMarkerPrefix =
+    "CLROS_M02_013_HOST_READY"
+$script:M02Ud2VectorStateRequiredMarkers = @(
+    "OS_BOOT_OK"
+    "TEST_PASS boot.sequence"
+    "OS_SMOKE_PASS"
+    "TEST_START m02.013"
+    $script:M02Ud2VectorStateReadyMarker
+    "TEST_PASS m02.013"
+)
+$script:M02Ud2VectorStateOrderedMarkers = @(
+    $script:M02Ud2VectorStateRequiredMarkers
+)
+$script:M02Ud2VectorStateUniqueMarkers = @(
+    $script:M02Ud2VectorStateRequiredMarkers
+)
+$script:M02Ud2VectorStateForbiddenMarkers = @(
+    "M02_UD2_VECTOR_STATE_VERIFY_FAILED"
+    "TEST_FAIL m02.013 vector_or_register_mismatch"
+    "TEST_FAIL"
+    $script:M02Ud2VectorStateHostOnlyMarkerPrefix
+    $script:M02Ud2VectorStateHostOnlyMarker
+    $script:M02NormalizedInterruptFramePageReadyMarker
+    $script:M02OwnedIdtGatePopulationReadyMarker
+    $script:M02IdtrContinuedExecutionReadyMarker
 )
 $script:M04IndependentEndianConformanceReadyMarker =
     "CLROS_M04_002_READY readVectors=25 reverseVectors=7 byteSeries=5 uint16Series=7 fingerprint=E81E4451E8D999F6 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail"
@@ -703,6 +734,109 @@ function Test-M02IdtrContinuedExecutionOwnedMarker {
         $script:M02IdtrContinuedExecutionReadyMarker.StartsWith(
             $normalized,
             [System.StringComparison]::Ordinal)
+}
+
+function Test-M02Ud2VectorStateOwnedMarker {
+    param(
+        [AllowNull()] [string] $Marker
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Marker)) {
+        return $false
+    }
+
+    $normalized = $Marker.Trim()
+    if ($normalized.StartsWith(
+            "TEST_START m02.013",
+            [System.StringComparison]::Ordinal) -or
+        $normalized.StartsWith(
+            "TEST_PASS m02.013",
+            [System.StringComparison]::Ordinal) -or
+        $normalized.StartsWith(
+            "CLROS_M02_013_READY",
+            [System.StringComparison]::Ordinal)) {
+        return $true
+    }
+
+    return $normalized.StartsWith(
+        "CLROS_M02_013",
+        [System.StringComparison]::Ordinal)
+}
+
+function Test-M02Ud2VectorStateTerminalMarkerLine {
+    param(
+        [AllowNull()] [string] $Line
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Line)) {
+        return $false
+    }
+
+    $normalized = $Line.Trim()
+    foreach ($prefix in @(
+            "OS_",
+            "TEST_",
+            "CLROS_",
+            "M01_",
+            "M02_",
+            "M03_",
+            "M04_",
+            "EFI_",
+            "UEFI_",
+            "BOOT_")) {
+        if ($normalized.StartsWith(
+                $prefix,
+                [System.StringComparison]::Ordinal)) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Assert-M02Ud2VectorStateTerminalTranscript {
+    param(
+        [string] $SerialLogPath
+    )
+
+    $resolvedPath = if ([System.IO.Path]::IsPathRooted($SerialLogPath)) {
+        [System.IO.Path]::GetFullPath($SerialLogPath)
+    }
+    else {
+        [System.IO.Path]::GetFullPath((Join-Path $root $SerialLogPath))
+    }
+    if (-not (Test-Path -LiteralPath $resolvedPath -PathType Leaf)) {
+        throw "m02_ud2_vector_state_serial_log_missing"
+    }
+
+    $terminalMarkers = @(
+        Get-Content -LiteralPath $resolvedPath | Where-Object {
+            Test-M02Ud2VectorStateTerminalMarkerLine -Line $_
+        } | ForEach-Object {
+            $_.Trim()
+        }
+    )
+    $smokeIndex = [System.Array]::IndexOf(
+        $terminalMarkers,
+        "OS_SMOKE_PASS")
+    if ($smokeIndex -lt 0) {
+        throw "m02_ud2_vector_state_smoke_terminal_missing"
+    }
+
+    $expectedTail = @(
+        "TEST_START m02.013",
+        $script:M02Ud2VectorStateReadyMarker,
+        "TEST_PASS m02.013"
+    )
+    if ($terminalMarkers.Count -ne $smokeIndex + 1 + $expectedTail.Count) {
+        throw "m02_ud2_vector_state_post_smoke_sequence_invalid"
+    }
+    for ($index = 0; $index -lt $expectedTail.Count; $index++) {
+        if ($terminalMarkers[$smokeIndex + 1 + $index] -cne
+            $expectedTail[$index]) {
+            throw "m02_ud2_vector_state_post_smoke_sequence_invalid"
+        }
+    }
 }
 
 function Merge-QemuSmokeMarkerList {
@@ -3806,7 +3940,53 @@ try {
         exit 1
     }
 
+    if ($EnableM02Ud2VectorStateProbe) {
+        $m02Ud2VectorStatePrerequisites = @(
+            "EnableM01LoadedImageStackProbe",
+            "EnableM01LiveAllocatorProbe",
+            "EnableM01OwnedPagingProbe",
+            "EnableM02SafeStubProbe",
+            "EnableM02CheckedPortIoBindingProbe",
+            "EnableM02Com1OwnedPortIoProbe",
+            "EnableM02OwnedCom1ReadyProbe",
+            "EnableM02PanicSafeOwnedCom1Probe"
+        )
+        foreach ($prerequisiteName in $m02Ud2VectorStatePrerequisites) {
+            if ($PSBoundParameters.ContainsKey($prerequisiteName) -and
+                -not [bool]$PSBoundParameters[$prerequisiteName]) {
+                Write-Host (
+                    "TEST_FAIL qemu.smoke.invalid_args " +
+                    "m02_ud2_vector_state_probe_explicit_false_prerequisite " +
+                    "property=" + $prerequisiteName)
+                exit 1
+            }
+        }
+
+        $EnableM01LoadedImageStackProbe =
+            [System.Management.Automation.SwitchParameter]::new($true)
+        $EnableM01LiveAllocatorProbe =
+            [System.Management.Automation.SwitchParameter]::new($true)
+        $EnableM01OwnedPagingProbe =
+            [System.Management.Automation.SwitchParameter]::new($true)
+        $EnableM02SafeStubProbe =
+            [System.Management.Automation.SwitchParameter]::new($true)
+        $EnableM02CheckedPortIoBindingProbe =
+            [System.Management.Automation.SwitchParameter]::new($true)
+        $EnableM02Com1OwnedPortIoProbe =
+            [System.Management.Automation.SwitchParameter]::new($true)
+        $EnableM02OwnedCom1ReadyProbe =
+            [System.Management.Automation.SwitchParameter]::new($true)
+        $EnableM02PanicSafeOwnedCom1Probe =
+            [System.Management.Automation.SwitchParameter]::new($true)
+        Write-Host (
+            "QEMU_SCRIPT_M02_UD2_VECTOR_STATE_PREREQUISITES status=implied " +
+            "m01LoadedImageStack=true m01LiveAllocator=true ownedPaging=true " +
+            "m02SafeStub=true checkedPortIoBinding=true com1OwnedPortIo=true " +
+            "ownedCom1Ready=true panicSafeOwnedCom1=true")
+    }
+
     if (($EnableM02OwnedGdtTssTerminalProbe -or
+            $EnableM02Ud2VectorStateProbe -or
             $EnableM02GuardedIstStackAllocationProbe -or
             $EnableM02OwnedX64GdtEncodingProbe -or
             $EnableM02PanicSafeOwnedCom1Probe -or
@@ -4192,6 +4372,40 @@ try {
         )
     }
 
+    if ($EnableM02Ud2VectorStateProbe) {
+        $requiredMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $requiredMarkers
+                $script:M02Ud2VectorStateRequiredMarkers
+            )
+        )
+        $orderedMarkersBeforeTerminal = @(
+            $orderedMarkers | Where-Object {
+                $_ -cne "OS_BOOT_OK" -and
+                $_ -cne "TEST_PASS boot.sequence" -and
+                $_ -cne "OS_SMOKE_PASS"
+            }
+        )
+        $orderedMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $orderedMarkersBeforeTerminal
+                $script:M02Ud2VectorStateOrderedMarkers
+            )
+        )
+        $uniqueMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $uniqueMarkers
+                $script:M02Ud2VectorStateUniqueMarkers
+            )
+        )
+        $forbiddenMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $forbiddenMarkers
+                $script:M02Ud2VectorStateForbiddenMarkers
+            )
+        )
+    }
+
     if ($RequireNativeAppMarkers) {
         foreach ($marker in $nativeAppRequiredMarkers) {
             if ($requiredMarkers -notcontains $marker) {
@@ -4381,6 +4595,26 @@ try {
         (Format-QemuSmokeBoolean $DryRun.IsPresent) +
         " profileRequired=17 profileOrdered=17 profileUnique=6 profileForbidden=5")
     Write-Host (
+        "QEMU_SCRIPT_M02_UD2_VECTOR_STATE_PROBE enabled=" +
+        (Format-QemuSmokeBoolean $EnableM02Ud2VectorStateProbe.IsPresent) +
+        " panicSafeOwnedCom1=" +
+        (Format-QemuSmokeBoolean $EnableM02PanicSafeOwnedCom1Probe.IsPresent) +
+        " normalizedInterruptFrame=" +
+        (Format-QemuSmokeBoolean $EnableM02NormalizedInterruptFramePageProbe.IsPresent) +
+        " ownedIdtGatePopulation=" +
+        (Format-QemuSmokeBoolean $EnableM02OwnedIdtGatePopulationProbe.IsPresent) +
+        " idtrContinuedExecution=" +
+        (Format-QemuSmokeBoolean $EnableM02IdtrContinuedExecutionProbe.IsPresent) +
+        " ownedGdtTssTerminal=" +
+        (Format-QemuSmokeBoolean $EnableM02OwnedGdtTssTerminalProbe.IsPresent) +
+        " buildEfi=" +
+        (Format-QemuSmokeBoolean $BuildEfi.IsPresent) +
+        " skipImageBuild=" +
+        (Format-QemuSmokeBoolean $SkipImageBuild.IsPresent) +
+        " dryRun=" +
+        (Format-QemuSmokeBoolean $DryRun.IsPresent) +
+        " profileRequired=6 profileOrdered=6 profileUnique=6 profileForbidden=8")
+    Write-Host (
         "QEMU_SCRIPT_M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE enabled=" +
         (Format-QemuSmokeBoolean $EnableM04IndependentEndianConformanceProbe.IsPresent) +
         " buildEfi=" +
@@ -4515,6 +4749,93 @@ try {
         Write-Host (
             "TEST_FAIL qemu.smoke.invalid_args " +
             "m02_idtr_continued_execution_marker_requires_typed_profile")
+        exit 1
+    }
+
+    if ($EnableM02Ud2VectorStateProbe -and
+        -not $EnableM02PanicSafeOwnedCom1Probe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_ud2_vector_state_probe_requires_panic_safe_owned_com1")
+        exit 1
+    }
+
+    if ($EnableM02Ud2VectorStateProbe -and
+        $EnableM02OwnedGdtTssTerminalProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_ud2_vector_state_probe_forbids_owned_gdt_tss_terminal")
+        exit 1
+    }
+
+    if ($EnableM02Ud2VectorStateProbe -and
+        $EnableM02NormalizedInterruptFramePageProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_ud2_vector_state_probe_forbids_normalized_interrupt_frame_page_probe")
+        exit 1
+    }
+
+    if ($EnableM02Ud2VectorStateProbe -and
+        $EnableM02OwnedIdtGatePopulationProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_ud2_vector_state_probe_forbids_owned_idt_gate_population_probe")
+        exit 1
+    }
+
+    if ($EnableM02Ud2VectorStateProbe -and
+        $EnableM02IdtrContinuedExecutionProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_ud2_vector_state_probe_forbids_idtr_continued_execution_probe")
+        exit 1
+    }
+
+    if ($EnableM02Ud2VectorStateProbe -and
+        $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_ud2_vector_state_probe_forbids_m04_span_memory_conformance_probe")
+        exit 1
+    }
+
+    if ($EnableM02Ud2VectorStateProbe -and -not $BuildEfi) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_ud2_vector_state_probe_requires_build_efi")
+        exit 1
+    }
+
+    if ($EnableM02Ud2VectorStateProbe -and $SkipImageBuild) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_ud2_vector_state_probe_forbids_skip_image_build")
+        exit 1
+    }
+
+    if ($EnableM02Ud2VectorStateProbe -and
+        -not [string]::IsNullOrWhiteSpace($M01RawObservationLog)) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_ud2_vector_state_probe_forbids_m01_raw_observation_log")
+        exit 1
+    }
+
+    $userRequestedM02Ud2VectorStateMarker = @(
+        ConvertTo-QemuSmokeMarkerList -Values @(
+            $RequireMarker
+            $RequireOrderedMarker
+            $RequireUniqueMarker
+        ) | Where-Object {
+            Test-M02Ud2VectorStateOwnedMarker -Marker $_
+        }
+    ).Count -ne 0
+    if (-not $EnableM02Ud2VectorStateProbe -and
+        $userRequestedM02Ud2VectorStateMarker) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_ud2_vector_state_marker_requires_typed_profile")
         exit 1
     }
 
@@ -4805,8 +5126,10 @@ try {
         (Format-QemuSmokeBoolean (
             $EnableM01OwnedPagingProbe.IsPresent -and
             -not $EnableM02OwnedGdtTssTerminalProbe.IsPresent -and
+            -not $EnableM02Ud2VectorStateProbe.IsPresent -and
             -not $DryRun.IsPresent))
-    if ($EnableM02OwnedGdtTssTerminalProbe.IsPresent) {
+    if ($EnableM02OwnedGdtTssTerminalProbe.IsPresent -or
+        $EnableM02Ud2VectorStateProbe.IsPresent) {
         $m01RawObservationConfig += " terminalProfile=true"
     }
     $m01RawObservationConfig +=
@@ -4955,6 +5278,10 @@ try {
                 "-EnableM02IdtrContinuedExecutionProbe"
         }
 
+        if ($EnableM02Ud2VectorStateProbe) {
+            $buildArguments += "-EnableM02Ud2VectorStateProbe"
+        }
+
         if ($EnableM04IndependentEndianConformanceProbe) {
             $buildArguments +=
                 "-EnableM04IndependentEndianConformanceProbe"
@@ -4990,7 +5317,8 @@ try {
     $runnerTimeoutSeconds = $TimeoutSeconds
     if (-not $DryRun -and
         $EnableM01OwnedPagingProbe -and
-        -not $EnableM02OwnedGdtTssTerminalProbe) {
+        -not $EnableM02OwnedGdtTssTerminalProbe -and
+        -not $EnableM02Ud2VectorStateProbe) {
         Write-Host "TEST_START m01.026.raw-observations"
         try {
             $m01RawObservationCapture =
@@ -5160,6 +5488,24 @@ try {
                 $_.Exception.Message)
             exit 91
         }
+    }
+
+    if ($EnableM02Ud2VectorStateProbe -and
+        -not $DryRun -and
+        $runnerExitCode -eq 0) {
+        try {
+            Assert-M02Ud2VectorStateTerminalTranscript `
+                -SerialLogPath $SerialLog
+        }
+        catch {
+            Write-Host (
+                "TEST_FAIL qemu.smoke.m02.013 terminal_transcript_invalid reason=" +
+                $_.Exception.Message)
+            exit 92
+        }
+        Write-Host (
+            "QEMU_SCRIPT_M02_UD2_VECTOR_STATE_TRANSCRIPT " +
+            "postSmokeSequence=true postPassMarkerNoise=false")
     }
     exit $runnerExitCode
 }
