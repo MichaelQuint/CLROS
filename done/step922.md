@@ -373,4 +373,3 @@ post-firmware diagnostics, hosted CoreCLR/.NET, NativeAOT Minimal API execution
 on CLROS, cloud-provider support, cloud readiness, security hardening, or
 production readiness. Gate 2 remains the only passing numbered completion
 gate; Gate 3 and Gate 4 remain `Fail`.
-
