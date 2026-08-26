@@ -26,6 +26,13 @@ temporary 4,096-byte normalized interrupt-entry page and releases it before
 ordinary memory-map capture. It does not execute the generated page or advance
 a numbered completion gate.
 
+A later, mutually exclusive default-off M02-011 profile now composes that
+frozen normalized-entry implementation with the owned-IDT gate materializer in
+one temporary three-page LoaderData arena. A NativeAOT artifact has passed the
+same-build verifier and a real QEMU/OVMF run has observed the exact M02-011
+population/readback/release transcript. The profile does not publish code,
+load IDTR, execute an interrupt entry, or advance a numbered completion gate.
+
 ## Implemented Behavior
 
 - The project uses `NoStdLib`, `PublishAot`, `EntryPointSymbol=EfiMain`, and `LinkerSubsystem=EFI_APPLICATION`.
@@ -691,10 +698,10 @@ production readiness.
 The default-false `EnableM02GuardedIstStackAllocationProbe` profile links
 `Diagnostics/GuardedISTStacksDoubleFaultPageFaultNMI.cs` immediately after the
 accepted M02-007 encoder and before the independent endian catalog. The current
-development closure is exactly 60 compile items and 73 source-authority inputs
+development closure is exactly 61 compile items and 74 source-authority inputs
 after the default-off M02-009 terminal stub, M02-010 normalized interrupt-entry
-page, and M04-003 span/memory catalog sources were added after this historically
-accepted slice.
+page, M02-011 owned-IDT materializer, and M04-003 span/memory catalog sources
+were added after this historically accepted slice.
 The flag requires `EnableM02OwnedX64GdtEncodingProbe=true`; the QEMU wrapper
 also requires `-BuildEfi`, rejects `-SkipImageBuild`, and rebuilds both the EFI
 artifact and raw image.
@@ -757,9 +764,10 @@ requirement.
 The default-false `EnableM02OwnedGdtTssTerminalProbe` profile links the reviewed
 `Diagnostics/OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs` source immediately
 after the M02-008 guarded-IST dependency and before the independent endian
-catalog. The current explicit development closure is therefore 60 compile items
-and 73 source-authority inputs after the later default-off M02-010 page and
-M04-003 catalog were inserted before and after the endian catalog respectively.
+catalog. The current explicit development closure is therefore 61 compile items
+and 74 source-authority inputs after the later default-off M02-010 page,
+M02-011 owned-IDT materializer, and M04-003 catalog were inserted around the
+endian catalog.
 The flag requires
 `EnableM02GuardedIstStackAllocationProbe=true`; the build and artifact-verifier
 paths propagate the same property and require the exact
@@ -935,17 +943,128 @@ frame, or fault was produced. This does not advance Gate 3 or any other
 numbered completion gate and does not prove hosted .NET, Kestrel, provider,
 CloudReady, security-hardening, or production behavior.
 
+### M02-011 owned IDT gate population EFI integration
+
+The default-false `EnableM02OwnedIdtGatePopulationProbe` profile links the
+frozen
+`Diagnostics/PopulateAllN256IDTVectorsOwnedGatesNever.cs` source immediately
+after the M02-010 normalized-entry source and before both M04 conformance
+sources. When enabled it defines exactly
+`M02_OWNED_IDT_GATE_POPULATION_PROBE`. It does not silently enable another M01,
+M02, or M04 profile. It is mutually exclusive with the standalone M02-010
+profile and the nonreturning M02-009 terminal profile, while it may be combined
+with the returning M04-002/M04-003 profiles.
+
+The same-build closure is exactly 61 compile items with compile-key SHA-256
+`413DDC044A3469F2F0AC51C1190609EDEAA8FBAC0D90BEB41AB2648559F6549E`
+and 74 source-authority inputs with closure SHA-256
+`2D24A9B956642DDE73162A34DC0E84A426B92E70D39A21B064003ABDE9171240`.
+The raw `OS.csproj` SHA-256 is
+`3FFB00E8BA1EBEAD05233CE2EEE860CF1AB6BAF8721B8BD29A2AB958F1C7B994`;
+its canonical evaluated XML-shape SHA-256 is
+`3F57CBB5DE5561C86A0AD1809534BD5D0E6DB8D8086BF667BA724666413F7181`.
+Post-restore evaluation found zero project references and zero ordinary
+references. The frozen M02-010 and M02-011 production sources have SHA-256
+`B66CD19B45E8198897B837DF9EDA6934AFBE087DC141C468BD0DB44E62724DA1`
+and
+`00EC277C3F6A0DB49CB54B34810202EE1D508318B29733C3F0392A7BC36CFA38`,
+respectively. The integrated `EfiEntry.cs` source has SHA-256
+`EBDFCFA71377045E271722EEA786900B5060137347B9322392ED465DC496C9CD`.
+
+After firmware console discovery and optional M04 checks, but before ordinary
+memory-map capture, the profile emits `TEST_START m02.011`, requires live
+`AllocatePages` and `FreePages`, and requests one three-page `EfiLoaderData`
+arena. Page zero receives the 256 normalized M02-010 slots, page one receives
+the 256 M02-011 IDT descriptors, and page two owns the modeled common target at
+delta 8,192 without being written or executed. A successful firmware allocation
+establishes ownership before returned-address validation, so zero, misaligned,
+noncanonical, wrapping, and canonical-hole-crossing addresses are still passed
+to exactly one three-page `FreePages` call.
+
+This probe finishes allocation, validation, materialization, readback, and
+release before the ordinary UEFI memory-map capture and never calls
+`ExitBootServices`. Therefore `EFI_BUFFER_TOO_SMALL`, memory-map descriptor
+growth, stale map keys, and `ExitBootServices` retry exhaustion are not M02-011
+outcomes; those statuses remain owned by the later memory-map and firmware-exit
+work.
+
+For a valid arena, the path calls M02-010 `Materialize` and
+`ValidateReadBack`, then M02-011 `Materialize` and `ValidateReadBack`. It audits
+every status and count, the 4,096-byte capacities, all 256 slots and gates, the
+nine/247 error-code classification, the fixed selector and IST policy, zero
+copied firmware gates, M02-010 FNV-1a64 `641BA73668C75E0E`, and M02-011
+normalized ownership fingerprint `8514F42EBDFC5D55`. Success is withheld until
+the arena is released. The independent M02-010 page SHA-256 for target delta
+8,192 is `650F6D5EB96B0E625C2FF5FB852C0A67C6CE68D0CB92CD4B137E4DBC28636630`.
+
+The SharpOS audit supplied only a reference concept for this slice:
+deterministic descriptor/stub bytes written in C#. CLROS copied no SharpOS
+source and did not adopt SharpOS's copied firmware vectors 32-255, its selector
+`0x38`, or its `sidt`/`lidt` installation approach. The profile creates all 256
+gates from CLROS-owned inputs with selector `0x0008`, copies zero firmware
+gates, and leaves IDTR untouched.
+
+Success emits exactly:
+
+```text
+TEST_START m02.011
+CLROS_M02_011_READY vectors=256 gates=256 gateBytes=16 tableBytes=4096 selector=8 present=256 dpl0=256 interruptGates=256 ownedHandlers=256 firmwareGatesCopied=0 nmiIst=3 doubleFaultIst=1 pageFaultIst=2 normalizedFnv1a64=8514F42EBDFC5D55 readBack=true guestPopulation=true loaderData=true allocationPages=3 allocationReleased=true stubExecution=false idtrLoaded=false faultTriggered=false markerTransport=uefiSerial postExitBootServices=false
+TEST_PASS m02.011
+```
+
+Any missing service/function, allocation or address rejection, materialization
+or readback mismatch, result-audit failure, or cleanup failure emits
+`M02_OWNED_IDT_GATE_POPULATION_FAILED` and
+`TEST_FAIL m02.011 guest_population_readback_or_cleanup`, suppresses the ready/
+pass records, and aborts the optional profile before ordinary memory-map
+capture.
+
+The direct NativeAOT build/verifier command is:
+
+```powershell
+.\scripts\build-efi-shell.ps1 `
+  -EnableM02OwnedIdtGatePopulationProbe `
+  -EfiOutputPath .\artifacts\efi\BOOTX64-M02-011.EFI `
+  -LogPath .\artifacts\logs\m02-011-efi-build.log
+```
+
+The verifier accepted a 72,192-byte PE32+ AMD64 EFI application, subsystem 10,
+entry RVA `0x5F30`, 145 exception/runtime records, the same-build
+`EfiMain`/serializer bindings, and no ordinary, bound, IAT, or delay imports.
+The real-QEMU build produced the following same-build artifact tuple:
+
+| Artifact | Bytes | Lines | SHA-256 |
+| --- | ---: | ---: | --- |
+| EFI | 72,192 | n/a | `433B087FB4D0ADBDE01DFF47F7DCB7DE7E061974ED7329138A5AD0B8250255ED` |
+| Serializer object | 336 | n/a | `DA97E50C95E479541B65EB3F96D9C6DED163735857650BEE9416324086D55C7B` |
+| Link map | 42,436 | 433 | `28A7CD7615E654E8C68DAE24B6865B1CB211B8DE3E5275BD26E35A09B3F719FD` |
+| Link response | 500 | 15 | `156EB9321ED154D124A4E4CA8403DA23EE94F01836D430DC6AA3458BACD22103` |
+| Link-evidence JSON | 398,982 | 5,159 | `A99E85F3720B3E76980091BAB8BC6AA23EB8A7EBBF22750D2C9502DE7DFE1CF7` |
+
+The real QEMU/OVMF profile required 17 records, ordered five, required the three
+M02-011 transcript records to be unique, and forbade three failure records. The
+streaming parser reported `status=Passed`, `terminal=Success`, `bytes=8430`,
+`lines=29`, `orderedSeen=5`, `outOfOrder=0`, `uniqueSeen=3`, and
+`duplicateUnique=0`; the ordinary path subsequently emitted `OS_SMOKE_PASS`.
+This proves only temporary, pre-`ExitBootServices` population, production
+readback, exact cleanup, and the observed marker stream. It does not prove
+executable publication, W^X/NX, common-entry code, `lidt`, an active IDT or
+GDT/TSS/IST path, slot execution, interrupt delivery, fault capture,
+post-firmware diagnostics, hosted .NET, Kestrel, cloud-provider behavior,
+CloudReady status, or production readiness. Gate 2 remains the only passing
+numbered gate; Gate 3 and Gate 4 remain `Fail`.
+
 ### M04-002 fixed endian-catalog EFI closure
 
 `EnableM04IndependentEndianConformanceProbe` is a default-false, independent
 profile. At its acceptance head it added exactly one explicit compile item:
 `std/no-runtime/shared/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs`.
 That historical accepted project closure had 53 compile items and the canonical
-build/verifier authority had 66 inputs. The current development tree has 60/73
+build/verifier authority had 66 inputs. The current development tree has 61/74
 after the later M02-005 writer, M02-006 reporter, M02-007 GDT encoder, and
 M02-008 guarded-IST arena contract plus the default-off M02-009 terminal stub,
-M02-010 normalized interrupt-entry page, and M04-003 span/memory catalog were
-added; this
+M02-010 normalized interrupt-entry page, M02-011 owned-IDT materializer, and
+M04-003 span/memory catalog were added; this
 does not alter or reinterpret the M04-002 artifact evidence below. The scripts reject
 compatibility counts, missing/reordered sources, stale hashes, wildcard imports,
 or a post-restore property mismatch.
@@ -1004,8 +1123,9 @@ terminal `EnableM02OwnedGdtTssTerminalProbe` profile is enabled. The explicit
 project links exactly one frozen source immediately after the M04-002 endian
 catalog and before `M01LoadedImageStackIntegration.cs`:
 `std/no-runtime/shared/SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs`.
-The current build and artifact-verifier closure is 59 compile items and 72
-source-authority inputs. Both scripts carry the exact property and
+At the accepted M04-003 source head the build and artifact-verifier closure was
+59 compile items and 72 source-authority inputs. The current development closure
+is 61/74 after the later M02-010 and M02-011 sources. Both scripts carry the exact property and
 `M04_SPAN_OVERLAP_MEMORY_CAST_UNSAFE_WIDTH_CONFORMANCE_PROBE` symbol without
 silently enabling the M04-002 dependency.
 
@@ -1307,9 +1427,11 @@ dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 .\scripts\build-efi-shell.ps1 -EnableM01LoadedImageStackProbe
 .\scripts\build-efi-shell.ps1 -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe
 .\scripts\build-efi-shell.ps1 -EnableM02NormalizedInterruptFramePageProbe -EfiOutputPath .\artifacts\efi\BOOTX64-M02-010.EFI -LogPath .\artifacts\logs\m02-010-efi-build.log
+.\scripts\build-efi-shell.ps1 -EnableM02OwnedIdtGatePopulationProbe -EfiOutputPath .\artifacts\efi\BOOTX64-M02-011.EFI -LogPath .\artifacts\logs\m02-011-efi-build.log
 .\scripts\build-efi-shell.ps1
 .\scripts\test-efi-artifact.ps1
 .\scripts\run-qemu-smoke.ps1 -DryRun -BuildEfi -EnableM02NormalizedInterruptFramePageProbe
+.\scripts\run-qemu-smoke.ps1 -DryRun -BuildEfi -EnableM02OwnedIdtGatePopulationProbe
 .\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -RequireMarker OS_SMOKE_PASS,UEFI_MEMORY_MAP_OWNED,BOOT_HANDOFF_READY,UEFI_MEMORY_MAP_NORMALIZED,BOOT_MEMORY_MAP_ACCEPTED,BOOT_MEMORY_REGIONS_READY,BOOT_MEMORY_REGION_COUNT
 .\scripts\build-efi-shell.ps1 -EnableUefiGoneSimulationProbe -EfiOutputPath artifacts/efi/BOOTX64-SIM.EFI -LogPath artifacts/logs/efi-shell-publish-sim.log
 .\scripts\run-qemu-smoke.ps1 -EfiArtifact artifacts/efi/BOOTX64-SIM.EFI -Image artifacts/images/os-sim.raw -SerialLog artifacts/logs/qemu-smoke-sim.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -MarkerPreset uefi-gone
@@ -1458,14 +1580,17 @@ Any next-step EFI build work must keep the freestanding constraints explicit. If
 6. Preserve M02-010's one-page LoaderData materialization, exact production
    readback, release, and distinct guest marker without treating the modeled
    common target as executed code or claiming an IDT, live frame, or fault.
-7. Move UEFI structs behind platform interfaces.
+7. Preserve M02-011's temporary three-page LoaderData population/readback,
+   exactly-once release, and distinct guest marker without treating owned IDT
+   bytes as an active IDT, executable entry path, interrupt, or fault.
+8. Move UEFI structs behind platform interfaces.
    - Keep the low-level UEFI table pointers isolated to the EFI boundary.
    - Expose only the narrow operations required for console diagnostics, memory-map ownership, firmware shutdown state, and optional filesystem/protocol discovery.
-8. Implement post-firmware COM1 before enabling any real firmware shutdown.
-9. Copy required firmware data, add the typed `ExitBootServices` call adapter,
+9. Implement post-firmware COM1 before enabling any real firmware shutdown.
+10. Copy required firmware data, add the typed `ExitBootServices` call adapter,
    and implement the bounded stale-map-key retry only after its M01/M02
    dependencies pass.
-10. Route additional platform interfaces through the UEFI-gone simulation path
+11. Route additional platform interfaces through the UEFI-gone simulation path
    as they are introduced.
-11. Replace permissive shell-only runtime placeholders with audited runtime
+12. Replace permissive shell-only runtime placeholders with audited runtime
    helpers as subsystems require them.

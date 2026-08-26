@@ -740,6 +740,90 @@ advance Gate 3 or prove hosted .NET, Kestrel, provider, CloudReady,
 security-hardening, or production behavior. `done/step920.md` is the durable
 ledger.
 
+### M02-011 owned IDT gate-population runner profile
+
+The default-false M02-011 profile is independent of the cumulative returning
+M01/M02 chain. It composes the frozen M02-010 normalized-slot and M02-011
+owned-IDT materializers directly, so it is mutually exclusive with both the
+standalone M02-010 profile and the nonreturning M02-009 terminal profile. It
+requires `-BuildEfi`, rejects `-SkipImageBuild`, and fails before build or guest
+execution for these stable invalid combinations:
+
+- `m02_owned_idt_gate_population_probe_forbids_owned_gdt_tss_terminal`;
+- `m02_owned_idt_gate_population_probe_forbids_normalized_interrupt_frame_page_probe`;
+- `m02_owned_idt_gate_population_probe_requires_build_efi`;
+- `m02_owned_idt_gate_population_probe_forbids_skip_image_build`.
+
+The default profile remains unchanged when the flag is absent. The enabled
+profile requires exactly 17 records, orders five, requires three to be unique,
+and forbids three. Its ordered records are:
+
+```text
+EFI_CONSOLE_READY
+TEST_START m02.011
+CLROS_M02_011_READY vectors=256 gates=256 gateBytes=16 tableBytes=4096 selector=8 present=256 dpl0=256 interruptGates=256 ownedHandlers=256 firmwareGatesCopied=0 nmiIst=3 doubleFaultIst=1 pageFaultIst=2 normalizedFnv1a64=8514F42EBDFC5D55 readBack=true guestPopulation=true loaderData=true allocationPages=3 allocationReleased=true stubExecution=false idtrLoaded=false faultTriggered=false markerTransport=uefiSerial postExitBootServices=false
+TEST_PASS m02.011
+UEFI_MEMORY_MAP_READY
+```
+
+The start, ready, and pass records are unique. `OS_SMOKE_FAIL`, every
+`TEST_FAIL`, and `M02_OWNED_IDT_GATE_POPULATION_FAILED` are forbidden. The
+profile may be combined with M04-002/M04-003; in that dry-run contract, both M04
+ready records remain before `TEST_START m02.011`, and the M02-011 pass remains
+before `UEFI_MEMORY_MAP_READY`.
+
+The real command was:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -BuildEfi `
+  -EnableM02OwnedIdtGatePopulationProbe `
+  -EfiArtifact .\artifacts\efi\BOOTX64-M02-011-QEMU.EFI `
+  -Image .\artifacts\images\m02-011-qemu.raw `
+  -SerialLog .\artifacts\logs\m02-011-qemu-serial.log `
+  -SummaryLog .\artifacts\logs\m02-011-qemu-summary.log
+```
+
+It used QEMU `11.0.50` (`v11.0.0-12631-g54e84cdc7a`), whose 25,272,968-byte
+executable has SHA-256
+`B396EB9B669F6282EC60F0D46E6ADDCA8C669992E67A34365BE44CD3CB97C9A7`,
+and the 3,653,632-byte OVMF image with SHA-256
+`33090CC07675BAA5190D9F1E84BF5176B33BCBFA9BACAC522961150CDB6DBB2A`.
+
+Artifact identities from the development run are:
+
+| Artifact | Bytes | Lines | SHA-256 |
+| --- | ---: | ---: | --- |
+| EFI | 72,192 | n/a | `433B087FB4D0ADBDE01DFF47F7DCB7DE7E061974ED7329138A5AD0B8250255ED` |
+| Raw image | 67,108,864 | n/a | `9E0EAC3BCE0AB7C9B5447739FAE1B57F44CC061DE052D8A3340742BF52AB3E4E` |
+| Serial log | 8,430 | 29 | `01CBB7C9179DB397FBD6C8E32D7A400667FEEE08119198F160966B661DF74600` |
+| Summary log | 4,636 | 49 | `8DB31C322981D112F3A6B31C427E84F628FBDAAC6D7B544E5CE21DEA8A8665C3` |
+
+The streaming classifier reported:
+
+```text
+SERIAL_MARKER_STREAM status=Passed terminal=Success bytes=8430 lines=29 invalidBytes=207 invalidLines=2 orderedSeen=5 outOfOrder=0 uniqueSeen=3 duplicateUnique=0
+QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=-1
+```
+
+The summary reported `QEMU_SMOKE_STATUS pass`, no missing or out-of-order
+markers, no duplicate unique marker, no forbidden-marker hit, and no failure
+reason. Independent exact-line parsing found the M02-011 start, complete ready,
+and pass records once each and found zero M02-011 failure records. The guest then
+continued through `UEFI_MEMORY_MAP_READY` and the unchanged `OS_SMOKE_PASS`.
+
+This profile proves only that one temporary three-page LoaderData arena held the
+M02-010 normalized slots, the M02-011 owned IDT bytes, and an untouched modeled
+common-target page; both produced pages passed their production readback; all
+three pages were released; and the ordinary pre-`ExitBootServices` smoke path
+continued. It does not prove executable publication, W^X/NX, common-entry code,
+`lidt`, an active IDT/GDT/TSS/IST path, slot execution, interrupt delivery,
+fault capture, post-firmware diagnostics, hosted .NET, Kestrel, provider,
+CloudReady, security-hardening, or production behavior.
+
 ### M04-002 fixed endian-catalog guest proof
 
 The M04-002 profile is opt-in and independent of the cumulative M01/M02 live
@@ -1648,6 +1732,21 @@ with 3,475 starts, 3,476 passes, zero failures, and exactly one terminal
 `TEST_PASS host.tests`; its 446,759-byte, 7,011-line log has SHA-256
 `A4D309584496E19218BE0C794B04411EF6F09F4C4F5C71548FF1893ADEAD2878`.
 
+M02-011 integration tests additionally pin its exact 17/5/3/3 dry-run profile,
+the unchanged 12/0/0/2 default profile, the frozen M02-010 profile, the combined
+M04-002/M04-003/M02-011 order, all four stable invalid-argument reasons, and
+rejection of missing, reordered, duplicated, host-only, legacy M02-010, and
+failure-injected transcripts. The same module builds both default and enabled
+NativeAOT EFI artifacts from the exact 61-item/74-input no-stdlib closure, runs
+the same-build verifier for each, proves default exclusion and enabled map
+presence, and validates the complete ordered source firewall, source-authority
+paths/hashes, configuration, and profile properties. The executable
+fake-Boot-Services group exercises the production leaf implementations in
+page-aligned unmanaged memory and proves distinct page-zero result failure,
+page-one result failure, readback corruption, and exact-address cleanup on every
+EFI-successful allocation. The accepted complete aggregate host-run identity is
+recorded in the M02-011 done step after final-source verification.
+
 The accepted r16 host gate also proves all 15 focused M01-026 groups:
 manifest/stage-three marker parity, switch forwarding, invalid-selector
 rejection, strict generated-shim compilation, shim/manifest parity, dry-run
@@ -1861,6 +1960,12 @@ QEMU evidence from 2026-05-21:
   readback, and release only. It does not prove executable publication, slot or
   common-target execution, an IDT/IDTR/IST, a normalized live CPU frame, a
   fault, or post-firmware diagnostics.
+- The M02-011 profile likewise returns to the ordinary smoke path after freeing
+  its temporary three-page LoaderData arena. Its exact guest marker proves slot
+  materialization/readback, IDT population/readback, zero copied firmware
+  gates, and release only. It does not prove executable publication, a common
+  entry implementation, `lidt`, active descriptor/IST state, slot execution,
+  interrupt delivery, a fault, or post-firmware diagnostics.
 - OVMF discovery is best-effort. Pass `-OvmfCode <path>` for deterministic runs.
 
 ### Streaming serial-marker state machine
