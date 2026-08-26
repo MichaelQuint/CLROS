@@ -172,6 +172,21 @@ order, all six unique records exactly once, no forbidden record, and ordinary
 continuation through `OS_SMOKE_PASS`. This is bounded processor evidence for
 the temporary reversible-IDTR transition on that recorded virtual platform.
 
+M02-013 adds only a host-audited disabled `ud2` request and synthetic
+`CpuFaultFrame` comparison contract. It aliases the destructive default from
+`Probes.EnableInvalidOpcodePanicProbe` and vector 6 from
+`FaultVectorCatalog.InvalidOpcode`; requires caller attestations for owned
+serial, GDT/TSS, IDT, and an invalid-opcode handler; validates a nonzero
+canonical two-byte modeled range; and rejects enabled, requested, or attempted
+execution. The synthetic audit checks vector, no-error-code metadata, zero error
+code, RIP at the first modeled `ud2` byte, and every remaining frame field in a
+deterministic order. It emits and invokes no instruction bytes, performs no I/O,
+loads no IDTR, installs no handler, triggers no fault, and adds no
+`BootSequence` phase. Its host marker reports `guestExecution=false`,
+`faultTriggered=false`, and `idtrLoaded=false`; the separate default-off
+EFI/QEMU integration owns any future guest marker and live evidence. Therefore
+the default managed and firmware-visible orders remain unchanged.
+
 `BootSequence.RunFaultInfrastructureReadiness` is a host-tested helper only. It emits `FAULT_INFRA_READY` for a successful `FaultInfrastructureReadinessResult` and `FAULT_INFRA_NOT_READY status=<status>` for a failed result. The default boot path does not call it yet.
 
 `BootSequence.RunExitBootServicesTransition` is a host-tested helper only. It consumes a `UefiExitBootServicesPlanResult`, emits `UEFI_EBS_TRANSITION_READY` only for a successful plan, emits `UEFI_EBS_TRANSITION_BLOCKED status=<status>` for blocked plans, and marks `FirmwareServicesGuard` as exited only in the successful case. The default boot path does not call it yet.

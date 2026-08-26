@@ -40,9 +40,18 @@ dependent M02-010/M02-011 bytes, publishes and synchronously invokes the exact
   QEMU/OVMF serial tuple proves those exact bounded observations on the recorded
   virtual platform; artifact and host evidence alone still do not substitute
   for that tuple.
-No ordinary
-boot phase loads an IDT, installs fault handlers, activates IST routing, routes
-a live CPU fault to panic, or preserves an owned serial path across real
+The M02-013 host leaf adds a disabled-by-default, allocation-free value contract
+for a future two-byte `ud2` observation. Its 32-byte request is bound to
+`Probes.EnableInvalidOpcodePanicProbe`, requires caller attestations for owned
+serial, GDT/TSS, IDT, and the invalid-opcode handler, and rejects enabled,
+requested, or attempted execution. Its 72-byte result can audit only synthetic
+`CpuFaultFrame` values, with deterministic first-mismatch reporting across all
+23 fields. It emits or invokes no bytes and supplies no guest fault evidence;
+the separate EFI/QEMU integration issue owns the live trigger and marker.
+
+No ordinary boot phase loads an IDT, installs fault handlers, activates IST
+routing, directs a live CPU fault to panic, or preserves an owned serial path
+across real
 `ExitBootServices`. The accepted M01-026 tuple uses firmware-visible serial plus
 an issue-specific host QMP/physical-memory capture mechanism while firmware is
 still available; that observation mechanism is not OS-owned diagnostics and
@@ -275,6 +284,39 @@ COM1/serial invocation.
   This is processor evidence only for the recorded temporary transition; it
   does not establish interrupt/fault delivery, executable common dispatch,
   active GDT/TSS/IST routing, real `ExitBootServices`, or Gate 3.
+- `DisabledDefaultUd2VectorState` is the M02-013 value-only host contract. Its
+  exact version-1 request/result layouts are 32 and 72 bytes with no managed
+  references. The request models exactly the two bytes beginning at a nonzero
+  canonical x64 address and rejects address wrap or a range that enters the
+  canonical hole. It aliases vector 6 from `FaultVectorCatalog.InvalidOpcode`
+  and its default state from `Probes.EnableInvalidOpcodePanicProbe` rather than
+  duplicating either authority.
+- `Plan` returns ready metadata only when the destructive probe remains off,
+  neither execution-request nor execution-attempt state is present, and all
+  four prerequisite attestations are supplied. `AuditSyntheticObservation`
+  additionally fixes the expected state to vector 6, no hardware error code,
+  zero error code, and RIP equal to the modeled first `ud2` byte. It compares
+  vector, error-code metadata, error code, RIP/RSP/RBP/RFLAGS, CR2/CR3, and all
+  general-purpose registers in a stable 23-field order, reporting the first
+  mismatch field and expected/observed values without allocation.
+- Focused host tests prove enum ordinals, unmanaged layouts and field offsets,
+  default/result integrity, hostile header/flag/reserved bytes, safety-state
+  rejection order, every missing prerequisite, low/high canonical boundaries,
+  overflow and canonical-hole crossing, all expected-state rules, every frame
+  mismatch, first-mismatch precedence, zero managed allocation, and exact-source
+  no-stdlib compilation. A source firewall proves that neither the legacy
+  `ud2; ret` byte plan nor any generated-byte invocation, I/O, descriptor load,
+  EFI entry, or boot-sequence path is referenced. The host-only transcript is:
+
+  ```text
+  TEST_START m02.013
+  CLROS_M02_013_HOST_READY requestBytes=32 resultBytes=72 ud2Bytes=2 vector=6 errorCodePresent=false errorCode=0 auditFields=23 probeEnabled=false executionRequested=false executionAttempted=false syntheticObservation=true guestExecution=false faultTriggered=false idtrLoaded=false postExitBootServices=false
+  TEST_PASS m02.013
+  ```
+
+  This transcript is host evidence only. It does not demonstrate a processor
+  executing `ud2`, vector-6 delivery, a loaded owned IDTR, register capture from
+  hardware, continuation after a fault, QEMU behavior, or any numbered gate.
 - `TssIstPlan` models the x64 TSS bytes needed for `RSP0` and IST entries, including double-fault IST stack top, stack-size, and guard-size validation.
 - `FaultInfrastructureReadiness` combines serial, IDT, IDTR, GDT, TSS/IST, and double-fault IST readiness into a single pre-privileged-install gate.
 - `BootSequence.RunFaultInfrastructureReadiness` emits host-tested `FAULT_INFRA_READY` or `FAULT_INFRA_NOT_READY status=<status>` markers from the readiness result without changing the default boot path.
@@ -1001,6 +1043,16 @@ the only passing numbered gate; Gate 3 and Gate 4 remain `Fail`.
 
 `FaultProbeStubPlan` is a byte-plan contract only. It intentionally does not execute `ud2` or write to address zero, and it is not QEMU fault evidence.
 
+`DisabledDefaultUd2VectorState` does not strengthen that byte plan into live
+execution. It accepts only caller-supplied synthetic frames while the probe is
+disabled and while execution is neither requested nor attempted. Its readiness
+booleans are attestations, not observations of installed GDT/TSS/IDT state or
+owned serial. The host marker explicitly reports guest execution, fault
+triggering, and IDTR loading as false. Live vector-6 delivery, terminal
+integer/control-register capture, owned-COM1 reporting, and QEMU/OVMF evidence
+remain owned by the separate M02-013 EFI integration. Safe continuation and
+descriptor restoration remain deferred beyond that terminal profile.
+
 `NullPageFaultProbePlan` is metadata only and is distinct from
 `FaultProbeStubPlan.NullWrite`: it models a supervisor read, not a write, and
 contains no executable stream. Its diagnostics-ready and handler-ready fields
@@ -1337,10 +1389,16 @@ stage.
    COM1 payload, M02-006's panic-safe route, and future post-firmware diagnostics
    as distinct evidence.
 7. Wire the COM1 backend contract into an owned serial writer only after generated stubs can be safely mapped executable and invoked.
-8. Add the controlled null-read and invalid-opcode probes behind `Probes.cs`
-   toggles only in their dedicated issues; M02-014 must consume the disabled
-   M01-015 intent after owned diagnostics exist.
-9. Wire real handler register capture into `CpuFaultFrame` through the deterministic fault-entry layout.
-10. Keep M02-003 binding readiness, M02-004 configuration, M02-005 bounded
+8. Preserve the M02-013 disabled host request/audit contract, then add the live
+   invalid-opcode trigger, terminal owned handler, integer/control-register
+   capture, owned-COM1 reporting, and QEMU/OVMF proof only in its dedicated
+   default-off EFI/QEMU issue. Keep the host marker distinct from its future
+   guest marker. Safe continuation and descriptor restoration remain separate
+   later work.
+9. Add the controlled null-read probe behind its `Probes.cs` toggle only in its
+   dedicated issue; M02-014 must consume the disabled M01-015 intent after
+   owned diagnostics exist.
+10. Wire real handler register capture into `CpuFaultFrame` through the deterministic fault-entry layout.
+11. Keep M02-003 binding readiness, M02-004 configuration, M02-005 bounded
    payload output, M02-006 panic-safe routing, and future post-EBS claims
    distinct.
