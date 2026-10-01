@@ -196,6 +196,15 @@ loads no IDTR, installs no handler, triggers no fault, and adds no
 `faultTriggered=false`, and `idtrLoaded=false`; it remains distinct from guest
 evidence.
 
+The M02-014 host leaf consumes the existing M01-015 null-read intent and audits
+five synthetic page-fault fields. It adds no phase, marker emission, or probe
+execution to `BootSequence`, and does not change `Probes` defaults. Readiness
+attestations are model inputs only. Active page-zero absence, actual null-read
+execution, owned descriptor/handler installation, early CR2 capture, saved
+flags/frame validation, and terminal behavior or recovery remain separate EFI
+integration work. The older null-write plan and accepted vector-6 profile
+cannot substitute for vector-14 evidence; completion gates remain unchanged.
+
 The separate default-off `EnableM02Ud2VectorStateProbe` profile now supplies
 accepted bounded guest evidence without adding a `BootSequence` phase. It runs
 only after the complete ordinary smoke transcript, owns two LoaderCode pages
