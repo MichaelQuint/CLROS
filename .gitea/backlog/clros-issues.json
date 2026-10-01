@@ -7302,7 +7302,7 @@
       ],
       "collisionLane": "lane:probes",
       "summary": "Trigger disabled-by-default ud2 and capture vector/register state.",
-      "currentEvidence": "Diagnostic descriptor/stub plans are host-tested; owned COM1, loaded GDT/TSS/IDT, and controlled live faults are unproven.",
+      "currentEvidence": "Accepted terminal UD2 profile: #53 evidence comment 13369, supplemental #501 comment 13364, PR #505 merged at 9791d60df1c0e8ca1f806df9233d0064ae696f3f, and done/step924.md. This proves one disabled-by-default pre-ExitBootServices vector-6/register capture profile, not reusable fault recovery or page-fault delivery.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Trigger disabled-by-default ud2 and capture vector/register state.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -7350,7 +7350,7 @@
         "docs/boot-order.md"
       ],
       "evidenceBoundary": "This issue proves only \"Trigger disabled-by-default ud2 and capture vector/register state.\" It does not by itself prove the M02 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M02-014",
