@@ -730,6 +730,22 @@ This establishes the scoped NativeAOT guest catalog only. Gate 4 remains
 See `docs/nativeaot-nostdlib-limits.md` for supported operations, the no-throw
 rejection policy, and reference provenance.
 
+### M04-005 layout contract boundary
+
+The source-pinned `ObjectArrayStringEETypeMethodTableLayoutContracts` now
+evaluates object/array/string size and offset metadata plus the fixed
+24-byte MethodTable prefix for NativeAOT 10.0.8, x64 little-endian. Independent
+literal/byte fixtures, adversarial status cases, zero-allocation checks and
+actual-source no-stdlib compilation pass. Step931 records this host evidence
+and its exact source identities; the combined full host gate is still pending.
+Issue #74 remains open for separately owned EFI integration and fresh guest
+execution of these scalar checks.
+
+Gate 4 remains **Fail**. Neither this contract nor later execution of its
+value checks establishes compiler-emitted physical object layout, live heap
+allocation, GC, metadata discovery, optional-tail access, dispatch,
+exception/unwind support, real `ExitBootServices` or hosted .NET/Kestrel.
+
 ## Unsupported Behavior
 
 Hardware fault diagnostics, allocator-owned mutable free-list installation from compact boot regions, complete UEFI encapsulation, ExitBootServices, owned serial/framebuffer, runtime helpers, storage, networking, app loading, socket bind/listen behavior, exported PAL socket/timer/thread/file contracts, hosted .NET 10, Kestrel, ISO generation, libvirt real boot, provider cloud import, CI, and hardening remain incomplete. Libvirt lifecycle planning and check-serial validation are host-only contract evidence; they do not connect to libvirt, start a VM, poll live serial output, or prove cleanup against a live domain.

@@ -328,6 +328,75 @@ Gate 4 remains **Fail**; no exception-delivery, GC, allocation, or general
 runtime capability follows from this catalog. #73/#507 closure follows the
 reviewed integration merge.
 
+### M04-005 version-pinned layout values
+
+`ObjectArrayStringEETypeMethodTableLayoutContracts` evaluates scalar
+descriptions of fixed canonical objects, zero-based single-dimensional arrays
+and strings for x64 little-endian NativeAOT 10.0.8. It uses
+`dotnet/dotnet` source commit `94ea82652cdd4e0f8046b5bd5becbd11461482ca`,
+identified by both pinned compiler/runtime package metadata. The source
+authorities are `ObjectLayout.h`, `MethodTable.cs`, `MethodTable.Constants.cs`,
+`EETypeBuilderHelpers.cs`, `TargetDetails.cs`, `GCHelpers.cpp` and
+`String.NativeAot.cs`. Reviewed hashes of the downloaded primary sources are
+recorded as ignored evidence; they are not runtime dependencies or committed
+first-party source.
+
+Offsets explicitly name their origin. Total raw/aligned sizes start at the
+allocation, including the eight-byte header before the object reference.
+
+| Item | Origin | Offset or size |
+| --- | --- | --- |
+| Header | Object reference | -8; eight bytes |
+| Method-table token | Object reference | 0 |
+| Fixed-object data | Object reference | 8; minimum total size 24 |
+| Array/string length | Object reference | 8 |
+| SZ-array data | Object reference | 16; total base 24 |
+| String UTF-16 data | Object reference | 12; raw base 22 includes one terminator |
+| Fixed method-table prefix | Method-table start | 24 bytes |
+| Flags/base/related token | Method-table start | 0 / 4 / 8 |
+| Vtable count/interface count/type hash | Method-table start | 16 / 18 / 20 |
+
+`Evaluate` admits one explicit compiler/target profile, checks shape and
+supported flags, validates base/component/count limits, computes raw size and
+eight-byte alignment, and compares a caller-declared numeric capacity. It
+reads no address and proves no actual storage availability. The prefix is a
+POD observation, not a native memory overlay. Related-type tokens and optional
+metadata counts are opaque; their values do not establish usable pointers,
+tail storage or dispatch support.
+
+The low ushort is a component size only when `HasComponentSize` is set.
+Supported fixed objects allow low extended flags zero or `0x0008`; this
+prevents the SharpOS-reference regression where nonzero low flags could be
+mistaken for a component size. The selected .NET 10 encoding identifies kind
+1 as a function pointer; it is unsupported here. Reserved/inconsistent
+encodings fail as invalid, while recognized unsupported shapes or dynamic,
+generic, variance and finalizer features receive unsupported statuses.
+
+Maximum counts are `0x7FFFFFC7` for SZ arrays and `0x3FFFFFDF` for strings.
+Multiplication promotes before evaluation; the largest admitted count times
+a ushort component fits ulong, including base and alignment. Numeric capacity
+is not a heap reservation. Failures return zero result payload, defaults do
+not succeed, and no allocation or writable input is involved.
+
+The host tests use 13 independent literal size rows, byte-layout fixtures,
+all 65,536 low-ushort encodings under both fixed/array interpretations,
+invalid profile/flag/shape/count/base/capacity cases, default/reference-free
+results and 40,000 warmed evaluations with zero allocations. The same actual
+source compiles with zero assembly references under the no-stdlib harness;
+metadata preserves `NoInlining` on `Evaluate`. This is host/compiler evidence,
+not inspection of a compiler-emitted managed object or guest execution.
+
+```text
+CLROS_M04_005_READY profile=ilc10.0.8-win-x64-le shapes=3 prefixBytes=24 referenceFilesRequired=false hostConformance=true guestIntegrated=false gate4=Fail
+```
+
+Issue #74 remains open for separately owned default-off EFI integration and
+fresh guest proof. Allocation, GC, type discovery, optional-tail traversal,
+dispatch, exception/unwind support and hosted .NET/Kestrel remain unsupported.
+
+See step931 for source identities, commands, setup failures and the pending
+combined full-gate boundary.
+
 ## Tests
 
 `tests/OS.HostTests/StdAsciiTests.cs` covers ASCII character classification,
