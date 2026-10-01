@@ -251,6 +251,70 @@ classification metadata only: it does not make the EFI shim callable by the
 kernel, replace the canonical `System.*` stubs, or promote any narrowly
 implemented, stubbed, or forbidden entry into Gate 4 evidence.
 
+### M04-004 integer operator conformance
+
+`OS.Std.Numerics.IndependentArithmeticShiftCastN64BitDivisionRemainder`
+provides 57 fixed vectors across 30 operations: unsigned 32/64-bit wrapping
+arithmetic, signed/unsigned right shifts and left shifts, signed/unsigned
+8/16/32-bit casts, numeric enum round trips for all eight integer underlying
+types, and signed/unsigned 64-bit division/remainder. It is a conformance
+runner, not a replacement for C# operators or a canonical `System.*` API.
+
+`TryGetVector` returns one immutable POD by index and clears its output for an
+invalid index. `Evaluate` takes runtime operands through a non-inlined method;
+`RunCatalog` executes every vector and checks the ordered input/result FNV-1a64
+fingerprint `45FDFA24DD72EA28`. All result defaults fail closed. No method
+allocates, uses references, reads reference files, or throws intentionally.
+Unknown operation codes, zero divisors, and the signed minimum/-1 pair return
+explicit statuses and zero output. The last pair is deliberately rejected for
+both division and remainder before executing either potentially trapping
+operation. This is the runner's no-exception policy, not proof of CLR exception
+behavior or the general remainder contract.
+
+Inputs and outputs are raw `ulong` patterns. Signed results extend their sign;
+unsigned 32-bit arithmetic truncates operands and zero extends results.
+Arithmetic/casts are explicitly unchecked; shift counts obey C#'s 31/63 masks,
+including negative and oversized counts. Enum conversions allow unnamed values;
+they do not implement enum metadata, validation, boxing, or `Enum.IsDefined`.
+Checked overflow, floating-point, native-width integers, managed exception
+delivery, allocation, and general runtime/BCL completeness remain out of scope.
+
+The host module independently checks literals and 6,300 operand/operation
+combinations with `BigInteger`, all unsupported operation codes, invalid
+indices, default values, and zero-allocation repeated execution. A separate
+C# 14/.NET 10 Release compilation with no standard library verifies that the
+same production file has zero assembly references. That is compiler/metadata
+evidence, not a NativeAOT EFI publish or guest execution.
+
+Historical `references/SharpOS-master/Kernel/Tests/CS/` supplied categories
+only. No source or test body was copied, and no reference is needed to run the
+tests. These source headers declare GPL v3 with a Classpath exception; this is
+not the modern CC0 SharpOS repository. Snapshot revision is unknown. Reviewed
+SHA-256 values:
+
+| File | SHA-256 |
+| --- | --- |
+| `Arithmetic.cs` | `59F153E85A97ECD4773EAE7BF399F32825848DE7CF45D2A94AB1B2069A13CA80` |
+| `BitwiseOperators.cs` | `EF960FF7128461C8BF87BC92303296C6689408BFA9E5232F3B776741F4B701D8` |
+| `SignedIntegerCast.cs` | `EB1957E8CB602FAAB4156595402218A0D431D49BDDC1E2EB7D8BF5020F30566C` |
+| `UnsignedIntegerCast.cs` | `D1DA1013BC99C5455B0E84D57885A910C13D74889272F9CD3EA0F6C39EE94984` |
+| `Enum.cs` | `5012D6E09EECB3D8ED7FCA2EB7C7EFF5E6184F89CE847C2A69ED4F08301D7E57` |
+
+The historical 64-bit division helper returns its dividend and explicitly
+records that division is unimplemented; it is not an oracle. CLROS uses
+independent literals, arbitrary-precision host calculations, and the documented
+[C# arithmetic](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/arithmetic-operators),
+[shift](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/bitwise-and-shift-operators),
+and [conversion](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/numeric-conversions)
+contracts.
+
+The host envelope is `TEST_START m04.004`,
+`CLROS_M04_004_READY vectors=57 fingerprint=45FDFA24DD72EA28 referenceFilesRequired=false hostConformance=true guestIntegrated=false gate4=Fail`,
+then `TEST_PASS m04.004`; failure emits `TEST_FAIL m04.004 <reason>`.
+Issue #73 stays open until a separately owned integration links this source
+into the explicit EFI closure and obtains fresh real QEMU/OVMF evidence.
+Gate 4 remains **Fail**.
+
 ## Tests
 
 `tests/OS.HostTests/StdAsciiTests.cs` covers ASCII character classification,

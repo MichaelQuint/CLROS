@@ -704,6 +704,22 @@ isolation, supervisor, restart, port-conflict, and crash-isolation evidence.
 - `scripts/run-ci-smoke.ps1` now records separate dry-run artifact lanes for the `app-args`, `app-exit`, `cctor-preflight`, `cctor-work-items`, `fetch-http`, `fetch-http-endpoint`, `http-static-tcp-response`, `manifest-env`, `nativeaot-heap`, and `pal-export` QEMU marker presets, including per-lane command, log, serial-log, summary-log, and marker-preset metadata. These lanes prove only the CI artifact contract and required-marker wiring. They are not real QEMU boot, native app argument-vector materialization, guest app-exit, class-constructor execution, NativeAOT heap bootstrap, PAL export consumption, NativeAOT runtime-helper completion, FetchApp, manifest loading from disk, process environment materialization, networking, HTTP GET, HTTP static TCP response, hosted .NET, Minimal API, or Kestrel evidence.
 - `scripts/build-efi-shell.ps1` publishes the no-stdlib EFI shell and stages `artifacts/efi/BOOTX64.EFI`.
 
+### M04-004 host arithmetic conformance boundary
+
+The fixed M04-004 catalog executes 57 vectors across 30 integer arithmetic,
+shift, cast, numeric enum, and 64-bit divide/remainder operations. Its host
+tests use an independent arbitrary-precision oracle for 6,300 combinations,
+check rejection/default behavior and zero allocation, and compile the same
+source without framework assembly references. Catalog fingerprint:
+`45FDFA24DD72EA28`. The exact host marker explicitly carries
+`hostConformance=true guestIntegrated=false gate4=Fail`.
+
+This adds no EFI compile item, probe, or boot phase. It does not establish
+NativeAOT guest conformance, CLR exception delivery, or runtime completeness.
+The real-QEMU acceptance requirement for #73 / M04-004 remains outstanding;
+Gate 4 remains **Fail**. See `docs/nativeaot-nostdlib-limits.md` for supported
+operations, the no-throw rejection policy, and reference provenance.
+
 ## Unsupported Behavior
 
 Hardware fault diagnostics, allocator-owned mutable free-list installation from compact boot regions, complete UEFI encapsulation, ExitBootServices, owned serial/framebuffer, runtime helpers, storage, networking, app loading, socket bind/listen behavior, exported PAL socket/timer/thread/file contracts, hosted .NET 10, Kestrel, ISO generation, libvirt real boot, provider cloud import, CI, and hardening remain incomplete. Libvirt lifecycle planning and check-serial validation are host-only contract evidence; they do not connect to libvirt, start a VM, poll live serial output, or prove cleanup against a live domain.
