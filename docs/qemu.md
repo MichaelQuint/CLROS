@@ -1186,6 +1186,42 @@ pre-`ExitBootServices` guest path only; no general span/memory surface, memory
 safety, runtime, hosted .NET 10, Minimal API/Kestrel, cloud, or production
 capability follows from it.
 
+### M04-004 arithmetic conformance profile
+
+The default-false `-EnableM04ArithmeticConformanceProbe` switch requires
+`-BuildEfi`, `-EnableM04IndependentEndianConformanceProbe`, and
+`-EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe`. It rejects
+`-SkipImageBuild` and terminal M02-009/M02-013 combinations. Dry-run example:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 -DryRun -BuildEfi `
+  -EnableM04IndependentEndianConformanceProbe `
+  -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe `
+  -EnableM04ArithmeticConformanceProbe
+```
+
+The minimal enabled profile requires 17 records, orders five records
+(`EFI_CONSOLE_READY`, M04-002, M04-003, M04-004, `UEFI_MEMORY_MAP_READY`), makes
+all three M04 ready records unique, and forbids `OS_SMOKE_FAIL`, `TEST_FAIL`,
+and each M04 failure sentinel. The exact new guest record is:
+
+```text
+CLROS_M04_004_READY vectors=57 fingerprint=45FDFA24DD72EA28 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
+```
+
+Controlled serial tests cover changed count/fingerprint, a host-only marker,
+missing/truncated/noisy/attached-prefix-or-suffix records, duplicates, wrong
+order, and failure after success. The generic runner also accepts an exact
+marker followed by a space-delimited diagnostic suffix; its pass alone is
+therefore insufficient for this issue's exact transcript acceptance. Fresh
+guest acceptance must separately count one ordinal-equal complete M04-004
+line, reject alternative same-prefix records, verify M04-003-before-M04-004-
+before-map order, require one `OS_SMOKE_PASS`, and reject every failure record.
+
+Step928 records host and build proof only. Real QEMU/OVMF evidence from clean,
+committed source remains required before #507 and #73 close. Gate 4 remains
+**Fail**; fixed-catalog execution does not prove general runtime support.
+
 ## Implemented Behavior
 
 - `tools/OS.QemuRunner` builds a QEMU command line for a raw or qcow2 GPT/FAT32 image, OVMF pflash, serial-file capture, AHCI disk attachment, and user-mode virtio networking.

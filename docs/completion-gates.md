@@ -714,9 +714,13 @@ source without framework assembly references. Catalog fingerprint:
 `45FDFA24DD72EA28`. The exact host marker explicitly carries
 `hostConformance=true guestIntegrated=false gate4=Fail`.
 
-This adds no EFI compile item, probe, or boot phase. It does not establish
-NativeAOT guest conformance, CLR exception delivery, or runtime completeness.
-The real-QEMU acceptance requirement for #73 / M04-004 remains outstanding;
+The separate #507 adapter now links the unchanged catalog through a default-off
+68-compile-item/81-source-input EFI profile, explicitly requiring M04-002 and
+M04-003. No boot phase is added. Actual-shim metadata, controlled adapter
+rejection, default/enabled publish, and same-build artifact checks pass; step928
+records those boundaries. This does not establish NativeAOT guest conformance,
+CLR exception delivery, or runtime completeness. The fresh real-QEMU acceptance
+requirement for #73 / M04-004 remains outstanding;
 Gate 4 remains **Fail**. See `docs/nativeaot-nostdlib-limits.md` for supported
 operations, the no-throw rejection policy, and reference provenance.
 

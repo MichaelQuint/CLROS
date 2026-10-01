@@ -8634,6 +8634,12 @@ public static unsafe class EfiEntry
             return;
         }
 #endif
+#if M04_ARITHMETIC_CONFORMANCE_PROBE
+        if (!WriteM04ArithmeticConformanceProbe(console, serial))
+        {
+            return;
+        }
+#endif
 #if M02_NORMALIZED_INTERRUPT_FRAME_PAGE_PROBE
         if (!WriteM02NormalizedInterruptFramePageProbe(
                 console,
@@ -9478,6 +9484,86 @@ public static unsafe class EfiEntry
     }
 
     private static void WriteM04SpanMemoryAscii(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial,
+        byte b0,
+        byte b1,
+        byte b2,
+        byte b3,
+        byte b4,
+        byte b5,
+        byte b6,
+        byte b7)
+    {
+        if (b0 != 0) Write(console, serial, b0);
+        if (b1 != 0) Write(console, serial, b1);
+        if (b2 != 0) Write(console, serial, b2);
+        if (b3 != 0) Write(console, serial, b3);
+        if (b4 != 0) Write(console, serial, b4);
+        if (b5 != 0) Write(console, serial, b5);
+        if (b6 != 0) Write(console, serial, b6);
+        if (b7 != 0) Write(console, serial, b7);
+    }
+#endif
+
+#if M04_ARITHMETIC_CONFORMANCE_PROBE
+    private static bool WriteM04ArithmeticConformanceProbe(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        OS.Std.Numerics.ArithmeticConformanceResult result =
+            OS.Std.Numerics.IndependentArithmeticShiftCastN64BitDivisionRemainder
+                .RunCatalog();
+        if (result.Status != OS.Std.Numerics.ArithmeticConformanceStatus.Passed ||
+            result.CompletedCount != 57 || result.FailedIndex != -1 ||
+            result.Fingerprint != 0x45FDFA24DD72EA28UL)
+        {
+            WriteM04ArithmeticConformanceFailureLine(console, serial);
+            return false;
+        }
+
+        WriteM04ArithmeticConformanceSuccessLine(console, serial);
+        return true;
+    }
+
+    private static void WriteM04ArithmeticConformanceSuccessLine(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        WriteM04ArithmeticAscii(console, serial, (byte)'C', (byte)'L', (byte)'R', (byte)'O', (byte)'S', (byte)'_', (byte)'M', (byte)'0');
+        WriteM04ArithmeticAscii(console, serial, (byte)'4', (byte)'_', (byte)'0', (byte)'0', (byte)'4', (byte)'_', (byte)'R', (byte)'E');
+        WriteM04ArithmeticAscii(console, serial, (byte)'A', (byte)'D', (byte)'Y', (byte)' ', (byte)'v', (byte)'e', (byte)'c', (byte)'t');
+        WriteM04ArithmeticAscii(console, serial, (byte)'o', (byte)'r', (byte)'s', (byte)'=', (byte)'5', (byte)'7', (byte)' ', (byte)'f');
+        WriteM04ArithmeticAscii(console, serial, (byte)'i', (byte)'n', (byte)'g', (byte)'e', (byte)'r', (byte)'p', (byte)'r', (byte)'i');
+        WriteM04ArithmeticAscii(console, serial, (byte)'n', (byte)'t', (byte)'=', (byte)'4', (byte)'5', (byte)'F', (byte)'D', (byte)'F');
+        WriteM04ArithmeticAscii(console, serial, (byte)'A', (byte)'2', (byte)'4', (byte)'D', (byte)'D', (byte)'7', (byte)'2', (byte)'E');
+        WriteM04ArithmeticAscii(console, serial, (byte)'A', (byte)'2', (byte)'8', (byte)' ', (byte)'r', (byte)'e', (byte)'f', (byte)'e');
+        WriteM04ArithmeticAscii(console, serial, (byte)'r', (byte)'e', (byte)'n', (byte)'c', (byte)'e', (byte)'F', (byte)'i', (byte)'l');
+        WriteM04ArithmeticAscii(console, serial, (byte)'e', (byte)'s', (byte)'R', (byte)'e', (byte)'q', (byte)'u', (byte)'i', (byte)'r');
+        WriteM04ArithmeticAscii(console, serial, (byte)'e', (byte)'d', (byte)'=', (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e');
+        WriteM04ArithmeticAscii(console, serial, (byte)' ', (byte)'h', (byte)'o', (byte)'s', (byte)'t', (byte)'C', (byte)'o', (byte)'n');
+        WriteM04ArithmeticAscii(console, serial, (byte)'f', (byte)'o', (byte)'r', (byte)'m', (byte)'a', (byte)'n', (byte)'c', (byte)'e');
+        WriteM04ArithmeticAscii(console, serial, (byte)'=', (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ', (byte)'g');
+        WriteM04ArithmeticAscii(console, serial, (byte)'u', (byte)'e', (byte)'s', (byte)'t', (byte)'I', (byte)'n', (byte)'t', (byte)'e');
+        WriteM04ArithmeticAscii(console, serial, (byte)'g', (byte)'r', (byte)'a', (byte)'t', (byte)'e', (byte)'d', (byte)'=', (byte)'t');
+        WriteM04ArithmeticAscii(console, serial, (byte)'r', (byte)'u', (byte)'e', (byte)' ', (byte)'g', (byte)'a', (byte)'t', (byte)'e');
+        WriteM04ArithmeticAscii(console, serial, (byte)'4', (byte)'=', (byte)'F', (byte)'a', (byte)'i', (byte)'l', 0, 0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM04ArithmeticConformanceFailureLine(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        WriteM04ArithmeticAscii(console, serial, (byte)'M', (byte)'0', (byte)'4', (byte)'_', (byte)'A', (byte)'R', (byte)'I', (byte)'T');
+        WriteM04ArithmeticAscii(console, serial, (byte)'H', (byte)'M', (byte)'E', (byte)'T', (byte)'I', (byte)'C', (byte)'_', (byte)'C');
+        WriteM04ArithmeticAscii(console, serial, (byte)'O', (byte)'N', (byte)'F', (byte)'O', (byte)'R', (byte)'M', (byte)'A', (byte)'N');
+        WriteM04ArithmeticAscii(console, serial, (byte)'C', (byte)'E', (byte)'_', (byte)'F', (byte)'A', (byte)'I', (byte)'L', (byte)'E');
+        WriteM04ArithmeticAscii(console, serial, (byte)'D', 0, 0, 0, 0, 0, 0, 0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM04ArithmeticAscii(
         EfiSimpleTextOutputProtocol* console,
         EfiSerialIoProtocol* serial,
         byte b0,

@@ -1405,7 +1405,8 @@ catalog and before `M01LoadedImageStackIntegration.cs`:
 `std/no-runtime/shared/SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs`.
 At the accepted M04-003 source head the build and artifact-verifier closure was
 59 compile items and 72 source-authority inputs. The current development closure
-is 62/75 after the later M02-010, M02-011, and M02-012 sources. Both scripts
+was 62/75 after the later M02-010, M02-011, and M02-012 sources; the current
+68/81 closure is described in the M04-004 section below. Both scripts
 carry the exact property and
 `M04_SPAN_OVERLAP_MEMORY_CAST_UNSAFE_WIDTH_CONFORMANCE_PROBE` symbol without
 silently enabling the M04-002 dependency.
@@ -1458,6 +1459,37 @@ EFI application. Gate 4 remains `Fail`. It does not prove general
 `System.Span<T>` or `MemoryMarshal`, unsafe memory safety, allocation, GC,
 exceptions, metadata or dispatch, real `ExitBootServices`, hosted .NET 10,
 Minimal API/Kestrel, cloud readiness, or production readiness.
+
+### M04-004 arithmetic conformance EFI integration
+
+`EnableM04ArithmeticConformanceProbe` is a default-false, returning profile
+implemented by supplemental #507. It requires both M04-003 and M04-002 switches
+explicitly and rejects the terminal M02-009/M02-013 profiles. The project links
+the unchanged arithmetic catalog immediately after M04-003: the explicit
+closure is now 68 compile items and 81 source-authority inputs. All build,
+post-restore evaluation, verifier, and QEMU layers carry the same property.
+
+The enabled adapter calls `RunCatalog()` once after M04-003 and before later
+M02 probes and memory-map capture. Passed status, completed count 57, failed
+index -1, and literal fingerprint `45FDFA24DD72EA28` must all match. Failure
+emits `M04_ARITHMETIC_CONFORMANCE_FAILED` and returns before downstream boot
+markers. The successful adapter emits:
+
+```text
+CLROS_M04_004_READY vectors=57 fingerprint=45FDFA24DD72EA28 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
+```
+
+The only compiler-shim addition is `MethodImplOptions.NoInlining = 0x0008`,
+following the concrete CS0117 publish failure. Metadata tests verify that bit
+on the actual evaluator and zero framework assembly references. No new
+runtime service or library is introduced. Host adapter tests inject malformed
+results and require the exact failure line with no success output.
+
+Default and enabled NativeAOT publishes and same-build verification pass in
+the implementation worktree. Step928 records those identities and the
+independent review. They do not yet establish fresh real-QEMU acceptance of
+#507/#73. See `docs/qemu.md` for the profile and strict transcript acceptance.
+Gate 4 remains **Fail**, including after any fixed-catalog guest proof.
 
 ### Linked instruction-publication serializer (M01-034)
 
