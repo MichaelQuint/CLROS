@@ -9446,7 +9446,7 @@
         "M04-003"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:test",
         "evidence:qemu",
@@ -9472,7 +9472,7 @@
       ],
       "collisionLane": null,
       "summary": "Add independent arithmetic, shift, cast, 64-bit division/remainder, and enum conversion tests derived from historical SharpOS.",
-      "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
+      "currentEvidence": "Step 929 records the accepted 57-vector host and fresh default/arithmetic QEMU matrix at source 07da84eb0305b680d43f72f4fd690d5ed6fe3e18: 3,516 host starts, 3,517 passes, zero failures; exact guest fingerprint 45FDFA24DD72EA28 once with default-profile absence. Arithmetic serial SHA256 0BC55D0331B587FEBC333283C4EC0F7F8F211B4747675C705511CF59D713AFFC. Supplemental #507 owns EFI integration. Reviewed PR #509 merge and issue evidence/read-back precede live closure; Gate 4 remains Fail.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add independent arithmetic, shift, cast, 64-bit division/remainder, and enum conversion tests derived from historical SharpOS.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -9530,7 +9530,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves only \"Add independent arithmetic, shift, cast, 64-bit division/remainder, and enum conversion tests derived from historical SharpOS.\" It does not by itself prove the M04 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M04-005",
@@ -9543,7 +9543,7 @@
       "labels": [
         "agent:blocked",
         "priority:p1",
-        "type:docs",
+        "type:implementation",
         "evidence:qemu",
         "component:runtime",
         "phase:m04-runtime",
@@ -9569,15 +9569,19 @@
       "summary": "Define object, array, string, EEType, and method-table layout contracts for the selected ILCompiler patch.",
       "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
       "implementationNotes": [
-        "Implement exactly one bounded slice: Define object, array, string, EEType, and method-table layout contracts for the selected ILCompiler patch.",
-        "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
-        "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
-        "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
-        "The proposed owned paths are exact for this slice: src/OS.Kernel/Runtime/ObjectArrayStringEETypeMethodTableLayoutContracts.cs, tests/OS.HostTests/ObjectArrayStringEETypeMethodTableLayoutContractsTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Complete the valid packet or socket transition required by: Define object, array, string, EEType, and method-table layout contracts for the selected ILCompiler patch.",
-        "Failure cases: Cover truncation, bad length/checksum, loss, duplication, reordering, stale neighbor/lease/cache entry, partial I/O, retransmission timeout, reset, half-close, cancellation, and capacity exhaustion as applicable.",
-        "Explicitly inapplicable here: UEFI map-key retry and PE relocation failures are outside this network slice.",
-        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
+        "Implement one host-testable, allocation-free layout/size contract for x64 little-endian NativeAOT ILCompiler 10.0.8. Supported shapes are fixed canonical objects, zero-based single-dimensional arrays, strings, and the fixed EEType/MethodTable prefix; this does not allocate or fabricate managed references.",
+        "Pin the selected ILCompiler/runtime-pack version and dotnet/dotnet source commit 94ea82652cdd4e0f8046b5bd5becbd11461482ca. Derive constants from ObjectLayout.h, MethodTable.cs, MethodTable.Constants.cs, EETypeBuilderHelpers.cs, TargetDetails.cs, and GCHelpers.cpp at that commit; preserve reviewed source identities in evidence. Do not use CoreCLR host addresses, SharpOS net8 layouts, or Cosmos structs as ABI authority.",
+        "Use C# 14/.NET 10, explicit primitive/POD inputs and status results, caller-owned bounded data, and no allocation, exception control flow, reflection, address dereferences, or canonical System.* replacement types in the production contract. Keep default/unknown results unsuccessful.",
+        "Document the coordinate origin of each offset: allocation start, managed-object reference, or method-table start. Keep raw object size distinct from the aligned allocation size and from payload length; count the negative object header and string terminator exactly once.",
+        "Recognize component size only when HasComponentSize is set. Use the selected .NET 10 kind/element/GC-pointer flags, reject inconsistent or reserved encodings, and explicitly decline unsupported multidimensional, pointer/byref/function-pointer, generic-definition, dynamic-type and optional-tail operations. Do not infer support for dispatch, GC descriptors or GC registration from a valid fixed prefix.",
+        "The positive cases are valid fixed-object, empty/nonempty SZ-array, empty/nonempty UTF-16 string and fixed method-table descriptors with independently derived offset/size expectations. Cover a fixed object whose low flag bits are nonzero while HasComponentSize is clear.",
+        "Failure cases cover unsupported compiler/architecture/endianness, default descriptors/results, negative or excessive component counts, invalid bases/component sizes/kind flags, short caller bounds, size or range overflow where representable by the API, and unsupported shapes. Failure must not return a usable size or mutate input/sentinel bytes.",
+        "The host marker follows executed production-contract checks and explicitly includes hostConformance=true guestIntegrated=false gate4=Fail. Verify reference-free result layouts, zero-allocation repeated evaluation, and no-stdlib compilation of the same production source without runtime network/reference-file access.",
+        "The exact owned paths remain src/OS.Kernel/Runtime/ObjectArrayStringEETypeMethodTableLayoutContracts.cs, tests/OS.HostTests/ObjectArrayStringEETypeMethodTableLayoutContractsTests.cs, docs/nativeaot-nostdlib-limits.md, and docs/completion-gates.md. Parent owns central docs, manifest, reserved done evidence and tracker/Git actions. Actual shared src/OS/Boot/EfiEntry.cs, OS.csproj, BootSequence.cs and Probes.cs require a separately claimed integration/collision-lane issue; the legacy forbidden-path spelling does not authorize edits.",
+        "type:implementation is proposed because the accepted scope adds an executable production contract and adversarial host tests; documentation records that behavior but is not the sole deliverable. Preserve agent:blocked, desiredState=open and dependency M04-004 until its reviewed closure; this correction is not a readiness transition.",
+        "Reserve a unique done/stepNN.md after implementation exists and include exact commands, logs, source/compiler identities, failures, deferred work and the evidence boundary.",
+        "Real QEMU/OVMF serial evidence remains mandatory for issue closure and requires separately reviewed default-off EFI integration with a fresh enabled EFI build, matching source/artifact sidecars and rebuilt image. The inherited marker-only QEMU command is a legacy placeholder, not an executable acceptance recipe. The separately owned integration must replace or extend it with its exact -BuildEfi, profile switches, and unique artifact/image/serial/summary paths; a prior enabled build alone, -DryRun, or a stale artifact cannot satisfy closure. The exact full guest marker must include hostConformance=false guestIntegrated=true gate4=Fail.",
+        "Explicit non-goals: managed-heap reservation, object/array/string allocation helpers, GC roots/barriers/collection, type discovery, optional-tail traversal, dispatch, exceptions/unwind, real ExitBootServices and hosted .NET/Kestrel. A host layout contract and later guest execution of its checks do not establish these capabilities."
       ],
       "referenceInfluences": [
         {
@@ -9592,14 +9596,15 @@
         }
       ],
       "acceptanceCriteria": [
-        "The repository implements and tests the scoped behavior: Define object, array, string, EEType, and method-table layout contracts for the selected ILCompiler patch.",
-        "Only declared owned paths are changed; lane-controlled integration files are touched only when this issue owns that lane.",
-        "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
-        "Affected canonical documentation is updated without promoting unsupported completion gates.",
-        "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Complete the valid packet or socket transition required by: Define object, array, string, EEType, and method-table layout contracts for the selected ILCompiler patch.",
-        "Applicable failure cases are asserted: Cover truncation, bad length/checksum, loss, duplication, reordering, stale neighbor/lease/cache entry, partial I/O, retransmission timeout, reset, half-close, cancellation, and capacity exhaustion as applicable.",
-        "The evidence report explicitly records these non-goals: UEFI map-key retry and PE relocation failures are outside this network slice."
+        "The production contract covers the declared x64 little-endian NativeAOT 10.0.8 shapes with reviewed source/compiler identities, explicit offset origins, and independent literal offset/raw-size/aligned-size expectations.",
+        "Valid fixed-object, empty/nonempty SZ-array, empty/nonempty string and fixed method-table cases execute through production code. String terminator/header accounting and the HasComponentSize-clear/nonzero-low-bits regression are explicitly asserted.",
+        "Invalid version/target/default/length/base/component/kind/flag/bounds/range inputs and unsupported shapes fail with deterministic statuses and unusable result metadata; failure leaves caller data and sentinels unchanged. Boundary arithmetic is checked within the actual representable API domain.",
+        "Production descriptors/results contain no managed references; repeated evaluation allocates zero bytes; the same source compiles under the established no-stdlib harness without assembly references. Ordinary CoreCLR-host objects and reference projects are not accepted as NativeAOT ABI proof.",
+        "Only declared owned paths change for the leaf. Any EFI/source-closure/script/fixture integration is owned by a separate claimed collision-lane issue. Source defaults remain safe and no allocation/GC/dispatch/runtime helper is marked complete.",
+        "Required host commands and stable TEST_START/TEST_PASS/TEST_FAIL m04.005 markers succeed. CLROS_M04_005_READY distinguishes hostConformance=true guestIntegrated=false gate4=Fail for host evidence from hostConformance=false guestIntegrated=true gate4=Fail for later guest evidence.",
+        "After separate EFI integration, fresh artifact/source authority, rebuilt image and real QEMU/OVMF serial logs show exactly the full expected guest marker once in its required order with no failure marker. Dry-run, substring/suffix matches and stale EFI artifacts do not satisfy guest acceptance.",
+        "Canonical docs and a uniquely reserved done step record commands, logs, hashes, failures, deferred work and the evidence boundary; before closure the issue receives the required reviewed-evidence comment marker. No unsupported completion gate is promoted.",
+        "No first-party native source, downloaded source snapshot, generated artifact, secret or unreviewed reference code is committed. Downloaded primary sources remain ignored research material."
       ],
       "requiredMarkers": [
         "TEST_START m04.005",
@@ -9619,7 +9624,7 @@
         "docs/nativeaot-nostdlib-limits.md",
         "docs/completion-gates.md"
       ],
-      "evidenceBoundary": "This issue proves only \"Define object, array, string, EEType, and method-table layout contracts for the selected ILCompiler patch.\" It does not by itself prove the M04 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
+      "evidenceBoundary": "This issue proves a version-pinned, bounded object/array/string and fixed EEType/MethodTable layout contract. Host evidence and later QEMU execution of contract checks are separate; neither establishes live heap allocation, GC, metadata discovery, optional-tail traversal, dispatch, exception/unwind support, real ExitBootServices, the M04 exit criterion, hosted .NET/Kestrel, cloud/provider support or production readiness. Gate 4 remains Fail.",
       "desiredState": "open"
     },
     {

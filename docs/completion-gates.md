@@ -704,7 +704,7 @@ isolation, supervisor, restart, port-conflict, and crash-isolation evidence.
 - `scripts/run-ci-smoke.ps1` now records separate dry-run artifact lanes for the `app-args`, `app-exit`, `cctor-preflight`, `cctor-work-items`, `fetch-http`, `fetch-http-endpoint`, `http-static-tcp-response`, `manifest-env`, `nativeaot-heap`, and `pal-export` QEMU marker presets, including per-lane command, log, serial-log, summary-log, and marker-preset metadata. These lanes prove only the CI artifact contract and required-marker wiring. They are not real QEMU boot, native app argument-vector materialization, guest app-exit, class-constructor execution, NativeAOT heap bootstrap, PAL export consumption, NativeAOT runtime-helper completion, FetchApp, manifest loading from disk, process environment materialization, networking, HTTP GET, HTTP static TCP response, hosted .NET, Minimal API, or Kestrel evidence.
 - `scripts/build-efi-shell.ps1` publishes the no-stdlib EFI shell and stages `artifacts/efi/BOOTX64.EFI`.
 
-### M04-004 host arithmetic conformance boundary
+### M04-004 arithmetic conformance boundary
 
 The fixed M04-004 catalog executes 57 vectors across 30 integer arithmetic,
 shift, cast, numeric enum, and 64-bit divide/remainder operations. Its host
@@ -714,11 +714,21 @@ source without framework assembly references. Catalog fingerprint:
 `45FDFA24DD72EA28`. The exact host marker explicitly carries
 `hostConformance=true guestIntegrated=false gate4=Fail`.
 
-This adds no EFI compile item, probe, or boot phase. It does not establish
-NativeAOT guest conformance, CLR exception delivery, or runtime completeness.
-The real-QEMU acceptance requirement for #73 / M04-004 remains outstanding;
-Gate 4 remains **Fail**. See `docs/nativeaot-nostdlib-limits.md` for supported
-operations, the no-throw rejection policy, and reference provenance.
+The separate #507 adapter now links the unchanged catalog through a default-off
+68-compile-item/81-source-input EFI profile, explicitly requiring M04-002 and
+M04-003. No boot phase is added. Actual-shim metadata, controlled adapter
+rejection, default/enabled publish, and same-build artifact checks pass; step928
+records those boundaries. Step929 adds the complete host gate and independently
+reviewed fresh default/enabled QEMU/OVMF tuple at source
+`07da84eb0305b680d43f72f4fd690d5ed6fe3e18`. The enabled guest executes the fixed
+57-vector catalog and emits fingerprint `45FDFA24DD72EA28` once, after M04-003
+and before memory-map capture, with no failure marker. The default emits no M04
+records. Exact firmware-return output is distinguished from the clean CLROS
+marker interval; raw runner noise counters are not represented as zero.
+This establishes the scoped NativeAOT guest catalog only. Gate 4 remains
+**Fail**; CLR exception delivery and runtime completeness remain unsupported.
+See `docs/nativeaot-nostdlib-limits.md` for supported operations, the no-throw
+rejection policy, and reference provenance.
 
 ## Unsupported Behavior
 

@@ -31,7 +31,17 @@ partial gates and many prerequisite contracts, but it has not yet passed
 `ExitBootServices`, owned-driver, live storage, live networking, native-app
 execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 
-### Current implementation checkpoint (updated through 2026-08-25)
+### Current implementation checkpoint (updated through 2026-10-01)
+
+- M04-004 now has independently reviewed host and fresh default/enabled
+  QEMU/OVMF evidence. The opt-in NativeAOT EFI profile executes 57 integer
+  arithmetic, shift, cast, enum and division/remainder vectors with fingerprint
+  `45FDFA24DD72EA28`; the default profile emits no M04 conformance markers.
+  The settled host gate passed 3,516 starts and 3,517 passes with zero failures.
+  See `done/step929.md` for exact source, artifact and serial identities,
+  including the corrected audit of OVMF output after firmware return.
+  This fixed-catalog proof leaves Gate 4 at **Fail**. The separate M02-014
+  page-fault contract remains host-only; no live null-read fault is claimed.
 
 - The 2026-08-06 local Gitea snapshot had **273 open issues** (issues only,
   excluding pull requests). That was ten fewer than the earlier 283-issue

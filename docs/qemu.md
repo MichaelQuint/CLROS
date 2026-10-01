@@ -1186,6 +1186,61 @@ pre-`ExitBootServices` guest path only; no general span/memory surface, memory
 safety, runtime, hosted .NET 10, Minimal API/Kestrel, cloud, or production
 capability follows from it.
 
+### M04-004 arithmetic conformance profile
+
+The default-false `-EnableM04ArithmeticConformanceProbe` switch requires
+`-BuildEfi`, `-EnableM04IndependentEndianConformanceProbe`, and
+`-EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe`. It rejects
+`-SkipImageBuild` and terminal M02-009/M02-013 combinations. Dry-run example:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 -DryRun -BuildEfi `
+  -EnableM04IndependentEndianConformanceProbe `
+  -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe `
+  -EnableM04ArithmeticConformanceProbe
+```
+
+The minimal enabled profile requires 17 records, orders five records
+(`EFI_CONSOLE_READY`, M04-002, M04-003, M04-004, `UEFI_MEMORY_MAP_READY`), makes
+all three M04 ready records unique, and forbids `OS_SMOKE_FAIL`, `TEST_FAIL`,
+and each M04 failure sentinel. The exact new guest record is:
+
+```text
+CLROS_M04_004_READY vectors=57 fingerprint=45FDFA24DD72EA28 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
+```
+
+Controlled serial tests cover changed count/fingerprint, a host-only marker,
+missing/truncated/noisy/attached-prefix-or-suffix records, duplicates, wrong
+order, and failure after success. The generic runner also accepts an exact
+marker followed by a space-delimited diagnostic suffix; its pass alone is
+therefore insufficient for this issue's exact transcript acceptance. Fresh
+guest acceptance must separately count one ordinal-equal complete M04-004
+line, reject alternative same-prefix records, verify M04-003-before-M04-004-
+before-map order, require one `OS_SMOKE_PASS`, and reject every failure record.
+
+Step928 records host/build proof. Step929 records the independently reviewed
+fresh default/enabled guest tuple from clean source
+`07da84eb0305b680d43f72f4fd690d5ed6fe3e18`, under
+`artifacts/orchestration-20261001/guest-07da84e-20261001T210936Z/`.
+Both wrapper runs exited zero. Arithmetic met all 17 required, five ordered,
+three unique and five forbidden constraints; the independent exact-line audit
+also passed. Enabled serial SHA-256:
+`0BC55D0331B587FEBC333283C4EC0F7F8F211B4747675C705511CF59D713AFFC`.
+Default emitted none of the opt-in M04 records.
+
+These returning EFI profiles hand control back to OVMF after `OS_SMOKE_PASS`.
+The generic runner reported 207 invalid bytes in two firmware display lines,
+then terminated QEMU after its 750 ms drain; native exit -1 is not an
+application-requested exit. The separate audit accepts only printable ASCII
+within the CLROS interval and the exact reviewed 6,947-byte firmware-return
+suffix for this pinned QEMU/OVMF tuple. Summary tail records containing ESC
+must exactly match the audited raw serial after the runner's documented
+trimming/truncation. Arbitrary noisy suffixes cannot satisfy this acceptance.
+The earlier attempt rejected by the overbroad helper is preserved in step929.
+
+#507/#73 closure follows the reviewed merge. Gate 4 remains **Fail**;
+fixed-catalog execution does not prove general runtime support.
+
 ## Implemented Behavior
 
 - `tools/OS.QemuRunner` builds a QEMU command line for a raw or qcow2 GPT/FAT32 image, OVMF pflash, serial-file capture, AHCI disk attachment, and user-mode virtio networking.

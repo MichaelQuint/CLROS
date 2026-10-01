@@ -54,6 +54,12 @@ owned GDT/TSS/IDT state, exact integer/control-register capture, and exact
 allocation-free owned-COM1 output. This profile is not a reusable boot phase and
 does not safely return.
 
+M02-014 now adds the disabled host null-read contract
+`SeparateDisabledDefaultPageFaultCR2ErrorCode`. It consumes M01-015 supplied-image
+absence evidence and audits five synthetic page-fault fields. It executes no
+fault and adds no live diagnostics capability; #54 remains open for separate
+EFI integration and real vector-14/CR2/error-code evidence.
+
 No ordinary boot phase loads an IDT, installs fault handlers, activates IST
 routing, directs a live CPU fault to panic, or preserves an owned serial path
 across real
@@ -350,6 +356,49 @@ COM1/serial invocation.
   recorded QEMU/OVMF tuple. It does not establish recovery, continuation,
   persistent descriptor ownership, W^X/NX, post-firmware diagnostics, or a
   numbered-gate promotion.
+- `SeparateDisabledDefaultPageFaultCR2ErrorCode` is the M02-014 host-only
+  null-read contract. Its unmanaged request consumes a successful M01-015
+  `NullPageFaultProbePlanResult`; default results, mapping intent without
+  supplied-image absence evidence, and corrupted access/privilege/error/CR2
+  expectations fail closed. The destructive default aliases
+  `Probes.EnableNullPointerPanicProbe`. Enabled, requested, or attempted
+  execution is rejected. Owned serial, GDT/TSS, IDT, and page-fault-handler
+  readiness are explicit caller attestations, not active processor evidence.
+- Its `Plan` checks a canonical four-level x64 instruction address outside
+  page zero. This address is metadata: it proves no executable byte span,
+  installed page table, ownership lifetime, or alignment requirement.
+  `AuditSyntheticObservation` compares vector 14, hardware-error-code presence,
+  the entire 64-bit error value equal to zero, CR2 equal to zero, and RIP equal
+  to that address, in that order. The result reports the first mismatch and
+  compared-field count. No low-bit mask hides extended/reserved error bits,
+  and the old null-write error code 2 is rejected.
+- The exact zero-error policy applies only to the planned ordinary supervisor
+  data read of a nonpresent page. It is not a general page-fault rule. Intel's
+  [SDM revision 090, Volume 3A, Interrupt 14, pp. 7-44–7-46](https://cdrdv2-public.intel.com/874240/325462-090-sdm-vol-1-2abcd-3abcd-4.pdf)
+  defines error bits, CR2, and the saved instruction pointer. A real handler
+  must preserve CR2 before another page fault overwrites it. This host leaf
+  does not validate saved flags/RF, CR3, stacks, GPRs, frame layout, or hardware
+  capture. A later adapter must account for RF being set in the saved image
+  for an ordinary fault-class exception, as specified in Intel's
+  [SDM Volume 3B, section 18.3.1.1, p. 18-9](https://cdrdv2-public.intel.com/825743/325462-sdm-vol-1-2abcd-3abcd-4.pdf).
+- Focused tests cover all 128 execution/readiness combinations, M01-015
+  authority and corruption rejection, canonical/page-zero boundaries, vector
+  values -1 through 256, every error/CR2 bit, deterministic mismatch precedence,
+  unmanaged values, and zero allocation across 30,000 warmed operations.
+  Accepted comparisons always report `IsGuestEvidence=false`,
+  `CapturedHardwareState=false`, and `FaultTriggered=false`. The source emits
+  no bytes, accesses no pointer, installs no handler, and triggers no fault.
+  Its distinct host transcript is:
+
+  ```text
+  TEST_START m02.014
+  CLROS_M02_014_HOST_READY vector=14 errorCodePresent=true errorCode=0 cr2=0 access=read auditFields=5 probeEnabled=false syntheticObservation=true hardwareStateCaptured=false faultTriggered=false guestExecution=false postExitBootServices=false
+  TEST_PASS m02.014
+  ```
+
+  Active mapping/lifetime, complete instruction spans, live frame capture,
+  terminal behavior or recovery, and fresh QEMU/OVMF evidence remain separate
+  integration work. This leaf does not change any completion gate.
 - `TssIstPlan` models the x64 TSS bytes needed for `RSP0` and IST entries, including double-fault IST stack top, stack-size, and guard-size validation.
 - `FaultInfrastructureReadiness` combines serial, IDT, IDTR, GDT, TSS/IST, and double-fault IST readiness into a single pre-privileged-install gate.
 - `BootSequence.RunFaultInfrastructureReadiness` emits host-tested `FAULT_INFRA_READY` or `FAULT_INFRA_NOT_READY status=<status>` markers from the readiness result without changing the default boot path.

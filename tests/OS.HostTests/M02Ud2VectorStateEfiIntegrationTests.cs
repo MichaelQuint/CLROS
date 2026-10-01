@@ -19,16 +19,16 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
         "TEST_FAIL m02.013 vector_or_register_mismatch";
     private const ulong ValidCodeAddress = 0x0020_0000UL;
     private const ulong ValidDataAddress = 0x0030_0000UL;
-    private const int ExpectedSourceInputCount = 80;
-    private const int ExpectedCompileCount = 67;
+    private const int ExpectedSourceInputCount = 81;
+    private const int ExpectedCompileCount = 68;
     private const string ExpectedSourceClosureSha256 =
-        "559999ac08d30b1ff5629a8240d9e822774adc215d5e43b80910297b0c1e5de2";
+        "a9748677402078d5407b80b93779a03f82833dc639eaebc4abe8a7266ccb6454";
     private const string ExpectedProjectSha256 =
-        "ff1ef01d1017123ece5dc5ef81965c488382240937f088f1f35b28e57967feea";
+        "556e462df5e801fd1c4780471c4c5979e5d8ff40e9559b1f9d56cccfe197757f";
     private const string ExpectedEntrySha256 =
-        "5bc413ee69931a454ef5f4b084106d8e3ab7df68c18351f785d2535b992fd7eb";
+        "c4fee2ef47d1beca9fa46a548741aab6994065568f1c8e3606a78f25180f8171";
     private const string ExpectedCompileSha256 =
-        "f118a012101e87abf5d1ac1299be82705b47942eae06abb669418977412d124c";
+        "2ed2f5ca764f944ec8bab4c7adbbcb80a4fad03448feb13ff33f898911b307ec";
     private const string ExpectedTransitionSha256 =
         "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     private const string HostReadyMarker =
