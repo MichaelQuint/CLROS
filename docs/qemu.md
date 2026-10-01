@@ -1218,9 +1218,28 @@ guest acceptance must separately count one ordinal-equal complete M04-004
 line, reject alternative same-prefix records, verify M04-003-before-M04-004-
 before-map order, require one `OS_SMOKE_PASS`, and reject every failure record.
 
-Step928 records host and build proof only. Real QEMU/OVMF evidence from clean,
-committed source remains required before #507 and #73 close. Gate 4 remains
-**Fail**; fixed-catalog execution does not prove general runtime support.
+Step928 records host/build proof. Step929 records the independently reviewed
+fresh default/enabled guest tuple from clean source
+`07da84eb0305b680d43f72f4fd690d5ed6fe3e18`, under
+`artifacts/orchestration-20261001/guest-07da84e-20261001T210936Z/`.
+Both wrapper runs exited zero. Arithmetic met all 17 required, five ordered,
+three unique and five forbidden constraints; the independent exact-line audit
+also passed. Enabled serial SHA-256:
+`0BC55D0331B587FEBC333283C4EC0F7F8F211B4747675C705511CF59D713AFFC`.
+Default emitted none of the opt-in M04 records.
+
+These returning EFI profiles hand control back to OVMF after `OS_SMOKE_PASS`.
+The generic runner reported 207 invalid bytes in two firmware display lines,
+then terminated QEMU after its 750 ms drain; native exit -1 is not an
+application-requested exit. The separate audit accepts only printable ASCII
+within the CLROS interval and the exact reviewed 6,947-byte firmware-return
+suffix for this pinned QEMU/OVMF tuple. Summary tail records containing ESC
+must exactly match the audited raw serial after the runner's documented
+trimming/truncation. Arbitrary noisy suffixes cannot satisfy this acceptance.
+The earlier attempt rejected by the overbroad helper is preserved in step929.
+
+#507/#73 closure follows the reviewed merge. Gate 4 remains **Fail**;
+fixed-catalog execution does not prove general runtime support.
 
 ## Implemented Behavior
 

@@ -1485,11 +1485,14 @@ on the actual evaluator and zero framework assembly references. No new
 runtime service or library is introduced. Host adapter tests inject malformed
 results and require the exact failure line with no success output.
 
-Default and enabled NativeAOT publishes and same-build verification pass in
-the implementation worktree. Step928 records those identities and the
-independent review. They do not yet establish fresh real-QEMU acceptance of
-#507/#73. See `docs/qemu.md` for the profile and strict transcript acceptance.
-Gate 4 remains **Fail**, including after any fixed-catalog guest proof.
+Step928 records the implementation-worktree publishes and review. Step929
+adds the complete host gate and fresh default/enabled QEMU/OVMF acceptance at
+source `07da84eb0305b680d43f72f4fd690d5ed6fe3e18`. Both rebuilt FAT images
+contain the independently verified EFI bytes, and both schema-three manifests
+match the 68/81 source closure. The enabled guest emits the exact 57-vector
+record once after M04-003 and before memory-map capture; default emits no M04
+records. See `docs/qemu.md` for the strict transcript and firmware-return
+boundary. Gate 4 remains **Fail**; this is one fixed-catalog guest execution.
 
 ### Linked instruction-publication serializer (M01-034)
 

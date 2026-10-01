@@ -318,10 +318,15 @@ source closure. A concrete CS0117 failure required only the standard
 retains that flag without framework assembly references. The adapter calls
 the catalog once and checks status, count 57, failed index -1, and the frozen
 fingerprint before its distinct `hostConformance=false guestIntegrated=true`
-record. Default/enabled publishes and controlled adapter checks pass, as
-recorded in step928. #73 remains open for fresh real-QEMU evidence and reviewed
-integration acceptance. Gate 4 remains **Fail**; no exception-delivery, GC,
-allocation, or general runtime capability follows from this catalog.
+record. Step928 records publishes and controlled adapter checks. Step929 adds
+the complete 3,517-pass host gate and independently reviewed fresh QEMU/OVMF
+proof from source `07da84eb0305b680d43f72f4fd690d5ed6fe3e18`: default has no M04
+records; enabled executes the exact catalog once with the expected fingerprint
+and order. Its serial SHA-256 is
+`0BC55D0331B587FEBC333283C4EC0F7F8F211B4747675C705511CF59D713AFFC`.
+Gate 4 remains **Fail**; no exception-delivery, GC, allocation, or general
+runtime capability follows from this catalog. #73/#507 closure follows the
+reviewed integration merge.
 
 ## Tests
 
