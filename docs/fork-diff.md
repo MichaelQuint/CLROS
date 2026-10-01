@@ -18,7 +18,7 @@ under `references/`.
 The project owner supplied a Telegram permission record identifying
 `daniilvaino/SharpOS` as CC0, explicitly permitting copying, and proposing
 direct consolidation with CLROS. Both the identified archive commit and the
-current reviewed upstream commit
+August-reviewed upstream commit
 `0c00476fa6d9cfebb6e83d5da34ab8fb1074163b` carry a top-level
 CC0-1.0 license. SharpOS-authored source is therefore eligible for selective
 adaptation. This does not relicense vendor code, the GPL ManagedDoom fixture,
@@ -34,7 +34,7 @@ timing, and exit code 42. `done/step076.md` reports a gated physical
 call. These are inspectable historical claims from another project, not CLROS
 boot or completion evidence.
 
-Upstream `main` at `0c00476fa6d9cfebb6e83d5da34ab8fb1074163b`
+The August-reviewed upstream `main` at `0c00476fa6d9cfebb6e83d5da34ab8fb1074163b`
 continues through step 165 and is 34 commits ahead of the archive. The reviewed
 comparison is
 `https://github.com/daniilvaino/SharpOS/compare/b80ee3a4175e1522d1a12ba7fe371a49da3207f5...0c00476fa6d9cfebb6e83d5da34ab8fb1074163b`.
@@ -118,6 +118,49 @@ Full USB/xHCI and interactive terminal/PowerShell/Terminal.Gui work are useful
 runtime breadth demonstrations, not prerequisites for the single-workload
 Minimal API appliance. SharpOS still has no network driver, so the live
 virtio-net/TCP/Kestrel prerequisites remain CLROS-owned.
+
+### Upstream steps 166-184 reviewed on 2026-10-01
+
+The latest reviewed revision is
+`dfad516b816d29b971d23ef116d4dbebeedcd25e` (2026-09-30), 65 commits beyond
+the August review. `docs/reference-map.md` records the source-to-issue
+crosswalk. The August revision and archive identities above are historical,
+not the latest upstream head.
+
+Prioritize the newly diagnosed root-walking, clock, and lifetime failures:
+
+- The GC resolver now represents a native frame with valid unwind codes but
+  no GC slot table separately from an unknown frame. A walker must continue
+  through that frame to find deeper roots; treating it as a managed ILC
+  trailer reads unrelated bytes, while treating it as end-of-stack loses roots.
+  Do not copy upstream's fallback that treats an unregistered record as a
+  kernel record: bind every table entry to a validated containing image. Also
+  reject overflowing/truncated section extents and distinguish an absent
+  managed-code section from positively identified managed code.
+- Precise root lookup must distinguish an interrupted instruction pointer from
+  the return address of a suspended call. Tests should retain objects reachable
+  only from older frames, including parked threads and interleaved native code.
+- HPET extension uses a signed 32-bit delta and a periodically refreshed epoch.
+  Its half-range sampling assumption and stated lack of SMP correctness are
+  mandatory limitations, not details to omit when adapting the idea.
+- Wait publication, timeout registration, app-generation cleanup, and freeing
+  stacks must be tested as one lifetime contract before hosted task workloads.
+- Allocation counters need independently verified observations under the
+  selected optimizing ILC. Upstream found that inlined reads around an
+  allocation could report zero even though its C# allocator updated the counter.
+
+Use upstream's common std manifest as a warning about duplicated file lists,
+not a reason to expand CLROS's no-stdlib EFI closure wholesale. Its current
+kernel remains net8/ILC8, and its optional CoreCLR fork and external toolchain
+are separate prerequisites. Its documented networking gap remains unchanged.
+Shell, USB security-key, CBOR and terminal features are optional later work for
+CLROS; none supplies live networking or Kestrel evidence.
+
+No upstream source was copied and no upstream build or guest run was performed
+in this review. Historical SharpOS (`references/SharpOS-master`) remains a
+different, GPL-licensed, test-concept-only reference. In particular its
+`Arithmetic.cs` has a placeholder 64-bit division helper; CLROS must derive
+independent expected results, never use that helper as an oracle.
 
 ### Boot and diagnostics
 

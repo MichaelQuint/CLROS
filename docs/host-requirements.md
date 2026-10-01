@@ -65,6 +65,38 @@ C:\Program Files\qemu\qemu-system-x86_64.exe
 C:\Program Files\qemu\share\edk2-x86_64-code.fd
 ```
 
+### Restore the pinned EFI runtime pack
+
+The EFI project selects NativeAOT runtime pack `10.0.8` through
+`ClrosRuntimePackagePath`. A normal solution restore can populate the SDK's
+newer runtime pack without populating this separately selected version.
+The EFI artifact verifier also needs the actual `10.0.8` package tree;
+an ordinary managed build alone does not establish that prerequisite.
+
+If the expected directory below is missing, restore the exact package through
+NuGet (do not rename another version's directory):
+
+```powershell
+Test-Path "$env:USERPROFILE\.nuget\packages\microsoft.netcore.app.runtime.nativeaot.win-x64\10.0.8"
+New-Item -ItemType Directory -Force artifacts/pinned-efi-runtime | Out-Null
+@'
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>
+  <ItemGroup>
+    <PackageDownload Include="Microsoft.NETCore.App.Runtime.NativeAOT.win-x64" Version="[10.0.8]" />
+  </ItemGroup>
+</Project>
+'@ | Set-Content artifacts/pinned-efi-runtime/Restore.csproj
+dotnet restore artifacts/pinned-efi-runtime/Restore.csproj --source https://api.nuget.org/v3/index.json --nologo
+```
+
+This restores a host prerequisite without changing the project's toolchain
+selection or weakening artifact checks. On 2026-10-01, the full host suite
+reported 19 EFI verifier failures because this directory was absent. Restoring
+it made the existing linked-artifact acceptance test pass independently; the
+subsequent full suite passed with 3,509 pass markers and zero failures (see
+`done/step925.md`). Package presence and host checks are not EFI boot evidence.
+
 ## Verification
 
 Verify the .NET SDK:

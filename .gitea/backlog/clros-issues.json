@@ -9479,21 +9479,26 @@
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
         "The proposed owned paths are exact for this slice: std/no-runtime/shared/IndependentArithmeticShiftCastN64BitDivisionRemainder.cs, tests/OS.HostTests/IndependentArithmeticShiftCastN64BitDivisionRemainderTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Complete the valid packet or socket transition required by: Add independent arithmetic, shift, cast, 64-bit division/remainder, and enum conversion tests derived from historical SharpOS.",
-        "Failure cases: Cover truncation, bad length/checksum, loss, duplication, reordering, stale neighbor/lease/cache entry, partial I/O, retransmission timeout, reset, half-close, cancellation, and capacity exhaustion as applicable.",
-        "Explicitly inapplicable here: UEFI map-key retry and PE relocation failures are outside this network slice.",
+        "Positive case: Execute runtime-supplied integer operands against independent expected values, including wrapping arithmetic, signed/unsigned shifts with masked counts, narrowing/sign extension, all eight enum underlying widths, and signed/unsigned 64-bit division and remainder.",
+        "Failure cases: Reject unknown operations and zero divisors without exceptions; explicitly classify signed minimum/-1 before division/remainder; test invalid catalog indices, default results, wrong-value detection, and zero-allocation repeated execution.",
+        "Explicitly inapplicable here: This is integer conformance, not networking. Checked-overflow exception delivery, floating-point, enum metadata/boxing, allocation/GC, and general runtime compatibility are outside this slice.",
         "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
       ],
       "referenceInfluences": [
         {
-          "path": "references/nativeaot-patcher-main/src/Cosmos.Kernel.Core/Memory/GarbageCollector",
+          "path": "references/SharpOS-master/Kernel/Tests/CS/Arithmetic.cs",
           "use": "test-only",
-          "notes": "Use .NET 10 runtime behavior as a cross-check; do not import patcher/plugs/native assumptions."
+          "notes": "Historical GPL source supplies categories only. The ulong division helper is an unimplemented placeholder; never copy it or use it as an oracle. Independently author literals and cross-check with .NET 10 BigInteger."
         },
         {
-          "path": "references/nativeaot-patcher-main/src/Cosmos.Kernel.Core/Runtime/ExceptionHandling",
+          "path": "references/SharpOS-master/Kernel/Tests/CS/BitwiseOperators.cs",
           "use": "test-only",
-          "notes": "Use unwind regressions as behavioral tests only."
+          "notes": "Independently cover 32/64-bit shift-count masking and sign extension; no code copying."
+        },
+        {
+          "path": "references/SharpOS-master/Kernel/Tests/CS/SignedIntegerCast.cs",
+          "use": "test-only",
+          "notes": "Also inspect UnsignedIntegerCast.cs and Enum.cs for categories. Independently test truncation, sign/zero extension, and all integer enum backing widths; record snapshot hashes in the compatibility ledger."
         }
       ],
       "acceptanceCriteria": [
@@ -9502,9 +9507,9 @@
         "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
         "Affected canonical documentation is updated without promoting unsupported completion gates.",
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Complete the valid packet or socket transition required by: Add independent arithmetic, shift, cast, 64-bit division/remainder, and enum conversion tests derived from historical SharpOS.",
-        "Applicable failure cases are asserted: Cover truncation, bad length/checksum, loss, duplication, reordering, stale neighbor/lease/cache entry, partial I/O, retransmission timeout, reset, half-close, cancellation, and capacity exhaustion as applicable.",
-        "The evidence report explicitly records these non-goals: UEFI map-key retry and PE relocation failures are outside this network slice."
+        "The positive case is demonstrated: Execute runtime-supplied integer operands against independent expected values, including wrapping arithmetic, signed/unsigned shifts with masked counts, narrowing/sign extension, all eight enum underlying widths, and signed/unsigned 64-bit division and remainder.",
+        "Applicable failure cases are asserted: Reject unknown operations and zero divisors without exceptions; explicitly classify signed minimum/-1 before division/remainder; test invalid catalog indices, default results, wrong-value detection, and zero-allocation repeated execution.",
+        "The evidence report explicitly records these non-goals: This is integer conformance, not networking. Checked-overflow exception delivery, floating-point, enum metadata/boxing, allocation/GC, and general runtime compatibility are outside this slice."
       ],
       "requiredMarkers": [
         "TEST_START m04.004",

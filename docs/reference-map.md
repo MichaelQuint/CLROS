@@ -69,8 +69,8 @@ captured logs, stable markers, and the matching entry in
 | `references/PatienceOS-main` | Test-vector reference | `src/` for host-testing unsafe console/buffer routines against caller-owned stack memory. | Do not adopt its 32-bit Multiboot, VGA, or assembly path. |
 | `references/RoseOS-master` | Test-vector reference | `Loader/`, `Kernel/`, and `WindowsTest/` for UEFI memory-map sizing, `ExitBootServices`, PE validation, reservation, and allocator regressions. | Do not copy its map-buffer sizing, loaded-image reclamation, fixed allocator assumptions, C, or assembly. |
 | `references/Sharpen-master` | Conceptual reference | `kernel/` and `user/` for a historical subsystem/device/filesystem/network census. | Do not copy the old native-heavy x86 implementation. |
-| `references/SharpOS-main` | Selective primary, owner-authorized CC0 reference | `OS/`, `std/`, `apps_native/`, `bootasm/`, `docs/`, and `done/` for modern C# NativeAOT boot/runtime, PE apps, PAL, scheduler, storage, and evidence patterns. The owner-supplied permission record and upstream CC0-1.0 license permit selective reuse of SharpOS-authored source. | The local archive's content matches upstream `b80ee3a4175e1522d1a12ba7fe371a49da3207f5` except for its omitted top-level `LICENSE`; still bind adaptations to exact paths and hashes. Current upstream `0c00476fa6d9cfebb6e83d5da34ab8fb1074163b` is research-only until selectively adapted. SharpOS relies on a separate CoreCLR fork, still has no network driver, and contains separately licensed/GPL material. It is not CLROS architecture or evidence. |
-| `references/SharpOS-master` | Test-vector reference | `Kernel/`, `AOT/`, and historical test material for arithmetic, casts, arrays, strings, generics, exceptions, delegates, interfaces, boxing, and cctor behavior. | Historical custom compiler/runtime; license is not locally established. Recreate tests independently and do not copy implementation. |
+| `references/SharpOS-main` | Selective primary, owner-authorized CC0 reference | `OS/`, `std/`, `apps_native/`, `bootasm/`, `docs/`, and `done/` for modern C# NativeAOT boot/runtime, PE apps, PAL, scheduler, storage, and evidence patterns. The owner-supplied permission record and upstream CC0-1.0 license permit selective reuse of SharpOS-authored source. | The local archive's content matches upstream `b80ee3a4175e1522d1a12ba7fe371a49da3207f5` except for its omitted top-level `LICENSE`; still bind adaptations to exact paths and hashes. Latest reviewed upstream `dfad516b816d29b971d23ef116d4dbebeedcd25e` is research-only until selectively adapted. SharpOS relies on a separate CoreCLR fork, still has no network driver, and contains separately licensed/GPL material. It is not CLROS architecture or evidence. |
+| `references/SharpOS-master` | Test-vector reference | `Kernel/`, `AOT/`, and historical test material for arithmetic, casts, arrays, strings, generics, exceptions, delegates, interfaces, boxing, and cctor behavior. | Historical custom compiler/runtime; inspected CS test headers declare GPL v3 with a Classpath exception. Recreate tests independently and do not copy implementation. |
 | `references/smolsharp-main` | Conceptual reference | `src/` and build properties for binary-size, section-stripping, CRT-removal, and DirectPInvoke threat-model review. | Size cannot remove unwind/protection/diagnostic data. The snapshot has no top-level license evidence and points at AGPL ZeroLib work; do not copy it into CLROS. |
 | `references/xOS-main` | Ignore | `xOS/` and `xOSTests/` describe a Cosmos shell application. | It is not a kernel/runtime architecture; its bundled `CosmosOS-License` applies to Cosmos-derived material, not automatically to every dependency. |
 | `references/zerosharp-master` | Selective reference | `efi-no-runtime/`, `no-runtime/`, and `with-runtime/` for `[RuntimeExport("EfiMain")]`, explicit no-stdlib build properties, EFI subsystem/entrypoint checks, and reference removal. | Do not import prebuilt/custom CoreLib artifacts without exact provenance and applicable license evidence. |
@@ -127,6 +127,31 @@ optional or deferred. SharpOS's current work still does not supply a network
 driver, so it does not shorten CLROS's M07 live-network or M10 Kestrel path.
 Every adopted case still requires CLROS-owned contracts, tests, and fresh guest
 evidence at the boundary it claims.
+
+### SharpOS upstream refresh (2026-10-01)
+
+Reviewed upstream `main` at `dfad516b816d29b971d23ef116d4dbebeedcd25e`
+(2026-09-30), 65 commits after the previous reviewed revision
+`0c00476fa6d9cfebb6e83d5da34ab8fb1074163b`. The fetched checkout is disposable
+research under `artifacts/references/SharpOS-20261001`; the supplied reference
+archive remains unchanged. See [the pinned comparison](https://github.com/daniilvaino/SharpOS/compare/0c00476fa6d9cfebb6e83d5da34ab8fb1074163b...dfad516b816d29b971d23ef116d4dbebeedcd25e).
+
+| New finding | Pinned-tree source / history | Existing CLROS work and required adaptation |
+| --- | --- | --- |
+| GC must distinguish an active interrupted instruction from a saved return address, and keep unwinding through native frames that have no GC slot table | `done/step175.md`, `done/step178.md`, `OS/src/Boot/EH/CoffMethodGcInfo.cs`, `OS/src/Boot/EH/CoffGcInfoDecoder.cs` | #82, #83, #89, #193: retain roots below intervening native frames; distinguish missing metadata, native-without-GC-info, and managed frames. Validate against CLROS's pinned .NET 10 ILC. |
+| Fragmentation and diagnostic optimization can disguise allocator failures | `done/step178.md`, `std-no-runtime/GC/GcHeap.cs`, `std-no-runtime/GC/GcSweep.cs` | #75, #82, #83: same-segment coalescing, live separators, failed large requests, and trustworthy before/after allocation counters. Do not adopt size buckets without measurements. |
+| A 32-bit HPET needs explicit wrap handling and refresh while idle; an older read must not invent a new epoch | `done/step177.md`, `OS/src/Hal/Timer/Hpet.cs`; app time diagnosis in `done/step182.md` | #96, #185, #191: width, wrap, stale samples, restart, idle refresh and deadline overflow tests. Upstream explicitly excludes SMP correctness; CLROS must not expose raw MMIO or latch pointers through its app/PAL ABI. |
+| Wait registration must be atomic with sleeping; unloading an app must remove its queued work | `done/step174.md`, `OS/src/Kernel/Threading/` | #188, #191, #194, #212: wake-before-sleep, timeout/cancel races, generation ownership, timer/queue cleanup, and no callback into an unloaded image. Upstream still reports unreclaimed thread stacks. |
+| Shared std compile lists drifted across kernel/app tiers; cross-host tools now have a manifest | `done/step184.md`, `std-no-runtime/Std.props`, `Std.Kernel.props`, `Std.App.props`, `toolchain.json` | #163, #177, #229, #236: share reviewed common declarations and record exact tool/runtime provenance. Keep CLROS's explicit EFI source closure and existing `std/no-runtime/shared` layout. |
+| More runtime breadth is not a compatibility certificate | `std-no-runtime/Threading.Atomics.cs`, `done/step175.md`, `done/step183.md`, `done/step184.md` | Keep negative coverage for non-atomic fallbacks, strong-reference `ConditionalWeakTable`, stubbed `Enum.IsDefined`, and incomplete unwind handling. CBOR, USB/FIDO, shell and terminal work do not unblock the single-workload network/Kestrel path. |
+
+The new upstream directory is `std-no-runtime/`; historical local paths above
+still describe the immutable archive. The current kernel still targets
+`net8.0` with ILC `8.0.27`; the .NET 10 SDK used for C# 14 and the separate
+hosted runtime `10.0.5` do not make that kernel a .NET 10 NativeAOT port.
+The README still reports no network-card driver. The upstream CC0 file does
+not replace component-specific provenance. This review ran no SharpOS guest
+and promotes no CLROS completion gate.
 
 ## Secondary NativeAOT/Cosmos Gen3 Crosswalk
 
