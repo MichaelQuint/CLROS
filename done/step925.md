@@ -103,9 +103,11 @@ SHA-256 identities for the completed implementation/focused evidence:
 These source hashes identify the working files used by the recorded full run.
 During the subsequent authorized commit review, staged whitespace validation
 found one extra blank line at EOF in each new C# file (the earlier unstaged
-check did not inspect untracked files). Only those two blank lines were removed;
-comparison with `git diff --ignore-blank-lines --exit-code` confirmed no
-substantive difference. After cleanup the working-file hashes are
+check did not inspect untracked files). Those two blank lines were removed,
+and the working files were normalized from LF to CRLF; Git stores their LF
+form. Comparison with `git diff --ignore-blank-lines --exit-code` confirmed no
+substantive difference. Independent review reconstructed both original hashes
+by converting the current files to LF and appending one LF. After cleanup the working-file hashes are
 `B9916F8F3404CF46493AA4D4A1882DE97BF82936F6C420B9DF4D743367425F5D` for production
 and `1BB854C00D09B2FFE2FFC85A8B6DF698F562EA88138C937B8645C0F63BA44794` for the
 test source. The focused module was rerun after this formatting-only change;
