@@ -399,6 +399,37 @@ COM1/serial invocation.
   Active mapping/lifetime, complete instruction spans, live frame capture,
   terminal behavior or recovery, and fresh QEMU/OVMF evidence remain separate
   integration work. This leaf does not change any completion gate.
+- `SeparateDisabledDefaultPageFaultPageTables` is the separate #510 host-only
+  prerequisite for a terminal diagnostics root. It builds and independently
+  audits a caller-supplied four-level identity image: one to eight disjoint
+  low-canonical ranges of one to sixteen 4 KiB pages, supervisor RX or RW+NX,
+  write-back only. A distinct caller-owned table arena is mapped RW+NX.
+  Backing pointers are separate from modeled physical addresses; the helper
+  owns neither storage nor resource lifetimes.
+- The arena requires at least `1 + 6 * (rangeCount + 1)` and at most 55 pages.
+  Each resource interval and the arena are shorter than 2 MiB, so each touches
+  at most two regions at each nonroot hierarchy level. One root plus six
+  nonroot tables per interval bounds the complete image, including its own
+  arena mapping. The conservative capacity bound is checked before mutation;
+  unused pages remain zero.
+- `Build` validates ranges, supplied mode preconditions, capacities, pointer
+  spans and aliases before writing. Independent `Audit` checks metadata,
+  unique owned hierarchy targets, exact identity addresses and permissions,
+  complete coverage and zero unused entries. Cycles, foreign/duplicate table
+  targets, large pages, surplus empty subtrees, extra mappings and malformed
+  flags fail. The existing page-zero policy checks these same buffers.
+  Audit requires pristine entries, including clear accessed/dirty bits; it
+  is not an audit of a hierarchy already modified by hardware. Results are
+  non-owning snapshots requiring a fresh audit after memory or lifetime
+  changes, and do not authorize loading CR3. Guest, installed-root, active
+  permission, TLB and fault indicators remain false. Guard ranges are not
+  an input or enforcement claim.
+- Focused tests independently walk raw entries, cross hierarchy boundaries,
+  exercise maximum layouts and corrupt metadata/storage, preserve canaries
+  and rejected preflight inputs, and measure zero allocation across 64 warmed
+  build/audit iterations. The actual source and ten existing dependencies
+  also compile with zero framework or external assembly references. Step930
+  records focused evidence; this is not a NativeAOT publish or guest test.
 - `TssIstPlan` models the x64 TSS bytes needed for `RSP0` and IST entries, including double-fault IST stack top, stack-size, and guard-size validation.
 - `FaultInfrastructureReadiness` combines serial, IDT, IDTR, GDT, TSS/IST, and double-fault IST readiness into a single pre-privileged-install gate.
 - `BootSequence.RunFaultInfrastructureReadiness` emits host-tested `FAULT_INFRA_READY` or `FAULT_INFRA_NOT_READY status=<status>` markers from the readiness result without changing the default boot path.
