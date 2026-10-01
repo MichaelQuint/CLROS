@@ -737,9 +737,13 @@ evaluates object/array/string size and offset metadata plus the fixed
 24-byte MethodTable prefix for NativeAOT 10.0.8, x64 little-endian. Independent
 literal/byte fixtures, adversarial status cases, zero-allocation checks and
 actual-source no-stdlib compilation pass. Step931 records this host evidence
-and its exact source identities; the combined full host gate is still pending.
-Issue #74 remains open for separately owned EFI integration and fresh guest
-execution of these scalar checks.
+and its exact source identities. Supplemental #512 now integrates the frozen
+evaluator into a default-off EFI adapter with 19 exact scalar result checks,
+the explicit 69/82 source closure and strict whole-transcript validation.
+Step932 records reviewed integration and the previous full run's manifest
+ownership-note failure, now corrected without weakening its test. Combined
+full-suite and fresh default/layout guest acceptance remain pending; #74 and
+#512 remain open until those results and the reviewed merge exist.
 
 Gate 4 remains **Fail**. Neither this contract nor later execution of its
 value checks establishes compiler-emitted physical object layout, live heap

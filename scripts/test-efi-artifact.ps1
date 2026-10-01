@@ -18,7 +18,8 @@ param(
     [switch]$EnableM02Ud2VectorStateProbe,
     [switch]$EnableM04IndependentEndianConformanceProbe,
     [switch]$EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe,
-    [switch]$EnableM04ArithmeticConformanceProbe
+    [switch]$EnableM04ArithmeticConformanceProbe,
+    [switch]$EnableM04LayoutContractProbe
 )
 
 $ErrorActionPreference = "Stop"
@@ -40,7 +41,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 81
+$expectedSourceClosureInputCount = 82
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -139,6 +140,7 @@ $expectedEfiCompileItems = @(
     '..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs',
     '..\..\std\no-runtime\shared\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs|Std\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs',
     '..\..\std\no-runtime\shared\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs|Std\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs',
+    '..\OS.Kernel\Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs|Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs',
     '..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs|Boot\M01LoadedImageStackIntegration.cs',
     '..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs|Boot\M01LiveAllocatorIntegration.cs',
     '..\OS.Kernel\Boot\M01LivePagingIntegration.cs|Boot\M01LivePagingIntegration.cs',
@@ -3812,6 +3814,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM04IndependentEndianConformanceProbe," +
             "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe," +
             "EnableM04ArithmeticConformanceProbe," +
+            "EnableM04LayoutContractProbe," +
             "ImportProjectExtensionProps,ImportProjectExtensionTargets," +
             "ExcludeRestorePackageImports,ILCompilerTargetsPath," +
             "ILLinkTargetsPath,ILLinkTasksAssembly,IlcBuildTasksPath," +
@@ -3917,6 +3920,10 @@ function Invoke-PostRestoreEvaluationSnapshot {
     if ($EnableM04ArithmeticConformanceProbe) {
         $arguments +=
             "-p:EnableM04ArithmeticConformanceProbe=true"
+    }
+    if ($EnableM04LayoutContractProbe) {
+        $arguments +=
+            "-p:EnableM04LayoutContractProbe=true"
     }
     if ($EnableM02OwnedCom1ReadyProbe) {
         $arguments += "-p:EnableM02OwnedCom1ReadyProbe=true"
@@ -4113,6 +4120,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04ArithmeticConformanceProbe =
             $EnableM04ArithmeticConformanceProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM04LayoutContractProbe =
+            $EnableM04LayoutContractProbe.IsPresent.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
         ImportProjectExtensionTargets = "false"
         ExcludeRestorePackageImports = "true"
@@ -4168,7 +4177,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 68 -or
+    if ($compileItems.Count -ne 69 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4293,6 +4302,21 @@ function Assert-PostRestoreEvidenceMatchesSnapshot {
 }
 
 Write-Output "TEST_START $testName"
+
+if ($EnableM04LayoutContractProbe -and
+    (-not $EnableM04ArithmeticConformanceProbe -or
+    -not $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -or
+    -not $EnableM04IndependentEndianConformanceProbe)) {
+    Write-Failure "m04_layout_contract_requires_explicit_m04_chain"
+}
+if ($EnableM04LayoutContractProbe -and
+    $EnableM02OwnedGdtTssTerminalProbe) {
+    Write-Failure "m04_layout_contract_forbids_owned_gdt_tss_terminal"
+}
+if ($EnableM04LayoutContractProbe -and
+    $EnableM02Ud2VectorStateProbe) {
+    Write-Failure "m04_layout_contract_forbids_m02_ud2_vector_state"
+}
 
 if ($EnableM04ArithmeticConformanceProbe -and
     -not $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe) {

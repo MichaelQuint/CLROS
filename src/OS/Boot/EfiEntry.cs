@@ -1,3 +1,7 @@
+#if M04_LAYOUT_CONTRACT_PROBE
+using OS.Kernel.Runtime;
+#endif
+
 namespace OS.Boot;
 
 #pragma warning disable 649
@@ -8640,6 +8644,12 @@ public static unsafe class EfiEntry
             return;
         }
 #endif
+#if M04_LAYOUT_CONTRACT_PROBE
+        if (!WriteM04LayoutContractProbe(console, serial))
+        {
+            return;
+        }
+#endif
 #if M02_NORMALIZED_INTERRUPT_FRAME_PAGE_PROBE
         if (!WriteM02NormalizedInterruptFramePageProbe(
                 console,
@@ -9564,6 +9574,136 @@ public static unsafe class EfiEntry
     }
 
     private static void WriteM04ArithmeticAscii(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial,
+        byte b0,
+        byte b1,
+        byte b2,
+        byte b3,
+        byte b4,
+        byte b5,
+        byte b6,
+        byte b7)
+    {
+        if (b0 != 0) Write(console, serial, b0);
+        if (b1 != 0) Write(console, serial, b1);
+        if (b2 != 0) Write(console, serial, b2);
+        if (b3 != 0) Write(console, serial, b3);
+        if (b4 != 0) Write(console, serial, b4);
+        if (b5 != 0) Write(console, serial, b5);
+        if (b6 != 0) Write(console, serial, b6);
+        if (b7 != 0) Write(console, serial, b7);
+    }
+#endif
+
+#if M04_LAYOUT_CONTRACT_PROBE
+    private static bool WriteM04LayoutContractProbe(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        NativeAotLayoutProfile profile = NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian;
+        // Independent scalar expectations; large modeled sizes allocate no memory.
+        if (
+            !CheckM04LayoutResult(profile, 0x50000008, 24, 0, 24UL,
+                NativeAotLayoutStatus.Success, NativeAotLayoutShape.FixedObject, 0, false, -1, 8, 24UL, 24UL) ||
+            !CheckM04LayoutResult(profile, 0x51000000, 32, 0, 32UL,
+                NativeAotLayoutStatus.Success, NativeAotLayoutShape.FixedObject, 0, true, -1, 8, 32UL, 32UL) ||
+            !CheckM04LayoutResult(profile, 0xE0020001, 24, 0, 24UL,
+                NativeAotLayoutStatus.Success, NativeAotLayoutShape.SzArray, 1, false, 8, 16, 24UL, 24UL) ||
+            !CheckM04LayoutResult(profile, 0xE0020001, 24, 1, 32UL,
+                NativeAotLayoutStatus.Success, NativeAotLayoutShape.SzArray, 1, false, 8, 16, 25UL, 32UL) ||
+            !CheckM04LayoutResult(profile, 0xE0020001, 24, 8, 32UL,
+                NativeAotLayoutStatus.Success, NativeAotLayoutShape.SzArray, 1, false, 8, 16, 32UL, 32UL) ||
+            !CheckM04LayoutResult(profile, 0xE0020003, 24, 3, 40UL,
+                NativeAotLayoutStatus.Success, NativeAotLayoutShape.SzArray, 3, false, 8, 16, 33UL, 40UL) ||
+            !CheckM04LayoutResult(profile, 0xE1020008, 24, 1, 32UL,
+                NativeAotLayoutStatus.Success, NativeAotLayoutShape.SzArray, 8, true, 8, 16, 32UL, 32UL) ||
+            !CheckM04LayoutResult(profile, 0xD0000002, 22, 0, 24UL,
+                NativeAotLayoutStatus.Success, NativeAotLayoutShape.String, 2, false, 8, 12, 22UL, 24UL) ||
+            !CheckM04LayoutResult(profile, 0xD0000002, 22, 1, 24UL,
+                NativeAotLayoutStatus.Success, NativeAotLayoutShape.String, 2, false, 8, 12, 24UL, 24UL) ||
+            !CheckM04LayoutResult(profile, 0xD0000002, 22, 2, 32UL,
+                NativeAotLayoutStatus.Success, NativeAotLayoutShape.String, 2, false, 8, 12, 26UL, 32UL) ||
+            !CheckM04LayoutResult(profile, 0xE0020001, 24, 2147483591, 2147483616UL,
+                NativeAotLayoutStatus.Success, NativeAotLayoutShape.SzArray, 1, false, 8, 16, 2147483615UL, 2147483616UL) ||
+            !CheckM04LayoutResult(profile, 0xE002FFFF, 24, 2147483591, 140735337136216UL,
+                NativeAotLayoutStatus.Success, NativeAotLayoutShape.SzArray, 65535, false, 8, 16, 140735337136209UL, 140735337136216UL) ||
+            !CheckM04LayoutResult(profile, 0xD0000002, 22, 1073741791, 2147483608UL,
+                NativeAotLayoutStatus.Success, NativeAotLayoutShape.String, 2, false, 8, 12, 2147483604UL, 2147483608UL) ||
+            !CheckM04LayoutResult((NativeAotLayoutProfile)255, 0x50000000, 24, 0, 24,
+                NativeAotLayoutStatus.UnsupportedProfile, NativeAotLayoutShape.Uninitialized, 0, false, 0, 0, 0, 0) ||
+            !CheckM04LayoutResult(profile, 0x50200000, 24, 0, 24,
+                NativeAotLayoutStatus.InvalidFlags, NativeAotLayoutShape.Uninitialized, 0, false, 0, 0, 0, 0) ||
+            !CheckM04LayoutResult(profile, 0x60020001, 24, 0, 24,
+                NativeAotLayoutStatus.InvalidFlags, NativeAotLayoutShape.Uninitialized, 0, false, 0, 0, 0, 0) ||
+            !CheckM04LayoutResult(profile, 0xE0020000, 24, 0, 24,
+                NativeAotLayoutStatus.InvalidComponentSize, NativeAotLayoutShape.Uninitialized, 0, false, 0, 0, 0, 0) ||
+            !CheckM04LayoutResult(profile, 0xD0000002, 22, -1, 24,
+                NativeAotLayoutStatus.InvalidLength, NativeAotLayoutShape.Uninitialized, 0, false, 0, 0, 0, 0) ||
+            !CheckM04LayoutResult(profile, 0x50000000, 24, 0, 23,
+                NativeAotLayoutStatus.CapacityTooSmall, NativeAotLayoutShape.Uninitialized, 0, false, 0, 0, 0, 0))
+        {
+            WriteM04LayoutContractFailureLine(console, serial);
+            return false;
+        }
+
+        WriteM04LayoutContractSuccessLine(console, serial);
+        return true;
+    }
+
+    private static bool CheckM04LayoutResult(
+        NativeAotLayoutProfile profile, uint flags, uint baseSize, int count, ulong capacity,
+        NativeAotLayoutStatus status, NativeAotLayoutShape shape, ushort component,
+        bool pointers, int lengthOffset, int dataOffset, ulong rawSize, ulong alignedSize)
+    {
+        NativeAotLayoutResult result = ObjectArrayStringEETypeMethodTableLayoutContracts.Evaluate(
+            profile, new NativeAotMethodTablePrefix(flags, baseSize, 0, 0, 0, 0), count, capacity);
+        return result.Status == status && result.Shape == shape &&
+            result.ComponentSize == component && result.ContainsGcPointers == pointers &&
+            result.LengthOffsetFromReference == lengthOffset && result.DataOffsetFromReference == dataOffset &&
+            result.RawSizeBytes == rawSize && result.AlignedSizeBytes == alignedSize;
+    }
+
+    private static void WriteM04LayoutContractSuccessLine(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        WriteM04LayoutAscii(console, serial, (byte)'C', (byte)'L', (byte)'R', (byte)'O', (byte)'S', (byte)'_', (byte)'M', (byte)'0');
+        WriteM04LayoutAscii(console, serial, (byte)'4', (byte)'_', (byte)'0', (byte)'0', (byte)'5', (byte)'_', (byte)'R', (byte)'E');
+        WriteM04LayoutAscii(console, serial, (byte)'A', (byte)'D', (byte)'Y', (byte)' ', (byte)'p', (byte)'r', (byte)'o', (byte)'f');
+        WriteM04LayoutAscii(console, serial, (byte)'i', (byte)'l', (byte)'e', (byte)'=', (byte)'i', (byte)'l', (byte)'c', (byte)'1');
+        WriteM04LayoutAscii(console, serial, (byte)'0', (byte)'.', (byte)'0', (byte)'.', (byte)'8', (byte)'-', (byte)'w', (byte)'i');
+        WriteM04LayoutAscii(console, serial, (byte)'n', (byte)'-', (byte)'x', (byte)'6', (byte)'4', (byte)'-', (byte)'l', (byte)'e');
+        WriteM04LayoutAscii(console, serial, (byte)' ', (byte)'c', (byte)'h', (byte)'e', (byte)'c', (byte)'k', (byte)'s', (byte)'=');
+        WriteM04LayoutAscii(console, serial, (byte)'1', (byte)'9', (byte)' ', (byte)'s', (byte)'h', (byte)'a', (byte)'p', (byte)'e');
+        WriteM04LayoutAscii(console, serial, (byte)'s', (byte)'=', (byte)'3', (byte)' ', (byte)'p', (byte)'r', (byte)'e', (byte)'f');
+        WriteM04LayoutAscii(console, serial, (byte)'i', (byte)'x', (byte)'B', (byte)'y', (byte)'t', (byte)'e', (byte)'s', (byte)'=');
+        WriteM04LayoutAscii(console, serial, (byte)'2', (byte)'4', (byte)' ', (byte)'r', (byte)'e', (byte)'f', (byte)'e', (byte)'r');
+        WriteM04LayoutAscii(console, serial, (byte)'e', (byte)'n', (byte)'c', (byte)'e', (byte)'F', (byte)'i', (byte)'l', (byte)'e');
+        WriteM04LayoutAscii(console, serial, (byte)'s', (byte)'R', (byte)'e', (byte)'q', (byte)'u', (byte)'i', (byte)'r', (byte)'e');
+        WriteM04LayoutAscii(console, serial, (byte)'d', (byte)'=', (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ');
+        WriteM04LayoutAscii(console, serial, (byte)'h', (byte)'o', (byte)'s', (byte)'t', (byte)'C', (byte)'o', (byte)'n', (byte)'f');
+        WriteM04LayoutAscii(console, serial, (byte)'o', (byte)'r', (byte)'m', (byte)'a', (byte)'n', (byte)'c', (byte)'e', (byte)'=');
+        WriteM04LayoutAscii(console, serial, (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ', (byte)'g', (byte)'u');
+        WriteM04LayoutAscii(console, serial, (byte)'e', (byte)'s', (byte)'t', (byte)'I', (byte)'n', (byte)'t', (byte)'e', (byte)'g');
+        WriteM04LayoutAscii(console, serial, (byte)'r', (byte)'a', (byte)'t', (byte)'e', (byte)'d', (byte)'=', (byte)'t', (byte)'r');
+        WriteM04LayoutAscii(console, serial, (byte)'u', (byte)'e', (byte)' ', (byte)'g', (byte)'a', (byte)'t', (byte)'e', (byte)'4');
+        WriteM04LayoutAscii(console, serial, (byte)'=', (byte)'F', (byte)'a', (byte)'i', (byte)'l', 0, 0, 0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM04LayoutContractFailureLine(
+        EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial)
+    {
+        WriteM04LayoutAscii(console, serial, (byte)'M', (byte)'0', (byte)'4', (byte)'_', (byte)'L', (byte)'A', (byte)'Y', (byte)'O');
+        WriteM04LayoutAscii(console, serial, (byte)'U', (byte)'T', (byte)'_', (byte)'C', (byte)'O', (byte)'N', (byte)'T', (byte)'R');
+        WriteM04LayoutAscii(console, serial, (byte)'A', (byte)'C', (byte)'T', (byte)'_', (byte)'F', (byte)'A', (byte)'I', (byte)'L');
+        WriteM04LayoutAscii(console, serial, (byte)'E', (byte)'D', 0, 0, 0, 0, 0, 0);
+        WriteCrLf(console, serial);
+    }
+
+    private static void WriteM04LayoutAscii(
         EfiSimpleTextOutputProtocol* console,
         EfiSerialIoProtocol* serial,
         byte b0,

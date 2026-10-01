@@ -390,9 +390,15 @@ not inspection of a compiler-emitted managed object or guest execution.
 CLROS_M04_005_READY profile=ilc10.0.8-win-x64-le shapes=3 prefixBytes=24 referenceFilesRequired=false hostConformance=true guestIntegrated=false gate4=Fail
 ```
 
-Issue #74 remains open for separately owned default-off EFI integration and
-fresh guest proof. Allocation, GC, type discovery, optional-tail traversal,
-dispatch, exception/unwind support and hosted .NET/Kestrel remain unsupported.
+Supplemental #512 implements the default-off EFI adapter with 13 positive
+fixtures and six rejection cases, comparing every field of all 19 actual
+NoInlining evaluations. Controlled mismatch and transcript checks pass; the
+69-Compile/82-input closure preserves the frozen leaf and existing runtime
+shim. The source firewall admits only its exact reviewed path/content identity.
+Combined full-suite, NativeAOT publish and fresh default/layout QEMU acceptance
+remain pending in step932. Issue #74 remains open for that evidence and merge.
+Allocation, GC, type discovery, optional-tail traversal, dispatch,
+exception/unwind support and hosted .NET/Kestrel remain unsupported.
 
 See step931 for source identities, commands, setup failures and the pending
 combined full-gate boundary.

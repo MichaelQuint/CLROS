@@ -53,6 +53,7 @@ param(
     [switch] $EnableM04IndependentEndianConformanceProbe,
     [switch] $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe,
     [switch] $EnableM04ArithmeticConformanceProbe,
+    [switch] $EnableM04LayoutContractProbe,
     [switch] $SkipImageBuild
 )
 
@@ -412,6 +413,31 @@ $script:M04ArithmeticConformanceForbiddenMarkers = @(
     "M04_SPAN_MEMORY_CONFORMANCE_FAILED"
     "M04_ARITHMETIC_CONFORMANCE_FAILED"
     "TEST_FAIL"
+)
+
+$script:M04LayoutContractReadyMarker =
+    "CLROS_M04_005_READY profile=ilc10.0.8-win-x64-le checks=19 shapes=3 prefixBytes=24 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail"
+$script:M04LayoutContractRequiredMarkers = @(
+    "EFI_CONSOLE_READY"
+    $script:M04IndependentEndianConformanceReadyMarker
+    $script:M04SpanMemoryConformanceReadyMarker
+    $script:M04ArithmeticConformanceReadyMarker
+    $script:M04LayoutContractReadyMarker
+    "UEFI_MEMORY_MAP_READY"
+)
+$script:M04LayoutContractUniqueMarkers = @(
+    $script:M04IndependentEndianConformanceReadyMarker
+    $script:M04SpanMemoryConformanceReadyMarker
+    $script:M04ArithmeticConformanceReadyMarker
+    $script:M04LayoutContractReadyMarker
+)
+$script:M04LayoutContractForbiddenMarkers = @(
+    "M04_ENDIAN_CONFORMANCE_FAILED"
+    "M04_SPAN_MEMORY_CONFORMANCE_FAILED"
+    "M04_ARITHMETIC_CONFORMANCE_FAILED"
+    "M04_LAYOUT_CONTRACT_FAILED"
+    "TEST_FAIL"
+    "OS_SMOKE_FAIL"
 )
 
 function Invoke-NativeCommand {
@@ -858,6 +884,73 @@ function Assert-M02Ud2VectorStateTerminalTranscript {
             $expectedTail[$index]) {
             throw "m02_ud2_vector_state_post_smoke_sequence_invalid"
         }
+    }
+}
+
+function Assert-M04LayoutContractTranscript {
+    param([string] $SerialLogPath)
+
+    $resolvedPath = if ([System.IO.Path]::IsPathRooted($SerialLogPath)) {
+        [System.IO.Path]::GetFullPath($SerialLogPath)
+    }
+    else {
+        [System.IO.Path]::GetFullPath((Join-Path $root $SerialLogPath))
+    }
+    if (-not (Test-Path -LiteralPath $resolvedPath -PathType Leaf)) {
+        throw "m04_layout_contract_serial_log_missing"
+    }
+
+    $expected = @($script:M04LayoutContractRequiredMarkers) + @("OS_SMOKE_PASS")
+    $next = 0
+    # Decode the capture without BOM sniffing/removal: a BOM on a CLROS
+    # record is extra content, not a license to normalize that record.
+    $text = [System.Text.Encoding]::UTF8.GetString([System.IO.File]::ReadAllBytes($resolvedPath))
+    $lines = $text.Split([char]10)
+    for ($index = 0; $index -lt $lines.Length; $index++) {
+        $line = $lines[$index]
+        # Remove only the CR in a complete CRLF delimiter. Nothing else is
+        # trimmed or normalized for acceptance, including a final lone CR.
+        $complete = $index -lt $lines.Length - 1
+        if ($complete -and $line.EndsWith("`r", [System.StringComparison]::Ordinal)) {
+            $line = $line.Substring(0, $line.Length - 1)
+        }
+
+        # Classification removes whitespace/control/non-ASCII solely to spot
+        # disguised records. Equality below always uses the unmodified line.
+        # Firmware ANSI display output before/after CLROS is not itself a fail.
+        $candidate = [System.Text.RegularExpressions.Regex]::Replace($line, '[\x00-\x20\x7f-\uffff]', '')
+        foreach ($failure in $script:M04LayoutContractForbiddenMarkers) {
+            $failureKey = $failure.Replace(' ', '')
+            if ($candidate.IndexOf($failureKey, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                throw "m04_layout_contract_failure_record"
+            }
+        }
+        $isM04 = $candidate.IndexOf("CLROS_M04", [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+            $candidate.IndexOf("M04_", [System.StringComparison]::OrdinalIgnoreCase) -ge 0
+        $isBoundary = $false
+        foreach ($boundary in @("EFI_CONSOLE_READY", "UEFI_MEMORY_MAP_READY", "OS_SMOKE_PASS")) {
+            if ($candidate.IndexOf($boundary, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                $isBoundary = $true
+            }
+        }
+        $hasControl = [System.Text.RegularExpressions.Regex]::IsMatch($line, '[\x00-\x1f\x7f-\uffff]')
+        if ($hasControl) {
+            foreach ($prefix in @("CLROS_", "M01_", "M02_", "M04_", "TEST_", "OS_", "EFI_", "UEFI_", "BOOT_")) {
+                if ($candidate.IndexOf($prefix, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                    throw "m04_layout_contract_control_in_record"
+                }
+            }
+        }
+        if ($isM04 -or $isBoundary) {
+            if (-not $complete -or $next -ge $expected.Count -or
+                -not [string]::Equals($line, $expected[$next], [System.StringComparison]::Ordinal)) {
+                throw "m04_layout_contract_exact_sequence_invalid"
+            }
+            $next++
+        }
+    }
+    if ($next -ne $expected.Count) {
+        throw "m04_layout_contract_exact_sequence_incomplete"
     }
 }
 
@@ -4042,7 +4135,31 @@ try {
         ConvertTo-QemuSmokeMarkerList -Values $ForbidMarker
     )
 
-    if ($EnableM04ArithmeticConformanceProbe) {
+    if ($EnableM04LayoutContractProbe) {
+        $requiredMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $requiredMarkers
+                $script:M04LayoutContractRequiredMarkers
+            )
+        )
+        $orderedMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $script:M04LayoutContractRequiredMarkers
+            )
+        )
+        $uniqueMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $script:M04LayoutContractUniqueMarkers
+            )
+        )
+        $forbiddenMarkers = @(
+            ConvertTo-QemuSmokeMarkerList -Values @(
+                $forbiddenMarkers
+                $script:M04LayoutContractForbiddenMarkers
+            )
+        )
+    }
+    elseif ($EnableM04ArithmeticConformanceProbe) {
         $requiredMarkers = @(
             ConvertTo-QemuSmokeMarkerList -Values @(
                 $requiredMarkers
@@ -4703,11 +4820,66 @@ try {
         (Format-QemuSmokeBoolean $DryRun.IsPresent) +
         " profileRequired=17 profileOrdered=5 profileUnique=3 profileForbidden=5")
     Write-Host (
+        "QEMU_SCRIPT_M04_LAYOUT_CONTRACT_PROBE enabled=" +
+        (Format-QemuSmokeBoolean $EnableM04LayoutContractProbe.IsPresent) +
+        " arithmeticConformance=" +
+        (Format-QemuSmokeBoolean $EnableM04ArithmeticConformanceProbe.IsPresent) +
+        " ownedGdtTssTerminal=" +
+        (Format-QemuSmokeBoolean $EnableM02OwnedGdtTssTerminalProbe.IsPresent) +
+        " buildEfi=" +
+        (Format-QemuSmokeBoolean $BuildEfi.IsPresent) +
+        " skipImageBuild=" +
+        (Format-QemuSmokeBoolean $SkipImageBuild.IsPresent) +
+        " dryRun=" +
+        (Format-QemuSmokeBoolean $DryRun.IsPresent) +
+        " profileRequired=18 profileOrdered=6 profileUnique=4 profileForbidden=6 strictWholeLines=true")
+    Write-Host (
         "QEMU_SCRIPT_REQUIRE_ORDERED_MARKERS " +
         (Format-QemuSmokeMarkerList $orderedMarkers))
     Write-Host (
         "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS " +
         (Format-QemuSmokeMarkerList $uniqueMarkers))
+
+    if ($EnableM04LayoutContractProbe -and
+        (-not $EnableM04ArithmeticConformanceProbe -or
+        -not $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -or
+        -not $EnableM04IndependentEndianConformanceProbe)) {
+        Write-Host "TEST_FAIL qemu.smoke.invalid_args m04_layout_contract_probe_requires_explicit_m04_chain"
+        exit 1
+    }
+
+    if ($EnableM04LayoutContractProbe -and
+        $EnableM02OwnedGdtTssTerminalProbe) {
+        Write-Host "TEST_FAIL qemu.smoke.invalid_args m04_layout_contract_probe_forbids_owned_gdt_tss_terminal"
+        exit 1
+    }
+
+    if ($EnableM04LayoutContractProbe -and
+        $EnableM02Ud2VectorStateProbe) {
+        Write-Host "TEST_FAIL qemu.smoke.invalid_args m04_layout_contract_probe_forbids_m02_ud2_vector_state"
+        exit 1
+    }
+
+    if ($EnableM04LayoutContractProbe -and
+        -not $BuildEfi) {
+        Write-Host "TEST_FAIL qemu.smoke.invalid_args m04_layout_contract_probe_requires_build_efi"
+        exit 1
+    }
+
+    if ($EnableM04LayoutContractProbe -and
+        $SkipImageBuild) {
+        Write-Host "TEST_FAIL qemu.smoke.invalid_args m04_layout_contract_probe_forbids_skip_image_build"
+        exit 1
+    }
+
+    foreach ($requestedMarker in @($RequireMarker) + @($RequireOrderedMarker) + @($RequireUniqueMarker)) {
+        if (-not $EnableM04LayoutContractProbe -and
+            $null -ne $requestedMarker -and
+            $requestedMarker.IndexOf("CLROS_M04_005", [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+            Write-Host "TEST_FAIL qemu.smoke.invalid_args m04_layout_contract_marker_requires_typed_profile"
+            exit 1
+        }
+    }
 
     if ($EnableM02NormalizedInterruptFramePageProbe -and
         $EnableM02OwnedGdtTssTerminalProbe) {
@@ -5415,6 +5587,10 @@ try {
             $buildArguments +=
                 "-EnableM04ArithmeticConformanceProbe"
         }
+        if ($EnableM04LayoutContractProbe) {
+            $buildArguments +=
+                "-EnableM04LayoutContractProbe"
+        }
 
         Invoke-NativeCommand {
             & powershell.exe @buildArguments
@@ -5630,6 +5806,16 @@ try {
         Write-Host (
             "QEMU_SCRIPT_M02_UD2_VECTOR_STATE_TRANSCRIPT " +
             "postSmokeSequence=true postPassMarkerNoise=false")
+    }
+    if ($EnableM04LayoutContractProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
+        try {
+            Assert-M04LayoutContractTranscript -SerialLogPath $SerialLog
+        }
+        catch {
+            Write-Host ("TEST_FAIL qemu.smoke.m04.005 strict_transcript_invalid reason=" + $_.Exception.Message)
+            exit 93
+        }
+        Write-Host "QEMU_SCRIPT_M04_LAYOUT_CONTRACT_TRANSCRIPT exactWholeLines=true orderedChain=true uniqueChain=true"
     }
     exit $runnerExitCode
 }
