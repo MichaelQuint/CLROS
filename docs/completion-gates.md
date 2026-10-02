@@ -828,14 +828,14 @@ The parent focused integration run has ten starts, eleven passes and zero
 failures. Step944 adds accepted complete host integration at `7c71e72`:
 3,558 starts, 3,559 passes, zero failures and one final `TEST_PASS host.tests`.
 
-Gate 4 remains **Fail** and issue #76 remains open. This leaf exposes neither
-a RhpNewFast runtime export nor a CLR object. A separately claimed EFI scope
-must prove authentic compiler metadata, emitted compiled-new/helper routing,
-RCX/RAX and Windows x64 ABI, physical object/header/cursor identity, required
-fixed class/value/generic/reference cases and terminal rejection. The original
-whole-page-zero checkpoint must precede object writes. Boxing payload/nullable
-behavior, reference barriers, GC and broader runtime semantics remain separate
-unsupported work.
+Gate 4 remains **Fail**. This leaf alone exposes neither a RhpNewFast runtime
+export nor a CLR object. The separately claimed #519 integration and accepted
+step949 evidence supply authentic compiler metadata, compiled-new/helper routing,
+RCX/RAX and Windows x64 ABI, physical object/header/cursor identity, finite
+class/value/generic/reference cases and terminal rejection. The original
+whole-page-zero checkpoint precedes object writes. Closure follows the reviewed
+merge; boxing payload/nullable behavior, reference barriers, GC and broader
+runtime semantics remain separate unsupported work.
 
 ### M04-007 EFI source and artifact integration
 
@@ -845,19 +845,23 @@ profiles; seven explicit prerequisites and seventeen conflicting probe flags
 are enforced. The original75 Compile indices remain unchanged, with two appended
 sources producing77 items,90 raw inputs and27 evaluated flags.
 
-The complete focused new-module run passes six starts/seven passes, including
-four actual native artifact profiles with zero AssemblyRefs. Subsequent
-test-only repairs explicitly associate each caller's decoded token with its
-getter and preserve the newly required legacy conflict edge. Those repaired
-assertions pass on the unchanged saved artifacts; the full revised module and
-all20 legacy closure modules still require the parent's clean integrated suite.
-The five complete ledger/shim/M01 modules pass32 starts/33 passes.
+Step949 records the clean complete host run on
+`77860a689b8460114cf179e44dd442533a1ad638`: native0, 3,573 starts/3,574 passes,
+zero failures, one final host marker and empty stderr. The exact inventory
+includes the revised new module, all20 legacy closure modules, ledger/shim/M01
+coverage and all nine M02-015 host groups. Launch and final DLL hashes agree.
 
-Source emits actual image/scratch preparation and full-byte rejection evidence.
-Separate independent transcript, prefix-relocation and negative-capture helpers
-have controlled-test acceptance. None of those controls is a guest. #76/#519
-remain open until five actual profiles, same-image native/metadata, lifecycle
-and disk evidence are accepted. Gate4 remains **Fail**; general allocation,
+Five fresh QEMU profiles have independent source/metadata/native ABI, raw
+transcript, lifecycle and disk acceptance. The positive case observes four
+compiled-new/six direct allocations, used272/count10 and intact prior objects
+and canaries. Before-bind and exhaustion produce actual leaf statuses5/15,
+full-byte unchanged rejection observations and nonreturning terminal captures.
+Twenty complete MethodTable prefixes match same-image COFF/PE fixups with signed
+relocation; before-bind has only one attempted-token association. This supplies
+the bounded guest evidence for #76/#519 closure after the reviewed merge.
+Default isolation and standalone heap behavior also pass. The immutable
+capture/helper records retain their narrower provisional flags; the combined
+review in step949 supplies acceptance. Gate4 remains **Fail**; general allocation,
 GC/reference barriers, boxing-copy/nullable semantics, arrays/strings and
 post-firmware/runtime completion remain outside this bounded slice.
 
@@ -915,7 +919,9 @@ and associated root/FAT/primary-FSInfo changes. Backup FSInfo remains stale;
 filesystem conformance is not established. [Step944](../done/step944.md) records
 the immutable execution/review identities and distinguishes tested source from
 the later documentation commit. #54/#517 merge and closure follow as separate
-tracker transactions; #76 remains open for actual runtime-helper/guest work.
+tracker transactions. At that milestone #76 still needed actual runtime-helper/
+guest work; step949 supplies its bounded allocation evidence for reviewed merge
+and closure.
 
 ### M02-015 double-fault host boundary
 
@@ -929,8 +935,8 @@ association and a complete 192-byte span on original IST1 are distinct checks.
 The focused run passes 9 starts/10 passes, no failures, native exit 0 and empty
 stderr. The actual 20-source no-stdlib closure has zero AssemblyRefs; recorded
 LLVM disassembly independently matches all 446 stream and 1,545 slot instruction
-boundaries. These are ordinary-data/compiler/model checks. The integrated
-complete host gate and separately scoped actual DF guest are still pending.
+boundaries. These are ordinary-data/compiler/model checks. The complete host
+gate passes in step949; the separately scoped actual DF guest remains pending.
 
 Issue #55 stays open until accepted source-bound vector-8/error-0/IST1 and
 terminal serial/lifecycle evidence is merged. No CPU fault, active mapping,

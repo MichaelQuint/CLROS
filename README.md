@@ -52,16 +52,17 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 - M02-015 adds an independently reviewed host double-fault byte emitter and
   armed-IDT audit. Focused tests pass 9 starts/10 passes with zero failures;
   the actual no-stdlib closure has zero AssemblyRefs. This is data and modeled
-  execution evidence only. Real vector-8/IST1 delivery and the complete settled
-  host gate remain pending; see [step945](done/step945.md).
+  execution evidence only. The complete host gate passes in
+  [step949](done/step949.md); real vector-8/IST1 delivery remains pending.
 
-- M04-007 now has a reviewed default-off `RhpNewFast` EFI adapter and four
-  successful NativeAOT artifact profiles. It preserves the original retained
-  heap authority and exercises four compiled-new and six direct allocation
-  routes in the linked test image. Focused source/artifact checks pass; the
-  integrated full host suite and five real guest profiles remain pending.
-  See [step946](done/step946.md). This is not guest object-allocation proof;
-  general allocation, GC and Gate 4 remain incomplete.
+- M04-007 has accepted bounded `RhpNewFast` guest allocation evidence over the
+  original retained heap authority. The complete host suite passes 3,573 starts
+  and 3,574 passes with zero failures. Five fresh QEMU profiles prove default
+  isolation, standalone heap behavior, four compiled-new/six direct allocations,
+  before-bind rejection and exhaustion. Native ABI, managed metadata, relocated
+  prefixes, raw transcripts, lifecycle and disk evidence are independently
+  reviewed in [step949](done/step949.md). General allocation, GC and Gate 4
+  remain incomplete.
 
 - The 2026-08-06 local Gitea snapshot had **273 open issues** (issues only,
   excluding pull requests). That was ten fewer than the earlier 283-issue

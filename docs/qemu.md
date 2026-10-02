@@ -2549,7 +2549,7 @@ prove only the completion boundary defined by the corresponding gate.
 2. Point the real HTTP probe at the guest Kestrel endpoint only after guest networking and hosted Kestrel markers exist.
 3. Add ISO launch support only if it remains useful for a concrete deployment path.
 
-### M04-007 allocation profile (source implemented; guest acceptance pending)
+### M04-007 allocation profile (bounded guest evidence accepted)
 
 The positive default-off profile requires a fresh build and all seven explicit
 prerequisites:
@@ -2569,8 +2569,9 @@ prerequisites:
 The strict successful grammar has78 records, including observed image and full
 scratch extents, original retained heap authority, ten OBJECT/READBACK pairs,
 retained accounting and the unchanged boot-sequence suffix. This command is
-implemented and controlled-tested; step946 does not claim that it has passed
-on a real guest yet.
+implemented and controlled-tested in step946. Step949 adds accepted real QEMU
+execution on source `77860a689b8460114cf179e44dd442533a1ad638`, with ten objects,
+four compiled-new/six direct routes and the complete boot success suffix.
 
 `EnableM04RhpNewFastBeforeBindFailureProbe` and
 `EnableM04RhpNewFastExhaustionFailureProbe` each additionally require main and
@@ -2581,7 +2582,16 @@ streams. Expected-negative acceptance needs the separately reviewed bounded
 capture observer, actual process exit/quiet-drain evidence and independent
 whole-byte/source/native audits. Seeing either suffix alone is not acceptance.
 
-Parent acceptance requires fresh default, standalone heap, positive, before-bind
-and exhaustion profiles on the tested source, with actual metadata fixups,
-caller ABI and disk accounting. No GC, reference writes, boxing payload copy,
-arrays/strings, post-firmware lifetime or general runtime readiness is claimed.
+Step949 accepts fresh default, standalone heap, positive, before-bind and
+exhaustion profiles on that tested source. The returning profiles record normal
+runner termination after750ms drain; the two negative captures record measured
+quiet intervals of756.2881ms and752.4209ms before owned termination. All five
+actual QEMU exits are -1 from that deliberate termination, while the nine
+wrapper/build/image/observer commands exit0. Neither expected TEST_FAIL stream
+is converted into ordinary smoke success. Independent source/metadata/native
+ABI, twenty observed-prefix fixups and disk accounting bind the same images.
+Each64MiB booted disk retains its exact EFI payload and gains only the expected
+three-cluster firmware NVVARS allocation; backup FSInfo remains stale, so this
+does not establish filesystem conformance. No GC, reference writes, boxing
+payload copy, arrays/strings, post-firmware lifetime or general runtime
+readiness is claimed.

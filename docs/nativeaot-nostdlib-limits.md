@@ -218,7 +218,7 @@ export identities preserve source order: four link-only transition no-ops,
 eleven fail-fast type-cast helpers plus `RhpFallbackFailFast`, the audited
 `RhpStackProbe` bridge, and the profile-bound `RhpNewFast` export. The latter
 defaults to self-contained failure; its opt-in adapter is implemented and
-artifact-tested in step946, with real guest acceptance still pending. These
+artifact-tested in step946, with bounded real guest acceptance in step949. These
 entries do not copy the shim into normal host builds or satisfy general
 allocation, GC, dispatch, exception or runtime-completion requirements.
 
@@ -228,7 +228,7 @@ allocation, GC, dispatch, exception or runtime-completion requirements.
 | `System.Runtime.RuntimeExportAttribute` | Implemented only for EFI runtime export metadata | Needed by `EfiMain` and NativeAOT helper exports |
 | `System.Buffer.MemoryCopy` / `Memmove` | Implemented as byte loops for EFI shell needs | Used for no-stdlib memory copy paths; not a complete BCL buffer contract |
 | `System.SpanHelpers` clear/fill/memmove slice | Implemented as narrow byte/pointer helper slice | Supports current EFI publish boundary only |
-| Object allocation helpers | Host leaf and opt-in EFI export implemented; guest acceptance pending | Step940 proves the fixed caller-buffer leaf over the original #75 retained authority. Step946 adds the real profile-bound `RhpNewFast` adapter and authentic linked compiled-new/direct routes. Four NativeAOT artifact profiles pass; five actual guest profiles and complete integrated host evidence remain pending. The general `ObjectAllocation` gate remains deferred; no general heap or GC is established |
+| Object allocation helpers | Bounded opt-in EFI allocation guest evidence accepted | Step940 proves the fixed caller-buffer leaf over the original #75 retained authority. Step946 adds the real profile-bound `RhpNewFast` adapter. Step949 accepts the complete host suite and five fresh QEMU profiles, including four compiled-new/six direct routes, before-bind rejection and exhaustion, with independent metadata/native/prefix/transcript/lifecycle/disk review. The general `ObjectAllocation` gate remains deferred; no general heap or GC is established |
 | Array allocation helpers | Deferred | Ledger entry `ArrayAllocation`; no OS-owned NativeAOT array allocation helper exists |
 | String allocation helpers | Deferred | Ledger entry `StringAllocation`; no OS-owned NativeAOT string allocation helper exists |
 | Write barriers | Deferred | Ledger entry `WriteBarriers`; no kernel/runtime write barrier implementation exists |
@@ -504,9 +504,10 @@ The caller owns readable/writable, stable, exclusive storage, actual mappings
 and a single controller. Numeric/self-identity checks do not authenticate
 MethodTables or prevent forged PODs, ABA or concurrent access. There is no
 reset/free/grow, refill, OOM exception, boxing payload copy, write barrier or GC.
-Issue #76 stays open. Its separately owned EFI implementation is now present
-through #519; the following section separates source/artifact evidence from
-the physical guest acceptance still required. Gate 4 remains **Fail**.
+The leaf alone does not close #76. Its separately owned EFI implementation in
+#519 now has the bounded physical guest acceptance recorded in step949 and the
+following section; issue closure follows the reviewed merge. Gate 4 remains
+**Fail**.
 
 ### M04-007 opt-in EFI allocation source boundary
 
@@ -541,11 +542,19 @@ without returning into a constructor. `M04_RHP_PREP` reports actual image and
 scratch extents before either branch; `M04_RHP_BIND` denotes successful binding
 only. Exact positive/before-bind/exhaustion grammars contain78/49/71 records.
 
-Focused host modules and default/positive/before-bind/exhaustion native artifacts
-pass, including zero AssemblyRefs, authentic caller-token operands and linked
-constructor/reader offsets. This is not actual guest allocation evidence. The
-complete integrated host suite and five QEMU profiles, full observed-prefix
-relocation/native ABI review, lifecycle and disk accounting remain pending.
+Step949 accepts the complete host suite and five fresh QEMU profiles on source
+`77860a689b8460114cf179e44dd442533a1ad638`. Positive allocation records ten objects,
+used272/count10, four compiled-new and six direct routes, with scalar readback
+and zero prior-object/canary mismatch. Before-bind returns leaf status5 with
+zero cursor/count/constructors; exhaustion reaches used4088/count169 and rejects
+with status15 without changing heap or bump bytes. Both rejection paths halt.
+Fresh inspections of all five archived OS.dll files prove zero AssemblyRefs and
+the exact export signature/attribute/body. Independent same-image ABI review
+binds actual compiler calls and constructors; twenty full24-byte prefixes match
+COFF/PE fixups under signed relocation. Before-bind proves one attempted token,
+with no prefix observation. Whole raw transcripts, measured process termination
+and pristine/booted disk accounting are separately accepted. This establishes
+only the fixed finite fixture domain and retained one-page heap contract.
 General allocation, refill/reclamation, GC/roots/barriers, arrays/strings,
 cctors/dispatch/exceptions, post-firmware lifetime and hosted .NET remain
 unsupported. The runtime ledger adds a narrow fifteenth entry without passing

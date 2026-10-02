@@ -2057,12 +2057,18 @@ Raw publish hashes and the generic source scanner retain their prior authority.
 The minimal shim adds only the reviewed compiler declarations/token conversion
 and sole real `RhpNewFast` export, which fails closed by default. Four actual
 native artifact profiles pass; their linked caller/getter/constructor/reader
-associations are preserved in step946. Complete host and actual allocation
-guest evidence are pending. See `docs/nativeaot-nostdlib-limits.md` for the finite
+associations are preserved in step946. Step949 adds accepted complete host and
+five fresh QEMU profiles on source `77860a689b8460114cf179e44dd442533a1ad638`.
+Each archived managed DLL passes a fresh metadata-only inspection; same-image
+native routes, relocated prefixes, raw serial, lifecycle and disk accounting
+are independently accepted. See `docs/nativeaot-nostdlib-limits.md` for the finite
 domain and `docs/qemu.md` for the positive command and negative-proof boundary.
 
 Step947 scopes CS0649 suppression to the profile-written constructor counter
 and nine observation slots accessed through a POD pointer stride. Ordered
 fields, layout and executable logic are unchanged; unrelated warnings remain
 enabled. The initial integrated build's ten warnings and interrupted host run
-are preserved in that step. Fresh clean complete validation is still required.
+are preserved in that step. Step948 repairs the catalog's exact ownership note.
+Step949 records the subsequent clean solution build with zero warnings/errors,
+complete 3,573-start/3,574-pass host run and accepted five-profile guest evidence.
+The 77-item/90-input closure and 27-property vector remain unchanged.

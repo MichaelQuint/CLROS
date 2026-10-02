@@ -80,7 +80,9 @@ the checks. The measured synthetic output contains 14 CRLF records, 2,643 ASCII
 bytes and 84 numeric fields. Finite COM1 polling and terminal halt bytes are
 never executed by the host tests. The actual 20-source no-stdlib compile has
 zero AssemblyRefs. [Step945](../done/step945.md) records the focused evidence and
-independent review; complete settled-source integration is still pending.
+independent review. The complete settled-source host run in
+[step949](../done/step949.md) passes 3,573 starts/3,574 passes with zero failures;
+it includes all nine double-fault host groups and the actual no-stdlib closure.
 
 The supplied page-image summary does not establish C/D identity, current table
 contents or lifetime. A separately scoped EFI adapter must freshly audit the
