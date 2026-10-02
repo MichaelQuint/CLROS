@@ -64,7 +64,12 @@ public enum DotNetN10SystemDeclaration : byte
     RuntimeFeature = 37,
     RuntimeHelpers = 38,
     UnmanagedCallersOnlyAttribute = 39,
-    IDynamicInterfaceCastable = 40
+    IDynamicInterfaceCastable = 40,
+    IntrinsicAttribute = 41,
+    Unsafe = 42,
+    GenericArray = 43,
+    Nullable = 44,
+    RhpNewFastRuntime = 45
 }
 
 public readonly struct DotNetN10SystemDeclarationCompatibilityEntry
@@ -99,7 +104,8 @@ public enum DotNetN10RuntimeExportCategory : byte
     StackProbe = 1,
     TypeCast = 2,
     NativeTransition = 3,
-    FailFast = 4
+    FailFast = 4,
+    FixedAllocation = 5
 }
 
 public enum DotNetN10RuntimeExportBehavior : byte
@@ -107,7 +113,8 @@ public enum DotNetN10RuntimeExportBehavior : byte
     Unknown = 0,
     LinkOnlyNoOp = 1,
     FailFast = 2,
-    AuditedStackProbe = 3
+    AuditedStackProbe = 3,
+    ProfileBoundFixedAllocation = 4
 }
 
 public enum DotNetN10RuntimeExport : byte
@@ -129,7 +136,8 @@ public enum DotNetN10RuntimeExport : byte
     RhpReversePInvokeReturn = 14,
     RhpPInvoke = 15,
     RhpPInvokeReturn = 16,
-    RhpFallbackFailFast = 17
+    RhpFallbackFailFast = 17,
+    RhpNewFast = 18
 }
 
 public readonly struct DotNetN10RuntimeExportCompatibilityEntry
@@ -165,9 +173,9 @@ public readonly struct DotNetN10RuntimeExportCompatibilityEntry
 
 public static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
 {
-    public const int SystemDeclarationCount = 40;
+    public const int SystemDeclarationCount = 45;
 
-    public const int RuntimeExportCount = 17;
+    public const int RuntimeExportCount = 18;
 
     public const bool AddsCanonicalSystemNamespace = false;
 
@@ -265,6 +273,13 @@ public static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
                 DotNetN10SystemDeclaration.IDynamicInterfaceCastable,
                 DotNetN10SystemDeclarationCategory.InteropContract,
                 DotNetN10HelperSupportState.Forbidden),
+            40 => StubbedAttribute(DotNetN10SystemDeclaration.IntrinsicAttribute),
+            41 => NarrowCompilerServices(DotNetN10SystemDeclaration.Unsafe),
+            42 => StubbedCore(DotNetN10SystemDeclaration.GenericArray),
+            43 => StubbedCore(DotNetN10SystemDeclaration.Nullable),
+            44 => SystemDeclaration(DotNetN10SystemDeclaration.RhpNewFastRuntime,
+                DotNetN10SystemDeclarationCategory.RuntimeExportInfrastructure,
+                DotNetN10HelperSupportState.NarrowlyImplemented),
             _ => InvalidSystemDeclarationEntry()
         };
     }
@@ -326,6 +341,10 @@ public static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
                 DotNetN10RuntimeExportCategory.FailFast,
                 DotNetN10RuntimeExportBehavior.FailFast,
                 DotNetN10HelperSupportState.Forbidden),
+            17 => RuntimeExport(DotNetN10RuntimeExport.RhpNewFast,
+                DotNetN10RuntimeExportCategory.FixedAllocation,
+                DotNetN10RuntimeExportBehavior.ProfileBoundFixedAllocation,
+                DotNetN10HelperSupportState.NarrowlyImplemented),
             _ => InvalidRuntimeExportEntry()
         };
     }

@@ -2034,3 +2034,29 @@ Any next-step EFI build work must keep the freestanding constraints explicit. If
    as they are introduced.
 12. Replace permissive shell-only runtime placeholders with audited runtime
    helpers as subsystems require them.
+
+### M04-007 fixed-allocation source profile
+
+Step946 adds default-false `EnableM04RhpNewFastProbe`,
+`EnableM04RhpNewFastBeforeBindFailureProbe` and
+`EnableM04RhpNewFastExhaustionFailureProbe`, with corresponding
+`M04_RHP_NEW_FAST_PROBE`, `M04_RHP_NEW_FAST_BEFORE_BIND_FAILURE_PROBE` and
+`M04_RHP_NEW_FAST_EXHAUSTION_FAILURE_PROBE` symbols. Main requires both M01
+loaded-image/live-allocator flags and all five prior M04 flags explicitly.
+Negative selectors require main and exclude each other. Owned paging, every
+M02 probe and the simulation/fresh-ExitBootServices/physical-ACPI flags conflict.
+
+The current closure has77 ordered Compile items,90 raw source-authority inputs,
+27 evaluated flags and24 XML false defaults. The two appended sources are the
+unchanged `GuestTestRhpNewFast.cs` leaf and new `RhpNewFastAllocation.cs` adapter;
+all75 previous Compile indices remain stable. Scanner admission is limited to
+the exact leaf path and LF-normalized whole-source SHA256
+`22DF5D019EC4F09C5CB870B807ED91B9EA62C35E30CF59C031C3A15290CB9F45`.
+Raw publish hashes and the generic source scanner retain their prior authority.
+
+The minimal shim adds only the reviewed compiler declarations/token conversion
+and sole real `RhpNewFast` export, which fails closed by default. Four actual
+native artifact profiles pass; their linked caller/getter/constructor/reader
+associations are preserved in step946. Complete host and actual allocation
+guest evidence are pending. See `docs/nativeaot-nostdlib-limits.md` for the finite
+domain and `docs/qemu.md` for the positive command and negative-proof boundary.

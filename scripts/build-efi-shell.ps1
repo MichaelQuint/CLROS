@@ -50,7 +50,10 @@ param(
     [switch] $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe,
     [switch] $EnableM04ArithmeticConformanceProbe,
     [switch] $EnableM04LayoutContractProbe,
-    [switch] $EnableM04ManagedHeapPageRangeProbe
+    [switch] $EnableM04ManagedHeapPageRangeProbe,
+    [switch] $EnableM04RhpNewFastProbe,
+    [switch] $EnableM04RhpNewFastBeforeBindFailureProbe,
+    [switch] $EnableM04RhpNewFastExhaustionFailureProbe
 )
 
 $ErrorActionPreference = "Stop"
@@ -132,7 +135,9 @@ $script:ExpectedEfiCompileItems = @(
     'Boot\X64InstructionPublication.cs|',
     'Runtime\RuntimeImportAttribute.cs|',
     'Runtime\MethodImplAttribute.cs|',
-    'Runtime\MinimalRuntime.cs|'
+    'Runtime\MinimalRuntime.cs|',
+    '..\OS.Kernel\Runtime\GuestTestRhpNewFast.cs|Runtime\GuestTestRhpNewFast.cs',
+    'Runtime\RhpNewFastAllocation.cs|'
 )
 
 $script:ExpectedSerializerTargetsImport =
@@ -1842,6 +1847,9 @@ function Invoke-M01PostRestoreEvaluation {
         [bool] $M04ArithmeticConformanceEnabled,
         [bool] $M04LayoutContractEnabled,
         [bool] $M04ManagedHeapPageRangeEnabled,
+        [bool] $M04RhpNewFastEnabled,
+        [bool] $M04RhpNewFastBeforeBindFailureEnabled,
+        [bool] $M04RhpNewFastExhaustionFailureEnabled,
         [bool] $LoadedImageStackEnabled,
         [bool] $LiveAllocatorEnabled,
         [bool] $OwnedPagingEnabled,
@@ -1882,6 +1890,9 @@ function Invoke-M01PostRestoreEvaluation {
             "EnableM04ArithmeticConformanceProbe," +
             "EnableM04LayoutContractProbe," +
             "EnableM04ManagedHeapPageRangeProbe," +
+            "EnableM04RhpNewFastProbe," +
+            "EnableM04RhpNewFastBeforeBindFailureProbe," +
+            "EnableM04RhpNewFastExhaustionFailureProbe," +
             "EnableM01LoadedImageStackProbe," +
             "EnableM01LiveAllocatorProbe," +
             "EnableM01OwnedPagingProbe," +
@@ -2024,6 +2035,12 @@ function Invoke-M01PostRestoreEvaluation {
         $M04LayoutContractEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM04ManagedHeapPageRangeProbe=" +
         $M04ManagedHeapPageRangeEnabled.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableM04RhpNewFastProbe=" +
+        $M04RhpNewFastEnabled.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableM04RhpNewFastBeforeBindFailureProbe=" +
+        $M04RhpNewFastBeforeBindFailureEnabled.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableM04RhpNewFastExhaustionFailureProbe=" +
+        $M04RhpNewFastExhaustionFailureEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM01LoadedImageStackProbe=" + $LoadedImageStackEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM01LiveAllocatorProbe=" + $LiveAllocatorEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM01OwnedPagingProbe=" + $OwnedPagingEnabled.ToString().ToLowerInvariant())
@@ -2107,6 +2124,12 @@ function Invoke-M01PostRestoreEvaluation {
             $M04LayoutContractEnabled.ToString().ToLowerInvariant()
         EnableM04ManagedHeapPageRangeProbe =
             $M04ManagedHeapPageRangeEnabled.ToString().ToLowerInvariant()
+        EnableM04RhpNewFastProbe =
+            $M04RhpNewFastEnabled.ToString().ToLowerInvariant()
+        EnableM04RhpNewFastBeforeBindFailureProbe =
+            $M04RhpNewFastBeforeBindFailureEnabled.ToString().ToLowerInvariant()
+        EnableM04RhpNewFastExhaustionFailureProbe =
+            $M04RhpNewFastExhaustionFailureEnabled.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
         ImportProjectExtensionTargets = "false"
         ExcludeRestorePackageImports = "true"
@@ -4100,6 +4123,9 @@ for ($index = 5; $index -lt $verifierArguments.Count; $index += 2) {
         $parameterName -ceq "EnableM04ArithmeticConformanceProbe" -or
         $parameterName -ceq "EnableM04LayoutContractProbe" -or
         $parameterName -ceq "EnableM04ManagedHeapPageRangeProbe" -or
+        $parameterName -ceq "EnableM04RhpNewFastProbe" -or
+        $parameterName -ceq "EnableM04RhpNewFastBeforeBindFailureProbe" -or
+        $parameterName -ceq "EnableM04RhpNewFastExhaustionFailureProbe" -or
         $parameterName -ceq "EnableM01LoadedImageStackProbe" -or
         $parameterName -ceq "EnableM01LiveAllocatorProbe" -or
         $parameterName -ceq "EnableM01OwnedPagingProbe" -or
@@ -4872,6 +4898,20 @@ function Test-M01ActiveSourceSurface {
         }
     }
 
+    # Frozen #76 leaf: original POD authority, bounded allocation and existing NoInlining shim.
+    # Only this complete reviewed source is admitted; publish hashes remain raw.
+    if ([string]::Equals($SourceName,
+            '..\OS.Kernel\Runtime\GuestTestRhpNewFast.cs',
+            [System.StringComparison]::Ordinal)) {
+        $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
+        if (-not [string]::Equals($identity,
+                '22df5d019ec4f09c5cb870b807ed91b9ea62c35e30cf59c031c3a15290cb9f45',
+                [System.StringComparison]::Ordinal)) {
+            return [pscustomobject] @{ Succeeded=$false; Reason="forbidden_active_source"; Detail=$SourceName + ":reviewed_rhp_new_fast_source_identity"; ActiveText="" }
+        }
+        return [pscustomobject] @{ Succeeded=$true; Reason="ok"; Detail=""; ActiveText=$SourceText }
+    }
+
     # Frozen #510 image leaf imports only the already included POD boot/memory contracts.
     # Admission is exact path plus complete text identity; raw authority hashes stay raw.
     if ([string]::Equals($SourceName,
@@ -5448,6 +5488,9 @@ function Test-M01EvaluatedSourceClosure {
         [bool] $M04ArithmeticConformanceEnabled,
         [bool] $M04LayoutContractEnabled,
         [bool] $M04ManagedHeapPageRangeEnabled,
+        [bool] $M04RhpNewFastEnabled,
+        [bool] $M04RhpNewFastBeforeBindFailureEnabled,
+        [bool] $M04RhpNewFastExhaustionFailureEnabled,
         [bool] $UefiGoneSimulationEnabled,
         [bool] $ExitBootServicesFreshMapEnabled,
         [bool] $AcpiPhysicalDiscoveryEnabled
@@ -5510,6 +5553,12 @@ function Test-M01EvaluatedSourceClosure {
             $M04LayoutContractEnabled.ToString().ToLowerInvariant()
         "EnableM04ManagedHeapPageRangeProbe" =
             $M04ManagedHeapPageRangeEnabled.ToString().ToLowerInvariant()
+        "EnableM04RhpNewFastProbe" =
+            $M04RhpNewFastEnabled.ToString().ToLowerInvariant()
+        "EnableM04RhpNewFastBeforeBindFailureProbe" =
+            $M04RhpNewFastBeforeBindFailureEnabled.ToString().ToLowerInvariant()
+        "EnableM04RhpNewFastExhaustionFailureProbe" =
+            $M04RhpNewFastExhaustionFailureEnabled.ToString().ToLowerInvariant()
     }
     $expectedSwitchSymbols = [ordered] @{
         "M01_LOADED_IMAGE_STACK_PROBE" = $LoadedImageStackEnabled
@@ -5544,6 +5593,12 @@ function Test-M01EvaluatedSourceClosure {
             $M04LayoutContractEnabled
         "M04_MANAGED_HEAP_PAGE_RANGE_PROBE" =
             $M04ManagedHeapPageRangeEnabled
+        "M04_RHP_NEW_FAST_PROBE" =
+            $M04RhpNewFastEnabled
+        "M04_RHP_NEW_FAST_BEFORE_BIND_FAILURE_PROBE" =
+            $M04RhpNewFastBeforeBindFailureEnabled
+        "M04_RHP_NEW_FAST_EXHAUSTION_FAILURE_PROBE" =
+            $M04RhpNewFastExhaustionFailureEnabled
         "UEFI_GONE_SIMULATION_PROBE" = $UefiGoneSimulationEnabled
         "EXIT_BOOT_SERVICES_FRESH_MAP_PROBE" =
             $ExitBootServicesFreshMapEnabled
@@ -5585,6 +5640,9 @@ function Test-M01EvaluatedSourceClosure {
                 "EnableM04ArithmeticConformanceProbe," +
                 "EnableM04LayoutContractProbe," +
                 "EnableM04ManagedHeapPageRangeProbe," +
+                "EnableM04RhpNewFastProbe," +
+                "EnableM04RhpNewFastBeforeBindFailureProbe," +
+                "EnableM04RhpNewFastExhaustionFailureProbe," +
                 "DefineConstants," +
                 "EnableDefaultCompileItems," +
                 "NoStdLib," +
@@ -5709,6 +5767,18 @@ function Test-M01EvaluatedSourceClosure {
         if ($M04ManagedHeapPageRangeEnabled) {
             $arguments +=
                 "-p:EnableM04ManagedHeapPageRangeProbe=true"
+        }
+        if ($M04RhpNewFastEnabled) {
+            $arguments +=
+                "-p:EnableM04RhpNewFastProbe=true"
+        }
+        if ($M04RhpNewFastBeforeBindFailureEnabled) {
+            $arguments +=
+                "-p:EnableM04RhpNewFastBeforeBindFailureProbe=true"
+        }
+        if ($M04RhpNewFastExhaustionFailureEnabled) {
+            $arguments +=
+                "-p:EnableM04RhpNewFastExhaustionFailureProbe=true"
         }
         if ($UefiGoneSimulationEnabled) {
             $arguments += "-p:EnableUefiGoneSimulationProbe=true"
@@ -6246,6 +6316,9 @@ function Test-M01SourceClosure {
         [bool] $M04ArithmeticConformanceEnabled,
         [bool] $M04LayoutContractEnabled,
         [bool] $M04ManagedHeapPageRangeEnabled,
+        [bool] $M04RhpNewFastEnabled,
+        [bool] $M04RhpNewFastBeforeBindFailureEnabled,
+        [bool] $M04RhpNewFastExhaustionFailureEnabled,
         [bool] $UefiGoneSimulationEnabled,
         [bool] $ExitBootServicesFreshMapEnabled,
         [bool] $AcpiPhysicalDiscoveryEnabled
@@ -6295,7 +6368,7 @@ function Test-M01SourceClosure {
 
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "c68ba969d7f3b07ea2f9c2a511fa00e9c19bd58021b3206ac83bfe04f46f6a3e") {
+        "3166c9719559f17f67232aca1842ba6c59bd6401aa97a07aeb59a5af69d3bd12") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `
@@ -6380,6 +6453,12 @@ function Test-M01SourceClosure {
             "M04_LAYOUT_CONTRACT_PROBE"
         "EnableM04ManagedHeapPageRangeProbe" =
             "M04_MANAGED_HEAP_PAGE_RANGE_PROBE"
+        "EnableM04RhpNewFastProbe" =
+            "M04_RHP_NEW_FAST_PROBE"
+        "EnableM04RhpNewFastBeforeBindFailureProbe" =
+            "M04_RHP_NEW_FAST_BEFORE_BIND_FAILURE_PROBE"
+        "EnableM04RhpNewFastExhaustionFailureProbe" =
+            "M04_RHP_NEW_FAST_EXHAUSTION_FAILURE_PROBE"
         "EnableUefiGoneSimulationProbe" = "UEFI_GONE_SIMULATION_PROBE"
         "EnableExitBootServicesFreshMapProbe" = "EXIT_BOOT_SERVICES_FRESH_MAP_PROBE"
         "EnableAcpiPhysicalDiscoveryProbe" = "ACPI_PHYSICAL_DISCOVERY_PROBE"
@@ -6555,6 +6634,12 @@ function Test-M01SourceClosure {
             "M04_LAYOUT_CONTRACT_PROBE"
         "EnableM04ManagedHeapPageRangeProbe" =
             "M04_MANAGED_HEAP_PAGE_RANGE_PROBE"
+        "EnableM04RhpNewFastProbe" =
+            "M04_RHP_NEW_FAST_PROBE"
+        "EnableM04RhpNewFastBeforeBindFailureProbe" =
+            "M04_RHP_NEW_FAST_BEFORE_BIND_FAILURE_PROBE"
+        "EnableM04RhpNewFastExhaustionFailureProbe" =
+            "M04_RHP_NEW_FAST_EXHAUSTION_FAILURE_PROBE"
     }
     foreach ($entry in $switchSymbols.GetEnumerator()) {
         $defaultNodes = @($project.SelectNodes(
@@ -6704,6 +6789,34 @@ function Test-M01SourceClosure {
         "'" + '$' + "(EnableM04LayoutContractProbe)' == 'true' and '" +
         '$' + "(EnableM02Ud2VectorStateProbe)' == 'true'"
     $requiredErrorConditions = @(
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM01LoadedImageStackProbe)' != 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM01LiveAllocatorProbe)' != 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM04IndependentEndianConformanceProbe)' != 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' != 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM04ArithmeticConformanceProbe)' != 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM04LayoutContractProbe)' != 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM04ManagedHeapPageRangeProbe)' != 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM02SafeStubProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM02Com1OwnedPortIoProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM02OwnedCom1ReadyProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM02GuardedIstStackAllocationProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM02IdtrContinuedExecutionProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM02Ud2VectorStateProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM01OwnedPagingProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableUefiGoneSimulationProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableExitBootServicesFreshMapProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' and '`$(EnableM04RhpNewFastProbe)' != 'true'",
+        "'`$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' and '`$(EnableM04RhpNewFastProbe)' != 'true'",
+        "'`$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' and '`$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true'",
+
         "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM01LoadedImageStackProbe)' != 'true'",
         "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM01LiveAllocatorProbe)' != 'true'",
         "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM01OwnedPagingProbe)' != 'true'",
@@ -7102,6 +7215,9 @@ function Test-M01SourceClosure {
         -M04ArithmeticConformanceEnabled $M04ArithmeticConformanceEnabled `
         -M04LayoutContractEnabled $M04LayoutContractEnabled `
         -M04ManagedHeapPageRangeEnabled $M04ManagedHeapPageRangeEnabled `
+        -M04RhpNewFastEnabled $M04RhpNewFastEnabled `
+        -M04RhpNewFastBeforeBindFailureEnabled $M04RhpNewFastBeforeBindFailureEnabled `
+        -M04RhpNewFastExhaustionFailureEnabled $M04RhpNewFastExhaustionFailureEnabled `
         -UefiGoneSimulationEnabled $UefiGoneSimulationEnabled `
         -ExitBootServicesFreshMapEnabled $ExitBootServicesFreshMapEnabled `
         -AcpiPhysicalDiscoveryEnabled $AcpiPhysicalDiscoveryEnabled
@@ -7274,8 +7390,8 @@ try {
             (Format-EvidenceValue $_.Exception.Message))
         exit 1
     }
-    if ($sourceSnapshotBeforePublish.InputCount -ne 88 -or
-        $sourceSnapshotAfterLock.InputCount -ne 88 -or
+    if ($sourceSnapshotBeforePublish.InputCount -ne 90 -or
+        $sourceSnapshotAfterLock.InputCount -ne 90 -or
         $sourceSnapshotBeforePublish.AggregateSha256 -cne
             $sourceSnapshotAfterLock.AggregateSha256 -or
         $sourceSnapshotBeforePublish.AuthoritySha256 -cne
@@ -7288,9 +7404,22 @@ try {
         exit 1
     }
     Write-Host "EFI_PUBLISH_SOURCE_LOCK status=ok"
-    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=88"
+    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=90"
 
 Write-EfiPreflightLine "EFI_PREFLIGHT_START"
+
+$rhpReason = ""
+if (($EnableM04RhpNewFastBeforeBindFailureProbe -or $EnableM04RhpNewFastExhaustionFailureProbe) -and -not $EnableM04RhpNewFastProbe) { $rhpReason = "m04_rhp_new_fast_negative_requires_main" }
+if ($EnableM04RhpNewFastBeforeBindFailureProbe -and $EnableM04RhpNewFastExhaustionFailureProbe) { $rhpReason = "m04_rhp_new_fast_negative_conflict" }
+if ($EnableM04RhpNewFastProbe) {
+    foreach ($rhpRequired in @("EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe", "EnableM04IndependentEndianConformanceProbe", "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe", "EnableM04ArithmeticConformanceProbe", "EnableM04LayoutContractProbe", "EnableM04ManagedHeapPageRangeProbe")) {
+        if (-not [bool](Get-Variable -Name $rhpRequired -ValueOnly)) { $rhpReason = "m04_rhp_new_fast_requires_explicit_chain_" + $rhpRequired }
+    }
+    foreach ($rhpConflict in @("EnableM02SafeStubProbe", "EnableM02CheckedPortIoBindingProbe", "EnableM02Com1OwnedPortIoProbe", "EnableM02OwnedCom1ReadyProbe", "EnableM02PanicSafeOwnedCom1Probe", "EnableM02OwnedX64GdtEncodingProbe", "EnableM02GuardedIstStackAllocationProbe", "EnableM02OwnedGdtTssTerminalProbe", "EnableM02NormalizedInterruptFramePageProbe", "EnableM02OwnedIdtGatePopulationProbe", "EnableM02IdtrContinuedExecutionProbe", "EnableM02Ud2VectorStateProbe", "EnableM02PageFaultCr2ErrorCodeProbe", "EnableM01OwnedPagingProbe", "EnableUefiGoneSimulationProbe", "EnableExitBootServicesFreshMapProbe", "EnableAcpiPhysicalDiscoveryProbe")) {
+        if ([bool](Get-Variable -Name $rhpConflict -ValueOnly)) { $rhpReason = "m04_rhp_new_fast_conflicting_profile_" + $rhpConflict }
+    }
+}
+if ($rhpReason.Length -ne 0) { Stop-EfiPreflight -Marker ("EFI_PREFLIGHT_M04_RHP_NEW_FAST status=invalid reason=" + $rhpReason) -Reason $rhpReason -LogFullPath $logFullPath -ReportedLogPath $LogPath -Status "invalid" }
 
 if ($EnableM02Ud2VectorStateProbe) {
     $m02Ud2VectorStatePrerequisites = @(
@@ -8021,6 +8150,9 @@ $m01SourceClosure = Test-M01SourceClosure `
     -M04ArithmeticConformanceEnabled $EnableM04ArithmeticConformanceProbe.IsPresent `
     -M04LayoutContractEnabled $EnableM04LayoutContractProbe.IsPresent `
     -M04ManagedHeapPageRangeEnabled $EnableM04ManagedHeapPageRangeProbe.IsPresent `
+    -M04RhpNewFastEnabled $EnableM04RhpNewFastProbe.IsPresent `
+    -M04RhpNewFastBeforeBindFailureEnabled $EnableM04RhpNewFastBeforeBindFailureProbe.IsPresent `
+    -M04RhpNewFastExhaustionFailureEnabled $EnableM04RhpNewFastExhaustionFailureProbe.IsPresent `
     -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
     -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
     -AcpiPhysicalDiscoveryEnabled $EnableAcpiPhysicalDiscoveryProbe.IsPresent
@@ -8708,6 +8840,19 @@ if ($EnableM04ManagedHeapPageRangeProbe) {
     Write-Host "EFI_PROBE M04_MANAGED_HEAP_PAGE_RANGE"
 }
 
+if ($EnableM04RhpNewFastProbe) {
+    $arguments += "-p:EnableM04RhpNewFastProbe=true"
+    Write-Host "EFI_PROBE M04_RHP_NEW_FAST"
+}
+if ($EnableM04RhpNewFastBeforeBindFailureProbe) {
+    $arguments += "-p:EnableM04RhpNewFastBeforeBindFailureProbe=true"
+    Write-Host "EFI_PROBE M04_RHP_NEW_FAST_BEFORE_BIND_FAILURE"
+}
+if ($EnableM04RhpNewFastExhaustionFailureProbe) {
+    $arguments += "-p:EnableM04RhpNewFastExhaustionFailureProbe=true"
+    Write-Host "EFI_PROBE M04_RHP_NEW_FAST_EXHAUSTION_FAILURE"
+}
+
 if ($EnableUefiGoneSimulationProbe) {
     $arguments += "-p:EnableUefiGoneSimulationProbe=true"
     Write-Host "EFI_PROBE UEFI_GONE_SIMULATION"
@@ -8834,6 +8979,9 @@ $methodImplAttributeSourcePath = Join-Path $repositoryRoot (
         -M04ArithmeticConformanceEnabled $EnableM04ArithmeticConformanceProbe.IsPresent `
         -M04LayoutContractEnabled $EnableM04LayoutContractProbe.IsPresent `
         -M04ManagedHeapPageRangeEnabled $EnableM04ManagedHeapPageRangeProbe.IsPresent `
+        -M04RhpNewFastEnabled $EnableM04RhpNewFastProbe.IsPresent `
+        -M04RhpNewFastBeforeBindFailureEnabled $EnableM04RhpNewFastBeforeBindFailureProbe.IsPresent `
+        -M04RhpNewFastExhaustionFailureEnabled $EnableM04RhpNewFastExhaustionFailureProbe.IsPresent `
         -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
         -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
         -AcpiPhysicalDiscoveryEnabled $EnableAcpiPhysicalDiscoveryProbe.IsPresent
@@ -9074,6 +9222,9 @@ try {
             $EnableM04ArithmeticConformanceProbe.IsPresent `
         -M04LayoutContractEnabled $EnableM04LayoutContractProbe.IsPresent `
         -M04ManagedHeapPageRangeEnabled $EnableM04ManagedHeapPageRangeProbe.IsPresent `
+        -M04RhpNewFastEnabled $EnableM04RhpNewFastProbe.IsPresent `
+        -M04RhpNewFastBeforeBindFailureEnabled $EnableM04RhpNewFastBeforeBindFailureProbe.IsPresent `
+        -M04RhpNewFastExhaustionFailureEnabled $EnableM04RhpNewFastExhaustionFailureProbe.IsPresent `
         -LoadedImageStackEnabled $EnableM01LoadedImageStackProbe.IsPresent `
         -LiveAllocatorEnabled $EnableM01LiveAllocatorProbe.IsPresent `
         -OwnedPagingEnabled $EnableM01OwnedPagingProbe.IsPresent `
@@ -9262,6 +9413,9 @@ if ($exitCode -eq 0) {
                     $EnableM04ArithmeticConformanceProbe.IsPresent `
                 -M04LayoutContractEnabled $EnableM04LayoutContractProbe.IsPresent `
                 -M04ManagedHeapPageRangeEnabled $EnableM04ManagedHeapPageRangeProbe.IsPresent `
+                -M04RhpNewFastEnabled $EnableM04RhpNewFastProbe.IsPresent `
+                -M04RhpNewFastBeforeBindFailureEnabled $EnableM04RhpNewFastBeforeBindFailureProbe.IsPresent `
+                -M04RhpNewFastExhaustionFailureEnabled $EnableM04RhpNewFastExhaustionFailureProbe.IsPresent `
                 -LoadedImageStackEnabled $EnableM01LoadedImageStackProbe.IsPresent `
                 -LiveAllocatorEnabled $EnableM01LiveAllocatorProbe.IsPresent `
                 -OwnedPagingEnabled $EnableM01OwnedPagingProbe.IsPresent `
@@ -9653,6 +9807,9 @@ if ($exitCode -eq 0) {
     if ($EnableM04ManagedHeapPageRangeProbe) {
         $verificationArguments += @("-EnableM04ManagedHeapPageRangeProbe", "true")
     }
+    $verificationArguments += @("-EnableM04RhpNewFastProbe", $EnableM04RhpNewFastProbe.IsPresent.ToString().ToLowerInvariant())
+    $verificationArguments += @("-EnableM04RhpNewFastBeforeBindFailureProbe", $EnableM04RhpNewFastBeforeBindFailureProbe.IsPresent.ToString().ToLowerInvariant())
+    $verificationArguments += @("-EnableM04RhpNewFastExhaustionFailureProbe", $EnableM04RhpNewFastExhaustionFailureProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM01LoadedImageStackProbe", $EnableM01LoadedImageStackProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM01LiveAllocatorProbe", $EnableM01LiveAllocatorProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM01OwnedPagingProbe", $EnableM01OwnedPagingProbe.IsPresent.ToString().ToLowerInvariant())

@@ -15523,6 +15523,31 @@ public static unsafe class EfiEntry
             }
         }
 
+#if M04_RHP_NEW_FAST_PROBE
+        internal static bool TryGetOriginalLoadedImage(out byte* image, out ulong bytes)
+        {
+            image = null;
+            bytes = 0;
+            fixed (M01LoadedImageStackStaticState* state = &s_staticState)
+                if (!IsFinalStageOneSuccess(state, M01LoadedImageStackStaticState.RequiredStorageBytes))
+                    return false;
+            EfiLoadedImageRangeCapturePlan capture = s_evidenceScratch.LoadedImageCapture;
+            M01LoadedImageVirtualMappingEvidence mapping = s_evidenceScratch.LoadedImageVirtualMapping;
+            if (!capture.Succeeded || !mapping.IsValidFor(capture) ||
+                mapping.Provenance != M01LoadedImageVirtualMappingProvenance.CallerAttestedIdentityMapping ||
+                capture.Range.ImageBase.TryGetRawValueForUefiBoundary(out ulong physical) != AddressValueStatus.Success ||
+                mapping.VirtualImageBase.TryGetRawValueForUefiBoundary(out ulong address) != AddressValueStatus.Success ||
+                address == 0 || address != physical || mapping.ImageByteLength != capture.Range.ImageSize ||
+                capture.Range.ImageSize == 0 || address > ~0UL - capture.Range.ImageSize)
+                return false;
+            image = (byte*)address;
+            bytes = capture.Range.ImageSize;
+            return true;
+        }
+
+        internal static void WriteRhpByte(byte value) => EfiEntry.Write(s_console, s_serial, value);
+#endif
+
         internal static bool TryGetFinalSwitchPlan(
             void* stageOneState,
             ulong stageOneStateCapacity,
@@ -15737,6 +15762,9 @@ public static unsafe class EfiEntry
 #if M04_MANAGED_HEAP_PAGE_RANGE_PROBE
                 if (!M01StageTwoAdapter.ValidateManagedHeapBeforeBootPlan(s_console, s_serial))
                     Spin();
+#endif
+#if M04_RHP_NEW_FAST_PROBE
+                M01StageTwoAdapter.RunRhpNewFastAfterZeroCheckpoint();
 #endif
                 EfiEntry.WriteBootSequencePlan(
                     s_console,
@@ -16292,6 +16320,28 @@ public static unsafe class EfiEntry
                 return M04ManagedHeapAdapter.Checkpoint(false, state, record,
                     &ledger->Range0, heap, console, serial);
         }
+#if M04_RHP_NEW_FAST_PROBE
+        public static void RunRhpNewFastAfterZeroCheckpoint()
+        {
+            if (!M01StageOneAdapter.TryGetOriginalLoadedImage(out byte* image, out ulong imageBytes))
+                OS.Runtime.RhpNewFastAllocation.RejectAdapter(OS.Runtime.RhpAdmissionStatus.InvalidImage, 13);
+            fixed (M01LiveAllocatorStaticState* state = &s_staticState)
+            fixed (BootMemoryRegionRecord* record = &s_allocationRecord)
+            fixed (M01StageTwoReservationLedgerBuffer* ledger = &s_reservationLedger)
+            fixed (ManagedHeapPageRangeState* heap = &s_heapState)
+            {
+                RhpNewFastHeapAccess original = new RhpNewFastHeapAccess
+                {
+                    Allocator = &state->AllocatorStateValue, AllocatorCapacity = 1,
+                    Nodes = &state->FreeNodeValue, NodeCount = 1, NodeCapacity = 1,
+                    Reservations = &ledger->Range0, ReservationCount = 5, ReservationCapacity = 5,
+                    ParentIndex = heap->ParentIndex, Backing = (byte*)record->VirtualStart,
+                    BackingCapacity = 8192, Heap = heap, HeapCapacity = ManagedHeapPageRangeLiveAllocator.RequiredStateBytes
+                };
+                OS.Runtime.RhpNewFastAllocation.Run(original, image, imageBytes);
+            }
+        }
+#endif
 #endif
 
         public static bool RunAfterStageOne(
@@ -17395,6 +17445,10 @@ public static unsafe class EfiEntry
             return false;
         }
     }
+#endif
+
+#if M04_RHP_NEW_FAST_PROBE
+    internal static void WriteRhpByte(byte value) => M01StageOneAdapter.WriteRhpByte(value);
 #endif
 
     private static void WriteCrLf(EfiSimpleTextOutputProtocol* console, EfiSerialIoProtocol* serial)

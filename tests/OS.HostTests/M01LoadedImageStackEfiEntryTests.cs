@@ -336,7 +336,37 @@ internal static class M01LoadedImageStackEfiEntryTests
             return Failure("loader-owned-image-released");
         }
 
+        if (!HasRhpOriginalImageAndAuthority(source)
+            || HasRhpOriginalImageAndAuthority(source.Replace("!mapping.IsValidFor(capture)", "false", StringComparison.Ordinal))
+            || HasRhpOriginalImageAndAuthority(source.Replace("s_evidenceScratch.LoadedImageCapture;", "default;", StringComparison.Ordinal))
+            || HasRhpOriginalImageAndAuthority(source.Replace("Allocator = &state->AllocatorStateValue", "Allocator = null", StringComparison.Ordinal))
+            || HasRhpOriginalImageAndAuthority(source.Replace("M01StageTwoAdapter.RunRhpNewFastAfterZeroCheckpoint();", "SkippedRhpHandoff();", StringComparison.Ordinal)))
+            return Failure("rhp-original-image-and-authority");
+
         return true;
+    }
+
+    private static bool HasRhpOriginalImageAndAuthority(string source)
+    {
+        string? image = FindMethodBody(source, "TryGetOriginalLoadedImage");
+        string? handoff = FindMethodBody(source, "RunRhpNewFastAfterZeroCheckpoint");
+        if (image is null || handoff is null) return false;
+        string imageCode = RemoveAllWhitespace(RemoveComments(image));
+        foreach (string required in new[] { "!IsFinalStageOneSuccess(state,", "s_evidenceScratch.LoadedImageCapture;",
+            "s_evidenceScratch.LoadedImageVirtualMapping;", "!capture.Succeeded", "!mapping.IsValidFor(capture)",
+            "mapping.Provenance!=M01LoadedImageVirtualMappingProvenance.CallerAttestedIdentityMapping",
+            "address!=physical", "mapping.ImageByteLength!=capture.Range.ImageSize", "address>~0UL-capture.Range.ImageSize" })
+            if (!imageCode.Contains(required, StringComparison.Ordinal)) return false;
+        if (FindInvocationArguments(image, "HandleProtocol").Count != 0) return false;
+        string authority = RemoveAllWhitespace(RemoveComments(handoff));
+        foreach (string required in new[] { "M01StageOneAdapter.TryGetOriginalLoadedImage(",
+            "Allocator=&state->AllocatorStateValue,AllocatorCapacity=1", "Nodes=&state->FreeNodeValue,NodeCount=1,NodeCapacity=1",
+            "Reservations=&ledger->Range0,ReservationCount=5,ReservationCapacity=5", "ParentIndex=heap->ParentIndex",
+            "Backing=(byte*)record->VirtualStart", "BackingCapacity=8192", "Heap=heap", "OS.Runtime.RhpNewFastAllocation.Run(original,image,imageBytes);" })
+            if (!authority.Contains(required, StringComparison.Ordinal)) return false;
+        int zero = source.IndexOf("if (!M01StageTwoAdapter.ValidateManagedHeapBeforeBootPlan", StringComparison.Ordinal);
+        int run = source.IndexOf("M01StageTwoAdapter.RunRhpNewFastAfterZeroCheckpoint();", StringComparison.Ordinal);
+        return zero >= 0 && run > zero && source.IndexOf("EfiEntry.WriteBootSequencePlan(", zero, StringComparison.Ordinal) > run;
     }
 
     private static bool TestAllocationAndCleanupContract()

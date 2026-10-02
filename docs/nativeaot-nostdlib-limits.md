@@ -118,13 +118,14 @@ The no-stdlib surface is not implemented beyond the first EFI shell boundary. `s
 - `OS.Std.ArrayHelpers` provides a host-tested partial unmanaged-span helper slice for `Clear`, `Fill`, `IndexOf`, `LastIndexOf`, BCL-shaped `BinarySearch` insertion-point results, full-span `Sort`, status-coded range-limited `TrySort`, and status-coded `TryBinarySearch` over caller-specified ranges. The current slice is no-throw, allocation-free, deterministic for small buffers, and constrained to unmanaged element types.
 - `src/OS/Runtime/MinimalRuntime.cs` defines the current compiler-required primitive stubs, throw helpers, memory helpers, fail-fast type-cast placeholders, `IDynamicInterfaceCastable` metadata shape, and reverse-P/Invoke exports needed by the explicit EFI shell project.
 - `OS.Std.NoRuntime.DotNetN10SystemExportCompatibilityLedgerImplementedStubbed`
-  records a source-bound compatibility snapshot for all 40 current canonical
-  `System.*` declarations and all 17 `[RuntimeExport]` methods in
+  records a source-bound compatibility snapshot for all 45 current canonical
+  `System.*` declarations and all 18 `[RuntimeExport]` methods in
   `MinimalRuntime.cs`. It uses readonly reference-free entries and
   switch-indexed retrieval without arrays, reflection, LINQ, exceptions, or a
   canonical `System.*` namespace surface. Unknown indices and default entries
   fail closed. The ledger classifies the runtime exports as four link-only
-  no-ops, twelve fail-fast helpers, and one audited stack-probe helper; it adds
+  no-ops, twelve fail-fast helpers, one audited stack-probe helper, and the
+  profile-bound fixed-allocation export; the ledger itself adds
   no runtime behavior and cannot satisfy completion Gate 4.
 - `BootPageFreeListBuilder`, `BootPageAllocatorStateInitializer`,
   `BootPageAllocatorMutation`, `BootPageAllocatorReadinessComposer`, and
@@ -210,15 +211,16 @@ Boundary rules:
 
 `std/no-runtime/shared/DotNetN10SystemExportCompatibilityLedgerImplementedStubbed.cs`
 is the allocation-free declaration/export classification companion to that
-planning ledger. Its 40 declaration identities follow current
-`MinimalRuntime.cs` source order and carry stable unknown,
-narrowly-implemented, stubbed, or forbidden support states. Its 17 export
-identities preserve source order and distinguish four link-only no-op
-transition helpers, eleven fail-fast type-cast helpers plus
-`RhpFallbackFailFast`, and the audited `RhpStackProbe` bridge. These entries
-describe the EFI shim as it exists; they neither copy the shim into the normal
-host build nor implement allocation, GC, metadata, dispatch, exceptions, or
-runtime execution.
+planning ledger. Its 45 declaration identities follow current
+`MinimalRuntime.cs` source order, distinguish generic arities, and carry stable
+unknown, narrowly-implemented, stubbed, or forbidden support states. Its 18
+export identities preserve source order: four link-only transition no-ops,
+eleven fail-fast type-cast helpers plus `RhpFallbackFailFast`, the audited
+`RhpStackProbe` bridge, and the profile-bound `RhpNewFast` export. The latter
+defaults to self-contained failure; its opt-in adapter is implemented and
+artifact-tested in step946, with real guest acceptance still pending. These
+entries do not copy the shim into normal host builds or satisfy general
+allocation, GC, dispatch, exception or runtime-completion requirements.
 
 | Helper area | Current status | Evidence / boundary |
 | --- | --- | --- |
@@ -226,7 +228,7 @@ runtime execution.
 | `System.Runtime.RuntimeExportAttribute` | Implemented only for EFI runtime export metadata | Needed by `EfiMain` and NativeAOT helper exports |
 | `System.Buffer.MemoryCopy` / `Memmove` | Implemented as byte loops for EFI shell needs | Used for no-stdlib memory copy paths; not a complete BCL buffer contract |
 | `System.SpanHelpers` clear/fill/memmove slice | Implemented as narrow byte/pointer helper slice | Supports current EFI publish boundary only |
-| Object allocation helpers | Host leaf implemented; runtime export deferred | The #75 retained-page handoff has bounded guest evidence (step939). The #76 `GuestTestRhpNewFast` leaf allocates fixed byte intervals through that original authority in host tests (step940). No OS-owned NativeAOT allocation export, compiled guest object allocation, general heap or GC is established; the `ObjectAllocation` runtime-helper ledger gate remains deferred |
+| Object allocation helpers | Host leaf and opt-in EFI export implemented; guest acceptance pending | Step940 proves the fixed caller-buffer leaf over the original #75 retained authority. Step946 adds the real profile-bound `RhpNewFast` adapter and authentic linked compiled-new/direct routes. Four NativeAOT artifact profiles pass; five actual guest profiles and complete integrated host evidence remain pending. The general `ObjectAllocation` gate remains deferred; no general heap or GC is established |
 | Array allocation helpers | Deferred | Ledger entry `ArrayAllocation`; no OS-owned NativeAOT array allocation helper exists |
 | String allocation helpers | Deferred | Ledger entry `StringAllocation`; no OS-owned NativeAOT string allocation helper exists |
 | Write barriers | Deferred | Ledger entry `WriteBarriers`; no kernel/runtime write barrier implementation exists |
@@ -502,9 +504,52 @@ The caller owns readable/writable, stable, exclusive storage, actual mappings
 and a single controller. Numeric/self-identity checks do not authenticate
 MethodTables or prevent forged PODs, ABA or concurrent access. There is no
 reset/free/grow, refill, OOM exception, boxing payload copy, write barrier or GC.
-Issue #76 stays open for separately owned EFI integration, authentic emitted
-metadata, compiled allocation/ABI and physical guest evidence. Gate 4 remains
-**Fail**; the combined settled-source full gate remains pending.
+Issue #76 stays open. Its separately owned EFI implementation is now present
+through #519; the following section separates source/artifact evidence from
+the physical guest acceptance still required. Gate 4 remains **Fail**.
+
+### M04-007 opt-in EFI allocation source boundary
+
+Step946 links the unchanged host leaf to `RhpNewFastAllocation.cs` and the sole
+NoInlining `RhpNewFast` runtime export. `EnableM04RhpNewFastProbe` defaults false;
+the default export halts without returning a reference. Enabled operation uses
+the original thirteen retained-authority arguments and original loaded-image
+capture after the second whole-page-zero checkpoint. Each allocation performs
+the leaf's fresh retained-ownership check. Access104, bump80, control96 and
+records5872 are distinct POD slots; no second heap allocator is introduced.
+
+The finite adapter matches the incoming token against ten actual same-build
+`Of<T>` identities before reading a 24-byte MethodTable prefix. Its bounded
+PE reader permits at most eight sections and requires the whole prefix in one
+initialized, readable, nonwritable, nonexecutable, nondiscardable section.
+Image mapping remains caller-attested; PE flags do not prove active page
+permissions. Metadata tails and related-type pointers are not dereferenced.
+
+Four compiled-new routes cover plain, reference-field, generic-reference and
+generic-value classes. Six direct actual-export routes cover int, enum, fixed
+value, reference-containing value, generic value and `Nullable<int>` shapes.
+The latter are allocation-only: no boxing payload copy or nullable substitution
+is implemented. Reference fields remain zero; constructors write scalars only.
+The first ten allocations record actual header, MethodTable, zero-before-write,
+cursor and object bytes, followed by typed/raw field and prior-object checks.
+`referenceSlotBytes` counts all untouched payload/padding bytes excluding an
+assigned scalar; it does not classify every byte as a managed reference.
+
+Before-bind and exhaustion profiles require actual leaf statuses5 and15.
+Rejected calls compare all4096 heap bytes and all80 bump-state bytes, then halt
+without returning into a constructor. `M04_RHP_PREP` reports actual image and
+scratch extents before either branch; `M04_RHP_BIND` denotes successful binding
+only. Exact positive/before-bind/exhaustion grammars contain78/49/71 records.
+
+Focused host modules and default/positive/before-bind/exhaustion native artifacts
+pass, including zero AssemblyRefs, authentic caller-token operands and linked
+constructor/reader offsets. This is not actual guest allocation evidence. The
+complete integrated host suite and five QEMU profiles, full observed-prefix
+relocation/native ABI review, lifecycle and disk accounting remain pending.
+General allocation, refill/reclamation, GC/roots/barriers, arrays/strings,
+cctors/dispatch/exceptions, post-firmware lifetime and hosted .NET remain
+unsupported. The runtime ledger adds a narrow fifteenth entry without passing
+the general allocation gate or Gate4.
 
 ## Tests
 
@@ -773,18 +818,19 @@ No `TEST_FAIL` or `M04_ENDIAN_CONFORMANCE_FAILED` line appeared.
 
 `tests/OS.HostTests/StdArrayHelpersTests.cs` covers the current partial unmanaged-span array helper slice: empty-span clear/fill behavior, full-span clear, partial-span fill, first/last/missing search over duplicate values, BCL-shaped binary-search exact matches, insertion-point complements, duplicate-match tolerance, full-span sort for empty, single-element, already-sorted, reverse, and duplicate values, status-coded range-limited `TrySort` success/invalid-range behavior, status-coded range-limited `TryBinarySearch` found/not-found/invalid-range behavior, and default-result rejection. It emits `TEST_PASS std.arrayhelpers clear fill unmanaged spans`, `TEST_PASS std.arrayhelpers indexof unmanaged spans`, `TEST_PASS std.arrayhelpers binarysearch insertion points`, `TEST_PASS std.arrayhelpers sort unmanaged spans`, `TEST_PASS std.arrayhelpers trysort range and status`, `TEST_PASS std.arrayhelpers trysort default result is not success`, `TEST_PASS std.arrayhelpers trybinarysearch found range`, `TEST_PASS std.arrayhelpers trybinarysearch notfound range`, `TEST_PASS std.arrayhelpers trybinarysearch invalid range`, and `TEST_PASS std.arrayhelpers trybinarysearch default result is not success`.
 
-`tests/OS.HostTests/NativeAotHelperLedgerTests.cs` verifies that the helper ledger contains the required runtime helper areas, carries symbol/contract detail, evidence, required contract, allowed milestone stub behavior, current test coverage, owner subsystem, next-step text, and completion-gate applicability, leaves incomplete runtime helpers unmarked as complete, prevents EFI-only helpers from satisfying kernel/runtime completion, represents all 17 current EFI `[RuntimeExport]` symbols from `src/OS/Runtime/MinimalRuntime.cs` in exactly one ledger entry, keeps `RhpStackProbe` separate from the four reverse-P/Invoke and twelve type-cast symbols, preserves existing append-only enum values, and keeps `BootPageAllocatorMutation` evidence below the object/array/string allocation helper completion boundary. It emits `TEST_PASS runtime.nativeaot helper ledger structured columns`, `TEST_PASS runtime.nativeaot helper ledger append-only values`, and `TEST_PASS runtime.nativeaot helper ledger allocator mutation boundary`.
+`tests/OS.HostTests/NativeAotHelperLedgerTests.cs` verifies that the helper ledger contains the required runtime helper areas, carries symbol/contract detail, evidence, required contract, allowed milestone stub behavior, current test coverage, owner subsystem, next-step text, and completion-gate applicability, leaves incomplete runtime helpers unmarked as complete, prevents EFI-only helpers from satisfying kernel/runtime completion, represents all 18 current EFI `[RuntimeExport]` symbols from `src/OS/Runtime/MinimalRuntime.cs` in exactly one ledger entry, keeps `RhpStackProbe` and the profile-bound `RhpNewFast` entry separate from the four reverse-P/Invoke and twelve fail-fast symbols, preserves existing append-only enum values, and keeps `BootPageAllocatorMutation` evidence below the object/array/string allocation helper completion boundary. It emits `TEST_PASS runtime.nativeaot helper ledger structured columns`, `TEST_PASS runtime.nativeaot helper ledger append-only values`, and `TEST_PASS runtime.nativeaot helper ledger allocator mutation boundary`.
 
 `tests/OS.HostTests/DotNetN10SystemExportCompatibilityLedgerImplementedStubbedTests.cs`
-derives the 40 current canonical `System.*` declarations and 17
+derives the 45 current canonical `System.*` declarations and 18
 `[RuntimeExport]` methods directly from `src/OS/Runtime/MinimalRuntime.cs`, then
 binds their source order and observed helper bodies to the allocation-free
 `OS.Std.NoRuntime` ledger. It verifies the four link-only no-op, twelve
-fail-fast, and one audited stack-probe split; stable categories and support
+fail-fast, one audited stack-probe and one profile-bound allocation export
+classification; stable categories and support
 states; reference-free entries; switch-indexed retrieval; fail-closed unknown
 and default values; absence of a canonical `System.*` namespace; and the
 unchanged failing Gate 4 boundary. It emits exactly one
-`CLROS_M04_001_READY declarations=40 runtimeExports=17 linkOnlyNoOp=4
+`CLROS_M04_001_READY declarations=45 runtimeExports=18 linkOnlyNoOp=4
 failFast=12 auditedStackProbe=1 gate4=Fail canonicalSystemNamespace=false`
 marker between `TEST_START m04.001` and `TEST_PASS m04.001`.
 

@@ -63,7 +63,8 @@ internal static class NativeAotHelperLedgerTests
             NativeAotHelperArea.GcStackRoots,
             NativeAotHelperArea.EfiReversePInvoke,
             NativeAotHelperArea.EfiFailFastTypeCasts,
-            NativeAotHelperArea.EfiStackProbe
+            NativeAotHelperArea.EfiStackProbe,
+            NativeAotHelperArea.EfiFixedAllocation
         ];
 
         ExpectEqual("ledger entry count", required.Length, NativeAotHelperLedger.EntryCount);
@@ -132,7 +133,7 @@ internal static class NativeAotHelperLedgerTests
             }
         }
 
-        ExpectEqual("EFI-only helper count", 3, efiOnlyCount);
+        ExpectEqual("EFI-only helper count", 4, efiOnlyCount);
     }
 
     private static void TestEntriesCarryEvidenceAndGateApplicability()
@@ -258,6 +259,14 @@ internal static class NativeAotHelperLedgerTests
         ExpectEqual("EFI stack-probe area value", 14, (int)NativeAotHelperArea.EfiStackProbe);
         ExpectEqual("complete helper status value", 4, (int)NativeAotHelperStatus.Complete);
         ExpectEqual("EFI stack-probe status value", 5, (int)NativeAotHelperStatus.EfiOnlyStackProbe);
+        ExpectEqual("EFI fixed-allocation area value", 15, (int)NativeAotHelperArea.EfiFixedAllocation);
+        ExpectEqual("EFI fixed-allocation status value", 6, (int)NativeAotHelperStatus.EfiOnlyFixedAllocation);
+        NativeAotHelperLedgerEntry fixedAllocation = GetEntry(NativeAotHelperArea.EfiFixedAllocation);
+        ExpectEqual("EFI fixed-allocation symbol", "RhpNewFast", fixedAllocation.HelperSymbols);
+        ExpectContains("EFI fixed-allocation actual leaf", fixedAllocation.Evidence, "GuestTestRhpNewFast");
+        ExpectContains("EFI fixed-allocation authority", fixedAllocation.RequiredContract, "thirteen-argument");
+        ExpectContains("EFI fixed-allocation no fabricated reference", fixedAllocation.AllowedMilestoneStub, "never fabricates");
+        ExpectContains("EFI fixed-allocation no general GC", fixedAllocation.NextStep, "Gate 4 remains incomplete");
     }
 
     private static void TestAllocatorMutationBoundary()
@@ -334,7 +343,7 @@ internal static class NativeAotHelperLedgerTests
     {
         string[] sourceSymbols = ExtractRuntimeExportSymbols();
 
-        ExpectEqual("RuntimeExport symbol count", 17, sourceSymbols.Length);
+        ExpectEqual("RuntimeExport symbol count", 18, sourceSymbols.Length);
 
         foreach (string symbol in sourceSymbols)
         {
@@ -378,7 +387,7 @@ internal static class NativeAotHelperLedgerTests
             }
         }
 
-        ExpectEqual("EFI ledger symbol count", 17, efiLedgerSymbolCount);
+        ExpectEqual("EFI ledger symbol count", 18, efiLedgerSymbolCount);
 
         ExpectEqual(
             "reverse p/invoke symbol count",

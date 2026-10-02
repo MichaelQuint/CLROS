@@ -2548,3 +2548,40 @@ prove only the completion boundary defined by the corresponding gate.
 1. Add libvirt real-boot smoke on hosts with libvirt.
 2. Point the real HTTP probe at the guest Kestrel endpoint only after guest networking and hosted Kestrel markers exist.
 3. Add ISO launch support only if it remains useful for a concrete deployment path.
+
+### M04-007 allocation profile (source implemented; guest acceptance pending)
+
+The positive default-off profile requires a fresh build and all seven explicit
+prerequisites:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 -BuildEfi `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe `
+  -EnableM04IndependentEndianConformanceProbe `
+  -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe `
+  -EnableM04ArithmeticConformanceProbe -EnableM04LayoutContractProbe `
+  -EnableM04ManagedHeapPageRangeProbe -EnableM04RhpNewFastProbe
+```
+
+The strict successful grammar has78 records, including observed image and full
+scratch extents, original retained heap authority, ten OBJECT/READBACK pairs,
+retained accounting and the unchanged boot-sequence suffix. This command is
+implemented and controlled-tested; step946 does not claim that it has passed
+on a real guest yet.
+
+`EnableM04RhpNewFastBeforeBindFailureProbe` and
+`EnableM04RhpNewFastExhaustionFailureProbe` each additionally require main and
+exclude one another. Their49/71-record streams end respectively with
+`TEST_FAIL m04.007.rhp_new_fast not_initialized` and
+`TEST_FAIL m04.007.rhp_new_fast exhausted`. Generic smoke must reject these
+streams. Expected-negative acceptance needs the separately reviewed bounded
+capture observer, actual process exit/quiet-drain evidence and independent
+whole-byte/source/native audits. Seeing either suffix alone is not acceptance.
+
+Parent acceptance requires fresh default, standalone heap, positive, before-bind
+and exhaustion profiles on the tested source, with actual metadata fixups,
+caller ABI and disk accounting. No GC, reference writes, boxing payload copy,
+arrays/strings, post-firmware lifetime or general runtime readiness is claimed.

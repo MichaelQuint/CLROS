@@ -54,6 +54,9 @@
 		<EnableM04LayoutContractProbe Condition="'$(EnableM04LayoutContractProbe)' == ''">false</EnableM04LayoutContractProbe>
 		<EnableM04ManagedHeapPageRangeProbe Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == ''">false</EnableM04ManagedHeapPageRangeProbe>
 		<EnableM02PageFaultCr2ErrorCodeProbe Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == ''">false</EnableM02PageFaultCr2ErrorCodeProbe>
+		<EnableM04RhpNewFastProbe Condition="'$(EnableM04RhpNewFastProbe)' == ''">false</EnableM04RhpNewFastProbe>
+		<EnableM04RhpNewFastBeforeBindFailureProbe Condition="'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == ''">false</EnableM04RhpNewFastBeforeBindFailureProbe>
+		<EnableM04RhpNewFastExhaustionFailureProbe Condition="'$(EnableM04RhpNewFastExhaustionFailureProbe)' == ''">false</EnableM04RhpNewFastExhaustionFailureProbe>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'">
@@ -173,6 +176,16 @@
 		<DefineConstants>$(DefineConstants);M02_PAGE_FAULT_CR2_ERROR_CODE_PROBE</DefineConstants>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$(EnableM04RhpNewFastProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_RHP_NEW_FAST_PROBE</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_RHP_NEW_FAST_BEFORE_BIND_FAILURE_PROBE</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_RHP_NEW_FAST_EXHAUSTION_FAILURE_PROBE</DefineConstants>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<Compile Include="..\OS.Kernel\Boot\BootHandoffRecord.cs" Link="Boot\BootHandoffRecord.cs" />
 		<Compile Include="..\OS.Kernel\Boot\BootMemoryRegionMaterializer.cs" Link="Boot\BootMemoryRegionMaterializer.cs" />
@@ -249,6 +262,8 @@
 		<Compile Include="Runtime\RuntimeImportAttribute.cs" />
 		<Compile Include="Runtime\MethodImplAttribute.cs" />
 		<Compile Include="Runtime\MinimalRuntime.cs" />
+		<Compile Include="..\OS.Kernel\Runtime\GuestTestRhpNewFast.cs" Link="Runtime\GuestTestRhpNewFast.cs" />
+		<Compile Include="Runtime\RhpNewFastAllocation.cs" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
 		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
 		<ResolvedILCompilerPack Include="runtime.win-x64.Microsoft.DotNet.ILCompiler">
@@ -421,6 +436,33 @@
 		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM04ArithmeticConformanceProbe)' == 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM04ArithmeticConformanceProbe" />
 		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM04LayoutContractProbe)' == 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM04LayoutContractProbe" />
 		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM04ManagedHeapPageRangeProbe)' == 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM04ManagedHeapPageRangeProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM01LoadedImageStackProbe)' != 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM01LoadedImageStackProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM01LiveAllocatorProbe)' != 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM01LiveAllocatorProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM04IndependentEndianConformanceProbe)' != 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM04IndependentEndianConformanceProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' != 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM04ArithmeticConformanceProbe)' != 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM04ArithmeticConformanceProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM04LayoutContractProbe)' != 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM04LayoutContractProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM04ManagedHeapPageRangeProbe)' != 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM04ManagedHeapPageRangeProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM02SafeStubProbe)' == 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM02SafeStubProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM02CheckedPortIoBindingProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM02Com1OwnedPortIoProbe)' == 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM02Com1OwnedPortIoProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM02OwnedCom1ReadyProbe)' == 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM02OwnedCom1ReadyProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM02PanicSafeOwnedCom1Probe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM02OwnedX64GdtEncodingProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM02GuardedIstStackAllocationProbe)' == 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM02GuardedIstStackAllocationProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM02OwnedGdtTssTerminalProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM02NormalizedInterruptFramePageProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM02OwnedIdtGatePopulationProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM02IdtrContinuedExecutionProbe)' == 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM02IdtrContinuedExecutionProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM02Ud2VectorStateProbe)' == 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM02Ud2VectorStateProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM02PageFaultCr2ErrorCodeProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM01OwnedPagingProbe)' == 'true'" Text="m04_rhp_new_fast_profile_invalid EnableM01OwnedPagingProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableUefiGoneSimulationProbe)' == 'true'" Text="m04_rhp_new_fast_profile_invalid EnableUefiGoneSimulationProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableExitBootServicesFreshMapProbe)' == 'true'" Text="m04_rhp_new_fast_profile_invalid EnableExitBootServicesFreshMapProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'" Text="m04_rhp_new_fast_profile_invalid EnableAcpiPhysicalDiscoveryProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' and '$(EnableM04RhpNewFastProbe)' != 'true'" Text="m04_rhp_new_fast_profile_invalid negative_requires_main" />
+		<Error Condition="'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' and '$(EnableM04RhpNewFastProbe)' != 'true'" Text="m04_rhp_new_fast_profile_invalid negative_requires_main" />
+		<Error Condition="'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' and '$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true'" Text="m04_rhp_new_fast_profile_invalid negative_conflict" />
 	</Target>
 
 	<Target Name="CustomizeReferences"

@@ -55,6 +55,14 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
   execution evidence only. Real vector-8/IST1 delivery and the complete settled
   host gate remain pending; see [step945](done/step945.md).
 
+- M04-007 now has a reviewed default-off `RhpNewFast` EFI adapter and four
+  successful NativeAOT artifact profiles. It preserves the original retained
+  heap authority and exercises four compiled-new and six direct allocation
+  routes in the linked test image. Focused source/artifact checks pass; the
+  integrated full host suite and five real guest profiles remain pending.
+  See [step946](done/step946.md). This is not guest object-allocation proof;
+  general allocation, GC and Gate 4 remain incomplete.
+
 - The 2026-08-06 local Gitea snapshot had **273 open issues** (issues only,
   excluding pull requests). That was ten fewer than the earlier 283-issue
   snapshot even though narrowly scoped integration/review issues were added to

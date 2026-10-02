@@ -39,6 +39,15 @@ Current firmware-visible order:
 
 The ordered `boot.sequence` portion is host-tested through `BootSequence.Run` and QEMU-tested through `EfiMain`.
 
+The optional M04-007 allocation profile runs after M04-006's second zero-page
+checkpoint and before the existing `BootSequencePlan` markers. Its positive
+order is START, PREP, BIND, ten OBJECT/READBACK pairs, RETAIN, READY and PASS,
+then the unchanged eight-line boot sequence. The separate before-bind and
+exhaustion profiles end at their exact expected TEST_FAIL and halt before
+BootSequence. They remain failures for the generic smoke runner. No boot phase
+is added or bypassed. Step946 records source/focused artifact integration;
+fresh real allocation-profile boot evidence is still pending.
+
 Current host-tested managed handoff-aware order:
 
 1. `TEST_START boot.sequence`
