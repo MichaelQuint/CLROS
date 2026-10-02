@@ -2060,3 +2060,9 @@ native artifact profiles pass; their linked caller/getter/constructor/reader
 associations are preserved in step946. Complete host and actual allocation
 guest evidence are pending. See `docs/nativeaot-nostdlib-limits.md` for the finite
 domain and `docs/qemu.md` for the positive command and negative-proof boundary.
+
+Step947 scopes CS0649 suppression to the profile-written constructor counter
+and nine observation slots accessed through a POD pointer stride. Ordered
+fields, layout and executable logic are unchanged; unrelated warnings remain
+enabled. The initial integrated build's ten warnings and interrupted host run
+are preserved in that step. Fresh clean complete validation is still required.

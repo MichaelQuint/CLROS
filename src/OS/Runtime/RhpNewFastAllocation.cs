@@ -15,7 +15,12 @@ internal enum RhpAdmissionStatus : byte
 internal struct RhpAllocationControl
 {
     internal ulong CanaryBefore, Self, Access, Bump, Records, Image, ImageBytes;
-    internal ulong Prepared, InProgress, Completed, ConstructorCount, CanaryAfter;
+    internal ulong Prepared, InProgress, Completed;
+    // Whole-POD initialization leaves this zero; only the enabled EFI profile increments it.
+#pragma warning disable CS0649
+    internal ulong ConstructorCount;
+#pragma warning restore CS0649
+    internal ulong CanaryAfter;
 }
 
 internal struct RhpObjectObservation
@@ -29,8 +34,12 @@ internal struct RhpObjectObservation
 internal unsafe struct RhpObservationStorage
 {
     internal ulong CanaryBefore;
-    internal RhpObjectObservation Object0, Object1, Object2, Object3, Object4;
+    internal RhpObjectObservation Object0;
+    // Allocate writes these sequential POD slots through (&records->Object0)[id - 1].
+#pragma warning disable CS0649
+    internal RhpObjectObservation Object1, Object2, Object3, Object4;
     internal RhpObjectObservation Object5, Object6, Object7, Object8, Object9;
+#pragma warning restore CS0649
     internal fixed byte BeforeAttempt[4096];
     internal ulong CanaryAfter;
 }

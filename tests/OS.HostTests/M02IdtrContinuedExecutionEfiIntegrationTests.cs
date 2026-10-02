@@ -55,7 +55,7 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
     private const string CompileClosureSha256 =
         "37b56feaae9f232dd547a34d4db872c5e998b2eb7d501eaf422c0c5f97034a79";
     private const string SourceClosureSha256 =
-        "6df0c8ad12d841b26b71eb80435beed6a22e891b52bf8a9cae94ad702171dff8";
+        "77c2779c669b7f3491344570418e9d1dcb27061f35041e60e7c3bd66e929d1cd";
     private const string FrozenProductionSha256 =
         "7CBF5DD9FB17D8D9608237FC78D06FE00B40D7AFE8669E1196C72B9F1B6848EB";
     private const string FrozenHostLeafSha256 =
