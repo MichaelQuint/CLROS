@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
+using System.Text.Json;
 using OS.Manifest;
 using OS.Storage;
 
@@ -33,6 +34,10 @@ internal static class ImageBuilderTests
             Run("imagebuilder emits dry-run manifest placement plan without writing image", ref failures, () => TestPlanRawWithManifestDoesNotWrite(tempRoot));
             Run("imagebuilder emits dry-run package placement plan without writing image", ref failures, () => TestPlanRawWithPackageDoesNotWrite(tempRoot));
             Run("imagebuilder creates raw GPT FAT32 ESP with BOOTX64.EFI", ref failures, () => TestCreateRawEsp(tempRoot));
+            Run("imagebuilder.fat-capacity default accounting payloads determinism", ref failures, () => TestFatCapacity(tempRoot, 64));
+            Run("imagebuilder.fat-capacity nearby image", ref failures, () => TestFatCapacity(tempRoot, 65));
+            Run("imagebuilder.fat-capacity larger image", ref failures, () => TestFatCapacity(tempRoot, 128));
+            Run("imagebuilder.fat-capacity plan size boundaries", ref failures, () => TestFatCapacityPlans(tempRoot));
             Run("imagebuilder.gpt-parser-readback", ref failures, () => TestGptParserReadback(tempRoot));
             Run("imagebuilder.gpt-backup-parser-readback", ref failures, () => TestBackupGptParserReadback(tempRoot));
             Run("imagebuilder.manifest-file", ref failures, () => TestGeneratedManifestCanBeLoaded(tempRoot));
@@ -379,6 +384,165 @@ internal static class ImageBuilderTests
             && HasPrimaryAndBackupGpt(image)
             && HasFat32EspBootSector(image)
             && ContainsBootFile(image, efiBytes);
+    }
+
+    private static bool TestFatCapacity(string tempRoot, int sizeMiB)
+    {
+        string prefix = Path.Combine(tempRoot, "fat-capacity-" + sizeMiB);
+        byte[] efi = CreateEfiBytes();
+        byte[] manifest = CreateManifestBytes();
+        byte[] package = CreatePackageBytes();
+        File.WriteAllBytes(prefix + ".efi", efi);
+        File.WriteAllBytes(prefix + ".json", manifest);
+        File.WriteAllBytes(prefix + ".pkg", package);
+        string[] options = ["--efi", prefix + ".efi", "--manifest", prefix + ".json",
+            "--package", prefix + ".pkg", "--output", prefix + ".raw",
+            "--image-size-mib", sizeMiB.ToString(System.Globalization.CultureInfo.InvariantCulture)];
+        ToolResult plan = RunImageBuilder(["plan-raw", .. options]);
+        ToolResult create = RunImageBuilder(["create-raw", .. options]);
+        if (plan.ExitCode != 0 || create.ExitCode != 0)
+        {
+            PrintToolFailure(plan);
+            PrintToolFailure(create);
+            return false;
+        }
+
+        byte[] image = File.ReadAllBytes(prefix + ".raw");
+        Dictionary<string, JsonElement> entries = ReadPlanEntries(plan.Output);
+        int bootOffset = checked((int)PartitionStartLba * SectorSize);
+        ReadOnlySpan<byte> bpb = image.AsSpan(bootOffset, SectorSize);
+        ulong bytesPerSector = BinaryPrimitives.ReadUInt16LittleEndian(bpb[11..]);
+        ulong sectorsPerCluster = bpb[13];
+        ulong reserved = BinaryPrimitives.ReadUInt16LittleEndian(bpb[14..]);
+        ulong fatCount = bpb[16];
+        ulong totalSectors = BinaryPrimitives.ReadUInt32LittleEndian(bpb[32..]);
+        ulong fatSectors = BinaryPrimitives.ReadUInt32LittleEndian(bpb[36..]);
+        if (bytesPerSector != SectorSize || sectorsPerCluster != 1 || fatCount != 2 || reserved != 32)
+            return false;
+        ulong clusters = (totalSectors - reserved - fatCount * fatSectors) / sectorsPerCluster;
+        ulong capacity = fatSectors * bytesPerSector / 4;
+        if (capacity < clusters + 2)
+        {
+            Console.WriteLine($"FAT capacity mismatch: imageMiB={sizeMiB} fatEntries={capacity} requiredEntries={clusters + 2}");
+            return false;
+        }
+
+        int backupBoot = BinaryPrimitives.ReadUInt16LittleEndian(bpb[50..]);
+        int fsInfoSector = BinaryPrimitives.ReadUInt16LittleEndian(bpb[48..]);
+        ReadOnlySpan<byte> fsInfo = image.AsSpan(bootOffset + fsInfoSector * SectorSize, SectorSize);
+        int fatOffset = checked(bootOffset + (int)(reserved * bytesPerSector));
+        int fatBytes = checked((int)(fatSectors * bytesPerSector));
+        ReadOnlySpan<byte> fat = image.AsSpan(fatOffset, fatBytes);
+        if (!bpb.SequenceEqual(image.AsSpan(bootOffset + backupBoot * SectorSize, SectorSize))
+            || !fsInfo.SequenceEqual(image.AsSpan(bootOffset + (backupBoot + fsInfoSector) * SectorSize, SectorSize))
+            || !fat.SequenceEqual(image.AsSpan(fatOffset + fatBytes, fatBytes))
+            || BinaryPrimitives.ReadUInt32LittleEndian(fsInfo) != 0x41615252
+            || BinaryPrimitives.ReadUInt32LittleEndian(fsInfo[484..]) != 0x61417272
+            || BinaryPrimitives.ReadUInt32LittleEndian(fsInfo[508..]) != 0xAA550000)
+            return false;
+
+        ulong allocated = 0;
+        ulong firstFree = 0;
+        for (ulong cluster = 2; cluster < clusters + 2; cluster++)
+        {
+            uint value = BinaryPrimitives.ReadUInt32LittleEndian(fat[checked((int)cluster * 4)..]) & 0x0FFFFFFF;
+            if (value != 0) allocated++;
+            else if (firstFree == 0) firstFree = cluster;
+        }
+        ulong plannedAllocated = 0;
+        foreach (string kind in new[] { "fat32-root-directory", "fat32-efi-directory", "fat32-boot-directory",
+            "efi-boot-file", "fat32-os-directory", "manifest-file", "app-package-file" })
+            plannedAllocated += entries[kind].GetProperty("sectors").GetUInt64() / sectorsPerCluster;
+        if (BinaryPrimitives.ReadUInt32LittleEndian(fsInfo[488..]) != clusters - allocated
+            || BinaryPrimitives.ReadUInt32LittleEndian(fsInfo[492..]) != firstFree
+            || allocated != plannedAllocated
+            || entries["efi-system-partition"].GetProperty("sectors").GetUInt64() != totalSectors
+            || entries["fat32-fat-primary"].GetProperty("lba").GetUInt64() != PartitionStartLba + reserved
+            || entries["fat32-fat-primary"].GetProperty("sectors").GetUInt64() != fatSectors
+            || entries["fat32-fat-backup"].GetProperty("lba").GetUInt64() != PartitionStartLba + reserved + fatSectors
+            || entries["fat32-fat-backup"].GetProperty("sectors").GetUInt64() != fatSectors
+            || entries["fat32-root-directory"].GetProperty("lba").GetUInt64() != PartitionStartLba + reserved + fatCount * fatSectors
+            || !ContainsBootFile(image, efi) || !ContainsManifestFile(image, manifest) || !ContainsPackageFile(image, package))
+            return false;
+
+        // The second build uses the same inputs and must preserve every image byte.
+        create = RunImageBuilder(["create-raw", .. options]);
+        if (create.ExitCode != 0)
+        {
+            PrintToolFailure(create);
+            return false;
+        }
+        using FileStream rebuilt = File.OpenRead(prefix + ".raw");
+        return SHA256.HashData(image).AsSpan().SequenceEqual(SHA256.HashData(rebuilt));
+    }
+
+    private static bool TestFatCapacityPlans(string tempRoot)
+    {
+        string efiPath = Path.Combine(tempRoot, "fat-plan.efi");
+        File.WriteAllBytes(efiPath, CreateEfiBytes());
+        foreach (int sizeMiB in new[] { 64, 65, 66, 67, 127, 128, 129, 1024, 32768, 131073, 133153 })
+        {
+            string imagePath = Path.Combine(tempRoot, "fat-plan-" + sizeMiB + ".raw");
+            ToolResult result = RunImageBuilder("plan-raw", "--efi", efiPath, "--output", imagePath,
+                "--image-size-mib", sizeMiB.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            if (result.ExitCode != 0 || File.Exists(imagePath))
+            {
+                PrintToolFailure(result);
+                return false;
+            }
+            Dictionary<string, JsonElement> entries = ReadPlanEntries(result.Output);
+            ulong partitionSectors = entries["efi-system-partition"].GetProperty("sectors").GetUInt64();
+            ulong reserved = entries["fat32-reserved"].GetProperty("sectors").GetUInt64();
+            ulong firstFat = entries["fat32-fat-primary"].GetProperty("sectors").GetUInt64();
+            ulong secondFat = entries["fat32-fat-backup"].GetProperty("sectors").GetUInt64();
+            ulong dataStart = entries["fat32-root-directory"].GetProperty("lba").GetUInt64();
+            // Independent geometry from the public plan, using the fixed 512-byte/one-sector-cluster format.
+            ulong clusters = partitionSectors - reserved - firstFat - secondFat;
+            if (partitionSectors != (ulong)sizeMiB * 2048 - PartitionStartLba - 33
+                || firstFat != secondFat || firstFat * SectorSize / 4 < clusters + 2
+                || clusters + 1 >= 0x0FFFFFF7
+                || (sizeMiB == 133153 && (clusters != 268434367 || clusters + 1 != 0x0FFFFBC0))
+                || dataStart != PartitionStartLba + reserved + firstFat + secondFat)
+            {
+                Console.WriteLine($"FAT plan mismatch: imageMiB={sizeMiB} fatSectors={firstFat} dataClusters={clusters}");
+                return false;
+            }
+        }
+
+        foreach (string rejectedSize in new[] { "63", "0", "-1", "2147483648", "133154", "2097151", "2097152", "2097153", "2097154", "2147483647" })
+        {
+            bool tooLarge = rejectedSize is "133154" or "2097151" or "2097152" or "2097153" or "2097154" or "2147483647";
+            string reason = tooLarge ? "image_too_large" : "invalid_args";
+            foreach (string command in new[] { "plan-raw", "create-raw" })
+            {
+                string imagePath = Path.Combine(tempRoot, "fat-" + command + "-rejected-" + rejectedSize + ".raw");
+                ToolResult result = RunImageBuilder(command, "--efi", efiPath, "--output", imagePath,
+                    "--image-size-mib", rejectedSize);
+                string marker = command == "plan-raw" ? "imagebuilder.plan" : "imagebuilder.raw";
+                if (result.ExitCode != (tooLarge ? 5 : 2)
+                    || !result.Output.Contains("TEST_FAIL " + marker + " " + reason, StringComparison.Ordinal)
+                    || File.Exists(imagePath))
+                {
+                    PrintToolFailure(result);
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private static Dictionary<string, JsonElement> ReadPlanEntries(string output)
+    {
+        Dictionary<string, JsonElement> entries = new(StringComparer.Ordinal);
+        foreach (string line in output.Split('\n'))
+        {
+            const string prefix = "IMAGE_PLAN_ENTRY ";
+            if (!line.StartsWith(prefix, StringComparison.Ordinal)) continue;
+            using JsonDocument document = JsonDocument.Parse(line[prefix.Length..]);
+            JsonElement entry = document.RootElement;
+            entries.Add(entry.GetProperty("kind").GetString()!, entry.Clone());
+        }
+        return entries;
     }
 
     private static bool TestGptParserReadback(string tempRoot)

@@ -2985,20 +2985,16 @@ internal static class RawEspImageBuilder
             int packageFileClusterCount = packageLength == 0
                 ? 0
                 : checked((packageLength + SectorSize * SectorsPerCluster - 1) / (SectorSize * SectorsPerCluster));
-            uint fatSectors = 1;
-            uint clusterCount = 0;
+            // Ignoring the FATs gives an upper bound on the data clusters.
+            // Size for that bound, then derive the actual count from the same FAT size.
+            uint maximumClusterCount = checked((partitionSectorCount - ReservedSectors) / SectorsPerCluster);
+            uint fatSectors = DivRoundUp(checked(maximumClusterCount + 2), SectorSize / 4);
+            uint clusterCount = checked((partitionSectorCount - ReservedSectors - FatCount * fatSectors) / SectorsPerCluster);
 
-            for (int i = 0; i < 16; i++)
+            // The last data cluster is count + 1; 0x0FFFFFF7 is the bad-cluster sentinel.
+            if (clusterCount >= 0x0FFFFFF6)
             {
-                uint dataSectors = partitionSectorCount - ReservedSectors - FatCount * fatSectors;
-                clusterCount = dataSectors / SectorsPerCluster;
-                uint requiredFatSectors = DivRoundUp(clusterCount + 2, SectorSize / 4);
-                if (requiredFatSectors == fatSectors)
-                {
-                    break;
-                }
-
-                fatSectors = requiredFatSectors;
+                throw new ImageBuilderException(5, "image_too_large", "Image exceeds the FAT32 allocatable cluster-number range.");
             }
 
             if (clusterCount <= 65525)
@@ -3022,7 +3018,7 @@ internal static class RawEspImageBuilder
 
         private static uint DivRoundUp(uint value, int divisor)
         {
-            return (value + (uint)divisor - 1) / (uint)divisor;
+            return checked((uint)(((ulong)value + (uint)divisor - 1) / (uint)divisor));
         }
     }
 }
