@@ -862,6 +862,17 @@ Step942 records these test-fixture repairs and the preserved failed run.
 A new clean full-suite pass is required before the default/page-fault guest
 lanes; the focused artifact evidence above does not satisfy that requirement.
 
+The subsequent clean `fc561cb` run passed both repaired M01 fixtures, then
+stopped in the guarded-IST fixture. Nine older integration fixtures retained
+Compile-position offsets that predated the five new page-fault inputs. Step943
+records that second failed run and the offset repairs. The complete focused
+legacy run then exposed one stale whole-runner prerequisite count (11 instead
+of 19) in owned-COM1. Its failed result is preserved. After that correction,
+a separate complete sixteen-module focused run passed: 102 starts, 103 passes,
+zero failures, native exit 0 and empty stderr. Step943 records both the passing
+focused result and prior failures. The full host and guest gates remain
+outstanding.
+
 ## Unsupported Behavior
 
 Hardware fault diagnostics, allocator-owned mutable free-list installation from compact boot regions, complete UEFI encapsulation, ExitBootServices, owned serial/framebuffer, runtime helpers, storage, networking, app loading, socket bind/listen behavior, exported PAL socket/timer/thread/file contracts, hosted .NET 10, Kestrel, ISO generation, libvirt real boot, provider cloud import, CI, and hardening remain incomplete. Libvirt lifecycle planning and check-serial validation are host-only contract evidence; they do not connect to libvirt, start a VM, poll live serial output, or prove cleanup against a live domain.

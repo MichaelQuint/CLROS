@@ -149,7 +149,7 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
             && guardedIndex >= 0
             && terminalIndex == guardedIndex + 1
             && normalizedInterruptFrameIndex == terminalIndex + 1
-            && endianIndex == normalizedInterruptFrameIndex + 8
+            && endianIndex == normalizedInterruptFrameIndex + 13
             && compileKeys.Count(key => key == TerminalKey) == 1
             && defaults.Length == 1
             && defaults[0].Value == "false"

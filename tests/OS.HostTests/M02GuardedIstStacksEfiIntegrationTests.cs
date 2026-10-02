@@ -177,7 +177,7 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
             && guardedIstIndex == gdtIndex + 1
             && terminalIndex == guardedIstIndex + 1
             && normalizedInterruptFrameIndex == terminalIndex + 1
-            && endianIndex == normalizedInterruptFrameIndex + 8
+            && endianIndex == normalizedInterruptFrameIndex + 13
             && compileKeys.Count(key => key == GuardedIstKey) == 1
             && defaults.Length == 1
             && defaults[0].Value == "false"

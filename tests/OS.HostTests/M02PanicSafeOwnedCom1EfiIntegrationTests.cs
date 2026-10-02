@@ -161,7 +161,7 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
             && guardedIstIndex == gdtIndex + 1
             && terminalIndex == guardedIstIndex + 1
             && normalizedInterruptFrameIndex == terminalIndex + 1
-            && catalogIndex == normalizedInterruptFrameIndex + 8
+            && catalogIndex == normalizedInterruptFrameIndex + 13
             && compileKeys.Count(key => key == ReporterKey) == 1
             && defaults.Length == 1
             && defaults[0].Value == "false"

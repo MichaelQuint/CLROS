@@ -159,7 +159,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
             && guardedIstIndex == gdtIndex + 1
             && terminalIndex == guardedIstIndex + 1
             && normalizedInterruptFrameIndex == terminalIndex + 1
-            && catalogIndex == normalizedInterruptFrameIndex + 8
+            && catalogIndex == normalizedInterruptFrameIndex + 13
             && compileKeys.Count(key => key == WriterKey) == 1
             && compileKeys.Count(key => key == PanicReporterKey) == 1
             && defaults.Length == 1
@@ -366,7 +366,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
                 StringComparison.Ordinal)
             && CountOccurrences(
                 source,
-                "[System.Management.Automation.SwitchParameter]::new($true)") == 11
+                "[System.Management.Automation.SwitchParameter]::new($true)") == 19
             && source.Contains(
                 "profileRequired=52 profileForbidden=37",
                 StringComparison.Ordinal)

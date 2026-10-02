@@ -249,7 +249,7 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
             && normalizedIndex >= 0
             && idtIndex == normalizedIndex + 1
             && idtrIndex == idtIndex + 1
-            && endianIndex == idtrIndex + 6
+            && endianIndex == idtrIndex + 11
             && compileKeys.Count(key => key == IdtrKey) == 1
             && compileItems.All(item =>
                 !(item.Attribute("Include")?.Value ?? string.Empty)

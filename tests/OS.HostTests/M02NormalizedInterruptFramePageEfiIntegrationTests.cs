@@ -174,7 +174,7 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
             && compileHash == CompileClosureSha256
             && terminalIndex >= 0
             && normalizedIndex == terminalIndex + 1
-            && endianIndex == normalizedIndex + 8
+            && endianIndex == normalizedIndex + 13
             && compileKeys.Count(key => key == NormalizedKey) == 1
             && compileItems.All(item =>
                 !(item.Attribute("Include")?.Value ?? string.Empty)
