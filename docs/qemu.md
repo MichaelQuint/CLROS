@@ -1318,9 +1318,9 @@ dispatch, exception support or hosted .NET.
 ### M04-006 retained heap-page profile
 
 The disabled-default heap adapter from supplemental #516 is integrated at
-step937 with focused host evidence. Fresh default/layout/heap NativeAOT QEMU
-acceptance remains pending. Use unique parent-assigned output paths and all
-seven explicit switches for the heap lane:
+step937. Step939 records accepted fresh default/layout/heap NativeAOT QEMU
+evidence at source `4b18b4f`, following the complete host gate. Use unique
+parent-assigned output paths and all seven explicit switches for the heap lane:
 
 ```powershell
 .\scripts\run-qemu-smoke.ps1 -BuildEfi `
@@ -1372,8 +1372,22 @@ guest-requested clean exit. Hard timeout, spontaneous exit or cleanup failure
 fails acceptance. The generic runner and standalone returning layout
 validator retain their behavior.
 
-No actual guest result is claimed at step937. Object allocation, GC, hardware
-NX, post-`ExitBootServices` lifetime and Gate 4 completion remain unsupported.
+Step939's successful heap capture has 52 CLROS records and 41 owned anchors.
+The retained interval is `0x000000000DC44000..0x000000000DC45000` within the
+original parent ending at `0x000000000DC46000`; both content observations read
+4096 zero bytes, and final accounting is one free and one allocated page.
+Heap serial SHA-256 is
+`F81E9F6482471E9515840B82992194E86F296521DCC45D089A92A76921B443C7`.
+Default/layout/heap wrappers each exit zero, with a 750 ms quiet drain and
+captured native QEMU exit -1 after runner termination. The returning default
+and layout tails remain distinct from the heap's terminal tail. Independent
+review binds all artifacts, tools, raw transcripts, source inputs and evaluated
+profiles. Step939 also records separate pristine/post-boot FAT accounting and
+the two preserved helper failures before the successful matrix.
+
+Object allocation, GC, hardware NX, post-`ExitBootServices` lifetime and Gate 4
+completion remain unsupported. The heap guest does not execute #513's
+host-only page-fault transition emitter or supply #54's real fault evidence.
 
 ## Implemented Behavior
 

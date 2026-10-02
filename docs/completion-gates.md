@@ -793,11 +793,25 @@ The first complete settled-wave run at `b5784a2` failed an M02-012 provenance
 assertion after successful default/enabled artifact builds. Two existing M02
 fixtures still expected 82 inputs instead of the verified 83; step938 records
 the strict count correction and the coverage gap in the earlier selected-method
-harness. This failed run is not acceptance evidence. A new complete host gate
-and fresh default/layout/heap source-bound EFI/image/QEMU matrix remain pending.
-#75/#516 remain open and Gate 4 remains
-**Fail**. This does not establish managed allocation helpers, GC, hardware NX
-or post-`ExitBootServices` lifetime.
+harness. This failed run is not acceptance evidence. Step939 records the
+subsequent independently accepted complete host gate at `4b18b4f` (3,541
+starts, 3,542 passes, zero failures, actual exit zero) and fresh default,
+layout and heap source-bound EFI/image/QEMU lanes. The heap guest emits exactly
+52 records, retains one 4096-byte page from the original 8192-byte parent and
+reports complete zero readback at initialization and before the terminal boot
+plan, with current free/allocated accounting of one page each. Each wrapper
+exits zero after a 750 ms quiet drain; native QEMU exit -1 records runner
+termination, not a guest-requested clean shutdown.
+
+Separate pristine images made with each archived Debug ImageBuilder and the
+same EFI payload pass corrected FAT geometry, payload and accounting review.
+Firmware-added NVVARS chains and changed primary FSInfo are recorded separately
+from pristine builder accounting; the earlier defective images remain unchanged.
+Reviewed PR #515 merge and issue read-back precede #75/#516 completion.
+Gate 4 remains **Fail**: this does not establish managed allocation helpers,
+GC, hardware NX or post-`ExitBootServices` lifetime. The #513 transition emitter
+also passes this complete host gate but remains host-only; #54 still requires
+its separate real page-fault adapter and guest evidence.
 
 ## Unsupported Behavior
 

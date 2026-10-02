@@ -447,8 +447,10 @@ COM1/serial invocation.
   bytes; its 3264-byte context bound includes reserved output capacity.
 - Step936 records focused parent tests, all-byte corruption/preservation and
   allocation checks, independent LLVM decoding, and the actual 17-source
-  no-stdlib closure with zero assembly references. This is data and compiler
-  evidence, not a real fault, CR3 switch, descriptor activation or UART write.
+  no-stdlib closure with zero assembly references. Step939 adds the accepted
+  complete host gate at source `4b18b4f`; the separate heap QEMU matrix does
+  not execute this emitter. This is data and compiler evidence, not a real
+  fault, CR3 switch, descriptor activation or UART write.
   Synthetic bad-CPL rejection does not prove ring-3 recovery: diagnostics and
   terminal halt still require privilege. The future default-off adapter must
   bind exact current backing and freshly audit the six derived ranges; snapshots

@@ -9637,7 +9637,7 @@
         "M04-005"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -9663,7 +9663,7 @@
       ],
       "collisionLane": null,
       "summary": "Reserve and initialize a managed-heap page range from the live allocator.",
-      "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
+      "currentEvidence": "Step939 records independently accepted host and fresh default/layout/heap QEMU evidence at source 4b18b4f5856f3070ba0415b9f5fa4bf48e649521: 3,541 host starts, 3,542 passes, zero failures and actual exit 0. Supplemental #516 integrates the original M01 allocator handoff and fresh retention check. The enabled 52-record guest transcript proves one retained 4096-byte page from the original 8192-byte parent, two full-page zero readbacks and current one-free/one-allocated accounting before the terminal boot plan. Heap serial SHA256 F81E9F6482471E9515840B82992194E86F296521DCC45D089A92A76921B443C7; all three wrappers exit 0 with source-bound 70-Compile/83-input artifacts. Separate corrected-image/pristine accounting review passes. Earlier failed host and helper attempts remain preserved. Reviewed PR #515 merge and issue evidence/read-back precede live closure. This proves only the bounded pre-firmware page handoff; managed objects, runtime allocation helpers, GC, hardware NX, post-ExitBootServices lifetime and Gate 4 completion remain unsupported. Gate 4 remains Fail.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Reserve and initialize a managed-heap page range from the live allocator.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -9716,7 +9716,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves one retained 4096-byte reservation from the original allocator authority and explicit mapped-page zero/readback/retention behavior. Host synthetic physical/backing relationships prove only the caller-buffer contract. Closure additionally requires separately claimed shared EFI integration after M01 completion consumers, actual original-state mutation, a later retained-page checkpoint and fresh default/enabled source-bound QEMU/OVMF evidence on the terminal enabled M01 path. It does not prove managed object allocation, GC, a general or unforgeable allocation registry, hardware NX, permanent paging, SMP safety, post-ExitBootServices lifetime, the M04 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M04-007",

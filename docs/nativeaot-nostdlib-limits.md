@@ -434,7 +434,7 @@ allocation in warmed operations. The actual eight-source no-stdlib closure
 has zero assembly references and preserves `NoInlining` on the reader. No new
 shim or general memory utility was added.
 
-This is host caller-buffer evidence. Stable exclusive original storage and
+Those tests provide host caller-buffer evidence. Stable exclusive original storage and
 correct backing mappings remain caller obligations. Pointer identities and
 free-list exclusion are not an unforgeable allocation registry, clone/ABA
 protection or SMP synchronization. No managed object allocation, allocation
@@ -452,10 +452,16 @@ Failure preserves the parent and any retained page and reaches the existing
 terminal spin. There is no cleanup/free/reset, replacement firmware allocation
 or extra global reservation. The ledger is fully validated without writes;
 controlled tests compare all 200 bytes, but the adapter does not retain a
-historical ledger snapshot. The separately claimed adapter has focused host
-evidence only at step937. The complete settled-source host gate and fresh
-default/layout/heap guest matrix remain required to close #75/#516;
-Gate 4 remains **Fail**.
+historical ledger snapshot. Step939 adds the accepted complete host gate and
+fresh default/layout/heap QEMU matrix at source `4b18b4f`. The enabled guest
+reserves one page from the original two-page parent, observes all 4096 bytes
+zero after initialization and again before the boot plan, and retains the
+same allocator, node, ledger, parent and heap-state identities. The exact
+52-record transcript ends in the terminal boot markers without returning to
+firmware. The default and standalone layout lanes preserve their earlier
+returning behavior. Issue completion follows the reviewed PR #515 merge.
+This proves the bounded pre-firmware page handoff, not object allocation,
+runtime helpers, GC or post-`ExitBootServices` lifetime. Gate 4 remains **Fail**.
 
 ## Tests
 

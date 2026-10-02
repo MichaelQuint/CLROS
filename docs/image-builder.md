@@ -51,10 +51,24 @@ and `image_too_large`, before image creation. The current one-sector-per-cluster
 format accepts a plan through 133,153 MiB; 133,154 MiB is rejected. Those large
 boundaries are plan evidence only. Tests emit 64, 65 and 128 MiB images and
 independently check BPB-derived capacity, FSInfo accounting, backup metadata,
-FAT copies, payload bytes and determinism. See step934 for focused evidence;
-the complete integration gate and fresh corrected-image guest run remain
-pending. This work does not establish general filesystem conformance, live
-guest storage, cloud import or broader runtime support.
+FAT copies, payload bytes and determinism. Step934 records focused evidence;
+step939 adds the complete host gate and three fresh corrected default/layout/
+heap guest images. Each 64 MiB image has 129,024 FAT entries for 126,943 data
+clusters, with no unaddressable trailing cluster. Independent decoding confirms
+the EFI payload byte-for-byte in both the pristine and post-boot images.
+
+Separate pristine images use each guest lane's archived actual Debug builder,
+without rebuilding it. Their allocated/free counts are 114/126,829 (default),
+190/126,753 (layout) and 532/126,411 (heap); both pristine FSInfo copies match
+the complete FAT census and first free cluster. After OVMF execution each image
+has a 1,393-byte NVVARS file occupying exactly three new clusters. Changes are
+confined to its directory entry/data, the new links in both FATs and primary
+FSInfo. Backup FSInfo retains its pristine hints; post-firmware hints are
+advisory and are not substituted for the pristine builder check. Existing file
+chains, payloads and FAT clean/no-hard-error status remain unchanged.
+This bounded review does not establish general filesystem conformance, live
+guest storage, cloud import or broader runtime support. Historical defective
+images remain preserved; this acceptance applies to the new images only.
 
 Host tool projects inherit `tools/Directory.Build.props`, which excludes each
 tool-local `artifacts/**` tree from SDK default source globs. Generated

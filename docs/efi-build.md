@@ -1562,8 +1562,9 @@ LF-normalized SHA-256
 All other sources retain the generic scanner. This text-check normalization
 does not alter raw artifact/source-authority hashes. No runtime shim changed.
 Step937 records independent source review and focused adapter, transcript,
-artifact-authority, legacy-fixture and preflight evidence. Full host execution,
-fresh NativeAOT/QEMU acceptance and corrected-image accounting remain pending.
+artifact-authority, legacy-fixture and preflight evidence. Step939 records the
+accepted complete host gate, fresh default/layout/heap NativeAOT/QEMU matrix
+and separate corrected-image accounting at source `4b18b4f`.
 
 The first complete host run at `b5784a2` failed in M02-012's actual-artifact
 provenance check: default and enabled builds succeeded, but a stale assertion
@@ -1571,6 +1572,14 @@ required 82 authority inputs. Independent comparison verified all 83 ordered
 paths and raw hashes. The matching M02-011 assertion had the same stale count.
 Step938 corrects both counts without relaxing the other provenance predicates;
 the failed gate remains preserved and cannot authorize guest acceptance.
+The subsequent complete gate passed with 3,541 starts, 3,542 passes and zero
+failures. Each fresh guest lane binds the same 70 Compile items, 83 raw inputs
+and 23 evaluated properties, with zero assembly references in its actual
+no-stdlib managed assembly. Two failed ignored-wrapper attempts are preserved:
+PowerShell JSON-array nesting stopped the first before any lane, and a
+same-AppDomain reflection-only assembly collision stopped the second after
+default/layout guest execution. Reviewed helper corrections preceded the
+successful three-lane attempt; no product source changed for either correction.
 
 ### Linked instruction-publication serializer (M01-034)
 
