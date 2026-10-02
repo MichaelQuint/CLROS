@@ -19,6 +19,8 @@ internal static class M01InstructionPublicationEfiEntryTests
         "M02_IDTR_CONTINUED_EXECUTION_PROBE";
     private const string M02Ud2VectorStateSymbol =
         "M02_UD2_VECTOR_STATE_PROBE";
+    private const string M02PageFaultCr2ErrorCodeSymbol =
+        "M02_PAGE_FAULT_CR2_ERROR_CODE_PROBE";
     private const string SerializerBinding =
         "global::OS.Boot.X64InstructionPublication";
     private const string SerializerCall =
@@ -151,6 +153,13 @@ internal static class M01InstructionPublicationEfiEntryTests
             stageTwoEnabled: true,
             stageThreeEnabled: true,
             terminalEnabled: false);
+        string pageFaultProfile = SelectProfile(
+            source,
+            stageOneEnabled: true,
+            stageTwoEnabled: true,
+            stageThreeEnabled: true,
+            terminalEnabled: false,
+            pageFaultCr2ErrorCodeEnabled: true);
 
         if (CountDirectSerializerCalls(profile000) != 0
             || CountDirectSerializerCalls(profile100) != 2
@@ -164,6 +173,15 @@ internal static class M01InstructionPublicationEfiEntryTests
                 "s_m01InstructionPublicationEpochMask") != 0)
         {
             return Failure("profile-call-cardinality");
+        }
+
+        if (CountDirectSerializerCalls(pageFaultProfile) != 6
+            || CountIdentifierOccurrences(
+                profile111, "M02PageFaultAdapter") != 0
+            || CountIdentifierOccurrences(
+                pageFaultProfile, "M02PageFaultAdapter") != 2)
+        {
+            return Failure("page-fault-profile-isolation");
         }
 
         string sanitized = SanitizeCode(profile111);
@@ -3781,7 +3799,8 @@ internal static class M01InstructionPublicationEfiEntryTests
         bool stageThreeEnabled,
         bool terminalEnabled,
         bool idtrContinuedExecutionEnabled = false,
-        bool ud2VectorStateEnabled = false)
+        bool ud2VectorStateEnabled = false,
+        bool pageFaultCr2ErrorCodeEnabled = false)
     {
         StringBuilder output = new();
         Stack<PreprocessorFrame> stack = new();
@@ -3817,6 +3836,10 @@ internal static class M01InstructionPublicationEfiEntryTests
                     || string.Equals(
                         condition,
                         M02Ud2VectorStateSymbol,
+                        StringComparison.Ordinal)
+                    || string.Equals(
+                        condition,
+                        M02PageFaultCr2ErrorCodeSymbol,
                         StringComparison.Ordinal);
                 bool selectedValue =
                     string.Equals(
@@ -3844,7 +3867,12 @@ internal static class M01InstructionPublicationEfiEntryTests
                                     M02IdtrContinuedExecutionSymbol,
                                     StringComparison.Ordinal)
                                     ? idtrContinuedExecutionEnabled
-                                    : ud2VectorStateEnabled;
+                                    : string.Equals(
+                                        condition,
+                                        M02Ud2VectorStateSymbol,
+                                        StringComparison.Ordinal)
+                                        ? ud2VectorStateEnabled
+                                        : pageFaultCr2ErrorCodeEnabled;
                 stack.Push(
                     new PreprocessorFrame(
                         selected,

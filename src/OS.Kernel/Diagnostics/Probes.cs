@@ -44,8 +44,6 @@ public static partial class Probes
 
     public const bool EnableAcpiPhysicalDiscoveryProbe = false;
 
-    public const bool EnableNullPointerPanicProbe = false;
-
     public const bool EnablePacketDumpProbe = false;
 
     public const bool EnableVirtioBlockReadProbe = false;

@@ -710,14 +710,15 @@ Step936 adds the reviewed #513 host-only transition emitter over the #510
 table-image contract. Independent byte/interpreter tests and LLVM decoding
 cover the 361-instruction stream, early CR2/frame capture, bounded page walks
 and finite serial output. The actual 17-source no-stdlib closure has zero
-assembly references. Fresh parent focused checks pass; the settled full gate
-and future EFI integration remain separate.
+assembly references. Fresh parent focused checks pass. Step939 later adds
+complete host integration; step944 adds the separate default-off adapter's
+actual default/enabled guest evidence.
 
-No generated instruction was executed by this leaf. #54 remains open and
-Gate 3 remains **Fail**. A fresh exact-backing table audit, explicit default-off
-adapter, privileged publication/activation and source-bound default/enabled
-QEMU fault evidence are still required. Modeled bad-CPL checks do not establish
-unprivileged recovery; active diagnostics require the trusted CPL0 boundary.
+No generated instruction is executed by this leaf API itself. The later
+adapter freshly audits exact backing, publishes the closed stream and captures
+the bounded terminal fault. Gate 3 remains **Fail**. Modeled bad-CPL checks do
+not establish unprivileged recovery; active diagnostics require the trusted
+CPL0 boundary.
 
 ### M04-004 arithmetic conformance boundary
 
@@ -810,8 +811,87 @@ from pristine builder accounting; the earlier defective images remain unchanged.
 Reviewed PR #515 merge and issue read-back precede #75/#516 completion.
 Gate 4 remains **Fail**: this does not establish managed allocation helpers,
 GC, hardware NX or post-`ExitBootServices` lifetime. The #513 transition emitter
-also passes this complete host gate but remains host-only; #54 still requires
-its separate real page-fault adapter and guest evidence.
+also passes this complete host gate without being executed by the heap guest.
+Its separate page-fault adapter and guest evidence arrive later in step944.
+
+### M04-007 fixed-allocation host boundary
+
+Step940 adds `GuestTestRhpNewFast`, a bounded caller-buffer allocator over the
+original M04-006 retained-page authority. Its separate 80-byte bump state and
+fresh ownership checks preserve the original allocator/ledger/heap state.
+It admits the pinned fixed class/value domain, zeroes exactly the selected
+BaseSize interval, writes an opaque MethodTable token at origin+8 and preserves
+all earlier objects. Focused tests cover byte layout, full-capacity bounds,
+generic/reference/value admission, unchanged rejection, exhaustion, zero CLR
+allocation and the actual ten-source no-stdlib closure with zero AssemblyRefs.
+The parent focused integration run has ten starts, eleven passes and zero
+failures. Step944 adds accepted complete host integration at `7c71e72`:
+3,558 starts, 3,559 passes, zero failures and one final `TEST_PASS host.tests`.
+
+Gate 4 remains **Fail** and issue #76 remains open. This leaf exposes neither
+a RhpNewFast runtime export nor a CLR object. A separately claimed EFI scope
+must prove authentic compiler metadata, emitted compiled-new/helper routing,
+RCX/RAX and Windows x64 ABI, physical object/header/cursor identity, required
+fixed class/value/generic/reference cases and terminal rejection. The original
+whole-page-zero checkpoint must precede object writes. Boxing payload/nullable
+behavior, reference barriers, GC and broader runtime semantics remain separate
+unsupported work.
+
+### M02-014 source integration and terminal guest boundary
+
+The #517 source integration connects the frozen page-image and transition leaves
+to a false-by-default EFI terminal adapter. Host controls validate actual
+preparation/readback, original cleanup callbacks, complete temporary spans,
+strict numeric transcript consistency, prerequisite/conflict policy and the
+75-item/88-input artifact closure. The final focused new-module plus transition
+run passes eight starts/nine passes with actual native exit 0; both default and
+enabled NativeAOT artifact checks pass.
+
+The prior standalone nineteen-module attempt was canceled on superseded source
+and is not passing evidence. Step941 claims no real guest execution. The later
+step944 complete root suite and actual default/enabled fault captures are
+independently accepted. Gates 3 and 4 remain Fail. Persistent/default
+descriptor ownership, nested-fault recovery, firmware shutdown, drivers,
+hosted .NET/Kestrel and cloud readiness remain unsupported.
+
+Source, review and artifact identities are recorded in step941.
+
+The first complete host run of the integrated `05b2bde` commit failed in an
+older M01 source selector before all modules executed. It retained the new
+page-fault block in historical profiles. Follow-up review also found an
+unscoped adapter-method lookup and an obsolete page-zero Compile exclusion.
+Step942 records these test-fixture repairs and the preserved failed run.
+That failed run did not authorize guest execution; focused artifact evidence
+did not satisfy the required complete-host gate.
+
+The subsequent clean `fc561cb` run passed both repaired M01 fixtures, then
+stopped in the guarded-IST fixture. Nine older integration fixtures retained
+Compile-position offsets that predated the five new page-fault inputs. Step943
+records that second failed run and the offset repairs. The complete focused
+legacy run then exposed one stale whole-runner prerequisite count (11 instead
+of 19) in owned-COM1. Its failed result is preserved. After that correction,
+a separate complete sixteen-module focused run passed: 102 starts, 103 passes,
+zero failures, native exit 0 and empty stderr. Step943 records both the passing
+focused result and prior failures. Step944 subsequently satisfies this wave's
+complete-host and bounded guest requirements without overwriting those failures.
+
+At clean source `7c71e7273738882e7c8d3566bd9bb1bae1543049`, the solution build
+passes with no warnings/errors and the complete host run passes 3,558 starts,
+3,559 passes, zero failures, native exit 0 and empty stderr. Independently
+accepted fresh default/page-fault QEMU lanes preserve the 75 Compile items,
+88 raw inputs and 24 evaluated properties. The enabled guest captures vector
+14, full error zero, CR2 zero, saved RF/RIP, owned CR3, null/four-guard absence
+and an IST2-contained frame. Both lanes have wrapper exit 0, recorded QEMU -1
+runner termination and a 750 ms quiet drain. No indefinite halt duration,
+default/persistent descriptor ownership or recovery is established.
+
+Separate image accounting verifies payloads and both FAT copies against the
+actual archived Debug builder. Each boot adds only the accounted NVVARS chain
+and associated root/FAT/primary-FSInfo changes. Backup FSInfo remains stale;
+filesystem conformance is not established. [Step944](../done/step944.md) records
+the immutable execution/review identities and distinguishes tested source from
+the later documentation commit. #54/#517 merge and closure follow as separate
+tracker transactions; #76 remains open for actual runtime-helper/guest work.
 
 ## Unsupported Behavior
 

@@ -16,6 +16,7 @@ param(
     [switch]$EnableM02OwnedIdtGatePopulationProbe,
     [switch]$EnableM02IdtrContinuedExecutionProbe,
     [switch]$EnableM02Ud2VectorStateProbe,
+    [switch]$EnableM02PageFaultCr2ErrorCodeProbe,
     [switch]$EnableM04IndependentEndianConformanceProbe,
     [switch]$EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe,
     [switch]$EnableM04ArithmeticConformanceProbe,
@@ -51,7 +52,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 83
+$expectedSourceClosureInputCount = 88
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -143,6 +144,11 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs|Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs',
     '..\OS.Kernel\Diagnostics\IDTRContinuedExecution.cs|Diagnostics\IDTRContinuedExecution.cs',
     '..\OS.Kernel\Diagnostics\InvalidOpcodeProbeAuthority.cs|Diagnostics\InvalidOpcodeProbeAuthority.cs',
+    '..\OS.Kernel\Diagnostics\NullPointerProbeAuthority.cs|Diagnostics\NullPointerProbeAuthority.cs',
+    '..\OS.Kernel\Diagnostics\NullPageFaultProbePlan.cs|Diagnostics\NullPageFaultProbePlan.cs',
+    '..\OS.Kernel\Diagnostics\SeparateDisabledDefaultPageFaultCR2ErrorCode.cs|Diagnostics\SeparateDisabledDefaultPageFaultCR2ErrorCode.cs',
+    '..\OS.Kernel\Diagnostics\SeparateDisabledDefaultPageFaultPageTables.cs|Diagnostics\SeparateDisabledDefaultPageFaultPageTables.cs',
+    '..\OS.Kernel\Diagnostics\SeparateDisabledDefaultPageFaultTransition.cs|Diagnostics\SeparateDisabledDefaultPageFaultTransition.cs',
     '..\OS.Kernel\Diagnostics\InvalidOpcodeVectorAuthority.cs|Diagnostics\InvalidOpcodeVectorAuthority.cs',
     '..\OS.Kernel\Diagnostics\CpuFaultFrame.cs|Diagnostics\CpuFaultFrame.cs',
     '..\OS.Kernel\Diagnostics\DisabledDefaultUd2VectorState.cs|Diagnostics\DisabledDefaultUd2VectorState.cs',
@@ -3822,6 +3828,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM02OwnedIdtGatePopulationProbe," +
             "EnableM02IdtrContinuedExecutionProbe," +
             "EnableM02Ud2VectorStateProbe," +
+            "EnableM02PageFaultCr2ErrorCodeProbe," +
             "EnableM04IndependentEndianConformanceProbe," +
             "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe," +
             "EnableM04ArithmeticConformanceProbe," +
@@ -3991,6 +3998,9 @@ function Invoke-PostRestoreEvaluationSnapshot {
     if ($EnableM02Ud2VectorStateProbe) {
         $arguments += "-p:EnableM02Ud2VectorStateProbe=true"
     }
+    if ($EnableM02PageFaultCr2ErrorCodeProbe) {
+        $arguments += "-p:EnableM02PageFaultCr2ErrorCodeProbe=true"
+    }
 
     $previousLink = $env:LINK
     $previousTrailingLink = $env:_LINK_
@@ -4148,6 +4158,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM02IdtrContinuedExecutionProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM02Ud2VectorStateProbe =
             $EnableM02Ud2VectorStateProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM02PageFaultCr2ErrorCodeProbe =
+            $EnableM02PageFaultCr2ErrorCodeProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04IndependentEndianConformanceProbe =
             $EnableM04IndependentEndianConformanceProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe =
@@ -4229,7 +4241,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 70 -or
+    if ($compileItems.Count -ne 75 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4455,6 +4467,68 @@ if ($EnableM02Ud2VectorStateProbe) {
         [System.Management.Automation.SwitchParameter]::new($true)
     Write-Output (
         "EFI_ARTIFACT_M02_UD2_VECTOR_STATE_IMPLICATION status=ok " +
+        "m01LoadedImageStack=true m01LiveAllocator=true ownedPaging=true " +
+        "m02SafeStub=true checkedPortIoBinding=true com1OwnedPortIo=true " +
+        "ownedCom1Ready=true panicSafeOwnedCom1=true")
+}
+if ($EnableM02PageFaultCr2ErrorCodeProbe) {
+    foreach ($conflict in @(
+        "EnableM02OwnedX64GdtEncodingProbe"
+        "EnableM02GuardedIstStackAllocationProbe"
+        "EnableM02OwnedGdtTssTerminalProbe"
+        "EnableM02NormalizedInterruptFramePageProbe"
+        "EnableM02OwnedIdtGatePopulationProbe"
+        "EnableM02IdtrContinuedExecutionProbe"
+        "EnableM02Ud2VectorStateProbe"
+        "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"
+        "EnableM04ArithmeticConformanceProbe"
+        "EnableM04LayoutContractProbe"
+        "EnableM04ManagedHeapPageRangeProbe"
+    )) {
+        if ([bool](Get-Variable -Name $conflict -ValueOnly)) {
+            throw ("m02_page_fault_cr2_error_code_profile_conflict " + $conflict)
+        }
+    }
+}
+
+if ($EnableM02PageFaultCr2ErrorCodeProbe) {
+    $m02PageFaultCr2ErrorCodePrerequisites = @(
+        "EnableM01LoadedImageStackProbe",
+        "EnableM01LiveAllocatorProbe",
+        "EnableM01OwnedPagingProbe",
+        "EnableM02SafeStubProbe",
+        "EnableM02CheckedPortIoBindingProbe",
+        "EnableM02Com1OwnedPortIoProbe",
+        "EnableM02OwnedCom1ReadyProbe",
+        "EnableM02PanicSafeOwnedCom1Probe"
+    )
+    foreach ($prerequisiteName in $m02PageFaultCr2ErrorCodePrerequisites) {
+        if ($PSBoundParameters.ContainsKey($prerequisiteName) -and
+            -not [bool]$PSBoundParameters[$prerequisiteName]) {
+            Write-Failure `
+                "m02_page_fault_cr2_error_code_probe_explicit_false_prerequisite" `
+                ("property=" + $prerequisiteName)
+        }
+    }
+
+    $EnableM01LoadedImageStackProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM01LiveAllocatorProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM01OwnedPagingProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM02SafeStubProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM02CheckedPortIoBindingProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM02Com1OwnedPortIoProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM02OwnedCom1ReadyProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM02PanicSafeOwnedCom1Probe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    Write-Output (
+        "EFI_ARTIFACT_M02_PAGE_FAULT_CR2_ERROR_CODE_IMPLICATION status=ok " +
         "m01LoadedImageStack=true m01LiveAllocator=true ownedPaging=true " +
         "m02SafeStub=true checkedPortIoBinding=true com1OwnedPortIo=true " +
         "ownedCom1Ready=true panicSafeOwnedCom1=true")

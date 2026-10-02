@@ -53,6 +53,18 @@
 		<EnableM04ArithmeticConformanceProbe Condition="'$(EnableM04ArithmeticConformanceProbe)' == ''">false</EnableM04ArithmeticConformanceProbe>
 		<EnableM04LayoutContractProbe Condition="'$(EnableM04LayoutContractProbe)' == ''">false</EnableM04LayoutContractProbe>
 		<EnableM04ManagedHeapPageRangeProbe Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == ''">false</EnableM04ManagedHeapPageRangeProbe>
+		<EnableM02PageFaultCr2ErrorCodeProbe Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == ''">false</EnableM02PageFaultCr2ErrorCodeProbe>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'">
+		<EnableM01LoadedImageStackProbe>true</EnableM01LoadedImageStackProbe>
+		<EnableM01LiveAllocatorProbe>true</EnableM01LiveAllocatorProbe>
+		<EnableM01OwnedPagingProbe>true</EnableM01OwnedPagingProbe>
+		<EnableM02SafeStubProbe>true</EnableM02SafeStubProbe>
+		<EnableM02CheckedPortIoBindingProbe>true</EnableM02CheckedPortIoBindingProbe>
+		<EnableM02Com1OwnedPortIoProbe>true</EnableM02Com1OwnedPortIoProbe>
+		<EnableM02OwnedCom1ReadyProbe>true</EnableM02OwnedCom1ReadyProbe>
+		<EnableM02PanicSafeOwnedCom1Probe>true</EnableM02PanicSafeOwnedCom1Probe>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM02Ud2VectorStateProbe)' == 'true'">
@@ -157,6 +169,10 @@
 		<DefineConstants>$(DefineConstants);ACPI_PHYSICAL_DISCOVERY_PROBE</DefineConstants>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M02_PAGE_FAULT_CR2_ERROR_CODE_PROBE</DefineConstants>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<Compile Include="..\OS.Kernel\Boot\BootHandoffRecord.cs" Link="Boot\BootHandoffRecord.cs" />
 		<Compile Include="..\OS.Kernel\Boot\BootMemoryRegionMaterializer.cs" Link="Boot\BootMemoryRegionMaterializer.cs" />
@@ -206,6 +222,11 @@
 		<Compile Include="..\OS.Kernel\Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs" Link="Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\IDTRContinuedExecution.cs" Link="Diagnostics\IDTRContinuedExecution.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\InvalidOpcodeProbeAuthority.cs" Link="Diagnostics\InvalidOpcodeProbeAuthority.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\NullPointerProbeAuthority.cs" Link="Diagnostics\NullPointerProbeAuthority.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\NullPageFaultProbePlan.cs" Link="Diagnostics\NullPageFaultProbePlan.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\SeparateDisabledDefaultPageFaultCR2ErrorCode.cs" Link="Diagnostics\SeparateDisabledDefaultPageFaultCR2ErrorCode.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\SeparateDisabledDefaultPageFaultPageTables.cs" Link="Diagnostics\SeparateDisabledDefaultPageFaultPageTables.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\SeparateDisabledDefaultPageFaultTransition.cs" Link="Diagnostics\SeparateDisabledDefaultPageFaultTransition.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\InvalidOpcodeVectorAuthority.cs" Link="Diagnostics\InvalidOpcodeVectorAuthority.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\CpuFaultFrame.cs" Link="Diagnostics\CpuFaultFrame.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\DisabledDefaultUd2VectorState.cs" Link="Diagnostics\DisabledDefaultUd2VectorState.cs" />
@@ -381,6 +402,25 @@
 		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableExitBootServicesFreshMapProbe)' == 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableExitBootServicesFreshMapProbe" />
 		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableAcpiPhysicalDiscoveryProbe" />
 
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM01LoadedImageStackProbe)' != 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM01LoadedImageStackProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM01LiveAllocatorProbe)' != 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM01LiveAllocatorProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM01OwnedPagingProbe)' != 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM01OwnedPagingProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM02SafeStubProbe)' != 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM02SafeStubProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' != 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM02CheckedPortIoBindingProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM02Com1OwnedPortIoProbe)' != 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM02Com1OwnedPortIoProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM02OwnedCom1ReadyProbe)' != 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM02OwnedCom1ReadyProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM02PanicSafeOwnedCom1Probe)' != 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM02PanicSafeOwnedCom1Probe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM02OwnedX64GdtEncodingProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM02GuardedIstStackAllocationProbe)' == 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM02GuardedIstStackAllocationProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM02OwnedGdtTssTerminalProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM02NormalizedInterruptFramePageProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM02OwnedIdtGatePopulationProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM02IdtrContinuedExecutionProbe)' == 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM02IdtrContinuedExecutionProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM02Ud2VectorStateProbe)' == 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM02Ud2VectorStateProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM04ArithmeticConformanceProbe)' == 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM04ArithmeticConformanceProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM04LayoutContractProbe)' == 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM04LayoutContractProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM04ManagedHeapPageRangeProbe)' == 'true'" Text="m02_page_fault_cr2_error_code_profile_invalid EnableM04ManagedHeapPageRangeProbe" />
 	</Target>
 
 	<Target Name="CustomizeReferences"

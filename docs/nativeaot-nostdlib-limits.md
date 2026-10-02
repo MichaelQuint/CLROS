@@ -226,7 +226,7 @@ runtime execution.
 | `System.Runtime.RuntimeExportAttribute` | Implemented only for EFI runtime export metadata | Needed by `EfiMain` and NativeAOT helper exports |
 | `System.Buffer.MemoryCopy` / `Memmove` | Implemented as byte loops for EFI shell needs | Used for no-stdlib memory copy paths; not a complete BCL buffer contract |
 | `System.SpanHelpers` clear/fill/memmove slice | Implemented as narrow byte/pointer helper slice | Supports current EFI publish boundary only |
-| Object allocation helpers | Deferred | Ledger entry `ObjectAllocation`; no OS-owned NativeAOT object allocation helper or managed heap handoff exists. `BootPageFreeListBuilder`, `BootPageAllocatorStateInitializer`, `BootPageAllocatorMutation`, `BootPageAllocatorReadinessComposer`, and `NativeAotHeapBootstrapPlanner` only prove prerequisite caller-owned free-list node, allocator state, caller-owned mutation, aggregate readiness-marker, and heap page-budget metadata |
+| Object allocation helpers | Host leaf implemented; runtime export deferred | The #75 retained-page handoff has bounded guest evidence (step939). The #76 `GuestTestRhpNewFast` leaf allocates fixed byte intervals through that original authority in host tests (step940). No OS-owned NativeAOT allocation export, compiled guest object allocation, general heap or GC is established; the `ObjectAllocation` runtime-helper ledger gate remains deferred |
 | Array allocation helpers | Deferred | Ledger entry `ArrayAllocation`; no OS-owned NativeAOT array allocation helper exists |
 | String allocation helpers | Deferred | Ledger entry `StringAllocation`; no OS-owned NativeAOT string allocation helper exists |
 | Write barriers | Deferred | Ledger entry `WriteBarriers`; no kernel/runtime write barrier implementation exists |
@@ -462,6 +462,49 @@ firmware. The default and standalone layout lanes preserve their earlier
 returning behavior. Issue completion follows the reviewed PR #515 merge.
 This proves the bounded pre-firmware page handoff, not object allocation,
 runtime helpers, GC or post-`ExitBootServices` lifetime. Gate 4 remains **Fail**.
+
+### M04-007 fixed allocation in caller-owned buffers
+
+`GuestTestRhpNewFast` adds the host-testable allocation leaf for a retained
+4096-byte page. Its 104-byte access value carries the original thirteen #75
+arguments. Each accepted bind/allocation freshly calls `ValidateRetained`;
+the original 216-byte heap ownership slot, allocator, nodes and ledger stay
+unchanged. A separate 80-byte state binds its own address/capacity, original
+heap slot, mapped/physical page and allocation-origin cursor/count. Binding
+requires a zero state prefix and currently pristine page; later allocations
+accept existing nonzero objects without clearing the whole page.
+
+The pinned 10.0.8 win-x64 scalar policy admits the seventeen fixed element
+values for ordinary/reference-bearing/generic classes, primitives, enums as
+their underlying encoding, structs and nullable shapes. `HasPointers` and
+`IsGeneric` are permitted. Value-padding and nullable-offset flags are checked
+by category. Component types, noncanonical kinds, finalizers, dynamic metadata,
+byref-like types, special alignment and unknown flags reject. This local policy
+does not weaken the narrower frozen M04-005 evaluator.
+
+For origin `B=P+U` and already aligned `BaseSize=S>=24`, allocation zeroes only
+`[B,B+S)`, writes the supplied full-width MethodTable token at `B+8`, returns
+that numeric reference value, and advances the offset by `S`. It adds no
+second header. All ordinary checks precede writes; rejected results have zero
+address/size/counter payloads. Full supplied capacities, aliases, overflow and
+state consistency are checked; earlier objects, unused backing and canaries
+remain unchanged. The token and related metadata are never dereferenced.
+
+Step940 records focused tests with actual #75 authority, independent complete
+byte oracles, all admitted elements and invalid alternatives, exact exhaustion,
+high addresses/tokens, copied/corrupt state and zero CLR allocation. The actual
+ten-source no-stdlib closure has zero assembly references. The host record is
+`CLROS_M04_007_HOST_READY ... hostConformance=true guestIntegrated=false
+compiledNew=false runtimeExport=false gc=false gate4=Fail`.
+
+This is caller-buffer evidence, without a runtime export or real CLR object.
+The caller owns readable/writable, stable, exclusive storage, actual mappings
+and a single controller. Numeric/self-identity checks do not authenticate
+MethodTables or prevent forged PODs, ABA or concurrent access. There is no
+reset/free/grow, refill, OOM exception, boxing payload copy, write barrier or GC.
+Issue #76 stays open for separately owned EFI integration, authentic emitted
+metadata, compiled allocation/ABI and physical guest evidence. Gate 4 remains
+**Fail**; the combined settled-source full gate remains pending.
 
 ## Tests
 

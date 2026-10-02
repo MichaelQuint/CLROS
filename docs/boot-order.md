@@ -201,17 +201,28 @@ five synthetic page-fault fields. It adds no phase, marker emission, or probe
 execution to `BootSequence`, and does not change `Probes` defaults. Readiness
 attestations are model inputs only. Active page-zero absence, actual null-read
 execution, owned descriptor/handler installation, early CR2 capture, saved
-flags/frame validation, and terminal behavior or recovery remain separate EFI
-integration work. The older null-write plan and accepted vector-6 profile
+flags/frame validation, and terminal behavior are implemented by the separate
+default-off #517 EFI adapter, with accepted bounded guest evidence in
+[step944](../done/step944.md). Recovery remains unsupported. The older null-write plan and accepted vector-6 profile
 cannot substitute for vector-14 evidence; completion gates remain unchanged.
 
 The supplied diagnostics page-table image from supplemental #510 adds no
-boot phase or EFI source inclusion. Earlier M01 guest evidence restored the
-firmware root, and the accepted M02-013 terminal UD2 path did not install an
-owned root. A later adapter must map its actual terminal resources, validate
-observed modes, switch stacks before CR3, observe the active hierarchy/TLB
-behavior and capture the real page fault. This host image alone does not
-close #54 or change completion gates; see step930 and `docs/diagnostics.md`.
+boot phase. #517 now includes that frozen leaf in the explicit EFI closure.
+Earlier M01 guest evidence restored the firmware root, and the accepted M02-013
+terminal UD2 path did not install an owned root. The new adapter prepares actual
+terminal resources and observed mode checks. Its separate step944 guest
+captures stack/CR3 transition, active hierarchy absence and the real fault.
+This does not expand the earlier M01 or M02-013 evidence; completion gates
+remain unchanged. See steps930/941/944 and `docs/diagnostics.md`.
+
+The opt-in M02-014 EFI diagnostic runs only after the existing boot-plan output.
+It adds no BootSequence phase and leaves the ordinary boot path unchanged.
+`Probes.EnableNullPointerPanicProbe` remains false in its narrow partial-class
+authority file. The separate explicit build option enters a closed terminal
+stream with no return or firmware callback. The accepted default capture keeps
+the returning firmware contract; the enabled capture in step944 terminates
+through the runner after its quiet drain. Host integration and actual guest
+evidence remain separate.
 
 The separate default-off `EnableM02Ud2VectorStateProbe` profile now supplies
 accepted bounded guest evidence without adding a `BootSequence` phase. It runs
