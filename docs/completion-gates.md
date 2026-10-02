@@ -789,8 +789,13 @@ cases, 506 raw transcript fixtures plus lifecycle controls, artifact-authority
 and source-firewall negatives, affected legacy checks and successful default
 and enabled preflights. These are controlled host observations.
 
-The complete settled-wave gate and fresh default/layout/heap source-bound
-EFI/image/QEMU matrix remain pending. #75/#516 remain open and Gate 4 remains
+The first complete settled-wave run at `b5784a2` failed an M02-012 provenance
+assertion after successful default/enabled artifact builds. Two existing M02
+fixtures still expected 82 inputs instead of the verified 83; step938 records
+the strict count correction and the coverage gap in the earlier selected-method
+harness. This failed run is not acceptance evidence. A new complete host gate
+and fresh default/layout/heap source-bound EFI/image/QEMU matrix remain pending.
+#75/#516 remain open and Gate 4 remains
 **Fail**. This does not establish managed allocation helpers, GC, hardware NX
 or post-`ExitBootServices` lifetime.
 

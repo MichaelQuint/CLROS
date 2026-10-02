@@ -1565,6 +1565,13 @@ Step937 records independent source review and focused adapter, transcript,
 artifact-authority, legacy-fixture and preflight evidence. Full host execution,
 fresh NativeAOT/QEMU acceptance and corrected-image accounting remain pending.
 
+The first complete host run at `b5784a2` failed in M02-012's actual-artifact
+provenance check: default and enabled builds succeeded, but a stale assertion
+required 82 authority inputs. Independent comparison verified all 83 ordered
+paths and raw hashes. The matching M02-011 assertion had the same stale count.
+Step938 corrects both counts without relaxing the other provenance predicates;
+the failed gate remains preserved and cannot authorize guest acceptance.
+
 ### Linked instruction-publication serializer (M01-034)
 
 `src/OS/OS.csproj` imports the single allowlisted
