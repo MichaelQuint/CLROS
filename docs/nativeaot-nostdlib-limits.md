@@ -409,6 +409,60 @@ exception/unwind support and hosted .NET/Kestrel remain unsupported.
 See step931 for source identities, commands, setup failures and the pending
 combined full-gate boundary.
 
+### M04-006 retained heap-page contract and EFI adapter
+
+`ManagedHeapPageRangeLiveAllocator` reserves one 4096-byte page through the
+existing `AllocateOnePage` mutator and publishes its AfterState into the
+original caller-owned allocator slot. It retains the original node, ledger,
+parent and backing identities, zeroes the actual mapped page, and independently
+reads every byte through a private `NoInlining` fixed-page helper before
+marking the 216-byte POD state ready. The result is a 160-byte POD snapshot.
+No release/reset operation or allocator restore receipt is exposed.
+
+`ValidateRetained` reads the current bounded free chain and accounting. It
+accepts legal later allocation, exhaustion and strict-LIFO release of only a
+later allocation while rejecting any free extent overlapping the retained
+page. Current zero contents are a separate observation from retained ownership;
+legitimate writes do not make the page unowned. Reinitialization cannot clear
+or release an already reserved page. Post-reservation failure keeps explicit
+`ReservedNotReady` ownership.
+
+Step935 records reviewed host tests using aligned real backing and separate
+synthetic physical identities, all 4096 nonzero-byte positions, complete outside
+canaries, unchanged ledger bytes, hostile spans/topology, and zero managed
+allocation in warmed operations. The actual eight-source no-stdlib closure
+has zero assembly references and preserves `NoInlining` on the reader. No new
+shim or general memory utility was added.
+
+Those tests provide host caller-buffer evidence. Stable exclusive original storage and
+correct backing mappings remain caller obligations. Pointer identities and
+free-list exclusion are not an unforgeable allocation registry, clone/ABA
+protection or SMP synchronization. No managed object allocation, allocation
+helper, GC, hardware NX, permanent paging or post-firmware lifetime follows.
+Step937 integrates supplemental #516's disabled-default EFI adapter. It uses
+the original M01 allocator, node and five-entry ledger after every historical
+stage-two completion consumer. A stable heap state retains one page from the
+original two-page LoaderData parent. Immediately before the boot plan, the
+adapter reacquires the same slots and validates ownership and all 4096 current
+bytes again. It checks original identities, ranges and accounting at both
+checkpoints. Reserving the page changes M01's former completion accounting;
+those historical completion records are neither weakened nor reissued.
+
+Failure preserves the parent and any retained page and reaches the existing
+terminal spin. There is no cleanup/free/reset, replacement firmware allocation
+or extra global reservation. The ledger is fully validated without writes;
+controlled tests compare all 200 bytes, but the adapter does not retain a
+historical ledger snapshot. Step939 adds the accepted complete host gate and
+fresh default/layout/heap QEMU matrix at source `4b18b4f`. The enabled guest
+reserves one page from the original two-page parent, observes all 4096 bytes
+zero after initialization and again before the boot plan, and retains the
+same allocator, node, ledger, parent and heap-state identities. The exact
+52-record transcript ends in the terminal boot markers without returning to
+firmware. The default and standalone layout lanes preserve their earlier
+returning behavior. Issue completion follows the reviewed PR #515 merge.
+This proves the bounded pre-firmware page handoff, not object allocation,
+runtime helpers, GC or post-`ExitBootServices` lifetime. Gate 4 remains **Fail**.
+
 ## Tests
 
 `tests/OS.HostTests/StdAsciiTests.cs` covers ASCII character classification,

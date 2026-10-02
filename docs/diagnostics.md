@@ -431,8 +431,31 @@ COM1/serial invocation.
   also compile with zero framework or external assembly references. Step930
   records focused evidence; step933 adds accepted complete host execution at
   source `5f6108ca363f03c7ebad8dafca7ae78e1d3a0db2`. The separate layout
-  guest tuple does not execute this page-image helper. CR3 activation, the
-  terminal emitter and the real vector-14 guest remain separate work.
+  guest tuple does not execute this page-image helper. CR3 activation and the
+  real vector-14 guest remain separate work.
+- `SeparateDisabledDefaultPageFaultTransition` is the separate #513 host-only
+  terminal emitter. It prepares a 4096-byte context and materializes/readbacks
+  an 8192-byte instruction/data stream for the fixed C3/D10/T43 image, six
+  ranges, 52 mapped leaves and five absent addresses. Status-coded methods
+  validate caller spans, mode/PAT and the available #510 snapshot before
+  writing; no method executes the generated instructions.
+- Independent byte decoding and synthetic interpretation cover the qualified
+  CPL0 entry, descriptor/root readback, private-stack transition, early CR2
+  and full 192-byte frame capture, bounded active-root absence walks and finite
+  COM1 polling. The complete 12-line, 2053-byte transcript has 57 fields from
+  modeled captured state. The stream has 361 instructions/1910 instruction
+  bytes; its 3264-byte context bound includes reserved output capacity.
+- Step936 records focused parent tests, all-byte corruption/preservation and
+  allocation checks, independent LLVM decoding, and the actual 17-source
+  no-stdlib closure with zero assembly references. Step939 adds the accepted
+  complete host gate at source `4b18b4f`; the separate heap QEMU matrix does
+  not execute this emitter. This is data and compiler evidence, not a real
+  fault, CR3 switch, descriptor activation or UART write.
+  Synthetic bad-CPL rejection does not prove ring-3 recovery: diagnostics and
+  terminal halt still require privilege. The future default-off adapter must
+  bind exact current backing and freshly audit the six derived ranges; snapshots
+  and fingerprints do not establish ownership, lifetime or tamper resistance.
+  #54 remains open for EFI integration and real default/enabled guest evidence.
 - `TssIstPlan` models the x64 TSS bytes needed for `RSP0` and IST entries, including double-fault IST stack top, stack-size, and guard-size validation.
 - `FaultInfrastructureReadiness` combines serial, IDT, IDTR, GDT, TSS/IST, and double-fault IST readiness into a single pre-privileged-install gate.
 - `BootSequence.RunFaultInfrastructureReadiness` emits host-tested `FAULT_INFRA_READY` or `FAULT_INFRA_NOT_READY status=<status>` markers from the readiness result without changing the default boot path.

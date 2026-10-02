@@ -9637,7 +9637,7 @@
         "M04-005"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -9663,16 +9663,16 @@
       ],
       "collisionLane": null,
       "summary": "Reserve and initialize a managed-heap page range from the live allocator.",
-      "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
+      "currentEvidence": "Step939 records independently accepted host and fresh default/layout/heap QEMU evidence at source 4b18b4f5856f3070ba0415b9f5fa4bf48e649521: 3,541 host starts, 3,542 passes, zero failures and actual exit 0. Supplemental #516 integrates the original M01 allocator handoff and fresh retention check. The enabled 52-record guest transcript proves one retained 4096-byte page from the original 8192-byte parent, two full-page zero readbacks and current one-free/one-allocated accounting before the terminal boot plan. Heap serial SHA256 F81E9F6482471E9515840B82992194E86F296521DCC45D089A92A76921B443C7; all three wrappers exit 0 with source-bound 70-Compile/83-input artifacts. Separate corrected-image/pristine accounting review passes. Earlier failed host and helper attempts remain preserved. Reviewed PR #515 merge and issue evidence/read-back precede live closure. This proves only the bounded pre-firmware page handoff; managed objects, runtime allocation helpers, GC, hardware NX, post-ExitBootServices lifetime and Gate 4 completion remain unsupported. Gate 4 remains Fail.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Reserve and initialize a managed-heap page range from the live allocator.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
         "The proposed owned paths are exact for this slice: src/OS.Kernel/Runtime/ManagedHeapPageRangeLiveAllocator.cs, tests/OS.HostTests/ManagedHeapPageRangeLiveAllocatorTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Exercise a valid aligned, non-overflowing case for: Reserve and initialize a managed-heap page range from the live allocator.",
-        "Failure cases: Cover zero/default addresses, size overflow, end-address wrap, misalignment, overlap, exhaustion, stale ownership, double release, and prohibited writable-executable state as applicable.",
-        "Explicitly inapplicable here: Packet loss, disk path traversal, and cloud resource cleanup are outside this address/memory slice.",
+        "Positive case: Reserve exactly one fresh 4096-byte aligned page through the existing BootPageAllocatorMutator.AllocateOnePage using the original caller-owned allocator state and node storage; publish AfterState into that same state slot, zero and independently read all 4096 actual caller-mapped bytes, retain the page, and preserve outside bytes and the parent AllocatorArena ledger entry. A later allocation through the same authority must select a different page. Read-only retention validation must accept the legal later accounting, including an exhausted free chain and strict-LIFO release of only the later page, while proving the retained interval is absent from the bounded current free chain. Historical M01 AllocatedPageStart is a freed observation, not a lease. Initialization and the later zero-content observation must call the same private fixed-page NoInlining readback helper using the existing shim; verify its actual-source no-stdlib metadata rather than inferring reads from counters or a zeroing call.",
+        "Failure cases: Reject invalid/default, short, overflowing or misaligned spans/parent ranges; metadata overlap; malformed bounded allocator topology/accounting; missing or mismatched parent/source/slot identity; exhaustion; and repeated initialization without mutation. Keep the fixed data-only policy explicit without claiming hardware NX; no permission or release/reset API is added, so synthetic W+X and new-leaf double-release tests are inapplicable. After reservation succeeds, initialization/readback failure retains explicit ReservedNotReady ownership rather than silently freeing the page. Stable exclusive original storage and actual backing mapping are caller preconditions; absence from a free list is not an unforgeable allocation registry. Keep fixed-page zero/readback private and issue-specific, with no generic utility or shim expansion.",
+        "Explicitly inapplicable here: Managed object/array/string allocation, runtime allocation helpers, GC/roots/barriers, multi-page contiguous allocation, general free, allocator redesign, clone/ABA-resistant ownership, SMP synchronization, hardware NX or persistent paging, and lifetime after real ExitBootServices. Packet loss, disk path traversal, and cloud resource cleanup remain outside this address/memory slice.",
         "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
       ],
       "referenceInfluences": [
@@ -9693,9 +9693,9 @@
         "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
         "Affected canonical documentation is updated without promoting unsupported completion gates.",
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Exercise a valid aligned, non-overflowing case for: Reserve and initialize a managed-heap page range from the live allocator.",
-        "Applicable failure cases are asserted: Cover zero/default addresses, size overflow, end-address wrap, misalignment, overlap, exhaustion, stale ownership, double release, and prohibited writable-executable state as applicable.",
-        "The evidence report explicitly records these non-goals: Packet loss, disk path traversal, and cloud resource cleanup are outside this address/memory slice."
+        "The positive case reserves and retains one 4096-byte page using the actual existing mutator and original authoritative state/node storage, publishes AfterState in place, zeroes and reads back every mapped byte, preserves surrounding bytes and the canonical parent ledger, and checks literal page/byte accounting. A later allocation from the same authority is distinct; bounded read-only retained validation succeeds during valid exhaustion and after strict-LIFO freeing only that later allocation, without demanding equality with the initial AfterState or mutating any storage. Host tests distinguish synthetic physical addresses from mapped pointers and compile the actual no-stdlib dependency closure. Both content observations execute a private fixed-page NoInlining readback helper, with actual-source no-stdlib metadata verification and nonzero-byte negatives.",
+        "Applicable failures cover invalid/default/short/overflowing/misaligned spans, metadata aliases, invalid or missing parent/source/slot identities, malformed bounded topology/accounting, free-range overlap with the retained page, exhaustion, repeated initialization and ReservedNotReady. Preflight/mutator rejection preserves all storage. Reinitialization cannot clear a nonzero byte in the retained page; current content observation remains distinct from ownership. Post-reservation failure retains nonready ownership. No new release/reset or permission input exists; existing allocator strict-LIFO/double-free coverage is preserved, and no hardware NX, clone/ABA resistance or unforgeable allocation-registry claim is made.",
+        "The evidence report records the fixed one-page caller-buffer and stable-authority boundary, plus non-goals of managed objects/arrays/strings, allocation helpers, GC/roots/barriers, multi-page allocation, general free, allocator redesign, SMP, hardware NX/persistent paging and post-ExitBootServices lifetime. The host leaf alone does not close the issue: a separately claimed EFI lane must hand off the original M01 state after its completion consumers, preserve the parent, observe initialization and later retention before the terminal boot-plan completion, and preserve fresh default/enabled source-bound EFI/image/QEMU evidence. Packet, disk-path and cloud-cleanup suites remain out of scope."
       ],
       "requiredMarkers": [
         "TEST_START m04.006",
@@ -9715,8 +9715,8 @@
         "docs/nativeaot-nostdlib-limits.md",
         "docs/completion-gates.md"
       ],
-      "evidenceBoundary": "This issue proves only \"Reserve and initialize a managed-heap page range from the live allocator.\" It does not by itself prove the M04 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "evidenceBoundary": "This issue proves one retained 4096-byte reservation from the original allocator authority and explicit mapped-page zero/readback/retention behavior. Host synthetic physical/backing relationships prove only the caller-buffer contract. Closure additionally requires separately claimed shared EFI integration after M01 completion consumers, actual original-state mutation, a later retained-page checkpoint and fresh default/enabled source-bound QEMU/OVMF evidence on the terminal enabled M01 path. It does not prove managed object allocation, GC, a general or unforgeable allocation registry, hardware NX, permanent paging, SMP safety, post-ExitBootServices lifetime, the M04 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
+      "desiredState": "closed"
     },
     {
       "key": "M04-007",

@@ -30,7 +30,7 @@ This is host-side packaging only. Boot proof still belongs to QEMU smoke evidenc
 
 ## Implemented Behavior
 
-### Known FAT geometry defect (#514)
+### FAT geometry correction (#514)
 
 Independent review of the preserved PR #509 and #511 64 MiB images found that
 the FAT-sizing recurrence can oscillate and return a stale cluster count.
@@ -38,12 +38,37 @@ Their 128,991-sector ESP declares 126,975 data clusters but its 992-sector FAT
 contains only 126,976 entries, one fewer than needed with reserved entries 0
 and 1. FSInfo also uses stale accounting. Bounded extraction confirms the EFI
 boot payloads, and QEMU boot markers remain observed evidence; neither proves
-whole-filesystem geometry. Historical images remain unchanged. Issue #514 owns
-the separately reviewed correction and independent capacity/accounting tests.
+whole-filesystem geometry. Historical images remain unchanged.
 
-Its review also identified oversized plans beyond FAT32's cluster-number
-range. The correction must reject them before image creation. This work does
-not establish live guest storage, cloud import or broader filesystem support.
+The current host implementation sizes the FAT once using an upper bound on
+data clusters, then derives the actual cluster count from that same FAT size.
+For a 64 MiB image it uses 1,008 FAT sectors and 126,943 data clusters. This
+conservative capacity calculation removes the oscillation and stale FSInfo
+count; round-up arithmetic uses a wider intermediate.
+
+It also rejects a derived cluster count of `0x0FFFFFF6` or greater with exit 5
+and `image_too_large`, before image creation. The current one-sector-per-cluster
+format accepts a plan through 133,153 MiB; 133,154 MiB is rejected. Those large
+boundaries are plan evidence only. Tests emit 64, 65 and 128 MiB images and
+independently check BPB-derived capacity, FSInfo accounting, backup metadata,
+FAT copies, payload bytes and determinism. Step934 records focused evidence;
+step939 adds the complete host gate and three fresh corrected default/layout/
+heap guest images. Each 64 MiB image has 129,024 FAT entries for 126,943 data
+clusters, with no unaddressable trailing cluster. Independent decoding confirms
+the EFI payload byte-for-byte in both the pristine and post-boot images.
+
+Separate pristine images use each guest lane's archived actual Debug builder,
+without rebuilding it. Their allocated/free counts are 114/126,829 (default),
+190/126,753 (layout) and 532/126,411 (heap); both pristine FSInfo copies match
+the complete FAT census and first free cluster. After OVMF execution each image
+has a 1,393-byte NVVARS file occupying exactly three new clusters. Changes are
+confined to its directory entry/data, the new links in both FATs and primary
+FSInfo. Backup FSInfo retains its pristine hints; post-firmware hints are
+advisory and are not substituted for the pristine builder check. Existing file
+chains, payloads and FAT clean/no-hard-error status remain unchanged.
+This bounded review does not establish general filesystem conformance, live
+guest storage, cloud import or broader runtime support. Historical defective
+images remain preserved; this acceptance applies to the new images only.
 
 Host tool projects inherit `tools/Directory.Build.props`, which excludes each
 tool-local `artifacts/**` tree from SDK default source globs. Generated

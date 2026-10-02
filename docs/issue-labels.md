@@ -211,6 +211,14 @@ evidence-reviewed pending closures, but apply rechecks the live tracker before
 each state transition; rerunning converges without promoting work past the
 failed boundary.
 
+Keep references to unfinished work neutral (`Refs #<number>` or
+`Issue #<number> remains open`). Gitea can interpret a closing keyword before
+an issue reference even in negated prose. Inspect the final PR title/body and
+commit messages before merging, then read back referenced issue states.
+Automatic closure is a tracker event; it does not supply the required evidence
+review or dependency proof. Step938 records an observed unintended closure
+and its evidence-based correction.
+
 Reference labels describe the specific influence named in an issue, not an
 entire milestone. `reference:license-blocked` is used only when direct use of
 that named material still lacks permission or has an unresolved incompatible

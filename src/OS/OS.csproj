@@ -52,6 +52,7 @@
 		<EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe Condition="'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == ''">false</EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe>
 		<EnableM04ArithmeticConformanceProbe Condition="'$(EnableM04ArithmeticConformanceProbe)' == ''">false</EnableM04ArithmeticConformanceProbe>
 		<EnableM04LayoutContractProbe Condition="'$(EnableM04LayoutContractProbe)' == ''">false</EnableM04LayoutContractProbe>
+		<EnableM04ManagedHeapPageRangeProbe Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == ''">false</EnableM04ManagedHeapPageRangeProbe>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM02Ud2VectorStateProbe)' == 'true'">
@@ -140,6 +141,9 @@
 	<PropertyGroup Condition="'$(EnableM04LayoutContractProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_LAYOUT_CONTRACT_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_MANAGED_HEAP_PAGE_RANGE_PROBE</DefineConstants>
+	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableUefiGoneSimulationProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);UEFI_GONE_SIMULATION_PROBE</DefineConstants>
@@ -210,6 +214,7 @@
 		<Compile Include="..\..\std\no-runtime\shared\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs" Link="Std\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs" Link="Std\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs" Link="Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs" />
+		<Compile Include="..\OS.Kernel\Runtime\ManagedHeapPageRangeLiveAllocator.cs" Link="Runtime\ManagedHeapPageRangeLiveAllocator.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs" Link="Boot\M01LoadedImageStackIntegration.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs" Link="Boot\M01LiveAllocatorIntegration.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LivePagingIntegration.cs" Link="Boot\M01LivePagingIntegration.cs" />
@@ -353,6 +358,29 @@
 		<Error
 			Condition="'$(EnableM04LayoutContractProbe)' == 'true' and '$(EnableM02Ud2VectorStateProbe)' == 'true'"
 			Text="EnableM04LayoutContractProbe cannot be combined with EnableM02Ud2VectorStateProbe=true." />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM01LoadedImageStackProbe)' != 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableM01LoadedImageStackProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM01LiveAllocatorProbe)' != 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableM01LiveAllocatorProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM04IndependentEndianConformanceProbe)' != 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableM04IndependentEndianConformanceProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' != 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM04ArithmeticConformanceProbe)' != 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableM04ArithmeticConformanceProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM04LayoutContractProbe)' != 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableM04LayoutContractProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM01OwnedPagingProbe)' == 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableM01OwnedPagingProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM02SafeStubProbe)' == 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableM02SafeStubProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableM02CheckedPortIoBindingProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM02Com1OwnedPortIoProbe)' == 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableM02Com1OwnedPortIoProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM02OwnedCom1ReadyProbe)' == 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableM02OwnedCom1ReadyProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableM02PanicSafeOwnedCom1Probe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableM02OwnedX64GdtEncodingProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM02GuardedIstStackAllocationProbe)' == 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableM02GuardedIstStackAllocationProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableM02OwnedGdtTssTerminalProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableM02NormalizedInterruptFramePageProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableM02OwnedIdtGatePopulationProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM02IdtrContinuedExecutionProbe)' == 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableM02IdtrContinuedExecutionProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM02Ud2VectorStateProbe)' == 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableM02Ud2VectorStateProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableUefiGoneSimulationProbe)' == 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableUefiGoneSimulationProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableExitBootServicesFreshMapProbe)' == 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableExitBootServicesFreshMapProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'" Text="m04_managed_heap_page_range_profile_invalid EnableAcpiPhysicalDiscoveryProbe" />
+
 	</Target>
 
 	<Target Name="CustomizeReferences"

@@ -704,6 +704,21 @@ isolation, supervisor, restart, port-conflict, and crash-isolation evidence.
 - `scripts/run-ci-smoke.ps1` now records separate dry-run artifact lanes for the `app-args`, `app-exit`, `cctor-preflight`, `cctor-work-items`, `fetch-http`, `fetch-http-endpoint`, `http-static-tcp-response`, `manifest-env`, `nativeaot-heap`, and `pal-export` QEMU marker presets, including per-lane command, log, serial-log, summary-log, and marker-preset metadata. These lanes prove only the CI artifact contract and required-marker wiring. They are not real QEMU boot, native app argument-vector materialization, guest app-exit, class-constructor execution, NativeAOT heap bootstrap, PAL export consumption, NativeAOT runtime-helper completion, FetchApp, manifest loading from disk, process environment materialization, networking, HTTP GET, HTTP static TCP response, hosted .NET, Minimal API, or Kestrel evidence.
 - `scripts/build-efi-shell.ps1` publishes the no-stdlib EFI shell and stages `artifacts/efi/BOOTX64.EFI`.
 
+### M02-014 terminal fault-transition host boundary
+
+Step936 adds the reviewed #513 host-only transition emitter over the #510
+table-image contract. Independent byte/interpreter tests and LLVM decoding
+cover the 361-instruction stream, early CR2/frame capture, bounded page walks
+and finite serial output. The actual 17-source no-stdlib closure has zero
+assembly references. Fresh parent focused checks pass; the settled full gate
+and future EFI integration remain separate.
+
+No generated instruction was executed by this leaf. #54 remains open and
+Gate 3 remains **Fail**. A fresh exact-backing table audit, explicit default-off
+adapter, privileged publication/activation and source-bound default/enabled
+QEMU fault evidence are still required. Modeled bad-CPL checks do not establish
+unprivileged recovery; active diagnostics require the trusted CPL0 boundary.
+
 ### M04-004 arithmetic conformance boundary
 
 The fixed M04-004 catalog executes 57 vectors across 30 integer arithmetic,
@@ -754,6 +769,49 @@ Gate 4 remains **Fail**. Neither this contract nor later execution of its
 value checks establishes compiler-emitted physical object layout, live heap
 allocation, GC, metadata discovery, optional-tail access, dispatch,
 exception/unwind support, real `ExitBootServices` or hosted .NET/Kestrel.
+
+### M04-006 heap-page integration boundary
+
+Step935 adds the reviewed `ManagedHeapPageRangeLiveAllocator` host contract:
+one actual caller-mapped page is reserved through the original allocator,
+zeroed/read back, and retained across later valid allocator activity. Ownership
+and current zero contents are distinct observations. Focused tests, complete
+storage-preservation checks, zero-allocation checks and actual-source
+no-stdlib/`NoInlining` evidence pass.
+
+Step937 integrates supplemental #516's disabled-default EFI adapter. It hands
+off the original M01 authority after every completion consumer, preserves the
+original parent, and freshly validates retained ownership/current bytes before
+the terminal boot plan. Independent review accepts the 24-file integration,
+70-Compile/83-input closure and all 23 evaluated probe properties. Author
+evidence includes eight paired focused groups, 50 actual-adapter controlled
+cases, 506 raw transcript fixtures plus lifecycle controls, artifact-authority
+and source-firewall negatives, affected legacy checks and successful default
+and enabled preflights. These are controlled host observations.
+
+The first complete settled-wave run at `b5784a2` failed an M02-012 provenance
+assertion after successful default/enabled artifact builds. Two existing M02
+fixtures still expected 82 inputs instead of the verified 83; step938 records
+the strict count correction and the coverage gap in the earlier selected-method
+harness. This failed run is not acceptance evidence. Step939 records the
+subsequent independently accepted complete host gate at `4b18b4f` (3,541
+starts, 3,542 passes, zero failures, actual exit zero) and fresh default,
+layout and heap source-bound EFI/image/QEMU lanes. The heap guest emits exactly
+52 records, retains one 4096-byte page from the original 8192-byte parent and
+reports complete zero readback at initialization and before the terminal boot
+plan, with current free/allocated accounting of one page each. Each wrapper
+exits zero after a 750 ms quiet drain; native QEMU exit -1 records runner
+termination, not a guest-requested clean shutdown.
+
+Separate pristine images made with each archived Debug ImageBuilder and the
+same EFI payload pass corrected FAT geometry, payload and accounting review.
+Firmware-added NVVARS chains and changed primary FSInfo are recorded separately
+from pristine builder accounting; the earlier defective images remain unchanged.
+Reviewed PR #515 merge and issue read-back precede #75/#516 completion.
+Gate 4 remains **Fail**: this does not establish managed allocation helpers,
+GC, hardware NX or post-`ExitBootServices` lifetime. The #513 transition emitter
+also passes this complete host gate but remains host-only; #54 still requires
+its separate real page-fault adapter and guest evidence.
 
 ## Unsupported Behavior
 
