@@ -19,7 +19,17 @@ param(
     [switch]$EnableM04IndependentEndianConformanceProbe,
     [switch]$EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe,
     [switch]$EnableM04ArithmeticConformanceProbe,
-    [switch]$EnableM04LayoutContractProbe
+    [switch]$EnableM04LayoutContractProbe,
+    [switch]$EnableM04ManagedHeapPageRangeProbe,
+    [switch]$EnableM01LoadedImageStackProbe,
+    [switch]$EnableM01LiveAllocatorProbe,
+    [switch]$EnableM01OwnedPagingProbe,
+    [switch]$EnableM02SafeStubProbe,
+    [switch]$EnableM02CheckedPortIoBindingProbe,
+    [switch]$EnableM02Com1OwnedPortIoProbe,
+    [switch]$EnableUefiGoneSimulationProbe,
+    [switch]$EnableExitBootServicesFreshMapProbe,
+    [switch]$EnableAcpiPhysicalDiscoveryProbe
 )
 
 $ErrorActionPreference = "Stop"
@@ -41,7 +51,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 82
+$expectedSourceClosureInputCount = 83
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -141,6 +151,7 @@ $expectedEfiCompileItems = @(
     '..\..\std\no-runtime\shared\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs|Std\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs',
     '..\..\std\no-runtime\shared\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs|Std\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs',
     '..\OS.Kernel\Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs|Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs',
+    '..\OS.Kernel\Runtime\ManagedHeapPageRangeLiveAllocator.cs|Runtime\ManagedHeapPageRangeLiveAllocator.cs',
     '..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs|Boot\M01LoadedImageStackIntegration.cs',
     '..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs|Boot\M01LiveAllocatorIntegration.cs',
     '..\OS.Kernel\Boot\M01LivePagingIntegration.cs|Boot\M01LivePagingIntegration.cs',
@@ -3815,6 +3826,16 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe," +
             "EnableM04ArithmeticConformanceProbe," +
             "EnableM04LayoutContractProbe," +
+            "EnableM04ManagedHeapPageRangeProbe," +
+            "EnableM01LoadedImageStackProbe," +
+            "EnableM01LiveAllocatorProbe," +
+            "EnableM01OwnedPagingProbe," +
+            "EnableM02SafeStubProbe," +
+            "EnableM02CheckedPortIoBindingProbe," +
+            "EnableM02Com1OwnedPortIoProbe," +
+            "EnableUefiGoneSimulationProbe," +
+            "EnableExitBootServicesFreshMapProbe," +
+            "EnableAcpiPhysicalDiscoveryProbe," +
             "ImportProjectExtensionProps,ImportProjectExtensionTargets," +
             "ExcludeRestorePackageImports,ILCompilerTargetsPath," +
             "ILLinkTargetsPath,ILLinkTasksAssembly,IlcBuildTasksPath," +
@@ -3925,6 +3946,19 @@ function Invoke-PostRestoreEvaluationSnapshot {
         $arguments +=
             "-p:EnableM04LayoutContractProbe=true"
     }
+    if ($EnableM04ManagedHeapPageRangeProbe) {
+        $arguments += "-p:EnableM04ManagedHeapPageRangeProbe=true"
+    }
+    $arguments += ("-p:EnableM01LoadedImageStackProbe=" + $EnableM01LoadedImageStackProbe.IsPresent.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableM01LiveAllocatorProbe=" + $EnableM01LiveAllocatorProbe.IsPresent.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableM01OwnedPagingProbe=" + $EnableM01OwnedPagingProbe.IsPresent.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableM02SafeStubProbe=" + $EnableM02SafeStubProbe.IsPresent.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableM02CheckedPortIoBindingProbe=" + $EnableM02CheckedPortIoBindingProbe.IsPresent.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableM02Com1OwnedPortIoProbe=" + $EnableM02Com1OwnedPortIoProbe.IsPresent.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableUefiGoneSimulationProbe=" + $EnableUefiGoneSimulationProbe.IsPresent.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableExitBootServicesFreshMapProbe=" + $EnableExitBootServicesFreshMapProbe.IsPresent.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableAcpiPhysicalDiscoveryProbe=" + $EnableAcpiPhysicalDiscoveryProbe.IsPresent.ToString().ToLowerInvariant())
+
     if ($EnableM02OwnedCom1ReadyProbe) {
         $arguments += "-p:EnableM02OwnedCom1ReadyProbe=true"
     }
@@ -4122,6 +4156,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM04ArithmeticConformanceProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04LayoutContractProbe =
             $EnableM04LayoutContractProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM04ManagedHeapPageRangeProbe =
+            $EnableM04ManagedHeapPageRangeProbe.IsPresent.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
         ImportProjectExtensionTargets = "false"
         ExcludeRestorePackageImports = "true"
@@ -4157,6 +4193,17 @@ function Invoke-PostRestoreEvaluationSnapshot {
         MSBuildExtensionsPath = $msbuildExtensionsPath
         MSBuildUserExtensionsPath = $msbuildUserExtensionsPath
     }
+    $expectedProperties["EnableM01LoadedImageStackProbe"] = $EnableM01LoadedImageStackProbe.IsPresent.ToString().ToLowerInvariant()
+    $expectedProperties["EnableM01LiveAllocatorProbe"] = $EnableM01LiveAllocatorProbe.IsPresent.ToString().ToLowerInvariant()
+    $expectedProperties["EnableM01OwnedPagingProbe"] = $EnableM01OwnedPagingProbe.IsPresent.ToString().ToLowerInvariant()
+    $expectedProperties["EnableM02SafeStubProbe"] = $EnableM02SafeStubProbe.IsPresent.ToString().ToLowerInvariant()
+    $expectedProperties["EnableM02CheckedPortIoBindingProbe"] = $EnableM02CheckedPortIoBindingProbe.IsPresent.ToString().ToLowerInvariant()
+    $expectedProperties["EnableM02Com1OwnedPortIoProbe"] = $EnableM02Com1OwnedPortIoProbe.IsPresent.ToString().ToLowerInvariant()
+    $expectedProperties["EnableUefiGoneSimulationProbe"] = $EnableUefiGoneSimulationProbe.IsPresent.ToString().ToLowerInvariant()
+    $expectedProperties["EnableExitBootServicesFreshMapProbe"] = $EnableExitBootServicesFreshMapProbe.IsPresent.ToString().ToLowerInvariant()
+    $expectedProperties["EnableAcpiPhysicalDiscoveryProbe"] = $EnableAcpiPhysicalDiscoveryProbe.IsPresent.ToString().ToLowerInvariant()
+
+
     foreach ($wildcardPropertyName in $msbuildWildcardPropertyNames) {
         $expectedProperties[$wildcardPropertyName] = "false"
     }
@@ -4166,6 +4213,11 @@ function Invoke-PostRestoreEvaluationSnapshot {
         -ExpectedNames ([string[]]@($expectedProperties.Keys)) `
         -Reason "post_restore_evaluation_property_set_invalid"
     foreach ($entry in $expectedProperties.GetEnumerator()) {
+        if ($entry.Key.StartsWith('Enable', [StringComparison]::Ordinal) -and
+            -not [string]::Equals([string]$evaluation.Properties.($entry.Key),
+                [string]$entry.Value, [StringComparison]::Ordinal)) {
+            Write-Failure "post_restore_evaluation_property_mismatch" ("property=$($entry.Key)")
+        }
         if ([string]$evaluation.Properties.($entry.Key) -cne
             [string]$entry.Value) {
             Write-Failure "post_restore_evaluation_property_mismatch" (
@@ -4177,7 +4229,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 69 -or
+    if ($compileItems.Count -ne 70 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4293,6 +4345,11 @@ function Assert-PostRestoreEvidenceMatchesSnapshot {
         -ExpectedNames $expectedPropertyNames `
         -Reason "post_restore_evidence_property_set_invalid"
     foreach ($propertyName in $expectedPropertyNames) {
+        if ($propertyName.StartsWith('Enable', [StringComparison]::Ordinal) -and
+            -not [string]::Equals([string]$Evidence.properties.$propertyName,
+                [string]$Snapshot.properties[$propertyName], [StringComparison]::Ordinal)) {
+            Write-Failure "post_restore_evidence_property_mismatch" ("property=$propertyName")
+        }
         if ([string]$Evidence.properties.$propertyName -cne
             [string]$Snapshot.properties[$propertyName]) {
             Write-Failure "post_restore_evidence_property_mismatch" (
@@ -4302,6 +4359,35 @@ function Assert-PostRestoreEvidenceMatchesSnapshot {
 }
 
 Write-Output "TEST_START $testName"
+
+if ($EnableM04ManagedHeapPageRangeProbe -and
+    (-not $EnableM01LoadedImageStackProbe -or
+    -not $EnableM01LiveAllocatorProbe -or
+    -not $EnableM04IndependentEndianConformanceProbe -or
+    -not $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -or
+    -not $EnableM04ArithmeticConformanceProbe -or
+    -not $EnableM04LayoutContractProbe)) {
+    Write-Failure "m04_managed_heap_page_range_requires_explicit_chain"
+}
+if ($EnableM04ManagedHeapPageRangeProbe -and
+    ($EnableM01OwnedPagingProbe -or
+    $EnableM02SafeStubProbe -or
+    $EnableM02CheckedPortIoBindingProbe -or
+    $EnableM02Com1OwnedPortIoProbe -or
+    $EnableM02OwnedCom1ReadyProbe -or
+    $EnableM02PanicSafeOwnedCom1Probe -or
+    $EnableM02OwnedX64GdtEncodingProbe -or
+    $EnableM02GuardedIstStackAllocationProbe -or
+    $EnableM02OwnedGdtTssTerminalProbe -or
+    $EnableM02NormalizedInterruptFramePageProbe -or
+    $EnableM02OwnedIdtGatePopulationProbe -or
+    $EnableM02IdtrContinuedExecutionProbe -or
+    $EnableM02Ud2VectorStateProbe -or
+    $EnableUefiGoneSimulationProbe -or
+    $EnableExitBootServicesFreshMapProbe -or
+    $EnableAcpiPhysicalDiscoveryProbe)) {
+    Write-Failure "m04_managed_heap_page_range_forbids_optional_profiles"
+}
 
 if ($EnableM04LayoutContractProbe -and
     (-not $EnableM04ArithmeticConformanceProbe -or

@@ -409,7 +409,7 @@ exception/unwind support and hosted .NET/Kestrel remain unsupported.
 See step931 for source identities, commands, setup failures and the pending
 combined full-gate boundary.
 
-### M04-006 retained heap-page host contract
+### M04-006 retained heap-page contract and EFI adapter
 
 `ManagedHeapPageRangeLiveAllocator` reserves one 4096-byte page through the
 existing `AllocateOnePage` mutator and publishes its AfterState into the
@@ -439,8 +439,23 @@ correct backing mappings remain caller obligations. Pointer identities and
 free-list exclusion are not an unforgeable allocation registry, clone/ABA
 protection or SMP synchronization. No managed object allocation, allocation
 helper, GC, hardware NX, permanent paging or post-firmware lifetime follows.
-Separately claimed EFI integration and fresh default/enabled guest evidence
-remain required to close #75; Gate 4 remains **Fail**.
+Step937 integrates supplemental #516's disabled-default EFI adapter. It uses
+the original M01 allocator, node and five-entry ledger after every historical
+stage-two completion consumer. A stable heap state retains one page from the
+original two-page LoaderData parent. Immediately before the boot plan, the
+adapter reacquires the same slots and validates ownership and all 4096 current
+bytes again. It checks original identities, ranges and accounting at both
+checkpoints. Reserving the page changes M01's former completion accounting;
+those historical completion records are neither weakened nor reissued.
+
+Failure preserves the parent and any retained page and reaches the existing
+terminal spin. There is no cleanup/free/reset, replacement firmware allocation
+or extra global reservation. The ledger is fully validated without writes;
+controlled tests compare all 200 bytes, but the adapter does not retain a
+historical ledger snapshot. The separately claimed adapter has focused host
+evidence only at step937. The complete settled-source host gate and fresh
+default/layout/heap guest matrix remain required to close #75/#516;
+Gate 4 remains **Fail**.
 
 ## Tests
 

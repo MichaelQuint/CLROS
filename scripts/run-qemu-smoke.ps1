@@ -54,6 +54,7 @@ param(
     [switch] $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe,
     [switch] $EnableM04ArithmeticConformanceProbe,
     [switch] $EnableM04LayoutContractProbe,
+    [switch] $EnableM04ManagedHeapPageRangeProbe,
     [switch] $SkipImageBuild
 )
 
@@ -438,6 +439,51 @@ $script:M04LayoutContractForbiddenMarkers = @(
     "M04_LAYOUT_CONTRACT_FAILED"
     "TEST_FAIL"
     "OS_SMOKE_FAIL"
+)
+
+$script:M04ManagedHeapPageRangeReadyMarker = "CLROS_M04_006_READY pages=1 bytes=4096 retained=true allocatorMutated=true zeroReadback=true checkpoint=beforeBootPlan hostConformance=false guestIntegrated=true objectAllocation=false gc=false hardwareNxProved=false postExitBootServices=false gate4=Fail"
+$script:M04ManagedHeapPageRangeRequiredMarkers = @(
+    $script:M04LayoutContractRequiredMarkers
+    "TEST_START m01.stage1"
+    "M01_LOADED_IMAGE_CAPTURED"
+    "M01_STACK_SWITCH_STUB_READY"
+    "M01_STACK_ARENA_ALLOCATED"
+    "M01_STACK_GUARD_RESERVED"
+    "M01_STAGE1_MAP_RECAPTURED"
+    "M01_STAGE1_RESERVATIONS_VALIDATED"
+    "M01_OWNED_STACK_READY"
+    "M01_OWNED_STACK_SWITCHED"
+    "M01_RSP_CONTAINED"
+    "TEST_PASS m01.stage1"
+    "TEST_START m01.stage2"
+    "M01_ALLOCATOR_ARENA_ALLOCATED"
+    "M01_STAGE2_MAP_RECAPTURED"
+    "M01_RESERVATIONS_APPLIED"
+    "M01_LIVE_ALLOCATED_4K"
+    "M01_LIVE_PAGE_WITHIN_ARENA"
+    "M01_LIVE_FREED_4K"
+    "M01_DOUBLE_FREE_REJECTED"
+    "TEST_PASS m01.stage2"
+    "TEST_START m04.006"
+    "M04_HEAP_PAGE_BOUND"
+    "M04_HEAP_PAGE_INITIALIZED"
+    "M04_HEAP_PAGE_RETAINED"
+    "M04_HEAP_PAGE_CURRENT"
+    "CLROS_M04_006_READY pages=1 bytes=4096 retained=true allocatorMutated=true zeroReadback=true checkpoint=beforeBootPlan hostConformance=false guestIntegrated=true objectAllocation=false gc=false hardwareNxProved=false postExitBootServices=false gate4=Fail"
+    "TEST_PASS m04.006"
+    "TEST_START boot.sequence"
+    "BOOT_PHASE PhaseA.Audit START"
+    "BOOT_PHASE PhaseA.Audit PASS"
+    "BOOT_PHASE PhaseA.Diagnostics START"
+    "BOOT_PHASE PhaseA.Diagnostics PASS"
+    "OS_BOOT_OK"
+    "TEST_PASS boot.sequence"
+    "OS_SMOKE_PASS"
+)
+$script:M04ManagedHeapPageRangeForbiddenMarkers = @(
+    $script:M04LayoutContractForbiddenMarkers
+    "M04_HEAP_PAGE_RANGE_FAILED"
+    "TEST_FAIL m04.006"
 )
 
 function Invoke-NativeCommand {
@@ -885,6 +931,183 @@ function Assert-M02Ud2VectorStateTerminalTranscript {
             throw "m02_ud2_vector_state_post_smoke_sequence_invalid"
         }
     }
+}
+
+function Assert-M04ManagedHeapPageRangeTranscript {
+    param([string] $SerialLogPath)
+    $path = if ([IO.Path]::IsPathRooted($SerialLogPath)) { $SerialLogPath } else { Join-Path $root $SerialLogPath }
+    # No BOM sniffing, trimming, Unicode folding or control removal for acceptance.
+    $text = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($path))
+    # Scan the whole capture as well: line breaks cannot disguise a failure
+    # in firmware output before the first accepted CLROS record.
+    $captureCandidate = [regex]::Replace($text, '[\x00-\x20\x7f-\uffff]', '')
+    if ([regex]::IsMatch($captureCandidate, '(?i)TEST_FAIL|OS_SMOKE_FAIL|M04_.*FAILED|BOOT_PAGE_ALLOCATOR_NOT_READY|UEFI_ACPI_RSDP_(?:MISSING|INVALID)')) {
+        throw 'm04_heap_failure_record'
+    }
+    $raw = $text.Split([char]10)
+    $captured = New-Object 'System.Collections.Generic.List[string]'
+    $preambleCandidate = New-Object Text.StringBuilder
+    $started = $false
+    for ($i = 0; $i -lt $raw.Length; $i++) {
+        $complete = $i -lt $raw.Length - 1 -and $raw[$i].EndsWith("`r", [StringComparison]::Ordinal)
+        $line = $raw[$i]
+        if ($complete) { $line = $line.Substring(0, $line.Length - 1) }
+        # Classification alone strips controls/space to expose disguised records.
+        $candidate = [regex]::Replace($line, '[\x00-\x20\x7f-\uffff]', '')
+        if ([regex]::IsMatch($candidate, '(?i)TEST_FAIL|OS_SMOKE_FAIL|M04_.*FAILED|BOOT_PAGE_ALLOCATOR_NOT_READY|UEFI_ACPI_RSDP_(?:MISSING|INVALID)')) {
+            throw 'm04_heap_failure_record'
+        }
+        if (-not $started) {
+            if ([string]::Equals($line, 'TEST_START efi.main', [StringComparison]::Ordinal) -and $complete) { $started = $true }
+            else {
+                [void]$preambleCandidate.Append($candidate)
+                if ([regex]::IsMatch($preambleCandidate.ToString(), '(?i)CLROS_|M01_|M02_|M04_|TEST_|OS_|EFI_|UEFI_|BOOT_')) { throw 'm04_heap_disguised_preamble_record' }
+                continue
+            }
+        }
+        if ($captured.Count -ge 52) {
+            if (($complete -and $line.Length -eq 0) -or ($i -eq $raw.Length - 1 -and $line.Length -eq 0)) { continue }
+            throw 'm04_heap_post_terminal_noise'
+        }
+        if (-not $complete -or [regex]::IsMatch($line, '[\x00-\x1f\x7f-\uffff]')) { throw 'm04_heap_incomplete_or_control_record' }
+        $captured.Add($line)
+    }
+    if ($captured.Count -ne 52) { throw 'm04_heap_incomplete_sequence' }
+    $expected = @(
+        'TEST_START efi.main'
+        $script:M04LayoutContractRequiredMarkers
+        'UEFI_MEMORY_MAP_DESCRIPTOR_COUNT'
+        'UEFI_MEMORY_MAP_OWNED'
+        'BOOT_HANDOFF_READY'
+        'UEFI_MEMORY_MAP_NORMALIZED'
+        'BOOT_MEMORY_MAP_ACCEPTED'
+        'BOOT_MEMORY_REGIONS_READY'
+        'BOOT_MEMORY_REGION_COUNT'
+        'BOOT_PAGE_ALLOCATOR_READY'
+        'BOOT_ACPI_RSDP_HANDOFF_READY'
+        'UEFI_ACPI_RSDP_READY'
+        'TEST_START m01.stage1'
+        'M01_LOADED_IMAGE_CAPTURED'
+        'M01_STACK_SWITCH_STUB_READY'
+        'M01_STACK_ARENA_ALLOCATED'
+        'M01_STACK_GUARD_RESERVED'
+        'M01_STAGE1_MAP_RECAPTURED'
+        'M01_STAGE1_RESERVATIONS_VALIDATED'
+        'M01_OWNED_STACK_READY'
+        'M01_OWNED_STACK_SWITCHED'
+        'M01_RSP_CONTAINED'
+        'TEST_PASS m01.stage1'
+        'TEST_START m01.stage2'
+        'M01_ALLOCATOR_ARENA_ALLOCATED'
+        'M01_STAGE2_MAP_RECAPTURED'
+        'M01_RESERVATIONS_APPLIED'
+        'M01_LIVE_ALLOCATED_4K'
+        'M01_LIVE_PAGE_WITHIN_ARENA'
+        'M01_LIVE_FREED_4K'
+        'M01_DOUBLE_FREE_REJECTED'
+        'TEST_PASS m01.stage2'
+        'TEST_START m04.006'
+        'M04_HEAP_PAGE_BOUND'
+        'M04_HEAP_PAGE_INITIALIZED'
+        'M04_HEAP_PAGE_RETAINED'
+        'M04_HEAP_PAGE_CURRENT'
+        'CLROS_M04_006_READY pages=1 bytes=4096 retained=true allocatorMutated=true zeroReadback=true checkpoint=beforeBootPlan hostConformance=false guestIntegrated=true objectAllocation=false gc=false hardwareNxProved=false postExitBootServices=false gate4=Fail'
+        'TEST_PASS m04.006'
+        'TEST_START boot.sequence'
+        'BOOT_PHASE PhaseA.Audit START'
+        'BOOT_PHASE PhaseA.Audit PASS'
+        'BOOT_PHASE PhaseA.Diagnostics START'
+        'BOOT_PHASE PhaseA.Diagnostics PASS'
+        'OS_BOOT_OK'
+        'TEST_PASS boot.sequence'
+        'OS_SMOKE_PASS'
+    )
+    $values = @{}
+    $decimal = '(0|[1-9][0-9]*)'
+    $hex = '(0x[0-9A-F]{16})'
+    $identityFields = @('allocatorState','nodes','heapState','ledger','parentIndex','parentStart','parentEnd','backing','retainedStart','retainedEnd')
+    $numericFields = @{
+        'UEFI_MEMORY_MAP_DESCRIPTOR_COUNT' = @('descriptorCount')
+        'BOOT_MEMORY_REGION_COUNT' = @('regionCount')
+        'BOOT_PAGE_ALLOCATOR_READY' = @('regions','conventionalPages','conventionalBytes','freeNodes','freePages','freeBytes')
+        'M04_HEAP_PAGE_BOUND' = $identityFields
+        'M04_HEAP_PAGE_RETAINED' = $identityFields
+        'M04_HEAP_PAGE_INITIALIZED' = @('pages','bytes','freePagesBefore','freeBytesBefore','allocatedPagesBefore','allocatedBytesBefore','freePagesAfter','freeBytesAfter','allocatedPagesAfter','allocatedBytesAfter','readBytes')
+        'M04_HEAP_PAGE_CURRENT' = @('freePages','freeBytes','allocatedPages','allocatedBytes','readBytes')
+    }
+    for ($i = 0; $i -lt $expected.Count; $i++) {
+        $key = $expected[$i]
+        if (-not $numericFields.ContainsKey($key)) {
+            if (-not [string]::Equals($captured[$i], $key, [StringComparison]::Ordinal)) { throw ('m04_heap_exact_sequence_' + $i) }
+            continue
+        }
+        $pattern = '\A' + [regex]::Escape($key)
+        if ($key -eq 'M04_HEAP_PAGE_RETAINED') { $pattern += ' checkpoint=beforeBootPlan' }
+        if ($key -eq 'BOOT_PAGE_ALLOCATOR_READY') { $pattern += ' status=Ready' }
+        foreach ($field in $numericFields[$key]) {
+            if ($key -eq 'UEFI_MEMORY_MAP_DESCRIPTOR_COUNT' -or $key -eq 'BOOT_MEMORY_REGION_COUNT') { $pattern += ' ' + $decimal }
+            else {
+                $pattern += ' ' + $field + '='
+                if (($key -eq 'M04_HEAP_PAGE_BOUND' -or $key -eq 'M04_HEAP_PAGE_RETAINED') -and $field -ne 'parentIndex') { $pattern += $hex }
+                else { $pattern += $decimal }
+            }
+        }
+        if ($key -eq 'BOOT_PAGE_ALLOCATOR_READY') { $pattern += ' pageSize=4096 statusCode=0' }
+        if ($key -eq 'M04_HEAP_PAGE_INITIALIZED' -or $key -eq 'M04_HEAP_PAGE_CURRENT') { $pattern += ' contentsZero=true' }
+        $match = [regex]::Match($captured[$i], $pattern + '\z', [Text.RegularExpressions.RegexOptions]::CultureInvariant)
+        if (-not $match.Success) { throw ('m04_heap_numeric_shape_' + $key) }
+        $record = @{}
+        for ($j = 0; $j -lt $numericFields[$key].Count; $j++) {
+            $token = $match.Groups[$j + 1].Value
+            $number = [UInt64]0
+            $style = [Globalization.NumberStyles]::None
+            if ($token.StartsWith('0x', [StringComparison]::Ordinal)) { $token = $token.Substring(2); $style = [Globalization.NumberStyles]::AllowHexSpecifier }
+            if (-not [UInt64]::TryParse($token, $style, [Globalization.CultureInfo]::InvariantCulture, [ref]$number)) { throw 'm04_heap_numeric_overflow' }
+            $record[$numericFields[$key][$j]] = $number
+        }
+        $values[$key] = $record
+    }
+    $map = $values['BOOT_PAGE_ALLOCATOR_READY']
+    if ($map.regions -lt 1 -or $map.regions -gt 4096 -or
+        $map.regions -ne $values['UEFI_MEMORY_MAP_DESCRIPTOR_COUNT'].descriptorCount -or
+        $map.regions -ne $values['BOOT_MEMORY_REGION_COUNT'].regionCount -or
+        $map.freeNodes -lt 1 -or $map.freeNodes -gt $map.regions -or
+        $map.freePages -lt $map.freeNodes -or $map.freePages -ne $map.conventionalPages -or
+        [decimal]$map.freePages * 4096 -gt [decimal][UInt64]::MaxValue -or
+        [decimal]$map.freePages * 4096 -ne [decimal]$map.freeBytes -or $map.freeBytes -ne $map.conventionalBytes) { throw 'm04_heap_map_accounting' }
+    $bound = $values['M04_HEAP_PAGE_BOUND']; $retained = $values['M04_HEAP_PAGE_RETAINED']
+    foreach ($field in $identityFields) { if ($bound[$field] -ne $retained[$field]) { throw 'm04_heap_retained_identity' } }
+    if ($bound.parentIndex -gt 4 -or $bound.parentStart -eq 0 -or $bound.parentStart % 4096 -ne 0 -or
+        [decimal]$bound.parentStart + 8192 -gt [decimal][UInt64]::MaxValue -or
+        [decimal]$bound.parentStart + 8192 -ne [decimal]$bound.parentEnd -or
+        $bound.backing -ne $bound.parentStart -or $bound.retainedStart -ne $bound.parentStart -or
+        [decimal]$bound.retainedStart + 4096 -ne [decimal]$bound.retainedEnd) { throw 'm04_heap_parent_interval' }
+    $extents = @()
+    foreach ($entry in @(@('allocatorState',56),@('nodes',48),@('ledger',200),@('heapState',216))) {
+        $start = $bound[$entry[0]]; $end = [decimal]$start + $entry[1]
+        if ($start -eq 0 -or $start % 8 -ne 0 -or $end -gt [decimal][UInt64]::MaxValue -or
+            ([decimal]$start -lt [decimal]$bound.parentEnd -and [decimal]$bound.parentStart -lt $end)) { throw 'm04_heap_metadata_extent' }
+        foreach ($extent in $extents) { if ([decimal]$start -lt $extent.End -and $extent.Start -lt $end) { throw 'm04_heap_metadata_alias' } }
+        $extents += [pscustomobject]@{ Start=[decimal]$start; End=$end }
+    }
+    $initial = $values['M04_HEAP_PAGE_INITIALIZED']; $current = $values['M04_HEAP_PAGE_CURRENT']
+    $initialExpected = @{ pages=1; bytes=4096; freePagesBefore=2; freeBytesBefore=8192; allocatedPagesBefore=0; allocatedBytesBefore=0; freePagesAfter=1; freeBytesAfter=4096; allocatedPagesAfter=1; allocatedBytesAfter=4096; readBytes=4096 }
+    $currentExpected = @{ freePages=1; freeBytes=4096; allocatedPages=1; allocatedBytes=4096; readBytes=4096 }
+    foreach ($field in $initialExpected.Keys) { if ($initial[$field] -ne $initialExpected[$field]) { throw 'm04_heap_initial_accounting' } }
+    foreach ($field in $currentExpected.Keys) { if ($current[$field] -ne $currentExpected[$field]) { throw 'm04_heap_current_accounting' } }
+}
+
+function Assert-M04ManagedHeapRunnerResult {
+    param([string[]] $Lines)
+    $results = @($Lines | Where-Object { $_.StartsWith('QEMU_PROCESS_RESULT ', [StringComparison]::Ordinal) })
+    $drains = @($Lines | Where-Object { $_.StartsWith('SERIAL_MARKER_DRAIN ', [StringComparison]::Ordinal) })
+    if ($results.Count -ne 1 -or $drains.Count -ne 1 -or
+        -not [string]::Equals($drains[0], 'SERIAL_MARKER_DRAIN milliseconds=750', [StringComparison]::Ordinal)) { throw 'm04_heap_terminal_disposition' }
+    $match = [regex]::Match($results[0], '\AQEMU_PROCESS_RESULT disposition=runner-terminated exitCode=(0|-?[1-9][0-9]*)\z')
+    $nativeExitCode = [Int32]0
+    if (-not $match.Success -or -not [Int32]::TryParse($match.Groups[1].Value,
+            [Globalization.NumberStyles]::AllowLeadingSign,
+            [Globalization.CultureInfo]::InvariantCulture, [ref]$nativeExitCode)) { throw 'm04_heap_native_exit_invalid' }
 }
 
 function Assert-M04LayoutContractTranscript {
@@ -4135,7 +4358,13 @@ try {
         ConvertTo-QemuSmokeMarkerList -Values $ForbidMarker
     )
 
-    if ($EnableM04LayoutContractProbe) {
+    if ($EnableM04ManagedHeapPageRangeProbe) {
+        $requiredMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($requiredMarkers; $script:M04ManagedHeapPageRangeRequiredMarkers))
+        $orderedMarkers = @($script:M04ManagedHeapPageRangeRequiredMarkers)
+        $uniqueMarkers = @($script:M04ManagedHeapPageRangeRequiredMarkers)
+        $forbiddenMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($forbiddenMarkers; $script:M04ManagedHeapPageRangeForbiddenMarkers))
+    }
+    elseif ($EnableM04LayoutContractProbe) {
         $requiredMarkers = @(
             ConvertTo-QemuSmokeMarkerList -Values @(
                 $requiredMarkers
@@ -4840,6 +5069,37 @@ try {
         "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS " +
         (Format-QemuSmokeMarkerList $uniqueMarkers))
 
+    if ($EnableM04ManagedHeapPageRangeProbe -and
+        (-not $EnableM01LoadedImageStackProbe -or
+        -not $EnableM01LiveAllocatorProbe -or
+        -not $EnableM04IndependentEndianConformanceProbe -or
+        -not $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -or
+        -not $EnableM04ArithmeticConformanceProbe -or
+        -not $EnableM04LayoutContractProbe)) {
+        Write-Host "TEST_FAIL qemu.smoke.invalid_args m04_managed_heap_page_range_requires_explicit_chain"
+        exit 1
+    }
+    if ($EnableM04ManagedHeapPageRangeProbe -and
+        ($EnableM01OwnedPagingProbe -or
+        $EnableM02SafeStubProbe -or
+        $EnableM02CheckedPortIoBindingProbe -or
+        $EnableM02Com1OwnedPortIoProbe -or
+        $EnableM02OwnedCom1ReadyProbe -or
+        $EnableM02PanicSafeOwnedCom1Probe -or
+        $EnableM02OwnedX64GdtEncodingProbe -or
+        $EnableM02GuardedIstStackAllocationProbe -or
+        $EnableM02OwnedGdtTssTerminalProbe -or
+        $EnableM02NormalizedInterruptFramePageProbe -or
+        $EnableM02OwnedIdtGatePopulationProbe -or
+        $EnableM02IdtrContinuedExecutionProbe -or
+        $EnableM02Ud2VectorStateProbe -or
+        $EnableUefiGoneSimulationProbe -or
+        $EnableExitBootServicesFreshMapProbe -or
+        $EnableAcpiPhysicalDiscoveryProbe -or $SkipImageBuild -or -not $BuildEfi -or $M01RawObservationLog.Length -gt 0)) {
+        Write-Host "TEST_FAIL qemu.smoke.invalid_args m04_managed_heap_page_range_forbids_optional_profiles_or_missing_build"
+        exit 1
+    }
+
     if ($EnableM04LayoutContractProbe -and
         (-not $EnableM04ArithmeticConformanceProbe -or
         -not $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -or
@@ -4873,6 +5133,11 @@ try {
     }
 
     foreach ($requestedMarker in @($RequireMarker) + @($RequireOrderedMarker) + @($RequireUniqueMarker)) {
+        if (-not $EnableM04ManagedHeapPageRangeProbe -and $null -ne $requestedMarker -and
+            [regex]::IsMatch($requestedMarker, '(?i)CLROS_M04_006|M04_HEAP_|m04\.006')) {
+            Write-Host "TEST_FAIL qemu.smoke.invalid_args m04_managed_heap_marker_requires_typed_profile"
+            exit 1
+        }
         if (-not $EnableM04LayoutContractProbe -and
             $null -ne $requestedMarker -and
             $requestedMarker.IndexOf("CLROS_M04_005", [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
@@ -5591,6 +5856,10 @@ try {
             $buildArguments +=
                 "-EnableM04LayoutContractProbe"
         }
+        if ($EnableM04ManagedHeapPageRangeProbe) {
+            $buildArguments +=
+                "-EnableM04ManagedHeapPageRangeProbe"
+        }
 
         Invoke-NativeCommand {
             & powershell.exe @buildArguments
@@ -5726,6 +5995,10 @@ try {
             $m01RawObservationCapture.EnvironmentState = $null
         }
     }
+    elseif ($EnableM04ManagedHeapPageRangeProbe -and -not $DryRun) {
+        $heapRunnerLines = @(Invoke-NativeCommand { & dotnet run @arguments })
+        foreach ($line in $heapRunnerLines) { Write-Host $line }
+    }
     else {
         Invoke-NativeCommand {
             & dotnet run @arguments
@@ -5807,7 +6080,18 @@ try {
             "QEMU_SCRIPT_M02_UD2_VECTOR_STATE_TRANSCRIPT " +
             "postSmokeSequence=true postPassMarkerNoise=false")
     }
-    if ($EnableM04LayoutContractProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
+    if ($EnableM04ManagedHeapPageRangeProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
+        try {
+            Assert-M04ManagedHeapRunnerResult -Lines $heapRunnerLines
+            Assert-M04ManagedHeapPageRangeTranscript -SerialLogPath $SerialLog
+        }
+        catch {
+            Write-Host ("TEST_FAIL qemu.smoke.m04.006 strict_terminal_transcript_invalid reason=" + $_.Exception.Message)
+            exit 94
+        }
+        Write-Host "QEMU_SCRIPT_M04_MANAGED_HEAP_TRANSCRIPT exactWholeLines=true lines=52 retained=true terminal=true"
+    }
+    elseif ($EnableM04LayoutContractProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
         try {
             Assert-M04LayoutContractTranscript -SerialLogPath $SerialLog
         }

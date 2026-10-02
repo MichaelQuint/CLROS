@@ -770,7 +770,7 @@ value checks establishes compiler-emitted physical object layout, live heap
 allocation, GC, metadata discovery, optional-tail access, dispatch,
 exception/unwind support, real `ExitBootServices` or hosted .NET/Kestrel.
 
-### M04-006 heap-page host boundary
+### M04-006 heap-page integration boundary
 
 Step935 adds the reviewed `ManagedHeapPageRangeLiveAllocator` host contract:
 one actual caller-mapped page is reserved through the original allocator,
@@ -779,13 +779,20 @@ and current zero contents are distinct observations. Focused tests, complete
 storage-preservation checks, zero-allocation checks and actual-source
 no-stdlib/`NoInlining` evidence pass.
 
-There is no M04-006 EFI integration or guest evidence at this milestone. #75
-remains open and Gate 4 remains **Fail**. Its separately claimed adapter must
-hand off the original M01 authority after its completion consumers, preserve
-the parent, and validate retained ownership/current bytes again before the
-terminal boot plan. Fresh default/enabled source-bound EFI/image/QEMU evidence
-and the complete settled-wave gate remain pending. This does not establish
-managed allocation helpers, GC, hardware NX or post-`ExitBootServices` lifetime.
+Step937 integrates supplemental #516's disabled-default EFI adapter. It hands
+off the original M01 authority after every completion consumer, preserves the
+original parent, and freshly validates retained ownership/current bytes before
+the terminal boot plan. Independent review accepts the 24-file integration,
+70-Compile/83-input closure and all 23 evaluated probe properties. Author
+evidence includes eight paired focused groups, 50 actual-adapter controlled
+cases, 506 raw transcript fixtures plus lifecycle controls, artifact-authority
+and source-firewall negatives, affected legacy checks and successful default
+and enabled preflights. These are controlled host observations.
+
+The complete settled-wave gate and fresh default/layout/heap source-bound
+EFI/image/QEMU matrix remain pending. #75/#516 remain open and Gate 4 remains
+**Fail**. This does not establish managed allocation helpers, GC, hardware NX
+or post-`ExitBootServices` lifetime.
 
 ## Unsupported Behavior
 

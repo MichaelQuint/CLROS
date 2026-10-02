@@ -1499,7 +1499,7 @@ boundary. Gate 4 remains **Fail**; this is one fixed-catalog guest execution.
 Supplemental #512 adds the default-false `EnableM04LayoutContractProbe` /
 `M04_LAYOUT_CONTRACT_PROBE` profile. Select all four M04 flags explicitly;
 missing or false predecessors and terminal owned-GDT/TSS or UD2 combinations
-are rejected. The current explicit closure is 69 Compile items and 82 raw
+are rejected. The explicit closure at step933 was 69 Compile items and 82 raw
 source-authority inputs. Default and older-profile marker lists are preserved.
 
 Immediately after arithmetic conformance and before memory-map capture, the
@@ -1527,6 +1527,43 @@ exact 19-check record once in order; default emitted no M04 records. See
 `docs/qemu.md` for hashes and transcript boundaries, including the separately
 tracked #514 FAT geometry defect. These scalar checks do not allocate objects
 or prove compiler-emitted physical layouts.
+
+### M04-006 retained heap page in EFI
+
+Supplemental #516 adds the disabled-default
+`EnableM04ManagedHeapPageRangeProbe` / `M04_MANAGED_HEAP_PAGE_RANGE_PROBE`
+profile. It requires both loaded-image-stack/live-allocator flags and all four
+earlier M04 flags explicitly. Owned paging, all twelve M02 profiles and the
+three risky optional firmware/ACPI profiles are rejected. The smoke wrapper
+requires `BuildEfi` and rejects `SkipImageBuild` and `M01RawObservationLog`.
+
+The explicit closure is now 70 Compile items and 83 raw source-authority
+inputs. Schema-three post-restore evidence authenticates all 23 known probe
+properties: three M01, twelve M02, five M04 and three existing risky optional
+properties. The project declares 20 false defaults. The default/layout/heap
+acceptance matrix evaluates respectively zero/four/seven true properties;
+the three risky properties are explicitly false in that matrix. Other
+permitted profiles retain their existing optional-property behavior.
+
+The original M01 allocator/node/ledger and two-page LoaderData parent provide
+the backing; the historical freed page address is not reused as a lease.
+`ReserveAndInitializeOnce` executes after all M01 stage-two completion
+consumers, and `ValidateRetained` executes on freshly acquired original slots
+immediately before the boot plan. Both require actual full-page zero readback,
+matching original identities and consistent current accounting. Failure keeps
+ownership and follows the terminal spin; the enabled path never returns to
+firmware. See `docs/nativeaot-nostdlib-limits.md` for the retained-page boundary
+and `docs/qemu.md` for the exact transcript and lifecycle requirements.
+
+The source firewall admits only the ordinal exact
+`..\OS.Kernel\Runtime\ManagedHeapPageRangeLiveAllocator.cs` path with whole
+LF-normalized SHA-256
+`43cdf5af449f7963f07b200ec494da3d8538f1ceb2f01fb3dbe9c29edebcb070`.
+All other sources retain the generic scanner. This text-check normalization
+does not alter raw artifact/source-authority hashes. No runtime shim changed.
+Step937 records independent source review and focused adapter, transcript,
+artifact-authority, legacy-fixture and preflight evidence. Full host execution,
+fresh NativeAOT/QEMU acceptance and corrected-image accounting remain pending.
 
 ### Linked instruction-publication serializer (M01-034)
 

@@ -1315,6 +1315,66 @@ not whole-filesystem conformance. Historical images are preserved; the fix is
 separate. Gate 4 remains **Fail**; scalar checks cannot prove a heap, GC,
 dispatch, exception support or hosted .NET.
 
+### M04-006 retained heap-page profile
+
+The disabled-default heap adapter from supplemental #516 is integrated at
+step937 with focused host evidence. Fresh default/layout/heap NativeAOT QEMU
+acceptance remains pending. Use unique parent-assigned output paths and all
+seven explicit switches for the heap lane:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 -BuildEfi `
+  -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe `
+  -EnableM04IndependentEndianConformanceProbe `
+  -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe `
+  -EnableM04ArithmeticConformanceProbe -EnableM04LayoutContractProbe `
+  -EnableM04ManagedHeapPageRangeProbe `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -EfiArtifact "artifacts/efi/<assigned-run-id>-heap.EFI" `
+  -Image "artifacts/<assigned-evidence-directory>/heap/os.raw" `
+  -SerialLog "artifacts/<assigned-evidence-directory>/heap/serial.log" `
+  -SummaryLog "artifacts/<assigned-evidence-directory>/heap/summary.log"
+```
+
+The output EFI must be a direct child of `artifacts/efi`. Archive it and its
+source-bound sidecars with the actual image, raw serial and summary. Run the
+default and standalone four-flag layout lanes with separate fresh paths from
+the same settled source. The full 70-Compile/83-input authority and all 23
+evaluated probe properties must match each lane. Corrected FAT geometry,
+payload identity and separate pristine/post-boot accounting are additional
+acceptance checks; a successful boot alone cannot establish those properties.
+
+Heap is the strongest selected transcript validator. It requires exactly 52
+complete ordered CLROS lines: the EFI start, six earlier M04 records, ten
+map/ACPI ancillary records, eleven M01 stage-one records, nine stage-two
+records, seven heap records and eight boot-plan records. Dry-run inventories
+contain 50 required, 41 ordered, 41 unique and eight forbidden constraints;
+41 counts anchors, not the full transcript. Four heap numeric records bind
+original metadata spans, the 8192-byte parent, one retained 4096-byte page,
+current allocator accounting and two complete zero readbacks. The exact ready
+record is:
+
+```text
+CLROS_M04_006_READY pages=1 bytes=4096 retained=true allocatorMutated=true zeroReadback=true checkpoint=beforeBootPlan hostConformance=false guestIntegrated=true objectAllocation=false gc=false hardwareNxProved=false postExitBootServices=false gate4=Fail
+```
+
+Acceptance checks raw whole-capture CRLF records and canonical numbers,
+including overflow, aliases, stale counts, short/nonzero readback, hidden
+controls, duplicate/late records and split failure tokens. Preboot firmware
+output remains subject to those whole-capture checks. After enabled success,
+only complete empty CRLF delimiters are allowed; firmware return/menu fails.
+The heap lane requires one exact 750 ms quiet-drain record, runner-terminated
+disposition, a captured canonical signed Int32 native QEMU exit code and
+wrapper exit zero. A native termination code of -1 is allowed but is not a
+guest-requested clean exit. Hard timeout, spontaneous exit or cleanup failure
+fails acceptance. The generic runner and standalone returning layout
+validator retain their behavior.
+
+No actual guest result is claimed at step937. Object allocation, GC, hardware
+NX, post-`ExitBootServices` lifetime and Gate 4 completion remain unsupported.
+
 ## Implemented Behavior
 
 - `tools/OS.QemuRunner` builds a QEMU command line for a raw or qcow2 GPT/FAT32 image, OVMF pflash, serial-file capture, AHCI disk attachment, and user-mode virtio networking.

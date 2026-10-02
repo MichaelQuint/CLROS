@@ -13,7 +13,7 @@ internal static class M02Com1OwnedPortIoBackendEfiIntegrationTests
     private const string FailureMarker =
         "M02_COM1_CONFIGURATION_FAILED";
     private const string CompileClosureSha256 =
-        "30dd633e38173653aa4b75b8059fa3036097f082284defc2335dbd8f9a9d7d66";
+        "06d136c83fd42c3979662ecf7bac6cd1a7654113c5f2392cc6bf3b16dec04561";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -125,7 +125,7 @@ internal static class M02Com1OwnedPortIoBackendEfiIntegrationTests
         string[] dependencyConditions = project
             .Descendants("Error")
             .Select(element => element.Attribute("Condition")?.Value ?? string.Empty)
-            .Where(value => value.Contains(
+            .Where(value => value.StartsWith(
                 "'$(EnableM02Com1OwnedPortIoProbe)' == 'true'",
                 StringComparison.Ordinal))
             .ToArray();
@@ -135,7 +135,7 @@ internal static class M02Com1OwnedPortIoBackendEfiIntegrationTests
         string artifactScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 69
+        return compileItems.Length == 70
             && compileHash == CompileClosureSha256
             && checkedBinder >= 0
             && backend == checkedBinder + 1
@@ -170,13 +170,13 @@ internal static class M02Com1OwnedPortIoBackendEfiIntegrationTests
                 "m02_com1_owned_port_io_requires_checked_binding",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=82",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=83",
                 StringComparison.Ordinal)
             && artifactScript.Contains(
-                "$expectedSourceClosureInputCount = 82",
+                "$expectedSourceClosureInputCount = 83",
                 StringComparison.Ordinal)
             && artifactScript.Contains(
-                "$compileItems.Count -ne 69",
+                "$compileItems.Count -ne 70",
                 StringComparison.Ordinal);
     }
 
