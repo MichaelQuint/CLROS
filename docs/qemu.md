@@ -1411,9 +1411,17 @@ The runner must report its 750 ms quiet drain and successful bounded termination
 with actual wrapper exit 0 and native QEMU exit recorded separately. A timeout,
 spontaneous exit or cleanup failure cannot be promoted by ready text. The default
 profile still uses its established returning-OVMF contract and must contain no
-new page-fault tail. Fresh real default/enabled evidence is still pending.
+new page-fault tail. Both fresh captures at source `7c71e72` are independently
+accepted in [step944](../done/step944.md): wrapper exits 0, native QEMU exits -1
+after runner termination, 750 ms drain, no timeout or cleanup error. The enabled
+86-record CLROS transcript contains its 74-record prefix and 12-record terminal
+tail with no firmware-return suffix. The default retains its returning-OVMF
+contract. Step941 remains implementation evidence only.
 
-Step941 records implementation evidence only; no new guest run is claimed.
+Separate accounting in step944 verifies pristine and booted images using the
+archived Debug ImageBuilder. Each boot adds a 1,393-byte, three-cluster NVVARS
+file. Primary FSInfo hints follow the new census; backup hints remain stale.
+This explains the observed changes without claiming filesystem conformance.
 
 ## Implemented Behavior
 

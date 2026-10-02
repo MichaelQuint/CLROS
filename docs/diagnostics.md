@@ -58,8 +58,9 @@ M02-014 now adds the disabled host null-read contract
 `SeparateDisabledDefaultPageFaultCR2ErrorCode`. It consumes M01-015 supplied-image
 absence evidence and audits five synthetic page-fault fields. It executes no
 fault and adds no live diagnostics capability. The separate #517 default-off
-EFI adapter is implemented and host-tested in step941; real vector-14/CR2/error
-guest acceptance remains pending and #54 remains open.
+EFI adapter now has accepted source-bound QEMU evidence for one terminal
+supervisor null read, vector 14, CR2/error zero and IST2 capture. See
+[step944](../done/step944.md); this does not enable ordinary fault handling.
 
 No ordinary boot phase loads an IDT, installs fault handlers, activates IST
 routing, directs a live CPU fault to panic, or preserves an owned serial path
@@ -397,12 +398,14 @@ COM1/serial invocation.
   TEST_PASS m02.014
   ```
 
-  Active mapping/lifetime, complete instruction spans, live frame capture,
-  terminal behavior or recovery, and fresh QEMU/OVMF evidence remain separate
-  integration work. This leaf does not change any completion gate.
-- `SeparateDisabledDefaultPageFaultPageTables` is the separate #510 host-only
-  prerequisite for a terminal diagnostics root. It builds and independently
-  audits a caller-supplied four-level identity image: one to eight disjoint
+  The separate step944 adapter evidence covers its bounded active mapping,
+  complete instruction spans, live frame capture and terminal guest behavior.
+  General mapping/lifetime authority and recovery remain unsupported. This
+  nonexecuting leaf does not change any completion gate.
+- `SeparateDisabledDefaultPageFaultPageTables` is the separate #510
+  nonactivating page-image prerequisite for a terminal diagnostics root. It
+  builds and independently audits a caller-supplied four-level identity image:
+  one to eight disjoint
   low-canonical ranges of one to sixteen 4 KiB pages, supervisor RX or RW+NX,
   write-back only. A distinct caller-owned table arena is mapped RW+NX.
   Backing pointers are separate from modeled physical addresses; the helper
@@ -432,10 +435,11 @@ COM1/serial invocation.
   also compile with zero framework or external assembly references. Step930
   records focused evidence; step933 adds accepted complete host execution at
   source `5f6108ca363f03c7ebad8dafca7ae78e1d3a0db2`. The separate layout
-  guest tuple does not execute this page-image helper. CR3 activation and the
-  real vector-14 guest remain separate work.
-- `SeparateDisabledDefaultPageFaultTransition` is the separate #513 host-only
-  terminal emitter. It prepares a 4096-byte context and materializes/readbacks
+  guest tuple does not execute this page-image helper. The later, separate
+  step944 tuple supplies the bounded CR3 activation and vector-14 guest proof.
+- `SeparateDisabledDefaultPageFaultTransition` is the separate #513
+  nonexecuting host API for the terminal emitter. It prepares a 4096-byte
+  context and materializes/readbacks
   an 8192-byte instruction/data stream for the fixed C3/D10/T43 image, six
   ranges, 52 mapped leaves and five absent addresses. Status-coded methods
   validate caller spans, mode/PAT and the available #510 snapshot before
@@ -456,7 +460,8 @@ COM1/serial invocation.
   terminal halt still require privilege. The default-off adapter now binds
   exact current backing and freshly audits the six derived ranges; snapshots
   and fingerprints do not establish ownership, lifetime or tamper resistance.
-  #54 remains open for real default/enabled guest acceptance.
+  Step944 supplies the separate default/enabled guest acceptance; the earlier
+  heap tuple and standalone host API do not acquire that execution evidence.
 
 - The separate #517 EFI adapter now prepares that frozen transition under the
   default-off `EnableM02PageFaultCr2ErrorCodeProbe` option. It validates the complete
@@ -469,11 +474,13 @@ COM1/serial invocation.
 
   The focused host run has eight starts, nine passes and no failures across the
   new EFI and unchanged transition modules, including actual default/enabled
-  NativeAOT artifact checks. This is implementation and compiler evidence. The
-  complete integrated host gate and fresh default/enabled QEMU captures remain
-  pending; #54 and #517 stay open and Gates 3/4 remain Fail.
-
-  See step941 for source identities, repairs and focused evidence.
+  NativeAOT artifact checks. Step941 records that implementation/compiler
+  checkpoint. Step944 adds the accepted complete host gate (3,558 starts,
+  3,559 passes, no failures), fresh default and terminal page-fault QEMU captures,
+  and separate pristine/booted image accounting at source `7c71e72`. The actual
+  enabled transcript has 12 terminal records and 57 numeric fields, with no
+  firmware-return suffix. Gates 3/4 remain Fail; merge and issue closure are
+  separate tracker transactions recorded after this evidence checkpoint.
 
 - `TssIstPlan` models the x64 TSS bytes needed for `RSP0` and IST entries, including double-fault IST stack top, stack-size, and guard-size validation.
 - `FaultInfrastructureReadiness` combines serial, IDT, IDTR, GDT, TSS/IST, and double-fault IST readiness into a single pre-privileged-install gate.
@@ -729,7 +736,10 @@ framebuffer output; panic redaction; and general halt/shutdown policy remain
 pending. M02-013 is narrower: one default-off pre-firmware terminal profile has
 accepted QEMU evidence for a deliberate invalid-opcode delivery through fresh
 owned descriptor state, integer/control-state capture, direct owned-COM1 output,
-and a nonreturning halt. It is not the default interrupt or panic subsystem.
+and a nonreturning halt. M02-014 additionally has one explicit pre-firmware
+terminal null-read profile with vector-14/CR2/error and owned-root/IST2 capture
+in step944. Neither profile is the default interrupt or panic subsystem, and
+bounded runner termination does not measure indefinite halt duration.
 
 ## Tests
 
@@ -1233,12 +1243,13 @@ post-`ExitBootServices` diagnostics remain deferred.
 `NullPageFaultProbePlan` is metadata only and is distinct from
 `FaultProbeStubPlan.NullWrite`: it models a supervisor read, not a write, and
 contains no executable stream. Its diagnostics-ready and handler-ready fields
-are caller attestations, not loaded IDT/COM1 evidence. It is excluded from the
-evaluated `SingleMinimalApi` and `MultiMinimalApi` EFI compile closures; no EFI
-binary was inspected or executed. It cannot trigger or observe `#PF`, read
-CR2, capture an error code, report a panic, or establish QEMU evidence. Actual
-null-read execution and captured state remain M02-014 work after owned
-diagnostics exist.
+are caller attestations, not loaded IDT/COM1 evidence. Its original standalone
+host evidence did not include an EFI artifact or execution. The later #517
+source integration includes the plan in the explicit EFI compile closure.
+That inclusion does not let the metadata leaf trigger or observe `#PF`, read
+CR2, capture an error code, or report a panic. Those operations belong to the
+separate explicit M02-014 terminal profile; its implementation/artifact
+checks and actual guest evidence remain distinct from the plan's host proof.
 
 `ExecutableStubMemoryPlan` is a policy and layout contract only. It does not allocate executable memory, change page protections, flush instruction caches, or execute generated bytes.
 
@@ -1572,9 +1583,11 @@ stage.
    markers separate. Add any safe continuation, descriptor restoration,
    persistent descriptor ownership, or post-firmware route only in later work
    that explicitly owns those boundaries.
-9. Add the controlled null-read probe behind its `Probes.cs` toggle only in its
-   dedicated issue; M02-014 must consume the disabled M01-015 intent after
-   owned diagnostics exist.
+9. Keep the controlled null-read profile explicit through
+   `EnableM02PageFaultCr2ErrorCodeProbe`. It consumes the disabled M01-015
+   intent; `Probes.EnableNullPointerPanicProbe` remains false in the narrow
+   `NullPointerProbeAuthority.cs` partial-class file. Keep the M02-014 adapter's
+   actual guest evidence separate from host intent and source inclusion.
 10. Wire a reusable handler's register capture into `CpuFaultFrame`; do not
     substitute M02-013's private terminal context as that default boundary.
 11. Keep M02-003 binding readiness, M02-004 configuration, M02-005 bounded

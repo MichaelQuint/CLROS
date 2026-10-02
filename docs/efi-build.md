@@ -1828,10 +1828,15 @@ MinimalRuntime shim and the frozen leaf implementations are unchanged.
 The adapter uses three LoaderCode pages, ten LoaderData pages and 43 table
 pages. Its six mappings plus table arena contain 52 present leaves, four guard
 holes and absent null page. Readback and an actual serializer call precede the
-closed stream entry. These preparation checks and the successful host artifact
-builds do not establish a hardware fault; guest acceptance remains pending.
+closed stream entry. Step941 records source and focused compiler evidence.
+The separate accepted step944 guest matrix builds fresh default/enabled EFI
+payloads of 55,808/558,592 bytes and inspects each actual `OS.dll` in a fresh
+metadata-only process: assembly `OS`, zero AssemblyRefs. All 24 properties and
+the 75/88 source closure remain bound to tested source `7c71e72`.
 
-See step941 for the accepted source and focused artifact identities.
+See [step944](../done/step944.md) for artifact identities and the actual fault
+capture. The observed firmware/saved CS is `0x38`; current-handler CS and LAR
+rights are source/path predicates, not separately printed descriptor dumps.
 
 ## Unsupported Behavior
 

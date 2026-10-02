@@ -7388,7 +7388,7 @@
       ],
       "collisionLane": "lane:probes",
       "summary": "Trigger a separate disabled-by-default page fault and capture CR2/error code.",
-      "currentEvidence": "Step941 integrates the independently reviewed #517 default-off terminal EFI adapter over the frozen #54/#510/#513 leaves. Final focused execution passes eight starts/nine passes with native exit 0 and default/enabled NativeAOT artifact verification; 75 Compile items, 88 raw authority inputs and 24 switches are bound. All nineteen affected legacy modules remain required in the settled full host gate; real default/page-fault QEMU acceptance is pending. #54 and #517 remain open; Gates 3/4 remain Fail.",
+      "currentEvidence": "Step944 records independently accepted execution at clean source 7c71e7273738882e7c8d3566bd9bb1bae1543049: solution build with zero warnings/errors; complete host 3558 starts/3559 passes/zero failures/native 0; fresh default and terminal page-fault QEMU lanes with wrapper 0, runner-terminated QEMU -1 and 750 ms drain; separate pristine/booted payload/FAT accounting. The enabled capture observes vector 14, full error zero, CR2 zero, owned CR3, absent null/four guards, saved RIP/RF and IST2 frame containment. Source closure is 75 Compile items/88 raw inputs/24 properties. Steps941-943 preserve earlier failed attempts and reviewed fixture repairs. Accepted evidence supports closed intent; actual PR518 merge and issue closure are separate subsequent tracker transactions. Gates 3/4 remain Fail.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Trigger a separate disabled-by-default page fault and capture CR2/error code.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -7429,14 +7429,15 @@
         "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun",
         "git diff --check",
         "git status --short",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M02_014_READY\""
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -BuildEfi -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -EfiArtifact \"<fresh-default.EFI>\" -Image \"<fresh-default.raw>\" -SerialLog \"<fresh-default-serial.log>\" -SummaryLog \"<fresh-default-summary.log>\"",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -BuildEfi -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe -EnableM02SafeStubProbe -EnableM02CheckedPortIoBindingProbe -EnableM02Com1OwnedPortIoProbe -EnableM02OwnedCom1ReadyProbe -EnableM02PanicSafeOwnedCom1Probe -EnableM02PageFaultCr2ErrorCodeProbe -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -EfiArtifact \"<fresh-pagefault.EFI>\" -Image \"<fresh-pagefault.raw>\" -SerialLog \"<fresh-pagefault-serial.log>\" -SummaryLog \"<fresh-pagefault-summary.log>\""
       ],
       "documentationPaths": [
         "docs/diagnostics.md",
         "docs/boot-order.md"
       ],
-      "evidenceBoundary": "This issue proves only \"Trigger a separate disabled-by-default page fault and capture CR2/error code.\" It does not by itself prove the M02 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "evidenceBoundary": "Acceptance is limited to one explicitly enabled, pre-ExitBootServices supervisor null-read profile under the recorded local QEMU/OVMF configuration. It records owned-root/guard and vector-14, full-error-zero, CR2-zero, saved-RIP/RF and IST2 observations. It does not establish default or persistent descriptor ownership, recovery, general paging, NMI/SMI safety, ExitBootServices, runtime allocation, devices, hosted .NET/Kestrel, cloud support or production readiness.",
+      "desiredState": "closed"
     },
     {
       "key": "M02-015",
@@ -9753,7 +9754,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement and guest-test RhpNewFast.",
-      "currentEvidence": "Step940 adds the bounded fixed class/value caller-buffer allocation leaf over original M04-006 retained authority. Focused parent tests pass with 10 starts, 11 passes, zero failures, zero CLR allocation and an actual ten-source no-stdlib closure with zero AssemblyRefs. The combined full gate, actual RhpNewFast export, compiled allocation and physical guest acceptance remain outstanding; this issue stays open and Gate 4 remains Fail.",
+      "currentEvidence": "Step940 adds the bounded fixed class/value caller-buffer allocation leaf over original M04-006 retained authority. Focused parent tests pass with 10 starts/11 passes/zero failures, zero CLR allocation and a ten-source no-stdlib closure with zero AssemblyRefs. Step944 adds accepted complete host integration at 7c71e7273738882e7c8d3566bd9bb1bae1543049: 3558 starts/3559 passes/zero failures/native 0. Issue #76 remains open: actual RhpNewFast export, compiled-new helper/ABI routing, authentic MethodTable/object layout and physical guest object/header/cursor/canary evidence remain outstanding. Required fixed class/value/generic/reference guest cases remain; reference barriers, boxing payload operations and GC retain separate scopes. Gate 4 remains Fail.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Implement and guest-test RhpNewFast.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

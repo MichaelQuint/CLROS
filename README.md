@@ -31,7 +31,7 @@ partial gates and many prerequisite contracts, but it has not yet passed
 `ExitBootServices`, owned-driver, live storage, live networking, native-app
 execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 
-### Current implementation checkpoint (updated through 2026-10-01)
+### Current implementation checkpoint (updated through 2026-10-02)
 
 - M04-004 now has independently reviewed host and fresh default/enabled
   QEMU/OVMF evidence. The opt-in NativeAOT EFI profile executes 57 integer
@@ -40,8 +40,15 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
   The settled host gate passed 3,516 starts and 3,517 passes with zero failures.
   See `done/step929.md` for exact source, artifact and serial identities,
   including the corrected audit of OVMF output after firmware return.
-  This fixed-catalog proof leaves Gate 4 at **Fail**. The separate M02-014
-  page-fault contract remains host-only; no live null-read fault is claimed.
+  This fixed-catalog proof leaves Gate 4 at **Fail**.
+- M02-014 now has independently reviewed default and opt-in terminal page-fault
+  QEMU/OVMF evidence at source `7c71e72`. The enabled profile observes vector 14,
+  CR2/error zero, an owned root, absent null/guard pages and IST2 frame capture
+  before `ExitBootServices`. The complete host suite passed 3,558 starts and
+  3,559 passes with zero failures. See [step944](done/step944.md) for the bounded
+  fault, source/artifact identities and image accounting. Defaults stay off;
+  recovery and persistent descriptor ownership remain unsupported. Gates 3/4
+  remain **Fail**.
 
 - The 2026-08-06 local Gitea snapshot had **273 open issues** (issues only,
   excluding pull requests). That was ten fewer than the earlier 283-issue

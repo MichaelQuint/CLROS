@@ -274,14 +274,15 @@ snapshotted around success and rejection. The null-fault plan accepts only a
 disabled, non-executing request bound to image-audit absence evidence; vector
 14/error-code-zero/CR2-zero are intent, not observations. The exact production
 closure compiles with `NOSTDLIB_EFI`, `NoStdLib=true`, and zero assembly
-references. Closed M01-020 source-links `PageZeroMappingPolicy` into both
-evaluated opt-in EFI workload-profile closures; `NullPageFaultProbePlan` and
-the host test remain excluded. At M01-015 closure no `EfiEntry` path invoked
-the policy and no live EFI or QEMU execution had occurred. M01-025 later
-source-wired the policy into the default-off stage-three adapter, and the
-accepted M01-026 tuple executes the exact integrated page-zero-absence audit
-during its owned-root interval. `CLROS_M01_015_READY` itself remains a
-host-harness readiness marker only.
+references. At M01-020 closure, `PageZeroMappingPolicy` was source-linked into
+both evaluated opt-in EFI workload-profile closures; `NullPageFaultProbePlan`
+and the host test were excluded. The later #517 source integration includes
+`NullPageFaultProbePlan` in the explicit EFI closure; the host test stays out.
+At M01-015 closure no `EfiEntry` path invoked the policy and no live EFI or QEMU
+execution had occurred. M01-025 later source-wired the policy into the
+default-off stage-three adapter, and the accepted M01-026 tuple executes the
+exact integrated page-zero-absence audit during its owned-root interval.
+`CLROS_M01_015_READY` itself remains a host-harness readiness marker only.
 
 ## Known Limitations
 
@@ -593,12 +594,14 @@ snapshot passed to that call. Pointer arithmetic cannot prove the snapshot is
 mapped, stable, current, exclusively owned, or identical to CR3, and the audit
 does not cover a concurrent writer, another address space, a future
 per-process root, or a later mutation. `NullPageFaultProbePlan` records fixed
-future fault intent and caller attestations only. It is not linked into the
-canonical EFI artifact, does not use the older null-write byte plan, does not
-read address zero, does not load an IDT, and does not capture CR2 or an error
-code. The accepted M01-026 tuple preserves cumulative QEMU evidence for
-page-zero absence during the owned-root interval; M02-014 owns the disabled
-live `#PF` trigger and captured fault evidence.
+fault intent and caller attestations only. The #517 integration includes it in
+the explicit EFI closure, but the plan itself contains no executable stream,
+does not use the older null-write byte plan, does not read address zero, does
+not load an IDT, and does not capture CR2 or an error code. The accepted M01-026
+tuple preserves cumulative QEMU evidence for page-zero absence during its
+owned-root interval. The separate M02-014 adapter and its own actual guest
+evidence determine whether the disabled-by-default live `#PF` trigger and
+captured fault have been demonstrated.
 
 The `X64BootIdentityMappingPlan` boundary remains host-tested only. M01-031 can
 assign fresh physical table-page addresses inside one exact candidate and copy
