@@ -893,6 +893,26 @@ the immutable execution/review identities and distinguishes tested source from
 the later documentation commit. #54/#517 merge and closure follow as separate
 tracker transactions; #76 remains open for actual runtime-helper/guest work.
 
+### M02-015 double-fault host boundary
+
+The independently reviewed two-file slice in [step945](../done/step945.md)
+prepares a guarded double-fault context, materializes/readbacks normalized
+slots and an IDT with only the PF Present bit cleared, emits a bounded terminal
+stream, and audits synthetic current-state observations. The saved DF program
+state is undefined and remains diagnostic-only. Current descriptor/root/gate
+association and a complete 192-byte span on original IST1 are distinct checks.
+
+The focused run passes 9 starts/10 passes, no failures, native exit 0 and empty
+stderr. The actual 20-source no-stdlib closure has zero AssemblyRefs; recorded
+LLVM disassembly independently matches all 446 stream and 1,545 slot instruction
+boundaries. These are ordinary-data/compiler/model checks. The integrated
+complete host gate and separately scoped actual DF guest are still pending.
+
+Issue #55 stays open until accepted source-bound vector-8/error-0/IST1 and
+terminal serial/lifecycle evidence is merged. No CPU fault, active mapping,
+publication/lifetime, recovery, NMI nesting, post-firmware, hosted runtime,
+Kestrel or cloud claim follows from this host slice. Gates 3 and 4 remain Fail.
+
 ## Unsupported Behavior
 
 Hardware fault diagnostics, allocator-owned mutable free-list installation from compact boot regions, complete UEFI encapsulation, ExitBootServices, owned serial/framebuffer, runtime helpers, storage, networking, app loading, socket bind/listen behavior, exported PAL socket/timer/thread/file contracts, hosted .NET 10, Kestrel, ISO generation, libvirt real boot, provider cloud import, CI, and hardening remain incomplete. Libvirt lifecycle planning and check-serial validation are host-only contract evidence; they do not connect to libvirt, start a VM, poll live serial output, or prove cleanup against a live domain.

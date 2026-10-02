@@ -62,6 +62,33 @@ EFI adapter now has accepted source-bound QEMU evidence for one terminal
 supervisor null read, vector 14, CR2/error zero and IST2 capture. See
 [step944](../done/step944.md); this does not enable ordinary fault handling.
 
+M02-015 now has a non-executing context, armed-IDT audit and terminal byte
+emitter in `DoubleFaultISTPathSilentRebootOrTriple`. Its four caller buffers
+remain fixed at 8,192 stream bytes and 4,096 bytes each for context, normalized
+slots and IDT. Complete extent, wrap and disjointness checks precede writes.
+The leaf derives C3/D10/T43 and preserves the four guard holes. It verifies the
+canonical all-present IDT, clears only vector 14 Present at byte 229, then
+independently audits all 4,096 final bytes: 255 gates remain present and vector
+8 retains selector 8/IST1. The original all-present validator stays unchanged.
+
+Host tests independently decode the null-read escalation path, every normalized
+slot, early CR2/GPR saves and the current IST1 RSP. The complete 192-byte capture
+is 48 hardware bytes plus 16 normalization bytes plus 128 software bytes.
+Undefined saved DF program state and CR2 remain diagnostic-only; current
+root/selectors, original IST1 and fresh descriptor/gate observations determine
+the checks. The measured synthetic output contains 14 CRLF records, 2,643 ASCII
+bytes and 84 numeric fields. Finite COM1 polling and terminal halt bytes are
+never executed by the host tests. The actual 20-source no-stdlib compile has
+zero AssemblyRefs. [Step945](../done/step945.md) records the focused evidence and
+independent review; complete settled-source integration is still pending.
+
+The supplied page-image summary does not establish C/D identity, current table
+contents or lifetime. A separately scoped EFI adapter must freshly audit the
+exact six mapped ranges, verify ownership/publication and native bytes, and
+establish actual vector 8/error 0/current-RSP-on-original-IST1 capture with
+source-bound serial and lifecycle evidence. Issue #55 remains open. The host
+ready marker and synthetic transcript do not prove CPU delivery or live IST1.
+
 No ordinary boot phase loads an IDT, installs fault handlers, activates IST
 routing, directs a live CPU fault to panic, or preserves an owned serial path
 across real

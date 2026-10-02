@@ -49,6 +49,11 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
   fault, source/artifact identities and image accounting. Defaults stay off;
   recovery and persistent descriptor ownership remain unsupported. Gates 3/4
   remain **Fail**.
+- M02-015 adds an independently reviewed host double-fault byte emitter and
+  armed-IDT audit. Focused tests pass 9 starts/10 passes with zero failures;
+  the actual no-stdlib closure has zero AssemblyRefs. This is data and modeled
+  execution evidence only. Real vector-8/IST1 delivery and the complete settled
+  host gate remain pending; see [step945](done/step945.md).
 
 - The 2026-08-06 local Gitea snapshot had **273 open issues** (issues only,
   excluding pull requests). That was ten fewer than the earlier 283-issue
