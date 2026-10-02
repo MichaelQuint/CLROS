@@ -45,6 +45,7 @@ param(
     [switch] $EnableM02OwnedIdtGatePopulationProbe,
     [switch] $EnableM02IdtrContinuedExecutionProbe,
     [switch] $EnableM02Ud2VectorStateProbe,
+    [switch] $EnableM02PageFaultCr2ErrorCodeProbe,
     [switch] $EnableM04IndependentEndianConformanceProbe,
     [switch] $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe,
     [switch] $EnableM04ArithmeticConformanceProbe,
@@ -105,6 +106,11 @@ $script:ExpectedEfiCompileItems = @(
     '..\OS.Kernel\Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs|Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs',
     '..\OS.Kernel\Diagnostics\IDTRContinuedExecution.cs|Diagnostics\IDTRContinuedExecution.cs',
     '..\OS.Kernel\Diagnostics\InvalidOpcodeProbeAuthority.cs|Diagnostics\InvalidOpcodeProbeAuthority.cs',
+    '..\OS.Kernel\Diagnostics\NullPointerProbeAuthority.cs|Diagnostics\NullPointerProbeAuthority.cs',
+    '..\OS.Kernel\Diagnostics\NullPageFaultProbePlan.cs|Diagnostics\NullPageFaultProbePlan.cs',
+    '..\OS.Kernel\Diagnostics\SeparateDisabledDefaultPageFaultCR2ErrorCode.cs|Diagnostics\SeparateDisabledDefaultPageFaultCR2ErrorCode.cs',
+    '..\OS.Kernel\Diagnostics\SeparateDisabledDefaultPageFaultPageTables.cs|Diagnostics\SeparateDisabledDefaultPageFaultPageTables.cs',
+    '..\OS.Kernel\Diagnostics\SeparateDisabledDefaultPageFaultTransition.cs|Diagnostics\SeparateDisabledDefaultPageFaultTransition.cs',
     '..\OS.Kernel\Diagnostics\InvalidOpcodeVectorAuthority.cs|Diagnostics\InvalidOpcodeVectorAuthority.cs',
     '..\OS.Kernel\Diagnostics\CpuFaultFrame.cs|Diagnostics\CpuFaultFrame.cs',
     '..\OS.Kernel\Diagnostics\DisabledDefaultUd2VectorState.cs|Diagnostics\DisabledDefaultUd2VectorState.cs',
@@ -1830,6 +1836,7 @@ function Invoke-M01PostRestoreEvaluation {
         [bool] $M02OwnedIdtGatePopulationEnabled,
         [bool] $M02IdtrContinuedExecutionEnabled,
         [bool] $M02Ud2VectorStateEnabled,
+        [bool] $M02PageFaultCr2ErrorCodeEnabled,
         [bool] $M04IndependentEndianConformanceEnabled,
         [bool] $M04SpanMemoryConformanceEnabled,
         [bool] $M04ArithmeticConformanceEnabled,
@@ -1869,6 +1876,7 @@ function Invoke-M01PostRestoreEvaluation {
             "EnableM02OwnedIdtGatePopulationProbe," +
             "EnableM02IdtrContinuedExecutionProbe," +
             "EnableM02Ud2VectorStateProbe," +
+            "EnableM02PageFaultCr2ErrorCodeProbe," +
             "EnableM04IndependentEndianConformanceProbe," +
             "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe," +
             "EnableM04ArithmeticConformanceProbe," +
@@ -2000,6 +2008,9 @@ function Invoke-M01PostRestoreEvaluation {
         "-p:EnableM02Ud2VectorStateProbe=" +
         $M02Ud2VectorStateEnabled.ToString().ToLowerInvariant())
     $arguments += (
+        "-p:EnableM02PageFaultCr2ErrorCodeProbe=" +
+        $M02PageFaultCr2ErrorCodeEnabled.ToString().ToLowerInvariant())
+    $arguments += (
         "-p:EnableM04IndependentEndianConformanceProbe=" +
         $M04IndependentEndianConformanceEnabled.ToString().ToLowerInvariant())
     $arguments += (
@@ -2084,6 +2095,8 @@ function Invoke-M01PostRestoreEvaluation {
             $M02IdtrContinuedExecutionEnabled.ToString().ToLowerInvariant()
         EnableM02Ud2VectorStateProbe =
             $M02Ud2VectorStateEnabled.ToString().ToLowerInvariant()
+        EnableM02PageFaultCr2ErrorCodeProbe =
+            $M02PageFaultCr2ErrorCodeEnabled.ToString().ToLowerInvariant()
         EnableM04IndependentEndianConformanceProbe =
             $M04IndependentEndianConformanceEnabled.ToString().ToLowerInvariant()
         EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe =
@@ -4100,6 +4113,7 @@ for ($index = 5; $index -lt $verifierArguments.Count; $index += 2) {
         $parameterName -ceq "EnableM02OwnedIdtGatePopulationProbe" -or
         $parameterName -ceq "EnableM02IdtrContinuedExecutionProbe" -or
         $parameterName -ceq "EnableM02Ud2VectorStateProbe" -or
+        $parameterName -ceq "EnableM02PageFaultCr2ErrorCodeProbe" -or
         $parameterName -ceq "EnableM02OwnedCom1ReadyProbe" -or
         $parameterName -ceq "EnableM02PanicSafeOwnedCom1Probe" -or
         $parameterName -ceq "EnableM02OwnedX64GdtEncodingProbe" -or
@@ -4858,6 +4872,30 @@ function Test-M01ActiveSourceSurface {
         }
     }
 
+    # Frozen #510 image leaf imports only the already included POD boot/memory contracts.
+    # Admission is exact path plus complete text identity; raw authority hashes stay raw.
+    if ([string]::Equals($SourceName,
+            '..\OS.Kernel\Diagnostics\SeparateDisabledDefaultPageFaultPageTables.cs',
+            [System.StringComparison]::Ordinal)) {
+        $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
+        if (-not [string]::Equals($identity,
+                'c03ff7f0d1b9be2ec5a17cdc01057d8ab10c7c097786797b0dfa1bb1ea016fbb',
+                [System.StringComparison]::Ordinal)) {
+            return [pscustomobject] @{
+                Succeeded = $false
+                Reason = "forbidden_active_source"
+                Detail = $SourceName + ":reviewed_page_fault_tables_source_identity"
+                ActiveText = ""
+            }
+        }
+        return [pscustomobject] @{
+            Succeeded = $true
+            Reason = "ok"
+            Detail = ""
+            ActiveText = $SourceText
+        }
+    }
+
     $active = Get-NostdlibEfiActiveSource `
         -SourceText $SourceText `
         -SourceName $SourceName
@@ -5404,6 +5442,7 @@ function Test-M01EvaluatedSourceClosure {
         [bool] $M02OwnedIdtGatePopulationEnabled,
         [bool] $M02IdtrContinuedExecutionEnabled,
         [bool] $M02Ud2VectorStateEnabled,
+        [bool] $M02PageFaultCr2ErrorCodeEnabled,
         [bool] $M04IndependentEndianConformanceEnabled,
         [bool] $M04SpanMemoryConformanceEnabled,
         [bool] $M04ArithmeticConformanceEnabled,
@@ -5459,6 +5498,8 @@ function Test-M01EvaluatedSourceClosure {
             $M02IdtrContinuedExecutionEnabled.ToString().ToLowerInvariant()
         "EnableM02Ud2VectorStateProbe" =
             $M02Ud2VectorStateEnabled.ToString().ToLowerInvariant()
+        "EnableM02PageFaultCr2ErrorCodeProbe" =
+            $M02PageFaultCr2ErrorCodeEnabled.ToString().ToLowerInvariant()
         "EnableM04IndependentEndianConformanceProbe" =
             $M04IndependentEndianConformanceEnabled.ToString().ToLowerInvariant()
         "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe" =
@@ -5492,6 +5533,7 @@ function Test-M01EvaluatedSourceClosure {
         "M02_IDTR_CONTINUED_EXECUTION_PROBE" =
             $M02IdtrContinuedExecutionEnabled
         "M02_UD2_VECTOR_STATE_PROBE" = $M02Ud2VectorStateEnabled
+        "M02_PAGE_FAULT_CR2_ERROR_CODE_PROBE" = $M02PageFaultCr2ErrorCodeEnabled
         "M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE" =
             $M04IndependentEndianConformanceEnabled
         "M04_SPAN_OVERLAP_MEMORY_CAST_UNSAFE_WIDTH_CONFORMANCE_PROBE" =
@@ -5537,6 +5579,7 @@ function Test-M01EvaluatedSourceClosure {
                 "EnableM02OwnedIdtGatePopulationProbe," +
                 "EnableM02IdtrContinuedExecutionProbe," +
                 "EnableM02Ud2VectorStateProbe," +
+                "EnableM02PageFaultCr2ErrorCodeProbe," +
                 "EnableM04IndependentEndianConformanceProbe," +
                 "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe," +
                 "EnableM04ArithmeticConformanceProbe," +
@@ -5643,6 +5686,9 @@ function Test-M01EvaluatedSourceClosure {
         }
         if ($M02Ud2VectorStateEnabled) {
             $arguments += "-p:EnableM02Ud2VectorStateProbe=true"
+        }
+        if ($M02PageFaultCr2ErrorCodeEnabled) {
+            $arguments += "-p:EnableM02PageFaultCr2ErrorCodeProbe=true"
         }
         if ($M04IndependentEndianConformanceEnabled) {
             $arguments +=
@@ -6194,6 +6240,7 @@ function Test-M01SourceClosure {
         [bool] $M02OwnedIdtGatePopulationEnabled,
         [bool] $M02IdtrContinuedExecutionEnabled,
         [bool] $M02Ud2VectorStateEnabled,
+        [bool] $M02PageFaultCr2ErrorCodeEnabled,
         [bool] $M04IndependentEndianConformanceEnabled,
         [bool] $M04SpanMemoryConformanceEnabled,
         [bool] $M04ArithmeticConformanceEnabled,
@@ -6248,7 +6295,7 @@ function Test-M01SourceClosure {
 
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "01427f2e1ee0ee126ac06b106c4181e9b78f4dc0a92a47cc8f94a0c8d8b504d1") {
+        "c68ba969d7f3b07ea2f9c2a511fa00e9c19bd58021b3206ac83bfe04f46f6a3e") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `
@@ -6322,6 +6369,7 @@ function Test-M01SourceClosure {
         "EnableM02IdtrContinuedExecutionProbe" =
             "M02_IDTR_CONTINUED_EXECUTION_PROBE"
         "EnableM02Ud2VectorStateProbe" = "M02_UD2_VECTOR_STATE_PROBE"
+        "EnableM02PageFaultCr2ErrorCodeProbe" = "M02_PAGE_FAULT_CR2_ERROR_CODE_PROBE"
         "EnableM04IndependentEndianConformanceProbe" =
             "M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE"
         "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe" =
@@ -6347,7 +6395,7 @@ function Test-M01SourceClosure {
         $condition = "'" + '$' + '(' + $entry.Key + ")' == 'true'"
         $groups = @($project.SelectNodes("/Project/PropertyGroup") |
             Where-Object { $_.GetAttribute("Condition") -eq $condition })
-        if ($entry.Key -ceq "EnableM02Ud2VectorStateProbe") {
+        if ($entry.Key -ceq "EnableM02Ud2VectorStateProbe" -or $entry.Key -ceq "EnableM02PageFaultCr2ErrorCodeProbe") {
             $symbolGroups = @($groups | Where-Object {
                 $_.SelectNodes("DefineConstants").Count -eq 1
             })
@@ -6430,6 +6478,51 @@ function Test-M01SourceClosure {
         }
     }
 
+    $m02PageFaultCr2ErrorCodeImplications = [ordered] @{
+        "EnableM01LoadedImageStackProbe" = "true"
+        "EnableM01LiveAllocatorProbe" = "true"
+        "EnableM01OwnedPagingProbe" = "true"
+        "EnableM02SafeStubProbe" = "true"
+        "EnableM02CheckedPortIoBindingProbe" = "true"
+        "EnableM02Com1OwnedPortIoProbe" = "true"
+        "EnableM02OwnedCom1ReadyProbe" = "true"
+        "EnableM02PanicSafeOwnedCom1Probe" = "true"
+    }
+    $m02PageFaultCr2ErrorCodeCondition =
+        "'" + '$' + "(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'"
+    $m02PageFaultCr2ErrorCodeGroups = @(
+        $project.SelectNodes("/Project/PropertyGroup") |
+            Where-Object {
+                $_.GetAttribute("Condition") -eq
+                    $m02PageFaultCr2ErrorCodeCondition
+            })
+    $m02PageFaultCr2ErrorCodeImplicationGroups = @(
+        $m02PageFaultCr2ErrorCodeGroups | Where-Object {
+            $_.SelectNodes("DefineConstants").Count -eq 0
+        })
+    if ($m02PageFaultCr2ErrorCodeGroups.Count -ne 2 -or
+        $m02PageFaultCr2ErrorCodeImplicationGroups.Count -ne 1 -or
+        $m02PageFaultCr2ErrorCodeImplicationGroups[0].SelectNodes("*").Count -ne 8) {
+        return New-M01SourceClosureResult `
+            -Succeeded $false `
+            -Reason "switch_implication_invalid" `
+            -Detail "EnableM02PageFaultCr2ErrorCodeProbe:group"
+    }
+    foreach ($implication in
+        $m02PageFaultCr2ErrorCodeImplications.GetEnumerator()) {
+        $nodes = @($m02PageFaultCr2ErrorCodeImplicationGroups[0].SelectNodes(
+            $implication.Key))
+        if ($nodes.Count -ne 1 -or
+            $nodes[0].InnerText -cne $implication.Value -or
+            $nodes[0].Attributes.Count -ne 0 -or
+            $nodes[0].SelectNodes("*").Count -ne 0) {
+            return New-M01SourceClosureResult `
+                -Succeeded $false `
+                -Reason "switch_implication_invalid" `
+                -Detail $implication.Key
+        }
+    }
+
     $switchSymbols = [ordered] @{
         "EnableM01LoadedImageStackProbe" = "M01_LOADED_IMAGE_STACK_PROBE"
         "EnableM01LiveAllocatorProbe" = "M01_LIVE_ALLOCATOR_PROBE"
@@ -6451,6 +6544,7 @@ function Test-M01SourceClosure {
         "EnableM02IdtrContinuedExecutionProbe" =
             "M02_IDTR_CONTINUED_EXECUTION_PROBE"
         "EnableM02Ud2VectorStateProbe" = "M02_UD2_VECTOR_STATE_PROBE"
+        "EnableM02PageFaultCr2ErrorCodeProbe" = "M02_PAGE_FAULT_CR2_ERROR_CODE_PROBE"
         "EnableM04IndependentEndianConformanceProbe" =
             "M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE"
         "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe" =
@@ -6610,6 +6704,25 @@ function Test-M01SourceClosure {
         "'" + '$' + "(EnableM04LayoutContractProbe)' == 'true' and '" +
         '$' + "(EnableM02Ud2VectorStateProbe)' == 'true'"
     $requiredErrorConditions = @(
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM01LoadedImageStackProbe)' != 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM01LiveAllocatorProbe)' != 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM01OwnedPagingProbe)' != 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM02SafeStubProbe)' != 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM02CheckedPortIoBindingProbe)' != 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM02Com1OwnedPortIoProbe)' != 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM02OwnedCom1ReadyProbe)' != 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM02PanicSafeOwnedCom1Probe)' != 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM02GuardedIstStackAllocationProbe)' == 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM02IdtrContinuedExecutionProbe)' == 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM02Ud2VectorStateProbe)' == 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM04ArithmeticConformanceProbe)' == 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM04LayoutContractProbe)' == 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM04ManagedHeapPageRangeProbe)' == 'true'",
         "'`$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '`$(EnableM01LoadedImageStackProbe)' != 'true'",
         "'`$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '`$(EnableM01LiveAllocatorProbe)' != 'true'",
         "'`$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '`$(EnableM04IndependentEndianConformanceProbe)' != 'true'",
@@ -6983,6 +7096,7 @@ function Test-M01SourceClosure {
         -M02OwnedIdtGatePopulationEnabled $M02OwnedIdtGatePopulationEnabled `
         -M02IdtrContinuedExecutionEnabled $M02IdtrContinuedExecutionEnabled `
         -M02Ud2VectorStateEnabled $M02Ud2VectorStateEnabled `
+        -M02PageFaultCr2ErrorCodeEnabled $M02PageFaultCr2ErrorCodeEnabled `
         -M04IndependentEndianConformanceEnabled $M04IndependentEndianConformanceEnabled `
         -M04SpanMemoryConformanceEnabled $M04SpanMemoryConformanceEnabled `
         -M04ArithmeticConformanceEnabled $M04ArithmeticConformanceEnabled `
@@ -7160,8 +7274,8 @@ try {
             (Format-EvidenceValue $_.Exception.Message))
         exit 1
     }
-    if ($sourceSnapshotBeforePublish.InputCount -ne 83 -or
-        $sourceSnapshotAfterLock.InputCount -ne 83 -or
+    if ($sourceSnapshotBeforePublish.InputCount -ne 88 -or
+        $sourceSnapshotAfterLock.InputCount -ne 88 -or
         $sourceSnapshotBeforePublish.AggregateSha256 -cne
             $sourceSnapshotAfterLock.AggregateSha256 -or
         $sourceSnapshotBeforePublish.AuthoritySha256 -cne
@@ -7174,7 +7288,7 @@ try {
         exit 1
     }
     Write-Host "EFI_PUBLISH_SOURCE_LOCK status=ok"
-    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=83"
+    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=88"
 
 Write-EfiPreflightLine "EFI_PREFLIGHT_START"
 
@@ -7230,6 +7344,78 @@ if ($EnableM02Ud2VectorStateProbe) {
         "m02SafeStub=true checkedPortIoBinding=true com1OwnedPortIo=true " +
         "ownedCom1Ready=true panicSafeOwnedCom1=true")
 }
+if ($EnableM02PageFaultCr2ErrorCodeProbe) {
+    foreach ($conflict in @(
+        "EnableM02OwnedX64GdtEncodingProbe"
+        "EnableM02GuardedIstStackAllocationProbe"
+        "EnableM02OwnedGdtTssTerminalProbe"
+        "EnableM02NormalizedInterruptFramePageProbe"
+        "EnableM02OwnedIdtGatePopulationProbe"
+        "EnableM02IdtrContinuedExecutionProbe"
+        "EnableM02Ud2VectorStateProbe"
+        "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"
+        "EnableM04ArithmeticConformanceProbe"
+        "EnableM04LayoutContractProbe"
+        "EnableM04ManagedHeapPageRangeProbe"
+    )) {
+        if ([bool](Get-Variable -Name $conflict -ValueOnly)) {
+            Stop-EfiPreflight -Marker "EFI_PREFLIGHT_M02_PAGE_FAULT_CR2_ERROR_CODE status=invalid" -Reason ("m02_page_fault_cr2_error_code_profile_conflict_" + $conflict) -LogFullPath $logFullPath -ReportedLogPath $LogPath -Status "invalid"
+        }
+    }
+}
+
+if ($EnableM02PageFaultCr2ErrorCodeProbe) {
+    $m02PageFaultCr2ErrorCodePrerequisites = @(
+        "EnableM01LoadedImageStackProbe",
+        "EnableM01LiveAllocatorProbe",
+        "EnableM01OwnedPagingProbe",
+        "EnableM02SafeStubProbe",
+        "EnableM02CheckedPortIoBindingProbe",
+        "EnableM02Com1OwnedPortIoProbe",
+        "EnableM02OwnedCom1ReadyProbe",
+        "EnableM02PanicSafeOwnedCom1Probe"
+    )
+    $explicitFalsePrerequisite = $null
+    foreach ($prerequisiteName in $m02PageFaultCr2ErrorCodePrerequisites) {
+        if ($PSBoundParameters.ContainsKey($prerequisiteName) -and
+            -not [bool]$PSBoundParameters[$prerequisiteName]) {
+            $explicitFalsePrerequisite = $prerequisiteName
+            break
+        }
+    }
+    if ($null -ne $explicitFalsePrerequisite) {
+        Stop-EfiPreflight `
+            -Marker (
+                "EFI_PREFLIGHT_M02_PAGE_FAULT_CR2_ERROR_CODE_IMPLICATION status=invalid " +
+                "explicitFalse=" + $explicitFalsePrerequisite) `
+            -Reason "m02_page_fault_cr2_error_code_probe_explicit_false_prerequisite" `
+            -LogFullPath $logFullPath `
+            -ReportedLogPath $LogPath `
+            -Status "invalid"
+    }
+
+    $EnableM01LoadedImageStackProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM01LiveAllocatorProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM01OwnedPagingProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM02SafeStubProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM02CheckedPortIoBindingProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM02Com1OwnedPortIoProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM02OwnedCom1ReadyProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM02PanicSafeOwnedCom1Probe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    Write-EfiPreflightLine (
+        "EFI_PREFLIGHT_M02_PAGE_FAULT_CR2_ERROR_CODE_IMPLICATION status=ok " +
+        "m01LoadedImageStack=true m01LiveAllocator=true ownedPaging=true " +
+        "m02SafeStub=true checkedPortIoBinding=true com1OwnedPortIo=true " +
+        "ownedCom1Ready=true panicSafeOwnedCom1=true")
+}
 
 if (-not [string]::Equals($Runtime, "win-x64", [System.StringComparison]::OrdinalIgnoreCase)) {
     Stop-EfiPreflight `
@@ -7270,6 +7456,8 @@ $m02IdtrContinuedExecutionProbeEnabled =
     $EnableM02IdtrContinuedExecutionProbe.IsPresent.ToString().ToLowerInvariant()
 $m02Ud2VectorStateProbeEnabled =
     $EnableM02Ud2VectorStateProbe.IsPresent.ToString().ToLowerInvariant()
+$m02PageFaultCr2ErrorCodeProbeEnabled =
+    $EnableM02PageFaultCr2ErrorCodeProbe.IsPresent.ToString().ToLowerInvariant()
 $m04IndependentEndianConformanceProbeEnabled =
     $EnableM04IndependentEndianConformanceProbe.IsPresent.ToString().ToLowerInvariant()
 $m04SpanMemoryConformanceProbeEnabled =
@@ -7827,6 +8015,7 @@ $m01SourceClosure = Test-M01SourceClosure `
     -M02OwnedIdtGatePopulationEnabled $EnableM02OwnedIdtGatePopulationProbe.IsPresent `
     -M02IdtrContinuedExecutionEnabled $EnableM02IdtrContinuedExecutionProbe.IsPresent `
     -M02Ud2VectorStateEnabled $EnableM02Ud2VectorStateProbe.IsPresent `
+    -M02PageFaultCr2ErrorCodeEnabled $EnableM02PageFaultCr2ErrorCodeProbe.IsPresent `
     -M04IndependentEndianConformanceEnabled $EnableM04IndependentEndianConformanceProbe.IsPresent `
     -M04SpanMemoryConformanceEnabled $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe.IsPresent `
     -M04ArithmeticConformanceEnabled $EnableM04ArithmeticConformanceProbe.IsPresent `
@@ -8484,6 +8673,10 @@ if ($EnableM02Ud2VectorStateProbe) {
     $arguments += "-p:EnableM02Ud2VectorStateProbe=true"
     Write-Host "EFI_PROBE M02_UD2_VECTOR_STATE"
 }
+if ($EnableM02PageFaultCr2ErrorCodeProbe) {
+    $arguments += "-p:EnableM02PageFaultCr2ErrorCodeProbe=true"
+    Write-Host "EFI_PROBE M02_PAGE_FAULT_CR2_ERROR_CODE"
+}
 
 if ($EnableM04IndependentEndianConformanceProbe) {
     $arguments +=
@@ -8635,6 +8828,7 @@ $methodImplAttributeSourcePath = Join-Path $repositoryRoot (
         -M02OwnedIdtGatePopulationEnabled $EnableM02OwnedIdtGatePopulationProbe.IsPresent `
         -M02IdtrContinuedExecutionEnabled $EnableM02IdtrContinuedExecutionProbe.IsPresent `
         -M02Ud2VectorStateEnabled $EnableM02Ud2VectorStateProbe.IsPresent `
+        -M02PageFaultCr2ErrorCodeEnabled $EnableM02PageFaultCr2ErrorCodeProbe.IsPresent `
         -M04IndependentEndianConformanceEnabled $EnableM04IndependentEndianConformanceProbe.IsPresent `
         -M04SpanMemoryConformanceEnabled $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe.IsPresent `
         -M04ArithmeticConformanceEnabled $EnableM04ArithmeticConformanceProbe.IsPresent `
@@ -8871,6 +9065,7 @@ try {
         -M02IdtrContinuedExecutionEnabled `
             $EnableM02IdtrContinuedExecutionProbe.IsPresent `
         -M02Ud2VectorStateEnabled $EnableM02Ud2VectorStateProbe.IsPresent `
+        -M02PageFaultCr2ErrorCodeEnabled $EnableM02PageFaultCr2ErrorCodeProbe.IsPresent `
         -M04IndependentEndianConformanceEnabled `
             $EnableM04IndependentEndianConformanceProbe.IsPresent `
         -M04SpanMemoryConformanceEnabled `
@@ -9058,6 +9253,7 @@ if ($exitCode -eq 0) {
                 -M02IdtrContinuedExecutionEnabled `
                     $EnableM02IdtrContinuedExecutionProbe.IsPresent `
                 -M02Ud2VectorStateEnabled $EnableM02Ud2VectorStateProbe.IsPresent `
+                -M02PageFaultCr2ErrorCodeEnabled $EnableM02PageFaultCr2ErrorCodeProbe.IsPresent `
                 -M04IndependentEndianConformanceEnabled `
                     $EnableM04IndependentEndianConformanceProbe.IsPresent `
                 -M04SpanMemoryConformanceEnabled `
@@ -9510,6 +9706,11 @@ if ($exitCode -eq 0) {
     if ($EnableM02Ud2VectorStateProbe) {
         $verificationArguments += @(
             "-EnableM02Ud2VectorStateProbe",
+            "true")
+    }
+    if ($EnableM02PageFaultCr2ErrorCodeProbe) {
+        $verificationArguments += @(
+            "-EnableM02PageFaultCr2ErrorCodeProbe",
             "true")
     }
     $verificationStopwatch = [System.Diagnostics.Stopwatch]::StartNew()

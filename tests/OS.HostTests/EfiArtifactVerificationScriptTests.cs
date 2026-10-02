@@ -31,7 +31,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const int MaximumRuntimeFunctionRecords = 2048;
     private const int MaximumLinkResponseTokens = 4096;
     private const int VerifierFixtureProcessTimeoutMilliseconds = 120_000;
-    private const int ExpectedSourceClosureInputCount = 83;
+    private const int ExpectedSourceClosureInputCount = 88;
     private const string SerializerSymbol =
         "CLROS_X64_SerializeInstructionPublication";
     private const string ToolDirectoryBuildPropsPath =
@@ -45,7 +45,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const string EmptySha256 =
         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     private const string CompileClosureSha256 =
-        "06d136c83fd42c3979662ecf7bac6cd1a7654113c5f2392cc6bf3b16dec04561";
+        "fafc07e210dde2a3a8e2d537f54032b2809cb01258a23b4d513e1d868dc74a9b";
     private const string AnalyzerClosureSha256 =
         "bea3e700acbeec374acb02a39b8c154e03291cf380edf850fea2114193b7ea14";
     private const string ManagedFixtureConfiguration = "Release";
@@ -2615,7 +2615,7 @@ internal static class EfiArtifactVerificationScriptTests
                 "MSBUILDDISABLENODEREUSE",
                 StringComparison.Ordinal)
             && verifierSource.Contains(
-                "$expectedSourceClosureInputCount = 83",
+                "$expectedSourceClosureInputCount = 88",
                 StringComparison.Ordinal)
             && stableReasons.All(reason => verifierSource.Contains(
                 reason,
@@ -5082,6 +5082,7 @@ internal static class EfiArtifactVerificationScriptTests
             ["EnableM02OwnedIdtGatePopulationProbe"] = "false",
             ["EnableM02IdtrContinuedExecutionProbe"] = "false",
             ["EnableM02Ud2VectorStateProbe"] = "false",
+            ["EnableM02PageFaultCr2ErrorCodeProbe"] = "false",
             ["EnableM04IndependentEndianConformanceProbe"] = "false",
             ["EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"] =
                 "false",
@@ -5202,7 +5203,7 @@ internal static class EfiArtifactVerificationScriptTests
         };
         return new Dictionary<string, object?>
         {
-            ["compileCount"] = 70,
+            ["compileCount"] = 75,
             ["compileSha256"] = CompileClosureSha256,
             ["projectReferenceCount"] = 0,
             ["projectReferenceSha256"] = EmptySha256,

@@ -1389,6 +1389,32 @@ Object allocation, GC, hardware NX, post-`ExitBootServices` lifetime and Gate 4
 completion remain unsupported. The heap guest does not execute #513's
 host-only page-fault transition emitter or supply #54's real fault evidence.
 
+### M02-014 terminal page-fault capture profile
+
+Use `-BuildEfi -EnableM02PageFaultCr2ErrorCodeProbe` with fresh EFI, image, serial
+and summary paths. The profile rejects `-SkipImageBuild` and a supplied
+`-M01RawObservationLog`. A dry run is preflight only. The source-bound profile
+has 77 required, 68 ordered, 68 unique and 44 forbidden marker entries.
+
+After the complete prerequisite stream and `OS_SMOKE_PASS`, enabled acceptance
+requires exactly twelve CRLF records containing 57 full-width numeric fields:
+start, layout, mode, root, five absence walks, frame, ready and pass. The parser
+binds firmware/frame selectors, actual/expected root, mode/PAT, saved/handler
+stacks, RF, vector 14, full error zero and CR2 zero. Repeated table slots must
+agree except legal accessed-bit variation, child tables have one parent, and an
+absent ancestor cannot cover a known mapped C/D/T interval. Only complete empty
+CRLF delimiters may follow the terminal pass. Failure/host/sibling markers,
+malformed fields, missing or contradictory observations and firmware-return
+output fail acceptance.
+
+The runner must report its 750 ms quiet drain and successful bounded termination,
+with actual wrapper exit 0 and native QEMU exit recorded separately. A timeout,
+spontaneous exit or cleanup failure cannot be promoted by ready text. The default
+profile still uses its established returning-OVMF contract and must contain no
+new page-fault tail. Fresh real default/enabled evidence is still pending.
+
+Step941 records implementation evidence only; no new guest run is claimed.
+
 ## Implemented Behavior
 
 - `tools/OS.QemuRunner` builds a QEMU command line for a raw or qcow2 GPT/FAT32 image, OVMF pflash, serial-file capture, AHCI disk attachment, and user-mode virtio networking.

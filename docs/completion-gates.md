@@ -835,6 +835,25 @@ whole-page-zero checkpoint must precede object writes. Boxing payload/nullable
 behavior, reference barriers, GC and broader runtime semantics remain separate
 unsupported work.
 
+### M02-014 integrated preparation boundary
+
+The #517 source integration connects the frozen page-image and transition leaves
+to a false-by-default EFI terminal adapter. Host controls validate actual
+preparation/readback, original cleanup callbacks, complete temporary spans,
+strict numeric transcript consistency, prerequisite/conflict policy and the
+75-item/88-input artifact closure. The final focused new-module plus transition
+run passes eight starts/nine passes with actual native exit 0; both default and
+enabled NativeAOT artifact checks pass.
+
+The prior standalone nineteen-module attempt was canceled on superseded source
+and is not passing evidence. All nineteen complete modules will run in the
+settled root full suite. No real new guest fault has been executed in this
+milestone. #54/#517 remain open; Gates 3 and 4 remain Fail. Persistent/default
+descriptor ownership, nested-fault recovery, firmware shutdown, drivers,
+hosted .NET/Kestrel and cloud readiness remain unsupported.
+
+Source, review and artifact identities are recorded in step941.
+
 ## Unsupported Behavior
 
 Hardware fault diagnostics, allocator-owned mutable free-list installation from compact boot regions, complete UEFI encapsulation, ExitBootServices, owned serial/framebuffer, runtime helpers, storage, networking, app loading, socket bind/listen behavior, exported PAL socket/timer/thread/file contracts, hosted .NET 10, Kestrel, ISO generation, libvirt real boot, provider cloud import, CI, and hardening remain incomplete. Libvirt lifecycle planning and check-serial validation are host-only contract evidence; they do not connect to libvirt, start a VM, poll live serial output, or prove cleanup against a live domain.

@@ -226,7 +226,7 @@ runtime execution.
 | `System.Runtime.RuntimeExportAttribute` | Implemented only for EFI runtime export metadata | Needed by `EfiMain` and NativeAOT helper exports |
 | `System.Buffer.MemoryCopy` / `Memmove` | Implemented as byte loops for EFI shell needs | Used for no-stdlib memory copy paths; not a complete BCL buffer contract |
 | `System.SpanHelpers` clear/fill/memmove slice | Implemented as narrow byte/pointer helper slice | Supports current EFI publish boundary only |
-| Object allocation helpers | Deferred | Ledger entry `ObjectAllocation`; no OS-owned NativeAOT object allocation helper or managed heap handoff exists. `BootPageFreeListBuilder`, `BootPageAllocatorStateInitializer`, `BootPageAllocatorMutation`, `BootPageAllocatorReadinessComposer`, and `NativeAotHeapBootstrapPlanner` only prove prerequisite caller-owned free-list node, allocator state, caller-owned mutation, aggregate readiness-marker, and heap page-budget metadata |
+| Object allocation helpers | Host leaf implemented; runtime export deferred | The #75 retained-page handoff has bounded guest evidence (step939). The #76 `GuestTestRhpNewFast` leaf allocates fixed byte intervals through that original authority in host tests (step940). No OS-owned NativeAOT allocation export, compiled guest object allocation, general heap or GC is established; the `ObjectAllocation` runtime-helper ledger gate remains deferred |
 | Array allocation helpers | Deferred | Ledger entry `ArrayAllocation`; no OS-owned NativeAOT array allocation helper exists |
 | String allocation helpers | Deferred | Ledger entry `StringAllocation`; no OS-owned NativeAOT string allocation helper exists |
 | Write barriers | Deferred | Ledger entry `WriteBarriers`; no kernel/runtime write barrier implementation exists |

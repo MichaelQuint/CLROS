@@ -1807,6 +1807,32 @@ ownership, source snapshot, clean behavior, PE/map/unwind verification, and
 negative cases. No reference artifact or output is accepted as CLROS evidence.
 The recorded project-owner grant permits this bounded adaptation.
 
+### M02-014 terminal page-fault EFI integration
+
+`EnableM02PageFaultCr2ErrorCodeProbe` defaults to false at project, build,
+artifact-verifier and QEMU boundaries. It implies loaded-image/stack, live
+allocator, owned paging, safe stub, checked port binding, owned COM1 backend,
+owned COM1 readiness and panic-safe COM1 when omitted; caller-explicit false
+values reject. It rejects the GDT encoding, guarded IST allocation, terminal
+GDT/TSS, normalized frame, IDT population, reversible IDTR and UD2 profiles,
+plus M04 span, arithmetic, layout and retained-heap profiles. Independent endian
+remains optional and does not imply allocation/runtime completion.
+
+The closure adds only the narrow false null-pointer authority and the existing
+null-read intent, CR2/error, page-image and terminal-transition leaves: 75
+explicit Compile items, 88 raw authority inputs and 24 evaluated switches.
+The #510 scanner admission is exact path plus full normalized source hash;
+the rest of the scanner and raw-byte authority checks remain strict. The
+MinimalRuntime shim and the frozen leaf implementations are unchanged.
+
+The adapter uses three LoaderCode pages, ten LoaderData pages and 43 table
+pages. Its six mappings plus table arena contain 52 present leaves, four guard
+holes and absent null page. Readback and an actual serializer call precede the
+closed stream entry. These preparation checks and the successful host artifact
+builds do not establish a hardware fault; guest acceptance remains pending.
+
+See step941 for the accepted source and focused artifact identities.
+
 ## Unsupported Behavior
 
 The project is not yet a functional kernel. `ExitBootServices`, owned drivers,

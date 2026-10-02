@@ -7388,7 +7388,7 @@
       ],
       "collisionLane": "lane:probes",
       "summary": "Trigger a separate disabled-by-default page fault and capture CR2/error code.",
-      "currentEvidence": "Diagnostic descriptor/stub plans are host-tested; owned COM1, loaded GDT/TSS/IDT, and controlled live faults are unproven.",
+      "currentEvidence": "Step941 integrates the independently reviewed #517 default-off terminal EFI adapter over the frozen #54/#510/#513 leaves. Final focused execution passes eight starts/nine passes with native exit 0 and default/enabled NativeAOT artifact verification; 75 Compile items, 88 raw authority inputs and 24 switches are bound. All nineteen affected legacy modules remain required in the settled full host gate; real default/page-fault QEMU acceptance is pending. #54 and #517 remain open; Gates 3/4 remain Fail.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Trigger a separate disabled-by-default page fault and capture CR2/error code.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

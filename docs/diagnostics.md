@@ -57,8 +57,9 @@ does not safely return.
 M02-014 now adds the disabled host null-read contract
 `SeparateDisabledDefaultPageFaultCR2ErrorCode`. It consumes M01-015 supplied-image
 absence evidence and audits five synthetic page-fault fields. It executes no
-fault and adds no live diagnostics capability; #54 remains open for separate
-EFI integration and real vector-14/CR2/error-code evidence.
+fault and adds no live diagnostics capability. The separate #517 default-off
+EFI adapter is implemented and host-tested in step941; real vector-14/CR2/error
+guest acceptance remains pending and #54 remains open.
 
 No ordinary boot phase loads an IDT, installs fault handlers, activates IST
 routing, directs a live CPU fault to panic, or preserves an owned serial path
@@ -452,10 +453,28 @@ COM1/serial invocation.
   not execute this emitter. This is data and compiler evidence, not a real
   fault, CR3 switch, descriptor activation or UART write.
   Synthetic bad-CPL rejection does not prove ring-3 recovery: diagnostics and
-  terminal halt still require privilege. The future default-off adapter must
-  bind exact current backing and freshly audit the six derived ranges; snapshots
+  terminal halt still require privilege. The default-off adapter now binds
+  exact current backing and freshly audits the six derived ranges; snapshots
   and fingerprints do not establish ownership, lifetime or tamper resistance.
-  #54 remains open for EFI integration and real default/enabled guest evidence.
+  #54 remains open for real default/enabled guest acceptance.
+
+- The separate #517 EFI adapter now prepares that frozen transition under the
+  default-off `EnableM02PageFaultCr2ErrorCodeProbe` option. It validates the complete
+  five-buffer temporary set before writing query code, captures actual mode/PAT,
+  initializes C3/D10/T43 resources and re-audits the actual table backing against
+  the exact six derived mappings immediately before final readback/publication.
+  The closed stream owns the sole terminal start and ready records. Cleanup is
+  reverse, once only and restricted to pre-entry ownership; the terminal path has
+  no firmware callback or return.
+
+  The focused host run has eight starts, nine passes and no failures across the
+  new EFI and unchanged transition modules, including actual default/enabled
+  NativeAOT artifact checks. This is implementation and compiler evidence. The
+  complete integrated host gate and fresh default/enabled QEMU captures remain
+  pending; #54 and #517 stay open and Gates 3/4 remain Fail.
+
+  See step941 for source identities, repairs and focused evidence.
+
 - `TssIstPlan` models the x64 TSS bytes needed for `RSP0` and IST entries, including double-fault IST stack top, stack-size, and guard-size validation.
 - `FaultInfrastructureReadiness` combines serial, IDT, IDTR, GDT, TSS/IST, and double-fault IST readiness into a single pre-privileged-install gate.
 - `BootSequence.RunFaultInfrastructureReadiness` emits host-tested `FAULT_INFRA_READY` or `FAULT_INFRA_NOT_READY status=<status>` markers from the readiness result without changing the default boot path.
