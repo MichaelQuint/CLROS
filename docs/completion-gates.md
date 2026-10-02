@@ -704,6 +704,21 @@ isolation, supervisor, restart, port-conflict, and crash-isolation evidence.
 - `scripts/run-ci-smoke.ps1` now records separate dry-run artifact lanes for the `app-args`, `app-exit`, `cctor-preflight`, `cctor-work-items`, `fetch-http`, `fetch-http-endpoint`, `http-static-tcp-response`, `manifest-env`, `nativeaot-heap`, and `pal-export` QEMU marker presets, including per-lane command, log, serial-log, summary-log, and marker-preset metadata. These lanes prove only the CI artifact contract and required-marker wiring. They are not real QEMU boot, native app argument-vector materialization, guest app-exit, class-constructor execution, NativeAOT heap bootstrap, PAL export consumption, NativeAOT runtime-helper completion, FetchApp, manifest loading from disk, process environment materialization, networking, HTTP GET, HTTP static TCP response, hosted .NET, Minimal API, or Kestrel evidence.
 - `scripts/build-efi-shell.ps1` publishes the no-stdlib EFI shell and stages `artifacts/efi/BOOTX64.EFI`.
 
+### M02-014 terminal fault-transition host boundary
+
+Step936 adds the reviewed #513 host-only transition emitter over the #510
+table-image contract. Independent byte/interpreter tests and LLVM decoding
+cover the 361-instruction stream, early CR2/frame capture, bounded page walks
+and finite serial output. The actual 17-source no-stdlib closure has zero
+assembly references. Fresh parent focused checks pass; the settled full gate
+and future EFI integration remain separate.
+
+No generated instruction was executed by this leaf. #54 remains open and
+Gate 3 remains **Fail**. A fresh exact-backing table audit, explicit default-off
+adapter, privileged publication/activation and source-bound default/enabled
+QEMU fault evidence are still required. Modeled bad-CPL checks do not establish
+unprivileged recovery; active diagnostics require the trusted CPL0 boundary.
+
 ### M04-004 arithmetic conformance boundary
 
 The fixed M04-004 catalog executes 57 vectors across 30 integer arithmetic,
