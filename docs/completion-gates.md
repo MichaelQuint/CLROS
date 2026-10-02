@@ -813,6 +813,28 @@ GC, hardware NX or post-`ExitBootServices` lifetime. The #513 transition emitter
 also passes this complete host gate but remains host-only; #54 still requires
 its separate real page-fault adapter and guest evidence.
 
+### M04-007 fixed-allocation host boundary
+
+Step940 adds `GuestTestRhpNewFast`, a bounded caller-buffer allocator over the
+original M04-006 retained-page authority. Its separate 80-byte bump state and
+fresh ownership checks preserve the original allocator/ledger/heap state.
+It admits the pinned fixed class/value domain, zeroes exactly the selected
+BaseSize interval, writes an opaque MethodTable token at origin+8 and preserves
+all earlier objects. Focused tests cover byte layout, full-capacity bounds,
+generic/reference/value admission, unchanged rejection, exhaustion, zero CLR
+allocation and the actual ten-source no-stdlib closure with zero AssemblyRefs.
+The parent integration run has ten starts, eleven passes and zero failures;
+the complete settled-source wave gate is still pending.
+
+Gate 4 remains **Fail** and issue #76 remains open. This leaf exposes neither
+a RhpNewFast runtime export nor a CLR object. A separately claimed EFI scope
+must prove authentic compiler metadata, emitted compiled-new/helper routing,
+RCX/RAX and Windows x64 ABI, physical object/header/cursor identity, required
+fixed class/value/generic/reference cases and terminal rejection. The original
+whole-page-zero checkpoint must precede object writes. Boxing payload/nullable
+behavior, reference barriers, GC and broader runtime semantics remain separate
+unsupported work.
+
 ## Unsupported Behavior
 
 Hardware fault diagnostics, allocator-owned mutable free-list installation from compact boot regions, complete UEFI encapsulation, ExitBootServices, owned serial/framebuffer, runtime helpers, storage, networking, app loading, socket bind/listen behavior, exported PAL socket/timer/thread/file contracts, hosted .NET 10, Kestrel, ISO generation, libvirt real boot, provider cloud import, CI, and hardening remain incomplete. Libvirt lifecycle planning and check-serial validation are host-only contract evidence; they do not connect to libvirt, start a VM, poll live serial output, or prove cleanup against a live domain.

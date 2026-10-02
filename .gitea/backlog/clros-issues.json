@@ -9727,7 +9727,7 @@
         "M04-006"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -9753,7 +9753,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement and guest-test RhpNewFast.",
-      "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
+      "currentEvidence": "Step940 adds the bounded fixed class/value caller-buffer allocation leaf over original M04-006 retained authority. Focused parent tests pass with 10 starts, 11 passes, zero failures, zero CLR allocation and an actual ten-source no-stdlib closure with zero AssemblyRefs. The combined full gate, actual RhpNewFast export, compiled allocation and physical guest acceptance remain outstanding; this issue stays open and Gate 4 remains Fail.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Implement and guest-test RhpNewFast.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
