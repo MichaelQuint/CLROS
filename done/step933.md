@@ -141,4 +141,3 @@ Neither proves physical managed-object layouts, heap allocation, GC, metadata
 discovery, dispatch/EH, a live page-fault transition, real ExitBootServices,
 hosted .NET/Kestrel or cloud/production readiness. Gate 4 remains Fail and no
 other numbered gate is promoted. Remote queued CI is not a passing runner.
-
