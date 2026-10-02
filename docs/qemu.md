@@ -2548,3 +2548,50 @@ prove only the completion boundary defined by the corresponding gate.
 1. Add libvirt real-boot smoke on hosts with libvirt.
 2. Point the real HTTP probe at the guest Kestrel endpoint only after guest networking and hosted Kestrel markers exist.
 3. Add ISO launch support only if it remains useful for a concrete deployment path.
+
+### M04-007 allocation profile (bounded guest evidence accepted)
+
+The positive default-off profile requires a fresh build and all seven explicit
+prerequisites:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 -BuildEfi `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe `
+  -EnableM04IndependentEndianConformanceProbe `
+  -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe `
+  -EnableM04ArithmeticConformanceProbe -EnableM04LayoutContractProbe `
+  -EnableM04ManagedHeapPageRangeProbe -EnableM04RhpNewFastProbe
+```
+
+The strict successful grammar has78 records, including observed image and full
+scratch extents, original retained heap authority, ten OBJECT/READBACK pairs,
+retained accounting and the unchanged boot-sequence suffix. This command is
+implemented and controlled-tested in step946. Step949 adds accepted real QEMU
+execution on source `77860a689b8460114cf179e44dd442533a1ad638`, with ten objects,
+four compiled-new/six direct routes and the complete boot success suffix.
+
+`EnableM04RhpNewFastBeforeBindFailureProbe` and
+`EnableM04RhpNewFastExhaustionFailureProbe` each additionally require main and
+exclude one another. Their49/71-record streams end respectively with
+`TEST_FAIL m04.007.rhp_new_fast not_initialized` and
+`TEST_FAIL m04.007.rhp_new_fast exhausted`. Generic smoke must reject these
+streams. Expected-negative acceptance needs the separately reviewed bounded
+capture observer, actual process exit/quiet-drain evidence and independent
+whole-byte/source/native audits. Seeing either suffix alone is not acceptance.
+
+Step949 accepts fresh default, standalone heap, positive, before-bind and
+exhaustion profiles on that tested source. The returning profiles record normal
+runner termination after750ms drain; the two negative captures record measured
+quiet intervals of756.2881ms and752.4209ms before owned termination. All five
+actual QEMU exits are -1 from that deliberate termination, while the nine
+wrapper/build/image/observer commands exit0. Neither expected TEST_FAIL stream
+is converted into ordinary smoke success. Independent source/metadata/native
+ABI, twenty observed-prefix fixups and disk accounting bind the same images.
+Each64MiB booted disk retains its exact EFI payload and gains only the expected
+three-cluster firmware NVVARS allocation; backup FSInfo remains stale, so this
+does not establish filesystem conformance. No GC, reference writes, boxing
+payload copy, arrays/strings, post-firmware lifetime or general runtime
+readiness is claimed.

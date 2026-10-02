@@ -39,6 +39,15 @@ Current firmware-visible order:
 
 The ordered `boot.sequence` portion is host-tested through `BootSequence.Run` and QEMU-tested through `EfiMain`.
 
+The optional M04-007 allocation profile runs after M04-006's second zero-page
+checkpoint and before the existing `BootSequencePlan` markers. Its positive
+order is START, PREP, BIND, ten OBJECT/READBACK pairs, RETAIN, READY and PASS,
+then the unchanged eight-line boot sequence. The separate before-bind and
+exhaustion profiles end at their exact expected TEST_FAIL and halt before
+BootSequence. They remain failures for the generic smoke runner. No boot phase
+is added or bypassed. Step946 records source/focused artifact integration;
+fresh real allocation-profile boot evidence is still pending.
+
 Current host-tested managed handoff-aware order:
 
 1. `TEST_START boot.sequence`
@@ -223,6 +232,14 @@ stream with no return or firmware callback. The accepted default capture keeps
 the returning firmware contract; the enabled capture in step944 terminates
 through the runner after its quiet drain. Host integration and actual guest
 evidence remain separate.
+
+The M02-015 host leaf in [step945](../done/step945.md) adds no BootSequence phase,
+default probe or guest execution. It prepares ordinary context/armed-IDT/stream
+bytes and models a terminal double-fault path. Its later EFI integration must
+preserve the six mapped ranges and four absent guards, freshly audit the actual
+page image, and prove vector 8 on original IST1. It has no firmware return or
+recovery path after terminal mutation. The accepted M02-014 boot behavior and
+default-off probe settings remain unchanged.
 
 The separate default-off `EnableM02Ud2VectorStateProbe` profile now supplies
 accepted bounded guest evidence without adding a `BootSequence` phase. It runs

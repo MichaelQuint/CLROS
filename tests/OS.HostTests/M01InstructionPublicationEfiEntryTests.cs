@@ -21,6 +21,9 @@ internal static class M01InstructionPublicationEfiEntryTests
         "M02_UD2_VECTOR_STATE_PROBE";
     private const string M02PageFaultCr2ErrorCodeSymbol =
         "M02_PAGE_FAULT_CR2_ERROR_CODE_PROBE";
+    private const string M04RhpNewFastSymbol = "M04_RHP_NEW_FAST_PROBE";
+    private const string M04RhpBeforeBindSymbol = "M04_RHP_NEW_FAST_BEFORE_BIND_FAILURE_PROBE";
+    private const string M04RhpExhaustionSymbol = "M04_RHP_NEW_FAST_EXHAUSTION_FAILURE_PROBE";
     private const string SerializerBinding =
         "global::OS.Boot.X64InstructionPublication";
     private const string SerializerCall =
@@ -184,6 +187,8 @@ internal static class M01InstructionPublicationEfiEntryTests
             return Failure("page-fault-profile-isolation");
         }
 
+        if (!TestFixedAllocationProfileIsolation(source)) return false;
+
         string sanitized = SanitizeCode(profile111);
         if (Regex.Matches(
                 sanitized,
@@ -213,6 +218,39 @@ internal static class M01InstructionPublicationEfiEntryTests
 
         return ValidateContract(profile111, out string failure)
             || Failure("positive-contract=" + failure);
+    }
+
+    private static bool TestFixedAllocationProfileIsolation(string source)
+    {
+        string synthetic = "#if " + M04RhpNewFastSymbol + "\n" + SerializerCall + ";\n#endif\n"
+            + "#if " + M04RhpBeforeBindSymbol + "\nBeforeBindOnly();\n#endif\n"
+            + "#if " + M04RhpExhaustionSymbol + "\nExhaustionOnly();\n#endif\n"
+            + "#if UNRELATED_PROBE\nUnknownBranch();\n#else\nUnknownElse();\n#endif\n";
+        for (int old = 0; old < 7; old++)
+        {
+            string selected = SelectProfile(synthetic, old != 0, old >= 2, old >= 3, old == 4,
+                idtrContinuedExecutionEnabled: old == 5, pageFaultCr2ErrorCodeEnabled: old == 6);
+            if (CountDirectSerializerCalls(selected) != 0 || selected.Contains("BeforeBindOnly", StringComparison.Ordinal)
+                || selected.Contains("ExhaustionOnly", StringComparison.Ordinal)
+                || !selected.Contains("#if UNRELATED_PROBE", StringComparison.Ordinal)
+                || !selected.Contains("UnknownElse", StringComparison.Ordinal)) return Failure("fixed-allocation-historical-selector");
+        }
+        for (int lane = 0; lane < 3; lane++)
+        {
+            string actual = SelectProfile(source, true, true, false, false, rhpNewFastEnabled: true,
+                rhpBeforeBindEnabled: lane == 1, rhpExhaustionEnabled: lane == 2);
+            string selected = SelectProfile(synthetic, true, true, false, false, rhpNewFastEnabled: true,
+                rhpBeforeBindEnabled: lane == 1, rhpExhaustionEnabled: lane == 2);
+            if (CountDirectSerializerCalls(actual) != 2 || CountDirectSerializerCalls(selected) != 1
+                || selected.Contains("BeforeBindOnly", StringComparison.Ordinal) != (lane == 1)
+                || selected.Contains("ExhaustionOnly", StringComparison.Ordinal) != (lane == 2)
+                || !actual.Contains("RunRhpNewFastAfterZeroCheckpoint", StringComparison.Ordinal))
+                return Failure("fixed-allocation-profile-selector");
+        }
+        string alias = SelectProfile(synthetic.Replace(M04RhpNewFastSymbol, M04RhpNewFastSymbol.ToLowerInvariant(), StringComparison.Ordinal),
+            false, false, false, false);
+        return alias.Contains("#if m04_rhp_new_fast_probe", StringComparison.Ordinal)
+            || Failure("fixed-allocation-selector-must-be-ordinal");
     }
 
     private static bool TestTerminalM02ProfileAddsOneDirectCall()
@@ -3800,7 +3838,10 @@ internal static class M01InstructionPublicationEfiEntryTests
         bool terminalEnabled,
         bool idtrContinuedExecutionEnabled = false,
         bool ud2VectorStateEnabled = false,
-        bool pageFaultCr2ErrorCodeEnabled = false)
+        bool pageFaultCr2ErrorCodeEnabled = false,
+        bool rhpNewFastEnabled = false,
+        bool rhpBeforeBindEnabled = false,
+        bool rhpExhaustionEnabled = false)
     {
         StringBuilder output = new();
         Stack<PreprocessorFrame> stack = new();
@@ -3840,7 +3881,10 @@ internal static class M01InstructionPublicationEfiEntryTests
                     || string.Equals(
                         condition,
                         M02PageFaultCr2ErrorCodeSymbol,
-                        StringComparison.Ordinal);
+                        StringComparison.Ordinal)
+                    || string.Equals(condition, M04RhpNewFastSymbol, StringComparison.Ordinal)
+                    || string.Equals(condition, M04RhpBeforeBindSymbol, StringComparison.Ordinal)
+                    || string.Equals(condition, M04RhpExhaustionSymbol, StringComparison.Ordinal);
                 bool selectedValue =
                     string.Equals(
                         condition,
@@ -3872,7 +3916,12 @@ internal static class M01InstructionPublicationEfiEntryTests
                                         M02Ud2VectorStateSymbol,
                                         StringComparison.Ordinal)
                                         ? ud2VectorStateEnabled
-                                        : pageFaultCr2ErrorCodeEnabled;
+                                        : string.Equals(condition, M02PageFaultCr2ErrorCodeSymbol, StringComparison.Ordinal)
+                                            ? pageFaultCr2ErrorCodeEnabled
+                                            : string.Equals(condition, M04RhpNewFastSymbol, StringComparison.Ordinal)
+                                                ? rhpNewFastEnabled
+                                                : string.Equals(condition, M04RhpBeforeBindSymbol, StringComparison.Ordinal)
+                                                    ? rhpBeforeBindEnabled : rhpExhaustionEnabled;
                 stack.Push(
                     new PreprocessorFrame(
                         selected,

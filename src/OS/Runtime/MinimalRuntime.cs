@@ -1,6 +1,10 @@
 namespace Internal.Runtime
 {
-    internal struct MethodTable { }
+    internal unsafe struct MethodTable
+    {
+        [System.Runtime.CompilerServices.Intrinsic]
+        internal static extern MethodTable* Of<T>();
+    }
 }
 
 namespace System
@@ -505,6 +509,49 @@ namespace Internal.Runtime.CompilerHelpers
         private static void RhpFallbackFailFast()
         {
             RuntimeFailFast.Halt();
+        }
+    }
+}
+
+// Exact compiler metadata contracts; no array or nullable operations are supplied.
+namespace System.Runtime.CompilerServices
+{
+    internal sealed class IntrinsicAttribute : System.Attribute { }
+    internal static class Unsafe
+    {
+        [Intrinsic]
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern ref TTo As<TFrom, TTo>(ref TFrom value);
+    }
+}
+
+namespace System
+{
+    internal class Array<T> : Array { private Array() { } }
+#pragma warning disable 169, 649
+    public struct Nullable<T> where T : struct
+    {
+        private bool hasValue;
+        internal T value;
+    }
+#pragma warning restore 169, 649
+}
+
+namespace System.Runtime
+{
+    internal static unsafe class RhpNewFastRuntime
+    {
+        [RuntimeExport("RhpNewFast")]
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        internal static object RhpNewFast(Internal.Runtime.MethodTable* methodTable)
+        {
+#if M04_RHP_NEW_FAST_PROBE
+            nuint reference = (nuint)OS.Runtime.RhpNewFastAllocation.Allocate((ulong)methodTable);
+            return System.Runtime.CompilerServices.Unsafe.As<nuint, object>(ref reference);
+#else
+            // This branch must compile with MinimalRuntime alone and cannot return.
+            while (true) RuntimeFailFast.Halt();
+#endif
         }
     }
 }

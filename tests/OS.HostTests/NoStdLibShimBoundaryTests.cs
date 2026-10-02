@@ -59,8 +59,30 @@ internal static class NoStdLibShimBoundaryTests
             && HasProperty(project, "DisableImplicitFrameworkReferences", "true")
             && HasProperty(project, "EnableDefaultCompileItems", "false")
             && HasCompileInclude(project, "Runtime\\MinimalRuntime.cs")
+            && HasCompileInclude(project, "Runtime\\RhpNewFastAllocation.cs")
+            && HasCompileInclude(project, "..\\OS.Kernel\\Runtime\\GuestTestRhpNewFast.cs")
             && HasCompileInclude(project, "Boot\\EfiEntry.cs")
+            && FixedAllocationDefaultIsSelfContained(root)
             && !project.Descendants().Any(element => element.Name.LocalName == "ProjectReference");
+    }
+
+    private static bool FixedAllocationDefaultIsSelfContained(string root)
+    {
+        string source = File.ReadAllText(Path.Combine(root, "src/OS/Runtime/MinimalRuntime.cs"));
+        int export = source.IndexOf("[RuntimeExport(\"RhpNewFast\")]", StringComparison.Ordinal);
+        if (export < 0 || source.IndexOf("[RuntimeExport(\"RhpNewFast\")]", export + 1, StringComparison.Ordinal) >= 0) return false;
+        int enabled = source.IndexOf("#if M04_RHP_NEW_FAST_PROBE", export, StringComparison.Ordinal);
+        int disabled = source.IndexOf("#else", enabled, StringComparison.Ordinal);
+        int end = source.IndexOf("#endif", disabled, StringComparison.Ordinal);
+        if (enabled < export || disabled < enabled || end < disabled) return false;
+        string defaults = source[disabled..end];
+        return source[enabled..disabled].Contains("RhpNewFastAllocation.Allocate((ulong)methodTable)", StringComparison.Ordinal)
+            && defaults.Contains("while (true) RuntimeFailFast.Halt();", StringComparison.Ordinal)
+            && !defaults.Contains("OS.Runtime", StringComparison.Ordinal)
+            && !defaults.Contains("return ", StringComparison.Ordinal)
+            && source.Contains("extern ref TTo As<TFrom, TTo>(ref TFrom value)", StringComparison.Ordinal)
+            && source.Contains("extern MethodTable* Of<T>()", StringComparison.Ordinal)
+            && source.Contains("class Array<T> : Array { private Array() { } }", StringComparison.Ordinal);
     }
 
     private static bool TestHostProjectsDoNotCompileMinimalRuntime()

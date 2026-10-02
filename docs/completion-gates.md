@@ -146,7 +146,7 @@ numbered gate status.
 | 1. Clean build | Fail | From clean, pushed commit `32a8f3b91e17e1fc7e4b296730a5ea6565c38369`, the source-frozen 11-step M00 baseline passed solution build, host build/run with exactly one `TEST_PASS host.tests`, naming/source firewall, QEMU dry runs, qcow2/libvirt intent, `git diff --check`, and `git status --short`; `done/step845.md` records hashes | Repeat from an independently clean checkout/runner and preserve release/CI evidence that no untracked source, forbidden first-party `.c/.cpp/.h/.asm/.s`, or secret is required |
 | 2. Boot | Pass | Current default real QEMU/OVMF evidence from clean commit `32a8f3b91e17e1fc7e4b296730a5ea6565c38369` reaches all 12 required firmware-visible markers including `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and `OS_SMOKE_PASS`, with no `TEST_FAIL` or `OS_SMOKE_FAIL`; manifest SHA-256 `D398F73FF5051D138D5F2A77CE4EF51277BD2DE289F58BA5383FC6FC74D02E65` binds source, command, tools, EFI, image, serial, summary, timestamps, and hashes. Separate opt-in commit `8f1edea17f2de425520e239af58d37aa3b182146` and manifest SHA-256 `94A28FE683FC068C88F42AB806B3E9A06DB5467FD35488B6ADF397AC8F8A8188` preserve the bounded M01 pre-EBS owned-root tuple. Separate opt-in commit `cf8ce63c37a9c62a0f8f736adda14b6bd3e19a9a` preserves the 48-required/34-forbidden M02 offset-zero safe-stub tuple; opt-in ACPI and UEFI-gone probe artifacts remain separate historical marker evidence | Keep this scoped to EFI smoke and the explicitly bounded M01 and M02 tuples until later gates prove `ExitBootServices`, owned diagnostics/drivers, storage, networking, app launch, or hosted workload behavior |
 | 3. Fault diagnostics | Fail | Host-tested boot-event ring, panic formatter, panic serial reporter, COM1 configuration/writer contracts, GDT/TSS/IST/IDT descriptor plans, fault-vector metadata, fault-entry/fault-probe stub plans, and readiness markers exist. The M02-007/M02-008 tuples preserve bounded caller-owned GDT and temporary guarded-IST arena evidence; M02-009 separately loads and reads back a private terminal GDT/TSS before halting. The default-off M02-010 tuple at source `b88a485c8562a0022ffaae760fb47ca9d5addba2` materializes and reads back all 256 fixed slots in one temporary 4,096-byte LoaderData page, verifies the nine/247 vector split and FNV `428D0353A96B7ACE`, releases every EFI-successful allocation exactly once including an invalid zero-address result, and emits the exact guest marker under QEMU/OVMF. It explicitly reports `stubExecution=false`, `idtInstalled=false`, and `faultTriggered=false` | Publish executable entries under owned W^X/NX policy, implement a reviewed common entry and register/frame capture, install real IDT/IDTR plus GDT/TSS/IST routing, implement handlers, and prove controlled null-pointer and invalid-opcode panic probes in QEMU without triple fault or silent reboot |
-| 4. std/runtime | Fail | Host-tested `OS.Std.*` helper slices exist for ASCII/text formatting, memory operations, endian primitives, native integer helpers, integer math, array helpers, CRC32, and internet checksums; the allocation-free M04-002 catalog adds 25 explicit MOSA-derived `UInt16` read vectors and seven reverse vectors with duplicate/malformed/order/hash rejection and frozen fingerprint `E81E4451E8D999F6`. Its source-frozen complete host run at pushed commit `8ee0311d2a7c225b77b4efa7d86bce6831c71826` exited `0` with one exact host M04-002 envelope, zero actual failures, terminal `TEST_PASS host.tests`, and stdout SHA-256 `6F98CEE6C07F749F17DC28F9D3C797D52E4B1F0062F0DD4CC4DF078D77D51493`. The default-off real-QEMU run still correctly proves the marker is absent by default. A separate opt-in 53-compile-item/66-authority-input EFI profile now validates the frozen catalog under QEMU/OVMF and emits exactly one `CLROS_M04_002_READY ... hostConformance=false guestIntegrated=true gate4=Fail` between console-ready and memory-map-ready markers, with no failure marker; EFI/serial SHA-256 values are `44F4A7B5E2929884869F324E998ABC5B89559707ACC4BA65412EB818B18D9CA0` and `05EE15A753899894F86CCA0318CC724DC22671C78D12E4C7CD87E3BA2F262453`. The M04-003 leaf adds exactly 16 POD span/overlap/memory-cast/unaligned-width vectors, atomic catalog copy and execution, malformed/duplicate/order/hash rejection, .NET 10 cross-checks, and frozen fingerprint `F03FF59D36F39ECD`; its separate host marker remains `hostConformance=true guestIntegrated=false gate4=Fail`. A default-off 59-compile-item/72-authority-input combined M04-002+M04-003 profile now links the reviewed pointer core into EFI. The accepted real-QEMU tuple at evidence source `dedb55c3ddb155336ef4c7f387cf14b533c37f09` emitted exactly one `CLROS_M04_003_READY ... hostConformance=false guestIntegrated=true gate4=Fail` after the M04-002 marker and before memory-map-ready, reached one `OS_SMOKE_PASS`, and emitted no forbidden marker; its EFI and serial SHA-256 values are `0F8A7E3FB5D626E7017D2839DA0E3C966D86A53E769B9D39A3D0275F974A550B` and `65E677830952D0C1657ECF6F038BA1441AC1CC30F556185502BDE7FE53EDDDDC` (`done/step919.md`). These fixed catalogs do not prove general span, `MemoryMarshal`, `BinaryPrimitives`, or runtime compatibility. Host-tested caller-owned boot page allocator mutation, class-constructor state-table transitions, cctor state diagnostic formatting, cctor runner preflight metadata validation, and BootSequence cctor preflight readiness markers exist below the live runtime-helper boundary; `NativeAotHelperLedger` tracks runtime gaps; the allocation-free `OS.Std.NoRuntime` compatibility ledger source-binds all 40 current `MinimalRuntime.cs` canonical `System.*` declarations and 17 runtime exports, preserves their four link-only no-op, twelve fail-fast, and one audited stack-probe split, fails closed for unknown/default values, and explicitly cannot satisfy this gate | Complete the supported BCL subset, object/array/string allocation helpers, GC/root scanning, interface dispatch, full cctor runner/metadata execution, exceptions/finally/catch, thread statics, and broader runtime-helper QEMU/host tests; do not treat fixed-catalog host or guest markers as Gate 4 completion |
+| 4. std/runtime | Fail | Host-tested `OS.Std.*` helper slices exist for ASCII/text formatting, memory operations, endian primitives, native integer helpers, integer math, array helpers, CRC32, and internet checksums; the allocation-free M04-002 catalog adds 25 explicit MOSA-derived `UInt16` read vectors and seven reverse vectors with duplicate/malformed/order/hash rejection and frozen fingerprint `E81E4451E8D999F6`. Its source-frozen complete host run at pushed commit `8ee0311d2a7c225b77b4efa7d86bce6831c71826` exited `0` with one exact host M04-002 envelope, zero actual failures, terminal `TEST_PASS host.tests`, and stdout SHA-256 `6F98CEE6C07F749F17DC28F9D3C797D52E4B1F0062F0DD4CC4DF078D77D51493`. The default-off real-QEMU run still correctly proves the marker is absent by default. A separate opt-in 53-compile-item/66-authority-input EFI profile now validates the frozen catalog under QEMU/OVMF and emits exactly one `CLROS_M04_002_READY ... hostConformance=false guestIntegrated=true gate4=Fail` between console-ready and memory-map-ready markers, with no failure marker; EFI/serial SHA-256 values are `44F4A7B5E2929884869F324E998ABC5B89559707ACC4BA65412EB818B18D9CA0` and `05EE15A753899894F86CCA0318CC724DC22671C78D12E4C7CD87E3BA2F262453`. The M04-003 leaf adds exactly 16 POD span/overlap/memory-cast/unaligned-width vectors, atomic catalog copy and execution, malformed/duplicate/order/hash rejection, .NET 10 cross-checks, and frozen fingerprint `F03FF59D36F39ECD`; its separate host marker remains `hostConformance=true guestIntegrated=false gate4=Fail`. A default-off 59-compile-item/72-authority-input combined M04-002+M04-003 profile now links the reviewed pointer core into EFI. The accepted real-QEMU tuple at evidence source `dedb55c3ddb155336ef4c7f387cf14b533c37f09` emitted exactly one `CLROS_M04_003_READY ... hostConformance=false guestIntegrated=true gate4=Fail` after the M04-002 marker and before memory-map-ready, reached one `OS_SMOKE_PASS`, and emitted no forbidden marker; its EFI and serial SHA-256 values are `0F8A7E3FB5D626E7017D2839DA0E3C966D86A53E769B9D39A3D0275F974A550B` and `65E677830952D0C1657ECF6F038BA1441AC1CC30F556185502BDE7FE53EDDDDC` (`done/step919.md`). These fixed catalogs do not prove general span, `MemoryMarshal`, `BinaryPrimitives`, or runtime compatibility. Host-tested caller-owned boot page allocator mutation, class-constructor state-table transitions, cctor state diagnostic formatting, cctor runner preflight metadata validation, and BootSequence cctor preflight readiness markers exist below the live runtime-helper boundary; `NativeAotHelperLedger` tracks runtime gaps; the allocation-free `OS.Std.NoRuntime` compatibility ledger source-binds all 45 current `MinimalRuntime.cs` canonical `System.*` declarations and 18 runtime exports, preserves their four link-only no-op, twelve fail-fast, one audited stack-probe and one profile-bound fixed-allocation classification, fails closed for unknown/default values, and explicitly cannot satisfy this gate | Complete the supported BCL subset, object/array/string allocation helpers, GC/root scanning, interface dispatch, full cctor runner/metadata execution, exceptions/finally/catch, thread statics, and broader runtime-helper QEMU/host tests; do not treat fixed-catalog host or guest markers as Gate 4 completion |
 | 5. UEFI encapsulation | Fail | `EfiMain` uses no-stdlib adapters to capture/copy UEFI memory-map bytes, validate handoff, normalize compact records, carry ACPI RSDP provenance, and emit probe markers; host tests cover guarded platform interfaces including read-only filesystem denial under UEFI-gone simulation; the separate M01-026 tuple proves one scoped pre-EBS allocation/map/temporary-root/restoration interval while firmware remains available | Finish platform interfaces, own post-firmware serial/framebuffer/physical-memory/MMIO rules, simulate forbidden firmware calls broadly, and implement real `ExitBootServices` only after diagnostics and drivers can continue |
 | 6. Platform | Fail | Host-tested ACPI RSDP/root SDT/MCFG parsing, PCI ECAM/header/BAR/scanner planning, physical MMIO ownership planning, framebuffer metadata guards, and virtio PCI metadata contracts exist; opt-in ACPI probe has pre-`ExitBootServices` QEMU markers | Implement ACPI table use, APIC/IOAPIC/HPET/TSC, live ECAM mapping, live PCI enumeration, BAR mapping, interrupts/MSI, serial ownership, framebuffer text, and QEMU-visible platform logs |
 | 7. Storage | Fail | Host-tested block-device contracts, GPT/FAT32/package parsers, caller-owned GPT partition selector metadata, generated image package placement/readback, package filesystem APIs, manifest/package loaders over mocks, package-file staging preflight markers, a completed read-session-to-`IReadOnlyBlockDevice` adapter, and virtio-blk queue/read planning contracts exist | Implement live PCI-backed virtio-blk, sector reads, partition/filesystem reads from the guest after firmware handoff, manifest/package loading from disk, and storage error probes |
@@ -595,11 +595,11 @@ isolation, supervisor, restart, port-conflict, and crash-isolation evidence.
   memmove behavior, too-small destination rejection, zero-length copy, and
   no-managed-reference result layout.
 - Host tests verify the NativeAOT helper ledger for object allocation, array/string allocation, write barriers, interface dispatch, class constructors, thread statics, exception/unwind, module init, TypeManager/RTR scans, GC stack roots, EFI-only reverse P/Invoke stubs, EFI-only fail-fast type-cast stubs, structured required-contract/allowed-stub/test-coverage/owner columns, exact coverage of current EFI `[RuntimeExport]` symbols, and the caller-owned `BootPageAllocatorMutation` evidence boundary while keeping object/array/string allocation helper statuses deferred and non-completing.
-- Host tests derive all 40 current canonical `System.*` declarations and all 17
+- Host tests derive all 45 current canonical `System.*` declarations and all 18
   `[RuntimeExport]` methods from `src/OS/Runtime/MinimalRuntime.cs`, bind them in
   source order to the allocation-free `OS.Std.NoRuntime` compatibility ledger,
-  verify four link-only no-op helpers, twelve fail-fast helpers, and one audited
-  stack-probe helper, reject unknown/default values, require reference-free
+  verify four link-only no-op helpers, twelve fail-fast helpers, one audited
+  stack-probe helper and one profile-bound fixed-allocation export, reject unknown/default values, require reference-free
   readonly entries and switch-indexed retrieval, add no canonical `System.*`
   namespace, and keep Gate 4 failing. This is host-only classification evidence;
   it does not prove helper execution, allocation, GC, metadata, dispatch,
@@ -828,14 +828,42 @@ The parent focused integration run has ten starts, eleven passes and zero
 failures. Step944 adds accepted complete host integration at `7c71e72`:
 3,558 starts, 3,559 passes, zero failures and one final `TEST_PASS host.tests`.
 
-Gate 4 remains **Fail** and issue #76 remains open. This leaf exposes neither
-a RhpNewFast runtime export nor a CLR object. A separately claimed EFI scope
-must prove authentic compiler metadata, emitted compiled-new/helper routing,
-RCX/RAX and Windows x64 ABI, physical object/header/cursor identity, required
-fixed class/value/generic/reference cases and terminal rejection. The original
-whole-page-zero checkpoint must precede object writes. Boxing payload/nullable
-behavior, reference barriers, GC and broader runtime semantics remain separate
-unsupported work.
+Gate 4 remains **Fail**. This leaf alone exposes neither a RhpNewFast runtime
+export nor a CLR object. The separately claimed #519 integration and accepted
+step949 evidence supply authentic compiler metadata, compiled-new/helper routing,
+RCX/RAX and Windows x64 ABI, physical object/header/cursor identity, finite
+class/value/generic/reference cases and terminal rejection. The original
+whole-page-zero checkpoint precedes object writes. Closure follows the reviewed
+merge; boxing payload/nullable behavior, reference barriers, GC and broader
+runtime semantics remain separate unsupported work.
+
+### M04-007 EFI source and artifact integration
+
+Step946 adds the independently reviewed #519 adapter over the frozen M04-007
+leaf. Three default-false switches select positive, before-bind and exhaustion
+profiles; seven explicit prerequisites and seventeen conflicting probe flags
+are enforced. The original75 Compile indices remain unchanged, with two appended
+sources producing77 items,90 raw inputs and27 evaluated flags.
+
+Step949 records the clean complete host run on
+`77860a689b8460114cf179e44dd442533a1ad638`: native0, 3,573 starts/3,574 passes,
+zero failures, one final host marker and empty stderr. The exact inventory
+includes the revised new module, all20 legacy closure modules, ledger/shim/M01
+coverage and all nine M02-015 host groups. Launch and final DLL hashes agree.
+
+Five fresh QEMU profiles have independent source/metadata/native ABI, raw
+transcript, lifecycle and disk acceptance. The positive case observes four
+compiled-new/six direct allocations, used272/count10 and intact prior objects
+and canaries. Before-bind and exhaustion produce actual leaf statuses5/15,
+full-byte unchanged rejection observations and nonreturning terminal captures.
+Twenty complete MethodTable prefixes match same-image COFF/PE fixups with signed
+relocation; before-bind has only one attempted-token association. This supplies
+the bounded guest evidence for #76/#519 closure after the reviewed merge.
+Default isolation and standalone heap behavior also pass. The immutable
+capture/helper records retain their narrower provisional flags; the combined
+review in step949 supplies acceptance. Gate4 remains **Fail**; general allocation,
+GC/reference barriers, boxing-copy/nullable semantics, arrays/strings and
+post-firmware/runtime completion remain outside this bounded slice.
 
 ### M02-014 source integration and terminal guest boundary
 
@@ -891,7 +919,29 @@ and associated root/FAT/primary-FSInfo changes. Backup FSInfo remains stale;
 filesystem conformance is not established. [Step944](../done/step944.md) records
 the immutable execution/review identities and distinguishes tested source from
 the later documentation commit. #54/#517 merge and closure follow as separate
-tracker transactions; #76 remains open for actual runtime-helper/guest work.
+tracker transactions. At that milestone #76 still needed actual runtime-helper/
+guest work; step949 supplies its bounded allocation evidence for reviewed merge
+and closure.
+
+### M02-015 double-fault host boundary
+
+The independently reviewed two-file slice in [step945](../done/step945.md)
+prepares a guarded double-fault context, materializes/readbacks normalized
+slots and an IDT with only the PF Present bit cleared, emits a bounded terminal
+stream, and audits synthetic current-state observations. The saved DF program
+state is undefined and remains diagnostic-only. Current descriptor/root/gate
+association and a complete 192-byte span on original IST1 are distinct checks.
+
+The focused run passes 9 starts/10 passes, no failures, native exit 0 and empty
+stderr. The actual 20-source no-stdlib closure has zero AssemblyRefs; recorded
+LLVM disassembly independently matches all 446 stream and 1,545 slot instruction
+boundaries. These are ordinary-data/compiler/model checks. The complete host
+gate passes in step949; the separately scoped actual DF guest remains pending.
+
+Issue #55 stays open until accepted source-bound vector-8/error-0/IST1 and
+terminal serial/lifecycle evidence is merged. No CPU fault, active mapping,
+publication/lifetime, recovery, NMI nesting, post-firmware, hosted runtime,
+Kestrel or cloud claim follows from this host slice. Gates 3 and 4 remain Fail.
 
 ## Unsupported Behavior
 

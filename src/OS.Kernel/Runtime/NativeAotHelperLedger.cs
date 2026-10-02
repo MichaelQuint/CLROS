@@ -29,7 +29,8 @@ public enum NativeAotHelperArea
     GcStackRoots = 11,
     EfiReversePInvoke = 12,
     EfiFailFastTypeCasts = 13,
-    EfiStackProbe = 14
+    EfiStackProbe = 14,
+    EfiFixedAllocation = 15
 }
 
 public enum NativeAotHelperStatus
@@ -39,7 +40,8 @@ public enum NativeAotHelperStatus
     EfiOnlyLinkStub = 2,
     EfiOnlyFailFastStub = 3,
     Complete = 4,
-    EfiOnlyStackProbe = 5
+    EfiOnlyStackProbe = 5,
+    EfiOnlyFixedAllocation = 6
 }
 
 public readonly struct NativeAotHelperLedgerEntry
@@ -106,7 +108,7 @@ public readonly struct NativeAotHelperLedgerEntry
 
 public static class NativeAotHelperLedger
 {
-    public const int EntryCount = 14;
+    public const int EntryCount = 15;
 
     private const NativeAotCompletionGate RuntimeGates =
         NativeAotCompletionGate.StdRuntime |
@@ -140,12 +142,12 @@ public static class NativeAotHelperLedger
                 isEfiOnly: false,
                 satisfiesKernelRuntimeCompletion: false,
                 "contract:object-allocation",
-                "No OS-owned NativeAOT object allocation helper or managed heap handoff is implemented. BootPageFreeListBuilder, BootPageAllocatorStateInitializer, BootPageAllocatorMutation, and NativeAotHeapBootstrapPlanner host-test prerequisite caller-owned free-list node construction, allocator state metadata, caller-owned free-list mutation, and future heap page-budget metadata only.",
+                "General NativeAOT object allocation remains deferred. BootPageFreeListBuilder, BootPageAllocatorStateInitializer, BootPageAllocatorMutation, and NativeAotHeapBootstrapPlanner cover prerequisite metadata and caller-owned free-list mutation. ManagedHeapPageRangeLiveAllocator and GuestTestRhpNewFast provide bounded retained-page allocation; the separately classified EFI fixed-allocation profile does not implement GC registration or general allocation.",
                 "Allocate managed objects with layout, alignment, method-table initialization, and GC registration semantics matching NativeAOT expectations.",
-                "Fail-fast or deferred status only; no helper may report allocation success before heap and GC ownership exist.",
-                "Host ledger tests, boot page free-list builder tests, boot page allocator state tests, boot page allocator mutation tests, and NativeAOT heap bootstrap plan tests cover prerequisite metadata; no allocation helper execution test exists.",
+                "Fail-fast by default: no helper may report allocation success outside its reviewed retained-page lifetime and finite fixed-type profile. General allocation remains deferred; the narrow profile does not establish GC ownership.",
+                "Existing boot page allocator mutation tests and heap bootstrap plan tests cover prerequisites. Host allocator and EFI integration tests cover the retained-page fixed allocation boundary; separate fresh guest evidence is required for compiled-new execution, and neither establishes general allocation or GC.",
                 "runtime-gc",
-                "Reserve heap pages from the page allocator and define GC registration before marking object allocation complete."),
+                "Define GC registration, roots and general allocation semantics before marking object allocation complete."),
 
             1 => new NativeAotHelperLedgerEntry(
                 NativeAotHelperArea.ArrayAllocation,
@@ -328,6 +330,20 @@ public static class NativeAotHelperLedger
                 "M01-021 focused source, mutation, readback, static-scratch, and generated-object frame/bridge audits cover the current build boundary.",
                 "efi-runtime-shim",
                 "M01-022 must prove the enabled stack-probe and owned-stack path in a real QEMU guest; re-audit the bridge and frame chain after any source or toolchain change."),
+
+            14 => new NativeAotHelperLedgerEntry(
+                NativeAotHelperArea.EfiFixedAllocation,
+                NativeAotHelperStatus.EfiOnlyFixedAllocation,
+                EfiOnlyGates,
+                isEfiOnly: true,
+                satisfiesKernelRuntimeCompletion: false,
+                "RhpNewFast",
+                "Default-off EFI adapter invokes the frozen GuestTestRhpNewFast leaf on the original retained page with ten authentic fixed-type tokens. Build/host evidence alone is not guest execution evidence.",
+                "Pinned x64 object-return ABI; exact MethodTable token and bounded readable nonwritable initialized PE prefix; original thirteen-argument heap authority; successful nonzero allocation and byte readback before conversion or constructor.",
+                "Default, unbound, invalid, reentrant and exhausted paths halt. The enabled profile never fabricates a reference or assigns managed reference fields.",
+                "M04RhpNewFastEfiIntegrationTests checks actual source, controlled POD allocation, profile isolation, artifact metadata and strict transcript contracts; parent-owned fresh guest and native-field evidence remains a separate gate.",
+                "efi-runtime-shim",
+                "Implement arrays, boxing payloads, reference barriers, roots and GC under their separate runtime issues; Gate 4 remains incomplete."),
 
             _ => InvalidEntry()
         };

@@ -49,6 +49,20 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
   fault, source/artifact identities and image accounting. Defaults stay off;
   recovery and persistent descriptor ownership remain unsupported. Gates 3/4
   remain **Fail**.
+- M02-015 adds an independently reviewed host double-fault byte emitter and
+  armed-IDT audit. Focused tests pass 9 starts/10 passes with zero failures;
+  the actual no-stdlib closure has zero AssemblyRefs. This is data and modeled
+  execution evidence only. The complete host gate passes in
+  [step949](done/step949.md); real vector-8/IST1 delivery remains pending.
+
+- M04-007 has accepted bounded `RhpNewFast` guest allocation evidence over the
+  original retained heap authority. The complete host suite passes 3,573 starts
+  and 3,574 passes with zero failures. Five fresh QEMU profiles prove default
+  isolation, standalone heap behavior, four compiled-new/six direct allocations,
+  before-bind rejection and exhaustion. Native ABI, managed metadata, relocated
+  prefixes, raw transcripts, lifecycle and disk evidence are independently
+  reviewed in [step949](done/step949.md). General allocation, GC and Gate 4
+  remain incomplete.
 
 - The 2026-08-06 local Gitea snapshot had **273 open issues** (issues only,
   excluding pull requests). That was ten fewer than the earlier 283-issue

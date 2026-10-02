@@ -2034,3 +2034,41 @@ Any next-step EFI build work must keep the freestanding constraints explicit. If
    as they are introduced.
 12. Replace permissive shell-only runtime placeholders with audited runtime
    helpers as subsystems require them.
+
+### M04-007 fixed-allocation source profile
+
+Step946 adds default-false `EnableM04RhpNewFastProbe`,
+`EnableM04RhpNewFastBeforeBindFailureProbe` and
+`EnableM04RhpNewFastExhaustionFailureProbe`, with corresponding
+`M04_RHP_NEW_FAST_PROBE`, `M04_RHP_NEW_FAST_BEFORE_BIND_FAILURE_PROBE` and
+`M04_RHP_NEW_FAST_EXHAUSTION_FAILURE_PROBE` symbols. Main requires both M01
+loaded-image/live-allocator flags and all five prior M04 flags explicitly.
+Negative selectors require main and exclude each other. Owned paging, every
+M02 probe and the simulation/fresh-ExitBootServices/physical-ACPI flags conflict.
+
+The current closure has77 ordered Compile items,90 raw source-authority inputs,
+27 evaluated flags and24 XML false defaults. The two appended sources are the
+unchanged `GuestTestRhpNewFast.cs` leaf and new `RhpNewFastAllocation.cs` adapter;
+all75 previous Compile indices remain stable. Scanner admission is limited to
+the exact leaf path and LF-normalized whole-source SHA256
+`22DF5D019EC4F09C5CB870B807ED91B9EA62C35E30CF59C031C3A15290CB9F45`.
+Raw publish hashes and the generic source scanner retain their prior authority.
+
+The minimal shim adds only the reviewed compiler declarations/token conversion
+and sole real `RhpNewFast` export, which fails closed by default. Four actual
+native artifact profiles pass; their linked caller/getter/constructor/reader
+associations are preserved in step946. Step949 adds accepted complete host and
+five fresh QEMU profiles on source `77860a689b8460114cf179e44dd442533a1ad638`.
+Each archived managed DLL passes a fresh metadata-only inspection; same-image
+native routes, relocated prefixes, raw serial, lifecycle and disk accounting
+are independently accepted. See `docs/nativeaot-nostdlib-limits.md` for the finite
+domain and `docs/qemu.md` for the positive command and negative-proof boundary.
+
+Step947 scopes CS0649 suppression to the profile-written constructor counter
+and nine observation slots accessed through a POD pointer stride. Ordered
+fields, layout and executable logic are unchanged; unrelated warnings remain
+enabled. The initial integrated build's ten warnings and interrupted host run
+are preserved in that step. Step948 repairs the catalog's exact ownership note.
+Step949 records the subsequent clean solution build with zero warnings/errors,
+complete 3,573-start/3,574-pass host run and accepted five-profile guest evidence.
+The 77-item/90-input closure and 27-property vector remain unchanged.

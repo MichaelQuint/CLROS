@@ -42,6 +42,9 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             TestUnknownAndDefaultValuesFailClosed();
             TestEntriesAreReferenceFreeAndAllocationFreeByConstruction(ledgerSource);
             TestNoCanonicalSystemNamespaceSurface(ledgerSource);
+            if (!ExtractCanonicalSystemDeclarations("namespace System\n{\npublic class Array {}\npublic class Array<T> {}\npublic struct Pair<T,U> {}\n}")
+                    .SequenceEqual(new[] { "System.Array", "System.Array`1", "System.Pair`2" }, StringComparer.Ordinal))
+                throw new InvalidOperationException("Canonical declaration arity must distinguish generic and nongeneric identities.");
 
             int linkOnlyNoOpCount = CountRuntimeExportBehavior(
                 runtimeExports,
@@ -83,7 +86,7 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
                 .SystemDeclarationCount,
             sourceDeclarations.Count);
-        ExpectEqual("audited source declaration snapshot", 40, sourceDeclarations.Count);
+        ExpectEqual("audited source declaration snapshot", 45, sourceDeclarations.Count);
 
         HashSet<string> remaining = new HashSet<string>(
             sourceDeclarations,
@@ -174,8 +177,8 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             }
         }
 
-        ExpectEqual("narrow declaration count", 6, narrowCount);
-        ExpectEqual("stubbed declaration count", 32, stubbedCount);
+        ExpectEqual("narrow declaration count", 8, narrowCount);
+        ExpectEqual("stubbed declaration count", 35, stubbedCount);
         ExpectEqual("forbidden declaration count", 2, forbiddenCount);
 
         ExpectSystemClassification(
@@ -204,7 +207,7 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
                 .RuntimeExportCount,
             sourceEntries.Count);
-        ExpectEqual("audited RuntimeExport snapshot", 17, sourceEntries.Count);
+        ExpectEqual("audited RuntimeExport snapshot", 18, sourceEntries.Count);
 
         HashSet<string> symbols = new HashSet<string>(StringComparer.Ordinal);
         for (int index = 0; index < sourceEntries.Count; index++)
@@ -256,6 +259,8 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
         ExpectEqual("link-only no-op RuntimeExports", 4, linkOnlyNoOp);
         ExpectEqual("fail-fast RuntimeExports", 12, failFast);
         ExpectEqual("audited stack-probe RuntimeExports", 1, auditedStackProbe);
+        ExpectEqual("profile-bound fixed-allocation RuntimeExports", 1,
+            CountRuntimeExportBehavior(sourceEntries, DotNetN10RuntimeExportBehavior.ProfileBoundFixedAllocation));
 
         for (int index = 0;
             index < DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
@@ -279,6 +284,8 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
                 DotNetN10RuntimeExportBehavior.FailFast =>
                     DotNetN10HelperSupportState.Forbidden,
                 DotNetN10RuntimeExportBehavior.AuditedStackProbe =>
+                    DotNetN10HelperSupportState.NarrowlyImplemented,
+                DotNetN10RuntimeExportBehavior.ProfileBoundFixedAllocation =>
                     DotNetN10HelperSupportState.NarrowlyImplemented,
                 _ => DotNetN10HelperSupportState.Unknown
             };
@@ -491,7 +498,15 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             return "System.Runtime.InteropServices." + declaration;
         }
 
-        return "invalid";
+        return declaration switch
+        {
+            DotNetN10SystemDeclaration.IntrinsicAttribute => "System.Runtime.CompilerServices.IntrinsicAttribute",
+            DotNetN10SystemDeclaration.Unsafe => "System.Runtime.CompilerServices.Unsafe",
+            DotNetN10SystemDeclaration.GenericArray => "System.Array`1",
+            DotNetN10SystemDeclaration.Nullable => "System.Nullable`1",
+            DotNetN10SystemDeclaration.RhpNewFastRuntime => "System.Runtime.RhpNewFastRuntime",
+            _ => "invalid"
+        };
     }
 
     private static List<string> ExtractCanonicalSystemDeclarations(string source)
@@ -506,7 +521,7 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             "^\\s*namespace\\s+([A-Za-z_][A-Za-z0-9_.]*)\\s*$",
             RegexOptions.CultureInvariant);
         Regex declarationPattern = new Regex(
-            "^\\s*(?:public|internal|private)\\s+(?:(?:static|sealed|abstract|unsafe)\\s+)*(?:class|struct|interface|enum)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+            "^\\s*(?:public|internal|private)\\s+(?:(?:static|sealed|abstract|unsafe)\\s+)*(?:class|struct|interface|enum)\\s+([A-Za-z_][A-Za-z0-9_]*)(?:\\s*<([^>]+)>)?",
             RegexOptions.CultureInvariant);
 
         for (int lineIndex = 0; lineIndex < lines.Length; lineIndex++)
@@ -541,8 +556,9 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
                 if (currentNamespace.Equals("System", StringComparison.Ordinal) ||
                     currentNamespace.StartsWith("System.", StringComparison.Ordinal))
                 {
-                    declarations.Add(
-                        currentNamespace + "." + declarationMatch.Groups[1].Value);
+                    string arity = declarationMatch.Groups[2].Success
+                        ? "`" + declarationMatch.Groups[2].Value.Split(',').Length : "";
+                    declarations.Add(currentNamespace + "." + declarationMatch.Groups[1].Value + arity);
                 }
             }
 
@@ -610,7 +626,14 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
         string symbol,
         string body)
     {
-        string compact = Regex.Replace(body, "\\s+", string.Empty);
+        string compact = Regex.Replace(Regex.Replace(body, @"//[^\r\n]*", string.Empty), "\\s+", string.Empty);
+        if (symbol.Equals("RhpNewFast", StringComparison.Ordinal))
+        {
+            const string exact = "#ifM04_RHP_NEW_FAST_PROBEnuintreference=(nuint)OS.Runtime.RhpNewFastAllocation.Allocate((ulong)methodTable);returnSystem.Runtime.CompilerServices.Unsafe.As<nuint,object>(refreference);#elsewhile(true)RuntimeFailFast.Halt();#endif";
+            return compact.Equals(exact, StringComparison.Ordinal)
+                ? DotNetN10RuntimeExportBehavior.ProfileBoundFixedAllocation
+                : DotNetN10RuntimeExportBehavior.Unknown;
+        }
         if (compact.Length == 0)
         {
             return DotNetN10RuntimeExportBehavior.LinkOnlyNoOp;

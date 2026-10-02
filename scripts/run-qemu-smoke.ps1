@@ -56,6 +56,9 @@ param(
     [switch] $EnableM04ArithmeticConformanceProbe,
     [switch] $EnableM04LayoutContractProbe,
     [switch] $EnableM04ManagedHeapPageRangeProbe,
+    [switch] $EnableM04RhpNewFastProbe,
+    [switch] $EnableM04RhpNewFastBeforeBindFailureProbe,
+    [switch] $EnableM04RhpNewFastExhaustionFailureProbe,
     [switch] $SkipImageBuild
 )
 
@@ -485,6 +488,29 @@ $script:M04ManagedHeapPageRangeForbiddenMarkers = @(
     $script:M04LayoutContractForbiddenMarkers
     "M04_HEAP_PAGE_RANGE_FAILED"
     "TEST_FAIL m04.006"
+)
+$script:M04RhpNewFastReadyMarker = 'CLROS_M04_007_READY objects=10 compiledNew=4 direct=6 hostConformance=false guestIntegrated=true gate4=Fail'
+$script:M04RhpNewFastRequiredMarkers = @(
+    $script:M04ManagedHeapPageRangeRequiredMarkers[0..($script:M04ManagedHeapPageRangeRequiredMarkers.Count - 9)]
+    'TEST_START m04.007.rhp_new_fast'
+    'M04_RHP_PREP'
+    'M04_RHP_BIND'
+    for ($rhpId=1; $rhpId -le 10; $rhpId++) {
+        "M04_RHP_OBJECT id=$rhpId"
+        "M04_RHP_READBACK id=$rhpId"
+    }
+    'M04_RHP_RETAIN'
+    $script:M04RhpNewFastReadyMarker
+    'TEST_PASS m04.007.rhp_new_fast'
+    $script:M04ManagedHeapPageRangeRequiredMarkers[($script:M04ManagedHeapPageRangeRequiredMarkers.Count - 8)..($script:M04ManagedHeapPageRangeRequiredMarkers.Count - 1)]
+)
+$script:M04RhpNewFastForbiddenMarkers = @(
+    $script:M04ManagedHeapPageRangeForbiddenMarkers
+    'M04_RHP_ATTEMPT'
+    'M04_RHP_REJECT'
+    'M04_RHP_INTERNAL_REJECT'
+    'M04_RHP_FILL'
+    'TEST_FAIL m04.007.rhp_new_fast'
 )
 
 function Invoke-NativeCommand {
@@ -1078,7 +1104,8 @@ function Assert-M02PageFaultCr2ErrorCodeTranscript {
 }
 
 function Assert-M04ManagedHeapPageRangeTranscript {
-    param([string] $SerialLogPath)
+    param([string] $SerialLogPath, [switch] $IncludeFixedAllocation)
+    $lineCount = if ($IncludeFixedAllocation) { 78 } else { 52 }
     $path = if ([IO.Path]::IsPathRooted($SerialLogPath)) { $SerialLogPath } else { Join-Path $root $SerialLogPath }
     # No BOM sniffing, trimming, Unicode folding or control removal for acceptance.
     $text = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($path))
@@ -1109,14 +1136,20 @@ function Assert-M04ManagedHeapPageRangeTranscript {
                 continue
             }
         }
-        if ($captured.Count -ge 52) {
+        if ($captured.Count -ge $lineCount) {
             if (($complete -and $line.Length -eq 0) -or ($i -eq $raw.Length - 1 -and $line.Length -eq 0)) { continue }
             throw 'm04_heap_post_terminal_noise'
         }
         if (-not $complete -or [regex]::IsMatch($line, '[\x00-\x1f\x7f-\uffff]')) { throw 'm04_heap_incomplete_or_control_record' }
         $captured.Add($line)
     }
-    if ($captured.Count -ne 52) { throw 'm04_heap_incomplete_sequence' }
+    if ($captured.Count -ne $lineCount) { throw 'm04_heap_incomplete_sequence' }
+    $rhpRecords = @()
+    if ($IncludeFixedAllocation) {
+        # The exact new 26-line block occurs after the zero checkpoint and before boot.sequence.
+        $rhpRecords = @($captured.GetRange(44,26))
+        $captured.RemoveRange(44,26)
+    }
     $expected = @(
         'TEST_START efi.main'
         $script:M04LayoutContractRequiredMarkers
@@ -1239,6 +1272,100 @@ function Assert-M04ManagedHeapPageRangeTranscript {
     $currentExpected = @{ freePages=1; freeBytes=4096; allocatedPages=1; allocatedBytes=4096; readBytes=4096 }
     foreach ($field in $initialExpected.Keys) { if ($initial[$field] -ne $initialExpected[$field]) { throw 'm04_heap_initial_accounting' } }
     foreach ($field in $currentExpected.Keys) { if ($current[$field] -ne $currentExpected[$field]) { throw 'm04_heap_current_accounting' } }
+    if ($IncludeFixedAllocation) { Assert-M04RhpNewFastRecords -Lines $rhpRecords -Heap $retained }
+}
+
+function Assert-M04RhpNewFastTranscript {
+    param([string] $SerialLogPath)
+    Assert-M04ManagedHeapPageRangeTranscript -SerialLogPath $SerialLogPath -IncludeFixedAllocation
+}
+
+function Read-M04RhpNewFastRecord {
+    param([string] $Line, [string] $Prefix, [string[]] $Fields)
+    $pattern = '\A' + [regex]::Escape($Prefix)
+    foreach ($field in $Fields) {
+        $parts=$field.Split(':'); $pattern += ' ' + [regex]::Escape($parts[0]) + '='
+        if ([string]::Equals($parts[1],'hex',[StringComparison]::Ordinal)) { $pattern += '(0x[0-9A-F]{16})' }
+        elseif ([string]::Equals($parts[1],'false',[StringComparison]::Ordinal)) { $pattern += '(false)' }
+        else { $pattern += '(0|[1-9][0-9]*)' }
+    }
+    $match=[regex]::Match($Line,$pattern+'\z',[Text.RegularExpressions.RegexOptions]::CultureInvariant)
+    if (-not $match.Success) { throw ('m04_rhp_record_shape_' + $Prefix) }
+    $result=@{}
+    for ($i=0; $i -lt $Fields.Count; $i++) {
+        $parts=$Fields[$i].Split(':');$token=$match.Groups[$i+1].Value
+        if ([string]::Equals($parts[1],'false',[StringComparison]::Ordinal)) { $result[$parts[0]]=$false;continue }
+        $style=[Globalization.NumberStyles]::None
+        if ([string]::Equals($parts[1],'hex',[StringComparison]::Ordinal)) { $token=$token.Substring(2);$style=[Globalization.NumberStyles]::AllowHexSpecifier }
+        $number=[UInt64]0
+        if (-not [UInt64]::TryParse($token,$style,[Globalization.CultureInfo]::InvariantCulture,[ref]$number)) { throw 'm04_rhp_numeric_overflow' }
+        $result[$parts[0]]=$number
+    }
+    return $result
+}
+
+function Assert-M04RhpNewFastRecords {
+    param([string[]] $Lines, [hashtable] $Heap)
+    if ($Lines.Count -ne 26 -or
+        -not [string]::Equals($Lines[0],'TEST_START m04.007.rhp_new_fast',[StringComparison]::Ordinal) -or
+        -not [string]::Equals($Lines[24],$script:M04RhpNewFastReadyMarker,[StringComparison]::Ordinal) -or
+        -not [string]::Equals($Lines[25],'TEST_PASS m04.007.rhp_new_fast',[StringComparison]::Ordinal)) { throw 'm04_rhp_exact_terminal' }
+    $bind=Read-M04RhpNewFastRecord $Lines[2] 'M04_RHP_BIND' @('image:hex','imageBytes:dec','allocator:hex','nodes:hex','ledger:hex','ledgerBytes:dec','parentIndex:dec','backing:hex','backingBytes:dec','heap:hex','heapBytes:dec','access:hex','accessBytes:dec','bump:hex','bumpBytes:dec','status:dec','used:dec','count:dec')
+    foreach ($pair in @(@('allocator','allocatorState'),@('nodes','nodes'),@('ledger','ledger'),@('parentIndex','parentIndex'),@('backing','backing'),@('heap','heapState'))) {
+        if ($bind[$pair[0]] -ne $Heap[$pair[1]]) { throw 'm04_rhp_original_identity' }
+    }
+    if ($bind.image -eq 0 -or $bind.imageBytes -lt 64 -or [decimal]$bind.image + $bind.imageBytes -gt [decimal][UInt64]::MaxValue -or
+        $bind.ledgerBytes -ne 200 -or $bind.backingBytes -ne 8192 -or $bind.heapBytes -ne 216 -or
+        $bind.accessBytes -ne 104 -or $bind.bumpBytes -ne 80 -or $bind.status -ne 1 -or $bind.used -ne 0 -or $bind.count -ne 0) { throw 'm04_rhp_bind_contract' }
+    $prep=Read-M04RhpNewFastRecord $Lines[1] 'M04_RHP_PREP' @('image:hex','imageBytes:dec','access:hex','accessBytes:dec','bump:hex','bumpBytes:dec','control:hex','controlBytes:dec','records:hex','recordsBytes:dec')
+    foreach ($name in @('image','imageBytes','access','accessBytes','bump','bumpBytes')) {
+        if ($prep[$name] -ne $bind[$name]) { throw 'm04_rhp_preparation_identity' }
+    }
+    if ($prep.controlBytes -ne 96 -or $prep.recordsBytes -ne 5872) { throw 'm04_rhp_preparation_size' }
+    $storage=@{};foreach($key in $bind.Keys){$storage[$key]=$bind[$key]}
+    $storage['control']=$prep.control;$storage['records']=$prep.records
+    $extents=@()
+    foreach ($slot in @(@('allocator',56),@('nodes',48),@('ledger',200),@('heap',216),@('backing',8192),@('access',104),@('bump',80),@('control',96),@('records',5872))) {
+        $start=[decimal]$storage[$slot[0]];$end=$start+$slot[1]
+        if ($start -eq 0 -or $start % 8 -ne 0 -or $end -gt [decimal][UInt64]::MaxValue) { throw 'm04_rhp_storage_extent' }
+        foreach ($previous in $extents) { if ($start -lt $previous.End -and $previous.Start -lt $end) { throw 'm04_rhp_storage_alias' } }
+        $extents += [pscustomobject]@{Start=$start;End=$end}
+    }
+    # Pinned integrated type shapes. These scalar expectations do not replace the offline
+    # same-image COFF/PE/relocation oracle for the three captured raw prefix words.
+    $sizes=@(24,32,32,32,24,24,24,32,24,24)
+    $flags=@([UInt64]0x50000000,[UInt64]0x51000000,[UInt64]0x53000000,[UInt64]0x52000000,[UInt64]0x20000080,[UInt64]0x20000080,[UInt64]0x40000000,[UInt64]0x41000000,[UInt64]0x43000000,[UInt64]0x4A000200)
+    $scalars=@([UInt64]0x1111111111111111,[UInt64]0x2222222222222222,[UInt64]0x3333333333333333,[UInt64]0x4444444444444444)
+    $tokens=New-Object 'System.Collections.Generic.HashSet[UInt64]';$used=[UInt64]0
+    for ($id=1;$id -le 10;$id++) {
+        $route=if($id -le 4){'new'}else{'direct'}
+        $o=Read-M04RhpNewFastRecord $Lines[$id*2+1] ("M04_RHP_OBJECT id=$id route=$route") @('mt:hex','prefix0:hex','prefix1:hex','prefix2:hex','flags:hex','base:dec','allocation:hex','reference:hex','end:hex','usedBefore:dec','usedAfter:dec','count:dec','sync:hex','observedMt:hex','zeroBytes:dec','zeroOr:hex')
+        $end=[decimal]$bind.backing+$used+$sizes[$id-1]
+        if ($o.mt -eq 0 -or $o.mt % 8 -ne 0 -or -not $tokens.Add($o.mt) -or $o.mt -lt $bind.image -or
+            [decimal]$o.mt+24 -gt [decimal]$bind.image+$bind.imageBytes -or
+            $o.flags -ne $flags[$id-1] -or ($o.prefix0 -band [UInt64]4294967295) -ne $o.flags -or
+            ($o.prefix0 -shr 32) -ne $sizes[$id-1] -or $o.base -ne $sizes[$id-1] -or
+            [decimal]$o.allocation -ne [decimal]$bind.backing+$used -or [decimal]$o.reference -ne [decimal]$o.allocation+8 -or
+            [decimal]$o.end -ne $end -or $o.usedBefore -ne $used -or $o.usedAfter -ne $used+$o.base -or
+            $o.count -ne $id -or $o.sync -ne 0 -or $o.observedMt -ne $o.mt -or $o.zeroBytes -ne $o.base-8 -or $o.zeroOr -ne 0) { throw ('m04_rhp_object_' + $id) }
+        foreach ($slot in $extents) {
+            if ([decimal]$o.mt -lt $slot.End -and $slot.Start -lt [decimal]$o.mt+24) { throw 'm04_rhp_metadata_alias' }
+        }
+        $read=Read-M04RhpNewFastRecord $Lines[$id*2+2] ("M04_RHP_READBACK id=$id") @('scalarOffset:dec','scalar:hex','referenceSlotBytes:dec','referenceSlotOr:hex','priorCount:dec','priorMismatchBytes:dec','canaryMismatchBytes:dec')
+        $offset=if($id -eq 1){8}elseif($id -le 4){16}else{0}
+        $scalar=if($id -le 4){$scalars[$id-1]}else{[UInt64]0}
+        $untouched=$o.base-16;if($id -le 4){$untouched-=8}
+        if ($read.scalarOffset -ne $offset -or $read.scalar -ne $scalar -or $read.referenceSlotBytes -ne $untouched -or
+            $read.referenceSlotOr -ne 0 -or $read.priorCount -ne $id -or $read.priorMismatchBytes -ne 0 -or $read.canaryMismatchBytes -ne 0) { throw ('m04_rhp_readback_' + $id) }
+        $used=$o.usedAfter
+    }
+    $retained=Read-M04RhpNewFastRecord $Lines[23] 'M04_RHP_RETAIN' @('allocator:hex','nodes:hex','ledger:hex','parentIndex:dec','backing:hex','heap:hex','bump:hex','heapStart:hex','heapEnd:hex','initialPages:dec','freePages:dec','allocatedPages:dec','readBytes:dec','contentsZero:false','used:dec','count:dec','status:dec')
+    foreach ($name in @('allocator','nodes','ledger','parentIndex','backing','heap','bump')) {
+        if ($retained[$name] -ne $bind[$name]) { throw 'm04_rhp_retained_identity' }
+    }
+    if ($retained.heapStart -ne $Heap.retainedStart -or $retained.heapEnd -ne $Heap.retainedEnd -or
+        $retained.initialPages -ne 2 -or $retained.freePages -ne 1 -or $retained.allocatedPages -ne 1 -or $retained.readBytes -ne 4096 -or
+        $retained.used -ne $used -or $retained.count -ne 10 -or $retained.status -ne 1) { throw 'm04_rhp_retained_accounting' }
 }
 
 function Assert-M04ManagedHeapRunnerResult {
@@ -4435,6 +4562,19 @@ try {
         exit 1
     }
 
+    $rhpReason = ""
+    if (($EnableM04RhpNewFastBeforeBindFailureProbe -or $EnableM04RhpNewFastExhaustionFailureProbe) -and -not $EnableM04RhpNewFastProbe) { $rhpReason = "m04_rhp_new_fast_negative_requires_main" }
+    if ($EnableM04RhpNewFastBeforeBindFailureProbe -and $EnableM04RhpNewFastExhaustionFailureProbe) { $rhpReason = "m04_rhp_new_fast_negative_conflict" }
+    if ($EnableM04RhpNewFastProbe) {
+        foreach ($rhpRequired in @("EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe", "EnableM04IndependentEndianConformanceProbe", "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe", "EnableM04ArithmeticConformanceProbe", "EnableM04LayoutContractProbe", "EnableM04ManagedHeapPageRangeProbe")) {
+            if (-not [bool](Get-Variable -Name $rhpRequired -ValueOnly)) { $rhpReason = "m04_rhp_new_fast_requires_explicit_chain_" + $rhpRequired }
+        }
+        foreach ($rhpConflict in @("EnableM02SafeStubProbe", "EnableM02CheckedPortIoBindingProbe", "EnableM02Com1OwnedPortIoProbe", "EnableM02OwnedCom1ReadyProbe", "EnableM02PanicSafeOwnedCom1Probe", "EnableM02OwnedX64GdtEncodingProbe", "EnableM02GuardedIstStackAllocationProbe", "EnableM02OwnedGdtTssTerminalProbe", "EnableM02NormalizedInterruptFramePageProbe", "EnableM02OwnedIdtGatePopulationProbe", "EnableM02IdtrContinuedExecutionProbe", "EnableM02Ud2VectorStateProbe", "EnableM02PageFaultCr2ErrorCodeProbe", "EnableM01OwnedPagingProbe", "EnableUefiGoneSimulationProbe", "EnableExitBootServicesFreshMapProbe", "EnableAcpiPhysicalDiscoveryProbe")) {
+            if ([bool](Get-Variable -Name $rhpConflict -ValueOnly)) { $rhpReason = "m04_rhp_new_fast_conflicting_profile_" + $rhpConflict }
+        }
+    }
+    if ($rhpReason.Length -ne 0) { Write-Host ("TEST_FAIL qemu.smoke.invalid_args " + $rhpReason); exit 1 }
+
     if ($EnableM02Ud2VectorStateProbe) {
         $m02Ud2VectorStatePrerequisites = @(
             "EnableM01LoadedImageStackProbe",
@@ -4580,7 +4720,13 @@ try {
         ConvertTo-QemuSmokeMarkerList -Values $ForbidMarker
     )
 
-    if ($EnableM04ManagedHeapPageRangeProbe) {
+    if ($EnableM04RhpNewFastProbe) {
+        $requiredMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($requiredMarkers; $script:M04RhpNewFastRequiredMarkers))
+        $orderedMarkers = @($script:M04RhpNewFastRequiredMarkers)
+        $uniqueMarkers = @($script:M04RhpNewFastRequiredMarkers)
+        $forbiddenMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($forbiddenMarkers; $script:M04RhpNewFastForbiddenMarkers))
+    }
+    elseif ($EnableM04ManagedHeapPageRangeProbe) {
         $requiredMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($requiredMarkers; $script:M04ManagedHeapPageRangeRequiredMarkers))
         $orderedMarkers = @($script:M04ManagedHeapPageRangeRequiredMarkers)
         $uniqueMarkers = @($script:M04ManagedHeapPageRangeRequiredMarkers)
@@ -5391,6 +5537,11 @@ try {
     }
 
     foreach ($requestedMarker in @($RequireMarker) + @($RequireOrderedMarker) + @($RequireUniqueMarker)) {
+        if (-not $EnableM04RhpNewFastProbe -and $null -ne $requestedMarker -and
+            [regex]::IsMatch($requestedMarker, '(?i)CLROS_M04_007|M04_RHP_|m04\.007\.rhp_new_fast')) {
+            Write-Host "TEST_FAIL qemu.smoke.invalid_args m04_rhp_new_fast_marker_requires_typed_profile"
+            exit 1
+        }
         if (-not $EnableM04ManagedHeapPageRangeProbe -and $null -ne $requestedMarker -and
             [regex]::IsMatch($requestedMarker, '(?i)CLROS_M04_006|M04_HEAP_|m04\.006')) {
             Write-Host "TEST_FAIL qemu.smoke.invalid_args m04_managed_heap_marker_requires_typed_profile"
@@ -6161,6 +6312,18 @@ try {
             $buildArguments +=
                 "-EnableM04ManagedHeapPageRangeProbe"
         }
+        if ($EnableM04RhpNewFastProbe) {
+            $buildArguments +=
+                "-EnableM04RhpNewFastProbe"
+        }
+        if ($EnableM04RhpNewFastBeforeBindFailureProbe) {
+            $buildArguments +=
+                "-EnableM04RhpNewFastBeforeBindFailureProbe"
+        }
+        if ($EnableM04RhpNewFastExhaustionFailureProbe) {
+            $buildArguments +=
+                "-EnableM04RhpNewFastExhaustionFailureProbe"
+        }
 
         Invoke-NativeCommand {
             & powershell.exe @buildArguments
@@ -6392,7 +6555,18 @@ try {
         }
         Write-Host "QEMU_SCRIPT_M02_PAGE_FAULT_TRANSCRIPT postSmokeSequence=true rawObservations=true guardAbsence=true postPassMarkerNoise=false"
     }
-    if ($EnableM04ManagedHeapPageRangeProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
+    if ($EnableM04RhpNewFastProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
+        try {
+            Assert-M04ManagedHeapRunnerResult -Lines $heapRunnerLines
+            Assert-M04RhpNewFastTranscript -SerialLogPath $SerialLog
+        }
+        catch {
+            Write-Host ("TEST_FAIL qemu.smoke.m04.007 strict_terminal_transcript_invalid reason=" + $_.Exception.Message)
+            exit 96
+        }
+        Write-Host "QEMU_SCRIPT_M04_RHP_NEW_FAST_TRANSCRIPT exactWholeLines=true lines=78 objects=10 compiledNew=4 direct=6 terminal=true"
+    }
+    elseif ($EnableM04ManagedHeapPageRangeProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
         try {
             Assert-M04ManagedHeapRunnerResult -Lines $heapRunnerLines
             Assert-M04ManagedHeapPageRangeTranscript -SerialLogPath $SerialLog
