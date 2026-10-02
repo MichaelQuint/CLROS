@@ -150,9 +150,8 @@ internal static class M01LoadedImageStackEfiEntryTests
             return Failure("probe-guard-is-not-exact");
         }
 
-        string? defaultAdapterRun = FindMethodBody(
-            defaultSource,
-            "Run");
+        string? defaultAdapterRun = FindStageOneAdapterRunBody(
+            defaultSource);
         if (defaultAdapterRun is null
             || !string.Equals(
                 RemoveAllWhitespace(defaultAdapterRun),
@@ -1685,6 +1684,71 @@ internal static class M01LoadedImageStackEfiEntryTests
 
     private static bool TestProbeScopedMethodMutationSelector()
     {
+        const string adapterCollisionSource =
+            "#if UNKNOWN_PROBE\n"
+            + "private static class EarlierAdapter\n"
+            + "{ public static bool Run() { return false; } }\n"
+            + "#else\n"
+            + "private static class OtherAdapter\n"
+            + "{ public static bool Run() { return true; } }\n"
+            + "#endif\n"
+            + "#if M01_LOADED_IMAGE_STACK_PROBE\n"
+            + "private static class M01StageOneAdapter\n"
+            + "{ public static bool Run() { return EnabledSentinel(); } }\n"
+            + "#else\n"
+            + "private static class M01StageOneAdapter\n"
+            + "{ public static bool Run() { return false; } }\n"
+            + "#endif\n"
+            + "private static class LaterAdapter\n"
+            + "{ public static bool Run() { return false; } }\n";
+        foreach (bool enabled in new[] { false, true })
+        {
+            if (!TrySelectProbeProfile(
+                    adapterCollisionSource,
+                    enabled,
+                    out string selected,
+                    out _)
+                || !selected.Contains(
+                    "#if UNKNOWN_PROBE", StringComparison.Ordinal)
+                || !selected.Contains(
+                    "class EarlierAdapter", StringComparison.Ordinal)
+                || !selected.Contains(
+                    "class OtherAdapter", StringComparison.Ordinal)
+                || FindStageOneAdapterRunBody(selected) is not string body
+                || !string.Equals(
+                    RemoveAllWhitespace(body),
+                    enabled ? "returnEnabledSentinel();" : "returnfalse;",
+                    StringComparison.Ordinal))
+            {
+                return Failure("adapter-selector-profile-collision");
+            }
+
+            string missingAdapter = selected.Replace(
+                "class M01StageOneAdapter",
+                "class M01StageOneAdapterOther",
+                StringComparison.Ordinal);
+            // Profile selection normalizes line endings; keep the mutation exact.
+            string missingRun = NormalizeLineEndings(selected).Replace(
+                "class M01StageOneAdapter\n{ public static bool Run()",
+                "class M01StageOneAdapter\n{ public static bool Other()",
+                StringComparison.Ordinal);
+            if (FindStageOneAdapterRunBody(missingAdapter) is not null
+                || FindStageOneAdapterRunBody(missingRun) is not null)
+            {
+                return Failure("adapter-selector-outside-class-fallback");
+            }
+        }
+
+        if (FindStageOneAdapterRunBody(adapterCollisionSource)
+                is not string originalRun
+            || !string.Equals(
+                RemoveAllWhitespace(originalRun),
+                "returnEnabledSentinel();",
+                StringComparison.Ordinal))
+        {
+            return Failure("adapter-selector-original-enabled-branch");
+        }
+
         const string prefix =
             "#if M01_OWNED_PAGING_PROBE\n"
             + "private static bool TryValidateAllocation()\n"
@@ -2058,7 +2122,7 @@ internal static class M01LoadedImageStackEfiEntryTests
                 "mutation-survived=stack-probe-install-order");
         }
 
-        string? runBody = FindMethodBody(source, "Run");
+        string? runBody = FindStageOneAdapterRunBody(source);
         if (runBody is null)
         {
             return Failure("mutation-anchor=run-map-order");
@@ -2333,7 +2397,7 @@ internal static class M01LoadedImageStackEfiEntryTests
                 || defaultSource.Contains(
                     "M01LoadedImageStackIntegration",
                     StringComparison.Ordinal)
-                || FindMethodBody(defaultSource, "Run")
+                || FindStageOneAdapterRunBody(defaultSource)
                     is not string defaultRun
                 || !string.Equals(
                     RemoveAllWhitespace(defaultRun),
@@ -2862,6 +2926,27 @@ internal static class M01LoadedImageStackEfiEntryTests
         }
 
         return null;
+    }
+
+    private static string? FindStageOneAdapterRunBody(string source)
+    {
+        // Unknown probe branches remain intact. Select the exact adapter before
+        // looking for Run so an earlier or later sibling cannot satisfy its contract.
+        string sanitized = SanitizeStringsAndCharacters(RemoveComments(source));
+        Match adapter = Regex.Match(
+            sanitized,
+            @"\bclass\s+M01StageOneAdapter\s*\{",
+            RegexOptions.CultureInvariant);
+        if (!adapter.Success)
+        {
+            return null;
+        }
+
+        int open = adapter.Index + adapter.Length - 1;
+        int close = FindMatchingDelimiter(sanitized, open, '{', '}');
+        return close > open
+            ? FindMethodBody(source[(open + 1)..close], "Run")
+            : null;
     }
 
     private static string? FindMethodBody(

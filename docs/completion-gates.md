@@ -854,6 +854,14 @@ hosted .NET/Kestrel and cloud readiness remain unsupported.
 
 Source, review and artifact identities are recorded in step941.
 
+The first complete host run of the integrated `05b2bde` commit failed in an
+older M01 source selector before all modules executed. It retained the new
+page-fault block in historical profiles. Follow-up review also found an
+unscoped adapter-method lookup and an obsolete page-zero Compile exclusion.
+Step942 records these test-fixture repairs and the preserved failed run.
+A new clean full-suite pass is required before the default/page-fault guest
+lanes; the focused artifact evidence above does not satisfy that requirement.
+
 ## Unsupported Behavior
 
 Hardware fault diagnostics, allocator-owned mutable free-list installation from compact boot regions, complete UEFI encapsulation, ExitBootServices, owned serial/framebuffer, runtime helpers, storage, networking, app loading, socket bind/listen behavior, exported PAL socket/timer/thread/file contracts, hosted .NET 10, Kestrel, ISO generation, libvirt real boot, provider cloud import, CI, and hardening remain incomplete. Libvirt lifecycle planning and check-serial validation are host-only contract evidence; they do not connect to libvirt, start a VM, poll live serial output, or prove cleanup against a live domain.

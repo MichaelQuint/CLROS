@@ -1365,18 +1365,21 @@ internal static unsafe class PageZeroMappingPolicyTests
         if (!BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
                 @"..\OS.Kernel\Memory\PageZeroMappingPolicy.cs",
                 @"Memory\PageZeroMappingPolicy.cs") ||
+            !BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Diagnostics\NullPageFaultProbePlan.cs",
+                @"Diagnostics\NullPageFaultProbePlan.cs") ||
             !EvaluatedEfiClosure(
                 root,
                 efiProject,
                 "SingleMinimalApi",
-                [policyPath],
-                [planPath, testPath]) ||
+                [policyPath, planPath],
+                [testPath]) ||
             !EvaluatedEfiClosure(
                 root,
                 efiProject,
                 "MultiMinimalApi",
-                [policyPath],
-                [planPath, testPath]))
+                [policyPath, planPath],
+                [testPath]))
         {
             return false;
         }
