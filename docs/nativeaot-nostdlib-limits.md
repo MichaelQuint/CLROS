@@ -509,6 +509,18 @@ The leaf alone does not close #76. Its separately owned EFI implementation in
 following section; issue closure follows the reviewed merge. Gate 4 remains
 **Fail**.
 
+### M02-015 terminal double-fault integration boundary
+
+The #521 adapter in [step950](../done/step950.md) links the unchanged double-fault
+leaf and narrow false authority into the explicit EFI project. Its 79 Compile
+items and 92 source inputs preserve the earlier allocation shim and runtime
+exports. Default/enabled artifacts require zero AssemblyRefs and actual profile
+isolation; the default artifact contains no compiled DF adapter. Enabled code
+must retain fresh page-image audit, final readback, instruction publication and
+indirect entry in that order. Neither emitted bytes nor compiled call order
+proves CPU delivery. No general exception, recovery, GC, runtime or
+post-ExitBootServices support is added; Gates 3 and 4 remain Fail.
+
 ### M04-007 opt-in EFI allocation source boundary
 
 Step946 links the unchanged host leaf to `RhpNewFastAllocation.cs` and the sole

@@ -1423,6 +1423,31 @@ archived Debug ImageBuilder. Each boot adds a 1,393-byte, three-cluster NVVARS
 file. Primary FSInfo hints follow the new census; backup hints remain stale.
 This explains the observed changes without claiming filesystem conformance.
 
+### M02-015 terminal double-fault capture profile
+
+Use `-BuildEfi -EnableM02DoubleFaultIstProbe` with fresh EFI, image, serial and
+summary paths. This profile rejects `-SkipImageBuild`, a supplied
+`-M01RawObservationLog`, explicit false prerequisites and conflicting probes.
+A dry run is preflight only. [step950](../done/step950.md) records implementation;
+fresh default, PF regression and DF captures remain pending.
+
+After the exact 74-record prerequisite transcript, the DF tail requires 14 CRLF
+records, 2,643 ASCII bytes and 84 full-width numeric fields. The complete CLROS
+transcript therefore has 88 records. Only an empty prefix or the previously
+accepted exact 304-byte OVMF prefix is allowed. No arbitrary firmware text is
+learned from the new capture. The validator ties current CR3/GDTR/TR/IDTR, busy
+TSS and full gate identities to original C/D/T extents and the complete 192-byte
+capture on IST1. Five bounded walks prove null/guard absence with legal accessed
+bit variation; contradictory slots, aliases and cycles fail. Undefined saved
+DF state and CR2 are diagnostic-only and may vary.
+
+The actual wrapper must exit zero and the ordinary runner must record a genuine
+750 ms quiet drain followed by owned termination and a canonical Int32 native
+QEMU result. Ready text cannot override failure, timeout, cleanup failure,
+spontaneous exit, restart or unexpected output. Only complete empty CRLF
+delimiters may follow the final pass. Current implementation and synthetic
+checks do not yet prove actual double-fault delivery or prevent a triple fault.
+
 ## Implemented Behavior
 
 - `tools/OS.QemuRunner` builds a QEMU command line for a raw or qcow2 GPT/FAT32 image, OVMF pflash, serial-file capture, AHCI disk attachment, and user-mode virtio networking.

@@ -6,6 +6,7 @@ internal static class M01LoadedImageStackEfiEntryTests
 {
     private const string IssueTestName = "m01.021";
     private const string ProbeSymbol = "M01_LOADED_IMAGE_STACK_PROBE";
+    private const string DoubleFaultSymbol = "M02_DOUBLE_FAULT_IST_PROBE";
     [ModuleInitializer]
     internal static void RunAll()
     {
@@ -108,6 +109,19 @@ internal static class M01LoadedImageStackEfiEntryTests
 
     private static bool TestDefaultOffProfile()
     {
+        string selectorFixture = "#if " + DoubleFaultSymbol + "\nDfOnly();\n#else\nDfOff();\n#endif\n"
+            + "#if UNRELATED_PROBE\nUnknown();\n#else\nUnknownElse();\n#endif\n";
+        foreach (bool on in new[] { false, true })
+        {
+            if (!TrySelectProbeProfile(selectorFixture, on, out string selected, out _)
+                || selected.Contains("DfOnly();", StringComparison.Ordinal)
+                || !selected.Contains("DfOff();", StringComparison.Ordinal)
+                || !selected.Contains("#if UNRELATED_PROBE", StringComparison.Ordinal)
+                || !selected.Contains("UnknownElse();", StringComparison.Ordinal)) return Failure("DF default-off finite selector");
+        }
+        if (!TrySelectProbeProfile(selectorFixture.Replace(DoubleFaultSymbol, DoubleFaultSymbol.ToLowerInvariant(), StringComparison.Ordinal), false, out string alias, out _)
+            || !alias.Contains("#if m02_double_fault_ist_probe", StringComparison.Ordinal)) return Failure("DF selector ordinal");
+
         string source = LoadEfiEntrySource();
         bool defaultSelected = TrySelectProbeProfile(
             source,
@@ -3053,18 +3067,21 @@ internal static class M01LoadedImageStackEfiEntryTests
             if (trimmed.StartsWith("#if ", StringComparison.Ordinal))
             {
                 string condition = trimmed[4..].Trim();
-                bool isProbe = string.Equals(
+                bool isStageOne = string.Equals(
                     condition,
                     ProbeSymbol,
                     StringComparison.Ordinal);
+                bool isProbe = isStageOne || string.Equals(condition, DoubleFaultSymbol, StringComparison.Ordinal);
+                bool selectedValue = isStageOne && enabled;
                 stack.Push(
                     new PreprocessorFrame(
                         isProbe,
                         emit,
-                        SeenElse: false));
+                        SeenElse: false,
+                        SelectedValue: selectedValue));
                 if (isProbe)
                 {
-                    emit = emit && enabled;
+                    emit = emit && selectedValue;
                 }
                 else if (emit)
                 {
@@ -3123,7 +3140,7 @@ internal static class M01LoadedImageStackEfiEntryTests
                 stack.Push(frame);
                 if (frame.IsProbe)
                 {
-                    emit = frame.ParentEmit && !enabled;
+                    emit = frame.ParentEmit && !frame.SelectedValue;
                 }
                 else if (emit)
                 {
@@ -3774,5 +3791,6 @@ internal static class M01LoadedImageStackEfiEntryTests
     private readonly record struct PreprocessorFrame(
         bool IsProbe,
         bool ParentEmit,
-        bool SeenElse);
+        bool SeenElse,
+        bool SelectedValue = false);
 }

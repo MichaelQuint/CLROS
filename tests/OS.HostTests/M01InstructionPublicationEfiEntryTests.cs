@@ -21,6 +21,7 @@ internal static class M01InstructionPublicationEfiEntryTests
         "M02_UD2_VECTOR_STATE_PROBE";
     private const string M02PageFaultCr2ErrorCodeSymbol =
         "M02_PAGE_FAULT_CR2_ERROR_CODE_PROBE";
+    private const string M02DoubleFaultIstSymbol = "M02_DOUBLE_FAULT_IST_PROBE";
     private const string M04RhpNewFastSymbol = "M04_RHP_NEW_FAST_PROBE";
     private const string M04RhpBeforeBindSymbol = "M04_RHP_NEW_FAST_BEFORE_BIND_FAILURE_PROBE";
     private const string M04RhpExhaustionSymbol = "M04_RHP_NEW_FAST_EXHAUSTION_FAILURE_PROBE";
@@ -186,6 +187,24 @@ internal static class M01InstructionPublicationEfiEntryTests
         {
             return Failure("page-fault-profile-isolation");
         }
+
+        string df = SelectProfile(source, true, true, true, false, doubleFaultIstEnabled: true);
+        if (CountDirectSerializerCalls(df) != 6
+            || CountIdentifierOccurrences(df, "M02DoubleFaultIstAdapter") != 2
+            || CountIdentifierOccurrences(profile111, "M02DoubleFaultIstAdapter") != 0
+            || CountIdentifierOccurrences(pageFaultProfile, "M02DoubleFaultIstAdapter") != 0
+            || CountIdentifierOccurrences(df, "M02PageFaultAdapter") != 0)
+            return Failure("double-fault-publication-isolation");
+        string dfBranches = "#if " + M02DoubleFaultIstSymbol + "\n" + SerializerCall + ";\n#else\nDisabled();\n#endif\n"
+            + "#if UNRELATED_PROBE\nUnknown();\n#else\nUnknownElse();\n#endif\n";
+        string dfOn = SelectProfile(dfBranches, true, true, true, false, doubleFaultIstEnabled: true);
+        string dfOff = SelectProfile(dfBranches, true, true, true, false);
+        string dfAlias = SelectProfile(dfBranches.Replace(M02DoubleFaultIstSymbol, M02DoubleFaultIstSymbol.ToLowerInvariant(), StringComparison.Ordinal), false, false, false, false);
+        if (CountDirectSerializerCalls(dfOn) != 1 || CountDirectSerializerCalls(dfOff) != 0
+            || dfOn.Contains("Disabled();", StringComparison.Ordinal) || !dfOff.Contains("Disabled();", StringComparison.Ordinal)
+            || !dfOn.Contains("#if UNRELATED_PROBE", StringComparison.Ordinal) || !dfOn.Contains("UnknownElse();", StringComparison.Ordinal)
+            || !dfAlias.Contains("#if m02_double_fault_ist_probe", StringComparison.Ordinal))
+            return Failure("double-fault-selector-ordinal-and-unknown");
 
         if (!TestFixedAllocationProfileIsolation(source)) return false;
 
@@ -3841,7 +3860,8 @@ internal static class M01InstructionPublicationEfiEntryTests
         bool pageFaultCr2ErrorCodeEnabled = false,
         bool rhpNewFastEnabled = false,
         bool rhpBeforeBindEnabled = false,
-        bool rhpExhaustionEnabled = false)
+        bool rhpExhaustionEnabled = false,
+        bool doubleFaultIstEnabled = false)
     {
         StringBuilder output = new();
         Stack<PreprocessorFrame> stack = new();
@@ -3882,6 +3902,7 @@ internal static class M01InstructionPublicationEfiEntryTests
                         condition,
                         M02PageFaultCr2ErrorCodeSymbol,
                         StringComparison.Ordinal)
+                    || string.Equals(condition, M02DoubleFaultIstSymbol, StringComparison.Ordinal)
                     || string.Equals(condition, M04RhpNewFastSymbol, StringComparison.Ordinal)
                     || string.Equals(condition, M04RhpBeforeBindSymbol, StringComparison.Ordinal)
                     || string.Equals(condition, M04RhpExhaustionSymbol, StringComparison.Ordinal);
@@ -3918,7 +3939,9 @@ internal static class M01InstructionPublicationEfiEntryTests
                                         ? ud2VectorStateEnabled
                                         : string.Equals(condition, M02PageFaultCr2ErrorCodeSymbol, StringComparison.Ordinal)
                                             ? pageFaultCr2ErrorCodeEnabled
-                                            : string.Equals(condition, M04RhpNewFastSymbol, StringComparison.Ordinal)
+                                            : string.Equals(condition, M02DoubleFaultIstSymbol, StringComparison.Ordinal)
+                                                ? doubleFaultIstEnabled
+                                                : string.Equals(condition, M04RhpNewFastSymbol, StringComparison.Ordinal)
                                                 ? rhpNewFastEnabled
                                                 : string.Equals(condition, M04RhpBeforeBindSymbol, StringComparison.Ordinal)
                                                     ? rhpBeforeBindEnabled : rhpExhaustionEnabled;

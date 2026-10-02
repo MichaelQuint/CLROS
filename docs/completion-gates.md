@@ -936,7 +936,10 @@ The focused run passes 9 starts/10 passes, no failures, native exit 0 and empty
 stderr. The actual 20-source no-stdlib closure has zero AssemblyRefs; recorded
 LLVM disassembly independently matches all 446 stream and 1,545 slot instruction
 boundaries. These are ordinary-data/compiler/model checks. The complete host
-gate passes in step949; the separately scoped actual DF guest remains pending.
+gate passes in step949. The separate #521 adapter now has reviewed source and
+default/enabled NativeAOT artifact evidence in [step950](../done/step950.md),
+with the frozen host leaf unchanged. Its new settled-source complete host run
+and actual DF guest acceptance remain pending.
 
 Issue #55 stays open until accepted source-bound vector-8/error-0/IST1 and
 terminal serial/lifecycle evidence is merged. No CPU fault, active mapping,

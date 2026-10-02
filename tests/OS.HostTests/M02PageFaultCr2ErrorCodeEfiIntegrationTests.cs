@@ -37,7 +37,7 @@ internal static class M02PageFaultCr2ErrorCodeEfiIntegrationTests
     private static void TestProject()
     {
         string root=Root(); XDocument project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
-        var items=project.Descendants("Compile").ToArray();Require(items.Length==77,"77 explicit compile items");
+        var items=project.Descendants("Compile").ToArray();Require(items.Length==79,"79 explicit compile items");
         foreach(string name in new[]{"NullPointerProbeAuthority.cs","NullPageFaultProbePlan.cs","SeparateDisabledDefaultPageFaultCR2ErrorCode.cs","SeparateDisabledDefaultPageFaultPageTables.cs","SeparateDisabledDefaultPageFaultTransition.cs"})
             Require(items.Count(x=>x.Attribute("Include")?.Value=="..\\OS.Kernel\\Diagnostics\\"+name && x.Attribute("Link")?.Value=="Diagnostics\\"+name)==1,"exact new item "+name);
         Require(!items.Any(x=>x.Attribute("Include")!.Value.EndsWith("\\Probes.cs",StringComparison.Ordinal)),"no broad authority");
@@ -283,10 +283,10 @@ internal static class M02PageFaultCr2ErrorCodeEfiIntegrationTests
             string link=Path.ChangeExtension(Path.Combine(root,artifact),"link.json");
             if(!File.Exists(link))link=Path.Combine(root,artifact)+".link.json";
             using JsonDocument document=JsonDocument.Parse(File.ReadAllText(link));JsonElement evidence=document.RootElement;
-            var inputs=evidence.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Require(inputs.Length==90,"90 raw authority inputs");
+            var inputs=evidence.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Require(inputs.Length==92,"92 raw authority inputs");
             foreach(var input in inputs)Require(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))).Equals(input.GetProperty("sha256").GetString(),StringComparison.OrdinalIgnoreCase),"raw source identity");
-            var evaluation=evidence.GetProperty("postRestoreEvaluation");Require(evaluation.GetProperty("compileCount").GetInt32()==77,"77 evaluated files");
-            var properties=evaluation.GetProperty("properties");var flags=properties.EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Require(flags.Length==27,"complete 27-switch vector");
+            var evaluation=evidence.GetProperty("postRestoreEvaluation");Require(evaluation.GetProperty("compileCount").GetInt32()==79,"79 evaluated files");
+            var properties=evaluation.GetProperty("properties");var flags=properties.EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Require(flags.Length==28,"complete 28-switch vector");
             foreach(var flag in flags)Require(flag.Value.GetString()==(enabled&&(Prerequisites.Contains(flag.Name,StringComparer.Ordinal)||flag.Name==Flag)?"true":"false"),"actual evaluated "+flag.Name);
             string assembly=Path.Combine(root,"src/OS/bin/Release/net10.0/win-x64/OS.dll");using var reader=new PEReader(File.OpenRead(assembly));Require(reader.GetMetadataReader().AssemblyReferences.Count==0,"actual no-stdlib metadata");
         }

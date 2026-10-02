@@ -2046,7 +2046,7 @@ loaded-image/live-allocator flags and all five prior M04 flags explicitly.
 Negative selectors require main and exclude each other. Owned paging, every
 M02 probe and the simulation/fresh-ExitBootServices/physical-ACPI flags conflict.
 
-The current closure has77 ordered Compile items,90 raw source-authority inputs,
+The step949 closure has77 ordered Compile items,90 raw source-authority inputs,
 27 evaluated flags and24 XML false defaults. The two appended sources are the
 unchanged `GuestTestRhpNewFast.cs` leaf and new `RhpNewFastAllocation.cs` adapter;
 all75 previous Compile indices remain stable. Scanner admission is limited to
@@ -2071,4 +2071,33 @@ enabled. The initial integrated build's ten warnings and interrupted host run
 are preserved in that step. Step948 repairs the catalog's exact ownership note.
 Step949 records the subsequent clean solution build with zero warnings/errors,
 complete 3,573-start/3,574-pass host run and accepted five-profile guest evidence.
-The 77-item/90-input closure and 27-property vector remain unchanged.
+That milestone retained the 77-item/90-input closure and 27-property vector.
+The later M02-015 integration below extends this shared source boundary.
+
+
+### M02-015 terminal double-fault source profile
+
+The separately reviewed #521 adapter in [step950](../done/step950.md) adds
+`EnableM02DoubleFaultIstProbe` and `M02_DOUBLE_FAULT_IST_PROBE`. Its authority
+defaults false. Enabling it implies the existing loaded-image, live-allocator,
+owned-paging, safe-stub, checked-port-I/O, owned-COM1, COM1-ready and panic-safe
+COM1 prerequisites. Explicit false prerequisites and other terminal, M04,
+simulation, fresh-ExitBootServices and physical-ACPI probes are rejected.
+
+The two exact Compile items are the narrow false authority followed by the
+unchanged double-fault leaf, after `SeparateDisabledDefaultPageFaultTransition`
+and before `InvalidOpcodeVectorAuthority`. All 77 previous items retain their
+relative order. The resulting explicit closure has 79 Compile items, 92 raw
+authority inputs, 28 evaluated profile flags and 25 XML false defaults. Default
+has zero true flags; PF and DF each have their own nine-true vector. Ordinary
+source admission accepts the leaf without a new scanner exception. The retained
+allocation shim, helpers and ledger are unchanged.
+
+The adapter validates C3/D10/T43 ownership and all caller scratch before writing,
+checks observed paging mode/PAT and current code-segment rights, and prepares
+the exact armed IDT/context/stream. A fresh six-range audit of the original
+table backing precedes final readback, publication and entry. No C# ready marker
+substitutes for entry. Only the PF gate Present bit is cleared, leaving vector 8
+on IST1; the trigger is the frozen null read. Saved DF program state and CR2
+remain diagnostic-only. Default/enabled NativeAOT artifacts are implementation
+evidence; the full host run and fresh guest acceptance remain separate gates.
