@@ -395,8 +395,14 @@ fixtures and six rejection cases, comparing every field of all 19 actual
 NoInlining evaluations. Controlled mismatch and transcript checks pass; the
 69-Compile/82-input closure preserves the frozen leaf and existing runtime
 shim. The source firewall admits only its exact reviewed path/content identity.
-Combined full-suite, NativeAOT publish and fresh default/layout QEMU acceptance
-remain pending in step932. Issue #74 remains open for that evidence and merge.
+Step933 adds the complete host gate (3,527 starts, 3,528 passes, zero failures)
+and independently accepted fresh default/layout NativeAOT QEMU evidence at
+source `5f6108ca363f03c7ebad8dafca7ae78e1d3a0db2`. The enabled guest runs all
+19 scalar checks and emits the exact record once after M04-004 and before map
+capture; default emits none. Layout serial SHA-256 is
+`832AE32F7EDBC61E938D1FF498ED5CE23F120E8D474B7B3FD78A8917D825C57D`.
+Issue closure follows the reviewed merge. The known #514 FAT geometry defect
+is disclosed in `docs/qemu.md`; embedded EFI identity is independently checked.
 Allocation, GC, type discovery, optional-tail traversal, dispatch,
 exception/unwind support and hosted .NET/Kestrel remain unsupported.
 

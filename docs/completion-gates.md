@@ -741,9 +741,14 @@ and its exact source identities. Supplemental #512 now integrates the frozen
 evaluator into a default-off EFI adapter with 19 exact scalar result checks,
 the explicit 69/82 source closure and strict whole-transcript validation.
 Step932 records reviewed integration and the previous full run's manifest
-ownership-note failure, now corrected without weakening its test. Combined
-full-suite and fresh default/layout guest acceptance remain pending; #74 and
-#512 remain open until those results and the reviewed merge exist.
+ownership-note failure, corrected without weakening its test. Step933 records
+accepted complete host execution (3,527 starts, 3,528 passes, zero failures,
+exit 0) and fresh default/layout QEMU at source
+`5f6108ca363f03c7ebad8dafca7ae78e1d3a0db2`. The enabled guest emits the exact
+19-check result once in order; default emits no M04 records. Independent review
+verifies source/package authority, serial boundaries and embedded EFI payloads.
+The separately tracked #514 FAT geometry defect prevents any whole-filesystem
+claim for these images. Closure follows reviewed merge and tracker evidence.
 
 Gate 4 remains **Fail**. Neither this contract nor later execution of its
 value checks establishes compiler-emitted physical object layout, live heap

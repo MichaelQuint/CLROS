@@ -1247,7 +1247,7 @@ The default-false `-EnableM04LayoutContractProbe` requires `-BuildEfi` and all
 three predecessor M04 switches. It rejects `-SkipImageBuild`, terminal
 owned-GDT/TSS or UD2 combinations, and requesting its guest marker while the
 profile is disabled. Use unique paths for each acceptance attempt; the EFI
-must be a direct child of `artifacts/efi`. This template has not yet been run:
+must be a direct child of `artifacts/efi`. Use this command template:
 
 ```powershell
 .\scripts\run-qemu-smoke.ps1 `
@@ -1285,9 +1285,35 @@ records fail anywhere in the transcript. Normal OVMF preamble and post-return
 ANSI/Unicode menu text remain accepted. Strict failure exits 93; success emits
 `QEMU_SCRIPT_M04_LAYOUT_CONTRACT_TRANSCRIPT exactWholeLines=true orderedChain=true uniqueChain=true`.
 
-Step932 records controlled tests and pending combined acceptance. No fresh
-layout guest tuple is accepted yet. Gate 4 remains **Fail** after scalar checks;
-they cannot prove a heap, GC, dispatch, exception support or hosted .NET.
+Step933 records accepted fresh default/layout runs at clean source
+`5f6108ca363f03c7ebad8dafca7ae78e1d3a0db2`. Commands and raw artifacts are
+archived under
+`artifacts/orchestration-20261001/issue512-guest-5f6108c-20261002T0022419996556Z/`.
+The enabled guest satisfies all 18 required, six ordered, four unique and six
+forbidden constraints and the independent exact-line audit. Default emits no
+M04 records. Both rebuilt images contain the exact separately archived EFI
+bytes, verified with an independent GPT/FAT decoder.
+
+| Layout artifact | Bytes | SHA-256 |
+| --- | --- | --- |
+| EFI | 94,720 | `35E8F0FD4F1DDA63057740217CC14F258C9C9B721189B5C8F1A3ACD5EF9CC88C` |
+| Raw image | 67,108,864 | `7ADDF3300B62AC44103264FF49A2FD6EB947703A4974F7E8CE38D5EBC017370F` |
+| Serial | 8,682 | `832AE32F7EDBC61E938D1FF498ED5CE23F120E8D474B7B3FD78A8917D825C57D` |
+| Summary | 5,900 | `734C3756C761D1C21C54A2457CC1A17CBF798E97BC0500D959382A244C78F3A1` |
+
+Both profiles return to the pinned OVMF menu after CLROS smoke. Its 6,947-byte
+suffix is retained; the generic runner reports 207 invalid display bytes and
+two lines, while the CLROS interval passes the strict audit. Success uses a
+750 ms quiet drain and runner termination (native exit -1, wrapper exit 0),
+not a guest-requested application exit.
+
+Independent inspection also found the existing #514 image-builder defect:
+these 64 MiB images declare one trailing data cluster beyond FAT capacity and
+have stale FSInfo accounting. The boot payloads are within independently
+checked bounds. This tuple proves their identity and observed boot markers,
+not whole-filesystem conformance. Historical images are preserved; the fix is
+separate. Gate 4 remains **Fail**; scalar checks cannot prove a heap, GC,
+dispatch, exception support or hosted .NET.
 
 ## Implemented Behavior
 

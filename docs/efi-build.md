@@ -1519,10 +1519,14 @@ CRLF-to-LF normalization for that text check. All other source scanning and
 raw source/artifact hash authority remain unchanged. No runtime shim changed.
 
 Step932 records reviewed integration, controlled adapter/transcript checks and
-the earlier manifest-gate failure. Combined full-suite and fresh default/layout
-NativeAOT publish/QEMU acceptance remain pending. See `docs/qemu.md` for the
-required fresh-image command and strict transcript contract. These scalar
-checks do not allocate objects or prove compiler-emitted physical layouts.
+the earlier manifest-gate failure. Step933 records the accepted complete host
+gate and fresh default/layout NativeAOT publish/QEMU matrix at source
+`5f6108ca363f03c7ebad8dafca7ae78e1d3a0db2`. Both source-bound EFI payloads
+were independently recovered from their images. The enabled guest emitted the
+exact 19-check record once in order; default emitted no M04 records. See
+`docs/qemu.md` for hashes and transcript boundaries, including the separately
+tracked #514 FAT geometry defect. These scalar checks do not allocate objects
+or prove compiler-emitted physical layouts.
 
 ### Linked instruction-publication serializer (M01-034)
 

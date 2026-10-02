@@ -429,7 +429,10 @@ COM1/serial invocation.
   and rejected preflight inputs, and measure zero allocation across 64 warmed
   build/audit iterations. The actual source and ten existing dependencies
   also compile with zero framework or external assembly references. Step930
-  records focused evidence; this is not a NativeAOT publish or guest test.
+  records focused evidence; step933 adds accepted complete host execution at
+  source `5f6108ca363f03c7ebad8dafca7ae78e1d3a0db2`. The separate layout
+  guest tuple does not execute this page-image helper. CR3 activation, the
+  terminal emitter and the real vector-14 guest remain separate work.
 - `TssIstPlan` models the x64 TSS bytes needed for `RSP0` and IST entries, including double-fault IST stack top, stack-size, and guard-size validation.
 - `FaultInfrastructureReadiness` combines serial, IDT, IDTR, GDT, TSS/IST, and double-fault IST readiness into a single pre-privileged-install gate.
 - `BootSequence.RunFaultInfrastructureReadiness` emits host-tested `FAULT_INFRA_READY` or `FAULT_INFRA_NOT_READY status=<status>` markers from the readiness result without changing the default boot path.
