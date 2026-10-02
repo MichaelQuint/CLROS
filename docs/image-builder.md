@@ -30,6 +30,21 @@ This is host-side packaging only. Boot proof still belongs to QEMU smoke evidenc
 
 ## Implemented Behavior
 
+### Known FAT geometry defect (#514)
+
+Independent review of the preserved PR #509 and #511 64 MiB images found that
+the FAT-sizing recurrence can oscillate and return a stale cluster count.
+Their 128,991-sector ESP declares 126,975 data clusters but its 992-sector FAT
+contains only 126,976 entries, one fewer than needed with reserved entries 0
+and 1. FSInfo also uses stale accounting. Bounded extraction confirms the EFI
+boot payloads, and QEMU boot markers remain observed evidence; neither proves
+whole-filesystem geometry. Historical images remain unchanged. Issue #514 owns
+the separately reviewed correction and independent capacity/accounting tests.
+
+Its review also identified oversized plans beyond FAT32's cluster-number
+range. The correction must reject them before image creation. This work does
+not establish live guest storage, cloud import or broader filesystem support.
+
 Host tool projects inherit `tools/Directory.Build.props`, which excludes each
 tool-local `artifacts/**` tree from SDK default source globs. Generated
 image-builder or runner verification scratch files under `tools/*/artifacts`

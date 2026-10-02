@@ -205,6 +205,14 @@ flags/frame validation, and terminal behavior or recovery remain separate EFI
 integration work. The older null-write plan and accepted vector-6 profile
 cannot substitute for vector-14 evidence; completion gates remain unchanged.
 
+The supplied diagnostics page-table image from supplemental #510 adds no
+boot phase or EFI source inclusion. Earlier M01 guest evidence restored the
+firmware root, and the accepted M02-013 terminal UD2 path did not install an
+owned root. A later adapter must map its actual terminal resources, validate
+observed modes, switch stacks before CR3, observe the active hierarchy/TLB
+behavior and capture the real page fault. This host image alone does not
+close #54 or change completion gates; see step930 and `docs/diagnostics.md`.
+
 The separate default-off `EnableM02Ud2VectorStateProbe` profile now supplies
 accepted bounded guest evidence without adding a `BootSequence` phase. It runs
 only after the complete ordinary smoke transcript, owns two LoaderCode pages

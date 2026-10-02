@@ -1466,7 +1466,7 @@ Minimal API/Kestrel, cloud readiness, or production readiness.
 implemented by supplemental #507. It requires both M04-003 and M04-002 switches
 explicitly and rejects the terminal M02-009/M02-013 profiles. The project links
 the unchanged arithmetic catalog immediately after M04-003: the explicit
-closure is now 68 compile items and 81 source-authority inputs. All build,
+closure at step929 was 68 compile items and 81 source-authority inputs. All build,
 post-restore evaluation, verifier, and QEMU layers carry the same property.
 
 The enabled adapter calls `RunCatalog()` once after M04-003 and before later
@@ -1493,6 +1493,40 @@ match the 68/81 source closure. The enabled guest emits the exact 57-vector
 record once after M04-003 and before memory-map capture; default emits no M04
 records. See `docs/qemu.md` for the strict transcript and firmware-return
 boundary. Gate 4 remains **Fail**; this is one fixed-catalog guest execution.
+
+### M04-005 layout value checks in EFI
+
+Supplemental #512 adds the default-false `EnableM04LayoutContractProbe` /
+`M04_LAYOUT_CONTRACT_PROBE` profile. Select all four M04 flags explicitly;
+missing or false predecessors and terminal owned-GDT/TSS or UD2 combinations
+are rejected. The current explicit closure is 69 Compile items and 82 raw
+source-authority inputs. Default and older-profile marker lists are preserved.
+
+Immediately after arithmetic conformance and before memory-map capture, the
+returning adapter calls the frozen NoInlining scalar evaluator 19 times:
+13 independent positive fixtures and six rejection cases. Every result field
+must match, including zero payload on rejection. A mismatch emits
+`M04_LAYOUT_CONTRACT_FAILED` and suppresses later map/boot/smoke success.
+
+```text
+CLROS_M04_005_READY profile=ilc10.0.8-win-x64-le checks=19 shapes=3 prefixBytes=24 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
+```
+
+The compiler/runtime authority remains 10.0.8 at dotnet/dotnet commit
+`94ea82652cdd4e0f8046b5bd5becbd11461482ca`. The source scanner admits only
+the exact ordinal layout-leaf path and reviewed whole-source identity, with
+CRLF-to-LF normalization for that text check. All other source scanning and
+raw source/artifact hash authority remain unchanged. No runtime shim changed.
+
+Step932 records reviewed integration, controlled adapter/transcript checks and
+the earlier manifest-gate failure. Step933 records the accepted complete host
+gate and fresh default/layout NativeAOT publish/QEMU matrix at source
+`5f6108ca363f03c7ebad8dafca7ae78e1d3a0db2`. Both source-bound EFI payloads
+were independently recovered from their images. The enabled guest emitted the
+exact 19-check record once in order; default emitted no M04 records. See
+`docs/qemu.md` for hashes and transcript boundaries, including the separately
+tracked #514 FAT geometry defect. These scalar checks do not allocate objects
+or prove compiler-emitted physical layouts.
 
 ### Linked instruction-publication serializer (M01-034)
 

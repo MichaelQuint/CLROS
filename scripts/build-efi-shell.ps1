@@ -47,7 +47,8 @@ param(
     [switch] $EnableM02Ud2VectorStateProbe,
     [switch] $EnableM04IndependentEndianConformanceProbe,
     [switch] $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe,
-    [switch] $EnableM04ArithmeticConformanceProbe
+    [switch] $EnableM04ArithmeticConformanceProbe,
+    [switch] $EnableM04LayoutContractProbe
 )
 
 $ErrorActionPreference = "Stop"
@@ -110,6 +111,7 @@ $script:ExpectedEfiCompileItems = @(
     '..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs',
     '..\..\std\no-runtime\shared\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs|Std\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs',
     '..\..\std\no-runtime\shared\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs|Std\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs',
+    '..\OS.Kernel\Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs|Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs',
     '..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs|Boot\M01LoadedImageStackIntegration.cs',
     '..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs|Boot\M01LiveAllocatorIntegration.cs',
     '..\OS.Kernel\Boot\M01LivePagingIntegration.cs|Boot\M01LivePagingIntegration.cs',
@@ -1828,7 +1830,8 @@ function Invoke-M01PostRestoreEvaluation {
         [bool] $M02Ud2VectorStateEnabled,
         [bool] $M04IndependentEndianConformanceEnabled,
         [bool] $M04SpanMemoryConformanceEnabled,
-        [bool] $M04ArithmeticConformanceEnabled
+        [bool] $M04ArithmeticConformanceEnabled,
+        [bool] $M04LayoutContractEnabled
     )
 
     $canonicalRootPropsPath = Join-Path $RepositoryRoot "Directory.Build.props"
@@ -1857,6 +1860,7 @@ function Invoke-M01PostRestoreEvaluation {
             "EnableM04IndependentEndianConformanceProbe," +
             "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe," +
             "EnableM04ArithmeticConformanceProbe," +
+            "EnableM04LayoutContractProbe," +
             "ImportProjectExtensionProps,ImportProjectExtensionTargets," +
             "ExcludeRestorePackageImports,ILCompilerTargetsPath," +
             "ILLinkTargetsPath,ILLinkTasksAssembly,IlcBuildTasksPath," +
@@ -1982,6 +1986,9 @@ function Invoke-M01PostRestoreEvaluation {
     $arguments += (
         "-p:EnableM04ArithmeticConformanceProbe=" +
         $M04ArithmeticConformanceEnabled.ToString().ToLowerInvariant())
+    $arguments += (
+        "-p:EnableM04LayoutContractProbe=" +
+        $M04LayoutContractEnabled.ToString().ToLowerInvariant())
     $arguments += $msbuildIsolation.Arguments
     $processResult = Invoke-M01BoundedProcess `
         -FilePath $script:DotnetHostPath `
@@ -2050,6 +2057,8 @@ function Invoke-M01PostRestoreEvaluation {
             $M04SpanMemoryConformanceEnabled.ToString().ToLowerInvariant()
         EnableM04ArithmeticConformanceProbe =
             $M04ArithmeticConformanceEnabled.ToString().ToLowerInvariant()
+        EnableM04LayoutContractProbe =
+            $M04LayoutContractEnabled.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
         ImportProjectExtensionTargets = "false"
         ExcludeRestorePackageImports = "true"
@@ -4026,6 +4035,7 @@ for ($index = 5; $index -lt $verifierArguments.Count; $index += 2) {
     if ($parameterName -ceq "EnableM04IndependentEndianConformanceProbe" -or
         $parameterName -ceq "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe" -or
         $parameterName -ceq "EnableM04ArithmeticConformanceProbe" -or
+        $parameterName -ceq "EnableM04LayoutContractProbe" -or
         $parameterName -ceq "EnableM02NormalizedInterruptFramePageProbe" -or
         $parameterName -ceq "EnableM02OwnedIdtGatePopulationProbe" -or
         $parameterName -ceq "EnableM02IdtrContinuedExecutionProbe" -or
@@ -4738,6 +4748,32 @@ function Test-M01ActiveSourceSurface {
         [string] $SourceName
     )
 
+    # The reviewed scalar layout leaf uses compiler attributes, const version
+    # strings and an enum member named String. Admit only that complete frozen
+    # source, not those constructs in arbitrary kernel input. Normalize CRLF
+    # solely for repository-text identity; publish-authority hashes stay raw.
+    if ([string]::Equals($SourceName,
+            '..\OS.Kernel\Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs',
+            [System.StringComparison]::Ordinal)) {
+        $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
+        if (-not [string]::Equals($identity,
+                '44f8a34e2f1911aae4fd5b028adb88bf1d8bf06ce915625e9f13d11964f579aa',
+                [System.StringComparison]::Ordinal)) {
+            return [pscustomobject] @{
+                Succeeded = $false
+                Reason = "forbidden_active_source"
+                Detail = $SourceName + ":reviewed_layout_source_identity"
+                ActiveText = ""
+            }
+        }
+        return [pscustomobject] @{
+            Succeeded = $true
+            Reason = "ok"
+            Detail = ""
+            ActiveText = $SourceText
+        }
+    }
+
     $active = Get-NostdlibEfiActiveSource `
         -SourceText $SourceText `
         -SourceName $SourceName
@@ -5287,6 +5323,7 @@ function Test-M01EvaluatedSourceClosure {
         [bool] $M04IndependentEndianConformanceEnabled,
         [bool] $M04SpanMemoryConformanceEnabled,
         [bool] $M04ArithmeticConformanceEnabled,
+        [bool] $M04LayoutContractEnabled,
         [bool] $UefiGoneSimulationEnabled,
         [bool] $ExitBootServicesFreshMapEnabled,
         [bool] $AcpiPhysicalDiscoveryEnabled
@@ -5343,6 +5380,8 @@ function Test-M01EvaluatedSourceClosure {
             $M04SpanMemoryConformanceEnabled.ToString().ToLowerInvariant()
         "EnableM04ArithmeticConformanceProbe" =
             $M04ArithmeticConformanceEnabled.ToString().ToLowerInvariant()
+        "EnableM04LayoutContractProbe" =
+            $M04LayoutContractEnabled.ToString().ToLowerInvariant()
     }
     $expectedSwitchSymbols = [ordered] @{
         "M01_LOADED_IMAGE_STACK_PROBE" = $LoadedImageStackEnabled
@@ -5372,6 +5411,8 @@ function Test-M01EvaluatedSourceClosure {
             $M04SpanMemoryConformanceEnabled
         "M04_ARITHMETIC_CONFORMANCE_PROBE" =
             $M04ArithmeticConformanceEnabled
+        "M04_LAYOUT_CONTRACT_PROBE" =
+            $M04LayoutContractEnabled
         "UEFI_GONE_SIMULATION_PROBE" = $UefiGoneSimulationEnabled
         "EXIT_BOOT_SERVICES_FRESH_MAP_PROBE" =
             $ExitBootServicesFreshMapEnabled
@@ -5410,6 +5451,7 @@ function Test-M01EvaluatedSourceClosure {
                 "EnableM04IndependentEndianConformanceProbe," +
                 "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe," +
                 "EnableM04ArithmeticConformanceProbe," +
+                "EnableM04LayoutContractProbe," +
                 "DefineConstants," +
                 "EnableDefaultCompileItems," +
                 "NoStdLib," +
@@ -5523,6 +5565,10 @@ function Test-M01EvaluatedSourceClosure {
         if ($M04ArithmeticConformanceEnabled) {
             $arguments +=
                 "-p:EnableM04ArithmeticConformanceProbe=true"
+        }
+        if ($M04LayoutContractEnabled) {
+            $arguments +=
+                "-p:EnableM04LayoutContractProbe=true"
         }
         if ($UefiGoneSimulationEnabled) {
             $arguments += "-p:EnableUefiGoneSimulationProbe=true"
@@ -6057,6 +6103,7 @@ function Test-M01SourceClosure {
         [bool] $M04IndependentEndianConformanceEnabled,
         [bool] $M04SpanMemoryConformanceEnabled,
         [bool] $M04ArithmeticConformanceEnabled,
+        [bool] $M04LayoutContractEnabled,
         [bool] $UefiGoneSimulationEnabled,
         [bool] $ExitBootServicesFreshMapEnabled,
         [bool] $AcpiPhysicalDiscoveryEnabled
@@ -6106,7 +6153,7 @@ function Test-M01SourceClosure {
 
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "702df84b25308a4a989cef56e391a497aeab7bc7298dbf023c9b9258120ebada") {
+        "0740b6c13d1692bb1a25ffcd638504f9e87de37e41d5a4d60cd798f9d337a299") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `
@@ -6186,6 +6233,8 @@ function Test-M01SourceClosure {
             "M04_SPAN_OVERLAP_MEMORY_CAST_UNSAFE_WIDTH_CONFORMANCE_PROBE"
         "EnableM04ArithmeticConformanceProbe" =
             "M04_ARITHMETIC_CONFORMANCE_PROBE"
+        "EnableM04LayoutContractProbe" =
+            "M04_LAYOUT_CONTRACT_PROBE"
         "EnableUefiGoneSimulationProbe" = "UEFI_GONE_SIMULATION_PROBE"
         "EnableExitBootServicesFreshMapProbe" = "EXIT_BOOT_SERVICES_FRESH_MAP_PROBE"
         "EnableAcpiPhysicalDiscoveryProbe" = "ACPI_PHYSICAL_DISCOVERY_PROBE"
@@ -6311,6 +6360,8 @@ function Test-M01SourceClosure {
             "M04_SPAN_OVERLAP_MEMORY_CAST_UNSAFE_WIDTH_CONFORMANCE_PROBE"
         "EnableM04ArithmeticConformanceProbe" =
             "M04_ARITHMETIC_CONFORMANCE_PROBE"
+        "EnableM04LayoutContractProbe" =
+            "M04_LAYOUT_CONTRACT_PROBE"
     }
     foreach ($entry in $switchSymbols.GetEnumerator()) {
         $defaultNodes = @($project.SelectNodes(
@@ -6444,6 +6495,21 @@ function Test-M01SourceClosure {
     $m04ArithmeticUd2ExclusionCondition =
         "'" + '$' + "(EnableM04ArithmeticConformanceProbe)' == 'true' and '" +
         '$' + "(EnableM02Ud2VectorStateProbe)' == 'true'"
+    $m04LayoutArithmeticDependencyCondition =
+        "'" + '$' + "(EnableM04LayoutContractProbe)' == 'true' and '" +
+        '$' + "(EnableM04ArithmeticConformanceProbe)' != 'true'"
+    $m04LayoutSpanDependencyCondition =
+        "'" + '$' + "(EnableM04LayoutContractProbe)' == 'true' and '" +
+        '$' + "(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' != 'true'"
+    $m04LayoutEndianDependencyCondition =
+        "'" + '$' + "(EnableM04LayoutContractProbe)' == 'true' and '" +
+        '$' + "(EnableM04IndependentEndianConformanceProbe)' != 'true'"
+    $m04LayoutTerminalExclusionCondition =
+        "'" + '$' + "(EnableM04LayoutContractProbe)' == 'true' and '" +
+        '$' + "(EnableM02OwnedGdtTssTerminalProbe)' == 'true'"
+    $m04LayoutUd2ExclusionCondition =
+        "'" + '$' + "(EnableM04LayoutContractProbe)' == 'true' and '" +
+        '$' + "(EnableM02Ud2VectorStateProbe)' == 'true'"
     $requiredErrorConditions = @(
         $allocatorDependencyCondition,
         $pagingDependencyCondition,
@@ -6475,7 +6541,12 @@ function Test-M01SourceClosure {
         $m04SpanMemoryUd2ExclusionCondition,
         $m04ArithmeticDependencyCondition,
         $m04ArithmeticTerminalExclusionCondition,
-        $m04ArithmeticUd2ExclusionCondition
+        $m04ArithmeticUd2ExclusionCondition,
+        $m04LayoutArithmeticDependencyCondition,
+        $m04LayoutSpanDependencyCondition,
+        $m04LayoutEndianDependencyCondition,
+        $m04LayoutTerminalExclusionCondition,
+        $m04LayoutUd2ExclusionCondition
     )
     if ($errorConditions.Count -ne $requiredErrorConditions.Count -or
         $validationTargets[0].SelectNodes("*").Count -ne $errorNodes.Count) {
@@ -6794,6 +6865,7 @@ function Test-M01SourceClosure {
         -M04IndependentEndianConformanceEnabled $M04IndependentEndianConformanceEnabled `
         -M04SpanMemoryConformanceEnabled $M04SpanMemoryConformanceEnabled `
         -M04ArithmeticConformanceEnabled $M04ArithmeticConformanceEnabled `
+        -M04LayoutContractEnabled $M04LayoutContractEnabled `
         -UefiGoneSimulationEnabled $UefiGoneSimulationEnabled `
         -ExitBootServicesFreshMapEnabled $ExitBootServicesFreshMapEnabled `
         -AcpiPhysicalDiscoveryEnabled $AcpiPhysicalDiscoveryEnabled
@@ -6966,8 +7038,8 @@ try {
             (Format-EvidenceValue $_.Exception.Message))
         exit 1
     }
-    if ($sourceSnapshotBeforePublish.InputCount -ne 81 -or
-        $sourceSnapshotAfterLock.InputCount -ne 81 -or
+    if ($sourceSnapshotBeforePublish.InputCount -ne 82 -or
+        $sourceSnapshotAfterLock.InputCount -ne 82 -or
         $sourceSnapshotBeforePublish.AggregateSha256 -cne
             $sourceSnapshotAfterLock.AggregateSha256 -or
         $sourceSnapshotBeforePublish.AuthoritySha256 -cne
@@ -6980,7 +7052,7 @@ try {
         exit 1
     }
     Write-Host "EFI_PUBLISH_SOURCE_LOCK status=ok"
-    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=81"
+    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=82"
 
 Write-EfiPreflightLine "EFI_PREFLIGHT_START"
 
@@ -7082,6 +7154,8 @@ $m04SpanMemoryConformanceProbeEnabled =
     $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe.IsPresent.ToString().ToLowerInvariant()
 $m04ArithmeticConformanceProbeEnabled =
     $EnableM04ArithmeticConformanceProbe.IsPresent.ToString().ToLowerInvariant()
+$m04LayoutContractProbeEnabled =
+    $EnableM04LayoutContractProbe.IsPresent.ToString().ToLowerInvariant()
 $m01SwitchEvidence =
     "loadedImageStack=" + $loadedImageStackProbeEnabled +
     " liveAllocator=" + $liveAllocatorProbeEnabled +
@@ -7113,7 +7187,40 @@ $m04SwitchEvidence =
     $m04IndependentEndianConformanceProbeEnabled +
     " spanOverlapMemoryCastUnsafeWidthConformance=" +
     $m04SpanMemoryConformanceProbeEnabled +
-    " arithmeticConformance=" + $m04ArithmeticConformanceProbeEnabled
+    " arithmeticConformance=" + $m04ArithmeticConformanceProbeEnabled +
+    " layoutContract=" + $m04LayoutContractProbeEnabled
+
+if ($EnableM04LayoutContractProbe -and
+    (-not $EnableM04ArithmeticConformanceProbe -or
+    -not $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -or
+    -not $EnableM04IndependentEndianConformanceProbe)) {
+    Stop-EfiPreflight `
+        -Marker ("EFI_PREFLIGHT_M04_SWITCHES " + $m04SwitchEvidence + " reason=layout_contract_requires_explicit_m04_chain") `
+        -Reason "m04_layout_contract_requires_explicit_m04_chain" `
+        -LogFullPath $logFullPath `
+        -ReportedLogPath $LogPath `
+        -Status "invalid"
+}
+
+if ($EnableM04LayoutContractProbe -and
+    $EnableM02OwnedGdtTssTerminalProbe) {
+    Stop-EfiPreflight `
+        -Marker ("EFI_PREFLIGHT_M04_SWITCHES " + $m04SwitchEvidence + " reason=layout_contract_forbids_owned_gdt_tss_terminal") `
+        -Reason "m04_layout_contract_forbids_owned_gdt_tss_terminal" `
+        -LogFullPath $logFullPath `
+        -ReportedLogPath $LogPath `
+        -Status "invalid"
+}
+
+if ($EnableM04LayoutContractProbe -and
+    $EnableM02Ud2VectorStateProbe) {
+    Stop-EfiPreflight `
+        -Marker ("EFI_PREFLIGHT_M04_SWITCHES " + $m04SwitchEvidence + " reason=layout_contract_forbids_m02_ud2_vector_state") `
+        -Reason "m04_layout_contract_forbids_m02_ud2_vector_state" `
+        -LogFullPath $logFullPath `
+        -ReportedLogPath $LogPath `
+        -Status "invalid"
+}
 
 if ($EnableM04ArithmeticConformanceProbe -and
     -not $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe) {
@@ -7571,6 +7678,7 @@ $m01SourceClosure = Test-M01SourceClosure `
     -M04IndependentEndianConformanceEnabled $EnableM04IndependentEndianConformanceProbe.IsPresent `
     -M04SpanMemoryConformanceEnabled $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe.IsPresent `
     -M04ArithmeticConformanceEnabled $EnableM04ArithmeticConformanceProbe.IsPresent `
+    -M04LayoutContractEnabled $EnableM04LayoutContractProbe.IsPresent `
     -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
     -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
     -AcpiPhysicalDiscoveryEnabled $EnableAcpiPhysicalDiscoveryProbe.IsPresent
@@ -8240,6 +8348,11 @@ if ($EnableM04ArithmeticConformanceProbe) {
         "-p:EnableM04ArithmeticConformanceProbe=true"
     Write-Host "EFI_PROBE M04_ARITHMETIC_CONFORMANCE"
 }
+if ($EnableM04LayoutContractProbe) {
+    $arguments +=
+        "-p:EnableM04LayoutContractProbe=true"
+    Write-Host "EFI_PROBE M04_LAYOUT_CONTRACT"
+}
 
 if ($EnableUefiGoneSimulationProbe) {
     $arguments += "-p:EnableUefiGoneSimulationProbe=true"
@@ -8364,6 +8477,7 @@ $methodImplAttributeSourcePath = Join-Path $repositoryRoot (
         -M04IndependentEndianConformanceEnabled $EnableM04IndependentEndianConformanceProbe.IsPresent `
         -M04SpanMemoryConformanceEnabled $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe.IsPresent `
         -M04ArithmeticConformanceEnabled $EnableM04ArithmeticConformanceProbe.IsPresent `
+        -M04LayoutContractEnabled $EnableM04LayoutContractProbe.IsPresent `
         -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
         -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
         -AcpiPhysicalDiscoveryEnabled $EnableAcpiPhysicalDiscoveryProbe.IsPresent
@@ -8600,7 +8714,9 @@ try {
         -M04SpanMemoryConformanceEnabled `
             $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe.IsPresent `
         -M04ArithmeticConformanceEnabled `
-            $EnableM04ArithmeticConformanceProbe.IsPresent
+            $EnableM04ArithmeticConformanceProbe.IsPresent `
+        -M04LayoutContractEnabled `
+            $EnableM04LayoutContractProbe.IsPresent
     $activePackageImportGraphSha256 = Get-M01Utf8Sha256 -Text (
         ($script:ExpectedActivePackageImportEdges -join "`n") + "`n")
     $packageTaskBindingsSha256 = Get-M01Utf8Sha256 -Text (
@@ -8776,7 +8892,9 @@ if ($exitCode -eq 0) {
                 -M04SpanMemoryConformanceEnabled `
                     $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe.IsPresent `
                 -M04ArithmeticConformanceEnabled `
-                    $EnableM04ArithmeticConformanceProbe.IsPresent
+                    $EnableM04ArithmeticConformanceProbe.IsPresent `
+                -M04LayoutContractEnabled `
+                    $EnableM04LayoutContractProbe.IsPresent
     }
     catch {
         Write-Host (
@@ -9149,6 +9267,11 @@ if ($exitCode -eq 0) {
     if ($EnableM04ArithmeticConformanceProbe) {
         $verificationArguments += @(
             "-EnableM04ArithmeticConformanceProbe",
+            "true")
+    }
+    if ($EnableM04LayoutContractProbe) {
+        $verificationArguments += @(
+            "-EnableM04LayoutContractProbe",
             "true")
     }
     if ($EnableM02OwnedCom1ReadyProbe) {

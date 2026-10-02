@@ -13,7 +13,7 @@ internal static class M02Com1OwnedPortIoBackendEfiIntegrationTests
     private const string FailureMarker =
         "M02_COM1_CONFIGURATION_FAILED";
     private const string CompileClosureSha256 =
-        "2ed2f5ca764f944ec8bab4c7adbbcb80a4fad03448feb13ff33f898911b307ec";
+        "30dd633e38173653aa4b75b8059fa3036097f082284defc2335dbd8f9a9d7d66";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -135,7 +135,7 @@ internal static class M02Com1OwnedPortIoBackendEfiIntegrationTests
         string artifactScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 68
+        return compileItems.Length == 69
             && compileHash == CompileClosureSha256
             && checkedBinder >= 0
             && backend == checkedBinder + 1
@@ -170,13 +170,13 @@ internal static class M02Com1OwnedPortIoBackendEfiIntegrationTests
                 "m02_com1_owned_port_io_requires_checked_binding",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=81",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=82",
                 StringComparison.Ordinal)
             && artifactScript.Contains(
-                "$expectedSourceClosureInputCount = 81",
+                "$expectedSourceClosureInputCount = 82",
                 StringComparison.Ordinal)
             && artifactScript.Contains(
-                "$compileItems.Count -ne 68",
+                "$compileItems.Count -ne 69",
                 StringComparison.Ordinal);
     }
 

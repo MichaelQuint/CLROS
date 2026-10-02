@@ -1241,6 +1241,80 @@ The earlier attempt rejected by the overbroad helper is preserved in step929.
 #507/#73 closure follows the reviewed merge. Gate 4 remains **Fail**;
 fixed-catalog execution does not prove general runtime support.
 
+### M04-005 layout conformance profile
+
+The default-false `-EnableM04LayoutContractProbe` requires `-BuildEfi` and all
+three predecessor M04 switches. It rejects `-SkipImageBuild`, terminal
+owned-GDT/TSS or UD2 combinations, and requesting its guest marker while the
+profile is disabled. Use unique paths for each acceptance attempt; the EFI
+must be a direct child of `artifacts/efi`. Use this command template:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 `
+  -BuildEfi `
+  -EnableM04IndependentEndianConformanceProbe `
+  -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe `
+  -EnableM04ArithmeticConformanceProbe `
+  -EnableM04LayoutContractProbe `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -EfiArtifact "artifacts/efi/<assigned-run-id>-layout.EFI" `
+  -Image "artifacts/<assigned-evidence-directory>/layout/os.raw" `
+  -SerialLog "artifacts/<assigned-evidence-directory>/layout/serial.log" `
+  -SummaryLog "artifacts/<assigned-evidence-directory>/layout/summary.log"
+```
+
+Archive the EFI and matching sidecars with the image, serial and summary.
+Run the default profile separately with fresh paths and all M04 flags omitted.
+The inherited marker-only M04-005 command is a legacy placeholder and cannot
+satisfy acceptance. The new preset has 18 required, six ordered, four unique
+and six forbidden constraints. Its exact guest line is:
+
+```text
+CLROS_M04_005_READY profile=ilc10.0.8-win-x64-le checks=19 shapes=3 prefixBytes=24 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
+```
+
+After runner capture, the wrapper additionally validates the entire raw UTF-8
+transcript without stripping a BOM. Console, M04-002/003/004/005, map and smoke
+records must occur exactly once in order. Acceptance compares original whole
+lines ordinally, removing only LF or completed CRLF delimiters. The generic
+parser's diagnostic-suffix behavior cannot authenticate these strict records.
+Altered, duplicate, disguised, partial, control-bearing and late-failure
+records fail anywhere in the transcript. Normal OVMF preamble and post-return
+ANSI/Unicode menu text remain accepted. Strict failure exits 93; success emits
+`QEMU_SCRIPT_M04_LAYOUT_CONTRACT_TRANSCRIPT exactWholeLines=true orderedChain=true uniqueChain=true`.
+
+Step933 records accepted fresh default/layout runs at clean source
+`5f6108ca363f03c7ebad8dafca7ae78e1d3a0db2`. Commands and raw artifacts are
+archived under
+`artifacts/orchestration-20261001/issue512-guest-5f6108c-20261002T0022419996556Z/`.
+The enabled guest satisfies all 18 required, six ordered, four unique and six
+forbidden constraints and the independent exact-line audit. Default emits no
+M04 records. Both rebuilt images contain the exact separately archived EFI
+bytes, verified with an independent GPT/FAT decoder.
+
+| Layout artifact | Bytes | SHA-256 |
+| --- | --- | --- |
+| EFI | 94,720 | `35E8F0FD4F1DDA63057740217CC14F258C9C9B721189B5C8F1A3ACD5EF9CC88C` |
+| Raw image | 67,108,864 | `7ADDF3300B62AC44103264FF49A2FD6EB947703A4974F7E8CE38D5EBC017370F` |
+| Serial | 8,682 | `832AE32F7EDBC61E938D1FF498ED5CE23F120E8D474B7B3FD78A8917D825C57D` |
+| Summary | 5,900 | `734C3756C761D1C21C54A2457CC1A17CBF798E97BC0500D959382A244C78F3A1` |
+
+Both profiles return to the pinned OVMF menu after CLROS smoke. Its 6,947-byte
+suffix is retained; the generic runner reports 207 invalid display bytes and
+two lines, while the CLROS interval passes the strict audit. Success uses a
+750 ms quiet drain and runner termination (native exit -1, wrapper exit 0),
+not a guest-requested application exit.
+
+Independent inspection also found the existing #514 image-builder defect:
+these 64 MiB images declare one trailing data cluster beyond FAT capacity and
+have stale FSInfo accounting. The boot payloads are within independently
+checked bounds. This tuple proves their identity and observed boot markers,
+not whole-filesystem conformance. Historical images are preserved; the fix is
+separate. Gate 4 remains **Fail**; scalar checks cannot prove a heap, GC,
+dispatch, exception support or hosted .NET.
+
 ## Implemented Behavior
 
 - `tools/OS.QemuRunner` builds a QEMU command line for a raw or qcow2 GPT/FAT32 image, OVMF pflash, serial-file capture, AHCI disk attachment, and user-mode virtio networking.

@@ -26,9 +26,9 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
     private const string FailureTestMarker =
         "TEST_FAIL m02.010 guest_materialization_readback_or_cleanup";
     private const string CompileClosureSha256 =
-        "2ed2f5ca764f944ec8bab4c7adbbcb80a4fad03448feb13ff33f898911b307ec";
+        "30dd633e38173653aa4b75b8059fa3036097f082284defc2335dbd8f9a9d7d66";
     private const string CanonicalProjectShapeSha256 =
-        "702df84b25308a4a989cef56e391a497aeab7bc7298dbf023c9b9258120ebada";
+        "0740b6c13d1692bb1a25ffcd638504f9e87de37e41d5a4d60cd798f9d337a299";
     private const string FrozenProductionSha256 =
         "B66CD19B45E8198897B837DF9EDA6934AFBE087DC141C468BD0DB44E62724DA1";
     private const string FrozenHostLeafSha256 =
@@ -170,7 +170,7 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
                 "Probes.cs"));
 
         return ReadyMarker.Length == 370
-            && compileItems.Length == 68
+            && compileItems.Length == 69
             && compileHash == CompileClosureSha256
             && terminalIndex >= 0
             && normalizedIndex == terminalIndex + 1
@@ -203,7 +203,7 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
                 CanonicalProjectShapeSha256,
                 StringComparison.Ordinal)
             && build.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=81",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=82",
                 StringComparison.Ordinal)
             && build.Contains(NormalizedKey, StringComparison.Ordinal)
             && build.Contains(
@@ -213,10 +213,10 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
                 "[switch]$EnableM02NormalizedInterruptFramePageProbe",
                 StringComparison.Ordinal)
             && verifier.Contains(
-                "$expectedSourceClosureInputCount = 81",
+                "$expectedSourceClosureInputCount = 82",
                 StringComparison.Ordinal)
             && verifier.Contains(
-                "$compileItems.Count -ne 68",
+                "$compileItems.Count -ne 69",
                 StringComparison.Ordinal)
             && verifier.Contains(NormalizedKey, StringComparison.Ordinal)
             && verifier.Contains(

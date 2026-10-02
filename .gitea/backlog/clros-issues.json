@@ -9541,7 +9541,7 @@
         "M04-004"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -9567,7 +9567,7 @@
       ],
       "collisionLane": null,
       "summary": "Define object, array, string, EEType, and method-table layout contracts for the selected ILCompiler patch.",
-      "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
+      "currentEvidence": "Step 933 records the accepted complete host gate and fresh default/layout NativeAOT QEMU matrix at source 5f6108ca363f03c7ebad8dafca7ae78e1d3a0db2: 3,527 starts, 3,528 passes, zero failures, exit 0. Supplemental #512 executes 13 positive and six rejection scalar evaluations, with the exact checks=19 guest record once in order and no M04 records by default. The 69-Compile/82-input source closure, package/tool authority, serial/summary and embedded EFI payloads passed independent review. Layout serial SHA256 832AE32F7EDBC61E938D1FF498ED5CE23F120E8D474B7B3FD78A8917D825C57D. The earlier missing ownership-note failure is preserved in step932 and its unchanged predicate passes. The separately tracked #514 FAT geometry defect is disclosed; payload identity and boot markers do not establish whole-filesystem validity. Reviewed PR #511 merge and issue evidence/read-back precede live closure. Gate 4 remains Fail; no physical objects, heap/GC, dispatch/EH, firmware exit or hosted .NET/Kestrel is proved.",
       "implementationNotes": [
         "Implement one host-testable, allocation-free layout/size contract for x64 little-endian NativeAOT ILCompiler 10.0.8. Supported shapes are fixed canonical objects, zero-based single-dimensional arrays, strings, and the fixed EEType/MethodTable prefix; this does not allocate or fabricate managed references.",
         "Pin the selected ILCompiler/runtime-pack version and dotnet/dotnet source commit 94ea82652cdd4e0f8046b5bd5becbd11461482ca. Derive constants from ObjectLayout.h, MethodTable.cs, MethodTable.Constants.cs, EETypeBuilderHelpers.cs, TargetDetails.cs, and GCHelpers.cpp at that commit; preserve reviewed source identities in evidence. Do not use CoreCLR host addresses, SharpOS net8 layouts, or Cosmos structs as ABI authority.",
@@ -9577,6 +9577,7 @@
         "The positive cases are valid fixed-object, empty/nonempty SZ-array, empty/nonempty UTF-16 string and fixed method-table descriptors with independently derived offset/size expectations. Cover a fixed object whose low flag bits are nonzero while HasComponentSize is clear.",
         "Failure cases cover unsupported compiler/architecture/endianness, default descriptors/results, negative or excessive component counts, invalid bases/component sizes/kind flags, short caller bounds, size or range overflow where representable by the API, and unsupported shapes. Failure must not return a usable size or mutate input/sentinel bytes.",
         "The host marker follows executed production-contract checks and explicitly includes hostConformance=true guestIntegrated=false gate4=Fail. Verify reference-free result layouts, zero-allocation repeated evaluation, and no-stdlib compilation of the same production source without runtime network/reference-file access.",
+        "The proposed owned paths are exact for this slice: src/OS.Kernel/Runtime/ObjectArrayStringEETypeMethodTableLayoutContracts.cs, tests/OS.HostTests/ObjectArrayStringEETypeMethodTableLayoutContractsTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "The exact owned paths remain src/OS.Kernel/Runtime/ObjectArrayStringEETypeMethodTableLayoutContracts.cs, tests/OS.HostTests/ObjectArrayStringEETypeMethodTableLayoutContractsTests.cs, docs/nativeaot-nostdlib-limits.md, and docs/completion-gates.md. Parent owns central docs, manifest, reserved done evidence and tracker/Git actions. Actual shared src/OS/Boot/EfiEntry.cs, OS.csproj, BootSequence.cs and Probes.cs require a separately claimed integration/collision-lane issue; the legacy forbidden-path spelling does not authorize edits.",
         "type:implementation is proposed because the accepted scope adds an executable production contract and adversarial host tests; documentation records that behavior but is not the sole deliverable. Preserve agent:blocked, desiredState=open and dependency M04-004 until its reviewed closure; this correction is not a readiness transition.",
         "Reserve a unique done/stepNN.md after implementation exists and include exact commands, logs, source/compiler identities, failures, deferred work and the evidence boundary.",
@@ -9625,7 +9626,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves a version-pinned, bounded object/array/string and fixed EEType/MethodTable layout contract. Host evidence and later QEMU execution of contract checks are separate; neither establishes live heap allocation, GC, metadata discovery, optional-tail traversal, dispatch, exception/unwind support, real ExitBootServices, the M04 exit criterion, hosted .NET/Kestrel, cloud/provider support or production readiness. Gate 4 remains Fail.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M04-006",

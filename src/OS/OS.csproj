@@ -51,6 +51,7 @@
 		<EnableM04IndependentEndianConformanceProbe Condition="'$(EnableM04IndependentEndianConformanceProbe)' == ''">false</EnableM04IndependentEndianConformanceProbe>
 		<EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe Condition="'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == ''">false</EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe>
 		<EnableM04ArithmeticConformanceProbe Condition="'$(EnableM04ArithmeticConformanceProbe)' == ''">false</EnableM04ArithmeticConformanceProbe>
+		<EnableM04LayoutContractProbe Condition="'$(EnableM04LayoutContractProbe)' == ''">false</EnableM04LayoutContractProbe>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM02Ud2VectorStateProbe)' == 'true'">
@@ -136,6 +137,10 @@
 		<DefineConstants>$(DefineConstants);M04_ARITHMETIC_CONFORMANCE_PROBE</DefineConstants>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$(EnableM04LayoutContractProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_LAYOUT_CONTRACT_PROBE</DefineConstants>
+	</PropertyGroup>
+
 	<PropertyGroup Condition="'$(EnableUefiGoneSimulationProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);UEFI_GONE_SIMULATION_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -204,6 +209,7 @@
 		<Compile Include="..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" Link="Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs" Link="Std\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs" Link="Std\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs" />
+		<Compile Include="..\OS.Kernel\Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs" Link="Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs" Link="Boot\M01LoadedImageStackIntegration.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs" Link="Boot\M01LiveAllocatorIntegration.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LivePagingIntegration.cs" Link="Boot\M01LivePagingIntegration.cs" />
@@ -332,6 +338,21 @@
 		<Error
 			Condition="'$(EnableM04ArithmeticConformanceProbe)' == 'true' and '$(EnableM02Ud2VectorStateProbe)' == 'true'"
 			Text="EnableM04ArithmeticConformanceProbe cannot be combined with EnableM02Ud2VectorStateProbe=true." />
+		<Error
+			Condition="'$(EnableM04LayoutContractProbe)' == 'true' and '$(EnableM04ArithmeticConformanceProbe)' != 'true'"
+			Text="EnableM04LayoutContractProbe requires EnableM04ArithmeticConformanceProbe=true." />
+		<Error
+			Condition="'$(EnableM04LayoutContractProbe)' == 'true' and '$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' != 'true'"
+			Text="EnableM04LayoutContractProbe requires EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe=true." />
+		<Error
+			Condition="'$(EnableM04LayoutContractProbe)' == 'true' and '$(EnableM04IndependentEndianConformanceProbe)' != 'true'"
+			Text="EnableM04LayoutContractProbe requires EnableM04IndependentEndianConformanceProbe=true." />
+		<Error
+			Condition="'$(EnableM04LayoutContractProbe)' == 'true' and '$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'"
+			Text="EnableM04LayoutContractProbe cannot be combined with EnableM02OwnedGdtTssTerminalProbe=true." />
+		<Error
+			Condition="'$(EnableM04LayoutContractProbe)' == 'true' and '$(EnableM02Ud2VectorStateProbe)' == 'true'"
+			Text="EnableM04LayoutContractProbe cannot be combined with EnableM02Ud2VectorStateProbe=true." />
 	</Target>
 
 	<Target Name="CustomizeReferences"
