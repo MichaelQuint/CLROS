@@ -755,6 +755,23 @@ value checks establishes compiler-emitted physical object layout, live heap
 allocation, GC, metadata discovery, optional-tail access, dispatch,
 exception/unwind support, real `ExitBootServices` or hosted .NET/Kestrel.
 
+### M04-006 heap-page host boundary
+
+Step935 adds the reviewed `ManagedHeapPageRangeLiveAllocator` host contract:
+one actual caller-mapped page is reserved through the original allocator,
+zeroed/read back, and retained across later valid allocator activity. Ownership
+and current zero contents are distinct observations. Focused tests, complete
+storage-preservation checks, zero-allocation checks and actual-source
+no-stdlib/`NoInlining` evidence pass.
+
+There is no M04-006 EFI integration or guest evidence at this milestone. #75
+remains open and Gate 4 remains **Fail**. Its separately claimed adapter must
+hand off the original M01 authority after its completion consumers, preserve
+the parent, and validate retained ownership/current bytes again before the
+terminal boot plan. Fresh default/enabled source-bound EFI/image/QEMU evidence
+and the complete settled-wave gate remain pending. This does not establish
+managed allocation helpers, GC, hardware NX or post-`ExitBootServices` lifetime.
+
 ## Unsupported Behavior
 
 Hardware fault diagnostics, allocator-owned mutable free-list installation from compact boot regions, complete UEFI encapsulation, ExitBootServices, owned serial/framebuffer, runtime helpers, storage, networking, app loading, socket bind/listen behavior, exported PAL socket/timer/thread/file contracts, hosted .NET 10, Kestrel, ISO generation, libvirt real boot, provider cloud import, CI, and hardening remain incomplete. Libvirt lifecycle planning and check-serial validation are host-only contract evidence; they do not connect to libvirt, start a VM, poll live serial output, or prove cleanup against a live domain.
