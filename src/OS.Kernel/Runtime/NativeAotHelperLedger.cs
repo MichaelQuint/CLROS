@@ -30,7 +30,8 @@ public enum NativeAotHelperArea
     EfiReversePInvoke = 12,
     EfiFailFastTypeCasts = 13,
     EfiStackProbe = 14,
-    EfiFixedAllocation = 15
+    EfiFixedAllocation = 15,
+    EfiSzArrayAllocation = 16
 }
 
 public enum NativeAotHelperStatus
@@ -41,7 +42,8 @@ public enum NativeAotHelperStatus
     EfiOnlyFailFastStub = 3,
     Complete = 4,
     EfiOnlyStackProbe = 5,
-    EfiOnlyFixedAllocation = 6
+    EfiOnlyFixedAllocation = 6,
+    EfiOnlySzArrayAllocation = 7
 }
 
 public readonly struct NativeAotHelperLedgerEntry
@@ -108,7 +110,7 @@ public readonly struct NativeAotHelperLedgerEntry
 
 public static class NativeAotHelperLedger
 {
-    public const int EntryCount = 15;
+    public const int EntryCount = 16;
 
     private const NativeAotCompletionGate RuntimeGates =
         NativeAotCompletionGate.StdRuntime |
@@ -156,10 +158,10 @@ public static class NativeAotHelperLedger
                 isEfiOnly: false,
                 satisfiesKernelRuntimeCompletion: false,
                 "contract:array-allocation",
-                "No OS-owned NativeAOT array allocation helper exists.",
+                "General NativeAOT array allocation remains deferred. GuestTestArrayAllocationLengthOverflowChecks shares the bounded retained-page state with GuestTestRhpNewFast; the separately classified EFI SZ-array profile does not implement GC or reference stores.",
                 "Allocate arrays with valid length, element-size, bounds, method-table, and GC metadata.",
                 "Fail-fast or deferred status only; no stub may return a fabricated managed array.",
-                "Host ledger tests only; no array helper execution test exists.",
+                "Host byte-layout, length/overflow, mixed-state and failure-atomicity tests cover the bounded leaf. EFI/native artifacts and fresh guest execution remain separate evidence boundaries.",
                 "runtime-gc",
                 "Implement array allocation after object allocation and element layout metadata are defined."),
 
@@ -344,6 +346,20 @@ public static class NativeAotHelperLedger
                 "M04RhpNewFastEfiIntegrationTests checks actual source, controlled POD allocation, profile isolation, artifact metadata and strict transcript contracts; parent-owned fresh guest and native-field evidence remains a separate gate.",
                 "efi-runtime-shim",
                 "Implement arrays, boxing payloads, reference barriers, roots and GC under their separate runtime issues; Gate 4 remains incomplete."),
+
+            15 => new NativeAotHelperLedgerEntry(
+                NativeAotHelperArea.EfiSzArrayAllocation,
+                NativeAotHelperStatus.EfiOnlySzArrayAllocation,
+                EfiOnlyGates,
+                isEfiOnly: true,
+                satisfiesKernelRuntimeCompletion: false,
+                "RhpNewArrayFast;RhpNewPtrArrayFast",
+                "Default-off EFI adapter calls GuestTestArrayAllocationLengthOverflowChecks with authentic byte/long SZ-array and element tokens, using the original retained-page authority and the same80-byte state as fixed objects.",
+                "Pinned object(MethodTable*, int) ABI; actual compiler newarr routes by component width, not HasPointers. Array.Length is bounded to the first int field; full-prefix/image association and allocation readback precede returning a reference.",
+                "Default and rejected paths halt. No second arena, fabricated array, managed reference store, barrier, GC, multidimensional or general array semantics are provided.",
+                "M04ArrayAllocationEfiIntegrationTests covers original-authority POD bytes, mixed160/Count5, bounded metadata, profiles and actual artifact routes. Real guest execution is a separate parent-owned gate.",
+                "efi-runtime-shim",
+                "Implement reference barriers, GC and remaining array semantics under separate issues. Gate 4 remains incomplete."),
 
             _ => InvalidEntry()
         };

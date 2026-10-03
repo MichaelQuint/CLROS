@@ -2624,3 +2624,45 @@ three-cluster firmware NVVARS allocation; backup FSInfo remains stale, so this
 does not establish filesystem conformance. No GC, reference writes, boxing
 payload copy, arrays/strings, post-firmware lifetime or general runtime
 readiness is claimed.
+
+### M04-008 shared SZ-array profile (guest acceptance pending)
+
+The default-off positive profile uses a fresh build and all eight explicit
+prerequisites:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 -BuildEfi `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe `
+  -EnableM04IndependentEndianConformanceProbe `
+  -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe `
+  -EnableM04ArithmeticConformanceProbe -EnableM04LayoutContractProbe `
+  -EnableM04ManagedHeapPageRangeProbe -EnableM04RhpNewFastProbe `
+  -EnableM04SzArrayAllocationProbe
+```
+
+The complete positive grammar has 68 owned records: the inherited 44-record
+heap prefix, array START/PREP/BIND, five OBJECT/READBACK pairs, RETAIN/READY/PASS
+and the unchanged eight-record boot suffix. It reports used160/count5 and
+actual scalar/length, zero, prior-object and canary observations. Full-prefix
+observations must be bound independently to the same loaded image; numeric
+consistency alone is insufficient.
+
+`EnableM04SzArrayAllocationBeforeBindProbe` and
+`EnableM04SzArrayAllocationExhaustionProbe` additionally require main and
+exclude each other. Their 49/61-record streams end exactly with
+`TEST_FAIL m04.008.sz_array not_initialized` and
+`TEST_FAIL m04.008.sz_array exhausted`, respectively, followed by CRLF and EOF.
+The ordinary runner continues to reject these failures. Expected-negative
+acceptance requires the separate bounded observer, actual quiet-drain and
+owned-termination evidence, full raw-record validation, and independent
+same-image source/native association. Before-bind reports two attempted tokens
+and the observed image base, with no object-prefix rows.
+
+Step952 records complete focused host/artifact checks and synthetic independent
+auditor controls. No array QEMU capture is accepted there yet. Fresh default,
+heap, fixed, mixed-array, both array negatives, PF and DF runs remain required
+after the complete same-head host gate. Existing fixed/PF/DF evidence belongs
+to its recorded earlier source; it does not prove this changed image.

@@ -7545,7 +7545,7 @@
         "M02-015"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -7561,7 +7561,7 @@
         "docs/boot-order.md"
       ],
       "forbiddenPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -7572,17 +7572,16 @@
       ],
       "collisionLane": null,
       "summary": "Add unexpected-vector panic evidence and deterministic QEMU failure classification.",
-      "currentEvidence": "Diagnostic descriptor/stub plans are host-tested; owned COM1, loaded GDT/TSS/IDT, and controlled live faults are unproven.",
+      "currentEvidence": "M02-015 and its #521 native supplement are merged and closed with accepted step951 full-host/default/PF/DF evidence. The two-file M02-016 host implementation is independently accepted and integrated byte-identically for the current combined source wave. It provides six nonexecuting preparation/capture/reporting operations, C2/D6 storage, a1028-byte stream,184-byte capture,232-byte callback entry depth and650-byte/24-field synthetic metadata. The complete focused module passed11 starts/12 passes with zero failures and one explicit host-only ready line; the actual12-source no-stdlib closure has zero AssemblyRefs, and normal HostTests Release compilation passed. The combined full host run, actual native reporting call graph/stack bound, EFI integration, expected-panic runner classification and guest proof remain pending. Callback entry depth is not whole-stack proof; #56 remains open.",
       "implementationNotes": [
-        "Implement exactly one bounded slice: Add unexpected-vector panic evidence and deterministic QEMU failure classification.",
-        "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
-        "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
-        "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
         "The proposed owned paths are exact for this slice: src/OS.Kernel/Diagnostics/UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassification.cs, tests/OS.HostTests/UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassificationTests.cs, docs/diagnostics.md, docs/boot-order.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Demonstrate the exact successful repository/evidence behavior required by: Add unexpected-vector panic evidence and deterministic QEMU failure classification.",
-        "Failure cases: Cover missing file/tool, duplicate key, malformed input, stale path/claim, nonzero process exit, missing marker, hash mismatch, and unauthorized write as applicable.",
-        "Explicitly inapplicable here: Live device I/O, packet loss, runtime unwind, and cloud cleanup are outside this repository/tooling slice.",
-        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
+        "Only the new diagnostics leaf and its tests are released to the host author; docs/catalog/done/Git/tracker/full-suite/guests remain parent-owned. Shared EFI/runner ownership must be separately claimed after the active #77/#523 integration settles. No BootSequence or Probes change is authorized by host completion.",
+        "Reuse the unchanged normalizer, all-present IDT, descriptor and panic formatter contracts. Prepare/read back ordinary bytes for literal INT0x20/vector32/IST0, decode the184-byte capture and validate supplied original authority. Numeric extents and synthetic observations do not grant readable-memory, mapping, callback or live-state authority.",
+        "Retain C2/D6 and the planned4KiB transition/callback stack. The232-byte callback entry depth includes return/home/alignment/capture, but complete same-image native call-graph, helper, spill, SIMD and stack-probe analysis is required before guest execution. Do not enlarge the stack based on partial prologues.",
+        "Pristine complete stream/context readback must precede stack-canary installation. Keep original callback/resource/request authority outside mutable context; later native arguments must be checked against that original authority. No reset/reprepare to hide a changed capture and no claimed post-report canary observation from pre-report metadata.",
+        "Keep the exact650-byte/24-field metadata followed by the existing single unexpected-vector panic record. Before each UART reconfiguration, require TEMT within65536 checked reads; per-byte THRE remains128. Preserve queued bytes and truthful buffer/serial counters. Byte-return IN/void-return OUT cannot inject a returned checked failure; disclose those defensive branches as unexercised.",
+        "Complete actual host tests and actual-source no-stdlib compilation provide only synthetic/nonexecuting evidence. Keep CLROS_M02_016_HOST_READY distinct from any eventual guest marker. Full native/current-state/serial and expected-panic classification evidence is required before closure; marker-only or dry-run commands are insufficient.",
+        "Use C#14/.NET10, POD/status results and stable markers. No ordinary interrupt service, recovery, hardware IRQ/NMI, unwind, real ExitBootServices, hosted .NET/Kestrel or cloud/production readiness is established."
       ],
       "referenceInfluences": [
         {
@@ -7612,14 +7611,13 @@
         "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
         "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun",
         "git diff --check",
-        "git status --short",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M02_016_READY\""
+        "git status --short"
       ],
       "documentationPaths": [
         "docs/diagnostics.md",
         "docs/boot-order.md"
       ],
-      "evidenceBoundary": "This issue proves only \"Add unexpected-vector panic evidence and deterministic QEMU failure classification.\" It does not by itself prove the M02 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
+      "evidenceBoundary": "The accepted host slice proves only preparation/readback of ordinary bytes, synthetic capture/state validation and controlled checked-COM1 formatting/handoff behavior. It never executes privileged instructions or proves callback code/mappings/lifetime, complete native stack usage, live interrupt/COM1 state, runner expected-panic classification or a guest panic. The eventual native slice must independently establish those bounded facts before closure. No recovery, EBS, general runtime, hosted .NET/Kestrel, cloud or production readiness is implied.",
       "desiredState": "open"
     },
     {
@@ -9829,7 +9827,7 @@
         "M04-007"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -9841,11 +9839,13 @@
       "ownedPaths": [
         "src/OS.Kernel/Runtime/GuestTestArrayAllocationLengthOverflowChecks.cs",
         "tests/OS.HostTests/GuestTestArrayAllocationLengthOverflowChecksTests.cs",
+        "src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs",
+        "tests/OS.HostTests/GuestTestRhpNewFastTests.cs",
         "docs/nativeaot-nostdlib-limits.md",
         "docs/completion-gates.md"
       ],
       "forbiddenPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -9854,18 +9854,17 @@
         "done/** (reserve a new step only after implementation evidence exists)"
       ],
       "collisionLane": null,
-      "summary": "Implement and guest-test array allocation with length/overflow checks.",
-      "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
+      "summary": "Implement and guest-test bounded SZ-array allocation with checked lengths, using the same original retained page and authoritative bump state as fixed-object allocation. First release is the host contract below; this issue stays open until a separately claimed EFI integration supplies actual mixed fixed/array guest proof.",
+      "currentEvidence": "The four-file host implementation is independently accepted: fixed and array allocation share the original 104-byte access, 80-byte cursor state, thirteen ownership arguments and one retained 4 KiB page. Complete focused fixed/array modules passed 20 starts/21 passes with zero failures; actual ten/eleven-source no-stdlib closures have zero AssemblyRefs. The isolated pinned 10.0.8 compiler experiment established Array length layout, genuine byte/long newarr calls and two exact helper signatures, but its terminal exports prove no successful allocation. The separately claimed #523 native source/project/scripts are reviewed: one binder, five mixed objects using 160 bytes, legitimate exhaustion to 4096/count169, exact metadata association and all-byte rejection checks. The unchanged generic scanner admits the thin array wrapper. The complete new EFI initializer passed six starts/seven passes with zero failures, including four actual default/positive/before-bind/exhaustion NativeAOT artifacts, each with 80 Compile items, 93 raw inputs, 31 evaluated flags and zero AssemblyRefs. Independent linked-helper/metadata review, final legacy-fixture review, the combined full host gate and eight fresh guest profiles remain pending; no array guest evidence or Gate4 completion is claimed.",
       "implementationNotes": [
-        "Implement exactly one bounded slice: Implement and guest-test array allocation with length/overflow checks.",
-        "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
-        "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
-        "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
-        "The proposed owned paths are exact for this slice: src/OS.Kernel/Runtime/GuestTestArrayAllocationLengthOverflowChecks.cs, tests/OS.HostTests/GuestTestArrayAllocationLengthOverflowChecksTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Execute or validate the well-formed runtime/application case required by: Implement and guest-test array allocation with length/overflow checks.",
-        "Failure cases: Cover null/default values, size/count overflow, malformed metadata, missing import, relocation overflow, overlapping sections, W+X, root loss, write-barrier omission, cctor recursion/failure, bad cast, unwind corruption, and nonzero exit as applicable.",
-        "Explicitly inapplicable here: DHCP loss and provider cleanup are outside this runtime/application slice unless the title explicitly crosses them.",
-        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
+        "The proposed owned paths are exact for this slice: src/OS.Kernel/Runtime/GuestTestArrayAllocationLengthOverflowChecks.cs, tests/OS.HostTests/GuestTestArrayAllocationLengthOverflowChecksTests.cs, src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs, tests/OS.HostTests/GuestTestRhpNewFastTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Four host source/test paths belong to #77. Separately claimed #523 owns exactly37 native integration/compatibility paths, giving41 unique implementation paths in one author worktree. Parent owns canonical docs/catalog/done, final integration, Git/tracker and final acceptance. Do not infer additional shared ownership.",
+        "Retain the sole shared allocator and original retained-page authority. Fixed and SZ-array paths share validation, zeroing and cursor/count commit; array shape uses the pinned evaluator, base24, component widths1/2/4/8, bounded signed length and explicit statuses. No fabricated metadata, second arena, reset, free, refill, GC or reference stores.",
+        "The finite native fixture mixes fixed24, byte[0]24, long[3]48, reference-field fixed32 and byte[1]32 on one state. Genuine compiled arrays must prove length/scalar access and live header/padding/payload observations. Eighty-two fixed24/byte[0]24 pairs fill the page before the genuine long[1] rejection. Before-bind and exhaustion retain real leaf statuses5 and15 with complete page/state nonmutation checks.",
+        "Use only the compiler-demonstrated first Array length field/getter and two default-fail-closed array helper exports. Authenticate actual array and element MethodTables against the original retained image before prefix reads. Terminal compile/link experiments are not successful allocation or constructor evidence.",
+        "The three array selectors default false and require the existing fixed/heap prerequisites with reciprocal exclusions. Derive the final Compile/raw-source/profile inventories from actual source; preserve every old profile predicate, source-firewall negative and fixed allocation grammar. Allocation adds no instruction-publication Serialize operation.",
+        "Preserve all failed attempts and disclose core subsets separately from complete modules. Host-ready output remains hostConformance=true/guestIntegrated=false. Final guest closure requires same-head complete host evidence followed by fresh default, heap, fixed, mixed-array, array-beforebind, array-exhaustion, page-fault and double-fault profiles, with separate native/metadata/raw/lifecycle/disk review. Ordinary runner failure semantics remain unchanged for negative array profiles.",
+        "Use C#14/.NET10 and status results. General array/BCL/GC support, exceptions, refill, post-firmware lifetime, hosted .NET/Kestrel and Gate4 completion remain outside this finite allocation slice."
       ],
       "referenceInfluences": [
         {
@@ -9880,14 +9879,16 @@
         }
       ],
       "acceptanceCriteria": [
-        "The repository implements and tests the scoped behavior: Implement and guest-test array allocation with length/overflow checks.",
-        "Only declared owned paths are changed; lane-controlled integration files are touched only when this issue owns that lane.",
-        "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
-        "Affected canonical documentation is updated without promoting unsupported completion gates.",
-        "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Execute or validate the well-formed runtime/application case required by: Implement and guest-test array allocation with length/overflow checks.",
-        "Applicable failure cases are asserted: Cover null/default values, size/count overflow, malformed metadata, missing import, relocation overflow, overlapping sections, W+X, root loss, write-barrier omission, cctor recursion/failure, bad cast, unwind corruption, and nonzero exit as applicable.",
-        "The evidence report explicitly records these non-goals: DHCP loss and provider cleanup are outside this runtime/application slice unless the title explicitly crosses them."
+        "Complete unchanged fixed tests still pass, including fixed API rejection of all component-bearing prefixes. State/access/result sizes and fixed status values remain stable.",
+        "Both public APIs interleave on exactly the same initialized state and original authority: fixed24, width1[1]32, fixed32, width4[3]40 gives Used128/Count4 with all earlier bytes intact. Reverse ordering and retained ownership after legal later page allocator mutation also pass. No rebind or reconstructed cursor.",
+        "Independent expected-byte/size fixtures cover widths1/2/4/8, zero/nonzero lengths and zero-only pointer slots. Verify MT, length, header/payload/trailing zeros and untouched full-capacity tails. Exact fits width1[4072] and width8[509] each consume4096; +1 exhausts unchanged.",
+        "Reject negative/max+1 lengths and legal huge lengths without wrap. Specifically width8 and length0x40000000 must exhaust instead of wrapping. Verify min/max bounds, all unsupported flags/shapes/widths, defaults/profile/token rejection and the documented multi-defect precedence.",
+        "Exercise actual original retained authority, copied state and mutations violating its existing identity/accounting invariants, full-capacity overlaps/wrapped spans and token aliases. Rejection comparisons include all80 state bytes, every byte of test storage and canaries. Do not claim detection of every possible mutation: coherent forged Used/Count values remain outside the trusted-caller contract. Prove dirty unused allocation bytes are cleared while previous allocations and authority remain unchanged.",
+        "POD and warmed zero-managed-allocation evidence uses actual production methods. No CLR object addresses, supplied fake fixed metadata, alternate allocator implementation or new shim dependency serves as an oracle.",
+        "The original ten-source fixed no-stdlib compile and new eleven-source array compile use actual files, net10.0/C#14, explicit Compile, NoStdLib/NOSTDLIB_EFI/NoConfig, no implicit/reference-path framework inputs and TreatWarningsAsErrors. Preserve real process exit/logs/source hashes; PE metadata has zero AssemblyRefs and actual entry/core method bodies. Complete real fixed/array ModuleInitializers run in the focused harness; no reflection subset or surrogate helper.",
+        "The separately claimed compatibility update preserves exact path/source firewalls, mutation/wrong-path/case/content negatives and all raw source input hashing. Complete affected source/artifact checks use final bytes; parent runs the integrated complete host gate. No prior fixed guest proof is silently attributed to a changed source image.",
+        "Host completion alone cannot close this issue. A later explicitly owned integration must provide actual compiler-emitted array-helper/native ABI proof, authentic finite array metadata, original retained authority, the same mixed controller, observed array length/data/zero payload and exhaustion/rejection behavior in fresh QEMU/OVMF. Defaults remain fail-closed, with strict transcript and negative terminal evidence. Exact BuildEfi/profile/output-path command must be reviewed and recorded there; the old marker-only command is not a final acceptance command.",
+        "Parent updates canonical docs, reserves done evidence, records all failures/deferred work and posts evidence review before closure. No first-party native-language file, generated output, secret or copied reference implementation is committed."
       ],
       "requiredMarkers": [
         "TEST_START m04.008",
@@ -9900,14 +9901,13 @@
         "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
         "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun",
         "git diff --check",
-        "git status --short",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M04_008_READY\""
+        "git status --short"
       ],
       "documentationPaths": [
         "docs/nativeaot-nostdlib-limits.md",
         "docs/completion-gates.md"
       ],
-      "evidenceBoundary": "This issue proves only \"Implement and guest-test array allocation with length/overflow checks.\" It does not by itself prove the M04 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
+      "evidenceBoundary": "Host proof is bounded raw-byte SZ-array allocation sharing a single original retained-page cursor with fixed allocations. It does not prove authentic metadata, compiled arrays, guest execution, arbitrary arrays/structs, managed reference stores/barriers, GC/root scanning, array covariance/casts/bounds exceptions, strings, boxing, refill/OOM, general allocation, M04 completion, cloud readiness, Kestrel or production readiness. Later actual guest evidence is required to close this issue.",
       "desiredState": "open"
     },
     {

@@ -26,6 +26,9 @@ param(
     [switch]$EnableM04RhpNewFastProbe,
     [switch]$EnableM04RhpNewFastBeforeBindFailureProbe,
     [switch]$EnableM04RhpNewFastExhaustionFailureProbe,
+    [switch]$EnableM04SzArrayAllocationProbe,
+    [switch]$EnableM04SzArrayAllocationBeforeBindProbe,
+    [switch]$EnableM04SzArrayAllocationExhaustionProbe,
     [switch]$EnableM01LoadedImageStackProbe,
     [switch]$EnableM01LiveAllocatorProbe,
     [switch]$EnableM01OwnedPagingProbe,
@@ -56,7 +59,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 92
+$expectedSourceClosureInputCount = 93
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -178,6 +181,7 @@ $expectedEfiCompileItems = @(
     'Runtime\MethodImplAttribute.cs|',
     'Runtime\MinimalRuntime.cs|',
     '..\OS.Kernel\Runtime\GuestTestRhpNewFast.cs|Runtime\GuestTestRhpNewFast.cs',
+    '..\OS.Kernel\Runtime\GuestTestArrayAllocationLengthOverflowChecks.cs|Runtime\GuestTestArrayAllocationLengthOverflowChecks.cs',
     'Runtime\RhpNewFastAllocation.cs|'
 )
 $expectedPackageBuildClosure = @(
@@ -3846,6 +3850,9 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM04RhpNewFastProbe," +
             "EnableM04RhpNewFastBeforeBindFailureProbe," +
             "EnableM04RhpNewFastExhaustionFailureProbe," +
+            "EnableM04SzArrayAllocationProbe," +
+            "EnableM04SzArrayAllocationBeforeBindProbe," +
+            "EnableM04SzArrayAllocationExhaustionProbe," +
             "EnableM01LoadedImageStackProbe," +
             "EnableM01LiveAllocatorProbe," +
             "EnableM01OwnedPagingProbe," +
@@ -3976,6 +3983,15 @@ function Invoke-PostRestoreEvaluationSnapshot {
     }
     if ($EnableM04RhpNewFastExhaustionFailureProbe) {
         $arguments += "-p:EnableM04RhpNewFastExhaustionFailureProbe=true"
+    }
+    if ($EnableM04SzArrayAllocationProbe) {
+        $arguments += "-p:EnableM04SzArrayAllocationProbe=true"
+    }
+    if ($EnableM04SzArrayAllocationBeforeBindProbe) {
+        $arguments += "-p:EnableM04SzArrayAllocationBeforeBindProbe=true"
+    }
+    if ($EnableM04SzArrayAllocationExhaustionProbe) {
+        $arguments += "-p:EnableM04SzArrayAllocationExhaustionProbe=true"
     }
     $arguments += ("-p:EnableM01LoadedImageStackProbe=" + $EnableM01LoadedImageStackProbe.IsPresent.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM01LiveAllocatorProbe=" + $EnableM01LiveAllocatorProbe.IsPresent.ToString().ToLowerInvariant())
@@ -4203,6 +4219,12 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM04RhpNewFastBeforeBindFailureProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04RhpNewFastExhaustionFailureProbe =
             $EnableM04RhpNewFastExhaustionFailureProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM04SzArrayAllocationProbe =
+            $EnableM04SzArrayAllocationProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM04SzArrayAllocationBeforeBindProbe =
+            $EnableM04SzArrayAllocationBeforeBindProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM04SzArrayAllocationExhaustionProbe =
+            $EnableM04SzArrayAllocationExhaustionProbe.IsPresent.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
         ImportProjectExtensionTargets = "false"
         ExcludeRestorePackageImports = "true"
@@ -4274,7 +4296,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 79 -or
+    if ($compileItems.Count -ne 80 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4405,7 +4427,20 @@ function Assert-PostRestoreEvidenceMatchesSnapshot {
 
 Write-Output "TEST_START $testName"
 
-$rhpReason = ""
+$arrayReason = ""
+if (($EnableM04SzArrayAllocationBeforeBindProbe -or $EnableM04SzArrayAllocationExhaustionProbe) -and -not $EnableM04SzArrayAllocationProbe) { $arrayReason = "m04_sz_array_negative_requires_main" }
+if ($EnableM04SzArrayAllocationBeforeBindProbe -and $EnableM04SzArrayAllocationExhaustionProbe) { $arrayReason = "m04_sz_array_negative_conflict" }
+if ($EnableM04SzArrayAllocationProbe) {
+    foreach ($arrayRequired in @("EnableM04RhpNewFastProbe", "EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe", "EnableM04IndependentEndianConformanceProbe", "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe", "EnableM04ArithmeticConformanceProbe", "EnableM04LayoutContractProbe", "EnableM04ManagedHeapPageRangeProbe")) {
+        if (-not [bool](Get-Variable -Name $arrayRequired -ValueOnly)) { $arrayReason = "m04_sz_array_requires_explicit_chain_" + $arrayRequired }
+    }
+}
+if ($EnableM04SzArrayAllocationProbe -or $EnableM04SzArrayAllocationBeforeBindProbe -or $EnableM04SzArrayAllocationExhaustionProbe) {
+    foreach ($arrayConflict in @("EnableM02SafeStubProbe", "EnableM02CheckedPortIoBindingProbe", "EnableM02Com1OwnedPortIoProbe", "EnableM02OwnedCom1ReadyProbe", "EnableM02PanicSafeOwnedCom1Probe", "EnableM02OwnedX64GdtEncodingProbe", "EnableM02GuardedIstStackAllocationProbe", "EnableM02OwnedGdtTssTerminalProbe", "EnableM02NormalizedInterruptFramePageProbe", "EnableM02OwnedIdtGatePopulationProbe", "EnableM02IdtrContinuedExecutionProbe", "EnableM02Ud2VectorStateProbe", "EnableM02PageFaultCr2ErrorCodeProbe", "EnableM02DoubleFaultIstProbe", "EnableM01OwnedPagingProbe", "EnableUefiGoneSimulationProbe", "EnableExitBootServicesFreshMapProbe", "EnableAcpiPhysicalDiscoveryProbe", "EnableM04RhpNewFastBeforeBindFailureProbe", "EnableM04RhpNewFastExhaustionFailureProbe")) {
+        if ([bool](Get-Variable -Name $arrayConflict -ValueOnly)) { $arrayReason = "m04_sz_array_conflicting_profile_" + $arrayConflict }
+    }
+}
+$rhpReason = $arrayReason
 if (($EnableM04RhpNewFastBeforeBindFailureProbe -or $EnableM04RhpNewFastExhaustionFailureProbe) -and -not $EnableM04RhpNewFastProbe) { $rhpReason = "m04_rhp_new_fast_negative_requires_main" }
 if ($EnableM04RhpNewFastBeforeBindFailureProbe -and $EnableM04RhpNewFastExhaustionFailureProbe) { $rhpReason = "m04_rhp_new_fast_negative_conflict" }
 if ($EnableM04RhpNewFastProbe) {
@@ -4559,6 +4594,9 @@ if ($EnableM02DoubleFaultIstProbe) {
         "EnableM04RhpNewFastProbe"
         "EnableM04RhpNewFastBeforeBindFailureProbe"
         "EnableM04RhpNewFastExhaustionFailureProbe"
+        "EnableM04SzArrayAllocationProbe"
+        "EnableM04SzArrayAllocationBeforeBindProbe"
+        "EnableM04SzArrayAllocationExhaustionProbe"
     )) {
         if ([bool](Get-Variable -Name $conflict -ValueOnly)) {
             throw ("m02_double_fault_ist_profile_conflict " + $conflict)

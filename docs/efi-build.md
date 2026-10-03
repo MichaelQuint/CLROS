@@ -2105,3 +2105,31 @@ complete host suite and fresh default/PF/DF images, each with the recorded
 79-item/92-input source closure, actual 28-flag profile and zero-AssemblyRef
 OS.dll. Same-image native/current-state and full capture/lifecycle review supply
 the bounded delivery evidence; successful builds alone do not.
+
+### M04-008 shared SZ-array source profile
+
+Step952 adds false-default `EnableM04SzArrayAllocationProbe`,
+`EnableM04SzArrayAllocationBeforeBindProbe` and
+`EnableM04SzArrayAllocationExhaustionProbe`, with corresponding
+`M04_SZ_ARRAY_ALLOCATION_PROBE`, `M04_SZ_ARRAY_ALLOCATION_BEFORE_BIND_PROBE`
+and `M04_SZ_ARRAY_ALLOCATION_EXHAUSTION_PROBE` symbols. Main requires both
+M01 loaded-image/live-allocator flags and the six prior M04 flags explicitly,
+including `EnableM04RhpNewFastProbe`. Each negative selector requires main;
+the selectors exclude one another. Owned paging, all M02 probes, either fixed
+allocation negative selector, UEFI-gone simulation, fresh ExitBootServices and
+physical ACPI discovery conflict. Existing prerequisite/exclusion rules remain.
+
+The single appended array wrapper gives 80 ordered Compile items and 93 raw
+source inputs, with 28 XML false-default probe properties and three separately
+checked risky inputs forming the 31-flag evaluated vector. The thin wrapper
+passes the unchanged generic scanner; no wrapper exception is introduced.
+The fixed allocator's existing exact-source pin is refreshed for the reviewed
+shared private allocation path. Raw-source hashing remains authoritative.
+
+The complete array integration initializer published default, positive,
+before-bind and exhaustion NativeAOT artifacts with true-flag counts 0/9/10/10.
+It checked actual zero-reference OS metadata, helper attributes/signatures,
+genuine `newarr`/length/index IL and linked array/element routes. This is focused
+artifact evidence. Independent linked-artifact review, the clean combined full
+host gate and fresh eight-profile QEMU acceptance remain pending. No successful
+publish is itself execution of a guest allocation.
