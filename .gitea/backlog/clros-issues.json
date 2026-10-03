@@ -46,7 +46,7 @@
     {
       "key": "M02",
       "title": "M02 Owned x64 Diagnostics",
-      "state": "open",
+      "state": "closed",
       "description": "Prove owned COM1 and descriptor/fault handling under real QEMU. Milestones carry no fabricated due date and close only from preserved evidence.",
       "exitCriteria": "Prove owned COM1 and descriptor/fault handling under real QEMU."
     },

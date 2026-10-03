@@ -229,6 +229,35 @@ SharpOS screenshots/done records used only as historical or behavioral context
 use `reference:test-only`. The separately GPL ManagedDoom fixture and WAD/media
 rights remain `reference:license-blocked`.
 
+## Milestone state policy
+
+[Step962](../done/step962.md) adds explicit milestone intent to the existing
+synchronizer. Values must be exact strings, compared ordinally:
+
+- `open` creates a missing container open and preserves an existing closed
+  container during ordinary metadata maintenance.
+- `closed` requests closure after current issue membership and evidence checks.
+- `reopen` explicitly requests an open container.
+
+Preview, apply and convergence use the same decision. A missing container is
+always created open; closed intent is deferred until membership can be checked.
+The milestone pass still runs before issue updates, so a planned issue closure
+later in the same run cannot satisfy the current milestone check.
+
+Any resolved closed container requires the expected canonical epic with exact
+`type:epic`, the existing recursive epic/child/dependency evidence and actual
+closed states, and each canonical member's presence in that actual milestone.
+Every actual non-PR milestone member, including unkeyed supplements, must also
+be closed. The epic's reviewed evidence attests to the supplemental review;
+historical supplements do not have one uniform machine-readable evidence
+marker. An inconsistent closed container reports a blocker rather than being
+silently reopened. The existing generic issue closure policy is unchanged.
+
+The M02 catalog records closed intent after PR530's reviewed epic closure.
+Milestone4 remains open until this repair's reviewed merge and a narrow live
+update/readback; the intent alone is not live closure or a capability claim.
+No due date is manufactured and no broad live apply is needed for this repair.
+
 ## Unsupported Behavior
 
 The synchronizer does not assign agents, create branches, review evidence, or
@@ -258,7 +287,10 @@ The final command must converge with no `wouldCreate`, `wouldUpdate`, or failed
 keys. Host tests cover UTF-8-without-BOM parsing, manifest shape, offline
 no-write behavior, managed-body preservation, canonical-target refusal,
 duplicate keys, missing fields, unknown dependencies, transitive
-dependency/evidence blocking, and child-before-epic closure order.
+dependency/evidence blocking, and child-before-epic closure order. Milestone
+controls also cover 28 scenarios in both preview/apply modes, exact API
+payloads and convergence, 17 invalid and three valid intent values, current
+membership/evidence blockers, and explicit reopening.
 
 ## Known Limitations
 
@@ -266,9 +298,9 @@ Gitea remains mutable external state, so user-created labels and comments can
 diverge from the manifest-controlled region. Agents must read the issue body,
 dependencies, current labels, and evidence comments before claiming work. The
 manifest is recoverable intent, not proof that any implementation gate passed.
-The 16 milestone objects intentionally remain open and have no fabricated due
-dates; the keyed epic and child issue states carry the durable evidence-review
-closure contract.
+Milestone state follows the explicit policy above and carries no fabricated
+due dates. Keyed epic and child reviewed evidence remains the closure authority;
+container state alone never proves a technical milestone.
 
 ## Required Post-M02-017 Sequence
 
