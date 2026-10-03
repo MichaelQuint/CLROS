@@ -85,11 +85,26 @@ independent review. The complete settled-source host run in
 it includes all nine double-fault host groups and the actual no-stdlib closure.
 
 The supplied page-image summary does not establish C/D identity, current table
-contents or lifetime. A separately scoped EFI adapter must freshly audit the
-exact six mapped ranges, verify ownership/publication and native bytes, and
-establish actual vector 8/error 0/current-RSP-on-original-IST1 capture with
-source-bound serial and lifecycle evidence. Issue #55 remains open. The host
-ready marker and synthetic transcript do not prove CPU delivery or live IST1.
+contents or lifetime. The separately scoped #521 EFI adapter now allocates the
+exact C3/D10/T43 arenas, verifies complete extents and disjoint scratch buffers,
+and freshly audits the six mapped ranges against the original table backing
+immediately before final byte readback and instruction publication. It retains
+the unchanged host leaf and all-present IDT validator. The adapter enters at
+stream offset 768 with the owned context in RCX; after attempted entry it has
+no firmware cleanup or return path. Its unique probe authority defaults false.
+
+[step950](../done/step950.md) records implementation and artifact evidence.
+The fresh settled-source full host suite passes in [step951](../done/step951.md),
+with 3,580 starts, 3,581 passes and no failures. Separate fresh default, page-fault
+regression and double-fault QEMU captures have accepted source/artifact, native,
+whole raw transcript, lifecycle and disk-accounting reviews. The bounded DF
+experiment captured vector 8/error 0 and the full 192-byte current-handler span
+on original IST1. Its same-image audit/readback/publication path and current
+descriptor/root/gate observations bind that result to the original C/D/T backing.
+Saved DF state and CR2 remain diagnostic-only. There is no independent live
+memory dump or general mapping/lifetime or recovery proof. Host/synthetic markers
+alone remain insufficient. PR #522 merge and #55/#521 closure are separate
+tracker actions; the evidence record does not assert those actions already ran.
 
 No ordinary boot phase loads an IDT, installs fault handlers, activates IST
 routing, directs a live CPU fault to panic, or preserves an owned serial path

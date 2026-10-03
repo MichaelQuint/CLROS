@@ -51,6 +51,7 @@ param(
     [switch] $EnableM02IdtrContinuedExecutionProbe,
     [switch] $EnableM02Ud2VectorStateProbe,
     [switch] $EnableM02PageFaultCr2ErrorCodeProbe,
+    [switch] $EnableM02DoubleFaultIstProbe,
     [switch] $EnableM04IndependentEndianConformanceProbe,
     [switch] $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe,
     [switch] $EnableM04ArithmeticConformanceProbe,
@@ -1103,6 +1104,268 @@ function Assert-M02PageFaultCr2ErrorCodeTranscript {
     for ($i=0; $i -lt 12; $i++) { if ($values[45+$i] -ne $expected[$i]) { throw ('m02_page_fault_frame_' + $i) } }
 }
 
+$script:M02DoubleFaultIstReadyMarker = 'CLROS_M02_015_READY vector=8 hardwareErrorCode=true errorCode=0 ist=1 pageZeroAbsent=true guardPagesAbsent=4 savedState=diagnosticOnly terminalHalt=true postExitBootServices=false'
+$script:M02DoubleFaultIstRequiredMarkers = @(
+    'OS_BOOT_OK'
+    'TEST_PASS boot.sequence'
+    'OS_SMOKE_PASS'
+    'TEST_START m02.015'
+    'M02_DF_LAYOUT'
+    'M02_DF_MODE'
+    'M02_DF_ROOT'
+    'M02_DF_ABSENT role=zero'
+    'M02_DF_ABSENT role=df'
+    'M02_DF_ABSENT role=pf'
+    'M02_DF_ABSENT role=nmi'
+    'M02_DF_ABSENT role=transition'
+    'M02_DF_FRAME'
+    'M02_DF_DESCRIPTORS'
+    'M02_DF_GPRS'
+    $script:M02DoubleFaultIstReadyMarker
+    'TEST_PASS m02.015'
+)
+$script:M02DoubleFaultIstOrderedMarkers = @($script:M02DoubleFaultIstRequiredMarkers)
+$script:M02DoubleFaultIstUniqueMarkers = @($script:M02DoubleFaultIstRequiredMarkers)
+$script:M02DoubleFaultIstForbiddenMarkers = @(
+    'TEST_FAIL'
+    'OS_SMOKE_FAIL'
+    'M02_DOUBLE_FAULT_FAILED'
+    'CLROS_M02_015_HOST_READY'
+    'CLROS_M02_014_READY'
+    'M02_PAGE_FAULT_'
+    'CLROS_M02_015_EFI_HOST_READY'
+    'CLROS_M02_013_READY'
+)
+
+function Test-M02DoubleFaultIstOwnedMarker {
+    param([AllowNull()][string] $Marker)
+    if ([string]::IsNullOrEmpty($Marker)) { return $false }
+    $candidate = [regex]::Replace($Marker, '[\x00-\x20\x7f-\uffff]', '')
+    return [regex]::IsMatch($candidate, '(?i)M02_DF|M02_DOUBLE_FAULT|CLROS_M02_015|TEST_(?:START|PASS|FAIL)m02\.015')
+}
+
+function Assert-M02DoubleFaultIstTranscript {
+    param([string] $SerialLogPath)
+    $path = if ([IO.Path]::IsPathRooted($SerialLogPath)) { $SerialLogPath } else { Join-Path $root $SerialLogPath }
+    $text = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($path))
+    # Classification only: split delimiters, controls and case cannot conceal owned/failure records.
+    # Acceptance below always uses complete original CRLF lines and ordinal comparisons.
+    $candidate = [regex]::Replace($text, '[\x00-\x20\x7f-\uffff]', '')
+    if ([regex]::IsMatch($candidate, '(?i)TEST_FAIL|OS_SMOKE_FAIL|M02_DOUBLE_FAULT_FAILED|CLROS_M02_015_(?:HOST|PAGE_IMAGE_HOST|TRANSITION_HOST|EFI_HOST)_READY')) { throw 'm02_double_fault_failure_or_host_record' }
+    foreach ($pair in @(@('M02_DF_',11),@('CLROS_M02_015',1),@('TEST_STARTm02\.015',1),@('TEST_PASSm02\.015',1),@('OS_SMOKE_PASS',1))) {
+        if ([regex]::Matches($candidate, '(?i)' + $pair[0]).Count -ne $pair[1]) { throw 'm02_double_fault_duplicate_or_disguised_record' }
+    }
+    Assert-M02DoubleFaultIstPrefix -Text $text
+    $anchor = "OS_BOOT_OK`r`nTEST_PASS boot.sequence`r`nOS_SMOKE_PASS`r`n"
+    $start = $text.IndexOf($anchor, [StringComparison]::Ordinal)
+    if ($start -lt 0) { throw 'm02_double_fault_smoke_terminal_missing' }
+    $tail = $text.Substring($start + $anchor.Length)
+    $lines = $tail.Split(@("`r`n"), [StringSplitOptions]::None)
+    if ($lines.Length -ne 15 -or $lines[14].Length -ne 0) { throw 'm02_double_fault_exact_tail_extent' }
+    if (-not [string]::Equals($lines[0], 'TEST_START m02.015', [StringComparison]::Ordinal) -or
+        -not [string]::Equals($lines[12], $script:M02DoubleFaultIstReadyMarker, [StringComparison]::Ordinal) -or
+        -not [string]::Equals($lines[13], 'TEST_PASS m02.015', [StringComparison]::Ordinal)) { throw 'm02_double_fault_tail_order' }
+    $h = '(0x[0-9A-F]{16})'
+    $schemas = @(
+        ('M02_DF_LAYOUT code='+$h+' data='+$h+' tables='+$h+' faultRip='+$h+' codePages=3 dataPages=10 tablePages=43 mappedPages=52')
+        ('M02_DF_MODE firmwareCs='+$h+' cr0='+$h+' firmwareCr3='+$h+' cr4Before='+$h+' efer='+$h+' pat='+$h+' physicalBits='+$h)
+        ('M02_DF_ROOT cr3='+$h+' expectedCr3='+$h+' cr4='+$h+' expectedCr4='+$h)
+    )
+    foreach ($role in @('zero','df','pf','nmi','transition')) {
+        $schemas += 'M02_DF_ABSENT role='+$role+' linear='+$h+' levelsRead='+$h+' pml4e='+$h+' pdpte='+$h+' pde='+$h+' pte='+$h
+    }
+    $schemas += 'M02_DF_FRAME vector='+$h+' hasErrorCode='+$h+' error='+$h+' cr2='+$h+' rip='+$h+' cs='+$h+' rflags='+$h+' savedRsp='+$h+' savedSs='+$h+' handlerRsp='+$h+' handlerSs='+$h+' cr3='+$h+' handlerCs='+$h
+    $schemas += 'M02_DF_DESCRIPTORS gdtrLimit='+$h+' gdtrBase='+$h+' tr='+$h+' idtrLimit='+$h+' idtrBase='+$h+' tssAccess='+$h+' ist1='+$h+' dfGateLow='+$h+' dfGateHigh='+$h+' pfGateLow='+$h+' pfGateHigh='+$h
+    $schemas += 'M02_DF_GPRS rax='+$h+' rbx='+$h+' rcx='+$h+' rdx='+$h+' rbp='+$h+' rsi='+$h+' rdi='+$h+' r8='+$h+' r9='+$h+' r10='+$h+' r11='+$h+' r12='+$h+' r13='+$h+' r14='+$h+' r15='+$h
+    $values = New-Object 'System.Collections.Generic.List[UInt64]'
+    for ($i = 0; $i -lt $schemas.Count; $i++) {
+        $match = [regex]::Match($lines[$i+1], '\A' + $schemas[$i] + '\z', [Text.RegularExpressions.RegexOptions]::CultureInvariant)
+        if (-not $match.Success) { throw ('m02_double_fault_observation_schema_' + $i) }
+        for ($field = 1; $field -lt $match.Groups.Count; $field++) { $values.Add([Convert]::ToUInt64($match.Groups[$field].Value.Substring(2),16)) }
+    }
+    if ($values.Count -ne 84) { throw 'm02_double_fault_field_count' }
+    $c=$values[0]; $d=$values[1]; $t=$values[2]; $rip=$values[3]; $bits=$values[10]
+    if ($bits -lt 36 -or $bits -gt 52) { throw 'm02_double_fault_physical_width' }
+    $limit=[UInt64]1 -shl [int]$bits
+    $starts=@($c,$d,$t); $sizes=@([UInt64]12288,[UInt64]40960,[UInt64]176128)
+    for ($i=0; $i -lt 3; $i++) {
+        $a=$starts[$i]; $n=$sizes[$i]
+        if ($a -eq 0 -or ($a -band 4095) -ne 0 -or $a -ge [UInt64]0x0000800000000000 -or
+            $n -ge [UInt64]0x0000800000000000-$a -or $a -ge $limit -or $n -ge $limit-$a) { throw 'm02_double_fault_allocation_extent' }
+        for ($j=0; $j -lt $i; $j++) { if ($a -lt $starts[$j]+$sizes[$j] -and $starts[$j] -lt $a+$n) { throw 'm02_double_fault_allocation_overlap' } }
+    }
+    if ($rip -ne $c+4096+2698) { throw 'm02_double_fault_fault_rip' }
+    $cs=$values[4]; $cr0=$values[5]; $firmwareRoot=$values[6]; $before=$values[7]; $efer=$values[8]; $pat=$values[9]
+    if ($cs -gt 65535 -or ($cs -band 7) -ne 0 -or ($cs -band 0xfff8) -eq 0 -or
+        ($cr0 -band [UInt64]2147549185) -ne [UInt64]2147549185 -or ($before -band 0x20) -eq 0 -or
+        ($before -band 0x01821000) -ne 0 -or ($efer -band 0xd00) -ne 0xd00 -or
+        $firmwareRoot -ge $limit -or ($firmwareRoot -band 0xfe7) -ne 0 -or ($firmwareRoot -shr 12) -eq 0 -or
+        ($pat -band 255) -ne 6) { throw 'm02_double_fault_mode' }
+    for ($i=0; $i -lt 8; $i++) { if (@(0,1,4,5,6,7) -notcontains [int](($pat -shr (8*$i)) -band 255)) { throw 'm02_double_fault_pat' } }
+    $after=$before -band (-bnot [UInt64]0x80)
+    if ($values[11] -ne $t -or $values[12] -ne $t -or $values[13] -ne $after -or $values[14] -ne $after) { throw 'm02_double_fault_root' }
+    $linear=@([UInt64]0,($d+0x2000),($d+0x4000),($d+0x6000),($d+0x8000))
+    # The five observations share one actual root: a read slot has one structural entry.
+    # Hardware may set accessed between walks; no other structural variation is accepted.
+    $slots=New-Object 'System.Collections.Generic.Dictionary[string,UInt64]' ([StringComparer]::Ordinal)
+    $parents=New-Object 'System.Collections.Generic.Dictionary[UInt64,string]'
+    $mappedStarts=@($c,$d,($d+0x3000),($d+0x5000),($d+0x7000),($d+0x9000),$t)
+    $mappedSizes=@([UInt64]12288,[UInt64]8192,[UInt64]4096,[UInt64]4096,[UInt64]4096,[UInt64]4096,[UInt64]176128)
+    for ($walk=0; $walk -lt 5; $walk++) {
+        $offset=15+$walk*6; $levels=$values[$offset+1]
+        if ($values[$offset] -ne $linear[$walk] -or $levels -lt 1 -or $levels -gt 4) { throw 'm02_double_fault_absence_identity' }
+        # An absent ancestor covers a whole virtual interval, not only the queried byte.
+        # It cannot also contain any page this terminal layout necessarily executes or reads.
+        $shift=12+9*(4-[int]$levels)
+        $absentStart=($linear[$walk] -shr $shift) -shl $shift
+        $absentEnd=$absentStart+([UInt64]1 -shl $shift)
+        for ($mapped=0; $mapped -lt 7; $mapped++) {
+            if ($absentStart -lt $mappedStarts[$mapped]+$mappedSizes[$mapped] -and $mappedStarts[$mapped] -lt $absentEnd) { throw 'm02_double_fault_absence_overlaps_known_mapping' }
+        }
+        $visited=New-Object 'System.Collections.Generic.HashSet[UInt64]'
+        [void]$visited.Add($t)
+        $table=$t
+        for ($level=0; $level -lt 4; $level++) {
+            $entry=$values[$offset+2+$level]
+            if ($level -ge $levels) { if ($entry -ne 0) { throw 'm02_double_fault_nonzero_placeholder' }; continue }
+            $index=($linear[$walk] -shr (39-9*$level)) -band 511
+            $slot=$table.ToString('X16',[Globalization.CultureInfo]::InvariantCulture)+':'+$index.ToString([Globalization.CultureInfo]::InvariantCulture)
+            $structural=$entry -band (-bnot [UInt64]0x20)
+            if ($slots.ContainsKey($slot)) {
+                if ($slots[$slot] -ne $structural) { throw 'm02_double_fault_inconsistent_shared_slot' }
+            } else { $slots.Add($slot,$structural) }
+            if ($level -eq $levels-1) { if ($entry -ne 0) { throw 'm02_double_fault_nonzero_absence' }; continue }
+            # These are ancestors only: P/RW and optional accessed, never dirty/NX/PS/reserved.
+            $flags=$entry -band 4095; $target=($entry -shr 12) -shl 12
+            if (($flags -ne 3 -and $flags -ne 35) -or $entry -ge $limit -or $target -lt $t -or
+                $target -ge $t+176128 -or -not $visited.Add($target)) { throw 'm02_double_fault_ancestor' }
+            if ($parents.ContainsKey($target)) {
+                if (-not [string]::Equals($parents[$target],$slot,[StringComparison]::Ordinal)) { throw 'm02_double_fault_aliased_child_table' }
+            } else { $parents.Add($target,$slot) }
+            $table=$target
+        }
+    }
+    # Saved RIP/CS/SS/RSP/RFLAGS, CR2 and GPRs are diagnostic-only for #DF.
+    foreach ($pair in @(@(45,8),@(46,1),@(47,0),@(54,($d+0x4000-192)),@(55,0),@(56,$t),@(57,8))) {
+        if ($values[$pair[0]] -ne [UInt64]$pair[1]) { throw 'm02_double_fault_current_frame' }
+    }
+    $gates=@()
+    foreach ($gate in @(@(8,1,142),@(14,2,14))) {
+        $target=$c+[UInt64]($gate[0]*16)
+        $low=($target -band [UInt64]65535) -bor ([UInt64]8 -shl 16) -bor ([UInt64]$gate[1] -shl 32) -bor ([UInt64]$gate[2] -shl 40) -bor (($target -band [UInt64]4294901760) -shl 32)
+        $gates+=@($low,($target -shr 32))
+    }
+    $expected=@([UInt64]39,($d+4096+24),[UInt64]24,[UInt64]4095,$d,[UInt64]139,($d+0x4000))+$gates
+    for ($i=0;$i -lt 11;$i++) { if ($values[58+$i] -ne $expected[$i]) { throw ('m02_double_fault_descriptor_'+$i) } }
+}
+
+function Assert-M02DoubleFaultIstPrefix {
+    param([string] $Text)
+    if ($Text.Length -gt 1048576) { throw 'm02_double_fault_capture_extent' }
+    $starts=[regex]::Matches($Text,'(?m)^TEST_START efi\.main\r\n')
+    if ($starts.Count -ne 1) { throw 'm02_double_fault_efi_start' }
+    $pre=$Text.Substring(0,$starts[0].Index)
+    # Empty controlled capture or the independently accepted 304-byte OVMF prefix.
+    # This literal is fixed; a future firmware variation requires separate review.
+    $acceptedPreamble='G1syShtbMDE7MDFIG1s9M2gbWzJKG1swMTswMUgbWzJKG1swMTswMUgbWz0zaBtbMkobWzAxOzAxSBtbMkobWzAxOzAxSBtbPTNoG1syShtbMDE7MDFIQmRzRHhlOiBsb2FkaW5nIEJvb3QwMDAxICJVRUZJIFFFTVUgSEFSRERJU0sgUU0wMDAxMyAiIGZyb20gUGNpUm9vdCgweDApL1BjaSgweDIsMHgwKS9TYXRhKDB4MCwweEZGRkYsMHgwKQ0KQmRzRHhlOiBzdGFydGluZyBCb290MDAwMSAiVUVGSSBRRU1VIEhBUkRESVNLIFFNMDAwMTMgIiBmcm9tIFBjaVJvb3QoMHgwKS9QY2koMHgyLDB4MCkvU2F0YSgweDAsMHhGRkZGLDB4MCkNCg=='
+    if ($pre.Length -ne 0 -and -not [string]::Equals([Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($pre)),$acceptedPreamble,[StringComparison]::Ordinal)) { throw 'm02_double_fault_preamble_record' }
+    $body=$Text.Substring($starts[0].Index)
+    if ([regex]::IsMatch($body,'[^\x20-\x7e\r\n]|(?<!\r)\n|\r(?!\n)')) { throw 'm02_double_fault_raw_delimiter' }
+    $records=$body.Split(@("`r`n"),[StringSplitOptions]::None)
+    if ($records.Length -ne 89 -or $records[88].Length -ne 0) { throw 'm02_double_fault_complete_count' }
+    $expected=@(
+        'TEST_START efi.main'
+        'EFI_CONSOLE_READY'
+        'UEFI_MEMORY_MAP_READY'
+        'UEFI_MEMORY_MAP_DESCRIPTOR_COUNT'
+        'UEFI_MEMORY_MAP_OWNED'
+        'BOOT_HANDOFF_READY'
+        'UEFI_MEMORY_MAP_NORMALIZED'
+        'BOOT_MEMORY_MAP_ACCEPTED'
+        'BOOT_MEMORY_REGIONS_READY'
+        'BOOT_MEMORY_REGION_COUNT'
+        'BOOT_PAGE_ALLOCATOR_READY'
+        'BOOT_ACPI_RSDP_HANDOFF_READY'
+        'UEFI_ACPI_RSDP_READY'
+        'TEST_START m01.stage1'
+        'M01_LOADED_IMAGE_CAPTURED'
+        'M01_STACK_SWITCH_STUB_READY'
+        'M01_STACK_ARENA_ALLOCATED'
+        'M01_STACK_GUARD_RESERVED'
+        'M01_STAGE1_MAP_RECAPTURED'
+        'M01_STAGE1_RESERVATIONS_VALIDATED'
+        'M01_OWNED_STACK_READY'
+        'M01_OWNED_STACK_SWITCHED'
+        'M01_RSP_CONTAINED'
+        'TEST_PASS m01.stage1'
+        'TEST_START m01.stage2'
+        'M01_ALLOCATOR_ARENA_ALLOCATED'
+        'M01_STAGE2_MAP_RECAPTURED'
+        'M01_RESERVATIONS_APPLIED'
+        'M01_LIVE_ALLOCATED_4K'
+        'M01_LIVE_PAGE_WITHIN_ARENA'
+        'M01_LIVE_FREED_4K'
+        'M01_DOUBLE_FREE_REJECTED'
+        'TEST_PASS m01.stage2'
+        'TEST_START m01.stage3'
+        'M01_CR3_STUB_PAGE_ALLOCATED'
+        'M01_PROTECTION_PROBE_PAGE_ALLOCATED'
+        'M01_PAGE_TABLE_STATE_ARENA_ALLOCATED'
+        'M01_STAGE3_MAP_RECAPTURED'
+        'TEST_START m02.017'
+        'M02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56'
+        'M02_STUB_PAGE_READBACK_VERIFIED fnv1a64=982E5B7E3EE58E56'
+        'M01_CR3_STUB_MATERIALIZED'
+        'M01_PAGE_TABLES_BUILT'
+        'M01_PAGING_MODE_VALIDATED'
+        'M01_PRE_CR3'
+        'M01_FIRMWARE_CR3_RESTORED'
+        'M01_RFLAGS_RESTORED'
+        'M01_PGE_CYCLE_VERIFIED'
+        'M01_OWNED_CR3_CANARY_VERIFIED'
+        'M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED'
+        'M01_POST_CR3'
+        'M01_RW_TO_RX_VERIFIED'
+        'M01_TLB_INVALIDATION_COMPLETE'
+        'M01_RX_PROBE_EXECUTED'
+        'M01_PAGE_ZERO_ABSENT'
+        'M02_SAFE_PROBE_EXECUTED offset=0 return=0x4F534F4B'
+        'CLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56 temporaryOwnedRootRx=true portIoExecuted=false'
+        'TEST_PASS m02.017'
+        'CLROS_M02_003_READY bindingReady=true out8AddressChecked=true in8AddressChecked=true guestInvocation=false portIoExecuted=false'
+        'CLROS_M02_004_READY configurationWrites=7 bindingReady=true guestPortIo=true guestIn8=false markerTransport=uefiSerial postExitBootServices=false'
+        'OWNED_COM1_READY'
+        'CLROS_M02_005_READY marker=OWNED_COM1_READY markerBytes=16 lineEndingBytes=2 configurationWrites=7 lineStatusPolls=18 ownedWriter=true ownedMarkerTransport=com1PortIo evidenceMarkerTransport=uefiSerial guestPortIo=true guestIn8=true postExitBootServices=false'
+        'CLROS_M02_006_READY panicFormatter=bounded ownedCom1Transport=true callerScratch=true statusCoded=true firmwareFallback=false'
+        'CLROS_M02_006_EVIDENCE markerBytes=125 serialBytes=127 configurationWrites=7 lineStatusPolls=127 markerTransport=com1PortIo evidenceTransport=uefiSerial guestPortIo=true guestIn8=true panicFormatter=linked panicReporter=ownedCom1 callerScratch=true statusCoded=true firmwareFallback=false postExitBootServices=false'
+        'TEST_PASS m01.stage3'
+        'CLROS_M01_LIVE_BOOT_MEMORY_READY'
+        'TEST_START boot.sequence'
+        'BOOT_PHASE PhaseA.Audit START'
+        'BOOT_PHASE PhaseA.Audit PASS'
+        'BOOT_PHASE PhaseA.Diagnostics START'
+        'BOOT_PHASE PhaseA.Diagnostics PASS'
+        'OS_BOOT_OK'
+        'TEST_PASS boot.sequence'
+        'OS_SMOKE_PASS'
+    )
+    for ($i=0;$i -lt 74;$i++) {
+        if ($i -eq 3 -or $i -eq 9 -or $i -eq 10) { continue }
+        if (-not [string]::Equals($records[$i],$expected[$i],[StringComparison]::Ordinal)) { throw ('m02_double_fault_prefix_'+$i) }
+    }
+    $dec='(0|[1-9][0-9]*)'
+    $descriptor=[regex]::Match($records[3],'\AUEFI_MEMORY_MAP_DESCRIPTOR_COUNT '+$dec+'\z')
+    $region=[regex]::Match($records[9],'\ABOOT_MEMORY_REGION_COUNT '+$dec+'\z')
+    $map=[regex]::Match($records[10],'\ABOOT_PAGE_ALLOCATOR_READY status=Ready regions='+$dec+' conventionalPages='+$dec+' conventionalBytes='+$dec+' freeNodes='+$dec+' freePages='+$dec+' freeBytes='+$dec+' pageSize='+$dec+' statusCode='+$dec+'\z')
+    if (-not $descriptor.Success -or -not $region.Success -or -not $map.Success) { throw 'm02_double_fault_map_schema' }
+    $descriptors=[UInt64]::Parse($descriptor.Groups[1].Value,[Globalization.CultureInfo]::InvariantCulture)
+    $regions=[UInt64]::Parse($region.Groups[1].Value,[Globalization.CultureInfo]::InvariantCulture)
+    $v=@();for($i=1;$i -le 8;$i++){$v += [UInt64]::Parse($map.Groups[$i].Value,[Globalization.CultureInfo]::InvariantCulture)}
+    if ($descriptors -ne $regions -or $regions -lt 1 -or $regions -gt 4096 -or $v[0] -ne $regions -or
+        $v[3] -lt 1 -or $v[3] -gt $regions -or $v[3] -gt $v[4] -or [decimal]$v[4]*4096 -gt [decimal][UInt64]::MaxValue -or
+        $v[1] -ne $v[4] -or [decimal]$v[2] -ne [decimal]$v[4]*4096 -or $v[2] -ne $v[5] -or $v[6] -ne 4096 -or $v[7] -ne 0) { throw 'm02_double_fault_map_accounting' }
+}
+
 function Assert-M04ManagedHeapPageRangeTranscript {
     param([string] $SerialLogPath, [switch] $IncludeFixedAllocation)
     $lineCount = if ($IncludeFixedAllocation) { 78 } else { 52 }
@@ -1392,6 +1655,23 @@ function Assert-M02PageFaultRunnerResult {
     if (-not $match.Success -or -not [Int32]::TryParse($match.Groups[1].Value,
             [Globalization.NumberStyles]::AllowLeadingSign,
             [Globalization.CultureInfo]::InvariantCulture, [ref]$nativeExitCode)) { throw 'm02_page_fault_native_exit_invalid' }
+}
+
+function Assert-M02DoubleFaultIstRunnerResult {
+    param([string[]] $Lines)
+    foreach ($line in $Lines) {
+        $record=[regex]::Replace($line,'[\x00-\x20\x7f-\uffff]','')
+        if ([regex]::IsMatch($record,'(?i)\A(?:TEST_FAIL|OS_SMOKE_FAIL|QEMU_PROCESS_CLEANUP_FAILED)')) { throw 'm02_double_fault_runner_failure' }
+    }
+    $results = @($Lines | Where-Object { $_.StartsWith('QEMU_PROCESS_RESULT ', [StringComparison]::Ordinal) })
+    $drains = @($Lines | Where-Object { $_.StartsWith('SERIAL_MARKER_DRAIN ', [StringComparison]::Ordinal) })
+    if ($results.Count -ne 1 -or $drains.Count -ne 1 -or
+        -not [string]::Equals($drains[0], 'SERIAL_MARKER_DRAIN milliseconds=750', [StringComparison]::Ordinal)) { throw 'm02_double_fault_terminal_disposition' }
+    $match = [regex]::Match($results[0], '\AQEMU_PROCESS_RESULT disposition=runner-terminated exitCode=(0|-?[1-9][0-9]*)\z')
+    $nativeExitCode = [Int32]0
+    if (-not $match.Success -or -not [Int32]::TryParse($match.Groups[1].Value,
+            [Globalization.NumberStyles]::AllowLeadingSign,
+            [Globalization.CultureInfo]::InvariantCulture, [ref]$nativeExitCode)) { throw 'm02_double_fault_native_exit_invalid' }
 }
 
 function Assert-M04LayoutContractTranscript {
@@ -4569,7 +4849,7 @@ try {
         foreach ($rhpRequired in @("EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe", "EnableM04IndependentEndianConformanceProbe", "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe", "EnableM04ArithmeticConformanceProbe", "EnableM04LayoutContractProbe", "EnableM04ManagedHeapPageRangeProbe")) {
             if (-not [bool](Get-Variable -Name $rhpRequired -ValueOnly)) { $rhpReason = "m04_rhp_new_fast_requires_explicit_chain_" + $rhpRequired }
         }
-        foreach ($rhpConflict in @("EnableM02SafeStubProbe", "EnableM02CheckedPortIoBindingProbe", "EnableM02Com1OwnedPortIoProbe", "EnableM02OwnedCom1ReadyProbe", "EnableM02PanicSafeOwnedCom1Probe", "EnableM02OwnedX64GdtEncodingProbe", "EnableM02GuardedIstStackAllocationProbe", "EnableM02OwnedGdtTssTerminalProbe", "EnableM02NormalizedInterruptFramePageProbe", "EnableM02OwnedIdtGatePopulationProbe", "EnableM02IdtrContinuedExecutionProbe", "EnableM02Ud2VectorStateProbe", "EnableM02PageFaultCr2ErrorCodeProbe", "EnableM01OwnedPagingProbe", "EnableUefiGoneSimulationProbe", "EnableExitBootServicesFreshMapProbe", "EnableAcpiPhysicalDiscoveryProbe")) {
+        foreach ($rhpConflict in @("EnableM02SafeStubProbe", "EnableM02CheckedPortIoBindingProbe", "EnableM02Com1OwnedPortIoProbe", "EnableM02OwnedCom1ReadyProbe", "EnableM02PanicSafeOwnedCom1Probe", "EnableM02OwnedX64GdtEncodingProbe", "EnableM02GuardedIstStackAllocationProbe", "EnableM02OwnedGdtTssTerminalProbe", "EnableM02NormalizedInterruptFramePageProbe", "EnableM02OwnedIdtGatePopulationProbe", "EnableM02IdtrContinuedExecutionProbe", "EnableM02Ud2VectorStateProbe", "EnableM02PageFaultCr2ErrorCodeProbe", "EnableM02DoubleFaultIstProbe", "EnableM01OwnedPagingProbe", "EnableUefiGoneSimulationProbe", "EnableExitBootServicesFreshMapProbe", "EnableAcpiPhysicalDiscoveryProbe")) {
             if ([bool](Get-Variable -Name $rhpConflict -ValueOnly)) { $rhpReason = "m04_rhp_new_fast_conflicting_profile_" + $rhpConflict }
         }
     }
@@ -4621,6 +4901,7 @@ try {
     }
     if ($EnableM02PageFaultCr2ErrorCodeProbe) {
         foreach ($conflict in @(
+            "EnableM02DoubleFaultIstProbe"
             "EnableM02OwnedX64GdtEncodingProbe"
             "EnableM02GuardedIstStackAllocationProbe"
             "EnableM02OwnedGdtTssTerminalProbe"
@@ -4635,6 +4916,34 @@ try {
         )) {
             if ([bool](Get-Variable -Name $conflict -ValueOnly)) {
                 Write-Host ("TEST_FAIL qemu.smoke.invalid_args m02_page_fault_cr2_error_code_profile_conflict property=" + $conflict)
+                exit 1
+            }
+        }
+    }
+    if ($EnableM02DoubleFaultIstProbe) {
+        foreach ($conflict in @(
+            "EnableUefiGoneSimulationProbe"
+            "EnableExitBootServicesFreshMapProbe"
+            "EnableAcpiPhysicalDiscoveryProbe"
+            "EnableM02OwnedX64GdtEncodingProbe"
+            "EnableM02GuardedIstStackAllocationProbe"
+            "EnableM02OwnedGdtTssTerminalProbe"
+            "EnableM02NormalizedInterruptFramePageProbe"
+            "EnableM02OwnedIdtGatePopulationProbe"
+            "EnableM02IdtrContinuedExecutionProbe"
+            "EnableM02Ud2VectorStateProbe"
+            "EnableM02PageFaultCr2ErrorCodeProbe"
+            "EnableM04IndependentEndianConformanceProbe"
+            "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"
+            "EnableM04ArithmeticConformanceProbe"
+            "EnableM04LayoutContractProbe"
+            "EnableM04ManagedHeapPageRangeProbe"
+            "EnableM04RhpNewFastProbe"
+            "EnableM04RhpNewFastBeforeBindFailureProbe"
+            "EnableM04RhpNewFastExhaustionFailureProbe"
+        )) {
+            if ([bool](Get-Variable -Name $conflict -ValueOnly)) {
+                Write-Host ("TEST_FAIL qemu.smoke.invalid_args m02_double_fault_ist_profile_conflict property=" + $conflict)
                 exit 1
             }
         }
@@ -4680,6 +4989,50 @@ try {
             [System.Management.Automation.SwitchParameter]::new($true)
         Write-Host (
             "QEMU_SCRIPT_M02_PAGE_FAULT_CR2_ERROR_CODE_PREREQUISITES status=implied " +
+            "m01LoadedImageStack=true m01LiveAllocator=true ownedPaging=true " +
+            "m02SafeStub=true checkedPortIoBinding=true com1OwnedPortIo=true " +
+            "ownedCom1Ready=true panicSafeOwnedCom1=true")
+    }
+    if ($EnableM02DoubleFaultIstProbe) {
+        $m02DoubleFaultIstPrerequisites = @(
+            "EnableM01LoadedImageStackProbe",
+            "EnableM01LiveAllocatorProbe",
+            "EnableM01OwnedPagingProbe",
+            "EnableM02SafeStubProbe",
+            "EnableM02CheckedPortIoBindingProbe",
+            "EnableM02Com1OwnedPortIoProbe",
+            "EnableM02OwnedCom1ReadyProbe",
+            "EnableM02PanicSafeOwnedCom1Probe"
+        )
+        foreach ($prerequisiteName in $m02DoubleFaultIstPrerequisites) {
+            if ($PSBoundParameters.ContainsKey($prerequisiteName) -and
+                -not [bool]$PSBoundParameters[$prerequisiteName]) {
+                Write-Host (
+                    "TEST_FAIL qemu.smoke.invalid_args " +
+                    "m02_double_fault_ist_probe_explicit_false_prerequisite " +
+                    "property=" + $prerequisiteName)
+                exit 1
+            }
+        }
+
+        $EnableM01LoadedImageStackProbe =
+            [System.Management.Automation.SwitchParameter]::new($true)
+        $EnableM01LiveAllocatorProbe =
+            [System.Management.Automation.SwitchParameter]::new($true)
+        $EnableM01OwnedPagingProbe =
+            [System.Management.Automation.SwitchParameter]::new($true)
+        $EnableM02SafeStubProbe =
+            [System.Management.Automation.SwitchParameter]::new($true)
+        $EnableM02CheckedPortIoBindingProbe =
+            [System.Management.Automation.SwitchParameter]::new($true)
+        $EnableM02Com1OwnedPortIoProbe =
+            [System.Management.Automation.SwitchParameter]::new($true)
+        $EnableM02OwnedCom1ReadyProbe =
+            [System.Management.Automation.SwitchParameter]::new($true)
+        $EnableM02PanicSafeOwnedCom1Probe =
+            [System.Management.Automation.SwitchParameter]::new($true)
+        Write-Host (
+            "QEMU_SCRIPT_M02_DOUBLE_FAULT_IST_PREREQUISITES status=implied " +
             "m01LoadedImageStack=true m01LiveAllocator=true ownedPaging=true " +
             "m02SafeStub=true checkedPortIoBinding=true com1OwnedPortIo=true " +
             "ownedCom1Ready=true panicSafeOwnedCom1=true")
@@ -5198,10 +5551,46 @@ try {
             )
         )
     }
+    if ($EnableM02DoubleFaultIstProbe) {
+        $requiredMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $requiredMarkers
+                $script:M02DoubleFaultIstRequiredMarkers
+            )
+        )
+        $orderedMarkersBeforeTerminal = @(
+            $orderedMarkers | Where-Object {
+                $_ -cne "OS_BOOT_OK" -and
+                $_ -cne "TEST_PASS boot.sequence" -and
+                $_ -cne "OS_SMOKE_PASS"
+            }
+        )
+        $orderedMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $orderedMarkersBeforeTerminal
+                $script:M02DoubleFaultIstOrderedMarkers
+            )
+        )
+        $uniqueMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $uniqueMarkers
+                $script:M02DoubleFaultIstUniqueMarkers
+            )
+        )
+        $forbiddenMarkers = @(
+            Merge-QemuSmokeMarkerList -Values @(
+                $forbiddenMarkers
+                $script:M02DoubleFaultIstForbiddenMarkers
+            )
+        )
+    }
 
     Write-Host ("QEMU_SCRIPT_M02_PAGE_FAULT_CR2_ERROR_CODE_PROBE enabled=" +
         (Format-QemuSmokeBoolean $EnableM02PageFaultCr2ErrorCodeProbe.IsPresent) +
         " profileRequired=15 profileOrdered=15 profileUnique=15 profileForbidden=8")
+    Write-Host ("QEMU_SCRIPT_M02_DOUBLE_FAULT_IST_PROBE enabled=" +
+        (Format-QemuSmokeBoolean $EnableM02DoubleFaultIstProbe.IsPresent) +
+        " profileRequired=17 profileOrdered=17 profileUnique=17 profileForbidden=8")
     if ($RequireNativeAppMarkers) {
         foreach ($marker in $nativeAppRequiredMarkers) {
             if ($requiredMarkers -notcontains $marker) {
@@ -5794,11 +6183,23 @@ try {
             "m02_page_fault_cr2_error_code_probe_requires_build_efi")
         exit 1
     }
+    if ($EnableM02DoubleFaultIstProbe -and -not $BuildEfi) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_double_fault_ist_probe_requires_build_efi")
+        exit 1
+    }
 
     if ($EnableM02PageFaultCr2ErrorCodeProbe -and $SkipImageBuild) {
         Write-Host (
             "TEST_FAIL qemu.smoke.invalid_args " +
             "m02_page_fault_cr2_error_code_probe_forbids_skip_image_build")
+        exit 1
+    }
+    if ($EnableM02DoubleFaultIstProbe -and $SkipImageBuild) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_double_fault_ist_probe_forbids_skip_image_build")
         exit 1
     }
 
@@ -5807,6 +6208,13 @@ try {
         Write-Host (
             "TEST_FAIL qemu.smoke.invalid_args " +
             "m02_page_fault_cr2_error_code_probe_forbids_m01_raw_observation_log")
+        exit 1
+    }
+    if ($EnableM02DoubleFaultIstProbe -and
+        -not [string]::IsNullOrWhiteSpace($M01RawObservationLog)) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_double_fault_ist_probe_forbids_m01_raw_observation_log")
         exit 1
     }
 
@@ -5840,6 +6248,22 @@ try {
         Write-Host (
             "TEST_FAIL qemu.smoke.invalid_args " +
             "m02_page_fault_cr2_error_code_marker_requires_typed_profile")
+        exit 1
+    }
+    $userRequestedM02DoubleFaultIstMarker = @(
+        ConvertTo-QemuSmokeMarkerList -Values @(
+            $RequireMarker
+            $RequireOrderedMarker
+            $RequireUniqueMarker
+        ) | Where-Object {
+            Test-M02DoubleFaultIstOwnedMarker -Marker $_
+        }
+    ).Count -ne 0
+    if (-not $EnableM02DoubleFaultIstProbe -and
+        $userRequestedM02DoubleFaultIstMarker) {
+        Write-Host (
+            "TEST_FAIL qemu.smoke.invalid_args " +
+            "m02_double_fault_ist_marker_requires_typed_profile")
         exit 1
     }
 
@@ -6132,9 +6556,10 @@ try {
             -not $EnableM02OwnedGdtTssTerminalProbe.IsPresent -and
             -not $EnableM02Ud2VectorStateProbe.IsPresent -and
             -not $EnableM02PageFaultCr2ErrorCodeProbe.IsPresent -and
+            -not $EnableM02DoubleFaultIstProbe.IsPresent -and
             -not $DryRun.IsPresent))
     if ($EnableM02OwnedGdtTssTerminalProbe.IsPresent -or
-        $EnableM02Ud2VectorStateProbe.IsPresent -or $EnableM02PageFaultCr2ErrorCodeProbe.IsPresent) {
+        $EnableM02Ud2VectorStateProbe.IsPresent -or $EnableM02PageFaultCr2ErrorCodeProbe.IsPresent -or $EnableM02DoubleFaultIstProbe.IsPresent) {
         $m01RawObservationConfig += " terminalProfile=true"
     }
     $m01RawObservationConfig +=
@@ -6290,6 +6715,9 @@ try {
         if ($EnableM02PageFaultCr2ErrorCodeProbe) {
             $buildArguments += "-EnableM02PageFaultCr2ErrorCodeProbe"
         }
+        if ($EnableM02DoubleFaultIstProbe) {
+            $buildArguments += "-EnableM02DoubleFaultIstProbe"
+        }
 
         if ($EnableM04IndependentEndianConformanceProbe) {
             $buildArguments +=
@@ -6351,7 +6779,7 @@ try {
     if (-not $DryRun -and
         $EnableM01OwnedPagingProbe -and
         -not $EnableM02OwnedGdtTssTerminalProbe -and
-        -not $EnableM02Ud2VectorStateProbe -and -not $EnableM02PageFaultCr2ErrorCodeProbe) {
+        -not $EnableM02Ud2VectorStateProbe -and -not $EnableM02PageFaultCr2ErrorCodeProbe -and -not $EnableM02DoubleFaultIstProbe) {
         Write-Host "TEST_START m01.026.raw-observations"
         try {
             $m01RawObservationCapture =
@@ -6459,7 +6887,7 @@ try {
             $m01RawObservationCapture.EnvironmentState = $null
         }
     }
-    elseif (($EnableM04ManagedHeapPageRangeProbe -or $EnableM02PageFaultCr2ErrorCodeProbe) -and -not $DryRun) {
+    elseif (($EnableM04ManagedHeapPageRangeProbe -or $EnableM02PageFaultCr2ErrorCodeProbe -or $EnableM02DoubleFaultIstProbe) -and -not $DryRun) {
         $heapRunnerLines = @(Invoke-NativeCommand { & dotnet run @arguments })
         foreach ($line in $heapRunnerLines) { Write-Host $line }
     }
@@ -6555,6 +6983,17 @@ try {
         }
         Write-Host "QEMU_SCRIPT_M02_PAGE_FAULT_TRANSCRIPT postSmokeSequence=true rawObservations=true guardAbsence=true postPassMarkerNoise=false"
     }
+    if ($EnableM02DoubleFaultIstProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
+        try {
+            Assert-M02DoubleFaultIstRunnerResult -Lines $heapRunnerLines
+            Assert-M02DoubleFaultIstTranscript -SerialLogPath $SerialLog
+        }
+        catch {
+            Write-Host ("TEST_FAIL qemu.smoke.m02.015 terminal_transcript_invalid reason=" + $_.Exception.Message)
+            exit 97
+        }
+        Write-Host "QEMU_SCRIPT_M02_DF_TRANSCRIPT postSmokeSequence=true rawObservations=true guardAbsence=true postPassMarkerNoise=false"
+    }
     if ($EnableM04RhpNewFastProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
         try {
             Assert-M04ManagedHeapRunnerResult -Lines $heapRunnerLines
@@ -6592,6 +7031,13 @@ try {
         if (Test-M02PageFaultCr2ErrorCodeOwnedMarker -Marker ([Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($serialPath)))) {
             Write-Host 'TEST_FAIL qemu.smoke.m02.014 unexpected_profile_record'
             exit 95
+        }
+    }
+    if (-not $EnableM02DoubleFaultIstProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
+        $serialPath = if ([IO.Path]::IsPathRooted($SerialLog)) { $SerialLog } else { Join-Path $root $SerialLog }
+        if (Test-M02DoubleFaultIstOwnedMarker -Marker ([Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($serialPath)))) {
+            Write-Host 'TEST_FAIL qemu.smoke.m02.015 unexpected_profile_record'
+            exit 97
         }
     }
     exit $runnerExitCode

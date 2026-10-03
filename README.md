@@ -53,7 +53,12 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
   armed-IDT audit. Focused tests pass 9 starts/10 passes with zero failures;
   the actual no-stdlib closure has zero AssemblyRefs. This is data and modeled
   execution evidence only. The complete host gate passes in
-  [step949](done/step949.md); real vector-8/IST1 delivery remains pending.
+  [step949](done/step949.md). The separate default-off EFI adapter now has
+  reviewed source and default/enabled NativeAOT artifact evidence in
+  [step950](done/step950.md). The settled-source host suite and fresh default,
+  page-fault and double-fault QEMU captures are independently accepted in
+  [step951](done/step951.md), including vector 8/error 0 and the complete capture
+  on original IST1. PR #522 merge and issue closure are separate tracker actions.
 
 - M04-007 has accepted bounded `RhpNewFast` guest allocation evidence over the
   original retained heap authority. The complete host suite passes 3,573 starts
