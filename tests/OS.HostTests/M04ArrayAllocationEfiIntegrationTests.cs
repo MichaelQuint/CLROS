@@ -53,7 +53,7 @@ internal static unsafe class ArrayCoreTestProgram
                 byte[] expected=new byte[size];BinaryPrimitives.WriteUInt64LittleEndian(expected.AsSpan(8),f.MixedToken(id));
                 if(array)BinaryPrimitives.WriteInt32LittleEndian(expected.AsSpan(16),length);
                 Need(new ReadOnlySpan<byte>(f.Page+used,(int)size).SequenceEqual(expected),"all independent header/padding/payload bytes");
-                f.Only(before,(0x3100,80),(0x3200,96),(0x4000,6352),(0x8000+(int)used,(int)size));
+                f.Only(before,(0x3100,80),(0x3200,96),(0x4000,6672),(0x8000+(int)used,(int)size));
                 if(array)Need(result.Observation.ElementTable==f.Token(id==3?7UL:6UL) &&
                     result.Observation.ElementPrefix0==((24UL<<32)|(id==3?0x28000000UL:0x14000000UL)),"related element prefix");
             }
@@ -123,10 +123,10 @@ internal static unsafe class ArrayCoreTestProgram
     private static void Geometry()
     {
         Need(sizeof(RhpNewFastHeapAccess)==104 && sizeof(RhpNewFastBumpState)==80 && sizeof(RhpAllocationControl)==96 &&
-            sizeof(RhpObjectObservation)==224 && sizeof(RhpObservationStorage)==6352,"exact shared POD geometry");
+            sizeof(RhpObjectObservation)==256 && sizeof(RhpObservationStorage)==6672,"exact shared POD geometry");
         Need(!RuntimeHelpers.IsReferenceOrContainsReferences<RhpObservationStorage>(),"no object references in observations");
         using F f=new();byte[] before=f.Snapshot();
-        var alias=(RhpObservationStorage*)(f.Page-6352+8);
+        var alias=(RhpObservationStorage*)(f.Page-6672+8);
         Need(RhpNewFastAllocationCore.Prepare(f.Original,f.Access,f.Bump,f.Control,alias,f.Image,16384)==RhpAdmissionStatus.StorageOverlap,"last eight bytes overlap full backing");f.Unchanged(before);
         Need(f.Prepare()==RhpAdmissionStatus.Success && f.Bind().Succeeded,"prepare");
         // Warm actual core, reset only fixture-owned storage, then measure allocator calls alone.
@@ -137,7 +137,7 @@ internal static unsafe class ArrayCoreTestProgram
             long start=GC.GetAllocatedBytesForCurrentThread();r=f.Mixed(2,0);var done=f.Done(2,r.Leaf.ObjectReference,0,0);long end=GC.GetAllocatedBytesForCurrentThread();
             Need(r.Succeeded && done==RhpAdmissionStatus.Success && end==start,"zero CLR allocation in actual shared array core");
         }
-        Console.WriteLine("ARRAY_CORE_POD access=104 bump=80 control=96 observation=224 records=6352 used=160 count=5");
+        Console.WriteLine("ARRAY_CORE_POD access=104 bump=80 control=96 observation=256 records=6672 used=160 count=5");
     }
     private sealed class F:IDisposable
     {
@@ -177,7 +177,7 @@ internal static unsafe class ArrayCoreTestProgram
                     physical,i==4?2UL:1UL,out Original.Reservations[i])==BootReservedRangeStatus.Success,"flat fixture ledger");
             }
             new Span<byte>(Original.Heap,216).Clear();new Span<byte>(Access,104).Clear();new Span<byte>(Bump,80).Clear();
-            new Span<byte>(Control,96).Clear();new Span<byte>(Records,6352).Clear();new Span<byte>(Image,16384).Clear();
+            new Span<byte>(Control,96).Clear();new Span<byte>(Records,6672).Clear();new Span<byte>(Image,16384).Clear();
             var reserved=ManagedHeapPageRangeLiveAllocator.ReserveAndInitializeOnce(Original.Allocator,1,Original.Nodes,1,1,
                 Original.Reservations,5,5,4,Page,8192,Original.Heap,216);Need(reserved.IsReady,"actual original reserve");
             W32(Image,0x5A4D);W32(Image+60,0x80);W32(Image+0x80,0x4550);W32(Image+0x84,0x00018664);
@@ -262,7 +262,7 @@ internal static class M04ArrayAllocationEfiIntegrationTests
     {
         string root=HostToolProcess.FindRepositoryRoot();XDocument project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
         string[] items=project.Descendants("Compile").Select(x=>x.Attribute("Include")!.Value+"|"+(x.Attribute("Link")?.Value??"")).ToArray();
-        Need(items.Length==82 && items[^2]=="..\\OS.Kernel\\Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs|Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs","one real array wrapper include");
+        Need(items.Length==84 && items[^4]=="..\\OS.Kernel\\Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs|Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs","one real array wrapper include");
         foreach(var pair in new[]{(Flag,"M04_SZ_ARRAY_ALLOCATION_PROBE"),("EnableM04SzArrayAllocationBeforeBindProbe","M04_SZ_ARRAY_ALLOCATION_BEFORE_BIND_PROBE"),("EnableM04SzArrayAllocationExhaustionProbe","M04_SZ_ARRAY_ALLOCATION_EXHAUSTION_PROBE")}) {
             var value=project.Descendants(pair.Item1).Single();Need(value.Value=="false" && value.Attribute("Condition")?.Value=="'$("+pair.Item1+")' == ''","default false");
             Need(project.Descendants("PropertyGroup").Single(x=>x.Attribute("Condition")?.Value=="'$("+pair.Item1+")' == 'true'").Element("DefineConstants")?.Value=="$(DefineConstants);"+pair.Item2,"exact selected compiler symbol");
@@ -316,7 +316,7 @@ internal static class M04ArrayAllocationEfiIntegrationTests
         lines[lines.IndexOf("M04_HEAP_PAGE_RETAINED")]+=" checkpoint=beforeBootPlan "+identity;
         lines[lines.IndexOf("M04_HEAP_PAGE_INITIALIZED")]+=" pages=1 bytes=4096 freePagesBefore=2 freeBytesBefore=8192 allocatedPagesBefore=0 allocatedBytesBefore=0 freePagesAfter=1 freeBytesAfter=4096 allocatedPagesAfter=1 allocatedBytesAfter=4096 readBytes=4096 contentsZero=true";
         lines[lines.IndexOf("M04_HEAP_PAGE_CURRENT")]+=" freePages=1 freeBytes=4096 allocatedPages=1 allocatedBytes=4096 readBytes=4096 contentsZero=true";
-        lines[45]="M04_ARRAY_PREP image=0x0000000001000000 imageBytes=65536 access=0x0000000000103000 accessBytes=104 bump=0x0000000000103100 bumpBytes=80 control=0x0000000000103200 controlBytes=96 records=0x0000000000104000 recordsBytes=6352";
+        lines[45]="M04_ARRAY_PREP image=0x0000000001000000 imageBytes=65536 access=0x0000000000103000 accessBytes=104 bump=0x0000000000103100 bumpBytes=80 control=0x0000000000103200 controlBytes=96 records=0x0000000000104000 recordsBytes=6672";
         lines[46]="M04_ARRAY_BIND image=0x0000000001000000 imageBytes=65536 allocator=0x0000000000100000 nodes=0x0000000000100040 ledger=0x0000000000102000 ledgerBytes=200 parentIndex=4 backing=0x0000000000900000 backingBytes=8192 heap=0x0000000000101000 heapBytes=216 access=0x0000000000103000 accessBytes=104 bump=0x0000000000103100 bumpBytes=80 status=1 used=0 count=0";
         uint[] sizes=[24,24,48,32,32],lengths=[0,0,3,0,1],offsets=[8,0,24,16,16],widths=[8,0,8,8,1];
         uint[] flags=[0x50000000,0xE0020001,0xE0020008,0x51000000,0xE0020001];
@@ -341,7 +341,7 @@ internal static class M04ArrayAllocationEfiIntegrationTests
         foreach(string bad in new[]{"TE\r\nST_FA\r\nIL firmware\r\n","OS_SMO\r\nKE_FAIL\r\n","M\0\uFEFF04_RHP_BIND\r\n"})cases.Add((bad+good,false));
         foreach(string tail in new[]{"OVMF menu\r\n","partial","\r","OS_SMOKE_PASS\r\n","TEST_FAIL m04.008.sz_array exhausted\r\n"})cases.Add((good+tail,false));
         cases.Add((good.Replace("\r\n","\n",StringComparison.Ordinal),false));cases.Add((good[..^1],false));
-        foreach((string from,string to) in new[]{("scalarWidth=1","scalarWidth=8"),("length=3","length=2"),("element=0x0000000001002000","element=0x0000000001002100"),("element0=0x0000001814000000","element0=0x0000001828000000"),("accessBytes=104","accessBytes=103"),("controlBytes=96","controlBytes=95"),("recordsBytes=6352","recordsBytes=4096"),("records=0x0000000000104000","records=0x0000000000103100"),("control=0x0000000000103200","control=0x0000000000101000"),("backingBytes=8192","backingBytes=4096"),("bump=0x0000000000103100","bump=0x0000000000103000"),("imageBytes=65536","imageBytes=18446744073709551616"),("zeroBytes=16","zeroBytes=15"),("usedAfter=24","usedAfter=25"),("scalarOffset=16","scalarOffset=8"),("priorCount=5","priorCount=4"),("contentsZero=false","contentsZero=true"),("count=5 status=1","count=6 status=1"),("flags=0x0000000050000000","flags=0x0000000051000000")})
+        foreach((string from,string to) in new[]{("scalarWidth=1","scalarWidth=8"),("length=3","length=2"),("element=0x0000000001002000","element=0x0000000001002100"),("element0=0x0000001814000000","element0=0x0000001828000000"),("accessBytes=104","accessBytes=103"),("controlBytes=96","controlBytes=95"),("recordsBytes=6672","recordsBytes=4096"),("records=0x0000000000104000","records=0x0000000000103100"),("control=0x0000000000103200","control=0x0000000000101000"),("backingBytes=8192","backingBytes=4096"),("bump=0x0000000000103100","bump=0x0000000000103000"),("imageBytes=65536","imageBytes=18446744073709551616"),("zeroBytes=16","zeroBytes=15"),("usedAfter=24","usedAfter=25"),("scalarOffset=16","scalarOffset=8"),("priorCount=5","priorCount=4"),("contentsZero=false","contentsZero=true"),("count=5 status=1","count=6 status=1"),("flags=0x0000000050000000","flags=0x0000000051000000")})
             cases.Add((good.Replace(from,to,StringComparison.Ordinal),false));
         var manifest=cases.Select((c,i)=>new{Path=Path.Combine(directory,i+".log"),c.Accept}).ToArray();
         for(int i=0;i<cases.Count;i++)File.WriteAllText(manifest[i].Path,cases[i].Text,new UTF8Encoding(false));
@@ -393,11 +393,11 @@ internal static class M04ArrayAllocationEfiIntegrationTests
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
             foreach(var file in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(directory,file.Item2));
             using var document=System.Text.Json.JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=document.RootElement;
-            var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==95,"actual95 raw sources");
+            var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==97,"actual97 raw sources");
             foreach(var input in inputs)Need(Hash(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))==input.GetProperty("sha256").GetString(),"actual raw source unchanged");
-            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==82,"actual82 compile items");
+            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==84,"actual84 compile items");
             var flags=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
-            Need(flags.Length==32,"complete32 evaluated flags");
+            Need(flags.Length==36,"complete36 evaluated flags");
             foreach(var f in flags)Need(f.Value.GetString()==(lane.Item2.Contains(f.Name,StringComparer.Ordinal)?"true":"false"),"actual requested/evaluated profile "+f.Name);
             TestMetadata(directory,lane.Item1!="default");
             if(lane.Item1!="default")TestLinkedRoutes(root,directory,lane.Item1=="before-bind");

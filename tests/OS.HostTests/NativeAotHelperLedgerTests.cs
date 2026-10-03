@@ -65,7 +65,8 @@ internal static class NativeAotHelperLedgerTests
             NativeAotHelperArea.EfiFailFastTypeCasts,
             NativeAotHelperArea.EfiStackProbe,
             NativeAotHelperArea.EfiFixedAllocation,
-            NativeAotHelperArea.EfiSzArrayAllocation
+            NativeAotHelperArea.EfiSzArrayAllocation,
+            NativeAotHelperArea.EfiStringAllocation
         ];
 
         ExpectEqual("ledger entry count", required.Length, NativeAotHelperLedger.EntryCount);
@@ -134,7 +135,7 @@ internal static class NativeAotHelperLedgerTests
             }
         }
 
-        ExpectEqual("EFI-only helper count", 5, efiOnlyCount);
+        ExpectEqual("EFI-only helper count", 6, efiOnlyCount);
     }
 
     private static void TestEntriesCarryEvidenceAndGateApplicability()
@@ -277,6 +278,15 @@ internal static class NativeAotHelperLedgerTests
         ExpectContains("EFI SZ-array width route", arrays.RequiredContract, "component width, not HasPointers");
         ExpectContains("EFI SZ-array unsupported references", arrays.AllowedMilestoneStub, "managed reference store");
         ExpectContains("EFI SZ-array incomplete", arrays.NextStep, "Gate 4 remains incomplete");
+        ExpectEqual("EFI String area value", 17, (int)NativeAotHelperArea.EfiStringAllocation);
+        ExpectEqual("EFI String status value", 8, (int)NativeAotHelperStatus.EfiOnlyStringAllocation);
+        NativeAotHelperLedgerEntry strings = GetEntry(NativeAotHelperArea.EfiStringAllocation);
+        ExpectEqual("EFI String symbol", "RhNewString", strings.HelperSymbols);
+        ExpectContains("EFI String actual wrapper", strings.Evidence, "GuestTestStringAllocationCharacterStorage");
+        ExpectContains("EFI String shared state", strings.Evidence, "same80-byte state");
+        ExpectContains("EFI String full-width length", strings.RequiredContract, "full-width signed length");
+        ExpectContains("EFI String unsupported GC", strings.AllowedMilestoneStub, "barrier, GC");
+        ExpectContains("EFI String incomplete", strings.NextStep, "Gate 4 remains incomplete");
     }
 
     private static void TestAllocatorMutationBoundary()
@@ -353,7 +363,7 @@ internal static class NativeAotHelperLedgerTests
     {
         string[] sourceSymbols = ExtractRuntimeExportSymbols();
 
-        ExpectEqual("RuntimeExport symbol count", 20, sourceSymbols.Length);
+        ExpectEqual("RuntimeExport symbol count", 21, sourceSymbols.Length);
 
         foreach (string symbol in sourceSymbols)
         {
@@ -397,7 +407,7 @@ internal static class NativeAotHelperLedgerTests
             }
         }
 
-        ExpectEqual("EFI ledger symbol count", 20, efiLedgerSymbolCount);
+        ExpectEqual("EFI ledger symbol count", 21, efiLedgerSymbolCount);
 
         ExpectEqual(
             "reverse p/invoke symbol count",

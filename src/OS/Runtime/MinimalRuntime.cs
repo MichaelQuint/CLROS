@@ -59,7 +59,53 @@ namespace System
     }
     public abstract class Delegate { }
     public abstract class MulticastDelegate : Delegate { }
-    public sealed class String { }
+    // Bounded compiler contract: the retained-page helper initializes this header.
+    public sealed unsafe class String
+    {
+#pragma warning disable CS0649
+        private readonly int _stringLength;
+        private char _firstChar;
+#pragma warning restore CS0649
+        [Runtime.CompilerServices.MethodImpl(Runtime.CompilerServices.MethodImplOptions.InternalCall)]
+        public extern String(char value, int count);
+        [Runtime.CompilerServices.MethodImpl(Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static string Ctor(char value, int count)
+        {
+            if (count < 0) while (true) RuntimeFailFast.Halt();
+            string result = FastAllocateString((nint)count);
+#if M04_STRING_ALLOCATION_PROBE
+            OS.Runtime.RhpNewFastAllocation.ConstructorEntered();
+#endif
+            fixed (char* first = &result._firstChar)
+                for (int i = 0; i < count; i++) first[i] = value;
+            return result;
+        }
+        internal static string FastAllocateString(nint length)
+        {
+#if M04_STRING_ALLOCATION_PROBE
+            return Runtime.RuntimeImports.RhNewString(Internal.Runtime.MethodTable.Of<string>(), length);
+#else
+            // Standalone shim closures do not import an unsupported allocator.
+            while (true) RuntimeFailFast.Halt();
+#endif
+        }
+        public int Length
+        {
+            [Runtime.CompilerServices.Intrinsic]
+            get => _stringLength;
+        }
+        [Runtime.CompilerServices.IndexerName("Chars")]
+        public char this[int index]
+        {
+            [Runtime.CompilerServices.Intrinsic]
+            get
+            {
+                if ((uint)index >= (uint)_stringLength)
+                    while (true) RuntimeFailFast.Halt();
+                fixed (char* first = &_firstChar) return first[index];
+            }
+        }
+    }
     public class Attribute { }
 
     public static unsafe class Buffer
@@ -584,5 +630,44 @@ namespace System.Runtime
             while (true) RuntimeFailFast.Halt();
 #endif
         }
+        [RuntimeExport("RhNewString")]
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        internal static string RhNewString(Internal.Runtime.MethodTable* methodTable, nint length)
+        {
+#if M04_STRING_ALLOCATION_PROBE
+            nuint reference = (nuint)OS.Runtime.RhpNewFastAllocation.AllocateString((ulong)methodTable, (long)length);
+            return System.Runtime.CompilerServices.Unsafe.As<nuint, string>(ref reference);
+#else
+            while (true) RuntimeFailFast.Halt();
+#endif
+        }
     }
 }
+
+// Compiler metadata only, not reflection or a general String API.
+namespace System.Reflection
+{
+    public sealed class DefaultMemberAttribute : System.Attribute
+    {
+        public DefaultMemberAttribute(string memberName) { MemberName = memberName; }
+        public string MemberName { get; }
+    }
+}
+namespace System.Runtime.CompilerServices
+{
+    public sealed class IndexerNameAttribute : System.Attribute
+    {
+        public IndexerNameAttribute(string indexerName) { }
+    }
+}
+#if M04_STRING_ALLOCATION_PROBE
+namespace System.Runtime
+{
+    internal static unsafe class RuntimeImports
+    {
+        [CompilerServices.MethodImpl(CompilerServices.MethodImplOptions.InternalCall)]
+        [RuntimeImport("*", "RhNewString")]
+        internal static extern string RhNewString(Internal.Runtime.MethodTable* methodTable, nint length);
+    }
+}
+#endif

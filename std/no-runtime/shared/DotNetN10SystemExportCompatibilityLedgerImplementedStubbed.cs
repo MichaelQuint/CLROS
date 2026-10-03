@@ -69,7 +69,10 @@ public enum DotNetN10SystemDeclaration : byte
     Unsafe = 42,
     GenericArray = 43,
     Nullable = 44,
-    RhpNewFastRuntime = 45
+    RhpNewFastRuntime = 45,
+    DefaultMemberAttribute = 46,
+    IndexerNameAttribute = 47,
+    RuntimeImports = 48
 }
 
 public readonly struct DotNetN10SystemDeclarationCompatibilityEntry
@@ -106,7 +109,8 @@ public enum DotNetN10RuntimeExportCategory : byte
     NativeTransition = 3,
     FailFast = 4,
     FixedAllocation = 5,
-    SzArrayAllocation = 6
+    SzArrayAllocation = 6,
+    StringAllocation = 7
 }
 
 public enum DotNetN10RuntimeExportBehavior : byte
@@ -116,7 +120,8 @@ public enum DotNetN10RuntimeExportBehavior : byte
     FailFast = 2,
     AuditedStackProbe = 3,
     ProfileBoundFixedAllocation = 4,
-    ProfileBoundSzArrayAllocation = 5
+    ProfileBoundSzArrayAllocation = 5,
+    ProfileBoundStringAllocation = 6
 }
 
 public enum DotNetN10RuntimeExport : byte
@@ -141,7 +146,8 @@ public enum DotNetN10RuntimeExport : byte
     RhpFallbackFailFast = 17,
     RhpNewFast = 18,
     RhpNewArrayFast = 19,
-    RhpNewPtrArrayFast = 20
+    RhpNewPtrArrayFast = 20,
+    RhNewString = 21
 }
 
 public readonly struct DotNetN10RuntimeExportCompatibilityEntry
@@ -177,9 +183,9 @@ public readonly struct DotNetN10RuntimeExportCompatibilityEntry
 
 public static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
 {
-    public const int SystemDeclarationCount = 45;
+    public const int SystemDeclarationCount = 48;
 
-    public const int RuntimeExportCount = 20;
+    public const int RuntimeExportCount = 21;
 
     public const bool AddsCanonicalSystemNamespace = false;
 
@@ -234,7 +240,10 @@ public static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
                 DotNetN10HelperSupportState.NarrowlyImplemented),
             22 => StubbedCore(DotNetN10SystemDeclaration.Delegate),
             23 => StubbedCore(DotNetN10SystemDeclaration.MulticastDelegate),
-            24 => StubbedCore(DotNetN10SystemDeclaration.String),
+            // Only the finite char/count constructor, UTF-16 storage, Length and Chars.
+            24 => SystemDeclaration(DotNetN10SystemDeclaration.String,
+                DotNetN10SystemDeclarationCategory.CoreType,
+                DotNetN10HelperSupportState.NarrowlyImplemented),
             25 => SystemDeclaration(
                 DotNetN10SystemDeclaration.Attribute,
                 DotNetN10SystemDeclarationCategory.AttributeContract,
@@ -285,6 +294,11 @@ public static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             42 => StubbedCore(DotNetN10SystemDeclaration.GenericArray),
             43 => StubbedCore(DotNetN10SystemDeclaration.Nullable),
             44 => SystemDeclaration(DotNetN10SystemDeclaration.RhpNewFastRuntime,
+                DotNetN10SystemDeclarationCategory.RuntimeExportInfrastructure,
+                DotNetN10HelperSupportState.NarrowlyImplemented),
+            45 => StubbedAttribute(DotNetN10SystemDeclaration.DefaultMemberAttribute),
+            46 => StubbedAttribute(DotNetN10SystemDeclaration.IndexerNameAttribute),
+            47 => SystemDeclaration(DotNetN10SystemDeclaration.RuntimeImports,
                 DotNetN10SystemDeclarationCategory.RuntimeExportInfrastructure,
                 DotNetN10HelperSupportState.NarrowlyImplemented),
             _ => InvalidSystemDeclarationEntry()
@@ -359,6 +373,10 @@ public static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             19 => RuntimeExport(DotNetN10RuntimeExport.RhpNewPtrArrayFast,
                 DotNetN10RuntimeExportCategory.SzArrayAllocation,
                 DotNetN10RuntimeExportBehavior.ProfileBoundSzArrayAllocation,
+                DotNetN10HelperSupportState.NarrowlyImplemented),
+            20 => RuntimeExport(DotNetN10RuntimeExport.RhNewString,
+                DotNetN10RuntimeExportCategory.StringAllocation,
+                DotNetN10RuntimeExportBehavior.ProfileBoundStringAllocation,
                 DotNetN10HelperSupportState.NarrowlyImplemented),
             _ => InvalidRuntimeExportEntry()
         };

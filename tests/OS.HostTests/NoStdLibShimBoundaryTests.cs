@@ -64,6 +64,7 @@ internal static class NoStdLibShimBoundaryTests
             && HasCompileInclude(project, "Boot\\EfiEntry.cs")
             && FixedAllocationDefaultIsSelfContained(root)
             && ArrayAllocationDefaultIsSelfContained(root)
+            && StringAllocationDefaultIsSelfContained(root)
             && !project.Descendants().Any(element => element.Name.LocalName == "ProjectReference");
     }
 
@@ -105,6 +106,29 @@ internal static class NoStdLibShimBoundaryTests
         }
         return source.Contains("private int _numComponents;", StringComparison.Ordinal) &&
             source.Contains("public int Length => _numComponents;", StringComparison.Ordinal);
+    }
+
+    private static bool StringAllocationDefaultIsSelfContained(string root)
+    {
+        string source = File.ReadAllText(Path.Combine(root, "src/OS/Runtime/MinimalRuntime.cs"));
+        const string attribute = "[RuntimeExport(\"RhNewString\")]";
+        int start = source.IndexOf(attribute, StringComparison.Ordinal);
+        if (start < 0 || source.IndexOf(attribute, start + 1, StringComparison.Ordinal) >= 0) return false;
+        int enabled = source.IndexOf("#if M04_STRING_ALLOCATION_PROBE", start, StringComparison.Ordinal);
+        if (enabled < start) return false;
+        int disabled = source.IndexOf("#else", enabled, StringComparison.Ordinal);
+        if (disabled < enabled) return false;
+        int end = source.IndexOf("#endif", disabled, StringComparison.Ordinal);
+        if (end < disabled) return false;
+        return source[start..enabled].Contains("nint length", StringComparison.Ordinal) &&
+            source[start..enabled].Contains("MethodImplOptions.NoInlining", StringComparison.Ordinal) &&
+            source[enabled..disabled].Contains("AllocateString((ulong)methodTable, (long)length)", StringComparison.Ordinal) &&
+            source[disabled..end].Contains("while (true) RuntimeFailFast.Halt();", StringComparison.Ordinal) &&
+            !source[disabled..end].Contains("return ", StringComparison.Ordinal) &&
+            source.Contains("private readonly int _stringLength;", StringComparison.Ordinal) &&
+            source.Contains("private char _firstChar;", StringComparison.Ordinal) &&
+            source.Contains("#if M04_STRING_ALLOCATION_PROBE\nnamespace System.Runtime\n{\n    internal static unsafe class RuntimeImports", StringComparison.Ordinal) &&
+            source.Contains("#if M04_STRING_ALLOCATION_PROBE\n            return Runtime.RuntimeImports.RhNewString", StringComparison.Ordinal);
     }
 
     private static bool TestHostProjectsDoNotCompileMinimalRuntime()

@@ -193,8 +193,12 @@ and the reachable local Gitea tracker:
   passes 31 starts/32 passes with zero failures, and all three real no-stdlib
   closures have zero AssemblyRefs. [Step955](../done/step955.md) records exact
   source and evidence identities. Step959 accepts the combined full suite and
-  same-image fixed/array compatibility after this shared-core change. Native
-  String integration and actual String guest execution remain pending.
+  same-image fixed/array compatibility after this shared-core change.
+  [Step963](../done/step963.md) adds the default-off EFI String integration:
+  separate complete managed63/64/0 and String6/7/0 focused runs pass, including
+  five actual NativeAOT artifact lanes and metadata/linked-route checks. The
+  integrated full suite and actual String guest execution remain pending;
+  general runtime and hosted-tier gates remain unpromoted.
 - `scripts/check-naming.ps1` enumerates admitted files once for its naming and
   source-firewall checks. It prunes excluded directory names before descent,
   skips directory reparse points, retains the provider's default hidden-file

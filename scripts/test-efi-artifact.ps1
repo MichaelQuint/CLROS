@@ -30,6 +30,10 @@ param(
     [switch]$EnableM04SzArrayAllocationProbe,
     [switch]$EnableM04SzArrayAllocationBeforeBindProbe,
     [switch]$EnableM04SzArrayAllocationExhaustionProbe,
+    [switch]$EnableM04StringAllocationProbe,
+    [switch]$EnableM04StringAllocationBeforeBindProbe,
+    [switch]$EnableM04StringAllocationExhaustionProbe,
+    [switch]$EnableM04StringAllocationInvalidLengthProbe,
     [switch]$EnableM01LoadedImageStackProbe,
     [switch]$EnableM01LiveAllocatorProbe,
     [switch]$EnableM01OwnedPagingProbe,
@@ -60,7 +64,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 95
+$expectedSourceClosureInputCount = 97
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -185,6 +189,8 @@ $expectedEfiCompileItems = @(
     'Runtime\MinimalRuntime.cs|',
     '..\OS.Kernel\Runtime\GuestTestRhpNewFast.cs|Runtime\GuestTestRhpNewFast.cs',
     '..\OS.Kernel\Runtime\GuestTestArrayAllocationLengthOverflowChecks.cs|Runtime\GuestTestArrayAllocationLengthOverflowChecks.cs',
+    '..\OS.Kernel\Runtime\GuestTestStringAllocationCharacterStorage.cs|Runtime\GuestTestStringAllocationCharacterStorage.cs',
+    '..\OS.Kernel\Diagnostics\StringAllocationProbeAuthority.cs|Diagnostics\StringAllocationProbeAuthority.cs',
     'Runtime\RhpNewFastAllocation.cs|'
 )
 $expectedPackageBuildClosure = @(
@@ -3857,6 +3863,10 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM04SzArrayAllocationProbe," +
             "EnableM04SzArrayAllocationBeforeBindProbe," +
             "EnableM04SzArrayAllocationExhaustionProbe," +
+            "EnableM04StringAllocationProbe," +
+            "EnableM04StringAllocationBeforeBindProbe," +
+            "EnableM04StringAllocationExhaustionProbe," +
+            "EnableM04StringAllocationInvalidLengthProbe," +
             "EnableM01LoadedImageStackProbe," +
             "EnableM01LiveAllocatorProbe," +
             "EnableM01OwnedPagingProbe," +
@@ -3996,6 +4006,18 @@ function Invoke-PostRestoreEvaluationSnapshot {
     }
     if ($EnableM04SzArrayAllocationExhaustionProbe) {
         $arguments += "-p:EnableM04SzArrayAllocationExhaustionProbe=true"
+    }
+    if ($EnableM04StringAllocationProbe) {
+        $arguments += "-p:EnableM04StringAllocationProbe=true"
+    }
+    if ($EnableM04StringAllocationBeforeBindProbe) {
+        $arguments += "-p:EnableM04StringAllocationBeforeBindProbe=true"
+    }
+    if ($EnableM04StringAllocationExhaustionProbe) {
+        $arguments += "-p:EnableM04StringAllocationExhaustionProbe=true"
+    }
+    if ($EnableM04StringAllocationInvalidLengthProbe) {
+        $arguments += "-p:EnableM04StringAllocationInvalidLengthProbe=true"
     }
     $arguments += ("-p:EnableM01LoadedImageStackProbe=" + $EnableM01LoadedImageStackProbe.IsPresent.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM01LiveAllocatorProbe=" + $EnableM01LiveAllocatorProbe.IsPresent.ToString().ToLowerInvariant())
@@ -4234,6 +4256,14 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM04SzArrayAllocationBeforeBindProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04SzArrayAllocationExhaustionProbe =
             $EnableM04SzArrayAllocationExhaustionProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM04StringAllocationProbe =
+            $EnableM04StringAllocationProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM04StringAllocationBeforeBindProbe =
+            $EnableM04StringAllocationBeforeBindProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM04StringAllocationExhaustionProbe =
+            $EnableM04StringAllocationExhaustionProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM04StringAllocationInvalidLengthProbe =
+            $EnableM04StringAllocationInvalidLengthProbe.IsPresent.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
         ImportProjectExtensionTargets = "false"
         ExcludeRestorePackageImports = "true"
@@ -4305,7 +4335,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 82 -or
+    if ($compileItems.Count -ne 84 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4436,7 +4466,20 @@ function Assert-PostRestoreEvidenceMatchesSnapshot {
 
 Write-Output "TEST_START $testName"
 
-$arrayReason = ""
+$stringReason = ""
+if (($EnableM04StringAllocationBeforeBindProbe -or $EnableM04StringAllocationExhaustionProbe -or $EnableM04StringAllocationInvalidLengthProbe) -and -not $EnableM04StringAllocationProbe) { $stringReason = "m04_string_negative_requires_main" }
+if (([int][bool]$EnableM04StringAllocationBeforeBindProbe + [int][bool]$EnableM04StringAllocationExhaustionProbe + [int][bool]$EnableM04StringAllocationInvalidLengthProbe) -gt 1) { $stringReason = "m04_string_negative_conflict" }
+if ($EnableM04StringAllocationProbe) {
+    foreach ($stringRequired in @("EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe", "EnableM04IndependentEndianConformanceProbe", "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe", "EnableM04ArithmeticConformanceProbe", "EnableM04LayoutContractProbe", "EnableM04ManagedHeapPageRangeProbe", "EnableM04RhpNewFastProbe", "EnableM04SzArrayAllocationProbe")) {
+        if (-not [bool](Get-Variable -Name $stringRequired -ValueOnly)) { $stringReason = "m04_string_requires_explicit_chain_" + $stringRequired }
+    }
+}
+if ($EnableM04StringAllocationProbe -or $EnableM04StringAllocationBeforeBindProbe -or $EnableM04StringAllocationExhaustionProbe -or $EnableM04StringAllocationInvalidLengthProbe) {
+    foreach ($stringConflict in @("EnableM01OwnedPagingProbe", "EnableM02SafeStubProbe", "EnableM02CheckedPortIoBindingProbe", "EnableM02Com1OwnedPortIoProbe", "EnableM02OwnedCom1ReadyProbe", "EnableM02PanicSafeOwnedCom1Probe", "EnableM02OwnedX64GdtEncodingProbe", "EnableM02GuardedIstStackAllocationProbe", "EnableM02OwnedGdtTssTerminalProbe", "EnableM02NormalizedInterruptFramePageProbe", "EnableM02OwnedIdtGatePopulationProbe", "EnableM02IdtrContinuedExecutionProbe", "EnableM02Ud2VectorStateProbe", "EnableM02PageFaultCr2ErrorCodeProbe", "EnableM02DoubleFaultIstProbe", "EnableM02UnexpectedVectorPanicProbe", "EnableUefiGoneSimulationProbe", "EnableExitBootServicesFreshMapProbe", "EnableAcpiPhysicalDiscoveryProbe", "EnableM04RhpNewFastBeforeBindFailureProbe", "EnableM04RhpNewFastExhaustionFailureProbe", "EnableM04SzArrayAllocationBeforeBindProbe", "EnableM04SzArrayAllocationExhaustionProbe")) {
+        if ([bool](Get-Variable -Name $stringConflict -ValueOnly)) { $stringReason = "m04_string_conflicting_profile_" + $stringConflict }
+    }
+}
+$arrayReason = $stringReason
 if (($EnableM04SzArrayAllocationBeforeBindProbe -or $EnableM04SzArrayAllocationExhaustionProbe) -and -not $EnableM04SzArrayAllocationProbe) { $arrayReason = "m04_sz_array_negative_requires_main" }
 if ($EnableM04SzArrayAllocationBeforeBindProbe -and $EnableM04SzArrayAllocationExhaustionProbe) { $arrayReason = "m04_sz_array_negative_conflict" }
 if ($EnableM04SzArrayAllocationProbe) {
@@ -4607,6 +4650,10 @@ if ($EnableM02DoubleFaultIstProbe) {
         "EnableM04SzArrayAllocationProbe"
         "EnableM04SzArrayAllocationBeforeBindProbe"
         "EnableM04SzArrayAllocationExhaustionProbe"
+        "EnableM04StringAllocationProbe"
+        "EnableM04StringAllocationBeforeBindProbe"
+        "EnableM04StringAllocationExhaustionProbe"
+        "EnableM04StringAllocationInvalidLengthProbe"
     )) {
         if ([bool](Get-Variable -Name $conflict -ValueOnly)) {
             throw ("m02_double_fault_ist_profile_conflict " + $conflict)
@@ -4636,6 +4683,10 @@ if ($EnableM02UnexpectedVectorPanicProbe) {
         "EnableM04SzArrayAllocationProbe"
         "EnableM04SzArrayAllocationBeforeBindProbe"
         "EnableM04SzArrayAllocationExhaustionProbe"
+        "EnableM04StringAllocationProbe"
+        "EnableM04StringAllocationBeforeBindProbe"
+        "EnableM04StringAllocationExhaustionProbe"
+        "EnableM04StringAllocationInvalidLengthProbe"
         "EnableUefiGoneSimulationProbe"
         "EnableExitBootServicesFreshMapProbe"
         "EnableAcpiPhysicalDiscoveryProbe"

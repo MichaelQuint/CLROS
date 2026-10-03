@@ -31,7 +31,8 @@ public enum NativeAotHelperArea
     EfiFailFastTypeCasts = 13,
     EfiStackProbe = 14,
     EfiFixedAllocation = 15,
-    EfiSzArrayAllocation = 16
+    EfiSzArrayAllocation = 16,
+    EfiStringAllocation = 17
 }
 
 public enum NativeAotHelperStatus
@@ -43,7 +44,8 @@ public enum NativeAotHelperStatus
     Complete = 4,
     EfiOnlyStackProbe = 5,
     EfiOnlyFixedAllocation = 6,
-    EfiOnlySzArrayAllocation = 7
+    EfiOnlySzArrayAllocation = 7,
+    EfiOnlyStringAllocation = 8
 }
 
 public readonly struct NativeAotHelperLedgerEntry
@@ -110,7 +112,7 @@ public readonly struct NativeAotHelperLedgerEntry
 
 public static class NativeAotHelperLedger
 {
-    public const int EntryCount = 16;
+    public const int EntryCount = 17;
 
     private const NativeAotCompletionGate RuntimeGates =
         NativeAotCompletionGate.StdRuntime |
@@ -172,10 +174,10 @@ public static class NativeAotHelperLedger
                 isEfiOnly: false,
                 satisfiesKernelRuntimeCompletion: false,
                 "contract:string-allocation",
-                "No OS-owned NativeAOT string allocation helper exists.",
+                "General String allocation remains deferred. GuestTestStringAllocationCharacterStorage provides the bounded host leaf; the separately classified EFI String profile uses the original retained-page state and does not establish GC visibility or general String semantics.",
                 "Allocate immutable strings with correct length, UTF-16 storage, object header, and GC visibility.",
                 "Fail-fast or deferred status only; no stub may fabricate string references.",
-                "Host ledger tests only; no string helper execution test exists.",
+                "Host String layout, length, overflow and failure-atomicity tests cover the finite leaf. Compiler artifact and fresh guest evidence are separate gates.",
                 "runtime-gc",
                 "Implement string allocation after object allocation and string layout are defined."),
 
@@ -360,6 +362,20 @@ public static class NativeAotHelperLedger
                 "M04ArrayAllocationEfiIntegrationTests covers original-authority POD bytes, mixed160/Count5, bounded metadata, profiles and actual artifact routes. Real guest execution is a separate parent-owned gate.",
                 "efi-runtime-shim",
                 "Implement reference barriers, GC and remaining array semantics under separate issues. Gate 4 remains incomplete."),
+
+            16 => new NativeAotHelperLedgerEntry(
+                NativeAotHelperArea.EfiStringAllocation,
+                NativeAotHelperStatus.EfiOnlyStringAllocation,
+                EfiOnlyGates,
+                isEfiOnly: true,
+                satisfiesKernelRuntimeCompletion: false,
+                "RhNewString",
+                "Default-off EFI adapter invokes GuestTestStringAllocationCharacterStorage using the original thirteen-argument authority and same80-byte state as fixed objects and SZ arrays.",
+                "Pinned string(MethodTable*, nint) ABI with full-width signed length; authentic String and related Object prefixes; successful allocation and raw byte readback precede reference conversion and char/count constructor stores.",
+                "Default and rejected paths halt. No fabricated string, second cursor, interning, reference store, barrier, GC or general String behavior is provided.",
+                "M04StringAllocationEfiIntegrationTests covers bounded POD storage, mixed200/Count7, full-width rejection, profiles and compiled constructor/helper/UTF-16 routes. Fresh guest execution remains a separate parent-owned gate.",
+                "efi-runtime-shim",
+                "Implement remaining String and GC semantics under separate issues. Gate 4 remains incomplete."),
 
             _ => InvalidEntry()
         };

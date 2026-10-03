@@ -936,11 +936,21 @@ existing retained-page allocator. The complete fixed/array/String modules pass
 31 starts/32 passes with zero failures; actual10/11/11-source no-stdlib closures
 have zero AssemblyRefs. Literal storage/terminator, mixed-cursor, signed64,
 capacity, authority and unchanged-rejection cases are host evidence only.
-Native String exports, returning compiled constructors and guest character
-storage are pending. The combined source-admission/full-suite/native regression
+At step955, native String exports, returning compiled constructors and guest
+character storage were pending. The combined source-admission/full-suite/native regression
 gate is accepted in step959 for the shared core and existing fixed/array
 profiles. It contains no String guest. M04-009 and M04-010 remain incomplete;
 Gate4 stays **Fail**.
+
+[Step963](../done/step963.md) adds the default-off EFI String export/constructor
+integration. Separate complete managed63/64/0 and String6/7/0 focused runs pass,
+including five real default/positive/before-bind/exhaustion/invalid-length
+NativeAOT publications. Actual metadata and linked-code checks bind zero OS
+AssemblyRefs, String/Object prefixes and relocations, returned-reference
+storage readers and the full-width invalid-length route. This is source,
+host and artifact evidence only. The combined committed-head full suite and
+fresh guest/native/raw/lifecycle/disk acceptance remain pending; M04-009 and
+M04-010 remain incomplete and Gates3/4 remain **Fail**.
 
 ### M02-014 source integration and terminal guest boundary
 

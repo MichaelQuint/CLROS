@@ -2715,3 +2715,35 @@ The ordinary regression lanes record configured750ms drain, not separately
 measured duration. Negative array observers retain their measured durations.
 No captured provisional flag was rewritten; parent joint acceptance combines
 the separate source/native/transcript/lifecycle/disk reviews.
+
+### M04-009 String capture boundary
+
+[Step963](../done/step963.md) implements the String profile and passes its
+complete focused host/artifact fixture. No String guest is accepted by that
+step. The positive command and complete prerequisite switches are in
+[`docs/efi-build.md`](efi-build.md#m04-009-shared-string-source-profile).
+
+The strict positive stream has72 owned CRLF records:44 inherited prerequisite
+records,20 String records and8 boot-tail records. It checks the same original
+allocator authority, seven allocations at used200/count7, five String
+length/UTF-16/terminator/padding observations, retained objects and256-byte
+observation slots within6672-byte scratch storage. Only empty or the separately
+pinned304-byte OVMF preamble is admitted. Smoke-parser UInt64 constants use
+equivalent positive decimal values where Windows PowerShell would otherwise
+interpret high-bit hexadecimal literals as signed integers.
+
+The before-bind, exhaustion and invalid-length streams contain49/65/50 records
+and end exactly with `TEST_FAIL m04.009 not_initialized`, `exhausted` or
+`invalid_length`, respectively. There is no success tail. Before-bind has no
+BIND; invalid-length binds then attempts full-width4294967297 without a
+constructor; exhaustion reaches used4096/count169/constructorCount168 and
+rejects the next length1 allocation without changing state or heap. These
+remain generic failures to the ordinary runner, rather than expected-panic
+successes.
+
+Future acceptance must bind the actual same-image full metadata prefixes,
+related pointers and relocations, compiled return/constructor/readback paths,
+whole raw stream, source profiles, owned process lifecycle and captured disk
+accounting. Positive/exhaustion streams expose five metadata roles;
+before-bind/invalid-length expose only two attempted tokens. Synthetic parser
+controls and successful publications do not replace those guest checks.
