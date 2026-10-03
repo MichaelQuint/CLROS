@@ -171,14 +171,21 @@ and the reachable local Gitea tracker:
   new panic adapter's backend construction. Related allocation fixtures also
   omitted the added panic profile from their exact conflict counts.
   [Step958](../done/step958.md) records the follow-up repairs and their evidence
-  boundary. A fresh complete host pass and nine guest reviews remain required.
-  #56/#526 stay open.
+  boundary. [Step959](../done/step959.md) accepts the clean `dee6df2` full
+  suite (3,636 starts/3,637 passes/zero failures, unchanged launch binaries)
+  and nine fresh default/panic/UD2/PF/DF/fixed/mixed-array/rejection profiles.
+  Independent same-image, raw, lifecycle and disk reviews bind the actual
+  76-record vector-32 panic to wrapper0, runner classification19 and measured
+  760ms quiet. The 5,208-byte native bound and inherited entry prerequisite
+  remain explicit. Reviewed merge and tracker closure are separate actions;
+  Gates3/4 remain **Fail**.
 - `GuestTestStringAllocationCharacterStorage` adds a bounded host entry to the
   existing fixed/array retained-page allocator. The complete three-module run
   passes 31 starts/32 passes with zero failures, and all three real no-stdlib
   closures have zero AssemblyRefs. [Step955](../done/step955.md) records exact
-  source and evidence identities. Native String integration, the combined full
-  suite and actual String guest execution remain pending for this checkpoint.
+  source and evidence identities. Step959 accepts the combined full suite and
+  same-image fixed/array compatibility after this shared-core change. Native
+  String integration and actual String guest execution remain pending.
 - `scripts/check-naming.ps1` enumerates admitted files once for its naming and
   source-firewall checks. It prunes excluded directory names before descent,
   skips directory reparse points, retains the provider's default hidden-file

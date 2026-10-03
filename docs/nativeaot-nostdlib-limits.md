@@ -693,7 +693,11 @@ nint)`, constructor remapping and String layout/field offsets using a terminal
 helper. It established no successful returned allocation. This host slice adds
 no String runtime export, constructor, interning, character-copy operation,
 refill or GC. Shared EFI source admission and same-image fixed/array
-compatibility are still being reconciled separately. Genuine compiled String
+compatibility are accepted in [step959](../done/step959.md): the settled host
+suite passes3,636 starts/3,637 passes with zero failures, and fresh fixed/array
+images bind the current shared core, returns, constructors and22 observed
+full metadata prefixes. This is existing fixed/array compatibility, not
+String guest evidence. Genuine compiled String
 return/constructor/character execution requires a later native integration and
 fresh guest evidence. M04-009 stays open and Gate4 remains **Fail**.
 

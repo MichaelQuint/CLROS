@@ -883,20 +883,34 @@ evidence. Immutable capture/review records retain their narrower provisional
 flags; the separate joint review supplies bounded acceptance. Gate4 remains
 **Fail**: arbitrary arrays, managed reference stores/barriers, GC/roots,
 covariance/casts/exceptions, strings, refill, post-firmware lifetime and the
-hosted runtime remain unsupported. Gate3 also remains **Fail**; the integrated
-M02-016 host module is not native unexpected-vector panic evidence.
+hosted runtime remain unsupported. Gate3 also remains **Fail**. The later
+M02-016 guest evidence below has its own bounded acceptance.
 
-### M02-016 source and controlled runner boundary
+### M02-016 bounded unexpected-vector panic evidence
 
 [Step956](../done/step956.md) integrates the reviewed C2/D7 leaf, default-off
 adapter and strict expected-panic classifier. Focused source/control modules
 and default/enabled NativeAOT artifacts pass their recorded boundaries;
 a failed combined run and separate complete loaded-image retry are preserved.
-The 8 KiB stack and 16-byte sentinel are not proof of the current compiled
-chain's complete access bound. Native call/access/ABI/SIMD admission, the fresh
-whole-host suite and actual panic/default/UD2/PF/DF/allocation regressions
-remain pending. No genuine panic has been accepted. #56/#526 stay open and
-Gates3/4 remain **Fail**.
+The 8 KiB stack and 16-byte sentinel alone are not a stack proof.
+[Step959](../done/step959.md) accepts the actual same-image 113-method,
+ten-table/218-entry access/ABI/SIMD proof: 5,208 bytes including the232-byte
+bridge fit within8,176 bytes, leaving2,968 bytes above the sentinel end.
+Trusted firmware/NativeAOT SSE entry remains a prerequisite; the later mode
+check does not protect already executed entry instructions.
+
+The clean `dee6df2` complete host suite passes3,636 starts/3,637 passes with
+zero failures and unchanged launch binaries. All nine fresh default, panic,
+UD2, page-fault, double-fault, fixed, mixed-array, before-bind and exhaustion
+profiles pass their independent source/native/raw/lifecycle/disk reviews.
+The panic has76 records,650-byte/24-field current-state metadata and the exact
+vector32 fault, followed by EOF. Actual wrapper0, source-bound runner19,
+QEMU signed-1/owned termination and measured760ms quiet agree. The intended
+OS_SMOKE_FAIL is accepted only as that complete expected-panic outcome.
+
+No real ExitBootServices, nested-fault handling, recovery, post-report sentinel
+observation, general mapping/lifetime safety or hosted runtime is established.
+Gates3/4 remain **Fail**. Merge and issue closure are separate tracker actions.
 
 ### M04-009 String storage host boundary
 
@@ -907,7 +921,9 @@ have zero AssemblyRefs. Literal storage/terminator, mixed-cursor, signed64,
 capacity, authority and unchanged-rejection cases are host evidence only.
 Native String exports, returning compiled constructors and guest character
 storage are pending. The combined source-admission/full-suite/native regression
-gate is separate. M04-009 and M04-010 remain incomplete; Gate4 stays **Fail**.
+gate is accepted in step959 for the shared core and existing fixed/array
+profiles. It contains no String guest. M04-009 and M04-010 remain incomplete;
+Gate4 stays **Fail**.
 
 ### M02-014 source integration and terminal guest boundary
 

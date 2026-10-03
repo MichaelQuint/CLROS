@@ -2139,7 +2139,7 @@ profiles use their separately reviewed expected-failure observer. No successful
 publish is itself execution of a guest allocation; general runtime support
 remains incomplete.
 
-### M02-016 unexpected-vector source profile
+### M02-016 unexpected-vector profile
 
 [Step956](../done/step956.md) records the default-off
 `EnableM02UnexpectedVectorPanicProbe` /
@@ -2164,4 +2164,9 @@ a prerequisite; the later check cannot establish safety for instructions
 already executed or reject an adversarial unsupported-SSE entry before all SSE
 use. Fresh mode admission still governs the subsequent owned transition and
 callback. Full current-image call/access/stack, ABI, original port-target and
-SIMD analysis remains required before executing the guest experiment.
+SIMD analysis was separately accepted for the actual step959 images. Its
+113-method access bound is5,208 bytes within the8,176-byte callback budget.
+Step959 binds the complete host pass and nine fresh guest profiles to this
+same82-item/95-input/32-flag source, including default adapter absence and the
+strict vector-32 expected-panic result. Those facts do not broaden the entry
+ABI prerequisite or prove general post-firmware operation.

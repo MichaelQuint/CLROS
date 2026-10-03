@@ -119,8 +119,12 @@ The 1,028-byte stream, 184-byte capture and 232-byte callback entry depth retain
 their previous roles; capture starts at D+28488 and initial callback RSP at
 D+28440. The earlier 4 KiB layout demonstrably overflowed in the isolated
 NativeAOT study recorded in step953. Neither the new capacity nor the entry
-depth proves the complete current compiled reporting chain fits: full
-same-image call/access/ABI analysis remains required before guest execution.
+depth proves the complete current compiled reporting chain fits. The separate
+same-image proof accepted in [step959](../done/step959.md) bounds all113 rooted
+methods, ten jump tables/218 entries, accesses and ABI/SIMD behavior at5,208
+bytes including the bridge, below the8,176-byte budget. It retains the trusted
+firmware/NativeAOT SSE entry prerequisite and does not observe a post-report
+sentinel or establish general memory lifetime safety.
 
 The adapter retains original image, callback, request, checked backend and
 allocation authority outside mutable C/D scratch. Exact original callback
@@ -145,9 +149,14 @@ Focused evidence separately covers the complete11-pair D7 leaf (including
 runner groups. The first three completed within a later-failed combined run;
 the loaded-image retry passed separately. Default/enabled NativeAOT artifacts
 have zero OS AssemblyRefs. These source, controlled-process and artifact checks
-do not constitute a passed full suite or real panic. #56/#526 remain open,
-native graph acceptance and fresh guests remain pending, and Gates3/4 remain
-**Fail**. [QEMU](qemu.md) documents the distinct expected-panic classification.
+alone do not constitute a passed full suite or real panic. Step959 separately
+accepts the complete3,636/3,637/0 host run and nine fresh guest profiles at
+`dee6df2`. Its panic lane has76 exact records, full current-state/native
+associations, wrapper0/source-bound runner19, QEMU signed-1/owned termination,
+measured760ms quiet and empty stderr. The original port targets and exact
+650-byte metadata are preserved. Review/parser failures remain recorded.
+Gates3/4 remain **Fail**. [QEMU](qemu.md) documents the distinct expected-panic
+classification; merge and tracker closure remain separate actions.
 
 No ordinary boot phase loads an IDT, installs fault handlers, activates IST
 routing, directs a live CPU fault to panic, or preserves an owned serial path

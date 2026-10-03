@@ -2704,5 +2704,14 @@ exit, reset and cleanup/read errors remain failures.
 [Step956](../done/step956.md) records165 passing complete controlled runner
 groups and the new integration/parser/profile controls, including whitespace
 stderr and individual arithmetic-flag mutations. These use controlled
-processes and literal captures. No real expected-panic guest has yet been
-accepted; full host/native and fresh nine-profile guest evidence remain pending.
+processes and literal captures. [Step959](../done/step959.md) separately accepts
+the clean `dee6df2` full-host run and nine actual guest profiles. The panic
+capture contains76 records and650-byte metadata; source-bound runner19,
+actual wrapper0, QEMU signed-1/owned termination and measured760ms quiet pass
+independent review with empty stderr and exact EOF. The independent auditor
+keeps serial/summary CRLF and the captured host runner block's LF distinct;
+all366 controls pass after preserving the original line-ending audit failure.
+The ordinary regression lanes record configured750ms drain, not separately
+measured duration. Negative array observers retain their measured durations.
+No captured provisional flag was rewritten; parent joint acceptance combines
+the separate source/native/transcript/lifecycle/disk reviews.

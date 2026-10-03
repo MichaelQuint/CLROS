@@ -268,9 +268,11 @@ mutation there is no firmware return, cleanup, reset or recovery.
 The source/controlled-process checkpoint introduces an explicit expected-panic
 runner classification. Its metadata and existing fault record follow the
 inherited ordinary OS_SMOKE_PASS; that earlier marker cannot stand for this
-experiment's outcome. No new guest READY/PASS is emitted. Same-image native
-call/access/ABI acceptance, the complete host suite and fresh actual guest
-evidence remain pending.
+experiment's outcome. No new guest READY/PASS is emitted.
+[Step959](../done/step959.md) accepts the same-image call/access/ABI review,
+complete host suite and nine fresh guest profiles, including the strictly
+classified vector-32 panic. This adds no ordinary boot phase and does not
+cross real ExitBootServices.
 
 The separate default-off `EnableM02Ud2VectorStateProbe` profile now supplies
 accepted bounded guest evidence without adding a `BootSequence` phase. It runs
