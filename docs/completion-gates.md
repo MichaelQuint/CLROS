@@ -94,6 +94,23 @@ post-firmware diagnostics, IDT/fault handling, SMP/TLB shootdown, systemwide
 W^X, physical-hardware or provider behavior, storage, networking, hosted .NET,
 Minimal API, Kestrel, CloudReady status, or production readiness.
 
+## M02 Owned Diagnostics Technical Exit
+
+The M02 tracking milestone now has accepted evidence for all 20 keyed children.
+Its technical exit is limited to the separate opt-in pre-`ExitBootServices`
+QEMU/OVMF experiments: owned COM1 output, owned GDT/TSS/IDT state, and controlled
+invalid-opcode, page-fault, double-fault and vector-32 panic delivery. These
+profiles retain their individual restoration or terminal-halt contracts;
+they do not establish a general interrupt service or recovery path.
+
+[Step959](../done/step959.md) accepts the clean `dee6df2` complete host suite
+and nine fresh profiles, including the current diagnostic compatibility
+observations. [Step960](../done/step960.md) records the child-evidence and epic
+closure audit. Firmware/NativeAOT entry prerequisites remain. No real firmware
+exit, post-firmware diagnostics, asynchronous IRQ/NMI service, physical-hardware
+support, hosted .NET/Kestrel or cloud readiness follows from this milestone.
+Numbered completion-gate states are unchanged; Gates 3/4 remain `Fail`.
+
 ## M02 Safe-Stub EFI Integration
 
 The first M02 EFI slice is supported by a separate opt-in, source-bound

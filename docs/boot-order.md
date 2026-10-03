@@ -12,6 +12,12 @@ The firmware entry path emits `TEST_START efi.main`, `EFI_CONSOLE_READY`, UEFI m
 
 `BootSequence.RunAppPackageReadiness`, `BootSequence.RunAppLaunchDescriptorReadiness`, `BootSequence.RunAppPayloadReadiness`, `BootSequence.RunAppExecutableMappingReadiness`, `BootSequence.RunAppExecutableMemoryReadiness`, `BootSequence.RunAppInvocationReadiness`, `BootSequence.RunAppLifecycleReadiness`, `BootSequence.RunAppSelectionReadiness`, `BootSequence.RunAppSelectionPreflightReadiness`, and `BootSequence.RunAppEntryReadiness` are optional host-tested helpers for the future app-package, selected-app descriptor, selected native payload, executable range planning, executable-memory planning, invocation metadata planning, app lifecycle/log readiness, aggregate app-selection, virtio-blk app-selection preflight, and final pre-entry boundaries. They are not part of the default managed boot order and are not emitted by the no-stdlib EFI artifact.
 
+The M02 technical-exit audit in [step960](../done/step960.md) records the
+accepted opt-in diagnostic experiments without adding a boot phase or changing
+the default flow. Each profile still requires its own exact continuation or
+terminal transcript; milestone closure does not authorize firmware shutdown
+or turn the terminal experiments into a general fault handler.
+
 ## Implemented Behavior
 
 Current firmware-visible order:

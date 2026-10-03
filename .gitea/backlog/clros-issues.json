@@ -6165,7 +6165,7 @@
         "M01-036"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:epic",
         "evidence:qemu",
@@ -6179,7 +6179,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M02: Owned x64 Diagnostics.",
-      "currentEvidence": "Diagnostic descriptor/stub plans are host-tested; owned COM1, loaded GDT/TSS/IDT, and controlled live faults are unproven.",
+      "currentEvidence": "All 20 M02 keyed children and prerequisite M01-036 are closed with reviewed evidence. The bounded M02 technical exit is supported by separate opt-in pre-ExitBootServices QEMU/OVMF tuples for owned COM1, owned GDT/TSS/IDT and controlled UD2/page-fault/double-fault/unexpected-vector handling. Step959 accepts the clean dee6df2 complete host gate and nine fresh profiles; step960 records the epic closure audit. This closure records those exact finite experiments, not ordinary/general interrupt recovery or a new numbered completion gate. Live epic closure follows reviewed documentation merge and evidence readback.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -6210,8 +6210,8 @@
         "docs/diagnostics.md",
         "docs/boot-order.md"
       ],
-      "evidenceBoundary": "The epic records coordination only; it proves none of Owned x64 Diagnostics until every child and exit criterion passes.",
-      "desiredState": "open"
+      "evidenceBoundary": "The epic records accepted coordination and the bounded pre-ExitBootServices local-QEMU M02 technical exit only. The component experiments retain their independent scope and firmware/NativeAOT entry prerequisites. No asynchronous IRQ/NMI handling, general recovery, post-firmware diagnostics, real ExitBootServices, physical hardware, hosted .NET/Kestrel, cloud or production readiness is established. Gate 2 remains limited to firmware-visible smoke; Gates 3/4 remain Fail.",
+      "desiredState": "closed"
     },
     {
       "key": "M02-001",
