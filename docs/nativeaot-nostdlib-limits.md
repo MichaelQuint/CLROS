@@ -220,8 +220,8 @@ eleven fail-fast type-cast helpers plus `RhpFallbackFailFast`, the audited
 appended SZ-array exports. The fixed allocator
 defaults to self-contained failure; its opt-in adapter is implemented and
 artifact-tested in step946, with bounded real guest acceptance in step949.
-Step952 adds the array host contract and focused artifact checks; complete
-integrated host and actual array guest acceptance remain pending. These
+Step952 adds the array host contract and focused artifact checks; step954
+accepts the complete integrated host gate and bounded array guest evidence. These
 entries do not copy the shim into normal host builds or satisfy general
 allocation, GC, dispatch, exception or runtime-completion requirements.
 
@@ -232,7 +232,7 @@ allocation, GC, dispatch, exception or runtime-completion requirements.
 | `System.Buffer.MemoryCopy` / `Memmove` | Implemented as byte loops for EFI shell needs | Used for no-stdlib memory copy paths; not a complete BCL buffer contract |
 | `System.SpanHelpers` clear/fill/memmove slice | Implemented as narrow byte/pointer helper slice | Supports current EFI publish boundary only |
 | Object allocation helpers | Bounded opt-in EFI allocation guest evidence accepted | Step940 proves the fixed caller-buffer leaf over the original #75 retained authority. Step946 adds the real profile-bound `RhpNewFast` adapter. Step949 accepts the complete host suite and five fresh QEMU profiles, including four compiled-new/six direct routes, before-bind rejection and exhaustion, with independent metadata/native/prefix/transcript/lifecycle/disk review. The general `ObjectAllocation` gate remains deferred; no general heap or GC is established |
-| Array allocation helpers | General support deferred; bounded opt-in EFI source/artifact checks | Step952 adds the shared retained-page SZ-array leaf and the separately classified `EfiSzArrayAllocation` exports. The complete new integration initializer and four NativeAOT artifacts pass; independent linked-artifact review, the full integrated host gate and guest execution remain pending. General `ArrayAllocation` completion, managed reference stores and GC remain deferred |
+| Array allocation helpers | General support deferred; bounded opt-in EFI guest evidence accepted | Step952 adds the shared retained-page SZ-array leaf and separately classified `EfiSzArrayAllocation` exports. Step954 accepts the complete host gate and eight fresh profiles with independent native/metadata/prefix, transcript/lifecycle and disk review. Genuine byte/long allocations, length/index/store readback, before-bind rejection and shared-page exhaustion are bounded guest observations. General `ArrayAllocation` completion, managed reference stores and GC remain deferred |
 | String allocation helpers | Deferred | Ledger entry `StringAllocation`; no OS-owned NativeAOT string allocation helper exists |
 | Write barriers | Deferred | Ledger entry `WriteBarriers`; no kernel/runtime write barrier implementation exists |
 | Interface dispatch | Deferred | Ledger entry `InterfaceDispatch`; EFI type-cast helpers fail fast and do not prove interface dispatch |
@@ -610,9 +610,10 @@ zero failures. Their actual ten/eleven-source no-stdlib closures have zero
 AssemblyRefs. The isolated pinned compiler experiment separately identifies
 genuine byte/long `newarr` helper calls, the bounded Array length field/getter,
 and length/data offsets from a reference. Its terminal link helpers prove no
-successful returned allocation. The separately claimed #523 integration adds
-the default-off source profile below. A combined full host run and fresh array
-QEMU evidence are still required.
+successful returned allocation. The separate #523 integration adds the
+default-off source profile below. Step954 records the accepted combined host
+run and fresh array QEMU evidence; the earlier compiler experiment remains
+compile/link evidence only.
 General arrays, casts, exceptions, GC, refill and post-firmware lifetime remain
 unsupported; Gate4 remains **Fail**.
 
@@ -647,11 +648,16 @@ the entire 80-byte bump state and 4,096-byte heap before halting.
 
 The complete six-group array EFI initializer passed, including four actual
 default/positive/before-bind/exhaustion NativeAOT publications, zero-AssemblyRef
-checks and offline native route checks. Independent linked-artifact review,
-the complete integrated host gate and all fresh guest captures remain pending.
-No returned guest reference, executed array store or general array behavior is
-claimed by the successful builds alone. See `docs/efi-build.md` and
-`docs/qemu.md` for profile prerequisites and transcript boundaries.
+checks and offline native route checks. [Step954](../done/step954.md) separately
+accepts the 3,611-start/3,612-pass complete host run and eight fresh profiles on
+source `1ce1889bab1bc9307b3904becdc66cb3d12078d0`. Genuine byte/long helper
+returns, length/index/store readback, retained objects and both rejection paths
+have independent same-image metadata/native, full raw/lifecycle and disk
+association. Fixed ten-route and array six-role relocated prefixes match the
+fresh COFF/PE inputs; before-bind has only two attempted tokens and no observed
+prefix. Successful publications alone still do not prove execution or general
+array behavior. See `docs/efi-build.md` and `docs/qemu.md` for prerequisites and
+transcript boundaries.
 
 ## Tests
 

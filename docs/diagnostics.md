@@ -148,7 +148,9 @@ Release build passed. That host test evidence does not supply native execution,
 real descriptor/interrupt/COM1 observations, expected-panic runner
 classification or guest evidence. M02-016 remains open; its shared EFI
 integration must follow the array integration wave. No ordinary boot behavior
-or completion gate changes.
+or completion gate changes. [Step954](../done/step954.md) accepts this integrated
+C2/D6 host module in the complete suite; the later C2/D7 candidate is not part
+of that source or evidence.
 
 No ordinary boot phase loads an IDT, installs fault handlers, activates IST
 routing, directs a live CPU fault to panic, or preserves an owned serial path

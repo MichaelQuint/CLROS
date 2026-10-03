@@ -2625,7 +2625,7 @@ does not establish filesystem conformance. No GC, reference writes, boxing
 payload copy, arrays/strings, post-firmware lifetime or general runtime
 readiness is claimed.
 
-### M04-008 shared SZ-array profile (guest acceptance pending)
+### M04-008 shared SZ-array profile
 
 The default-off positive profile uses a fresh build and all eight explicit
 prerequisites:
@@ -2661,8 +2661,19 @@ owned-termination evidence, full raw-record validation, and independent
 same-image source/native association. Before-bind reports two attempted tokens
 and the observed image base, with no object-prefix rows.
 
-Step952 records complete focused host/artifact checks and synthetic independent
-auditor controls. No array QEMU capture is accepted there yet. Fresh default,
-heap, fixed, mixed-array, both array negatives, PF and DF runs remain required
-after the complete same-head host gate. Existing fixed/PF/DF evidence belongs
-to its recorded earlier source; it does not prove this changed image.
+Step952 records focused host/artifact checks and synthetic auditor controls.
+[Step954](../done/step954.md) separately accepts fresh default, heap, fixed,
+mixed-array, both array negatives, PF and DF captures on
+`1ce1889bab1bc9307b3904becdc66cb3d12078d0`, after its complete host gate.
+The actual eight-lane matrix and command records are under
+`artifacts/orchestration-20261001/issue523-guest-1ce1889-20261003T0600314911091Z`.
+Full transcript counts are 21/52/78/68/49/61/86/88; all summaries, EOF rules and
+owned termination checks pass. Negative quiet intervals are 750.2553 and
+754.6722 ms. Fixed has ten observed relocated prefixes, mixed/exhaustion six
+each; before-bind has two actual token associations and no observed prefix.
+Fresh PF/DF current-state/native associations pass; saved DF state remains
+diagnostic-only. Independent accounting preserves all EFI payloads and allows
+only the observed three-cluster NVVARS allocation and associated FAT/directory/
+primary-FSInfo changes. Both negative pristine images equal independent
+reconstructions. Whole-filesystem conformance and general runtime completion
+remain unproved; Gates 3/4 remain **Fail**.

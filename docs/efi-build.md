@@ -2129,7 +2129,12 @@ shared private allocation path. Raw-source hashing remains authoritative.
 The complete array integration initializer published default, positive,
 before-bind and exhaustion NativeAOT artifacts with true-flag counts 0/9/10/10.
 It checked actual zero-reference OS metadata, helper attributes/signatures,
-genuine `newarr`/length/index IL and linked array/element routes. This is focused
-artifact evidence. Independent linked-artifact review, the clean combined full
-host gate and fresh eight-profile QEMU acceptance remain pending. No successful
-publish is itself execution of a guest allocation.
+genuine `newarr`/length/index IL and linked array/element routes. This remains
+focused artifact evidence. [Step954](../done/step954.md) separately accepts the
+clean same-head solution build, complete 3,611-start/3,612-pass host gate and
+eight fresh QEMU profiles. Actual metadata/native routes, relocated prefixes,
+complete transcripts, process lifecycle and pristine/booted disks bind the
+80-Compile/93-input/31-flag artifacts to that source. Both allocation-negative
+profiles use their separately reviewed expected-failure observer. No successful
+publish is itself execution of a guest allocation; general runtime support
+remains incomplete.

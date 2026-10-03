@@ -161,6 +161,8 @@ and the reachable local Gitea tracker:
   forbidden extensions, first-party roots and stable markers remain unchanged.
   Host fixtures verify actual directory visits and preserve the existing
   recovery checks; this is a traversal correction, not a performance benchmark.
+  [Step954](../done/step954.md) records the accepted integrated host gate and
+  final naming/source-firewall checks for this correction.
 - `tools/OS.QemuRunner` can dry-run and run a QEMU/OVMF smoke, capture serial logs, and require `OS_SMOKE_PASS`.
 - `tools/OS.ManifestTool` validates manifest v0 JSON with machine-readable markers.
 - `tools/OS.LibvirtRunner` generates deterministic host-side domain XML in dry-run mode without requiring libvirt.

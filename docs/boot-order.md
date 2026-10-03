@@ -54,9 +54,9 @@ zero-page checkpoint: START, PREP, BIND, five OBJECT/READBACK pairs, RETAIN,
 READY and PASS, followed by the unchanged eight boot records. Its before-bind
 and exhaustion branches end at their exact TEST_FAIL before BootSequence.
 The standalone M04-007 ten-object experiment remains a separate profile.
-Step952 records focused host/artifact evidence; fresh array guest acceptance
-and the combined full host gate remain pending. No phase or entry bypass is
-introduced.
+Step952 records focused host/artifact evidence; step954 accepts the combined
+full host gate and eight fresh profiles, including these bounded array paths.
+No phase or entry bypass is introduced.
 
 Current host-tested managed handoff-aware order:
 
