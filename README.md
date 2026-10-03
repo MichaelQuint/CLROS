@@ -31,7 +31,7 @@ partial gates and many prerequisite contracts, but it has not yet passed
 `ExitBootServices`, owned-driver, live storage, live networking, native-app
 execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 
-### Current implementation checkpoint (updated through 2026-10-02)
+### Current implementation checkpoint (updated through 2026-10-03)
 
 - M04-004 now has independently reviewed host and fresh default/enabled
   QEMU/OVMF evidence. The opt-in NativeAOT EFI profile executes 57 integer
@@ -76,6 +76,13 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
   page-fault/double-fault regressions. Independent native, transcript, lifecycle
   and disk reviews are recorded in [step954](done/step954.md). General arrays,
   managed reference stores, GC, strings and Gate 4 remain incomplete.
+
+- M02-016 now has reviewed C2/D7 adapter source, controlled expected-panic
+  classification and default/enabled NativeAOT artifacts. All165 runner groups
+  and the focused diagnostic modules pass at their separate recorded
+  boundaries. [Step956](done/step956.md) retains the failed combined attempt
+  and repaired loaded-image retry. Full host/native graph and fresh guest
+  acceptance remain pending; Gates3/4 remain **Fail**.
 
 - M04-009 adds host-tested String storage to the same retained allocation page
   and cursor. Complete fixed/array/String modules pass 31 starts/32 passes,

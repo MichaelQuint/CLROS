@@ -433,7 +433,7 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
                 "[switch] $EnableM02SafeStubProbe",
                 StringComparison.Ordinal)
             && script.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=93",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=95",
                 StringComparison.Ordinal)
             && script.Contains(
                 "reviewed=\" + $m01SourceClosure.ReviewedSourceCount",

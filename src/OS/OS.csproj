@@ -55,6 +55,7 @@
 		<EnableM04ManagedHeapPageRangeProbe Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == ''">false</EnableM04ManagedHeapPageRangeProbe>
 		<EnableM02PageFaultCr2ErrorCodeProbe Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == ''">false</EnableM02PageFaultCr2ErrorCodeProbe>
 		<EnableM02DoubleFaultIstProbe Condition="'$(EnableM02DoubleFaultIstProbe)' == ''">false</EnableM02DoubleFaultIstProbe>
+		<EnableM02UnexpectedVectorPanicProbe Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == ''">false</EnableM02UnexpectedVectorPanicProbe>
 		<EnableM04RhpNewFastProbe Condition="'$(EnableM04RhpNewFastProbe)' == ''">false</EnableM04RhpNewFastProbe>
 		<EnableM04RhpNewFastBeforeBindFailureProbe Condition="'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == ''">false</EnableM04RhpNewFastBeforeBindFailureProbe>
 		<EnableM04RhpNewFastExhaustionFailureProbe Condition="'$(EnableM04RhpNewFastExhaustionFailureProbe)' == ''">false</EnableM04RhpNewFastExhaustionFailureProbe>
@@ -64,6 +65,17 @@
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'">
+		<EnableM01LoadedImageStackProbe>true</EnableM01LoadedImageStackProbe>
+		<EnableM01LiveAllocatorProbe>true</EnableM01LiveAllocatorProbe>
+		<EnableM01OwnedPagingProbe>true</EnableM01OwnedPagingProbe>
+		<EnableM02SafeStubProbe>true</EnableM02SafeStubProbe>
+		<EnableM02CheckedPortIoBindingProbe>true</EnableM02CheckedPortIoBindingProbe>
+		<EnableM02Com1OwnedPortIoProbe>true</EnableM02Com1OwnedPortIoProbe>
+		<EnableM02OwnedCom1ReadyProbe>true</EnableM02OwnedCom1ReadyProbe>
+		<EnableM02PanicSafeOwnedCom1Probe>true</EnableM02PanicSafeOwnedCom1Probe>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true'">
 		<EnableM01LoadedImageStackProbe>true</EnableM01LoadedImageStackProbe>
 		<EnableM01LiveAllocatorProbe>true</EnableM01LiveAllocatorProbe>
 		<EnableM01OwnedPagingProbe>true</EnableM01OwnedPagingProbe>
@@ -195,6 +207,10 @@
 		<DefineConstants>$(DefineConstants);M02_DOUBLE_FAULT_IST_PROBE</DefineConstants>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M02_UNEXPECTED_VECTOR_PANIC_PROBE</DefineConstants>
+	</PropertyGroup>
+
 	<PropertyGroup Condition="'$(EnableM04RhpNewFastProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_RHP_NEW_FAST_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -270,6 +286,8 @@
 		<Compile Include="..\OS.Kernel\Diagnostics\SeparateDisabledDefaultPageFaultTransition.cs" Link="Diagnostics\SeparateDisabledDefaultPageFaultTransition.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\DoubleFaultIstProbeAuthority.cs" Link="Diagnostics\DoubleFaultIstProbeAuthority.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\DoubleFaultISTPathSilentRebootOrTriple.cs" Link="Diagnostics\DoubleFaultISTPathSilentRebootOrTriple.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\UnexpectedVectorPanicProbeAuthority.cs" Link="Diagnostics\UnexpectedVectorPanicProbeAuthority.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassification.cs" Link="Diagnostics\UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassification.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\InvalidOpcodeVectorAuthority.cs" Link="Diagnostics\InvalidOpcodeVectorAuthority.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\CpuFaultFrame.cs" Link="Diagnostics\CpuFaultFrame.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\DisabledDefaultUd2VectorState.cs" Link="Diagnostics\DisabledDefaultUd2VectorState.cs" />
@@ -317,6 +335,60 @@
 
 	<Target Name="ValidateM01ProbeSwitches"
 			BeforeTargets="BeforeCompile">
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM01LoadedImageStackProbe)' != 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM01LoadedImageStackProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM01LiveAllocatorProbe)' != 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM01LiveAllocatorProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM01OwnedPagingProbe)' != 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM01OwnedPagingProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM02SafeStubProbe)' != 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02SafeStubProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' != 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02CheckedPortIoBindingProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM02Com1OwnedPortIoProbe)' != 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02Com1OwnedPortIoProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM02OwnedCom1ReadyProbe)' != 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02OwnedCom1ReadyProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM02PanicSafeOwnedCom1Probe)' != 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02PanicSafeOwnedCom1Probe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02OwnedX64GdtEncodingProbe" />
+		<Error Condition="'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM02GuardedIstStackAllocationProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02GuardedIstStackAllocationProbe" />
+		<Error Condition="'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02OwnedGdtTssTerminalProbe" />
+		<Error Condition="'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02NormalizedInterruptFramePageProbe" />
+		<Error Condition="'$(EnableM02NormalizedInterruptFramePageProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02OwnedIdtGatePopulationProbe" />
+		<Error Condition="'$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM02IdtrContinuedExecutionProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02IdtrContinuedExecutionProbe" />
+		<Error Condition="'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM02Ud2VectorStateProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02Ud2VectorStateProbe" />
+		<Error Condition="'$(EnableM02Ud2VectorStateProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM04IndependentEndianConformanceProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM04IndependentEndianConformanceProbe" />
+		<Error Condition="'$(EnableM04IndependentEndianConformanceProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe" />
+		<Error Condition="'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM04ArithmeticConformanceProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM04ArithmeticConformanceProbe" />
+		<Error Condition="'$(EnableM04ArithmeticConformanceProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM04LayoutContractProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM04LayoutContractProbe" />
+		<Error Condition="'$(EnableM04LayoutContractProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM04ManagedHeapPageRangeProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM04ManagedHeapPageRangeProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02PageFaultCr2ErrorCodeProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM02DoubleFaultIstProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02DoubleFaultIstProbe" />
+		<Error Condition="'$(EnableM02DoubleFaultIstProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM04RhpNewFastProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM04RhpNewFastProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM04RhpNewFastBeforeBindFailureProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM04RhpNewFastExhaustionFailureProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM04SzArrayAllocationProbe" />
+		<Error Condition="'$(EnableM04SzArrayAllocationProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM04SzArrayAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM04SzArrayAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableUefiGoneSimulationProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableUefiGoneSimulationProbe" />
+		<Error Condition="'$(EnableUefiGoneSimulationProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableExitBootServicesFreshMapProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableExitBootServicesFreshMapProbe" />
+		<Error Condition="'$(EnableExitBootServicesFreshMapProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableAcpiPhysicalDiscoveryProbe" />
+		<Error Condition="'$(EnableAcpiPhysicalDiscoveryProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
 		<Error Condition="'$(EnableM04SzArrayAllocationProbe)' == 'true' and '$(EnableM04RhpNewFastProbe)' != 'true'" Text="m04_sz_array_profile_invalid EnableM04RhpNewFastProbe" />
 		<Error Condition="'$(EnableM04SzArrayAllocationProbe)' == 'true' and '$(EnableM01LoadedImageStackProbe)' != 'true'" Text="m04_sz_array_profile_invalid EnableM01LoadedImageStackProbe" />
 		<Error Condition="'$(EnableM04SzArrayAllocationProbe)' == 'true' and '$(EnableM01LiveAllocatorProbe)' != 'true'" Text="m04_sz_array_profile_invalid EnableM01LiveAllocatorProbe" />

@@ -257,16 +257,20 @@ M02-014 adapter are unchanged. [step951](../done/step951.md) accepts fresh defau
 and standalone PF regressions separately from the bounded terminal DF delivery
 on original IST1; it does not add a boot phase or recovery path.
 
-The M02-016 unexpected-vector leaf remains host-only. Preparation, complete
-byte readback, capture decoding, supplied-state validation and checked panic
-reporting add no BootSequence phase or default probe. The emitted model plans
-one terminal software `INT 0x20` through vector 32/IST0 and a local halt after
-the scalar callback returns. The 184-byte capture and 232-byte callback entry
-depth do not establish complete native stack usage. Future integration must
-validate pristine stream/context bytes before installing stack canaries, bind
-the callback and resources to the original image, and prove the complete
-compiled reporting chain before a guest run. The host implementation neither
-executes this transition nor changes QEMU failure classification.
+The default-off M02-016 adapter in [step956](../done/step956.md) is selected
+after the ordinary smoke transcript and adds no BootSequence phase. Its source
+orders original authority and fresh mode checks, C2/D7 preparation, complete
+pristine readback, bottom-sentinel installation, final publication, then one
+terminal INT0x20/vector32/IST0 entry. The 184-byte capture and232-byte callback
+entry depth are separate from the full reporting-stack bound. After descriptor
+mutation there is no firmware return, cleanup, reset or recovery.
+
+The source/controlled-process checkpoint introduces an explicit expected-panic
+runner classification. Its metadata and existing fault record follow the
+inherited ordinary OS_SMOKE_PASS; that earlier marker cannot stand for this
+experiment's outcome. No new guest READY/PASS is emitted. Same-image native
+call/access/ABI acceptance, the complete host suite and fresh actual guest
+evidence remain pending.
 
 The separate default-off `EnableM02Ud2VectorStateProbe` profile now supplies
 accepted bounded guest evidence without adding a `BootSequence` phase. It runs

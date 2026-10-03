@@ -886,6 +886,18 @@ covariance/casts/exceptions, strings, refill, post-firmware lifetime and the
 hosted runtime remain unsupported. Gate3 also remains **Fail**; the integrated
 M02-016 host module is not native unexpected-vector panic evidence.
 
+### M02-016 source and controlled runner boundary
+
+[Step956](../done/step956.md) integrates the reviewed C2/D7 leaf, default-off
+adapter and strict expected-panic classifier. Focused source/control modules
+and default/enabled NativeAOT artifacts pass their recorded boundaries;
+a failed combined run and separate complete loaded-image retry are preserved.
+The 8 KiB stack and 16-byte sentinel are not proof of the current compiled
+chain's complete access bound. Native call/access/ABI/SIMD admission, the fresh
+whole-host suite and actual panic/default/UD2/PF/DF/allocation regressions
+remain pending. No genuine panic has been accepted. #56/#526 stay open and
+Gates3/4 remain **Fail**.
+
 ### M04-009 String storage host boundary
 
 [Step955](../done/step955.md) accepts the bounded host String entry into the

@@ -361,6 +361,13 @@ internal static class QemuRunnerTests
             Run("qemu runner keeps required marker failure distinct", () => TestRequiredMarkerFailureDistinctFromForbiddenMarker(tempRoot), ref failures);
             Run("qemu summary write failure is visible", () => TestSummaryWriteFailureIsVisible(tempRoot), ref failures);
             Run("qemu real mode rejects missing image before launch", () => TestMissingImage(tempRoot), ref failures);
+            Run("qemu expected panic rejects invalid options before launch", () => TestUnexpectedPanicOptions(tempRoot), ref failures);
+            Run("qemu expected panic accepts exact capture and native 19 summary", () => TestUnexpectedPanicAcceptedCapture(tempRoot), ref failures);
+            Run("qemu expected panic rejects malformed metadata prefix and EOF", () => TestUnexpectedPanicMalformedCaptures(tempRoot), ref failures);
+            Run("qemu expected panic preserves prerequisite marker validation", () => TestUnexpectedPanicPrefixMarkerIsolation(tempRoot), ref failures);
+            Run("qemu expected panic remains isolated from generic smoke", () => TestUnexpectedPanicDefaultIsolation(tempRoot), ref failures);
+            Run("qemu expected panic rejects late bytes resets exits and timeout", () => TestUnexpectedPanicLifecycle(tempRoot), ref failures);
+            Run("qemu expected panic cleans only owned processes and rejects summary failure", () => TestUnexpectedPanicOwnedCleanup(tempRoot), ref failures);
         }
         finally
         {
@@ -6594,6 +6601,264 @@ internal static class QemuRunnerTests
         string path = Path.Combine(tempRoot, fileName);
         File.WriteAllBytes(path, new byte[] { 0x4F, 0x53, 0x52, 0x41, 0x57 });
         return path;
+    }
+
+    // Frozen OVMF preamble fixture; no production parser or source extraction supplies test data.
+    private static readonly string UnexpectedPanicFirmwarePrefix = System.Text.Encoding.ASCII.GetString(
+        Convert.FromBase64String("G1syShtbMDE7MDFIG1s9M2gbWzJKG1swMTswMUgbWzJKG1swMTswMUgbWz0zaBtbMkobWzAxOzAxSBtbMkobWzAxOzAxSBtbPTNoG1syShtbMDE7MDFIQmRzRHhlOiBsb2FkaW5nIEJvb3QwMDAxICJVRUZJIFFFTVUgSEFSRERJU0sgUU0wMDAxMyAiIGZyb20gUGNpUm9vdCgweDApL1BjaSgweDIsMHgwKS9TYXRhKDB4MCwweEZGRkYsMHgwKQ0KQmRzRHhlOiBzdGFydGluZyBCb290MDAwMSAiVUVGSSBRRU1VIEhBUkRESVNLIFFNMDAwMTMgIiBmcm9tIFBjaVJvb3QoMHgwKS9QY2koMHgyLDB4MCkvU2F0YSgweDAsMHhGRkZGLDB4MCkNCg=="));
+
+    private static bool TestUnexpectedPanicOptions(string tempRoot)
+    {
+        string image = CreateEmptyFile(tempRoot, "panic-options.raw");
+        string sentinel = Path.Combine(tempRoot, "panic-options-launched.txt");
+        string fake = CreateLaunchSentinelFakeQemuScript(tempRoot, sentinel);
+        string summary = Path.Combine(tempRoot, "panic-options-summary.txt");
+        string[][] invalid =
+        [
+            ["--expect-unexpected-vector-panic"],
+            ["--expect-unexpected-vector-panic", "--summary-log", summary, "--expect-unexpected-vector-panic"],
+            ["--expect-unexpected-vector-panic", "--summary-log", summary, "--marker-preset", "acpi"],
+            ["--expect-unexpected-vector-panic", "--summary-log", summary, "--http-probe-url", "http://127.0.0.1:1/"]
+        ];
+        foreach (string[] tail in invalid)
+        {
+            ProcessResult result = RunQemuRunner(["--qemu", fake, "--image", image, .. tail]);
+            PanicCheck(result.ExitCode != 0 && result.ExitCode != 19 && !File.Exists(sentinel),
+                "invalid panic options must reject before launching", result.Output);
+        }
+        return true;
+    }
+
+    private static bool TestUnexpectedPanicAcceptedCapture(string tempRoot)
+    {
+        string transcript = UnexpectedPanicTranscript();
+        foreach (string prefix in new[] { string.Empty, UnexpectedPanicFirmwarePrefix })
+        {
+            var capture = RunUnexpectedPanicCase("accepted", prefix + transcript);
+            string[] output = capture.Result.Output.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            PanicCheck(capture.Result.ExitCode == 19 && output.Length == 18 &&
+                output.Count(x => x == "QEMU_EXPECTED_PANIC outcome=expected-panic reason=expected_unexpected_vector_panic") == 1 &&
+                !output.Any(x => x.StartsWith("TEST_PASS qemu.smoke", StringComparison.Ordinal) || x.StartsWith("TEST_FAIL", StringComparison.Ordinal)),
+                "explicit panic is finite native 19, never smoke success", capture.Result.Output);
+            string native = output.Single(x => x.StartsWith("QEMU_PROCESS_RESULT ", StringComparison.Ordinal));
+            string nativePrefix = "QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=";
+            PanicCheck(native.StartsWith(nativePrefix, StringComparison.Ordinal) &&
+                int.TryParse(native[nativePrefix.Length..], System.Globalization.NumberStyles.AllowLeadingSign,
+                    System.Globalization.CultureInfo.InvariantCulture, out int nativeCode) &&
+                native == nativePrefix + nativeCode.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                "actual canonical signed native exit and owned termination", native);
+            string drain = output.Single(x => x.StartsWith("SERIAL_MARKER_DRAIN ", StringComparison.Ordinal));
+            const string drainPrefix = "SERIAL_MARKER_DRAIN milliseconds=750 observedMilliseconds=";
+            PanicCheck(drain.StartsWith(drainPrefix, StringComparison.Ordinal) &&
+                long.TryParse(drain[drainPrefix.Length..], out long elapsed) && elapsed >= 750,
+                "actual quiet interval must be at least 750ms", drain);
+            byte[] raw = File.ReadAllBytes(capture.Serial);
+            string[] summary = File.ReadAllLines(capture.Summary);
+            string hashLine = "EXPECTED_PANIC_CAPTURE bytes=" + raw.Length + " sha256=" +
+                Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(raw));
+            PanicCheck(raw.SequenceEqual(System.Text.Encoding.ASCII.GetBytes(prefix + transcript)) &&
+                summary.Count(x => x == hashLine) == 1 &&
+                summary.Count(x => x == "QEMU_SMOKE_STATUS expected-panic") == 1 &&
+                summary.Count(x => x == "FAIL_REASON expected_unexpected_vector_panic") == 1 &&
+                summary.Contains(native) &&
+                summary.Contains(drain.Replace("SERIAL_MARKER_DRAIN", "EXPECTED_PANIC_DRAIN", StringComparison.Ordinal)) &&
+                summary.Contains("FORBIDDEN_MARKERS OS_SMOKE_FAIL;TEST_FAIL") &&
+                output.Any(x => x.StartsWith("SERIAL_MARKER_STREAM status=ExpectedPanic terminal=ExpectedPanic bytes=" + raw.Length + " lines=76 invalidBytes=0 invalidLines=0 ", StringComparison.Ordinal)),
+                "summary must bind raw bytes, inventories, lifecycle and finite outcome", string.Join('\n', summary));
+        }
+        return true;
+    }
+
+    private static bool TestUnexpectedPanicMalformedCaptures(string tempRoot)
+    {
+        string valid = UnexpectedPanicTranscript();
+        List<(string Name, string Text)> rejected =
+        [
+            ("metadata-context", valid.Replace("context=0x0000000000201000", "context=0x0000000000201008", StringComparison.Ordinal)),
+            ("metadata-width", valid.Replace("callback=0x0000000000400000", "callback=0x400000", StringComparison.Ordinal)),
+            ("metadata-case", valid.Replace("tssAccess=0x000000000000008B", "tssAccess=0x000000000000008b", StringComparison.Ordinal)),
+            ("metadata-order", valid.Replace("cs=0x0000000000000008 ss=0x0000000000000010", "ss=0x0000000000000010 cs=0x0000000000000008", StringComparison.Ordinal)),
+            ("frame-rsp", valid.Replace("rsp=0x0000000000207000", "rsp=0x0000000000206000", StringComparison.Ordinal)),
+            ("frame-rip", valid.Replace("rip=0x00000000001013C2", "rip=0x00000000001013C0", StringComparison.Ordinal)),
+            ("vector", valid.Replace("vector=32", "vector=33", StringComparison.Ordinal)),
+            ("map-accounting", valid.Replace("conventionalBytes=40960", "conventionalBytes=40961", StringComparison.Ordinal)),
+            ("foreign-prefix", "unexpected firmware output\r\n" + valid),
+            ("changed-firmware-prefix", UnexpectedPanicFirmwarePrefix.Replace("Boot0001", "Boot0002", StringComparison.Ordinal) + valid),
+            ("missing-prerequisite", valid.Replace("M01_PAGE_ZERO_ABSENT\r\n", string.Empty, StringComparison.Ordinal)),
+            ("extra-record", valid + "unexpected\r\n"),
+            ("extra-empty-record", valid + "\r\n"),
+            ("missing-crlf", valid[..^2]),
+            ("lf-only", valid.Replace("\r\n", "\n", StringComparison.Ordinal)),
+            ("embedded-control", valid.Replace("M02_UNEXPECTED_STATE", "M02_UNEXPECTED_\tSTATE", StringComparison.Ordinal)),
+            ("early-failure", valid.Replace("EFI_CONSOLE_READY", "TEST_FAIL preparation", StringComparison.Ordinal)),
+            ("wrong-fault-family", valid.Replace("reason=unexpected-vector", "reason=page-fault", StringComparison.Ordinal))
+        ];
+        // The final CMP EAX,0x600 fixes arithmetic flags before INT 32; these are not diagnostic freedom.
+        foreach (ulong bit in new ulong[] { 1, 4, 16, 64, 128, 2048 })
+            rejected.Add(("arithmetic-flag-" + bit, valid.Replace("rflags=0x0000000000000046",
+                "rflags=0x" + (0x46UL ^ bit).ToString("X16"), StringComparison.Ordinal)));
+        foreach (var row in rejected)
+        {
+            PanicCheck(row.Text != valid, "mutation must change fixture: " + row.Name, string.Empty);
+            var capture = RunUnexpectedPanicCase(row.Name, row.Text, timeout: 2);
+            AssertUnexpectedPanicRejected(capture, row.Name);
+        }
+        return true;
+    }
+
+    private static bool TestUnexpectedPanicPrefixMarkerIsolation(string tempRoot)
+    {
+        string[][] markerOptions =
+        [
+            ["--require-marker", "NEVER_EMITTED"],
+            ["--forbid-marker", "M01_PAGE_ZERO_ABSENT"],
+            ["--require-ordered-marker", "OS_BOOT_OK", "--require-ordered-marker", "EFI_CONSOLE_READY"],
+            ["--require-unique-marker", "TEST_PASS"]
+        ];
+        foreach (string[] options in markerOptions)
+        {
+            var capture = RunUnexpectedPanicCase("marker-isolation", UnexpectedPanicTranscript(), extraOptions: options);
+            AssertUnexpectedPanicRejected(capture, "generic marker rules still apply to prerequisites");
+            PanicCheck(File.ReadAllLines(capture.Summary).Contains("FAIL_REASON unexpected_vector_panic_prefix_markers"),
+                "exact prefix marker rejection", capture.Result.Output);
+        }
+        return true;
+    }
+
+    private static bool TestUnexpectedPanicDefaultIsolation(string tempRoot)
+    {
+        var generic = RunUnexpectedPanicCase("generic-panic", UnexpectedPanicTranscript(), expectedMode: false);
+        AssertUnexpectedPanicRejected(generic, "generic mode does not forgive an expected panic");
+        var ordinary = RunUnexpectedPanicCase("generic-success", "OS_BOOT_OK\r\nTEST_PASS boot.sequence\r\nOS_SMOKE_PASS\r\n", expectedMode: false);
+        PanicCheck(ordinary.Result.ExitCode == 0 && File.ReadAllLines(ordinary.Summary).Contains("QEMU_SMOKE_STATUS pass"),
+            "ordinary success remains unchanged", ordinary.Result.Output);
+        var explicitOrdinary = RunUnexpectedPanicCase("explicit-ordinary", "OS_BOOT_OK\r\nTEST_PASS boot.sequence\r\nOS_SMOKE_PASS\r\n");
+        AssertUnexpectedPanicRejected(explicitOrdinary, "ordinary success is not panic evidence");
+        return true;
+    }
+
+    private static bool TestUnexpectedPanicLifecycle(string tempRoot)
+    {
+        foreach (string behavior in new[] { "append", "rewrite", "truncate", "exit0", "exit7", "timeout" })
+        {
+            var capture = RunUnexpectedPanicCase(behavior, UnexpectedPanicTranscript(), behavior, timeout: 2);
+            AssertUnexpectedPanicRejected(capture, behavior);
+            string[] summary = File.ReadAllLines(capture.Summary);
+            if (behavior.StartsWith("exit", StringComparison.Ordinal))
+                PanicCheck(capture.Result.ExitCode == 18 && summary.Contains("FAIL_REASON qemu_reboot_or_shutdown") &&
+                    summary.Contains("QEMU_PROCESS_RESULT disposition=exited exitCode=" + behavior[4..]),
+                    "spontaneous actual exit is never owned termination", capture.Result.Output);
+            else if (behavior == "timeout")
+                PanicCheck(capture.Result.ExitCode == 4 && summary.Contains("FAIL_REASON timeout"),
+                    "hard timeout remains a failure", capture.Result.Output);
+            else
+                PanicCheck(summary.Any(x => x == "FAIL_REASON bytes_after_expected_panic" || x == "FAIL_REASON serial_log_reset" ||
+                    x == "FAIL_REASON unexpected_vector_panic_capture_rejected"),
+                    "append/reset/truncation must reject whether observed before or after candidate classification", capture.Result.Output);
+        }
+        return true;
+    }
+
+    private static bool TestUnexpectedPanicOwnedCleanup(string tempRoot)
+    {
+        ProcessStartInfo start = new ProcessStartInfo("powershell.exe") { UseShellExecute = false, CreateNoWindow = true };
+        start.ArgumentList.Add("-NoProfile"); start.ArgumentList.Add("-Command");
+        start.ArgumentList.Add("Start-Sleep -Seconds 60");
+        using Process unrelated = Process.Start(start) ?? throw new InvalidOperationException("unrelated child start");
+        try
+        {
+            var capture = RunUnexpectedPanicCase("owned-cleanup", UnexpectedPanicTranscript());
+            PanicCheck(capture.Result.ExitCode == 19 && !unrelated.HasExited, "cleanup must preserve unrelated processes", capture.Result.Output);
+            var failedSummary = RunUnexpectedPanicCase("summary-failure", UnexpectedPanicTranscript(), summaryDirectory: true);
+            PanicCheck(failedSummary.Result.ExitCode == 16 && failedSummary.Result.Output.Contains("TEST_FAIL qemu.smoke expected_panic_summary_failed", StringComparison.Ordinal)
+                && !unrelated.HasExited, "summary failure is visible after owned cleanup", failedSummary.Result.Output);
+        }
+        finally
+        {
+            if (!unrelated.HasExited) unrelated.Kill(entireProcessTree: true);
+            PanicCheck(unrelated.WaitForExit(5000), "controlled unrelated process cleanup", string.Empty);
+        }
+        return true;
+    }
+
+    private static void AssertUnexpectedPanicRejected((ProcessResult Result, string Serial, string Summary) capture, string reason)
+    {
+        PanicCheck(capture.Result.ExitCode != 0 && capture.Result.ExitCode != 19 &&
+            !capture.Result.Output.Contains("QEMU_EXPECTED_PANIC outcome=expected-panic", StringComparison.Ordinal) &&
+            File.ReadAllLines(capture.Summary).Contains("QEMU_SMOKE_STATUS fail"), reason, capture.Result.Output);
+    }
+
+    private static void PanicCheck(bool condition, string reason, string output)
+    {
+        if (!condition) throw new InvalidOperationException(reason + "\n" + output);
+    }
+
+    private static (ProcessResult Result, string Serial, string Summary) RunUnexpectedPanicCase(
+        string name, string transcript, string behavior = "hold", bool expectedMode = true,
+        int timeout = 5, string[]? extraOptions = null, bool summaryDirectory = false)
+    {
+        // Retain exact child inputs and results for diagnosis; these are controlled processes, not QEMU.
+        string directory = Path.Combine(HostToolProcess.FindRepositoryRoot(), "artifacts", "issue526-tests", "runner", name + "-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        string payload = Path.Combine(directory, "payload.bin");
+        File.WriteAllBytes(payload, System.Text.Encoding.UTF8.GetBytes(transcript));
+        string writer = Path.Combine(directory, "fake-writer.ps1");
+        string pidPath = Path.Combine(directory, "writer-pid.txt");
+        File.WriteAllText(writer, "param([string] $Serial, [string] $Behavior)\n" +
+            "$ErrorActionPreference = 'Stop'\n" +
+            "[IO.File]::WriteAllText('" + pidPath.Replace("'", "''", StringComparison.Ordinal) + "', [string]$PID)\n" +
+            "$bytes = [IO.File]::ReadAllBytes('" + payload.Replace("'", "''", StringComparison.Ordinal) + "')\n" +
+            "if ($Behavior -eq 'timeout') { [IO.File]::WriteAllText($Serial, 'TEST_START efi.main'); Start-Sleep -Seconds 30; exit 0 }\n" +
+            "[IO.File]::WriteAllBytes($Serial, $bytes)\n" +
+            "if ($Behavior -ne 'hold') { Start-Sleep -Milliseconds 200 }\n" +
+            "switch ($Behavior) {\n" +
+            " 'append' { [IO.File]::AppendAllText($Serial, 'X') }\n" +
+            " 'rewrite' { $bytes[0] = 88; [IO.File]::WriteAllBytes($Serial, $bytes) }\n" +
+            " 'truncate' { [IO.File]::WriteAllBytes($Serial, [byte[]]@()) }\n" +
+            " 'exit0' { exit 0 }\n" +
+            " 'exit7' { exit 7 }\n" +
+            "}\nStart-Sleep -Seconds 30\n", new System.Text.UTF8Encoding(false));
+        string fake = Path.Combine(directory, "fake-qemu.cmd");
+        List<string> script = CreateFakeQemuScriptPreamble();
+        script.Add("powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"" + writer + "\" -Serial \"%serial%\" -Behavior " + behavior);
+        script.Add("exit /b %ERRORLEVEL%");
+        File.WriteAllLines(fake, script);
+        string serial = Path.Combine(directory, "serial.log"), summary = Path.Combine(directory, "summary.log");
+        if (summaryDirectory) Directory.CreateDirectory(summary);
+        List<string> args = ["--qemu", fake, "--ovmf-code", CreateEmptyFile(directory, "OVMF_CODE.fd"),
+            "--image", CreateEmptyFile(directory, "image.raw"), "--serial-log", serial, "--summary-log", summary,
+            "--timeout", timeout.ToString(System.Globalization.CultureInfo.InvariantCulture)];
+        if (expectedMode) args.Add("--expect-unexpected-vector-panic");
+        if (extraOptions is not null) args.AddRange(extraOptions);
+        File.WriteAllText(Path.Combine(directory, "arguments.json"), JsonSerializer.Serialize(args));
+        ProcessResult result = RunQemuRunner(args.ToArray());
+        File.WriteAllText(Path.Combine(directory, "runner-output.log"), result.Output);
+        File.WriteAllText(Path.Combine(directory, "runner-exit.txt"), result.ExitCode.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        PanicCheck(File.Exists(pidPath), "controlled writer must actually launch", result.Output);
+        int pid = int.Parse(File.ReadAllText(pidPath), System.Globalization.CultureInfo.InvariantCulture);
+        try
+        {
+            using Process child = Process.GetProcessById(pid);
+            PanicCheck(child.WaitForExit(2000), "runner must reap its controlled writer child", result.Output);
+        }
+        catch (ArgumentException) { /* The owned writer already exited. */ }
+        return (result, serial, summary);
+    }
+
+
+    private static string UnexpectedPanicTranscript()
+    {
+        const ulong c=0x100000, d=0x200000, target=c+512;
+        string[] names=["c","d","context","callback","captureRsp","firmwareCs","cs","ss","ds","es","tr","gdtrBase","gdtrLimit","idtrBase","idtrLimit","tssAccess","gateLow","gateHigh","normalizer0","normalizer1","trigger","cr3","entryCr3","lar"];
+        ulong[] values=[c,d,d+4096,0x400000,d+28488,0x38,8,16,16,16,24,d+4120,39,d,4095,0x8b,
+            (target&65535)|(8UL<<16)|(0x8eUL<<40)|((target&0xffff0000)<<32),target>>32,
+            0x00002068006a006a,0x909000000df2e900,c+5056,0x300000,0x300000,0xa09b00];
+        string metadata="M02_UNEXPECTED_STATE "+string.Join(' ',names.Select((name,i)=>name+"=0x"+values[i].ToString("X16")))+"\r\n";
+        PanicCheck(System.Text.Encoding.ASCII.GetByteCount(metadata) == 650 && names.Length == 24, "independent 650-byte metadata record", metadata);
+        string[] registers=["rip","rsp","rbp","rflags","cr2","cr3","rax","rbx","rcx","rdx","rsi","rdi","r8","r9","r10","r11","r12","r13","r14","r15"];
+        ulong[] captured=[c+5058,d+28672,0x10203040,0x46,0,0x300000,24,0x1234,0xa09b00,d+4096,0x5678,0x9abc,0x300000,0x3456,0x789a,0xbcde,0x1357,0x2468,0x369c,0x48ad];
+        string fault="OS_SMOKE_FAIL subsystem=idt reason=unexpected-vector vector=32 errorCodePresent=false errorCode=0x0000000000000000 "+string.Join(' ',registers.Select((name,i)=>name+"=0x"+captured[i].ToString("X16")))+"\r\n";
+        return "TEST_START efi.main\r\nEFI_CONSOLE_READY\r\nUEFI_MEMORY_MAP_READY\r\nUEFI_MEMORY_MAP_DESCRIPTOR_COUNT 2\r\nUEFI_MEMORY_MAP_OWNED\r\nBOOT_HANDOFF_READY\r\nUEFI_MEMORY_MAP_NORMALIZED\r\nBOOT_MEMORY_MAP_ACCEPTED\r\nBOOT_MEMORY_REGIONS_READY\r\nBOOT_MEMORY_REGION_COUNT 2\r\nBOOT_PAGE_ALLOCATOR_READY status=Ready regions=2 conventionalPages=10 conventionalBytes=40960 freeNodes=2 freePages=10 freeBytes=40960 pageSize=4096 statusCode=0\r\nBOOT_ACPI_RSDP_HANDOFF_READY\r\nUEFI_ACPI_RSDP_READY\r\nTEST_START m01.stage1\r\nM01_LOADED_IMAGE_CAPTURED\r\nM01_STACK_SWITCH_STUB_READY\r\nM01_STACK_ARENA_ALLOCATED\r\nM01_STACK_GUARD_RESERVED\r\nM01_STAGE1_MAP_RECAPTURED\r\nM01_STAGE1_RESERVATIONS_VALIDATED\r\nM01_OWNED_STACK_READY\r\nM01_OWNED_STACK_SWITCHED\r\nM01_RSP_CONTAINED\r\nTEST_PASS m01.stage1\r\nTEST_START m01.stage2\r\nM01_ALLOCATOR_ARENA_ALLOCATED\r\nM01_STAGE2_MAP_RECAPTURED\r\nM01_RESERVATIONS_APPLIED\r\nM01_LIVE_ALLOCATED_4K\r\nM01_LIVE_PAGE_WITHIN_ARENA\r\nM01_LIVE_FREED_4K\r\nM01_DOUBLE_FREE_REJECTED\r\nTEST_PASS m01.stage2\r\nTEST_START m01.stage3\r\nM01_CR3_STUB_PAGE_ALLOCATED\r\nM01_PROTECTION_PROBE_PAGE_ALLOCATED\r\nM01_PAGE_TABLE_STATE_ARENA_ALLOCATED\r\nM01_STAGE3_MAP_RECAPTURED\r\nTEST_START m02.017\r\nM02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56\r\nM02_STUB_PAGE_READBACK_VERIFIED fnv1a64=982E5B7E3EE58E56\r\nM01_CR3_STUB_MATERIALIZED\r\nM01_PAGE_TABLES_BUILT\r\nM01_PAGING_MODE_VALIDATED\r\nM01_PRE_CR3\r\nM01_FIRMWARE_CR3_RESTORED\r\nM01_RFLAGS_RESTORED\r\nM01_PGE_CYCLE_VERIFIED\r\nM01_OWNED_CR3_CANARY_VERIFIED\r\nM01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED\r\nM01_POST_CR3\r\nM01_RW_TO_RX_VERIFIED\r\nM01_TLB_INVALIDATION_COMPLETE\r\nM01_RX_PROBE_EXECUTED\r\nM01_PAGE_ZERO_ABSENT\r\nM02_SAFE_PROBE_EXECUTED offset=0 return=0x4F534F4B\r\nCLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56 temporaryOwnedRootRx=true portIoExecuted=false\r\nTEST_PASS m02.017\r\nCLROS_M02_003_READY bindingReady=true out8AddressChecked=true in8AddressChecked=true guestInvocation=false portIoExecuted=false\r\nCLROS_M02_004_READY configurationWrites=7 bindingReady=true guestPortIo=true guestIn8=false markerTransport=uefiSerial postExitBootServices=false\r\nOWNED_COM1_READY\r\nCLROS_M02_005_READY marker=OWNED_COM1_READY markerBytes=16 lineEndingBytes=2 configurationWrites=7 lineStatusPolls=18 ownedWriter=true ownedMarkerTransport=com1PortIo evidenceMarkerTransport=uefiSerial guestPortIo=true guestIn8=true postExitBootServices=false\r\nCLROS_M02_006_READY panicFormatter=bounded ownedCom1Transport=true callerScratch=true statusCoded=true firmwareFallback=false\r\nCLROS_M02_006_EVIDENCE markerBytes=125 serialBytes=127 configurationWrites=7 lineStatusPolls=127 markerTransport=com1PortIo evidenceTransport=uefiSerial guestPortIo=true guestIn8=true panicFormatter=linked panicReporter=ownedCom1 callerScratch=true statusCoded=true firmwareFallback=false postExitBootServices=false\r\nTEST_PASS m01.stage3\r\nCLROS_M01_LIVE_BOOT_MEMORY_READY\r\nTEST_START boot.sequence\r\nBOOT_PHASE PhaseA.Audit START\r\nBOOT_PHASE PhaseA.Audit PASS\r\nBOOT_PHASE PhaseA.Diagnostics START\r\nBOOT_PHASE PhaseA.Diagnostics PASS\r\nOS_BOOT_OK\r\nTEST_PASS boot.sequence\r\nOS_SMOKE_PASS\r\n"+metadata+fault;
     }
 
     private static string CreateFakeQemuScript(string tempRoot, params string[] serialLines)

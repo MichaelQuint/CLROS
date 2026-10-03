@@ -154,6 +154,15 @@ and the reachable local Gitea tracker:
   materialization, full-page readback, and value-only RW+NX-to-RO+X
   finalization audit. It does not change live protection or execute any entry.
 - `tests/OS.HostTests` verifies marker emission, boot event ring-buffer behavior, boot info, typed handoff metadata, UEFI memory-map contracts, normalized memory-map conversion, UEFI-gone simulation behavior, diagnostics, manifest validation, libvirt XML generation, source firewall behavior, storage/network parser primitives, ACPI/PCI/virtio planning contracts, and the current `OS.Std.Ascii`, endian, and `OS.Std.MemoryExtensions` helper slices.
+- M02-016's C2/D7 leaf and default-off adapter source are integrated under
+  supplement #526. The controlled expected-panic runner preserves ordinary
+  failure behavior and passes its complete165-group module. Seven new EFI,
+  eleven D7 and ten publication groups completed in a later-failed combined
+  run; the repaired loaded-image module then passed13/14/0 separately.
+  Default/enabled NativeAOT artifacts have zero OS AssemblyRefs. These are
+  source/focused/artifact facts recorded in [step956](../done/step956.md);
+  actual full-host, complete native graph and fresh guest acceptance remain
+  pending. #56/#526 stay open.
 - `GuestTestStringAllocationCharacterStorage` adds a bounded host entry to the
   existing fixed/array retained-page allocator. The complete three-module run
   passes 31 starts/32 passes with zero failures, and all three real no-stdlib

@@ -53,7 +53,7 @@ public readonly struct UnexpectedVectorPanicResult
 }
 
 /// <summary>
-/// Nonexecuting C2/D6 preparation and ordinary-data capture checks. Reporting invokes
+/// Nonexecuting C2/D7 preparation and ordinary-data capture checks. Reporting invokes
 /// only the supplied checked port backend. Stable accessible exclusively owned storage
 /// is a caller prerequisite; scalar checks cannot prove mappings, lifetime or live state.
 /// The future adapter owns callback identity, publication and actual CPU/native-stack proof.
@@ -63,7 +63,9 @@ public static unsafe class UnexpectedVectorPanicEvidenceDeterministicQEMUFailure
     public const bool EnabledByDefault = false;
     public const int PageBytes = 4096;
     public const int CodeBytes = 8192;
-    public const int DataBytes = 24576;
+    // D0-D4 keep their descriptor/IST roles; D5-D6 form the fixed transition stack.
+    // This capacity is not proof of the future compiled callback's whole-stack usage.
+    public const int DataBytes = 28672;
     public const int ContextOffset = 4096;
     public const int ContextBytes = 4096;
     public const int CommonOffset = 0;
@@ -101,7 +103,7 @@ public static unsafe class UnexpectedVectorPanicEvidenceDeterministicQEMUFailure
     {
         UnexpectedVectorPanicStatus status = ValidateStorage(code, codeCapacity, data, dataCapacity, request);
         if (status != UnexpectedVectorPanicStatus.Success) return new(status);
-        // All dependency preconditions follow from the full aligned, disjoint C2/D6 checks.
+        // All dependency preconditions follow from the full aligned, disjoint C2/D7 checks.
         for (int i = 0; i < CodeBytes; i++) code[i] = 0;
         for (int i = 0; i < DataBytes; i++) data[i] = 0;
         NormalizeErrorCodeNonErrorCodeInterruptFrame.Materialize(code, PageBytes,

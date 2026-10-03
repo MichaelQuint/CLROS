@@ -42,7 +42,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
         string root = Root();
         XDocument project = XDocument.Load(Path.Combine(root, "src/OS/OS.csproj"));
         string[] keys = project.Descendants("Compile").Select(x => x.Attribute("Include")!.Value + "|" + (x.Attribute("Link")?.Value ?? "")).ToArray();
-        Require(keys.Length == 80 && Hash(string.Join('\n', keys) + "\n") == "b439994970b0b0c76cc7b85aeb79938ed5f17dc8f0bb45488d5200ad15a67be1", "ordered compile closure");
+        Require(keys.Length == 82 && Hash(string.Join('\n', keys) + "\n") == "336b2ee25b11c0a1c8cd59f68cde72ca83bd4e6e2fd1a28d265ae1e20468ab5d", "ordered compile closure");
         Require(Hash(File.ReadAllText(Path.Combine(root, Leaf)).Replace("\r\n", "\n", StringComparison.Ordinal)) == LeafHash, "frozen leaf");
         Require(Hash(File.ReadAllText(Path.Combine(root, "tests/OS.HostTests/ManagedHeapPageRangeLiveAllocatorTests.cs")).Replace("\r\n", "\n", StringComparison.Ordinal)) == "aed8f7c32f80c5e600ed837e37c5f6de477324e57a9f9aa1ac0aedf43adf4bf6", "frozen host tests");
         XElement flag = project.Descendants(Flag).Single();
@@ -343,7 +343,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
             $snapshot.properties=$properties
             Assert-PostRestoreEvidenceMatchesSnapshot -Evidence $original -Snapshot $snapshot
             $names=@($properties.Keys | Where-Object {$_.StartsWith('Enable',[StringComparison]::Ordinal)})
-            if($names.Count -ne 31){throw 'complete vector'}
+            if($names.Count -ne 32){throw 'complete vector'}
             foreach($name in $names) {
                 $changed=($json | ConvertFrom-Json).postRestoreEvaluation
                 $changed.properties.$name=if($properties[$name] -eq 'true'){'false'}else{'true'}
@@ -385,7 +385,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
             string[] enabled=["EnableM01LoadedImageStackProbe","EnableM01LiveAllocatorProbe","EnableM04IndependentEndianConformanceProbe","EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe","EnableM04ArithmeticConformanceProbe","EnableM04LayoutContractProbe","EnableM04ManagedHeapPageRangeProbe"];
             foreach(string flag in enabled)properties[flag]="true";
             string[] vector=properties.Select(x=>x.Key).Where(x=>x.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
-            if(vector.Length!=31)throw new Exception("complete 31-probe vector");
+            if(vector.Length!=32)throw new Exception("complete 32-probe vector");
             string[] verifierArgs=enabled.Select(x=>"-"+x).ToArray();
             void Verify(bool success,string context) {
                 File.WriteAllText(evidencePath,evidence.ToJsonString());
