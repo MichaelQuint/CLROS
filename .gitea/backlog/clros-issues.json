@@ -46,7 +46,7 @@
     {
       "key": "M02",
       "title": "M02 Owned x64 Diagnostics",
-      "state": "open",
+      "state": "closed",
       "description": "Prove owned COM1 and descriptor/fault handling under real QEMU. Milestones carry no fabricated due date and close only from preserved evidence.",
       "exitCriteria": "Prove owned COM1 and descriptor/fault handling under real QEMU."
     },
@@ -8142,7 +8142,7 @@
       ],
       "collisionLane": null,
       "summary": "Add EFI_BUFFER_TOO_SMALL, descriptor-growth, slack, and overflow memory-map tests derived from RoseOS failures.",
-      "currentEvidence": "The EFI path captures a map but deliberately skips the ExitBootServices call; post-firmware execution is unproven.",
+      "currentEvidence": "Step961 adds ten bounded M03-001 host regression groups over the existing UefiMemoryMapCapture/CopyPlan helpers, without a duplicate production implementation. The complete new and unchanged memory-map initializers passed 29 starts/30 passes/zero failures with native exit 0; the five-file current-shim no-stdlib closure has zero AssemblyRefs and normal HostTests compilation passes. Tests cover growth/slack, firmware errors, stride changes, overflow/count/capacity limits, complete canary/tail preservation and warmed zero allocation. Step964 adds the accepted clean be2762f common-head build and complete host gate (3653 starts/3654 passes/zero failures), including these unchanged fixtures. This remains controlled host evidence for M03-001. The issue stays open pending its separately owned native capture observation and fresh QEMU evidence; no ExitBootServices call or key-freshness proof is added.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add EFI_BUFFER_TOO_SMALL, descriptor-growth, slack, and overflow memory-map tests derived from RoseOS failures.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -9954,7 +9954,7 @@
       ],
       "collisionLane": "Shared retained-page allocation core; #78 owns its four host paths, #526 owns separate EFI compatibility paths; final native evidence waits for combined source freeze.",
       "summary": "Implement and guest-test string allocation and character storage.",
-      "currentEvidence": "Step955 accepts the four-file bounded host String storage checkpoint on PR524 merge base46e2a74fb88c37410d96b94a2caff4a69b624777. The thin signed64 entry shares the original retained-page authority, binder, cursor and sole commit with fixed objects and arrays. Complete focused modules pass31 starts/32 passes/0 failures; actual10/11/11-source no-stdlib closures have zero AssemblyRefs, and normal HostTests Release compilation passes. Parent and independent review accepted all four exact files and imported them into the integration and #526 compatibility worktrees. The pinned terminal compiler checkpoint establishes RhNewString(MethodTable*,nint), constructor remapping and String layout but no returned allocation. The separately claimed #526 owner reconciles six shared EFI compatibility files; parent owns docs/catalog/done. The single exact owned-path implementation note now matches current ownedPaths; all other implementation notes and dependencies are preserved. Step959 accepts combined source admission, the clean dee6df2 complete host3636/3637/0 gate and actual same-image fixed/array native compatibility after the shared String-capable core change. Genuine String export/return/constructor/character guest execution remains pending. M04-009 stays open/claimed and cannot unblock M04-010.",
+      "currentEvidence": "Step964 accepts the bounded #78/#528 String milestone at be2762fe5c648592d049b9c49ee2844f1eb87f8d after the step963 source/artifact checkpoint. The clean solution build and complete host suite pass with 3653 starts/3654 passes/zero failures, unchanged launch binaries and all 511 committed source/catalog inputs bound. Seven fresh default/fixed/mixed-array/String/before-bind/exhaustion/invalid-length captures pass independent source, native, whole-raw, lifecycle and disk reviews. Actual genuine String construction and UTF-16 readback share the original authority, binder and single cursor: positive uses 200 bytes/7 allocations; exhaustion reaches 4096 bytes/169 allocations/168 constructors; before-bind and signed64 length 4294967297 reject without state/page mutation. Fresh metadata joins bind 26 full prefixes; before-bind/invalid-length expose only attempted tokens. Negative quiet intervals are measured, and all three preboot pristine images match reconstruction; postboot NVVARS changes are accounted rather than claimed equal. Parent joint acceptance is separate from unchanged provisional records. Reviewed merge and #78/#528 tracker closure remain pending; M04-010, general String/BCL, GC/barriers, real EBS, hosted .NET/Kestrel and Gates3/4 remain unpromoted.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Implement and guest-test string allocation and character storage.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

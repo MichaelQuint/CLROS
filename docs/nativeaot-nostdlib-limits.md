@@ -233,7 +233,7 @@ allocation, GC, dispatch, exception or runtime-completion requirements.
 | `System.SpanHelpers` clear/fill/memmove slice | Implemented as narrow byte/pointer helper slice | Supports current EFI publish boundary only |
 | Object allocation helpers | Bounded opt-in EFI allocation guest evidence accepted | Step940 proves the fixed caller-buffer leaf over the original #75 retained authority. Step946 adds the real profile-bound `RhpNewFast` adapter. Step949 accepts the complete host suite and five fresh QEMU profiles, including four compiled-new/six direct routes, before-bind rejection and exhaustion, with independent metadata/native/prefix/transcript/lifecycle/disk review. The general `ObjectAllocation` gate remains deferred; no general heap or GC is established |
 | Array allocation helpers | General support deferred; bounded opt-in EFI guest evidence accepted | Step952 adds the shared retained-page SZ-array leaf and separately classified `EfiSzArrayAllocation` exports. Step954 accepts the complete host gate and eight fresh profiles with independent native/metadata/prefix, transcript/lifecycle and disk review. Genuine byte/long allocations, length/index/store readback, before-bind rejection and shared-page exhaustion are bounded guest observations. General `ArrayAllocation` completion, managed reference stores and GC remain deferred |
-| String allocation helpers | Native helper deferred; bounded host storage contract exists | Ledger entry `StringAllocation`; step955 adds a signed64 host entry sharing the existing retained-page allocator and tests UTF-16 storage/terminators. No OS-owned NativeAOT String helper or compiled constructor execution exists |
+| String allocation helpers | Bounded retained-page EFI String guest accepted | `StringAllocation` remains incomplete. Step964 accepts the separately classified `EfiStringAllocation` path, compiled constructors and UTF-16 storage, with default/fixed/array regressions and three String rejection cases; general String/BCL, GC and write barriers remain unsupported |
 | Write barriers | Deferred | Ledger entry `WriteBarriers`; no kernel/runtime write barrier implementation exists |
 | Interface dispatch | Deferred | Ledger entry `InterfaceDispatch`; EFI type-cast helpers fail fast and do not prove interface dispatch |
 | Class constructors | Deferred | Ledger entry `ClassConstructors`; `NativeAotClassConstructorStateTable` proves caller-owned state transitions, cycle detection, duplicate/missing/capacity errors, failed-cctor preservation, and caller-owned `NATIVEAOT_CCTOR_STATE` diagnostic formatting. `NativeAotClassConstructorRunnerPreflight` proves ready/default/failed/pending/missing-metadata preflight status, caller-owned `NATIVEAOT_CCTOR_RUNNER_PREFLIGHT` diagnostic formatting, and host-tested `BootSequence` readiness markers only. `NativeAotClassConstructorWorkItemPlanner` now proves caller-owned work-item metadata planning from already-supplied target tokens plus caller-owned `NATIVEAOT_CCTOR_WORK_ITEMS` diagnostic formatting and host-tested `NATIVEAOT_CCTOR_WORK_ITEMS_READY` / `NATIVEAOT_CCTOR_WORK_ITEMS_NOT_READY` BootSequence readiness markers while preserving no-delegate/no-reflection/no-execution boundaries. No cctor runner invocation, constructor execution, metadata discovery, or constructor-body failure diagnostics is implemented |
@@ -697,9 +697,62 @@ compatibility are accepted in [step959](../done/step959.md): the settled host
 suite passes3,636 starts/3,637 passes with zero failures, and fresh fixed/array
 images bind the current shared core, returns, constructors and22 observed
 full metadata prefixes. This is existing fixed/array compatibility, not
-String guest evidence. Genuine compiled String
-return/constructor/character execution requires a later native integration and
-fresh guest evidence. M04-009 stays open and Gate4 remains **Fail**.
+String guest evidence. Step963 then added source and artifact evidence; the
+subsequent step964 acceptance below supplies the bounded String guest proof.
+Gate4 remains **Fail**.
+
+### M04-009 opt-in EFI String integration
+
+[Step963](../done/step963.md) adds `RhNewString(MethodTable*, nint)` to the
+existing allocation adapter. The export defaults to terminal failure and is
+enabled only by the explicit String profile. Genuine compiler-created strings
+use the bounded `String.Ctor(char, int)` path, length/index readers and the
+original retained-page allocator. The String and related Object tokens require
+full 24-byte prefixes from the same image. The entry handoff, original binder,
+single cursor/commit and four accepted host dependencies remain unchanged.
+
+The positive fixture creates one fixed object, one byte array and five strings
+of lengths 0/1/3/3/2, ending at used200/count7/constructorCount6. Character cases
+include ASCII, Omega, embedded NUL and unpaired surrogate code units. Length,
+UTF-16 storage, zero terminator/padding and earlier objects are checked. Shared
+observation slots are now256 bytes and scratch storage6672 bytes; access104,
+bump80 and control96 remain unchanged. The same scratch change requires fresh
+fixed/array regressions in the combined gate.
+
+Before-bind rejects without allocation. Exhaustion adds161 empty strings and
+one length-three string, fills4096 bytes at count169/constructorCount168, then
+rejects length1. The direct invalid-length case passes full-width4294967297 to
+the helper and rejects before a constructor. Rejections compare the complete
+state and retained heap. The helper ledger appends EFI-only area17/status8;
+six EFI-only entries remain excluded from general runtime completion. The
+canonical shim ledger reports48 declarations and21 exports.
+
+At step963, the complete managed harness passed 63 starts/64 passes; the
+separate complete String EFI harness passed 6 starts/7 passes, including five actual NativeAOT
+publications with zero OS AssemblyRefs. Metadata and linked-code checks cover
+the constructor/helper/readback paths, full String/Object prefixes and
+relocations, and the signed64 invalid-length route. These are host and compiler
+results.
+
+[Step964](../done/step964.md) accepts the complete 3,653/3,654/0 host gate and
+seven fresh captures at `be2762f`. Independent current-image review maps 415
+selected methods and all 28 allocation exports. Returning routes preserve RAX
+through the real shared adapter; genuine String construction supplies the
+authentic String token and writes UTF-16 through the returned reference.
+The invalid-length route preserves all 64 bits of 4,294,967,297 and rejects
+before any constructor; before-bind never binds. Both retain zero allocation
+and constructor counts. Exhaustion observes the complete 4,096-byte page fill,
+then unchanged 80-byte state and 4,096-byte page on rejection.
+
+Fresh joins cover 26 observed full 24-byte prefixes: fixed 10, array 6 and String
+positive/exhaustion 5 each. Before-bind/invalid-length bind only their two
+attempted tokens, with no observed prefix words. All seven linked images/maps
+match accepted static evidence; only fixed/array also have whole managed-DLL
+and COFF identity. The other five use fresh managed metadata and nondebug
+COFF/symbol/relocation/unwind comparisons; changed debug records are not
+silently treated as whole-file equality. No interning, general String/BCL
+surface, barriers, collecting GC, refill, real ExitBootServices, hosted .NET or
+Kestrel is claimed. Gates3/4 remain **Fail**.
 
 ## Tests
 

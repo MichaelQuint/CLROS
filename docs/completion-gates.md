@@ -929,18 +929,45 @@ No real ExitBootServices, nested-fault handling, recovery, post-report sentinel
 observation, general mapping/lifetime safety or hosted runtime is established.
 Gates3/4 remain **Fail**. Merge and issue closure are separate tracker actions.
 
-### M04-009 String storage host boundary
+### M04-009 bounded String guest boundary
 
 [Step955](../done/step955.md) accepts the bounded host String entry into the
 existing retained-page allocator. The complete fixed/array/String modules pass
 31 starts/32 passes with zero failures; actual10/11/11-source no-stdlib closures
 have zero AssemblyRefs. Literal storage/terminator, mixed-cursor, signed64,
 capacity, authority and unchanged-rejection cases are host evidence only.
-Native String exports, returning compiled constructors and guest character
-storage are pending. The combined source-admission/full-suite/native regression
+At step955, native String exports, returning compiled constructors and guest
+character storage were pending. The combined source-admission/full-suite/native regression
 gate is accepted in step959 for the shared core and existing fixed/array
-profiles. It contains no String guest. M04-009 and M04-010 remain incomplete;
-Gate4 stays **Fail**.
+profiles. That step contains no String guest; M04-009 and M04-010 were still
+incomplete at that checkpoint.
+
+[Step963](../done/step963.md) adds the default-off EFI String export/constructor
+integration. Separate complete managed63/64/0 and String6/7/0 focused runs pass,
+including five real default/positive/before-bind/exhaustion/invalid-length
+NativeAOT publications. Actual metadata and linked-code checks bind zero OS
+AssemblyRefs, String/Object prefixes and relocations, returned-reference
+storage readers and the full-width invalid-length route. Step963 records
+source, host and artifact evidence only.
+
+[Step964](../done/step964.md) accepts the bounded String milestone at
+`be2762fe5c648592d049b9c49ee2844f1eb87f8d`: the clean solution build and complete
+host suite pass with 3,653 starts, 3,654 passes, zero failures and unchanged
+launch binaries. Seven fresh default/fixed/mixed-array/String/before-bind/
+exhaustion/invalid-length captures pass independent native, whole-raw,
+lifecycle and disk review. String positive observes seven allocations using
+200 bytes; exhaustion reaches 4,096 bytes/169 allocations/168 constructors.
+Before-bind and full-width 4,294,967,297 reject without changing the retained
+state or page. Actual same-image metadata, return/constructor/readback paths
+and 26 full prefix joins bind the observations; attempted-token-only negative
+profiles do not claim prefix readbacks.
+
+Original provisional records remain unchanged; the separate parent joint
+acceptance supplies the bounded guest verdict. #78/#528 closure follows reviewed
+merge and tracker evidence. M04-010, general String/BCL support, GC/barriers,
+refill, real ExitBootServices and hosted .NET/Kestrel remain unsupported.
+Gates3/4 remain **Fail**. The same host gate covers #58's memory-map fixtures,
+but its separate native observation and guest evidence remain pending.
 
 ### M02-014 source integration and terminal guest boundary
 

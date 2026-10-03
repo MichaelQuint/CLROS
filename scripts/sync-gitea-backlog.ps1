@@ -532,6 +532,7 @@ function Test-Manifest {
         if ($milestoneTitleSet.ContainsKey([string]$milestone.title)) {
             throw "Duplicate milestone title '$($milestone.title)'."
         }
+        [void](Get-MilestoneStateIntent -Milestone $milestone)
         $milestoneByKey[$key] = $milestone
         $milestoneTitleSet[[string]$milestone.title] = $true
     }
@@ -1473,16 +1474,121 @@ function Ensure-Labels {
     }
 }
 
+function Get-MilestoneStateIntent {
+    param([object]$Milestone)
+
+    $property = $Milestone.PSObject.Properties["state"]
+    if ($null -eq $property -or $property.Value -isnot [string] -or
+        (-not [string]::Equals($property.Value, "open", [StringComparison]::Ordinal) -and
+         -not [string]::Equals($property.Value, "closed", [StringComparison]::Ordinal) -and
+         -not [string]::Equals($property.Value, "reopen", [StringComparison]::Ordinal))) {
+        throw "Milestone '$($Milestone.key)' state must be exactly open, closed or reopen."
+    }
+    return $property.Value
+}
+
+function Get-MilestoneClosureFailure {
+    param(
+        [object]$Milestone,
+        [object]$RemoteMilestone,
+        [hashtable]$ManifestIssueByKey,
+        [hashtable]$RemoteState
+    )
+
+    $id = [int](Get-ObjectProperty -Object $RemoteMilestone -Name "id" -DefaultValue 0)
+    if ($id -le 0) {
+        return "milestone '$($Milestone.key)' has no current tracker identity"
+    }
+    foreach ($issue in $ManifestIssueByKey.Values) {
+        if ([string]$issue.milestone -cne [string]$Milestone.key) { continue }
+        $key = [string]$issue.key
+        if (-not $RemoteState.issueByKey.ContainsKey($key)) {
+            return "canonical milestone member '$key' is absent from the tracker"
+        }
+        $membership = Get-ObjectProperty -Object $RemoteState.issueByKey[$key] -Name "milestone"
+        if ([int](Get-ObjectProperty -Object $membership -Name "id" -DefaultValue 0) -ne $id) {
+            return "canonical milestone member '$key' belongs to a different milestone"
+        }
+    }
+
+    # The reviewed epic attests to the supplemental review; all actual members
+    # must still be closed. Never predict the issue updates later in this run.
+    $epicKey = "$($Milestone.key)-EPIC"
+    if (-not $ManifestIssueByKey.ContainsKey($epicKey)) {
+        return "expected canonical epic '$epicKey' is absent from the manifest"
+    }
+    $hasEpicLabel = $false
+    foreach ($label in @(ConvertTo-NormalizedArray $ManifestIssueByKey[$epicKey].labels)) {
+        if ($label -is [string] -and [string]::Equals($label, "type:epic", [StringComparison]::Ordinal)) {
+            $hasEpicLabel = $true
+        }
+    }
+    if (-not $hasEpicLabel) { return "expected canonical epic '$epicKey' lacks exact type:epic label" }
+    $failure = Get-ClosurePrerequisiteFailure `
+        -Key $epicKey `
+        -ManifestIssueByKey $ManifestIssueByKey `
+        -RemoteIssueByKey $RemoteState.issueByKey `
+        -ClosureEvidenceByKey $RemoteState.closureEvidenceByKey `
+        -AllowPendingRemoteClosure $false -Visiting @{}
+    if ($null -ne $failure) { return $failure }
+    foreach ($issue in $RemoteState.issues) {
+        if ($null -ne (Get-ObjectProperty -Object $issue -Name "pull_request")) { continue }
+        $membership = Get-ObjectProperty -Object $issue -Name "milestone"
+        $stateProperty = $issue.PSObject.Properties["state"]
+        if ([int](Get-ObjectProperty -Object $membership -Name "id" -DefaultValue 0) -eq $id -and
+            ($null -eq $stateProperty -or $stateProperty.Value -isnot [string] -or
+             -not [string]::Equals($stateProperty.Value, "closed", [StringComparison]::Ordinal))) {
+            return "actual milestone member '#$($issue.number)' is not closed"
+        }
+    }
+    return $null
+}
+
+function Resolve-MilestoneState {
+    param(
+        [object]$Milestone,
+        [object]$RemoteMilestone,
+        [hashtable]$ManifestIssueByKey,
+        [hashtable]$RemoteState
+    )
+
+    $intent = Get-MilestoneStateIntent -Milestone $Milestone
+    if ($null -eq $RemoteMilestone) { return "open" }
+    $property = $RemoteMilestone.PSObject.Properties["state"]
+    if ($null -eq $property -or $property.Value -isnot [string] -or
+        (-not [string]::Equals($property.Value, "open", [StringComparison]::Ordinal) -and
+         -not [string]::Equals($property.Value, "closed", [StringComparison]::Ordinal))) {
+        throw "Milestone '$($Milestone.key)' has invalid current tracker state."
+    }
+    $current = $property.Value
+    $desired = $current
+    if ([string]::Equals($intent, "reopen", [StringComparison]::Ordinal)) { $desired = "open" }
+    elseif ([string]::Equals($intent, "closed", [StringComparison]::Ordinal)) { $desired = "closed" }
+    if ([string]::Equals($desired, "closed", [StringComparison]::Ordinal)) {
+        $failure = Get-MilestoneClosureFailure -Milestone $Milestone `
+            -RemoteMilestone $RemoteMilestone -ManifestIssueByKey $ManifestIssueByKey -RemoteState $RemoteState
+        if ($null -ne $failure) { throw "Milestone closure blocked: $failure" }
+    }
+    return $desired
+}
+
 function Ensure-Milestones {
     param(
         [object[]]$ManifestMilestones,
+        [hashtable]$ManifestIssueByKey,
         [hashtable]$RemoteState
     )
 
     foreach ($milestone in $ManifestMilestones) {
         $title = [string]$milestone.title
         try {
+            $remote = $RemoteState.milestoneByTitle[$title]
+            $desiredState = Resolve-MilestoneState -Milestone $milestone -RemoteMilestone $remote `
+                -ManifestIssueByKey $ManifestIssueByKey -RemoteState $RemoteState
             if (-not $RemoteState.milestoneByTitle.ContainsKey($title)) {
+                if ([string]$milestone.state -ceq "closed") {
+                    Write-SyncLine "SYNC_MILESTONE_DEFERRED key=$($milestone.key) reason=missing_container createState=open"
+                }
                 if (-not $script:ApplyChanges) {
                     Record-PreviewAction -Action create -Key "milestone:$($milestone.key)"
                     continue
@@ -1490,7 +1596,7 @@ function Ensure-Milestones {
                 $created = Invoke-GiteaApi -Method POST -Path "$($RemoteState.repositoryPath)/milestones" -Body @{
                     title = $title
                     description = [string]$milestone.description
-                    state = "open"
+                    state = $desiredState
                 }
                 $RemoteState.milestoneByTitle[$title] = $created
                 Record-SyncAction -Action created -Key "milestone:$($milestone.key)"
@@ -1499,8 +1605,8 @@ function Ensure-Milestones {
 
             $remote = $RemoteState.milestoneByTitle[$title]
             $remoteDescription = [string](Get-ObjectProperty -Object $remote -Name "description" -DefaultValue "")
-            $remoteStateValue = [string](Get-ObjectProperty -Object $remote -Name "state" -DefaultValue "open")
-            $needsUpdate = $remoteDescription -cne [string]$milestone.description -or $remoteStateValue -ne "open"
+            $remoteStateValue = [string]$remote.state
+            $needsUpdate = $remoteDescription -cne [string]$milestone.description -or $remoteStateValue -cne $desiredState
             if (-not $needsUpdate) {
                 Record-SyncAction -Action unchanged -Key "milestone:$($milestone.key)"
                 continue
@@ -1513,7 +1619,7 @@ function Ensure-Milestones {
             $updated = Invoke-GiteaApi -Method PATCH -Path "$($RemoteState.repositoryPath)/milestones/$id" -Body @{
                 title = $title
                 description = [string]$milestone.description
-                state = "open"
+                state = $desiredState
             }
             $RemoteState.milestoneByTitle[$title] = $updated
             Record-SyncAction -Action updated -Key "milestone:$($milestone.key)"
@@ -1746,6 +1852,174 @@ function Preview-Issues {
     }
 }
 
+function Test-MilestoneStatePolicy {
+    # These local fixtures call the same resolver, preview/apply and verifier.
+    # The API stub is scoped to this test and restored even if an assertion fails.
+    $savedApi = ${function:Invoke-GiteaApi}
+    $savedApply = $script:ApplyChanges
+    $savedCounters = $script:Counters
+    $savedKeys = $script:ActionKeys
+    $calls = New-Object System.Collections.Generic.List[object]
+    function Invoke-GiteaApi {
+        param([string]$Method, [string]$Path, [object]$Body)
+        $calls.Add([pscustomobject]@{ Method = $Method; Path = $Path; Body = $Body })
+        return [pscustomobject]@{
+            id = 7; title = $Body.title; description = $Body.description; state = $Body.state; due_on = $null
+        }
+    }
+    try {
+        $cases = @(
+            @("open-unchanged", "open", "open", "unchanged", "open", ""),
+            @("preserve-closed", "open", "closed", "unchanged", "closed", ""),
+            @("closed-unchanged", "closed", "closed", "unchanged", "closed", ""),
+            @("closed-description", "open", "closed", "update", "closed", ""),
+            @("explicit-reopen", "reopen", "closed", "update", "open", ""),
+            @("reopen-unchanged", "reopen", "open", "unchanged", "open", ""),
+            @("reviewed-close", "closed", "open", "update", "closed", ""),
+            @("missing-open", "open", "missing", "create", "open", ""),
+            @("missing-closed", "closed", "missing", "create", "open", ""),
+            @("missing-reopen", "reopen", "missing", "create", "open", ""),
+            @("missing-child", "closed", "open", "failed", "open", "absent from the tracker"),
+            @("missing-epic", "closed", "open", "failed", "open", "is absent from the manifest"),
+            @("missing-epic-label", "closed", "open", "failed", "open", "lacks exact type:epic label"),
+            @("nonordinal-epic-label", "closed", "open", "failed", "open", "lacks exact type:epic label"),
+            @("wrong-membership", "closed", "open", "failed", "open", "different milestone"),
+            @("open-child", "closed", "open", "failed", "open", "not closed in the tracker"),
+            @("unreviewed-child", "closed", "open", "failed", "open", "lacks reviewed evidence"),
+            @("unreviewed-epic", "closed", "open", "failed", "open", "lacks reviewed evidence"),
+            @("no-closed-intent", "closed", "open", "failed", "open", "lacks manifest closed intent"),
+            @("open-dependency", "closed", "open", "failed", "open", "not closed in the tracker"),
+            @("open-epic", "closed", "open", "failed", "open", "not closed in the tracker"),
+            @("open-supplement", "closed", "open", "failed", "open", "actual milestone member '#4' is not closed"),
+            @("inconsistent-closed", "open", "closed", "failed", "closed", "actual milestone member '#4' is not closed"),
+            @("invalid-remote-state", "open", "CLOSED", "failed", "CLOSED", "invalid current tracker state"),
+            @("array-remote-state", "open", "closed", "failed", "closed", "invalid current tracker state"),
+            @("nonordinal-remote-state", "open", "closed", "failed", "closed", "invalid current tracker state"),
+            @("nonordinal-supplement-state", "closed", "open", "failed", "open", "actual milestone member '#4' is not closed"),
+            @("due-date", "closed", "closed", "unchanged", "closed", "")
+        )
+        foreach ($case in $cases) {
+            foreach ($applyMode in @($false, $true)) {
+                $script:ApplyChanges = $applyMode
+                $script:Counters = [ordered]@{ created=0; updated=0; unchanged=0; skipped=0; failed=0; wouldCreate=0; wouldUpdate=0 }
+                $script:ActionKeys = @{}
+                foreach ($key in $script:Counters.Keys) {
+                    $script:ActionKeys[$key] = New-Object System.Collections.Generic.List[string]
+                }
+                $calls.Clear()
+                $milestone = [pscustomobject]@{ key="M00"; title="Self-test"; description="Current"; state=$case[1] }
+                $epic = [pscustomobject]@{
+                    key="M00-EPIC"; milestone="M00"; desiredState="closed"; parentKey="";
+                    dependencyKeys=@("M01-001"); labels=@("type:epic")
+                }
+                $child = [pscustomobject]@{
+                    key="M00-001"; milestone="M00"; desiredState="closed"; parentKey="M00-EPIC";
+                    dependencyKeys=@(); labels=@("type:implementation")
+                }
+                $dependency = [pscustomobject]@{
+                    key="M01-001"; milestone="M01"; desiredState="closed"; parentKey="";
+                    dependencyKeys=@(); labels=@("type:implementation")
+                }
+                $manifestIssues = @{ "M00-EPIC"=$epic; "M00-001"=$child; "M01-001"=$dependency }
+                $remoteEpic = [pscustomobject]@{ number=1; state="closed"; milestone=[pscustomobject]@{ id=7 } }
+                $remoteChild = [pscustomobject]@{ number=2; state="closed"; milestone=[pscustomobject]@{ id=7 } }
+                $remoteDependency = [pscustomobject]@{ number=3; state="closed"; milestone=[pscustomobject]@{ id=8 } }
+                # No canonical key or synthetic reviewed marker for the supplement.
+                $supplement = [pscustomobject]@{ number=4; state="closed"; milestone=[pscustomobject]@{ id=7 } }
+                $remote = [pscustomobject]@{ id=7; title="Self-test"; description="Current"; state=$case[2]; due_on=$null }
+                $state = @{
+                    repositoryPath="/selftest"; milestoneByTitle=@{ "Self-test"=$remote }; labelByName=@{};
+                    issueByKey=@{ "M00-EPIC"=$remoteEpic; "M00-001"=$remoteChild; "M01-001"=$remoteDependency };
+                    closureEvidenceByKey=@{ "M00-EPIC"=$true; "M00-001"=$true; "M01-001"=$true };
+                    issues=@($remoteEpic, $remoteChild, $remoteDependency, $supplement,
+                        [pscustomobject]@{ number=5; state="open"; milestone=[pscustomobject]@{ id=8 } },
+                        [pscustomobject]@{ number=6; state="open"; milestone=[pscustomobject]@{ id=7 }; pull_request=@{} })
+                }
+                if ($case[2] -eq "missing") { $state.milestoneByTitle.Clear() }
+                switch ($case[0]) {
+                    "closed-description" { $remote.description = "Old" }
+                    "missing-child" { $state.issueByKey.Remove("M00-001") }
+                    "missing-epic" { $manifestIssues.Remove("M00-EPIC") }
+                    "missing-epic-label" { $epic.labels = @("type:implementation"); $state.closureEvidenceByKey["M00-001"] = $false }
+                    "nonordinal-epic-label" { $epic.labels = @("type:e`0pic") }
+                    "wrong-membership" { $remoteChild.milestone.id = 8 }
+                    "open-child" { $remoteChild.state = "open" }
+                    "unreviewed-child" { $state.closureEvidenceByKey["M00-001"] = $false }
+                    "unreviewed-epic" { $state.closureEvidenceByKey["M00-EPIC"] = $false }
+                    "no-closed-intent" { $child.desiredState = "open" }
+                    "open-dependency" { $remoteDependency.state = "open" }
+                    "open-epic" { $remoteEpic.state = "open" }
+                    "open-supplement" { $supplement.state = "open" }
+                    "inconsistent-closed" { $supplement.state = "open" }
+                    "array-remote-state" { $remote.state = @("closed") }
+                    "nonordinal-remote-state" { $remote.state = "cl`0osed" }
+                    "nonordinal-supplement-state" { $supplement.state = "cl`0osed" }
+                    "due-date" { $remote.due_on = "2030-01-01T00:00:00Z" }
+                }
+                $lines = @(Ensure-Milestones -ManifestMilestones @($milestone) `
+                    -ManifestIssueByKey $manifestIssues -RemoteState $state)
+                $expectedAction = $case[3]
+                if ($expectedAction -eq "update") { $expectedAction = $(if ($applyMode) { "updated" } else { "wouldUpdate" }) }
+                if ($expectedAction -eq "create") { $expectedAction = $(if ($applyMode) { "created" } else { "wouldCreate" }) }
+                foreach ($key in $script:Counters.Keys) {
+                    $expectedCount = $(if ($key -eq $expectedAction) { 1 } else { 0 })
+                    if ($script:Counters[$key] -ne $expectedCount) { throw "Milestone self-test $($case[0]) mode=$applyMode counter=$key" }
+                }
+                $writes = $applyMode -and $case[3] -in @("create", "update")
+                if ($calls.Count -ne [int]$writes) { throw "Milestone self-test $($case[0]) unexpected API call" }
+                if ($writes) {
+                    $method = $(if ($case[3] -eq "create") { "POST" } else { "PATCH" })
+                    $path = $(if ($case[3] -eq "create") { "/selftest/milestones" } else { "/selftest/milestones/7" })
+                    $call = $calls[0]
+                    if ($call.Method -cne $method -or $call.Path -cne $path -or
+                        $call.Body.Count -ne 3 -or $call.Body.title -cne "Self-test" -or
+                        $call.Body.description -cne "Current" -or $call.Body.state -cne $case[4]) {
+                        throw "Milestone self-test $($case[0]) wrong payload or fabricated due date"
+                    }
+                }
+                if ($case[3] -eq "failed" -and -not (($lines -join "`n").Contains($case[5]))) {
+                    throw "Milestone self-test $($case[0]) wrong refusal"
+                }
+                if ($case[0] -eq "missing-closed" -and
+                    $lines -cnotcontains "SYNC_MILESTONE_DEFERRED key=M00 reason=missing_container createState=open") {
+                    throw "Milestone self-test missing deferred closure"
+                }
+                # Only the milestone slice is under test; existing issue tests
+                # retain the full issue/body/label verification contract.
+                $verifyManifest = @{ milestones=@($milestone); labels=@(); issues=@(); issueByKey=$manifestIssues }
+                $verified = $false
+                $verifyFailure = ""
+                try {
+                    [void](Verify-Convergence -ValidatedManifest $verifyManifest -ManagedLabelNames @{} -RemoteState $state)
+                    $verified = $true
+                }
+                catch { $verifyFailure = $_.Exception.Message }
+                $expectedVerified = $case[3] -ne "failed" -and $case[0] -notin @("missing-closed", "due-date") -and
+                    ($applyMode -or $case[3] -eq "unchanged")
+                if ($verified -ne $expectedVerified -or
+                    (-not $verified -and -not $verifyFailure.StartsWith("Convergence verification failed", [StringComparison]::Ordinal))) {
+                    throw "Milestone self-test $($case[0]) convergence mismatch: $verifyFailure"
+                }
+                # Planning a later issue closure must not authorize an earlier milestone write.
+                if ($case[0] -eq "open-child") {
+                    $pendingFailure = Get-ClosurePrerequisiteFailure -Key "M00-EPIC" -ManifestIssueByKey $manifestIssues `
+                        -RemoteIssueByKey $state.issueByKey -ClosureEvidenceByKey $state.closureEvidenceByKey `
+                        -AllowPendingRemoteClosure $true -Visiting @{}
+                    if ($null -ne $pendingFailure) { throw "Milestone pending-issue fixture is not a valid planned closure" }
+                }
+            }
+            Write-SyncLine "SYNC_SELF_TEST_MILESTONE_CASE_PASS name=$($case[0]) modes=preview,apply"
+        }
+        Write-SyncLine "SYNC_SELF_TEST_MILESTONE_POLICY_PASS cases=$($cases.Count) modes=preview,apply actualApiCalls=0"
+    }
+    finally {
+        Set-Item -Path Function:Invoke-GiteaApi -Value $savedApi
+        $script:ApplyChanges = $savedApply
+        $script:Counters = $savedCounters
+        $script:ActionKeys = $savedKeys
+    }
+}
+
 function Verify-Convergence {
     param(
         [hashtable]$ValidatedManifest,
@@ -1778,8 +2052,15 @@ function Verify-Convergence {
         $remoteDescription = [string](Get-ObjectProperty -Object $remoteMilestone -Name "description" -DefaultValue "")
         $remoteMilestoneState = [string](Get-ObjectProperty -Object $remoteMilestone -Name "state" -DefaultValue "")
         $remoteDueOn = Get-ObjectProperty -Object $remoteMilestone -Name "due_on" -DefaultValue $null
-        if ($remoteDescription -cne [string]$milestone.description -or $remoteMilestoneState -ne "open") {
-            $failures.Add("milestone_metadata:$($milestone.key)")
+        try {
+            $desiredState = Resolve-MilestoneState -Milestone $milestone -RemoteMilestone $remoteMilestone `
+                -ManifestIssueByKey $ValidatedManifest.issueByKey -RemoteState $RemoteState
+            if ($remoteDescription -cne [string]$milestone.description -or $remoteMilestoneState -cne $desiredState) {
+                $failures.Add("milestone_metadata:$($milestone.key)")
+            }
+        }
+        catch {
+            $failures.Add("milestone_state:$($milestone.key):$($_.Exception.Message)")
         }
         if ($null -ne $remoteDueOn -and -not [string]::IsNullOrWhiteSpace([string]$remoteDueOn)) {
             $failures.Add("milestone_due_date:$($milestone.key)")
@@ -2218,6 +2499,7 @@ USER_NOTE_AFTER
             throw "Collision self-test did not block an overlapping owned path claimed by another issue."
         }
         Write-SyncLine "SYNC_SELF_TEST_STATE_POLICY_PASS"
+        Test-MilestoneStatePolicy
         Write-SyncLine "TEST_PASS gitea.backlog.sync"
         exit 0
     }
@@ -2260,7 +2542,7 @@ USER_NOTE_AFTER
     }
 
     Ensure-Labels -ManifestLabels $validated.labels -RemoteState $remoteState
-    Ensure-Milestones -ManifestMilestones $validated.milestones -RemoteState $remoteState
+    Ensure-Milestones -ManifestMilestones $validated.milestones -ManifestIssueByKey $validated.issueByKey -RemoteState $remoteState
     Create-MissingIssues `
         -ManifestIssues $validated.issues `
         -ManifestMilestoneByKey $validated.milestoneByKey `

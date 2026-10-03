@@ -62,6 +62,10 @@
 		<EnableM04SzArrayAllocationProbe Condition="'$(EnableM04SzArrayAllocationProbe)' == ''">false</EnableM04SzArrayAllocationProbe>
 		<EnableM04SzArrayAllocationBeforeBindProbe Condition="'$(EnableM04SzArrayAllocationBeforeBindProbe)' == ''">false</EnableM04SzArrayAllocationBeforeBindProbe>
 		<EnableM04SzArrayAllocationExhaustionProbe Condition="'$(EnableM04SzArrayAllocationExhaustionProbe)' == ''">false</EnableM04SzArrayAllocationExhaustionProbe>
+		<EnableM04StringAllocationProbe Condition="'$(EnableM04StringAllocationProbe)' == ''">false</EnableM04StringAllocationProbe>
+		<EnableM04StringAllocationBeforeBindProbe Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == ''">false</EnableM04StringAllocationBeforeBindProbe>
+		<EnableM04StringAllocationExhaustionProbe Condition="'$(EnableM04StringAllocationExhaustionProbe)' == ''">false</EnableM04StringAllocationExhaustionProbe>
+		<EnableM04StringAllocationInvalidLengthProbe Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == ''">false</EnableM04StringAllocationInvalidLengthProbe>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'">
@@ -230,6 +234,22 @@
 		<DefineConstants>$(DefineConstants);M04_SZ_ARRAY_ALLOCATION_EXHAUSTION_PROBE</DefineConstants>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$(EnableM04StringAllocationProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_STRING_ALLOCATION_PROBE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_STRING_ALLOCATION_BEFORE_BIND_PROBE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_STRING_ALLOCATION_EXHAUSTION_PROBE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_STRING_ALLOCATION_INVALID_LENGTH_PROBE</DefineConstants>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<Compile Include="..\OS.Kernel\Boot\BootHandoffRecord.cs" Link="Boot\BootHandoffRecord.cs" />
 		<Compile Include="..\OS.Kernel\Boot\BootMemoryRegionMaterializer.cs" Link="Boot\BootMemoryRegionMaterializer.cs" />
@@ -312,6 +332,8 @@
 		<Compile Include="Runtime\MinimalRuntime.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\GuestTestRhpNewFast.cs" Link="Runtime\GuestTestRhpNewFast.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\GuestTestArrayAllocationLengthOverflowChecks.cs" Link="Runtime\GuestTestArrayAllocationLengthOverflowChecks.cs" />
+		<Compile Include="..\OS.Kernel\Runtime\GuestTestStringAllocationCharacterStorage.cs" Link="Runtime\GuestTestStringAllocationCharacterStorage.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\StringAllocationProbeAuthority.cs" Link="Diagnostics\StringAllocationProbeAuthority.cs" />
 		<Compile Include="Runtime\RhpNewFastAllocation.cs" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
 		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
@@ -726,6 +748,209 @@
 		<Error Condition="'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' and '$(EnableM04RhpNewFastProbe)' != 'true'" Text="m04_rhp_new_fast_profile_invalid negative_requires_main" />
 		<Error Condition="'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' and '$(EnableM04RhpNewFastProbe)' != 'true'" Text="m04_rhp_new_fast_profile_invalid negative_requires_main" />
 		<Error Condition="'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' and '$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true'" Text="m04_rhp_new_fast_profile_invalid negative_conflict" />
+
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM01LoadedImageStackProbe)' != 'true'" Text="m04_string_profile_invalid EnableM01LoadedImageStackProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM01LiveAllocatorProbe)' != 'true'" Text="m04_string_profile_invalid EnableM01LiveAllocatorProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM04IndependentEndianConformanceProbe)' != 'true'" Text="m04_string_profile_invalid EnableM04IndependentEndianConformanceProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' != 'true'" Text="m04_string_profile_invalid EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM04ArithmeticConformanceProbe)' != 'true'" Text="m04_string_profile_invalid EnableM04ArithmeticConformanceProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM04LayoutContractProbe)' != 'true'" Text="m04_string_profile_invalid EnableM04LayoutContractProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM04ManagedHeapPageRangeProbe)' != 'true'" Text="m04_string_profile_invalid EnableM04ManagedHeapPageRangeProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM04RhpNewFastProbe)' != 'true'" Text="m04_string_profile_invalid EnableM04RhpNewFastProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' != 'true'" Text="m04_string_profile_invalid EnableM04SzArrayAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM01OwnedPagingProbe)' == 'true'" Text="m04_string_profile_invalid EnableM01OwnedPagingProbe" />
+		<Error Condition="'$(EnableM01OwnedPagingProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM02SafeStubProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02SafeStubProbe" />
+		<Error Condition="'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02CheckedPortIoBindingProbe" />
+		<Error Condition="'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM02Com1OwnedPortIoProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02Com1OwnedPortIoProbe" />
+		<Error Condition="'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM02OwnedCom1ReadyProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02OwnedCom1ReadyProbe" />
+		<Error Condition="'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'" Text="m04_string_profile_invalid EnableM02PanicSafeOwnedCom1Probe" />
+		<Error Condition="'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02OwnedX64GdtEncodingProbe" />
+		<Error Condition="'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM02GuardedIstStackAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02GuardedIstStackAllocationProbe" />
+		<Error Condition="'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02OwnedGdtTssTerminalProbe" />
+		<Error Condition="'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02NormalizedInterruptFramePageProbe" />
+		<Error Condition="'$(EnableM02NormalizedInterruptFramePageProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02OwnedIdtGatePopulationProbe" />
+		<Error Condition="'$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM02IdtrContinuedExecutionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02IdtrContinuedExecutionProbe" />
+		<Error Condition="'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM02Ud2VectorStateProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02Ud2VectorStateProbe" />
+		<Error Condition="'$(EnableM02Ud2VectorStateProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02PageFaultCr2ErrorCodeProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM02DoubleFaultIstProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02DoubleFaultIstProbe" />
+		<Error Condition="'$(EnableM02DoubleFaultIstProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableUefiGoneSimulationProbe)' == 'true'" Text="m04_string_profile_invalid EnableUefiGoneSimulationProbe" />
+		<Error Condition="'$(EnableUefiGoneSimulationProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableExitBootServicesFreshMapProbe)' == 'true'" Text="m04_string_profile_invalid EnableExitBootServicesFreshMapProbe" />
+		<Error Condition="'$(EnableExitBootServicesFreshMapProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'" Text="m04_string_profile_invalid EnableAcpiPhysicalDiscoveryProbe" />
+		<Error Condition="'$(EnableAcpiPhysicalDiscoveryProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04RhpNewFastBeforeBindFailureProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04RhpNewFastExhaustionFailureProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04SzArrayAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04SzArrayAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM01OwnedPagingProbe)' == 'true'" Text="m04_string_profile_invalid EnableM01OwnedPagingProbe" />
+		<Error Condition="'$(EnableM01OwnedPagingProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM02SafeStubProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02SafeStubProbe" />
+		<Error Condition="'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02CheckedPortIoBindingProbe" />
+		<Error Condition="'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM02Com1OwnedPortIoProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02Com1OwnedPortIoProbe" />
+		<Error Condition="'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM02OwnedCom1ReadyProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02OwnedCom1ReadyProbe" />
+		<Error Condition="'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'" Text="m04_string_profile_invalid EnableM02PanicSafeOwnedCom1Probe" />
+		<Error Condition="'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02OwnedX64GdtEncodingProbe" />
+		<Error Condition="'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM02GuardedIstStackAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02GuardedIstStackAllocationProbe" />
+		<Error Condition="'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02OwnedGdtTssTerminalProbe" />
+		<Error Condition="'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02NormalizedInterruptFramePageProbe" />
+		<Error Condition="'$(EnableM02NormalizedInterruptFramePageProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02OwnedIdtGatePopulationProbe" />
+		<Error Condition="'$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM02IdtrContinuedExecutionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02IdtrContinuedExecutionProbe" />
+		<Error Condition="'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM02Ud2VectorStateProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02Ud2VectorStateProbe" />
+		<Error Condition="'$(EnableM02Ud2VectorStateProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02PageFaultCr2ErrorCodeProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM02DoubleFaultIstProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02DoubleFaultIstProbe" />
+		<Error Condition="'$(EnableM02DoubleFaultIstProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableUefiGoneSimulationProbe)' == 'true'" Text="m04_string_profile_invalid EnableUefiGoneSimulationProbe" />
+		<Error Condition="'$(EnableUefiGoneSimulationProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableExitBootServicesFreshMapProbe)' == 'true'" Text="m04_string_profile_invalid EnableExitBootServicesFreshMapProbe" />
+		<Error Condition="'$(EnableExitBootServicesFreshMapProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'" Text="m04_string_profile_invalid EnableAcpiPhysicalDiscoveryProbe" />
+		<Error Condition="'$(EnableAcpiPhysicalDiscoveryProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04RhpNewFastBeforeBindFailureProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04RhpNewFastExhaustionFailureProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04SzArrayAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04SzArrayAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM01OwnedPagingProbe)' == 'true'" Text="m04_string_profile_invalid EnableM01OwnedPagingProbe" />
+		<Error Condition="'$(EnableM01OwnedPagingProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM02SafeStubProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02SafeStubProbe" />
+		<Error Condition="'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02CheckedPortIoBindingProbe" />
+		<Error Condition="'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM02Com1OwnedPortIoProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02Com1OwnedPortIoProbe" />
+		<Error Condition="'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM02OwnedCom1ReadyProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02OwnedCom1ReadyProbe" />
+		<Error Condition="'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'" Text="m04_string_profile_invalid EnableM02PanicSafeOwnedCom1Probe" />
+		<Error Condition="'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02OwnedX64GdtEncodingProbe" />
+		<Error Condition="'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM02GuardedIstStackAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02GuardedIstStackAllocationProbe" />
+		<Error Condition="'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02OwnedGdtTssTerminalProbe" />
+		<Error Condition="'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02NormalizedInterruptFramePageProbe" />
+		<Error Condition="'$(EnableM02NormalizedInterruptFramePageProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02OwnedIdtGatePopulationProbe" />
+		<Error Condition="'$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM02IdtrContinuedExecutionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02IdtrContinuedExecutionProbe" />
+		<Error Condition="'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM02Ud2VectorStateProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02Ud2VectorStateProbe" />
+		<Error Condition="'$(EnableM02Ud2VectorStateProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02PageFaultCr2ErrorCodeProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM02DoubleFaultIstProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02DoubleFaultIstProbe" />
+		<Error Condition="'$(EnableM02DoubleFaultIstProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableUefiGoneSimulationProbe)' == 'true'" Text="m04_string_profile_invalid EnableUefiGoneSimulationProbe" />
+		<Error Condition="'$(EnableUefiGoneSimulationProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableExitBootServicesFreshMapProbe)' == 'true'" Text="m04_string_profile_invalid EnableExitBootServicesFreshMapProbe" />
+		<Error Condition="'$(EnableExitBootServicesFreshMapProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'" Text="m04_string_profile_invalid EnableAcpiPhysicalDiscoveryProbe" />
+		<Error Condition="'$(EnableAcpiPhysicalDiscoveryProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04RhpNewFastBeforeBindFailureProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04RhpNewFastExhaustionFailureProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04SzArrayAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04SzArrayAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM01OwnedPagingProbe)' == 'true'" Text="m04_string_profile_invalid EnableM01OwnedPagingProbe" />
+		<Error Condition="'$(EnableM01OwnedPagingProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM02SafeStubProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02SafeStubProbe" />
+		<Error Condition="'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02CheckedPortIoBindingProbe" />
+		<Error Condition="'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM02Com1OwnedPortIoProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02Com1OwnedPortIoProbe" />
+		<Error Condition="'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM02OwnedCom1ReadyProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02OwnedCom1ReadyProbe" />
+		<Error Condition="'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'" Text="m04_string_profile_invalid EnableM02PanicSafeOwnedCom1Probe" />
+		<Error Condition="'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02OwnedX64GdtEncodingProbe" />
+		<Error Condition="'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM02GuardedIstStackAllocationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02GuardedIstStackAllocationProbe" />
+		<Error Condition="'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02OwnedGdtTssTerminalProbe" />
+		<Error Condition="'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02NormalizedInterruptFramePageProbe" />
+		<Error Condition="'$(EnableM02NormalizedInterruptFramePageProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02OwnedIdtGatePopulationProbe" />
+		<Error Condition="'$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM02IdtrContinuedExecutionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02IdtrContinuedExecutionProbe" />
+		<Error Condition="'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM02Ud2VectorStateProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02Ud2VectorStateProbe" />
+		<Error Condition="'$(EnableM02Ud2VectorStateProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02PageFaultCr2ErrorCodeProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM02DoubleFaultIstProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02DoubleFaultIstProbe" />
+		<Error Condition="'$(EnableM02DoubleFaultIstProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m04_string_profile_invalid EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableUefiGoneSimulationProbe)' == 'true'" Text="m04_string_profile_invalid EnableUefiGoneSimulationProbe" />
+		<Error Condition="'$(EnableUefiGoneSimulationProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableExitBootServicesFreshMapProbe)' == 'true'" Text="m04_string_profile_invalid EnableExitBootServicesFreshMapProbe" />
+		<Error Condition="'$(EnableExitBootServicesFreshMapProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'" Text="m04_string_profile_invalid EnableAcpiPhysicalDiscoveryProbe" />
+		<Error Condition="'$(EnableAcpiPhysicalDiscoveryProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04RhpNewFastBeforeBindFailureProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04RhpNewFastExhaustionFailureProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04SzArrayAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04SzArrayAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' != 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' != 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' != 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_string_profile_invalid EnableM04StringAllocationExhaustionProbe" />
 	</Target>
 
 	<Target Name="CustomizeReferences"

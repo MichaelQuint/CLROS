@@ -2715,3 +2715,59 @@ The ordinary regression lanes record configured750ms drain, not separately
 measured duration. Negative array observers retain their measured durations.
 No captured provisional flag was rewritten; parent joint acceptance combines
 the separate source/native/transcript/lifecycle/disk reviews.
+
+### M04-009 String capture boundary
+
+[Step963](../done/step963.md) implements the String profile and passes its
+complete focused host/artifact fixture. No String guest is accepted by that
+step. The positive command and complete prerequisite switches are in
+[`docs/efi-build.md`](efi-build.md#m04-009-shared-string-source-profile).
+
+The strict positive stream has72 owned CRLF records:44 inherited prerequisite
+records,20 String records and8 boot-tail records. It checks the same original
+allocator authority, seven allocations at used200/count7, five String
+length/UTF-16/terminator/padding observations, retained objects and256-byte
+observation slots within6672-byte scratch storage. Only empty or the separately
+pinned304-byte OVMF preamble is admitted. Smoke-parser UInt64 constants use
+equivalent positive decimal values where Windows PowerShell would otherwise
+interpret high-bit hexadecimal literals as signed integers.
+
+The before-bind, exhaustion and invalid-length streams contain49/65/50 records
+and end exactly with `TEST_FAIL m04.009 not_initialized`, `exhausted` or
+`invalid_length`, respectively. There is no success tail. Before-bind has no
+BIND; invalid-length binds then attempts full-width4294967297 without a
+constructor; exhaustion reaches used4096/count169/constructorCount168 and
+rejects the next length1 allocation without changing state or heap. These
+remain generic failures to the ordinary runner, rather than expected-panic
+successes.
+
+Acceptance must bind the actual same-image full metadata prefixes,
+related pointers and relocations, compiled return/constructor/readback paths,
+whole raw stream, source profiles, owned process lifecycle and captured disk
+accounting. Positive/exhaustion streams expose five metadata roles;
+before-bind/invalid-length expose only two attempted tokens. Synthetic parser
+controls and successful publications do not replace those guest checks.
+
+[Step964](../done/step964.md) records accepted fresh default/fixed/mixed-array/
+String/before-bind/exhaustion/invalid-length captures at `be2762f`. The actual
+matrix ran 22:34:29.870553–22:43:19.925056 UTC on 2026-10-03, after the accepted
+3,653/3,654/0 whole-host gate. All 13 capture commands returned native 0 with
+empty stderr; all 4,152 archive entries and 36-property/84-Compile/97-source
+bindings passed independent review. Whole raw counts are fixed 78, array 68,
+String 72 and negatives 49/65/50. The default's entire 7,947-byte returning stream
+equals the accepted baseline, including its firmware suffix.
+
+The four ordinary wrappers return 0 with runner-owned QEMU termination and
+signed QEMU exit −1. Their 750 ms serial drain is configured, not measured time.
+The three separate negative observers measure 754.7916/764.772/755.3515 ms quiet,
+with unchanged candidate/final bytes, exact rejection EOF, owned termination
+and no timeout or spontaneous exit. These are expected rejection observations,
+not invented ordinary-runner successes or expected-panic classifications.
+
+Independent native and disk joins complete this finite acceptance. All three
+negative preboot images equal their pristine reconstructions. Booted images
+retain the exact EFI payload but differ by accounted NVVARS/FAT/root/FSInfo
+changes; postboot/pristine equality and whole-filesystem conformance are not
+claimed. Immutable capture/reviewer provisional flags stay false; the parent
+joint record supplies guest acceptance. General runtime, GC, real EBS and
+hosted .NET/Kestrel remain unsupported, and Gates3/4 remain **Fail**.

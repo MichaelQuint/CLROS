@@ -58,7 +58,7 @@ internal static class GiteaBacklogManifestTests
             RunTest("gitea backlog managed body preserves human notes", () => TestManagedBodySelfTest(scriptPath), ref failures);
             RunTest("gitea backlog replaces labels through the dedicated endpoint", () => TestDedicatedIssueLabelEndpoint(scriptPath), ref failures);
             RunTest("gitea backlog sync refuses noncanonical target", () => TestCanonicalTargetRefusal(scriptPath), ref failures);
-            RunTest("gitea backlog validation rejects missing required field", () => TestInvalidManifest(scriptPath, manifestPath, tempRoot, "missing", RemoveRequiredField, "missing required field 'summary'"), ref failures);
+            RunTest("gitea backlog validation rejects missing required field", () => TestRequiredFieldsAndMilestoneIntent(scriptPath, manifestPath, tempRoot), ref failures);
             RunTest("gitea backlog validation rejects duplicate key", () => TestInvalidManifest(scriptPath, manifestPath, tempRoot, "duplicate", DuplicateIssueKey, "Duplicate issue key"), ref failures);
             RunTest("gitea backlog M01 instruction-publication chain is collision-safe", () => TestM01InstructionPublicationManifest(manifestPath), ref failures);
             RunTest("gitea backlog validation requires every M01 child through 036", () => TestInvalidManifest(scriptPath, manifestPath, tempRoot, "missing-m01-036", ReplaceLastM01ChildWithExtra, "Manifest is missing child 'M01-036'"), ref failures);
@@ -3255,11 +3255,72 @@ internal static class GiteaBacklogManifestTests
     private static bool TestManagedBodySelfTest(string scriptPath)
     {
         ProcessResult result = RunScript(scriptPath, "-SelfTest");
+        string[] milestoneCases =
+        [
+            "open-unchanged", "preserve-closed", "closed-unchanged", "closed-description",
+            "explicit-reopen", "reopen-unchanged", "reviewed-close", "missing-open",
+            "missing-closed", "missing-reopen", "missing-child", "missing-epic",
+            "missing-epic-label", "nonordinal-epic-label", "wrong-membership",
+            "open-child", "unreviewed-child", "unreviewed-epic", "no-closed-intent",
+            "open-dependency", "open-epic", "open-supplement", "inconsistent-closed",
+            "invalid-remote-state", "array-remote-state", "nonordinal-remote-state",
+            "nonordinal-supplement-state", "due-date"
+        ];
+        string[] actualMilestoneCases = result.Output.Split('\n')
+            .Select(line => line.TrimEnd('\r'))
+            .Where(line => line.StartsWith("SYNC_SELF_TEST_MILESTONE_CASE_PASS ", StringComparison.Ordinal))
+            .ToArray();
         return result.ExitCode == 0 &&
+            actualMilestoneCases.SequenceEqual(milestoneCases.Select(name =>
+                "SYNC_SELF_TEST_MILESTONE_CASE_PASS name=" + name + " modes=preview,apply"), StringComparer.Ordinal) &&
+            result.Output.Contains("SYNC_SELF_TEST_MILESTONE_POLICY_PASS cases=28 modes=preview,apply actualApiCalls=0", StringComparison.Ordinal) &&
             result.Output.Contains("SYNC_SELF_TEST_MANAGED_BODY_PASS", StringComparison.Ordinal) &&
             result.Output.Contains("SYNC_SELF_TEST_HIDDEN_KEY_ADOPTION_PASS key=M02-020 markers=1 wouldCreate=0 duplicateMarkersRejected=true", StringComparison.Ordinal) &&
             result.Output.Contains("SYNC_SELF_TEST_STATE_POLICY_PASS", StringComparison.Ordinal) &&
             result.Output.Contains("TEST_PASS gitea.backlog.sync", StringComparison.Ordinal);
+    }
+
+    private static bool TestRequiredFieldsAndMilestoneIntent(
+        string scriptPath, string manifestPath, string tempRoot)
+    {
+        if (!TestInvalidManifest(scriptPath, manifestPath, tempRoot, "missing",
+                RemoveRequiredField, "missing required field 'summary'"))
+        {
+            return false;
+        }
+
+        string?[] invalidStates = [null, "null", "0", "true", "[]", "[\"open\"]", "[\"closed\",\"reopen\"]", "{}", "\"\"",
+            "\"Closed\"", "\"OPEN\"", "\" closed\"", "\"closed \"", "\"done\"",
+            "\"cl\\u0000osed\"", "\"o\\u00ADpen\"", "\"re\\u200Bopen\""];
+        for (int index = 0; index < invalidStates.Length; index++)
+        {
+            string? value = invalidStates[index];
+            if (!TestInvalidManifest(scriptPath, manifestPath, tempRoot, "milestone-state-" + index,
+                    root =>
+                    {
+                        JsonObject milestone = root["milestones"]![0]!.AsObject();
+                        if (value is null) { milestone.Remove("state"); }
+                        else { milestone["state"] = JsonNode.Parse(value); }
+                    }, "state must be exactly open, closed or reopen"))
+            {
+                return false;
+            }
+        }
+
+        foreach (string state in new[] { "open", "closed", "reopen" })
+        {
+            JsonObject root = JsonNode.Parse(File.ReadAllText(manifestPath))!.AsObject();
+            root["milestones"]![0]!["state"] = state;
+            string path = Path.Combine(tempRoot, "milestone-valid-" + state + ".json");
+            File.WriteAllText(path, root.ToJsonString(), new UTF8Encoding(false));
+            ProcessResult result = RunScript(scriptPath, "-Offline", "-ManifestPath", path);
+            if (result.ExitCode != 0 || !result.Output.Contains("SYNC_OFFLINE manifest_only", StringComparison.Ordinal) ||
+                !result.Output.Contains("TEST_PASS gitea.backlog.sync", StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static bool TestDedicatedIssueLabelEndpoint(string scriptPath)

@@ -84,6 +84,7 @@ boundary.
 - `EfiMain` materializes compact live owned-map region records through the source-linked no-stdlib-safe `BootMemoryRegionMaterializer` and emits `BOOT_MEMORY_REGIONS_READY` plus `BOOT_MEMORY_REGION_COUNT <count>` before ACPI RSDP handoff and `TEST_START boot.sequence`.
 - `OS.Kernel` has a host-tested `UefiMemoryMapCopyPlan` contract that validates the copy from firmware-owned memory-map buffer to OS-owned storage before the EFI shell copies bytes.
 - `OS.Kernel` has a host-tested `UefiMemoryMapCapture` helper that owns the no-stdlib EFI memory-map capture/copy mechanics and reports copy-plan statuses for rejected metadata.
+- M03-001's [step961](../done/step961.md) adds host regression coverage without changing the EFI capture path. Its actual no-stdlib closure uses the current `MinimalRuntime.cs`, `MethodImplAttribute.cs`, `BootHandoffRecord.cs`, `UefiMemoryMapCapture.cs` and `UefiMemoryMapCopyPlan.cs`; compilation and metadata inspection report zero AssemblyRefs. The complete new and existing host memory-map initializers pass. No new EFI artifact, guest marker or live firmware result is claimed by that step; #58 still needs the separately owned native observation and QEMU evidence.
 - `OS.Kernel` has a host-tested `EfiBootHandoffValidator` contract that mirrors the live EFI numeric validation path without string formatting or managed allocation requirements.
 - `OS.Kernel` has a host-tested `EfiMemoryMapNormalizer` contract for live no-stdlib summary normalization without arrays or `Span<T>`.
 - `OS.Kernel` has a host-tested `BootMemoryRegionMaterializer` contract for live no-stdlib memory-region materialization without arrays, managed allocation, or exception handling.
@@ -2170,3 +2171,58 @@ Step959 binds the complete host pass and nine fresh guest profiles to this
 same82-item/95-input/32-flag source, including default adapter absence and the
 strict vector-32 expected-panic result. Those facts do not broaden the entry
 ABI prerequisite or prove general post-firmware operation.
+
+### M04-009 shared String source profile
+
+[Step963](../done/step963.md) adds four false-default switches:
+`EnableM04StringAllocationProbe`, `EnableM04StringAllocationBeforeBindProbe`,
+`EnableM04StringAllocationExhaustionProbe` and
+`EnableM04StringAllocationInvalidLengthProbe`. Their corresponding symbols are
+`M04_STRING_ALLOCATION_PROBE`, `M04_STRING_ALLOCATION_BEFORE_BIND_PROBE`,
+`M04_STRING_ALLOCATION_EXHAUSTION_PROBE` and
+`M04_STRING_ALLOCATION_INVALID_LENGTH_PROBE`. The positive profile enables both
+M01 loaded-image/live-allocator switches and all eight M04 switches shown below.
+Each negative requires main and excludes its siblings, the fixed/array
+negative modes, M02/owned-paging modes and the three risky firmware/ACPI modes.
+
+The source now has84 ordered Compile items,97 raw publication inputs and36
+evaluated properties (33 XML false defaults plus three risky inputs). The
+String wrapper and authority enter the explicit closure. The generic scanner
+is unchanged; exact source pins and finite selector rules are refreshed.
+`EfiEntry.cs` and the original publication call counts remain unchanged.
+
+Five focused NativeAOT publications pass for default, positive, before-bind,
+exhaustion and invalid-length, with0/10/11/11/11 true properties. All have zero
+OS AssemblyRefs. Metadata and linked-code checks bind `RhNewString`, constructor
+remapping, String/Object prefixes and relocations, UTF-16 field offsets and the
+full-width invalid-length call. These were the compiler/artifact results at
+step963. [Step964](../done/step964.md) adds the accepted clean `be2762f` solution
+build, complete 3,653/3,654/0 host suite and seven fresh QEMU/OVMF captures.
+Default/fixed/mixed-array/String/before-bind/exhaustion/invalid-length artifacts
+have zero OS AssemblyRefs and exact 36-property vectors with 0/8/9/10/11/11/11
+true flags. All 84 Compile and 97 raw input identities are bound, with smoke
+source provenance recorded separately. Fresh independent native, raw,
+lifecycle and disk reviews accept the bounded String behavior and shared-core
+regressions; general runtime gates remain incomplete.
+
+The positive smoke command is:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 -BuildEfi `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe `
+  -EnableM04IndependentEndianConformanceProbe `
+  -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe `
+  -EnableM04ArithmeticConformanceProbe -EnableM04LayoutContractProbe `
+  -EnableM04ManagedHeapPageRangeProbe -EnableM04RhpNewFastProbe `
+  -EnableM04SzArrayAllocationProbe -EnableM04StringAllocationProbe
+```
+
+This command is not a step963 guest result; step964 records its later capture
+and independent acceptance. Negative variants add exactly one
+String negative switch to the same build prerequisites. Their intentional
+`TEST_FAIL m04.009` endings remain ordinary runner failures; independently
+reviewed capture and full negative-transcript/lifecycle checks are required
+before accepting an expected rejection. See `docs/qemu.md` for that boundary.

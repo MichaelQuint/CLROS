@@ -58,7 +58,11 @@ param(
     [switch] $EnableM04RhpNewFastExhaustionFailureProbe,
     [switch] $EnableM04SzArrayAllocationProbe,
     [switch] $EnableM04SzArrayAllocationBeforeBindProbe,
-    [switch] $EnableM04SzArrayAllocationExhaustionProbe
+    [switch] $EnableM04SzArrayAllocationExhaustionProbe,
+    [switch] $EnableM04StringAllocationProbe,
+    [switch] $EnableM04StringAllocationBeforeBindProbe,
+    [switch] $EnableM04StringAllocationExhaustionProbe,
+    [switch] $EnableM04StringAllocationInvalidLengthProbe
 )
 
 $ErrorActionPreference = "Stop"
@@ -147,6 +151,8 @@ $script:ExpectedEfiCompileItems = @(
     'Runtime\MinimalRuntime.cs|',
     '..\OS.Kernel\Runtime\GuestTestRhpNewFast.cs|Runtime\GuestTestRhpNewFast.cs',
     '..\OS.Kernel\Runtime\GuestTestArrayAllocationLengthOverflowChecks.cs|Runtime\GuestTestArrayAllocationLengthOverflowChecks.cs',
+    '..\OS.Kernel\Runtime\GuestTestStringAllocationCharacterStorage.cs|Runtime\GuestTestStringAllocationCharacterStorage.cs',
+    '..\OS.Kernel\Diagnostics\StringAllocationProbeAuthority.cs|Diagnostics\StringAllocationProbeAuthority.cs',
     'Runtime\RhpNewFastAllocation.cs|'
 )
 
@@ -1865,6 +1871,10 @@ function Invoke-M01PostRestoreEvaluation {
         [bool] $M04SzArrayAllocationEnabled,
         [bool] $M04SzArrayAllocationBeforeBindEnabled,
         [bool] $M04SzArrayAllocationExhaustionEnabled,
+        [bool] $M04StringAllocationEnabled,
+        [bool] $M04StringAllocationBeforeBindEnabled,
+        [bool] $M04StringAllocationExhaustionEnabled,
+        [bool] $M04StringAllocationInvalidLengthEnabled,
         [bool] $LoadedImageStackEnabled,
         [bool] $LiveAllocatorEnabled,
         [bool] $OwnedPagingEnabled,
@@ -1913,6 +1923,10 @@ function Invoke-M01PostRestoreEvaluation {
             "EnableM04SzArrayAllocationProbe," +
             "EnableM04SzArrayAllocationBeforeBindProbe," +
             "EnableM04SzArrayAllocationExhaustionProbe," +
+            "EnableM04StringAllocationProbe," +
+            "EnableM04StringAllocationBeforeBindProbe," +
+            "EnableM04StringAllocationExhaustionProbe," +
+            "EnableM04StringAllocationInvalidLengthProbe," +
             "EnableM01LoadedImageStackProbe," +
             "EnableM01LiveAllocatorProbe," +
             "EnableM01OwnedPagingProbe," +
@@ -2073,6 +2087,14 @@ function Invoke-M01PostRestoreEvaluation {
         $M04SzArrayAllocationBeforeBindEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM04SzArrayAllocationExhaustionProbe=" +
         $M04SzArrayAllocationExhaustionEnabled.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableM04StringAllocationProbe=" +
+        $M04StringAllocationEnabled.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableM04StringAllocationBeforeBindProbe=" +
+        $M04StringAllocationBeforeBindEnabled.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableM04StringAllocationExhaustionProbe=" +
+        $M04StringAllocationExhaustionEnabled.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableM04StringAllocationInvalidLengthProbe=" +
+        $M04StringAllocationInvalidLengthEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM01LoadedImageStackProbe=" + $LoadedImageStackEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM01LiveAllocatorProbe=" + $LiveAllocatorEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM01OwnedPagingProbe=" + $OwnedPagingEnabled.ToString().ToLowerInvariant())
@@ -2172,6 +2194,14 @@ function Invoke-M01PostRestoreEvaluation {
             $M04SzArrayAllocationBeforeBindEnabled.ToString().ToLowerInvariant()
         EnableM04SzArrayAllocationExhaustionProbe =
             $M04SzArrayAllocationExhaustionEnabled.ToString().ToLowerInvariant()
+        EnableM04StringAllocationProbe =
+            $M04StringAllocationEnabled.ToString().ToLowerInvariant()
+        EnableM04StringAllocationBeforeBindProbe =
+            $M04StringAllocationBeforeBindEnabled.ToString().ToLowerInvariant()
+        EnableM04StringAllocationExhaustionProbe =
+            $M04StringAllocationExhaustionEnabled.ToString().ToLowerInvariant()
+        EnableM04StringAllocationInvalidLengthProbe =
+            $M04StringAllocationInvalidLengthEnabled.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
         ImportProjectExtensionTargets = "false"
         ExcludeRestorePackageImports = "true"
@@ -4171,6 +4201,10 @@ for ($index = 5; $index -lt $verifierArguments.Count; $index += 2) {
         $parameterName -ceq "EnableM04SzArrayAllocationProbe" -or
         $parameterName -ceq "EnableM04SzArrayAllocationBeforeBindProbe" -or
         $parameterName -ceq "EnableM04SzArrayAllocationExhaustionProbe" -or
+        $parameterName -ceq "EnableM04StringAllocationProbe" -or
+        $parameterName -ceq "EnableM04StringAllocationBeforeBindProbe" -or
+        $parameterName -ceq "EnableM04StringAllocationExhaustionProbe" -or
+        $parameterName -ceq "EnableM04StringAllocationInvalidLengthProbe" -or
         $parameterName -ceq "EnableM01LoadedImageStackProbe" -or
         $parameterName -ceq "EnableM01LiveAllocatorProbe" -or
         $parameterName -ceq "EnableM01OwnedPagingProbe" -or
@@ -5543,6 +5577,10 @@ function Test-M01EvaluatedSourceClosure {
         [bool] $M04SzArrayAllocationEnabled,
         [bool] $M04SzArrayAllocationBeforeBindEnabled,
         [bool] $M04SzArrayAllocationExhaustionEnabled,
+        [bool] $M04StringAllocationEnabled,
+        [bool] $M04StringAllocationBeforeBindEnabled,
+        [bool] $M04StringAllocationExhaustionEnabled,
+        [bool] $M04StringAllocationInvalidLengthEnabled,
         [bool] $UefiGoneSimulationEnabled,
         [bool] $ExitBootServicesFreshMapEnabled,
         [bool] $AcpiPhysicalDiscoveryEnabled
@@ -5621,6 +5659,14 @@ function Test-M01EvaluatedSourceClosure {
             $M04SzArrayAllocationBeforeBindEnabled.ToString().ToLowerInvariant()
         "EnableM04SzArrayAllocationExhaustionProbe" =
             $M04SzArrayAllocationExhaustionEnabled.ToString().ToLowerInvariant()
+        "EnableM04StringAllocationProbe" =
+            $M04StringAllocationEnabled.ToString().ToLowerInvariant()
+        "EnableM04StringAllocationBeforeBindProbe" =
+            $M04StringAllocationBeforeBindEnabled.ToString().ToLowerInvariant()
+        "EnableM04StringAllocationExhaustionProbe" =
+            $M04StringAllocationExhaustionEnabled.ToString().ToLowerInvariant()
+        "EnableM04StringAllocationInvalidLengthProbe" =
+            $M04StringAllocationInvalidLengthEnabled.ToString().ToLowerInvariant()
     }
     $expectedSwitchSymbols = [ordered] @{
         "M01_LOADED_IMAGE_STACK_PROBE" = $LoadedImageStackEnabled
@@ -5669,6 +5715,14 @@ function Test-M01EvaluatedSourceClosure {
             $M04SzArrayAllocationBeforeBindEnabled
         "M04_SZ_ARRAY_ALLOCATION_EXHAUSTION_PROBE" =
             $M04SzArrayAllocationExhaustionEnabled
+        "M04_STRING_ALLOCATION_PROBE" =
+            $M04StringAllocationEnabled
+        "M04_STRING_ALLOCATION_BEFORE_BIND_PROBE" =
+            $M04StringAllocationBeforeBindEnabled
+        "M04_STRING_ALLOCATION_EXHAUSTION_PROBE" =
+            $M04StringAllocationExhaustionEnabled
+        "M04_STRING_ALLOCATION_INVALID_LENGTH_PROBE" =
+            $M04StringAllocationInvalidLengthEnabled
         "UEFI_GONE_SIMULATION_PROBE" = $UefiGoneSimulationEnabled
         "EXIT_BOOT_SERVICES_FRESH_MAP_PROBE" =
             $ExitBootServicesFreshMapEnabled
@@ -5718,6 +5772,10 @@ function Test-M01EvaluatedSourceClosure {
                 "EnableM04SzArrayAllocationProbe," +
                 "EnableM04SzArrayAllocationBeforeBindProbe," +
                 "EnableM04SzArrayAllocationExhaustionProbe," +
+                "EnableM04StringAllocationProbe," +
+                "EnableM04StringAllocationBeforeBindProbe," +
+                "EnableM04StringAllocationExhaustionProbe," +
+                "EnableM04StringAllocationInvalidLengthProbe," +
                 "DefineConstants," +
                 "EnableDefaultCompileItems," +
                 "NoStdLib," +
@@ -5873,6 +5931,22 @@ function Test-M01EvaluatedSourceClosure {
         if ($M04SzArrayAllocationExhaustionEnabled) {
             $arguments +=
                 "-p:EnableM04SzArrayAllocationExhaustionProbe=true"
+        }
+        if ($M04StringAllocationEnabled) {
+            $arguments +=
+                "-p:EnableM04StringAllocationProbe=true"
+        }
+        if ($M04StringAllocationBeforeBindEnabled) {
+            $arguments +=
+                "-p:EnableM04StringAllocationBeforeBindProbe=true"
+        }
+        if ($M04StringAllocationExhaustionEnabled) {
+            $arguments +=
+                "-p:EnableM04StringAllocationExhaustionProbe=true"
+        }
+        if ($M04StringAllocationInvalidLengthEnabled) {
+            $arguments +=
+                "-p:EnableM04StringAllocationInvalidLengthProbe=true"
         }
         if ($UefiGoneSimulationEnabled) {
             $arguments += "-p:EnableUefiGoneSimulationProbe=true"
@@ -6418,6 +6492,10 @@ function Test-M01SourceClosure {
         [bool] $M04SzArrayAllocationEnabled,
         [bool] $M04SzArrayAllocationBeforeBindEnabled,
         [bool] $M04SzArrayAllocationExhaustionEnabled,
+        [bool] $M04StringAllocationEnabled,
+        [bool] $M04StringAllocationBeforeBindEnabled,
+        [bool] $M04StringAllocationExhaustionEnabled,
+        [bool] $M04StringAllocationInvalidLengthEnabled,
         [bool] $UefiGoneSimulationEnabled,
         [bool] $ExitBootServicesFreshMapEnabled,
         [bool] $AcpiPhysicalDiscoveryEnabled
@@ -6467,7 +6545,7 @@ function Test-M01SourceClosure {
 
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "2882692a9d6b92611fff04b1146ef1e243c993c4b9b4aa4cd8d56c3a9db254aa") {
+        "65a50be1c1a444221478e3d301d2f22b0c5f2f9d90eb6ce4dae5418298117049") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `
@@ -6566,6 +6644,14 @@ function Test-M01SourceClosure {
             "M04_SZ_ARRAY_ALLOCATION_BEFORE_BIND_PROBE"
         "EnableM04SzArrayAllocationExhaustionProbe" =
             "M04_SZ_ARRAY_ALLOCATION_EXHAUSTION_PROBE"
+        "EnableM04StringAllocationProbe" =
+            "M04_STRING_ALLOCATION_PROBE"
+        "EnableM04StringAllocationBeforeBindProbe" =
+            "M04_STRING_ALLOCATION_BEFORE_BIND_PROBE"
+        "EnableM04StringAllocationExhaustionProbe" =
+            "M04_STRING_ALLOCATION_EXHAUSTION_PROBE"
+        "EnableM04StringAllocationInvalidLengthProbe" =
+            "M04_STRING_ALLOCATION_INVALID_LENGTH_PROBE"
         "EnableUefiGoneSimulationProbe" = "UEFI_GONE_SIMULATION_PROBE"
         "EnableExitBootServicesFreshMapProbe" = "EXIT_BOOT_SERVICES_FRESH_MAP_PROBE"
         "EnableAcpiPhysicalDiscoveryProbe" = "ACPI_PHYSICAL_DISCOVERY_PROBE"
@@ -6845,6 +6931,14 @@ function Test-M01SourceClosure {
             "M04_SZ_ARRAY_ALLOCATION_BEFORE_BIND_PROBE"
         "EnableM04SzArrayAllocationExhaustionProbe" =
             "M04_SZ_ARRAY_ALLOCATION_EXHAUSTION_PROBE"
+        "EnableM04StringAllocationProbe" =
+            "M04_STRING_ALLOCATION_PROBE"
+        "EnableM04StringAllocationBeforeBindProbe" =
+            "M04_STRING_ALLOCATION_BEFORE_BIND_PROBE"
+        "EnableM04StringAllocationExhaustionProbe" =
+            "M04_STRING_ALLOCATION_EXHAUSTION_PROBE"
+        "EnableM04StringAllocationInvalidLengthProbe" =
+            "M04_STRING_ALLOCATION_INVALID_LENGTH_PROBE"
     }
     foreach ($entry in $switchSymbols.GetEnumerator()) {
         $defaultNodes = @($project.SelectNodes(
@@ -7312,7 +7406,209 @@ function Test-M01SourceClosure {
         $m04LayoutSpanDependencyCondition,
         $m04LayoutEndianDependencyCondition,
         $m04LayoutTerminalExclusionCondition,
-        $m04LayoutUd2ExclusionCondition
+        $m04LayoutUd2ExclusionCondition,
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM01LoadedImageStackProbe)' != 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM01LiveAllocatorProbe)' != 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM04IndependentEndianConformanceProbe)' != 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' != 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM04ArithmeticConformanceProbe)' != 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM04LayoutContractProbe)' != 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM04ManagedHeapPageRangeProbe)' != 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM04RhpNewFastProbe)' != 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM04SzArrayAllocationProbe)' != 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM01OwnedPagingProbe)' == 'true'",
+        "'`$(EnableM01OwnedPagingProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM02SafeStubProbe)' == 'true'",
+        "'`$(EnableM02SafeStubProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
+        "'`$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM02Com1OwnedPortIoProbe)' == 'true'",
+        "'`$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM02OwnedCom1ReadyProbe)' == 'true'",
+        "'`$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'",
+        "'`$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'",
+        "'`$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM02GuardedIstStackAllocationProbe)' == 'true'",
+        "'`$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'",
+        "'`$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'",
+        "'`$(EnableM02NormalizedInterruptFramePageProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'",
+        "'`$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM02IdtrContinuedExecutionProbe)' == 'true'",
+        "'`$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM02Ud2VectorStateProbe)' == 'true'",
+        "'`$(EnableM02Ud2VectorStateProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM02DoubleFaultIstProbe)' == 'true'",
+        "'`$(EnableM02DoubleFaultIstProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM02UnexpectedVectorPanicProbe)' == 'true'",
+        "'`$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableUefiGoneSimulationProbe)' == 'true'",
+        "'`$(EnableUefiGoneSimulationProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableExitBootServicesFreshMapProbe)' == 'true'",
+        "'`$(EnableExitBootServicesFreshMapProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'",
+        "'`$(EnableAcpiPhysicalDiscoveryProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM01OwnedPagingProbe)' == 'true'",
+        "'`$(EnableM01OwnedPagingProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM02SafeStubProbe)' == 'true'",
+        "'`$(EnableM02SafeStubProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
+        "'`$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM02Com1OwnedPortIoProbe)' == 'true'",
+        "'`$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM02OwnedCom1ReadyProbe)' == 'true'",
+        "'`$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'",
+        "'`$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'",
+        "'`$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM02GuardedIstStackAllocationProbe)' == 'true'",
+        "'`$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'",
+        "'`$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'",
+        "'`$(EnableM02NormalizedInterruptFramePageProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'",
+        "'`$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM02IdtrContinuedExecutionProbe)' == 'true'",
+        "'`$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM02Ud2VectorStateProbe)' == 'true'",
+        "'`$(EnableM02Ud2VectorStateProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM02DoubleFaultIstProbe)' == 'true'",
+        "'`$(EnableM02DoubleFaultIstProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM02UnexpectedVectorPanicProbe)' == 'true'",
+        "'`$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableUefiGoneSimulationProbe)' == 'true'",
+        "'`$(EnableUefiGoneSimulationProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableExitBootServicesFreshMapProbe)' == 'true'",
+        "'`$(EnableExitBootServicesFreshMapProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'",
+        "'`$(EnableAcpiPhysicalDiscoveryProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM01OwnedPagingProbe)' == 'true'",
+        "'`$(EnableM01OwnedPagingProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM02SafeStubProbe)' == 'true'",
+        "'`$(EnableM02SafeStubProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
+        "'`$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM02Com1OwnedPortIoProbe)' == 'true'",
+        "'`$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM02OwnedCom1ReadyProbe)' == 'true'",
+        "'`$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'",
+        "'`$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'",
+        "'`$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM02GuardedIstStackAllocationProbe)' == 'true'",
+        "'`$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'",
+        "'`$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'",
+        "'`$(EnableM02NormalizedInterruptFramePageProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'",
+        "'`$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM02IdtrContinuedExecutionProbe)' == 'true'",
+        "'`$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM02Ud2VectorStateProbe)' == 'true'",
+        "'`$(EnableM02Ud2VectorStateProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM02DoubleFaultIstProbe)' == 'true'",
+        "'`$(EnableM02DoubleFaultIstProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM02UnexpectedVectorPanicProbe)' == 'true'",
+        "'`$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableUefiGoneSimulationProbe)' == 'true'",
+        "'`$(EnableUefiGoneSimulationProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableExitBootServicesFreshMapProbe)' == 'true'",
+        "'`$(EnableExitBootServicesFreshMapProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'",
+        "'`$(EnableAcpiPhysicalDiscoveryProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM01OwnedPagingProbe)' == 'true'",
+        "'`$(EnableM01OwnedPagingProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM02SafeStubProbe)' == 'true'",
+        "'`$(EnableM02SafeStubProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
+        "'`$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM02Com1OwnedPortIoProbe)' == 'true'",
+        "'`$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM02OwnedCom1ReadyProbe)' == 'true'",
+        "'`$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'",
+        "'`$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'",
+        "'`$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM02GuardedIstStackAllocationProbe)' == 'true'",
+        "'`$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'",
+        "'`$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'",
+        "'`$(EnableM02NormalizedInterruptFramePageProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'",
+        "'`$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM02IdtrContinuedExecutionProbe)' == 'true'",
+        "'`$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM02Ud2VectorStateProbe)' == 'true'",
+        "'`$(EnableM02Ud2VectorStateProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM02DoubleFaultIstProbe)' == 'true'",
+        "'`$(EnableM02DoubleFaultIstProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM02UnexpectedVectorPanicProbe)' == 'true'",
+        "'`$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableUefiGoneSimulationProbe)' == 'true'",
+        "'`$(EnableUefiGoneSimulationProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableExitBootServicesFreshMapProbe)' == 'true'",
+        "'`$(EnableExitBootServicesFreshMapProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'",
+        "'`$(EnableAcpiPhysicalDiscoveryProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' != 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' != 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' != 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'"
     )
     if ($errorConditions.Count -ne $requiredErrorConditions.Count -or
         $validationTargets[0].SelectNodes("*").Count -ne $errorNodes.Count) {
@@ -7642,6 +7938,10 @@ function Test-M01SourceClosure {
         -M04SzArrayAllocationEnabled $M04SzArrayAllocationEnabled `
         -M04SzArrayAllocationBeforeBindEnabled $M04SzArrayAllocationBeforeBindEnabled `
         -M04SzArrayAllocationExhaustionEnabled $M04SzArrayAllocationExhaustionEnabled `
+        -M04StringAllocationEnabled $M04StringAllocationEnabled `
+        -M04StringAllocationBeforeBindEnabled $M04StringAllocationBeforeBindEnabled `
+        -M04StringAllocationExhaustionEnabled $M04StringAllocationExhaustionEnabled `
+        -M04StringAllocationInvalidLengthEnabled $M04StringAllocationInvalidLengthEnabled `
         -UefiGoneSimulationEnabled $UefiGoneSimulationEnabled `
         -ExitBootServicesFreshMapEnabled $ExitBootServicesFreshMapEnabled `
         -AcpiPhysicalDiscoveryEnabled $AcpiPhysicalDiscoveryEnabled
@@ -7814,8 +8114,8 @@ try {
             (Format-EvidenceValue $_.Exception.Message))
         exit 1
     }
-    if ($sourceSnapshotBeforePublish.InputCount -ne 95 -or
-        $sourceSnapshotAfterLock.InputCount -ne 95 -or
+    if ($sourceSnapshotBeforePublish.InputCount -ne 97 -or
+        $sourceSnapshotAfterLock.InputCount -ne 97 -or
         $sourceSnapshotBeforePublish.AggregateSha256 -cne
             $sourceSnapshotAfterLock.AggregateSha256 -or
         $sourceSnapshotBeforePublish.AuthoritySha256 -cne
@@ -7828,11 +8128,24 @@ try {
         exit 1
     }
     Write-Host "EFI_PUBLISH_SOURCE_LOCK status=ok"
-    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=95"
+    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=97"
 
 Write-EfiPreflightLine "EFI_PREFLIGHT_START"
 
-$arrayReason = ""
+$stringReason = ""
+if (($EnableM04StringAllocationBeforeBindProbe -or $EnableM04StringAllocationExhaustionProbe -or $EnableM04StringAllocationInvalidLengthProbe) -and -not $EnableM04StringAllocationProbe) { $stringReason = "m04_string_negative_requires_main" }
+if (([int][bool]$EnableM04StringAllocationBeforeBindProbe + [int][bool]$EnableM04StringAllocationExhaustionProbe + [int][bool]$EnableM04StringAllocationInvalidLengthProbe) -gt 1) { $stringReason = "m04_string_negative_conflict" }
+if ($EnableM04StringAllocationProbe) {
+    foreach ($stringRequired in @("EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe", "EnableM04IndependentEndianConformanceProbe", "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe", "EnableM04ArithmeticConformanceProbe", "EnableM04LayoutContractProbe", "EnableM04ManagedHeapPageRangeProbe", "EnableM04RhpNewFastProbe", "EnableM04SzArrayAllocationProbe")) {
+        if (-not [bool](Get-Variable -Name $stringRequired -ValueOnly)) { $stringReason = "m04_string_requires_explicit_chain_" + $stringRequired }
+    }
+}
+if ($EnableM04StringAllocationProbe -or $EnableM04StringAllocationBeforeBindProbe -or $EnableM04StringAllocationExhaustionProbe -or $EnableM04StringAllocationInvalidLengthProbe) {
+    foreach ($stringConflict in @("EnableM01OwnedPagingProbe", "EnableM02SafeStubProbe", "EnableM02CheckedPortIoBindingProbe", "EnableM02Com1OwnedPortIoProbe", "EnableM02OwnedCom1ReadyProbe", "EnableM02PanicSafeOwnedCom1Probe", "EnableM02OwnedX64GdtEncodingProbe", "EnableM02GuardedIstStackAllocationProbe", "EnableM02OwnedGdtTssTerminalProbe", "EnableM02NormalizedInterruptFramePageProbe", "EnableM02OwnedIdtGatePopulationProbe", "EnableM02IdtrContinuedExecutionProbe", "EnableM02Ud2VectorStateProbe", "EnableM02PageFaultCr2ErrorCodeProbe", "EnableM02DoubleFaultIstProbe", "EnableM02UnexpectedVectorPanicProbe", "EnableUefiGoneSimulationProbe", "EnableExitBootServicesFreshMapProbe", "EnableAcpiPhysicalDiscoveryProbe", "EnableM04RhpNewFastBeforeBindFailureProbe", "EnableM04RhpNewFastExhaustionFailureProbe", "EnableM04SzArrayAllocationBeforeBindProbe", "EnableM04SzArrayAllocationExhaustionProbe")) {
+        if ([bool](Get-Variable -Name $stringConflict -ValueOnly)) { $stringReason = "m04_string_conflicting_profile_" + $stringConflict }
+    }
+}
+$arrayReason = $stringReason
 if (($EnableM04SzArrayAllocationBeforeBindProbe -or $EnableM04SzArrayAllocationExhaustionProbe) -and -not $EnableM04SzArrayAllocationProbe) { $arrayReason = "m04_sz_array_negative_requires_main" }
 if ($EnableM04SzArrayAllocationBeforeBindProbe -and $EnableM04SzArrayAllocationExhaustionProbe) { $arrayReason = "m04_sz_array_negative_conflict" }
 if ($EnableM04SzArrayAllocationProbe) {
@@ -7956,6 +8269,10 @@ if ($EnableM02DoubleFaultIstProbe) {
         "EnableM04SzArrayAllocationProbe"
         "EnableM04SzArrayAllocationBeforeBindProbe"
         "EnableM04SzArrayAllocationExhaustionProbe"
+        "EnableM04StringAllocationProbe"
+        "EnableM04StringAllocationBeforeBindProbe"
+        "EnableM04StringAllocationExhaustionProbe"
+        "EnableM04StringAllocationInvalidLengthProbe"
     )) {
         if ([bool](Get-Variable -Name $conflict -ValueOnly)) {
             Stop-EfiPreflight -Marker "EFI_PREFLIGHT_M02_DOUBLE_FAULT_IST status=invalid" -Reason ("m02_double_fault_ist_profile_conflict_" + $conflict) -LogFullPath $logFullPath -ReportedLogPath $LogPath -Status "invalid"
@@ -7985,6 +8302,10 @@ if ($EnableM02UnexpectedVectorPanicProbe) {
         "EnableM04SzArrayAllocationProbe"
         "EnableM04SzArrayAllocationBeforeBindProbe"
         "EnableM04SzArrayAllocationExhaustionProbe"
+        "EnableM04StringAllocationProbe"
+        "EnableM04StringAllocationBeforeBindProbe"
+        "EnableM04StringAllocationExhaustionProbe"
+        "EnableM04StringAllocationInvalidLengthProbe"
         "EnableUefiGoneSimulationProbe"
         "EnableExitBootServicesFreshMapProbe"
         "EnableAcpiPhysicalDiscoveryProbe"
@@ -8770,6 +9091,10 @@ $m01SourceClosure = Test-M01SourceClosure `
     -M04SzArrayAllocationEnabled $EnableM04SzArrayAllocationProbe.IsPresent `
     -M04SzArrayAllocationBeforeBindEnabled $EnableM04SzArrayAllocationBeforeBindProbe.IsPresent `
     -M04SzArrayAllocationExhaustionEnabled $EnableM04SzArrayAllocationExhaustionProbe.IsPresent `
+    -M04StringAllocationEnabled $EnableM04StringAllocationProbe.IsPresent `
+    -M04StringAllocationBeforeBindEnabled $EnableM04StringAllocationBeforeBindProbe.IsPresent `
+    -M04StringAllocationExhaustionEnabled $EnableM04StringAllocationExhaustionProbe.IsPresent `
+    -M04StringAllocationInvalidLengthEnabled $EnableM04StringAllocationInvalidLengthProbe.IsPresent `
     -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
     -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
     -AcpiPhysicalDiscoveryEnabled $EnableAcpiPhysicalDiscoveryProbe.IsPresent
@@ -9490,6 +9815,22 @@ if ($EnableM04SzArrayAllocationExhaustionProbe) {
     $arguments += "-p:EnableM04SzArrayAllocationExhaustionProbe=true"
     Write-Host "EFI_PROBE M04_SZ_ARRAY_ALLOCATION_EXHAUSTION"
 }
+if ($EnableM04StringAllocationProbe) {
+    $arguments += "-p:EnableM04StringAllocationProbe=true"
+    Write-Host "EFI_PROBE M04_STRING_ALLOCATION"
+}
+if ($EnableM04StringAllocationBeforeBindProbe) {
+    $arguments += "-p:EnableM04StringAllocationBeforeBindProbe=true"
+    Write-Host "EFI_PROBE M04_STRING_ALLOCATION_BEFORE_BIND"
+}
+if ($EnableM04StringAllocationExhaustionProbe) {
+    $arguments += "-p:EnableM04StringAllocationExhaustionProbe=true"
+    Write-Host "EFI_PROBE M04_STRING_ALLOCATION_EXHAUSTION"
+}
+if ($EnableM04StringAllocationInvalidLengthProbe) {
+    $arguments += "-p:EnableM04StringAllocationInvalidLengthProbe=true"
+    Write-Host "EFI_PROBE M04_STRING_ALLOCATION_INVALID_LENGTH"
+}
 
 if ($EnableUefiGoneSimulationProbe) {
     $arguments += "-p:EnableUefiGoneSimulationProbe=true"
@@ -9625,6 +9966,10 @@ $methodImplAttributeSourcePath = Join-Path $repositoryRoot (
         -M04SzArrayAllocationEnabled $EnableM04SzArrayAllocationProbe.IsPresent `
         -M04SzArrayAllocationBeforeBindEnabled $EnableM04SzArrayAllocationBeforeBindProbe.IsPresent `
         -M04SzArrayAllocationExhaustionEnabled $EnableM04SzArrayAllocationExhaustionProbe.IsPresent `
+        -M04StringAllocationEnabled $EnableM04StringAllocationProbe.IsPresent `
+        -M04StringAllocationBeforeBindEnabled $EnableM04StringAllocationBeforeBindProbe.IsPresent `
+        -M04StringAllocationExhaustionEnabled $EnableM04StringAllocationExhaustionProbe.IsPresent `
+        -M04StringAllocationInvalidLengthEnabled $EnableM04StringAllocationInvalidLengthProbe.IsPresent `
         -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
         -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
         -AcpiPhysicalDiscoveryEnabled $EnableAcpiPhysicalDiscoveryProbe.IsPresent
@@ -9873,6 +10218,10 @@ try {
         -M04SzArrayAllocationEnabled $EnableM04SzArrayAllocationProbe.IsPresent `
         -M04SzArrayAllocationBeforeBindEnabled $EnableM04SzArrayAllocationBeforeBindProbe.IsPresent `
         -M04SzArrayAllocationExhaustionEnabled $EnableM04SzArrayAllocationExhaustionProbe.IsPresent `
+        -M04StringAllocationEnabled $EnableM04StringAllocationProbe.IsPresent `
+        -M04StringAllocationBeforeBindEnabled $EnableM04StringAllocationBeforeBindProbe.IsPresent `
+        -M04StringAllocationExhaustionEnabled $EnableM04StringAllocationExhaustionProbe.IsPresent `
+        -M04StringAllocationInvalidLengthEnabled $EnableM04StringAllocationInvalidLengthProbe.IsPresent `
         -LoadedImageStackEnabled $EnableM01LoadedImageStackProbe.IsPresent `
         -LiveAllocatorEnabled $EnableM01LiveAllocatorProbe.IsPresent `
         -OwnedPagingEnabled $EnableM01OwnedPagingProbe.IsPresent `
@@ -10069,6 +10418,10 @@ if ($exitCode -eq 0) {
                 -M04SzArrayAllocationEnabled $EnableM04SzArrayAllocationProbe.IsPresent `
                 -M04SzArrayAllocationBeforeBindEnabled $EnableM04SzArrayAllocationBeforeBindProbe.IsPresent `
                 -M04SzArrayAllocationExhaustionEnabled $EnableM04SzArrayAllocationExhaustionProbe.IsPresent `
+                -M04StringAllocationEnabled $EnableM04StringAllocationProbe.IsPresent `
+                -M04StringAllocationBeforeBindEnabled $EnableM04StringAllocationBeforeBindProbe.IsPresent `
+                -M04StringAllocationExhaustionEnabled $EnableM04StringAllocationExhaustionProbe.IsPresent `
+                -M04StringAllocationInvalidLengthEnabled $EnableM04StringAllocationInvalidLengthProbe.IsPresent `
                 -LoadedImageStackEnabled $EnableM01LoadedImageStackProbe.IsPresent `
                 -LiveAllocatorEnabled $EnableM01LiveAllocatorProbe.IsPresent `
                 -OwnedPagingEnabled $EnableM01OwnedPagingProbe.IsPresent `
@@ -10466,6 +10819,10 @@ if ($exitCode -eq 0) {
     $verificationArguments += @("-EnableM04SzArrayAllocationProbe", $EnableM04SzArrayAllocationProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM04SzArrayAllocationBeforeBindProbe", $EnableM04SzArrayAllocationBeforeBindProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM04SzArrayAllocationExhaustionProbe", $EnableM04SzArrayAllocationExhaustionProbe.IsPresent.ToString().ToLowerInvariant())
+    $verificationArguments += @("-EnableM04StringAllocationProbe", $EnableM04StringAllocationProbe.IsPresent.ToString().ToLowerInvariant())
+    $verificationArguments += @("-EnableM04StringAllocationBeforeBindProbe", $EnableM04StringAllocationBeforeBindProbe.IsPresent.ToString().ToLowerInvariant())
+    $verificationArguments += @("-EnableM04StringAllocationExhaustionProbe", $EnableM04StringAllocationExhaustionProbe.IsPresent.ToString().ToLowerInvariant())
+    $verificationArguments += @("-EnableM04StringAllocationInvalidLengthProbe", $EnableM04StringAllocationInvalidLengthProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM01LoadedImageStackProbe", $EnableM01LoadedImageStackProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM01LiveAllocatorProbe", $EnableM01LiveAllocatorProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM01OwnedPagingProbe", $EnableM01OwnedPagingProbe.IsPresent.ToString().ToLowerInvariant())

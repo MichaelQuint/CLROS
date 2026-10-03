@@ -43,7 +43,7 @@ internal static unsafe class RhpCoreTestProgram
         using F f = new();
         byte[] before = f.Snapshot();
         Need(f.Prepare() == RhpAdmissionStatus.Success, "prepare actual authority");
-        f.Only(before, (0x3000,104),(0x3200,96),(0x4000,6352));
+        f.Only(before, (0x3000,104),(0x3200,96),(0x4000,6672));
         before = f.Snapshot();
         Need(f.Bind().Succeeded, "bind actual allocator");
         f.Only(before, (0x3100,80));
@@ -64,7 +64,7 @@ internal static unsafe class RhpCoreTestProgram
             byte[] expected = new byte[size];
             BinaryPrimitives.WriteUInt64LittleEndian(expected.AsSpan(8,8), f.Token(id));
             Need(new ReadOnlySpan<byte>(f.Page + used, (int)size).SequenceEqual(expected), "complete independent object byte oracle");
-            f.Only(before,(0x3100,80),(0x3200,96),(0x4000,6352),(0x8000+(int)used,(int)size));
+            f.Only(before,(0x3100,80),(0x3200,96),(0x4000,6672),(0x8000+(int)used,(int)size));
             Need(f.Complete(id, r.Leaf.ObjectReference) == RhpAdmissionStatus.Success, "typed-observation seam complete");
             used += size;
         }
@@ -154,7 +154,7 @@ internal static unsafe class RhpCoreTestProgram
             Need(RhpNewFastAllocationCore.Prepare(a,access,bump,control,records,f.Image,16384)!=RhpAdmissionStatus.Success,"invalid numeric storage " + mutation);
             f.Unchanged(before);
         }
-        foreach(int slot in new[]{0x3000,0x3100,0x3200,0x4000,0x4000+5871})
+        foreach(int slot in new[]{0x3000,0x3100,0x3200,0x4000,0x4000+6671})
         {
             f.Reset();f.Storage[slot]=1;byte[] before=f.Snapshot();
             Need(f.Prepare()==RhpAdmissionStatus.AlreadyPrepared,"every scratch prefix must start zero");f.Unchanged(before);
@@ -209,7 +209,7 @@ internal static unsafe class RhpCoreTestProgram
     private static void Pod()
     {
         Need(sizeof(RhpNewFastHeapAccess)==104 && sizeof(RhpNewFastBumpState)==80 && sizeof(RhpAllocationControl)==96 &&
-            sizeof(RhpObjectObservation)==224 && sizeof(RhpObservationStorage)==6352,"exact POD storage sizes");
+            sizeof(RhpObjectObservation)==256 && sizeof(RhpObservationStorage)==6672,"exact POD storage sizes");
         Need(!RuntimeHelpers.IsReferenceOrContainsReferences<RhpAllocationControl>() &&
             !RuntimeHelpers.IsReferenceOrContainsReferences<RhpObservationStorage>() &&
             !RuntimeHelpers.IsReferenceOrContainsReferences<RhpAllocationAttempt>(),"no hidden managed references");
@@ -229,7 +229,7 @@ internal static unsafe class RhpCoreTestProgram
                 throw new InvalidOperationException("unexpected allocation core failure");
         }
         after=GC.GetAllocatedBytesForCurrentThread();Need(after==before,"zero managed allocation in actual allocation core");
-        Console.WriteLine("RHP_CORE_POD access=104 bump=80 control=96 observation=224 records=6352 allocationDelta="+(after-before));
+        Console.WriteLine("RHP_CORE_POD access=104 bump=80 control=96 observation=256 records=6672 allocationDelta="+(after-before));
     }
 
     private static void W32(byte* p,uint x)=>BinaryPrimitives.WriteUInt32LittleEndian(new Span<byte>(p,4),x);
@@ -261,7 +261,7 @@ internal static unsafe class RhpCoreTestProgram
                     physical,i==4?2UL:1UL,out Original.Reservations[i])==BootReservedRangeStatus.Success,"flat fixture ledger");
             }
             new Span<byte>(Original.Heap,216).Clear();new Span<byte>(Access,104).Clear();new Span<byte>(Bump,80).Clear();
-            new Span<byte>(Control,96).Clear();new Span<byte>(Records,6352).Clear();new Span<byte>(Image,16384).Clear();
+            new Span<byte>(Control,96).Clear();new Span<byte>(Records,6672).Clear();new Span<byte>(Image,16384).Clear();
             var reserved=ManagedHeapPageRangeLiveAllocator.ReserveAndInitializeOnce(Original.Allocator,1,Original.Nodes,1,1,
                 Original.Reservations,5,5,4,Page,8192,Original.Heap,216);Need(reserved.IsReady,"actual original reserve");
             W32(Image,0x5A4D);W32(Image+60,0x80);W32(Image+0x80,0x4550);W32(Image+0x84,0x00018664);
@@ -347,7 +347,7 @@ internal static class M04RhpNewFastEfiIntegrationTests
         string root=HostToolProcess.FindRepositoryRoot();
         XDocument p=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
         string[] compile=p.Descendants("Compile").Select(x=>x.Attribute("Include")!.Value+"|"+(x.Attribute("Link")?.Value??"")).ToArray();
-        Need(compile.Length==82 && compile[^3]=="..\\OS.Kernel\\Runtime\\GuestTestRhpNewFast.cs|Runtime\\GuestTestRhpNewFast.cs" && compile[^2]=="..\\OS.Kernel\\Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs|Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs" && compile[^1]=="Runtime\\RhpNewFastAllocation.cs|","exact appended closure");
+        Need(compile.Length==84 && compile[^5]=="..\\OS.Kernel\\Runtime\\GuestTestRhpNewFast.cs|Runtime\\GuestTestRhpNewFast.cs" && compile[^4]=="..\\OS.Kernel\\Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs|Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs" && compile[^1]=="Runtime\\RhpNewFastAllocation.cs|","exact appended closure");
         foreach(string flag in new[]{Flag,"EnableM04RhpNewFastBeforeBindFailureProbe","EnableM04RhpNewFastExhaustionFailureProbe"})
         {
             XElement value=p.Descendants(flag).Single();
@@ -411,7 +411,7 @@ internal static class M04RhpNewFastEfiIntegrationTests
         lines[lines.IndexOf("M04_HEAP_PAGE_RETAINED")]+=" checkpoint=beforeBootPlan "+identity;
         lines[lines.IndexOf("M04_HEAP_PAGE_INITIALIZED")]+=" pages=1 bytes=4096 freePagesBefore=2 freeBytesBefore=8192 allocatedPagesBefore=0 allocatedBytesBefore=0 freePagesAfter=1 freeBytesAfter=4096 allocatedPagesAfter=1 allocatedBytesAfter=4096 readBytes=4096 contentsZero=true";
         lines[lines.IndexOf("M04_HEAP_PAGE_CURRENT")]+=" freePages=1 freeBytes=4096 allocatedPages=1 allocatedBytes=4096 readBytes=4096 contentsZero=true";
-        lines[45]="M04_RHP_PREP image=0x0000000001000000 imageBytes=65536 access=0x0000000000103000 accessBytes=104 bump=0x0000000000103100 bumpBytes=80 control=0x0000000000103200 controlBytes=96 records=0x0000000000104000 recordsBytes=6352";
+        lines[45]="M04_RHP_PREP image=0x0000000001000000 imageBytes=65536 access=0x0000000000103000 accessBytes=104 bump=0x0000000000103100 bumpBytes=80 control=0x0000000000103200 controlBytes=96 records=0x0000000000104000 recordsBytes=6672";
         lines[46]="M04_RHP_BIND image=0x0000000001000000 imageBytes=65536 allocator=0x0000000000100000 nodes=0x0000000000100040 ledger=0x0000000000102000 ledgerBytes=200 parentIndex=4 backing=0x0000000000900000 backingBytes=8192 heap=0x0000000000101000 heapBytes=216 access=0x0000000000103000 accessBytes=104 bump=0x0000000000103100 bumpBytes=80 status=1 used=0 count=0";
         uint[] sizes=[24,32,32,32,24,24,24,32,24,24];
         uint[] flags=[0x50000000,0x51000000,0x53000000,0x52000000,0x20000080,0x20000080,0x40000000,0x41000000,0x43000000,0x4A000200];
@@ -436,7 +436,7 @@ internal static class M04RhpNewFastEfiIntegrationTests
         foreach(string bad in new[]{"TE\r\nST_FA\r\nIL firmware\r\n","OS_SMO\r\nKE_FAIL\r\n","M\0\uFEFF04_RHP_BIND\r\n"})cases.Add((bad+good,false));
         foreach(string tail in new[]{"OVMF menu\r\n","partial","\r","OS_SMOKE_PASS\r\n","TEST_FAIL m04.007.rhp_new_fast exhausted\r\n"})cases.Add((good+tail,false));
         cases.Add((good.Replace("\r\n","\n",StringComparison.Ordinal),false));cases.Add((good[..^1],false));
-        foreach((string from,string to) in new[]{("accessBytes=104","accessBytes=103"),("controlBytes=96","controlBytes=95"),("recordsBytes=6352","recordsBytes=4096"),("records=0x0000000000104000","records=0x0000000000103100"),("control=0x0000000000103200","control=0x0000000000101000"),("backingBytes=8192","backingBytes=4096"),("bump=0x0000000000103100","bump=0x0000000000103000"),("imageBytes=65536","imageBytes=18446744073709551616"),("zeroBytes=16","zeroBytes=15"),("usedAfter=24","usedAfter=25"),("scalarOffset=16","scalarOffset=8"),("priorCount=10","priorCount=9"),("contentsZero=false","contentsZero=true"),("count=10 status=1","count=11 status=1"),("flags=0x0000000050000000","flags=0x0000000051000000")})
+        foreach((string from,string to) in new[]{("accessBytes=104","accessBytes=103"),("controlBytes=96","controlBytes=95"),("recordsBytes=6672","recordsBytes=4096"),("records=0x0000000000104000","records=0x0000000000103100"),("control=0x0000000000103200","control=0x0000000000101000"),("backingBytes=8192","backingBytes=4096"),("bump=0x0000000000103100","bump=0x0000000000103000"),("imageBytes=65536","imageBytes=18446744073709551616"),("zeroBytes=16","zeroBytes=15"),("usedAfter=24","usedAfter=25"),("scalarOffset=16","scalarOffset=8"),("priorCount=10","priorCount=9"),("contentsZero=false","contentsZero=true"),("count=10 status=1","count=11 status=1"),("flags=0x0000000050000000","flags=0x0000000051000000")})
             cases.Add((good.Replace(from,to,StringComparison.Ordinal),false));
         var manifest=cases.Select((c,i)=>new{Path=Path.Combine(directory,i+".log"),c.Accept}).ToArray();
         for(int i=0;i<cases.Count;i++)File.WriteAllText(manifest[i].Path,cases[i].Text,new UTF8Encoding(false));
@@ -488,11 +488,11 @@ internal static class M04RhpNewFastEfiIntegrationTests
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
             foreach(var file in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(directory,file.Item2));
             using var document=System.Text.Json.JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=document.RootElement;
-            var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==95,"actual95 raw sources");
+            var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==97,"actual97 raw sources");
             foreach(var input in inputs)Need(Hash(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))==input.GetProperty("sha256").GetString(),"actual raw source unchanged");
-            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==82,"actual82 compile items");
+            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==84,"actual84 compile items");
             var flags=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
-            Need(flags.Length==32,"complete32 evaluated flags");
+            Need(flags.Length==36,"complete36 evaluated flags");
             foreach(var f in flags)Need(f.Value.GetString()==(lane.Item2.Contains(f.Name,StringComparer.Ordinal)?"true":"false"),"actual requested/evaluated profile "+f.Name);
             using(var pe=new PEReader(File.OpenRead(Path.Combine(directory,"OS.dll"))))
             {

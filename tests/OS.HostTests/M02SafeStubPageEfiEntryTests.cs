@@ -398,9 +398,21 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
             && symbols.Length == 1
             && symbols[0].Elements("DefineConstants").Single().Value
                 == "$(DefineConstants);M02_SAFE_STUB_PROBE"
-            && errorConditions.Length == 6
+            && errorConditions.Length == 10
             && errorConditions.Contains(
                 "'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'",
+                StringComparer.Ordinal)
+            && errorConditions.Contains(
+                "'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'",
+                StringComparer.Ordinal)
+            && errorConditions.Contains(
+                "'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+                StringComparer.Ordinal)
+            && errorConditions.Contains(
+                "'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+                StringComparer.Ordinal)
+            && errorConditions.Contains(
+                "'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
                 StringComparer.Ordinal)
             && errorConditions.Contains(
                 "'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'",
@@ -433,7 +445,7 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
                 "[switch] $EnableM02SafeStubProbe",
                 StringComparison.Ordinal)
             && script.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=95",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=97",
                 StringComparison.Ordinal)
             && script.Contains(
                 "reviewed=\" + $m01SourceClosure.ReviewedSourceCount",
