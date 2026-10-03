@@ -2,6 +2,15 @@
 
 ## Current Status
 
+The 2026-10-03 M02 epic audit found all 20 keyed children, dependency #425 and
+27 related supplements closed with the required evidence. The technical exit
+is the bounded pre-EBS local-QEMU diagnostics milestone recorded in
+[step960](../done/step960.md), using the already accepted [step959](../done/step959.md)
+host/native/guest evidence. The reviewed documentation transaction precedes
+live epic closure. The milestone container stays open until the separate
+synchronization repair #529 prevents later sync from reopening it. Numbered completion-gate states remain
+unchanged; real EBS, hosted .NET/Kestrel and cloud readiness remain unproved.
+
 Audit date: 2026-07-30.
 
 The first-party workspace began as an empty baseline under the former `OS`

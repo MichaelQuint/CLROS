@@ -2,6 +2,15 @@
 
 ## Current Status
 
+The bounded M02 technical exit is now supported by the separately accepted
+pre-`ExitBootServices` local-QEMU experiments for owned COM1, private descriptor
+state and controlled UD2/PF/DF/vector-32 delivery. All 20 keyed children have
+reviewed closure evidence; [step960](../done/step960.md) records the epic audit
+and [step959](../done/step959.md) the current combined host/guest acceptance.
+Each experiment retains its exact admission, restoration or terminal-halt
+contract. This does not establish ordinary persistent fault handling,
+asynchronous IRQ/NMI service, nested recovery or post-firmware diagnostics.
+
 The owned diagnostics subsystem remains host-testable except for the accepted
 bounded pre-`ExitBootServices` M02-004 configuration, M02-005 marker, M02-006
 panic-readiness, M02-009 terminal GDT/TSS, M02-010 interrupt-entry-page
