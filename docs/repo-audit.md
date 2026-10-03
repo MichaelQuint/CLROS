@@ -160,9 +160,14 @@ and the reachable local Gitea tracker:
   eleven D7 and ten publication groups completed in a later-failed combined
   run; the repaired loaded-image module then passed13/14/0 separately.
   Default/enabled NativeAOT artifacts have zero OS AssemblyRefs. These are
-  source/focused/artifact facts recorded in [step956](../done/step956.md);
-  actual full-host, complete native graph and fresh guest acceptance remain
-  pending. #56/#526 stay open.
+  source/focused/artifact facts recorded in [step956](../done/step956.md).
+  The independent native call/access/ABI/SIMD review accepts a conservative
+  5,208-byte bound within the 8,176-byte callback budget, subject to fresh
+  same-image association and the documented inherited entry-ABI prerequisite.
+  The complete host attempt at `74bb2e7` failed in one legacy M01-023 profile
+  selector; [step957](../done/step957.md) records that failure and its narrow
+  fixture repair. A fresh complete host pass and nine guest reviews remain
+  required. #56/#526 stay open.
 - `GuestTestStringAllocationCharacterStorage` adds a bounded host entry to the
   existing fixed/array retained-page allocator. The complete three-module run
   passes 31 starts/32 passes with zero failures, and all three real no-stdlib
