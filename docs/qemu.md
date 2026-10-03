@@ -2677,3 +2677,41 @@ only the observed three-cluster NVVARS allocation and associated FAT/directory/
 primary-FSInfo changes. Both negative pristine images equal independent
 reconstructions. Whole-filesystem conformance and general runtime completion
 remain unproved; Gates 3/4 remain **Fail**.
+
+### M02-016 controlled expected-panic classification
+
+The default-off `-EnableM02UnexpectedVectorPanicProbe` profile requires
+`-BuildEfi` and its eight prerequisites described in [EFI build](efi-build.md).
+It forwards the explicit runner option `--expect-unexpected-vector-panic`;
+ordinary runner options and default smoke behavior retain their prior meaning.
+
+The bounded classifier requires76 exact owned ASCII/CRLF records, optionally
+preceded by the fixed304-byte OVMF prefix. The inherited74 records must precede
+the650-byte,24-field `M02_UNEXPECTED_STATE` metadata and the unchanged
+vector32 unexpected-panic fault record, followed by immediate EOF. Descriptor,
+original C/D/callback/capture/trigger relations and deterministic saved flags
+are validated. The inherited OS_SMOKE_PASS is not the experiment's outcome.
+
+Only that exact transcript plus a live process, measured quiet drain of at
+least750ms and successful owned termination permits runner native19, reason
+`expected_unexpected_vector_panic` and summary outcome `expected-panic`.
+The wrapper returns0 only after binding that classification, an empty raw
+stderr file, actual signed-Int32 process disposition, summary inventory and raw
+hashes. It emits no generic `TEST_PASS qemu.smoke` for this mode. Malformed,
+additional, late or rewritten bytes, generic failures, timeout, spontaneous
+exit, reset and cleanup/read errors remain failures.
+
+[Step956](../done/step956.md) records165 passing complete controlled runner
+groups and the new integration/parser/profile controls, including whitespace
+stderr and individual arithmetic-flag mutations. These use controlled
+processes and literal captures. [Step959](../done/step959.md) separately accepts
+the clean `dee6df2` full-host run and nine actual guest profiles. The panic
+capture contains76 records and650-byte metadata; source-bound runner19,
+actual wrapper0, QEMU signed-1/owned termination and measured760ms quiet pass
+independent review with empty stderr and exact EOF. The independent auditor
+keeps serial/summary CRLF and the captured host runner block's LF distinct;
+all366 controls pass after preserving the original line-ending audit failure.
+The ordinary regression lanes record configured750ms drain, not separately
+measured duration. Negative array observers retain their measured durations.
+No captured provisional flag was rewritten; parent joint acceptance combines
+the separate source/native/transcript/lifecycle/disk reviews.

@@ -7,6 +7,7 @@ internal static class M01LoadedImageStackEfiEntryTests
     private const string IssueTestName = "m01.021";
     private const string ProbeSymbol = "M01_LOADED_IMAGE_STACK_PROBE";
     private const string DoubleFaultSymbol = "M02_DOUBLE_FAULT_IST_PROBE";
+    private const string UnexpectedPanicSymbol = "M02_UNEXPECTED_VECTOR_PANIC_PROBE";
     [ModuleInitializer]
     internal static void RunAll()
     {
@@ -109,18 +110,21 @@ internal static class M01LoadedImageStackEfiEntryTests
 
     private static bool TestDefaultOffProfile()
     {
-        string selectorFixture = "#if " + DoubleFaultSymbol + "\nDfOnly();\n#else\nDfOff();\n#endif\n"
-            + "#if UNRELATED_PROBE\nUnknown();\n#else\nUnknownElse();\n#endif\n";
-        foreach (bool on in new[] { false, true })
+        foreach (string disabledSymbol in new[] { DoubleFaultSymbol, UnexpectedPanicSymbol })
         {
-            if (!TrySelectProbeProfile(selectorFixture, on, out string selected, out _)
-                || selected.Contains("DfOnly();", StringComparison.Ordinal)
-                || !selected.Contains("DfOff();", StringComparison.Ordinal)
-                || !selected.Contains("#if UNRELATED_PROBE", StringComparison.Ordinal)
-                || !selected.Contains("UnknownElse();", StringComparison.Ordinal)) return Failure("DF default-off finite selector");
+            string selectorFixture = "#if " + disabledSymbol + "\nDfOnly();\n#else\nDfOff();\n#endif\n"
+                + "#if UNRELATED_PROBE\nUnknown();\n#else\nUnknownElse();\n#endif\n";
+            foreach (bool on in new[] { false, true })
+            {
+                if (!TrySelectProbeProfile(selectorFixture, on, out string selected, out _)
+                    || selected.Contains("DfOnly();", StringComparison.Ordinal)
+                    || !selected.Contains("DfOff();", StringComparison.Ordinal)
+                    || !selected.Contains("#if UNRELATED_PROBE", StringComparison.Ordinal)
+                    || !selected.Contains("UnknownElse();", StringComparison.Ordinal)) return Failure("known diagnostic default-off finite selector");
+            }
+            if (!TrySelectProbeProfile(selectorFixture.Replace(disabledSymbol, disabledSymbol.ToLowerInvariant(), StringComparison.Ordinal), false, out string alias, out _)
+                || !alias.Contains("#if " + disabledSymbol.ToLowerInvariant(), StringComparison.Ordinal)) return Failure("known diagnostic selector ordinal");
         }
-        if (!TrySelectProbeProfile(selectorFixture.Replace(DoubleFaultSymbol, DoubleFaultSymbol.ToLowerInvariant(), StringComparison.Ordinal), false, out string alias, out _)
-            || !alias.Contains("#if m02_double_fault_ist_probe", StringComparison.Ordinal)) return Failure("DF selector ordinal");
 
         string source = LoadEfiEntrySource();
         bool defaultSelected = TrySelectProbeProfile(
@@ -3071,7 +3075,8 @@ internal static class M01LoadedImageStackEfiEntryTests
                     condition,
                     ProbeSymbol,
                     StringComparison.Ordinal);
-                bool isProbe = isStageOne || string.Equals(condition, DoubleFaultSymbol, StringComparison.Ordinal);
+                bool isProbe = isStageOne || string.Equals(condition, DoubleFaultSymbol, StringComparison.Ordinal)
+                    || string.Equals(condition, UnexpectedPanicSymbol, StringComparison.Ordinal);
                 bool selectedValue = isStageOne && enabled;
                 stack.Push(
                     new PreprocessorFrame(

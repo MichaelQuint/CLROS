@@ -10,6 +10,8 @@ internal static class M01LivePagingEfiEntryTests
 {
     private const string IssueTestName = "m01.025";
     private const string ReadyMarker = "CLROS_M01_025_READY";
+    private const string UnexpectedPanicSymbol =
+        "M02_UNEXPECTED_VECTOR_PANIC_PROBE";
     private const string StageOneSymbol =
         "M01_LOADED_IMAGE_STACK_PROBE";
     private const string StageTwoSymbol =
@@ -227,6 +229,11 @@ internal static class M01LivePagingEfiEntryTests
 
     private static bool TestProfileMatrixAndStageTwoWiring()
     {
+        if (!TestKnownFalsePanicSelector())
+        {
+            return false;
+        }
+
         string source = LoadEfiEntrySource();
         string project = LoadOsProjectSource();
         if (CountExactIf(source, StageOneSymbol) != 1
@@ -3194,6 +3201,39 @@ internal static class M01LivePagingEfiEntryTests
             RegexOptions.CultureInvariant).Count;
     }
 
+    private static bool TestKnownFalsePanicSelector()
+    {
+        string fixture = "#if " + UnexpectedPanicSymbol + "\nPanicOnly();\n#else\nPanicOff();\n#endif\n"
+            + "#if " + StageOneSymbol + "\n#if " + UnexpectedPanicSymbol
+            + "\nNestedPanic();\n#else\nNestedOff();\n#endif\n#else\nStageOff();\n#endif\n"
+            + "#if UNRELATED_PROBE\nUnknown();\n#else\nUnknownElse();\n#endif\n";
+        for (int mask = 0; mask < 8; mask++)
+        {
+            bool stageOne = (mask & 1) != 0;
+            string selected = SelectProfile(fixture, stageOne, (mask & 2) != 0, (mask & 4) != 0);
+            if (selected.Contains("PanicOnly();", StringComparison.Ordinal)
+                || selected.Contains("NestedPanic();", StringComparison.Ordinal)
+                || selected.Contains("#if " + UnexpectedPanicSymbol, StringComparison.Ordinal)
+                || CountOccurrences(selected, "PanicOff();") != 1
+                || selected.Contains("NestedOff();", StringComparison.Ordinal) != stageOne
+                || selected.Contains("StageOff();", StringComparison.Ordinal) == stageOne
+                || !selected.Contains("#if UNRELATED_PROBE", StringComparison.Ordinal)
+                || !selected.Contains("Unknown();", StringComparison.Ordinal)
+                || !selected.Contains("UnknownElse();", StringComparison.Ordinal))
+            {
+                return Failure("known-false-panic-selector=" + mask);
+            }
+        }
+
+        string aliased = fixture.Replace(UnexpectedPanicSymbol,
+            UnexpectedPanicSymbol.ToLowerInvariant(), StringComparison.Ordinal);
+        string alias = SelectProfile(aliased, false, false, false);
+        return alias.Contains("#if " + UnexpectedPanicSymbol.ToLowerInvariant(), StringComparison.Ordinal)
+            && alias.Contains("PanicOnly();", StringComparison.Ordinal)
+            && alias.Contains("PanicOff();", StringComparison.Ordinal)
+            || Failure("panic-selector-ordinal-preservation");
+    }
+
     private static string SelectProfile(
         string source,
         bool stageOneEnabled,
@@ -3222,7 +3262,8 @@ internal static class M01LivePagingEfiEntryTests
                     || string.Equals(
                         condition,
                         StageThreeSymbol,
-                        StringComparison.Ordinal);
+                        StringComparison.Ordinal)
+                    || string.Equals(condition, UnexpectedPanicSymbol, StringComparison.Ordinal);
                 bool selectedValue =
                     string.Equals(
                         condition,
@@ -3234,7 +3275,8 @@ internal static class M01LivePagingEfiEntryTests
                             StageTwoSymbol,
                             StringComparison.Ordinal)
                             ? stageTwoEnabled
-                            : stageThreeEnabled;
+                            : string.Equals(condition, StageThreeSymbol, StringComparison.Ordinal)
+                                && stageThreeEnabled;
                 stack.Push(
                     new PreprocessorFrame(
                         selected,

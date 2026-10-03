@@ -2138,3 +2138,35 @@ complete transcripts, process lifecycle and pristine/booted disks bind the
 profiles use their separately reviewed expected-failure observer. No successful
 publish is itself execution of a guest allocation; general runtime support
 remains incomplete.
+
+### M02-016 unexpected-vector profile
+
+[Step956](../done/step956.md) records the default-off
+`EnableM02UnexpectedVectorPanicProbe` /
+`M02_UNEXPECTED_VECTOR_PANIC_PROBE` profile. Its separate partial authority is
+false by default. Enable the existing loaded-image stack, live allocator, owned
+paging, safe stub, checked port-I/O binding, COM1 port-I/O, owned COM1 readiness
+and panic-safe COM1 profiles together with it. All23 other flags must be false.
+Explicit false prerequisites and reciprocal profile conflicts fail closed in
+the project, build, artifact verifier and QEMU wrapper.
+
+The current checkpoint has82 ordered Compile items,95 raw source inputs and
+32 evaluated flags (29 XML false defaults plus three separately checked risky
+inputs). The new authority and D7 leaf pass ordinary source admission; no new
+scanner exception is introduced. The existing allocator pin accounts for the
+accepted shared String storage host change. Default/enabled artifact builds
+passed with0/9 true flags and zero OS AssemblyRefs; managed IL checks bind the
+original callback and publication order. Those builds are not guest evidence.
+
+Native compiled adapter entry already uses SSE while on the inherited firmware
+path, before its later Query/Mode check. Supporting that compiled entry ABI is
+a prerequisite; the later check cannot establish safety for instructions
+already executed or reject an adversarial unsupported-SSE entry before all SSE
+use. Fresh mode admission still governs the subsequent owned transition and
+callback. Full current-image call/access/stack, ABI, original port-target and
+SIMD analysis was separately accepted for the actual step959 images. Its
+113-method access bound is5,208 bytes within the8,176-byte callback budget.
+Step959 binds the complete host pass and nine fresh guest profiles to this
+same82-item/95-input/32-flag source, including default adapter absence and the
+strict vector-32 expected-panic result. Those facts do not broaden the entry
+ABI prerequisite or prove general post-firmware operation.

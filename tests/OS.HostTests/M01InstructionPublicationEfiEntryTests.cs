@@ -22,6 +22,7 @@ internal static class M01InstructionPublicationEfiEntryTests
     private const string M02PageFaultCr2ErrorCodeSymbol =
         "M02_PAGE_FAULT_CR2_ERROR_CODE_PROBE";
     private const string M02DoubleFaultIstSymbol = "M02_DOUBLE_FAULT_IST_PROBE";
+    private const string M02UnexpectedVectorPanicSymbol = "M02_UNEXPECTED_VECTOR_PANIC_PROBE";
     private const string M04RhpNewFastSymbol = "M04_RHP_NEW_FAST_PROBE";
     private const string M04RhpBeforeBindSymbol = "M04_RHP_NEW_FAST_BEFORE_BIND_FAILURE_PROBE";
     private const string M04RhpExhaustionSymbol = "M04_RHP_NEW_FAST_EXHAUSTION_FAILURE_PROBE";
@@ -208,6 +209,21 @@ internal static class M01InstructionPublicationEfiEntryTests
             || !dfOn.Contains("#if UNRELATED_PROBE", StringComparison.Ordinal) || !dfOn.Contains("UnknownElse();", StringComparison.Ordinal)
             || !dfAlias.Contains("#if m02_double_fault_ist_probe", StringComparison.Ordinal))
             return Failure("double-fault-selector-ordinal-and-unknown");
+
+        string panic = SelectProfile(source, true, true, true, false, unexpectedVectorPanicEnabled: true);
+        if (CountDirectSerializerCalls(panic) != 6 || CountIdentifierOccurrences(panic, "M02UnexpectedVectorPanicAdapter") != 2 ||
+            CountIdentifierOccurrences(profile111, "M02UnexpectedVectorPanicAdapter") != 0 ||
+            CountIdentifierOccurrences(panic, "M02DoubleFaultIstAdapter") != 0 || CountIdentifierOccurrences(panic, "M02PageFaultAdapter") != 0)
+            return Failure("unexpected-vector-publication-isolation");
+        string panicBranches = dfBranches.Replace(M02DoubleFaultIstSymbol, M02UnexpectedVectorPanicSymbol, StringComparison.Ordinal);
+        string panicOn = SelectProfile(panicBranches, true, true, true, false, unexpectedVectorPanicEnabled: true);
+        string panicOff = SelectProfile(panicBranches, true, true, true, false);
+        string panicAlias = SelectProfile(panicBranches.Replace(M02UnexpectedVectorPanicSymbol, M02UnexpectedVectorPanicSymbol.ToLowerInvariant(), StringComparison.Ordinal), false, false, false, false);
+        if (CountDirectSerializerCalls(panicOn) != 1 || CountDirectSerializerCalls(panicOff) != 0 ||
+            panicOn.Contains("Disabled();", StringComparison.Ordinal) || !panicOff.Contains("Disabled();", StringComparison.Ordinal) ||
+            !panicOn.Contains("#if UNRELATED_PROBE", StringComparison.Ordinal) || !panicOn.Contains("UnknownElse();", StringComparison.Ordinal) ||
+            !panicAlias.Contains("#if m02_unexpected_vector_panic_probe", StringComparison.Ordinal))
+            return Failure("unexpected-vector-selector-ordinal-and-unknown");
 
         if (!TestFixedAllocationProfileIsolation(source)) return false;
 
@@ -3887,7 +3903,8 @@ internal static class M01InstructionPublicationEfiEntryTests
         bool doubleFaultIstEnabled = false,
         bool arrayEnabled = false,
         bool arrayBeforeBindEnabled = false,
-        bool arrayExhaustionEnabled = false)
+        bool arrayExhaustionEnabled = false,
+        bool unexpectedVectorPanicEnabled = false)
     {
         StringBuilder output = new();
         Stack<PreprocessorFrame> stack = new();
@@ -3929,6 +3946,8 @@ internal static class M01InstructionPublicationEfiEntryTests
                         M02PageFaultCr2ErrorCodeSymbol,
                         StringComparison.Ordinal)
                     || string.Equals(condition, M02DoubleFaultIstSymbol, StringComparison.Ordinal)
+                    || string.Equals(condition, M02UnexpectedVectorPanicSymbol, StringComparison.Ordinal)
+                    || string.Equals(condition, M04RhpNewFastSymbol + " || " + M02UnexpectedVectorPanicSymbol, StringComparison.Ordinal)
                     || string.Equals(condition, M04RhpNewFastSymbol, StringComparison.Ordinal)
                     || string.Equals(condition, M04RhpBeforeBindSymbol, StringComparison.Ordinal)
                     || string.Equals(condition, M04RhpExhaustionSymbol, StringComparison.Ordinal)
@@ -3970,6 +3989,10 @@ internal static class M01InstructionPublicationEfiEntryTests
                                             ? pageFaultCr2ErrorCodeEnabled
                                             : string.Equals(condition, M02DoubleFaultIstSymbol, StringComparison.Ordinal)
                                                 ? doubleFaultIstEnabled
+                                                : string.Equals(condition, M02UnexpectedVectorPanicSymbol, StringComparison.Ordinal)
+                                                    ? unexpectedVectorPanicEnabled
+                                                    : string.Equals(condition, M04RhpNewFastSymbol + " || " + M02UnexpectedVectorPanicSymbol, StringComparison.Ordinal)
+                                                        ? rhpNewFastEnabled || unexpectedVectorPanicEnabled
                                                 : string.Equals(condition, M04RhpNewFastSymbol, StringComparison.Ordinal)
                                                 ? rhpNewFastEnabled
                                                 : string.Equals(condition, M04RhpBeforeBindSymbol, StringComparison.Ordinal)

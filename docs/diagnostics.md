@@ -106,51 +106,57 @@ memory dump or general mapping/lifetime or recovery proof. Host/synthetic marker
 alone remain insufficient. PR #522 merge and #55/#521 closure are separate
 tracker actions; the evidence record does not assert those actions already ran.
 
-M02-016 adds a host-only unexpected-vector contract in
-`UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassification`. Its six
-operations prepare context, emit and read back the stream, decode a capture,
-validate supplied state, and report through the checked COM1 backend. The
-intended terminal route is literal `INT 0x20`, vector 32, IST0. Tests model it;
-no host test executes the emitted privileged instructions.
+M02-016 now includes the reviewed C2/D7 unexpected-vector leaf and the
+default-off `M02UnexpectedVectorPanicAdapter` source checkpoint in
+[step956](../done/step956.md). Its six leaf operations prepare context, emit and
+read back the stream, decode a capture, validate supplied state, and report
+through the checked COM1 backend. Host tests inspect ordinary bytes; they do
+not execute privileged instructions.
 
-The fixed C2/D6 layout uses 1,028 bytes of a 4,096-byte stream page. Fifteen
-integer saves, normalization and hardware-frame bytes form a 184-byte capture;
-the callback entry is 232 bytes below the original aligned stack top. That
-entry depth does not prove the complete compiled reporting stack fits the
-planned 4 KiB stack. Full extent, alias, capacity and state checks precede
-mutation, and a separate decoder checks all stream bytes and 91 instructions.
-The existing normalizer, all-present IDT, descriptor and panic formatter
-contracts are unchanged.
+The fixed layout retains two code pages and expands data to seven pages.
+D5+D6 form an 8 KiB transition/callback stack, with a 16-byte bottom sentinel.
+The 1,028-byte stream, 184-byte capture and 232-byte callback entry depth retain
+their previous roles; capture starts at D+28488 and initial callback RSP at
+D+28440. The earlier 4 KiB layout demonstrably overflowed in the isolated
+NativeAOT study recorded in step953. Neither the new capacity nor the entry
+depth proves the complete current compiled reporting chain fits. The separate
+same-image proof accepted in [step959](../done/step959.md) bounds all113 rooted
+methods, ten jump tables/218 entries, accesses and ABI/SIMD behavior at5,208
+bytes including the bridge, below the8,176-byte budget. It retains the trusted
+firmware/NativeAOT SSE entry prerequisite and does not observe a post-report
+sentinel or establish general memory lifetime safety.
 
-The subsequent isolated NativeAOT callback study demonstrated that the planned
-4 KiB stack is insufficient: the real validation path clears 80 bytes below
-that page and reaches a 4,240-byte stack depth. Independent whole-chain analysis
-of the same provisional image found a conditional 5,096-byte bound, assuming
-the two exact existing zero-frame IN/OUT targets. A two-page stack is proposed,
-but its actual adapter, concrete targets, full access bound, sentinel placement
-and mode requirements still need same-image review before guest execution.
-This compiled-artifact finding is recorded in step953; the host-only C2/D6
-source has not yet been repaired or approved for native execution.
+The adapter retains original image, callback, request, checked backend and
+allocation authority outside mutable C/D scratch. Exact original callback
+arguments are checked before capture reads. Full readback precedes sentinel
+installation, final publication and one terminal INT0x20/vector32/IST0 entry.
+The finite cleanup contract excludes the original image, I/O and temporary
+scratch ranges; ambiguous allocations are retained rather than freed.
+After entry there is no firmware return, reset, free or recovery. Firmware
+mappings and CR3 remain in place; the sentinel is not a guard page and its
+pre-report check cannot observe later reporting calls.
 
-Controlled output consists of a 650-byte, 24-field metadata record followed
-by the unchanged unexpected-vector panic record. Before each UART
-reconfiguration, a checked TEMT wait allows at most 65,536 reads; per-byte THRE
-polling remains separately limited to 128. Tests distinguish FIFO and shift
-register contents, model reconfiguration loss, and check queued final bytes,
-last-poll success, exhaustion and truthful mutation counts. The byte-return
-IN/void-return OUT binding cannot inject a returned checked-operation failure;
-those defensive branches remain unexercised through that API.
+Output remains the 650-byte/24-field metadata record followed by the existing
+unexpected-vector panic record. Two checked TEMT handoffs each permit at most
+65,536 reads; per-byte THRE remains limited to128. Controlled tests cover
+queued/final bytes, last-poll success, exhaustion and truthful counters.
+The byte-return IN/void-return OUT binding cannot inject a returned checked
+failure status; those defensive branches remain unexercised through that API.
 
-The complete focused host module passed 11 groups, with one explicitly
-host-only readiness line and terminal `TEST_PASS host.tests`. The actual
-12-source no-stdlib compile has zero AssemblyRefs, and the normal HostTests
-Release build passed. That host test evidence does not supply native execution,
-real descriptor/interrupt/COM1 observations, expected-panic runner
-classification or guest evidence. M02-016 remains open; its shared EFI
-integration must follow the array integration wave. No ordinary boot behavior
-or completion gate changes. [Step954](../done/step954.md) accepts this integrated
-C2/D6 host module in the complete suite; the later C2/D7 candidate is not part
-of that source or evidence.
+Focused evidence separately covers the complete11-pair D7 leaf (including
+12-source no-stdlib/zero AssemblyRefs), seven new integration groups,
+10 publication groups, the repaired13-pair loaded-image module and all165
+runner groups. The first three completed within a later-failed combined run;
+the loaded-image retry passed separately. Default/enabled NativeAOT artifacts
+have zero OS AssemblyRefs. These source, controlled-process and artifact checks
+alone do not constitute a passed full suite or real panic. Step959 separately
+accepts the complete3,636/3,637/0 host run and nine fresh guest profiles at
+`dee6df2`. Its panic lane has76 exact records, full current-state/native
+associations, wrapper0/source-bound runner19, QEMU signed-1/owned termination,
+measured760ms quiet and empty stderr. The original port targets and exact
+650-byte metadata are preserved. Review/parser failures remain recorded.
+Gates3/4 remain **Fail**. [QEMU](qemu.md) documents the distinct expected-panic
+classification; merge and tracker closure remain separate actions.
 
 No ordinary boot phase loads an IDT, installs fault handlers, activates IST
 routing, directs a live CPU fault to panic, or preserves an owned serial path

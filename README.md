@@ -31,7 +31,7 @@ partial gates and many prerequisite contracts, but it has not yet passed
 `ExitBootServices`, owned-driver, live storage, live networking, native-app
 execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
 
-### Current implementation checkpoint (updated through 2026-10-02)
+### Current implementation checkpoint (updated through 2026-10-03)
 
 - M04-004 now has independently reviewed host and fresh default/enabled
   QEMU/OVMF evidence. The opt-in NativeAOT EFI profile executes 57 integer
@@ -76,6 +76,21 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
   page-fault/double-fault regressions. Independent native, transcript, lifecycle
   and disk reviews are recorded in [step954](done/step954.md). General arrays,
   managed reference stores, GC, strings and Gate 4 remain incomplete.
+
+- M02-016 has accepted bounded unexpected-vector panic evidence at `dee6df2`.
+  The complete host suite passes 3,636 starts/3,637 passes with zero failures.
+  Nine fresh QEMU profiles pass independent source, native, transcript,
+  lifecycle and disk review. The vector-32 experiment ends in the exact panic
+  record and expected-panic classification; ordinary defaults remain off.
+  [Step959](done/step959.md) records the evidence and the inherited firmware
+  entry prerequisite. Gates3/4 remain **Fail**.
+
+- M04-009 adds host-tested String storage to the same retained allocation page
+  and cursor. Complete fixed/array/String modules pass 31 starts/32 passes,
+  including UTF-16 storage, terminators, signed-length checks and unchanged
+  rejection storage. [Step955](done/step955.md) records this host checkpoint;
+  step959 adds the complete host gate and fixed/array compatibility evidence.
+  Compiled String constructors and String guest execution remain pending.
 
 - The 2026-08-06 local Gitea snapshot had **273 open issues** (issues only,
   excluding pull requests). That was ten fewer than the earlier 283-issue

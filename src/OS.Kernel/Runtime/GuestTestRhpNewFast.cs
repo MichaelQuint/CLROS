@@ -68,7 +68,8 @@ public enum RhpNewFastStatus : byte
     Exhausted = 15,
     UnsupportedArrayType = 16,
     InvalidComponentSize = 17,
-    InvalidLength = 18
+    InvalidLength = 18,
+    UnsupportedStringType = 19
 }
 
 public enum RhpNewFastOperation : byte
@@ -120,7 +121,7 @@ public readonly struct RhpNewFastResult
 }
 
 /// <summary>
-/// Bounded host-testable fixed and SZ-array bytes on a caller-mapped retained
+/// Bounded host-testable fixed, SZ-array and String bytes on a caller-mapped retained
 /// page, not a runtime export, compiled-new proof, collector, refill or OOM.
 /// Caller storage must remain readable/writable, exclusive and stable; the caller
 /// owns one controller and the real mapping/lifetime. Numeric spans cannot prove
@@ -162,18 +163,23 @@ public static unsafe class GuestTestRhpNewFast
     public static RhpNewFastResult TryAllocate(RhpNewFastHeapAccess access,
         RhpNewFastBumpState* state, ulong stateCapacity, NativeAotLayoutProfile profile,
         NativeAotMethodTablePrefix prefix, ulong methodTableToken) =>
-        AllocateCore(access, state, stateCapacity, profile, prefix, methodTableToken, false, 0);
+        AllocateCore(access, state, stateCapacity, profile, prefix, methodTableToken, NativeAotLayoutShape.FixedObject, 0);
 
     internal static RhpNewFastResult TryAllocateArray(RhpNewFastHeapAccess access,
         RhpNewFastBumpState* state, ulong stateCapacity, NativeAotLayoutProfile profile,
         NativeAotMethodTablePrefix prefix, ulong methodTableToken, int length) =>
-        AllocateCore(access, state, stateCapacity, profile, prefix, methodTableToken, true, length);
+        AllocateCore(access, state, stateCapacity, profile, prefix, methodTableToken, NativeAotLayoutShape.SzArray, length);
 
-    // Both routes share authority validation and the sole allocation/cursor commit.
-    // The fixed route never depends on the public array wrapper or its source file.
+    internal static RhpNewFastResult TryAllocateString(RhpNewFastHeapAccess access,
+        RhpNewFastBumpState* state, ulong stateCapacity, NativeAotLayoutProfile profile,
+        NativeAotMethodTablePrefix prefix, ulong methodTableToken, long length) =>
+        AllocateCore(access, state, stateCapacity, profile, prefix, methodTableToken, NativeAotLayoutShape.String, length);
+
+    // All routes share authority validation and the sole allocation/cursor commit.
+    // The core never depends on the public array/String wrappers or their files.
     private static RhpNewFastResult AllocateCore(RhpNewFastHeapAccess access,
         RhpNewFastBumpState* state, ulong stateCapacity, NativeAotLayoutProfile profile,
-        NativeAotMethodTablePrefix prefix, ulong methodTableToken, bool array, int length)
+        NativeAotMethodTablePrefix prefix, ulong methodTableToken, NativeAotLayoutShape shape, long length)
     {
         RhpNewFastStatus status = ValidateStorage(access, state, stateCapacity);
         if (status != RhpNewFastStatus.Success) return Fail(status);
@@ -197,8 +203,10 @@ public static unsafe class GuestTestRhpNewFast
         if (!ValidToken(access, state, stateCapacity, methodTableToken))
             return Fail(RhpNewFastStatus.InvalidMethodTableToken);
         ulong size;
-        if (array)
-            status = AdmitArrayType(profile, prefix, length, out size);
+        if (shape == NativeAotLayoutShape.SzArray)
+            status = AdmitArrayType(profile, prefix, (int)length, out size);
+        else if (shape == NativeAotLayoutShape.String)
+            status = AdmitStringType(profile, prefix, length, out size);
         else
         {
             status = AdmitFixedType(prefix);
@@ -217,7 +225,7 @@ public static unsafe class GuestTestRhpNewFast
         for (ulong i = 0; i < size; i++) bytes[i] = 0;
         // Explicit x64 little-endian MT slot at reference origin B+8. Never dereference MT.
         for (int i = 0; i < 8; i++) bytes[8 + i] = (byte)(methodTableToken >> (i * 8));
-        if (array)
+        if (shape != NativeAotLayoutShape.FixedObject)
             for (int i = 0; i < 4; i++) bytes[16 + i] = (byte)((uint)length >> (i * 8));
         state->UsedValue = after;
         state->CountValue = count;
@@ -329,6 +337,37 @@ public static unsafe class GuestTestRhpNewFast
         if ((component != 1 && component != 2 && component != 4 && component != 8) ||
             (layout.ContainsGcPointers && component != 8))
             return RhpNewFastStatus.InvalidComponentSize;
+        size = layout.AlignedSizeBytes;
+        return RhpNewFastStatus.Success;
+    }
+
+    private static RhpNewFastStatus AdmitStringType(NativeAotLayoutProfile profile,
+        NativeAotMethodTablePrefix prefix, long length, out ulong size)
+    {
+        size = 0;
+        // Validate the full signed x64 count before narrowing. An invalid count
+        // becomes the evaluator's invalid sentinel, preserving its flags/base/
+        // component-before-length precedence without truncating the caller value.
+        int count = length >= 0 && length <= ObjectArrayStringEETypeMethodTableLayoutContracts.MaximumStringLength
+            ? (int)length : -1;
+        NativeAotLayoutResult layout = ObjectArrayStringEETypeMethodTableLayoutContracts.Evaluate(
+            profile, prefix, count, ~0UL);
+        if (!layout.Succeeded)
+        {
+            switch (layout.Status)
+            {
+                case NativeAotLayoutStatus.InvalidFlags: return RhpNewFastStatus.InvalidMethodTableFlags;
+                case NativeAotLayoutStatus.InvalidBaseSize: return RhpNewFastStatus.InvalidBaseSize;
+                case NativeAotLayoutStatus.InvalidComponentSize: return RhpNewFastStatus.InvalidComponentSize;
+                case NativeAotLayoutStatus.InvalidLength: return RhpNewFastStatus.InvalidLength;
+                case NativeAotLayoutStatus.CapacityTooSmall: return RhpNewFastStatus.Exhausted;
+                default: return RhpNewFastStatus.UnsupportedStringType;
+            }
+        }
+        if (layout.Shape != NativeAotLayoutShape.String)
+            return RhpNewFastStatus.UnsupportedStringType;
+        // The existing String evaluator requires base22/component2/no pointers:
+        // align8(22+2*n) includes the zero UTF-16 terminator at B+20+2*n.
         size = layout.AlignedSizeBytes;
         return RhpNewFastStatus.Success;
     }

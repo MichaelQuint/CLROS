@@ -18,6 +18,7 @@ param(
     [switch]$EnableM02Ud2VectorStateProbe,
     [switch]$EnableM02PageFaultCr2ErrorCodeProbe,
     [switch]$EnableM02DoubleFaultIstProbe,
+    [switch]$EnableM02UnexpectedVectorPanicProbe,
     [switch]$EnableM04IndependentEndianConformanceProbe,
     [switch]$EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe,
     [switch]$EnableM04ArithmeticConformanceProbe,
@@ -59,7 +60,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 93
+$expectedSourceClosureInputCount = 95
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -158,6 +159,8 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Diagnostics\SeparateDisabledDefaultPageFaultTransition.cs|Diagnostics\SeparateDisabledDefaultPageFaultTransition.cs',
     '..\OS.Kernel\Diagnostics\DoubleFaultIstProbeAuthority.cs|Diagnostics\DoubleFaultIstProbeAuthority.cs',
     '..\OS.Kernel\Diagnostics\DoubleFaultISTPathSilentRebootOrTriple.cs|Diagnostics\DoubleFaultISTPathSilentRebootOrTriple.cs',
+    '..\OS.Kernel\Diagnostics\UnexpectedVectorPanicProbeAuthority.cs|Diagnostics\UnexpectedVectorPanicProbeAuthority.cs',
+    '..\OS.Kernel\Diagnostics\UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassification.cs|Diagnostics\UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassification.cs',
     '..\OS.Kernel\Diagnostics\InvalidOpcodeVectorAuthority.cs|Diagnostics\InvalidOpcodeVectorAuthority.cs',
     '..\OS.Kernel\Diagnostics\CpuFaultFrame.cs|Diagnostics\CpuFaultFrame.cs',
     '..\OS.Kernel\Diagnostics\DisabledDefaultUd2VectorState.cs|Diagnostics\DisabledDefaultUd2VectorState.cs',
@@ -3842,6 +3845,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM02Ud2VectorStateProbe," +
             "EnableM02PageFaultCr2ErrorCodeProbe," +
             "EnableM02DoubleFaultIstProbe," +
+            "EnableM02UnexpectedVectorPanicProbe," +
             "EnableM04IndependentEndianConformanceProbe," +
             "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe," +
             "EnableM04ArithmeticConformanceProbe," +
@@ -4042,6 +4046,9 @@ function Invoke-PostRestoreEvaluationSnapshot {
     if ($EnableM02DoubleFaultIstProbe) {
         $arguments += "-p:EnableM02DoubleFaultIstProbe=true"
     }
+    if ($EnableM02UnexpectedVectorPanicProbe) {
+        $arguments += "-p:EnableM02UnexpectedVectorPanicProbe=true"
+    }
 
     $previousLink = $env:LINK
     $previousTrailingLink = $env:_LINK_
@@ -4203,6 +4210,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM02PageFaultCr2ErrorCodeProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM02DoubleFaultIstProbe =
             $EnableM02DoubleFaultIstProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM02UnexpectedVectorPanicProbe =
+            $EnableM02UnexpectedVectorPanicProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04IndependentEndianConformanceProbe =
             $EnableM04IndependentEndianConformanceProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe =
@@ -4296,7 +4305,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 80 -or
+    if ($compileItems.Count -ne 82 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4436,7 +4445,7 @@ if ($EnableM04SzArrayAllocationProbe) {
     }
 }
 if ($EnableM04SzArrayAllocationProbe -or $EnableM04SzArrayAllocationBeforeBindProbe -or $EnableM04SzArrayAllocationExhaustionProbe) {
-    foreach ($arrayConflict in @("EnableM02SafeStubProbe", "EnableM02CheckedPortIoBindingProbe", "EnableM02Com1OwnedPortIoProbe", "EnableM02OwnedCom1ReadyProbe", "EnableM02PanicSafeOwnedCom1Probe", "EnableM02OwnedX64GdtEncodingProbe", "EnableM02GuardedIstStackAllocationProbe", "EnableM02OwnedGdtTssTerminalProbe", "EnableM02NormalizedInterruptFramePageProbe", "EnableM02OwnedIdtGatePopulationProbe", "EnableM02IdtrContinuedExecutionProbe", "EnableM02Ud2VectorStateProbe", "EnableM02PageFaultCr2ErrorCodeProbe", "EnableM02DoubleFaultIstProbe", "EnableM01OwnedPagingProbe", "EnableUefiGoneSimulationProbe", "EnableExitBootServicesFreshMapProbe", "EnableAcpiPhysicalDiscoveryProbe", "EnableM04RhpNewFastBeforeBindFailureProbe", "EnableM04RhpNewFastExhaustionFailureProbe")) {
+    foreach ($arrayConflict in @("EnableM02SafeStubProbe", "EnableM02CheckedPortIoBindingProbe", "EnableM02Com1OwnedPortIoProbe", "EnableM02OwnedCom1ReadyProbe", "EnableM02PanicSafeOwnedCom1Probe", "EnableM02OwnedX64GdtEncodingProbe", "EnableM02GuardedIstStackAllocationProbe", "EnableM02OwnedGdtTssTerminalProbe", "EnableM02NormalizedInterruptFramePageProbe", "EnableM02OwnedIdtGatePopulationProbe", "EnableM02IdtrContinuedExecutionProbe", "EnableM02Ud2VectorStateProbe", "EnableM02PageFaultCr2ErrorCodeProbe", "EnableM02DoubleFaultIstProbe", "EnableM02UnexpectedVectorPanicProbe", "EnableM01OwnedPagingProbe", "EnableUefiGoneSimulationProbe", "EnableExitBootServicesFreshMapProbe", "EnableAcpiPhysicalDiscoveryProbe", "EnableM04RhpNewFastBeforeBindFailureProbe", "EnableM04RhpNewFastExhaustionFailureProbe")) {
         if ([bool](Get-Variable -Name $arrayConflict -ValueOnly)) { $arrayReason = "m04_sz_array_conflicting_profile_" + $arrayConflict }
     }
 }
@@ -4447,7 +4456,7 @@ if ($EnableM04RhpNewFastProbe) {
     foreach ($rhpRequired in @("EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe", "EnableM04IndependentEndianConformanceProbe", "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe", "EnableM04ArithmeticConformanceProbe", "EnableM04LayoutContractProbe", "EnableM04ManagedHeapPageRangeProbe")) {
         if (-not [bool](Get-Variable -Name $rhpRequired -ValueOnly)) { $rhpReason = "m04_rhp_new_fast_requires_explicit_chain_" + $rhpRequired }
     }
-    foreach ($rhpConflict in @("EnableM02SafeStubProbe", "EnableM02CheckedPortIoBindingProbe", "EnableM02Com1OwnedPortIoProbe", "EnableM02OwnedCom1ReadyProbe", "EnableM02PanicSafeOwnedCom1Probe", "EnableM02OwnedX64GdtEncodingProbe", "EnableM02GuardedIstStackAllocationProbe", "EnableM02OwnedGdtTssTerminalProbe", "EnableM02NormalizedInterruptFramePageProbe", "EnableM02OwnedIdtGatePopulationProbe", "EnableM02IdtrContinuedExecutionProbe", "EnableM02Ud2VectorStateProbe", "EnableM02PageFaultCr2ErrorCodeProbe", "EnableM02DoubleFaultIstProbe", "EnableM01OwnedPagingProbe", "EnableUefiGoneSimulationProbe", "EnableExitBootServicesFreshMapProbe", "EnableAcpiPhysicalDiscoveryProbe")) {
+    foreach ($rhpConflict in @("EnableM02SafeStubProbe", "EnableM02CheckedPortIoBindingProbe", "EnableM02Com1OwnedPortIoProbe", "EnableM02OwnedCom1ReadyProbe", "EnableM02PanicSafeOwnedCom1Probe", "EnableM02OwnedX64GdtEncodingProbe", "EnableM02GuardedIstStackAllocationProbe", "EnableM02OwnedGdtTssTerminalProbe", "EnableM02NormalizedInterruptFramePageProbe", "EnableM02OwnedIdtGatePopulationProbe", "EnableM02IdtrContinuedExecutionProbe", "EnableM02Ud2VectorStateProbe", "EnableM02PageFaultCr2ErrorCodeProbe", "EnableM02DoubleFaultIstProbe", "EnableM02UnexpectedVectorPanicProbe", "EnableM01OwnedPagingProbe", "EnableUefiGoneSimulationProbe", "EnableExitBootServicesFreshMapProbe", "EnableAcpiPhysicalDiscoveryProbe")) {
         if ([bool](Get-Variable -Name $rhpConflict -ValueOnly)) { $rhpReason = "m04_rhp_new_fast_conflicting_profile_" + $rhpConflict }
     }
 }
@@ -4555,6 +4564,7 @@ if ($EnableM02Ud2VectorStateProbe) {
 if ($EnableM02PageFaultCr2ErrorCodeProbe) {
     foreach ($conflict in @(
         "EnableM02DoubleFaultIstProbe"
+        "EnableM02UnexpectedVectorPanicProbe"
         "EnableM02OwnedX64GdtEncodingProbe"
         "EnableM02GuardedIstStackAllocationProbe"
         "EnableM02OwnedGdtTssTerminalProbe"
@@ -4600,6 +4610,38 @@ if ($EnableM02DoubleFaultIstProbe) {
     )) {
         if ([bool](Get-Variable -Name $conflict -ValueOnly)) {
             throw ("m02_double_fault_ist_profile_conflict " + $conflict)
+        }
+    }
+}
+
+if ($EnableM02UnexpectedVectorPanicProbe) {
+    foreach ($conflict in @(
+        "EnableM02OwnedX64GdtEncodingProbe"
+        "EnableM02GuardedIstStackAllocationProbe"
+        "EnableM02OwnedGdtTssTerminalProbe"
+        "EnableM02NormalizedInterruptFramePageProbe"
+        "EnableM02OwnedIdtGatePopulationProbe"
+        "EnableM02IdtrContinuedExecutionProbe"
+        "EnableM02Ud2VectorStateProbe"
+        "EnableM04IndependentEndianConformanceProbe"
+        "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"
+        "EnableM04ArithmeticConformanceProbe"
+        "EnableM04LayoutContractProbe"
+        "EnableM04ManagedHeapPageRangeProbe"
+        "EnableM02PageFaultCr2ErrorCodeProbe"
+        "EnableM02DoubleFaultIstProbe"
+        "EnableM04RhpNewFastProbe"
+        "EnableM04RhpNewFastBeforeBindFailureProbe"
+        "EnableM04RhpNewFastExhaustionFailureProbe"
+        "EnableM04SzArrayAllocationProbe"
+        "EnableM04SzArrayAllocationBeforeBindProbe"
+        "EnableM04SzArrayAllocationExhaustionProbe"
+        "EnableUefiGoneSimulationProbe"
+        "EnableExitBootServicesFreshMapProbe"
+        "EnableAcpiPhysicalDiscoveryProbe"
+    )) {
+        if ([bool](Get-Variable -Name $conflict -ValueOnly)) {
+            throw ("m02_unexpected_vector_panic_profile_conflict " + $conflict)
         }
     }
 }
@@ -4685,6 +4727,49 @@ if ($EnableM02DoubleFaultIstProbe) {
         [System.Management.Automation.SwitchParameter]::new($true)
     Write-Output (
         "EFI_ARTIFACT_M02_DOUBLE_FAULT_IST_IMPLICATION status=ok " +
+        "m01LoadedImageStack=true m01LiveAllocator=true ownedPaging=true " +
+        "m02SafeStub=true checkedPortIoBinding=true com1OwnedPortIo=true " +
+        "ownedCom1Ready=true panicSafeOwnedCom1=true")
+}
+
+if ($EnableM02UnexpectedVectorPanicProbe) {
+    $m02UnexpectedVectorPanicPrerequisites = @(
+        "EnableM01LoadedImageStackProbe",
+        "EnableM01LiveAllocatorProbe",
+        "EnableM01OwnedPagingProbe",
+        "EnableM02SafeStubProbe",
+        "EnableM02CheckedPortIoBindingProbe",
+        "EnableM02Com1OwnedPortIoProbe",
+        "EnableM02OwnedCom1ReadyProbe",
+        "EnableM02PanicSafeOwnedCom1Probe"
+    )
+    foreach ($prerequisiteName in $m02UnexpectedVectorPanicPrerequisites) {
+        if ($PSBoundParameters.ContainsKey($prerequisiteName) -and
+            -not [bool]$PSBoundParameters[$prerequisiteName]) {
+            Write-Failure `
+                "m02_unexpected_vector_panic_probe_explicit_false_prerequisite" `
+                ("property=" + $prerequisiteName)
+        }
+    }
+
+    $EnableM01LoadedImageStackProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM01LiveAllocatorProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM01OwnedPagingProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM02SafeStubProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM02CheckedPortIoBindingProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM02Com1OwnedPortIoProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM02OwnedCom1ReadyProbe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    $EnableM02PanicSafeOwnedCom1Probe =
+        [System.Management.Automation.SwitchParameter]::new($true)
+    Write-Output (
+        "EFI_ARTIFACT_M02_UNEXPECTED_VECTOR_PANIC_IMPLICATION status=ok " +
         "m01LoadedImageStack=true m01LiveAllocator=true ownedPaging=true " +
         "m02SafeStub=true checkedPortIoBinding=true com1OwnedPortIo=true " +
         "ownedCom1Ready=true panicSafeOwnedCom1=true")

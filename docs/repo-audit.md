@@ -154,6 +154,38 @@ and the reachable local Gitea tracker:
   materialization, full-page readback, and value-only RW+NX-to-RO+X
   finalization audit. It does not change live protection or execute any entry.
 - `tests/OS.HostTests` verifies marker emission, boot event ring-buffer behavior, boot info, typed handoff metadata, UEFI memory-map contracts, normalized memory-map conversion, UEFI-gone simulation behavior, diagnostics, manifest validation, libvirt XML generation, source firewall behavior, storage/network parser primitives, ACPI/PCI/virtio planning contracts, and the current `OS.Std.Ascii`, endian, and `OS.Std.MemoryExtensions` helper slices.
+- M02-016's C2/D7 leaf and default-off adapter source are integrated under
+  supplement #526. The controlled expected-panic runner preserves ordinary
+  failure behavior and passes its complete165-group module. Seven new EFI,
+  eleven D7 and ten publication groups completed in a later-failed combined
+  run; the repaired loaded-image module then passed13/14/0 separately.
+  Default/enabled NativeAOT artifacts have zero OS AssemblyRefs. These are
+  source/focused/artifact facts recorded in [step956](../done/step956.md).
+  The independent native call/access/ABI/SIMD review accepts a conservative
+  5,208-byte bound within the 8,176-byte callback budget, subject to fresh
+  same-image association and the documented inherited entry-ABI prerequisite.
+  The complete host attempt at `74bb2e7` failed in one legacy M01-023 profile
+  selector; [step957](../done/step957.md) records that failure and its narrow
+  fixture repair. The subsequent complete retry at `aa84d3d` passed those
+  selectors but stopped at one M02-005 source assertion that omitted the
+  new panic adapter's backend construction. Related allocation fixtures also
+  omitted the added panic profile from their exact conflict counts.
+  [Step958](../done/step958.md) records the follow-up repairs and their evidence
+  boundary. [Step959](../done/step959.md) accepts the clean `dee6df2` full
+  suite (3,636 starts/3,637 passes/zero failures, unchanged launch binaries)
+  and nine fresh default/panic/UD2/PF/DF/fixed/mixed-array/rejection profiles.
+  Independent same-image, raw, lifecycle and disk reviews bind the actual
+  76-record vector-32 panic to wrapper0, runner classification19 and measured
+  760ms quiet. The 5,208-byte native bound and inherited entry prerequisite
+  remain explicit. Reviewed merge and tracker closure are separate actions;
+  Gates3/4 remain **Fail**.
+- `GuestTestStringAllocationCharacterStorage` adds a bounded host entry to the
+  existing fixed/array retained-page allocator. The complete three-module run
+  passes 31 starts/32 passes with zero failures, and all three real no-stdlib
+  closures have zero AssemblyRefs. [Step955](../done/step955.md) records exact
+  source and evidence identities. Step959 accepts the combined full suite and
+  same-image fixed/array compatibility after this shared-core change. Native
+  String integration and actual String guest execution remain pending.
 - `scripts/check-naming.ps1` enumerates admitted files once for its naming and
   source-firewall checks. It prunes excluded directory names before descent,
   skips directory reparse points, retains the provider's default hidden-file
