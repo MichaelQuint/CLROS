@@ -166,8 +166,13 @@ and the reachable local Gitea tracker:
   same-image association and the documented inherited entry-ABI prerequisite.
   The complete host attempt at `74bb2e7` failed in one legacy M01-023 profile
   selector; [step957](../done/step957.md) records that failure and its narrow
-  fixture repair. A fresh complete host pass and nine guest reviews remain
-  required. #56/#526 stay open.
+  fixture repair. The subsequent complete retry at `aa84d3d` passed those
+  selectors but stopped at one M02-005 source assertion that omitted the
+  new panic adapter's backend construction. Related allocation fixtures also
+  omitted the added panic profile from their exact conflict counts.
+  [Step958](../done/step958.md) records the follow-up repairs and their evidence
+  boundary. A fresh complete host pass and nine guest reviews remain required.
+  #56/#526 stay open.
 - `GuestTestStringAllocationCharacterStorage` adds a bounded host entry to the
   existing fixed/array retained-page allocator. The complete three-module run
   passes 31 starts/32 passes with zero failures, and all three real no-stdlib

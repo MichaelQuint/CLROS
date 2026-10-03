@@ -457,7 +457,7 @@ internal static class M04RhpNewFastEfiIntegrationTests
         string[] conflicts=["EnableM01OwnedPagingProbe",..XDocument.Load(Path.Combine(root,"src/OS/OS.csproj")).Descendants()
             .Where(x=>x.Name.LocalName.StartsWith("EnableM02",StringComparison.Ordinal)).Select(x=>x.Name.LocalName).Distinct(StringComparer.Ordinal),
             "EnableUefiGoneSimulationProbe","EnableExitBootServicesFreshMapProbe","EnableAcpiPhysicalDiscoveryProbe"];
-        Need(conflicts.Length==18,"all unrelated profile conflicts");
+        Need(conflicts.Length==19,"all unrelated profile conflicts");
         List<string[]> invalid=[..Chain.Select(missing=>all.Where(x=>x!=missing).ToArray()),..conflicts.Select(x=>all.Append(x).ToArray()),[before],[exhaust],[..all,before,exhaust]];
         int id=0;
         foreach(string[] flags in invalid)

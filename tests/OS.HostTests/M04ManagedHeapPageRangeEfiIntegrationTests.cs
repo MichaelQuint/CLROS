@@ -244,10 +244,13 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
         string[] collisions=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj")).Descendants("Error")
             .Select(x=>x.Attribute("Condition")?.Value??"").Where(x=>x.StartsWith("'$("+Flag+")'",StringComparison.Ordinal) && x.EndsWith("== 'true'",StringComparison.Ordinal))
             .Select(x=>Regex.Matches(x,@"\$\(([^)]+)\)")[1].Groups[1].Value).ToArray();
-        Require(collisions.Length==16,"bounded collision list");
+        Require(collisions.Length==17,"bounded collision list");
         foreach(string collision in collisions) {
             Result r=Qemu(["-BuildEfi",..enabled,"-"+collision]);
-            Require(r.Code!=0 && r.Output.Contains("m04_managed_heap_page_range_forbids_",StringComparison.Ordinal),r.Output);
+            string expectedDiagnostic=string.Equals(collision,"EnableM02UnexpectedVectorPanicProbe",StringComparison.Ordinal)
+                ? "m02_unexpected_vector_panic_profile_conflict property=EnableM04IndependentEndianConformanceProbe"
+                : "m04_managed_heap_page_range_forbids_";
+            Require(r.Code!=0 && r.Output.Contains(expectedDiagnostic,StringComparison.Ordinal),r.Output);
         }
         foreach(string[] extra in new[] {new[]{"-SkipImageBuild"},new[]{"-M01RawObservationLog","artifacts/issue516-tests/forbidden.json"}}) {
             Result r=Qemu(["-BuildEfi",..enabled,..extra]);Require(r.Code!=0,r.Output);
@@ -359,7 +362,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
                 try {Assert-PostRestoreEvidenceMatchesSnapshot -Evidence $changed -Snapshot $snapshot} catch {$rejected=$true}
                 if(-not $rejected){throw $kind}
             }
-            Write-Output 'TEST_PASS m04.006.efi.authority flags=31 flipped=31 missing=1 embeddedNul=1'
+            Write-Output 'TEST_PASS m04.006.efi.authority flags=32 flipped=32 missing=1 embeddedNul=1'
             """);
         File.WriteAllText(Path.Combine(directory,"Authority.csproj"),"""
             <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
@@ -409,7 +412,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
             """);
         Result r=Process(root,"dotnet","run","--project",Path.Combine(directory,"Authority.csproj"),"-c","Release");
         File.WriteAllText(Path.Combine(directory,"run.log"),r.Output);
-        Require(r.Code==0 && r.Output.Contains("flags=31 flipped=31",StringComparison.Ordinal),r.Output);
+        Require(r.Code==0 && r.Output.Contains("flags=32 flipped=32",StringComparison.Ordinal),r.Output);
     }
 
     private static void TestFirewall()

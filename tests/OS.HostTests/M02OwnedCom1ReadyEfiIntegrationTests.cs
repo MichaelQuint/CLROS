@@ -284,9 +284,48 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
                 source,
                 ".OwnedCom1ReadyExclusivelyOwnedWriter") == 1
             && CountOccurrences(source, ".Emit(ownedCom1Backend);") == 1
-            && CountOccurrences(
-                source,
-                "new OS.Kernel.Diagnostics.Com1OwnedPortIoBackend(") == 3;
+            && HasExpectedBackendConstructions(source)
+            && !HasExpectedBackendConstructions(source.Replace(
+                "#if M02_UNEXPECTED_VECTOR_PANIC_PROBE\n    private static class M02UnexpectedVectorPanicAdapter",
+                "#if UNKNOWN_PANIC_PROFILE\n    private static class M02UnexpectedVectorPanicAdapter",
+                StringComparison.Ordinal))
+            && !HasExpectedBackendConstructions(source.Replace(
+                "s_authority.Backend = new OS.Kernel.Diagnostics.Com1OwnedPortIoBackend(binding.Binding);",
+                "s_authority.Backend = default;",
+                StringComparison.Ordinal))
+            && !HasExpectedBackendConstructions(source.Replace(
+                "Com1OwnedPortIoBackend(binding.Binding)",
+                "Com1OwnedPortIoBackend(default)",
+                StringComparison.Ordinal))
+            && !HasExpectedBackendConstructions(source +
+                "\nnew OS.Kernel.Diagnostics.Com1OwnedPortIoBackend(default);");
+    }
+
+    private static bool HasExpectedBackendConstructions(string source)
+    {
+        const string Construction =
+            "new OS.Kernel.Diagnostics.Com1OwnedPortIoBackend(";
+        const string PanicStart =
+            "#if M02_UNEXPECTED_VECTOR_PANIC_PROBE\n    private static class M02UnexpectedVectorPanicAdapter";
+        int start = source.IndexOf(PanicStart, StringComparison.Ordinal);
+        int end = start < 0 ? -1 : source.IndexOf(
+            "\n#endif", start + PanicStart.Length, StringComparison.Ordinal);
+        if (start < 0 || end < 0 || CountOccurrences(source, PanicStart) != 1)
+        {
+            return false;
+        }
+
+        string panic = source[start..end];
+        // Keep the original three constructions exact; the fourth belongs only
+        // to the separately gated panic adapter and its retained binding.
+        return !panic.Contains("\n#if", StringComparison.Ordinal)
+            && !panic.Contains("\n#else", StringComparison.Ordinal)
+            && !panic.Contains("\n#elif", StringComparison.Ordinal)
+            && panic.Contains(
+                "s_authority.Backend = new OS.Kernel.Diagnostics.Com1OwnedPortIoBackend(binding.Binding);",
+                StringComparison.Ordinal)
+            && CountOccurrences(panic, Construction) == 1
+            && CountOccurrences(source.Remove(start, end - start), Construction) == 3;
     }
 
     private static bool TestMarkerTransportSeparation()
