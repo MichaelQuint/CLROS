@@ -29,6 +29,8 @@ internal struct RhpObjectObservation
     internal ulong Allocation, Reference, End, UsedBefore, UsedAfter, Count;
     internal ulong Sync, ObservedMt, ZeroBytes, ZeroOr;
     internal ulong ScalarOffset, Scalar, UntouchedBytes, UntouchedOr;
+    // Array-only observations stay in caller-owned POD storage, never another heap cursor.
+    internal ulong Length, ElementTable, ElementPrefix0, ElementPrefix1, ElementPrefix2, ScalarWidth;
 }
 
 internal unsafe struct RhpObservationStorage
@@ -100,25 +102,51 @@ internal static unsafe class RhpNewFastAllocationCore
     internal static RhpAllocationAttempt Allocate(RhpNewFastHeapAccess* access,
         RhpNewFastBumpState* bump, RhpAllocationControl* control, RhpObservationStorage* records,
         ulong token, ulong expectedToken, ulong id, ulong route)
+        => AllocateCore(access, bump, control, records, token, expectedToken, id, route, false, 0, 0);
+
+    internal static RhpAllocationAttempt AllocateMixed(RhpNewFastHeapAccess* access,
+        RhpNewFastBumpState* bump, RhpAllocationControl* control, RhpObservationStorage* records,
+        ulong token, ulong expectedToken, ulong id, ulong route, int length, ulong expectedElement)
+        => AllocateCore(access, bump, control, records, token, expectedToken, id, route, true, length, expectedElement);
+
+    private static RhpAllocationAttempt AllocateCore(RhpNewFastHeapAccess* access,
+        RhpNewFastBumpState* bump, RhpAllocationControl* control, RhpObservationStorage* records,
+        ulong token, ulong expectedToken, ulong id, ulong route, bool mixed, int length, ulong expectedElement)
     {
         RhpAdmissionStatus ready = Ready(access, bump, control, records);
         if (ready != RhpAdmissionStatus.Success) return new(ready);
         if (control->InProgress != 0) return new(RhpAdmissionStatus.Reentry);
         if (token == 0 || token != expectedToken) return new(RhpAdmissionStatus.UnknownToken);
-        bool filler = control->Completed == 10 && id == 1 && route == 1;
-        if (id == 0 || id > 10 || route != (id <= 4 ? 1UL : 2UL) ||
-            (!filler && id != control->Completed + 1)) return new(RhpAdmissionStatus.InvalidFixture);
+        bool array = mixed && (route == 3 || route == 4);
+        if (array && length != (id == 3 ? control->Completed == 5 ? 1 : 3 : id == 5 ? 1 : 0))
+            return new(RhpAdmissionStatus.InvalidFixture);
+        bool filler = mixed ? control->Completed == 5 && id <= 3
+            : control->Completed == 10 && id == 1 && route == 1;
+        if (id == 0 || id > (mixed ? 5UL : 10UL) ||
+            route != (mixed ? (id == 1 || id == 4 ? 1UL : id == 3 ? 4UL : 3UL) : id <= 4 ? 1UL : 2UL) ||
+            (!filler && id != control->Completed + 1 && !(mixed && id == 2 && control->Completed == 0 && !bump->IsInitialized))) return new(RhpAdmissionStatus.InvalidFixture);
         if (!PrefixDisjoint(*access, access, bump, control, records, token) ||
             !TryReadPrefix((byte*)control->Image, control->ImageBytes, token, expectedToken,
                 out NativeAotMethodTablePrefix prefix, out ulong word0, out ulong word1, out ulong word2))
+            return new(RhpAdmissionStatus.InvalidPrefixExtent);
+        ulong element0 = 0, element1 = 0, element2 = 0;
+        if (array && (prefix.Flags != (route == 3 ? 0xE0020001U : 0xE0020008U) ||
+            prefix.BaseSize != 24 || prefix.RelatedTypeToken != expectedElement ||
+            !PrefixDisjoint(*access, access, bump, control, records, expectedElement) ||
+            !TryReadPrefix((byte*)control->Image, control->ImageBytes, prefix.RelatedTypeToken, expectedElement,
+                out NativeAotMethodTablePrefix element, out element0, out element1, out element2) ||
+            ((element.Flags >> 26) & 31) != (route == 3 ? 5U : 10U) || element.BaseSize != 24))
             return new(RhpAdmissionStatus.InvalidPrefixExtent);
         if (!Prior(records, control->Completed, (ulong)access->Backing)) return new(RhpAdmissionStatus.PriorObjectChanged);
         for (ulong i = 0; i < 4096; i++) records->BeforeAttempt[i] = access->Backing[i];
         byte* bumpBefore = stackalloc byte[80];
         for (ulong i = 0; i < 80; i++) bumpBefore[i] = ((byte*)bump)[i];
         control->InProgress = 1;
-        RhpNewFastResult result = GuestTestRhpNewFast.TryAllocate(*access, bump, 80,
-            NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian, prefix, token);
+        RhpNewFastResult result = array
+            ? GuestTestArrayAllocationLengthOverflowChecks.TryAllocate(*access, bump, 80,
+                NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian, prefix, token, length)
+            : GuestTestRhpNewFast.TryAllocate(*access, bump, 80,
+                NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian, prefix, token);
         if (!result.AllocationSucceeded)
         {
             control->InProgress = 0;
@@ -128,13 +156,23 @@ internal static unsafe class RhpNewFastAllocationCore
         }
         // No reference conversion or constructor can precede this actual byte readback.
         RhpObjectObservation observation = Observe(result, id, route, word0, word1, word2);
+        if (array)
+        {
+            observation.Length = Read32((byte*)observation.Allocation + 16);
+            observation.ElementTable = expectedElement; observation.ElementPrefix0 = element0;
+            observation.ElementPrefix1 = element1; observation.ElementPrefix2 = element2;
+        }
         if (Read64((byte*)token) != word0 || Read64((byte*)token + 8) != word1 ||
-            Read64((byte*)token + 16) != word2)
+            Read64((byte*)token + 16) != word2 ||
+            (array && (Read64((byte*)expectedElement) != element0 || Read64((byte*)expectedElement + 8) != element1 ||
+                Read64((byte*)expectedElement + 16) != element2)))
             return new(RhpAdmissionStatus.PrefixChanged, result, observation);
+        ulong expectedBytes = array ? (24 + (ulong)(uint)length * (route == 3 ? 1UL : 8UL) + 7) & ~7UL : prefix.BaseSize;
         if (observation.Sync != 0 || observation.ObservedMt != token || observation.ZeroOr != 0 ||
             observation.Reference != observation.Allocation + 8 ||
-            observation.End != observation.Allocation + prefix.BaseSize ||
-            observation.UsedAfter != observation.UsedBefore + prefix.BaseSize ||
+            observation.End != observation.Allocation + expectedBytes ||
+            observation.UsedAfter != observation.UsedBefore + expectedBytes ||
+            (array && observation.Length != (ulong)(uint)length) ||
             !Prior(records, control->Completed, (ulong)access->Backing))
             return new(RhpAdmissionStatus.ObservationRejected, result, observation);
         if (!filler) (&records->Object0)[id - 1] = observation;
@@ -170,8 +208,41 @@ internal static unsafe class RhpNewFastAllocationCore
         if (id <= 4 && (scalarOffset > record->BaseSize - 16 ||
             Read64((byte*)reference + scalarOffset) != typedScalar)) return RhpAdmissionStatus.ObservationRejected;
         record->ScalarOffset = scalarOffset; record->Scalar = typedScalar;
+        record->ScalarWidth = id <= 4 ? 8UL : 0;
         record->UntouchedBytes = record->BaseSize - 16 - (id <= 4 ? 8UL : 0UL);
         record->UntouchedOr = Untouched(*record);
+        if (!Prior(records, id, (ulong)access->Backing)) return RhpAdmissionStatus.PriorObjectChanged;
+        control->Completed = id;
+        return RhpAdmissionStatus.Success;
+    }
+
+    internal static RhpAdmissionStatus CompleteMixed(RhpNewFastHeapAccess* access,
+        RhpNewFastBumpState* bump, RhpAllocationControl* control, RhpObservationStorage* records,
+        ulong id, ulong reference, int typedLength, ulong typedScalar, ulong expectedScalar)
+    {
+        RhpAdmissionStatus ready = Ready(access, bump, control, records);
+        if (ready != RhpAdmissionStatus.Success) return ready;
+        if (control->InProgress != 0) return RhpAdmissionStatus.Reentry;
+        if (id != control->Completed + 1 || id > 5) return RhpAdmissionStatus.InvalidFixture;
+        RhpObjectObservation* r = &(&records->Object0)[id - 1];
+        bool array = id == 2 || id == 3 || id == 5;
+        ulong length = id == 3 ? 3UL : id == 5 ? 1UL : 0;
+        ulong width = id == 2 ? 0UL : id == 5 ? 1UL : 8UL;
+        ulong offset = id == 1 ? 8UL : id == 2 ? 0UL : id == 3 ? 24UL : 16UL;
+        if (r->Id != id || r->Reference != reference || r->Reference == 0 ||
+            r->Route != (array ? id == 3 ? 4UL : 3UL : 1UL) ||
+            (array && (typedLength < 0 || (ulong)typedLength != length || r->Length != length)) ||
+            (!array && typedLength != 0) || typedScalar != expectedScalar ||
+            (width == 0 && typedScalar != 0) || r->BaseSize < 24 ||
+            r->UsedBefore > 4096 || r->BaseSize > 4096 - r->UsedBefore ||
+            r->Allocation != (ulong)access->Backing + r->UsedBefore ||
+            r->Reference != r->Allocation + 8 || r->End != r->Allocation + r->BaseSize ||
+            (width != 0 && (offset > r->BaseSize - 8 || width > r->BaseSize - 8 - offset ||
+                ReadScalar((byte*)reference + offset, width) != typedScalar)))
+            return RhpAdmissionStatus.ObservationRejected;
+        r->ScalarOffset = offset; r->ScalarWidth = width; r->Scalar = typedScalar;
+        r->UntouchedBytes = r->BaseSize - 16 - (array ? 4UL : 0UL) - width;
+        r->UntouchedOr = Untouched(*r);
         if (!Prior(records, id, (ulong)access->Backing)) return RhpAdmissionStatus.PriorObjectChanged;
         control->Completed = id;
         return RhpAdmissionStatus.Success;
@@ -320,7 +391,7 @@ internal static unsafe class RhpNewFastAllocationCore
         byte* bytes = (byte*)result.Allocation;
         result.Sync = Read64(bytes); result.ObservedMt = Read64(bytes + 8);
         for (ulong i = 0; i < result.BaseSize; i++)
-            if (i < 8 || i >= 16) { result.ZeroOr |= bytes[i]; result.ZeroBytes++; }
+            if (i < 8 || i >= (route == 3 || route == 4 ? 20UL : 16UL)) { result.ZeroOr |= bytes[i]; result.ZeroBytes++; }
         return result;
     }
 
@@ -331,13 +402,18 @@ internal static unsafe class RhpNewFastAllocationCore
         for (ulong i = 0; i < count; i++)
         {
             RhpObjectObservation r = (&records->Object0)[i];
+            bool array = r.Route == 3 || r.Route == 4;
             if (r.Id != i + 1 || r.BaseSize < 24 || r.BaseSize > 4096 - used ||
                 r.Allocation != backing + used || r.Reference != r.Allocation + 8 ||
-                (r.Id <= 4 && r.ScalarOffset != (r.Id == 1 ? 8UL : 16UL)) ||
+                (!array && r.Id <= 4 && (r.ScalarWidth != 8 || r.ScalarOffset != (r.Id == 1 ? 8UL : 16UL))) ||
+                (array && (Read32((byte*)r.Allocation + 16) != r.Length ||
+                    r.Length != (r.Id == 3 ? 3UL : r.Id == 5 ? 1UL : 0UL) ||
+                    r.ScalarWidth != (r.Id == 3 ? 8UL : r.Id == 5 ? 1UL : 0UL) ||
+                    r.ScalarOffset != (r.Id == 3 ? 24UL : r.Id == 5 ? 16UL : 0UL))) ||
                 r.End != r.Allocation + r.BaseSize || Read64((byte*)r.Allocation) != 0 ||
                 Read64((byte*)r.Reference) != r.MethodTable || Untouched(r) != 0 ||
-                (r.Id <= 4 && (r.ScalarOffset > r.BaseSize - 16 ||
-                    Read64((byte*)r.Reference + r.ScalarOffset) != r.Scalar))) return false;
+                (r.ScalarWidth != 0 && (r.ScalarOffset > r.BaseSize - 8 || r.ScalarWidth > r.BaseSize - 8 - r.ScalarOffset ||
+                    ReadScalar((byte*)r.Reference + r.ScalarOffset, r.ScalarWidth) != r.Scalar))) return false;
             used += r.BaseSize;
         }
         return true;
@@ -348,9 +424,13 @@ internal static unsafe class RhpNewFastAllocationCore
         ulong combined = 0;
         byte* bytes = (byte*)r.Reference;
         for (ulong i = 8; i < r.BaseSize - 8; i++)
-            if (r.Id > 4 || i < r.ScalarOffset || i >= r.ScalarOffset + 8) combined |= bytes[i];
+            if (!((r.Route == 3 || r.Route == 4) && i < 12) &&
+                (r.ScalarWidth == 0 || i < r.ScalarOffset || i >= r.ScalarOffset + r.ScalarWidth)) combined |= bytes[i];
         return combined;
     }
+
+    private static ulong ReadScalar(byte* bytes, ulong width)
+    { ulong value = 0; for (ulong i = 0; i < width; i++) value |= (ulong)bytes[i] << (int)(8 * i); return value; }
 
     private static bool Zero(byte* bytes, ulong length)
     { for (ulong i = 0; i < length; i++) if (bytes[i] != 0) return false; return true; }
@@ -378,6 +458,9 @@ internal static unsafe class RhpNewFastAllocation
     internal static void Run(RhpNewFastHeapAccess original, byte* image, ulong imageBytes)
     {
         T(0); End();
+#if M04_SZ_ARRAY_ALLOCATION_PROBE
+        RunMixed(original, image, imageBytes);
+#else
         fixed (RhpNewFastHeapAccess* a = &s_access)
         fixed (RhpNewFastBumpState* b = &s_bump)
         fixed (RhpAllocationControl* c = &s_control)
@@ -443,11 +526,17 @@ internal static unsafe class RhpNewFastAllocation
 #endif
 #endif
         }
+#endif
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     internal static ulong Allocate(ulong token)
     {
+#if M04_SZ_ARRAY_ALLOCATION_PROBE
+        ulong id = token == TypePlain() ? 1UL : token == TypeReference() ? 4UL : 0;
+        if (id == 0) RejectAdapter(RhpAdmissionStatus.UnknownToken, 8);
+        return AllocateMixed(token, id == 1 ? TypePlain() : TypeReference(), id, 1, 0, 0);
+#else
         ulong id = 0;
         for (ulong candidate = 1; candidate <= 10; candidate++)
             if (token == Token(candidate)) { if (id != 0) RejectAdapter(RhpAdmissionStatus.UnknownToken, 8); id = candidate; }
@@ -470,7 +559,173 @@ internal static unsafe class RhpNewFastAllocation
             if (c->Completed < 10) ObjectLine(result.Observation);
             return result.Leaf.ObjectReference;
         }
+#endif
     }
+
+#if M04_SZ_ARRAY_ALLOCATION_PROBE
+    private static void RunMixed(RhpNewFastHeapAccess original, byte* image, ulong imageBytes)
+    {
+        fixed (RhpNewFastHeapAccess* a = &s_access)
+        fixed (RhpNewFastBumpState* b = &s_bump)
+        fixed (RhpAllocationControl* c = &s_control)
+        fixed (RhpObservationStorage* r = &s_records)
+        {
+            RhpAdmissionStatus prepared = RhpNewFastAllocationCore.Prepare(original, a, b, c, r, image, imageBytes);
+            if (prepared != RhpAdmissionStatus.Success) RejectAdapter(prepared, 1);
+            PreparationLine();
+#if M04_SZ_ARRAY_ALLOCATION_BEFORE_BIND_PROBE
+            ArrayAttempt(false);
+            byte[] unbound = NewBytes(0);
+            CompleteArray(2, Bits(unbound), ByteLength(unbound), 0, 0);
+            RejectAdapter(RhpAdmissionStatus.ObservationRejected, 2);
+#else
+            RhpNewFastResult bound = RhpNewFastAllocationCore.Bind(a, b, c, r);
+            if (!bound.Succeeded || bound.Operation != RhpNewFastOperation.Bind) RejectAdapter(RhpAdmissionStatus.AllocationRejected, 3);
+            BindLine(bound);
+            RhpPlainFixture plain = NewPlain(0x1111111111111111);
+            CompleteArray(1, Bits(plain), 0, ReadPlain(plain), 0x1111111111111111);
+            byte[] empty = NewBytes(0);
+            CompleteArray(2, Bits(empty), ByteLength(empty), 0, 0);
+            long[] longs = NewLongs(3);
+            StoreLong(longs, 1, 0x3333333333333333);
+            CompleteArray(3, Bits(longs), LongLength(longs), (ulong)ReadLong(longs, 1), 0x3333333333333333);
+            RhpReferenceFixture reference = NewReference(0x2222222222222222);
+            CompleteArray(4, Bits(reference), 0, ReadReference(reference), 0x2222222222222222);
+            byte[] one = NewBytes(1);
+            StoreByte(one, 0, 0x5A);
+            CompleteArray(5, Bits(one), ByteLength(one), ReadByte(one, 0), 0x5A);
+            if (b->UsedBytes != 160 || b->AllocationCount != 5 || c->Completed != 5 || c->ConstructorCount != 2)
+                RejectAdapter(RhpAdmissionStatus.ObservationRejected, 13);
+#if M04_SZ_ARRAY_ALLOCATION_EXHAUSTION_PROBE
+            ulong pairs = 0;
+            while (48 <= 4096 - b->UsedBytes)
+            {
+                RhpPlainFixture filler = NewPlain(0x5555555555555555);
+                if (ReadPlain(filler) != 0x5555555555555555 || Bits(filler) != (ulong)a->Backing + b->UsedBytes - 24 + 8)
+                    RejectAdapter(RhpAdmissionStatus.ObservationRejected, 14);
+                byte[] emptyFiller = NewBytes(0);
+                if (ByteLength(emptyFiller) != 0 || Bits(emptyFiller) != (ulong)a->Backing + b->UsedBytes - 24 + 8 ||
+                    !MixedFillers(b->UsedBytes) || RhpNewFastAllocationCore.CheckCompleted(a, b, c, r) != RhpAdmissionStatus.Success)
+                    RejectAdapter(RhpAdmissionStatus.PriorObjectChanged, 15);
+                pairs++;
+            }
+            if (pairs != 82 || b->UsedBytes != 4096 || b->AllocationCount != 169 || c->ConstructorCount != 84)
+                RejectAdapter(RhpAdmissionStatus.ObservationRejected, 16);
+            A(0); Decimal(pairs); T(2); Decimal(160); T(3); Decimal(b->UsedBytes);
+            T(20); Decimal(b->AllocationCount); A(1); Decimal(c->ConstructorCount); T(5); End();
+            ArrayAttempt(true);
+            long[] exhausted = NewLongs(1);
+            if (Bits(exhausted) != 0) RejectAdapter(RhpAdmissionStatus.ObservationRejected, 17);
+            RejectAdapter(RhpAdmissionStatus.ObservationRejected, 18);
+#else
+            ManagedHeapPageRangeResult retained = RhpNewFastAllocationCore.Retained(*a);
+            if (!retained.IsReady || retained.ReadBytes != 4096 || retained.ContentsAreZeroNow ||
+                retained.InitialAllocatorState.FreePageCount != 2 || retained.InitialAllocatorState.AllocatedPageCount != 0 ||
+                retained.CurrentAllocatorState.FreePageCount != 1 || retained.CurrentAllocatorState.AllocatedPageCount != 1 ||
+                retained.CurrentAllocatorState.FreeByteCount != 4096 || retained.CurrentAllocatorState.AllocatedByteCount != 4096 ||
+                RhpNewFastAllocationCore.CheckCompleted(a, b, c, r) != RhpAdmissionStatus.Success)
+                RejectAdapter(RhpAdmissionStatus.RetainedRejected, 7);
+            RetainLine(retained); T(6); End(); T(7); End();
+#endif
+#endif
+        }
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    internal static ulong AllocateArray(ulong token, int length, bool pointerSized)
+    {
+        ulong id = pointerSized ? 3UL : s_control.Completed == 4 ? 5UL : 2UL;
+        return AllocateMixed(token, pointerSized ? TypeLongs() : TypeBytes(), id,
+            pointerSized ? 4UL : 3UL, length, pointerSized ? TypeLong() : TypeByte());
+    }
+
+    private static ulong AllocateMixed(ulong token, ulong expected, ulong id, ulong route, int length, ulong element)
+    {
+        fixed (RhpNewFastHeapAccess* a = &s_access)
+        fixed (RhpNewFastBumpState* b = &s_bump)
+        fixed (RhpAllocationControl* c = &s_control)
+        fixed (RhpObservationStorage* r = &s_records)
+        {
+            ulong used = b->UsedBytes, count = b->AllocationCount, constructors = c->ConstructorCount;
+            // Before-bind is the genuine zero-length array route, with no prior completed slot.
+            RhpAllocationAttempt result = RhpNewFastAllocationCore.AllocateMixed(a, b, c, r, token, expected, id, route, length, element);
+            if (!result.Succeeded)
+            {
+                if (result.Status == RhpAdmissionStatus.AllocationRejected &&
+                    (result.Leaf.Status == RhpNewFastStatus.NotInitialized || result.Leaf.Status == RhpNewFastStatus.Exhausted))
+                    RejectLeaf(result.Leaf.Status, used, b->UsedBytes, count, b->AllocationCount, constructors);
+                RejectAdapter(result.Status, 10);
+            }
+            if (result.Leaf.ObjectReference == 0) RejectAdapter(RhpAdmissionStatus.ObservationRejected, 11);
+            if (c->Completed < 5) ObjectLine(result.Observation);
+            return result.Leaf.ObjectReference;
+        }
+    }
+
+    private static void CompleteArray(ulong id, ulong reference, int length, ulong scalar, ulong expected)
+    {
+        fixed (RhpNewFastHeapAccess* a = &s_access)
+        fixed (RhpNewFastBumpState* b = &s_bump)
+        fixed (RhpAllocationControl* c = &s_control)
+        fixed (RhpObservationStorage* r = &s_records)
+        {
+            RhpAdmissionStatus status = RhpNewFastAllocationCore.CompleteMixed(a, b, c, r, id, reference, length, scalar, expected);
+            if (status != RhpAdmissionStatus.Success) RejectAdapter(status, 12);
+            RhpObjectObservation record = (&r->Object0)[id - 1];
+            T(8); Decimal(id); A(2); Decimal((ulong)length); T(9); Decimal(record.ScalarOffset);
+            A(3); Decimal(record.ScalarWidth); T(10); Hex(record.Scalar); T(11); Decimal(record.UntouchedBytes);
+            T(12); Hex(record.UntouchedOr); T(13); Decimal(c->Completed); T(14); End();
+        }
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static bool MixedFillers(ulong used)
+    {
+        if (used < 160 || used > 4096 || (used - 160) % 48 != 0) return false;
+        for (ulong cursor = 160; cursor < used; cursor += 48)
+        {
+            byte* p = s_access.Backing + cursor;
+            if (RhpNewFastAllocationCore.Read64(p) != 0 || RhpNewFastAllocationCore.Read64(p + 8) != TypePlain() ||
+                RhpNewFastAllocationCore.Read64(p + 16) != 0x5555555555555555 ||
+                RhpNewFastAllocationCore.Read64(p + 24) != 0 || RhpNewFastAllocationCore.Read64(p + 32) != TypeBytes() ||
+                RhpNewFastAllocationCore.Read64(p + 40) != 0) return false;
+        }
+        return true;
+    }
+
+    private static void ArrayAttempt(bool exhaustion)
+    {
+        T(15); if (exhaustion) T(16); else T(17);
+        A(4); Decimal(exhaustion ? 3UL : 2UL); T(51); Hex(exhaustion ? TypeLongs() : TypeBytes());
+        A(2); Decimal(exhaustion ? 1UL : 0UL); A(5); Hex(exhaustion ? TypeLong() : TypeByte());
+        T(19); Decimal(s_bump.UsedBytes); T(20); Decimal(s_bump.AllocationCount); End();
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static ulong TypeBytes() => (ulong)Internal.Runtime.MethodTable.Of<byte[]>();
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static ulong TypeLongs() => (ulong)Internal.Runtime.MethodTable.Of<long[]>();
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static ulong TypeByte() => (ulong)Internal.Runtime.MethodTable.Of<byte>();
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static ulong TypeLong() => (ulong)Internal.Runtime.MethodTable.Of<long>();
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static byte[] NewBytes(int length) => new byte[length];
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static long[] NewLongs(int length) => new long[length];
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static int ByteLength(byte[] value) => value.Length;
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static int LongLength(long[] value) => value.Length;
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void StoreByte(byte[] value, int index, byte scalar) => value[index] = scalar;
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static byte ReadByte(byte[] value, int index) => value[index];
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void StoreLong(long[] value, int index, long scalar) => value[index] = scalar;
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static long ReadLong(long[] value, int index) => value[index];
+#endif
 
     private static void Complete(ulong id, ulong reference, ulong scalar, ulong expected)
     {
@@ -555,12 +810,22 @@ internal static unsafe class RhpNewFastAllocation
 
     private static void ObjectLine(RhpObjectObservation r)
     {
-        T(47); Decimal(r.Id); T(48); if (r.Route == 1) T(49); else T(50);
+        T(47); Decimal(r.Id); T(48);
+#if M04_SZ_ARRAY_ALLOCATION_PROBE
+        if (r.Route == 1) A(9); else if (r.Route == 3) A(10); else A(11);
+#else
+        if (r.Route == 1) T(49); else T(50);
+#endif
         T(51); Hex(r.MethodTable); T(52); Hex(r.Prefix0); T(53); Hex(r.Prefix1); T(54); Hex(r.Prefix2);
         T(55); Hex(r.Flags); T(4); Decimal(r.BaseSize); T(56); Hex(r.Allocation);
         T(57); Hex(r.Reference); T(58); Hex(r.End); T(2); Decimal(r.UsedBefore);
         T(3); Decimal(r.UsedAfter); T(20); Decimal(r.Count); T(59); Hex(r.Sync);
-        T(60); Hex(r.ObservedMt); T(61); Decimal(r.ZeroBytes); T(62); Hex(r.ZeroOr); End();
+        T(60); Hex(r.ObservedMt); T(61); Decimal(r.ZeroBytes); T(62); Hex(r.ZeroOr);
+#if M04_SZ_ARRAY_ALLOCATION_PROBE
+        A(2); Decimal(r.Length); A(5); Hex(r.ElementTable); A(6); Hex(r.ElementPrefix0);
+        A(7); Hex(r.ElementPrefix1); A(8); Hex(r.ElementPrefix2);
+#endif
+        End();
     }
 
     private static void RetainLine(ManagedHeapPageRangeResult result)
@@ -648,9 +913,53 @@ internal static unsafe class RhpNewFastAllocation
     {
         for (int index = 0; ; index++)
         {
-            byte value = Literal(token, index); if (value == 0) return; Write(value);
+            byte value;
+#if M04_SZ_ARRAY_ALLOCATION_PROBE
+            value = ArrayOverride(token, index);
+            if (value == 255) value = Literal(token, index);
+#else
+            value = Literal(token, index);
+#endif
+            if (value == 0) return; Write(value);
         }
     }
+#if M04_SZ_ARRAY_ALLOCATION_PROBE
+    private static void A(int token)
+    { for (int i = 0; ; i++) { byte value = ArrayLiteral(token, i); if (value == 0) return; Write(value); } }
+    private static byte ArrayOverride(int token, int index) => token switch
+    {
+        0 => index switch { 0 => 84, 1 => 69, 2 => 83, 3 => 84, 4 => 95, 5 => 83, 6 => 84, 7 => 65, 8 => 82, 9 => 84, 10 => 32, 11 => 109, 12 => 48, 13 => 52, 14 => 46, 15 => 48, 16 => 48, 17 => 56, 18 => 46, 19 => 115, 20 => 122, 21 => 95, 22 => 97, 23 => 114, 24 => 114, 25 => 97, 26 => 121, _ => 0 },
+        6 => index switch { 0 => 67, 1 => 76, 2 => 82, 3 => 79, 4 => 83, 5 => 95, 6 => 77, 7 => 48, 8 => 52, 9 => 95, 10 => 48, 11 => 48, 12 => 56, 13 => 95, 14 => 82, 15 => 69, 16 => 65, 17 => 68, 18 => 89, 19 => 32, 20 => 111, 21 => 98, 22 => 106, 23 => 101, 24 => 99, 25 => 116, 26 => 115, 27 => 61, 28 => 53, 29 => 32, 30 => 102, 31 => 105, 32 => 120, 33 => 101, 34 => 100, 35 => 78, 36 => 101, 37 => 119, 38 => 61, 39 => 50, 40 => 32, 41 => 98, 42 => 121, 43 => 116, 44 => 101, 45 => 78, 46 => 101, 47 => 119, 48 => 61, 49 => 50, 50 => 32, 51 => 108, 52 => 111, 53 => 110, 54 => 103, 55 => 78, 56 => 101, 57 => 119, 58 => 61, 59 => 49, 60 => 32, 61 => 117, 62 => 115, 63 => 101, 64 => 100, 65 => 61, 66 => 49, 67 => 54, 68 => 48, 69 => 32, 70 => 99, 71 => 111, 72 => 117, 73 => 110, 74 => 116, 75 => 61, 76 => 53, 77 => 32, 78 => 104, 79 => 111, 80 => 115, 81 => 116, 82 => 67, 83 => 111, 84 => 110, 85 => 102, 86 => 111, 87 => 114, 88 => 109, 89 => 97, 90 => 110, 91 => 99, 92 => 101, 93 => 61, 94 => 102, 95 => 97, 96 => 108, 97 => 115, 98 => 101, 99 => 32, 100 => 103, 101 => 117, 102 => 101, 103 => 115, 104 => 116, 105 => 73, 106 => 110, 107 => 116, 108 => 101, 109 => 103, 110 => 114, 111 => 97, 112 => 116, 113 => 101, 114 => 100, 115 => 61, 116 => 116, 117 => 114, 118 => 117, 119 => 101, 120 => 32, 121 => 103, 122 => 97, 123 => 116, 124 => 101, 125 => 52, 126 => 61, 127 => 70, 128 => 97, 129 => 105, 130 => 108, _ => 0 },
+        7 => index switch { 0 => 84, 1 => 69, 2 => 83, 3 => 84, 4 => 95, 5 => 80, 6 => 65, 7 => 83, 8 => 83, 9 => 32, 10 => 109, 11 => 48, 12 => 52, 13 => 46, 14 => 48, 15 => 48, 16 => 56, 17 => 46, 18 => 115, 19 => 122, 20 => 95, 21 => 97, 22 => 114, 23 => 114, 24 => 97, 25 => 121, _ => 0 },
+        8 => index switch { 0 => 77, 1 => 48, 2 => 52, 3 => 95, 4 => 65, 5 => 82, 6 => 82, 7 => 65, 8 => 89, 9 => 95, 10 => 82, 11 => 69, 12 => 65, 13 => 68, 14 => 66, 15 => 65, 16 => 67, 17 => 75, 18 => 32, 19 => 105, 20 => 100, 21 => 61, _ => 0 },
+        15 => index switch { 0 => 77, 1 => 48, 2 => 52, 3 => 95, 4 => 65, 5 => 82, 6 => 82, 7 => 65, 8 => 89, 9 => 95, 10 => 65, 11 => 84, 12 => 84, 13 => 69, 14 => 77, 15 => 80, 16 => 84, 17 => 32, 18 => 114, 19 => 101, 20 => 97, 21 => 115, 22 => 111, 23 => 110, 24 => 61, _ => 0 },
+        21 => index switch { 0 => 77, 1 => 48, 2 => 52, 3 => 95, 4 => 65, 5 => 82, 6 => 82, 7 => 65, 8 => 89, 9 => 95, 10 => 82, 11 => 69, 12 => 74, 13 => 69, 14 => 67, 15 => 84, 16 => 32, 17 => 114, 18 => 101, 19 => 97, 20 => 115, 21 => 111, 22 => 110, 23 => 61, _ => 0 },
+        26 => index switch { 0 => 84, 1 => 69, 2 => 83, 3 => 84, 4 => 95, 5 => 70, 6 => 65, 7 => 73, 8 => 76, 9 => 32, 10 => 109, 11 => 48, 12 => 52, 13 => 46, 14 => 48, 15 => 48, 16 => 56, 17 => 46, 18 => 115, 19 => 122, 20 => 95, 21 => 97, 22 => 114, 23 => 114, 24 => 97, 25 => 121, 26 => 32, _ => 0 },
+        29 => index switch { 0 => 77, 1 => 48, 2 => 52, 3 => 95, 4 => 65, 5 => 82, 6 => 82, 7 => 65, 8 => 89, 9 => 95, 10 => 73, 11 => 78, 12 => 84, 13 => 69, 14 => 82, 15 => 78, 16 => 65, 17 => 76, 18 => 95, 19 => 82, 20 => 69, 21 => 74, 22 => 69, 23 => 67, 24 => 84, 25 => 32, 26 => 97, 27 => 100, 28 => 97, 29 => 112, 30 => 116, 31 => 101, 32 => 114, 33 => 83, 34 => 116, 35 => 97, 36 => 116, 37 => 117, 38 => 115, 39 => 61, _ => 0 },
+        31 => index switch { 0 => 84, 1 => 69, 2 => 83, 3 => 84, 4 => 95, 5 => 70, 6 => 65, 7 => 73, 8 => 76, 9 => 32, 10 => 109, 11 => 48, 12 => 52, 13 => 46, 14 => 48, 15 => 48, 16 => 56, 17 => 46, 18 => 115, 19 => 122, 20 => 95, 21 => 97, 22 => 114, 23 => 114, 24 => 97, 25 => 121, 26 => 32, 27 => 97, 28 => 100, 29 => 97, 30 => 112, 31 => 116, 32 => 101, 33 => 114, 34 => 95, 35 => 114, 36 => 101, 37 => 106, 38 => 101, 39 => 99, 40 => 116, 41 => 101, 42 => 100, _ => 0 },
+        32 => index switch { 0 => 77, 1 => 48, 2 => 52, 3 => 95, 4 => 65, 5 => 82, 6 => 82, 7 => 65, 8 => 89, 9 => 95, 10 => 66, 11 => 73, 12 => 78, 13 => 68, 14 => 32, 15 => 105, 16 => 109, 17 => 97, 18 => 103, 19 => 101, 20 => 61, _ => 0 },
+        47 => index switch { 0 => 77, 1 => 48, 2 => 52, 3 => 95, 4 => 65, 5 => 82, 6 => 82, 7 => 65, 8 => 89, 9 => 95, 10 => 79, 11 => 66, 12 => 74, 13 => 69, 14 => 67, 15 => 84, 16 => 32, 17 => 105, 18 => 100, 19 => 61, _ => 0 },
+        63 => index switch { 0 => 77, 1 => 48, 2 => 52, 3 => 95, 4 => 65, 5 => 82, 6 => 82, 7 => 65, 8 => 89, 9 => 95, 10 => 82, 11 => 69, 12 => 84, 13 => 65, 14 => 73, 15 => 78, 16 => 32, 17 => 97, 18 => 108, 19 => 108, 20 => 111, 21 => 99, 22 => 97, 23 => 116, 24 => 111, 25 => 114, 26 => 61, _ => 0 },
+        71 => index switch { 0 => 77, 1 => 48, 2 => 52, 3 => 95, 4 => 65, 5 => 82, 6 => 82, 7 => 65, 8 => 89, 9 => 95, 10 => 80, 11 => 82, 12 => 69, 13 => 80, 14 => 32, 15 => 105, 16 => 109, 17 => 97, 18 => 103, 19 => 101, 20 => 61, _ => 0 },
+        _ => 255
+    };
+    private static byte ArrayLiteral(int token, int index) => token switch
+    {
+        0 => index switch { 0 => 77, 1 => 48, 2 => 52, 3 => 95, 4 => 65, 5 => 82, 6 => 82, 7 => 65, 8 => 89, 9 => 95, 10 => 70, 11 => 73, 12 => 76, 13 => 76, 14 => 32, 15 => 112, 16 => 97, 17 => 105, 18 => 114, 19 => 115, 20 => 61, _ => 0 },
+        1 => index switch { 0 => 32, 1 => 99, 2 => 111, 3 => 110, 4 => 115, 5 => 116, 6 => 114, 7 => 117, 8 => 99, 9 => 116, 10 => 111, 11 => 114, 12 => 115, 13 => 61, _ => 0 },
+        2 => index switch { 0 => 32, 1 => 108, 2 => 101, 3 => 110, 4 => 103, 5 => 116, 6 => 104, 7 => 61, _ => 0 },
+        3 => index switch { 0 => 32, 1 => 115, 2 => 99, 3 => 97, 4 => 108, 5 => 97, 6 => 114, 7 => 87, 8 => 105, 9 => 100, 10 => 116, 11 => 104, 12 => 61, _ => 0 },
+        4 => index switch { 0 => 32, 1 => 105, 2 => 100, 3 => 61, _ => 0 },
+        5 => index switch { 0 => 32, 1 => 101, 2 => 108, 3 => 101, 4 => 109, 5 => 101, 6 => 110, 7 => 116, 8 => 61, _ => 0 },
+        6 => index switch { 0 => 32, 1 => 101, 2 => 108, 3 => 101, 4 => 109, 5 => 101, 6 => 110, 7 => 116, 8 => 48, 9 => 61, _ => 0 },
+        7 => index switch { 0 => 32, 1 => 101, 2 => 108, 3 => 101, 4 => 109, 5 => 101, 6 => 110, 7 => 116, 8 => 49, 9 => 61, _ => 0 },
+        8 => index switch { 0 => 32, 1 => 101, 2 => 108, 3 => 101, 4 => 109, 5 => 101, 6 => 110, 7 => 116, 8 => 50, 9 => 61, _ => 0 },
+        9 => index switch { 0 => 99, 1 => 111, 2 => 109, 3 => 112, 4 => 105, 5 => 108, 6 => 101, 7 => 100, 8 => 95, 9 => 102, 10 => 105, 11 => 120, 12 => 101, 13 => 100, _ => 0 },
+        10 => index switch { 0 => 99, 1 => 111, 2 => 109, 3 => 112, 4 => 105, 5 => 108, 6 => 101, 7 => 100, 8 => 95, 9 => 98, 10 => 121, 11 => 116, 12 => 101, 13 => 95, 14 => 97, 15 => 114, 16 => 114, 17 => 97, 18 => 121, _ => 0 },
+        11 => index switch { 0 => 99, 1 => 111, 2 => 109, 3 => 112, 4 => 105, 5 => 108, 6 => 101, 7 => 100, 8 => 95, 9 => 108, 10 => 111, 11 => 110, 12 => 103, 13 => 95, 14 => 97, 15 => 114, 16 => 114, 17 => 97, 18 => 121, _ => 0 },
+        _ => 0
+    };
+#endif
     private static byte Literal(int token, int index) => token switch
     {
         0 => index switch { 0 => 84, 1 => 69, 2 => 83, 3 => 84, 4 => 95, 5 => 83, 6 => 84, 7 => 65, 8 => 82, 9 => 84, 10 => 32, 11 => 109, 12 => 48, 13 => 52, 14 => 46, 15 => 48, 16 => 48, 17 => 55, 18 => 46, 19 => 114, 20 => 104, 21 => 112, 22 => 95, 23 => 110, 24 => 101, 25 => 119, 26 => 95, 27 => 102, 28 => 97, 29 => 115, 30 => 116, _ => 0 },

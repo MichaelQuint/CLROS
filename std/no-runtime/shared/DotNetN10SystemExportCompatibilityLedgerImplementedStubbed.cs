@@ -105,7 +105,8 @@ public enum DotNetN10RuntimeExportCategory : byte
     TypeCast = 2,
     NativeTransition = 3,
     FailFast = 4,
-    FixedAllocation = 5
+    FixedAllocation = 5,
+    SzArrayAllocation = 6
 }
 
 public enum DotNetN10RuntimeExportBehavior : byte
@@ -114,7 +115,8 @@ public enum DotNetN10RuntimeExportBehavior : byte
     LinkOnlyNoOp = 1,
     FailFast = 2,
     AuditedStackProbe = 3,
-    ProfileBoundFixedAllocation = 4
+    ProfileBoundFixedAllocation = 4,
+    ProfileBoundSzArrayAllocation = 5
 }
 
 public enum DotNetN10RuntimeExport : byte
@@ -137,7 +139,9 @@ public enum DotNetN10RuntimeExport : byte
     RhpPInvoke = 15,
     RhpPInvokeReturn = 16,
     RhpFallbackFailFast = 17,
-    RhpNewFast = 18
+    RhpNewFast = 18,
+    RhpNewArrayFast = 19,
+    RhpNewPtrArrayFast = 20
 }
 
 public readonly struct DotNetN10RuntimeExportCompatibilityEntry
@@ -175,7 +179,7 @@ public static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
 {
     public const int SystemDeclarationCount = 45;
 
-    public const int RuntimeExportCount = 18;
+    public const int RuntimeExportCount = 20;
 
     public const bool AddsCanonicalSystemNamespace = false;
 
@@ -224,7 +228,10 @@ public static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             18 => StubbedCore(DotNetN10SystemDeclaration.Enum),
             19 => StubbedCore(DotNetN10SystemDeclaration.Type),
             20 => StubbedCore(DotNetN10SystemDeclaration.RuntimeType),
-            21 => StubbedCore(DotNetN10SystemDeclaration.Array),
+            // Only the compiler-required first length field and bounded int getter.
+            21 => SystemDeclaration(DotNetN10SystemDeclaration.Array,
+                DotNetN10SystemDeclarationCategory.CoreType,
+                DotNetN10HelperSupportState.NarrowlyImplemented),
             22 => StubbedCore(DotNetN10SystemDeclaration.Delegate),
             23 => StubbedCore(DotNetN10SystemDeclaration.MulticastDelegate),
             24 => StubbedCore(DotNetN10SystemDeclaration.String),
@@ -344,6 +351,14 @@ public static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             17 => RuntimeExport(DotNetN10RuntimeExport.RhpNewFast,
                 DotNetN10RuntimeExportCategory.FixedAllocation,
                 DotNetN10RuntimeExportBehavior.ProfileBoundFixedAllocation,
+                DotNetN10HelperSupportState.NarrowlyImplemented),
+            18 => RuntimeExport(DotNetN10RuntimeExport.RhpNewArrayFast,
+                DotNetN10RuntimeExportCategory.SzArrayAllocation,
+                DotNetN10RuntimeExportBehavior.ProfileBoundSzArrayAllocation,
+                DotNetN10HelperSupportState.NarrowlyImplemented),
+            19 => RuntimeExport(DotNetN10RuntimeExport.RhpNewPtrArrayFast,
+                DotNetN10RuntimeExportCategory.SzArrayAllocation,
+                DotNetN10RuntimeExportBehavior.ProfileBoundSzArrayAllocation,
                 DotNetN10HelperSupportState.NarrowlyImplemented),
             _ => InvalidRuntimeExportEntry()
         };

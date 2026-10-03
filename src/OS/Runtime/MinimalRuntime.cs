@@ -49,7 +49,14 @@ namespace System
     public abstract class Enum : ValueType { }
     public abstract class Type { }
     public sealed class RuntimeType : Type { }
-    public abstract class Array { }
+    public abstract class Array
+    {
+        // First-field compiler contract; the bounded allocator writes the native header.
+#pragma warning disable CS0649
+        private int _numComponents;
+#pragma warning restore CS0649
+        public int Length => _numComponents;
+    }
     public abstract class Delegate { }
     public abstract class MulticastDelegate : Delegate { }
     public sealed class String { }
@@ -550,6 +557,30 @@ namespace System.Runtime
             return System.Runtime.CompilerServices.Unsafe.As<nuint, object>(ref reference);
 #else
             // This branch must compile with MinimalRuntime alone and cannot return.
+            while (true) RuntimeFailFast.Halt();
+#endif
+        }
+
+        [RuntimeExport("RhpNewArrayFast")]
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        internal static object RhpNewArrayFast(Internal.Runtime.MethodTable* methodTable, int length)
+        {
+#if M04_SZ_ARRAY_ALLOCATION_PROBE
+            nuint reference = (nuint)OS.Runtime.RhpNewFastAllocation.AllocateArray((ulong)methodTable, length, false);
+            return System.Runtime.CompilerServices.Unsafe.As<nuint, object>(ref reference);
+#else
+            while (true) RuntimeFailFast.Halt();
+#endif
+        }
+
+        [RuntimeExport("RhpNewPtrArrayFast")]
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        internal static object RhpNewPtrArrayFast(Internal.Runtime.MethodTable* methodTable, int length)
+        {
+#if M04_SZ_ARRAY_ALLOCATION_PROBE
+            nuint reference = (nuint)OS.Runtime.RhpNewFastAllocation.AllocateArray((ulong)methodTable, length, true);
+            return System.Runtime.CompilerServices.Unsafe.As<nuint, object>(ref reference);
+#else
             while (true) RuntimeFailFast.Halt();
 #endif
         }

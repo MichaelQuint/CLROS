@@ -154,6 +154,15 @@ and the reachable local Gitea tracker:
   materialization, full-page readback, and value-only RW+NX-to-RO+X
   finalization audit. It does not change live protection or execute any entry.
 - `tests/OS.HostTests` verifies marker emission, boot event ring-buffer behavior, boot info, typed handoff metadata, UEFI memory-map contracts, normalized memory-map conversion, UEFI-gone simulation behavior, diagnostics, manifest validation, libvirt XML generation, source firewall behavior, storage/network parser primitives, ACPI/PCI/virtio planning contracts, and the current `OS.Std.Ascii`, endian, and `OS.Std.MemoryExtensions` helper slices.
+- `scripts/check-naming.ps1` enumerates admitted files once for its naming and
+  source-firewall checks. It prunes excluded directory names before descent,
+  skips directory reparse points, retains the provider's default hidden-file
+  visibility, and includes untracked files. Its existing naming exceptions,
+  forbidden extensions, first-party roots and stable markers remain unchanged.
+  Host fixtures verify actual directory visits and preserve the existing
+  recovery checks; this is a traversal correction, not a performance benchmark.
+  [Step954](../done/step954.md) records the accepted integrated host gate and
+  final naming/source-firewall checks for this correction.
 - `tools/OS.QemuRunner` can dry-run and run a QEMU/OVMF smoke, capture serial logs, and require `OS_SMOKE_PASS`.
 - `tools/OS.ManifestTool` validates manifest v0 JSON with machine-readable markers.
 - `tools/OS.LibvirtRunner` generates deterministic host-side domain XML in dry-run mode without requiring libvirt.

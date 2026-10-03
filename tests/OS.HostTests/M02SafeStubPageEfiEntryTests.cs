@@ -398,7 +398,16 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
             && symbols.Length == 1
             && symbols[0].Elements("DefineConstants").Single().Value
                 == "$(DefineConstants);M02_SAFE_STUB_PROBE"
-            && errorConditions.Length == 3
+            && errorConditions.Length == 6
+            && errorConditions.Contains(
+                "'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'",
+                StringComparer.Ordinal)
+            && errorConditions.Contains(
+                "'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'",
+                StringComparer.Ordinal)
+            && errorConditions.Contains(
+                "'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'",
+                StringComparer.Ordinal)
             && errorConditions.Any(value => value.Contains(
                 "EnableM01LoadedImageStackProbe",
                 StringComparison.Ordinal))
@@ -424,7 +433,7 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
                 "[switch] $EnableM02SafeStubProbe",
                 StringComparison.Ordinal)
             && script.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=92",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=93",
                 StringComparison.Ordinal)
             && script.Contains(
                 "reviewed=\" + $m01SourceClosure.ReviewedSourceCount",

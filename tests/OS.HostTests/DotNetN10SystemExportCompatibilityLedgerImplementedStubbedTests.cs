@@ -177,8 +177,8 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             }
         }
 
-        ExpectEqual("narrow declaration count", 8, narrowCount);
-        ExpectEqual("stubbed declaration count", 35, stubbedCount);
+        ExpectEqual("narrow declaration count", 9, narrowCount);
+        ExpectEqual("stubbed declaration count", 34, stubbedCount);
         ExpectEqual("forbidden declaration count", 2, forbiddenCount);
 
         ExpectSystemClassification(
@@ -207,7 +207,7 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
                 .RuntimeExportCount,
             sourceEntries.Count);
-        ExpectEqual("audited RuntimeExport snapshot", 18, sourceEntries.Count);
+        ExpectEqual("audited RuntimeExport snapshot", 20, sourceEntries.Count);
 
         HashSet<string> symbols = new HashSet<string>(StringComparer.Ordinal);
         for (int index = 0; index < sourceEntries.Count; index++)
@@ -261,6 +261,8 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
         ExpectEqual("audited stack-probe RuntimeExports", 1, auditedStackProbe);
         ExpectEqual("profile-bound fixed-allocation RuntimeExports", 1,
             CountRuntimeExportBehavior(sourceEntries, DotNetN10RuntimeExportBehavior.ProfileBoundFixedAllocation));
+        ExpectEqual("profile-bound SZ-array RuntimeExports", 2,
+            CountRuntimeExportBehavior(sourceEntries, DotNetN10RuntimeExportBehavior.ProfileBoundSzArrayAllocation));
 
         for (int index = 0;
             index < DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
@@ -285,6 +287,7 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
                     DotNetN10HelperSupportState.Forbidden,
                 DotNetN10RuntimeExportBehavior.AuditedStackProbe =>
                     DotNetN10HelperSupportState.NarrowlyImplemented,
+                DotNetN10RuntimeExportBehavior.ProfileBoundSzArrayAllocation or
                 DotNetN10RuntimeExportBehavior.ProfileBoundFixedAllocation =>
                     DotNetN10HelperSupportState.NarrowlyImplemented,
                 _ => DotNetN10HelperSupportState.Unknown
@@ -633,6 +636,13 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             return compact.Equals(exact, StringComparison.Ordinal)
                 ? DotNetN10RuntimeExportBehavior.ProfileBoundFixedAllocation
                 : DotNetN10RuntimeExportBehavior.Unknown;
+        }
+        if (symbol.Equals("RhpNewArrayFast", StringComparison.Ordinal) || symbol.Equals("RhpNewPtrArrayFast", StringComparison.Ordinal))
+        {
+            string width = symbol.Equals("RhpNewPtrArrayFast", StringComparison.Ordinal) ? "true" : "false";
+            string exact = "#ifM04_SZ_ARRAY_ALLOCATION_PROBEnuintreference=(nuint)OS.Runtime.RhpNewFastAllocation.AllocateArray((ulong)methodTable,length," + width + ");returnSystem.Runtime.CompilerServices.Unsafe.As<nuint,object>(refreference);#elsewhile(true)RuntimeFailFast.Halt();#endif";
+            return compact.Equals(exact, StringComparison.Ordinal)
+                ? DotNetN10RuntimeExportBehavior.ProfileBoundSzArrayAllocation : DotNetN10RuntimeExportBehavior.Unknown;
         }
         if (compact.Length == 0)
         {

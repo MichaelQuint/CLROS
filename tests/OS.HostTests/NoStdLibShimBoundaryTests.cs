@@ -63,6 +63,7 @@ internal static class NoStdLibShimBoundaryTests
             && HasCompileInclude(project, "..\\OS.Kernel\\Runtime\\GuestTestRhpNewFast.cs")
             && HasCompileInclude(project, "Boot\\EfiEntry.cs")
             && FixedAllocationDefaultIsSelfContained(root)
+            && ArrayAllocationDefaultIsSelfContained(root)
             && !project.Descendants().Any(element => element.Name.LocalName == "ProjectReference");
     }
 
@@ -83,6 +84,27 @@ internal static class NoStdLibShimBoundaryTests
             && source.Contains("extern ref TTo As<TFrom, TTo>(ref TFrom value)", StringComparison.Ordinal)
             && source.Contains("extern MethodTable* Of<T>()", StringComparison.Ordinal)
             && source.Contains("class Array<T> : Array { private Array() { } }", StringComparison.Ordinal);
+    }
+
+    private static bool ArrayAllocationDefaultIsSelfContained(string root)
+    {
+        string source = File.ReadAllText(Path.Combine(root, "src/OS/Runtime/MinimalRuntime.cs"));
+        foreach (string name in new[] { "RhpNewArrayFast", "RhpNewPtrArrayFast" })
+        {
+            string attribute = "[RuntimeExport(\"" + name + "\")]";
+            int start = source.IndexOf(attribute, StringComparison.Ordinal);
+            if (start < 0 || source.IndexOf(attribute, start + 1, StringComparison.Ordinal) >= 0) return false;
+            int enabled = source.IndexOf("#if M04_SZ_ARRAY_ALLOCATION_PROBE", start, StringComparison.Ordinal);
+            int disabled = source.IndexOf("#else", enabled, StringComparison.Ordinal), end = source.IndexOf("#endif", disabled, StringComparison.Ordinal);
+            if (enabled < start || disabled < enabled || end < disabled ||
+                !source[start..enabled].Contains("int length", StringComparison.Ordinal) ||
+                !source[start..enabled].Contains("MethodImplOptions.NoInlining", StringComparison.Ordinal) ||
+                !source[enabled..disabled].Contains("RhpNewFastAllocation.AllocateArray((ulong)methodTable, length,", StringComparison.Ordinal) ||
+                !source[disabled..end].Contains("while (true) RuntimeFailFast.Halt();", StringComparison.Ordinal) ||
+                source[disabled..end].Contains("return ", StringComparison.Ordinal)) return false;
+        }
+        return source.Contains("private int _numComponents;", StringComparison.Ordinal) &&
+            source.Contains("public int Length => _numComponents;", StringComparison.Ordinal);
     }
 
     private static bool TestHostProjectsDoNotCompileMinimalRuntime()

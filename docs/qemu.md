@@ -2624,3 +2624,56 @@ three-cluster firmware NVVARS allocation; backup FSInfo remains stale, so this
 does not establish filesystem conformance. No GC, reference writes, boxing
 payload copy, arrays/strings, post-firmware lifetime or general runtime
 readiness is claimed.
+
+### M04-008 shared SZ-array profile
+
+The default-off positive profile uses a fresh build and all eight explicit
+prerequisites:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 -BuildEfi `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe `
+  -EnableM04IndependentEndianConformanceProbe `
+  -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe `
+  -EnableM04ArithmeticConformanceProbe -EnableM04LayoutContractProbe `
+  -EnableM04ManagedHeapPageRangeProbe -EnableM04RhpNewFastProbe `
+  -EnableM04SzArrayAllocationProbe
+```
+
+The complete positive grammar has 68 owned records: the inherited 44-record
+heap prefix, array START/PREP/BIND, five OBJECT/READBACK pairs, RETAIN/READY/PASS
+and the unchanged eight-record boot suffix. It reports used160/count5 and
+actual scalar/length, zero, prior-object and canary observations. Full-prefix
+observations must be bound independently to the same loaded image; numeric
+consistency alone is insufficient.
+
+`EnableM04SzArrayAllocationBeforeBindProbe` and
+`EnableM04SzArrayAllocationExhaustionProbe` additionally require main and
+exclude each other. Their 49/61-record streams end exactly with
+`TEST_FAIL m04.008.sz_array not_initialized` and
+`TEST_FAIL m04.008.sz_array exhausted`, respectively, followed by CRLF and EOF.
+The ordinary runner continues to reject these failures. Expected-negative
+acceptance requires the separate bounded observer, actual quiet-drain and
+owned-termination evidence, full raw-record validation, and independent
+same-image source/native association. Before-bind reports two attempted tokens
+and the observed image base, with no object-prefix rows.
+
+Step952 records focused host/artifact checks and synthetic auditor controls.
+[Step954](../done/step954.md) separately accepts fresh default, heap, fixed,
+mixed-array, both array negatives, PF and DF captures on
+`1ce1889bab1bc9307b3904becdc66cb3d12078d0`, after its complete host gate.
+The actual eight-lane matrix and command records are under
+`artifacts/orchestration-20261001/issue523-guest-1ce1889-20261003T0600314911091Z`.
+Full transcript counts are 21/52/78/68/49/61/86/88; all summaries, EOF rules and
+owned termination checks pass. Negative quiet intervals are 750.2553 and
+754.6722 ms. Fixed has ten observed relocated prefixes, mixed/exhaustion six
+each; before-bind has two actual token associations and no observed prefix.
+Fresh PF/DF current-state/native associations pass; saved DF state remains
+diagnostic-only. Independent accounting preserves all EFI payloads and allows
+only the observed three-cluster NVVARS allocation and associated FAT/directory/
+primary-FSInfo changes. Both negative pristine images equal independent
+reconstructions. Whole-filesystem conformance and general runtime completion
+remain unproved; Gates 3/4 remain **Fail**.

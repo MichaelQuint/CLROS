@@ -46,7 +46,17 @@ then the unchanged eight-line boot sequence. The separate before-bind and
 exhaustion profiles end at their exact expected TEST_FAIL and halt before
 BootSequence. They remain failures for the generic smoke runner. No boot phase
 is added or bypassed. Step946 records source/focused artifact integration;
-fresh real allocation-profile boot evidence is still pending.
+step949 records the accepted bounded allocation-profile guest evidence.
+
+The optional M04-008 array profile uses the same allocation hook and original
+retained page. It selects a five-object fixed/array experiment after the second
+zero-page checkpoint: START, PREP, BIND, five OBJECT/READBACK pairs, RETAIN,
+READY and PASS, followed by the unchanged eight boot records. Its before-bind
+and exhaustion branches end at their exact TEST_FAIL before BootSequence.
+The standalone M04-007 ten-object experiment remains a separate profile.
+Step952 records focused host/artifact evidence; step954 accepts the combined
+full host gate and eight fresh profiles, including these bounded array paths.
+No phase or entry bypass is introduced.
 
 Current host-tested managed handoff-aware order:
 
@@ -246,6 +256,17 @@ cleanup or recovery after attempted entry. The default path and the accepted
 M02-014 adapter are unchanged. [step951](../done/step951.md) accepts fresh default
 and standalone PF regressions separately from the bounded terminal DF delivery
 on original IST1; it does not add a boot phase or recovery path.
+
+The M02-016 unexpected-vector leaf remains host-only. Preparation, complete
+byte readback, capture decoding, supplied-state validation and checked panic
+reporting add no BootSequence phase or default probe. The emitted model plans
+one terminal software `INT 0x20` through vector 32/IST0 and a local halt after
+the scalar callback returns. The 184-byte capture and 232-byte callback entry
+depth do not establish complete native stack usage. Future integration must
+validate pristine stream/context bytes before installing stack canaries, bind
+the callback and resources to the original image, and prove the complete
+compiled reporting chain before a guest run. The host implementation neither
+executes this transition nor changes QEMU failure classification.
 
 The separate default-off `EnableM02Ud2VectorStateProbe` profile now supplies
 accepted bounded guest evidence without adding a `BootSequence` phase. It runs

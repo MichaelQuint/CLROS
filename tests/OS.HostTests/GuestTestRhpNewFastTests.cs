@@ -125,6 +125,22 @@ internal static unsafe class GuestTestRhpNewFastTests
             first.PhysicalAllocationEndExclusive == 0xFFFFFFFFFFFFD018,
             "no physical/token truncation; numeric token is never dereferenced");
         CheckBytes(f.Page, 24, 0xFFFFFFFFFFFFFFE0);
+
+        // A real array route shares this exact binder/controller. Fixed-only
+        // admission and byte writes must remain unchanged after either route.
+        f.Reset(); Require(Bind(f).Succeeded, "mixed fixed regression bind");
+        CheckResult(f, Allocate(f), 0, 24, 1, Token);
+        NativeAotMethodTablePrefix arrayPrefix = Prefix(0xE0020001, 24);
+        RhpNewFastResult array = GuestTestArrayAllocationLengthOverflowChecks.TryAllocate(
+            f.Access, f.State, f.StateCapacity, Profile, arrayPrefix, Token2, 1);
+        CheckResult(f, array, 24, 32, 2, Token2);
+        before = f.Snapshot();
+        Rejected(Alloc.TryAllocate(f.Access, f.State, f.StateCapacity, Profile, arrayPrefix, Token),
+            Status.UnsupportedFixedType);
+        f.Unchanged(before);
+        CheckResult(f, Allocate(f, size: 32), 56, 32, 3, Token);
+        CheckBytes(f.Page + 56, 32, Token);
+        f.OnlyChanged(before, (0x3000, 80), (f.PageOffset + 56, 32));
     }
 
     private static void CheckFixedDomain()
@@ -400,6 +416,12 @@ internal static unsafe class GuestTestRhpNewFastTests
         Require(!RuntimeHelpers.IsReferenceOrContainsReferences<RhpNewFastHeapAccess>() &&
             !RuntimeHelpers.IsReferenceOrContainsReferences<RhpNewFastBumpState>() &&
             !RuntimeHelpers.IsReferenceOrContainsReferences<RhpNewFastResult>(), "POD contains no CLR references");
+        string[] statuses = ["Uninitialized", "Success", "InvalidStorage", "StorageOverlap", "AlreadyInitialized",
+            "NotInitialized", "InvalidState", "HeapAuthorityRejected", "HeapBindingMismatch", "InitialPageNotPristine",
+            "UnsupportedProfile", "InvalidMethodTableToken", "InvalidMethodTableFlags", "UnsupportedFixedType",
+            "InvalidBaseSize", "Exhausted", "UnsupportedArrayType", "InvalidComponentSize", "InvalidLength"];
+        Require(Enum.GetValues<Status>().Length == statuses.Length, "append-only status count");
+        for (int i = 0; i < statuses.Length; i++) Require(((Status)i).ToString() == statuses[i], "stable status values");
         string[] fields = ["InitializedValue", "SelfAddressValue", "CapacityValue", "HeapAddressValue",
             "HeapCapacityValue", "MappedStartValue", "PhysicalStartValue", "PhysicalEndValue", "UsedValue", "CountValue"];
         for (int i = 0; i < fields.Length; i++) Require((int)Marshal.OffsetOf<RhpNewFastBumpState>(fields[i]) == i * 8,
@@ -592,6 +614,18 @@ internal static unsafe class GuestTestRhpNewFastTests
         Require(metadata.AssemblyReferences.Count == 0, "actual ten-source closure has zero assembly references");
         Require(metadata.MethodDefinitions.Select(metadata.GetMethodDefinition).Any(m => metadata.GetString(m.Name) == "TryAllocate" && m.RelativeVirtualAddress != 0),
             "actual allocation method is present");
+        TypeDefinition allocator = metadata.TypeDefinitions.Select(metadata.GetTypeDefinition)
+            .Single(t => metadata.GetString(t.Name) == "GuestTestRhpNewFast");
+        foreach (string name in new[] { "TryAllocate", "TryAllocateArray", "AllocateCore" })
+        {
+            MethodDefinition entry = allocator.GetMethods().Select(metadata.GetMethodDefinition)
+                .Single(m => metadata.GetString(m.Name) == name);
+            Require(entry.RelativeVirtualAddress != 0 && image.GetMethodBody(entry.RelativeVirtualAddress).GetILBytes()!.Length > 0,
+                "actual fixed closure entry/core body " + name);
+        }
+        Require(!metadata.TypeDefinitions.Select(metadata.GetTypeDefinition)
+            .Any(t => metadata.GetString(t.Name) == "GuestTestArrayAllocationLengthOverflowChecks"),
+            "fixed ten-source closure does not depend on the array wrapper");
         Console.WriteLine("M04_NEWFAST_HOST_NOSTDLIB inputs=10 assemblyReferences=0");
     }
     private static string FindRoot()

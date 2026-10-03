@@ -69,6 +69,14 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
   reviewed in [step949](done/step949.md). General allocation, GC and Gate 4
   remain incomplete.
 
+- M04-008 has accepted bounded byte/long SZ-array guest evidence sharing that
+  original allocation page with fixed objects. The complete host suite passes
+  3,611 starts/3,612 passes with zero failures. Eight fresh profiles cover the
+  mixed allocations, before-bind rejection, exhaustion and default/heap/fixed/
+  page-fault/double-fault regressions. Independent native, transcript, lifecycle
+  and disk reviews are recorded in [step954](done/step954.md). General arrays,
+  managed reference stores, GC, strings and Gate 4 remain incomplete.
+
 - The 2026-08-06 local Gitea snapshot had **273 open issues** (issues only,
   excluding pull requests). That was ten fewer than the earlier 283-issue
   snapshot even though narrowly scoped integration/review issues were added to

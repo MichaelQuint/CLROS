@@ -25,6 +25,9 @@ internal static class M01InstructionPublicationEfiEntryTests
     private const string M04RhpNewFastSymbol = "M04_RHP_NEW_FAST_PROBE";
     private const string M04RhpBeforeBindSymbol = "M04_RHP_NEW_FAST_BEFORE_BIND_FAILURE_PROBE";
     private const string M04RhpExhaustionSymbol = "M04_RHP_NEW_FAST_EXHAUSTION_FAILURE_PROBE";
+    private const string M04ArraySymbol = "M04_SZ_ARRAY_ALLOCATION_PROBE";
+    private const string M04ArrayBeforeSymbol = "M04_SZ_ARRAY_ALLOCATION_BEFORE_BIND_PROBE";
+    private const string M04ArrayExhaustionSymbol = "M04_SZ_ARRAY_ALLOCATION_EXHAUSTION_PROBE";
     private const string SerializerBinding =
         "global::OS.Boot.X64InstructionPublication";
     private const string SerializerCall =
@@ -266,6 +269,26 @@ internal static class M01InstructionPublicationEfiEntryTests
                 || !actual.Contains("RunRhpNewFastAfterZeroCheckpoint", StringComparison.Ordinal))
                 return Failure("fixed-allocation-profile-selector");
         }
+        string arraySynthetic = "#if " + M04ArraySymbol + "\nArrayMain();\n#endif\n"
+            + "#if " + M04ArrayBeforeSymbol + "\nArrayBefore();\n#endif\n"
+            + "#if " + M04ArrayExhaustionSymbol + "\nArrayExhaustion();\n#endif\n";
+        for (int lane = 0; lane < 4; lane++)
+        {
+            bool enabled = lane != 0;
+            string selected = SelectProfile(arraySynthetic, enabled, enabled, false, false,
+                rhpNewFastEnabled: enabled, arrayEnabled: enabled,
+                arrayBeforeBindEnabled: lane == 2, arrayExhaustionEnabled: lane == 3);
+            string actual = SelectProfile(source, enabled, enabled, false, false,
+                rhpNewFastEnabled: enabled, arrayEnabled: enabled,
+                arrayBeforeBindEnabled: lane == 2, arrayExhaustionEnabled: lane == 3);
+            if (selected.Contains("ArrayMain", StringComparison.Ordinal) != enabled
+                || selected.Contains("ArrayBefore", StringComparison.Ordinal) != (lane == 2)
+                || selected.Contains("ArrayExhaustion", StringComparison.Ordinal) != (lane == 3)
+                || CountDirectSerializerCalls(selected) != 0
+                || CountDirectSerializerCalls(actual) != (enabled ? 2 : 0)) return Failure("array-profile-publication-selector");
+        }
+        string arrayAlias = SelectProfile(arraySynthetic.Replace(M04ArraySymbol, M04ArraySymbol.ToLowerInvariant(), StringComparison.Ordinal), false, false, false, false);
+        if (!arrayAlias.Contains("#if m04_sz_array_allocation_probe", StringComparison.Ordinal)) return Failure("array-selector-ordinal");
         string alias = SelectProfile(synthetic.Replace(M04RhpNewFastSymbol, M04RhpNewFastSymbol.ToLowerInvariant(), StringComparison.Ordinal),
             false, false, false, false);
         return alias.Contains("#if m04_rhp_new_fast_probe", StringComparison.Ordinal)
@@ -3861,7 +3884,10 @@ internal static class M01InstructionPublicationEfiEntryTests
         bool rhpNewFastEnabled = false,
         bool rhpBeforeBindEnabled = false,
         bool rhpExhaustionEnabled = false,
-        bool doubleFaultIstEnabled = false)
+        bool doubleFaultIstEnabled = false,
+        bool arrayEnabled = false,
+        bool arrayBeforeBindEnabled = false,
+        bool arrayExhaustionEnabled = false)
     {
         StringBuilder output = new();
         Stack<PreprocessorFrame> stack = new();
@@ -3905,7 +3931,10 @@ internal static class M01InstructionPublicationEfiEntryTests
                     || string.Equals(condition, M02DoubleFaultIstSymbol, StringComparison.Ordinal)
                     || string.Equals(condition, M04RhpNewFastSymbol, StringComparison.Ordinal)
                     || string.Equals(condition, M04RhpBeforeBindSymbol, StringComparison.Ordinal)
-                    || string.Equals(condition, M04RhpExhaustionSymbol, StringComparison.Ordinal);
+                    || string.Equals(condition, M04RhpExhaustionSymbol, StringComparison.Ordinal)
+                    || string.Equals(condition, M04ArraySymbol, StringComparison.Ordinal)
+                    || string.Equals(condition, M04ArrayBeforeSymbol, StringComparison.Ordinal)
+                    || string.Equals(condition, M04ArrayExhaustionSymbol, StringComparison.Ordinal);
                 bool selectedValue =
                     string.Equals(
                         condition,
@@ -3944,7 +3973,11 @@ internal static class M01InstructionPublicationEfiEntryTests
                                                 : string.Equals(condition, M04RhpNewFastSymbol, StringComparison.Ordinal)
                                                 ? rhpNewFastEnabled
                                                 : string.Equals(condition, M04RhpBeforeBindSymbol, StringComparison.Ordinal)
-                                                    ? rhpBeforeBindEnabled : rhpExhaustionEnabled;
+                                                    ? rhpBeforeBindEnabled
+                                                    : string.Equals(condition, M04RhpExhaustionSymbol, StringComparison.Ordinal) ? rhpExhaustionEnabled
+                                                    : string.Equals(condition, M04ArraySymbol, StringComparison.Ordinal) ? arrayEnabled
+                                                    : string.Equals(condition, M04ArrayBeforeSymbol, StringComparison.Ordinal) ? arrayBeforeBindEnabled
+                                                    : arrayExhaustionEnabled;
                 stack.Push(
                     new PreprocessorFrame(
                         selected,
