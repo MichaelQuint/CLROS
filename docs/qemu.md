@@ -1429,7 +1429,8 @@ Use `-BuildEfi -EnableM02DoubleFaultIstProbe` with fresh EFI, image, serial and
 summary paths. This profile rejects `-SkipImageBuild`, a supplied
 `-M01RawObservationLog`, explicit false prerequisites and conflicting probes.
 A dry run is preflight only. [step950](../done/step950.md) records implementation;
-fresh default, PF regression and DF captures remain pending.
+[step951](../done/step951.md) records the actual commands and independently
+accepted fresh default, standalone PF regression and terminal DF captures.
 
 After the exact 74-record prerequisite transcript, the DF tail requires 14 CRLF
 records, 2,643 ASCII bytes and 84 full-width numeric fields. The complete CLROS
@@ -1445,8 +1446,11 @@ The actual wrapper must exit zero and the ordinary runner must record a genuine
 750 ms quiet drain followed by owned termination and a canonical Int32 native
 QEMU result. Ready text cannot override failure, timeout, cleanup failure,
 spontaneous exit, restart or unexpected output. Only complete empty CRLF
-delimiters may follow the final pass. Current implementation and synthetic
-checks do not yet prove actual double-fault delivery or prevent a triple fault.
+delimiters may follow the final pass. Host and synthetic checks alone do not
+prove delivery. The actual DF capture in [step951](../done/step951.md) passed
+same-image native/current-state and whole raw/lifecycle review for the bounded
+vector-8/error-0/original-IST1 experiment. It establishes neither arbitrary
+double-fault recovery nor universal triple-fault prevention.
 
 ## Implemented Behavior
 

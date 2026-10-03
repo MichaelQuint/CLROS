@@ -243,7 +243,9 @@ guards, freshly audits the original page backing, reads back the final context,
 armed IDT and stream, then publishes and enters the terminal path. Only that
 stream can emit the DF start/ready/pass tail. There is no firmware return,
 cleanup or recovery after attempted entry. The default path and the accepted
-M02-014 adapter are unchanged; fresh DF CPU delivery remains a separate gate.
+M02-014 adapter are unchanged. [step951](../done/step951.md) accepts fresh default
+and standalone PF regressions separately from the bounded terminal DF delivery
+on original IST1; it does not add a boot phase or recovery path.
 
 The separate default-off `EnableM02Ud2VectorStateProbe` profile now supplies
 accepted bounded guest evidence without adding a `BootSequence` phase. It runs

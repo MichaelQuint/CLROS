@@ -518,8 +518,11 @@ exports. Default/enabled artifacts require zero AssemblyRefs and actual profile
 isolation; the default artifact contains no compiled DF adapter. Enabled code
 must retain fresh page-image audit, final readback, instruction publication and
 indirect entry in that order. Neither emitted bytes nor compiled call order
-proves CPU delivery. No general exception, recovery, GC, runtime or
-post-ExitBootServices support is added; Gates 3 and 4 remain Fail.
+alone proves CPU delivery. [step951](../done/step951.md) separately accepts the
+fresh same-image native/current-state association and actual terminal DF
+capture on original IST1, with default and standalone PF regressions. No general
+exception, recovery, GC, runtime or post-ExitBootServices support is added;
+Gates 3 and 4 remain Fail.
 
 ### M04-007 opt-in EFI allocation source boundary
 

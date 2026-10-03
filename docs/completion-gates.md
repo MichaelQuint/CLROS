@@ -938,13 +938,21 @@ LLVM disassembly independently matches all 446 stream and 1,545 slot instruction
 boundaries. These are ordinary-data/compiler/model checks. The complete host
 gate passes in step949. The separate #521 adapter now has reviewed source and
 default/enabled NativeAOT artifact evidence in [step950](../done/step950.md),
-with the frozen host leaf unchanged. Its new settled-source complete host run
-and actual DF guest acceptance remain pending.
+with the frozen host leaf unchanged. [step951](../done/step951.md) accepts the
+settled-source complete host suite at cc7f08e: 3,580 starts, 3,581 passes, no
+failures, native exit 0 and empty stderr. Fresh default/PF/DF images separately
+passed source/managed/native, whole raw transcript, lifecycle and independent
+disk-accounting review. The DF experiment captured vector 8/error 0 and the
+full 192-byte current-handler span on original IST1, with original root,
+descriptors, armed gates and absent null/guard observations bound to the
+executed same-image audit/readback/publication path.
 
-Issue #55 stays open until accepted source-bound vector-8/error-0/IST1 and
-terminal serial/lifecycle evidence is merged. No CPU fault, active mapping,
-publication/lifetime, recovery, NMI nesting, post-firmware, hosted runtime,
-Kestrel or cloud claim follows from this host slice. Gates 3 and 4 remain Fail.
+The catalog records closed intent for M02-015. PR #522 merge and actual #55/#521
+closure remain separate tracker actions after the evidence commit; this record
+does not assert those actions already ran. The nonexecuting host leaf still
+supplies no CPU authority. There is no independent live memory dump, general
+mapping/lifetime or recovery guarantee, NMI nesting, real ExitBootServices,
+hosted runtime, Kestrel or cloud support. Gates 3 and 4 remain Fail.
 
 ## Unsupported Behavior
 

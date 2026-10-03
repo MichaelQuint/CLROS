@@ -2100,4 +2100,8 @@ table backing precedes final readback, publication and entry. No C# ready marker
 substitutes for entry. Only the PF gate Present bit is cleared, leaving vector 8
 on IST1; the trigger is the frozen null read. Saved DF program state and CR2
 remain diagnostic-only. Default/enabled NativeAOT artifacts are implementation
-evidence; the full host run and fresh guest acceptance remain separate gates.
+evidence. [step951](../done/step951.md) separately accepts the settled-source
+complete host suite and fresh default/PF/DF images, each with the recorded
+79-item/92-input source closure, actual 28-flag profile and zero-AssemblyRef
+OS.dll. Same-image native/current-state and full capture/lifecycle review supply
+the bounded delivery evidence; successful builds alone do not.
