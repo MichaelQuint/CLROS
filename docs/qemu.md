@@ -2741,9 +2741,33 @@ rejects the next length1 allocation without changing state or heap. These
 remain generic failures to the ordinary runner, rather than expected-panic
 successes.
 
-Future acceptance must bind the actual same-image full metadata prefixes,
+Acceptance must bind the actual same-image full metadata prefixes,
 related pointers and relocations, compiled return/constructor/readback paths,
 whole raw stream, source profiles, owned process lifecycle and captured disk
 accounting. Positive/exhaustion streams expose five metadata roles;
 before-bind/invalid-length expose only two attempted tokens. Synthetic parser
 controls and successful publications do not replace those guest checks.
+
+[Step964](../done/step964.md) records accepted fresh default/fixed/mixed-array/
+String/before-bind/exhaustion/invalid-length captures at `be2762f`. The actual
+matrix ran 22:34:29.870553–22:43:19.925056 UTC on 2026-10-03, after the accepted
+3,653/3,654/0 whole-host gate. All 13 capture commands returned native 0 with
+empty stderr; all 4,152 archive entries and 36-property/84-Compile/97-source
+bindings passed independent review. Whole raw counts are fixed 78, array 68,
+String 72 and negatives 49/65/50. The default's entire 7,947-byte returning stream
+equals the accepted baseline, including its firmware suffix.
+
+The four ordinary wrappers return 0 with runner-owned QEMU termination and
+signed QEMU exit −1. Their 750 ms serial drain is configured, not measured time.
+The three separate negative observers measure 754.7916/764.772/755.3515 ms quiet,
+with unchanged candidate/final bytes, exact rejection EOF, owned termination
+and no timeout or spontaneous exit. These are expected rejection observations,
+not invented ordinary-runner successes or expected-panic classifications.
+
+Independent native and disk joins complete this finite acceptance. All three
+negative preboot images equal their pristine reconstructions. Booted images
+retain the exact EFI payload but differ by accounted NVVARS/FAT/root/FSInfo
+changes; postboot/pristine equality and whole-filesystem conformance are not
+claimed. Immutable capture/reviewer provisional flags stay false; the parent
+joint record supplies guest acceptance. General runtime, GC, real EBS and
+hosted .NET/Kestrel remain unsupported, and Gates3/4 remain **Fail**.

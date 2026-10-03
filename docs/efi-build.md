@@ -2195,8 +2195,15 @@ Five focused NativeAOT publications pass for default, positive, before-bind,
 exhaustion and invalid-length, with0/10/11/11/11 true properties. All have zero
 OS AssemblyRefs. Metadata and linked-code checks bind `RhNewString`, constructor
 remapping, String/Object prefixes and relocations, UTF-16 field offsets and the
-full-width invalid-length call. These are compiler/artifact results; the
-combined full suite and guest acceptance remain pending.
+full-width invalid-length call. These were the compiler/artifact results at
+step963. [Step964](../done/step964.md) adds the accepted clean `be2762f` solution
+build, complete 3,653/3,654/0 host suite and seven fresh QEMU/OVMF captures.
+Default/fixed/mixed-array/String/before-bind/exhaustion/invalid-length artifacts
+have zero OS AssemblyRefs and exact 36-property vectors with 0/8/9/10/11/11/11
+true flags. All 84 Compile and 97 raw input identities are bound, with smoke
+source provenance recorded separately. Fresh independent native, raw,
+lifecycle and disk reviews accept the bounded String behavior and shared-core
+regressions; general runtime gates remain incomplete.
 
 The positive smoke command is:
 
@@ -2213,7 +2220,8 @@ The positive smoke command is:
   -EnableM04SzArrayAllocationProbe -EnableM04StringAllocationProbe
 ```
 
-This command is not a step963 guest result. Negative variants add exactly one
+This command is not a step963 guest result; step964 records its later capture
+and independent acceptance. Negative variants add exactly one
 String negative switch to the same build prerequisites. Their intentional
 `TEST_FAIL m04.009` endings remain ordinary runner failures; independently
 reviewed capture and full negative-transcript/lifecycle checks are required
