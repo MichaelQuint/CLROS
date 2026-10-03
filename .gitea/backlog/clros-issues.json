@@ -8142,7 +8142,7 @@
       ],
       "collisionLane": null,
       "summary": "Add EFI_BUFFER_TOO_SMALL, descriptor-growth, slack, and overflow memory-map tests derived from RoseOS failures.",
-      "currentEvidence": "The EFI path captures a map but deliberately skips the ExitBootServices call; post-firmware execution is unproven.",
+      "currentEvidence": "Step961 adds ten bounded M03-001 host regression groups over the existing UefiMemoryMapCapture/CopyPlan helpers, without a duplicate production implementation. The complete new and unchanged memory-map initializers passed 29 starts/30 passes/zero failures with native exit 0; the five-file current-shim no-stdlib closure has zero AssemblyRefs and normal HostTests compilation passes. Tests cover growth/slack, firmware errors, stride changes, overflow/count/capacity limits, complete canary/tail preservation and warmed zero allocation. This is controlled host evidence only. The issue stays open pending the separately owned native capture observation, fresh QEMU evidence and common-head gate; no ExitBootServices call or key-freshness proof is added.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add EFI_BUFFER_TOO_SMALL, descriptor-growth, slack, and overflow memory-map tests derived from RoseOS failures.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
