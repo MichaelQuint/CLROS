@@ -154,6 +154,12 @@ and the reachable local Gitea tracker:
   materialization, full-page readback, and value-only RW+NX-to-RO+X
   finalization audit. It does not change live protection or execute any entry.
 - `tests/OS.HostTests` verifies marker emission, boot event ring-buffer behavior, boot info, typed handoff metadata, UEFI memory-map contracts, normalized memory-map conversion, UEFI-gone simulation behavior, diagnostics, manifest validation, libvirt XML generation, source firewall behavior, storage/network parser primitives, ACPI/PCI/virtio planning contracts, and the current `OS.Std.Ascii`, endian, and `OS.Std.MemoryExtensions` helper slices.
+- `GuestTestStringAllocationCharacterStorage` adds a bounded host entry to the
+  existing fixed/array retained-page allocator. The complete three-module run
+  passes 31 starts/32 passes with zero failures, and all three real no-stdlib
+  closures have zero AssemblyRefs. [Step955](../done/step955.md) records exact
+  source and evidence identities. Native String integration, the combined full
+  suite and actual String guest execution remain pending for this checkpoint.
 - `scripts/check-naming.ps1` enumerates admitted files once for its naming and
   source-firewall checks. It prunes excluded directory names before descent,
   skips directory reparse points, retains the provider's default hidden-file

@@ -77,6 +77,12 @@ execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
   and disk reviews are recorded in [step954](done/step954.md). General arrays,
   managed reference stores, GC, strings and Gate 4 remain incomplete.
 
+- M04-009 adds host-tested String storage to the same retained allocation page
+  and cursor. Complete fixed/array/String modules pass 31 starts/32 passes,
+  including UTF-16 storage, terminators, signed-length checks and unchanged
+  rejection storage. [Step955](done/step955.md) records this host checkpoint;
+  compiled String constructors and guest execution remain pending.
+
 - The 2026-08-06 local Gitea snapshot had **273 open issues** (issues only,
   excluding pull requests). That was ten fewer than the earlier 283-issue
   snapshot even though narrowly scoped integration/review issues were added to

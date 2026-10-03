@@ -233,7 +233,7 @@ allocation, GC, dispatch, exception or runtime-completion requirements.
 | `System.SpanHelpers` clear/fill/memmove slice | Implemented as narrow byte/pointer helper slice | Supports current EFI publish boundary only |
 | Object allocation helpers | Bounded opt-in EFI allocation guest evidence accepted | Step940 proves the fixed caller-buffer leaf over the original #75 retained authority. Step946 adds the real profile-bound `RhpNewFast` adapter. Step949 accepts the complete host suite and five fresh QEMU profiles, including four compiled-new/six direct routes, before-bind rejection and exhaustion, with independent metadata/native/prefix/transcript/lifecycle/disk review. The general `ObjectAllocation` gate remains deferred; no general heap or GC is established |
 | Array allocation helpers | General support deferred; bounded opt-in EFI guest evidence accepted | Step952 adds the shared retained-page SZ-array leaf and separately classified `EfiSzArrayAllocation` exports. Step954 accepts the complete host gate and eight fresh profiles with independent native/metadata/prefix, transcript/lifecycle and disk review. Genuine byte/long allocations, length/index/store readback, before-bind rejection and shared-page exhaustion are bounded guest observations. General `ArrayAllocation` completion, managed reference stores and GC remain deferred |
-| String allocation helpers | Deferred | Ledger entry `StringAllocation`; no OS-owned NativeAOT string allocation helper exists |
+| String allocation helpers | Native helper deferred; bounded host storage contract exists | Ledger entry `StringAllocation`; step955 adds a signed64 host entry sharing the existing retained-page allocator and tests UTF-16 storage/terminators. No OS-owned NativeAOT String helper or compiled constructor execution exists |
 | Write barriers | Deferred | Ledger entry `WriteBarriers`; no kernel/runtime write barrier implementation exists |
 | Interface dispatch | Deferred | Ledger entry `InterfaceDispatch`; EFI type-cast helpers fail fast and do not prove interface dispatch |
 | Class constructors | Deferred | Ledger entry `ClassConstructors`; `NativeAotClassConstructorStateTable` proves caller-owned state transitions, cycle detection, duplicate/missing/capacity errors, failed-cctor preservation, and caller-owned `NATIVEAOT_CCTOR_STATE` diagnostic formatting. `NativeAotClassConstructorRunnerPreflight` proves ready/default/failed/pending/missing-metadata preflight status, caller-owned `NATIVEAOT_CCTOR_RUNNER_PREFLIGHT` diagnostic formatting, and host-tested `BootSequence` readiness markers only. `NativeAotClassConstructorWorkItemPlanner` now proves caller-owned work-item metadata planning from already-supplied target tokens plus caller-owned `NATIVEAOT_CCTOR_WORK_ITEMS` diagnostic formatting and host-tested `NATIVEAOT_CCTOR_WORK_ITEMS_READY` / `NATIVEAOT_CCTOR_WORK_ITEMS_NOT_READY` BootSequence readiness markers while preserving no-delegate/no-reflection/no-execution boundaries. No cctor runner invocation, constructor execution, metadata discovery, or constructor-body failure diagnostics is implemented |
@@ -658,6 +658,44 @@ fresh COFF/PE inputs; before-bind has only two attempted tokens and no observed
 prefix. Successful publications alone still do not prove execution or general
 array behavior. See `docs/efi-build.md` and `docs/qemu.md` for prerequisites and
 transcript boundaries.
+
+### M04-009 shared String storage host contract
+
+`GuestTestStringAllocationCharacterStorage.TryAllocate` takes a signed64 length
+and enters the same private allocation path as fixed objects and SZ-arrays.
+The 104-byte access, 80-byte state, 88-byte result, thirteen original authority
+arguments, one-shot binder and fresh retained-page validation are unchanged.
+There is one cursor and one allocation commit. Existing status values0..18 are
+preserved; `UnsupportedStringType` is appended as19.
+
+The pinned evaluator must admit actual String shape, base22, component2 and no
+GC pointers. The full signed count is checked against zero and `0x3FFFFFDF`
+before narrowing. Invalid counts retain metadata-before-length rejection
+precedence. The selected size is `align8(22+2*n)`: at allocation origin B, the
+reference/MethodTable is B+8, length is B+16, characters begin at B+20 and the
+zero UTF-16 terminator starts at B+20+2*n. The whole selected span is zeroed
+before metadata and length writes; cursor/count commit last. Zero length
+consumes24 bytes. Metadata supplied as scalar data is not authentic readable
+runtime metadata, and numeric references remain caller-owned buffer addresses.
+
+[Step955](../done/step955.md) records complete fixed/array/String focused modules
+with31 starts/32 passes, zero failures and actual10/11/11-source no-stdlib
+closures with zero AssemblyRefs. Literal full-span byte oracles cover embedded
+NUL, non-ASCII and surrogate code units, preserved terminators/padding, mixed
+cursor224/count7, exact2037-character page fill and2038-character rejection,
+signed64 truncation, full declared-span aliases, original authority changes and
+complete rejection storage preservation. Warmed real mixed calls allocate zero
+CLR bytes. Normal HostTests Release compilation also passes; a combined full
+suite is not part of this checkpoint.
+
+The earlier pinned compiler experiment established `RhNewString(MethodTable*,
+nint)`, constructor remapping and String layout/field offsets using a terminal
+helper. It established no successful returned allocation. This host slice adds
+no String runtime export, constructor, interning, character-copy operation,
+refill or GC. Shared EFI source admission and same-image fixed/array
+compatibility are still being reconciled separately. Genuine compiled String
+return/constructor/character execution requires a later native integration and
+fresh guest evidence. M04-009 stays open and Gate4 remains **Fail**.
 
 ## Tests
 

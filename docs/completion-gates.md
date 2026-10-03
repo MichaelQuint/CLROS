@@ -886,6 +886,17 @@ covariance/casts/exceptions, strings, refill, post-firmware lifetime and the
 hosted runtime remain unsupported. Gate3 also remains **Fail**; the integrated
 M02-016 host module is not native unexpected-vector panic evidence.
 
+### M04-009 String storage host boundary
+
+[Step955](../done/step955.md) accepts the bounded host String entry into the
+existing retained-page allocator. The complete fixed/array/String modules pass
+31 starts/32 passes with zero failures; actual10/11/11-source no-stdlib closures
+have zero AssemblyRefs. Literal storage/terminator, mixed-cursor, signed64,
+capacity, authority and unchanged-rejection cases are host evidence only.
+Native String exports, returning compiled constructors and guest character
+storage are pending. The combined source-admission/full-suite/native regression
+gate is separate. M04-009 and M04-010 remain incomplete; Gate4 stays **Fail**.
+
 ### M02-014 source integration and terminal guest boundary
 
 The #517 source integration connects the frozen page-image and transition leaves

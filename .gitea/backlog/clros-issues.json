@@ -9919,7 +9919,7 @@
         "M04-008"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -9931,6 +9931,8 @@
       "ownedPaths": [
         "src/OS.Kernel/Runtime/GuestTestStringAllocationCharacterStorage.cs",
         "tests/OS.HostTests/GuestTestStringAllocationCharacterStorageTests.cs",
+        "src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs",
+        "tests/OS.HostTests/GuestTestRhpNewFastTests.cs",
         "docs/nativeaot-nostdlib-limits.md",
         "docs/completion-gates.md"
       ],
@@ -9943,15 +9945,15 @@
         "references/** (read-only except the dedicated references/AGENTS.override.md issue)",
         "done/** (reserve a new step only after implementation evidence exists)"
       ],
-      "collisionLane": null,
+      "collisionLane": "Shared retained-page allocation core; #78 owns its four host paths, #526 owns separate EFI compatibility paths; final native evidence waits for combined source freeze.",
       "summary": "Implement and guest-test string allocation and character storage.",
-      "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
+      "currentEvidence": "Step955 accepts the four-file bounded host String storage checkpoint on PR524 merge base46e2a74fb88c37410d96b94a2caff4a69b624777. The thin signed64 entry shares the original retained-page authority, binder, cursor and sole commit with fixed objects and arrays. Complete focused modules pass31 starts/32 passes/0 failures; actual10/11/11-source no-stdlib closures have zero AssemblyRefs, and normal HostTests Release compilation passes. Parent and independent review accepted all four exact files and imported them into the integration and #526 compatibility worktrees. The pinned terminal compiler checkpoint establishes RhNewString(MethodTable*,nint), constructor remapping and String layout but no returned allocation. The separately claimed #526 owner reconciles six shared EFI compatibility files; parent owns docs/catalog/done. The single exact owned-path implementation note now matches current ownedPaths; all other implementation notes and dependencies are preserved. Combined source-admission/full-suite/native compatibility and genuine String return/constructor/character guest execution remain pending. M04-009 stays open/claimed and cannot unblock M04-010.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Implement and guest-test string allocation and character storage.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
-        "The proposed owned paths are exact for this slice: src/OS.Kernel/Runtime/GuestTestStringAllocationCharacterStorage.cs, tests/OS.HostTests/GuestTestStringAllocationCharacterStorageTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "The proposed owned paths are exact for this slice: src/OS.Kernel/Runtime/GuestTestStringAllocationCharacterStorage.cs, tests/OS.HostTests/GuestTestStringAllocationCharacterStorageTests.cs, src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs, tests/OS.HostTests/GuestTestRhpNewFastTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Positive case: Execute or validate the well-formed runtime/application case required by: Implement and guest-test string allocation and character storage.",
         "Failure cases: Cover null/default values, size/count overflow, malformed metadata, missing import, relocation overflow, overlapping sections, W+X, root loss, write-barrier omission, cctor recursion/failure, bad cast, unwind corruption, and nonzero exit as applicable.",
         "Explicitly inapplicable here: DHCP loss and provider cleanup are outside this runtime/application slice unless the title explicitly crosses them.",

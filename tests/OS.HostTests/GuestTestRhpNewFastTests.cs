@@ -141,6 +141,24 @@ internal static unsafe class GuestTestRhpNewFastTests
         CheckResult(f, Allocate(f, size: 32), 56, 32, 3, Token);
         CheckBytes(f.Page + 56, 32, Token);
         f.OnlyChanged(before, (0x3000, 80), (f.PageOffset + 56, 32));
+
+        // String storage joins this same cursor without relaxing fixed admission.
+        before = f.Snapshot();
+        NativeAotMethodTablePrefix stringPrefix = Prefix(0xD0000002, 22);
+        RhpNewFastResult text = GuestTestStringAllocationCharacterStorage.TryAllocate(
+            f.Access, f.State, f.StateCapacity, Profile, stringPrefix, Token2, 3);
+        CheckResult(f, text, 88, 32, 4, Token2);
+        Require(f.Page[104] == 3 && f.Page[105] == 0 && f.Page[106] == 0 && f.Page[107] == 0 &&
+            f.Page[108] == 0 && f.Page[114] == 0 && f.Page[115] == 0,
+            "String length/data/terminator offsets from allocation origin");
+        f.OnlyChanged(before, (0x3000, 80), (f.PageOffset + 88, 32));
+        before = f.Snapshot();
+        Rejected(Alloc.TryAllocate(f.Access, f.State, f.StateCapacity, Profile, stringPrefix, Token),
+            Status.UnsupportedFixedType);
+        f.Unchanged(before);
+        CheckResult(f, Allocate(f), 120, 24, 5, Token);
+        CheckBytes(f.Page + 120, 24, Token);
+        f.OnlyChanged(before, (0x3000, 80), (f.PageOffset + 120, 24));
     }
 
     private static void CheckFixedDomain()
@@ -419,7 +437,7 @@ internal static unsafe class GuestTestRhpNewFastTests
         string[] statuses = ["Uninitialized", "Success", "InvalidStorage", "StorageOverlap", "AlreadyInitialized",
             "NotInitialized", "InvalidState", "HeapAuthorityRejected", "HeapBindingMismatch", "InitialPageNotPristine",
             "UnsupportedProfile", "InvalidMethodTableToken", "InvalidMethodTableFlags", "UnsupportedFixedType",
-            "InvalidBaseSize", "Exhausted", "UnsupportedArrayType", "InvalidComponentSize", "InvalidLength"];
+            "InvalidBaseSize", "Exhausted", "UnsupportedArrayType", "InvalidComponentSize", "InvalidLength", "UnsupportedStringType"];
         Require(Enum.GetValues<Status>().Length == statuses.Length, "append-only status count");
         for (int i = 0; i < statuses.Length; i++) Require(((Status)i).ToString() == statuses[i], "stable status values");
         string[] fields = ["InitializedValue", "SelfAddressValue", "CapacityValue", "HeapAddressValue",
@@ -616,7 +634,7 @@ internal static unsafe class GuestTestRhpNewFastTests
             "actual allocation method is present");
         TypeDefinition allocator = metadata.TypeDefinitions.Select(metadata.GetTypeDefinition)
             .Single(t => metadata.GetString(t.Name) == "GuestTestRhpNewFast");
-        foreach (string name in new[] { "TryAllocate", "TryAllocateArray", "AllocateCore" })
+        foreach (string name in new[] { "TryAllocate", "TryAllocateArray", "TryAllocateString", "AllocateCore" })
         {
             MethodDefinition entry = allocator.GetMethods().Select(metadata.GetMethodDefinition)
                 .Single(m => metadata.GetString(m.Name) == name);
