@@ -25,7 +25,7 @@ adaptation. This does not relicense vendor code, the GPL ManagedDoom fixture,
 WAD/media assets, or the absent CoreCLR fork; exact source paths, immutable
 commits, local/fetched hashes, and adaptation boundaries remain mandatory.
 
-SharpOS's latest numbered milestone file is `done/step143.md`. The file does
+The local archive's latest numbered milestone file is `done/step143.md`. The file does
 not embed a trustworthy source date, and the archive's filesystem timestamps
 identify only this local extraction, not the upstream revision. It reports
 playable Managed DOOM on bare metal with GOP output, PS/2 keyboard input, HPET
@@ -121,7 +121,7 @@ virtio-net/TCP/Kestrel prerequisites remain CLROS-owned.
 
 ### Upstream steps 166-184 reviewed on 2026-10-01
 
-The latest reviewed revision is
+The revision reviewed on 2026-10-01 was
 `dfad516b816d29b971d23ef116d4dbebeedcd25e` (2026-09-30), 65 commits beyond
 the August review. `docs/reference-map.md` records the source-to-issue
 crosswalk. The August revision and archive identities above are historical,
@@ -161,6 +161,32 @@ in this review. Historical SharpOS (`references/SharpOS-master`) remains a
 different, GPL-licensed, test-concept-only reference. In particular its
 `Arithmetic.cs` has a placeholder 64-bit division helper; CLROS must derive
 independent expected results, never use that helper as an oracle.
+
+### Upstream steps 185–188 reviewed on 2026-10-03
+
+The subsequent five-commit review pins
+`75c045963af300cc48072e12681eb90cd2c60e04`, after the historical
+`dfad516b816d29b971d23ef116d4dbebeedcd25e` review above. See the
+[current source-to-issue crosswalk](reference-map.md#sharpos-upstream-refresh-2026-10-03)
+and its posted #79/#85/#82/#164 addenda. No upstream code was built, executed
+or imported, and no issue scope or dependency changed.
+
+Use current conditions over stale comments: `StelemRef_Helper` calls
+`AreTypesAssignable`, including its array-to-array branch; the nearby older
+unchecked-array limitation is not current. Checked stores and writable refs
+still require independent .NET 10 caller/helper proof. Likewise, step188's
+reported devirtualized calls demonstrate why resolver-only tests are
+insufficient; their one/two/three/four-type behavior is not a .NET 10 promise.
+Header publication/root-walking and service-table tail changes supply later
+GC and ABI negatives, not current CLROS collector or app-runtime support.
+
+Reject the reference's `RhpStackProbe` policy: its patcher writes `0xC3`
+(`ret`) under a no-guard-page assumption. That proves neither CLROS stack
+extent nor native ABI/page-touch safety. The new BCL formatting material is
+net8-derived with component-specific dotnet MIT notices; root CC0 does not
+relicense it. The separate runtime fork and upstream execution reports remain
+unreproduced. String constructor work supplies corroboration only, and this
+delta supplies no new memory-map/EBS implementation or CLROS evidence.
 
 ### Boot and diagnostics
 

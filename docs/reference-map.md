@@ -69,7 +69,7 @@ captured logs, stable markers, and the matching entry in
 | `references/PatienceOS-main` | Test-vector reference | `src/` for host-testing unsafe console/buffer routines against caller-owned stack memory. | Do not adopt its 32-bit Multiboot, VGA, or assembly path. |
 | `references/RoseOS-master` | Test-vector reference | `Loader/`, `Kernel/`, and `WindowsTest/` for UEFI memory-map sizing, `ExitBootServices`, PE validation, reservation, and allocator regressions. | Do not copy its map-buffer sizing, loaded-image reclamation, fixed allocator assumptions, C, or assembly. |
 | `references/Sharpen-master` | Conceptual reference | `kernel/` and `user/` for a historical subsystem/device/filesystem/network census. | Do not copy the old native-heavy x86 implementation. |
-| `references/SharpOS-main` | Selective primary, owner-authorized CC0 reference | `OS/`, `std/`, `apps_native/`, `bootasm/`, `docs/`, and `done/` for modern C# NativeAOT boot/runtime, PE apps, PAL, scheduler, storage, and evidence patterns. The owner-supplied permission record and upstream CC0-1.0 license permit selective reuse of SharpOS-authored source. | The local archive's content matches upstream `b80ee3a4175e1522d1a12ba7fe371a49da3207f5` except for its omitted top-level `LICENSE`; still bind adaptations to exact paths and hashes. Latest reviewed upstream `dfad516b816d29b971d23ef116d4dbebeedcd25e` is research-only until selectively adapted. SharpOS relies on a separate CoreCLR fork, still has no network driver, and contains separately licensed/GPL material. It is not CLROS architecture or evidence. |
+| `references/SharpOS-main` | Selective primary, owner-authorized CC0 reference | `OS/`, `std/`, `apps_native/`, `bootasm/`, `docs/`, and `done/` for modern C# NativeAOT boot/runtime, PE apps, PAL, scheduler, storage, and evidence patterns. The owner-supplied permission record and upstream CC0-1.0 license permit selective reuse of SharpOS-authored source. | The local archive's content matches upstream `b80ee3a4175e1522d1a12ba7fe371a49da3207f5` except for its omitted top-level `LICENSE`; still bind adaptations to exact paths and hashes. The October 1 review pinned `dfad516b816d29b971d23ef116d4dbebeedcd25e`; the October 3 research refresh below pins `75c045963af300cc48072e12681eb90cd2c60e04`. SharpOS relies on a separate CoreCLR fork, still has no network driver, and contains separately licensed/GPL material. It is not CLROS architecture or evidence. |
 | `references/SharpOS-master` | Test-vector reference | `Kernel/`, `AOT/`, and historical test material for arithmetic, casts, arrays, strings, generics, exceptions, delegates, interfaces, boxing, and cctor behavior. | Historical custom compiler/runtime; inspected CS test headers declare GPL v3 with a Classpath exception. Recreate tests independently and do not copy implementation. |
 | `references/smolsharp-main` | Conceptual reference | `src/` and build properties for binary-size, section-stripping, CRT-removal, and DirectPInvoke threat-model review. | Size cannot remove unwind/protection/diagnostic data. The snapshot has no top-level license evidence and points at AGPL ZeroLib work; do not copy it into CLROS. |
 | `references/xOS-main` | Ignore | `xOS/` and `xOSTests/` describe a Cosmos shell application. | It is not a kernel/runtime architecture; its bundled `CosmosOS-License` applies to Cosmos-derived material, not automatically to every dependency. |
@@ -152,6 +152,31 @@ hosted runtime `10.0.5` do not make that kernel a .NET 10 NativeAOT port.
 The README still reports no network-card driver. The upstream CC0 file does
 not replace component-specific provenance. This review ran no SharpOS guest
 and promotes no CLROS completion gate.
+
+### SharpOS upstream refresh (2026-10-03)
+
+Reviewed the five commits from `dfad516b816d29b971d23ef116d4dbebeedcd25e`
+to `75c045963af300cc48072e12681eb90cd2c60e04`, including steps 185–188:
+[pinned comparison](https://github.com/daniilvaino/SharpOS/compare/dfad516b816d29b971d23ef116d4dbebeedcd25e...75c045963af300cc48072e12681eb90cd2c60e04).
+The prior 65-commit review above remains historical evidence. The research
+clone stayed at its clean `dfad516b` checkout; target files were read through
+Git without a build, guest run or source import.
+
+| Current source / upstream report | Existing CLROS destination and posted addendum |
+| --- | --- |
+| `GcRuntimeExports.cs` now checks reference-array stores and exact element identity before a writable ref; its assignment helpers remain plain stores. Upstream reports callers without preceding bounds checks. | [#79](http://localhost:3000/admin/CLROS/issues/79#issuecomment-14520): derive actual .NET 10 helper/bulk-move contracts and no-write failures; keep later covariance/casts outside the approved POD slot/bulk slice. |
+| Step188 reports direct/compare-select interface calls that bypass the resolver for its one/two/three-implementation cases. | [#85](http://localhost:3000/admin/CLROS/issues/85#issuecomment-14523): distinguish optimized call-site success from actual dispatch using same-image evidence; the upstream thresholds are not portable guarantees. |
+| `GcHeap.cs` publishes headers inside both allocation critical sections; `KernelGcPreciseWalk.cs` follows roots below app transitions. | [#82](http://localhost:3000/admin/CLROS/issues/82#issuecomment-14525): later header-publication, retry and parked/interrupted-root cases with explicit stack/image authority. Its allocation-forbidden hook only counts, and its collector assumes one CPU. |
+| `AppServiceTable.cs` adds tail fields while retaining V3; step185 reports a stale app reading a different tail. | [#164](http://localhost:3000/admin/CLROS/issues/164#issuecomment-14527): size/version/layout and old/new producer-consumer tests; retain POD/opaque `OSHost_*` boundaries and owner-lifetime checks. |
+
+The addenda preserve issue bodies, ownership, states and dependencies. Exact
+source lines, hashes and commit links are retained in the accepted research
+report under `artifacts/orchestration-20261001/sharpos-refresh-20261003`.
+This is source-review/test-vector material: the kernel remains net8, its
+separate CoreCLR fork was not reproduced, and per-file dotnet MIT notices are
+not overridden by root CC0. Do not import the new formatting implementation
+or its `RhpStackProbe` patch to `ret`. Nothing here advances CLROS's .NET 10,
+GC, EBS, hosted-runtime or completion-gate evidence.
 
 ## Secondary NativeAOT/Cosmos Gen3 Crosswalk
 
