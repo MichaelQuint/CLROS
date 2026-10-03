@@ -46,20 +46,6 @@ $disallowedPatterns = @(
     @{ Pattern = '`src/Kernel/Diagnostics/Probes\.cs`'; Reason = "Use src/OS.Kernel/Diagnostics/Probes.cs." }
 )
 
-function Test-IsExcludedPath {
-    param([string] $Path)
-
-    $relative = Get-RelativePath $Path
-    $segments = $relative -split '[\\/]'
-    foreach ($segment in $segments) {
-        if ($excludedDirectories -contains $segment) {
-            return $true
-        }
-    }
-
-    return $false
-}
-
 function Get-RelativePath {
     param([string] $Path)
 
@@ -94,16 +80,36 @@ function Test-IsExplicitSharpOsReferenceDiscussion {
     return $Value -match '(?i)(\breference(d|s)?\b|\bsnapshots?\b|\bupstream\b|\bprovenance\b|\blicense\b|SharpOS-(main|master)|references[\\/].*SharpOS)'
 }
 
-$files = Get-ChildItem -LiteralPath $root -Recurse -File |
-    Where-Object {
-        -not (Test-IsExcludedPath $_.FullName) -and
-        $_.FullName -ne $PSCommandPath
+$files = New-Object System.Collections.Generic.List[System.IO.FileInfo]
+$directories = New-Object System.Collections.Generic.Stack[string]
+$directories.Push($root)
+while ($directories.Count -gt 0) {
+    foreach ($item in Get-ChildItem -LiteralPath $directories.Pop()) {
+        # Exclude before descent; the same names also remain excluded as files.
+        if ($excludedDirectories -contains $item.Name) {
+            continue
+        }
+
+        if ($item.PSIsContainer) {
+            # Match Windows PowerShell's recursive provider: do not follow links.
+            if (-not ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+                $directories.Push($item.FullName)
+            }
+        }
+        else {
+            $files.Add($item)
+        }
     }
+}
 
 $failures = New-Object System.Collections.Generic.List[string]
 $sourceFailures = New-Object System.Collections.Generic.List[string]
 
 foreach ($file in $files) {
+    if ($file.FullName -eq $PSCommandPath) {
+        continue
+    }
+
     $relative = Get-RelativePath $file.FullName
     $lineNumber = 0
 
@@ -123,11 +129,7 @@ foreach ($file in $files) {
     }
 }
 
-foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File) {
-    if (Test-IsExcludedPath $file.FullName) {
-        continue
-    }
-
+foreach ($file in $files) {
     if (Test-IsUnderFirstPartyRoot $file.FullName $firstPartySourceRoots) {
         $extension = [System.IO.Path]::GetExtension($file.Name).ToLowerInvariant()
         if ($forbiddenSourceExtensions -contains $extension) {
@@ -164,9 +166,8 @@ $buildInputExtensions = @(
     ".targets"
 )
 
-$buildInputFiles = Get-ChildItem -LiteralPath $root -Recurse -File |
+$buildInputFiles = $files |
     Where-Object {
-        -not (Test-IsExcludedPath $_.FullName) -and
         ($buildInputExtensions -contains [System.IO.Path]::GetExtension($_.Name).ToLowerInvariant())
     }
 

@@ -122,6 +122,16 @@ mutation, and a separate decoder checks all stream bytes and 91 instructions.
 The existing normalizer, all-present IDT, descriptor and panic formatter
 contracts are unchanged.
 
+The subsequent isolated NativeAOT callback study demonstrated that the planned
+4 KiB stack is insufficient: the real validation path clears 80 bytes below
+that page and reaches a 4,240-byte stack depth. Independent whole-chain analysis
+of the same provisional image found a conditional 5,096-byte bound, assuming
+the two exact existing zero-frame IN/OUT targets. A two-page stack is proposed,
+but its actual adapter, concrete targets, full access bound, sentinel placement
+and mode requirements still need same-image review before guest execution.
+This compiled-artifact finding is recorded in step953; the host-only C2/D6
+source has not yet been repaired or approved for native execution.
+
 Controlled output consists of a 650-byte, 24-field metadata record followed
 by the unchanged unexpected-vector panic record. Before each UART
 reconfiguration, a checked TEMT wait allows at most 65,536 reads; per-byte THRE
@@ -134,7 +144,7 @@ those defensive branches remain unexercised through that API.
 The complete focused host module passed 11 groups, with one explicitly
 host-only readiness line and terminal `TEST_PASS host.tests`. The actual
 12-source no-stdlib compile has zero AssemblyRefs, and the normal HostTests
-Release build passed. This does not supply native callback stack analysis,
+Release build passed. That host test evidence does not supply native execution,
 real descriptor/interrupt/COM1 observations, expected-panic runner
 classification or guest evidence. M02-016 remains open; its shared EFI
 integration must follow the array integration wave. No ordinary boot behavior
