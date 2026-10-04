@@ -15,7 +15,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
         "guestPortIo=true guestIn8=true postExitBootServices=false";
     private const string FailureMarker = "M02_OWNED_COM1_READY_FAILED";
     private const string CompileClosureSha256 =
-        "9f0806ad17e616f2ffb199d18b21a604d38f087bd5bfb37aa4ca84ffb91afc67";
+        "54bfa32fa851eb9a5f96ee8f3b8d9bd3f916b01dc629d5497cb42d97f6d79993";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -150,7 +150,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 88
+        return compileItems.Length == 89
             && compileHash == CompileClosureSha256
             && backendIndex >= 0
             && writerIndex == backendIndex + 1
@@ -171,12 +171,15 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
             && symbolGroups.Length == 1
             && symbolGroups[0].Elements("DefineConstants").Single().Value ==
                 "$(DefineConstants);M02_OWNED_COM1_READY_PROBE"
-            && dependencyConditions.Length == 10
+            && dependencyConditions.Length == 11
             && dependencyConditions.Contains(
                 "'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'",
                 StringComparer.Ordinal)
             && dependencyConditions.Contains(
                 "'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+                StringComparer.Ordinal)
+            && dependencyConditions.Contains(
+                "'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'",
                 StringComparer.Ordinal)
             && dependencyConditions.Contains(
                 "'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'",
@@ -212,7 +215,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
                 "m02_owned_com1_ready_requires_com1_owned_port_io",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=102",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=103",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 "\"-EnableM02OwnedCom1ReadyProbe\",\n            \"true\"",
@@ -224,10 +227,10 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
                 "[switch]$EnableM02OwnedCom1ReadyProbe",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 102",
+                "$expectedSourceClosureInputCount = 103",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 88",
+                "$compileItems.Count -ne 89",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
                 "-p:EnableM02OwnedCom1ReadyProbe=true",

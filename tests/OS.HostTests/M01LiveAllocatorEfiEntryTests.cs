@@ -6,6 +6,7 @@ using OS.Boot;
 internal static class M01LiveAllocatorEfiEntryTests
 {
     private const string MemoryMapSymbol = "M03_MEMORY_MAP_CAPTURE_PROBE";
+    private const string EntropySymbol = "M03_FIRMWARE_ENTROPY_SEED_PROBE";
     private const string IssueTestName = "m01.023";
     private const string UnexpectedPanicSymbol =
         "M02_UNEXPECTED_VECTOR_PANIC_PROBE";
@@ -1545,7 +1546,7 @@ internal static class M01LiveAllocatorEfiEntryTests
 
     private static bool TestKnownFalsePanicSelector()
     {
-        foreach (string disabledSymbol in new[] { UnexpectedPanicSymbol, MemoryMapSymbol })
+        foreach (string disabledSymbol in new[] { UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol })
         {
         string fixture = "#if " + disabledSymbol + "\nPanicOnly();\n#else\nPanicOff();\n#endif\n"
             + "#if " + StageOneSymbol + "\n#if " + disabledSymbol
@@ -1605,7 +1606,8 @@ internal static class M01LiveAllocatorEfiEntryTests
                     StringComparison.Ordinal);
                 bool isSelected = isStageOne || isStageTwo
                     || string.Equals(condition, UnexpectedPanicSymbol, StringComparison.Ordinal)
-                    || string.Equals(condition, MemoryMapSymbol, StringComparison.Ordinal);
+                    || string.Equals(condition, MemoryMapSymbol, StringComparison.Ordinal)
+            || string.Equals(condition, EntropySymbol, StringComparison.Ordinal);
                 bool selectedValue = isStageOne
                     ? stageOneEnabled
                     : isStageTwo && stageTwoEnabled;

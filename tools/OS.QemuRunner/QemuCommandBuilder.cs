@@ -43,6 +43,13 @@ internal static class QemuCommandBuilder
             "virtio-net-pci,netdev=n0"
         ]);
 
+        if (options.FirmwareRngSource is not null)
+        {
+            arguments.AddRange(["-cpu", "qemu64,-rdrand,-rdseed"]);
+            if (string.Equals(options.FirmwareRngSource, "virtio", StringComparison.Ordinal))
+                arguments.AddRange(["-object", "rng-builtin,id=clrosrng", "-device", "virtio-rng-pci,rng=clrosrng"]);
+        }
+
         return arguments;
     }
 

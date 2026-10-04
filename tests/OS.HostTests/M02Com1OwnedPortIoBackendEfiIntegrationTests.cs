@@ -13,7 +13,7 @@ internal static class M02Com1OwnedPortIoBackendEfiIntegrationTests
     private const string FailureMarker =
         "M02_COM1_CONFIGURATION_FAILED";
     private const string CompileClosureSha256 =
-        "9f0806ad17e616f2ffb199d18b21a604d38f087bd5bfb37aa4ca84ffb91afc67";
+        "54bfa32fa851eb9a5f96ee8f3b8d9bd3f916b01dc629d5497cb42d97f6d79993";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -135,7 +135,7 @@ internal static class M02Com1OwnedPortIoBackendEfiIntegrationTests
         string artifactScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 88
+        return compileItems.Length == 89
             && compileHash == CompileClosureSha256
             && checkedBinder >= 0
             && backend == checkedBinder + 1
@@ -156,12 +156,15 @@ internal static class M02Com1OwnedPortIoBackendEfiIntegrationTests
             && symbols.Length == 1
             && symbols[0].Elements("DefineConstants").Single().Value ==
                 "$(DefineConstants);M02_COM1_OWNED_PORT_IO_PROBE"
-            && dependencyConditions.Length == 10
+            && dependencyConditions.Length == 11
             && dependencyConditions.Contains(
                 "'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'",
                 StringComparer.Ordinal)
             && dependencyConditions.Contains(
                 "'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+                StringComparer.Ordinal)
+            && dependencyConditions.Contains(
+                "'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'",
                 StringComparer.Ordinal)
             && dependencyConditions.Contains(
                 "'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'",
@@ -197,13 +200,13 @@ internal static class M02Com1OwnedPortIoBackendEfiIntegrationTests
                 "m02_com1_owned_port_io_requires_checked_binding",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=102",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=103",
                 StringComparison.Ordinal)
             && artifactScript.Contains(
-                "$expectedSourceClosureInputCount = 102",
+                "$expectedSourceClosureInputCount = 103",
                 StringComparison.Ordinal)
             && artifactScript.Contains(
-                "$compileItems.Count -ne 88",
+                "$compileItems.Count -ne 89",
                 StringComparison.Ordinal);
     }
 

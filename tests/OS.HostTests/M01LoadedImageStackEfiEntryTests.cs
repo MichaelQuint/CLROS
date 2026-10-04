@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 internal static class M01LoadedImageStackEfiEntryTests
 {
     private const string MemoryMapSymbol = "M03_MEMORY_MAP_CAPTURE_PROBE";
+    private const string EntropySymbol = "M03_FIRMWARE_ENTROPY_SEED_PROBE";
     private const string IssueTestName = "m01.021";
     private const string ProbeSymbol = "M01_LOADED_IMAGE_STACK_PROBE";
     private const string DoubleFaultSymbol = "M02_DOUBLE_FAULT_IST_PROBE";
@@ -111,7 +112,7 @@ internal static class M01LoadedImageStackEfiEntryTests
 
     private static bool TestDefaultOffProfile()
     {
-        foreach (string disabledSymbol in new[] { DoubleFaultSymbol, UnexpectedPanicSymbol, MemoryMapSymbol })
+        foreach (string disabledSymbol in new[] { DoubleFaultSymbol, UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol })
         {
             string selectorFixture = "#if " + disabledSymbol + "\nDfOnly();\n#else\nDfOff();\n#endif\n"
                 + "#if UNRELATED_PROBE\nUnknown();\n#else\nUnknownElse();\n#endif\n";
@@ -3078,7 +3079,8 @@ internal static class M01LoadedImageStackEfiEntryTests
                     StringComparison.Ordinal);
                 bool isProbe = isStageOne || string.Equals(condition, DoubleFaultSymbol, StringComparison.Ordinal)
                     || string.Equals(condition, UnexpectedPanicSymbol, StringComparison.Ordinal)
-                    || string.Equals(condition, MemoryMapSymbol, StringComparison.Ordinal);
+                    || string.Equals(condition, MemoryMapSymbol, StringComparison.Ordinal)
+            || string.Equals(condition, EntropySymbol, StringComparison.Ordinal);
                 bool selectedValue = isStageOne && enabled;
                 stack.Push(
                     new PreprocessorFrame(

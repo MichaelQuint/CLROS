@@ -1636,6 +1636,17 @@ subsequently merged at `34a9fd5`; #59/#539/#536 closed with reviewed evidence.
 entropy-retention implementation. Its actual EFI RNG/guest boundary remains
 pending, so #61 is still blocked.
 
+[Step980](../done/step980.md) adds #541's separate opt-in EFI entropy path.
+The complete focused run passes 201 starts/202 passes/zero failures; both
+default/enabled NativeAOT publications and final normal compilation pass.
+Independent offline review confirms original protocol discovery/GetRNG ABI,
+full-width statuses, guarded static storage, real byte copy/readback/clear,
+publication last and a nonreturning failure branch. Six legacy expectation
+repairs retain their original complete initializers for the later common
+suite. That full suite and fresh provider-present/missing-provider guest
+acceptance remain pending. #541/#60 stay open, #61 stays blocked, and no
+entropy-quality or actual firmware-exit criterion is promoted.
+
 The historical reference capture did not satisfy the live executing-stack
 requirement. [Step979](../done/step979.md) added the original-stack sentinel;
 [step981](../done/step981.md) now accepts its fresh `5d894c8` common and guest

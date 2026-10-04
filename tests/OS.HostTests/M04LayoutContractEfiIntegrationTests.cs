@@ -20,7 +20,7 @@ internal static class M04LayoutContractEfiIntegrationTests
     private const string Failed = "M04_LAYOUT_CONTRACT_FAILED";
     private const string Leaf = "src/OS.Kernel/Runtime/ObjectArrayStringEETypeMethodTableLayoutContracts.cs";
     private const string LeafTests = "tests/OS.HostTests/ObjectArrayStringEETypeMethodTableLayoutContractsTests.cs";
-    private const string CompileHash = "9f0806ad17e616f2ffb199d18b21a604d38f087bd5bfb37aa4ca84ffb91afc67";
+    private const string CompileHash = "54bfa32fa851eb9a5f96ee8f3b8d9bd3f916b01dc629d5497cb42d97f6d79993";
     // Reviewed source identity uses UTF-8 text with only CRLF normalized to LF.
     // EFI artifact and same-build source-authority hashes remain raw byte hashes.
     private const string LeafSourceHash = "44f8a34e2f1911aae4fd5b028adb88bf1d8bf06ce915625e9f13d11964f579aa";
@@ -62,7 +62,7 @@ internal static class M04LayoutContractEfiIntegrationTests
         XDocument project = XDocument.Load(Path.Combine(root, "src/OS/OS.csproj"));
         string[] keys = project.Descendants("Compile").Select(item =>
             item.Attribute("Include")!.Value + "|" + (item.Attribute("Link")?.Value ?? "")).ToArray();
-        Require(keys.Length == 88 && Hash(Encoding.UTF8.GetBytes(string.Join('\n', keys) + "\n")) == CompileHash,
+        Require(keys.Length == 89 && Hash(Encoding.UTF8.GetBytes(string.Join('\n', keys) + "\n")) == CompileHash,
             "exact 88-item closure");
         Require(SourceIdentityHash(File.ReadAllText(Path.Combine(root, Leaf))) == LeafSourceHash &&
             SourceIdentityHash(File.ReadAllText(Path.Combine(root, LeafTests))) == LeafTestSourceHash, "reviewed source identities");

@@ -19,9 +19,9 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
         "statusCoded=true firmwareFallback=false postExitBootServices=false";
     private const string FailureMarker = "M02_PANIC_SAFE_OWNED_COM1_FAILED";
     private const string CompileClosureSha256 =
-        "9f0806ad17e616f2ffb199d18b21a604d38f087bd5bfb37aa4ca84ffb91afc67";
+        "54bfa32fa851eb9a5f96ee8f3b8d9bd3f916b01dc629d5497cb42d97f6d79993";
     private const string CanonicalProjectSha256 =
-        "0eb6260f821740292f6a899bf2609cc865a867b0a1babd101b839dadb99e7d00";
+        "351d5246c4d63cc812c4586e2aa1815fe08dbf012af7aab3a5b9b628ac64e28e";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -153,7 +153,7 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 88
+        return compileItems.Length == 89
             && compileHash == CompileClosureSha256
             && writerIndex >= 0
             && reporterIndex == writerIndex + 1
@@ -172,12 +172,15 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
             && symbolGroups.Length == 1
             && symbolGroups[0].Elements("DefineConstants").Single().Value ==
                 "$(DefineConstants);M02_PANIC_SAFE_OWNED_COM1_PROBE"
-            && dependencyConditions.Length == 10
+            && dependencyConditions.Length == 11
             && dependencyConditions.Contains(
                 "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'",
                 StringComparer.Ordinal)
             && dependencyConditions.Contains(
                 "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+                StringComparer.Ordinal)
+            && dependencyConditions.Contains(
+                "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'",
                 StringComparer.Ordinal)
             && dependencyConditions.Contains(
                 "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'",
@@ -213,7 +216,7 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
                 "m02_panic_safe_owned_com1_requires_owned_com1_ready",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=102",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=103",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 CanonicalProjectSha256,
@@ -225,10 +228,10 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
                 "[switch]$EnableM02PanicSafeOwnedCom1Probe",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 102",
+                "$expectedSourceClosureInputCount = 103",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 88",
+                "$compileItems.Count -ne 89",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
                 "-p:EnableM02PanicSafeOwnedCom1Probe=true",
