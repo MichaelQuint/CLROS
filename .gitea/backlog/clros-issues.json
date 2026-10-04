@@ -8206,7 +8206,7 @@
         "M03-001"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -8233,7 +8233,7 @@
       ],
       "collisionLane": null,
       "summary": "Copy RSDP, selected RSDT/XSDT, MCFG, MADT, and HPET bootstrap bytes into owned memory.",
-      "currentEvidence": "The EFI path captures a map but deliberately skips the ExitBootServices call; post-firmware execution is unproven.",
+      "currentEvidence": "Step970 and merged PR535 complete predecessor M03-001/#58 and native supplement #532 with reviewed common-host and fresh QEMU capture evidence. M03-002/#59 is now claimed for the two-file allocation-free owned ACPI bootstrap-copy contract and its complete host tests. Implementation is underway in the isolated m03-owned-acpi worktree at c3730ef; no new ACPI-copy test, native or guest result is claimed yet. Shared native integration will require explicit ownership and no-stdlib closure review. #59 remains open, #60 remains blocked, and post-firmware access, live device operation and M03 completion remain unproved.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Copy RSDP, selected RSDT/XSDT, MCFG, MADT, and HPET bootstrap bytes into owned memory.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

@@ -788,6 +788,18 @@ AssemblyRefs and four inspected leaf IL bodies. The clean common suite on
 native helper integration and its guest proof remain pending. Issue #79 and
 the general `WriteBarriers` ledger remain incomplete; Gate4 stays **Fail**.
 
+The separate #536 host-tool prerequisite adds an explicit opt-in to
+`Amd64CoffWriter` for bounded REL32 fixups to undefined external functions.
+Its original overloads still reject that form, and the existing instruction
+serializer remains exactly 336 bytes with its original hash. The complete new
+writer and unchanged serializer initializers passed 2 starts/3 passes/zero
+failures on their retained isolated inputs; the imported exact source also
+builds in the canonical generator and HostTests projects. [Step971](../done/step971.md)
+records this integration and its earlier test failure. The combined final
+common gate and reviewed merge remain pending. Encoding an object file does
+not establish a returning barrier, linked callback, register/stack/SIMD
+preservation, collecting GC or a guest result; #79/#536/#537 remain open.
+
 ## Tests
 
 `tests/OS.HostTests/StdAsciiTests.cs` covers ASCII character classification,
