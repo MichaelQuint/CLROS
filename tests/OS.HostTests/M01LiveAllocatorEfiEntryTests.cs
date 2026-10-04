@@ -5,6 +5,7 @@ using OS.Boot;
 
 internal static class M01LiveAllocatorEfiEntryTests
 {
+    private const string MemoryMapSymbol = "M03_MEMORY_MAP_CAPTURE_PROBE";
     private const string IssueTestName = "m01.023";
     private const string UnexpectedPanicSymbol =
         "M02_UNEXPECTED_VECTOR_PANIC_PROBE";
@@ -1544,8 +1545,10 @@ internal static class M01LiveAllocatorEfiEntryTests
 
     private static bool TestKnownFalsePanicSelector()
     {
-        string fixture = "#if " + UnexpectedPanicSymbol + "\nPanicOnly();\n#else\nPanicOff();\n#endif\n"
-            + "#if " + StageOneSymbol + "\n#if " + UnexpectedPanicSymbol
+        foreach (string disabledSymbol in new[] { UnexpectedPanicSymbol, MemoryMapSymbol })
+        {
+        string fixture = "#if " + disabledSymbol + "\nPanicOnly();\n#else\nPanicOff();\n#endif\n"
+            + "#if " + StageOneSymbol + "\n#if " + disabledSymbol
             + "\nNestedPanic();\n#else\nNestedOff();\n#endif\n#else\nStageOff();\n#endif\n"
             + "#if UNRELATED_PROBE\nUnknown();\n#else\nUnknownElse();\n#endif\n";
         for (int mask = 0; mask < 4; mask++)
@@ -1554,7 +1557,7 @@ internal static class M01LiveAllocatorEfiEntryTests
             string selected = SelectProfile(fixture, stageOne, (mask & 2) != 0);
             if (selected.Contains("PanicOnly();", StringComparison.Ordinal)
                 || selected.Contains("NestedPanic();", StringComparison.Ordinal)
-                || selected.Contains("#if " + UnexpectedPanicSymbol, StringComparison.Ordinal)
+                || selected.Contains("#if " + disabledSymbol, StringComparison.Ordinal)
                 || CountOccurrences(selected, "PanicOff();") != 1
                 || selected.Contains("NestedOff();", StringComparison.Ordinal) != stageOne
                 || selected.Contains("StageOff();", StringComparison.Ordinal) == stageOne
@@ -1566,13 +1569,15 @@ internal static class M01LiveAllocatorEfiEntryTests
             }
         }
 
-        string aliased = fixture.Replace(UnexpectedPanicSymbol,
-            UnexpectedPanicSymbol.ToLowerInvariant(), StringComparison.Ordinal);
+        string aliased = fixture.Replace(disabledSymbol,
+            disabledSymbol.ToLowerInvariant(), StringComparison.Ordinal);
         string alias = SelectProfile(aliased, false, false);
-        return alias.Contains("#if " + UnexpectedPanicSymbol.ToLowerInvariant(), StringComparison.Ordinal)
+        if (!(alias.Contains("#if " + disabledSymbol.ToLowerInvariant(), StringComparison.Ordinal)
             && alias.Contains("PanicOnly();", StringComparison.Ordinal)
             && alias.Contains("PanicOff();", StringComparison.Ordinal)
-            || Failure("panic-selector-ordinal-preservation");
+            )) return Failure("panic-selector-ordinal-preservation");
+        }
+        return true;
     }
 
     private static string SelectProfile(
@@ -1599,7 +1604,8 @@ internal static class M01LiveAllocatorEfiEntryTests
                     StageTwoSymbol,
                     StringComparison.Ordinal);
                 bool isSelected = isStageOne || isStageTwo
-                    || string.Equals(condition, UnexpectedPanicSymbol, StringComparison.Ordinal);
+                    || string.Equals(condition, UnexpectedPanicSymbol, StringComparison.Ordinal)
+                    || string.Equals(condition, MemoryMapSymbol, StringComparison.Ordinal);
                 bool selectedValue = isStageOne
                     ? stageOneEnabled
                     : isStageTwo && stageTwoEnabled;

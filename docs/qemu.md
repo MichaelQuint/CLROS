@@ -2771,3 +2771,44 @@ changes; postboot/pristine equality and whole-filesystem conformance are not
 claimed. Immutable capture/reviewer provisional flags stay false; the parent
 joint record supplies guest acceptance. General runtime, GC, real EBS and
 hosted .NET/Kestrel remain unsupported, and Gates3/4 remain **Fail**.
+
+### M03-001 original-capture observation evidence
+
+[Step970](../done/step970.md) accepts fresh default and
+`-EnableM03MemoryMapCaptureProbe` captures at
+`854a3359623f6a619b0ea769ce97cfed6c3a96b1`, following the clean common
+3,670/3,671/0 host gate. The two archives ran 05:14:30.5578307-05:17:05.7623871
+UTC on 2026-10-04. Each wrapper returned native 0 with empty stderr; all
+1,182 archive entries bind the actual 85-Compile/98-source/37-property closure,
+zero OS AssemblyRefs and default/enabled 0/1 true-property vectors.
+
+The enabled stream contains 31 owned CRLF records, including exactly one
+`m03.001.capture` START/PASS pair and
+`CLROS_M03_001_READY firmwareAvailable=true exitBootServices=false`, before
+ordinary boot completion. It reports query status `8000000000000005`, required
+5,184 bytes and stride 48; one type 2 allocation requests 5,568 bytes; the final
+successful capture contains 4,896 bytes/102 descriptors. Complete readback
+reports no copy mismatch, no mismatch in 32 guard bytes or the 126,176-byte
+unused tail, and equal snapshot/handoff key `04FF`. These values describe this
+capture and do not establish freshness for a later ExitBootServices call.
+
+| Capture | EFI SHA-256 | Serial SHA-256 |
+| --- | --- | --- |
+| Default | `FDECE5DD4DBB61C63442099DCB1E7AEBD9EA4A3D6903C631A74C3F7134E9A703` | `0F16CC0FB978B3AE9555AA978408D857CDEFA70F989549C9BCE5086DB73041F1` |
+| Memory map | `9C5601226E68F4458A360EDAB02AB74E336B8953DAE671F45A372ED47BB1C92A` | `4E96B30B988932FE940A6ACB3AC58213B4D487CE70B01CAE12DC8E5F9E4D9467` |
+
+Both ordinary paths use runner-owned termination with signed QEMU exit -1 and
+configured 750 ms quiet drain; no separately measured quiet interval is claimed.
+The enabled grammar was replayed against the archived production contract;
+that replay is not an independent numeric oracle. Same-image native review
+binds the actual forwarding/Capture/CopyPlan/readback implementation separately.
+Pristine reconstruction and bounded GPT/FAT/payload accounting explain each
+booted image's 887 changed bytes across 7 sectors as FSInfo/FAT/root/NVVARS
+updates. Booted images are not claimed equal to pristine, and this is not
+filesystem conformance. Original capture/review provisional flags remain
+unchanged; parent joint acceptance combines their distinct scopes.
+
+The preserved [step969](../done/step969.md) failed/interrupted common run is
+not reclassified by this later success. Firmware remains available. No extra
+capture algorithm, retry, pool-release policy, EBS, post-firmware ownership,
+GC or hosted-runtime support is established; the remaining M03 work stays open.

@@ -966,8 +966,57 @@ Original provisional records remain unchanged; the separate parent joint
 acceptance supplies the bounded guest verdict. #78/#528 closure follows reviewed
 merge and tracker evidence. M04-010, general String/BCL support, GC/barriers,
 refill, real ExitBootServices and hosted .NET/Kestrel remain unsupported.
-Gates3/4 remain **Fail**. The same host gate covers #58's memory-map fixtures,
-but its separate native observation and guest evidence remain pending.
+Gates3/4 remain **Fail**. That host gate covered #58's memory-map fixtures;
+its then-pending native observation and guest evidence are recorded separately
+in [step970](../done/step970.md).
+
+### M03-001 capture-observer source and artifact checkpoint
+
+[Step968](../done/step968.md) adds a default-off observation of the original
+firmware memory-map query, allocation, recapture and owned copy. Controlled
+host tests exercise original callbacks, distinct size slots, full-width
+statuses, complete copy/guard/tail readback, failure termination, strict
+transcript parsing and all reciprocal profile exclusions. The complete new
+module passes six starts/seven passes/zero failures at sourcev8, including fresh default
+and enabled NativeAOT publications with zero AssemblyRefs. The four M01
+selector/publication modules and two unchanged memory-map modules passed
+their earlier complete focused run on its retained inputs; final normal
+HostTests compilation passes.
+
+Final sourcev9 only normalizes the new authority file line endings and three
+derived source pins; v8 test/artifact records retain their original inputs.
+Independent static native ABI review accepts the saved v8 images. The first
+common run at `1c37aa1` failed because the legacy verifier fixture omitted the
+new disabled M03 property; it was stopped after preserving the failed child
+inputs. [Step969](../done/step969.md) records the one-entry fixture repair.
+[Step970](../done/step970.md) completes the bounded #58/#532 milestone on
+`854a335`: the clean common gate passes 3,670 starts/3,671 passes/zero failures,
+with all 905 committed inputs and five launch/end binaries unchanged. Fresh
+default and enabled QEMU/OVMF captures pass the current source/profile,
+same-image native, transcript/lifecycle and bounded disk reviews. The enabled
+31-record owned stream observes the original one-query/one-allocation/
+one-recapture path and complete copy/guard/tail/handoff checks while firmware
+remains available. This accepts that finite live capture observation only.
+The earlier failed common run remains preserved. Map-key freshness, real
+ExitBootServices, post-firmware ownership and the remaining ten M03 children
+are unproved; M03/Gate5 remain incomplete and #59 is not promoted here.
+
+### M04-010 checked-store and bulk-move host prerequisite
+
+[Step967](../done/step967.md) adds aligned opaque-word stores and overlap-safe
+moves inside the original retained 4 KiB page. Every call revalidates its
+thirteen authority inputs; rejection preserves storage and allocator state.
+The complete new, retained-page, fixed, array and String host modules pass
+43 starts/44 passes/zero failures. The normal host-test build and actual
+eleven-source no-stdlib library pass with zero AssemblyRefs.
+
+This is a bounded noncollecting host prerequisite. It supplies no runtime
+export, compiler reference-field association, outside-heap destination policy,
+special byref-helper ABI, GC polling, card table or collector. The common
+full suite now passes on `854a335` with 3,670 starts/3,671 passes/zero failures
+([step970](../done/step970.md)); actual returning native helper integration and
+its guest evidence remain pending. Issue #79 stays open; Gates3/4 remain
+**Fail** and no later runtime issue is unblocked by this host prerequisite.
 
 ### M02-014 source integration and terminal guest boundary
 

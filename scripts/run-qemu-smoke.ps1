@@ -68,6 +68,7 @@ param(
     [switch] $EnableM04StringAllocationBeforeBindProbe,
     [switch] $EnableM04StringAllocationExhaustionProbe,
     [switch] $EnableM04StringAllocationInvalidLengthProbe,
+    [switch] $EnableM03MemoryMapCaptureProbe,
     [switch] $SkipImageBuild
 )
 
@@ -577,6 +578,40 @@ $script:M04StringAllocationForbiddenMarkers = @(
     'M04_STRING_INTERNAL_REJECT'
     'M04_STRING_FILL'
     'TEST_FAIL m04.009'
+)
+
+$script:M03MemoryMapCaptureRequiredMarkers = @(
+    "TEST_START efi.main",
+    "EFI_CONSOLE_READY",
+    "TEST_START m03.001.capture",
+    "M03_CAPTURE_AUTH ",
+    "M03_CAPTURE_QUERY ",
+    "M03_CAPTURE_ALLOC ",
+    "M03_CAPTURE_FINAL ",
+    "M03_CAPTURE_COPY ",
+    "M03_CAPTURE_GUARDS ",
+    "M03_CAPTURE_HANDOFF ",
+    "CLROS_M03_001_READY firmwareAvailable=true exitBootServices=false",
+    "TEST_PASS m03.001.capture",
+    "UEFI_MEMORY_MAP_READY",
+    "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT ",
+    "UEFI_MEMORY_MAP_OWNED",
+    "BOOT_HANDOFF_READY",
+    "UEFI_MEMORY_MAP_NORMALIZED",
+    "BOOT_MEMORY_MAP_ACCEPTED",
+    "BOOT_MEMORY_REGIONS_READY",
+    "BOOT_MEMORY_REGION_COUNT ",
+    "BOOT_PAGE_ALLOCATOR_READY ",
+    "BOOT_ACPI_RSDP_HANDOFF_READY",
+    "UEFI_ACPI_RSDP_READY",
+    "TEST_START boot.sequence",
+    "BOOT_PHASE PhaseA.Audit START",
+    "BOOT_PHASE PhaseA.Audit PASS",
+    "BOOT_PHASE PhaseA.Diagnostics START",
+    "BOOT_PHASE PhaseA.Diagnostics PASS",
+    "OS_BOOT_OK",
+    "TEST_PASS boot.sequence",
+    "OS_SMOKE_PASS"
 )
 
 function Invoke-NativeCommand {
@@ -2005,6 +2040,121 @@ function Assert-M04SzArrayAllocationRecords {
 function Assert-M04SzArrayAllocationTranscript {
     param([string] $SerialLogPath)
     Assert-M04ManagedHeapPageRangeTranscript -SerialLogPath $SerialLogPath -IncludeArrayAllocation
+}
+
+function Read-M03MemoryMapCaptureRecord {
+    param([string] $Line, [string] $Prefix, [string[]] $Fields)
+    $pattern = '\A' + [regex]::Escape($Prefix)
+    foreach ($field in $Fields) {
+        $parts = $field.Split(':')
+        $pattern += ' ' + [regex]::Escape($parts[0]) + '='
+        if ($parts[1] -ceq 'hex') { $pattern += '([0-9A-F]{16})' }
+        else { $pattern += '(0|[1-9][0-9]*)' }
+    }
+    $match = [regex]::Match($Line, $pattern + '\z', [Text.RegularExpressions.RegexOptions]::CultureInvariant)
+    if (-not $match.Success) { throw ('m03_capture_record_shape_' + $Prefix) }
+    $record = @{}
+    for ($i = 0; $i -lt $Fields.Count; $i++) {
+        $parts = $Fields[$i].Split(':'); $number = [UInt64]0
+        $style = if ($parts[1] -ceq 'hex') { [Globalization.NumberStyles]::AllowHexSpecifier } else { [Globalization.NumberStyles]::None }
+        if (-not [UInt64]::TryParse($match.Groups[$i + 1].Value, $style, [Globalization.CultureInfo]::InvariantCulture, [ref]$number)) { throw 'm03_capture_numeric_overflow' }
+        $record[$parts[0]] = $number
+    }
+    return $record
+}
+
+function Assert-M03MemoryMapCaptureTranscript {
+    param([string] $SerialLogPath)
+    $path = if ([IO.Path]::IsPathRooted($SerialLogPath)) { $SerialLogPath } else { Join-Path $root $SerialLogPath }
+    $bytes = [IO.File]::ReadAllBytes($path)
+    if ($bytes.Length -gt 32768 -or $bytes.Length -lt 7249) { throw 'm03_capture_raw_extent' }
+    $text = (New-Object Text.UTF8Encoding($false, $true)).GetString($bytes)
+    $start = $text.IndexOf("TEST_START efi.main`r`n", [StringComparison]::Ordinal)
+    if ($start -ne 304) { throw 'm03_capture_preamble_length' }
+    $end = $text.IndexOf("OS_SMOKE_PASS`r`n", [StringComparison]::Ordinal)
+    if ($end -lt $start) { throw 'm03_capture_missing_terminal' }
+    $end += 15
+    # The reviewed preamble and firmware returning suffix are immutable bytes.
+    # Neither is learned from a new capture. The owned protocol itself is ASCII.
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        $pre = [BitConverter]::ToString($sha.ComputeHash($bytes, 0, 304)).Replace('-', '')
+        $suffix = [BitConverter]::ToString($sha.ComputeHash($bytes, $end, $bytes.Length - $end)).Replace('-', '')
+    }
+    finally { $sha.Dispose() }
+    if ($pre -cne 'BB50E913C752428AE49AE6C20879196F507926CC685CAD83986494244299D124' -or
+        $bytes.Length - $end -ne 6945 -or $suffix -cne 'BFBB6B92A5EEE7728E1AA54A2A4D262135215D7D2F267696E508A23BD514C61D') { throw 'm03_capture_firmware_bytes' }
+    $owned = $text.Substring($start, $end - $start)
+    if ([regex]::IsMatch($owned, '[^\x20-\x7E\r\n]')) { throw 'm03_capture_non_ascii' }
+    $lines = $owned.Split([string[]]@("`r`n"), [StringSplitOptions]::None)
+    if ($lines.Count -ne 32 -or $lines[31].Length -ne 0) { throw 'm03_capture_line_count' }
+    $fixed = @{
+        0='TEST_START efi.main'; 1='EFI_CONSOLE_READY'; 2='TEST_START m03.001.capture'
+        10='CLROS_M03_001_READY firmwareAvailable=true exitBootServices=false'; 11='TEST_PASS m03.001.capture'
+        12='UEFI_MEMORY_MAP_READY'; 14='UEFI_MEMORY_MAP_OWNED'; 15='BOOT_HANDOFF_READY'
+        16='UEFI_MEMORY_MAP_NORMALIZED'; 17='BOOT_MEMORY_MAP_ACCEPTED'; 18='BOOT_MEMORY_REGIONS_READY'
+        21='BOOT_ACPI_RSDP_HANDOFF_READY'; 22='UEFI_ACPI_RSDP_READY'; 23='TEST_START boot.sequence'
+        24='BOOT_PHASE PhaseA.Audit START'; 25='BOOT_PHASE PhaseA.Audit PASS'
+        26='BOOT_PHASE PhaseA.Diagnostics START'; 27='BOOT_PHASE PhaseA.Diagnostics PASS'
+        28='OS_BOOT_OK'; 29='TEST_PASS boot.sequence'; 30='OS_SMOKE_PASS'
+    }
+    foreach ($index in $fixed.Keys) { if (-not [string]::Equals($lines[$index], $fixed[$index], [StringComparison]::Ordinal)) { throw ('m03_capture_literal_' + $index) } }
+    $a=Read-M03MemoryMapCaptureRecord $lines[3] 'M03_CAPTURE_AUTH' @('observer:hex','observerBytes:dec','guard:hex','guardSpan:dec','payload:hex','capacity:dec','services:hex','get:hex','allocate:hex')
+    $q=Read-M03MemoryMapCaptureRecord $lines[4] 'M03_CAPTURE_QUERY' @('calls:dec','order:dec','inputBytes:dec','buffer:hex','status:hex','required:dec','key:hex','stride:dec','version:dec')
+    $p=Read-M03MemoryMapCaptureRecord $lines[5] 'M03_CAPTURE_ALLOC' @('calls:dec','order:dec','type:dec','bytes:dec','status:hex','pool:hex','admitted:dec')
+    $f=Read-M03MemoryMapCaptureRecord $lines[6] 'M03_CAPTURE_FINAL' @('calls:dec','order:dec','inputBytes:dec','buffer:hex','status:hex','bytes:dec','key:hex','stride:dec','version:dec')
+    $c=Read-M03MemoryMapCaptureRecord $lines[7] 'M03_CAPTURE_COPY' @('source:hex','sourceBytes:dec','owned:hex','capacity:dec','bytes:dec','count:dec','flag:dec','compared:dec','mismatches:dec','firstMismatch:hex')
+    $g=Read-M03MemoryMapCaptureRecord $lines[8] 'M03_CAPTURE_GUARDS' @('bytes:dec','mismatches:dec','tailBytes:dec','tailMismatches:dec')
+    $h=Read-M03MemoryMapCaptureRecord $lines[9] 'M03_CAPTURE_HANDOFF' @('snapshotKey:hex','handoffKey:hex','flag:dec','matched:dec')
+    if ($a.observerBytes -ne 488 -or $a.guardSpan -ne 131104 -or $a.capacity -ne 131072 -or
+        [decimal]$a.guard + 16 -ne [decimal]$a.payload -or $a.get -eq 0 -or $a.allocate -eq 0) { throw 'm03_capture_geometry' }
+    $extents = @()
+    foreach ($span in @(@($a.observer,$a.observerBytes), @($a.guard,$a.guardSpan), @($a.services,328), @($p.pool,$p.bytes))) {
+        $lo=[decimal]$span[0]; $hi=$lo+[decimal]$span[1]
+        if ($lo -eq 0 -or $span[1] -eq 0 -or $hi -gt [decimal][UInt64]::MaxValue) { throw 'm03_capture_extent' }
+        foreach ($other in $extents) { if ($lo -lt $other.End -and $other.Start -lt $hi) { throw 'm03_capture_alias' } }
+        $extents += [pscustomobject]@{ Start=$lo; End=$hi }
+    }
+    if ($q.calls -ne 1 -or $q.order -ne 1 -or $q.inputBytes -ne 0 -or $q.buffer -ne 0 -or
+        $q.status -ne [UInt64]::Parse('8000000000000005',[Globalization.NumberStyles]::AllowHexSpecifier) -or
+        $q.required -eq 0 -or $q.stride -eq 0 -or $q.version -gt [UInt32]::MaxValue -or
+        [decimal]$q.required + 8 * [decimal]$q.stride -gt [decimal][UInt64]::MaxValue -or
+        [decimal]$q.required + 8 * [decimal]$q.stride -ne [decimal]$p.bytes -or
+        $p.calls -ne 1 -or $p.order -ne 2 -or $p.type -ne 2 -or $p.status -ne 0 -or $p.admitted -ne 1) { throw 'm03_capture_query_allocation' }
+    if ($f.calls -ne 1 -or $f.order -ne 3 -or $f.inputBytes -ne $p.bytes -or $f.buffer -ne $p.pool -or
+        $f.status -ne 0 -or $f.bytes -eq 0 -or $f.bytes -gt $p.bytes -or $f.bytes -gt $a.capacity -or
+        $f.stride -lt 40 -or $f.version -eq 0 -or $f.version -gt [UInt32]::MaxValue -or $f.bytes % $f.stride -ne 0 -or
+        $c.source -ne $p.pool -or $c.sourceBytes -ne $p.bytes -or $c.owned -ne $a.payload -or $c.capacity -ne $a.capacity -or
+        $c.bytes -ne $f.bytes -or $c.count -ne $f.bytes / $f.stride -or $c.count -lt 1 -or $c.count -gt 4096 -or
+        $c.flag -ne 1 -or $c.compared -ne $c.bytes -or $c.mismatches -ne 0 -or $c.firstMismatch -ne [UInt64]::MaxValue -or
+        $g.bytes -ne 32 -or $g.mismatches -ne 0 -or $g.tailBytes -ne $a.capacity - $f.bytes -or $g.tailMismatches -ne 0 -or
+        $h.snapshotKey -ne $f.key -or $h.handoffKey -ne $f.key -or $h.flag -ne 1 -or $h.matched -ne 1) { throw 'm03_capture_copy_handoff' }
+    # Query/final keys and strides deliberately need not be equal.
+    foreach ($entry in @(@(13,'UEFI_MEMORY_MAP_DESCRIPTOR_COUNT '),@(19,'BOOT_MEMORY_REGION_COUNT '))) {
+        $match=[regex]::Match($lines[$entry[0]],'\A'+[regex]::Escape($entry[1])+'(0|[1-9][0-9]*)\z')
+        $count=[UInt64]0
+        if (-not $match.Success -or -not [UInt64]::TryParse($match.Groups[1].Value,[ref]$count) -or $count -ne $c.count) { throw 'm03_capture_descriptor_count' }
+    }
+    $match=[regex]::Match($lines[20],'\ABOOT_PAGE_ALLOCATOR_READY status=Ready regions=(0|[1-9][0-9]*) conventionalPages=(0|[1-9][0-9]*) conventionalBytes=(0|[1-9][0-9]*) freeNodes=(0|[1-9][0-9]*) freePages=(0|[1-9][0-9]*) freeBytes=(0|[1-9][0-9]*) pageSize=4096 statusCode=0\z')
+    if (-not $match.Success) { throw 'm03_capture_allocator_shape' }
+    $v=@()
+    for ($i=1;$i -le 6;$i++) { $n=[UInt64]0; if(-not [UInt64]::TryParse($match.Groups[$i].Value,[ref]$n)) { throw 'm03_capture_allocator_overflow' }; $v += $n }
+    if ($v[0] -ne $c.count -or $v[3] -lt 1 -or $v[3] -gt $v[0] -or $v[1] -lt $v[3] -or
+        $v[1] -ne $v[4] -or [decimal]$v[1] * 4096 -ne [decimal]$v[2] -or $v[2] -ne $v[5]) { throw 'm03_capture_allocator_accounting' }
+}
+
+function Assert-M03MemoryMapCaptureRunnerResult {
+    param([string[]] $Lines)
+    foreach ($line in $Lines) {
+        $record=[regex]::Replace($line,'[\x00-\x20\x7f-\uffff]','')
+        if ([regex]::IsMatch($record,'(?i)\A(?:TEST_FAIL|OS_SMOKE_FAIL|QEMU_PROCESS_CLEANUP_FAILED)')) { throw 'm03_capture_runner_failure' }
+    }
+    $results=@($Lines | Where-Object { $_.StartsWith('QEMU_PROCESS_RESULT ',[StringComparison]::Ordinal) })
+    $drains=@($Lines | Where-Object { $_.StartsWith('SERIAL_MARKER_DRAIN ',[StringComparison]::Ordinal) })
+    if ($results.Count -ne 1 -or $drains.Count -ne 1 -or -not [string]::Equals($drains[0], 'SERIAL_MARKER_DRAIN milliseconds=750', [StringComparison]::Ordinal)) { throw 'm03_capture_runner_disposition' }
+    $match=[regex]::Match($results[0],'\AQEMU_PROCESS_RESULT disposition=runner-terminated exitCode=(0|-?[1-9][0-9]*)\z')
+    $exitCode=[Int32]0
+    if (-not $match.Success -or -not [Int32]::TryParse($match.Groups[1].Value,[Globalization.NumberStyles]::AllowLeadingSign,[Globalization.CultureInfo]::InvariantCulture,[ref]$exitCode)) { throw 'm03_capture_runner_exit' }
 }
 
 function Assert-M04StringAllocationRecords {
@@ -5325,7 +5475,53 @@ try {
         exit 1
     }
 
-    $stringReason = ""
+    if ($EnableM03MemoryMapCaptureProbe) {
+    foreach ($memoryMapConflict in @(
+        "EnableM01LoadedImageStackProbe",
+        "EnableM01LiveAllocatorProbe",
+        "EnableM01OwnedPagingProbe",
+        "EnableM02SafeStubProbe",
+        "EnableM02CheckedPortIoBindingProbe",
+        "EnableM02Com1OwnedPortIoProbe",
+        "EnableM02OwnedCom1ReadyProbe",
+        "EnableM02PanicSafeOwnedCom1Probe",
+        "EnableM02OwnedX64GdtEncodingProbe",
+        "EnableM02GuardedIstStackAllocationProbe",
+        "EnableM02OwnedGdtTssTerminalProbe",
+        "EnableM02NormalizedInterruptFramePageProbe",
+        "EnableM02OwnedIdtGatePopulationProbe",
+        "EnableM02IdtrContinuedExecutionProbe",
+        "EnableM02Ud2VectorStateProbe",
+        "EnableM04IndependentEndianConformanceProbe",
+        "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe",
+        "EnableM04ArithmeticConformanceProbe",
+        "EnableM04LayoutContractProbe",
+        "EnableM04ManagedHeapPageRangeProbe",
+        "EnableM02PageFaultCr2ErrorCodeProbe",
+        "EnableM02DoubleFaultIstProbe",
+        "EnableM02UnexpectedVectorPanicProbe",
+        "EnableM04RhpNewFastProbe",
+        "EnableM04RhpNewFastBeforeBindFailureProbe",
+        "EnableM04RhpNewFastExhaustionFailureProbe",
+        "EnableM04SzArrayAllocationProbe",
+        "EnableM04SzArrayAllocationBeforeBindProbe",
+        "EnableM04SzArrayAllocationExhaustionProbe",
+        "EnableM04StringAllocationProbe",
+        "EnableM04StringAllocationBeforeBindProbe",
+        "EnableM04StringAllocationExhaustionProbe",
+        "EnableM04StringAllocationInvalidLengthProbe",
+        "EnableUefiGoneSimulationProbe",
+        "EnableExitBootServicesFreshMapProbe",
+        "EnableAcpiPhysicalDiscoveryProbe"
+    )) {
+        if ([bool](Get-Variable -Name $memoryMapConflict -ValueOnly)) {
+            Write-Output ("TEST_FAIL qemu.smoke m03_memory_map_capture_profile_conflict property=" + $memoryMapConflict)
+            exit 1
+        }
+    }
+}
+
+$stringReason = ""
 if (($EnableM04StringAllocationBeforeBindProbe -or $EnableM04StringAllocationExhaustionProbe -or $EnableM04StringAllocationInvalidLengthProbe) -and -not $EnableM04StringAllocationProbe) { $stringReason = "m04_string_negative_requires_main" }
 if (([int][bool]$EnableM04StringAllocationBeforeBindProbe + [int][bool]$EnableM04StringAllocationExhaustionProbe + [int][bool]$EnableM04StringAllocationInvalidLengthProbe) -gt 1) { $stringReason = "m04_string_negative_conflict" }
 if ($EnableM04StringAllocationProbe) {
@@ -5655,6 +5851,11 @@ $rhpReason = $arrayReason
             "m01LoadedImageStack=true m01LiveAllocator=true m01OwnedPaging=true")
     }
 
+    if ($EnableM03MemoryMapCaptureProbe -and (-not $BuildEfi -or $SkipImageBuild -or $M01RawObservationLog.Length -ne 0)) {
+        Write-Host "TEST_FAIL qemu.smoke m03_memory_map_capture_requires_build_and_original_capture"
+        exit 1
+    }
+
     Write-WorkloadProfileEvidence -Profile $WorkloadProfile
 
     $requiredMarkers = @(
@@ -5670,7 +5871,21 @@ $rhpReason = $arrayReason
         ConvertTo-QemuSmokeMarkerList -Values $ForbidMarker
     )
 
-    if ($EnableM04StringAllocationProbe) {
+    if (-not $EnableM03MemoryMapCaptureProbe) {
+        foreach ($marker in @($requiredMarkers; $orderedMarkers; $uniqueMarkers)) {
+            if ($marker -cmatch '^(M03_CAPTURE_|CLROS_M03_001_READY|TEST_(START|PASS) m03\.001\.capture)') {
+                Write-Host "TEST_FAIL qemu.smoke m03_memory_map_capture_requires_explicit_profile"
+                exit 1
+            }
+        }
+    }
+    if ($EnableM03MemoryMapCaptureProbe) {
+        $requiredMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($requiredMarkers; $script:M03MemoryMapCaptureRequiredMarkers))
+        $orderedMarkers = @(ConvertTo-QemuSmokeMarkerList -Values $script:M03MemoryMapCaptureRequiredMarkers)
+        $uniqueMarkers = @(ConvertTo-QemuSmokeMarkerList -Values $script:M03MemoryMapCaptureRequiredMarkers)
+        $forbiddenMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($forbiddenMarkers; 'TEST_FAIL'; 'OS_SMOKE_FAIL'; 'M03_CAPTURE_FAILURE'))
+    }
+    elseif ($EnableM04StringAllocationProbe) {
         $requiredMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($requiredMarkers; $script:M04StringAllocationRequiredMarkers))
         $orderedMarkers = @($script:M04StringAllocationRequiredMarkers)
         $uniqueMarkers = @($script:M04StringAllocationRequiredMarkers)
@@ -7463,6 +7678,10 @@ $rhpReason = $arrayReason
             $buildArguments +=
                 "-EnableM04StringAllocationInvalidLengthProbe"
         }
+        if ($EnableM03MemoryMapCaptureProbe) {
+            $buildArguments +=
+                "-EnableM03MemoryMapCaptureProbe"
+        }
 
         Invoke-NativeCommand {
             & powershell.exe @buildArguments
@@ -7600,8 +7819,8 @@ $rhpReason = $arrayReason
             $m01RawObservationCapture.EnvironmentState = $null
         }
     }
-    elseif (($EnableM04ManagedHeapPageRangeProbe -or $EnableM02PageFaultCr2ErrorCodeProbe -or $EnableM02DoubleFaultIstProbe -or $EnableM02UnexpectedVectorPanicProbe) -and -not $DryRun) {
-        $heapRunnerLines = @(Invoke-NativeCommand -Command { & dotnet run @arguments } -RequireEmptyError:$EnableM02UnexpectedVectorPanicProbe)
+    elseif (($EnableM03MemoryMapCaptureProbe -or $EnableM04ManagedHeapPageRangeProbe -or $EnableM02PageFaultCr2ErrorCodeProbe -or $EnableM02DoubleFaultIstProbe -or $EnableM02UnexpectedVectorPanicProbe) -and -not $DryRun) {
+        $heapRunnerLines = @(Invoke-NativeCommand -Command { & dotnet run @arguments } -RequireEmptyError:($EnableM02UnexpectedVectorPanicProbe -or $EnableM03MemoryMapCaptureProbe))
         foreach ($line in $heapRunnerLines) { Write-Host $line }
     }
     else {
@@ -7724,7 +7943,18 @@ $rhpReason = $arrayReason
         }
         Write-Host "QEMU_SCRIPT_M02_DF_TRANSCRIPT postSmokeSequence=true rawObservations=true guardAbsence=true postPassMarkerNoise=false"
     }
-    if ($EnableM04StringAllocationProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
+    if ($EnableM03MemoryMapCaptureProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
+        try {
+            Assert-M03MemoryMapCaptureRunnerResult -Lines $heapRunnerLines
+            Assert-M03MemoryMapCaptureTranscript -SerialLogPath $SerialLog
+        }
+        catch {
+            Write-Host ("TEST_FAIL qemu.smoke.m03.001 strict_transcript_invalid reason=" + $_.Exception.Message)
+            exit 1
+        }
+        Write-Host "QEMU_SCRIPT_M03_MEMORY_MAP_CAPTURE_TRANSCRIPT exactWholeLines=true lines=31 observerBytes=488 capacity=131072 firmwareAvailable=true exitBootServices=false"
+    }
+    elseif ($EnableM04StringAllocationProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
         try {
             Assert-M04ManagedHeapRunnerResult -Lines $heapRunnerLines
             Assert-M04StringAllocationTranscript -SerialLogPath $SerialLog

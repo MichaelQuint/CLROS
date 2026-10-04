@@ -13,11 +13,11 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
         "tssBytes=104 gdtrLimit=39 trSelector=24 ownedCom1=true " +
         "terminalHalt=true postExitBootServices=false";
     private const string CompileClosureSha256 =
-        "3fb549700ba879f69cfe35639e0d845233d8d214c651240d44b3e33324ed35cf";
+        "ecb946bd02797cf4c9332dd568c3c3ce75dc356e790b6c9551265be7650d7af7";
     private const string ProjectFileSha256 =
-        "ea23e7489ff51533061540beeeb653d32bbcafd20951adb8a29473875115d6d3";
+        "5faa5a2107b66bd6ce569da35717782d852f69c0d24407f1ddd00228505ffa06";
     private const string CanonicalProjectShapeSha256 =
-        "65a50be1c1a444221478e3d301d2f22b0c5f2f9d90eb6ce4dae5418298117049";
+        "8bdc64a0e1e3e85c4045f41f9c0f0adc6e05bf1ad02fcdb248ab394b301dc06d";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -143,7 +143,7 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
         string verifier = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 84
+        return compileItems.Length == 85
             && compileHash == CompileClosureSha256
             && projectHash == ProjectFileSha256
             && guardedIndex >= 0
@@ -176,7 +176,7 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
                 "owned_gdt_tss_terminal_requires_guarded_ist_stack_allocation",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=97",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=98",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 CanonicalProjectShapeSha256,
@@ -186,10 +186,10 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
                 StringComparison.Ordinal)
             && verifier.Contains(TerminalKey, StringComparison.Ordinal)
             && verifier.Contains(
-                "$expectedSourceClosureInputCount = 97",
+                "$expectedSourceClosureInputCount = 98",
                 StringComparison.Ordinal)
             && verifier.Contains(
-                "$compileItems.Count -ne 84",
+                "$compileItems.Count -ne 85",
                 StringComparison.Ordinal)
             && verifier.Contains(
                 "-p:EnableM02OwnedGdtTssTerminalProbe=true",

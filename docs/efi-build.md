@@ -84,7 +84,7 @@ boundary.
 - `EfiMain` materializes compact live owned-map region records through the source-linked no-stdlib-safe `BootMemoryRegionMaterializer` and emits `BOOT_MEMORY_REGIONS_READY` plus `BOOT_MEMORY_REGION_COUNT <count>` before ACPI RSDP handoff and `TEST_START boot.sequence`.
 - `OS.Kernel` has a host-tested `UefiMemoryMapCopyPlan` contract that validates the copy from firmware-owned memory-map buffer to OS-owned storage before the EFI shell copies bytes.
 - `OS.Kernel` has a host-tested `UefiMemoryMapCapture` helper that owns the no-stdlib EFI memory-map capture/copy mechanics and reports copy-plan statuses for rejected metadata.
-- M03-001's [step961](../done/step961.md) adds host regression coverage without changing the EFI capture path. Its actual no-stdlib closure uses the current `MinimalRuntime.cs`, `MethodImplAttribute.cs`, `BootHandoffRecord.cs`, `UefiMemoryMapCapture.cs` and `UefiMemoryMapCopyPlan.cs`; compilation and metadata inspection report zero AssemblyRefs. The complete new and existing host memory-map initializers pass. No new EFI artifact, guest marker or live firmware result is claimed by that step; #58 still needs the separately owned native observation and QEMU evidence.
+- M03-001's [step961](../done/step961.md) adds host regression coverage without changing the EFI capture path. Its actual no-stdlib closure uses the current `MinimalRuntime.cs`, `MethodImplAttribute.cs`, `BootHandoffRecord.cs`, `UefiMemoryMapCapture.cs` and `UefiMemoryMapCopyPlan.cs`; compilation and metadata inspection report zero AssemblyRefs. The complete new and existing host memory-map initializers pass. No new EFI artifact, guest marker or live firmware result is claimed by that step; the later native observation and QEMU evidence are recorded in [step970](../done/step970.md).
 - `OS.Kernel` has a host-tested `EfiBootHandoffValidator` contract that mirrors the live EFI numeric validation path without string formatting or managed allocation requirements.
 - `OS.Kernel` has a host-tested `EfiMemoryMapNormalizer` contract for live no-stdlib summary normalization without arrays or `Span<T>`.
 - `OS.Kernel` has a host-tested `BootMemoryRegionMaterializer` contract for live no-stdlib memory-region materialization without arrays, managed allocation, or exception handling.
@@ -2226,3 +2226,71 @@ String negative switch to the same build prerequisites. Their intentional
 `TEST_FAIL m04.009` endings remain ordinary runner failures; independently
 reviewed capture and full negative-transcript/lifecycle checks are required
 before accepting an expected rejection. See `docs/qemu.md` for that boundary.
+
+### M03-001 original memory-map capture observation
+
+[Step968](../done/step968.md) adds the false-default
+`EnableM03MemoryMapCaptureProbe` / `M03_MEMORY_MAP_CAPTURE_PROBE` profile. It
+requires all other 36 probe properties false; reciprocal project and script
+checks preserve the existing profiles. The explicit closure now has 85 ordered
+Compile items, 98 raw publication inputs and 37 requested/evaluated probe
+properties, including 34 XML false defaults. The appended authority is
+`MemoryMapCaptureProbeAuthority.cs`; the generic source firewall and QEMU
+runner remain unchanged.
+
+The profile observes the original `UefiMemoryMapCapture.Capture` and
+`UefiMemoryMapCopyPlan` path through bounded forwarding callbacks. Its observer
+POD is 488 bytes. The guarded destination spans 131,104 bytes, with the full
+131,072-byte payload beginning at offset 16. It preserves separate query and
+recapture size slots, original firmware callbacks, full-width statuses and
+the source/owned-map/handoff association. Successful readback checks every
+captured byte, all 32 guard bytes and the entire unused payload tail before
+output. A local admission or firmware failure cannot continue to boot success.
+
+At source checkpoint v8, the complete observer module passes six starts/seven passes/zero
+failures, including actual default and enabled NativeAOT publications with
+zero OS AssemblyRefs and exact 0/1 true-property vectors. The earlier recorded run of four complete M01 selector/publication modules
+plus the two unchanged memory-map modules passed 80 starts/81 passes/zero
+failures on its retained inputs; final normal HostTests compilation passes.
+Final v9 changes only the new authority file from CRLF to LF and refreshes
+three derived raw-source pins; the v8 artifact evidence remains tied to its
+original bytes. Independent static inspection now accepts the saved v8 callback
+arguments/returns, stack alignment, original Capture/CopyPlan and complete
+copy/guard/tail readback. This does not execute firmware.
+
+[Step969](../done/step969.md) records the first common-run failure: the legacy
+artifact-verifier fixture omitted the new disabled M03 property, so its
+synthetic 92-property record failed the verifier's exact 93-property check.
+The repair adds only that false entry; verifier guards and all original
+scenarios remain unchanged. The failed run was stopped after its completed
+failing child inputs were archived; it remains failed/incomplete evidence.
+
+[Step970](../done/step970.md) records the successful clean common gate on
+`854a3359623f6a619b0ea769ce97cfed6c3a96b1`: 3,670 starts/3,671 passes/zero
+failures, one terminal host marker, 16 selected READY lines, all 905 committed
+inputs and five launch/end binaries unchanged. Fresh default and enabled
+QEMU/OVMF captures then pass the source/profile, same-image native,
+transcript/lifecycle and bounded disk joins. Both retain the actual
+85-Compile/98-input/37-property closure, zero OS AssemblyRefs and 0/1 true
+profile vectors. The enabled 31-record owned stream reports the original
+query/allocation/recapture once each, 4,896 bytes copied from 102 descriptors,
+zero copy mismatches, 32 intact guard bytes and 126,176 untouched tail bytes.
+The matching snapshot/handoff key describes this capture only. See
+[QEMU evidence](qemu.md#m03-001-original-capture-observation-evidence) for the
+actual capture and lifecycle boundary.
+
+The enabled ordinary smoke command is:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 -BuildEfi `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 -EnableM03MemoryMapCaptureProbe
+```
+
+Its reviewed transcript requires the `m03.001.capture` START/PASS pair,
+actual query/allocation/recapture/copy/guard-tail/handoff records and exactly
+one `CLROS_M03_001_READY`, followed by the ordinary boot path. A dry run or
+publication does not prove that transcript occurred. Firmware remains
+available; no additional allocation retry, pool-release policy, EBS call,
+map-key freshness or general ownership claim is added.
