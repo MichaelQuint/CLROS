@@ -34,6 +34,7 @@ param(
     [switch]$EnableM04StringAllocationBeforeBindProbe,
     [switch]$EnableM04StringAllocationExhaustionProbe,
     [switch]$EnableM04StringAllocationInvalidLengthProbe,
+    [switch]$EnableM03MemoryMapCaptureProbe,
     [switch]$EnableM01LoadedImageStackProbe,
     [switch]$EnableM01LiveAllocatorProbe,
     [switch]$EnableM01OwnedPagingProbe,
@@ -64,7 +65,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 97
+$expectedSourceClosureInputCount = 98
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -191,7 +192,8 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Runtime\GuestTestArrayAllocationLengthOverflowChecks.cs|Runtime\GuestTestArrayAllocationLengthOverflowChecks.cs',
     '..\OS.Kernel\Runtime\GuestTestStringAllocationCharacterStorage.cs|Runtime\GuestTestStringAllocationCharacterStorage.cs',
     '..\OS.Kernel\Diagnostics\StringAllocationProbeAuthority.cs|Diagnostics\StringAllocationProbeAuthority.cs',
-    'Runtime\RhpNewFastAllocation.cs|'
+    'Runtime\RhpNewFastAllocation.cs|',
+    '..\OS.Kernel\Diagnostics\MemoryMapCaptureProbeAuthority.cs|Diagnostics\MemoryMapCaptureProbeAuthority.cs'
 )
 $expectedPackageBuildClosure = @(
     [pscustomobject]@{
@@ -3867,6 +3869,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM04StringAllocationBeforeBindProbe," +
             "EnableM04StringAllocationExhaustionProbe," +
             "EnableM04StringAllocationInvalidLengthProbe," +
+            "EnableM03MemoryMapCaptureProbe," +
             "EnableM01LoadedImageStackProbe," +
             "EnableM01LiveAllocatorProbe," +
             "EnableM01OwnedPagingProbe," +
@@ -4018,6 +4021,9 @@ function Invoke-PostRestoreEvaluationSnapshot {
     }
     if ($EnableM04StringAllocationInvalidLengthProbe) {
         $arguments += "-p:EnableM04StringAllocationInvalidLengthProbe=true"
+    }
+    if ($EnableM03MemoryMapCaptureProbe) {
+        $arguments += "-p:EnableM03MemoryMapCaptureProbe=true"
     }
     $arguments += ("-p:EnableM01LoadedImageStackProbe=" + $EnableM01LoadedImageStackProbe.IsPresent.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM01LiveAllocatorProbe=" + $EnableM01LiveAllocatorProbe.IsPresent.ToString().ToLowerInvariant())
@@ -4264,6 +4270,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM04StringAllocationExhaustionProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04StringAllocationInvalidLengthProbe =
             $EnableM04StringAllocationInvalidLengthProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM03MemoryMapCaptureProbe =
+            $EnableM03MemoryMapCaptureProbe.IsPresent.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
         ImportProjectExtensionTargets = "false"
         ExcludeRestorePackageImports = "true"
@@ -4335,7 +4343,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 84 -or
+    if ($compileItems.Count -ne 85 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4465,6 +4473,51 @@ function Assert-PostRestoreEvidenceMatchesSnapshot {
 }
 
 Write-Output "TEST_START $testName"
+
+if ($EnableM03MemoryMapCaptureProbe) {
+    foreach ($memoryMapConflict in @(
+        "EnableM01LoadedImageStackProbe",
+        "EnableM01LiveAllocatorProbe",
+        "EnableM01OwnedPagingProbe",
+        "EnableM02SafeStubProbe",
+        "EnableM02CheckedPortIoBindingProbe",
+        "EnableM02Com1OwnedPortIoProbe",
+        "EnableM02OwnedCom1ReadyProbe",
+        "EnableM02PanicSafeOwnedCom1Probe",
+        "EnableM02OwnedX64GdtEncodingProbe",
+        "EnableM02GuardedIstStackAllocationProbe",
+        "EnableM02OwnedGdtTssTerminalProbe",
+        "EnableM02NormalizedInterruptFramePageProbe",
+        "EnableM02OwnedIdtGatePopulationProbe",
+        "EnableM02IdtrContinuedExecutionProbe",
+        "EnableM02Ud2VectorStateProbe",
+        "EnableM04IndependentEndianConformanceProbe",
+        "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe",
+        "EnableM04ArithmeticConformanceProbe",
+        "EnableM04LayoutContractProbe",
+        "EnableM04ManagedHeapPageRangeProbe",
+        "EnableM02PageFaultCr2ErrorCodeProbe",
+        "EnableM02DoubleFaultIstProbe",
+        "EnableM02UnexpectedVectorPanicProbe",
+        "EnableM04RhpNewFastProbe",
+        "EnableM04RhpNewFastBeforeBindFailureProbe",
+        "EnableM04RhpNewFastExhaustionFailureProbe",
+        "EnableM04SzArrayAllocationProbe",
+        "EnableM04SzArrayAllocationBeforeBindProbe",
+        "EnableM04SzArrayAllocationExhaustionProbe",
+        "EnableM04StringAllocationProbe",
+        "EnableM04StringAllocationBeforeBindProbe",
+        "EnableM04StringAllocationExhaustionProbe",
+        "EnableM04StringAllocationInvalidLengthProbe",
+        "EnableUefiGoneSimulationProbe",
+        "EnableExitBootServicesFreshMapProbe",
+        "EnableAcpiPhysicalDiscoveryProbe"
+    )) {
+        if ([bool](Get-Variable -Name $memoryMapConflict -ValueOnly)) {
+            Write-Failure "m03_memory_map_capture_profile_conflict" ("property=" + $memoryMapConflict)
+        }
+    }
+}
 
 $stringReason = ""
 if (($EnableM04StringAllocationBeforeBindProbe -or $EnableM04StringAllocationExhaustionProbe -or $EnableM04StringAllocationInvalidLengthProbe) -and -not $EnableM04StringAllocationProbe) { $stringReason = "m04_string_negative_requires_main" }

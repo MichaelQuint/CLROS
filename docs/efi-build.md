@@ -2226,3 +2226,49 @@ String negative switch to the same build prerequisites. Their intentional
 `TEST_FAIL m04.009` endings remain ordinary runner failures; independently
 reviewed capture and full negative-transcript/lifecycle checks are required
 before accepting an expected rejection. See `docs/qemu.md` for that boundary.
+
+### M03-001 original memory-map capture observation
+
+[Step968](../done/step968.md) adds the false-default
+`EnableM03MemoryMapCaptureProbe` / `M03_MEMORY_MAP_CAPTURE_PROBE` profile. It
+requires all other 36 probe properties false; reciprocal project and script
+checks preserve the existing profiles. The explicit closure now has 85 ordered
+Compile items, 98 raw publication inputs and 37 requested/evaluated probe
+properties, including 34 XML false defaults. The appended authority is
+`MemoryMapCaptureProbeAuthority.cs`; the generic source firewall and QEMU
+runner remain unchanged.
+
+The profile observes the original `UefiMemoryMapCapture.Capture` and
+`UefiMemoryMapCopyPlan` path through bounded forwarding callbacks. Its observer
+POD is 488 bytes. The guarded destination spans 131,104 bytes, with the full
+131,072-byte payload beginning at offset 16. It preserves separate query and
+recapture size slots, original firmware callbacks, full-width statuses and
+the source/owned-map/handoff association. Successful readback checks every
+captured byte, all 32 guard bytes and the entire unused payload tail before
+output. A local admission or firmware failure cannot continue to boot success.
+
+At source checkpoint v8, the complete observer module passes six starts/seven passes/zero
+failures, including actual default and enabled NativeAOT publications with
+zero OS AssemblyRefs and exact 0/1 true-property vectors. The earlier recorded run of four complete M01 selector/publication modules
+plus the two unchanged memory-map modules passed 80 starts/81 passes/zero
+failures on its retained inputs; final normal HostTests compilation passes.
+Final v9 changes only the new authority file from CRLF to LF and refreshes
+three derived raw-source pins; the v8 artifact evidence remains tied to its
+original bytes. These are source, controlled-host and artifact results. Final same-image
+native ABI inspection, the common full suite and fresh guests remain pending.
+
+The enabled ordinary smoke command is:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 -BuildEfi `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 -EnableM03MemoryMapCaptureProbe
+```
+
+Its reviewed transcript requires the `m03.001.capture` START/PASS pair,
+actual query/allocation/recapture/copy/guard-tail/handoff records and exactly
+one `CLROS_M03_001_READY`, followed by the ordinary boot path. A dry run or
+publication does not prove that transcript occurred. Firmware remains
+available; no additional allocation retry, pool-release policy, EBS call,
+map-key freshness or general ownership claim is added.

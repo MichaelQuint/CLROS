@@ -969,6 +969,26 @@ refill, real ExitBootServices and hosted .NET/Kestrel remain unsupported.
 Gates3/4 remain **Fail**. The same host gate covers #58's memory-map fixtures,
 but its separate native observation and guest evidence remain pending.
 
+### M03-001 capture-observer source and artifact checkpoint
+
+[Step968](../done/step968.md) adds a default-off observation of the original
+firmware memory-map query, allocation, recapture and owned copy. Controlled
+host tests exercise original callbacks, distinct size slots, full-width
+statuses, complete copy/guard/tail readback, failure termination, strict
+transcript parsing and all reciprocal profile exclusions. The complete new
+module passes six starts/seven passes/zero failures at sourcev8, including fresh default
+and enabled NativeAOT publications with zero AssemblyRefs. The four M01
+selector/publication modules and two unchanged memory-map modules passed
+their earlier complete focused run on its retained inputs; final normal
+HostTests compilation passes.
+
+Final sourcev9 only normalizes the new authority file line endings and three
+derived source pins; v8 test/artifact records retain their original inputs.
+The common full host gate, independent native ABI review and fresh default/
+enabled guests remain pending. #58/#532 stay open. This checkpoint does not
+establish live capture observations, map-key freshness, real ExitBootServices,
+post-firmware ownership or completion of M03/Gate5.
+
 ### M04-010 checked-store and bulk-move host prerequisite
 
 [Step967](../done/step967.md) adds aligned opaque-word stores and overlap-safe

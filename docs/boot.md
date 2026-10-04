@@ -170,7 +170,23 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 - `UefiMemoryMapCopyPlan` defines a no-stdlib-safe, status-coded validation contract for copying a firmware-owned memory-map buffer into OS-owned storage.
 - The copy-plan contract validates source map size, descriptor size/version/count, descriptor-count bounds, destination capacity, and arithmetic overflow before any EFI-boundary copy is attempted.
 - `UefiMemoryMapCapture` owns the no-stdlib-safe `GetMemoryMap` sizing call, `AllocatePool` slack buffer allocation, retry capture, copy-plan validation, and copy into caller-owned storage. It returns status-coded capture failures plus the underlying `UefiMemoryMapCopyPlanStatus` when metadata or destination validation rejects the copy.
-- [Step961](../done/step961.md) adds M03-001 host regressions against those existing capture/copy helpers: growth within the eight-descriptor slack, exhausted slack, changed stride, firmware failures, count/capacity/overflow boundaries, complete source/destination canary and tail checks, and warmed zero managed allocation. Capture performs one sizing query, one allocation and one recapture; a second `EFI_BUFFER_TOO_SMALL` fails without another allocation. These controlled callbacks do not establish live firmware behavior, arbitrary-pointer mapping/lifetime or map-key freshness for `ExitBootServices`. Issue #58 remains open for separate native/QEMU evidence.
+- [Step961](../done/step961.md) adds M03-001 host regressions against those existing capture/copy helpers: growth within the eight-descriptor slack, exhausted slack, changed stride, firmware failures, count/capacity/overflow boundaries, complete source/destination canary and tail checks, and warmed zero managed allocation. Capture performs one sizing query, one allocation and one recapture; a second `EFI_BUFFER_TOO_SMALL` fails without another allocation. These controlled callbacks do not establish live firmware behavior, arbitrary-pointer mapping/lifetime or map-key freshness for `ExitBootServices`.
+- [Step968](../done/step968.md) adds the false-default
+  `EnableM03MemoryMapCaptureProbe` observation profile around that same
+  four-argument capture operation. It retains the original firmware function
+  pointers, forwards each admitted query/allocation/recapture once, and records
+  their actual arguments and returns without replacing the firmware table.
+  Before emitting output, it compares the entire captured source with the
+  owned copy and checks both 16-byte guards and the unused 128 KiB payload
+  tail. The query and recapture size variables may occupy distinct, disjoint
+  stack slots. The same snapshot and handoff feed the existing boot path;
+  observation failure stops before the success markers. Complete focused
+  host controls and default/enabled NativeAOT publications pass on the retained
+  v8 inputs. Final v9 normalizes only the new authority file line endings and
+  three derived source pins. Independent
+  native ABI review, the common full host gate and fresh QEMU evidence remain
+  pending at this checkpoint; #58/#532 stay open. There is no new retry,
+  `ExitBootServices` call or map-key freshness claim.
 - `UefiMemoryDescriptorReader` decodes owned raw UEFI descriptor bytes into `UefiMemoryDescriptor` values with caller-provided storage, status-coded failures, and explicit 40-byte and 48-byte descriptor-stride support.
 - `MemoryMapInfo` and `MemoryRegion` convert host-side UEFI descriptors into first-party normalized memory-map contracts with status-coded validation; the allocated host-friendly API remains available, and a caller-owned region writer now writes `MemoryRegion` records into supplied storage while reporting capacity, totals, conventional-memory totals, and invalid descriptor indexes without throwing.
 - Missing or unknown boot capabilities return status-coded `BootCapabilityResult` values; they do not rely on managed exception handling.

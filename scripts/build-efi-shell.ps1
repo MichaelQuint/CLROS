@@ -62,7 +62,8 @@ param(
     [switch] $EnableM04StringAllocationProbe,
     [switch] $EnableM04StringAllocationBeforeBindProbe,
     [switch] $EnableM04StringAllocationExhaustionProbe,
-    [switch] $EnableM04StringAllocationInvalidLengthProbe
+    [switch] $EnableM04StringAllocationInvalidLengthProbe,
+    [switch] $EnableM03MemoryMapCaptureProbe
 )
 
 $ErrorActionPreference = "Stop"
@@ -153,7 +154,8 @@ $script:ExpectedEfiCompileItems = @(
     '..\OS.Kernel\Runtime\GuestTestArrayAllocationLengthOverflowChecks.cs|Runtime\GuestTestArrayAllocationLengthOverflowChecks.cs',
     '..\OS.Kernel\Runtime\GuestTestStringAllocationCharacterStorage.cs|Runtime\GuestTestStringAllocationCharacterStorage.cs',
     '..\OS.Kernel\Diagnostics\StringAllocationProbeAuthority.cs|Diagnostics\StringAllocationProbeAuthority.cs',
-    'Runtime\RhpNewFastAllocation.cs|'
+    'Runtime\RhpNewFastAllocation.cs|',
+    '..\OS.Kernel\Diagnostics\MemoryMapCaptureProbeAuthority.cs|Diagnostics\MemoryMapCaptureProbeAuthority.cs'
 )
 
 $script:ExpectedSerializerTargetsImport =
@@ -1875,6 +1877,7 @@ function Invoke-M01PostRestoreEvaluation {
         [bool] $M04StringAllocationBeforeBindEnabled,
         [bool] $M04StringAllocationExhaustionEnabled,
         [bool] $M04StringAllocationInvalidLengthEnabled,
+        [bool] $M03MemoryMapCaptureEnabled,
         [bool] $LoadedImageStackEnabled,
         [bool] $LiveAllocatorEnabled,
         [bool] $OwnedPagingEnabled,
@@ -1927,6 +1930,7 @@ function Invoke-M01PostRestoreEvaluation {
             "EnableM04StringAllocationBeforeBindProbe," +
             "EnableM04StringAllocationExhaustionProbe," +
             "EnableM04StringAllocationInvalidLengthProbe," +
+            "EnableM03MemoryMapCaptureProbe," +
             "EnableM01LoadedImageStackProbe," +
             "EnableM01LiveAllocatorProbe," +
             "EnableM01OwnedPagingProbe," +
@@ -2095,6 +2099,8 @@ function Invoke-M01PostRestoreEvaluation {
         $M04StringAllocationExhaustionEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM04StringAllocationInvalidLengthProbe=" +
         $M04StringAllocationInvalidLengthEnabled.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableM03MemoryMapCaptureProbe=" +
+        $M03MemoryMapCaptureEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM01LoadedImageStackProbe=" + $LoadedImageStackEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM01LiveAllocatorProbe=" + $LiveAllocatorEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM01OwnedPagingProbe=" + $OwnedPagingEnabled.ToString().ToLowerInvariant())
@@ -2202,6 +2208,8 @@ function Invoke-M01PostRestoreEvaluation {
             $M04StringAllocationExhaustionEnabled.ToString().ToLowerInvariant()
         EnableM04StringAllocationInvalidLengthProbe =
             $M04StringAllocationInvalidLengthEnabled.ToString().ToLowerInvariant()
+        EnableM03MemoryMapCaptureProbe =
+            $M03MemoryMapCaptureEnabled.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
         ImportProjectExtensionTargets = "false"
         ExcludeRestorePackageImports = "true"
@@ -4205,6 +4213,7 @@ for ($index = 5; $index -lt $verifierArguments.Count; $index += 2) {
         $parameterName -ceq "EnableM04StringAllocationBeforeBindProbe" -or
         $parameterName -ceq "EnableM04StringAllocationExhaustionProbe" -or
         $parameterName -ceq "EnableM04StringAllocationInvalidLengthProbe" -or
+        $parameterName -ceq "EnableM03MemoryMapCaptureProbe" -or
         $parameterName -ceq "EnableM01LoadedImageStackProbe" -or
         $parameterName -ceq "EnableM01LiveAllocatorProbe" -or
         $parameterName -ceq "EnableM01OwnedPagingProbe" -or
@@ -5581,6 +5590,7 @@ function Test-M01EvaluatedSourceClosure {
         [bool] $M04StringAllocationBeforeBindEnabled,
         [bool] $M04StringAllocationExhaustionEnabled,
         [bool] $M04StringAllocationInvalidLengthEnabled,
+        [bool] $M03MemoryMapCaptureEnabled,
         [bool] $UefiGoneSimulationEnabled,
         [bool] $ExitBootServicesFreshMapEnabled,
         [bool] $AcpiPhysicalDiscoveryEnabled
@@ -5667,6 +5677,8 @@ function Test-M01EvaluatedSourceClosure {
             $M04StringAllocationExhaustionEnabled.ToString().ToLowerInvariant()
         "EnableM04StringAllocationInvalidLengthProbe" =
             $M04StringAllocationInvalidLengthEnabled.ToString().ToLowerInvariant()
+        "EnableM03MemoryMapCaptureProbe" =
+            $M03MemoryMapCaptureEnabled.ToString().ToLowerInvariant()
     }
     $expectedSwitchSymbols = [ordered] @{
         "M01_LOADED_IMAGE_STACK_PROBE" = $LoadedImageStackEnabled
@@ -5723,6 +5735,8 @@ function Test-M01EvaluatedSourceClosure {
             $M04StringAllocationExhaustionEnabled
         "M04_STRING_ALLOCATION_INVALID_LENGTH_PROBE" =
             $M04StringAllocationInvalidLengthEnabled
+        "M03_MEMORY_MAP_CAPTURE_PROBE" =
+            $M03MemoryMapCaptureEnabled
         "UEFI_GONE_SIMULATION_PROBE" = $UefiGoneSimulationEnabled
         "EXIT_BOOT_SERVICES_FRESH_MAP_PROBE" =
             $ExitBootServicesFreshMapEnabled
@@ -5776,6 +5790,7 @@ function Test-M01EvaluatedSourceClosure {
                 "EnableM04StringAllocationBeforeBindProbe," +
                 "EnableM04StringAllocationExhaustionProbe," +
                 "EnableM04StringAllocationInvalidLengthProbe," +
+                "EnableM03MemoryMapCaptureProbe," +
                 "DefineConstants," +
                 "EnableDefaultCompileItems," +
                 "NoStdLib," +
@@ -5947,6 +5962,10 @@ function Test-M01EvaluatedSourceClosure {
         if ($M04StringAllocationInvalidLengthEnabled) {
             $arguments +=
                 "-p:EnableM04StringAllocationInvalidLengthProbe=true"
+        }
+        if ($M03MemoryMapCaptureEnabled) {
+            $arguments +=
+                "-p:EnableM03MemoryMapCaptureProbe=true"
         }
         if ($UefiGoneSimulationEnabled) {
             $arguments += "-p:EnableUefiGoneSimulationProbe=true"
@@ -6496,6 +6515,7 @@ function Test-M01SourceClosure {
         [bool] $M04StringAllocationBeforeBindEnabled,
         [bool] $M04StringAllocationExhaustionEnabled,
         [bool] $M04StringAllocationInvalidLengthEnabled,
+        [bool] $M03MemoryMapCaptureEnabled,
         [bool] $UefiGoneSimulationEnabled,
         [bool] $ExitBootServicesFreshMapEnabled,
         [bool] $AcpiPhysicalDiscoveryEnabled
@@ -6545,7 +6565,7 @@ function Test-M01SourceClosure {
 
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "65a50be1c1a444221478e3d301d2f22b0c5f2f9d90eb6ce4dae5418298117049") {
+        "8bdc64a0e1e3e85c4045f41f9c0f0adc6e05bf1ad02fcdb248ab394b301dc06d") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `
@@ -6652,6 +6672,8 @@ function Test-M01SourceClosure {
             "M04_STRING_ALLOCATION_EXHAUSTION_PROBE"
         "EnableM04StringAllocationInvalidLengthProbe" =
             "M04_STRING_ALLOCATION_INVALID_LENGTH_PROBE"
+        "EnableM03MemoryMapCaptureProbe" =
+            "M03_MEMORY_MAP_CAPTURE_PROBE"
         "EnableUefiGoneSimulationProbe" = "UEFI_GONE_SIMULATION_PROBE"
         "EnableExitBootServicesFreshMapProbe" = "EXIT_BOOT_SERVICES_FRESH_MAP_PROBE"
         "EnableAcpiPhysicalDiscoveryProbe" = "ACPI_PHYSICAL_DISCOVERY_PROBE"
@@ -6939,6 +6961,8 @@ function Test-M01SourceClosure {
             "M04_STRING_ALLOCATION_EXHAUSTION_PROBE"
         "EnableM04StringAllocationInvalidLengthProbe" =
             "M04_STRING_ALLOCATION_INVALID_LENGTH_PROBE"
+        "EnableM03MemoryMapCaptureProbe" =
+            "M03_MEMORY_MAP_CAPTURE_PROBE"
     }
     foreach ($entry in $switchSymbols.GetEnumerator()) {
         $defaultNodes = @($project.SelectNodes(
@@ -7608,7 +7632,79 @@ function Test-M01SourceClosure {
         "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
         "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
         "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
-        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'"
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM01LoadedImageStackProbe)' == 'true'",
+        "'`$(EnableM01LoadedImageStackProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM01LiveAllocatorProbe)' == 'true'",
+        "'`$(EnableM01LiveAllocatorProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM01OwnedPagingProbe)' == 'true'",
+        "'`$(EnableM01OwnedPagingProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM02SafeStubProbe)' == 'true'",
+        "'`$(EnableM02SafeStubProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
+        "'`$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM02Com1OwnedPortIoProbe)' == 'true'",
+        "'`$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM02OwnedCom1ReadyProbe)' == 'true'",
+        "'`$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'",
+        "'`$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'",
+        "'`$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM02GuardedIstStackAllocationProbe)' == 'true'",
+        "'`$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'",
+        "'`$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'",
+        "'`$(EnableM02NormalizedInterruptFramePageProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'",
+        "'`$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM02IdtrContinuedExecutionProbe)' == 'true'",
+        "'`$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM02Ud2VectorStateProbe)' == 'true'",
+        "'`$(EnableM02Ud2VectorStateProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM04IndependentEndianConformanceProbe)' == 'true'",
+        "'`$(EnableM04IndependentEndianConformanceProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true'",
+        "'`$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM04ArithmeticConformanceProbe)' == 'true'",
+        "'`$(EnableM04ArithmeticConformanceProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM04LayoutContractProbe)' == 'true'",
+        "'`$(EnableM04LayoutContractProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM04ManagedHeapPageRangeProbe)' == 'true'",
+        "'`$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'",
+        "'`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM02DoubleFaultIstProbe)' == 'true'",
+        "'`$(EnableM02DoubleFaultIstProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM02UnexpectedVectorPanicProbe)' == 'true'",
+        "'`$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM04RhpNewFastProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true'",
+        "'`$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM04SzArrayAllocationProbe)' == 'true'",
+        "'`$(EnableM04SzArrayAllocationProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableUefiGoneSimulationProbe)' == 'true'",
+        "'`$(EnableUefiGoneSimulationProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableExitBootServicesFreshMapProbe)' == 'true'",
+        "'`$(EnableExitBootServicesFreshMapProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03MemoryMapCaptureProbe)' == 'true' and '`$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'",
+        "'`$(EnableAcpiPhysicalDiscoveryProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'"
     )
     if ($errorConditions.Count -ne $requiredErrorConditions.Count -or
         $validationTargets[0].SelectNodes("*").Count -ne $errorNodes.Count) {
@@ -7942,6 +8038,7 @@ function Test-M01SourceClosure {
         -M04StringAllocationBeforeBindEnabled $M04StringAllocationBeforeBindEnabled `
         -M04StringAllocationExhaustionEnabled $M04StringAllocationExhaustionEnabled `
         -M04StringAllocationInvalidLengthEnabled $M04StringAllocationInvalidLengthEnabled `
+        -M03MemoryMapCaptureEnabled $M03MemoryMapCaptureEnabled `
         -UefiGoneSimulationEnabled $UefiGoneSimulationEnabled `
         -ExitBootServicesFreshMapEnabled $ExitBootServicesFreshMapEnabled `
         -AcpiPhysicalDiscoveryEnabled $AcpiPhysicalDiscoveryEnabled
@@ -8114,8 +8211,8 @@ try {
             (Format-EvidenceValue $_.Exception.Message))
         exit 1
     }
-    if ($sourceSnapshotBeforePublish.InputCount -ne 97 -or
-        $sourceSnapshotAfterLock.InputCount -ne 97 -or
+    if ($sourceSnapshotBeforePublish.InputCount -ne 98 -or
+        $sourceSnapshotAfterLock.InputCount -ne 98 -or
         $sourceSnapshotBeforePublish.AggregateSha256 -cne
             $sourceSnapshotAfterLock.AggregateSha256 -or
         $sourceSnapshotBeforePublish.AuthoritySha256 -cne
@@ -8128,9 +8225,54 @@ try {
         exit 1
     }
     Write-Host "EFI_PUBLISH_SOURCE_LOCK status=ok"
-    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=97"
+    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=98"
 
 Write-EfiPreflightLine "EFI_PREFLIGHT_START"
+
+if ($EnableM03MemoryMapCaptureProbe) {
+    foreach ($memoryMapConflict in @(
+        "EnableM01LoadedImageStackProbe",
+        "EnableM01LiveAllocatorProbe",
+        "EnableM01OwnedPagingProbe",
+        "EnableM02SafeStubProbe",
+        "EnableM02CheckedPortIoBindingProbe",
+        "EnableM02Com1OwnedPortIoProbe",
+        "EnableM02OwnedCom1ReadyProbe",
+        "EnableM02PanicSafeOwnedCom1Probe",
+        "EnableM02OwnedX64GdtEncodingProbe",
+        "EnableM02GuardedIstStackAllocationProbe",
+        "EnableM02OwnedGdtTssTerminalProbe",
+        "EnableM02NormalizedInterruptFramePageProbe",
+        "EnableM02OwnedIdtGatePopulationProbe",
+        "EnableM02IdtrContinuedExecutionProbe",
+        "EnableM02Ud2VectorStateProbe",
+        "EnableM04IndependentEndianConformanceProbe",
+        "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe",
+        "EnableM04ArithmeticConformanceProbe",
+        "EnableM04LayoutContractProbe",
+        "EnableM04ManagedHeapPageRangeProbe",
+        "EnableM02PageFaultCr2ErrorCodeProbe",
+        "EnableM02DoubleFaultIstProbe",
+        "EnableM02UnexpectedVectorPanicProbe",
+        "EnableM04RhpNewFastProbe",
+        "EnableM04RhpNewFastBeforeBindFailureProbe",
+        "EnableM04RhpNewFastExhaustionFailureProbe",
+        "EnableM04SzArrayAllocationProbe",
+        "EnableM04SzArrayAllocationBeforeBindProbe",
+        "EnableM04SzArrayAllocationExhaustionProbe",
+        "EnableM04StringAllocationProbe",
+        "EnableM04StringAllocationBeforeBindProbe",
+        "EnableM04StringAllocationExhaustionProbe",
+        "EnableM04StringAllocationInvalidLengthProbe",
+        "EnableUefiGoneSimulationProbe",
+        "EnableExitBootServicesFreshMapProbe",
+        "EnableAcpiPhysicalDiscoveryProbe"
+    )) {
+        if ([bool](Get-Variable -Name $memoryMapConflict -ValueOnly)) {
+            Stop-EfiPreflight -Marker "EFI_PREFLIGHT_M03_MEMORY_MAP_CAPTURE status=invalid" -Reason ("m03_memory_map_capture_profile_conflict property=" + $memoryMapConflict) -LogFullPath $logFullPath -ReportedLogPath $LogPath -Status "invalid"
+        }
+    }
+}
 
 $stringReason = ""
 if (($EnableM04StringAllocationBeforeBindProbe -or $EnableM04StringAllocationExhaustionProbe -or $EnableM04StringAllocationInvalidLengthProbe) -and -not $EnableM04StringAllocationProbe) { $stringReason = "m04_string_negative_requires_main" }
@@ -9095,6 +9237,7 @@ $m01SourceClosure = Test-M01SourceClosure `
     -M04StringAllocationBeforeBindEnabled $EnableM04StringAllocationBeforeBindProbe.IsPresent `
     -M04StringAllocationExhaustionEnabled $EnableM04StringAllocationExhaustionProbe.IsPresent `
     -M04StringAllocationInvalidLengthEnabled $EnableM04StringAllocationInvalidLengthProbe.IsPresent `
+    -M03MemoryMapCaptureEnabled $EnableM03MemoryMapCaptureProbe.IsPresent `
     -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
     -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
     -AcpiPhysicalDiscoveryEnabled $EnableAcpiPhysicalDiscoveryProbe.IsPresent
@@ -9831,6 +9974,10 @@ if ($EnableM04StringAllocationInvalidLengthProbe) {
     $arguments += "-p:EnableM04StringAllocationInvalidLengthProbe=true"
     Write-Host "EFI_PROBE M04_STRING_ALLOCATION_INVALID_LENGTH"
 }
+if ($EnableM03MemoryMapCaptureProbe) {
+    $arguments += "-p:EnableM03MemoryMapCaptureProbe=true"
+    Write-Host "EFI_PROBE M03_MEMORY_MAP_CAPTURE"
+}
 
 if ($EnableUefiGoneSimulationProbe) {
     $arguments += "-p:EnableUefiGoneSimulationProbe=true"
@@ -9970,6 +10117,7 @@ $methodImplAttributeSourcePath = Join-Path $repositoryRoot (
         -M04StringAllocationBeforeBindEnabled $EnableM04StringAllocationBeforeBindProbe.IsPresent `
         -M04StringAllocationExhaustionEnabled $EnableM04StringAllocationExhaustionProbe.IsPresent `
         -M04StringAllocationInvalidLengthEnabled $EnableM04StringAllocationInvalidLengthProbe.IsPresent `
+        -M03MemoryMapCaptureEnabled $EnableM03MemoryMapCaptureProbe.IsPresent `
         -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
         -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
         -AcpiPhysicalDiscoveryEnabled $EnableAcpiPhysicalDiscoveryProbe.IsPresent
@@ -10222,6 +10370,7 @@ try {
         -M04StringAllocationBeforeBindEnabled $EnableM04StringAllocationBeforeBindProbe.IsPresent `
         -M04StringAllocationExhaustionEnabled $EnableM04StringAllocationExhaustionProbe.IsPresent `
         -M04StringAllocationInvalidLengthEnabled $EnableM04StringAllocationInvalidLengthProbe.IsPresent `
+        -M03MemoryMapCaptureEnabled $EnableM03MemoryMapCaptureProbe.IsPresent `
         -LoadedImageStackEnabled $EnableM01LoadedImageStackProbe.IsPresent `
         -LiveAllocatorEnabled $EnableM01LiveAllocatorProbe.IsPresent `
         -OwnedPagingEnabled $EnableM01OwnedPagingProbe.IsPresent `
@@ -10422,6 +10571,7 @@ if ($exitCode -eq 0) {
                 -M04StringAllocationBeforeBindEnabled $EnableM04StringAllocationBeforeBindProbe.IsPresent `
                 -M04StringAllocationExhaustionEnabled $EnableM04StringAllocationExhaustionProbe.IsPresent `
                 -M04StringAllocationInvalidLengthEnabled $EnableM04StringAllocationInvalidLengthProbe.IsPresent `
+                -M03MemoryMapCaptureEnabled $EnableM03MemoryMapCaptureProbe.IsPresent `
                 -LoadedImageStackEnabled $EnableM01LoadedImageStackProbe.IsPresent `
                 -LiveAllocatorEnabled $EnableM01LiveAllocatorProbe.IsPresent `
                 -OwnedPagingEnabled $EnableM01OwnedPagingProbe.IsPresent `
@@ -10823,6 +10973,7 @@ if ($exitCode -eq 0) {
     $verificationArguments += @("-EnableM04StringAllocationBeforeBindProbe", $EnableM04StringAllocationBeforeBindProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM04StringAllocationExhaustionProbe", $EnableM04StringAllocationExhaustionProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM04StringAllocationInvalidLengthProbe", $EnableM04StringAllocationInvalidLengthProbe.IsPresent.ToString().ToLowerInvariant())
+    $verificationArguments += @("-EnableM03MemoryMapCaptureProbe", $EnableM03MemoryMapCaptureProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM01LoadedImageStackProbe", $EnableM01LoadedImageStackProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM01LiveAllocatorProbe", $EnableM01LiveAllocatorProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM01OwnedPagingProbe", $EnableM01OwnedPagingProbe.IsPresent.ToString().ToLowerInvariant())

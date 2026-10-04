@@ -5,6 +5,7 @@ using OS.Boot;
 
 internal static class M01InstructionPublicationEfiEntryTests
 {
+    private const string MemoryMapSymbol = "M03_MEMORY_MAP_CAPTURE_PROBE";
     private const string IssueTestName = "m01.035";
     private const string ReadyMarker = "CLROS_M01_035_READY";
     private const string StageOneSymbol =
@@ -307,6 +308,12 @@ internal static class M01InstructionPublicationEfiEntryTests
                 || CountDirectSerializerCalls(selected) != 0
                 || CountDirectSerializerCalls(actual) != (enabled ? 2 : 0)) return Failure("array-profile-publication-selector");
         }
+        string memorySynthetic = "#if " + MemoryMapSymbol + "\nMemoryOnly();\n#else\nMemoryOff();\n#endif\n";
+        string memorySelected = SelectProfile(memorySynthetic, false, false, false, false);
+        string memoryAlias = SelectProfile(memorySynthetic.Replace(MemoryMapSymbol, MemoryMapSymbol.ToLowerInvariant(), StringComparison.Ordinal), false, false, false, false);
+        if (memorySelected.Contains("MemoryOnly();", StringComparison.Ordinal) || !memorySelected.Contains("MemoryOff();", StringComparison.Ordinal)
+            || !memoryAlias.Contains("#if m03_memory_map_capture_probe", StringComparison.Ordinal) || CountDirectSerializerCalls(memorySelected) != 0)
+            return Failure("memory-map-selector-ordinal-publication");
         string stringSynthetic = "#if " + M04StringSymbol + "\nStringMain();\n#endif\n"
             + "#if " + M04StringBeforeSymbol + "\nStringBefore();\n#endif\n"
             + "#if " + M04StringExhaustionSymbol + "\nStringExhaustion();\n#endif\n"
@@ -3987,7 +3994,8 @@ internal static class M01InstructionPublicationEfiEntryTests
                     || string.Equals(condition, M04StringSymbol, StringComparison.Ordinal)
                     || string.Equals(condition, M04StringBeforeSymbol, StringComparison.Ordinal)
                     || string.Equals(condition, M04StringExhaustionSymbol, StringComparison.Ordinal)
-                    || string.Equals(condition, M04StringInvalidLengthSymbol, StringComparison.Ordinal);
+                    || string.Equals(condition, M04StringInvalidLengthSymbol, StringComparison.Ordinal)
+                    || string.Equals(condition, MemoryMapSymbol, StringComparison.Ordinal);
                 bool selectedValue =
                     string.Equals(
                         condition,

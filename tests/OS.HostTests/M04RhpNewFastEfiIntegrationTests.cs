@@ -347,7 +347,7 @@ internal static class M04RhpNewFastEfiIntegrationTests
         string root=HostToolProcess.FindRepositoryRoot();
         XDocument p=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
         string[] compile=p.Descendants("Compile").Select(x=>x.Attribute("Include")!.Value+"|"+(x.Attribute("Link")?.Value??"")).ToArray();
-        Need(compile.Length==84 && compile[^5]=="..\\OS.Kernel\\Runtime\\GuestTestRhpNewFast.cs|Runtime\\GuestTestRhpNewFast.cs" && compile[^4]=="..\\OS.Kernel\\Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs|Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs" && compile[^1]=="Runtime\\RhpNewFastAllocation.cs|","exact appended closure");
+        Need(compile.Length==85 && compile[^6]=="..\\OS.Kernel\\Runtime\\GuestTestRhpNewFast.cs|Runtime\\GuestTestRhpNewFast.cs" && compile[^5]=="..\\OS.Kernel\\Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs|Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs" && compile[^2]=="Runtime\\RhpNewFastAllocation.cs|","exact appended closure");
         foreach(string flag in new[]{Flag,"EnableM04RhpNewFastBeforeBindFailureProbe","EnableM04RhpNewFastExhaustionFailureProbe"})
         {
             XElement value=p.Descendants(flag).Single();
@@ -456,8 +456,8 @@ internal static class M04RhpNewFastEfiIntegrationTests
         string[] all=Chain.Append(Flag).ToArray();
         string[] conflicts=["EnableM01OwnedPagingProbe",..XDocument.Load(Path.Combine(root,"src/OS/OS.csproj")).Descendants()
             .Where(x=>x.Name.LocalName.StartsWith("EnableM02",StringComparison.Ordinal)).Select(x=>x.Name.LocalName).Distinct(StringComparer.Ordinal),
-            "EnableUefiGoneSimulationProbe","EnableExitBootServicesFreshMapProbe","EnableAcpiPhysicalDiscoveryProbe"];
-        Need(conflicts.Length==19,"all unrelated profile conflicts");
+            "EnableUefiGoneSimulationProbe","EnableExitBootServicesFreshMapProbe","EnableAcpiPhysicalDiscoveryProbe","EnableM03MemoryMapCaptureProbe"];
+        Need(conflicts.Length==20,"all unrelated profile conflicts");
         List<string[]> invalid=[..Chain.Select(missing=>all.Where(x=>x!=missing).ToArray()),..conflicts.Select(x=>all.Append(x).ToArray()),[before],[exhaust],[..all,before,exhaust]];
         int id=0;
         foreach(string[] flags in invalid)
@@ -466,7 +466,7 @@ internal static class M04RhpNewFastEfiIntegrationTests
             Result r=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(root,"scripts",runner?"run-qemu-smoke.ps1":"build-efi-shell.ps1"),
                 ..(runner?new[]{"-DryRun","-BuildEfi"}:new[]{"-PreflightOnly","-LogPath",Path.Combine(directory,"preflight-"+id+".log")}),..flags.Select(x=>"-"+x)]);
             Save(Path.Combine(directory,(id++).ToString()),r);
-            Need(r.Code!=0 && r.Output.Contains("m04_rhp_new_fast",StringComparison.Ordinal),"explicit profile rejection "+string.Join(',',flags)+" "+r.Output);
+            Need(r.Code!=0 && (flags.Contains("EnableM03MemoryMapCaptureProbe",StringComparer.Ordinal) ? r.Output.Contains("m03_memory_map_capture_profile_conflict property=EnableM01LoadedImageStackProbe",StringComparison.Ordinal) : r.Output.Contains("m04_rhp_new_fast",StringComparison.Ordinal)),"explicit profile rejection "+string.Join(',',flags)+" "+r.Output);
         }
         foreach(string[] flags in new[]{all,all.Append(before).ToArray(),all.Append(exhaust).ToArray()})
         {
@@ -488,11 +488,11 @@ internal static class M04RhpNewFastEfiIntegrationTests
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
             foreach(var file in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(directory,file.Item2));
             using var document=System.Text.Json.JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=document.RootElement;
-            var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==97,"actual97 raw sources");
+            var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==98,"actual98 raw sources");
             foreach(var input in inputs)Need(Hash(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))==input.GetProperty("sha256").GetString(),"actual raw source unchanged");
-            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==84,"actual84 compile items");
+            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==85,"actual85 compile items");
             var flags=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
-            Need(flags.Length==36,"complete36 evaluated flags");
+            Need(flags.Length==37,"complete37 evaluated flags");
             foreach(var f in flags)Need(f.Value.GetString()==(lane.Item2.Contains(f.Name,StringComparer.Ordinal)?"true":"false"),"actual requested/evaluated profile "+f.Name);
             using(var pe=new PEReader(File.OpenRead(Path.Combine(directory,"OS.dll"))))
             {
