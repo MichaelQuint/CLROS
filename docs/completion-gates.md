@@ -1015,9 +1015,10 @@ export, compiler reference-field association, outside-heap destination policy,
 special byref-helper ABI, GC polling, card table or collector. The common
 full suite now passes on `854a335` with 3,670 starts/3,671 passes/zero failures
 ([step970](../done/step970.md)). The later bounded returning-helper and guest
-progress is recorded in [step977](../done/step977.md). Its live executing-stack
-canary requirement remains unmet: #79/#537 stay open and #80 stays blocked.
-Gates3/4 remain **Fail**.
+progress is recorded in [step977](../done/step977.md). [Step981](../done/step981.md)
+accepts the later two-word/five-check live executing-stack evidence and compiled
+8,456-byte local bound within the 16 KiB admission ceiling. Tracker closure is separate;
+#80 remains blocked until that action. Gates3/4 remain **Fail**.
 
 ### M02-014 source integration and terminal guest boundary
 
@@ -1633,13 +1634,17 @@ subsequently merged at `34a9fd5`; #59/#539/#536 closed with reviewed evidence.
 entropy-retention implementation. Its actual EFI RNG/guest boundary remains
 pending, so #61 is still blocked.
 
-The reference capture demonstrates the finite returning-helper route, but
-#537's real executing-stack canary requirement is not satisfied by static stack
-bounds, initial RSP containment or static-context guards. [Step979](../done/step979.md)
-adds the original-stack two-word sentinel, five checks and strict final record;
-the complete focused module and both native publications pass. Its proposed
-16 KiB witness-relative clearance still requires fresh compiled proof and
-current-image common/guest acceptance. #79/#537 remain open and claimed; #80
-remains blocked. No general GC, real ExitBootServices,
-post-firmware access, hosted .NET/Kestrel or cloud support follows. Gates3/4/5
-and the containing milestones remain incomplete.
+The historical reference capture did not satisfy the live executing-stack
+requirement. [Step979](../done/step979.md) added the original-stack sentinel;
+[step981](../done/step981.md) now accepts its fresh `5d894c8` common and guest
+evidence. The common suite passes 3,704 starts/3,705 passes/zero failures and16
+READY lines. Default/reference/ACPI captures pass separate reviews. The strict
+reference 71-record body observes two words unchanged through five checks;
+ACPI retains 35 records. Byte-identical native code establishes the 8,456-byte
+conservative local bound below the witness within 16 KiB. The witness is not
+sampled RSP and the sentinel does not measure whole-stack peak usage or cover
+arbitrary firmware/interrupt effects. Catalog M04-010 requests closed/done for
+this bounded profile; actual #79/#537 tracker closure remains a separate action,
+and #80's blocked label is retained until it occurs. No general GC, real
+ExitBootServices, post-firmware access, hosted .NET/Kestrel or cloud support
+follows. Gates3/4/5 and the containing milestones remain incomplete.
