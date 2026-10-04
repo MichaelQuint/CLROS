@@ -8068,7 +8068,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M03: Real Firmware Exit.",
-      "currentEvidence": "The EFI path captures a map but deliberately skips the ExitBootServices call; post-firmware execution is unproven.",
+      "currentEvidence": "Step970 completes the first child M03-001 (#58), including the qualified #532 native observation supplement, after the clean 854a335 common host gate (3670 starts/3671 passes/zero failures) and fresh default/enabled capture reviews. The original memory-map query/allocation/recapture and guarded owned copy are observed while firmware remains available. The remaining ten children M03-002 through M03-011 (#59 through #68) are incomplete; their readiness is assessed separately, and #59 is not promoted by this catalog update. No ExitBootServices call, map-key freshness, post-firmware execution/ownership or M03 exit criterion is proved; the epic remains open.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -8115,7 +8115,7 @@
         "M02-016"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:tooling",
         "evidence:qemu",
@@ -8142,7 +8142,7 @@
       ],
       "collisionLane": null,
       "summary": "Add EFI_BUFFER_TOO_SMALL, descriptor-growth, slack, and overflow memory-map tests derived from RoseOS failures.",
-      "currentEvidence": "Step961 supplies the bounded original Capture/CopyPlan host regressions, and step964 covers them in the accepted historical be2762f complete host gate. Step968 adds the false-default M03 capture-observation profile while preserving those production helpers, original firmware targets and the full 128 KiB owned payload. Sourcev8 complete observer tests pass 6 starts/7 passes/zero failures, including actual default/enabled NativeAOT artifacts, zero AssemblyRefs, all reciprocal profile exclusions and strict transcript controls. The earlier six-module managed run passed 80 starts/81 passes/zero failures on its recorded inputs; final normal HostTests compilation passes. Final sourcev9 only normalizes the new authority file line endings and three derived source pins, preserving v8 evidence on its original inputs. Independent native ABI review, the new common full gate and fresh default/enabled QEMU evidence remain pending. #58/#532 stay open; no map-key freshness, ExitBootServices or M03 gate completion is claimed.",
+      "currentEvidence": "Step970 completes the bounded #58/#532 original memory-map observation milestone on 854a3359623f6a619b0ea769ce97cfed6c3a96b1. Step961 host regressions and step968 focused/native-artifact evidence remain tied to their original inputs; step969 preserves the failed/interrupted common run and exact one-entry verifier-fixture repair. The fresh clean common host gate passes 3670 starts/3671 passes/zero failures with 905 committed inputs and five launch/end binaries unchanged. Fresh default/enabled QEMU captures pass current 85-Compile/98-source/37-property, same-image native, transcript/lifecycle and bounded disk joins. The enabled 31-record stream reports one query, one allocation, one recapture, 4896 copied bytes/102 descriptors, zero copy/guard/tail mismatches and matching snapshot/handoff key while firmware remains available. Ordinary quiet is configured 750 ms, not measured; signed QEMU exit is -1 with owned termination. Booted/pristine differences are accounted, not equality or filesystem conformance. This closes only the qualified M03-001 slice; map-key freshness, EBS, post-firmware ownership and M03 completion remain unproved. Reviewed merge/tracker closure is parent-owned; #59 is not promoted here.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add EFI_BUFFER_TOO_SMALL, descriptor-growth, slack, and overflow memory-map tests derived from RoseOS failures.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -8195,7 +8195,7 @@
         "docs/efi-build.md"
       ],
       "evidenceBoundary": "This issue proves only \"Add EFI_BUFFER_TOO_SMALL, descriptor-growth, slack, and overflow memory-map tests derived from RoseOS failures.\" It does not by itself prove the M03 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M03-002",
@@ -10044,7 +10044,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement checked reference and bulk write barriers, including .NET 10 bulk-move requirements.",
-      "currentEvidence": "Step967 adds a bounded noncollecting host prerequisite: checked aligned word stores and overlap-safe same-page bulk moves, using all thirteen original retained-authority inputs and preserving allocator/cursor state. The complete five-module focused run passes 43 starts/44 passes/zero failures; normal HostTests and the actual eleven-source no-stdlib build pass with zero AssemblyRefs. Patterned full-buffer rejection oracles, unsigned boundaries, both overlap directions and warmed zero-allocation checks are covered. Common full-suite, native helper/ABI integration and real guest evidence remain pending. M04-010 stays open; no general WriteBarriers/GC gate or M04-011 readiness is claimed.",
+      "currentEvidence": "Step967 adds a bounded noncollecting host prerequisite: checked aligned word stores and overlap-safe same-page bulk moves, using all thirteen original retained-authority inputs and preserving allocator/cursor state. The complete five-module focused run passes 43 starts/44 passes/zero failures; normal HostTests and the actual eleven-source no-stdlib build pass with zero AssemblyRefs. Patterned full-buffer rejection oracles, unsigned boundaries, both overlap directions and warmed zero-allocation checks are covered. Step970 also records the successful common full suite at 854a335: 3670 starts/3671 passes/zero failures. Actual returning native helper/ABI integration and its guest evidence remain pending. M04-010 stays open; no general WriteBarriers/GC gate or M04-011 readiness is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Implement checked reference and bulk write barriers, including .NET 10 bulk-move requirements.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

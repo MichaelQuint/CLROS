@@ -782,10 +782,11 @@ Rejection fixtures compare all 64 KiB after each call; other checks verify both
 overlap directions and mixed fixed/array/String allocations, preserve allocator
 and cursor bytes, and measure zero warmed CLR allocation. The normal host-test
 build and actual eleven-source C#14/.NET10 no-stdlib compile pass, with zero
-AssemblyRefs and four inspected leaf IL bodies. This is host/compiler evidence;
-the common full suite, native helper integration and guest proof remain pending.
-Issue #79 and the general `WriteBarriers` ledger remain incomplete; Gate4 stays
-**Fail**.
+AssemblyRefs and four inspected leaf IL bodies. The clean common suite on
+`854a335` also passes 3,670 starts/3,671 passes/zero failures
+([step970](../done/step970.md)). These are host/compiler results; actual returning
+native helper integration and its guest proof remain pending. Issue #79 and
+the general `WriteBarriers` ledger remain incomplete; Gate4 stays **Fail**.
 
 ## Tests
 

@@ -84,7 +84,7 @@ boundary.
 - `EfiMain` materializes compact live owned-map region records through the source-linked no-stdlib-safe `BootMemoryRegionMaterializer` and emits `BOOT_MEMORY_REGIONS_READY` plus `BOOT_MEMORY_REGION_COUNT <count>` before ACPI RSDP handoff and `TEST_START boot.sequence`.
 - `OS.Kernel` has a host-tested `UefiMemoryMapCopyPlan` contract that validates the copy from firmware-owned memory-map buffer to OS-owned storage before the EFI shell copies bytes.
 - `OS.Kernel` has a host-tested `UefiMemoryMapCapture` helper that owns the no-stdlib EFI memory-map capture/copy mechanics and reports copy-plan statuses for rejected metadata.
-- M03-001's [step961](../done/step961.md) adds host regression coverage without changing the EFI capture path. Its actual no-stdlib closure uses the current `MinimalRuntime.cs`, `MethodImplAttribute.cs`, `BootHandoffRecord.cs`, `UefiMemoryMapCapture.cs` and `UefiMemoryMapCopyPlan.cs`; compilation and metadata inspection report zero AssemblyRefs. The complete new and existing host memory-map initializers pass. No new EFI artifact, guest marker or live firmware result is claimed by that step; #58 still needs the separately owned native observation and QEMU evidence.
+- M03-001's [step961](../done/step961.md) adds host regression coverage without changing the EFI capture path. Its actual no-stdlib closure uses the current `MinimalRuntime.cs`, `MethodImplAttribute.cs`, `BootHandoffRecord.cs`, `UefiMemoryMapCapture.cs` and `UefiMemoryMapCopyPlan.cs`; compilation and metadata inspection report zero AssemblyRefs. The complete new and existing host memory-map initializers pass. No new EFI artifact, guest marker or live firmware result is claimed by that step; the later native observation and QEMU evidence are recorded in [step970](../done/step970.md).
 - `OS.Kernel` has a host-tested `EfiBootHandoffValidator` contract that mirrors the live EFI numeric validation path without string formatting or managed allocation requirements.
 - `OS.Kernel` has a host-tested `EfiMemoryMapNormalizer` contract for live no-stdlib summary normalization without arrays or `Span<T>`.
 - `OS.Kernel` has a host-tested `BootMemoryRegionMaterializer` contract for live no-stdlib memory-region materialization without arrays, managed allocation, or exception handling.
@@ -2263,8 +2263,21 @@ artifact-verifier fixture omitted the new disabled M03 property, so its
 synthetic 92-property record failed the verifier's exact 93-property check.
 The repair adds only that false entry; verifier guards and all original
 scenarios remain unchanged. The failed run was stopped after its completed
-failing child inputs were archived. A new complete common host gate and fresh
-default/enabled guests remain required.
+failing child inputs were archived; it remains failed/incomplete evidence.
+
+[Step970](../done/step970.md) records the successful clean common gate on
+`854a3359623f6a619b0ea769ce97cfed6c3a96b1`: 3,670 starts/3,671 passes/zero
+failures, one terminal host marker, 16 selected READY lines, all 905 committed
+inputs and five launch/end binaries unchanged. Fresh default and enabled
+QEMU/OVMF captures then pass the source/profile, same-image native,
+transcript/lifecycle and bounded disk joins. Both retain the actual
+85-Compile/98-input/37-property closure, zero OS AssemblyRefs and 0/1 true
+profile vectors. The enabled 31-record owned stream reports the original
+query/allocation/recapture once each, 4,896 bytes copied from 102 descriptors,
+zero copy mismatches, 32 intact guard bytes and 126,176 untouched tail bytes.
+The matching snapshot/handoff key describes this capture only. See
+[QEMU evidence](qemu.md#m03-001-original-capture-observation-evidence) for the
+actual capture and lifecycle boundary.
 
 The enabled ordinary smoke command is:
 
