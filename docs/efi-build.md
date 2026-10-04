@@ -2340,3 +2340,11 @@ partial anchor, missing, duplicate and early READY records. The existing
 `usedBytes=576`, `calls=23`, geometry and raw-transcript checks remain intact.
 Its fresh five-group run passes, including both EFI publications; combined
 committed-head validation and real guest evidence remain separate requirements.
+
+[Step976](../done/step976.md) updates eight older M02 fixtures for the new
+reference-profile conflicts. They retain exact guard counts and explicitly
+assert every added conflict, including the IDTR diagnostic text. All eight
+complete initializers pass together (37 cases, 40 starts, 41 passes and zero
+failures), including the original default/enabled IDTR NativeAOT publications.
+The earlier combined run failed on the stale checked-port count and remains
+failed evidence. A fresh combined run and final guest reviews are still required.

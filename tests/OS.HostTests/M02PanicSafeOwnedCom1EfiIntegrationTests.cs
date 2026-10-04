@@ -172,7 +172,10 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
             && symbolGroups.Length == 1
             && symbolGroups[0].Elements("DefineConstants").Single().Value ==
                 "$(DefineConstants);M02_PANIC_SAFE_OWNED_COM1_PROBE"
-            && dependencyConditions.Length == 9
+            && dependencyConditions.Length == 10
+            && dependencyConditions.Contains(
+                "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'",
+                StringComparer.Ordinal)
             && dependencyConditions.Contains(
                 "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'",
                 StringComparer.Ordinal)

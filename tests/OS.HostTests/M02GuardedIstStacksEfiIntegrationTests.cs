@@ -186,7 +186,10 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
             && symbolGroups.Length == 1
             && symbolGroups[0].Elements("DefineConstants").Single().Value ==
                 "$(DefineConstants);M02_GUARDED_IST_STACK_ALLOCATION_PROBE"
-            && dependencyConditions.Length == 10
+            && dependencyConditions.Length == 11
+            && dependencyConditions.Contains(
+                "'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'",
+                StringComparer.Ordinal)
             && dependencyConditions.Contains(
                 "'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'",
                 StringComparer.Ordinal)

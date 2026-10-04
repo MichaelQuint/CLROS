@@ -398,7 +398,10 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
             && symbols.Length == 1
             && symbols[0].Elements("DefineConstants").Single().Value
                 == "$(DefineConstants);M02_SAFE_STUB_PROBE"
-            && errorConditions.Length == 11
+            && errorConditions.Length == 12
+            && errorConditions.Contains(
+                "'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'",
+                StringComparer.Ordinal)
             && errorConditions.Contains(
                 "'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'",
                 StringComparer.Ordinal)

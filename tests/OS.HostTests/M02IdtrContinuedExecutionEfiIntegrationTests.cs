@@ -204,7 +204,10 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
                 "'$(EnableM02Ud2VectorStateProbe)' == 'true' and " +
                 "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true'")
             .ToArray();
-        bool exclusionsExact = idtrExclusions.Length == forbiddenSwitches.Length + arrayExclusions.Length + stringExclusions.Length + 2 &&
+        bool exclusionsExact = idtrExclusions.Length == forbiddenSwitches.Length + arrayExclusions.Length + stringExclusions.Length + 3 &&
+            idtrExclusions.Count(error =>
+                error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'" &&
+                error.Attribute("Text")?.Value == "m04_checked_reference_profile_conflict EnableM04CheckedReferenceBarrierProbe") == 1 &&
             idtrExclusions.Count(error =>
                 error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'" &&
                 error.Attribute("Text")?.Value == "m03_memory_map_capture_profile_conflict EnableM03MemoryMapCaptureProbe") == 1 &&
