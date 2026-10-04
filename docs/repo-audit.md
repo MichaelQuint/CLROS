@@ -6,9 +6,11 @@ The 2026-10-03 M02 epic audit found all 20 keyed children, dependency #425 and
 27 related supplements closed with the required evidence. The technical exit
 is the bounded pre-EBS local-QEMU diagnostics milestone recorded in
 [step960](../done/step960.md), using the already accepted [step959](../done/step959.md)
-host/native/guest evidence. The reviewed documentation transaction precedes
-live epic closure. The milestone container stays open until the separate
-synchronization repair #529 prevents later sync from reopening it. Numbered completion-gate states remain
+host/native/guest evidence. Epic #40 and synchronization repair #529 are now
+closed after their reviewed merges. [Step966](../done/step966.md) records the
+state-only closure of milestone 4: all 40 members stayed closed and unchanged,
+and the repaired read-only sync preserved that closure. Its 12 unrelated
+issue updates remain unapplied. Numbered completion-gate states remain
 unchanged; real EBS, hosted .NET/Kestrel and cloud readiness remain unproved.
 
 Audit date: 2026-07-30.
