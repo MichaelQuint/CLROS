@@ -59,7 +59,7 @@ internal readonly struct RhpAllocationAttempt
     internal bool Succeeded => Status == RhpAdmissionStatus.Success && Leaf.AllocationSucceeded;
 }
 
-internal static unsafe class RhpNewFastAllocationCore
+internal static unsafe partial class RhpNewFastAllocationCore
 {
     internal const ulong Canary = 0x71C4B059A386D2EF;
     internal static ulong ControlBytes => (ulong)sizeof(RhpAllocationControl);
@@ -118,7 +118,8 @@ internal static unsafe class RhpNewFastAllocationCore
 
     private static RhpAllocationAttempt AllocateCore(RhpNewFastHeapAccess* access,
         RhpNewFastBumpState* bump, RhpAllocationControl* control, RhpObservationStorage* records,
-        ulong token, ulong expectedToken, ulong id, ulong route, bool mixed, long length, ulong expectedElement, bool strings = false)
+        ulong token, ulong expectedToken, ulong id, ulong route, bool mixed, long length, ulong expectedElement,
+        bool strings = false, bool references = false)
     {
         RhpAdmissionStatus ready = Ready(access, bump, control, records);
         if (ready != RhpAdmissionStatus.Success) return new(ready);
@@ -131,7 +132,14 @@ internal static unsafe class RhpNewFastAllocationCore
         bool filler = strings ? control->Completed == 7 && id == 3
             : mixed ? control->Completed == 5 && id <= 3
             : control->Completed == 10 && id == 1 && route == 1;
-        if (strings)
+        if (references)
+        {
+            if (mixed || strings || length != 0 || expectedElement != 0 || route != 7 ||
+                id == 0 || id > 6 || id != control->Completed + 1)
+                return new(RhpAdmissionStatus.InvalidFixture);
+            filler = false;
+        }
+        else if (strings)
         {
             bool unbound = id == 3 && control->Completed == 0 && !bump->IsInitialized && length == 0;
             bool invalidLength = id == 3 && control->Completed == 0 && bump->IsInitialized && length == 0x100000001L;
@@ -165,7 +173,7 @@ internal static unsafe class RhpNewFastAllocationCore
                 out NativeAotMethodTablePrefix relatedObject, out element0, out element1, out element2) ||
             relatedObject.BaseSize != 24 || relatedObject.RelatedTypeToken != 0))
             return new(RhpAdmissionStatus.InvalidPrefixExtent);
-        if (!Prior(records, control->Completed, (ulong)access->Backing)) return new(RhpAdmissionStatus.PriorObjectChanged);
+        if (!Prior(records, control->Completed, (ulong)access->Backing, references)) return new(RhpAdmissionStatus.PriorObjectChanged);
         for (ulong i = 0; i < 4096; i++) records->BeforeAttempt[i] = access->Backing[i];
         byte* bumpBefore = stackalloc byte[80];
         for (ulong i = 0; i < 80; i++) bumpBefore[i] = ((byte*)bump)[i];
@@ -210,7 +218,7 @@ internal static unsafe class RhpNewFastAllocationCore
             observation.End != observation.Allocation + expectedBytes ||
             observation.UsedAfter != observation.UsedBefore + expectedBytes ||
             ((array || text) && observation.Length != (ulong)length) ||
-            !Prior(records, control->Completed, (ulong)access->Backing))
+            !Prior(records, control->Completed, (ulong)access->Backing, references))
             return new(RhpAdmissionStatus.ObservationRejected, result, observation);
         if (!filler) (&records->Object0)[id - 1] = observation;
         control->InProgress = 0;
@@ -462,8 +470,9 @@ internal static unsafe class RhpNewFastAllocationCore
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-    private static bool Prior(RhpObservationStorage* records, ulong count, ulong backing)
+    private static bool Prior(RhpObservationStorage* records, ulong count, ulong backing, bool references = false)
     {
+        if (references && count > 6) return false;
         ulong used = 0;
         for (ulong i = 0; i < count; i++)
         {
@@ -472,7 +481,10 @@ internal static unsafe class RhpNewFastAllocationCore
             bool text = r.Route == 5, stringArray = r.Route == 6;
             if (r.Id != i + 1 || r.BaseSize < 24 || r.BaseSize > 4096 - used ||
                 r.Allocation != backing + used || r.Reference != r.Allocation + 8 ||
-                (!array && !text && !stringArray && r.Id <= 4 && (r.ScalarWidth != 8 || r.ScalarOffset != (r.Id == 1 ? 8UL : 16UL))) ||
+                (!references && !array && !text && !stringArray && r.Id <= 4 && (r.ScalarWidth != 8 || r.ScalarOffset != (r.Id == 1 ? 8UL : 16UL))) ||
+                (references && (r.Route != 7 || r.ScalarWidth != (r.Id <= 4 ? 8UL : 0UL) ||
+                    (r.Id <= 4 ? r.ScalarOffset < 8 || (r.ScalarOffset & 7) != 0
+                        : r.ScalarOffset != 0 || r.Scalar != 0))) ||
                 (array && (Read32((byte*)r.Allocation + 16) != r.Length ||
                     r.Length != (r.Id == 3 ? 3UL : r.Id == 5 ? 1UL : 0UL) ||
                     r.ScalarWidth != (r.Id == 3 ? 8UL : r.Id == 5 ? 1UL : 0UL) ||
@@ -520,7 +532,7 @@ internal static unsafe class RhpNewFastAllocationCore
 #if NOSTDLIB_EFI && M04_RHP_NEW_FAST_PROBE
 // Only this private production route authenticates compiler tokens. The core's
 // supplied-token seam is for caller-owned host buffers, not a runtime registry.
-internal static unsafe class RhpNewFastAllocation
+internal static unsafe partial class RhpNewFastAllocation
 {
     private static RhpNewFastHeapAccess s_access;
     private static RhpNewFastBumpState s_bump;
@@ -529,6 +541,9 @@ internal static unsafe class RhpNewFastAllocation
 
     internal static void Run(RhpNewFastHeapAccess original, byte* image, ulong imageBytes)
     {
+#if M04_CHECKED_REFERENCE_BARRIER_PROBE
+        RunReferences(original, image, imageBytes);
+#else
         T(0); End();
 #if M04_STRING_ALLOCATION_PROBE
         RunStrings(original, image, imageBytes);
@@ -601,12 +616,15 @@ internal static unsafe class RhpNewFastAllocation
 #endif
         }
 #endif
+#endif
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     internal static ulong Allocate(ulong token)
     {
-#if M04_STRING_ALLOCATION_PROBE
+#if M04_CHECKED_REFERENCE_BARRIER_PROBE
+        return AllocateReferenceRole(token);
+#elif M04_STRING_ALLOCATION_PROBE
         return AllocateStringRoute(token, TypePlain(), 1, 1, 0, 0);
 #elif M04_SZ_ARRAY_ALLOCATION_PROBE
         ulong id = token == TypePlain() ? 1UL : token == TypeReference() ? 4UL : 0;
@@ -1184,6 +1202,11 @@ internal static unsafe class RhpNewFastAllocation
     private static ulong Bits(object value) => (ulong)System.Runtime.CompilerServices.Unsafe.As<object, nuint>(ref value);
     private static void T(int token)
     {
+#if M04_CHECKED_REFERENCE_BARRIER_PROBE
+        if (token == 71) { R(20); return; }
+        if (token == 32) { R(21); return; }
+        if (token == 63) { R(22); return; }
+#endif
         for (int index = 0; ; index++)
         {
             byte value;

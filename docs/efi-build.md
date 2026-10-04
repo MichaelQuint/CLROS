@@ -85,7 +85,7 @@ boundary.
 - `OS.Kernel` has a host-tested `UefiMemoryMapCopyPlan` contract that validates the copy from firmware-owned memory-map buffer to OS-owned storage before the EFI shell copies bytes.
 - `OS.Kernel` has a host-tested `UefiMemoryMapCapture` helper that owns the no-stdlib EFI memory-map capture/copy mechanics and reports copy-plan statuses for rejected metadata.
 - M03-001's [step961](../done/step961.md) adds host regression coverage without changing the EFI capture path. Its actual no-stdlib closure uses the current `MinimalRuntime.cs`, `MethodImplAttribute.cs`, `BootHandoffRecord.cs`, `UefiMemoryMapCapture.cs` and `UefiMemoryMapCopyPlan.cs`; compilation and metadata inspection report zero AssemblyRefs. The complete new and existing host memory-map initializers pass. No new EFI artifact, guest marker or live firmware result is claimed by that step; the later native observation and QEMU evidence are recorded in [step970](../done/step970.md).
-- M03-002's [step972](../done/step972.md) adds the host-only `RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrap` composition and complete regressions for retaining five full ACPI tables. It consumes caller-supplied snapshots through `Span<T>` and the existing `ReadOnlyMemory<byte>` table-source contract. It is not yet source-linked into the explicit EFI closure. Its 56 starts/57 passes/zero failures do not demonstrate firmware physical reads, live MADT/HPET copies, post-exit access or `CLROS_M03_002_READY`; #59 remains open pending native integration and real QEMU evidence.
+- M03-002's [step972](../done/step972.md) adds the host-only `RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrap` composition and complete regressions for retaining five full ACPI tables. It consumes caller-supplied snapshots through `Span<T>` and the existing `ReadOnlyMemory<byte>` table-source contract. That managed host composition remains outside the explicit EFI closure. The separate no-stdlib adapter and its default/enabled publications are now integrated in [step973](../done/step973.md). Neither the host result nor compilation demonstrates live MADT/HPET copies, post-exit access or `CLROS_M03_002_READY`; #59/#539 remain open pending independent native review, the combined suite and real QEMU evidence.
 - `OS.Kernel` has a host-tested `EfiBootHandoffValidator` contract that mirrors the live EFI numeric validation path without string formatting or managed allocation requirements.
 - `OS.Kernel` has a host-tested `EfiMemoryMapNormalizer` contract for live no-stdlib summary normalization without arrays or `Span<T>`.
 - `OS.Kernel` has a host-tested `BootMemoryRegionMaterializer` contract for live no-stdlib memory-region materialization without arrays, managed allocation, or exception handling.
@@ -2295,3 +2295,37 @@ one `CLROS_M03_001_READY`, followed by the ordinary boot path. A dry run or
 publication does not prove that transcript occurred. Firmware remains
 available; no additional allocation retry, pool-release policy, EBS call,
 map-key freshness or general ownership claim is added.
+
+### M03-002 and M04-010 source and publication checkpoint
+
+[Step973](../done/step973.md) integrates the separately reviewed #539 ACPI and
+#537 reference-barrier adapters. The combined explicit closure has 88 ordered
+Compile items, 102 raw publication inputs and 38 requested probe properties.
+Existing profile/source equality guards remain; three older expected-source
+lists gain the newly admitted generator, and all derived pins are refreshed.
+
+The existing default-off `EnableAcpiPhysicalDiscoveryProbe` now validates and
+copies the complete RSDP, selected root, MCFG, MADT and HPET ranges into a fixed
+guarded aggregate. It records five retained descriptors, checks every copied
+byte and unused tail, and keeps original embedded firmware addresses. The smoke
+profile requires the exact 35 ordered/unique records and bounds physical and
+owned ranges, accounting, summary bytes and runner lifecycle. It requires
+`-BuildEfi -EnableAcpiPhysicalDiscoveryProbe -MarkerPreset acpi` for a real run;
+its controlled dry-run does not build or execute firmware code.
+
+The new default-off `EnableM04CheckedReferenceBarrierProbe` selects a bounded
+noncollecting reference route on the original retained heap. A C# host generator
+emits three returning helper thunks with explicit callback relocations; the
+managed bulk route shares the same POD admission core. The source binds six
+allocation roles and a finite 23-event sequence. Default and enabled publication
+checks pass with zero managed AssemblyRefs, the original 336-byte serializer
+and the enabled 1,645-byte reference object. Compiler field layouts, complete
+linked helper/callback ABI, stack and SIMD behavior require independent review
+of the actual native images before guest execution.
+
+The full reference integration initializer passes 5 starts/6 passes/zero
+failures; the full ACPI initializer passes 4 starts/5 passes/zero failures.
+Each includes actual default/enabled NativeAOT publications. The preceding
+managed batch passes 82 starts/83 passes/zero failures. These focused results
+do not replace the combined clean-head suite or fresh QEMU/OVMF captures.
+No real ExitBootServices, general GC, Kestrel or readiness gate is promoted.

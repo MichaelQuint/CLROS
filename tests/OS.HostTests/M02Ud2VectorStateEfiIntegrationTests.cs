@@ -19,16 +19,16 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
         "TEST_FAIL m02.013 vector_or_register_mismatch";
     private const ulong ValidCodeAddress = 0x0020_0000UL;
     private const ulong ValidDataAddress = 0x0030_0000UL;
-    private const int ExpectedSourceInputCount = 98;
-    private const int ExpectedCompileCount = 85;
+    private const int ExpectedSourceInputCount = 102;
+    private const int ExpectedCompileCount = 88;
     private const string ExpectedSourceClosureSha256 =
-        "cb27a2a1bc60b3c6f654b3727f9db4976dc67b7ad7ed0c4bf1e5df0011849f58";
+        "56aa1fef21db98583a81c1b025a18c4d2612374f35c1eb39c49a83254e45c811";
     private const string ExpectedProjectSha256 =
-        "5faa5a2107b66bd6ce569da35717782d852f69c0d24407f1ddd00228505ffa06";
+        "1889b8808d6420612380dde9b94f2d42a6c06f77b14221fe09130d4867db6ce5";
     private const string ExpectedEntrySha256 =
-        "e903edd34526af44d22addd4fd506808aaa8c49a9d36956c03b1efcd7c949208";
+        "cb83208057f2683d9f113c38fdec7356be03e31410a9084a9c6caa3bdeb71376";
     private const string ExpectedCompileSha256 =
-        "ecb946bd02797cf4c9332dd568c3c3ce75dc356e790b6c9551265be7650d7af7";
+        "9f0806ad17e616f2ffb199d18b21a604d38f087bd5bfb37aa4ca84ffb91afc67";
     private const string ExpectedTransitionSha256 =
         "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     private const string HostReadyMarker =
@@ -1638,6 +1638,7 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
             "src/OS/OS.csproj",
             "tools/Directory.Build.props",
             "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs",
+            "tools/OS.X64TextSerializerGenerator/CheckedReferenceBarrierThunkGenerator.cs",
             "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs",
             "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.csproj",
             "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.targets",

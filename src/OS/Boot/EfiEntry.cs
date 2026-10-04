@@ -35,6 +35,9 @@ public static unsafe class EfiEntry
     private const uint AcpiRsdtSignature = 0x54445352;
     private const uint AcpiXsdtSignature = 0x54445358;
     private const uint AcpiMcfgSignature = 0x4746434d;
+    private const uint AcpiMadtSignature = 0x43495041;
+    private const uint AcpiHpetSignature = 0x54455048;
+    private const int AcpiOwnedPayloadCapacity = 266240;
     private const int AcpiSdtHeaderLength = 36;
     private const int AcpiMcfgAllocationOffset = 44;
     private const int AcpiMcfgAllocationLength = 16;
@@ -7140,12 +7143,8 @@ public static unsafe class EfiEntry
     private static EfiConfigurationTableScanResult s_acpiRsdpScanResult;
     private static UefiMemoryMapCopyPlanStatus s_memoryMapCopyStatus;
 #if ACPI_PHYSICAL_DISCOVERY_PROBE
-    private static AcpiRsdpScratchBuffer s_acpiRsdpScratch;
-    private static AcpiRootSdtBuffer s_acpiRootSdt;
-    private static AcpiChildHeaderScratchBuffer s_acpiChildHeaderScratch;
-    private static AcpiChildTableBuffer s_acpiChildTable;
-    private static AcpiPointerScratchBuffer s_acpiPointerScratch;
-    private static AcpiEcamSegmentScratchBuffer s_acpiEcamSegmentScratch;
+    private static AcpiBootstrapWorkspace s_acpiBootstrap;
+    private static AcpiBootstrapOwnedBuffer s_acpiBootstrapOwned;
 #endif
 
 #if M02_OWNED_GDT_TSS_TERMINAL_PROBE
@@ -13409,328 +13408,444 @@ public static unsafe class EfiEntry
     }
 
 #if ACPI_PHYSICAL_DISCOVERY_PROBE
+    // Only this conditional probe owns these buffers. Phase 1 is one-shot
+    // acquisition, 2 is admitted snapshots, and 3 publishes all five copies.
     private static bool WriteAcpiPhysicalDiscoveryProbe(
-        EfiSimpleTextOutputProtocol* console,
-        EfiSerialIoProtocol* serial)
+        EfiSimpleTextOutputProtocol* console, EfiSerialIoProtocol* serial)
     {
-        if (!TryReadAndValidateAcpiRsdp(
-            console,
-            serial,
-            out ulong rsdtAddress,
-            out ulong xsdtAddress,
-            out bool isAcpi20,
-            out ulong rsdpStatus))
+        if (!s_acpiRsdpScanResult.Succeeded)
         {
-            WriteAcpiDiscoveryFail(console, serial, 1, rsdpStatus);
+            WriteAcpiDiscoveryFail(console, serial, 1, 10 + (ulong)s_acpiRsdpScanResult.Status);
             return false;
         }
-
-        WriteAcpiRsdpValidated(console, serial);
-
-        if (!TryReadAndValidateRootSdt(
-            console,
-            serial,
-            rsdtAddress,
-            xsdtAddress,
-            isAcpi20,
-            out int rootTableLength,
-            out int rootPointerCount,
-            out ulong rootStatus))
+        fixed (AcpiBootstrapWorkspace* w = &s_acpiBootstrap)
+        fixed (AcpiBootstrapOwnedBuffer* owned = &s_acpiBootstrapOwned)
         {
-            WriteAcpiDiscoveryFail(console, serial, 2, rootStatus);
-            return false;
+            if (!TryCaptureAcpiBootstrap(w, owned->Bytes, AcpiOwnedPayloadCapacity,
+                    s_acpiRsdpScanResult.RsdpAddress, out ulong status))
+            {
+                WriteAcpiDiscoveryFail(console, serial, 4, status);
+                return false;
+            }
+            WriteAcpiRsdpSnapshotReady(console, serial);
+            WriteAcpiRsdpValidated(console, serial);
+            WriteAcpiRootSdtSnapshotReady(console, serial);
+            WriteAcpiRootSdtValidated(console, serial);
+            WriteAcpiMcfgDiscoveryReady(console, serial);
+            WriteAcpiBootstrapTranscript(console, serial, w, owned->Bytes);
+            return true;
         }
+    }
 
-        WriteAcpiRootSdtValidated(console, serial);
+    private static bool TryCaptureAcpiBootstrap(AcpiBootstrapWorkspace* w,
+        byte* owned, int capacity, ulong rsdpAddress, out ulong status)
+    {
+        status = 60;
+        if (!AcpiSourceAdmission(w, owned, capacity, rsdpAddress, 20) ||
+            !TryBeginAcpiBootstrap(w, owned, capacity)) return false;
+        w->SourceRsdp = rsdpAddress;
+        if (!TryReadAndValidateAcpiRsdp(w, owned, capacity, rsdpAddress, out status) ||
+            !TryReadAndValidateRootSdt(w, owned, capacity, out status) ||
+            !TryDiscoverSelectedAcpiTables(w, owned, capacity, out status)) return false;
+        w->Phase = 2;
+        return TryPublishAcpiBootstrap(w, owned, capacity, out status);
+    }
 
-        if (!TryDiscoverMcfg(rootTableLength, rootPointerCount, out ulong mcfgStatus))
+    private static bool AcpiRange(ulong start, ulong length) =>
+        start != 0 && length != 0 && length <= 0xffffffffffffffff - start;
+
+    // Callers validate both complete ranges before this comparison.
+    private static bool AcpiOverlap(ulong a, ulong n, ulong b, ulong m) =>
+        a < b + m && b < a + n;
+
+    private static bool AcpiBootstrapStorage(ulong workspace, ulong owned, int capacity)
+    {
+        if (capacity <= 0 || capacity > AcpiOwnedPayloadCapacity ||
+            (workspace & 7) != 0 || !AcpiRange(workspace, (ulong)sizeof(AcpiBootstrapWorkspace)) ||
+            !AcpiRange(owned, (ulong)capacity + 32) ||
+            AcpiOverlap(workspace, (ulong)sizeof(AcpiBootstrapWorkspace), owned, (ulong)capacity + 32))
+            return false;
+        fixed (OwnedMemoryRegionBuffer* regions = &s_ownedMemoryRegions)
+        fixed (BootMemoryRegionMaterializationResult* map = &s_memoryRegionMaterialization)
+        fixed (EfiConfigurationTableScanResult* scan = &s_acpiRsdpScanResult)
         {
-            WriteAcpiDiscoveryFail(console, serial, 3, mcfgStatus);
-            return false;
+            return AcpiStorageExcludes(workspace, owned, capacity, (ulong)regions, (ulong)sizeof(OwnedMemoryRegionBuffer)) &&
+                AcpiStorageExcludes(workspace, owned, capacity, (ulong)map, (ulong)sizeof(BootMemoryRegionMaterializationResult)) &&
+                AcpiStorageExcludes(workspace, owned, capacity, (ulong)scan, (ulong)sizeof(EfiConfigurationTableScanResult));
         }
+    }
 
-        WriteAcpiMcfgDiscoveryReady(console, serial);
+    private static bool AcpiStorageExcludes(ulong workspace, ulong owned, int capacity, ulong address, ulong length) =>
+        AcpiRange(address, length) &&
+        !AcpiOverlap(workspace, (ulong)sizeof(AcpiBootstrapWorkspace), address, length) &&
+        !AcpiOverlap(owned, (ulong)capacity + 32, address, length);
+
+    private static bool TryBeginAcpiBootstrap(AcpiBootstrapWorkspace* w, byte* owned, int capacity)
+    {
+        // Numeric full-capacity admission precedes the first state read/reset.
+        if (!AcpiBootstrapStorage((ulong)w, (ulong)owned, capacity) || w->Phase != 0) return false;
+        byte* bytes = (byte*)w;
+        for (int i = 0; i < sizeof(AcpiBootstrapWorkspace); i++) bytes[i] = 0;
+        w->Phase = 1;
+        w->Owned = (ulong)owned;
+        w->Capacity = (ulong)capacity;
         return true;
     }
 
-    private static bool TryReadAndValidateAcpiRsdp(
-        EfiSimpleTextOutputProtocol* console,
-        EfiSerialIoProtocol* serial,
-        out ulong rsdtAddress,
-        out ulong xsdtAddress,
-        out bool isAcpi20,
-        out ulong status)
+    private static bool AcpiSourceAdmission(AcpiBootstrapWorkspace* w, byte* owned,
+        int capacity, ulong address, int length)
     {
-        rsdtAddress = 0;
-        xsdtAddress = 0;
-        isAcpi20 = false;
-        status = 0;
-
-        if (!s_acpiRsdpScanResult.Succeeded || s_acpiRsdpScanResult.RsdpAddress == 0)
+        if (length <= 0 || !AcpiRange(address, (ulong)length) ||
+            !AcpiBootstrapStorage((ulong)w, (ulong)owned, capacity) ||
+            AcpiOverlap(address, (ulong)length, (ulong)w, (ulong)sizeof(AcpiBootstrapWorkspace)) ||
+            AcpiOverlap(address, (ulong)length, (ulong)owned, (ulong)capacity + 32)) return false;
+        fixed (OwnedMemoryRegionBuffer* regions = &s_ownedMemoryRegions)
+        fixed (BootMemoryRegionMaterializationResult* map = &s_memoryRegionMaterialization)
+        fixed (EfiConfigurationTableScanResult* scan = &s_acpiRsdpScanResult)
         {
-            status = 10 + (ulong)s_acpiRsdpScanResult.Status;
-            return false;
-        }
-
-        fixed (byte* rsdp = &s_acpiRsdpScratch.Bytes[0])
-        {
-            if (!TryReadAcpiPhysicalBytes(
-                s_acpiRsdpScanResult.RsdpAddress,
-                20,
-                rsdp,
-                AcpiRsdpScratchSize))
-            {
-                status = 20;
-                return false;
-            }
-
-            WriteAcpiRsdpSnapshotReady(console, serial);
-
-            if (!HasRsdpSignature(rsdp))
-            {
-                status = 21;
-                return false;
-            }
-
-            if (HasZeroOemId(rsdp))
-            {
-                status = 22;
-                return false;
-            }
-
-            if (!IsChecksumValid(rsdp, 20))
-            {
-                status = 23;
-                return false;
-            }
-
-            byte revision = rsdp[15];
-            if (revision == 0)
-            {
-                rsdtAddress = ReadUInt32LittleEndian(rsdp + 16);
-                return true;
-            }
-
-            if (revision == 1)
-            {
-                status = 24;
-                return false;
-            }
-
-            if (!TryReadAcpiPhysicalBytes(
-                s_acpiRsdpScanResult.RsdpAddress,
-                36,
-                rsdp,
-                AcpiRsdpScratchSize))
-            {
-                status = 25;
-                return false;
-            }
-
-            uint declaredLength = ReadUInt32LittleEndian(rsdp + 20);
-            if (declaredLength < 36 || declaredLength > AcpiRsdpScratchSize)
-            {
-                status = 26;
-                return false;
-            }
-
-            if (!TryReadAcpiPhysicalBytes(
-                s_acpiRsdpScanResult.RsdpAddress,
-                (int)declaredLength,
-                rsdp,
-                AcpiRsdpScratchSize))
-            {
-                status = 27;
-                return false;
-            }
-
-            if (!IsChecksumValid(rsdp, (int)declaredLength))
-            {
-                status = 28;
-                return false;
-            }
-
-            rsdtAddress = ReadUInt32LittleEndian(rsdp + 16);
-            xsdtAddress = ReadUInt64LittleEndian(rsdp + 24);
-            isAcpi20 = true;
-            return true;
+            return !AcpiOverlap(address, (ulong)length, (ulong)regions, (ulong)sizeof(OwnedMemoryRegionBuffer)) &&
+                !AcpiOverlap(address, (ulong)length, (ulong)map, (ulong)sizeof(BootMemoryRegionMaterializationResult)) &&
+                !AcpiOverlap(address, (ulong)length, (ulong)scan, (ulong)sizeof(EfiConfigurationTableScanResult)) &&
+                IsAcpiPhysicalRangeAllowed(address, (ulong)length);
         }
     }
 
-    private static bool TryReadAndValidateRootSdt(
-        EfiSimpleTextOutputProtocol* console,
-        EfiSerialIoProtocol* serial,
-        ulong rsdtAddress,
-        ulong xsdtAddress,
-        bool isAcpi20,
-        out int rootTableLength,
-        out int rootPointerCount,
-        out ulong status)
+    private static bool TryReadAcpiPhysicalBytes(AcpiBootstrapWorkspace* w, byte* owned,
+        int capacity, ulong address, int length, byte* destination, int destinationCapacity)
     {
-        rootTableLength = 0;
-        rootPointerCount = 0;
-        status = 0;
-
-        bool useXsdt = isAcpi20 && xsdtAddress != 0;
-        ulong rootAddress = useXsdt ? xsdtAddress : rsdtAddress;
-        if (rootAddress == 0)
-        {
-            status = 30;
-            return false;
-        }
-
-        fixed (byte* rootTable = &s_acpiRootSdt.Bytes[0])
-        fixed (ulong* pointerScratch = &s_acpiPointerScratch.Slots[0])
-        {
-            if (!TryReadAcpiPhysicalBytes(
-                rootAddress,
-                AcpiSdtHeaderLength,
-                rootTable,
-                AcpiRootSdtBufferSize))
-            {
-                status = 31;
-                return false;
-            }
-
-            uint signature = ReadUInt32LittleEndian(rootTable);
-            uint expectedSignature = useXsdt ? AcpiXsdtSignature : AcpiRsdtSignature;
-            if (signature != expectedSignature)
-            {
-                status = 32;
-                return false;
-            }
-
-            uint declaredLength = ReadUInt32LittleEndian(rootTable + 4);
-            if (declaredLength < AcpiSdtHeaderLength || declaredLength > AcpiRootSdtBufferSize)
-            {
-                status = 33;
-                return false;
-            }
-
-            rootTableLength = (int)declaredLength;
-            if (!TryReadAcpiPhysicalBytes(
-                rootAddress,
-                rootTableLength,
-                rootTable,
-                AcpiRootSdtBufferSize))
-            {
-                status = 34;
-                return false;
-            }
-
-            WriteAcpiRootSdtSnapshotReady(console, serial);
-
-            if (!IsChecksumValid(rootTable, rootTableLength))
-            {
-                status = 35;
-                return false;
-            }
-
-            int pointerSize = useXsdt ? 8 : 4;
-            int pointerBytes = rootTableLength - AcpiSdtHeaderLength;
-            if ((pointerBytes % pointerSize) != 0)
-            {
-                status = 36;
-                return false;
-            }
-
-            rootPointerCount = pointerBytes / pointerSize;
-            if (rootPointerCount == 0 || rootPointerCount > AcpiPointerScratchCapacity)
-            {
-                status = 37;
-                return false;
-            }
-
-            for (int index = 0; index < rootPointerCount; index++)
-            {
-                byte* pointerSource = rootTable + AcpiSdtHeaderLength + (index * pointerSize);
-                ulong tableAddress = pointerSize == 8
-                    ? ReadUInt64LittleEndian(pointerSource)
-                    : ReadUInt32LittleEndian(pointerSource);
-                if (tableAddress == 0)
-                {
-                    status = 38;
-                    return false;
-                }
-
-                pointerScratch[index] = tableAddress;
-            }
-
-            return true;
-        }
+        // All writable targets are exact finite workspace members, never a caller pointer.
+        if (!AcpiReadDestination(w, destination, destinationCapacity) || length > destinationCapacity ||
+            !AcpiSourceAdmission(w, owned, capacity, address, length)) return false;
+        byte* source = (byte*)address;
+        for (int i = 0; i < length; i++) destination[i] = source[i];
+        return true;
     }
 
-    private static bool TryDiscoverMcfg(
-        int rootTableLength,
-        int rootPointerCount,
-        out ulong status)
+    private static bool AcpiReadDestination(AcpiBootstrapWorkspace* w, byte* p, int n) =>
+        (p == w->Rsdp && n == AcpiRsdpScratchSize) ||
+        (p == w->Root && n == AcpiRootSdtBufferSize) ||
+        (p == w->Header && n == AcpiChildHeaderScratchSize) ||
+        (p == w->Child && n == AcpiChildTableBufferSize);
+
+    private static bool AcpiRsdpEnvelope(byte* p, int length, byte revision) =>
+        length >= 20 && length <= AcpiRsdpScratchSize && HasRsdpSignature(p) &&
+        !HasZeroOemId(p) && p[15] == revision && revision != 1 && IsChecksumValid(p, 20) &&
+        (revision == 0 ? length == 20 : length >= 36 && ReadUInt32LittleEndian(p + 20) == (uint)length && IsChecksumValid(p, length));
+
+    private static bool AcpiSdtEnvelope(byte* p, int length, uint signature) =>
+        length >= AcpiSdtHeaderLength && length <= AcpiChildTableBufferSize &&
+        ReadUInt32LittleEndian(p) == signature && ReadUInt32LittleEndian(p + 4) == (uint)length &&
+        IsChecksumValid(p, length);
+
+    private static bool TryReadAndValidateAcpiRsdp(AcpiBootstrapWorkspace* w,
+        byte* owned, int capacity, ulong address, out ulong status)
     {
+        status = 20;
+        if (!TryReadAcpiPhysicalBytes(w, owned, capacity, address, 20, w->Rsdp, AcpiRsdpScratchSize)) return false;
+        byte revision = w->Rsdp[15];
+        if (!HasRsdpSignature(w->Rsdp) || HasZeroOemId(w->Rsdp) ||
+            !IsChecksumValid(w->Rsdp, 20) || revision == 1) { status = 21; return false; }
+        int length = 20;
+        if (revision != 0)
+        {
+            status = 25;
+            if (!TryReadAcpiPhysicalBytes(w, owned, capacity, address, 36, w->Rsdp, AcpiRsdpScratchSize)) return false;
+            uint declared = ReadUInt32LittleEndian(w->Rsdp + 20);
+            if (declared < 36 || declared > AcpiRsdpScratchSize) { status = 26; return false; }
+            length = (int)declared;
+            if (!TryReadAcpiPhysicalBytes(w, owned, capacity, address, length, w->Rsdp, AcpiRsdpScratchSize)) return false;
+        }
+        if (!AcpiRsdpEnvelope(w->Rsdp, length, revision)) { status = 28; return false; }
+        AcpiDescriptor(w, 0, address, 0x2052545020445352, length, 0xffffffffffffffff);
         status = 0;
-        if (rootTableLength < AcpiSdtHeaderLength || rootPointerCount <= 0)
-        {
-            status = 40;
-            return false;
-        }
+        return true;
+    }
 
-        fixed (ulong* pointerScratch = &s_acpiPointerScratch.Slots[0])
-        fixed (byte* childHeader = &s_acpiChildHeaderScratch.Bytes[0])
-        fixed (byte* childTable = &s_acpiChildTable.Bytes[0])
-        fixed (ulong* segmentScratch = &s_acpiEcamSegmentScratch.Slots[0])
+    private static bool AcpiSelectedSourceDisjoint(AcpiBootstrapWorkspace* w, ulong address, int length, int beforeRole)
+    {
+        if (!AcpiRange(address, (ulong)length)) return false;
+        for (int role = 0; role < beforeRole; role++)
         {
-            for (int pointerIndex = 0; pointerIndex < rootPointerCount; pointerIndex++)
+            ulong* row = w->Descriptors + role * 6;
+            if (row[2] != 0 && AcpiOverlap(address, (ulong)length, row[0], row[2])) return false;
+        }
+        return true;
+    }
+
+    private static void AcpiDescriptor(AcpiBootstrapWorkspace* w, int role, ulong physical,
+        ulong signature, int length, ulong rootIndex)
+    {
+        ulong* row = w->Descriptors + role * 6;
+        row[0] = physical; row[1] = signature; row[2] = (ulong)length;
+        row[3] = rootIndex; row[4] = 0; row[5] = 0;
+    }
+
+    private static bool TryReadAndValidateRootSdt(AcpiBootstrapWorkspace* w, byte* owned,
+        int capacity, out ulong status)
+    {
+        ulong xsdt = w->Rsdp[15] >= 2 ? ReadUInt64LittleEndian(w->Rsdp + 24) : 0;
+        ulong address = xsdt != 0 ? xsdt : ReadUInt32LittleEndian(w->Rsdp + 16);
+        uint signature = xsdt != 0 ? AcpiXsdtSignature : AcpiRsdtSignature;
+        status = 31;
+        if (!AcpiSelectedSourceDisjoint(w, address, AcpiSdtHeaderLength, 1) ||
+            !TryReadAcpiPhysicalBytes(w, owned, capacity, address, AcpiSdtHeaderLength, w->Root, AcpiRootSdtBufferSize)) return false;
+        uint declared = ReadUInt32LittleEndian(w->Root + 4);
+        if (ReadUInt32LittleEndian(w->Root) != signature || declared < 36 || declared > AcpiRootSdtBufferSize)
+        { status = 33; return false; }
+        int length = (int)declared;
+        if (!AcpiSelectedSourceDisjoint(w, address, length, 1) ||
+            !TryReadAcpiPhysicalBytes(w, owned, capacity, address, length, w->Root, AcpiRootSdtBufferSize)) return false;
+        if (!AcpiSdtEnvelope(w->Root, length, signature)) { status = 35; return false; }
+        int width = xsdt != 0 ? 8 : 4, count = (length - 36) / width;
+        if ((length - 36) % width != 0 || count == 0 || count > AcpiPointerScratchCapacity)
+        { status = 37; return false; }
+        AcpiDescriptor(w, 1, address, signature, length, 0xffffffffffffffff);
+        for (int i = 0; i < count; i++)
+        {
+            byte* p = w->Root + 36 + i * width;
+            ulong value = width == 8 ? ReadUInt64LittleEndian(p) : ReadUInt32LittleEndian(p);
+            if (!AcpiRange(value, 36) || !AcpiSelectedSourceDisjoint(w, value, 36, 2)) { status = 38; return false; }
+            for (int j = 0; j < i; j++) if (w->Pointers[j] == value) { status = 39; return false; }
+            w->Pointers[i] = value;
+        }
+        w->PointerCount = (ulong)count;
+        status = 0;
+        return true;
+    }
+
+    private static bool AcpiChildSourceDisjoint(AcpiBootstrapWorkspace* w, int index, int length)
+    {
+        ulong address = w->Pointers[index];
+        if (!AcpiSelectedSourceDisjoint(w, address, length, 2)) return false;
+        for (int i = 0; i < (int)w->PointerCount; i++)
+        {
+            if (i == index) continue;
+            // Known headers for future entries; complete envelopes for visited entries.
+            ulong n = w->VisitedLengths[i] == 0 ? 36UL : w->VisitedLengths[i];
+            if (AcpiOverlap(address, (ulong)length, w->Pointers[i], n)) return false;
+        }
+        return true;
+    }
+
+    private static bool TryDiscoverSelectedAcpiTables(AcpiBootstrapWorkspace* w, byte* owned,
+        int capacity, out ulong status)
+    {
+        status = 40;
+        if (w->PointerCount == 0 || w->PointerCount > AcpiPointerScratchCapacity) return false;
+        for (int i = 0; i < (int)w->PointerCount; i++)
+        {
+            ulong address = w->Pointers[i];
+            if (!AcpiChildSourceDisjoint(w, i, 36) ||
+                !TryReadAcpiPhysicalBytes(w, owned, capacity, address, 36, w->Header, AcpiChildHeaderScratchSize))
+            { status = 41; return false; }
+            uint signature = ReadUInt32LittleEndian(w->Header), declared = ReadUInt32LittleEndian(w->Header + 4);
+            if (declared < 36 || declared > AcpiChildTableBufferSize) { status = 42; return false; }
+            int length = (int)declared;
+            if (!AcpiChildSourceDisjoint(w, i, length) ||
+                !TryReadAcpiPhysicalBytes(w, owned, capacity, address, length, w->Child, AcpiChildTableBufferSize))
+            { status = 43; return false; }
+            if (!AcpiSdtEnvelope(w->Child, length, signature)) { status = 44; return false; }
+            w->VisitedLengths[i] = (uint)length;
+            int role = signature == AcpiMcfgSignature ? 2 : signature == AcpiMadtSignature ? 3 : signature == AcpiHpetSignature ? 4 : -1;
+            if (role >= 0 && w->Descriptors[role * 6 + 2] == 0)
             {
-                ulong tableAddress = pointerScratch[pointerIndex];
-                if (!TryReadAcpiPhysicalBytes(
-                    tableAddress,
-                    AcpiChildHeaderScratchSize,
-                    childHeader,
-                    AcpiChildHeaderScratchSize))
-                {
-                    status = 41;
-                    return false;
-                }
-
-                uint signature = ReadUInt32LittleEndian(childHeader);
-                if (signature != AcpiMcfgSignature)
-                {
-                    continue;
-                }
-
-                uint declaredLength = ReadUInt32LittleEndian(childHeader + 4);
-                if (declaredLength < AcpiSdtHeaderLength || declaredLength > AcpiChildTableBufferSize)
-                {
-                    status = 42;
-                    return false;
-                }
-
-                int tableLength = (int)declaredLength;
-                if (!TryReadAcpiPhysicalBytes(
-                    tableAddress,
-                    tableLength,
-                    childTable,
-                    AcpiChildTableBufferSize))
-                {
-                    status = 43;
-                    return false;
-                }
-
-                if (!IsChecksumValid(childTable, tableLength))
-                {
-                    status = 44;
-                    return false;
-                }
-
-                if (!TryParseMcfgSegments(childTable, tableLength, segmentScratch, out status))
-                {
-                    return false;
-                }
-
-                return true;
+                if (role == 2 && !TryParseMcfgSegments(w->Child, length, w->Segments, out status)) return false;
+                byte* target = AcpiSnapshot(w, role);
+                for (int j = 0; j < length; j++) target[j] = w->Child[j];
+                AcpiDescriptor(w, role, address, signature, length, (ulong)i);
             }
+            if (w->Descriptors[14] != 0 && w->Descriptors[20] != 0 && w->Descriptors[26] != 0)
+            { status = 0; return true; }
         }
-
         status = 45;
         return false;
+    }
+
+    private static byte* AcpiSnapshot(AcpiBootstrapWorkspace* w, int role) =>
+        role == 0 ? w->Rsdp : role == 1 ? w->Root : role == 2 ? w->Mcfg : role == 3 ? w->Madt : w->Hpet;
+
+    private static bool AcpiFinalAdmission(AcpiBootstrapWorkspace* w, byte* owned, int capacity, out ulong total)
+    {
+        total = 0;
+        if (!AcpiBootstrapStorage((ulong)w, (ulong)owned, capacity) || w->Phase != 2) return false;
+        for (int role = 0; role < 5; role++)
+            if (w->Descriptors[role * 6 + 4] != 0 || w->Descriptors[role * 6 + 5] != 0) return false;
+        return AcpiSnapshotAdmission(w, owned, capacity, out total);
+    }
+
+    private static bool AcpiSnapshotAdmission(AcpiBootstrapWorkspace* w, byte* owned, int capacity, out ulong total)
+    {
+        total = 0;
+        if (!AcpiBootstrapStorage((ulong)w, (ulong)owned, capacity) || (w->Phase != 2 && w->Phase != 3) ||
+            w->Owned != (ulong)owned || w->Capacity != (ulong)capacity ||
+            w->PointerCount == 0 || w->PointerCount > AcpiPointerScratchCapacity) return false;
+        for (int role = 0; role < 5; role++)
+        {
+            ulong* row = w->Descriptors + role * 6;
+            int limit = role == 0 ? AcpiRsdpScratchSize : AcpiChildTableBufferSize;
+            if (row[2] == 0 || row[2] > (ulong)limit ||
+                !AcpiSourceAdmission(w, owned, capacity, row[0], (int)row[2]) ||
+                !AcpiSelectedSourceDisjoint(w, row[0], (int)row[2], role)) return false;
+            byte* snapshot = AcpiSnapshot(w, role);
+            if (role == 0)
+            {
+                if (row[0] != w->SourceRsdp || row[1] != 0x2052545020445352 || row[3] != 0xffffffffffffffff ||
+                    !AcpiRsdpEnvelope(snapshot, (int)row[2], snapshot[15])) return false;
+            }
+            else
+            {
+                uint signature = role == 1 ? (w->Rsdp[15] >= 2 && ReadUInt64LittleEndian(w->Rsdp + 24) != 0 ? AcpiXsdtSignature : AcpiRsdtSignature)
+                    : role == 2 ? AcpiMcfgSignature : role == 3 ? AcpiMadtSignature : AcpiHpetSignature;
+                if (row[1] != signature || !AcpiSdtEnvelope(snapshot, (int)row[2], signature)) return false;
+                if (role == 1)
+                {
+                    ulong selected = signature == AcpiXsdtSignature ? ReadUInt64LittleEndian(w->Rsdp + 24) : ReadUInt32LittleEndian(w->Rsdp + 16);
+                    if (row[0] != selected || row[3] != 0xffffffffffffffff ||
+                        row[2] != 36 + w->PointerCount * (signature == AcpiXsdtSignature ? 8UL : 4UL)) return false;
+                }
+                else
+                {
+                    if (row[3] >= w->PointerCount || row[0] != w->Pointers[(int)row[3]]) return false;
+                    int width = w->Descriptors[7] == AcpiXsdtSignature ? 8 : 4;
+                    byte* rootPointer = w->Root + 36 + (int)row[3] * width;
+                    if (row[0] != (width == 8 ? ReadUInt64LittleEndian(rootPointer) : ReadUInt32LittleEndian(rootPointer))) return false;
+                }
+            }
+            total += row[2]; // Five individually bounded lengths, maximum 266240.
+        }
+        return total <= (ulong)capacity;
+    }
+
+    private static bool TryPublishAcpiBootstrap(AcpiBootstrapWorkspace* w, byte* owned,
+        int capacity, out ulong status)
+    {
+        status = 61;
+        if (!AcpiFinalAdmission(w, owned, capacity, out ulong total)) return false;
+        // This is the first final-destination write, after all five spans pass.
+        for (int i = 0; i < capacity + 32; i++) owned[i] = i < 16 || i >= capacity + 16 ? (byte)0xA7 : (byte)0xCD;
+        int offset = 0;
+        for (int role = 0; role < 5; role++)
+        {
+            ulong* row = w->Descriptors + role * 6;
+            byte* source = AcpiSnapshot(w, role);
+            row[4] = (ulong)offset;
+            for (int i = 0; i < (int)row[2]; i++) owned[16 + offset + i] = source[i];
+            offset += (int)row[2];
+        }
+        w->TotalBytes = total;
+        if (!ReadBackAcpiBootstrap(w, owned, capacity)) { status = 62; return false; }
+        w->Phase = 3;
+        status = 0;
+        return true;
+    }
+
+    private static bool ReadBackAcpiBootstrap(AcpiBootstrapWorkspace* w, byte* owned, int capacity)
+    {
+        if (!AcpiSnapshotAdmission(w, owned, capacity, out ulong total) || w->TotalBytes != total) return false;
+        ulong offset = 0, mismatch = 0;
+        for (int role = 0; role < 5; role++)
+        {
+            ulong* row = w->Descriptors + role * 6;
+            ulong limit = role == 0 ? (ulong)AcpiRsdpScratchSize : (ulong)AcpiChildTableBufferSize;
+            if (row[2] == 0 || row[2] > limit || row[4] != offset || row[2] > (ulong)capacity - offset) return false;
+            byte* source = AcpiSnapshot(w, role);
+            for (int i = 0; i < (int)row[2]; i++) if (owned[16 + (int)offset + i] != source[i]) mismatch++;
+            row[5] = row[2];
+            offset += row[2];
+        }
+        if (offset != w->TotalBytes) return false;
+        for (int i = 0; i < 16; i++)
+        { if (owned[i] != 0xA7) mismatch++; if (owned[16 + capacity + i] != 0xA7) mismatch++; }
+        for (int i = (int)offset; i < capacity; i++) if (owned[16 + i] != 0xCD) mismatch++;
+        w->MismatchBytes = mismatch;
+        return mismatch == 0;
+    }
+
+    private static void WriteAcpiBootstrapAscii(EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial, ulong bytes, int count)
+    {
+        for (int i = 0; i < count; i++) { Write(console, serial, (byte)bytes); bytes >>= 8; }
+    }
+
+    private static void WriteAcpiBootstrapTranscript(EfiSimpleTextOutputProtocol* console,
+        EfiSerialIoProtocol* serial, AcpiBootstrapWorkspace* w, byte* owned)
+    {
+        WriteAcpiBootstrapAscii(console, serial, 0x4154535F54534554, 8);
+        WriteAcpiBootstrapAscii(console, serial, 0x302E33306D205452, 8);
+        WriteAcpiBootstrapAscii(console, serial, 0x000000000A0D3230, 4);
+        for (int role = 0; role < 5; role++)
+        {
+            ulong* row = w->Descriptors + role * 6;
+            WriteAcpiBootstrapAscii(console, serial, 0x304D5F534F524C43, 8);
+            WriteAcpiBootstrapAscii(console, serial, 0x41545F3230305F33, 8);
+            WriteAcpiBootstrapAscii(console, serial, 0x656C6F7220454C42, 8);
+            WriteAcpiBootstrapAscii(console, serial, 0x000000000000003D, 1);
+            if (role == 0)
+            {
+                WriteAcpiBootstrapAscii(console, serial, 0x0000000070647372, 4);
+            }
+            else if (role == 1)
+            {
+                WriteAcpiBootstrapAscii(console, serial, 0x00000000746F6F72, 4);
+            }
+            else if (role == 2)
+            {
+                WriteAcpiBootstrapAscii(console, serial, 0x000000006766636D, 4);
+            }
+            else if (role == 3)
+            {
+                WriteAcpiBootstrapAscii(console, serial, 0x0000000063697061, 4);
+            }
+            else if (role == 4)
+            {
+                WriteAcpiBootstrapAscii(console, serial, 0x0000000074657068, 4);
+            }
+            WriteAcpiBootstrapAscii(console, serial, 0x6163697379687020, 8);
+            WriteAcpiBootstrapAscii(console, serial, 0x0000000000003D6C, 2);
+            WriteUnsignedDecimal(console, serial, row[0]);
+            WriteAcpiBootstrapAscii(console, serial, 0x003D64656E776F20, 7);
+            WriteUnsignedDecimal(console, serial, (ulong)(owned + 16) + row[4]);
+            WriteAcpiBootstrapAscii(console, serial, 0x3D74657366666F20, 8);
+            WriteUnsignedDecimal(console, serial, row[4]);
+            WriteAcpiBootstrapAscii(console, serial, 0x3D6874676E656C20, 8);
+            WriteUnsignedDecimal(console, serial, row[2]);
+            WriteAcpiBootstrapAscii(console, serial, 0x7574616E67697320, 8);
+            WriteAcpiBootstrapAscii(console, serial, 0x00000000003D6572, 3);
+            WriteUnsignedDecimal(console, serial, row[1]);
+            WriteAcpiBootstrapAscii(console, serial, 0x646E49746F6F7220, 8);
+            WriteAcpiBootstrapAscii(console, serial, 0x00000000003D7865, 3);
+            WriteUnsignedDecimal(console, serial, row[3]);
+            WriteAcpiBootstrapAscii(console, serial, 0x657261706D6F6320, 8);
+            WriteAcpiBootstrapAscii(console, serial, 0x0000000000003D64, 2);
+            WriteUnsignedDecimal(console, serial, row[5]);
+            WriteAcpiBootstrapAscii(console, serial, 0x6374616D73696D20, 8);
+            WriteAcpiBootstrapAscii(console, serial, 0x000000003D736568, 4);
+            WriteUnsignedDecimal(console, serial, w->MismatchBytes);
+            WriteCrLf(console, serial);
+        }
+        WriteAcpiBootstrapAscii(console, serial, 0x304D5F534F524C43, 8);
+        WriteAcpiBootstrapAscii(console, serial, 0x45525F3230305F33, 8);
+        WriteAcpiBootstrapAscii(console, serial, 0x746F74204E494154, 8);
+        WriteAcpiBootstrapAscii(console, serial, 0x00000000003D6C61, 3);
+        WriteUnsignedDecimal(console, serial, w->TotalBytes);
+        WriteAcpiBootstrapAscii(console, serial, 0x7069726373656420, 8);
+        WriteAcpiBootstrapAscii(console, serial, 0x6720353D73726F74, 8);
+        WriteAcpiBootstrapAscii(console, serial, 0x32333D7364726175, 8);
+        WriteAcpiBootstrapAscii(console, serial, 0x00003D6C69617420, 6);
+        WriteUnsignedDecimal(console, serial, w->Capacity - w->TotalBytes);
+        WriteAcpiBootstrapAscii(console, serial, 0x6374616D73696D20, 8);
+        WriteAcpiBootstrapAscii(console, serial, 0x430A0D303D736568, 8);
+        WriteAcpiBootstrapAscii(console, serial, 0x33304D5F534F524C, 8);
+        WriteAcpiBootstrapAscii(console, serial, 0x4145525F3230305F, 8);
+        WriteAcpiBootstrapAscii(console, serial, 0x776D726966205944, 8);
+        WriteAcpiBootstrapAscii(console, serial, 0x6C69617641657261, 8);
+        WriteAcpiBootstrapAscii(console, serial, 0x7572743D656C6261, 8);
+        WriteAcpiBootstrapAscii(console, serial, 0x6F42746978652065, 8);
+        WriteAcpiBootstrapAscii(console, serial, 0x636976726553746F, 8);
+        WriteAcpiBootstrapAscii(console, serial, 0x65736C61663D7365, 8);
+        WriteAcpiBootstrapAscii(console, serial, 0x505F545345540A0D, 8);
+        WriteAcpiBootstrapAscii(console, serial, 0x2E33306D20535341, 8);
+        WriteAcpiBootstrapAscii(console, serial, 0x0000000A0D323030, 5);
     }
 
     private static bool TryParseMcfgSegments(
@@ -13790,45 +13905,12 @@ public static unsafe class EfiEntry
         return true;
     }
 
-    private static bool TryReadAcpiPhysicalBytes(
-        ulong physicalAddress,
-        int byteCount,
-        byte* destination,
-        int destinationCapacity)
-    {
-        if (physicalAddress == 0 || byteCount <= 0 || destination == null)
-        {
-            return false;
-        }
-
-        if (destinationCapacity < byteCount)
-        {
-            return false;
-        }
-
-        ulong byteLength = (ulong)byteCount;
-        if (physicalAddress > 0xffffffffffffffff - byteLength)
-        {
-            return false;
-        }
-
-        if (!IsAcpiPhysicalRangeAllowed(physicalAddress, byteLength))
-        {
-            return false;
-        }
-
-        byte* source = (byte*)physicalAddress;
-        for (int index = 0; index < byteCount; index++)
-        {
-            destination[index] = source[index];
-        }
-
-        return true;
-    }
-
     private static bool IsAcpiPhysicalRangeAllowed(ulong physicalAddress, ulong byteLength)
     {
-        if (!s_memoryRegionMaterialization.Succeeded || byteLength == 0)
+        if (!s_memoryRegionMaterialization.Succeeded ||
+            s_memoryRegionMaterialization.RegionCount == 0 ||
+            s_memoryRegionMaterialization.RegionCount > OwnedMemoryRegionCapacity ||
+            !AcpiRange(physicalAddress, byteLength))
         {
             return false;
         }
@@ -13846,6 +13928,7 @@ public static unsafe class EfiEntry
             {
                 BootMemoryRegionRecord region = regions[(int)regionIndex];
                 if ((region.UefiType == UefiAcpiReclaimMemoryType || region.UefiType == UefiAcpiMemoryNvsType)
+                    && region.PhysicalStart != 0 && region.PhysicalEndExclusive > region.PhysicalStart
                     && physicalAddress >= region.PhysicalStart
                     && endExclusive <= region.PhysicalEndExclusive)
                 {
@@ -19443,34 +19526,34 @@ internal struct EfiBootPageAllocatorReadinessResult
 }
 
 #if ACPI_PHYSICAL_DISCOVERY_PROBE
-internal unsafe struct AcpiRsdpScratchBuffer
+// One contiguous workspace makes every scratch/descriptor capacity an explicit
+// source exclusion. The final aggregate is separate and untouched on admission failure.
+internal unsafe struct AcpiBootstrapWorkspace
 {
-    public fixed byte Bytes[4096];
+    public ulong Phase;
+    public ulong Owned;
+    public ulong Capacity;
+    public ulong PointerCount;
+    public ulong TotalBytes;
+    public ulong MismatchBytes;
+    public ulong SourceRsdp;
+    // Five rows: physical, signature, length, root index, owned offset, compared.
+    public fixed ulong Descriptors[30];
+    public fixed ulong Pointers[256];
+    public fixed uint VisitedLengths[256];
+    public fixed ulong Segments[64];
+    public fixed byte Rsdp[4096];
+    public fixed byte Root[65536];
+    public fixed byte Mcfg[65536];
+    public fixed byte Madt[65536];
+    public fixed byte Hpet[65536];
+    public fixed byte Child[65536];
+    public fixed byte Header[36];
 }
 
-internal unsafe struct AcpiRootSdtBuffer
+internal unsafe struct AcpiBootstrapOwnedBuffer
 {
-    public fixed byte Bytes[65536];
-}
-
-internal unsafe struct AcpiChildHeaderScratchBuffer
-{
-    public fixed byte Bytes[36];
-}
-
-internal unsafe struct AcpiChildTableBuffer
-{
-    public fixed byte Bytes[65536];
-}
-
-internal unsafe struct AcpiPointerScratchBuffer
-{
-    public fixed ulong Slots[256];
-}
-
-internal unsafe struct AcpiEcamSegmentScratchBuffer
-{
-    public fixed ulong Slots[64];
+    public fixed byte Bytes[266272];
 }
 #endif
 

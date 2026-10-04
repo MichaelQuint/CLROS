@@ -1322,3 +1322,24 @@ preflight, and work-item plan results for future runner diagnostics.
 6. Replace shell-only runtime placeholders with tested runtime helpers as the boot path starts using them.
 7. Reserve heap pages from a live allocator state and define GC root/write-barrier ownership before changing object allocation helper status.
 8. Add helper-specific QEMU probes before changing any panic-stubbed helper to successful behavior.
+
+### M04-010 returning-helper integration checkpoint
+
+[Step973](../done/step973.md) connects the original retained-page contract to a
+default-off, noncollecting reference probe. The generated `RhpAssignRef`,
+`RhpCheckedAssignRef` and `RhpByRefAssignRef` bridges call the bounded scalar
+callback; `System.Buffer.BulkMoveWithWriteBarrier` uses the same POD admission core through
+the explicit managed route. Six allocation roles, original authority/cursor
+state, full-prefix exclusion, Pair completion and one bounded block move are
+checked. Unsupported destinations, roles and spans remain fail-closed.
+
+The complete focused managed batch passes 82 starts/83 passes/zero failures;
+the complete reference-EFI initializer passes 5 starts/6 passes/zero failures,
+including its actual mapped core child and fresh default/enabled publications.
+The earlier host-only contract and general WriteBarriers ledger boundary remain
+distinct. Source/helper generation and publication are not proof of the live
+special helper ABI. Independent actual-image metadata, field/layout, relocation,
+callback/stack and SIMD reviews are still pending, as are the combined suite
+and guest captures. No collecting GC, wider-vector preservation, unwind support,
+real ExitBootServices or hosted runtime is claimed. Gates3/4 remain **Fail**;
+#79/#536/#537 stay open and #80 remains blocked.

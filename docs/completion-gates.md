@@ -1611,3 +1611,20 @@ The `kestrel.smoke.package.v0` contract is documentation evidence only. It defin
 4. Start diagnostics-first IDT/fault panic infrastructure after post-UEFI
    diagnostics requirements are represented by tests.
 5. Add libvirt real boot once local raw/qcow2 QEMU smoke remains stable.
+
+### M03-002 / M04-010 focused native-publication checkpoint
+
+[Step973](../done/step973.md) integrates the default-off owned ACPI-copy adapter
+and bounded returning reference-helper route. Complete focused runs pass:
+82 starts/83 passes for eight managed modules, 5 starts/6 passes for the whole
+reference-EFI initializer, and 4 starts/5 passes for the whole ACPI initializer;
+all have zero failures and native exit0. The latter two include fresh default
+and enabled NativeAOT artifacts. Earlier failed attempts and precise fixture
+repairs are retained in the step evidence.
+
+This is source, controlled-host and publication evidence. Independent native
+ABI/image association, a combined clean-head full suite and fresh default,
+reference and ACPI guest captures remain pending. No new live firmware result,
+real ExitBootServices, general GC, hosted .NET/Kestrel or cloud support follows.
+Issues #59/#539/#79/#536/#537 remain open; #60 and #80 remain blocked.
+Gates3/4/5 and the containing milestones remain incomplete.
