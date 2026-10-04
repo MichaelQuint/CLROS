@@ -200,10 +200,10 @@ internal static class M03MemoryMapCaptureEfiIntegrationTests
     private static void TestSource()
     {
         string root=Root();var project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));var compile=project.Descendants("Compile").ToArray();
-        Need(compile.Length==88&&compile[84].Attribute("Include")!.Value=="..\\OS.Kernel\\Diagnostics\\MemoryMapCaptureProbeAuthority.cs"&&compile[84].Attribute("Link")!.Value=="Diagnostics\\MemoryMapCaptureProbeAuthority.cs","exact one appended source");
+        Need(compile.Length==89&&compile[84].Attribute("Include")!.Value=="..\\OS.Kernel\\Diagnostics\\MemoryMapCaptureProbeAuthority.cs"&&compile[84].Attribute("Link")!.Value=="Diagnostics\\MemoryMapCaptureProbeAuthority.cs","exact one appended source");
         var flag=project.Descendants(Flag).Single();Need(flag.Value=="false"&&flag.Attribute("Condition")!.Value=="'$("+Flag+")' == ''","explicit false default");
         Need(project.Descendants("PropertyGroup").Single(x=>x.Attribute("Condition")?.Value=="'$("+Flag+")' == 'true'").Element("DefineConstants")!.Value=="$(DefineConstants);M03_MEMORY_MAP_CAPTURE_PROBE","exact compiler symbol");
-        string[] flags=Flags();Need(flags.Length==37&&flags.Distinct(StringComparer.Ordinal).Count()==37,"all37 conflicts");
+        string[] flags=Flags();Need(flags.Length==38&&flags.Distinct(StringComparer.Ordinal).Count()==38,"all38 conflicts");
         var conditions=project.Descendants("Error").Select(x=>x.Attribute("Condition")!.Value).ToHashSet(StringComparer.Ordinal);
         foreach(string f in flags)Need(conditions.Contains("'$("+f+")' == 'true' and '$("+Flag+")' == 'true'"),"reciprocal "+f);
         string entry=File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.cs"));
@@ -270,7 +270,7 @@ internal static class M03MemoryMapCaptureEfiIntegrationTests
                 ["-EnableM01LoadedImageStackProbe","-EnableM01LiveAllocatorProbe","-EnableM04IndependentEndianConformanceProbe",
                  "-EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe","-EnableM04ArithmeticConformanceProbe",
                  "-EnableM04LayoutContractProbe","-EnableM04ManagedHeapPageRangeProbe","-EnableM04RhpNewFastProbe"]:[];
-            string expected=other=="EnableM04CheckedReferenceBarrierProbe"?
+            string expected=other=="EnableM03FirmwareEntropySeedProbe"?"m03_firmware_entropy_profile_conflict property=EnableM03MemoryMapCaptureProbe":other=="EnableM04CheckedReferenceBarrierProbe"?
                 "m04_checked_reference_profile_conflict property=EnableM03MemoryMapCaptureProbe":"m03_memory_map_capture_profile_conflict";
             Result r=Process(Path.Combine(directory,(index++).ToString()),"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(Root(),"scripts",file),..extra,"-"+Flag,"-"+other,..companion]);
             Need(r.Code!=0&&!r.TimedOut&&(r.Output+r.Error).Contains(expected,StringComparison.Ordinal),"exact early conflict "+other+" "+r.Output+r.Error);
@@ -297,10 +297,10 @@ internal static class M03MemoryMapCaptureEfiIntegrationTests
             Need(r.Output.Contains("TEST_PASS efi.shell.publish",StringComparison.Ordinal)&&r.Output.Contains("TEST_PASS efi.artifact.verify",StringComparison.Ordinal),"complete artifact producer/verifier");
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
             foreach(var pair in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(Root(),pair.Item1),Path.Combine(directory,pair.Item2));
-            using var json=JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=json.RootElement;var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==102,"actual102 raw inputs");
+            using var json=JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=json.RootElement;var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==103,"actual102 raw inputs");
             foreach(var input in inputs)Need(Hash(File.ReadAllBytes(Path.Combine(Root(),input.GetProperty("path").GetString()!)))==input.GetProperty("sha256").GetString(),"actual raw hash");
-            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==88,"actual88 Compile");
-            var properties=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Need(properties.Length==38,"actual38 profile flags");
+            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==89,"actual88 Compile");
+            var properties=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Need(properties.Length==39,"actual39 profile flags");
             foreach(var p in properties)Need(p.Value.GetString()==(enabled&&p.Name==Flag?"true":"false"),"exact requested/evaluated "+p.Name);
             InspectMetadata(Path.Combine(directory,"OS.dll"),enabled);
         }

@@ -16,9 +16,9 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
     private const string FailureMarker =
         "M02_OWNED_X64_GDT_ENCODING_FAILED";
     private const string CompileClosureSha256 =
-        "9f0806ad17e616f2ffb199d18b21a604d38f087bd5bfb37aa4ca84ffb91afc67";
+        "54bfa32fa851eb9a5f96ee8f3b8d9bd3f916b01dc629d5497cb42d97f6d79993";
     private const string CanonicalProjectSha256 =
-        "0eb6260f821740292f6a899bf2609cc865a867b0a1babd101b839dadb99e7d00";
+        "351d5246c4d63cc812c4586e2aa1815fe08dbf012af7aab3a5b9b628ac64e28e";
 
     private static readonly (string Path, string Sha256)[] ImmutableReviewedInputs =
     [
@@ -160,7 +160,7 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 88
+        return compileItems.Length == 89
             && compileHash == CompileClosureSha256
             && reporterIndex >= 0
             && gdtIndex == reporterIndex + 1
@@ -176,12 +176,15 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
             && symbolGroups.Length == 1
             && symbolGroups[0].Elements("DefineConstants").Single().Value ==
                 "$(DefineConstants);M02_OWNED_X64_GDT_ENCODING_PROBE"
-            && dependencyConditions.Length == 11
+            && dependencyConditions.Length == 12
             && dependencyConditions.Contains(
                 "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'",
                 StringComparer.Ordinal)
             && dependencyConditions.Contains(
                 "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+                StringComparer.Ordinal)
+            && dependencyConditions.Contains(
+                "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'",
                 StringComparer.Ordinal)
             && dependencyConditions.Contains(
                 "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'",
@@ -220,17 +223,17 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
                 "m02_owned_x64_gdt_encoding_requires_panic_safe_owned_com1",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=102",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=103",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 CanonicalProjectSha256,
                 StringComparison.Ordinal)
             && buildScript.Contains(GdtKey, StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 102",
+                "$expectedSourceClosureInputCount = 103",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 88",
+                "$compileItems.Count -ne 89",
                 StringComparison.Ordinal)
             && verifierScript.Contains(GdtKey, StringComparison.Ordinal)
             && verifierScript.Contains(

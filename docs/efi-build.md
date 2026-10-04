@@ -2377,3 +2377,40 @@ discovery, one `GetRNG` call, guarded retained bytes and genuine missing-source
 guest evidence require separately scoped EFI/runner integration. #60 remains
 open; no seed-bearing diagnostics, entropy quality, PRNG, TLS or real
 `ExitBootServices` capability is claimed.
+
+### M03-003 opt-in EFI entropy capture
+
+`EnableM03FirmwareEntropySeedProbe` adds one mutually exclusive, default-false
+profile. The explicit closure now has 89 ordered Compile entries, 103 raw
+inputs and 39 requested flags. The normal managed retention contract remains
+outside that no-stdlib closure; the EFI adapter uses numeric state and
+explicit pointers.
+
+The smoke script requires `-FirmwareRngSource` with this profile and
+`-BuildEfi`. The values `virtio` and `missing` both mask RDRAND and RDSEED
+on the `qemu64` CPU. Only `virtio` appends `rng-builtin` and `virtio-rng-pci`;
+those arguments follow the existing devices to preserve their ordering.
+Unknown, duplicate, empty and out-of-profile values are rejected before
+side effects. For command inspection without a guest:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 -DryRun -BuildEfi -EnableM03FirmwareEntropySeedProbe -FirmwareRngSource virtio
+```
+
+The positive protocol has 27 records. The expected missing-provider protocol
+has 19 records ending in a real `TEST_FAIL`; its caller remains in a terminal
+loop. Ordinary smoke still rejects that failure. Its configured 750 ms drain
+is not measured quiet evidence for the negative case: a separate capture-only
+observer must establish the live interval, owned termination and exact EOF.
+The positive and missing lanes must use identical enabled EFI bytes on
+separate fresh disks. Ordinary image accounting reconstructs the pristine
+image; the direct negative capture preserves its actual pre-QEMU pristine.
+
+[Step980](../done/step980.md) records the whole five-module focused run
+(201 starts, 202 passes, zero failures), the mapped geometry and both actual
+publications. Independent offline review confirms the emitted ABI, original
+firmware pointers, actual private readback/clearing, publication last and the
+terminal failure branch. Six corrected legacy expectations retain all
+original groups and assertions for the complete common suite. Full common
+completion and fresh default/provider/missing-provider guest acceptance remain
+pending; no firmware-exit or hosted-.NET gate is advanced here.

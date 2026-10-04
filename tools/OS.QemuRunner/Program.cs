@@ -29,6 +29,7 @@ try
     {
         Console.WriteLine("TEST_START qemu.runner.dryrun");
         Console.WriteLine("WORKLOAD_PROFILE " + options.WorkloadProfile);
+        if (options.FirmwareRngSource is not null) Console.WriteLine("FIRMWARE_RNG_SOURCE " + options.FirmwareRngSource);
         Console.WriteLine("MARKER_PRESETS " + FormatSummaryList(options.MarkerPresets));
         Console.WriteLine("REQUIRED_MARKERS " + FormatMarkers(options.RequiredMarkers));
         Console.WriteLine("ORDERED_MARKERS " + FormatSummaryList(options.OrderedMarkers));
@@ -105,6 +106,7 @@ try
     Console.WriteLine("SERIAL_LOG " + options.SerialLogPath);
     Console.WriteLine("OVMF_CODE " + ovmf.Path);
     Console.WriteLine("WORKLOAD_PROFILE " + options.WorkloadProfile);
+    if (options.FirmwareRngSource is not null) Console.WriteLine("FIRMWARE_RNG_SOURCE " + options.FirmwareRngSource);
     Console.WriteLine("MARKER_PRESETS " + FormatSummaryList(options.MarkerPresets));
     Console.WriteLine("REQUIRED_MARKERS " + FormatMarkers(options.RequiredMarkers));
     Console.WriteLine("ORDERED_MARKERS " + FormatSummaryList(options.OrderedMarkers));
@@ -692,6 +694,7 @@ static int RunExpectedUnexpectedVectorPanic(RunnerOptions options, string qemu, 
     Console.WriteLine("SERIAL_LOG " + options.SerialLogPath);
     Console.WriteLine("OVMF_CODE " + ovmf);
     Console.WriteLine("WORKLOAD_PROFILE " + options.WorkloadProfile);
+    if (options.FirmwareRngSource is not null) Console.WriteLine("FIRMWARE_RNG_SOURCE " + options.FirmwareRngSource);
     Console.WriteLine("MARKER_PRESETS " + FormatSummaryList(options.MarkerPresets));
     Console.WriteLine("REQUIRED_MARKERS " + FormatMarkers(options.RequiredMarkers));
     Console.WriteLine("ORDERED_MARKERS " + FormatSummaryList(options.OrderedMarkers));
@@ -789,6 +792,7 @@ static bool WriteExpectedPanicSummary(RunnerOptions options, string serial, bool
         b.Append("IMAGE_ARTIFACT ").AppendLine(options.ImagePath);
         b.Append("SERIAL_LOG ").AppendLine(options.SerialLogPath);
         b.Append("WORKLOAD_PROFILE ").AppendLine(options.WorkloadProfile);
+        if (options.FirmwareRngSource is not null) b.Append("FIRMWARE_RNG_SOURCE ").AppendLine(options.FirmwareRngSource);
         b.Append("MARKER_PRESETS ").AppendLine(FormatSummaryList(options.MarkerPresets));
         b.Append("REQUIRED_MARKERS ").AppendLine(FormatMarkers(options.RequiredMarkers));
         b.Append("ORDERED_MARKERS ").AppendLine(FormatSummaryList(options.OrderedMarkers));
@@ -1115,6 +1119,7 @@ static int RunPreflight(RunnerOptions options)
 {
     Console.WriteLine("TEST_START qemu.runner.preflight");
     Console.WriteLine("WORKLOAD_PROFILE " + options.WorkloadProfile);
+    if (options.FirmwareRngSource is not null) Console.WriteLine("FIRMWARE_RNG_SOURCE " + options.FirmwareRngSource);
     Console.WriteLine("MARKER_PRESETS " + FormatSummaryList(options.MarkerPresets));
     Console.WriteLine("REQUIRED_MARKERS " + FormatMarkers(options.RequiredMarkers));
     Console.WriteLine("ORDERED_MARKERS " + FormatSummaryList(options.OrderedMarkers));
@@ -1264,6 +1269,7 @@ static void WriteSummaryLogBestEffort(
         builder.Append("IMAGE_ARTIFACT ").AppendLine(options.ImagePath);
         builder.Append("SERIAL_LOG ").AppendLine(options.SerialLogPath);
         builder.Append("WORKLOAD_PROFILE ").AppendLine(options.WorkloadProfile);
+        if (options.FirmwareRngSource is not null) builder.Append("FIRMWARE_RNG_SOURCE ").AppendLine(options.FirmwareRngSource);
         builder.Append("MARKER_PRESETS ").AppendLine(FormatSummaryList(options.MarkerPresets));
         builder.Append("REQUIRED_MARKERS ").AppendLine(FormatMarkers(options.RequiredMarkers));
         builder.Append("ORDERED_MARKERS ").AppendLine(FormatSummaryList(options.OrderedMarkers));
@@ -1884,6 +1890,8 @@ sealed class RunnerOptions
 
     public string Memory { get; private set; } = "256M";
 
+    public string? FirmwareRngSource { get; private set; }
+
     public string WorkloadProfile { get; private set; } = DefaultWorkloadProfile;
 
     public IReadOnlyList<string> RequiredMarkers => requiredMarkers;
@@ -1962,6 +1970,15 @@ sealed class RunnerOptions
                 case "--summary-log":
                     options.SummaryLogPath = RequireNonEmpty(ReadValue(args, ref i, arg), arg);
                     break;
+                case "--firmware-rng-source":
+                    if (options.FirmwareRngSource is not null)
+                        throw new ArgumentException("--firmware-rng-source may be specified only once.");
+                    string rngSource = ReadValue(args, ref i, arg);
+                    if (!string.Equals(rngSource, "virtio", StringComparison.Ordinal) &&
+                        !string.Equals(rngSource, "missing", StringComparison.Ordinal))
+                        throw new ArgumentException("--firmware-rng-source must be virtio or missing.");
+                    options.FirmwareRngSource = rngSource;
+                    break;
                 case "--memory":
                     options.Memory = RequireNonEmpty(ReadValue(args, ref i, arg), arg);
                     break;
@@ -2012,7 +2029,7 @@ sealed class RunnerOptions
 
     public static void PrintHelp()
     {
-        Console.WriteLine("OS.QemuRunner [preflight|--preflight] --image <raw|qcow2 image> [--disk-format raw|qcow2] [--workload-profile SingleMinimalApi|MultiMinimalApi] [--ovmf-code <OVMF_CODE.fd>] [--serial-log <path>] [--summary-log <path>] [--timeout <seconds>] [--replace-default-required-markers] [--require-marker <marker>]... [--require-ordered-marker <marker>]... [--require-unique-marker <marker>]... [--marker-preset " + SmokeMarkerPreset.SupportedValues + "]... [--forbid-marker <marker>]... [--http-probe-url <http-url>] [--http-probe-expected-status <100-599>] [--http-probe-expected-body <text>] [--http-probe-timeout <seconds>] [--expect-unexpected-vector-panic] [--dry-run]");
+        Console.WriteLine("OS.QemuRunner [preflight|--preflight] --image <raw|qcow2 image> [--disk-format raw|qcow2] [--workload-profile SingleMinimalApi|MultiMinimalApi] [--ovmf-code <OVMF_CODE.fd>] [--serial-log <path>] [--summary-log <path>] [--timeout <seconds>] [--replace-default-required-markers] [--require-marker <marker>]... [--require-ordered-marker <marker>]... [--require-unique-marker <marker>]... [--marker-preset " + SmokeMarkerPreset.SupportedValues + "]... [--forbid-marker <marker>]... [--http-probe-url <http-url>] [--http-probe-expected-status <100-599>] [--http-probe-expected-body <text>] [--http-probe-timeout <seconds>] [--expect-unexpected-vector-panic] [--firmware-rng-source virtio|missing] [--dry-run]");
         Console.WriteLine("preflight validates local runner inputs and image format hints without launching QEMU or requiring libvirt.");
     }
 

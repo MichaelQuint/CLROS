@@ -9,6 +9,7 @@ using OS.Kernel.Memory;
 internal static class M01LivePagingEfiEntryTests
 {
     private const string MemoryMapSymbol = "M03_MEMORY_MAP_CAPTURE_PROBE";
+    private const string EntropySymbol = "M03_FIRMWARE_ENTROPY_SEED_PROBE";
     private const string IssueTestName = "m01.025";
     private const string ReadyMarker = "CLROS_M01_025_READY";
     private const string UnexpectedPanicSymbol =
@@ -3204,7 +3205,7 @@ internal static class M01LivePagingEfiEntryTests
 
     private static bool TestKnownFalsePanicSelector()
     {
-        foreach (string disabledSymbol in new[] { UnexpectedPanicSymbol, MemoryMapSymbol })
+        foreach (string disabledSymbol in new[] { UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol })
         {
         string fixture = "#if " + disabledSymbol + "\nPanicOnly();\n#else\nPanicOff();\n#endif\n"
             + "#if " + StageOneSymbol + "\n#if " + disabledSymbol
@@ -3269,7 +3270,8 @@ internal static class M01LivePagingEfiEntryTests
                         StageThreeSymbol,
                         StringComparison.Ordinal)
                     || string.Equals(condition, UnexpectedPanicSymbol, StringComparison.Ordinal)
-                    || string.Equals(condition, MemoryMapSymbol, StringComparison.Ordinal);
+                    || string.Equals(condition, MemoryMapSymbol, StringComparison.Ordinal)
+            || string.Equals(condition, EntropySymbol, StringComparison.Ordinal);
                 bool selectedValue =
                     string.Equals(
                         condition,

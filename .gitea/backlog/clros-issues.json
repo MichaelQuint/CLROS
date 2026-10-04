@@ -8068,7 +8068,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M03: Real Firmware Exit.",
-      "currentEvidence": "M03-001 (#58/#532) and M03-002 (#59/#539) are closed after reviewed merges and actual bounded pre-EBS guest evidence in steps970/977. Step978 adds the host entropy-retention prerequisite for claimed #60; actual EFI RNG acquisition and guest retention remain pending. Nine children #60 through #68 remain open. No ExitBootServices call, map-key freshness, post-firmware execution/ownership or M03 exit criterion is proved; the epic remains open.",
+      "currentEvidence": "M03-001 (#58/#532) and M03-002 (#59/#539) are closed after reviewed merges and actual bounded pre-EBS guest evidence in steps970/977. Step978 adds host entropy retention; step980 adds #541's opt-in EFI RNG source, complete 201/202/0 focused run, default/enabled NativeAOT publications and accepted offline native review. Full common and real provider/missing-provider guest acceptance remain pending. Nine children #60 through #68 remain open. No ExitBootServices call, map-key freshness, post-firmware execution/ownership or M03 exit criterion is proved; the epic remains open.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -8324,7 +8324,7 @@
       ],
       "collisionLane": null,
       "summary": "Copy any firmware-derived entropy seed needed after firmware shutdown, with explicit failure status.",
-      "currentEvidence": "Step978 adds the bounded 32/64-byte host entropy-retention contract over guarded RNG access. Normal HostTests and focused builds pass with zero warnings/errors; all 12 new plus 15 existing RNG/firmware-denial groups pass 27 starts/28 passes/zero failures. Full-span/publication aliases, source errors/exact counts, private retention, scratch clearing, repeat rejection and warmed zero allocation are covered. #59 is closed after PR538, so #60 is claimed. Actual EFI_RNG_PROTOCOL discovery/GetRNG and positive/missing-source guests remain pending; host evidence does not close #60 or unblock #61. No entropy quality, pool/PRNG/TLS, real ExitBootServices or post-firmware readiness is claimed.",
+      "currentEvidence": "Step978 proves the bounded 32/64-byte host retention contract. Step980 adds the separately scoped #541 default-off EFI_RNG_PROTOCOL adapter: one 32-byte request, private guarded copy/readback/clear and publication last, with finite virtio/missing-provider runner options and no seed-bearing diagnostics. All five complete focused modules pass 201 starts/202 passes/zero failures; both actual NativeAOT publications and final normal compilation pass. Independent offline review confirms emitted firmware ABI, actual storage/load/store/clear, full-width statuses and terminal failure loop. Six legacy expectation repairs preserve complete coverage for the pending common suite. Real positive/missing-provider guest evidence remains pending; #60/#541 stay open and #61 stays blocked. No entropy quality, pool/PRNG/TLS, real ExitBootServices or post-firmware readiness is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Copy any firmware-derived entropy seed needed after firmware shutdown, with explicit failure status.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -8415,7 +8415,7 @@
       ],
       "collisionLane": null,
       "summary": "Introduce a typed no-stdlib ExitBootServices call adapter.",
-      "currentEvidence": "The EFI path captures a map but deliberately skips the ExitBootServices call; post-firmware execution is unproven.",
+      "currentEvidence": "The EFI path captures a map but deliberately skips ExitBootServices; post-firmware execution is unproven. Step980 supplies focused and offline native evidence for the #60/#541 entropy prerequisite, but its complete common and genuine provider/missing-provider guests are still pending. #61 remains blocked until #60 closes; its controlled typed-adapter scope must not be expanded into the first real ExitBootServices call owned by #64.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Introduce a typed no-stdlib ExitBootServices call adapter.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
