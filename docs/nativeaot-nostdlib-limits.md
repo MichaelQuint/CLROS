@@ -234,7 +234,7 @@ allocation, GC, dispatch, exception or runtime-completion requirements.
 | Object allocation helpers | Bounded opt-in EFI allocation guest evidence accepted | Step940 proves the fixed caller-buffer leaf over the original #75 retained authority. Step946 adds the real profile-bound `RhpNewFast` adapter. Step949 accepts the complete host suite and five fresh QEMU profiles, including four compiled-new/six direct routes, before-bind rejection and exhaustion, with independent metadata/native/prefix/transcript/lifecycle/disk review. The general `ObjectAllocation` gate remains deferred; no general heap or GC is established |
 | Array allocation helpers | General support deferred; bounded opt-in EFI guest evidence accepted | Step952 adds the shared retained-page SZ-array leaf and separately classified `EfiSzArrayAllocation` exports. Step954 accepts the complete host gate and eight fresh profiles with independent native/metadata/prefix, transcript/lifecycle and disk review. Genuine byte/long allocations, length/index/store readback, before-bind rejection and shared-page exhaustion are bounded guest observations. General `ArrayAllocation` completion, managed reference stores and GC remain deferred |
 | String allocation helpers | Bounded retained-page EFI String guest accepted | `StringAllocation` remains incomplete. Step964 accepts the separately classified `EfiStringAllocation` path, compiled constructors and UTF-16 storage, with default/fixed/array regressions and three String rejection cases; general String/BCL, GC and write barriers remain unsupported |
-| Write barriers | Deferred | Ledger entry `WriteBarriers`; no kernel/runtime write barrier implementation exists |
+| Write barriers | General runtime support deferred; bounded host prerequisite tested | Ledger entry `WriteBarriers` remains incomplete. Step967 adds retained-page opaque-word stores/moves; no runtime exports, authenticated reference fields or collecting-GC barrier support |
 | Interface dispatch | Deferred | Ledger entry `InterfaceDispatch`; EFI type-cast helpers fail fast and do not prove interface dispatch |
 | Class constructors | Deferred | Ledger entry `ClassConstructors`; `NativeAotClassConstructorStateTable` proves caller-owned state transitions, cycle detection, duplicate/missing/capacity errors, failed-cctor preservation, and caller-owned `NATIVEAOT_CCTOR_STATE` diagnostic formatting. `NativeAotClassConstructorRunnerPreflight` proves ready/default/failed/pending/missing-metadata preflight status, caller-owned `NATIVEAOT_CCTOR_RUNNER_PREFLIGHT` diagnostic formatting, and host-tested `BootSequence` readiness markers only. `NativeAotClassConstructorWorkItemPlanner` now proves caller-owned work-item metadata planning from already-supplied target tokens plus caller-owned `NATIVEAOT_CCTOR_WORK_ITEMS` diagnostic formatting and host-tested `NATIVEAOT_CCTOR_WORK_ITEMS_READY` / `NATIVEAOT_CCTOR_WORK_ITEMS_NOT_READY` BootSequence readiness markers while preserving no-delegate/no-reflection/no-execution boundaries. No cctor runner invocation, constructor execution, metadata discovery, or constructor-body failure diagnostics is implemented |
 | Thread statics | Deferred | Ledger entry `ThreadStatics`; no TLS bootstrap or NativeAOT thread-static base helper exists |
@@ -753,6 +753,39 @@ COFF/symbol/relocation/unwind comparisons; changed debug records are not
 silently treated as whole-file equality. No interning, general String/BCL
 surface, barriers, collecting GC, refill, real ExitBootServices, hosted .NET or
 Kestrel is claimed. Gates3/4 remain **Fail**.
+
+### M04-010 retained-page store and bulk-move host prerequisite
+
+`CheckedReferenceBulkBarriersIncludingDotNetN10Bulk` provides `TryStore` and
+`TryMove` under the explicit `NonCollectingExclusiveRetainedPage` profile.
+Both operations revalidate the original thirteen `RhpNewFastHeapAccess` inputs
+through `ManagedHeapPageRangeLiveAllocator.ValidateRetained`. They use the
+actual retained 4 KiB page without another allocator, binder or cursor.
+
+Stores write one aligned eight-byte word. Moves accept full-width unsigned
+byte offsets/counts, validate both complete spans before pointer arithmetic,
+and use eight-byte loads/stores with memmove direction for overlap. Valid
+zero-length and exact-self moves write no bytes but still validate authority;
+that existing validator reads the whole page. Failure precedence is authority,
+profile, offset alignment, count alignment, then range. Default results fail.
+
+Payloads are opaque numeric bits, including zero, high-bit words and scalar
+data. Page membership does not authenticate an object or reference field.
+Mapping, lifetime and exclusive access remain caller obligations. The leaf
+rejects destinations outside that page; it is not a drop-in checked-reference
+runtime helper. It provides no collection, remembered sets, publication fences,
+GC polling, concurrent access or special byref-helper ABI.
+
+[Step967](../done/step967.md) records the complete five-module focused host
+run: 43 starts, 44 passes including its terminal marker, and zero failures.
+Rejection fixtures compare all 64 KiB after each call; other checks verify both
+overlap directions and mixed fixed/array/String allocations, preserve allocator
+and cursor bytes, and measure zero warmed CLR allocation. The normal host-test
+build and actual eleven-source C#14/.NET10 no-stdlib compile pass, with zero
+AssemblyRefs and four inspected leaf IL bodies. This is host/compiler evidence;
+the common full suite, native helper integration and guest proof remain pending.
+Issue #79 and the general `WriteBarriers` ledger remain incomplete; Gate4 stays
+**Fail**.
 
 ## Tests
 

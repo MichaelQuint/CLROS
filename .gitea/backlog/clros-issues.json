@@ -10044,7 +10044,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement checked reference and bulk write barriers, including .NET 10 bulk-move requirements.",
-      "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
+      "currentEvidence": "Step967 adds a bounded noncollecting host prerequisite: checked aligned word stores and overlap-safe same-page bulk moves, using all thirteen original retained-authority inputs and preserving allocator/cursor state. The complete five-module focused run passes 43 starts/44 passes/zero failures; normal HostTests and the actual eleven-source no-stdlib build pass with zero AssemblyRefs. Patterned full-buffer rejection oracles, unsigned boundaries, both overlap directions and warmed zero-allocation checks are covered. Common full-suite, native helper/ABI integration and real guest evidence remain pending. M04-010 stays open; no general WriteBarriers/GC gate or M04-011 readiness is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Implement checked reference and bulk write barriers, including .NET 10 bulk-move requirements.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

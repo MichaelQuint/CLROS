@@ -969,6 +969,21 @@ refill, real ExitBootServices and hosted .NET/Kestrel remain unsupported.
 Gates3/4 remain **Fail**. The same host gate covers #58's memory-map fixtures,
 but its separate native observation and guest evidence remain pending.
 
+### M04-010 checked-store and bulk-move host prerequisite
+
+[Step967](../done/step967.md) adds aligned opaque-word stores and overlap-safe
+moves inside the original retained 4 KiB page. Every call revalidates its
+thirteen authority inputs; rejection preserves storage and allocator state.
+The complete new, retained-page, fixed, array and String host modules pass
+43 starts/44 passes/zero failures. The normal host-test build and actual
+eleven-source no-stdlib library pass with zero AssemblyRefs.
+
+This is a bounded noncollecting host prerequisite. It supplies no runtime
+export, compiler reference-field association, outside-heap destination policy,
+special byref-helper ABI, GC polling, card table or collector. The common full
+suite and native/guest integration remain pending. Issue #79 stays open;
+Gates3/4 remain **Fail** and no later issue is unblocked by this checkpoint.
+
 ### M02-014 source integration and terminal guest boundary
 
 The #517 source integration connects the frozen page-image and transition leaves
