@@ -594,7 +594,7 @@ $script:M04CheckedReferenceBarrierRequiredMarkers = @(
     'M04_REFERENCE_OPERATION kind=3 calls=22'
     'M04_REFERENCE_OPERATION kind=4 calls=23'
     'M04_REFERENCE_RETAIN'
-    'CLROS_M04_010_NATIVE_READY allocations=6 usedBytes='
+    'CLROS_M04_010_NATIVE_READY allocations=6'
     'TEST_PASS m04.010.references'
     $script:M04ManagedHeapPageRangeRequiredMarkers[($script:M04ManagedHeapPageRangeRequiredMarkers.Count - 8)..($script:M04ManagedHeapPageRangeRequiredMarkers.Count - 1)]
 )

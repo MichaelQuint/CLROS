@@ -362,7 +362,8 @@ internal static class M04CheckedReferenceBarrierEfiIntegrationTests
         string defs=Between(source,"$script:M04IndependentEndianConformanceReadyMarker =","function Invoke-NativeCommand {");
         string functions=Between(source,"function Assert-M04ManagedHeapPageRangeTranscript {","function Assert-M04LayoutContractTranscript {");
         Result dry=Execute("powershell.exe",Script("scripts/run-qemu-smoke.ps1",["-DryRun","-BuildEfi",..Chain.Append(Flag).Select(x=>"-"+x)]),Path.Combine(directory,"dryrun"));Passed(dry);
-        string[] ordered=dry.Output.Replace("\r","").Split('\n').Single(x=>x.StartsWith("ORDERED_MARKERS ",StringComparison.Ordinal))[16..].Split(';');
+        string[] Vector(string name)=>dry.Output.Replace("\r","").Split('\n').Single(x=>x.StartsWith(name+" ",StringComparison.Ordinal))[(name.Length+1)..].Split(';');
+        string[] required=Vector("REQUIRED_MARKERS"),ordered=Vector("ORDERED_MARKERS"),unique=Vector("UNIQUE_MARKERS"),forbidden=Vector("FORBIDDEN_MARKERS");
         List<string> lines=["TEST_START efi.main",..ordered.Take(6),"UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 3","UEFI_MEMORY_MAP_OWNED","BOOT_HANDOFF_READY","UEFI_MEMORY_MAP_NORMALIZED","BOOT_MEMORY_MAP_ACCEPTED","BOOT_MEMORY_REGIONS_READY","BOOT_MEMORY_REGION_COUNT 3","BOOT_PAGE_ALLOCATOR_READY status=Ready regions=3 conventionalPages=20 conventionalBytes=81920 freeNodes=2 freePages=20 freeBytes=81920 pageSize=4096 statusCode=0","BOOT_ACPI_RSDP_HANDOFF_READY","UEFI_ACPI_RSDP_READY",..ordered.Skip(6)];
         const string identity="allocatorState=0x0000000000100000 nodes=0x0000000000100040 heapState=0x0000000000101000 ledger=0x0000000000102000 parentIndex=4 parentStart=0x0000000000900000 parentEnd=0x0000000000902000 backing=0x0000000000900000 retainedStart=0x0000000000900000 retainedEnd=0x0000000000901000";
         lines[lines.IndexOf("M04_HEAP_PAGE_BOUND")]+=" "+identity;lines[lines.IndexOf("M04_HEAP_PAGE_RETAINED")]+=" checkpoint=beforeBootPlan "+identity;
@@ -382,6 +383,31 @@ internal static class M04CheckedReferenceBarrierEfiIntegrationTests
         lines[59]="M04_REFERENCE_RETAIN allocator=0x0000000000100000 nodes=0x0000000000100040 ledger=0x0000000000102000 parentIndex=4 backing=0x0000000000900000 heap=0x0000000000101000 bump=0x0000000000103100 heapStart=0x0000000000900000 heapEnd=0x0000000000901000 initialPages=2 freePages=1 allocatedPages=1 readBytes=4096 contentsZero=false used=576 count=6 status=1";
         lines[60]="CLROS_M04_010_NATIVE_READY allocations=6 usedBytes=576 calls=23 initialStores=18 fieldStores=1 checkedStores=1 pairHelpers=2 bulkCalls=1 pairComplete=true blockComplete=true exclusiveNonCollecting=true gate4=Fail";
         string good=string.Join("\r\n",lines)+"\r\n";
+        // Feed the actual dry-run vectors to the production streamer, separately from the numeric raw parser below.
+        const string ready="CLROS_M04_010_NATIVE_READY allocations=6",oldPartial=ready+" usedBytes=";
+        foreach(string[] vector in new[]{required,ordered,unique})
+            Need(vector.Count(x=>x==ready)==1&&!vector.Contains(oldPartial,StringComparer.Ordinal),"actual complete-token READY in every runner vector");
+        OS.Tools.QemuRunner.SerialMarkerCompletionResult Stream(string text,bool oldAnchor=false)
+        {
+            string[] Select(string[] vector)=>oldAnchor?vector.Select(x=>x==ready?oldPartial:x).ToArray():vector;
+            var state=new OS.Tools.QemuRunner.SerialMarkerStateMachine(Select(required),forbidden,orderedMarkers:Select(ordered),uniqueMarkers:Select(unique));
+            Need(state.Feed(Encoding.ASCII.GetBytes(text)).Succeeded,"actual streamer consumes transcript");
+            return state.Complete();
+        }
+        var accepted=Stream(good);
+        Need(accepted.Passed&&accepted.LinesProcessed==70&&accepted.RequiredSeenCount==required.Union(ordered,StringComparer.Ordinal).Union(unique,StringComparer.Ordinal).Count()
+            &&accepted.OrderedSeenCount==ordered.Length&&accepted.UniqueSeenCount==unique.Length&&accepted.SuccessTerminalCount==1,"actual vectors admit full70 transcript exactly once");
+        var partial=Stream(good,true);
+        Need(!partial.Passed&&partial.MissingRequiredMarkers!.Contains(oldPartial,StringComparer.Ordinal)
+            &&partial.UniqueSeenCount==unique.Length-1&&partial.OutOfOrderOccurrenceCount>0,"old partial-token READY fails actual required/ordered/unique matching");
+        string readyLine=lines[60]+"\r\n";
+        var missing=Stream(good.Replace(readyLine,"",StringComparison.Ordinal));
+        Need(!missing.Passed&&missing.MissingRequiredMarkers!.Contains(ready,StringComparer.Ordinal)&&missing.UniqueSeenCount==unique.Length-1,"missing READY rejected by real streamer");
+        var duplicate=Stream(good.Replace(readyLine,readyLine+readyLine,StringComparison.Ordinal));
+        Need(!duplicate.Passed&&duplicate.DuplicateUniqueMarkerHits!.Contains(ready,StringComparer.Ordinal)&&duplicate.DuplicateUniqueOccurrenceCount==1,"duplicate READY rejected by real streamer");
+        string[] swappedReady=lines.ToArray();(swappedReady[59],swappedReady[60])=(swappedReady[60],swappedReady[59]);
+        var outOfOrder=Stream(string.Join("\r\n",swappedReady)+"\r\n");
+        Need(!outOfOrder.Passed&&outOfOrder.OutOfOrderMarkerHits!.Contains(ready,StringComparer.Ordinal)&&outOfOrder.OutOfOrderOccurrenceCount>0,"early READY rejected by real streamer");
         string acceptedPreamble=Encoding.ASCII.GetString(Convert.FromBase64String("G1syShtbMDE7MDFIG1s9M2gbWzJKG1swMTswMUgbWzJKG1swMTswMUgbWz0zaBtbMkobWzAxOzAxSBtbMkobWzAxOzAxSBtbPTNoG1syShtbMDE7MDFIQmRzRHhlOiBsb2FkaW5nIEJvb3QwMDAxICJVRUZJIFFFTVUgSEFSRERJU0sgUU0wMDAxMyAiIGZyb20gUGNpUm9vdCgweDApL1BjaSgweDIsMHgwKS9TYXRhKDB4MCwweEZGRkYsMHgwKQ0KQmRzRHhlOiBzdGFydGluZyBCb290MDAwMSAiVUVGSSBRRU1VIEhBUkRESVNLIFFNMDAwMTMgIiBmcm9tIFBjaVJvb3QoMHgwKS9QY2koMHgyLDB4MCkvU2F0YSgweDAsMHhGRkZGLDB4MCkNCg=="));
         Need(Encoding.ASCII.GetByteCount(acceptedPreamble)==304 && Hash(Encoding.ASCII.GetBytes(acceptedPreamble))=="BB50E913C752428AE49AE6C20879196F507926CC685CAD83986494244299D124","accepted304-byte preamble");
         List<(string Text,bool Accept)> cases=[(good,true),(acceptedPreamble+good,true),(acceptedPreamble.Replace("Boot0001","Boot0002",StringComparison.Ordinal)+good,false)];

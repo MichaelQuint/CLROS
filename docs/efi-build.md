@@ -2329,3 +2329,14 @@ Each includes actual default/enabled NativeAOT publications. The preceding
 managed batch passes 82 starts/83 passes/zero failures. These focused results
 do not replace the combined clean-head suite or fresh QEMU/OVMF captures.
 No real ExitBootServices, general GC, Kestrel or readiness gate is promoted.
+
+[Step975](../done/step975.md) corrects the reference READY marker to end at
+the complete `allocations=6` token. The runner matches complete tokens; the
+previous anchor ended inside `usedBytes=` and rejected the emitted numeric
+field. The complete integration initializer now passes the actual dry-run
+required, ordered, unique and forbidden vectors through the production
+streaming matcher. It admits the full 70-record transcript and rejects the old
+partial anchor, missing, duplicate and early READY records. The existing
+`usedBytes=576`, `calls=23`, geometry and raw-transcript checks remain intact.
+Its fresh five-group run passes, including both EFI publications; combined
+committed-head validation and real guest evidence remain separate requirements.
