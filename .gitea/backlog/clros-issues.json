@@ -8068,7 +8068,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M03: Real Firmware Exit.",
-      "currentEvidence": "Step970 accepts M03-001 (#58) and its #532 native observation; step977 accepts the five-role pre-EBS owned ACPI copy for M03-002 (#59/#539). Reviewed merge and tracker closure remain separate actions. The remaining nine children M03-003 through M03-011 (#60 through #68) are incomplete; readiness is assessed from actual dependency closure. No ExitBootServices call, map-key freshness, post-firmware execution/ownership or M03 exit criterion is proved; the epic remains open.",
+      "currentEvidence": "M03-001 (#58/#532) and M03-002 (#59/#539) are closed after reviewed merges and actual bounded pre-EBS guest evidence in steps970/977. Step978 adds the host entropy-retention prerequisite for claimed #60; actual EFI RNG acquisition and guest retention remain pending. Nine children #60 through #68 remain open. No ExitBootServices call, map-key freshness, post-firmware execution/ownership or M03 exit criterion is proved; the epic remains open.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -8233,7 +8233,7 @@
       ],
       "collisionLane": null,
       "summary": "Copy RSDP, selected RSDT/XSDT, MCFG, MADT, and HPET bootstrap bytes into owned memory.",
-      "currentEvidence": "Step977 accepts the bounded five-table owned ACPI milestone at eeee523 after the complete 3692-start/3693-pass/zero-failure common gate and fresh default/ACPI QEMU captures. Independent native image, source/profile, exact 35-record transcript, lifecycle and disk reviews bind all five retained RSDP/root/MCFG/MADT/HPET roles, 356 compared bytes, 32 guard bytes and 265884 unused-tail bytes. Firmware remains available; embedded addresses are not rebased. Reviewed merge and evidence-qualified closure of #59/#539 are separate tracker actions; #60 becomes eligible only after that closure. No post-firmware access, device operation or M03 completion is claimed.",
+      "currentEvidence": "Step977 accepts bounded five-table owned ACPI retention after the complete 3692-start/3693-pass/zero-failure host gate and fresh independently reviewed QEMU captures. PR538 merged at 34a9fd562384a627decb35c2378f86c22b7a427e; evidence comments and closed/done states for #59/#539 were read back. The five RSDP/root/MCFG/MADT/HPET roles retain 356 bytes with guards/tail evidence. Firmware remains available; no post-firmware access or device operation is claimed. #60 is now claimed for entropy retention.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Copy RSDP, selected RSDT/XSDT, MCFG, MADT, and HPET bootstrap bytes into owned memory.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -8297,7 +8297,7 @@
         "M03-002"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -8324,7 +8324,7 @@
       ],
       "collisionLane": null,
       "summary": "Copy any firmware-derived entropy seed needed after firmware shutdown, with explicit failure status.",
-      "currentEvidence": "Step977 accepts the preceding bounded owned-ACPI milestone; this entropy-retention slice remains unimplemented. #60 is eligible only after the reviewed merge and actual #59 closure. Existing guarded host RNG contracts and static OVMF driver presence do not prove firmware GetRNG acquisition or retained seed bytes. No ExitBootServices or post-firmware execution is proved.",
+      "currentEvidence": "Step978 adds the bounded 32/64-byte host entropy-retention contract over guarded RNG access. Normal HostTests and focused builds pass with zero warnings/errors; all 12 new plus 15 existing RNG/firmware-denial groups pass 27 starts/28 passes/zero failures. Full-span/publication aliases, source errors/exact counts, private retention, scratch clearing, repeat rejection and warmed zero allocation are covered. #59 is closed after PR538, so #60 is claimed. Actual EFI_RNG_PROTOCOL discovery/GetRNG and positive/missing-source guests remain pending; host evidence does not close #60 or unblock #61. No entropy quality, pool/PRNG/TLS, real ExitBootServices or post-firmware readiness is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Copy any firmware-derived entropy seed needed after firmware shutdown, with explicit failure status.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

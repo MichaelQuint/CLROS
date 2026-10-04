@@ -2354,3 +2354,15 @@ The earlier combined run failed on the stale checked-port count and remains
 failed evidence. [Step977](../done/step977.md) records the later accepted clean
 common gate and guest reviews; the reference stack-canary requirement remains
 open rather than being waived by those results.
+
+### M03-003 host entropy-retention prerequisite
+
+[Step978](../done/step978.md) adds a managed host contract that retains a bounded
+32- or 64-byte guarded RNG result in caller-owned storage, clears its used
+scratch slice and publishes status/length last. The normal HostTests build and
+27-group focused run pass. This source is not admitted to the explicit EFI
+closure and adds no probe property or native entry. Actual `EFI_RNG_PROTOCOL`
+discovery, one `GetRNG` call, guarded retained bytes and genuine missing-source
+guest evidence require separately scoped EFI/runner integration. #60 remains
+open; no seed-bearing diagnostics, entropy quality, PRNG, TLS or real
+`ExitBootServices` capability is claimed.

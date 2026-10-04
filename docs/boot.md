@@ -3740,7 +3740,23 @@ TEST_PASS boot.sequence page allocator readiness rejects empty state
 TEST_PASS boot.sequence page allocator readiness preserves default markers
 ```
 
-Platform firmware RNG guard coverage is host-test only and uses an injected random-byte source. It does not implement a PRNG, entropy pool, TLS, cryptographic API, or post-`ExitBootServices` randomness:
+Platform firmware RNG guard coverage is host-test only and uses an injected random-byte source. It does not implement a PRNG, entropy pool, TLS, cryptographic API, or post-`ExitBootServices` randomness.
+
+[Step978](../done/step978.md) adds the M03-003 host retention contract on top
+of that guard. It accepts one 32- or 64-byte result into disjoint caller-owned
+scratch, checks status and exact length, copies and privately compares the
+retained bytes, clears the requested scratch slice, then publishes a POD length.
+Complete scratch/destination/publication aliases and repeated publication are
+rejected before the source call. Admission and source failures preserve the
+retained destination and publication; a failed source may change scratch, and
+a later copy/readback failure makes no rollback promise. The complete new and
+existing RNG/firmware-denial modules pass 27 starts/28 passes/zero failures.
+This is injected-provider host evidence only: actual EFI RNG discovery,
+`GetRNG`, missing-provider guest behavior and post-firmware use remain pending.
+No seed bytes or digest are emitted, and scratch clearing is not a physical
+secure-erasure claim. #60 remains open.
+
+Existing guard markers:
 
 ```text
 TEST_PASS platform.random fill allowed before UEFI gone
