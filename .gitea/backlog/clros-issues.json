@@ -9142,7 +9142,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M04: NativeAOT Runtime Correctness.",
-      "currentEvidence": "Nine M04 keyed children (#70 through #78) are closed. Steps949,954 and964 record bounded fixed-object, array and String guest milestones. Step977 records the complete common gate, exact native association and bounded returning-reference guest progress; #79/#537 remain claimed because the explicit live executing-stack canary requirement is unmet. Children #79 through #92 remain open and #80 remains blocked. Metadata registration, collecting GC/root enumeration, dispatch, exceptions and general runtime completion remain unaccepted; Gate4 stays Fail. This epic remains a coordination tracker, with no implementation ownership.",
+      "currentEvidence": "Nine M04 keyed children (#70 through #78) are closed. Steps949,954 and964 record bounded fixed-object, array and String guest milestones. Step977 records returning-reference guest progress without a live executing-stack sentinel. Step979 adds the original-stack sentinel source and passing complete focused/default/enabled publication checks; fresh native/common/guest acceptance remains pending. #79/#537 remain claimed and #80 remains blocked. Metadata registration, collecting GC/root enumeration, dispatch, exceptions and general runtime completion remain unaccepted; Gate4 stays Fail. This epic remains a coordination tracker, with no implementation ownership.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -10044,7 +10044,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement checked reference and bulk write barriers, including .NET 10 bulk-move requirements.",
-      "currentEvidence": "Steps967/973 add retained-page checked stores, three returning reference helpers and the managed bulk bridge. Step977 records the accepted eeee523 complete common gate (3692 starts/3693 passes/zero failures), exact native-image association and a fresh 70-record reference guest transcript with six genuine allocations and 23 callback events. Static whole-route stack bounds and initial live RSP containment are established, but #537 acceptance item4 still lacks a live executing-stack canary observation; static context guards and controlled thunk canaries do not substitute for it. #79/#537 remain open and claimed; #80 stays blocked. General WriteBarriers, collecting GC, root visibility, concurrency, wider-vector preservation and hosted runtime remain unaccepted.",
+      "currentEvidence": "Steps967/973 add retained-page checked stores, three returning reference helpers and the managed bulk bridge. Step977 records the accepted eeee523 common gate and 70-record reference guest with six allocations and 23 callbacks, without an executing-stack sentinel observation. Step979 adds two original-stack words, five checks and a strict final STACK row (71 records). Complete M01 and reference initializers pass 13/14 and 5/6 starts/passes with zero failures; mapped controls, both actual default/enabled NativeAOT publications and normal compilation pass. Three failed attempts and scoped corrections are preserved. Fresh compiled witness/load/layout/16 KiB bound and common/guest acceptance remain pending; #79/#537 stay open/claimed and #80 blocked. General WriteBarriers, collecting GC, root visibility, concurrency, wider-vector preservation and hosted runtime remain unaccepted.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Implement checked reference and bulk write barriers, including .NET 10 bulk-move requirements.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -10135,7 +10135,7 @@
       ],
       "collisionLane": null,
       "summary": "Register TypeManager/module metadata from the live NativeAOT image.",
-      "currentEvidence": "Bounded fixed-object, array and String guest milestones exist; step977 records returning-reference progress while #79/#537 remain open for live executing-stack canary evidence. TypeManager/module registration is still unimplemented and #80 stays blocked on #79. No metadata registration, collecting GC, dispatch, exceptions or general runtime completion is claimed.",
+      "currentEvidence": "Bounded fixed-object, array and String guest milestones exist. Step979 adds the executing-stack sentinel repair and complete focused/publication evidence after step977 reference progress; fresh native/common/guest acceptance still keeps #79/#537 open. TypeManager/module registration remains unimplemented and #80 blocked on #79. No metadata registration, collecting GC, dispatch, exceptions or general runtime completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Register TypeManager/module metadata from the live NativeAOT image.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

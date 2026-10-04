@@ -2322,7 +2322,7 @@ checks pass with zero managed AssemblyRefs, the original 336-byte serializer
 and the enabled 1,645-byte reference object. Compiler field layouts and linked
 helper/callback ABI, stack and SIMD behavior
 were subsequently joined to the fresh images in [step977](../done/step977.md).
-That static proof does not satisfy the still-missing live stack-canary check.
+That static proof does not satisfy the live stack-canary requirement.
 
 The full reference integration initializer passes 5 starts/6 passes/zero
 failures; the full ACPI initializer passes 4 starts/5 passes/zero failures.
@@ -2333,6 +2333,17 @@ suite and three fresh captures in [step977](../done/step977.md). The ACPI copy
 and writer prerequisite are accepted within scope; reference #79/#537 remain
 open for executing-stack canary evidence. No real ExitBootServices, general
 GC, Kestrel or readiness gate is promoted.
+
+[Step979](../done/step979.md) now adds the original-stack getter and two-word
+sentinel checks to the existing reference profile, without changing its 88
+Compile items, 102 raw inputs or 38 flags. The full focused initializer passes
+again, including fresh default/enabled publications with zero AssemblyRefs.
+The exact reference body grows to 71 records; its 19-record reference block
+adds `M04_REFERENCE_STACK` immediately before READY. The row requires the owned
+stack geometry, initial observation, local witness, two fixed words, matching
+armed/final reads and five checks. The production streamer rejects missing,
+duplicate and late STACK records. Native load/frame/storage review, a new
+complete common gate and real guest evidence remain pending for this image.
 
 [Step975](../done/step975.md) corrects the reference READY marker to end at
 the complete `allocations=6` token. The runner matches complete tokens; the

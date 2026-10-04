@@ -1627,13 +1627,19 @@ That checkpoint is historical focused evidence. [Step977](../done/step977.md)
 records the accepted clean `eeee523` common suite (3,692 starts/3,693 passes,
 zero failures and 16 READY lines), followed by three fresh default/reference/
 ACPI captures and separate native, raw/lifecycle and disk reviews. The bounded
-pre-EBS five-table ACPI copy and #536 writer prerequisite are accepted; reviewed
-merge and closure of #59/#539/#536 remain pending. #60 becomes eligible only
-after #59 is merged and closed with evidence.
+pre-EBS five-table ACPI copy and #536 writer prerequisite are accepted. PR538
+subsequently merged at `34a9fd5`; #59/#539/#536 closed with reviewed evidence.
+[Step978](../done/step978.md) records #60's resulting claim and bounded host
+entropy-retention implementation. Its actual EFI RNG/guest boundary remains
+pending, so #61 is still blocked.
 
 The reference capture demonstrates the finite returning-helper route, but
 #537's real executing-stack canary requirement is not satisfied by static stack
-bounds, initial RSP containment or static-context guards. #79/#537 remain open
-and claimed; #80 remains blocked. No general GC, real ExitBootServices,
+bounds, initial RSP containment or static-context guards. [Step979](../done/step979.md)
+adds the original-stack two-word sentinel, five checks and strict final record;
+the complete focused module and both native publications pass. Its proposed
+16 KiB witness-relative clearance still requires fresh compiled proof and
+current-image common/guest acceptance. #79/#537 remain open and claimed; #80
+remains blocked. No general GC, real ExitBootServices,
 post-firmware access, hosted .NET/Kestrel or cloud support follows. Gates3/4/5
 and the containing milestones remain incomplete.

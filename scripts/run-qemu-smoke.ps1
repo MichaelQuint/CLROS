@@ -594,6 +594,7 @@ $script:M04CheckedReferenceBarrierRequiredMarkers = @(
     'M04_REFERENCE_OPERATION kind=3 calls=22'
     'M04_REFERENCE_OPERATION kind=4 calls=23'
     'M04_REFERENCE_RETAIN'
+    'M04_REFERENCE_STACK'
     'CLROS_M04_010_NATIVE_READY allocations=6'
     'TEST_PASS m04.010.references'
     $script:M04ManagedHeapPageRangeRequiredMarkers[($script:M04ManagedHeapPageRangeRequiredMarkers.Count - 8)..($script:M04ManagedHeapPageRangeRequiredMarkers.Count - 1)]
@@ -1753,7 +1754,7 @@ function Assert-M02UnexpectedVectorPanicPrefix {
 function Assert-M04ManagedHeapPageRangeTranscript {
     param([string] $SerialLogPath, [switch] $IncludeFixedAllocation, [switch] $IncludeArrayAllocation, [switch] $IncludeStringAllocation, [switch] $IncludeCheckedReferences)
     if (([int][bool]$IncludeFixedAllocation + [int][bool]$IncludeArrayAllocation + [int][bool]$IncludeStringAllocation + [int][bool]$IncludeCheckedReferences) -gt 1) { throw 'm04_allocation_profile_collision' }
-    $lineCount = if ($IncludeCheckedReferences) { 70 } elseif ($IncludeStringAllocation) { 72 } elseif ($IncludeArrayAllocation) { 68 } elseif ($IncludeFixedAllocation) { 78 } else { 52 }
+    $lineCount = if ($IncludeCheckedReferences) { 71 } elseif ($IncludeStringAllocation) { 72 } elseif ($IncludeArrayAllocation) { 68 } elseif ($IncludeFixedAllocation) { 78 } else { 52 }
     $path = if ([IO.Path]::IsPathRooted($SerialLogPath)) { $SerialLogPath } else { Join-Path $root $SerialLogPath }
     # No BOM sniffing, trimming, Unicode folding or control removal for acceptance.
     $text = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($path))
@@ -1797,8 +1798,8 @@ function Assert-M04ManagedHeapPageRangeTranscript {
     $stringRecords = @()
     $referenceRecords = @()
     if ($IncludeCheckedReferences) {
-        $referenceRecords = @($captured.GetRange(44,18))
-        $captured.RemoveRange(44,18)
+        $referenceRecords = @($captured.GetRange(44,19))
+        $captured.RemoveRange(44,19)
     }
     if ($IncludeStringAllocation) {
         $stringRecords = @($captured.GetRange(44,20))
@@ -2443,9 +2444,9 @@ function Assert-M04StringAllocationRecords {
 
 function Assert-M04CheckedReferenceBarrierRecords {
     param([string[]] $Lines, [hashtable] $Heap)
-    if ($Lines.Count -ne 18 -or
+    if ($Lines.Count -ne 19 -or
         -not [string]::Equals($Lines[0], 'TEST_START m04.010.references', [StringComparison]::Ordinal) -or
-        -not [string]::Equals($Lines[17], 'TEST_PASS m04.010.references', [StringComparison]::Ordinal)) { throw 'm04_reference_exact_sequence' }
+        -not [string]::Equals($Lines[18], 'TEST_PASS m04.010.references', [StringComparison]::Ordinal)) { throw 'm04_reference_exact_sequence' }
     $bind = Read-M04RhpNewFastRecord $Lines[2] 'M04_REFERENCE_BIND' @('image:hex','imageBytes:dec','allocator:hex','nodes:hex','ledger:hex','ledgerBytes:dec','parentIndex:dec','backing:hex','backingBytes:dec','heap:hex','heapBytes:dec','access:hex','accessBytes:dec','bump:hex','bumpBytes:dec','status:dec','used:dec','count:dec')
     foreach ($pair in @(@('allocator','allocatorState'),@('nodes','nodes'),@('ledger','ledger'),@('parentIndex','parentIndex'),@('backing','backing'),@('heap','heapState'))) {
         if ($bind[$pair[0]] -ne $Heap[$pair[1]]) { throw 'm04_reference_original_identity' }
@@ -2526,9 +2527,24 @@ function Assert-M04CheckedReferenceBarrierRecords {
     if ($retained.heapStart -ne $Heap.retainedStart -or $retained.heapEnd -ne $Heap.retainedEnd -or
         $retained.initialPages -ne 2 -or $retained.freePages -ne 1 -or $retained.allocatedPages -ne 1 -or
         $retained.readBytes -ne 4096 -or $retained.used -ne $used -or $retained.count -ne 6 -or $retained.status -ne 1) { throw 'm04_reference_retained_accounting' }
+    $stackSuffix = ' preserved=true'
+    if (-not $Lines[16].EndsWith($stackSuffix, [StringComparison]::Ordinal)) { throw 'm04_reference_stack_shape' }
+    $stack = Read-M04RhpNewFastRecord $Lines[16].Substring(0, $Lines[16].Length - $stackSuffix.Length) 'M04_REFERENCE_STACK' @('start:hex','end:hex','initialRsp:hex','witness:hex','sentinel0:hex','sentinel1:hex','expected0:hex','expected1:hex','armed0:hex','armed1:hex','final0:hex','final1:hex','checks:dec','words:dec')
+    $low = [decimal]$stack.start; $high = [decimal]$stack.end; $witness = [decimal]$stack.witness
+    if ($low -eq 0 -or $low % 4096 -ne 0 -or $high - $low -ne 135168 -or
+        $stack.initialRsp -ne $high - 40 -or $witness % 8 -ne 0 -or
+        $witness + 8 -gt [decimal]$stack.initialRsp -or $witness - ($low + 16) -lt 16384 -or
+        $stack.sentinel0 -ne $low -or $stack.sentinel1 -ne $low + 8 -or
+        $stack.expected0 -ne [UInt64]0x195A86B4C327D0EF -or $stack.expected1 -ne [UInt64]0x62C79E1035AB48D6 -or
+        $stack.armed0 -ne $stack.expected0 -or $stack.armed1 -ne $stack.expected1 -or
+        $stack.final0 -ne $stack.expected0 -or $stack.final1 -ne $stack.expected1 -or
+        $stack.checks -ne 5 -or $stack.words -ne 2) { throw 'm04_reference_stack_contract' }
+    foreach ($slot in @($extents) + @([pscustomobject]@{Start=[decimal]$bind.image; End=([decimal]$bind.image + $bind.imageBytes)})) {
+        if ($low -lt $slot.End -and $slot.Start -lt $high) { throw 'm04_reference_stack_alias' }
+    }
     $ready = 'CLROS_M04_010_NATIVE_READY allocations=6 usedBytes=' + $used.ToString([Globalization.CultureInfo]::InvariantCulture) +
         ' calls=23 initialStores=18 fieldStores=1 checkedStores=1 pairHelpers=2 bulkCalls=1 pairComplete=true blockComplete=true exclusiveNonCollecting=true gate4=Fail'
-    if (-not [string]::Equals($Lines[16], $ready, [StringComparison]::Ordinal)) { throw 'm04_reference_ready' }
+    if (-not [string]::Equals($Lines[17], $ready, [StringComparison]::Ordinal)) { throw 'm04_reference_ready' }
 }
 
 function Assert-M04CheckedReferenceBarrierTranscript {
@@ -2547,7 +2563,7 @@ function Assert-M04CheckedReferenceBarrierTranscript {
     }
     $owned = $text.Substring($start)
     $lines = $owned.Split([string[]]@("`r`n"), [StringSplitOptions]::None)
-    if ($lines.Count -ne 71 -or $lines[70].Length -ne 0 -or [regex]::IsMatch($owned, '[^\x20-\x7E\r\n]')) { throw 'm04_reference_raw_extent' }
+    if ($lines.Count -ne 72 -or $lines[71].Length -ne 0 -or [regex]::IsMatch($owned, '[^\x20-\x7E\r\n]')) { throw 'm04_reference_raw_extent' }
     Assert-M04ManagedHeapPageRangeTranscript -SerialLogPath $SerialLogPath -IncludeCheckedReferences
 }
 
@@ -8424,7 +8440,7 @@ $rhpReason = $arrayReason
             Write-Host ("TEST_FAIL qemu.smoke.m04.010 strict_transcript_invalid reason=" + $_.Exception.Message)
             exit 1
         }
-        Write-Host "QEMU_SCRIPT_M04_CHECKED_REFERENCE_TRANSCRIPT exactWholeLines=true lines=70 allocations=6 calls=23 exclusiveNonCollecting=true terminal=true"
+        Write-Host "QEMU_SCRIPT_M04_CHECKED_REFERENCE_TRANSCRIPT exactWholeLines=true lines=71 allocations=6 calls=23 exclusiveNonCollecting=true terminal=true"
     }
     elseif ($EnableM04StringAllocationProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
         try {

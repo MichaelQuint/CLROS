@@ -1346,10 +1346,26 @@ metadata and whole-image/method/relocation joins bind the reviewed special-helpe
 callback and lower-128-bit XMM/MXCSR analysis to this image; production-contract
 numeric replay is not an independent numeric oracle.
 
-The static whole-call bounds are 9,456 bytes for special-helper routes and
-9,072 for bulk, within the 135,168-byte owned stack. Initial RSP containment and
-static-context guards were observed, but no actual executing-stack sentinel
-was checked. That unmet #537 acceptance requirement keeps #79/#537 open and
-claimed and #80 blocked. No collecting GC, wider-vector preservation, unwind
-support, real ExitBootServices or hosted runtime is claimed; Gates3/4 remain
-**Fail**.
+The step977 image has static whole-call bounds of 9,456 bytes for special-helper
+routes and 9,072 for bulk, within the 135,168-byte owned stack. That capture
+observed initial RSP containment and static-context guards, without an actual
+executing-stack sentinel check.
+
+[Step979](../done/step979.md) adds two sentinel words at the bottom of that
+original usable stack. A conditional getter validates the original private M01
+state and retained switch plan; a real local-address witness must leave at least
+16 KiB above the sentinel strip. A separate 96-byte POD state records initial
+reads and five later checks, after callback counts 18, 19, 20, 22 and 23. The
+reader is non-inlined, corruption is terminal, and the final check follows full
+retained-page verification before the new STACK record and READY.
+
+The complete reference initializer passes 5 starts/6 passes, including mapped
+controls, strict 71-record transcript/streamer tests and both actual NativeAOT
+publications. These are focused results. Fresh compiled load/layout/witness and
+whole-call proof must establish the proposed 16 KiB budget for this changed
+image; the old bounds do not transfer automatically. Current-image common and
+guest evidence remain pending, so #79/#537 stay open and #80 stays blocked.
+The witness is not a sampled RSP, and sentinel readback does not measure peak
+usage or arbitrary firmware/interrupt stack safety. No collecting GC,
+wider-vector preservation, unwind support, real ExitBootServices or hosted
+runtime is claimed; Gates3/4 remain **Fail**.
