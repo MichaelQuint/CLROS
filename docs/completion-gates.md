@@ -1647,6 +1647,15 @@ suite. That full suite and fresh provider-present/missing-provider guest
 acceptance remain pending. #541/#60 stay open, #61 stays blocked, and no
 entropy-quality or actual firmware-exit criterion is promoted.
 
+[Step984](../done/step984.md) retains the first failed guest attempt and repairs
+its exact positive firmware-envelope admission. Both observed suffix lengths
+(251 and 6945 bytes) now have complete raw, summary and actual marker-streamer
+coverage. All five original focused modules pass 201 starts/202 passes/zero
+failures; both native publications and normal compilation pass. No kernel or
+raw103 input changed. This is regression evidence only: fresh final-head common
+and default/provider-present/provider-missing captures remain required before
+the entropy issues or their dependent #61 can advance.
+
 The historical reference capture did not satisfy the live executing-stack
 requirement. [Step979](../done/step979.md) added the original-stack sentinel;
 [step981](../done/step981.md) now accepts its fresh `5d894c8` common and guest
