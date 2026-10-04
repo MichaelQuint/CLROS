@@ -36,6 +36,7 @@ param(
     [switch]$EnableM04StringAllocationInvalidLengthProbe,
     [switch]$EnableM03MemoryMapCaptureProbe,
     [switch]$EnableM03FirmwareEntropySeedProbe,
+    [switch]$EnableM04TypeManagerModuleRegistrationProbe,
     [switch]$EnableM04CheckedReferenceBarrierProbe,
     [switch]$EnableM01LoadedImageStackProbe,
     [switch]$EnableM01LiveAllocatorProbe,
@@ -67,7 +68,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 103
+$expectedSourceClosureInputCount = 106
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -199,7 +200,10 @@ $expectedEfiCompileItems = @(
     'Runtime\CheckedReferenceBarrierAdapter.cs|',
     '..\OS.Kernel\Runtime\CheckedReferenceBulkBarriersIncludingDotNetN10Bulk.cs|Runtime\CheckedReferenceBulkBarriersIncludingDotNetN10Bulk.cs',
     '..\OS.Kernel\Diagnostics\CheckedReferenceBarrierProbeAuthority.cs|Diagnostics\CheckedReferenceBarrierProbeAuthority.cs',
-    '..\OS.Kernel\Diagnostics\FirmwareEntropySeedCaptureProbeAuthority.cs|Diagnostics\FirmwareEntropySeedCaptureProbeAuthority.cs'
+    '..\OS.Kernel\Diagnostics\FirmwareEntropySeedCaptureProbeAuthority.cs|Diagnostics\FirmwareEntropySeedCaptureProbeAuthority.cs',
+    '..\OS.Kernel\Runtime\TypeManagerModuleMetadataLiveNativeAOTImage.cs|Runtime\TypeManagerModuleMetadataLiveNativeAOTImage.cs',
+    'Runtime\NativeAotModuleRegistrationProbe.cs|',
+    '..\OS.Kernel\Diagnostics\TypeManagerModuleRegistrationProbeAuthority.cs|Diagnostics\TypeManagerModuleRegistrationProbeAuthority.cs'
 )
 $expectedPackageBuildClosure = @(
     [pscustomobject]@{
@@ -3879,6 +3883,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM04CheckedReferenceBarrierProbe," +
             "EnableM03MemoryMapCaptureProbe," +
             "EnableM03FirmwareEntropySeedProbe," +
+            "EnableM04TypeManagerModuleRegistrationProbe," +
             "EnableM01LoadedImageStackProbe," +
             "EnableM01LiveAllocatorProbe," +
             "EnableM01OwnedPagingProbe," +
@@ -4036,6 +4041,9 @@ function Invoke-PostRestoreEvaluationSnapshot {
     }
     if ($EnableM03FirmwareEntropySeedProbe) {
         $arguments += "-p:EnableM03FirmwareEntropySeedProbe=true"
+    }
+    if ($EnableM04TypeManagerModuleRegistrationProbe) {
+        $arguments += "-p:EnableM04TypeManagerModuleRegistrationProbe=true"
     }
     if ($EnableM04CheckedReferenceBarrierProbe) {
         $arguments += "-p:EnableM04CheckedReferenceBarrierProbe=true"
@@ -4289,6 +4297,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM03MemoryMapCaptureProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM03FirmwareEntropySeedProbe =
             $EnableM03FirmwareEntropySeedProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM04TypeManagerModuleRegistrationProbe =
+            $EnableM04TypeManagerModuleRegistrationProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04CheckedReferenceBarrierProbe =
             $EnableM04CheckedReferenceBarrierProbe.IsPresent.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
@@ -4362,7 +4372,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 89 -or
+    if ($compileItems.Count -ne 92 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4541,6 +4551,52 @@ if ($EnableM03FirmwareEntropySeedProbe) {
 }
 
 
+if ($EnableM04TypeManagerModuleRegistrationProbe) {
+    if (-not $EnableM01LoadedImageStackProbe) { Write-Output "TEST_FAIL efi.artifact m04_type_manager_requires_original_loaded_image"; exit 1 }
+    foreach ($typeManagerConflict in @(
+        'EnableM01LiveAllocatorProbe',
+        'EnableM01OwnedPagingProbe',
+        'EnableM02SafeStubProbe',
+        'EnableM02CheckedPortIoBindingProbe',
+        'EnableM02Com1OwnedPortIoProbe',
+        'EnableM02OwnedCom1ReadyProbe',
+        'EnableM02PanicSafeOwnedCom1Probe',
+        'EnableM02OwnedX64GdtEncodingProbe',
+        'EnableM02GuardedIstStackAllocationProbe',
+        'EnableM02OwnedGdtTssTerminalProbe',
+        'EnableM02NormalizedInterruptFramePageProbe',
+        'EnableM02OwnedIdtGatePopulationProbe',
+        'EnableM02IdtrContinuedExecutionProbe',
+        'EnableM02Ud2VectorStateProbe',
+        'EnableM04IndependentEndianConformanceProbe',
+        'EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe',
+        'EnableM04ArithmeticConformanceProbe',
+        'EnableM04LayoutContractProbe',
+        'EnableM04ManagedHeapPageRangeProbe',
+        'EnableUefiGoneSimulationProbe',
+        'EnableExitBootServicesFreshMapProbe',
+        'EnableAcpiPhysicalDiscoveryProbe',
+        'EnableM02PageFaultCr2ErrorCodeProbe',
+        'EnableM02DoubleFaultIstProbe',
+        'EnableM02UnexpectedVectorPanicProbe',
+        'EnableM04RhpNewFastProbe',
+        'EnableM04RhpNewFastBeforeBindFailureProbe',
+        'EnableM04RhpNewFastExhaustionFailureProbe',
+        'EnableM04SzArrayAllocationProbe',
+        'EnableM04SzArrayAllocationBeforeBindProbe',
+        'EnableM04SzArrayAllocationExhaustionProbe',
+        'EnableM04StringAllocationProbe',
+        'EnableM04StringAllocationBeforeBindProbe',
+        'EnableM04StringAllocationExhaustionProbe',
+        'EnableM04StringAllocationInvalidLengthProbe',
+        'EnableM03MemoryMapCaptureProbe',
+        'EnableM04CheckedReferenceBarrierProbe',
+        'EnableM03FirmwareEntropySeedProbe'
+    )) {
+        if ([bool](Get-Variable -Name $typeManagerConflict -ValueOnly)) { Write-Output ("TEST_FAIL efi.artifact m04_type_manager_profile_conflict property="+$typeManagerConflict); exit 1 }
+    }
+}
+
 if ($EnableM04CheckedReferenceBarrierProbe) {
     foreach ($referenceFlag in @(
         "EnableM01LoadedImageStackProbe",
@@ -4585,6 +4641,7 @@ if ($EnableM04CheckedReferenceBarrierProbe) {
         "EnableM04StringAllocationInvalidLengthProbe",
         "EnableM03MemoryMapCaptureProbe",
         "EnableM03FirmwareEntropySeedProbe",
+        "EnableM04TypeManagerModuleRegistrationProbe",
         "EnableUefiGoneSimulationProbe",
         "EnableExitBootServicesFreshMapProbe",
         "EnableAcpiPhysicalDiscoveryProbe"

@@ -1685,3 +1685,16 @@ Full common-suite acceptance is also pending for this new contract. #81 root
 enumeration and #82 collection remain blocked. The TypeManager ledger is still
 Deferred; Gates3/4, general runtime, real ExitBootServices, hosted .NET 10,
 Kestrel and cloud readiness remain incomplete.
+
+[Step985](../done/step985.md) implements the separate default-off current-image
+EFI adapter and 45-record protocol. Its complete managed batch passes
+194 starts/195 passes/zero failures, including all original preflight groups
+and the final artifact verifier. The whole five-group EFI initializer passes
+5 starts/6 passes/zero failures with both real NativeAOT publications; the
+normal HostTests Release build also passes. The first failed managed attempt
+and exact-path/full-hash source-admission correction are retained in the step.
+
+These focused results do not complete #544 or #80. Actual native metadata,
+write ordering and stack analysis, the full common suite and fresh guest
+captures remain pending. #81/#82 and the containing runtime gates remain
+blocked/incomplete; no hosted .NET/Kestrel or cloud claim follows.

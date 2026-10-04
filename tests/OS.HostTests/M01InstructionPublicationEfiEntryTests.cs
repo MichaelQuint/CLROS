@@ -6,6 +6,7 @@ using OS.Boot;
 internal static class M01InstructionPublicationEfiEntryTests
 {
     private const string MemoryMapSymbol = "M03_MEMORY_MAP_CAPTURE_PROBE";
+    private const string TypeManagerSymbol = "M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE";
     private const string EntropySymbol = "M03_FIRMWARE_ENTROPY_SEED_PROBE";
     private const string IssueTestName = "m01.035";
     private const string ReadyMarker = "CLROS_M01_035_READY";
@@ -3997,7 +3998,8 @@ internal static class M01InstructionPublicationEfiEntryTests
                     || string.Equals(condition, M04StringExhaustionSymbol, StringComparison.Ordinal)
                     || string.Equals(condition, M04StringInvalidLengthSymbol, StringComparison.Ordinal)
                     || string.Equals(condition, MemoryMapSymbol, StringComparison.Ordinal)
-            || string.Equals(condition, EntropySymbol, StringComparison.Ordinal);
+            || string.Equals(condition, EntropySymbol, StringComparison.Ordinal)
+            || string.Equals(condition, TypeManagerSymbol, StringComparison.Ordinal);
                 bool selectedValue =
                     string.Equals(
                         condition,

@@ -2424,3 +2424,33 @@ terminal failure branch. Six corrected legacy expectations retain all
 original groups and assertions for the complete common suite. Full common
 completion and fresh default/provider/missing-provider guest acceptance remain
 pending; no firmware-exit or hosted-.NET gate is advanced here.
+
+### M04-011 opt-in current-image module registration
+
+`EnableM04TypeManagerModuleRegistrationProbe` adds a mutually exclusive,
+default-false profile requiring the original M01 loaded-image/stack profile.
+Its adapter calls the shared one-module metadata core with the captured image
+and a fixed, aligned 4096-byte owner buffer. The explicit closure has 92 Compile
+entries, 106 raw publication inputs and 40 requested flags. The core is admitted
+by its exact canonical path and complete reviewed source hash; altered bytes
+and the same source at another path remain rejected.
+
+For command inspection without a guest:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 -DryRun -BuildEfi -EnableM04TypeManagerModuleRegistrationProbe
+```
+
+The 45-record protocol covers undersized-storage rejection, one registration,
+slot-derived handle/48-byte ABI consumption, present-empty versus missing
+sections, repeated/foreign registration rejection and retained readback.
+Canaries occupy the final 32 bytes of the admitted owner buffer after
+registration; they are internal checks, not external guards or a stack probe.
+
+[Step985](../done/step985.md) records the complete eleven-module managed batch
+(194 starts/195 passes/zero failures), the complete five-group EFI initializer
+(5 starts/6 passes/zero failures), both default/enabled NativeAOT publications
+and a successful normal HostTests Release build. These are focused host and
+publication results. Current emitted-code/ABI/stack review, the complete common
+suite and fresh default/enabled QEMU captures remain required. No GC-static
+initialization, root enumeration, collecting GC or hosted runtime is accepted.

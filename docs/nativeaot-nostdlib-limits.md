@@ -1413,3 +1413,19 @@ concurrency and hardware-fault rollback are not implemented by this contract.
 Callers retain actual mapping and lifetime obligations; numeric admission is
 not a mapping probe. `TypeManagerRtrScans` remains Deferred and Gates3/4 remain
 **Fail**; #81/#82 and hosted .NET/Kestrel remain unaccepted.
+
+[Step985](../done/step985.md) adds the default-off EFI adapter for this contract.
+It uses the original M01 capture and typed mapping, fixed 4096-byte storage,
+the actual slot-derived handle and all six qwords of the separate ABI. Its
+controlled mapped tests exercise the adapter and consumer, including rejected
+short/repeated/foreign registration and the internal post-registration
+canaries. The exact reviewed core enters the explicit no-stdlib source closure
+without relaxing generic source guards.
+
+The full eleven-module managed batch passes 194 starts/195 passes/zero failures;
+the complete five-group native integration initializer passes 5 starts/6 passes
+with actual default/enabled publications. Both builds and the normal HostTests
+Release build succeed. This does not establish emitted native layout, stack
+safety or guest registration: independent image analysis, clean-head common
+validation and fresh QEMU evidence remain pending. The runtime ledger stays
+Deferred and the preceding unsupported-feature boundaries remain unchanged.

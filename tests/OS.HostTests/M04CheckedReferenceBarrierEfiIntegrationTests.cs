@@ -449,8 +449,8 @@ internal static class M04CheckedReferenceBarrierEfiIntegrationTests
     {
         string root=HostToolProcess.FindRepositoryRoot(),directory=Scratch("profiles");var project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
         string[] flags=project.Descendants("Error").SelectMany(x=>System.Text.RegularExpressions.Regex.Matches(x.Attribute("Condition")?.Value??"",@"\$\((Enable[^)]+)\)").Select(m=>m.Groups[1].Value)).Distinct(StringComparer.Ordinal).ToArray();
-        Need(flags.Length==39&&Chain.Length==8,"exact all39 profile vector/eight prerequisites");
-        string[] conflicts=flags.Except(Chain.Append(Flag),StringComparer.Ordinal).ToArray();Need(conflicts.Length==30,"exact30 unrelated profiles");
+        Need(flags.Length==40&&Chain.Length==8,"exact all40 profile vector/eight prerequisites");
+        string[] conflicts=flags.Except(Chain.Append(Flag),StringComparer.Ordinal).ToArray();Need(conflicts.Length==31,"exact31 unrelated profiles");
         var conditions=project.Descendants("Error").Select(x=>x.Attribute("Condition")!.Value).ToHashSet(StringComparer.Ordinal);
         foreach(string conflict in conflicts)Need(conditions.Contains("'$("+Flag+")' == 'true' and '$("+conflict+")' == 'true'")&&conditions.Contains("'$("+conflict+")' == 'true' and '$("+Flag+")' == 'true'"),"both conflict directions "+conflict);
         foreach(string required in Chain)Need(conditions.Contains("'$("+Flag+")' == 'true' and '$("+required+")' != 'true'"),"prerequisite "+required);
@@ -460,7 +460,7 @@ internal static class M04CheckedReferenceBarrierEfiIntegrationTests
         {
             string[] mode=script.EndsWith("run-qemu-smoke.ps1",StringComparison.Ordinal)?["-DryRun","-BuildEfi"]:script.EndsWith("build-efi-shell.ps1",StringComparison.Ordinal)?["-PreflightOnly"]:["-EfiArtifact","missing.EFI"];
             Result r=Execute("powershell.exe",Script(script,[..mode,..invalid.Select(x=>"-"+x)]),Path.Combine(directory,(id++).ToString()));
-            Need(!r.TimedOut&&r.Code!=0&&(invalid.Contains("EnableM03FirmwareEntropySeedProbe",StringComparer.Ordinal)?r.Output.Contains("m03_firmware_entropy_profile_conflict property=EnableM01LiveAllocatorProbe",StringComparison.Ordinal):r.Output.Contains("m04_checked_reference_profile_",StringComparison.Ordinal)),"first checked reference guard "+r.Output+r.Error);
+            Need(!r.TimedOut&&r.Code!=0&&(invalid.Contains("EnableM04TypeManagerModuleRegistrationProbe",StringComparer.Ordinal)?r.Output.Contains("m04_type_manager_profile_conflict property=EnableM01LiveAllocatorProbe",StringComparison.Ordinal):invalid.Contains("EnableM03FirmwareEntropySeedProbe",StringComparer.Ordinal)?r.Output.Contains("m03_firmware_entropy_profile_conflict property=EnableM01LiveAllocatorProbe",StringComparison.Ordinal):r.Output.Contains("m04_checked_reference_profile_",StringComparison.Ordinal)),"first checked reference guard "+r.Output+r.Error);
         }
         foreach(string[] wrong in new[]{new[]{"-DryRun"},new[]{"-DryRun","-BuildEfi","-SkipImageBuild"},new[]{"-DryRun","-BuildEfi","-M01RawObservationLog","forbidden.log"}})
         {Result r=Execute("powershell.exe",Script("scripts/run-qemu-smoke.ps1",[..wrong,..enabled.Select(x=>"-"+x)]),Path.Combine(directory,(id++).ToString()));Need(!r.TimedOut&&r.Code!=0&&r.Output.Contains("m04_checked_reference_requires_build_and_original_capture",StringComparison.Ordinal),r.Output);}
@@ -561,9 +561,9 @@ internal static class M04CheckedReferenceBarrierEfiIntegrationTests
             Need(r.Output.Contains("TEST_PASS efi.shell.publish",StringComparison.Ordinal)&&r.Output.Contains("TEST_PASS efi.artifact.verify",StringComparison.Ordinal),"complete actual publication and verifier");
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"}.Concat(enabled?new[]{".references.obj"}:[]))File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
             foreach(var file in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(directory,file.Item2));
-            using var json=System.Text.Json.JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=json.RootElement;var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==103,"exact102 raw inputs");
+            using var json=System.Text.Json.JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=json.RootElement;var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==106,"exact106 raw inputs");
             foreach(var input in inputs){string path=input.GetProperty("path").GetString()!;byte[] bytes=File.ReadAllBytes(Path.Combine(root,path));Need(Hash(bytes).Equals(input.GetProperty("sha256").GetString(),StringComparison.OrdinalIgnoreCase),"actual source "+path);string copy=Path.Combine(directory,"source",path);Directory.CreateDirectory(Path.GetDirectoryName(copy)!);File.WriteAllBytes(copy,bytes);}
-            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==89,"exact88 Compile");var actual=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Need(actual.Length==39,"exact39 flags");
+            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==92,"exact92 Compile");var actual=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Need(actual.Length==40,"exact40 flags");
             foreach(var f in actual)Need(f.Value.GetString()==(flags.Contains(f.Name,StringComparer.Ordinal)?"true":"false"),"actual profile "+f.Name);
             using var pe=new System.Reflection.PortableExecutable.PEReader(File.OpenRead(Path.Combine(directory,"OS.dll")));var md=pe.GetMetadataReader();Need(md.AssemblyReferences.Count==0,"real no-stdlib zero AssemblyRefs");
             var methods=md.TypeDefinitions.SelectMany(h=>md.GetTypeDefinition(h).GetMethods()).Select(h=>md.GetMethodDefinition(h)).ToArray();

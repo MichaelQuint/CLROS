@@ -370,15 +370,41 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
     private static void W32(byte* p, uint v) { W16(p, (ushort)v); W16(p + 2, (ushort)(v >> 16)); }
     private static void W64(byte* p, ulong v) { W32(p, (uint)v); W32(p + 4, (uint)(v >> 32)); }
 
+    private static string[] ClosureSources(string[] projectSources, string core)
+    {
+        List<string> sources = new();
+        HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string source in projectSources)
+        {
+            string canonical = Path.GetFullPath(source);
+            if (!seen.Add(canonical)) throw new InvalidOperationException("duplicate canonical Compile path: " + canonical);
+            sources.Add(canonical);
+        }
+        string canonicalCore = Path.GetFullPath(core);
+        if (!seen.Contains(canonicalCore)) sources.Add(canonicalCore);
+        return sources.ToArray();
+    }
+
     private static void NoStdLib()
     {
         string root = HostToolProcess.FindRepositoryRoot();
         string directory = Path.Combine(root, "artifacts", "host-tests", "m04-011-nostdlib-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
         string osProject = Path.Combine(root, "src", "OS", "OS.csproj");
-        string[] sources = XDocument.Load(osProject).Descendants("Compile").Select(x =>
-            Path.GetFullPath(Path.Combine(Path.GetDirectoryName(osProject)!, x.Attribute("Include")!.Value))).Append(
-            Path.Combine(root, "src", "OS.Kernel", "Runtime", "TypeManagerModuleMetadataLiveNativeAOTImage.cs")).ToArray();
+        string core = Path.Combine(root, "src", "OS.Kernel", "Runtime", "TypeManagerModuleMetadataLiveNativeAOTImage.cs");
+        string other = Path.Combine(root, "src", "OS", "Runtime", "MinimalRuntime.cs");
+        Check(ClosureSources(new[] { other }, core).SequenceEqual(new[] { other, core }), "closure appends missing core in order");
+        Check(ClosureSources(new[] { core, other }, core).SequenceEqual(new[] { core, other }), "closure preserves present core order");
+        bool duplicateRejected = false;
+        try { ClosureSources(new[] { other, Path.Combine(root, "src", "OS", "Runtime", ".", "MinimalRuntime.cs") }, core); }
+        catch (InvalidOperationException) { duplicateRejected = true; }
+        Check(duplicateRejected, "closure rejects canonical project duplicates");
+        duplicateRejected = false;
+        try { ClosureSources(new[] { core, core.ToUpperInvariant() }, core); }
+        catch (InvalidOperationException) { duplicateRejected = true; }
+        Check(duplicateRejected, "closure rejects case-only core duplicates");
+        string[] sources = ClosureSources(XDocument.Load(osProject).Descendants("Compile").Select(x =>
+            Path.GetFullPath(Path.Combine(Path.GetDirectoryName(osProject)!, x.Attribute("Include")!.Value))).ToArray(), core);
         var identities = sources.Append(osProject).Select(p => new { Path = p, Bytes = new FileInfo(p).Length,
             Sha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(p))) }).ToArray();
         File.WriteAllText(Path.Combine(directory, "inputs.json"), JsonSerializer.Serialize(identities, new JsonSerializerOptions { WriteIndented = true }));
