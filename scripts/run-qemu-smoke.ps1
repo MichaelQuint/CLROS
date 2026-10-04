@@ -2359,7 +2359,9 @@ function Assert-M03FirmwareEntropyTranscript {
         if(-not [string]::Equals($pre,'BB50E913C752428AE49AE6C20879196F507926CC685CAD83986494244299D124',[StringComparison]::Ordinal)){throw 'm03_entropy_firmware_prefix'}
         if($Missing){if($bytes.Length -ne $end){throw 'm03_entropy_missing_eof'}}else{
             $suffix=[BitConverter]::ToString($sha.ComputeHash($bytes,$end,$bytes.Length-$end)).Replace('-','')
-            if($bytes.Length-$end -ne 6945 -or -not [string]::Equals($suffix,'BFBB6B92A5EEE7728E1AA54A2A4D262135215D7D2F267696E508A23BD514C61D',[StringComparison]::Ordinal)){throw 'm03_entropy_firmware_suffix'}
+            $fullSuffix=$bytes.Length-$end -eq 6945 -and [string]::Equals($suffix,'BFBB6B92A5EEE7728E1AA54A2A4D262135215D7D2F267696E508A23BD514C61D',[StringComparison]::Ordinal)
+            $shortSuffix=$bytes.Length-$end -eq 251 -and [string]::Equals($suffix,'011BC86409F7A01C1494F57146920B37184A02063B7E995B44A99C6B083E6615',[StringComparison]::Ordinal)
+            if(-not ($fullSuffix -or $shortSuffix)){throw 'm03_entropy_firmware_suffix'}
         }
     } finally {$sha.Dispose()}
     $owned=$text.Substring($start,$end-$start)
@@ -2426,11 +2428,13 @@ function Assert-M03FirmwareEntropyRunnerResult {
     $serialPath=if([IO.Path]::IsPathRooted($SerialLogPath)){$SerialLogPath}else{Join-Path $root $SerialLogPath}
     Assert-M03FirmwareEntropyTranscript $serialPath
     $raw=[IO.File]::ReadAllBytes($serialPath);$serial=(New-Object Text.UTF8Encoding($false,$true)).GetString($raw)
-    # The exact accepted firmware byte fixture contributes two prefix lines,
-    # two suffix lines and one unterminated console line; only the latter and
-    # first prefix line contain non-marker bytes. Derive byte counts directly.
+    # Both admitted suffixes contain two firmware lines. Only the full variant
+    # adds an unterminated console drawing; the preceding raw check binds every byte.
+    $suffixBytes=$raw.Length-($serial.IndexOf("OS_SMOKE_PASS`r`n",[StringComparison]::Ordinal)+15)
+    $streamLines=32;$invalidLines=2
+    if($suffixBytes -eq 251){$streamLines=31;$invalidLines=1}
     $invalid=0;foreach($b in $raw){if($b -ne 9 -and $b -ne 10 -and $b -ne 13 -and ($b -lt 32 -or $b -gt 126)){$invalid++}}
-    $stream='SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+$raw.Length+' lines=32 invalidBytes='+$invalid+' invalidLines=2 orderedSeen=27 outOfOrder=0 uniqueSeen=27 duplicateUnique=0'
+    $stream='SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+$raw.Length+' lines='+$streamLines+' invalidBytes='+$invalid+' invalidLines='+$invalidLines+' orderedSeen=27 outOfOrder=0 uniqueSeen=27 duplicateUnique=0'
     if(-not [string]::Equals($lines[10],$stream,[StringComparison]::Ordinal)){throw 'm03_entropy_stream_accounting'}
     $summaryPath=if([IO.Path]::IsPathRooted($SummaryLogPath)){$SummaryLogPath}else{Join-Path $root $SummaryLogPath}
     $summary=New-Object 'System.Collections.Generic.List[string]';$summary.Add('QEMU_SMOKE_STATUS pass')

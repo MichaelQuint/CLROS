@@ -2414,3 +2414,16 @@ terminal failure branch. Six corrected legacy expectations retain all
 original groups and assertions for the complete common suite. Full common
 completion and fresh default/provider/missing-provider guest acceptance remain
 pending; no firmware-exit or hosted-.NET gate is advanced here.
+
+[Step984](../done/step984.md) corrects the positive firmware envelope after the
+first real entropy capture completed all 27 owned records but ended before the
+OVMF menu drawing. It admits only two exact observed suffixes: 251 bytes
+(SHA256 `011BC86409F7A01C1494F57146920B37184A02063B7E995B44A99C6B083E6615`)
+or 6945 bytes
+(`BFBB6B92A5EEE7728E1AA54A2A4D262135215D7D2F267696E508A23BD514C61D`).
+Stream counts follow the admitted variant; the owned protocol and negative
+EOF contract are unchanged. The complete five-module regression passes
+201 starts/202 passes/zero failures, including 329 raw/lifecycle controls and
+both NativeAOT publications. The original capture remains failed; the missing
+lane did not run. A new final-head common suite and three fresh captures remain
+required. No seed values or entropy-quality claims are added.

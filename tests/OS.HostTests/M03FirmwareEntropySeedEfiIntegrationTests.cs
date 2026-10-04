@@ -217,6 +217,15 @@ internal static class M03FirmwareEntropySeedEfiIntegrationTests
         Result run=Process(Path.Combine(directory,"run"),"powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-File",control,"-Source",copy,"-Directory",directory);Passed(run);
         Need(run.Output.Contains("TEST_PASS m03.entropy.transcript controls=",StringComparison.Ordinal)&&run.Output.Contains("stderrWhitespaceRejected=true",StringComparison.Ordinal),"complete strict raw/lifecycle controls");
         foreach(var input in inputs)Need(Hash(input.Path)==input.Sha256,"unchanged transcript input "+input.Path);
+        Result dry=Process(Path.Combine(directory,"streamer-dryrun"),"powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-File",script,"-BuildEfi","-"+Flag,"-FirmwareRngSource","virtio","-DryRun");Passed(dry);
+        string[] Vector(string prefix)=>dry.Output.Split('\n').Single(x=>x.StartsWith(prefix+" ",StringComparison.Ordinal))[(prefix.Length+1)..].TrimEnd('\r').Split(';').Select(x=>x.Trim()).ToArray();
+        foreach(var shape in new[]{(Name:"full",Lines:32,InvalidBytes:207,InvalidLines:2),(Name:"short",Lines:31,InvalidBytes:15,InvalidLines:1)})
+        {
+            byte[] framed=File.ReadAllBytes(Path.Combine(directory,shape.Name+"-framed.serial.bin"));
+            var state=new OS.Tools.QemuRunner.SerialMarkerStateMachine(Vector("REQUIRED_MARKERS"),Vector("FORBIDDEN_MARKERS"),orderedMarkers:Vector("ORDERED_MARKERS"),uniqueMarkers:Vector("UNIQUE_MARKERS"));
+            Need(state.Feed(framed).Succeeded,"complete framed "+shape.Name+" Feed");var actual=state.Complete();
+            Need(actual.Passed&&actual.TotalBytes==framed.Length&&actual.LinesProcessed==shape.Lines&&actual.InvalidByteCount==shape.InvalidBytes&&actual.InvalidNoiseLineCount==shape.InvalidLines&&actual.OrderedSeenCount==27&&actual.UniqueSeenCount==27,"complete framed "+shape.Name+" actual streamer accounting");
+        }
         Need(Hash(script)==Hash(copy),"original production parser remained unchanged");
     }
 
@@ -246,6 +255,11 @@ internal static class M03FirmwareEntropySeedEfiIntegrationTests
         $serialPath=Join-Path $Directory 'serial.log';$summaryPath=Join-Path $Directory 'summary.log';$cases=0
         function Bytes([string[]]$value){return [Text.Encoding]::ASCII.GetBytes(($value -join "`r`n")+"`r`n")}
         $good=Bytes $lines
+        $shortSuffix=Bytes @('BdsDxe: loading Boot0000 "UiApp" from Fv(7CB8BDC9-F8EB-4F34-AAEA-3EE4AF6516A1)/FvFile(462CAA21-7614-4503-836E-8AB6F4662331)',
+            'BdsDxe: starting Boot0000 "UiApp" from Fv(7CB8BDC9-F8EB-4F34-AAEA-3EE4AF6516A1)/FvFile(462CAA21-7614-4503-836E-8AB6F4662331)')
+        if($shortSuffix.Length -ne 251 -or $suffix.Length -ne 6945){throw 'literal suffix extents'}
+        [IO.File]::WriteAllBytes((Join-Path $Directory 'full-framed.serial.bin'),[byte[]]($preamble+$good+$suffix))
+        [IO.File]::WriteAllBytes((Join-Path $Directory 'short-framed.serial.bin'),[byte[]]($preamble+$good+$shortSuffix))
         function Check([byte[]]$protocol,[bool]$expected,[byte[]]$pre=$preamble,[byte[]]$post=$suffix){
             [IO.File]::WriteAllBytes($serialPath,[byte[]]($pre+$protocol+$post));$accepted=$true
             try{Assert-M03FirmwareEntropyTranscript $serialPath}catch{$accepted=$false}
@@ -268,6 +282,17 @@ internal static class M03FirmwareEntropySeedEfiIntegrationTests
         Check $good $false ([byte[]]@(0xFF))
         Check $good $false ([Text.Encoding]::ASCII.GetBytes('arbitrary'))
         Check $good $false $preamble ([byte[]]($suffix+65))
+        Check $good $true $preamble $shortSuffix
+        foreach($shape in @('full','short')){
+            $post=if($shape -ceq 'full'){$suffix}else{$shortSuffix}
+            foreach($index in @(0,($post.Length-1))){$changed=[byte[]]$post.Clone();$changed[$index]=$changed[$index] -bxor 1;Check $good $false $preamble $changed}
+            Check $good $false $preamble ([byte[]]($post+65))
+            Check $good $false $preamble ([byte[]]($post+13+10))
+            Check $good $false $preamble ([byte[]]$post[0..($post.Length-2)])
+        }
+        Check $good $false $preamble ([byte[]]@())
+        $firstCr=[Array]::IndexOf($shortSuffix,[byte]13)
+        foreach($length in @(1,$firstCr,($firstCr+2),($shortSuffix.Length-1),($shortSuffix.Length+1),($suffix.Length-1))){Check $good $false $preamble ([byte[]]$suffix[0..($length-1)])}
         Check $good $true
         $missing=@($lines[0..13])+@('M03_ENTROPY_DISCOVERY status=9223372036854775822 calls=1 found=0','M03_ENTROPY_ACQUIRE status=0 calls=0 requested=32','M03_ENTROPY_RETAIN bytes=0 scratchCleared=0 guards=64 tails=64 published=0','M03_ENTROPY_UNAVAILABLE retainedUnchanged=1 published=0 rngCalls=0','TEST_FAIL m03.003.efi source_unavailable')
         function Missing([byte[]]$protocol,[bool]$expected){[IO.File]::WriteAllBytes($serialPath,[byte[]]($preamble+$protocol));$accepted=$true;try{Assert-M03FirmwareEntropyTranscript $serialPath -Missing}catch{$accepted=$false};if($accepted -ne $expected){throw ('missing-provider grammar case '+$script:cases)};$script:cases++}
@@ -305,6 +330,18 @@ internal static class M03FirmwareEntropySeedEfiIntegrationTests
         foreach($extra in @('TEST_FAIL x','OS_SMOKE_FAIL','QEMU_PROCESS_CLEANUP_FAILED','TEST_START qemu.smoke')){Runner @($runner+$extra) $false}
         foreach($pair in @(@('QEMU_SMOKE_STATUS pass','QEMU_SMOKE_STATUS fail'),@('FAIL_REASON none','FAIL_REASON timeout'),@('MISSING_MARKERS none','MISSING_MARKERS x'),@('DUPLICATE_UNIQUE_MARKERS none','DUPLICATE_UNIQUE_MARKERS x'),@(('SERIAL_LOG '+$serialPath),'SERIAL_LOG different'))){if($pair.Count -ne 2){throw 'summary mutation pair'};$mutated=$summaryText.Replace($pair[0],$pair[1]);if([string]::Equals($mutated,$summaryText,[StringComparison]::Ordinal)){throw 'summary mutation unchanged'};[IO.File]::WriteAllText($summaryPath,$mutated,[Text.Encoding]::UTF8);Runner $runner $false}
         [IO.File]::WriteAllText($summaryPath,$summaryText+"OS_SMOKE_FAIL`r`n",[Text.Encoding]::UTF8);Runner $runner $false
+        [IO.File]::WriteAllText($summaryPath,$summaryText,[Text.Encoding]::UTF8);Runner $runner $true
+        foreach($pair in @(@('invalidLines=2','invalidLines=1'),@('invalidBytes=207','invalidBytes=15'))){$copy=@($runner);$copy[13]=$copy[13].Replace($pair[0],$pair[1]);Runner $copy $false}
+        $shortRunner=@($runner);$shortRunner[13]='SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+($preamble.Length+$good.Length+$shortSuffix.Length)+' lines=31 invalidBytes=15 invalidLines=1 orderedSeen=27 outOfOrder=0 uniqueSeen=27 duplicateUnique=0'
+        $shortSummary=@($summary|Where-Object{-not $_.StartsWith('SERIAL_TAIL_LINE ',[StringComparison]::Ordinal)})
+        $shortSerial=[Text.Encoding]::UTF8.GetString([byte[]]($preamble+$good+$shortSuffix))
+        foreach($line in @($shortSerial.Split([string[]]@("`r`n"),[StringSplitOptions]::None)|Where-Object {$_.Trim().Length -gt 0}|Select-Object -Last 8)){$value=$line.Trim();if($value.Length -gt 240){$value=$value.Substring(0,237)+'...'};$shortSummary+='SERIAL_TAIL_LINE '+$value}
+        $shortSummaryText=($shortSummary -join "`r`n")+"`r`n"
+        [IO.File]::WriteAllBytes($serialPath,[byte[]]($preamble+$good+$shortSuffix))
+        Runner $shortRunner $false # Correct short stream paired with the full firmware summary.
+        [IO.File]::WriteAllText($summaryPath,$shortSummaryText,[Text.Encoding]::UTF8);Runner $shortRunner $true
+        foreach($pair in @(@('lines=31','lines=32'),@('invalidLines=1','invalidLines=2'),@('invalidBytes=15','invalidBytes=207'))){$copy=@($shortRunner);$copy[13]=$copy[13].Replace($pair[0],$pair[1]);Runner $copy $false}
+        [IO.File]::WriteAllBytes($serialPath,[byte[]]($preamble+$good+$suffix));Runner $runner $false # Correct full stream paired with the short firmware summary.
         [IO.File]::WriteAllText($summaryPath,$summaryText,[Text.Encoding]::UTF8);Runner $runner $true
         ; # Empty stderr is enforced by the same native-command boundary used by this profile.
         Invoke-NativeCommand -RequireEmptyError -Command {& $env:ComSpec /d /c 'exit 0'}
