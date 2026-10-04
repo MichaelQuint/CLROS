@@ -229,6 +229,27 @@ SharpOS screenshots/done records used only as historical or behavioral context
 use `reference:test-only`. The separately GPL ManagedDoom fixture and WAD/media
 rights remain `reference:license-blocked`.
 
+## Stale blocker and progress audit
+
+[Step969](../done/step969.md) records the 2026-10-04 audit of all 255 live
+blocked issues: 253 had open declared prerequisites; the other two were the
+unclaimed M03/M04 tracking epics. The current resolver deliberately keeps
+those epics blocked. No implementation leaf became ready from this audit.
+
+The audit found one catalog state mismatch: M04-009/#78 was already reviewed,
+merged through PR531 and closed with `agent:done`, while the catalog still
+said open/claimed. Its desired state and agent label now match that accepted
+closure; live #78 is unchanged. M04-EPIC's current evidence now distinguishes
+the accepted bounded allocation milestones from unfinished runtime work.
+
+The current renderer emits unchecked dependency and child boxes independently
+of actual issue state. Read live state, dependencies and reviewed evidence
+instead of treating those boxes as blockers. Durable clarification comments
+on #57, #69 and #64 record their current progress and remaining prerequisites;
+no label, dependency or ownership change was made. A body-only checkbox edit
+would be overwritten by the current renderer. This audit does not change that
+renderer or apply a broad tracker synchronization.
+
 ## Milestone state policy
 
 [Step962](../done/step962.md) adds explicit milestone intent to the existing

@@ -5095,6 +5095,7 @@ internal static class EfiArtifactVerificationScriptTests
             ["EnableM04StringAllocationBeforeBindProbe"] = "false",
             ["EnableM04StringAllocationExhaustionProbe"] = "false",
             ["EnableM04StringAllocationInvalidLengthProbe"] = "false",
+            ["EnableM03MemoryMapCaptureProbe"] = "false",
             ["EnableM04IndependentEndianConformanceProbe"] = "false",
             ["EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"] =
                 "false",

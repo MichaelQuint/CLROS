@@ -9142,7 +9142,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M04: NativeAOT Runtime Correctness.",
-      "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
+      "currentEvidence": "Nine M04 keyed children (#70 through #78) are closed. Steps949,954 and964 record the bounded fixed-object, array and String guest milestones; allocation no longer has a blanket fail-fast-only status. Step967 records the noncollecting checked-slot/bulk host prerequisite, while #79 remains claimed for genuine returning helper ABI, object/slot authority and guest proof. Children #79 through #92 remain open. Metadata registration, collecting GC/root enumeration, dispatch, exceptions and general runtime completion remain unaccepted; Gate4 stays Fail. This epic remains a coordination tracker, with no implementation ownership.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -9926,7 +9926,7 @@
         "M04-008"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -10007,7 +10007,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves only \"Implement and guest-test string allocation and character storage.\" It does not by itself prove the M04 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M04-010",

@@ -984,8 +984,12 @@ HostTests compilation passes.
 
 Final sourcev9 only normalizes the new authority file line endings and three
 derived source pins; v8 test/artifact records retain their original inputs.
-The common full host gate, independent native ABI review and fresh default/
-enabled guests remain pending. #58/#532 stay open. This checkpoint does not
+Independent static native ABI review accepts the saved v8 images. The first
+common run at `1c37aa1` failed because the legacy verifier fixture omitted the
+new disabled M03 property; it was stopped after preserving the failed child
+inputs. [Step969](../done/step969.md) records the one-entry fixture repair.
+A new complete common host gate and fresh default/enabled guests remain
+pending. #58/#532 stay open. This checkpoint does not
 establish live capture observations, map-key freshness, real ExitBootServices,
 post-firmware ownership or completion of M03/Gate5.
 

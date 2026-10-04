@@ -2254,8 +2254,17 @@ plus the two unchanged memory-map modules passed 80 starts/81 passes/zero
 failures on its retained inputs; final normal HostTests compilation passes.
 Final v9 changes only the new authority file from CRLF to LF and refreshes
 three derived raw-source pins; the v8 artifact evidence remains tied to its
-original bytes. These are source, controlled-host and artifact results. Final same-image
-native ABI inspection, the common full suite and fresh guests remain pending.
+original bytes. Independent static inspection now accepts the saved v8 callback
+arguments/returns, stack alignment, original Capture/CopyPlan and complete
+copy/guard/tail readback. This does not execute firmware.
+
+[Step969](../done/step969.md) records the first common-run failure: the legacy
+artifact-verifier fixture omitted the new disabled M03 property, so its
+synthetic 92-property record failed the verifier's exact 93-property check.
+The repair adds only that false entry; verifier guards and all original
+scenarios remain unchanged. The failed run was stopped after its completed
+failing child inputs were archived. A new complete common host gate and fresh
+default/enabled guests remain required.
 
 The enabled ordinary smoke command is:
 
