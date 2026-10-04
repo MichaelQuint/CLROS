@@ -1014,9 +1014,10 @@ This is a bounded noncollecting host prerequisite. It supplies no runtime
 export, compiler reference-field association, outside-heap destination policy,
 special byref-helper ABI, GC polling, card table or collector. The common
 full suite now passes on `854a335` with 3,670 starts/3,671 passes/zero failures
-([step970](../done/step970.md)); actual returning native helper integration and
-its guest evidence remain pending. Issue #79 stays open; Gates3/4 remain
-**Fail** and no later runtime issue is unblocked by this host prerequisite.
+([step970](../done/step970.md)). The later bounded returning-helper and guest
+progress is recorded in [step977](../done/step977.md). Its live executing-stack
+canary requirement remains unmet: #79/#537 stay open and #80 stays blocked.
+Gates3/4 remain **Fail**.
 
 ### M02-014 source integration and terminal guest boundary
 
@@ -1622,9 +1623,17 @@ all have zero failures and native exit0. The latter two include fresh default
 and enabled NativeAOT artifacts. Earlier failed attempts and precise fixture
 repairs are retained in the step evidence.
 
-This is source, controlled-host and publication evidence. Independent native
-ABI/image association, a combined clean-head full suite and fresh default,
-reference and ACPI guest captures remain pending. No new live firmware result,
-real ExitBootServices, general GC, hosted .NET/Kestrel or cloud support follows.
-Issues #59/#539/#79/#536/#537 remain open; #60 and #80 remain blocked.
-Gates3/4/5 and the containing milestones remain incomplete.
+That checkpoint is historical focused evidence. [Step977](../done/step977.md)
+records the accepted clean `eeee523` common suite (3,692 starts/3,693 passes,
+zero failures and 16 READY lines), followed by three fresh default/reference/
+ACPI captures and separate native, raw/lifecycle and disk reviews. The bounded
+pre-EBS five-table ACPI copy and #536 writer prerequisite are accepted; reviewed
+merge and closure of #59/#539/#536 remain pending. #60 becomes eligible only
+after #59 is merged and closed with evidence.
+
+The reference capture demonstrates the finite returning-helper route, but
+#537's real executing-stack canary requirement is not satisfied by static stack
+bounds, initial RSP containment or static-context guards. #79/#537 remain open
+and claimed; #80 remains blocked. No general GC, real ExitBootServices,
+post-firmware access, hosted .NET/Kestrel or cloud support follows. Gates3/4/5
+and the containing milestones remain incomplete.

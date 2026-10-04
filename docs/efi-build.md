@@ -85,7 +85,7 @@ boundary.
 - `OS.Kernel` has a host-tested `UefiMemoryMapCopyPlan` contract that validates the copy from firmware-owned memory-map buffer to OS-owned storage before the EFI shell copies bytes.
 - `OS.Kernel` has a host-tested `UefiMemoryMapCapture` helper that owns the no-stdlib EFI memory-map capture/copy mechanics and reports copy-plan statuses for rejected metadata.
 - M03-001's [step961](../done/step961.md) adds host regression coverage without changing the EFI capture path. Its actual no-stdlib closure uses the current `MinimalRuntime.cs`, `MethodImplAttribute.cs`, `BootHandoffRecord.cs`, `UefiMemoryMapCapture.cs` and `UefiMemoryMapCopyPlan.cs`; compilation and metadata inspection report zero AssemblyRefs. The complete new and existing host memory-map initializers pass. No new EFI artifact, guest marker or live firmware result is claimed by that step; the later native observation and QEMU evidence are recorded in [step970](../done/step970.md).
-- M03-002's [step972](../done/step972.md) adds the host-only `RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrap` composition and complete regressions for retaining five full ACPI tables. It consumes caller-supplied snapshots through `Span<T>` and the existing `ReadOnlyMemory<byte>` table-source contract. That managed host composition remains outside the explicit EFI closure. The separate no-stdlib adapter and its default/enabled publications are now integrated in [step973](../done/step973.md). Neither the host result nor compilation demonstrates live MADT/HPET copies, post-exit access or `CLROS_M03_002_READY`; #59/#539 remain open pending independent native review, the combined suite and real QEMU evidence.
+- M03-002's [step972](../done/step972.md) adds the host-only `RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrap` composition and complete regressions for retaining five full ACPI tables. It consumes caller-supplied snapshots through `Span<T>` and the existing `ReadOnlyMemory<byte>` table-source contract. That managed host composition remains outside the explicit EFI closure. The separate no-stdlib adapter and its default/enabled publications are now integrated in [step973](../done/step973.md). Those host and publication results alone did not demonstrate live copies. [Step977](../done/step977.md) adds the accepted common gate and fresh five-role ACPI/native/raw/lifecycle/disk evidence before firmware exit. Reviewed merge and #59/#539 closure remain pending; no post-exit access is proved.
 - `OS.Kernel` has a host-tested `EfiBootHandoffValidator` contract that mirrors the live EFI numeric validation path without string formatting or managed allocation requirements.
 - `OS.Kernel` has a host-tested `EfiMemoryMapNormalizer` contract for live no-stdlib summary normalization without arrays or `Span<T>`.
 - `OS.Kernel` has a host-tested `BootMemoryRegionMaterializer` contract for live no-stdlib memory-region materialization without arrays, managed allocation, or exception handling.
@@ -2319,16 +2319,20 @@ emits three returning helper thunks with explicit callback relocations; the
 managed bulk route shares the same POD admission core. The source binds six
 allocation roles and a finite 23-event sequence. Default and enabled publication
 checks pass with zero managed AssemblyRefs, the original 336-byte serializer
-and the enabled 1,645-byte reference object. Compiler field layouts, complete
-linked helper/callback ABI, stack and SIMD behavior require independent review
-of the actual native images before guest execution.
+and the enabled 1,645-byte reference object. Compiler field layouts and linked
+helper/callback ABI, stack and SIMD behavior
+were subsequently joined to the fresh images in [step977](../done/step977.md).
+That static proof does not satisfy the still-missing live stack-canary check.
 
 The full reference integration initializer passes 5 starts/6 passes/zero
 failures; the full ACPI initializer passes 4 starts/5 passes/zero failures.
 Each includes actual default/enabled NativeAOT publications. The preceding
 managed batch passes 82 starts/83 passes/zero failures. These focused results
-do not replace the combined clean-head suite or fresh QEMU/OVMF captures.
-No real ExitBootServices, general GC, Kestrel or readiness gate is promoted.
+remain separate from the later accepted `eeee523` common
+suite and three fresh captures in [step977](../done/step977.md). The ACPI copy
+and writer prerequisite are accepted within scope; reference #79/#537 remain
+open for executing-stack canary evidence. No real ExitBootServices, general
+GC, Kestrel or readiness gate is promoted.
 
 [Step975](../done/step975.md) corrects the reference READY marker to end at
 the complete `allocations=6` token. The runner matches complete tokens; the
@@ -2347,4 +2351,6 @@ assert every added conflict, including the IDTR diagnostic text. All eight
 complete initializers pass together (37 cases, 40 starts, 41 passes and zero
 failures), including the original default/enabled IDTR NativeAOT publications.
 The earlier combined run failed on the stale checked-port count and remains
-failed evidence. A fresh combined run and final guest reviews are still required.
+failed evidence. [Step977](../done/step977.md) records the later accepted clean
+common gate and guest reviews; the reference stack-canary requirement remains
+open rather than being waived by those results.

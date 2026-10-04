@@ -207,6 +207,15 @@ and the reachable local Gitea tracker:
   This also completes the common-host prerequisite for #58, whose separate
   native map observation remains pending. Reviewed merge and tracker closure
   remain separate; general runtime and hosted-tier gates remain unpromoted.
+- [Step977](../done/step977.md) records the clean `eeee523` common suite
+  (3,692 starts/3,693 passes/zero failures, 16 READY lines) and three fresh
+  default/reference/ACPI captures with separate native, raw/lifecycle and disk
+  review. The bounded pre-EBS five-table ACPI copy and #536 COFF-writer
+  prerequisite are accepted; reviewed merge and #59/#539/#536 closure remain
+  pending. The reference helper path has actual bounded guest progress, but
+  #79/#537 stay claimed because real executing-stack canary evidence is missing;
+  #80 stays blocked. #60 is eligible only after #59 closes with merged evidence.
+  No general GC, real EBS, post-firmware operation or hosted runtime is proved.
 - `scripts/check-naming.ps1` enumerates admitted files once for its naming and
   source-firewall checks. It prunes excluded directory names before descent,
   skips directory reparse points, retains the provider's default hidden-file

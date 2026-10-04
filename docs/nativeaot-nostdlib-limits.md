@@ -234,7 +234,7 @@ allocation, GC, dispatch, exception or runtime-completion requirements.
 | Object allocation helpers | Bounded opt-in EFI allocation guest evidence accepted | Step940 proves the fixed caller-buffer leaf over the original #75 retained authority. Step946 adds the real profile-bound `RhpNewFast` adapter. Step949 accepts the complete host suite and five fresh QEMU profiles, including four compiled-new/six direct routes, before-bind rejection and exhaustion, with independent metadata/native/prefix/transcript/lifecycle/disk review. The general `ObjectAllocation` gate remains deferred; no general heap or GC is established |
 | Array allocation helpers | General support deferred; bounded opt-in EFI guest evidence accepted | Step952 adds the shared retained-page SZ-array leaf and separately classified `EfiSzArrayAllocation` exports. Step954 accepts the complete host gate and eight fresh profiles with independent native/metadata/prefix, transcript/lifecycle and disk review. Genuine byte/long allocations, length/index/store readback, before-bind rejection and shared-page exhaustion are bounded guest observations. General `ArrayAllocation` completion, managed reference stores and GC remain deferred |
 | String allocation helpers | Bounded retained-page EFI String guest accepted | `StringAllocation` remains incomplete. Step964 accepts the separately classified `EfiStringAllocation` path, compiled constructors and UTF-16 storage, with default/fixed/array regressions and three String rejection cases; general String/BCL, GC and write barriers remain unsupported |
-| Write barriers | General runtime support deferred; bounded host prerequisite tested | Ledger entry `WriteBarriers` remains incomplete. Step967 adds retained-page opaque-word stores/moves; no runtime exports, authenticated reference fields or collecting-GC barrier support |
+| Write barriers | General runtime support deferred; bounded returning-helper guest progress | Step967's opaque-word host leaf remains distinct from step977's profile-bound authenticated reference route and managed bulk bridge. Ledger entry `WriteBarriers` remains incomplete; live executing-stack canary proof is still missing, and no collecting-GC barrier support is established |
 | Interface dispatch | Deferred | Ledger entry `InterfaceDispatch`; EFI type-cast helpers fail fast and do not prove interface dispatch |
 | Class constructors | Deferred | Ledger entry `ClassConstructors`; `NativeAotClassConstructorStateTable` proves caller-owned state transitions, cycle detection, duplicate/missing/capacity errors, failed-cctor preservation, and caller-owned `NATIVEAOT_CCTOR_STATE` diagnostic formatting. `NativeAotClassConstructorRunnerPreflight` proves ready/default/failed/pending/missing-metadata preflight status, caller-owned `NATIVEAOT_CCTOR_RUNNER_PREFLIGHT` diagnostic formatting, and host-tested `BootSequence` readiness markers only. `NativeAotClassConstructorWorkItemPlanner` now proves caller-owned work-item metadata planning from already-supplied target tokens plus caller-owned `NATIVEAOT_CCTOR_WORK_ITEMS` diagnostic formatting and host-tested `NATIVEAOT_CCTOR_WORK_ITEMS_READY` / `NATIVEAOT_CCTOR_WORK_ITEMS_NOT_READY` BootSequence readiness markers while preserving no-delegate/no-reflection/no-execution boundaries. No cctor runner invocation, constructor execution, metadata discovery, or constructor-body failure diagnostics is implemented |
 | Thread statics | Deferred | Ledger entry `ThreadStatics`; no TLS bootstrap or NativeAOT thread-static base helper exists |
@@ -784,9 +784,10 @@ and cursor bytes, and measure zero warmed CLR allocation. The normal host-test
 build and actual eleven-source C#14/.NET10 no-stdlib compile pass, with zero
 AssemblyRefs and four inspected leaf IL bodies. The clean common suite on
 `854a335` also passes 3,670 starts/3,671 passes/zero failures
-([step970](../done/step970.md)). These are host/compiler results; actual returning
-native helper integration and its guest proof remain pending. Issue #79 and
-the general `WriteBarriers` ledger remain incomplete; Gate4 stays **Fail**.
+([step970](../done/step970.md)). These remain host/compiler results. The later
+returning-helper guest progress is recorded in [step977](../done/step977.md),
+with live executing-stack canary proof still missing. Issue #79 and the general
+`WriteBarriers` ledger remain incomplete; Gate4 stays **Fail**.
 
 The separate #536 host-tool prerequisite adds an explicit opt-in to
 `Amd64CoffWriter` for bounded REL32 fixups to undefined external functions.
@@ -795,10 +796,11 @@ serializer remains exactly 336 bytes with its original hash. The complete new
 writer and unchanged serializer initializers passed 2 starts/3 passes/zero
 failures on their retained isolated inputs; the imported exact source also
 builds in the canonical generator and HostTests projects. [Step971](../done/step971.md)
-records this integration and its earlier test failure. The combined final
-common gate and reviewed merge remain pending. Encoding an object file does
-not establish a returning barrier, linked callback, register/stack/SIMD
-preservation, collecting GC or a guest result; #79/#536/#537 remain open.
+records this integration and its earlier test failure. The combined common gate
+now passes at `eeee523`; [step977](../done/step977.md) accepts this bounded
+host-tool prerequisite, with reviewed merge and #536 closure still pending.
+Encoding the object alone does not prove a returning barrier or runtime ABI.
+The separate #79/#537 work remains open pending live stack-canary evidence.
 
 ## Tests
 
@@ -1337,9 +1339,17 @@ The complete focused managed batch passes 82 starts/83 passes/zero failures;
 the complete reference-EFI initializer passes 5 starts/6 passes/zero failures,
 including its actual mapped core child and fresh default/enabled publications.
 The earlier host-only contract and general WriteBarriers ledger boundary remain
-distinct. Source/helper generation and publication are not proof of the live
-special helper ABI. Independent actual-image metadata, field/layout, relocation,
-callback/stack and SIMD reviews are still pending, as are the combined suite
-and guest captures. No collecting GC, wider-vector preservation, unwind support,
-real ExitBootServices or hosted runtime is claimed. Gates3/4 remain **Fail**;
-#79/#536/#537 stay open and #80 remains blocked.
+distinct. [Step977](../done/step977.md) records the accepted `eeee523` common
+suite and fresh reference capture: six genuine allocation roles, 23 callback
+events and five operation records in the strict 70-record body. Fresh managed
+metadata and whole-image/method/relocation joins bind the reviewed special-helper,
+callback and lower-128-bit XMM/MXCSR analysis to this image; production-contract
+numeric replay is not an independent numeric oracle.
+
+The static whole-call bounds are 9,456 bytes for special-helper routes and
+9,072 for bulk, within the 135,168-byte owned stack. Initial RSP containment and
+static-context guards were observed, but no actual executing-stack sentinel
+was checked. That unmet #537 acceptance requirement keeps #79/#537 open and
+claimed and #80 blocked. No collecting GC, wider-vector preservation, unwind
+support, real ExitBootServices or hosted runtime is claimed; Gates3/4 remain
+**Fail**.
