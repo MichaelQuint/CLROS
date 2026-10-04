@@ -1017,8 +1017,10 @@ full suite now passes on `854a335` with 3,670 starts/3,671 passes/zero failures
 ([step970](../done/step970.md)). The later bounded returning-helper and guest
 progress is recorded in [step977](../done/step977.md). [Step981](../done/step981.md)
 accepts the later two-word/five-check live executing-stack evidence and compiled
-8,456-byte local bound within the 16 KiB admission ceiling. Tracker closure is separate;
-#80 remains blocked until that action. Gates3/4 remain **Fail**.
+8,456-byte local bound within the 16 KiB admission ceiling. PR540 merged at
+`f3b4c83`; #79/#537 closed with evidence and #80 is now claimed. Its host-only
+metadata contract is recorded in [step983](../done/step983.md). Gates3/4 remain
+**Fail**.
 
 ### M02-014 source integration and terminal guest boundary
 
@@ -1644,7 +1646,31 @@ ACPI retains 35 records. Byte-identical native code establishes the 8,456-byte
 conservative local bound below the witness within 16 KiB. The witness is not
 sampled RSP and the sentinel does not measure whole-stack peak usage or cover
 arbitrary firmware/interrupt effects. Catalog M04-010 requests closed/done for
-this bounded profile; actual #79/#537 tracker closure remains a separate action,
-and #80's blocked label is retained until it occurs. No general GC, real
+this bounded profile. PR540 subsequently merged at `f3b4c83`; #79/#537 closed
+with evidence and #80 was claimed. No general GC, real
 ExitBootServices, post-firmware access, hosted .NET/Kestrel or cloud support
 follows. Gates3/4/5 and the containing milestones remain incomplete.
+
+### M04-011 metadata host prerequisite
+
+[Step983](../done/step983.md) supplies the bounded one-module loaded-image
+decoder, separate TypeManager ABI record, one-shot registration and validated
+section lookup. Admission covers original M01 image authority, full storage
+capacity and 16-byte writable slot, metadata/slot aliases, permissions, malformed
+lengths and unsupported formats. Exact retained metadata detects even valid
+in-bounds row replacement; failed admission and lookup preserve the protected
+buffers. Registration publishes the handle after ABI/index writes.
+
+The complete five-module focused run passes 81 starts/82 passes/zero failures;
+the actual 89-source no-stdlib child has zero AssemblyRefs, and the normal
+HostTests Release compilation succeeds. Observed host layouts are ABI 48,
+private state 272, result 40 and slot 16. These checks do not execute a native
+image or QEMU. The omitted inert harness dependency in the first compilation
+and its successful unchanged-source retry remain recorded.
+
+#80 stays open/claimed until the shared EFI integration proves current-image
+discovery, registration and a consumer with actual native and QEMU evidence.
+Full common-suite acceptance is also pending for this new contract. #81 root
+enumeration and #82 collection remain blocked. The TypeManager ledger is still
+Deferred; Gates3/4, general runtime, real ExitBootServices, hosted .NET 10,
+Kestrel and cloud readiness remain incomplete.

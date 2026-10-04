@@ -240,7 +240,7 @@ allocation, GC, dispatch, exception or runtime-completion requirements.
 | Thread statics | Deferred | Ledger entry `ThreadStatics`; no TLS bootstrap or NativeAOT thread-static base helper exists |
 | Exception handling/unwind | Deferred | Ledger entry `ExceptionUnwind`; throw helpers halt and catch/finally/unwind are not implemented |
 | Module initialization | Deferred | Ledger entry `ModuleInitialization`; no kernel/runtime module initialization helper behavior is implemented |
-| TypeManager/RTR scans | Deferred | Ledger entry `TypeManagerRtrScans`; hosted runtime metadata scanning is not implemented |
+| TypeManager/RTR scans | Deferred | Ledger entry `TypeManagerRtrScans`; step983 adds a host-tested one-module owner, while live registration and hosted runtime metadata scanning remain unaccepted |
 | GC stack roots | Deferred | Ledger entry `GcStackRoots`; stack-root registration/scanning helpers are not implemented |
 | EFI reverse P/Invoke helpers | EFI-only link stubs | Ledger entry `EfiReversePInvoke`; `RhpReversePInvoke`, `RhpReversePInvokeReturn`, `RhpPInvoke`, and `RhpPInvokeReturn` exist only in the EFI shim and do not satisfy Gate 4 |
 | EFI type-cast helpers | EFI-only fail-fast stubs | Ledger entry `EfiFailFastTypeCasts`; `RhpFallbackFailFast` and `RhTypeCast_*` helpers halt and do not satisfy kernel/runtime completion |
@@ -1371,8 +1371,45 @@ is 8,456 bytes, within the 16 KiB admission ceiling. The clean common suite pass
 reference and ACPI captures pass separate native, raw/lifecycle and disk
 reviews; the reference has 71 records and two unchanged words through all five
 checks, while ACPI retains 35 records. This accepts the bounded #79/#537 profile;
-tracker closure is a separate action and #80 remains blocked until it occurs.
+PR540 subsequently merged at `f3b4c83`; #79/#537 closed with evidence and
+#80 was claimed for the next metadata slice.
 The witness is not a sampled RSP, and sentinel readback does not measure peak
 usage or arbitrary firmware/interrupt stack safety. No collecting GC,
 wider-vector preservation, unwind support, real ExitBootServices or hosted
 runtime is claimed; Gates3/4 remain **Fail**.
+
+### M04-011 one-module metadata host contract
+
+[Step983](../done/step983.md) adds
+`TypeManagerModuleMetadataLiveNativeAOTImage`: an allocation-free, status-coded
+`Validate` / `RegisterOnce` / `TryGetSection` contract using the original
+`EfiLoadedImageRangeCapturePlan` and typed M01 identity mapping. A single bounded
+loaded-PE/.modules/RTR decoder admits one relocated .NET 10.0.8 RTR 16.0 module.
+It rejects unsupported dehydration/multiple modules, malformed or overflowing
+spans, overlapping PE sections, W+X, unsupported row flags and slot/storage
+aliases before writes.
+
+Caller-owned retained storage keeps the private owner state separate from the
+48-byte native TypeManager ABI. Registration checks the complete storage
+capacity and all 16 writable slot bytes, captures exact header/section-table,
+.modules and RTR bytes, writes the ABI and index 0, then publishes the handle
+last. Lookup revalidates original capture, owner, capacity, handle, ABI, slot and
+exact metadata; a structurally valid metadata replacement is rejected. Missing
+sections differ from present empty sections; row payloads remain opaque.
+
+All five focused initializers pass 81 starts/82 passes/zero failures, including
+the new 15-case module. Actual host layouts are ABI 48/private state 272/result 40/
+slot 16. The current explicit EFI source closure plus the new core compiles as
+an 89-source no-stdlib library with zero AssemblyRefs. The normal HostTests
+Release build also passes. The first focused build failed because its ignored
+harness omitted an existing helper-source dependency; the retry linked that
+unchanged source without invoking its initializer or changing product code.
+
+This is host and managed-compilation evidence only. #80 remains open/claimed;
+the shared EFI supplement must discover and register the actual current image,
+exercise a real consumer, and produce fresh native/QEMU evidence. The upstream
+runtime registry, GC/static initialization, TLS, cctors, roots, collection,
+concurrency and hardware-fault rollback are not implemented by this contract.
+Callers retain actual mapping and lifetime obligations; numeric admission is
+not a mapping probe. `TypeManagerRtrScans` remains Deferred and Gates3/4 remain
+**Fail**; #81/#82 and hosted .NET/Kestrel remain unaccepted.
