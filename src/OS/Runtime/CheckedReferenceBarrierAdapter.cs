@@ -6,8 +6,10 @@ namespace OS.Runtime;
 // The bounded numeric checks below do not authenticate a compiler layout by themselves.
 internal struct CheckedReferenceGeometry
 {
+#pragma warning disable CS0649 // Assigned by the enabled profile and mapped core tests.
     internal ulong CellReference, CellTag, CellPayload;
     internal ulong PairFirst, PairLast, PairTag, BlockPayload;
+#pragma warning restore CS0649
 }
 
 #if NOSTDLIB_EFI && M04_RHP_NEW_FAST_PROBE && M04_CHECKED_REFERENCE_BARRIER_PROBE
