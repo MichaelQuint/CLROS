@@ -24,7 +24,7 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
     private const string ExpectedSourceClosureSha256 =
         "d6754ab6ab3005d0b4293b239d4039497302d9acae060946c9023ea1c4d616ed";
     private const string ExpectedProjectSha256 =
-        "e55c4225fd2725f6e338e0f60d5113d59b4db964552ca0c157be1be1e2ae7b99";
+        "bc74c58deea0556a1e752c3f1b6b58e9a5f44fcc7c5901b1e5959e97d6bca953";
     private const string ExpectedEntrySha256 =
         "977a6262259813f5b893c8935d49a9048dcbede32173ee81b99e64c236806aee";
     private const string ExpectedCompileSha256 =

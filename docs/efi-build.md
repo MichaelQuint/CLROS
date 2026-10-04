@@ -2467,3 +2467,11 @@ and a successful normal HostTests Release build. These are focused host and
 publication results. Current emitted-code/ABI/stack review, the complete common
 suite and fresh default/enabled QEMU captures remain required. No GC-static
 initialization, root enumeration, collecting GC or hosted runtime is accepted.
+
+[Step987](../done/step987.md) corrects four legacy fixtures that compare the
+complete raw OS.csproj bytes. They now expect SHA256
+`bc74c58deea0556a1e752c3f1b6b58e9a5f44fcc7c5901b1e5959e97d6bca953`
+for the existing TypeManager closure. Their original assertions and complete
+initializers are retained; the focused regression passes 27 starts/28 passes/
+zero failures. No EFI input or profile behavior changed. The first full common
+failure remains recorded and requires a new clean-head full-suite run.

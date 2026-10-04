@@ -1707,3 +1707,11 @@ These focused results do not complete #544 or #80. Actual native metadata,
 write ordering and stack analysis, the full common suite and fresh guest
 captures remain pending. #81/#82 and the containing runtime gates remain
 blocked/incomplete; no hosted .NET/Kestrel or cloud claim follows.
+
+[Step987](../done/step987.md) preserves the failed first full common run and
+repairs four legacy raw-project hash expectations for the TypeManager source
+closure. All four complete original initializers pass 27 starts/28 passes/zero
+failures, including both UD2 publication paths. The 106 native inputs remain
+unchanged. Independent offline native analysis has separately accepted the
+focused TypeManager image; the repaired clean-head full suite and fresh guest
+captures are still required. #544/#80 remain incomplete and #81 remains blocked.
