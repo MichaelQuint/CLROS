@@ -1014,9 +1014,10 @@ This is a bounded noncollecting host prerequisite. It supplies no runtime
 export, compiler reference-field association, outside-heap destination policy,
 special byref-helper ABI, GC polling, card table or collector. The common
 full suite now passes on `854a335` with 3,670 starts/3,671 passes/zero failures
-([step970](../done/step970.md)); actual returning native helper integration and
-its guest evidence remain pending. Issue #79 stays open; Gates3/4 remain
-**Fail** and no later runtime issue is unblocked by this host prerequisite.
+([step970](../done/step970.md)). The later bounded returning-helper and guest
+progress is recorded in [step977](../done/step977.md). Its live executing-stack
+canary requirement remains unmet: #79/#537 stay open and #80 stays blocked.
+Gates3/4 remain **Fail**.
 
 ### M02-014 source integration and terminal guest boundary
 
@@ -1611,3 +1612,28 @@ The `kestrel.smoke.package.v0` contract is documentation evidence only. It defin
 4. Start diagnostics-first IDT/fault panic infrastructure after post-UEFI
    diagnostics requirements are represented by tests.
 5. Add libvirt real boot once local raw/qcow2 QEMU smoke remains stable.
+
+### M03-002 / M04-010 focused native-publication checkpoint
+
+[Step973](../done/step973.md) integrates the default-off owned ACPI-copy adapter
+and bounded returning reference-helper route. Complete focused runs pass:
+82 starts/83 passes for eight managed modules, 5 starts/6 passes for the whole
+reference-EFI initializer, and 4 starts/5 passes for the whole ACPI initializer;
+all have zero failures and native exit0. The latter two include fresh default
+and enabled NativeAOT artifacts. Earlier failed attempts and precise fixture
+repairs are retained in the step evidence.
+
+That checkpoint is historical focused evidence. [Step977](../done/step977.md)
+records the accepted clean `eeee523` common suite (3,692 starts/3,693 passes,
+zero failures and 16 READY lines), followed by three fresh default/reference/
+ACPI captures and separate native, raw/lifecycle and disk reviews. The bounded
+pre-EBS five-table ACPI copy and #536 writer prerequisite are accepted; reviewed
+merge and closure of #59/#539/#536 remain pending. #60 becomes eligible only
+after #59 is merged and closed with evidence.
+
+The reference capture demonstrates the finite returning-helper route, but
+#537's real executing-stack canary requirement is not satisfied by static stack
+bounds, initial RSP containment or static-context guards. #79/#537 remain open
+and claimed; #80 remains blocked. No general GC, real ExitBootServices,
+post-firmware access, hosted .NET/Kestrel or cloud support follows. Gates3/4/5
+and the containing milestones remain incomplete.

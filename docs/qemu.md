@@ -2812,3 +2812,42 @@ The preserved [step969](../done/step969.md) failed/interrupted common run is
 not reclassified by this later success. Firmware remains available. No extra
 capture algorithm, retry, pool-release policy, EBS, post-firmware ownership,
 GC or hosted-runtime support is established; the remaining M03 work stays open.
+
+### Owned ACPI copy and bounded reference-helper capture evidence
+
+[Step977](../done/step977.md) records three fresh ordinary captures on clean
+`eeee523`, from 12:52:30.5343381 to 12:56:09.6110437 UTC on 2026-10-04, after
+the accepted 3,692/3,693/0 common suite and 16 READY lines. The default,
+checked-reference and ACPI profiles bind 88 Compile items, 102 raw inputs and
+38 flags (0/9/1 true). All wrappers returned 0; QEMU was runner-terminated with
+signed exit -1 and a configured 750 ms quiet drain, not a separately measured
+quiet interval. The strict reference and ACPI bodies contain 70 and 35 records.
+
+| Profile | EFI SHA-256 | Serial SHA-256 | Booted/pristine changes |
+| --- | --- | --- | --- |
+| default | `FDECE5DD4DBB61C63442099DCB1E7AEBD9EA4A3D6903C631A74C3F7134E9A703` | `0F16CC0FB978B3AE9555AA978408D857CDEFA70F989549C9BCE5086DB73041F1` | 887 bytes / 7 sectors |
+| checked-reference | `4899747DE3DB20DAB306636D73649F33F38B5B331F18881D946347573C7554D5` | `DF3065B497A97A86C7E49E960E1460B0DD871D0562FE4DCF618EEAC2E9B4EEC1` | 892 bytes / 7 sectors |
+| acpi | `8FAAA2B17B37FD76E4C43A94E9D9D461DE6586ED0406F7896104C378D8E30CB2` | `40B366DCCE98F3C239DB4AD9395EB756B45A7407397BE4B5922C8370019063E1` | 887 bytes / 7 sectors |
+
+Fresh zero-AssemblyRef managed inspections and native-image joins bind the
+accepted static implementations. Raw/source/command provenance and ordinary
+lifecycle checks pass; reference/ACPI numeric checks replay the archived
+production grammar and are not independent numeric or physical-memory oracles.
+Disk review binds the actual archived ImageBuilder, GPT/FAT geometry and exact
+EFI payloads, and accounts for FSInfo/FAT/root/NVVARS changes. Booted disks are
+not equal to pristine reconstructions; no filesystem-conformance claim follows.
+
+The ACPI result supports the bounded pre-EBS five-table copy and later
+#59/#539 closure after merge. The reference result proves bounded progress,
+not #79/#537 completion: six allocation roles and 23 callback events appear
+through five operation records, but initial RSP containment/static-context
+guards are not an executing-stack canary. That requirement remains open and
+#80 remains blocked. #60 is eligible only after #59's reviewed merge/closure.
+
+The intentionally stopped `79dd765` run, failed `76bc393` run and raw-auditor
+attempt1 remain preserved. The raw retry changed only its forbidden-marker
+order to match the actual runner's insertion order; it did not weaken raw or
+numeric checks. Capture/review provisional flags remain historical; parent
+joint acceptance supplies the bounded conclusions. No real ExitBootServices,
+post-firmware access, collecting GC, hosted .NET/Kestrel or Gate3/4/5 completion
+is established.

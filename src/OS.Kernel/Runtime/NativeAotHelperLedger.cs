@@ -32,7 +32,8 @@ public enum NativeAotHelperArea
     EfiStackProbe = 14,
     EfiFixedAllocation = 15,
     EfiSzArrayAllocation = 16,
-    EfiStringAllocation = 17
+    EfiStringAllocation = 17,
+    EfiCheckedReferences = 18
 }
 
 public enum NativeAotHelperStatus
@@ -45,7 +46,8 @@ public enum NativeAotHelperStatus
     EfiOnlyStackProbe = 5,
     EfiOnlyFixedAllocation = 6,
     EfiOnlySzArrayAllocation = 7,
-    EfiOnlyStringAllocation = 8
+    EfiOnlyStringAllocation = 8,
+    EfiOnlyCheckedReferences = 9
 }
 
 public readonly struct NativeAotHelperLedgerEntry
@@ -112,7 +114,7 @@ public readonly struct NativeAotHelperLedgerEntry
 
 public static class NativeAotHelperLedger
 {
-    public const int EntryCount = 17;
+    public const int EntryCount = 18;
 
     private const NativeAotCompletionGate RuntimeGates =
         NativeAotCompletionGate.StdRuntime |
@@ -188,10 +190,10 @@ public static class NativeAotHelperLedger
                 isEfiOnly: false,
                 satisfiesKernelRuntimeCompletion: false,
                 "contract:write-barriers",
-                "No kernel/runtime write barrier implementation exists.",
+                "General collecting write barriers remain deferred. CheckedReferenceBulkBarriersIncludingDotNetN10Bulk supplies bounded opaque slot/bulk mutation on an exclusively owned retained page; the separate default-off EFI profile has no GC/card-table claim.",
                 "Maintain GC card-table or equivalent remembered-set semantics for every managed reference write required by the selected GC.",
                 "Fail-fast or no-op only when no managed heap/reference mutation can occur in the proven milestone path.",
-                "Host ledger tests only; no write-barrier mutation test exists.",
+                "Host tests cover checked numeric slot/bulk bounds, retained authority, rejection atomicity and no managed allocations. Compiler-selected returning helpers require independent same-image ABI and guest evidence.",
                 "runtime-gc",
                 "Design write barriers with the managed GC before enabling reference writes through helpers."),
 
@@ -376,6 +378,20 @@ public static class NativeAotHelperLedger
                 "M04StringAllocationEfiIntegrationTests covers bounded POD storage, mixed200/Count7, full-width rejection, profiles and compiled constructor/helper/UTF-16 routes. Fresh guest execution remains a separate parent-owned gate.",
                 "efi-runtime-shim",
                 "Implement remaining String and GC semantics under separate issues. Gate 4 remains incomplete."),
+
+            17 => new NativeAotHelperLedgerEntry(
+                NativeAotHelperArea.EfiCheckedReferences,
+                NativeAotHelperStatus.EfiOnlyCheckedReferences,
+                EfiOnlyGates,
+                isEfiOnly: true,
+                satisfiesKernelRuntimeCompletion: false,
+                "RhpAssignRef;RhpCheckedAssignRef;RhpByRefAssignRef;CLROS_CheckedReferenceBarrier_Apply",
+                "Default-off six-role EFI source uses the original thirteen-argument retained authority and one shared allocation cursor. Three generated COFF entries call one ordinary POD callback; managed bulk reaches the same private core.",
+                "Special helper callers retain their actual register/stack ABI. Full GPR/lower128-bit XMM/MXCSR preservation, DF rejection, complete status comparison and byref+8 after success are explicit. Same-image field/prefix, callback graph, maximum stack and admitted SIMD instructions must be proven before execution.",
+                "Only finite same-page genuine object/null roles are admitted. No arbitrary reference bits, external windows, GC visibility, card table, concurrent collection, unwind or wider SIMD-state support is provided.",
+                "CheckedReferenceBarrierThunkGeneratorTests covers the complete1645-byte object and modeled state. M04CheckedReferenceBarrierEfiIntegrationTests covers numeric authority/phase/atomicity, source profiles and artifacts; modeling and compilation alone do not establish returning or guest execution.",
+                "efi-runtime-shim",
+                "Require actual same-image returning routes and fresh guest evidence for the bounded profile. General WriteBarriers remains deferred; Gate 4 remains incomplete."),
 
             _ => InvalidEntry()
         };

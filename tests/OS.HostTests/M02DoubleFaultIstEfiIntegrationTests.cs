@@ -37,7 +37,7 @@ internal static class M02DoubleFaultIstEfiIntegrationTests
     private static void TestProject()
     {
         string root=Root(); XDocument project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
-        var items=project.Descendants("Compile").ToArray();Require(items.Length==85,"85 explicit compile items");
+        var items=project.Descendants("Compile").ToArray();Require(items.Length==88,"88 explicit compile items");
         foreach(string name in new[]{"DoubleFaultIstProbeAuthority.cs","DoubleFaultISTPathSilentRebootOrTriple.cs"})
             Require(items.Count(x=>x.Attribute("Include")?.Value=="..\\OS.Kernel\\Diagnostics\\"+name && x.Attribute("Link")?.Value=="Diagnostics\\"+name)==1,"exact new item "+name);
         Require(!items.Any(x=>x.Attribute("Include")!.Value.EndsWith("\\Probes.cs",StringComparison.Ordinal)),"no broad authority");
@@ -46,7 +46,7 @@ internal static class M02DoubleFaultIstEfiIntegrationTests
         string authority=File.ReadAllText(Path.Combine(root,"src/OS.Kernel/Diagnostics/DoubleFaultIstProbeAuthority.cs"));
         Require(authority.Contains("public const bool EnableDoubleFaultIstProbe = false;",StringComparison.Ordinal) && !File.ReadAllText(Path.Combine(root,"src/OS.Kernel/Diagnostics/Probes.cs")).Contains("public const bool EnableDoubleFaultIstProbe",StringComparison.Ordinal),"unique false authority");
         XElement initial=project.Descendants(Flag).Single(x=>x.Attribute("Condition")!=null);Require(initial.Value=="false","default false");
-        Require(project.Descendants().Count(x=>x.Name.LocalName.StartsWith("Enable",StringComparison.Ordinal) && x.Attribute("Condition")?.Value=="'$("+x.Name.LocalName+")' == ''" && x.Value=="false")==34,"34 explicit XML false defaults");
+        Require(project.Descendants().Count(x=>x.Name.LocalName.StartsWith("Enable",StringComparison.Ordinal) && x.Attribute("Condition")?.Value=="'$("+x.Name.LocalName+")' == ''" && x.Value=="false")==35,"35 explicit XML false defaults");
         string[] ordered=items.Select(x=>x.Attribute("Include")!.Value).ToArray();int predecessor=Array.FindIndex(ordered,x=>x.EndsWith("\\SeparateDisabledDefaultPageFaultTransition.cs",StringComparison.Ordinal));
         Require(predecessor>=0 && ordered[predecessor+1].EndsWith("\\DoubleFaultIstProbeAuthority.cs",StringComparison.Ordinal) && ordered[predecessor+2].EndsWith("\\DoubleFaultISTPathSilentRebootOrTriple.cs",StringComparison.Ordinal)
             && ordered[predecessor+5].EndsWith("\\InvalidOpcodeVectorAuthority.cs",StringComparison.Ordinal),"exact two insertion positions");
@@ -388,10 +388,10 @@ internal static class M02DoubleFaultIstEfiIntegrationTests
             string link=Path.ChangeExtension(Path.Combine(root,artifact),"link.json");
             if(!File.Exists(link))link=Path.Combine(root,artifact)+".link.json";
             using JsonDocument document=JsonDocument.Parse(File.ReadAllText(link));JsonElement evidence=document.RootElement;
-            var inputs=evidence.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Require(inputs.Length==98,"98 raw authority inputs");
+            var inputs=evidence.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Require(inputs.Length==102,"102 raw authority inputs");
             foreach(var input in inputs)Require(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))).Equals(input.GetProperty("sha256").GetString(),StringComparison.OrdinalIgnoreCase),"raw source identity");
-            var evaluation=evidence.GetProperty("postRestoreEvaluation");Require(evaluation.GetProperty("compileCount").GetInt32()==85,"85 evaluated files");
-            var properties=evaluation.GetProperty("properties");var flags=properties.EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Require(flags.Length==37,"complete 37-switch vector");
+            var evaluation=evidence.GetProperty("postRestoreEvaluation");Require(evaluation.GetProperty("compileCount").GetInt32()==88,"88 evaluated files");
+            var properties=evaluation.GetProperty("properties");var flags=properties.EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Require(flags.Length==38,"complete 38-switch vector");
             foreach(var flag in flags)Require(flag.Value.GetString()==(enabled&&(Prerequisites.Contains(flag.Name,StringComparer.Ordinal)||flag.Name==Flag)?"true":"false"),"actual evaluated "+flag.Name);
             using var reader=new PEReader(File.OpenRead(Path.Combine(dir,"OS.dll")));var metadata=reader.GetMetadataReader();
             Require(metadata.AssemblyReferences.Count==0 && metadata.GetString(metadata.GetAssemblyDefinition().Name)=="OS","actual no-stdlib metadata");

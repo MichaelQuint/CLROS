@@ -6,6 +6,7 @@
     <_ClrosX64SerializerCanonicalToolsProps>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\Directory.Build.props'))</_ClrosX64SerializerCanonicalToolsProps>
     <_ClrosX64SerializerCanonicalRootTargets>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\Directory.Build.targets'))</_ClrosX64SerializerCanonicalRootTargets>
     <_ClrosX64SerializerObjectName>CLROS.X64.InstructionPublication.obj</_ClrosX64SerializerObjectName>
+    <_ClrosCheckedReferenceObjectName>CLROS.X64.CheckedReferenceBarriers.obj</_ClrosCheckedReferenceObjectName>
     <_ClrosX64SerializerCanonicalSdkDirectory>$([System.IO.Path]::TrimEndingDirectorySeparator('$(MSBuildToolsPath)'))</_ClrosX64SerializerCanonicalSdkDirectory>
     <_ClrosX64SerializerCanonicalSdksPath>$([System.IO.Path]::GetFullPath('$(_ClrosX64SerializerCanonicalSdkDirectory)\Sdks'))</_ClrosX64SerializerCanonicalSdksPath>
     <_ClrosX64SerializerCanonicalMsbuildExtensionsPath>$(_ClrosX64SerializerCanonicalSdkDirectory)\</_ClrosX64SerializerCanonicalMsbuildExtensionsPath>
@@ -19,6 +20,7 @@
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorProject)" />
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)Program.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)Amd64CoffWriter.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)CheckedReferenceBarrierThunkGenerator.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)InstructionPublicationSerializerGenerator.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(MSBuildThisFileFullPath)" />
   </ItemGroup>
@@ -27,7 +29,7 @@
           BeforeTargets="PrepareForBuild"
           Condition="'$(MSBuildProjectFullPath)' == '$(MSBuildThisFileDirectory)OS.X64TextSerializerGenerator.csproj'">
     <Error
-      Condition="'@(Compile-&gt;'%(Identity)', '|')' != 'Amd64CoffWriter.cs|InstructionPublicationSerializerGenerator.cs|Program.cs'"
+      Condition="'@(Compile-&gt;'%(Identity)', '|')' != 'Amd64CoffWriter.cs|CheckedReferenceBarrierThunkGenerator.cs|InstructionPublicationSerializerGenerator.cs|Program.cs'"
       Text="CLROS_M01_034_GENERATOR_FAILED compile_closure_mismatch actual=@(Compile-&gt;'%(Identity)', '|')" />
     <Error
       Condition="'@(ProjectReference)' != '' Or '@(Reference)' != '' Or '@(PackageReference)' != ''"
@@ -99,6 +101,7 @@
         Condition="'$(_ClrosX64SerializerTrackingPathIsRooted)' != 'True'">$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(NativeIntermediateOutputPath)'))</_ClrosX64SerializerTrackingRootCandidate>
       <_ClrosX64SerializerTrackingRoot>$([System.IO.Path]::TrimEndingDirectorySeparator('$(_ClrosX64SerializerTrackingRootCandidate)'))</_ClrosX64SerializerTrackingRoot>
       <_ClrosX64SerializerTrackedObject>$(_ClrosX64SerializerTrackingRoot)\CLROS.X64.InstructionPublication.obj</_ClrosX64SerializerTrackedObject>
+      <_ClrosCheckedReferenceTrackedObject>$(_ClrosX64SerializerTrackingRoot)\CLROS.X64.CheckedReferenceBarriers.obj</_ClrosCheckedReferenceTrackedObject>
       <_ClrosX64SerializerTrackedToolRoot>$(_ClrosX64SerializerTrackingRoot)\clros-x64-serializer-tool\</_ClrosX64SerializerTrackedToolRoot>
     </PropertyGroup>
     <Error
@@ -116,8 +119,12 @@
     <Error
       Condition="'$(_ClrosX64SerializerTrackedToolRoot)' != '$(_ClrosX64SerializerTrackingRoot)\clros-x64-serializer-tool\'"
       Text="CLROS_M01_034_GENERATOR_FAILED tracking_tool_root_override" />
+    <Error
+      Condition="'$(_ClrosCheckedReferenceTrackedObject)' != '$(_ClrosX64SerializerTrackingRoot)\CLROS.X64.CheckedReferenceBarriers.obj'"
+      Text="CLROS_M04_010_GENERATOR_FAILED tracking_object_override" />
     <ItemGroup>
       <FileWrites Include="$(_ClrosX64SerializerTrackedObject)" />
+      <FileWrites Include="$(_ClrosCheckedReferenceTrackedObject)" />
       <FileWrites
         Include="$(_ClrosX64SerializerTrackedToolRoot)**\*"
         Condition="Exists('$(_ClrosX64SerializerTrackedToolRoot)')" />
@@ -148,6 +155,9 @@
     <Error
       Condition="'$(_ClrosX64SerializerObjectName)' != 'CLROS.X64.InstructionPublication.obj'"
       Text="CLROS_M01_034_GENERATOR_FAILED object_name_override" />
+    <Error
+      Condition="'$(_ClrosCheckedReferenceObjectName)' != 'CLROS.X64.CheckedReferenceBarriers.obj' Or '$(_ClrosCheckedReferenceActualSha256)' != ''"
+      Text="CLROS_M04_010_GENERATOR_FAILED object_contract_override" />
     <Error
       Condition="'$(ClrosX64InstructionPublicationSymbol)' != 'CLROS_X64_SerializeInstructionPublication'"
       Text="CLROS_M01_034_GENERATOR_FAILED symbol_override" />
@@ -180,6 +190,7 @@
       <_ClrosX64SerializerToolAssetsFile>$(_ClrosX64SerializerToolIntermediate)project.assets.json</_ClrosX64SerializerToolAssetsFile>
       <_ClrosX64SerializerToolDisabledUserExtensions>$(_ClrosX64SerializerToolIntermediate)disabled-user-extensions</_ClrosX64SerializerToolDisabledUserExtensions>
       <ClrosX64InstructionPublicationObject>$(_ClrosX64SerializerNativeIntermediateRoot)\$(_ClrosX64SerializerObjectName)</ClrosX64InstructionPublicationObject>
+      <_ClrosCheckedReferenceObject>$(_ClrosX64SerializerNativeIntermediateRoot)\$(_ClrosCheckedReferenceObjectName)</_ClrosCheckedReferenceObject>
       <ClrosX64InstructionPublicationMap>$(_ClrosX64SerializerNativeIntermediateRoot)\OS.link.map</ClrosX64InstructionPublicationMap>
     </PropertyGroup>
     <Error
@@ -212,6 +223,9 @@
     <Error
       Condition="'$(ClrosX64InstructionPublicationMap)' != '$(_ClrosX64SerializerNativeIntermediateRoot)\OS.link.map'"
       Text="CLROS_M01_034_GENERATOR_FAILED map_path_override" />
+    <Error
+      Condition="'$(_ClrosCheckedReferenceObject)' != '$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.CheckedReferenceBarriers.obj'"
+      Text="CLROS_M04_010_GENERATOR_FAILED object_path_override" />
     <Error
       Condition="'@(_ClrosX64SerializerGeneratorInput)' == ''"
       Text="CLROS_M01_034_GENERATOR_FAILED inputs_missing" />
@@ -257,6 +271,30 @@
       <LinkerArg Include="/INCLUDE:$(ClrosX64InstructionPublicationSymbol)" />
       <LinkerArg Include="/MAP:&quot;$(ClrosX64InstructionPublicationMap)&quot;" />
       <LinkerArg Include="/MAPINFO:EXPORTS" />
+    </ItemGroup>
+    <Exec
+      Condition="'$(EnableM04CheckedReferenceBarrierProbe)' == 'true'"
+      Command="&quot;$(_ClrosX64SerializerToolExecutable)&quot; --checked-reference-barriers --output-root &quot;$(_ClrosX64SerializerNativeIntermediateRoot)&quot; --output-file &quot;$(_ClrosCheckedReferenceObjectName)&quot;"
+      ConsoleToMSBuild="true"
+      IgnoreExitCode="false"
+      Timeout="60000" />
+    <Error
+      Condition="'$(EnableM04CheckedReferenceBarrierProbe)' == 'true' And !Exists('$(_ClrosCheckedReferenceObject)')"
+      Text="CLROS_M04_010_GENERATOR_FAILED object_missing" />
+    <GetFileHash
+      Condition="'$(EnableM04CheckedReferenceBarrierProbe)' == 'true'"
+      Files="$(_ClrosCheckedReferenceObject)" Algorithm="SHA256" HashEncoding="hex">
+      <Output TaskParameter="Hash" PropertyName="_ClrosCheckedReferenceActualSha256" />
+    </GetFileHash>
+    <Error
+      Condition="'$(EnableM04CheckedReferenceBarrierProbe)' == 'true' And '$(_ClrosCheckedReferenceActualSha256)' != 'E96ABF595503B9D1AE38DEE740F93AE9B3EB84F05D6395B931E4B5D74F65D808'"
+      Text="CLROS_M04_010_GENERATOR_FAILED object_hash_mismatch" />
+    <ItemGroup Condition="'$(EnableM04CheckedReferenceBarrierProbe)' == 'true'">
+      <NativeLibrary Include="$(_ClrosCheckedReferenceObject)" />
+      <LinkerArg Include="&quot;$(_ClrosCheckedReferenceObject)&quot;" />
+      <LinkerArg Include="/INCLUDE:RhpAssignRef" />
+      <LinkerArg Include="/INCLUDE:RhpCheckedAssignRef" />
+      <LinkerArg Include="/INCLUDE:RhpByRefAssignRef" />
     </ItemGroup>
   </Target>
 

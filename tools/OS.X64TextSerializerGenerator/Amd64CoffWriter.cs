@@ -53,13 +53,19 @@ public readonly record struct Amd64CoffObjectDefinition(
 /// This writer has no optional header, line numbers, auxiliary symbol records,
 /// or relocation-overflow records. Raw-data and nonempty relocation-table
 /// starts receive deterministic four-byte zero padding. Every section is file
-/// backed and every relocation is an AMD64 image-relative 32-bit relocation.
+/// backed. By default, only AMD64 image-relative 32-bit relocations and
+/// section-defined symbols are admitted. An explicit opt-in also admits REL32
+/// from code to undefined external functions (section/value zero, type 0x20,
+/// class 2). It does not admit common/absolute symbols or REL32_n variants.
+/// Each REL32 occupies four file-backed bytes and cannot overlap another fixup.
 /// Validation and sizing complete before the destination is modified.
 /// </remarks>
 public static class Amd64CoffWriter
 {
     public const ushort Amd64Machine = 0x8664;
     public const ushort ImageRelAmd64Addr32Nb = 0x0003;
+    public const ushort ImageRelAmd64Rel32 = 0x0004;
+    public const ushort ImageSymTypeFunction = 0x0020;
 
     public const byte ImageSymClassExternal = 0x02;
     public const byte ImageSymClassStatic = 0x03;
@@ -90,8 +96,15 @@ public static class Amd64CoffWriter
         in Amd64CoffObjectDefinition definition,
         out int requiredSize,
         out CoffWriteError error)
+        => TryGetRequiredSize(in definition, false, out requiredSize, out error);
+
+    public static bool TryGetRequiredSize(
+        in Amd64CoffObjectDefinition definition,
+        bool allowRel32ExternalFunctions,
+        out int requiredSize,
+        out CoffWriteError error)
     {
-        if (!TryBuildPlan(in definition, out CoffWritePlan? plan, out error))
+        if (!TryBuildPlan(in definition, allowRel32ExternalFunctions, out CoffWritePlan? plan, out error))
         {
             requiredSize = 0;
             return false;
@@ -106,10 +119,18 @@ public static class Amd64CoffWriter
         Span<byte> destination,
         out int bytesWritten,
         out CoffWriteError error)
+        => TryWrite(in definition, destination, false, out bytesWritten, out error);
+
+    public static bool TryWrite(
+        in Amd64CoffObjectDefinition definition,
+        Span<byte> destination,
+        bool allowRel32ExternalFunctions,
+        out int bytesWritten,
+        out CoffWriteError error)
     {
         bytesWritten = 0;
 
-        if (!TryBuildPlan(in definition, out CoffWritePlan? plan, out error))
+        if (!TryBuildPlan(in definition, allowRel32ExternalFunctions, out CoffWritePlan? plan, out error))
         {
             return false;
         }
@@ -156,6 +177,7 @@ public static class Amd64CoffWriter
 
     private static bool TryBuildPlan(
         in Amd64CoffObjectDefinition definition,
+        bool allowRel32ExternalFunctions,
         out CoffWritePlan? plan,
         out CoffWriteError error)
     {
@@ -232,9 +254,13 @@ public static class Amd64CoffWriter
             }
 
             var offsets = new HashSet<uint>();
+            var fixupBytes = allowRel32ExternalFunctions ? new HashSet<uint>() : null;
+            var rel32Bytes = allowRel32ExternalFunctions ? new HashSet<uint>() : null;
             foreach (CoffRelocationDefinition relocation in section.Relocations)
             {
-                if (relocation.Type != ImageRelAmd64Addr32Nb ||
+                bool rel32 = relocation.Type == ImageRelAmd64Rel32;
+                if ((relocation.Type != ImageRelAmd64Addr32Nb &&
+                     !(allowRel32ExternalFunctions && rel32)) ||
                     relocation.SymbolIndex >= (uint)symbols.Length ||
                     relocation.Offset > (uint)section.RawData.Length ||
                     (uint)section.RawData.Length - relocation.Offset < sizeof(uint) ||
@@ -242,6 +268,34 @@ public static class Amd64CoffWriter
                 {
                     error = CoffWriteError.InvalidRelocation;
                     return false;
+                }
+
+                ref readonly CoffSymbolDefinition target = ref symbols[relocation.SymbolIndex];
+                if ((rel32 && ((section.Characteristics & ImageScnCntCode) == 0 ||
+                               !IsUndefinedExternalFunction(in target))) ||
+                    (allowRel32ExternalFunctions && !rel32 && target.SectionNumber == 0))
+                {
+                    error = CoffWriteError.InvalidRelocation;
+                    return false;
+                }
+
+                if (allowRel32ExternalFunctions)
+                {
+                    for (uint indexInFixup = 0; indexInFixup < sizeof(uint); indexInFixup++)
+                    {
+                        uint position = relocation.Offset + indexInFixup;
+                        if ((rel32 && fixupBytes!.Contains(position)) || rel32Bytes!.Contains(position))
+                        {
+                            error = CoffWriteError.InvalidRelocation;
+                            return false;
+                        }
+
+                        fixupBytes!.Add(position);
+                        if (rel32)
+                        {
+                            rel32Bytes!.Add(position);
+                        }
+                    }
                 }
             }
 
@@ -273,10 +327,11 @@ public static class Amd64CoffWriter
                 return false;
             }
 
-            if (symbol.SectionNumber <= 0 ||
+            bool externalFunction = allowRel32ExternalFunctions && IsUndefinedExternalFunction(in symbol);
+            if (!externalFunction && (symbol.SectionNumber <= 0 ||
                 symbol.SectionNumber > sections.Length ||
                 (symbol.StorageClass != ImageSymClassExternal &&
-                 symbol.StorageClass != ImageSymClassStatic))
+                 symbol.StorageClass != ImageSymClassStatic)))
             {
                 error = CoffWriteError.InvalidSymbol;
                 return false;
@@ -500,6 +555,10 @@ public static class Amd64CoffWriter
 
         return true;
     }
+
+    private static bool IsUndefinedExternalFunction(in CoffSymbolDefinition symbol) =>
+        symbol.SectionNumber == 0 && symbol.Value == 0 &&
+        symbol.Type == ImageSymTypeFunction && symbol.StorageClass == ImageSymClassExternal;
 
     private static bool HasValidCharacteristics(uint characteristics)
     {

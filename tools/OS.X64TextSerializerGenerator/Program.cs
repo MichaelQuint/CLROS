@@ -5,15 +5,17 @@ namespace OS.X64TextSerializerGenerator;
 internal static class Program
 {
     private const string TestName = "x64.serializer.generate";
+    private const string BarrierTestName = "m04.010.thunks.generate";
 
     private static int Main(string[] args)
     {
-        Console.WriteLine($"TEST_START {TestName}");
+        string testName = Array.IndexOf(args, "--checked-reference-barriers") >= 0 ? BarrierTestName : TestName;
+        Console.WriteLine($"TEST_START {testName}");
 
         CliParseResult parseResult = ParseArguments(args);
         if (!parseResult.Success)
         {
-            return Fail(parseResult.ErrorCode!, exitCode: 2);
+            return Fail(parseResult.ErrorCode!, exitCode: 2, testName);
         }
 
         if (!TryResolveOutput(
@@ -22,31 +24,50 @@ internal static class Program
                 out string? outputPath,
                 out string? validationError))
         {
-            return Fail(validationError!, exitCode: 2);
+            return Fail(validationError!, exitCode: 2, testName);
         }
 
-        if (!InstructionPublicationSerializerGenerator.TryGenerate(
+        byte[] objectBytes;
+        CoffWriteError generationError;
+        bool generated = parseResult.CheckedReferences
+            ? TryGenerateCheckedReferences(out objectBytes, out generationError)
+            : InstructionPublicationSerializerGenerator.TryGenerate(
                 InstructionPublicationSerializerGenerator.ObjectSizeBytes,
-                out byte[] objectBytes,
-                out CoffWriteError generationError))
+                out objectBytes, out generationError);
+        if (!generated)
         {
             return Fail(
                 "generation_" + Amd64CoffWriter.GetStableErrorCode(generationError),
-                exitCode: 1);
+                exitCode: 1, testName);
         }
 
         OutputWriteResult writeResult = WriteAtomically(outputPath!, objectBytes);
         if (!writeResult.Success)
         {
-            return Fail(writeResult.ErrorCode!, exitCode: 1);
+            return Fail(writeResult.ErrorCode!, exitCode: 1, testName);
         }
 
         string hash = Convert.ToHexString(SHA256.HashData(objectBytes));
+        string ready = parseResult.CheckedReferences ? "M04_CHECKED_REFERENCE_THUNKS_READY" : "X64_SERIALIZER_OBJECT_READY";
         Console.WriteLine(
-            $"X64_SERIALIZER_OBJECT_READY bytes={objectBytes.Length} " +
+            $"{ready} bytes={objectBytes.Length} " +
             $"sha256={hash} state={writeResult.State}");
-        Console.WriteLine($"TEST_PASS {TestName}");
+        Console.WriteLine($"TEST_PASS {testName}");
         return 0;
+    }
+
+    private static bool TryGenerateCheckedReferences(out byte[] objectBytes, out CoffWriteError error)
+    {
+        objectBytes = new byte[1645];
+        if (!CheckedReferenceBarrierThunkGenerator.TryGenerate(objectBytes, out int written, out error)) return false;
+        if (written != 1645 || Convert.ToHexString(SHA256.HashData(objectBytes)) !=
+            "E96ABF595503B9D1AE38DEE740F93AE9B3EB84F05D6395B931E4B5D74F65D808")
+        {
+            // A changed fixed emitter must be explicitly reviewed with a new literal oracle.
+            error = CoffWriteError.InternalInvariant;
+            return false;
+        }
+        return true;
     }
 
     private static CliParseResult ParseArguments(string[] args)
@@ -58,10 +79,17 @@ internal static class Program
 
         string? outputRoot = null;
         string? outputFile = null;
+        bool checkedReferences = false;
 
         for (int index = 0; index < args.Length; index++)
         {
             string option = args[index];
+            if (option == "--checked-reference-barriers")
+            {
+                if (checkedReferences) return CliParseResult.Fail("argument_duplicate");
+                checkedReferences = true;
+                continue;
+            }
             if (option is not "--output-root" and not "--output-file")
             {
                 return CliParseResult.Fail("argument_unknown");
@@ -99,7 +127,7 @@ internal static class Program
             return CliParseResult.Fail("arguments_missing");
         }
 
-        return new(true, outputRoot, outputFile, null);
+        return new(true, outputRoot, outputFile, null, checkedReferences);
     }
 
     private static bool TryResolveOutput(
@@ -358,9 +386,9 @@ internal static class Program
         }
     }
 
-    private static int Fail(string errorCode, int exitCode)
+    private static int Fail(string errorCode, int exitCode, string testName = TestName)
     {
-        Console.Error.WriteLine($"TEST_FAIL {TestName} {errorCode}");
+        Console.Error.WriteLine($"TEST_FAIL {testName} {errorCode}");
         return exitCode;
     }
 
@@ -368,7 +396,8 @@ internal static class Program
         bool Success,
         string? OutputRoot,
         string? OutputFile,
-        string? ErrorCode)
+        string? ErrorCode,
+        bool CheckedReferences = false)
     {
         public static CliParseResult Fail(string errorCode) =>
             new(false, null, null, errorCode);

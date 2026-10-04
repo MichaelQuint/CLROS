@@ -69,6 +69,7 @@ param(
     [switch] $EnableM04StringAllocationExhaustionProbe,
     [switch] $EnableM04StringAllocationInvalidLengthProbe,
     [switch] $EnableM03MemoryMapCaptureProbe,
+    [switch] $EnableM04CheckedReferenceBarrierProbe,
     [switch] $SkipImageBuild
 )
 
@@ -580,6 +581,38 @@ $script:M04StringAllocationForbiddenMarkers = @(
     'TEST_FAIL m04.009'
 )
 
+$script:M04CheckedReferenceBarrierRequiredMarkers = @(
+    $script:M04ManagedHeapPageRangeRequiredMarkers[0..($script:M04ManagedHeapPageRangeRequiredMarkers.Count - 9)]
+    'TEST_START m04.010.references'
+    'M04_REFERENCE_PREP'
+    'M04_REFERENCE_BIND'
+    for ($referenceId=1; $referenceId -le 6; $referenceId++) { "M04_REFERENCE_OBJECT id=$referenceId" }
+    'M04_REFERENCE_GEOMETRY'
+    'M04_REFERENCE_OPERATION kind=2 calls=18'
+    'M04_REFERENCE_OPERATION kind=1 calls=19'
+    'M04_REFERENCE_OPERATION kind=2 calls=20'
+    'M04_REFERENCE_OPERATION kind=3 calls=22'
+    'M04_REFERENCE_OPERATION kind=4 calls=23'
+    'M04_REFERENCE_RETAIN'
+    'CLROS_M04_010_NATIVE_READY allocations=6'
+    'TEST_PASS m04.010.references'
+    $script:M04ManagedHeapPageRangeRequiredMarkers[($script:M04ManagedHeapPageRangeRequiredMarkers.Count - 8)..($script:M04ManagedHeapPageRangeRequiredMarkers.Count - 1)]
+)
+$script:M04CheckedReferenceBarrierForbiddenMarkers = @(
+    $script:M04ManagedHeapPageRangeForbiddenMarkers
+    'TEST_FAIL'
+    'OS_SMOKE_FAIL'
+    'M04_RHP_'
+    'M04_ARRAY_'
+    'M04_STRING_'
+    'CLROS_M04_007'
+    'CLROS_M04_008'
+    'CLROS_M04_009'
+    'm04.007.rhp_new_fast'
+    'm04.008.sz_array'
+    'm04.009'
+)
+
 $script:M03MemoryMapCaptureRequiredMarkers = @(
     "TEST_START efi.main",
     "EFI_CONSOLE_READY",
@@ -604,6 +637,44 @@ $script:M03MemoryMapCaptureRequiredMarkers = @(
     "BOOT_PAGE_ALLOCATOR_READY ",
     "BOOT_ACPI_RSDP_HANDOFF_READY",
     "UEFI_ACPI_RSDP_READY",
+    "TEST_START boot.sequence",
+    "BOOT_PHASE PhaseA.Audit START",
+    "BOOT_PHASE PhaseA.Audit PASS",
+    "BOOT_PHASE PhaseA.Diagnostics START",
+    "BOOT_PHASE PhaseA.Diagnostics PASS",
+    "OS_BOOT_OK",
+    "TEST_PASS boot.sequence",
+    "OS_SMOKE_PASS"
+)
+
+$script:M03AcpiBootstrapRequiredMarkers = @(
+    "TEST_START efi.main",
+    "EFI_CONSOLE_READY",
+    "UEFI_MEMORY_MAP_READY",
+    "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT",
+    "UEFI_MEMORY_MAP_OWNED",
+    "BOOT_HANDOFF_READY",
+    "UEFI_MEMORY_MAP_NORMALIZED",
+    "BOOT_MEMORY_MAP_ACCEPTED",
+    "BOOT_MEMORY_REGIONS_READY",
+    "BOOT_MEMORY_REGION_COUNT",
+    "BOOT_PAGE_ALLOCATOR_READY",
+    "BOOT_ACPI_RSDP_HANDOFF_READY",
+    "UEFI_ACPI_RSDP_READY",
+    "ACPI_RSDP_SNAPSHOT_READY",
+    "ACPI_RSDP_VALIDATED",
+    "ACPI_ROOT_SDT_SNAPSHOT_READY",
+    "ACPI_ROOT_SDT_VALIDATED",
+    "ACPI_MCFG_DISCOVERY_READY",
+    "TEST_START m03.002",
+    "CLROS_M03_002_TABLE role=rsdp",
+    "CLROS_M03_002_TABLE role=root",
+    "CLROS_M03_002_TABLE role=mcfg",
+    "CLROS_M03_002_TABLE role=apic",
+    "CLROS_M03_002_TABLE role=hpet",
+    "CLROS_M03_002_RETAIN",
+    "CLROS_M03_002_READY firmwareAvailable=true exitBootServices=false",
+    "TEST_PASS m03.002",
     "TEST_START boot.sequence",
     "BOOT_PHASE PhaseA.Audit START",
     "BOOT_PHASE PhaseA.Audit PASS",
@@ -1680,9 +1751,9 @@ function Assert-M02UnexpectedVectorPanicPrefix {
 }
 
 function Assert-M04ManagedHeapPageRangeTranscript {
-    param([string] $SerialLogPath, [switch] $IncludeFixedAllocation, [switch] $IncludeArrayAllocation, [switch] $IncludeStringAllocation)
-    if (([int][bool]$IncludeFixedAllocation + [int][bool]$IncludeArrayAllocation + [int][bool]$IncludeStringAllocation) -gt 1) { throw 'm04_allocation_profile_collision' }
-    $lineCount = if ($IncludeStringAllocation) { 72 } elseif ($IncludeArrayAllocation) { 68 } elseif ($IncludeFixedAllocation) { 78 } else { 52 }
+    param([string] $SerialLogPath, [switch] $IncludeFixedAllocation, [switch] $IncludeArrayAllocation, [switch] $IncludeStringAllocation, [switch] $IncludeCheckedReferences)
+    if (([int][bool]$IncludeFixedAllocation + [int][bool]$IncludeArrayAllocation + [int][bool]$IncludeStringAllocation + [int][bool]$IncludeCheckedReferences) -gt 1) { throw 'm04_allocation_profile_collision' }
+    $lineCount = if ($IncludeCheckedReferences) { 70 } elseif ($IncludeStringAllocation) { 72 } elseif ($IncludeArrayAllocation) { 68 } elseif ($IncludeFixedAllocation) { 78 } else { 52 }
     $path = if ([IO.Path]::IsPathRooted($SerialLogPath)) { $SerialLogPath } else { Join-Path $root $SerialLogPath }
     # No BOM sniffing, trimming, Unicode folding or control removal for acceptance.
     $text = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($path))
@@ -1724,6 +1795,11 @@ function Assert-M04ManagedHeapPageRangeTranscript {
     $rhpRecords = @()
     $arrayRecords = @()
     $stringRecords = @()
+    $referenceRecords = @()
+    if ($IncludeCheckedReferences) {
+        $referenceRecords = @($captured.GetRange(44,18))
+        $captured.RemoveRange(44,18)
+    }
     if ($IncludeStringAllocation) {
         $stringRecords = @($captured.GetRange(44,20))
         $captured.RemoveRange(44,20)
@@ -1862,6 +1938,7 @@ function Assert-M04ManagedHeapPageRangeTranscript {
     if ($IncludeFixedAllocation) { Assert-M04RhpNewFastRecords -Lines $rhpRecords -Heap $retained }
     if ($IncludeArrayAllocation) { Assert-M04SzArrayAllocationRecords -Lines $arrayRecords -Heap $retained }
     if ($IncludeStringAllocation) { Assert-M04StringAllocationRecords -Lines $stringRecords -Heap $retained }
+    if ($IncludeCheckedReferences) { Assert-M04CheckedReferenceBarrierRecords -Lines $referenceRecords -Heap $retained }
 }
 
 function Assert-M04RhpNewFastTranscript {
@@ -2157,6 +2234,127 @@ function Assert-M03MemoryMapCaptureRunnerResult {
     if (-not $match.Success -or -not [Int32]::TryParse($match.Groups[1].Value,[Globalization.NumberStyles]::AllowLeadingSign,[Globalization.CultureInfo]::InvariantCulture,[ref]$exitCode)) { throw 'm03_capture_runner_exit' }
 }
 
+function Assert-M03AcpiBootstrapTranscript {
+    param([string] $SerialLogPath)
+    $path=if([IO.Path]::IsPathRooted($SerialLogPath)){$SerialLogPath}else{Join-Path $root $SerialLogPath}
+    $bytes=[IO.File]::ReadAllBytes($path)
+    if($bytes.Length -lt 7249 -or $bytes.Length -gt 32768){throw 'm03_acpi_raw_extent'}
+    $text=(New-Object Text.UTF8Encoding($false,$true)).GetString($bytes)
+    $start=$text.IndexOf("TEST_START efi.main`r`n",[StringComparison]::Ordinal)
+    $end=$text.IndexOf("OS_SMOKE_PASS`r`n",[StringComparison]::Ordinal)+15
+    if($start -ne 304 -or $end -lt 319){throw 'm03_acpi_protocol_extent'}
+    # The accepted firmware framing is fixed; new captures cannot extend it.
+    $sha=[Security.Cryptography.SHA256]::Create()
+    try {
+        $pre=[BitConverter]::ToString($sha.ComputeHash($bytes,0,304)).Replace('-','')
+        $suffix=[BitConverter]::ToString($sha.ComputeHash($bytes,$end,$bytes.Length-$end)).Replace('-','')
+    } finally {$sha.Dispose()}
+    if(-not [string]::Equals($pre,'BB50E913C752428AE49AE6C20879196F507926CC685CAD83986494244299D124',[StringComparison]::Ordinal) -or
+       $bytes.Length-$end -ne 6945 -or -not [string]::Equals($suffix,'BFBB6B92A5EEE7728E1AA54A2A4D262135215D7D2F267696E508A23BD514C61D',[StringComparison]::Ordinal)){throw 'm03_acpi_firmware_bytes'}
+    $owned=$text.Substring($start,$end-$start)
+    if([regex]::IsMatch($owned,'[^\x20-\x7E\r\n]')){throw 'm03_acpi_non_ascii'}
+    $lines=$owned.Split([string[]]@("`r`n"),[StringSplitOptions]::None)
+    if($lines.Count -ne 36 -or $lines[35].Length -ne 0){throw 'm03_acpi_line_count'}
+    $fixed=@{
+        0='TEST_START efi.main';1='EFI_CONSOLE_READY';2='UEFI_MEMORY_MAP_READY';4='UEFI_MEMORY_MAP_OWNED'
+        5='BOOT_HANDOFF_READY';6='UEFI_MEMORY_MAP_NORMALIZED';7='BOOT_MEMORY_MAP_ACCEPTED';8='BOOT_MEMORY_REGIONS_READY'
+        11='BOOT_ACPI_RSDP_HANDOFF_READY';12='UEFI_ACPI_RSDP_READY';13='ACPI_RSDP_SNAPSHOT_READY';14='ACPI_RSDP_VALIDATED'
+        15='ACPI_ROOT_SDT_SNAPSHOT_READY';16='ACPI_ROOT_SDT_VALIDATED';17='ACPI_MCFG_DISCOVERY_READY';18='TEST_START m03.002'
+        25='CLROS_M03_002_READY firmwareAvailable=true exitBootServices=false';26='TEST_PASS m03.002'
+        27='TEST_START boot.sequence';28='BOOT_PHASE PhaseA.Audit START';29='BOOT_PHASE PhaseA.Audit PASS'
+        30='BOOT_PHASE PhaseA.Diagnostics START';31='BOOT_PHASE PhaseA.Diagnostics PASS';32='OS_BOOT_OK';33='TEST_PASS boot.sequence';34='OS_SMOKE_PASS'
+    }
+    foreach($index in $fixed.Keys){if(-not [string]::Equals($lines[$index],$fixed[$index],[StringComparison]::Ordinal)){throw ('m03_acpi_literal_'+$index)}}
+    $counts=@()
+    foreach($entry in @(@(3,'UEFI_MEMORY_MAP_DESCRIPTOR_COUNT '),@(9,'BOOT_MEMORY_REGION_COUNT '))){
+        $m=[regex]::Match($lines[$entry[0]],'\A'+[regex]::Escape($entry[1])+'([1-9][0-9]*)\z');$n=[UInt64]0
+        if(-not $m.Success -or -not [UInt64]::TryParse($m.Groups[1].Value,[Globalization.NumberStyles]::None,[Globalization.CultureInfo]::InvariantCulture,[ref]$n) -or $n -gt 4096){throw 'm03_acpi_region_count'}
+        $counts+=$n
+    }
+    if($counts[0] -ne $counts[1]){throw 'm03_acpi_region_count_association'}
+    $a=Read-M03MemoryMapCaptureRecord $lines[10] 'BOOT_PAGE_ALLOCATOR_READY status=Ready' @('regions:dec','conventionalPages:dec','conventionalBytes:dec','freeNodes:dec','freePages:dec','freeBytes:dec','pageSize:dec','statusCode:dec')
+    if($a.regions -ne $counts[0] -or $a.freeNodes -lt 1 -or $a.freeNodes -gt $a.regions -or $a.conventionalPages -lt $a.freeNodes -or
+       $a.conventionalPages -ne $a.freePages -or [decimal]$a.conventionalPages*4096 -ne [decimal]$a.conventionalBytes -or
+       $a.conventionalBytes -ne $a.freeBytes -or $a.pageSize -ne 4096 -or $a.statusCode -ne 0){throw 'm03_acpi_allocator_accounting'}
+    $roles=@('rsdp','root','mcfg','apic','hpet');$rows=@();$physical=@();$total=[decimal]0;$base=[decimal]0;$indices=@();$pointerCount=0
+    for($i=0;$i -lt 5;$i++){
+        $r=Read-M03MemoryMapCaptureRecord $lines[19+$i] ('CLROS_M03_002_TABLE role='+$roles[$i]) @('physical:dec','owned:dec','offset:dec','length:dec','signature:dec','rootIndex:dec','compared:dec','mismatches:dec')
+        $limit=if($i -eq 0){4096}else{65536}
+        $min=if($i -eq 0){20}else{36}
+        if($r.length -lt $min -or $r.length -gt $limit -or $r.physical -eq 0 -or [decimal]$r.physical+$r.length -gt [decimal][UInt64]::MaxValue -or
+           $r.owned -eq 0 -or $r.offset -ne $total -or $r.compared -ne $r.length -or $r.mismatches -ne 0){throw 'm03_acpi_row_extent'}
+        if($i -eq 0){$base=[decimal]$r.owned;if($base -lt 16 -or ($base-16)%8 -ne 0 -or $base+266256 -gt [decimal][UInt64]::MaxValue){throw 'm03_acpi_owned_capacity'}}
+        if([decimal]$r.owned -ne $base+$total){throw 'm03_acpi_owned_offset'}
+        $lo=[decimal]$r.physical;$hi=$lo+$r.length
+        if($lo -lt $base+266256 -and $base-16 -lt $hi){throw 'm03_acpi_source_destination_alias'}
+        foreach($p in $physical){if($lo -lt $p.End -and $p.Start -lt $hi){throw 'm03_acpi_source_alias'}}
+        $physical+= [pscustomobject]@{Start=$lo;End=$hi}
+        if($i -lt 2){if($r.rootIndex -ne [UInt64]::MaxValue){throw 'm03_acpi_root_index_sentinel'}}
+        if($i -eq 0){
+            if($r.signature -ne [UInt64]0x2052545020445352 -or ($r.length -ne 20 -and $r.length -lt 36)){throw 'm03_acpi_rsdp_envelope'}
+        } elseif($i -eq 1){
+            $stride=if($r.signature -eq [UInt64]0x54445358){8}elseif($r.signature -eq [UInt64]0x54445352){4}else{throw 'm03_acpi_root_signature'}
+            if(($r.length-36)%$stride -ne 0){throw 'm03_acpi_root_stride'}
+            $pointerCount=($r.length-36)/$stride
+            if($pointerCount -lt 3 -or $pointerCount -gt 256 -or ($rows[0].length -eq 20 -and $stride -ne 4)){throw 'm03_acpi_root_count'}
+        } else {
+            $signature=@([UInt64]0x4746434D,[UInt64]0x43495041,[UInt64]0x54455048)[$i-2]
+            if($r.signature -ne $signature -or $r.rootIndex -ge $pointerCount -or $indices -contains $r.rootIndex){throw 'm03_acpi_selected_association'}
+            if($i -eq 2 -and ($r.length -lt 60 -or ($r.length-44)%16 -ne 0 -or ($r.length-44)/16 -gt 16)){throw 'm03_acpi_mcfg_length'}
+            $indices+=$r.rootIndex
+        }
+        $total+=$r.length;$rows+=$r
+    }
+    $retain=Read-M03MemoryMapCaptureRecord $lines[24] 'CLROS_M03_002_RETAIN' @('total:dec','descriptors:dec','guards:dec','tail:dec','mismatches:dec')
+    if($total -gt 266240 -or $retain.total -ne $total -or $retain.descriptors -ne 5 -or $retain.guards -ne 32 -or
+       $retain.tail -ne 266240-$total -or $retain.mismatches -ne 0){throw 'm03_acpi_retained_accounting'}
+}
+
+function Assert-M03AcpiBootstrapRunnerResult {
+    param([string[]] $Lines,[string] $SummaryLogPath,[string] $SerialLogPath,
+        [string[]] $RequiredMarkers,[string[]] $OrderedMarkers,[string[]] $UniqueMarkers,[string[]] $ForbiddenMarkers,
+        [string] $ImagePath,[string] $Profile)
+    # Closed ordinary stdout binds the source-configured 750ms quiet drain. It
+    # does not claim a separately measured duration or an archived runner DLL.
+    if($Lines.Count -ne 17){throw 'm03_acpi_runner_count'}
+    foreach($line in $Lines){if([regex]::IsMatch($line,'[\x00-\x1f\x7f-\uffff]')){throw 'm03_acpi_runner_control'}}
+    $q=[regex]::Match($Lines[0],'\AQEMU_DISCOVERY result=(.+) checked=(.+)\z')
+    $o=[regex]::Match($Lines[1],'\AOVMF_DISCOVERY result=(.+) checked=(.+)\z')
+    if(-not $q.Success -or -not $o.Success -or $q.Groups[1].Value -ceq 'not_found' -or $o.Groups[1].Value -ceq 'not_found'){throw 'm03_acpi_discovery'}
+    $lines=@($Lines[2..16])
+    $expected=@('TEST_START qemu.smoke',('IMAGE_ARTIFACT '+$ImagePath),('SERIAL_LOG '+$SerialLogPath),('OVMF_CODE '+$o.Groups[1].Value),
+        ('WORKLOAD_PROFILE '+$Profile),'MARKER_PRESETS acpi',('REQUIRED_MARKERS '+[string]::Join(';',$RequiredMarkers)),
+        ('ORDERED_MARKERS '+[string]::Join(';',$OrderedMarkers)),('UNIQUE_MARKERS '+[string]::Join(';',$UniqueMarkers)),
+        ('FORBIDDEN_MARKERS '+[string]::Join(';',$ForbiddenMarkers)),$lines[10],'SERIAL_MARKER_DRAIN milliseconds=750',$lines[12],
+        ('SUMMARY_LOG '+$SummaryLogPath),'TEST_PASS qemu.smoke')
+    for($i=0;$i -lt 15;$i++){if(-not [string]::Equals($lines[$i],$expected[$i],[StringComparison]::Ordinal)){throw ('m03_acpi_runner_record_'+$i)}}
+    $exit=[Int32]0;$m=[regex]::Match($lines[12],'\AQEMU_PROCESS_RESULT disposition=runner-terminated exitCode=(0|-?[1-9][0-9]*)\z')
+    if(-not $m.Success -or -not [Int32]::TryParse($m.Groups[1].Value,[Globalization.NumberStyles]::AllowLeadingSign,[Globalization.CultureInfo]::InvariantCulture,[ref]$exit)){throw 'm03_acpi_runner_exit'}
+    $serialPath=if([IO.Path]::IsPathRooted($SerialLogPath)){$SerialLogPath}else{Join-Path $root $SerialLogPath}
+    Assert-M03AcpiBootstrapTranscript $serialPath
+    $raw=[IO.File]::ReadAllBytes($serialPath);$serial=(New-Object Text.UTF8Encoding($false,$true)).GetString($raw)
+    # The exact accepted firmware byte fixture contributes two prefix lines,
+    # two suffix lines and one unterminated console line; only the latter and
+    # first prefix line contain non-marker bytes. Derive byte counts directly.
+    $invalid=0;foreach($b in $raw){if($b -ne 9 -and $b -ne 10 -and $b -ne 13 -and ($b -lt 32 -or $b -gt 126)){$invalid++}}
+    $stream='SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+$raw.Length+' lines=40 invalidBytes='+$invalid+' invalidLines=2 orderedSeen=35 outOfOrder=0 uniqueSeen=35 duplicateUnique=0'
+    if(-not [string]::Equals($lines[10],$stream,[StringComparison]::Ordinal)){throw 'm03_acpi_stream_accounting'}
+    $summaryPath=if([IO.Path]::IsPathRooted($SummaryLogPath)){$SummaryLogPath}else{Join-Path $root $SummaryLogPath}
+    $summary=New-Object 'System.Collections.Generic.List[string]';$summary.Add('QEMU_SMOKE_STATUS pass')
+    foreach($i in @(1,2,4,5,6,7,8,9)){$summary.Add($expected[$i])}
+    $protocol=$serial.Substring(304,$serial.IndexOf("OS_SMOKE_PASS`r`n",[StringComparison]::Ordinal)+15-304).Split([string[]]@("`r`n"),[StringSplitOptions]::None)
+    foreach($line in $protocol){if($line.Length -gt 0){$summary.Add('OBSERVED_MARKER '+$line)}}
+    foreach($line in @('APP_EXIT_RESULT none','APP_EXIT_MALFORMED none','MISSING_MARKERS none','OUT_OF_ORDER_MARKERS none','DUPLICATE_UNIQUE_MARKERS none','FORBIDDEN_MARKER_HIT none','FAIL_REASON none','SERIAL_TAIL_LIMIT lines=8 chars=240')){$summary.Add($line)}
+    $tail=@($serial.Split([string[]]@("`r`n"),[StringSplitOptions]::None) | Where-Object {$_.Trim().Length -gt 0} | Select-Object -Last 8)
+    foreach($line in $tail){$s=$line.Trim();if($s.Length -gt 240){$s=$s.Substring(0,237)+'...'};$summary.Add('SERIAL_TAIL_LINE '+$s)}
+    # Ordinary Program writes Encoding.UTF8, including its BOM; exact bytes also
+    # bind all firmware tail characters without generic whitespace normalization.
+    $want=[byte[]]([Text.Encoding]::UTF8.GetPreamble()+[Text.Encoding]::UTF8.GetBytes([string]::Join("`r`n",$summary)+"`r`n"))
+    $actual=[IO.File]::ReadAllBytes($summaryPath)
+    if($actual.Length -ne $want.Length){throw 'm03_acpi_summary_length'}
+    for($i=0;$i -lt $want.Length;$i++){if($actual[$i] -ne $want[$i]){throw 'm03_acpi_summary_bytes'}}
+}
+
 function Assert-M04StringAllocationRecords {
     param([string[]] $Lines, [hashtable] $Heap)
     if ($Lines.Count -ne 20 -or
@@ -2241,6 +2439,116 @@ function Assert-M04StringAllocationRecords {
     if ($retained.heapStart -ne $Heap.retainedStart -or $retained.heapEnd -ne $Heap.retainedEnd -or
         $retained.initialPages -ne 2 -or $retained.freePages -ne 1 -or $retained.allocatedPages -ne 1 -or $retained.readBytes -ne 4096 -or
         $used -ne 200 -or $retained.used -ne $used -or $retained.count -ne 7 -or $retained.status -ne 1) { throw 'm04_string_retained_accounting' }
+}
+
+function Assert-M04CheckedReferenceBarrierRecords {
+    param([string[]] $Lines, [hashtable] $Heap)
+    if ($Lines.Count -ne 18 -or
+        -not [string]::Equals($Lines[0], 'TEST_START m04.010.references', [StringComparison]::Ordinal) -or
+        -not [string]::Equals($Lines[17], 'TEST_PASS m04.010.references', [StringComparison]::Ordinal)) { throw 'm04_reference_exact_sequence' }
+    $bind = Read-M04RhpNewFastRecord $Lines[2] 'M04_REFERENCE_BIND' @('image:hex','imageBytes:dec','allocator:hex','nodes:hex','ledger:hex','ledgerBytes:dec','parentIndex:dec','backing:hex','backingBytes:dec','heap:hex','heapBytes:dec','access:hex','accessBytes:dec','bump:hex','bumpBytes:dec','status:dec','used:dec','count:dec')
+    foreach ($pair in @(@('allocator','allocatorState'),@('nodes','nodes'),@('ledger','ledger'),@('parentIndex','parentIndex'),@('backing','backing'),@('heap','heapState'))) {
+        if ($bind[$pair[0]] -ne $Heap[$pair[1]]) { throw 'm04_reference_original_identity' }
+    }
+    if ($bind.image -eq 0 -or $bind.image % 8 -ne 0 -or $bind.imageBytes -lt 64 -or
+        [decimal]$bind.image + $bind.imageBytes -gt [decimal][UInt64]::MaxValue -or
+        $bind.ledgerBytes -ne 200 -or $bind.backingBytes -ne 8192 -or $bind.heapBytes -ne 216 -or
+        $bind.accessBytes -ne 104 -or $bind.bumpBytes -ne 80 -or $bind.status -ne 1 -or $bind.used -ne 0 -or $bind.count -ne 0) { throw 'm04_reference_bind_contract' }
+    $prep = Read-M04RhpNewFastRecord $Lines[1] 'M04_REFERENCE_PREP' @('image:hex','imageBytes:dec','access:hex','accessBytes:dec','bump:hex','bumpBytes:dec','control:hex','controlBytes:dec','records:hex','recordsBytes:dec')
+    foreach ($name in @('image','imageBytes','access','accessBytes','bump','bumpBytes')) {
+        if ($prep[$name] -ne $bind[$name]) { throw 'm04_reference_preparation_identity' }
+    }
+    if ($prep.controlBytes -ne 96 -or $prep.recordsBytes -ne 6672) { throw 'm04_reference_preparation_size' }
+    $g = Read-M04RhpNewFastRecord $Lines[9] 'M04_REFERENCE_GEOMETRY' @('state:hex','stateBytes:dec','cellReference:dec','cellTag:dec','cellPayload:dec','pairFirst:dec','pairLast:dec','pairTag:dec','blockPayload:dec')
+    # Fixed POD arithmetic is checked by the complete host child. Managed object
+    # offsets below remain observations; they also require a same-image native join.
+    if ($g.stateBytes -ne 432 -or $g.cellReference -ne 8 -or $g.cellTag -ne 16 -or
+        $g.cellPayload -lt 24 -or $g.cellPayload % 8 -ne 0 -or $g.pairTag -ne 16 -or
+        -not (($g.pairFirst -eq 0 -and $g.pairLast -eq 8) -or ($g.pairFirst -eq 8 -and $g.pairLast -eq 0)) -or
+        $g.blockPayload -lt 8 -or $g.blockPayload % 8 -ne 0) { throw 'm04_reference_geometry' }
+    $storage = @{}; foreach ($key in $bind.Keys) { $storage[$key] = $bind[$key] }
+    $storage.control = $prep.control; $storage.records = $prep.records; $storage.state = $g.state
+    $extents = @()
+    foreach ($slot in @(@('allocator',56),@('nodes',48),@('ledger',200),@('heap',216),@('backing',8192),@('access',104),@('bump',80),@('control',96),@('records',6672),@('state',432))) {
+        $start = [decimal]$storage[$slot[0]]; $end = $start + $slot[1]
+        if ($start -eq 0 -or $start % 8 -ne 0 -or $end -gt [decimal][UInt64]::MaxValue) { throw 'm04_reference_storage_extent' }
+        foreach ($previous in $extents) { if ($start -lt $previous.End -and $previous.Start -lt $end) { throw 'm04_reference_storage_alias' } }
+        $extents += [pscustomobject]@{Start=$start; End=$end}
+    }
+    $objects = @(); $used = [UInt64]0
+    for ($id = 1; $id -le 6; $id++) {
+        $o = Read-M04RhpNewFastRecord $Lines[$id + 2] ('M04_REFERENCE_OBJECT id=' + $id) @('mt:hex','prefix0:hex','prefix1:hex','prefix2:hex','flags:hex','base:dec','allocation:hex','reference:hex','end:hex','usedBefore:dec','usedAfter:dec','count:dec','sync:hex','observedMt:hex','zeroBytes:dec','zeroOr:hex','scalarOffset:dec','scalar:hex')
+        $flags = if ($id -le 2) { [UInt64]0x50000000 } else { [UInt64]0x51000000 }
+        $minimum = if ($id -le 2) { [decimal]24 } elseif ($id -le 4) { [decimal]$g.cellPayload + 32 } else { [decimal]$g.blockPayload + 200 }
+        $offset = if ($id -le 2) { [UInt64]8 } elseif ($id -le 4) { $g.cellTag } else { [UInt64]0 }
+        $scalar = if ($id -le 4) { [UInt64]0x1111222233334400 + [UInt64]$id } else { [UInt64]0 }
+        if ($o.mt -eq 0 -or $o.mt % 8 -ne 0 -or $o.mt -lt $bind.image -or
+            [decimal]$o.mt + 24 -gt [decimal]$bind.image + $bind.imageBytes -or
+            $o.flags -ne $flags -or ($o.prefix0 -band [UInt64]4294967295) -ne $flags -or
+            ($o.prefix0 -shr 32) -ne $o.base -or $o.base -lt $minimum -or $o.base % 8 -ne 0 -or
+            $o.base -gt 4096 - $used -or [decimal]$o.allocation -ne [decimal]$bind.backing + $used -or
+            [decimal]$o.reference -ne [decimal]$o.allocation + 8 -or [decimal]$o.end -ne [decimal]$o.allocation + $o.base -or
+            $o.usedBefore -ne $used -or $o.usedAfter -ne $used + $o.base -or $o.count -ne $id -or
+            $o.sync -ne 0 -or $o.observedMt -ne $o.mt -or $o.zeroBytes -ne $o.base - 8 -or $o.zeroOr -ne 0 -or
+            $o.scalarOffset -ne $offset -or $o.scalar -ne $scalar) { throw ('m04_reference_object_' + $id) }
+        foreach ($slot in $extents) {
+            if ([decimal]$o.mt -lt $slot.End -and $slot.Start -lt [decimal]$o.mt + 24) { throw 'm04_reference_metadata_alias' }
+        }
+        if (($id % 2) -eq 0) {
+            foreach ($name in @('mt','prefix0','prefix1','prefix2','flags','base')) {
+                if ($o[$name] -ne $objects[$id - 2][$name]) { throw 'm04_reference_paired_type' }
+            }
+        }
+        else {
+            foreach ($previous in $objects) {
+                if ([decimal]$o.mt -lt [decimal]$previous.mt + 24 -and [decimal]$previous.mt -lt [decimal]$o.mt + 24) { throw 'm04_reference_distinct_type_alias' }
+            }
+        }
+        $objects += $o; $used = $o.usedAfter
+    }
+    $cookie = [UInt64]0x179BCDE02468ACE0
+    $operations = @(
+        @(2,18,$cookie),
+        @(1,19,($cookie -bxor [UInt64]0x1111222233334404)),
+        @(2,20,$cookie),
+        @(3,22,($cookie -bxor [UInt64]0x1928374655AABBCC)),
+        @(4,23,($cookie -bxor [UInt64]0x3141592653589707))
+    )
+    for ($i = 0; $i -lt 5; $i++) {
+        $operation = Read-M04RhpNewFastRecord $Lines[$i + 10] 'M04_REFERENCE_OPERATION' @('kind:dec','calls:dec','cookie:hex')
+        if ($operation.kind -ne $operations[$i][0] -or $operation.calls -ne $operations[$i][1] -or
+            $operation.cookie -ne $operations[$i][2]) { throw ('m04_reference_operation_' + $i) }
+    }
+    $retained = Read-M04RhpNewFastRecord $Lines[15] 'M04_REFERENCE_RETAIN' @('allocator:hex','nodes:hex','ledger:hex','parentIndex:dec','backing:hex','heap:hex','bump:hex','heapStart:hex','heapEnd:hex','initialPages:dec','freePages:dec','allocatedPages:dec','readBytes:dec','contentsZero:false','used:dec','count:dec','status:dec')
+    foreach ($name in @('allocator','nodes','ledger','parentIndex','backing','heap','bump')) {
+        if ($retained[$name] -ne $bind[$name]) { throw 'm04_reference_retained_identity' }
+    }
+    if ($retained.heapStart -ne $Heap.retainedStart -or $retained.heapEnd -ne $Heap.retainedEnd -or
+        $retained.initialPages -ne 2 -or $retained.freePages -ne 1 -or $retained.allocatedPages -ne 1 -or
+        $retained.readBytes -ne 4096 -or $retained.used -ne $used -or $retained.count -ne 6 -or $retained.status -ne 1) { throw 'm04_reference_retained_accounting' }
+    $ready = 'CLROS_M04_010_NATIVE_READY allocations=6 usedBytes=' + $used.ToString([Globalization.CultureInfo]::InvariantCulture) +
+        ' calls=23 initialStores=18 fieldStores=1 checkedStores=1 pairHelpers=2 bulkCalls=1 pairComplete=true blockComplete=true exclusiveNonCollecting=true gate4=Fail'
+    if (-not [string]::Equals($Lines[16], $ready, [StringComparison]::Ordinal)) { throw 'm04_reference_ready' }
+}
+
+function Assert-M04CheckedReferenceBarrierTranscript {
+    param([string] $SerialLogPath)
+    $path = if ([IO.Path]::IsPathRooted($SerialLogPath)) { $SerialLogPath } else { Join-Path $root $SerialLogPath }
+    $bytes = [IO.File]::ReadAllBytes($path)
+    if ($bytes.Length -gt 32768) { throw 'm04_reference_raw_extent' }
+    $text = (New-Object Text.UTF8Encoding($false, $true)).GetString($bytes)
+    $start = $text.IndexOf("TEST_START efi.main`r`n", [StringComparison]::Ordinal)
+    if ($start -ne 0 -and $start -ne 304) { throw 'm04_reference_preamble_length' }
+    if ($start -eq 304) {
+        $sha = [Security.Cryptography.SHA256]::Create()
+        try { $hash = [BitConverter]::ToString($sha.ComputeHash($bytes, 0, 304)).Replace('-', '') }
+        finally { $sha.Dispose() }
+        if (-not [string]::Equals($hash, 'BB50E913C752428AE49AE6C20879196F507926CC685CAD83986494244299D124', [StringComparison]::Ordinal)) { throw 'm04_reference_preamble_bytes' }
+    }
+    $owned = $text.Substring($start)
+    $lines = $owned.Split([string[]]@("`r`n"), [StringSplitOptions]::None)
+    if ($lines.Count -ne 71 -or $lines[70].Length -ne 0 -or [regex]::IsMatch($owned, '[^\x20-\x7E\r\n]')) { throw 'm04_reference_raw_extent' }
+    Assert-M04ManagedHeapPageRangeTranscript -SerialLogPath $SerialLogPath -IncludeCheckedReferences
 }
 
 function Assert-M04StringAllocationTranscript {
@@ -5475,7 +5783,61 @@ try {
         exit 1
     }
 
-    if ($EnableM03MemoryMapCaptureProbe) {
+    if ($EnableM04CheckedReferenceBarrierProbe) {
+    foreach ($referenceFlag in @(
+        "EnableM01LoadedImageStackProbe",
+        "EnableM01LiveAllocatorProbe",
+        "EnableM04IndependentEndianConformanceProbe",
+        "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe",
+        "EnableM04ArithmeticConformanceProbe",
+        "EnableM04LayoutContractProbe",
+        "EnableM04ManagedHeapPageRangeProbe",
+        "EnableM04RhpNewFastProbe"
+    )) {
+        if ( -not [bool](Get-Variable -Name $referenceFlag -ValueOnly)) {
+            Write-Output ("TEST_FAIL qemu.smoke m04_checked_reference_profile_invalid property=" + $referenceFlag)
+            exit 1
+        }
+    }
+    foreach ($referenceFlag in @(
+        "EnableM01OwnedPagingProbe",
+        "EnableM02SafeStubProbe",
+        "EnableM02CheckedPortIoBindingProbe",
+        "EnableM02Com1OwnedPortIoProbe",
+        "EnableM02OwnedCom1ReadyProbe",
+        "EnableM02PanicSafeOwnedCom1Probe",
+        "EnableM02OwnedX64GdtEncodingProbe",
+        "EnableM02GuardedIstStackAllocationProbe",
+        "EnableM02OwnedGdtTssTerminalProbe",
+        "EnableM02NormalizedInterruptFramePageProbe",
+        "EnableM02OwnedIdtGatePopulationProbe",
+        "EnableM02IdtrContinuedExecutionProbe",
+        "EnableM02Ud2VectorStateProbe",
+        "EnableM02PageFaultCr2ErrorCodeProbe",
+        "EnableM02DoubleFaultIstProbe",
+        "EnableM02UnexpectedVectorPanicProbe",
+        "EnableM04RhpNewFastBeforeBindFailureProbe",
+        "EnableM04RhpNewFastExhaustionFailureProbe",
+        "EnableM04SzArrayAllocationProbe",
+        "EnableM04SzArrayAllocationBeforeBindProbe",
+        "EnableM04SzArrayAllocationExhaustionProbe",
+        "EnableM04StringAllocationProbe",
+        "EnableM04StringAllocationBeforeBindProbe",
+        "EnableM04StringAllocationExhaustionProbe",
+        "EnableM04StringAllocationInvalidLengthProbe",
+        "EnableM03MemoryMapCaptureProbe",
+        "EnableUefiGoneSimulationProbe",
+        "EnableExitBootServicesFreshMapProbe",
+        "EnableAcpiPhysicalDiscoveryProbe"
+    )) {
+        if ([bool](Get-Variable -Name $referenceFlag -ValueOnly)) {
+            Write-Output ("TEST_FAIL qemu.smoke m04_checked_reference_profile_conflict property=" + $referenceFlag)
+            exit 1
+        }
+    }
+}
+
+if ($EnableM03MemoryMapCaptureProbe) {
     foreach ($memoryMapConflict in @(
         "EnableM01LoadedImageStackProbe",
         "EnableM01LiveAllocatorProbe",
@@ -5851,6 +6213,11 @@ $rhpReason = $arrayReason
             "m01LoadedImageStack=true m01LiveAllocator=true m01OwnedPaging=true")
     }
 
+    if ($EnableM04CheckedReferenceBarrierProbe -and (-not $BuildEfi -or $SkipImageBuild -or $M01RawObservationLog.Length -ne 0)) {
+        Write-Host "TEST_FAIL qemu.smoke m04_checked_reference_requires_build_and_original_capture"
+        exit 1
+    }
+
     if ($EnableM03MemoryMapCaptureProbe -and (-not $BuildEfi -or $SkipImageBuild -or $M01RawObservationLog.Length -ne 0)) {
         Write-Host "TEST_FAIL qemu.smoke m03_memory_map_capture_requires_build_and_original_capture"
         exit 1
@@ -5871,6 +6238,14 @@ $rhpReason = $arrayReason
         ConvertTo-QemuSmokeMarkerList -Values $ForbidMarker
     )
 
+    if (-not $EnableM04CheckedReferenceBarrierProbe) {
+        foreach ($marker in @($requiredMarkers; $orderedMarkers; $uniqueMarkers)) {
+            if ($marker -cmatch '^(M04_REFERENCE_|CLROS_M04_010_NATIVE_READY|TEST_(START|PASS) m04\.010\.references)') {
+                Write-Host "TEST_FAIL qemu.smoke m04_checked_reference_requires_explicit_profile"
+                exit 1
+            }
+        }
+    }
     if (-not $EnableM03MemoryMapCaptureProbe) {
         foreach ($marker in @($requiredMarkers; $orderedMarkers; $uniqueMarkers)) {
             if ($marker -cmatch '^(M03_CAPTURE_|CLROS_M03_001_READY|TEST_(START|PASS) m03\.001\.capture)') {
@@ -5879,11 +6254,31 @@ $rhpReason = $arrayReason
             }
         }
     }
-    if ($EnableM03MemoryMapCaptureProbe) {
+    if (-not $EnableAcpiPhysicalDiscoveryProbe) {
+        foreach ($marker in @($requiredMarkers; $orderedMarkers; $uniqueMarkers)) {
+            if ($marker -cmatch '^(CLROS_M03_002_|TEST_(START|PASS) m03\.002)') {
+                Write-Host 'TEST_FAIL qemu.smoke m03_acpi_requires_explicit_profile'
+                exit 1
+            }
+        }
+    }
+    if ($EnableAcpiPhysicalDiscoveryProbe) {
+        $requiredMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($requiredMarkers; $script:M03AcpiBootstrapRequiredMarkers))
+        $orderedMarkers = @(ConvertTo-QemuSmokeMarkerList -Values $script:M03AcpiBootstrapRequiredMarkers)
+        $uniqueMarkers = @(ConvertTo-QemuSmokeMarkerList -Values $script:M03AcpiBootstrapRequiredMarkers)
+        $forbiddenMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @('OS_SMOKE_FAIL'; 'TEST_FAIL'; 'ACPI_DISCOVERY_FAIL'))
+    }
+    elseif ($EnableM03MemoryMapCaptureProbe) {
         $requiredMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($requiredMarkers; $script:M03MemoryMapCaptureRequiredMarkers))
         $orderedMarkers = @(ConvertTo-QemuSmokeMarkerList -Values $script:M03MemoryMapCaptureRequiredMarkers)
         $uniqueMarkers = @(ConvertTo-QemuSmokeMarkerList -Values $script:M03MemoryMapCaptureRequiredMarkers)
         $forbiddenMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($forbiddenMarkers; 'TEST_FAIL'; 'OS_SMOKE_FAIL'; 'M03_CAPTURE_FAILURE'))
+    }
+    elseif ($EnableM04CheckedReferenceBarrierProbe) {
+        $requiredMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($requiredMarkers; $script:M04CheckedReferenceBarrierRequiredMarkers))
+        $orderedMarkers = @($script:M04CheckedReferenceBarrierRequiredMarkers)
+        $uniqueMarkers = @($script:M04CheckedReferenceBarrierRequiredMarkers)
+        $forbiddenMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($forbiddenMarkers; $script:M04CheckedReferenceBarrierForbiddenMarkers))
     }
     elseif ($EnableM04StringAllocationProbe) {
         $requiredMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($requiredMarkers; $script:M04StringAllocationRequiredMarkers))
@@ -7493,6 +7888,61 @@ $rhpReason = $arrayReason
         exit 1
     }
 
+    if ($EnableAcpiPhysicalDiscoveryProbe) {
+        if (-not $BuildEfi -or $SkipImageBuild -or $M01RawObservationLog.Length -ne 0 -or $RequireNativeAppMarkers -or @($args).Count -ne 0) {
+            Write-Host 'TEST_FAIL qemu.smoke m03_acpi_requires_build_and_original_capture'
+            exit 1
+        }
+        foreach ($key in @('RequireMarker','RequireOrderedMarker','RequireUniqueMarker','ForbidMarker')) {
+            if ($PSBoundParameters.ContainsKey($key)) { Write-Host ('TEST_FAIL qemu.smoke m03_acpi_forbids_override parameter='+$key); exit 1 }
+        }
+        if (@($MarkerPreset).Count -ne 1 -or -not [string]::Equals($MarkerPreset[0].Trim().ToLowerInvariant(),'acpi',[StringComparison]::Ordinal)) {
+            Write-Host 'TEST_FAIL qemu.smoke m03_acpi_requires_exact_preset'
+            exit 1
+        }
+        foreach ($conflict in @(
+            'EnableUefiGoneSimulationProbe',
+            'EnableExitBootServicesFreshMapProbe',
+            'EnableM01LoadedImageStackProbe',
+            'EnableM01LiveAllocatorProbe',
+            'EnableM01OwnedPagingProbe',
+            'EnableM02SafeStubProbe',
+            'EnableM02CheckedPortIoBindingProbe',
+            'EnableM02Com1OwnedPortIoProbe',
+            'EnableM02OwnedCom1ReadyProbe',
+            'EnableM02PanicSafeOwnedCom1Probe',
+            'EnableM02OwnedX64GdtEncodingProbe',
+            'EnableM02GuardedIstStackAllocationProbe',
+            'EnableM02OwnedGdtTssTerminalProbe',
+            'EnableM02NormalizedInterruptFramePageProbe',
+            'EnableM02OwnedIdtGatePopulationProbe',
+            'EnableM02IdtrContinuedExecutionProbe',
+            'EnableM02Ud2VectorStateProbe',
+            'EnableM02PageFaultCr2ErrorCodeProbe',
+            'EnableM02DoubleFaultIstProbe',
+            'EnableM02UnexpectedVectorPanicProbe',
+            'EnableM04IndependentEndianConformanceProbe',
+            'EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe',
+            'EnableM04ArithmeticConformanceProbe',
+            'EnableM04LayoutContractProbe',
+            'EnableM04ManagedHeapPageRangeProbe',
+            'EnableM04RhpNewFastProbe',
+            'EnableM04RhpNewFastBeforeBindFailureProbe',
+            'EnableM04RhpNewFastExhaustionFailureProbe',
+            'EnableM04SzArrayAllocationProbe',
+            'EnableM04SzArrayAllocationBeforeBindProbe',
+            'EnableM04SzArrayAllocationExhaustionProbe',
+            'EnableM04StringAllocationProbe',
+            'EnableM04StringAllocationBeforeBindProbe',
+            'EnableM04StringAllocationExhaustionProbe',
+            'EnableM04StringAllocationInvalidLengthProbe',
+            'EnableM03MemoryMapCaptureProbe',
+            'EnableM04CheckedReferenceBarrierProbe'
+        )) {
+            if ([bool](Get-Variable -Name $conflict -ValueOnly)) { Write-Host ('TEST_FAIL qemu.smoke m03_acpi_profile_conflict property='+$conflict); exit 1 }
+        }
+    }
+
     if ($EnableM02UnexpectedVectorPanicProbe -and @($MarkerPreset).Count -ne 0) {
         Write-Host "TEST_FAIL qemu.smoke.invalid_args m02_unexpected_vector_panic_forbids_marker_preset"
         exit 1
@@ -7682,6 +8132,10 @@ $rhpReason = $arrayReason
             $buildArguments +=
                 "-EnableM03MemoryMapCaptureProbe"
         }
+        if ($EnableM04CheckedReferenceBarrierProbe) {
+            $buildArguments +=
+                "-EnableM04CheckedReferenceBarrierProbe"
+        }
 
         Invoke-NativeCommand {
             & powershell.exe @buildArguments
@@ -7819,8 +8273,8 @@ $rhpReason = $arrayReason
             $m01RawObservationCapture.EnvironmentState = $null
         }
     }
-    elseif (($EnableM03MemoryMapCaptureProbe -or $EnableM04ManagedHeapPageRangeProbe -or $EnableM02PageFaultCr2ErrorCodeProbe -or $EnableM02DoubleFaultIstProbe -or $EnableM02UnexpectedVectorPanicProbe) -and -not $DryRun) {
-        $heapRunnerLines = @(Invoke-NativeCommand -Command { & dotnet run @arguments } -RequireEmptyError:($EnableM02UnexpectedVectorPanicProbe -or $EnableM03MemoryMapCaptureProbe))
+    elseif (($EnableAcpiPhysicalDiscoveryProbe -or $EnableM03MemoryMapCaptureProbe -or $EnableM04ManagedHeapPageRangeProbe -or $EnableM02PageFaultCr2ErrorCodeProbe -or $EnableM02DoubleFaultIstProbe -or $EnableM02UnexpectedVectorPanicProbe) -and -not $DryRun) {
+        $heapRunnerLines = @(Invoke-NativeCommand -Command { & dotnet run @arguments } -RequireEmptyError:($EnableAcpiPhysicalDiscoveryProbe -or $EnableM02UnexpectedVectorPanicProbe -or $EnableM03MemoryMapCaptureProbe))
         foreach ($line in $heapRunnerLines) { Write-Host $line }
     }
     else {
@@ -7943,6 +8397,13 @@ $rhpReason = $arrayReason
         }
         Write-Host "QEMU_SCRIPT_M02_DF_TRANSCRIPT postSmokeSequence=true rawObservations=true guardAbsence=true postPassMarkerNoise=false"
     }
+    if ($EnableAcpiPhysicalDiscoveryProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
+        try {
+            Assert-M03AcpiBootstrapRunnerResult -Lines $heapRunnerLines -SummaryLogPath $SummaryLog -SerialLogPath $SerialLog -RequiredMarkers $requiredMarkers -OrderedMarkers $orderedMarkers -UniqueMarkers $uniqueMarkers -ForbiddenMarkers $forbiddenMarkers -ImagePath $Image -Profile $WorkloadProfile
+        }
+        catch { Write-Host ('TEST_FAIL qemu.smoke.m03.002 strict_transcript_invalid reason='+$_.Exception.Message); exit 1 }
+        Write-Host 'QEMU_SCRIPT_M03_ACPI_BOOTSTRAP_TRANSCRIPT exactWholeLines=true lines=35 tables=5 workspaceBytes=335696 ownedBytes=266272 firmwareAvailable=true exitBootServices=false'
+    }
     if ($EnableM03MemoryMapCaptureProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
         try {
             Assert-M03MemoryMapCaptureRunnerResult -Lines $heapRunnerLines
@@ -7953,6 +8414,17 @@ $rhpReason = $arrayReason
             exit 1
         }
         Write-Host "QEMU_SCRIPT_M03_MEMORY_MAP_CAPTURE_TRANSCRIPT exactWholeLines=true lines=31 observerBytes=488 capacity=131072 firmwareAvailable=true exitBootServices=false"
+    }
+    elseif ($EnableM04CheckedReferenceBarrierProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
+        try {
+            Assert-M04ManagedHeapRunnerResult -Lines $heapRunnerLines
+            Assert-M04CheckedReferenceBarrierTranscript -SerialLogPath $SerialLog
+        }
+        catch {
+            Write-Host ("TEST_FAIL qemu.smoke.m04.010 strict_transcript_invalid reason=" + $_.Exception.Message)
+            exit 1
+        }
+        Write-Host "QEMU_SCRIPT_M04_CHECKED_REFERENCE_TRANSCRIPT exactWholeLines=true lines=70 allocations=6 calls=23 exclusiveNonCollecting=true terminal=true"
     }
     elseif ($EnableM04StringAllocationProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
         try {
@@ -8020,6 +8492,13 @@ $rhpReason = $arrayReason
         if (Test-M02DoubleFaultIstOwnedMarker -Marker ([Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($serialPath)))) {
             Write-Host 'TEST_FAIL qemu.smoke.m02.015 unexpected_profile_record'
             exit 97
+        }
+    }
+    if (-not $EnableM04CheckedReferenceBarrierProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
+        $serialPath = if ([IO.Path]::IsPathRooted($SerialLog)) { $SerialLog } else { Join-Path $root $SerialLog }
+        if ([regex]::IsMatch([Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($serialPath)), '(?i)CLROS_M04_010_NATIVE_READY|M04_REFERENCE_|m04\.010\.references')) {
+            Write-Host 'TEST_FAIL qemu.smoke.m04.010 unexpected_profile_record'
+            exit 1
         }
     }
     if (-not $EnableM04StringAllocationProbe -and -not $DryRun -and $runnerExitCode -eq 0) {

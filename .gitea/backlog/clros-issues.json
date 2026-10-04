@@ -8068,7 +8068,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M03: Real Firmware Exit.",
-      "currentEvidence": "Step970 completes the first child M03-001 (#58), including the qualified #532 native observation supplement, after the clean 854a335 common host gate (3670 starts/3671 passes/zero failures) and fresh default/enabled capture reviews. The original memory-map query/allocation/recapture and guarded owned copy are observed while firmware remains available. The remaining ten children M03-002 through M03-011 (#59 through #68) are incomplete; their readiness is assessed separately, and #59 is not promoted by this catalog update. No ExitBootServices call, map-key freshness, post-firmware execution/ownership or M03 exit criterion is proved; the epic remains open.",
+      "currentEvidence": "Step970 accepts M03-001 (#58) and its #532 native observation; step977 accepts the five-role pre-EBS owned ACPI copy for M03-002 (#59/#539). Reviewed merge and tracker closure remain separate actions. The remaining nine children M03-003 through M03-011 (#60 through #68) are incomplete; readiness is assessed from actual dependency closure. No ExitBootServices call, map-key freshness, post-firmware execution/ownership or M03 exit criterion is proved; the epic remains open.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -8206,7 +8206,7 @@
         "M03-001"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -8233,7 +8233,7 @@
       ],
       "collisionLane": null,
       "summary": "Copy RSDP, selected RSDT/XSDT, MCFG, MADT, and HPET bootstrap bytes into owned memory.",
-      "currentEvidence": "The EFI path captures a map but deliberately skips the ExitBootServices call; post-firmware execution is unproven.",
+      "currentEvidence": "Step977 accepts the bounded five-table owned ACPI milestone at eeee523 after the complete 3692-start/3693-pass/zero-failure common gate and fresh default/ACPI QEMU captures. Independent native image, source/profile, exact 35-record transcript, lifecycle and disk reviews bind all five retained RSDP/root/MCFG/MADT/HPET roles, 356 compared bytes, 32 guard bytes and 265884 unused-tail bytes. Firmware remains available; embedded addresses are not rebased. Reviewed merge and evidence-qualified closure of #59/#539 are separate tracker actions; #60 becomes eligible only after that closure. No post-firmware access, device operation or M03 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Copy RSDP, selected RSDT/XSDT, MCFG, MADT, and HPET bootstrap bytes into owned memory.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -8279,14 +8279,14 @@
         "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun",
         "git diff --check",
         "git status --short",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M03_002_READY\""
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -BuildEfi -EnableAcpiPhysicalDiscoveryProbe -MarkerPreset acpi -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30"
       ],
       "documentationPaths": [
         "docs/boot.md",
         "docs/efi-build.md"
       ],
       "evidenceBoundary": "This issue proves only \"Copy RSDP, selected RSDT/XSDT, MCFG, MADT, and HPET bootstrap bytes into owned memory.\" It does not by itself prove the M03 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M03-003",
@@ -8324,7 +8324,7 @@
       ],
       "collisionLane": null,
       "summary": "Copy any firmware-derived entropy seed needed after firmware shutdown, with explicit failure status.",
-      "currentEvidence": "The EFI path captures a map but deliberately skips the ExitBootServices call; post-firmware execution is unproven.",
+      "currentEvidence": "Step977 accepts the preceding bounded owned-ACPI milestone; this entropy-retention slice remains unimplemented. #60 is eligible only after the reviewed merge and actual #59 closure. Existing guarded host RNG contracts and static OVMF driver presence do not prove firmware GetRNG acquisition or retained seed bytes. No ExitBootServices or post-firmware execution is proved.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Copy any firmware-derived entropy seed needed after firmware shutdown, with explicit failure status.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -9142,7 +9142,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M04: NativeAOT Runtime Correctness.",
-      "currentEvidence": "Nine M04 keyed children (#70 through #78) are closed. Steps949,954 and964 record the bounded fixed-object, array and String guest milestones; allocation no longer has a blanket fail-fast-only status. Step967 records the noncollecting checked-slot/bulk host prerequisite, while #79 remains claimed for genuine returning helper ABI, object/slot authority and guest proof. Children #79 through #92 remain open. Metadata registration, collecting GC/root enumeration, dispatch, exceptions and general runtime completion remain unaccepted; Gate4 stays Fail. This epic remains a coordination tracker, with no implementation ownership.",
+      "currentEvidence": "Nine M04 keyed children (#70 through #78) are closed. Steps949,954 and964 record bounded fixed-object, array and String guest milestones. Step977 records the complete common gate, exact native association and bounded returning-reference guest progress; #79/#537 remain claimed because the explicit live executing-stack canary requirement is unmet. Children #79 through #92 remain open and #80 remains blocked. Metadata registration, collecting GC/root enumeration, dispatch, exceptions and general runtime completion remain unaccepted; Gate4 stays Fail. This epic remains a coordination tracker, with no implementation ownership.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -10018,7 +10018,7 @@
         "M04-009"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:research",
         "evidence:qemu",
@@ -10044,7 +10044,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement checked reference and bulk write barriers, including .NET 10 bulk-move requirements.",
-      "currentEvidence": "Step967 adds a bounded noncollecting host prerequisite: checked aligned word stores and overlap-safe same-page bulk moves, using all thirteen original retained-authority inputs and preserving allocator/cursor state. The complete five-module focused run passes 43 starts/44 passes/zero failures; normal HostTests and the actual eleven-source no-stdlib build pass with zero AssemblyRefs. Patterned full-buffer rejection oracles, unsigned boundaries, both overlap directions and warmed zero-allocation checks are covered. Step970 also records the successful common full suite at 854a335: 3670 starts/3671 passes/zero failures. Actual returning native helper/ABI integration and its guest evidence remain pending. M04-010 stays open; no general WriteBarriers/GC gate or M04-011 readiness is claimed.",
+      "currentEvidence": "Steps967/973 add retained-page checked stores, three returning reference helpers and the managed bulk bridge. Step977 records the accepted eeee523 complete common gate (3692 starts/3693 passes/zero failures), exact native-image association and a fresh 70-record reference guest transcript with six genuine allocations and 23 callback events. Static whole-route stack bounds and initial live RSP containment are established, but #537 acceptance item4 still lacks a live executing-stack canary observation; static context guards and controlled thunk canaries do not substitute for it. #79/#537 remain open and claimed; #80 stays blocked. General WriteBarriers, collecting GC, root visibility, concurrency, wider-vector preservation and hosted runtime remain unaccepted.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Implement checked reference and bulk write barriers, including .NET 10 bulk-move requirements.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -10082,7 +10082,8 @@
         "TEST_START m04.010",
         "TEST_PASS m04.010",
         "TEST_FAIL m04.010 <reason>",
-        "CLROS_M04_010_READY"
+        "CLROS_M04_010_READY",
+        "CLROS_M04_010_NATIVE_READY"
       ],
       "requiredCommands": [
         "dotnet build .\\CLROS.slnx --nologo -m:1",
@@ -10090,7 +10091,7 @@
         "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun",
         "git diff --check",
         "git status --short",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M04_010_READY\""
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -BuildEfi -EnableM04CheckedReferenceBarrierProbe -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM04IndependentEndianConformanceProbe -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -EnableM04ArithmeticConformanceProbe -EnableM04LayoutContractProbe -EnableM04ManagedHeapPageRangeProbe -EnableM04RhpNewFastProbe -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30"
       ],
       "documentationPaths": [
         "docs/nativeaot-nostdlib-limits.md",
@@ -10134,7 +10135,7 @@
       ],
       "collisionLane": null,
       "summary": "Register TypeManager/module metadata from the live NativeAOT image.",
-      "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
+      "currentEvidence": "Bounded fixed-object, array and String guest milestones exist; step977 records returning-reference progress while #79/#537 remain open for live executing-stack canary evidence. TypeManager/module registration is still unimplemented and #80 stays blocked on #79. No metadata registration, collecting GC, dispatch, exceptions or general runtime completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Register TypeManager/module metadata from the live NativeAOT image.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

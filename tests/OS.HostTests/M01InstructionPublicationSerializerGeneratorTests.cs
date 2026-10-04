@@ -677,6 +677,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             ToolProjectName + ".csproj",
             "Program.cs",
             "Amd64CoffWriter.cs",
+            "CheckedReferenceBarrierThunkGenerator.cs",
             "InstructionPublicationSerializerGenerator.cs"
         ];
 

@@ -35,6 +35,7 @@ param(
     [switch]$EnableM04StringAllocationExhaustionProbe,
     [switch]$EnableM04StringAllocationInvalidLengthProbe,
     [switch]$EnableM03MemoryMapCaptureProbe,
+    [switch]$EnableM04CheckedReferenceBarrierProbe,
     [switch]$EnableM01LoadedImageStackProbe,
     [switch]$EnableM01LiveAllocatorProbe,
     [switch]$EnableM01OwnedPagingProbe,
@@ -65,7 +66,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 98
+$expectedSourceClosureInputCount = 102
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -193,7 +194,10 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Runtime\GuestTestStringAllocationCharacterStorage.cs|Runtime\GuestTestStringAllocationCharacterStorage.cs',
     '..\OS.Kernel\Diagnostics\StringAllocationProbeAuthority.cs|Diagnostics\StringAllocationProbeAuthority.cs',
     'Runtime\RhpNewFastAllocation.cs|',
-    '..\OS.Kernel\Diagnostics\MemoryMapCaptureProbeAuthority.cs|Diagnostics\MemoryMapCaptureProbeAuthority.cs'
+    '..\OS.Kernel\Diagnostics\MemoryMapCaptureProbeAuthority.cs|Diagnostics\MemoryMapCaptureProbeAuthority.cs',
+    'Runtime\CheckedReferenceBarrierAdapter.cs|',
+    '..\OS.Kernel\Runtime\CheckedReferenceBulkBarriersIncludingDotNetN10Bulk.cs|Runtime\CheckedReferenceBulkBarriersIncludingDotNetN10Bulk.cs',
+    '..\OS.Kernel\Diagnostics\CheckedReferenceBarrierProbeAuthority.cs|Diagnostics\CheckedReferenceBarrierProbeAuthority.cs'
 )
 $expectedPackageBuildClosure = @(
     [pscustomobject]@{
@@ -1553,6 +1557,7 @@ function Get-ExpectedSourceClosurePaths {
         "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.csproj",
         "tools/OS.X64TextSerializerGenerator/Program.cs",
         "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs",
+            "tools/OS.X64TextSerializerGenerator/CheckedReferenceBarrierThunkGenerator.cs",
         "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs"
     )
     foreach ($explicitPath in $explicitPaths) {
@@ -3869,6 +3874,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM04StringAllocationBeforeBindProbe," +
             "EnableM04StringAllocationExhaustionProbe," +
             "EnableM04StringAllocationInvalidLengthProbe," +
+            "EnableM04CheckedReferenceBarrierProbe," +
             "EnableM03MemoryMapCaptureProbe," +
             "EnableM01LoadedImageStackProbe," +
             "EnableM01LiveAllocatorProbe," +
@@ -4024,6 +4030,9 @@ function Invoke-PostRestoreEvaluationSnapshot {
     }
     if ($EnableM03MemoryMapCaptureProbe) {
         $arguments += "-p:EnableM03MemoryMapCaptureProbe=true"
+    }
+    if ($EnableM04CheckedReferenceBarrierProbe) {
+        $arguments += "-p:EnableM04CheckedReferenceBarrierProbe=true"
     }
     $arguments += ("-p:EnableM01LoadedImageStackProbe=" + $EnableM01LoadedImageStackProbe.IsPresent.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM01LiveAllocatorProbe=" + $EnableM01LiveAllocatorProbe.IsPresent.ToString().ToLowerInvariant())
@@ -4272,6 +4281,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM04StringAllocationInvalidLengthProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM03MemoryMapCaptureProbe =
             $EnableM03MemoryMapCaptureProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM04CheckedReferenceBarrierProbe =
+            $EnableM04CheckedReferenceBarrierProbe.IsPresent.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
         ImportProjectExtensionTargets = "false"
         ExcludeRestorePackageImports = "true"
@@ -4343,7 +4354,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 85 -or
+    if ($compileItems.Count -ne 88 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4473,6 +4484,61 @@ function Assert-PostRestoreEvidenceMatchesSnapshot {
 }
 
 Write-Output "TEST_START $testName"
+
+if ($EnableM04CheckedReferenceBarrierProbe) {
+    foreach ($referenceFlag in @(
+        "EnableM01LoadedImageStackProbe",
+        "EnableM01LiveAllocatorProbe",
+        "EnableM04IndependentEndianConformanceProbe",
+        "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe",
+        "EnableM04ArithmeticConformanceProbe",
+        "EnableM04LayoutContractProbe",
+        "EnableM04ManagedHeapPageRangeProbe",
+        "EnableM04RhpNewFastProbe"
+    )) {
+        if ( -not [bool](Get-Variable -Name $referenceFlag -ValueOnly)) {
+            Write-Output ("TEST_FAIL efi.artifact m04_checked_reference_profile_invalid property=" + $referenceFlag)
+            exit 1
+        }
+    }
+    foreach ($referenceFlag in @(
+        "EnableM01OwnedPagingProbe",
+        "EnableM02SafeStubProbe",
+        "EnableM02CheckedPortIoBindingProbe",
+        "EnableM02Com1OwnedPortIoProbe",
+        "EnableM02OwnedCom1ReadyProbe",
+        "EnableM02PanicSafeOwnedCom1Probe",
+        "EnableM02OwnedX64GdtEncodingProbe",
+        "EnableM02GuardedIstStackAllocationProbe",
+        "EnableM02OwnedGdtTssTerminalProbe",
+        "EnableM02NormalizedInterruptFramePageProbe",
+        "EnableM02OwnedIdtGatePopulationProbe",
+        "EnableM02IdtrContinuedExecutionProbe",
+        "EnableM02Ud2VectorStateProbe",
+        "EnableM02PageFaultCr2ErrorCodeProbe",
+        "EnableM02DoubleFaultIstProbe",
+        "EnableM02UnexpectedVectorPanicProbe",
+        "EnableM04RhpNewFastBeforeBindFailureProbe",
+        "EnableM04RhpNewFastExhaustionFailureProbe",
+        "EnableM04SzArrayAllocationProbe",
+        "EnableM04SzArrayAllocationBeforeBindProbe",
+        "EnableM04SzArrayAllocationExhaustionProbe",
+        "EnableM04StringAllocationProbe",
+        "EnableM04StringAllocationBeforeBindProbe",
+        "EnableM04StringAllocationExhaustionProbe",
+        "EnableM04StringAllocationInvalidLengthProbe",
+        "EnableM03MemoryMapCaptureProbe",
+        "EnableUefiGoneSimulationProbe",
+        "EnableExitBootServicesFreshMapProbe",
+        "EnableAcpiPhysicalDiscoveryProbe"
+    )) {
+        if ([bool](Get-Variable -Name $referenceFlag -ValueOnly)) {
+            Write-Output ("TEST_FAIL efi.artifact m04_checked_reference_profile_conflict property=" + $referenceFlag)
+            exit 1
+        }
+    }
+}
+
 
 if ($EnableM03MemoryMapCaptureProbe) {
     foreach ($memoryMapConflict in @(
@@ -5595,6 +5661,9 @@ $requiredEvidenceProperties = @(
     "runtimeListSha256",
     "generatedUtc"
 )
+if ($EnableM04CheckedReferenceBarrierProbe) {
+    $requiredEvidenceProperties += @("checkedReferenceLinkedObjectPath", "checkedReferenceObjectPath", "checkedReferenceObjectBytes", "checkedReferenceObjectSha256")
+}
 foreach ($propertyName in $requiredEvidenceProperties) {
     if ($null -eq $linkEvidence.PSObject.Properties[$propertyName]) {
         Write-Failure "link_evidence_property_missing" "property=$propertyName"
@@ -7040,20 +7109,16 @@ if ($linkResponseText -match '(?im)(?:^|\s)/DEFAULTLIB(?::|\s|$)') {
 $forceIncludeOptions = [System.Text.RegularExpressions.Regex]::Matches(
     $linkResponseText,
     '(?im)^\s*/INCLUDE:(?:"([^"]+)"|([^\s"]+))\s*$')
-$forceIncludeValue = if ($forceIncludeOptions.Count -eq 1 -and
-    -not [string]::IsNullOrEmpty($forceIncludeOptions[0].Groups[1].Value)) {
-    $forceIncludeOptions[0].Groups[1].Value
-}
-elseif ($forceIncludeOptions.Count -eq 1) {
-    $forceIncludeOptions[0].Groups[2].Value
-}
-else {
-    ""
-}
-if ($forceIncludeOptions.Count -ne 1 -or
-    $forceIncludeValue -cne $serializerSymbol) {
-    Write-Failure "serializer_force_include_contract_missing" (
-        "matches=$($forceIncludeOptions.Count)")
+$expectedForceIncludes = @($serializerSymbol)
+if ($EnableM04CheckedReferenceBarrierProbe) { $expectedForceIncludes += @('RhpAssignRef','RhpCheckedAssignRef','RhpByRefAssignRef') }
+$actualForceIncludes = @($forceIncludeOptions | ForEach-Object {
+    if ($_.Groups[1].Success) { $_.Groups[1].Value } else { $_.Groups[2].Value }
+})
+if ($actualForceIncludes.Count -ne $expectedForceIncludes.Count) { Write-Failure "serializer_force_include_contract_missing" }
+foreach ($name in $expectedForceIncludes) {
+    if (@($actualForceIncludes | Where-Object { [string]::Equals($_,$name,[StringComparison]::Ordinal) }).Count -ne 1) {
+        Write-Failure "serializer_force_include_contract_missing" "symbol=$name"
+    }
 }
 if ($linkResponseText -match '(?im)(?:^|\s)/ALTERNATENAME:') {
     Write-Failure "serializer_fallback_linkage_present"
@@ -7526,6 +7591,71 @@ if (-not (Test-ByteSequenceEqual $actualUnwindInfoBytes $expectedUnwindInfoBytes
     Write-Failure "serializer_unwind_bytes_mismatch"
 }
 $runtimeValidationStopwatch.Stop()
+
+# The optional three-export object is admitted only for this explicit profile.
+# This binds the fixed bridge, not the callback's full graph/stack/SIMD safety.
+if ($EnableM04CheckedReferenceBarrierProbe) {
+    $referenceHash = 'e96abf595503b9d1ae38dee740f93ae9b3eb84f05d6395b931e4b5d74f65d808'
+    $referencePreserved = Get-AbsolutePath ([string]$linkEvidence.checkedReferenceObjectPath) 'reference_object_path_invalid'
+    $referenceLinked = Get-AbsolutePath ([string]$linkEvidence.checkedReferenceLinkedObjectPath) 'reference_linked_object_path_invalid'
+    $referenceExpectedLinked = Join-Path (Split-Path -Parent $serializerLinkedObjectFullPath) 'CLROS.X64.CheckedReferenceBarriers.obj'
+    if (-not [string]::Equals($referencePreserved, $artifactPath + '.references.obj', [StringComparison]::OrdinalIgnoreCase) -or
+        -not [string]::Equals($referenceLinked, $referenceExpectedLinked, [StringComparison]::OrdinalIgnoreCase) -or
+        ($linkEvidence.checkedReferenceObjectBytes -isnot [int] -and $linkEvidence.checkedReferenceObjectBytes -isnot [long]) -or
+        $linkEvidence.checkedReferenceObjectBytes -ne 1645 -or
+        [string]$linkEvidence.checkedReferenceObjectSha256 -cne $referenceHash) { Write-Failure 'reference_object_contract_invalid' }
+    $referencePreservedAuthority = Open-AuthorityReadHandle -Path $referencePreserved -RootPath (Get-AuthorityRootPath -Path $referencePreserved) `
+        -Purpose 'reference-preserved-object' -FailurePrefix 'reference_object' -MaximumBytes 1645 -RequireSingleLink
+    $referenceLinkedAuthority = Open-AuthorityReadHandle -Path $referenceLinked -RootPath $repositoryRoot `
+        -Purpose 'reference-linked-object' -FailurePrefix 'reference_linked_object' -MaximumBytes 1645 -RequireSingleLink
+    foreach ($authority in @($referencePreservedAuthority, $referenceLinkedAuthority)) {
+        if ($authority.InitialLength -ne 1645 -or [string]$authority.InitialSha256 -cne $referenceHash) { Write-Failure 'reference_object_identity_mismatch' }
+    }
+    Assert-DistinctAuthorityFiles -Records @($referencePreservedAuthority,$referenceLinkedAuthority,$artifactAuthority,$linkerMapAuthority,$linkResponseAuthority,$linkEvidenceAuthority,$serializerObjectAuthority,$serializerLinkedObjectAuthority,$managedAssemblyAuthority,$linkedMapAuthority)
+    $referenceResponseCount = 0
+    foreach ($token in $linkResponseTokens) {
+        if ([string]::IsNullOrWhiteSpace($token) -or $token[0] -eq '/' -or $token[0] -eq '-') { continue }
+        try {
+            $candidate = if ([IO.Path]::IsPathRooted($token)) { [IO.Path]::GetFullPath($token) } else { [IO.Path]::GetFullPath((Join-Path $responseDirectory $token)) }
+        }
+        catch { continue }
+        if ([string]::Equals($candidate,$referenceLinked,[StringComparison]::OrdinalIgnoreCase)) { $referenceResponseCount++ }
+    }
+    if ($referenceResponseCount -ne 1) { Write-Failure 'reference_object_link_response_missing' }
+    [byte[]]$referenceObject = Read-AuthorityBytes -Record $referencePreservedAuthority -MaximumBytes 1645 -Reason 'reference_object_read_failed'
+    $names = @('RhpAssignRef','RhpCheckedAssignRef','RhpByRefAssignRef','CLROS_CheckedReferenceBarrier_Apply')
+    $addresses = @()
+    for ($i = 0; $i -lt $names.Count; $i++) {
+        $referenceMapMatches = [regex]::Matches($linkerMapText, '(?m)^\s*([0-9A-Fa-f]{4}):([0-9A-Fa-f]{8})\s+' + [regex]::Escape($names[$i]) + '\s+([0-9A-Fa-f]{16})\s+(.+?)\s*$')
+        if ($referenceMapMatches.Count -ne 1) { Write-Failure 'reference_symbol_map_missing' ('symbol=' + $names[$i]) }
+        $expectedOwner = if ($i -eq 3) { 'OS.obj' } else { 'CLROS.X64.CheckedReferenceBarriers.obj' }
+        if ($referenceMapMatches[0].Groups[4].Value -notmatch ('(?i)(?:^|[\s\\/()])' + [regex]::Escape($expectedOwner) + '(?=$|[\s()])')) { Write-Failure 'reference_symbol_owner' ('symbol=' + $names[$i]) }
+        $address = Convert-HexUInt64 $referenceMapMatches[0].Groups[3].Value 'reference_symbol_address_invalid'
+        if ($address -le $imageBase -or [decimal]$address - $imageBase -ge $sizeOfImage) { Write-Failure 'reference_symbol_rva_invalid' }
+        $addresses += [UInt64]$address
+    }
+    if ($addresses[1] -ne $addresses[0] + 464 -or $addresses[2] -ne $addresses[0] + 928 -or
+        ($addresses[0] % 16) -ne 0 -or ($addresses[3] -ge $addresses[0] -and $addresses[3] -lt $addresses[0] + 1390)) { Write-Failure 'reference_symbol_layout' }
+    $referenceRva = $addresses[0] - $imageBase
+    $referenceBacking = Resolve-FileBackedRvaRange $sections $referenceRva 1390 $bytes.LongLength 'reference_text_not_backed' 'reference_text_ambiguous'
+    Assert-CodeSectionCharacteristics $referenceBacking.Section 'reference_text_section_invalid'
+    $callbackBacking = Resolve-FileBackedRvaRange $sections ($addresses[3] - $imageBase) 1 $bytes.LongLength 'reference_callback_not_backed' 'reference_callback_ambiguous'
+    Assert-CodeSectionCharacteristics $callbackBacking.Section 'reference_callback_section_invalid'
+    [byte[]]$actualReferenceText = Copy-ByteRange $bytes $referenceBacking.FileOffset 1390 'reference_text_truncated'
+    # All initialized code and padding must equal the fixed object except exactly
+    # its three declared REL32 fields. Resolve each signed displacement to the
+    # actual ordinary export in this image; names alone do not establish routing.
+    $relocations = @(232,696,1160)
+    for ($i = 0; $i -lt 1390; $i++) {
+        if (($i -ge 232 -and $i -lt 236) -or ($i -ge 696 -and $i -lt 700) -or ($i -ge 1160 -and $i -lt 1164)) { continue }
+        if ($actualReferenceText[$i] -ne $referenceObject[60 + $i]) { Write-Failure 'reference_text_mismatch' ('offset=' + $i) }
+    }
+    foreach ($offset in $relocations) {
+        $displacement = [BitConverter]::ToInt32($actualReferenceText,$offset)
+        if ([decimal]$addresses[0] + $offset + 4 + $displacement -ne [decimal]$addresses[3]) { Write-Failure 'reference_callback_rel32_mismatch' }
+    }
+    Write-Output 'EFI_ARTIFACT_CHECKED_REFERENCE_THUNKS bytes=1645 text=1390 exports=3 callbackRel32=3 callbackGraphAccepted=false unwindSupported=false'
+}
 
 Assert-DistinctAuthorityFiles -Records @(
     $artifactAuthority,

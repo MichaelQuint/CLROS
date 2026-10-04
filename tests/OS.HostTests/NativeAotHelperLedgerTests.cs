@@ -66,7 +66,8 @@ internal static class NativeAotHelperLedgerTests
             NativeAotHelperArea.EfiStackProbe,
             NativeAotHelperArea.EfiFixedAllocation,
             NativeAotHelperArea.EfiSzArrayAllocation,
-            NativeAotHelperArea.EfiStringAllocation
+            NativeAotHelperArea.EfiStringAllocation,
+            NativeAotHelperArea.EfiCheckedReferences
         ];
 
         ExpectEqual("ledger entry count", required.Length, NativeAotHelperLedger.EntryCount);
@@ -135,7 +136,7 @@ internal static class NativeAotHelperLedgerTests
             }
         }
 
-        ExpectEqual("EFI-only helper count", 6, efiOnlyCount);
+        ExpectEqual("EFI-only helper count", 7, efiOnlyCount);
     }
 
     private static void TestEntriesCarryEvidenceAndGateApplicability()
@@ -287,6 +288,15 @@ internal static class NativeAotHelperLedgerTests
         ExpectContains("EFI String full-width length", strings.RequiredContract, "full-width signed length");
         ExpectContains("EFI String unsupported GC", strings.AllowedMilestoneStub, "barrier, GC");
         ExpectContains("EFI String incomplete", strings.NextStep, "Gate 4 remains incomplete");
+        ExpectEqual("EFI checked-reference area value", 18, (int)NativeAotHelperArea.EfiCheckedReferences);
+        ExpectEqual("EFI checked-reference status value", 9, (int)NativeAotHelperStatus.EfiOnlyCheckedReferences);
+        NativeAotHelperLedgerEntry references = GetEntry(NativeAotHelperArea.EfiCheckedReferences);
+        ExpectEqual("EFI checked-reference symbols", "RhpAssignRef;RhpCheckedAssignRef;RhpByRefAssignRef;CLROS_CheckedReferenceBarrier_Apply", references.HelperSymbols);
+        ExpectContains("EFI checked-reference authority", references.Evidence, "original thirteen-argument");
+        ExpectContains("EFI checked-reference special ABI", references.RequiredContract, "byref+8 after success");
+        ExpectContains("EFI checked-reference no general GC", references.AllowedMilestoneStub, "GC visibility");
+        ExpectContains("EFI checked-reference incomplete", references.NextStep, "Gate 4 remains incomplete");
+        ExpectDeferredRuntimeHelper(GetEntry(NativeAotHelperArea.WriteBarriers));
     }
 
     private static void TestAllocatorMutationBoundary()
@@ -392,6 +402,24 @@ internal static class NativeAotHelperLedgerTests
             }
 
             string[] ledgerSymbols = SplitSymbols(entry.HelperSymbols);
+            if (entry.Area == NativeAotHelperArea.EfiCheckedReferences)
+            {
+                // These three symbols are COFF definitions, not fabricated C#
+                // RuntimeExport declarations. The fourth is the ordinary adapter.
+                string root = HostToolProcess.FindRepositoryRoot();
+                string generator = File.ReadAllText(Path.Combine(root,"tools/OS.X64TextSerializerGenerator/CheckedReferenceBarrierThunkGenerator.cs"));
+                string adapter = File.ReadAllText(Path.Combine(root,"src/OS/Runtime/CheckedReferenceBarrierAdapter.cs"));
+                ExpectEqual("finite reference symbol count",4,ledgerSymbols.Length);
+                for (int j=0;j<3;j++)
+                {
+                    ExpectEqual("generated symbol absent from unchanged shim",0,CountSymbols(sourceSymbols,ledgerSymbols[j]));
+                    ExpectEqual("generated symbol one ledger entry",1,CountLedgerSymbol(ledgerSymbols[j]));
+                    ExpectEqual("generated object symbol declaration",1,generator.Split('"'+ledgerSymbols[j]+'"',StringSplitOptions.None).Length-1);
+                }
+                ExpectEqual("ordinary callback declaration",1,adapter.Split("RuntimeExport(\""+ledgerSymbols[3]+"\")",StringSplitOptions.None).Length-1);
+                ExpectEqual("ordinary callback one ledger entry",1,CountLedgerSymbol(ledgerSymbols[3]));
+                continue;
+            }
             for (int symbolIndex = 0; symbolIndex < ledgerSymbols.Length; symbolIndex++)
             {
                 string ledgerSymbol = ledgerSymbols[symbolIndex];

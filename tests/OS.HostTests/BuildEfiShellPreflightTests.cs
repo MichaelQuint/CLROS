@@ -3673,10 +3673,15 @@ internal static class BuildEfiShellPreflightTests
         string script = File.ReadAllText(buildScriptPath);
         string[] requiredText =
         [
-            "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=98",
-            "EFI_PUBLISH_OUTPUT_AUTHORITY status=ok leaves=5",
-            "EFI_PUBLISH_VERIFIER_INPUT_AUTHORITY status=ok inputs=8",
-            "EFI_PUBLISH_VERIFIER_INPUTS_UNCHANGED status=ok inputs=8",
+            "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=102",
+            "Write-Host (\"EFI_PUBLISH_OUTPUT_AUTHORITY status=ok leaves=\" + $outputPublicationPlan.Paths.Count)",
+            "Write-Host (\"EFI_PUBLISH_VERIFIER_INPUT_AUTHORITY status=ok inputs=\" + $verifierInputLocks.Count)",
+            "Write-Host (\"EFI_PUBLISH_VERIFIER_INPUTS_UNCHANGED status=ok inputs=\" + $verifierInputLocks.Count)",
+            "$expectedVerifierInputCount = if ($EnableM04CheckedReferenceBarrierProbe) { 10 } else { 8 }",
+            "if ($verifierInputLocks.Count -ne $expectedVerifierInputCount)",
+            "if ($EnableM04CheckedReferenceBarrierProbe) { $paths += $efiFullPath + \".references.obj\" }",
+            "$verifierInputs += [pscustomobject]@{Path=$referenceObjectPath; RootPath=$repositoryRoot; Purpose=\"linked-reference-object\"}",
+            "$verifierInputs += [pscustomobject]@{Path=$referenceObjectOutputPath; RootPath=$outputPublicationPlan.Directory; Purpose=\"preserved-reference-object\"}",
             "FileMode]::CreateNew",
             "if ($existingRecords.Count -gt 0)",
             "Assert-M01VerifierInputLocks -Locks $verifierInputLocks",
@@ -3745,6 +3750,12 @@ internal static class BuildEfiShellPreflightTests
                 . ([scriptblock]::Create($matches[0].Extent.Text))
             }
 
+            $caseBase = $CaseRoot
+            foreach ($enabled in @($false, $true)) {
+            $EnableM04CheckedReferenceBarrierProbe = $enabled
+            $mode = if ($enabled) { "enabled" } else { "default" }
+            $CaseRoot = Join-Path $caseBase $mode
+            New-Item -ItemType Directory -Path $CaseRoot | Out-Null
             $repo = Join-Path $CaseRoot "repo"
             New-Item -ItemType Directory -Path $repo | Out-Null
             $logPath = Join-Path $CaseRoot "logs\publish.log"
@@ -3752,6 +3763,12 @@ internal static class BuildEfiShellPreflightTests
                 -RepositoryRoot $repo `
                 -EfiOutputPath "artifacts\efi\BOOTX64.EFI" `
                 -LogFullPath $logPath
+            $expectedPaths = @($plan.EfiPath, ($plan.EfiPath + ".link.map"),
+                ($plan.EfiPath + ".link.rsp"), ($plan.EfiPath + ".link.json"), ($plan.EfiPath + ".serializer.obj"))
+            if ($enabled) { $expectedPaths += $plan.EfiPath + ".references.obj" }
+            $expectedLeaves = if ($enabled) { 6 } else { 5 }
+            if ($plan.Paths.Count -ne $expectedLeaves -or
+                ($plan.Paths -join '|') -cne ($expectedPaths -join '|')) { exit 72 }
             Clear-M01OutputPublicationLeaves -Plan $plan
             foreach ($path in $plan.Paths) {
                 if (Test-Path -LiteralPath $path) {
@@ -3788,6 +3805,13 @@ internal static class BuildEfiShellPreflightTests
                 [System.IO.File]::WriteAllText($responseSource, "response")
                 [System.IO.File]::WriteAllText($serializerSource, "serializer")
                 [System.IO.File]::WriteAllText($managedSource, "managed")
+                $referenceSource = Join-Path $work "reference.obj"
+                $referencePreserved = $plan.EfiPath + ".references.obj"
+                if ($enabled) {
+                    [System.IO.File]::WriteAllText($referenceSource, "reference-object")
+                    Copy-M01FileCreateNew -SourcePath $referenceSource -SourceRootPath $repo `
+                        -DestinationPath $referencePreserved -DestinationRootPath $plan.Directory -Purpose "reference-object"
+                }
                 Copy-M01FileCreateNew `
                     -SourcePath $publishSource `
                     -SourceRootPath $repo `
@@ -3874,9 +3898,18 @@ internal static class BuildEfiShellPreflightTests
                         RootPath = $repo
                         Purpose = "managed-dll"
                     })
+                if ($enabled) {
+                    $inputs += [pscustomobject]@{Path=$referenceSource; RootPath=$repo; Purpose="linked-reference-object"}
+                    $inputs += [pscustomobject]@{Path=$referencePreserved; RootPath=$plan.Directory; Purpose="preserved-reference-object"}
+                    $aliasRejected = $false
+                    try { $aliasLocks = Open-M01VerifierInputLocks -Inputs (@($inputs[0..8]) + @($inputs[8])); Close-M01AuthorityRecords -Records $aliasLocks }
+                    catch { $aliasRejected = $_.Exception.Message -like '*authority_file_alias*' }
+                    if (-not $aliasRejected) { exit 73 }
+                }
                 $locks = Open-M01VerifierInputLocks -Inputs $inputs
                 try {
-                    if ($locks.Count -ne 8) {
+                    $expectedLocks = if ($enabled) { 10 } else { 8 }
+                    if ($locks.Count -ne $expectedLocks) {
                         exit 65
                     }
                     Assert-M01DistinctAuthorityRecords -Records (
@@ -3900,7 +3933,16 @@ internal static class BuildEfiShellPreflightTests
                     if (-not $writeRejected -or -not $replaceRejected) {
                         exit 66
                     }
+                    if ($enabled) {
+                        foreach ($referencePath in @($referenceSource, $referencePreserved)) {
+                            $referenceWriteRejected = $false
+                            try { [System.IO.File]::WriteAllText($referencePath, "changed") }
+                            catch [System.IO.IOException] { $referenceWriteRejected = $true }
+                            if (-not $referenceWriteRejected) { exit 74 }
+                        }
+                    }
                     Assert-M01VerifierInputLocks -Locks $locks
+                    Write-Output ("M01_OUTPUT_AUTHORITY_VECTOR_PASS mode=" + $mode + " leaves=" + $plan.Paths.Count + " inputs=" + $locks.Count)
                 }
                 finally {
                     Close-M01AuthorityRecords -Records $locks
@@ -4005,6 +4047,7 @@ internal static class BuildEfiShellPreflightTests
                     $logAuthority.Stream.Dispose()
                 }
             }
+            }
             Write-Output "M01_OUTPUT_AUTHORITY_PASS"
             exit 0
             """,
@@ -4024,6 +4067,8 @@ internal static class BuildEfiShellPreflightTests
             "-CaseRoot",
             caseRoot);
         return result.ExitCode == 0
+            && result.Output.Contains("M01_OUTPUT_AUTHORITY_VECTOR_PASS mode=default leaves=5 inputs=8", StringComparison.Ordinal)
+            && result.Output.Contains("M01_OUTPUT_AUTHORITY_VECTOR_PASS mode=enabled leaves=6 inputs=10", StringComparison.Ordinal)
             && result.Output.Contains(
                 "M01_EMPTY_OUTPUT_AUTHORITY_PASS",
                 StringComparison.Ordinal)
@@ -4042,7 +4087,7 @@ internal static class BuildEfiShellPreflightTests
         string switchMarker =
             "EFI_PREFLIGHT_M01_SWITCHES status=ok " + expectedSwitches;
         const string closureMarker =
-            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=85 prerequisiteGap=UefiMemoryType";
+            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=88 prerequisiteGap=UefiMemoryType";
         bool passed = result.ExitCode == 0
             && result.Output.Contains(switchMarker, StringComparison.Ordinal)
             && result.Output.Contains(closureMarker, StringComparison.Ordinal)
@@ -4208,7 +4253,8 @@ internal static class BuildEfiShellPreflightTests
                      "OS.X64TextSerializerGenerator.targets",
                      "Program.cs",
                      "Amd64CoffWriter.cs",
-                     "InstructionPublicationSerializerGenerator.cs"
+                     "InstructionPublicationSerializerGenerator.cs",
+                     "CheckedReferenceBarrierThunkGenerator.cs"
                  })
         {
             File.Copy(
@@ -4820,7 +4866,7 @@ internal static class BuildEfiShellPreflightTests
         [
             "EFI_PREFLIGHT_M01_SWITCHES status=ok loadedImageStack=false liveAllocator=false ownedPaging=false m02SafeStub=false",
             "EFI_PREFLIGHT_M02_SWITCHES status=ok enabled=false loadedImageStack=false liveAllocator=false ownedPaging=false checkedPortIoBinding=false",
-            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=85 prerequisiteGap=UefiMemoryType",
+            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=88 prerequisiteGap=UefiMemoryType",
             "EFI_PREFLIGHT_DOTNET path=\"",
             "sdkVersion=\"10.0.3",
             "EFI_PREFLIGHT_MSVC_LINKER path=\"" + Path.GetFullPath(tools.LinkerPath) + "\" version=\"14.40.33807\"",
