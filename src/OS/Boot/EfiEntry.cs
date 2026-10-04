@@ -17085,6 +17085,36 @@ public static unsafe class EfiEntry
 #endif
 #endif
 
+#if M04_CHECKED_REFERENCE_BARRIER_PROBE
+        internal static bool TryGetOriginalReferenceStack(out ulong authority,
+            out ulong start, out ulong end, out ulong initialRsp)
+        {
+            authority = start = end = initialRsp = 0;
+            fixed (M01LoadedImageStackStaticState* state = &s_staticState)
+            {
+                if (!IsFinalStageOneSuccess(state, M01LoadedImageStackStaticState.RequiredStorageBytes))
+                    return false;
+                OwnedBootStackSwitchStateRecord record = state->SwitchStateStorage;
+                OwnedBootStackSwitchPlan plan = record.Plan;
+                if (!record.IsValid || !plan.IsValid ||
+                    record.StorageAddress != (ulong)&state->SwitchStateStorage ||
+                    !plan.StackLayout.BackingStart.Equals(state->StackLayoutStorage.BackingStart) ||
+                    !plan.StackLayout.BackingEndExclusive.Equals(state->StackLayoutStorage.BackingEndExclusive) ||
+                    plan.StackLayout.BackingPageCount != state->StackLayoutStorage.BackingPageCount ||
+                    !plan.StackLayout.PhysicalStackTop.Equals(state->StackLayoutStorage.PhysicalStackTop) ||
+                    plan.UsableStackVirtualStart.TryGetRawValueForUefiBoundary(out ulong low) != AddressValueStatus.Success ||
+                    plan.UsableStackVirtualEndExclusive.TryGetRawValueForUefiBoundary(out ulong high) != AddressValueStatus.Success ||
+                    record.ObservedRsp.TryGetRawValueForUefiBoundary(out ulong observed) != AddressValueStatus.Success ||
+                    !record.ObservedRsp.Equals(plan.ExpectedContinuationStackPointer) ||
+                    low == 0 || (low & (PageSize - 1)) != 0 || high <= low ||
+                    high - low != UsableStackPageCount * PageSize || observed != high - 40)
+                    return false;
+                authority = (ulong)state; start = low; end = high; initialRsp = observed;
+                return true;
+            }
+        }
+#endif
+
         internal static bool TryGetFinalSwitchPlan(
             void* stageOneState,
             ulong stageOneStateCapacity,
@@ -18992,6 +19022,12 @@ public static unsafe class EfiEntry
 
 #if M04_RHP_NEW_FAST_PROBE
     internal static void WriteRhpByte(byte value) => M01StageOneAdapter.WriteRhpByte(value);
+#endif
+
+#if M04_CHECKED_REFERENCE_BARRIER_PROBE
+    internal static bool TryGetOriginalReferenceStack(out ulong authority,
+        out ulong start, out ulong end, out ulong initialRsp) =>
+        M01StageOneAdapter.TryGetOriginalReferenceStack(out authority, out start, out end, out initialRsp);
 #endif
 
     private static void WriteCrLf(EfiSimpleTextOutputProtocol* console, EfiSerialIoProtocol* serial)

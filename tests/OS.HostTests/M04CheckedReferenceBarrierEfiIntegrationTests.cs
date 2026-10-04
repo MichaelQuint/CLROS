@@ -22,6 +22,7 @@ internal static unsafe class CheckedReferenceCoreProgram
         Run("per-call patterned full-span rejection atomicity", Rejections);
         Run("Pair scalar completion is separate from two stores", PairCompletion);
         Run("warmed callback core has zero CLR allocations", NoAllocations);
+        Run("executing-stack admission and five read-only checkpoints", StackSentinels);
         Console.WriteLine("TEST_PASS reference.core.tests"); return 0;
     }
     private static void Run(string name, Action action)
@@ -58,6 +59,105 @@ internal static unsafe class CheckedReferenceCoreProgram
         Need(Read((byte*)f.Reference(4) + 24) == f.Reference(1) && Read((byte*)f.Reference(4) + 32) == f.Reference(2) &&
             Read((byte*)f.Reference(4) + 40) == PairTag && f.State->Calls == 23 && f.State->Stage == 9, "Pair and final phase");
         Console.WriteLine("REFERENCE_CORE_POD allocations=6 used=576 calls=23 sourcePattern=true numericOnly=true");
+    }
+
+    private static void StackSentinels()
+    {
+        Need(sizeof(CheckedReferenceStackState)==96 && RhpNewFastAllocationCore.ReferenceStackBytes==135168 &&
+            RhpNewFastAllocationCore.ReferenceStackBudget==16384,"independent stack POD/extent/ceiling");
+        using (F f = new()) using (S s = new(f))
+        {
+            f.Six(); f.Arm();
+            byte[] original=s.Snapshot();
+            Need(s.Arm(),"mapped arm");s.OnlyWords(original);
+            byte[] protectedState=f.Snapshot(),protectedStack=s.Snapshot();
+            Need(!s.Arm(),"one-shot arm");f.Unchanged(protectedState);s.Unchanged(protectedStack);
+            Need(!s.Check(),"premature check cannot skip18calls");f.Unchanged(protectedState);s.Unchanged(protectedStack);
+            f.InitialStores();Need(s.Check()&&s.State->Checks==1,"18calls");
+            Need(!s.Check(),"duplicate checkpoint rejected");
+            Need(f.Apply(1,f.Reference(4)+8,f.Reference(1),8)==1&&s.Check(),"19calls");
+            Need(f.Apply(2,f.Reference(3)+8,f.Reference(2),8)==1&&s.Check(),"20calls");
+            f.PairHelpers();W64((byte*)f.Reference(4)+40,PairTag);
+            Need(f.Pair(Cookie^PairTag)&&s.Check(),"22calls after actual Pair completion");
+            Need(f.Apply(4,f.Reference(6)+8,f.Reference(5)+8,192)==1 &&
+                RhpNewFastAllocationCore.CompleteReferences(f.Access,f.Bump,f.Control,f.Records,f.State,Cookie^BlockTag(7)) && s.Check(),"23calls final check");
+            Need(s.State->Phase==2 && s.State->Checks==5 && s.State->Armed0==0x195A86B4C327D0EF &&
+                s.State->Armed1==0x62C79E1035AB48D6 && s.State->Final0==s.State->Armed0 && s.State->Final1==s.State->Armed1,"actual readback words");
+            Need(!s.Check(),"sixth check rejected");s.OnlyWords(original);
+        }
+        // Only the new numeric arguments vary. Invalid extents are never dereferenced.
+        for(int id=0;id<20;id++)using(F f=new())using(S s=new(f))
+        {
+            f.Six();f.Arm();ulong authority=s.Authority,start=s.Start,end=s.End,rsp=s.Rsp,witness=s.Witness;
+            CheckedReferenceStackState* state=s.State;
+            switch(id)
+            {
+                case 0:authority=0;break;case 1:authority=ulong.MaxValue-7;break;
+                case 2:start=0;break;case 3:start++;end++;break;case 4:start=ulong.MaxValue-4095;end=0;break;
+                case 5:end-=8;break;case 6:rsp++;break;case 7:witness=end;break;
+                case 8:witness=start+16+16384-8;break;case 9:witness++;break;
+                case 10:state=(CheckedReferenceStackState*)(start+8);break;
+                case 11:state=(CheckedReferenceStackState*)(f.Token(1)+16);break;
+                case 12:authority=start;break;case 13:f.State->Busy=1;break;case 14:f.State->Stage=1;break;
+                case 15:state=(CheckedReferenceStackState*)f.State;break;
+                case 16:state=(CheckedReferenceStackState*)(s.Authority+760);break;
+                case 17:start=(ulong)f.Image;end=start+135168;rsp=end-40;witness=end-4096;break;
+                case 18:start=(ulong)f.Page;end=start+135168;rsp=end-40;witness=end-4096;break;
+                case 19:state=(CheckedReferenceStackState*)(f.Token(5)-88);break;
+            }
+            byte[] before=f.Snapshot(),stackBefore=s.Snapshot();
+            Need(!RhpNewFastAllocationCore.ArmReferenceStack(f.Access,f.Bump,f.Control,f.Records,f.State,state,
+                authority,start,end,rsp,witness),"rejected stack admission "+id);f.Unchanged(before);s.Unchanged(stackBefore);
+        }
+        for(int id=0;id<10;id++)using(F f=new())using(S s=new(f))
+        {
+            f.Six();f.Arm();Need(s.Arm(),"arm changed-authority fixture");f.InitialStores();
+            ulong authority=s.Authority,start=s.Start,end=s.End,rsp=s.Rsp,witness=s.Witness;
+            switch(id)
+            {
+                case 0:authority+=8;break;case 1:start+=4096;end+=4096;rsp+=4096;break;
+                case 2:rsp-=8;break;case 3:witness-=8;break;case 4:s.State->Self+=8;break;
+                case 5:s.State->Checks=5;break;case 6:s.State->Phase=3;break;
+                case 7:s.State->Armed0^=1;break;case 8:f.State->Stage=4;break;case 9:f.State->Busy=1;break;
+            }
+            byte[] before=f.Snapshot(),stackBefore=s.Snapshot();
+            Need(!RhpNewFastAllocationCore.CheckReferenceStack(f.Access,f.Bump,f.Control,f.Records,f.State,s.State,
+                authority,start,end,rsp,witness),"retained state/phase check "+id);f.Unchanged(before);s.Unchanged(stackBefore);
+        }
+        for(int mask=1;mask<=3;mask++)using(F f=new())using(S s=new(f))
+        {
+            f.Six();f.Arm();Need(s.Arm(),"corruption arm");f.InitialStores();
+            if((mask&1)!=0)*(ulong*)s.Start^=1;if((mask&2)!=0)*(ulong*)(s.Start+8)^=1;
+            byte[] stackBefore=s.Snapshot();Need(!s.Check()&&s.State->Phase==3,"corruption terminal state");
+            Need(!s.Check()&&!s.Arm(),"no retry or reseed after corruption");s.Unchanged(stackBefore);
+        }
+        using(F f=new())using(S s=new(f))
+        {
+            f.Six();f.Arm();s.Witness=s.Start+16+16384;
+            Need(s.Arm(),"exact end-exclusive budget boundary admitted");
+        }
+        Console.WriteLine("REFERENCE_STACK_POD stateBytes=96 usableBytes=135168 ceiling=16384 words=2 checks=5 numericOnly=true");
+    }
+    private sealed class S : IDisposable
+    {
+        private const int Bytes=147456;
+        private readonly F f;
+        private readonly byte* storage=(byte*)NativeMemory.AlignedAlloc(Bytes,4096);
+        internal CheckedReferenceStackState* State=>(CheckedReferenceStackState*)(f.Storage+0x7000);
+        internal ulong Authority=>(ulong)f.Storage+0x6800;
+        internal ulong Start=>(ulong)storage+4096;
+        internal ulong End=>Start+135168;
+        internal ulong Rsp=>End-40;
+        internal ulong Witness;
+        internal S(F fixture)
+        {f=fixture;Need(storage!=null,"mapped fake stack");new Span<byte>(storage,Bytes).Fill(0xD7);new Span<byte>(State,96).Clear();Witness=End-4096;}
+        internal bool Arm()=>RhpNewFastAllocationCore.ArmReferenceStack(f.Access,f.Bump,f.Control,f.Records,f.State,State,Authority,Start,End,Rsp,Witness);
+        internal bool Check()=>RhpNewFastAllocationCore.CheckReferenceStack(f.Access,f.Bump,f.Control,f.Records,f.State,State,Authority,Start,End,Rsp,Witness);
+        internal byte[] Snapshot()=>new ReadOnlySpan<byte>(storage,Bytes).ToArray();
+        internal void Unchanged(byte[] bytes)=>Need(new ReadOnlySpan<byte>(storage,Bytes).SequenceEqual(bytes),"mapped stack unchanged");
+        internal void OnlyWords(byte[] bytes)
+        {for(int i=0;i<Bytes;i++)if(i<4096||i>=4112)Need(storage[i]==bytes[i],"only admitted16 bytes written");}
+        public void Dispose()=>NativeMemory.AlignedFree(storage);
     }
 
     private static void PrefixAliases()
@@ -285,6 +385,17 @@ internal static class M04CheckedReferenceBarrierEfiIntegrationTests
         string leaf=Path.Combine(root,"src/OS.Kernel/Runtime/CheckedReferenceBulkBarriersIncludingDotNetN10Bulk.cs");
         Need(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(leaf)))==
             "8F40B7416297C73EE252D25573EF84755C48B27A7C3E60F498C708D6C3C68021","original host leaf unchanged");
+        string entry=File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.cs"));
+        string getter=Between(entry,"        internal static bool TryGetOriginalReferenceStack(","        internal static bool TryGetFinalSwitchPlan(");
+        foreach(string token in new[]{"fixed (M01LoadedImageStackStaticState* state = &s_staticState)",
+            "IsFinalStageOneSuccess(state, M01LoadedImageStackStaticState.RequiredStorageBytes)",
+            "record.StorageAddress != (ulong)&state->SwitchStateStorage","!record.ObservedRsp.Equals(plan.ExpectedContinuationStackPointer)",
+            "!plan.StackLayout.BackingStart.Equals(state->StackLayoutStorage.BackingStart)","high - low != UsableStackPageCount * PageSize"})
+            Need(getter.Contains(token,StringComparison.Ordinal),"original active stack source "+token);
+        Need(entry.Contains("#if M04_CHECKED_REFERENCE_BARRIER_PROBE\n        internal static bool TryGetOriginalReferenceStack(",StringComparison.Ordinal),"getter profile isolated");
+        string adapter=File.ReadAllText(Path.Combine(root,"src/OS/Runtime/CheckedReferenceBarrierAdapter.cs"));
+        Need(adapter.Contains("witness - (start + 16) < ReferenceStackBudget",StringComparison.Ordinal)&&
+            adapter.Contains("ReferenceStackBudget = 16384",StringComparison.Ordinal),"end-exclusive strip clearance remains exact16KiB");
     }
     private static void TestCore()
     {
@@ -369,7 +480,7 @@ internal static class M04CheckedReferenceBarrierEfiIntegrationTests
         lines[lines.IndexOf("M04_HEAP_PAGE_BOUND")]+=" "+identity;lines[lines.IndexOf("M04_HEAP_PAGE_RETAINED")]+=" checkpoint=beforeBootPlan "+identity;
         lines[lines.IndexOf("M04_HEAP_PAGE_INITIALIZED")]+=" pages=1 bytes=4096 freePagesBefore=2 freeBytesBefore=8192 allocatedPagesBefore=0 allocatedBytesBefore=0 freePagesAfter=1 freeBytesAfter=4096 allocatedPagesAfter=1 allocatedBytesAfter=4096 readBytes=4096 contentsZero=true";
         lines[lines.IndexOf("M04_HEAP_PAGE_CURRENT")]+=" freePages=1 freeBytes=4096 allocatedPages=1 allocatedBytes=4096 readBytes=4096 contentsZero=true";
-        Need(lines.Count==70&&lines[44]=="TEST_START m04.010.references"&&lines[62]=="TEST_START boot.sequence","literal70 positions inherited44 plus18 and8");
+        Need(lines.Count==71&&lines[44]=="TEST_START m04.010.references"&&lines[63]=="TEST_START boot.sequence","literal71 positions inherited44 plus19 and8");
         lines[45]="M04_REFERENCE_PREP image=0x0000000001000000 imageBytes=65536 access=0x0000000000103000 accessBytes=104 bump=0x0000000000103100 bumpBytes=80 control=0x0000000000103200 controlBytes=96 records=0x0000000000104000 recordsBytes=6672";
         lines[46]="M04_REFERENCE_BIND image=0x0000000001000000 imageBytes=65536 allocator=0x0000000000100000 nodes=0x0000000000100040 ledger=0x0000000000102000 ledgerBytes=200 parentIndex=4 backing=0x0000000000900000 backingBytes=8192 heap=0x0000000000101000 heapBytes=216 access=0x0000000000103000 accessBytes=104 bump=0x0000000000103100 bumpBytes=80 status=1 used=0 count=0";
         static string H(ulong x)=>"0x"+x.ToString("X16");ulong used=0;
@@ -381,7 +492,8 @@ internal static class M04CheckedReferenceBarrierEfiIntegrationTests
         ulong cookie=0x179BCDE02468ACE0;var operations=new(ulong Kind,ulong Calls,ulong Cookie)[]{(2,18,cookie),(1,19,cookie^0x1111222233334404UL),(2,20,cookie),(3,22,cookie^0x1928374655AABBCCUL),(4,23,cookie^0x3141592653589707UL)};
         for(int i=0;i<5;i++)lines[54+i]=$"M04_REFERENCE_OPERATION kind={operations[i].Kind} calls={operations[i].Calls} cookie={H(operations[i].Cookie)}";
         lines[59]="M04_REFERENCE_RETAIN allocator=0x0000000000100000 nodes=0x0000000000100040 ledger=0x0000000000102000 parentIndex=4 backing=0x0000000000900000 heap=0x0000000000101000 bump=0x0000000000103100 heapStart=0x0000000000900000 heapEnd=0x0000000000901000 initialPages=2 freePages=1 allocatedPages=1 readBytes=4096 contentsZero=false used=576 count=6 status=1";
-        lines[60]="CLROS_M04_010_NATIVE_READY allocations=6 usedBytes=576 calls=23 initialStores=18 fieldStores=1 checkedStores=1 pairHelpers=2 bulkCalls=1 pairComplete=true blockComplete=true exclusiveNonCollecting=true gate4=Fail";
+        lines[60]="M04_REFERENCE_STACK start=0x0000000002000000 end=0x0000000002021000 initialRsp=0x0000000002020FD8 witness=0x0000000002020000 sentinel0=0x0000000002000000 sentinel1=0x0000000002000008 expected0=0x195A86B4C327D0EF expected1=0x62C79E1035AB48D6 armed0=0x195A86B4C327D0EF armed1=0x62C79E1035AB48D6 final0=0x195A86B4C327D0EF final1=0x62C79E1035AB48D6 checks=5 words=2 preserved=true";
+        lines[61]="CLROS_M04_010_NATIVE_READY allocations=6 usedBytes=576 calls=23 initialStores=18 fieldStores=1 checkedStores=1 pairHelpers=2 bulkCalls=1 pairComplete=true blockComplete=true exclusiveNonCollecting=true gate4=Fail";
         string good=string.Join("\r\n",lines)+"\r\n";
         // Feed the actual dry-run vectors to the production streamer, separately from the numeric raw parser below.
         const string ready="CLROS_M04_010_NATIVE_READY allocations=6",oldPartial=ready+" usedBytes=";
@@ -395,29 +507,41 @@ internal static class M04CheckedReferenceBarrierEfiIntegrationTests
             return state.Complete();
         }
         var accepted=Stream(good);
-        Need(accepted.Passed&&accepted.LinesProcessed==70&&accepted.RequiredSeenCount==required.Union(ordered,StringComparer.Ordinal).Union(unique,StringComparer.Ordinal).Count()
-            &&accepted.OrderedSeenCount==ordered.Length&&accepted.UniqueSeenCount==unique.Length&&accepted.SuccessTerminalCount==1,"actual vectors admit full70 transcript exactly once");
+        Need(accepted.Passed&&accepted.LinesProcessed==71&&accepted.RequiredSeenCount==required.Union(ordered,StringComparer.Ordinal).Union(unique,StringComparer.Ordinal).Count()
+            &&accepted.OrderedSeenCount==ordered.Length&&accepted.UniqueSeenCount==unique.Length&&accepted.SuccessTerminalCount==1,"actual vectors admit full71 transcript exactly once");
         var partial=Stream(good,true);
         Need(!partial.Passed&&partial.MissingRequiredMarkers!.Contains(oldPartial,StringComparer.Ordinal)
             &&partial.UniqueSeenCount==unique.Length-1&&partial.OutOfOrderOccurrenceCount>0,"old partial-token READY fails actual required/ordered/unique matching");
-        string readyLine=lines[60]+"\r\n";
+        string readyLine=lines[61]+"\r\n";
         var missing=Stream(good.Replace(readyLine,"",StringComparison.Ordinal));
         Need(!missing.Passed&&missing.MissingRequiredMarkers!.Contains(ready,StringComparer.Ordinal)&&missing.UniqueSeenCount==unique.Length-1,"missing READY rejected by real streamer");
         var duplicate=Stream(good.Replace(readyLine,readyLine+readyLine,StringComparison.Ordinal));
         Need(!duplicate.Passed&&duplicate.DuplicateUniqueMarkerHits!.Contains(ready,StringComparer.Ordinal)&&duplicate.DuplicateUniqueOccurrenceCount==1,"duplicate READY rejected by real streamer");
-        string[] swappedReady=lines.ToArray();(swappedReady[59],swappedReady[60])=(swappedReady[60],swappedReady[59]);
+        string[] swappedReady=lines.ToArray();(swappedReady[60],swappedReady[61])=(swappedReady[61],swappedReady[60]);
         var outOfOrder=Stream(string.Join("\r\n",swappedReady)+"\r\n");
         Need(!outOfOrder.Passed&&outOfOrder.OutOfOrderMarkerHits!.Contains(ready,StringComparer.Ordinal)&&outOfOrder.OutOfOrderOccurrenceCount>0,"early READY rejected by real streamer");
+        const string stackMarker="M04_REFERENCE_STACK";
+        foreach(string[] vector in new[]{required,ordered,unique})
+            Need(vector.Count(x=>x==stackMarker)==1,"STACK appears once in each actual runner vector");
+        string stackLine=lines[60]+"\r\n";
+        var missingStack=Stream(good.Replace(stackLine,"",StringComparison.Ordinal));
+        Need(!missingStack.Passed&&missingStack.MissingRequiredMarkers!.Contains(stackMarker,StringComparer.Ordinal)&&missingStack.UniqueSeenCount==unique.Length-1,"missing STACK rejected by real streamer");
+        var duplicateStack=Stream(good.Replace(stackLine,stackLine+stackLine,StringComparison.Ordinal));
+        Need(!duplicateStack.Passed&&duplicateStack.DuplicateUniqueMarkerHits!.Contains(stackMarker,StringComparer.Ordinal)&&duplicateStack.DuplicateUniqueOccurrenceCount==1,"duplicate STACK rejected by real streamer");
+        var lateStack=Stream(good.Replace(stackLine,"",StringComparison.Ordinal).Replace(readyLine,readyLine+stackLine,StringComparison.Ordinal));
+        Need(!lateStack.Passed&&lateStack.MissingRequiredMarkers!.Count==0&&lateStack.UniqueSeenCount==unique.Length&&lateStack.OutOfOrderMarkerHits!.Contains(ready,StringComparer.Ordinal)&&lateStack.OutOfOrderOccurrenceCount>0,"STACK after READY rejected by real streamer order");
         string acceptedPreamble=Encoding.ASCII.GetString(Convert.FromBase64String("G1syShtbMDE7MDFIG1s9M2gbWzJKG1swMTswMUgbWzJKG1swMTswMUgbWz0zaBtbMkobWzAxOzAxSBtbMkobWzAxOzAxSBtbPTNoG1syShtbMDE7MDFIQmRzRHhlOiBsb2FkaW5nIEJvb3QwMDAxICJVRUZJIFFFTVUgSEFSRERJU0sgUU0wMDAxMyAiIGZyb20gUGNpUm9vdCgweDApL1BjaSgweDIsMHgwKS9TYXRhKDB4MCwweEZGRkYsMHgwKQ0KQmRzRHhlOiBzdGFydGluZyBCb290MDAwMSAiVUVGSSBRRU1VIEhBUkRESVNLIFFNMDAwMTMgIiBmcm9tIFBjaVJvb3QoMHgwKS9QY2koMHgyLDB4MCkvU2F0YSgweDAsMHhGRkZGLDB4MCkNCg=="));
         Need(Encoding.ASCII.GetByteCount(acceptedPreamble)==304 && Hash(Encoding.ASCII.GetBytes(acceptedPreamble))=="BB50E913C752428AE49AE6C20879196F507926CC685CAD83986494244299D124","accepted304-byte preamble");
         List<(string Text,bool Accept)> cases=[(good,true),(acceptedPreamble+good,true),(acceptedPreamble.Replace("Boot0001","Boot0002",StringComparison.Ordinal)+good,false)];
         for(int i=0;i<lines.Count;i++)foreach(string replacement in new[]{"",lines[i]+" "," "+lines[i],lines[i]+" diagnostic",lines[i]+"\0",lines[i].ToLowerInvariant(),lines[i]+"\r\n"+lines[i]})
             cases.Add((string.Join("\r\n",lines.Select((line,n)=>n==i?replacement:line))+"\r\n",false));
-        for(int i=44;i<61;i++){var swapped=lines.ToArray();(swapped[i],swapped[i+1])=(swapped[i+1],swapped[i]);cases.Add((string.Join("\r\n",swapped)+"\r\n",false));}
+        for(int i=44;i<62;i++){var swapped=lines.ToArray();(swapped[i],swapped[i+1])=(swapped[i+1],swapped[i]);cases.Add((string.Join("\r\n",swapped)+"\r\n",false));}
         foreach(string suffix in new[]{"\r\n","partial","OVMF menu\r\n","TEST_FAIL m04.010.references bad\r\n"})cases.Add((good+suffix,false));
         cases.Add((good.Replace("\r\n","\n",StringComparison.Ordinal),false));cases.Add((good[..^1],false));cases.Add(("arbitrary firmware\r\n"+good,false));
         foreach((string a,string b) in new[]{("recordsBytes=6672","recordsBytes=6352"),("stateBytes=432","stateBytes=424"),("state=0x0000000000106000","state=0x0000000001001110"),("state=0x0000000000106000","state=0xFFFFFFFFFFFFFFF8"),("cellPayload=24","cellPayload=32"),("pairLast=8","pairLast=0"),("blockPayload=8","blockPayload=16"),("calls=22","calls=21"),("flags=0x0000000051000000","flags=0x0000000050000000"),("zeroBytes=16","zeroBytes=15"),("contentsZero=false","contentsZero=true"),("used=576","used=575"),("exclusiveNonCollecting=true","exclusiveNonCollecting=false")})
         {Need(good.Contains(a,StringComparison.Ordinal),"control applies "+a);cases.Add((good.Replace(a,b,StringComparison.Ordinal),false));}
+        foreach((string a,string b) in new[]{("start=0x0000000002000000","start=0x0000000002000001"),("end=0x0000000002021000","end=0x0000000002020000"),("initialRsp=0x0000000002020FD8","initialRsp=0x0000000002020FD0"),("witness=0x0000000002020000","witness=0x0000000002004008"),("sentinel1=0x0000000002000008","sentinel1=0x0000000002000010"),("expected0=0x195A86B4C327D0EF","expected0=0x195A86B4C327D0EE"),("armed0=0x195A86B4C327D0EF","armed0=0x195A86B4C327D0EE"),("armed1=0x62C79E1035AB48D6","armed1=0x62C79E1035AB48D7"),("final0=0x195A86B4C327D0EF","final0=0x195A86B4C327D0EE"),("final1=0x62C79E1035AB48D6","final1=0x62C79E1035AB48D7"),("checks=5","checks=4"),("words=2","words=1"),("preserved=true","preserved=false")})
+        {Need(good.Contains(a,StringComparison.Ordinal),"stack control applies "+a);cases.Add((good.Replace(a,b,StringComparison.Ordinal),false));}
         var manifest=cases.Select((c,i)=>new{Path=Path.Combine(directory,i+".log"),c.Accept}).ToArray();for(int i=0;i<cases.Count;i++)File.WriteAllText(manifest[i].Path,cases[i].Text,new UTF8Encoding(false));
         string malformed=Path.Combine(directory,"malformed.log");File.WriteAllBytes(malformed,[0xC0,0xAF,..Encoding.ASCII.GetBytes(good)]);manifest=[..manifest,new{Path=malformed,Accept=false}];
         string json=Path.Combine(directory,"cases.json");File.WriteAllText(json,System.Text.Json.JsonSerializer.Serialize(manifest));
@@ -443,8 +567,9 @@ internal static class M04CheckedReferenceBarrierEfiIntegrationTests
             foreach(var f in actual)Need(f.Value.GetString()==(flags.Contains(f.Name,StringComparer.Ordinal)?"true":"false"),"actual profile "+f.Name);
             using var pe=new System.Reflection.PortableExecutable.PEReader(File.OpenRead(Path.Combine(directory,"OS.dll")));var md=pe.GetMetadataReader();Need(md.AssemblyReferences.Count==0,"real no-stdlib zero AssemblyRefs");
             var methods=md.TypeDefinitions.SelectMany(h=>md.GetTypeDefinition(h).GetMethods()).Select(h=>md.GetMethodDefinition(h)).ToArray();
-            foreach(string name in new[]{"ReferenceCallback","StoreReferenceField","StoreReferenceUnknown","CopyReferencePair","CopyReferenceBlock","AddressReferencePair","AddressReferenceBlock","ReadReferenceFirst","ReadReferenceLast","ReadReferenceTag"})
+            foreach(string name in new[]{"ReferenceCallback","StoreReferenceField","StoreReferenceUnknown","CopyReferencePair","CopyReferenceBlock","AddressReferencePair","AddressReferenceBlock","ReadReferenceFirst","ReadReferenceLast","ReadReferenceTag","ReferenceStackLine"})
             {var matches=methods.Where(m=>md.GetString(m.Name)==name).ToArray();Need(matches.Length==(enabled?1:0),"actual conditional method "+name);if(enabled)Need(matches[0].RelativeVirtualAddress!=0,"actual IL "+name);}
+            Need(methods.Count(m=>md.GetString(m.Name)=="TryGetOriginalReferenceStack")== (enabled?2:0),"original stack getter and forwarder conditional metadata");
             if(enabled)
             {
                 Need(Hash(File.ReadAllBytes(artifact+".references.obj"))=="E96ABF595503B9D1AE38DEE740F93AE9B3EB84F05D6395B931E4B5D74F65D808","whole generated bridge object");

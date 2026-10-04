@@ -18,6 +18,7 @@ internal struct CheckedReferenceGeometry
 internal static unsafe partial class RhpNewFastAllocation
 {
     private static CheckedReferenceState s_referenceState;
+    private static CheckedReferenceStackState s_referenceStack;
 
     [System.Runtime.RuntimeExport("CLROS_CheckedReferenceBarrier_Apply")]
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
@@ -75,12 +76,16 @@ internal static unsafe partial class RhpNewFastAllocation
 
     private static void RunReferences(RhpNewFastHeapAccess original, byte* image, ulong imageBytes)
     {
+        // This address witnesses a real local, not a sampled RSP. The native gate
+        // must bind its frame offset and the complete 16 KiB clearance ceiling.
+        ulong stackWitness = 0;
         R(0); End();
         fixed (RhpNewFastHeapAccess* a = &s_access)
         fixed (RhpNewFastBumpState* b = &s_bump)
         fixed (RhpAllocationControl* c = &s_control)
         fixed (RhpObservationStorage* r = &s_records)
         fixed (CheckedReferenceState* state = &s_referenceState)
+        fixed (CheckedReferenceStackState* stack = &s_referenceStack)
         {
             if (RhpNewFastAllocationCore.Prepare(original, a, b, c, r, image, imageBytes) != RhpAdmissionStatus.Success)
                 RejectReferences(3);
@@ -135,6 +140,10 @@ internal static unsafe partial class RhpNewFastAllocation
             pair.Tag = RhpNewFastAllocationCore.ReferencePairTag;
             for (ulong i = 0; i < 8; i++) AddressReferenceBlockPair(ref block, i).Tag = RhpNewFastAllocationCore.ReferenceBlockTag(i);
             if (!RhpNewFastAllocationCore.CompleteReferenceScalars(a, b, c, r, state)) RejectReferences(8);
+            if (!OS.Boot.EfiEntry.TryGetOriginalReferenceStack(out ulong authority,
+                out ulong stackStart, out ulong stackEnd, out ulong initialRsp) ||
+                !RhpNewFastAllocationCore.ArmReferenceStack(a, b, c, r, state, stack,
+                    authority, stackStart, stackEnd, initialRsp, (ulong)&stackWitness)) RejectReferences(16);
 
             // Each compiler-selected checked store must return with its original
             // cookie before another operation can consume that result.
@@ -146,19 +155,23 @@ internal static unsafe partial class RhpNewFastAllocation
                 if (StoreReferenceUnknown(ref slot, value, RhpNewFastAllocationCore.ReferenceCookie) != RhpNewFastAllocationCore.ReferenceCookie ||
                     state->Calls != i + 1 || Bits(ReadReferenceSlot(ref slot)) != Bits(value)) RejectReferences(9);
             }
+            CheckReferenceStack(a, b, c, r, state, stack, (ulong)&stackWitness);
             ReferenceOperationLine(2, state->Calls, RhpNewFastAllocationCore.ReferenceCookie);
             ulong fieldCookie = StoreReferenceField(destination, valueA, RhpNewFastAllocationCore.ReferenceCookie);
             if (fieldCookie != (RhpNewFastAllocationCore.ReferenceCookie ^ RhpNewFastAllocationCore.ReferenceRoleTag(4)) ||
                 Bits(ReadReferenceField(destination)) != Bits(valueA) || state->Calls != 19) RejectReferences(10);
+            CheckReferenceStack(a, b, c, r, state, stack, (ulong)&stackWitness);
             ReferenceOperationLine(1, state->Calls, fieldCookie);
             ulong checkedCookie = StoreReferenceUnknown(ref source.Reference, valueB, RhpNewFastAllocationCore.ReferenceCookie);
             if (checkedCookie != RhpNewFastAllocationCore.ReferenceCookie ||
                 Bits(ReadReferenceField(source)) != Bits(valueB) || state->Calls != 20) RejectReferences(11);
+            CheckReferenceStack(a, b, c, r, state, stack, (ulong)&stackWitness);
             ReferenceOperationLine(2, state->Calls, checkedCookie);
             ulong pairCookie = CopyReferencePair(ref AddressReferencePair(destination), ref pair, RhpNewFastAllocationCore.ReferenceCookie);
             if (!RhpNewFastAllocationCore.CompleteReferencePair(a, b, c, r, state, pairCookie) ||
                 Bits(ReadReferenceFirst(ref AddressReferencePair(destination))) != Bits(valueA) ||
                 Bits(ReadReferenceLast(ref AddressReferencePair(destination))) != Bits(valueB)) RejectReferences(12);
+            CheckReferenceStack(a, b, c, r, state, stack, (ulong)&stackWitness);
             ReferenceOperationLine(3, state->Calls, pairCookie);
             ulong blockCookie = CopyReferenceBlock(ref AddressReferenceBlock(destinationBlock), ref block, RhpNewFastAllocationCore.ReferenceCookie);
             if (!RhpNewFastAllocationCore.CompleteReferences(a, b, c, r, state, blockCookie)) RejectReferences(13);
@@ -177,8 +190,22 @@ internal static unsafe partial class RhpNewFastAllocation
                 c->Completed != 6 || c->ConstructorCount != 6 || b->AllocationCount != 6)
                 RejectReferences(15);
             RetainLine(retained);
+            CheckReferenceStack(a, b, c, r, state, stack, (ulong)&stackWitness);
+            ReferenceStackLine(stack);
             R(1); Decimal(b->UsedBytes); R(2); End(); R(3); End();
         }
+    }
+
+    // Outside every returning callback/special-helper path. Reacquire the same
+    // original authority before the core can read either executing-stack word.
+    private static void CheckReferenceStack(RhpNewFastHeapAccess* a, RhpNewFastBumpState* b,
+        RhpAllocationControl* c, RhpObservationStorage* r, CheckedReferenceState* state,
+        CheckedReferenceStackState* stack, ulong witness)
+    {
+        if (!OS.Boot.EfiEntry.TryGetOriginalReferenceStack(out ulong authority,
+            out ulong start, out ulong end, out ulong initialRsp) ||
+            !RhpNewFastAllocationCore.CheckReferenceStack(a, b, c, r, state, stack,
+                authority, start, end, initialRsp, witness)) RejectReferences(17);
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
@@ -270,6 +297,20 @@ internal static unsafe partial class RhpNewFastAllocation
         20 => index switch { 0 => 77, 1 => 48, 2 => 52, 3 => 95, 4 => 82, 5 => 69, 6 => 70, 7 => 69, 8 => 82, 9 => 69, 10 => 78, 11 => 67, 12 => 69, 13 => 95, 14 => 80, 15 => 82, 16 => 69, 17 => 80, 18 => 32, 19 => 105, 20 => 109, 21 => 97, 22 => 103, 23 => 101, 24 => 61, _ => 0 },
         21 => index switch { 0 => 77, 1 => 48, 2 => 52, 3 => 95, 4 => 82, 5 => 69, 6 => 70, 7 => 69, 8 => 82, 9 => 69, 10 => 78, 11 => 67, 12 => 69, 13 => 95, 14 => 66, 15 => 73, 16 => 78, 17 => 68, 18 => 32, 19 => 105, 20 => 109, 21 => 97, 22 => 103, 23 => 101, 24 => 61, _ => 0 },
         22 => index switch { 0 => 77, 1 => 48, 2 => 52, 3 => 95, 4 => 82, 5 => 69, 6 => 70, 7 => 69, 8 => 82, 9 => 69, 10 => 78, 11 => 67, 12 => 69, 13 => 95, 14 => 82, 15 => 69, 16 => 84, 17 => 65, 18 => 73, 19 => 78, 20 => 32, 21 => 97, 22 => 108, 23 => 108, 24 => 111, 25 => 99, 26 => 97, 27 => 116, 28 => 111, 29 => 114, 30 => 61, _ => 0 },
+        23 => index switch { 0 => 77, 1 => 48, 2 => 52, 3 => 95, 4 => 82, 5 => 69, 6 => 70, 7 => 69, 8 => 82, 9 => 69, 10 => 78, 11 => 67, 12 => 69, 13 => 95, 14 => 83, 15 => 84, 16 => 65, 17 => 67, 18 => 75, 19 => 32, 20 => 115, 21 => 116, 22 => 97, 23 => 114, 24 => 116, 25 => 61, _ => 0 },
+        24 => index switch { 0 => 32, 1 => 101, 2 => 110, 3 => 100, 4 => 61, _ => 0 },
+        25 => index switch { 0 => 32, 1 => 105, 2 => 110, 3 => 105, 4 => 116, 5 => 105, 6 => 97, 7 => 108, 8 => 82, 9 => 115, 10 => 112, 11 => 61, _ => 0 },
+        26 => index switch { 0 => 32, 1 => 119, 2 => 105, 3 => 116, 4 => 110, 5 => 101, 6 => 115, 7 => 115, 8 => 61, _ => 0 },
+        27 => index switch { 0 => 32, 1 => 115, 2 => 101, 3 => 110, 4 => 116, 5 => 105, 6 => 110, 7 => 101, 8 => 108, 9 => 48, 10 => 61, _ => 0 },
+        28 => index switch { 0 => 32, 1 => 115, 2 => 101, 3 => 110, 4 => 116, 5 => 105, 6 => 110, 7 => 101, 8 => 108, 9 => 49, 10 => 61, _ => 0 },
+        29 => index switch { 0 => 32, 1 => 101, 2 => 120, 3 => 112, 4 => 101, 5 => 99, 6 => 116, 7 => 101, 8 => 100, 9 => 48, 10 => 61, _ => 0 },
+        30 => index switch { 0 => 32, 1 => 101, 2 => 120, 3 => 112, 4 => 101, 5 => 99, 6 => 116, 7 => 101, 8 => 100, 9 => 49, 10 => 61, _ => 0 },
+        31 => index switch { 0 => 32, 1 => 97, 2 => 114, 3 => 109, 4 => 101, 5 => 100, 6 => 48, 7 => 61, _ => 0 },
+        32 => index switch { 0 => 32, 1 => 97, 2 => 114, 3 => 109, 4 => 101, 5 => 100, 6 => 49, 7 => 61, _ => 0 },
+        33 => index switch { 0 => 32, 1 => 102, 2 => 105, 3 => 110, 4 => 97, 5 => 108, 6 => 48, 7 => 61, _ => 0 },
+        34 => index switch { 0 => 32, 1 => 102, 2 => 105, 3 => 110, 4 => 97, 5 => 108, 6 => 49, 7 => 61, _ => 0 },
+        35 => index switch { 0 => 32, 1 => 99, 2 => 104, 3 => 101, 4 => 99, 5 => 107, 6 => 115, 7 => 61, _ => 0 },
+        36 => index switch { 0 => 32, 1 => 119, 2 => 111, 3 => 114, 4 => 100, 5 => 115, 6 => 61, 7 => 50, 8 => 32, 9 => 112, 10 => 114, 11 => 101, 12 => 115, 13 => 101, 14 => 114, 15 => 118, 16 => 101, 17 => 100, 18 => 61, 19 => 116, 20 => 114, 21 => 117, 22 => 101, _ => 0 },
         _ => 0
     };
 
@@ -289,6 +330,14 @@ internal static unsafe partial class RhpNewFastAllocation
         R(12); Decimal(state->Geometry.CellPayload); R(13); Decimal(state->Geometry.PairFirst);
         R(14); Decimal(state->Geometry.PairLast); R(15); Decimal(state->Geometry.PairTag);
         R(16); Decimal(state->Geometry.BlockPayload); End();
+    }
+    private static void ReferenceStackLine(CheckedReferenceStackState* stack)
+    {
+        R(23); Hex(stack->Start); R(24); Hex(stack->End); R(25); Hex(stack->InitialRsp);
+        R(26); Hex(stack->Witness); R(27); Hex(stack->Start); R(28); Hex(stack->Start + 8);
+        R(29); Hex(RhpNewFastAllocationCore.ReferenceStackWord0); R(30); Hex(RhpNewFastAllocationCore.ReferenceStackWord1);
+        R(31); Hex(stack->Armed0); R(32); Hex(stack->Armed1); R(33); Hex(stack->Final0); R(34); Hex(stack->Final1);
+        R(35); Decimal(stack->Checks); R(36); End();
     }
     private static void ReferenceOperationLine(ulong operation, ulong calls, ulong cookie)
     { R(17); Decimal(operation); R(18); Decimal(calls); R(19); Hex(cookie); End(); }
@@ -328,8 +377,96 @@ internal unsafe struct CheckedReferenceState
     internal ulong CanaryAfter;
 }
 
+// Separate from the unchanged 432-byte barrier context and never consumed by a
+// returning helper. Production provenance comes only from the private M01 getter;
+// mapped host callers supply readable storage for numeric admission controls.
+internal struct CheckedReferenceStackState
+{
+    internal ulong Self, Authority, Start, End, InitialRsp, Witness;
+    internal ulong Armed0, Armed1, Final0, Final1, Checks, Phase;
+}
+
 internal static unsafe partial class RhpNewFastAllocationCore
 {
+    internal const ulong ReferenceStackBytes = 33 * 4096;
+    internal const ulong ReferenceStackBudget = 16384;
+    internal const ulong ReferenceStackWord0 = 0x195A86B4C327D0EF;
+    internal const ulong ReferenceStackWord1 = 0x62C79E1035AB48D6;
+
+    internal static bool ArmReferenceStack(RhpNewFastHeapAccess* access, RhpNewFastBumpState* bump,
+        RhpAllocationControl* control, RhpObservationStorage* records, CheckedReferenceState* state,
+        CheckedReferenceStackState* stack, ulong authority, ulong start, ulong end, ulong initialRsp, ulong witness)
+    {
+        if (!ReferenceStackAdmission(access, bump, control, records, state, stack,
+            authority, start, end, initialRsp, witness) || state->Stage != 2 || state->Calls != 0 ||
+            state->Armed != 1 || !Zero((byte*)stack, (ulong)sizeof(CheckedReferenceStackState))) return false;
+        // Every rejection above precedes every protected-state/sentinel write.
+        *stack = new CheckedReferenceStackState { Self = (ulong)stack, Authority = authority,
+            Start = start, End = end, InitialRsp = initialRsp, Witness = witness, Phase = 1 };
+        *(ulong*)start = ReferenceStackWord0;
+        *(ulong*)(start + 8) = ReferenceStackWord1;
+        stack->Armed0 = ReadReferenceStackWord(start); stack->Armed1 = ReadReferenceStackWord(start + 8);
+        if (stack->Armed0 != ReferenceStackWord0 || stack->Armed1 != ReferenceStackWord1)
+        { stack->Phase = 3; return false; }
+        return true;
+    }
+
+    internal static bool CheckReferenceStack(RhpNewFastHeapAccess* access, RhpNewFastBumpState* bump,
+        RhpAllocationControl* control, RhpObservationStorage* records, CheckedReferenceState* state,
+        CheckedReferenceStackState* stack, ulong authority, ulong start, ulong end, ulong initialRsp, ulong witness)
+    {
+        if (!ReferenceStackAdmission(access, bump, control, records, state, stack,
+            authority, start, end, initialRsp, witness) || stack->Self != (ulong)stack ||
+            stack->Authority != authority || stack->Start != start || stack->End != end ||
+            stack->InitialRsp != initialRsp || stack->Witness != witness || stack->Phase != 1 ||
+            stack->Armed0 != ReferenceStackWord0 || stack->Armed1 != ReferenceStackWord1 || stack->Checks >= 5)
+            return false;
+        ulong expectedCalls = stack->Checks switch { 0 => 18, 1 => 19, 2 => 20, 3 => 22, _ => 23 };
+        ulong expectedStage = stack->Checks switch { 0 => 3, 1 => 4, 2 => 5, 3 => 8, _ => 9 };
+        if (state->Armed != 1 || state->Calls != expectedCalls || state->Stage != expectedStage) return false;
+        ulong word0 = ReadReferenceStackWord(start), word1 = ReadReferenceStackWord(start + 8);
+        if (word0 != ReferenceStackWord0 || word1 != ReferenceStackWord1)
+        { stack->Phase = 3; return false; }
+        stack->Final0 = word0; stack->Final1 = word1; stack->Checks++;
+        if (stack->Checks == 5) stack->Phase = 2;
+        return true;
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static ulong ReadReferenceStackWord(ulong address) => *(ulong*)address;
+
+    private static bool ReferenceStackAdmission(RhpNewFastHeapAccess* access, RhpNewFastBumpState* bump,
+        RhpAllocationControl* control, RhpObservationStorage* records, CheckedReferenceState* state,
+        CheckedReferenceStackState* stack, ulong authority, ulong start, ulong end, ulong initialRsp, ulong witness)
+    {
+        ulong stackState = (ulong)stack, stateBytes = (ulong)sizeof(CheckedReferenceStackState);
+        if (!Range(stackState, stateBytes, 8) || !Range(authority, 768, 8) ||
+            !Range(start, ReferenceStackBytes, 4096) || end != start + ReferenceStackBytes ||
+            initialRsp != end - 40 || !Range(witness, 8, 8) || witness < start + 16 ||
+            witness + 8 > initialRsp || witness - (start + 16) < ReferenceStackBudget ||
+            Overlap(stackState, stateBytes, start, ReferenceStackBytes) ||
+            Overlap(authority, 768, start, ReferenceStackBytes) || Overlap(authority, 768, stackState, stateBytes) ||
+            !ReferenceContext(access, bump, control, records, state) ||
+            Overlap(start, ReferenceStackBytes, control->Image, control->ImageBytes)) return false;
+        return ReferenceStackSpan(access, bump, control, records, state, stackState, stateBytes) &&
+            ReferenceStackSpan(access, bump, control, records, state, start, ReferenceStackBytes);
+    }
+
+    private static bool ReferenceStackSpan(RhpNewFastHeapAccess* access, RhpNewFastBumpState* bump,
+        RhpAllocationControl* control, RhpObservationStorage* records, CheckedReferenceState* state,
+        ulong at, ulong size)
+    {
+        // Original context was fully validated before these pointer values were read.
+        for (ulong i = 0; i < 6; i++)
+            if (Overlap(at, size, (&records->Object0)[i].MethodTable, 24)) return false;
+        return !Overlap(at, size, (ulong)access, 104) && !Overlap(at, size, (ulong)bump, 80) &&
+            !Overlap(at, size, (ulong)control, ControlBytes) && !Overlap(at, size, (ulong)records, ObservationBytes) &&
+            !Overlap(at, size, (ulong)state, (ulong)sizeof(CheckedReferenceState)) &&
+            !Overlap(at, size, (ulong)access->Allocator, 56) && !Overlap(at, size, (ulong)access->Nodes, 48) &&
+            !Overlap(at, size, (ulong)access->Reservations, 200) && !Overlap(at, size, (ulong)access->Heap, 216) &&
+            !Overlap(at, size, (ulong)access->Backing, 8192);
+    }
+
     internal const ulong ReferenceCookie = 0x179BCDE02468ACE0;
     internal const ulong ReferencePairTag = 0x1928374655AABBCC;
     internal static ulong ReferenceBlockTag(ulong index) => 0x3141592653589700 + index;

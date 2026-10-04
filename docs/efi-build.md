@@ -85,7 +85,7 @@ boundary.
 - `OS.Kernel` has a host-tested `UefiMemoryMapCopyPlan` contract that validates the copy from firmware-owned memory-map buffer to OS-owned storage before the EFI shell copies bytes.
 - `OS.Kernel` has a host-tested `UefiMemoryMapCapture` helper that owns the no-stdlib EFI memory-map capture/copy mechanics and reports copy-plan statuses for rejected metadata.
 - M03-001's [step961](../done/step961.md) adds host regression coverage without changing the EFI capture path. Its actual no-stdlib closure uses the current `MinimalRuntime.cs`, `MethodImplAttribute.cs`, `BootHandoffRecord.cs`, `UefiMemoryMapCapture.cs` and `UefiMemoryMapCopyPlan.cs`; compilation and metadata inspection report zero AssemblyRefs. The complete new and existing host memory-map initializers pass. No new EFI artifact, guest marker or live firmware result is claimed by that step; the later native observation and QEMU evidence are recorded in [step970](../done/step970.md).
-- M03-002's [step972](../done/step972.md) adds the host-only `RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrap` composition and complete regressions for retaining five full ACPI tables. It consumes caller-supplied snapshots through `Span<T>` and the existing `ReadOnlyMemory<byte>` table-source contract. That managed host composition remains outside the explicit EFI closure. The separate no-stdlib adapter and its default/enabled publications are now integrated in [step973](../done/step973.md). Those host and publication results alone did not demonstrate live copies. [Step977](../done/step977.md) adds the accepted common gate and fresh five-role ACPI/native/raw/lifecycle/disk evidence before firmware exit. Reviewed merge and #59/#539 closure remain pending; no post-exit access is proved.
+- M03-002's [step972](../done/step972.md) adds the host-only `RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrap` composition and complete regressions for retaining five full ACPI tables. It consumes caller-supplied snapshots through `Span<T>` and the existing `ReadOnlyMemory<byte>` table-source contract. That managed host composition remains outside the explicit EFI closure. The separate no-stdlib adapter and its default/enabled publications are now integrated in [step973](../done/step973.md). Those host and publication results alone did not demonstrate live copies. [Step977](../done/step977.md) adds the accepted common gate and fresh five-role ACPI/native/raw/lifecycle/disk evidence before firmware exit. PR538 later merged and #59/#539 closed with evidence; no post-exit access is proved.
 - `OS.Kernel` has a host-tested `EfiBootHandoffValidator` contract that mirrors the live EFI numeric validation path without string formatting or managed allocation requirements.
 - `OS.Kernel` has a host-tested `EfiMemoryMapNormalizer` contract for live no-stdlib summary normalization without arrays or `Span<T>`.
 - `OS.Kernel` has a host-tested `BootMemoryRegionMaterializer` contract for live no-stdlib memory-region materialization without arrays, managed allocation, or exception handling.
@@ -2322,7 +2322,8 @@ checks pass with zero managed AssemblyRefs, the original 336-byte serializer
 and the enabled 1,645-byte reference object. Compiler field layouts and linked
 helper/callback ABI, stack and SIMD behavior
 were subsequently joined to the fresh images in [step977](../done/step977.md).
-That static proof does not satisfy the still-missing live stack-canary check.
+That historical static proof alone did not satisfy the live stack-canary
+requirement; [step981](../done/step981.md) records the later observed sentinel.
 
 The full reference integration initializer passes 5 starts/6 passes/zero
 failures; the full ACPI initializer passes 4 starts/5 passes/zero failures.
@@ -2330,9 +2331,28 @@ Each includes actual default/enabled NativeAOT publications. The preceding
 managed batch passes 82 starts/83 passes/zero failures. These focused results
 remain separate from the later accepted `eeee523` common
 suite and three fresh captures in [step977](../done/step977.md). The ACPI copy
-and writer prerequisite are accepted within scope; reference #79/#537 remain
-open for executing-stack canary evidence. No real ExitBootServices, general
+and writer prerequisite are accepted within scope; [step981](../done/step981.md)
+now also accepts the bounded reference executing-stack evidence. No real ExitBootServices, general
 GC, Kestrel or readiness gate is promoted.
+
+[Step979](../done/step979.md) now adds the original-stack getter and two-word
+sentinel checks to the existing reference profile, without changing its 88
+Compile items, 102 raw inputs or 38 flags. The full focused initializer passes
+again, including fresh default/enabled publications with zero AssemblyRefs.
+The exact reference body grows to 71 records; its 19-record reference block
+adds `M04_REFERENCE_STACK` immediately before READY. The row requires the owned
+stack geometry, initial observation, local witness, two fixed words, matching
+armed/final reads and five checks. The production streamer rejects missing,
+duplicate and late STACK records. [Step981](../done/step981.md) completes the
+fresh `5d894c8` load/frame/storage and guest joins. The same compiled reader and
+five checks support an 8,456-byte conservative local bound below the witness,
+inside the 16 KiB ceiling; the actual guest reports both words preserved. The
+full common suite passes 3,704 starts/3,705 passes/zero failures and 16 READY
+lines. Default/reference/ACPI captures pass with 71 reference and 35 ACPI rows;
+ordinary 750ms is configured drainage, not a separately measured quiet interval.
+Pristine disks are reconstructed after capture from archived actual builders,
+with bounded FAT/payload accounting. The source remains 88 Compile/102 raw/38
+flags; this acceptance supplies no collecting GC or real ExitBootServices.
 
 [Step975](../done/step975.md) corrects the reference READY marker to end at
 the complete `allocations=6` token. The runner matches complete tokens; the
@@ -2352,5 +2372,18 @@ complete initializers pass together (37 cases, 40 starts, 41 passes and zero
 failures), including the original default/enabled IDTR NativeAOT publications.
 The earlier combined run failed on the stale checked-port count and remains
 failed evidence. [Step977](../done/step977.md) records the later accepted clean
-common gate and guest reviews; the reference stack-canary requirement remains
-open rather than being waived by those results.
+common gate and guest reviews; those historical results did not waive the
+reference stack-canary requirement. The later proof and live checks in
+[step981](../done/step981.md) satisfy it within the bounded profile.
+
+### M03-003 host entropy-retention prerequisite
+
+[Step978](../done/step978.md) adds a managed host contract that retains a bounded
+32- or 64-byte guarded RNG result in caller-owned storage, clears its used
+scratch slice and publishes status/length last. The normal HostTests build and
+27-group focused run pass. This source is not admitted to the explicit EFI
+closure and adds no probe property or native entry. Actual `EFI_RNG_PROTOCOL`
+discovery, one `GetRNG` call, guarded retained bytes and genuine missing-source
+guest evidence require separately scoped EFI/runner integration. #60 remains
+open; no seed-bearing diagnostics, entropy quality, PRNG, TLS or real
+`ExitBootServices` capability is claimed.
