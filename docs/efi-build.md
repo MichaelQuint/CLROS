@@ -2597,3 +2597,9 @@ initializers pass; full combined and final guest acceptance remain pending.
 source hashes, both IDTR profile exclusions and the shared stack getter guard.
 Production inputs and the accepted native review are unchanged; full combined
 and final guest acceptance remain pending.
+
+[Step1002](../done/step1002.md) corrects the helper-ledger fixture's source
+declaration count for the two exclusive callback profiles. Complete diagnostic
+checks of the remaining 218 initializers pass after resolving three diagnostic
+dispatch errors. This is not a full common pass; production/native inputs are
+unchanged and the corrected common run and final guest acceptance remain pending.
