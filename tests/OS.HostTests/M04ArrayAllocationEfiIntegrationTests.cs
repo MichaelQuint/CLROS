@@ -268,7 +268,7 @@ internal static class M04ArrayAllocationEfiIntegrationTests
             Need(project.Descendants("PropertyGroup").Single(x=>x.Attribute("Condition")?.Value=="'$("+pair.Item1+")' == 'true'").Element("DefineConstants")?.Value=="$(DefineConstants);"+pair.Item2,"exact selected compiler symbol");
         }
         foreach(string required in Chain)Need(project.Descendants("Error").Any(x=>x.Attribute("Condition")?.Value=="'$("+Flag+")' == 'true' and '$("+required+")' != 'true'"),"explicit prerequisite "+required);
-        foreach(var file in new[]{("GuestTestArrayAllocationLengthOverflowChecks.cs","3181b70d4a9bad1dd957ecba9e9d6c860275780cc26b61961019f9341c1138a9"),("GuestTestRhpNewFast.cs","577c430d9bd28ddc8d6dae83cf3e79b56a37261b428b94de1a91f8b6f3d44379")})
+        foreach(var file in new[]{("GuestTestArrayAllocationLengthOverflowChecks.cs","3181b70d4a9bad1dd957ecba9e9d6c860275780cc26b61961019f9341c1138a9"),("GuestTestRhpNewFast.cs","e7cd46a4c35de92cb9085f198737916697f7479dd0947fd591e4874aa347617e")})
             Need(Hash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(root,"src/OS.Kernel/Runtime",file.Item1)).Replace("\r\n","\n",StringComparison.Ordinal)))==file.Item2,"frozen host source");
         string shim=File.ReadAllText(Path.Combine(root,"src/OS/Runtime/MinimalRuntime.cs")),adapter=File.ReadAllText(Path.Combine(root,"src/OS/Runtime/RhpNewFastAllocation.cs"));
         Need(shim.Contains("private int _numComponents;",StringComparison.Ordinal) && shim.Contains("public int Length => _numComponents;",StringComparison.Ordinal),"minimal actual compiler Array contract");

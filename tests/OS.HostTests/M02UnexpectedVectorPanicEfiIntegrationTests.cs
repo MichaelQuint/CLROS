@@ -259,7 +259,7 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
             Require(errors.Count(x=>x.Attribute("Condition")?.Value=="'$("+a+")' == 'true' and '$("+b+")' == 'true'")==1,"reciprocal conflict "+a+"/"+b);
         foreach(var pair in new[]{("src/OS.Kernel/Diagnostics/UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassification.cs","EC3583012BAACA4B9CD9D13093C941196478A3FE12C89330C86D8C7AE39CA899"),
             ("tests/OS.HostTests/UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassificationTests.cs","9A5EA1B4D40BC957063AC63322DC78108BAE575ABD050032CB9B6D1AD02076CD"),
-            ("src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs","577C430D9BD28DDC8D6DAE83CF3E79B56A37261B428B94DE1A91F8B6F3D44379")})
+            ("src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs","e7cd46a4c35de92cb9085f198737916697f7479dd0947fd591e4874aa347617e")})
             Require(Hash(File.ReadAllText(Path.Combine(root,pair.Item1)).Replace("\r\n","\n",StringComparison.Ordinal)).Equals(pair.Item2,StringComparison.OrdinalIgnoreCase),"reviewed normalized source "+pair.Item1);
         string entry=File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.cs")),adapter=Adapter(entry);
         string run=Member(adapter,"internal static void Run("),callback=Member(adapter,"private static uint Callback("),prepare=Member(adapter,"internal static bool Prepare(");

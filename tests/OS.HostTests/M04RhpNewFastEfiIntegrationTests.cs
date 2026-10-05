@@ -355,7 +355,7 @@ internal static class M04RhpNewFastEfiIntegrationTests
         }
         foreach(string required in Chain)Need(p.Descendants("Error").Any(x=>x.Attribute("Condition")?.Value=="'$("+Flag+")' == 'true' and '$("+required+")' != 'true'"),"explicit prerequisite "+required);
         string leaf=File.ReadAllText(Path.Combine(root,"src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs")).Replace("\r\n","\n",StringComparison.Ordinal);
-        Need(Hash(Encoding.UTF8.GetBytes(leaf))=="577c430d9bd28ddc8d6dae83cf3e79b56a37261b428b94de1a91f8b6f3d44379","frozen allocation leaf");
+        Need(Hash(Encoding.UTF8.GetBytes(leaf))=="e7cd46a4c35de92cb9085f198737916697f7479dd0947fd591e4874aa347617e","frozen allocation leaf");
         string entry=File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.cs"));
         int zero=entry.IndexOf("if (!M01StageTwoAdapter.ValidateManagedHeapBeforeBootPlan",StringComparison.Ordinal);
         int handoff=entry.IndexOf("M01StageTwoAdapter.RunRhpNewFastAfterZeroCheckpoint();",StringComparison.Ordinal);

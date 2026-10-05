@@ -294,9 +294,9 @@ internal static class M04StringAllocationEfiIntegrationTests
         }
         foreach(string required in Chain)Need(project.Descendants("Error").Any(x=>x.Attribute("Condition")?.Value=="'$("+Flag+")' == 'true' and '$("+required+")' != 'true'"),"explicit prerequisite "+required);
         foreach(var file in new[]{("src/OS.Kernel/Runtime/GuestTestStringAllocationCharacterStorage.cs","0676ab5b69838bd12575a9d3c2059f8c39872cfa67c5b9fd0c37227568822aba"),
-            ("src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs","577c430d9bd28ddc8d6dae83cf3e79b56a37261b428b94de1a91f8b6f3d44379"),
+            ("src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs","e7cd46a4c35de92cb9085f198737916697f7479dd0947fd591e4874aa347617e"),
             ("tests/OS.HostTests/GuestTestStringAllocationCharacterStorageTests.cs","27f774d0f1123a7be7b14cbd4c8d41e22b8fb0b29b16d113745741894aac88b8"),
-            ("tests/OS.HostTests/GuestTestRhpNewFastTests.cs","3484047894632d2fad5a07a049e77202bc2cd98ade2cdcacd6d4a772abe9b5c9"),
+            ("tests/OS.HostTests/GuestTestRhpNewFastTests.cs","b4ec1e95244041f4071ce6293a3f31924ecd960308529a352a13347d92e8e6c4"),
             ("src/OS/Boot/EfiEntry.cs","af975405125c368ec7520ab1fd35f2feac9e762650e78d64a1cb835110bde14d")})
             Need(Hash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(root,file.Item1)).Replace("\r\n","\n",StringComparison.Ordinal)))==file.Item2,"reviewed host/entry source "+file.Item1);
         string adapter=File.ReadAllText(Path.Combine(root,"src/OS/Runtime/RhpNewFastAllocation.cs"));
