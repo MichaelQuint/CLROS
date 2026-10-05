@@ -296,9 +296,9 @@ internal static class M04StringAllocationEfiIntegrationTests
         foreach(var file in new[]{("src/OS.Kernel/Runtime/GuestTestStringAllocationCharacterStorage.cs","0676ab5b69838bd12575a9d3c2059f8c39872cfa67c5b9fd0c37227568822aba"),
             ("src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs","577c430d9bd28ddc8d6dae83cf3e79b56a37261b428b94de1a91f8b6f3d44379"),
             ("tests/OS.HostTests/GuestTestStringAllocationCharacterStorageTests.cs","27f774d0f1123a7be7b14cbd4c8d41e22b8fb0b29b16d113745741894aac88b8"),
-            ("tests/OS.HostTests/GuestTestRhpNewFastTests.cs","1d98c426348a5d522842a4bf312619f393f8aa289a669cf1abe31c8a9953f885"),
-            ("src/OS/Boot/EfiEntry.cs","0084a72fb01cf51e124c3f362eba59eb179b741a2f1f947f2089c72d0d0904ca")})
-            Need(Hash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(root,file.Item1)).Replace("\r\n","\n",StringComparison.Ordinal)))==file.Item2,"unchanged host/entry source "+file.Item1);
+            ("tests/OS.HostTests/GuestTestRhpNewFastTests.cs","3484047894632d2fad5a07a049e77202bc2cd98ade2cdcacd6d4a772abe9b5c9"),
+            ("src/OS/Boot/EfiEntry.cs","34b8d8340e7a933326249357b2819b69a0540676fd358d756a0215bed4c4186d")})
+            Need(Hash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(root,file.Item1)).Replace("\r\n","\n",StringComparison.Ordinal)))==file.Item2,"reviewed host/entry source "+file.Item1);
         string adapter=File.ReadAllText(Path.Combine(root,"src/OS/Runtime/RhpNewFastAllocation.cs"));
         Need(adapter.Contains("GuestTestStringAllocationCharacterStorage.TryAllocate(*access, bump, 80,",StringComparison.Ordinal) &&
             adapter.Contains("NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian, prefix, token, length)",StringComparison.Ordinal) &&

@@ -392,7 +392,7 @@ internal static class M04CheckedReferenceBarrierEfiIntegrationTests
             "record.StorageAddress != (ulong)&state->SwitchStateStorage","!record.ObservedRsp.Equals(plan.ExpectedContinuationStackPointer)",
             "!plan.StackLayout.BackingStart.Equals(state->StackLayoutStorage.BackingStart)","high - low != UsableStackPageCount * PageSize"})
             Need(getter.Contains(token,StringComparison.Ordinal),"original active stack source "+token);
-        Need(entry.Contains("#if M04_CHECKED_REFERENCE_BARRIER_PROBE\n        internal static bool TryGetOriginalReferenceStack(",StringComparison.Ordinal),"getter profile isolated");
+        Need(entry.Contains("#if M04_CHECKED_REFERENCE_BARRIER_PROBE || M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE\n        internal static bool TryGetOriginalReferenceStack(",StringComparison.Ordinal),"getter limited to the two reviewed stack-observing profiles");
         string adapter=File.ReadAllText(Path.Combine(root,"src/OS/Runtime/CheckedReferenceBarrierAdapter.cs"));
         Need(adapter.Contains("witness - (start + 16) < ReferenceStackBudget",StringComparison.Ordinal)&&
             adapter.Contains("ReferenceStackBudget = 16384",StringComparison.Ordinal),"end-exclusive strip clearance remains exact16KiB");
