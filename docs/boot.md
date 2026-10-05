@@ -3818,9 +3818,9 @@ Callers must retain and serialize the state and supply valid callable authority;
 copying or resetting state, hostile mutation and arbitrary-pointer executability
 are outside the contract.
 
-This host evidence does not establish the emitted EFI ABI or a firmware exit.
-The adapter leaves global firmware mode unchanged. #61 remains claimed pending
-its separate controlled native/QEMU supplement and common integration gate;
+This host evidence alone does not establish the emitted EFI ABI or a firmware
+exit. The adapter leaves global firmware mode unchanged. Step1003 below accepts
+the separate controlled native/QEMU supplement and common integration gate;
 #62, #63 and #64 retain final-map ordering, stale-key retry and the first actual
 ExitBootServices transition respectively.
 
@@ -3831,9 +3831,17 @@ counter covers every callback entry, including an orphan entry before any
 active-state check. The actual mapped callback tests and fresh default/enabled
 EFI publications pass. Eight focused managed modules pass 115/116/0; the
 complete new integration module passes 5/6/0. Full native review, the common
-suite and fresh QEMU evidence are still pending. The READY record explicitly
+suite and fresh QEMU evidence were pending at that milestone. The READY record explicitly
 says `controlled=true realExitBootServices=false`; it never claims a firmware
 exit or authorizes a global mode change.
+
+[Step1003](../done/step1003.md) accepts #61/#546's controlled adapter after the
+combined full suite (3787 starts/3788 passes/zero failures), emitted ABI review,
+and fresh default/typed-EBS QEMU captures. All four exact keys/statuses,
+consumed-state rejection and the bounded reentry case appear in the 30-line
+controlled transcript. Actual callback and retained storage addresses match
+the reviewed native image. This releases #62's final-map window; retry and
+the original firmware exit remain #63/#64. No global firmware transition occurs.
 
 Existing guard markers:
 

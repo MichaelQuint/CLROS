@@ -1529,3 +1529,13 @@ query's `ReadableSectionData` kind admits reads inside registered non-executable
 row payloads, without granting write access. GC-root ownership retains and checks
 the entry bytes. Descriptors, abbreviated method tables and Object metadata still
 require immutable readable storage; mutable destinations exclude registered rows.
+
+[Step1003](../done/step1003.md) supplies final common/native/QEMU acceptance
+for this bounded GC-static slice: 3787/3788/0 complete host results, exact
+native-image reuse, and fresh default/enabled captures with raw/lifecycle and
+disk reviews. The actual static field/cell, relative metadata, scalar object
+MethodTable and sole-allocator receipts agree with the numeric guest record.
+Five owned-stack canary checks pass within the reviewed first-party bound.
+#81/#548 are ready for closure after merge and #82 can proceed to collection.
+This does not implement collection, free/reuse, general roots/static/TLS,
+exceptions, concurrency or hosted .NET; Gates3/4 remain Fail.
