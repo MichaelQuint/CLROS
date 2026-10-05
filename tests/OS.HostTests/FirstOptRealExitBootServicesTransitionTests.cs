@@ -18,6 +18,7 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
     {
         Run("admission and failed exits cannot transfer", Failures);
         Run("successful exit transfers once and cannot return to its caller", TerminalTransfer);
+        Run("permanent CR3 preparation and emitted continuation", PermanentContinuation);
     }
 
     private static void Run(string name, Action action)
@@ -43,6 +44,71 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
     [UnmanagedCallersOnly]
     private static void Continuation(FirstExitTransitionState* state, void* context)
     { continuations++; }
+
+    [UnmanagedCallersOnly]
+    private static void Diagnostic(FirstExitTransitionState* state, FirstExitPermanentCr3Context* context) { }
+
+    private static bool Prepare(ref FirstExitPermanentCr3Context context,
+        ulong firmware = 0xF801000, ulong owned = 0x100000, ulong cr4 = 0x668,
+        ulong bottom = 0x200008, ulong top = 0x240000, ulong depth = 16384)
+        => FirstExitPermanentCr3Stub.Prepare(ref context, firmware, owned, cr4,
+            bottom, top, depth, 0x1122334455667788, 0x8877665544332211, &Diagnostic, (void*)123);
+
+    private static void PermanentContinuation()
+    {
+        Need(!RuntimeHelpers.IsReferenceOrContainsReferences<FirstExitPermanentCr3Context>() &&
+            sizeof(FirstExitPermanentCr3Context) == FirstExitPermanentCr3Stub.ContextBytes, "POD context size");
+        (string Field, int Offset)[] layout = [("FirmwareCr3", 0), ("OwnedCr3", 8), ("FirmwareCr4", 16),
+            ("StackBottom", 24), ("StackTop", 32), ("MinimumRsp", 40), ("LowerCanary", 48), ("UpperCanary", 56),
+            ("Diagnostic", 64), ("DiagnosticContext", 72), ("ObservedCr3", 80), ("ObservedCr4", 88),
+            ("Phase", 96), ("ObservedRsp", 104)];
+        foreach (var field in layout)
+            Need((int)Marshal.OffsetOf<FirstExitPermanentCr3Context>(field.Field) == field.Offset, "native offset " + field.Field);
+        Need((int)Marshal.OffsetOf<FirstExitTransitionState>("PhaseValue") == 0 &&
+            (int)Marshal.OffsetOf<FirstExitTransitionState>("ModeValue") == 4 &&
+            (uint)FirstExitPhase.OwnedContinuation == 3 && (uint)FirmwareServicesMode.BootServicesExited == 2,
+            "native exit-state guard layout");
+        FirstExitPermanentCr3Context context = default;
+        Need(Prepare(ref context) && context.Phase == FirstExitAdoptionPhase.Prepared &&
+            context.MinimumRsp == 0x204048 && context.DiagnosticContext == (void*)123 &&
+            context.ObservedCr3 == 0 && context.ObservedCr4 == 0 && context.ObservedRsp == 0, "prepared bounds");
+        Need(!Prepare(ref context), "cannot reset prepared context");
+        foreach (ulong firmware in new[] { 0UL, 0x18UL, 0x1000_0000_0UL, 0xF801001UL })
+        { context = default; Need(!Prepare(ref context, firmware: firmware) && context.Phase == 0, "invalid firmware root"); }
+        foreach (ulong owned in new[] { 0UL, 0x100001UL, 0xF801000UL, 0x1000_0000_0UL })
+        { context = default; Need(!Prepare(ref context, owned: owned) && context.Phase == 0, "invalid owned root"); }
+        foreach (ulong cr4 in new[] { 0UL, 0x648UL, 0x1668UL, 0x20668UL, 0x800668UL })
+        { context = default; Need(!Prepare(ref context, cr4: cr4) && context.Phase == 0, "unsupported processor mode"); }
+        foreach (var stack in new[] { (0UL, 0x240000UL, 1UL), (0x200001UL, 0x240000UL, 1UL),
+            (0x200008UL, 0x240001UL, 1UL), (0x200008UL, 0x200008UL, 1UL),
+            (0x200008UL, 0x240000UL, 0UL), (0x200008UL, 0x240000UL, ulong.MaxValue),
+            (0x200008UL, 0x240000UL, 0x3ffb8UL), (0x200008UL, 0x800000000000UL, 1UL) })
+        { context = default; Need(!Prepare(ref context, bottom: stack.Item1, top: stack.Item2, depth: stack.Item3) &&
+            context.Phase == 0, "invalid stack extent or headroom"); }
+        context = default;
+        ulong contextAddress = (ulong)&context;
+        Need(!Prepare(ref context, bottom: contextAddress, top: contextAddress + 0x10000), "context overlaps live stack");
+        Need(!FirstExitPermanentCr3Stub.Prepare(ref context, 0xF801000, 0x100000, 0x668,
+            0x200008, 0x240000, 16384, 1, 2, null, null), "missing diagnostic");
+
+        uint bytes = FirstExitPermanentCr3Stub.RequiredBytes;
+        byte* output = stackalloc byte[(int)bytes + 2];
+        new Span<byte>(output, (int)bytes + 2).Fill(0xa5);
+        Need(!FirstExitPermanentCr3Stub.Emit(output + 1, bytes - 1, out uint written) && written == 0 &&
+            new ReadOnlySpan<byte>(output, (int)bytes + 2).IndexOfAnyExcept((byte)0xa5) == -1,
+            "short destination unchanged");
+        Need(!FirstExitPermanentCr3Stub.Emit(null, bytes, out written) && written == 0, "null destination");
+        Need(FirstExitPermanentCr3Stub.Emit(output + 1, bytes, out written) && written == bytes &&
+            output[0] == 0xa5 && output[bytes + 1] == 0xa5, "exact bounded emission");
+        byte[] raw = new ReadOnlySpan<byte>(output + 1, (int)bytes).ToArray();
+        Need(raw.AsSpan(0, 2).SequenceEqual(new byte[] { 0xfa, 0xfc }) &&
+            raw.AsSpan(raw.Length - 4).SequenceEqual(new byte[] { 0xfa, 0xf4, 0xeb, 0xfc }), "terminal CLI/HLT loop");
+        // Preserve actual emitter output for independent decoding, never execute
+        // privileged instructions in the host test process.
+        string directory = Path.Combine(HostToolProcess.FindRepositoryRoot(), "artifacts/issue64/permanent-stub");
+        Directory.CreateDirectory(directory);
+        File.WriteAllBytes(Path.Combine(directory, "continuation.bin"), raw);
+    }
 
     private static FirstExitReturn Invoke(ref FirstExitTransitionState state, byte* buffer, void* context)
     {
