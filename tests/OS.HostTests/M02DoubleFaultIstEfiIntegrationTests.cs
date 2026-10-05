@@ -46,7 +46,7 @@ internal static class M02DoubleFaultIstEfiIntegrationTests
         string authority=File.ReadAllText(Path.Combine(root,"src/OS.Kernel/Diagnostics/DoubleFaultIstProbeAuthority.cs"));
         Require(authority.Contains("public const bool EnableDoubleFaultIstProbe = false;",StringComparison.Ordinal) && !File.ReadAllText(Path.Combine(root,"src/OS.Kernel/Diagnostics/Probes.cs")).Contains("public const bool EnableDoubleFaultIstProbe",StringComparison.Ordinal),"unique false authority");
         XElement initial=project.Descendants(Flag).Single(x=>x.Attribute("Condition")!=null);Require(initial.Value=="false","default false");
-        Require(project.Descendants().Count(x=>x.Name.LocalName.StartsWith("Enable",StringComparison.Ordinal) && x.Attribute("Condition")?.Value=="'$("+x.Name.LocalName+")' == ''" && x.Value=="false")==37,"37 explicit XML false defaults");
+        Require(project.Descendants().Count(x=>x.Name.LocalName.StartsWith("Enable",StringComparison.Ordinal) && x.Attribute("Condition")?.Value=="'$("+x.Name.LocalName+")' == ''" && x.Value=="false")==38,"38 explicit XML false defaults");
         string[] ordered=items.Select(x=>x.Attribute("Include")!.Value).ToArray();int predecessor=Array.FindIndex(ordered,x=>x.EndsWith("\\SeparateDisabledDefaultPageFaultTransition.cs",StringComparison.Ordinal));
         Require(predecessor>=0 && ordered[predecessor+1].EndsWith("\\DoubleFaultIstProbeAuthority.cs",StringComparison.Ordinal) && ordered[predecessor+2].EndsWith("\\DoubleFaultISTPathSilentRebootOrTriple.cs",StringComparison.Ordinal)
             && ordered[predecessor+5].EndsWith("\\InvalidOpcodeVectorAuthority.cs",StringComparison.Ordinal),"exact two insertion positions");
