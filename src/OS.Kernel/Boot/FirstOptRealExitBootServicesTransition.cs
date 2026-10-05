@@ -5,6 +5,120 @@ using OS.Std.Hash;
 
 namespace OS.Boot;
 
+// Stack layout after the existing normalizer and the terminal stub's 15 pushes.
+// The handler never restores registers or returns through this frame.
+public struct FirstExitFaultFrame
+{
+    public ulong R15, R14, R13, R12, R11, R10, R9, R8;
+    public ulong Rbp, Rdi, Rsi, Rdx, Rcx, Rbx, Rax;
+    public ulong Vector, HasErrorCode, ErrorCode, Rip, Cs, Rflags, Rsp, Ss;
+}
+
+public struct FirstExitFaultContext
+{
+    // 0 empty, 1 ready, 2 entered by native stub, 3 reported, 4 refused/failed.
+    public uint Phase;
+    public uint Reserved;
+    public Com1OwnedPortIoBackend Backend;
+}
+
+/// <summary>
+/// Terminal adapter for the existing normalized interrupt vector page. Keep the
+/// context, callback, all code and stacks retained/accessible under both roots.
+/// The callback must be an authenticated owned Win64 target, never firmware.
+/// This emitter does not publish code, install gates or prove a native stack budget.
+/// </summary>
+public static unsafe class FirstExitTerminalFaultStub
+{
+    public const uint FrameBytes = 184;
+    public const uint MaximumCallBytesBelowFrame = 55; // alignment + shadow space + return address
+    private const ulong LowEnd = 0x0000800000000000;
+    public static uint RequiredBytes => Encode(null, 0, 0, 0);
+
+    public static bool Prepare(ref FirstExitFaultContext context, Com1OwnedPortIoBackend backend)
+    {
+        if (context.Phase != 0 || context.Reserved != 0 || !backend.IsReady ||
+            sizeof(FirstExitFaultFrame) != FrameBytes) return false;
+        context.Backend = backend;
+        context.Phase = 1;
+        return true;
+    }
+
+    public static bool Emit(byte* destination, uint capacity, ulong context, ulong callback, out uint written)
+    {
+        written = 0;
+        uint bytes = RequiredBytes;
+        if (destination == null || capacity < bytes || (ulong)destination >= LowEnd - bytes ||
+            context == 0 || (context & 7) != 0 || context >= LowEnd - (ulong)sizeof(FirstExitFaultContext) ||
+            callback == 0 || callback >= LowEnd ||
+            FirstExitDescriptors.Overlaps((ulong)destination, bytes, context, (ulong)sizeof(FirstExitFaultContext)) ||
+            FirstExitDescriptors.Overlaps(callback, 1, context, (ulong)sizeof(FirstExitFaultContext)) ||
+            (callback >= (ulong)destination && callback - (ulong)destination < bytes)) return false;
+        written = Encode(destination, context, callback, bytes - 4);
+        return written == bytes;
+    }
+
+    /// <summary>
+    /// Called by the authenticated EFI callback, after the native one-use guard.
+    /// Reports through the existing checked owned COM1 backend only. The native
+    /// caller halts after any return, including a reporting failure or timeout.
+    /// </summary>
+    public static bool Report(FirstExitFaultFrame* frame, FirstExitFaultContext* context, ulong cr2, ulong cr3)
+    {
+        if (frame == null || context == null || ((ulong)frame & 7) != 0 || ((ulong)context & 7) != 0 ||
+            (ulong)frame >= LowEnd - FrameBytes || (ulong)context >= LowEnd - (ulong)sizeof(FirstExitFaultContext) ||
+            FirstExitDescriptors.Overlaps((ulong)frame, FrameBytes, (ulong)context, (ulong)sizeof(FirstExitFaultContext)) ||
+            context->Phase != 2 || context->Reserved != 0) return false;
+        context->Phase = 4; // consume even if reporting fails; no second callback/report
+        if (frame->Vector > 255 || frame->HasErrorCode > 1 ||
+            (frame->HasErrorCode == 1) != NormalizeErrorCodeNonErrorCodeInterruptFrame.HasHardwareErrorCode((int)frame->Vector) ||
+            (frame->HasErrorCode == 0 && frame->ErrorCode != 0)) return false;
+        PanicSafeOwnedCom1FaultRecord fault = new((int)frame->Vector, frame->HasErrorCode == 1,
+            frame->ErrorCode, frame->Rip, frame->Rsp, frame->Rbp, frame->Rflags, cr2, cr3,
+            frame->Rax, frame->Rbx, frame->Rcx, frame->Rdx, frame->Rsi, frame->Rdi,
+            frame->R8, frame->R9, frame->R10, frame->R11, frame->R12, frame->R13, frame->R14, frame->R15);
+        byte* subsystem = stackalloc byte[4]; *(uint*)subsystem = 0x746f6f62; // boot
+        byte* reason = stackalloc byte[10]; *(ulong*)reason = 0x7561662d74697865; *(ushort*)(reason + 8) = 0x746c; // exit-fault
+        byte* scratch = stackalloc byte[2048];
+        PanicSafeOwnedCom1ReportResult report = PanicSafeFormattingSerialReportingOwnedCom1.ReportFaultSummary(
+            context->Backend, scratch, 2048, subsystem, 4, reason, 10, in fault);
+        if (!report.Succeeded) return false;
+        context->Phase = 3;
+        return true;
+    }
+
+    private static uint Encode(byte* destination, ulong context, ulong callback, uint halt)
+    {
+        uint p = 0;
+        Op(destination, ref p, 0xfcfa, 2); // cli; cld
+        Op(destination, ref p, 0x55575652515350, 7); // save rax,rbx,rcx,rdx,rsi,rdi,rbp
+        Op(destination, ref p, 0x5341524151415041, 8); // r8..r11
+        Op(destination, ref p, 0x5741564155415441, 8); // r12..r15
+        Op(destination, ref p, 0xe18948, 3); // rcx = normalized saved frame
+        Op(destination, ref p, 0xba48, 2); Op(destination, ref p, context, 8);
+        Op(destination, ref p, 0x013a83, 3); // only the original ready context may enter
+        Op(destination, ref p, 0x850f, 2); Op(destination, ref p, halt - (p + 4), 4);
+        Op(destination, ref p, 0x0000000202c7, 6); // phase = entered
+        Op(destination, ref p, 0xd0200f41, 4); // r8 = cr2
+        Op(destination, ref p, 0xd9200f41, 4); // r9 = cr3
+        Op(destination, ref p, 0xf0e48348, 4); // align Win64 stack
+        Op(destination, ref p, 0x20ec8348, 4); // 32-byte shadow space
+        Op(destination, ref p, 0xb848, 2); Op(destination, ref p, callback, 8);
+        Op(destination, ref p, 0xd0ff, 2); // call owned callback
+        Op(destination, ref p, 0xfdebf4fa, 4); // every return/refusal is terminal
+        return p;
+    }
+
+    private static void Op(byte* destination, ref uint offset, ulong value, int bytes)
+    {
+        for (int index = 0; index < bytes; index++)
+        {
+            if (destination != null) destination[offset] = (byte)(value >> (index * 8));
+            offset++;
+        }
+    }
+}
+
 /// <summary>
 /// Derive retained identity ranges from the original loaded x64 EFI PE image.
 /// Capture/mapping provenance and readable, stable backing remain caller obligations;
@@ -405,6 +519,7 @@ public unsafe struct FirstExitOwnedArenaState
     public FirstExitPermanentCr3Context* Permanent => IsReady ? (FirstExitPermanentCr3Context*)(Data + 256) : null;
     public FirstExitFirmwareBindingState* Binding => IsReady ? (FirstExitFirmwareBindingState*)(Data + 384) : null;
     public FirstExitTransitionState* Transition => IsReady ? (FirstExitTransitionState*)(Data + 512) : null;
+    public FirstExitFaultContext* Fault => IsReady ? (FirstExitFaultContext*)(Data + 1024) : null;
     public byte* Map => IsReady ? Data + 5 * 4096 : null;
     public ulong StackBottom => IsReady ? (ulong)Data + 22 * 4096 + 8 : 0;
     public ulong StackTop => IsReady ? (ulong)Data + 86 * 4096 - 16 : 0;
@@ -478,7 +593,7 @@ public static unsafe class FirstExitOwnedArena
             (firmwareCs & 7) != 0 || (firmwareCs != 8 && firmwareCs < 40) || firmwareCs > 4088 ||
             sizeof(FirstExitDescriptorContext) > 128 || sizeof(FirstExitOwnedStackContext) > 128 ||
             sizeof(FirstExitPermanentCr3Context) > 128 || sizeof(FirstExitFirmwareBindingState) > 128 ||
-            sizeof(FirstExitTransitionState) > 4096 - 512) return false;
+            sizeof(FirstExitTransitionState) > 512 || sizeof(FirstExitFaultContext) > 4096 - 1024) return false;
         fixed (FirstExitOwnedArenaState* address = &state)
         {
             ulong start = (ulong)address, bytes = (ulong)sizeof(FirstExitOwnedArenaState);

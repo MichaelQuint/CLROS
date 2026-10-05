@@ -103,9 +103,25 @@ internal static unsafe class SeparateDisabledDefaultPageFaultPageTablesTests
             RejectUnchanged(image, Status.InsufficientTablePages);
             image.Request = Request(pages: required);
             VerifyImage(image);
+            for (ulong index = 0; index < required * 512; index++)
+                if (image.Entries[index] != 0) image.Entries[index] |= 0x20;
+            ulong writable = FindEntry(image, image.Ranges[1].Start, 1);
+            image.Entries[writable] |= 0x40;
+            Require(!image.Audit().Succeeded && image.AuditAccessed().Succeeded,
+                "only the accessed-image entry point accepts hardware A/D changes");
+            byte[] snapshot = image.EntryBytes.ToArray();
+            NoHardware(image.AuditAccessed());
+            Require(snapshot.AsSpan().SequenceEqual(image.EntryBytes), "accessed audit never clears hardware bits");
+            ulong code = FindEntry(image, image.Ranges[0].Start, 1);
+            image.Entries[code] |= 0x40;
+            Require(image.AuditAccessed().Status == Status.MappingMismatch, "dirty executable leaf is rejected");
+            image.Entries[code] &= ~0x40UL;
+            image.Entries[0] |= 0x40;
+            Require(image.AuditAccessed().Status == Status.MalformedEntry, "dirty intermediate pointer is rejected");
+            image.Entries[0] &= ~0x40UL;
             ulong leaf = FindEntry(image, image.Ranges[2].Start, 1);
             image.Entries[leaf] &= ~Nx;
-            Require(image.Audit().Status == Status.MappingMismatch, "retained RO data cannot become executable");
+            Require(image.AuditAccessed().Status == Status.MappingMismatch, "retained RO data cannot become executable");
         }
         using (Fixture sparse = new(true))
         {
@@ -637,6 +653,8 @@ internal static unsafe class SeparateDisabledDefaultPageFaultPageTablesTests
         internal SeparatePageFaultPageTableResult Audit() => _retained
             ? Image.AuditRetainedImage(Request, Ranges, RangeCount, 32, Pages, 55, Entries, Image.MaximumEntries)
             : Image.Audit(Request, Ranges, RangeCount, 8, Pages, 55, Entries, Image.MaximumEntries);
+        internal SeparatePageFaultPageTableResult AuditAccessed() => Image.AuditRetainedAccessedImage(
+            Request, Ranges, RangeCount, 32, Pages, 55, Entries, Image.MaximumEntries);
         internal void AssertCanaries() => Require(*(ulong*)_pageAllocation == Canary &&
             *(ulong*)(_pageAllocation + 8 + PageBytes.Length) == Canary && *(ulong*)_entryAllocation == Canary &&
             *(ulong*)(_entryAllocation + 8 + EntryBytes.Length) == Canary, "caller span canaries");

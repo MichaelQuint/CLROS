@@ -27,6 +27,7 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
         Run("owned stack entry has bounded storage and a terminal native path", OwnedStackEntry);
         Run("owned arena materializes retained descriptors map storage and four stacks", OwnedArena);
         Run("loaded image sections retain exact bounded code and data permissions", ImageMappings);
+        Run("normalized terminal faults use only owned serial and never return natively", TerminalFault);
     }
 
     private static void Run(string name, Action action)
@@ -37,6 +38,66 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
     }
     private static void Need(bool value, string reason)
     { if (!value) throw new InvalidOperationException(reason); }
+
+    private static readonly byte[] FaultOutput = new byte[4096];
+    private static int faultOutputBytes, faultPolls;
+    private static bool faultDivisorLatch, faultTransmitReady;
+    [UnmanagedCallersOnly]
+    private static void FaultOut8(ushort port, byte value)
+    {
+        if (port == 0x3fb) faultDivisorLatch = (value & 0x80) != 0;
+        if (port == 0x3f8 && !faultDivisorLatch && faultOutputBytes < FaultOutput.Length)
+            FaultOutput[faultOutputBytes++] = value;
+    }
+    [UnmanagedCallersOnly]
+    private static byte FaultIn8(ushort port)
+    { faultPolls++; return port == 0x3fd && faultTransmitReady ? (byte)0x20 : (byte)0; }
+
+    private static void TerminalFault()
+    {
+        Need(sizeof(FirstExitFaultFrame) == 184 &&
+            Marshal.OffsetOf<FirstExitFaultFrame>(nameof(FirstExitFaultFrame.Vector)) == 120 &&
+            Marshal.OffsetOf<FirstExitFaultFrame>(nameof(FirstExitFaultFrame.Rip)) == 144 &&
+            Marshal.OffsetOf<FirstExitFaultFrame>(nameof(FirstExitFaultFrame.Rsp)) == 168, "normalized native frame layout");
+        nuint out8 = (nuint)(delegate* unmanaged<ushort, byte, void>)&FaultOut8;
+        nuint in8 = (nuint)(delegate* unmanaged<ushort, byte>)&FaultIn8;
+        nuint first = Math.Min(out8, in8), end = Math.Max(out8 + 7, in8 + 5);
+        var request = CheckedPortIoFunctionPointerBindingRequest.Create(true, 0x3f8, first, end, 12,
+            out8 - first, in8 - first, out8, in8, 7, 5, 7, 5);
+        // Controlled unmanaged host callbacks, not executed IN/OUT instructions.
+        var backend = new Com1OwnedPortIoBackend(InvokeIn8Out8CheckedUnmanagedFunctionPointers.Bind(request));
+        Need(backend.IsReady, "controlled checked port backend");
+        FirstExitFaultContext context = default;
+        Need(!FirstExitTerminalFaultStub.Prepare(ref context, default) && context.Phase == 0 &&
+            FirstExitTerminalFaultStub.Prepare(ref context, backend) && context.Phase == 1 &&
+            !FirstExitTerminalFaultStub.Prepare(ref context, backend), "one-use fault preparation");
+        FirstExitFaultFrame frame = new() { Vector = 14, HasErrorCode = 1, ErrorCode = 2,
+            Rip = 0x12345000, Rsp = 0x87654000, Rflags = 0x202, Rax = 0xaabbccdd };
+        Need(!FirstExitTerminalFaultStub.Report(&frame, &context, 0x1000, 0x2000), "native entry phase required");
+        context.Phase = 2; faultTransmitReady = true; faultOutputBytes = faultPolls = 0;
+        Need(FirstExitTerminalFaultStub.Report(&frame, &context, 0x1000, 0x2000) && context.Phase == 3 &&
+            Encoding.ASCII.GetString(FaultOutput, 0, faultOutputBytes).Contains("exit-fault", StringComparison.Ordinal), "owned panic report");
+        int bytes = faultOutputBytes;
+        Need(!FirstExitTerminalFaultStub.Report(&frame, &context, 0x1000, 0x2000) && faultOutputBytes == bytes, "no duplicate report");
+        context.Phase = 2; frame.HasErrorCode = 0; faultOutputBytes = faultPolls = 0;
+        Need(!FirstExitTerminalFaultStub.Report(&frame, &context, 0, 0) && context.Phase == 4 && faultPolls == 0, "malformed frame refuses before I/O");
+        context.Phase = 2; frame.HasErrorCode = 1; faultTransmitReady = false;
+        Need(!FirstExitTerminalFaultStub.Report(&frame, &context, 0, 0) && context.Phase == 4 &&
+            faultPolls == PanicSafeFormattingSerialReportingOwnedCom1.DefaultTransmitReadyPollLimit && faultOutputBytes == 0,
+            "serial timeout is bounded and consumed");
+        byte* code = stackalloc byte[128];
+        new Span<byte>(code, 128).Fill(0xa5);
+        Need(!FirstExitTerminalFaultStub.Emit(code, 1, 0x200000, 0x300000, out uint written) &&
+            !FirstExitTerminalFaultStub.Emit(code, 128, (ulong)code, 0x300000, out written) &&
+            !FirstExitTerminalFaultStub.Emit(code, 128, 0x200000, 0x200010, out written) &&
+            !FirstExitTerminalFaultStub.Emit(code, 128, 0x200001, 0x300000, out written) &&
+            !new ReadOnlySpan<byte>(code, 128).ContainsAnyExcept((byte)0xa5), "short output unchanged");
+        Need(FirstExitTerminalFaultStub.Emit(code, 128, 0x200000, 0x300000, out written) &&
+            written == FirstExitTerminalFaultStub.RequiredBytes && code[written] == 0xa5, "bounded terminal emission");
+        string directory = Path.Combine(HostToolProcess.FindRepositoryRoot(), "artifacts", "issue64", "fault-stub");
+        Directory.CreateDirectory(directory);
+        File.WriteAllBytes(Path.Combine(directory, "fault.bin"), new ReadOnlySpan<byte>(code, (int)written).ToArray());
+    }
 
     private static void ImageMappings()
     {
@@ -136,7 +197,8 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 !new ReadOnlySpan<byte>(data + FirstExitOwnedArena.Bytes, 4096).ContainsAnyExcept((byte)0xa5), "arena extent leaves surrounding pages intact");
             Need((byte*)state.Descriptors == data && (byte*)state.StackEntry == data + 128 &&
                 (byte*)state.Permanent == data + 256 && (byte*)state.Binding == data + 384 &&
-                (byte*)state.Transition == data + 512 && state.Map == data + 5 * 4096 &&
+                (byte*)state.Transition == data + 512 && (byte*)state.Fault == data + 1024 &&
+                state.Fault->Phase == 0 && state.Map == data + 5 * 4096 &&
                 !new ReadOnlySpan<byte>(data + 128, 4096 - 128).ContainsAnyExcept((byte)0) &&
                 !new ReadOnlySpan<byte>(state.Map, (int)FirstExitOwnedArena.MapBytes).ContainsAnyExcept((byte)0), "disjoint zero-initialized contexts and map");
             Need(state.Descriptors->Gdt == data + 4096 && state.Descriptors->Tss == data + 8192 &&

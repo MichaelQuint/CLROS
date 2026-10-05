@@ -274,11 +274,24 @@ public static unsafe class SeparateDisabledDefaultPageFaultPageTables
         ulong* entries, ulong entryCapacity) => AuditCore(request, ranges, rangeCount,
             rangeCapacity, pages, pageCapacity, entries, entryCapacity, true);
 
+    /// <summary>
+    /// Audit a retained supplied image after hardware may have set accessed bits
+    /// or dirty bits on writable leaves. All addresses and other permission bits
+    /// must still match. Caller owns stable topology and exclusive software access;
+    /// this observes memory, not CR3, TLB state or actual access permissions.
+    /// </summary>
+    public static SeparatePageFaultPageTableResult AuditRetainedAccessedImage(
+        SeparatePageFaultPageTableRequest request,
+        SeparatePageFaultMappingRange* ranges, ulong rangeCount, ulong rangeCapacity,
+        X64PageTableImagePage* pages, ulong pageCapacity,
+        ulong* entries, ulong entryCapacity) => AuditCore(request, ranges, rangeCount,
+            rangeCapacity, pages, pageCapacity, entries, entryCapacity, true, true);
+
     private static SeparatePageFaultPageTableResult AuditCore(
         SeparatePageFaultPageTableRequest request,
         SeparatePageFaultMappingRange* ranges, ulong rangeCount, ulong rangeCapacity,
         X64PageTableImagePage* pages, ulong pageCapacity,
-        ulong* entries, ulong entryCapacity, bool retainedImage)
+        ulong* entries, ulong entryCapacity, bool retainedImage, bool accessedImage = false)
     {
         SeparatePageFaultPageTableStatus status = ValidateInputs(request,
             ranges, rangeCount, rangeCapacity, pages, pageCapacity, entries,
@@ -299,7 +312,7 @@ public static unsafe class SeparateDisabledDefaultPageFaultPageTables
         ulong used = 0;
         ulong leaves = 0;
         status = Walk(request, ranges, rangeCount, entries, root, 0,
-            X64PageTableLevel.Pml4e, 0, ref visited, ref used, ref leaves);
+            X64PageTableLevel.Pml4e, 0, ref visited, ref used, ref leaves, accessedImage);
         if (status != SeparatePageFaultPageTableStatus.Success)
             return Failure(status, request, rangeCount);
         if (leaves != expectedLeaves)
@@ -433,7 +446,7 @@ public static unsafe class SeparateDisabledDefaultPageFaultPageTables
     private static SeparatePageFaultPageTableStatus Walk(
         SeparatePageFaultPageTableRequest request, SeparatePageFaultMappingRange* ranges,
         ulong rangeCount, ulong* entries, ulong root, ulong table, X64PageTableLevel level,
-        ulong prefix, ref ulong visited, ref ulong used, ref ulong leaves)
+        ulong prefix, ref ulong visited, ref ulong used, ref ulong leaves, bool accessedImage)
     {
         ulong bit = 1UL << (int)table;
         if ((visited & bit) != 0) return SeparatePageFaultPageTableStatus.RepeatedTableTarget;
@@ -452,13 +465,13 @@ public static unsafe class SeparateDisabledDefaultPageFaultPageTables
             if (level != X64PageTableLevel.Pte)
             {
                 if (decoded.Kind != X64PageTableEntryKind.TablePointer ||
-                    raw != Encode(physical, level, PageProtection.None, request.Preconditions))
+                    (raw & ~(accessedImage ? 0x20UL : 0)) != Encode(physical, level, PageProtection.None, request.Preconditions))
                     return SeparatePageFaultPageTableStatus.MalformedEntry;
                 if (physical < root || physical - root >= request.ArenaPageCount * PageSize)
                     return SeparatePageFaultPageTableStatus.ForeignTableTarget;
                 SeparatePageFaultPageTableStatus status = Walk(request, ranges, rangeCount,
                     entries, root, (physical - root) / PageSize, (X64PageTableLevel)((int)level - 1),
-                    address, ref visited, ref used, ref leaves);
+                    address, ref visited, ref used, ref leaves, accessedImage);
                 if (status != SeparatePageFaultPageTableStatus.Success) return status;
             }
             else
@@ -466,7 +479,8 @@ public static unsafe class SeparateDisabledDefaultPageFaultPageTables
                 PageProtection expected = ExpectedProtection(request, ranges, rangeCount, root, address);
                 if (expected == PageProtection.None)
                     return SeparatePageFaultPageTableStatus.UnexpectedMapping;
-                if (physical != address || raw != Encode(address, level, expected, request.Preconditions))
+                ulong hardwareBits = accessedImage ? (expected == Data ? 0x60UL : 0x20UL) : 0;
+                if (physical != address || (raw & ~hardwareBits) != Encode(address, level, expected, request.Preconditions))
                     return SeparatePageFaultPageTableStatus.MappingMismatch;
                 leaves++;
             }
