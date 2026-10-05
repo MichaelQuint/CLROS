@@ -21,6 +21,7 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
         Run("successful exit transfers once and cannot return to its caller", TerminalTransfer);
         Run("permanent CR3 preparation and emitted continuation", PermanentContinuation);
         Run("owned descriptor bridge preserves selectors across adoption", DescriptorPreparation);
+        Run("firmware entries bind from checked tables and consume once", FirmwareBinding);
     }
 
     private static void Run(string name, Action action)
@@ -31,6 +32,102 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
     }
     private static void Need(bool value, string reason)
     { if (!value) throw new InvalidOperationException(reason); }
+
+    private static void SealTable(byte* table, int bytes)
+    {
+        *(uint*)(table + 16) = 0;
+        *(uint*)(table + 16) = OS.Std.Hash.Crc32.Compute(new ReadOnlySpan<byte>(table, bytes));
+    }
+
+    private static FirmwareMemoryMapRecord FirmwareFixture(byte* memory)
+    {
+        new Span<byte>(memory, 3 * 4096).Clear();
+        byte* system = memory, boot = memory + 4096, map = memory + 8192;
+        *(ulong*)system = 0x5453595320494249; *(uint*)(system + 8) = 0x20000; *(uint*)(system + 12) = 128;
+        *(ulong*)(system + 96) = (ulong)boot; system[127] = 0x5a;
+        *(ulong*)boot = 0x56524553544f4f42; *(uint*)(boot + 8) = 0x20000; *(uint*)(boot + 12) = 384;
+        ulong mapEntry = (ulong)(delegate* unmanaged<ulong*, void*, ulong*, ulong*, uint*, ulong>)&Map;
+        ulong exitEntry = (ulong)(delegate* unmanaged<void*, ulong, ulong>)&Exit;
+        *(ulong*)(boot + 56) = mapEntry; *(ulong*)(boot + 232) = exitEntry; boot[383] = 0xa5;
+        SealTable(system, 128); SealTable(boot, 384);
+        ulong start = Math.Min(mapEntry, exitEntry) & ~4095UL, last = Math.Max(mapEntry, exitEntry);
+        *(uint*)map = 3; *(ulong*)(map + 8) = start; *(ulong*)(map + 24) = (last - start) / 4096 + 1;
+        // UEFI map attributes describe capabilities, not current page permissions.
+        *(ulong*)(map + 32) = 0x4000;
+        return new FirmwareMemoryMapRecord { BufferAddress = (ulong)map, BufferSize = 96, MapSize = 48,
+            DescriptorSize = 48, DescriptorVersion = 1, DescriptorCount = 1, Flags = FirmwareMemoryMapRecord.FlagOwnedCopy };
+    }
+
+    private static FirstExitBindingStatus BindFirmware(ref FirstExitFirmwareBindingState binding,
+        byte* memory, FirmwareMemoryMapRecord map)
+        => FirstExitFirmwareBinding.Bind(ref binding, FirmwareServicesMode.BootServicesAvailable,
+            (void*)123, memory, 128, memory + 4096, 384, map);
+
+    private static void FirmwareBinding()
+    {
+        Need(!RuntimeHelpers.IsReferenceOrContainsReferences<FirstExitFirmwareBindingState>(), "binding POD");
+        byte* memory = (byte*)NativeMemory.AlignedAlloc(3 * 4096, 4096);
+        Need(memory != null, "allocate firmware fixture");
+        int oldMaps = maps, oldExits = exits;
+        try
+        {
+            FirmwareMemoryMapRecord map = FirmwareFixture(memory);
+            byte[] original = new ReadOnlySpan<byte>(memory, 3 * 4096).ToArray();
+            FirstExitFirmwareBindingState binding = default;
+            Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.Ready && binding.IsReady, "bind original slots");
+            Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.AlreadyBound, "cannot replace binding");
+            Need(FirstExitFirmwareBinding.Consume(ref binding, FirmwareServicesMode.BootServicesAvailable,
+                out var get, out var exit, out var handle) == FirstExitBindingStatus.Consumed &&
+                (ulong)get == *(ulong*)(memory + 4096 + 56) && (ulong)exit == *(ulong*)(memory + 4096 + 232) &&
+                handle == (void*)123 && binding.IsConsumed && binding.RetainedPointersCleared,
+                "consume exact entries and clear binding before caller can issue final window");
+            Need(new ReadOnlySpan<byte>(memory, 3 * 4096).SequenceEqual(original), "CRC validation never mutates tables");
+            Need(FirstExitFirmwareBinding.Consume(ref binding, FirmwareServicesMode.BootServicesAvailable,
+                out get, out exit, out handle) == FirstExitBindingStatus.NotReady && get == null && exit == null && handle == null,
+                "cannot consume twice");
+            FirstExitFirmwareBindingState unavailable = default;
+            Need(BindFirmware(ref unavailable, memory, map) == FirstExitBindingStatus.Ready, "prepare unavailable scenario");
+            Need(FirstExitFirmwareBinding.Consume(ref unavailable, FirmwareServicesMode.BootServicesExited,
+                out get, out exit, out handle) == FirstExitBindingStatus.FirmwareUnavailable &&
+                get == null && exit == null && handle == null && unavailable.IsConsumed && unavailable.RetainedPointersCleared,
+                "unavailable mode clears capability without accessing firmware storage");
+
+            foreach (int offset in new[] { 0, 16, 20, 127, 4096, 4096 + 16, 4096 + 20, 4096 + 383 })
+            {
+                map = FirmwareFixture(memory); binding = default; memory[offset] ^= 1;
+                Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.InvalidTable && !binding.IsReady,
+                    "reject signature/reserved/CRC/full extension corruption");
+            }
+            map = FirmwareFixture(memory); binding = default;
+            *(uint*)(memory + 12) = 129;
+            Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.InvalidTable, "header beyond readable extent");
+            map = FirmwareFixture(memory); *(ulong*)(memory + 96) += 8; SealTable(memory, 128);
+            Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.WrongBootServicesTable, "system table pointer association");
+            map = FirmwareFixture(memory); *(ulong*)(memory + 4096 + 232) = 0; SealTable(memory + 4096, 384);
+            Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.InvalidFunction, "null actual exit slot");
+            map = FirmwareFixture(memory); *(uint*)(memory + 8192) = 4;
+            Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.NotFirmwareCode, "data range cannot attest code");
+            map = FirmwareFixture(memory);
+            new ReadOnlySpan<byte>(memory + 8192, 48).CopyTo(new Span<byte>(memory + 8192 + 48, 48));
+            map.MapSize = 96; map.DescriptorCount = 2;
+            Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.NotFirmwareCode, "ambiguous overlapping code ranges");
+            map = FirmwareFixture(memory); *(ulong*)(memory + 8192 + 24) = ulong.MaxValue;
+            Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.InvalidMap, "overflowing map extent");
+            map = FirmwareFixture(memory); map.Flags = 0;
+            Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.InvalidMap, "map must be retained owned copy");
+            map = FirmwareFixture(memory); map.BufferAddress = (ulong)memory;
+            Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.InvalidStorage, "table/map overlap");
+
+            map = FirmwareFixture(memory);
+            Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.Ready, "fresh binding before mutation");
+            memory[4096 + 383] ^= 1; SealTable(memory + 4096, 384);
+            Need(FirstExitFirmwareBinding.Consume(ref binding, FirmwareServicesMode.BootServicesAvailable,
+                out get, out exit, out handle) == FirstExitBindingStatus.Changed && get == null && exit == null && handle == null &&
+                binding.IsConsumed && binding.RetainedPointersCleared, "changed valid-CRC table consumes without exposing entries");
+            Need(maps == oldMaps && exits == oldExits, "binding never invokes firmware or host callbacks");
+        }
+        finally { NativeMemory.AlignedFree(memory); }
+    }
 
     [UnmanagedCallersOnly]
     private static ulong Map(ulong* bytes, void* buffer, ulong* key, ulong* width, uint* version)
