@@ -153,7 +153,8 @@ public unsafe struct FirstExitOwnedStackContext
 
 /// <summary>
 /// Enter the final firmware-call coordinator on its retained owned stack, under
-/// unchanged firmware CR3/CR4 and interrupt-enable state. Never return to the
+/// unchanged firmware CR3/CR4 and enabled interrupts. Refuse entry if IF is clear.
+/// Never return to the
 /// firmware caller, even when entry refuses/fails or unexpectedly returns.
 /// The caller prepares valid mappings for both stacks, context and all reachable
 /// code/data, authenticates Entry, publishes the emitted instructions and proves
@@ -220,6 +221,9 @@ public static unsafe class FirstExitOwnedStackStub
         StopIf(destination, ref p, halt, 0x84);
         Op(destination, ref p, 0x01507983, 4);         // cmp dword [rcx+80],Prepared
         StopIf(destination, ref p, halt, 0x85);
+        Op(destination, ref p, 0x5a9c, 2);             // pushfq; pop rdx (original stack)
+        Op(destination, ref p, 0x00000200c2f7, 6);     // test edx,IF; UEFI requires interrupts
+        StopIf(destination, ref p, halt, 0x84);
         Op(destination, ref p, 0xd8200f, 3);           // mov rax,cr3
         Op(destination, ref p, 0x013b48, 3);           // cmp rax,[rcx]
         StopIf(destination, ref p, halt, 0x85);
@@ -265,6 +269,113 @@ public static unsafe class FirstExitOwnedStackStub
         for (uint i = 0; i < bytes; i++, p++)
             if (destination != null) destination[p] = (byte)(value >> (int)(i * 8));
     }
+}
+
+public unsafe struct FirstExitOwnedArenaState
+{
+    internal byte* Data;
+    internal uint Phase;
+    internal uint Reserved;
+    public bool IsReady => Phase == 2;
+    public bool FailedAfterWrite => Phase == 3;
+    public byte* Storage => Data;
+    public FirstExitDescriptorContext* Descriptors => IsReady ? (FirstExitDescriptorContext*)Data : null;
+    public FirstExitOwnedStackContext* StackEntry => IsReady ? (FirstExitOwnedStackContext*)(Data + 128) : null;
+    public FirstExitPermanentCr3Context* Permanent => IsReady ? (FirstExitPermanentCr3Context*)(Data + 256) : null;
+    public FirstExitFirmwareBindingState* Binding => IsReady ? (FirstExitFirmwareBindingState*)(Data + 384) : null;
+    public FirstExitTransitionState* Transition => IsReady ? (FirstExitTransitionState*)(Data + 512) : null;
+    public byte* Map => IsReady ? Data + 5 * 4096 : null;
+    public ulong StackBottom => IsReady ? (ulong)Data + 22 * 4096 + 8 : 0;
+    public ulong StackTop => IsReady ? (ulong)Data + 86 * 4096 - 16 : 0;
+}
+
+/// <summary>
+/// Materialize retained data in one caller-owned writable EFI allocation.
+/// Page 0 holds contexts; pages 1..4 hold GDT/TSS/final IDT/bridge IDT; 5..20
+/// hold the map; 22..85 hold the main stack; 88..91,94..97,100..103 hold ISTs.
+/// The remaining eight pages are guard reservations: this helper does not unmap
+/// them. The eventual owned hierarchy must omit them and map all other pages RW,
+/// NX. Firmware mappings remain unchanged while preparing/calling boot services.
+/// The separate vector page must already contain authenticated owned terminal
+/// stubs. Retain the original state exclusively; never copy/reset it or free its
+/// storage after successful EBS. Preparation does not load any CPU descriptor.
+/// </summary>
+public static unsafe class FirstExitOwnedArena
+{
+    public const uint PageCount = 105;
+    public const uint Bytes = PageCount * 4096;
+    public const uint MapBytes = 16 * 4096;
+    public const ulong LowerCanary = 0x4d3033535441434b;
+    public const ulong UpperCanary = 0x4d30335550504552;
+    private const ulong LowEnd = 0x0000800000000000;
+
+    public static bool IsGuardPage(uint page)
+        => page == 21 || page == 86 || page == 87 || page == 92 ||
+           page == 93 || page == 98 || page == 99 || page == 104;
+
+    public static bool Materialize(ref FirstExitOwnedArenaState state, byte* data,
+        ulong capacity, ulong ownedVectorPage, ushort firmwareCs)
+    {
+        if (state.Phase != 0 || capacity != Bytes || !PageRange((ulong)data, capacity) ||
+            !PageRange(ownedVectorPage, 4096) ||
+            FirstExitDescriptors.Overlaps((ulong)data, capacity, ownedVectorPage, 4096) ||
+            (firmwareCs & 7) != 0 || (firmwareCs != 8 && firmwareCs < 40) || firmwareCs > 4088 ||
+            sizeof(FirstExitDescriptorContext) > 128 || sizeof(FirstExitOwnedStackContext) > 128 ||
+            sizeof(FirstExitPermanentCr3Context) > 128 || sizeof(FirstExitFirmwareBindingState) > 128 ||
+            sizeof(FirstExitTransitionState) > 4096 - 512) return false;
+        fixed (FirstExitOwnedArenaState* address = &state)
+        {
+            ulong start = (ulong)address, bytes = (ulong)sizeof(FirstExitOwnedArenaState);
+            if (start == 0 || start >= LowEnd - bytes || (start & 7) != 0 ||
+                FirstExitDescriptors.Overlaps(start, bytes, (ulong)data, capacity) ||
+                FirstExitDescriptors.Overlaps(start, bytes, ownedVectorPage, 4096)) return false;
+        }
+
+        // Admission is complete. A later encoding/readback failure consumes the
+        // state and retains Storage for pre-EBS cleanup; no ready view escapes.
+        state.Data = data; state.Phase = 1;
+        for (uint i = 0; i < Bytes; i++) data[i] = 0;
+        byte* gdt = data + 4096, tss = data + 8192, idt = data + 12288, bridge = data + 16384;
+        *(ulong*)(tss + 4) = (ulong)data + 86 * 4096 - 16;
+        *(ushort*)(tss + 102) = 104;
+        WriteCanaries(data, 22, 86);
+        for (uint stack = 0; stack < 3; stack++)
+        {
+            uint first = 88 + stack * 6, end = first + 4;
+            *(ulong*)(tss + 36 + stack * 8) = (ulong)data + end * 4096 - 16;
+            WriteCanaries(data, first, end);
+        }
+        bool prepared = OS.Kernel.Diagnostics.OwnedX64GdtContainingNullN64BitCode.Encode(gdt, 4096, (ulong)tss, 103).Succeeded &&
+            OS.Kernel.Diagnostics.PopulateAllN256IDTVectorsOwnedGatesNever.Materialize(idt, 4096, (ulong)idt, ownedVectorPage).Succeeded &&
+            FirstExitDescriptors.Prepare(ref *(FirstExitDescriptorContext*)data, gdt, 4096, tss, 104, idt, 4096, bridge, 4096, firmwareCs);
+        state.Phase = prepared ? 2u : 3u;
+        if (!prepared) return false;
+        if (ValidateCanaries(state)) return true;
+        state.Phase = 3;
+        return false;
+    }
+
+    public static bool ValidateCanaries(FirstExitOwnedArenaState state)
+    {
+        if (!state.IsReady || !PageRange((ulong)state.Data, Bytes)) return false;
+        if (!CanariesMatch(state.Data, 22, 86)) return false;
+        for (uint stack = 0; stack < 3; stack++)
+            if (!CanariesMatch(state.Data, 88 + stack * 6, 92 + stack * 6)) return false;
+        return true;
+    }
+
+    private static bool PageRange(ulong start, ulong bytes)
+        => start != 0 && start < LowEnd && (start & 4095) == 0 && bytes < LowEnd - start;
+
+    private static void WriteCanaries(byte* data, uint firstPage, uint endPage)
+    {
+        *(ulong*)(data + firstPage * 4096) = LowerCanary;
+        *(ulong*)(data + endPage * 4096 - 16) = UpperCanary;
+    }
+
+    private static bool CanariesMatch(byte* data, uint firstPage, uint endPage)
+        => *(ulong*)(data + firstPage * 4096) == LowerCanary &&
+           *(ulong*)(data + endPage * 4096 - 16) == UpperCanary;
 }
 
 public enum FirstExitPhase : uint

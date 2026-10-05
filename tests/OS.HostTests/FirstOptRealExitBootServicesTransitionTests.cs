@@ -23,6 +23,7 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
         Run("owned descriptor bridge preserves selectors across adoption", DescriptorPreparation);
         Run("firmware entries bind from checked tables and consume once", FirmwareBinding);
         Run("owned stack entry has bounded storage and a terminal native path", OwnedStackEntry);
+        Run("owned arena materializes retained descriptors map storage and four stacks", OwnedArena);
     }
 
     private static void Run(string name, Action action)
@@ -33,6 +34,53 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
     }
     private static void Need(bool value, string reason)
     { if (!value) throw new InvalidOperationException(reason); }
+
+    private static void OwnedArena()
+    {
+        byte* allocation = (byte*)NativeMemory.AlignedAlloc(FirstExitOwnedArena.Bytes + 8192, 4096);
+        Need(allocation != null, "allocate retained arena fixture");
+        byte* data = allocation + 4096;
+        try
+        {
+            new Span<byte>(allocation, (int)FirstExitOwnedArena.Bytes + 8192).Fill(0xa5);
+            FirstExitOwnedArenaState state = default;
+            Need(!RuntimeHelpers.IsReferenceOrContainsReferences<FirstExitOwnedArenaState>(), "arena state POD");
+            Need(!FirstExitOwnedArena.Materialize(ref state, data, FirstExitOwnedArena.Bytes - 1, 0x100000, 56) &&
+                !FirstExitOwnedArena.Materialize(ref state, data, FirstExitOwnedArena.Bytes, (ulong)data, 56) &&
+                !FirstExitOwnedArena.Materialize(ref state, data, FirstExitOwnedArena.Bytes, 0x100000, 16) &&
+                state.Storage == null && state.Descriptors == null &&
+                !new ReadOnlySpan<byte>(data, (int)FirstExitOwnedArena.Bytes).ContainsAnyExcept((byte)0xa5),
+                "invalid capacity, vector overlap and selector refuse before writes");
+            Need(FirstExitOwnedArena.Materialize(ref state, data, FirstExitOwnedArena.Bytes, 0x100000, 56) &&
+                state.IsReady && !state.FailedAfterWrite && FirstExitOwnedArena.ValidateCanaries(state), "materialize actual retained buffers");
+            Need(!new ReadOnlySpan<byte>(allocation, 4096).ContainsAnyExcept((byte)0xa5) &&
+                !new ReadOnlySpan<byte>(data + FirstExitOwnedArena.Bytes, 4096).ContainsAnyExcept((byte)0xa5), "arena extent leaves surrounding pages intact");
+            Need((byte*)state.Descriptors == data && (byte*)state.StackEntry == data + 128 &&
+                (byte*)state.Permanent == data + 256 && (byte*)state.Binding == data + 384 &&
+                (byte*)state.Transition == data + 512 && state.Map == data + 5 * 4096 &&
+                !new ReadOnlySpan<byte>(data + 128, 4096 - 128).ContainsAnyExcept((byte)0) &&
+                !new ReadOnlySpan<byte>(state.Map, (int)FirstExitOwnedArena.MapBytes).ContainsAnyExcept((byte)0), "disjoint zero-initialized contexts and map");
+            Need(state.Descriptors->Gdt == data + 4096 && state.Descriptors->Tss == data + 8192 &&
+                state.Descriptors->FinalIdt == data + 12288 && state.Descriptors->BridgeIdt == data + 16384 &&
+                *(ulong*)(state.Descriptors->Tss + 4) == state.StackTop &&
+                state.StackTop - state.StackBottom - FirstExitOwnedStackStub.CallStackBytes >= 128 * 1024 + 64 * 1024,
+                "main stack retains UEFI minimum plus first-party reserve");
+            Need(OS.Kernel.Diagnostics.PopulateAllN256IDTVectorsOwnedGatesNever.ValidateReadBack(
+                state.Descriptors->FinalIdt, 4096, (ulong)state.Descriptors->FinalIdt, 0x100000).Succeeded,
+                "reuse canonical final IDT verifier");
+            int guards = 0;
+            for (uint page = 0; page < FirstExitOwnedArena.PageCount; page++)
+                if (FirstExitOwnedArena.IsGuardPage(page))
+                { guards++; Need(!new ReadOnlySpan<byte>(data + page * 4096, 4096).ContainsAnyExcept((byte)0), "reserved guard page remains zero"); }
+            Need(guards == 8, "guard reservations for four stacks; mapping still deferred");
+            foreach (uint offset in new uint[] { 22 * 4096, 86 * 4096 - 16, 88 * 4096, 92 * 4096 - 16,
+                94 * 4096, 98 * 4096 - 16, 100 * 4096, 104 * 4096 - 16 })
+            { data[offset] ^= 1; Need(!FirstExitOwnedArena.ValidateCanaries(state), "each canary is checked"); data[offset] ^= 1; }
+            Need(FirstExitOwnedArena.ValidateCanaries(state) &&
+                !FirstExitOwnedArena.Materialize(ref state, data, FirstExitOwnedArena.Bytes, 0x100000, 56), "prepared arena cannot be reset");
+        }
+        finally { NativeMemory.AlignedFree(allocation); }
+    }
 
     private static void OwnedStackEntry()
     {
