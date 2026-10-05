@@ -1475,3 +1475,41 @@ sole-allocator static-base materialization, static-field barrier authority and
 retained-root lifetime remain unimplemented. #82 remains blocked. There is no
 new native-image, QEMU, GCHandle, collecting-GC, real ExitBootServices or hosted
 runtime evidence; Gates3/4 remain **Fail**.
+
+
+### M04-012 retained static-base host materialization
+
+[Step992](../done/step992.md) implements the next #81 host slice with #548's
+TypeManager range query and abbreviated-MT allocator route. ValidateOne keeps
+its read-only contract. MaterializeOnce authenticates the original registered
+image, supported metadata, writable cell, caller-owned root storage and all
+original retained-heap inputs. It uses the existing sole allocation commit,
+checks actual zero payload/MT/syncblock, completes a private retained record,
+then publishes the actual allocation reference in one aligned cell store.
+
+The private root is self/capacity-bound and retains the metadata bytes and
+genuine receipt. Its local byte checksum detects accidental record changes;
+it is not authentication against hostile forging or resets. A published repeat
+or query revalidates the original authority, cell, metadata and receipt without
+decoding the absolute published reference as rel32. Later allocations and
+payload writes are legal. Pre-commit rejection preserves all storage; a
+post-commit discrepancy leaves a poisoned non-retryable record without rollback.
+
+Image-contained root/bump storage must be admitted RW/nonexecutable data and
+exclude registered protected extents through its full capacity. External root
+storage retains caller mapping/lifetime obligations. Backing storage must be
+disjoint from the image and authority buffers. The allocator's scalar16-byte
+MT route shares the existing fixed/array/String controller and sole commit;
+it never reads a fabricated ordinary24-byte MethodTable prefix.
+
+Seven whole host modules pass81 starts/82 passes/zero failures, including
+existing array/String regressions. The root owner is600 bytes and result48;
+1000 warmed queries allocate zero managed bytes. The actual93-source no-stdlib
+child has zero AssemblyRefs and nonempty validator/materialization/query
+bodies; it is not executed. Normal HostTests Release compilation passes.
+
+This supersedes the unimplemented host-materialization items in step990;
+genuine compiler GCStatics/accessor association, compiled reference stores via
+the checked barrier, native ABI and fresh guest evidence remain outstanding.
+#81/#548 stay open, #82 blocked, and Gates3/4 Fail. No collecting GC, general
+GCHandle, concurrent/root-reset support, hosted .NET/Kestrel or cloud claim.

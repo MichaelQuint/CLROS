@@ -10,6 +10,7 @@ using System.Text.Json;
 using System.Xml.Linq;
 using OS.Boot;
 using OS.Kernel.Runtime;
+using OS.Kernel.Memory;
 using Core = OS.Kernel.Runtime.GCStaticRootsMalformedMetadata;
 using Status = OS.Kernel.Runtime.GCStaticMetadataStatus;
 using Module = OS.Kernel.Runtime.TypeManagerModuleMetadataLiveNativeAOTImage;
@@ -35,8 +36,19 @@ internal static unsafe class GCStaticRootsMalformedMetadataTests
         Run("m04.012 payload substitution is freshly observed not retained authority", Substitution, ref failures);
         Run("m04.012 read-only validation allocates no managed storage", Allocation, ref failures);
         Run("m04.012 actual source compiles without assembly references", NoStdLib, ref failures);
+        Run("m04.012 root publication commits one admitted static allocation", RootPublication, ref failures);
+        Run("m04.012 root repeat and later same-cursor allocation preserve lifetime", RootRepeat, ref failures);
+        Run("m04.012 root storage and complete capacities reject before writes", RootStorage, ref failures);
+        Run("m04.012 external root ownership and image cursor extents are admitted", RootOwnerLocations, ref failures);
+        Run("m04.012 root PE permissions and metadata identity reject before writes", RootPermissions, ref failures);
+        Run("m04.012 root cell and heap authority aliases preserve every byte", RootAliases, ref failures);
+        Run("m04.012 root exhaustion and changed original heap inputs preserve bytes", RootHeapRejection, ref failures);
+        Run("m04.012 retained record every byte and tail substitution rejects", RootRecordTamper, ref failures);
+        Run("m04.012 retained metadata cell and object header substitution rejects", RootLiveTamper, ref failures);
+        Run("m04.012 incomplete poisoned and lost root cannot allocate again", RootPoison, ref failures);
+        Run("m04.012 retained query is allocation-free after warming", RootAllocation, ref failures);
         if (failures != 0) throw new InvalidOperationException("M04-012 host failures=" + failures);
-        Console.WriteLine("CLROS_M04_012_READY hostOnly=true readOnly=true materialized=false publicationAuthority=false guestIntegrated=false");
+        Console.WriteLine("CLROS_M04_012_READY hostOnly=true retainedStaticBase=true collectingGc=false guestIntegrated=false");
     }
 
     private static void Run(string name, Action test, ref int failures)
@@ -233,6 +245,255 @@ internal static unsafe class GCStaticRootsMalformedMetadataTests
         Check(passed && start==end,"warm zero allocation");f.AssertUnchanged(before);
     }
 
+    private static void RootPublication()
+    {
+        Check(!default(GCStaticRootResult).Succeeded &&
+            !RuntimeHelpers.IsReferenceOrContainsReferences<GCStaticRootResult>(), "root POD/default");
+        foreach (uint size in new uint[] {24,32,4096})
+        {
+            using RootFixture f = new(x => { W32((byte*)x.Mt+4,size); W64((byte*)x.Mt-24,unchecked((ulong)(8L-size))); });
+            byte[] before=f.Snapshot();var r=f.Call();
+            Check(r.Succeeded && r.ObjectReference==(ulong)f.Heap.Page+8 && r.Cell==f.Image.Cell &&
+                r.SeriesStart==r.ObjectReference+8 && r.SeriesBytes==8 && r.AllocationBytes==size,"published receipt/run");
+            Check(*(ulong*)f.Image.Cell==r.ObjectReference && *(ulong*)r.ObjectReference==f.Image.Mt &&
+                f.Heap.Bump->UsedBytes==size && f.Heap.Bump->AllocationCount==1,"real allocation/cell");
+            for(uint i=0;i<size;i++) if(i<8 || i>=16) Check(f.Heap.Page[i]==0,"zero allocation payload/syncblock");
+            f.OnlyPublicationChanges(before,size);
+            Check(f.Image.Validate().Status==Status.UnsupportedForm,"original tagged decoder stays tag1-only");
+            Check(f.Call(true).Succeeded,"retained query");
+        }
+        Console.WriteLine("M04_012_ROOT_LAYOUT required="+Core.RequiredRootOwnerBytes+" result="+sizeof(GCStaticRootResult));
+    }
+    private static void RootRepeat()
+    {
+        using RootFixture f=new();var first=f.Call();Check(first.Succeeded,"initial");
+        byte[] before=f.Snapshot();var repeat=f.Call();f.Unchanged(before);
+        Check(repeat.Succeeded && repeat.ObjectReference==first.ObjectReference,"same published allocation");
+        var value=GuestTestRhpNewFast.TryAllocate(f.Access,f.Heap.Bump,f.BumpCapacity,
+            NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian,new(0x50000000,24,0,0,0,0),f.Image.Object);
+        Check(value.AllocationSucceeded && value.UsedBefore==24 && f.Heap.Bump->AllocationCount==2,"later same cursor");
+        // Mapped bytes only; this host test never fabricates a CLR object/reference.
+        *(ulong*)first.SeriesStart=value.ObjectReference;
+        before=f.Snapshot();Check(f.Call(true).Succeeded && f.Call().Succeeded,"nonzero payload and advanced cursor");f.Unchanged(before);
+        *(ulong*)first.SeriesStart=0;Check(f.Call(true).Succeeded,"null payload");
+    }
+    private static void RootStorage()
+    {
+        using RootFixture f=new();
+        byte* original=f.Root;ulong capacity=f.RootCapacity;
+        foreach(ulong bytes in new ulong[]{0,Core.RequiredRootOwnerBytes-1,ulong.MaxValue})
+        {f.RootCapacity=bytes;f.Reject();}f.RootCapacity=capacity;
+        f.Root=null;f.Reject();f.Root=original+1;f.Reject();f.Root=original;
+        f.Root[capacity-1]=0x5A;f.Reject(GCStaticRootStatus.RootNotEmpty);f.Root[capacity-1]=0;
+        f.Root[32]=1;f.Reject(GCStaticRootStatus.RootNotEmpty);f.Root[32]=0;
+        Check(f.Call().Succeeded,"success after pristine restoration");
+        f.RootCapacity=capacity-8;f.Reject(GCStaticRootStatus.RootChanged,true);f.RootCapacity=capacity;
+        f.Root[capacity-1]=1;f.Reject(GCStaticRootStatus.RootChanged,true);
+    }
+    private static void RootPermissions()
+    {
+        // Keep a valid registered Type image and move only the prospective
+        // root/MT/cell to RO, RX or RW storage, reaching the actual range check.
+        foreach(int offset in new[]{0x1600,0x6000})
+        {using RootFixture f=new();f.Root=f.Image.Image+offset;f.RootCapacity=Core.RequiredRootOwnerBytes;f.Reject();}
+        foreach(int offset in new[]{0x2400,0x6200})
+        {using RootFixture f=new(x=>x.SetLocations(0x1200,0x2200,offset,0x1180));f.Image.Metadata=new((ulong)f.Image.Image,Fixture.ImageSize);f.Reject();}
+        using(RootFixture f=new(x=>x.SetLocations(0x1200,0x1800,0x1400,0x1180)))
+        {f.Image.Cells=new((ulong)f.Image.Image,Fixture.ImageSize);f.Reject();}
+        using(RootFixture f=new()){W32((byte*)f.Image.Object,0x51000000);f.Reject();}
+        using(RootFixture f=new()){W32((byte*)f.Image.Object+4,32);f.Reject();}
+        using(RootFixture f=new()){W64((byte*)f.Image.Object+8,f.Image.Object);f.Reject();}
+        using(RootFixture f=new()){W64((byte*)f.Image.Mt-24,0);f.Reject();}
+        using(RootFixture f=new()){W64((byte*)f.Image.Cell,0);f.Reject();}
+    }
+    private static void RootAliases()
+    {
+        foreach(int offset in new[]{0x1000,0x1200,0x13E8,0x1180,0x2000,0x2008,0x2100,0x2200,0x3F00})
+        {using RootFixture f=new();f.Root=f.Image.Image+offset;f.Reject();}
+        // Root's first bytes remain clear, but the aliased cell is in its tail.
+        using(RootFixture f=new(x=>x.SetLocations(0x1200,0x3700,0x1400,0x1180))) {f.Reject();}
+        using(RootFixture f=new()) {f.Access.Backing=f.Image.Image;f.Access.BackingCapacity=Fixture.ImageSize;f.Reject();}
+        using(RootFixture f=new()) {f.Access.Heap=(ManagedHeapPageRangeState*)f.Root;f.Reject();}
+        using(RootFixture f=new()) {f.Access.Nodes=(BootPageFreeListNode*)(f.Root-48);f.Access.NodeCapacity=2;f.Reject();}
+        using(RootFixture f=new()) {f.Access.Reservations=(BootReservedRange*)(f.Root-40);f.Access.ReservationCapacity=2;f.Reject();}
+        using(RootFixture f=new()) {f.Access.BackingCapacity=ulong.MaxValue;f.Reject();}
+        using(RootFixture f=new()) {f.BumpCapacity=ulong.MaxValue;f.Reject();}
+    }
+    private static void RootOwnerLocations()
+    {
+        using(RootFixture f=new(externalRoot:true))
+        {
+            byte[] before=f.Snapshot();var result=f.Call();
+            Check(result.Succeeded,"caller-owned mapped external root");f.OnlyPublicationChanges(before,24);
+            before=f.Snapshot();Check(f.Call(true).Succeeded && f.Call().Succeeded,"external retained repeat");f.Unchanged(before);
+        }
+        using(RootFixture f=new()) {f.Root=f.Image.Owner;f.Reject(GCStaticRootStatus.ProtectedAlias);}
+        using(RootFixture f=new(bumpOffset:0x2400))
+        {
+            byte[] before=f.Snapshot();Check(f.Call().Succeeded,"unregistered RW image cursor storage");
+            f.OnlyPublicationChanges(before,24);before=f.Snapshot();
+            Check(f.Call(true).Succeeded,"retained image cursor");f.Unchanged(before);
+        }
+        // The first overlaps only row202's payload; the second's unused capacity
+        // overlaps the complete Type slot. Both registrations are still valid.
+        foreach(int offset in new[]{0x20C0,0x1FB0})
+        {
+            using RootFixture f=new(bumpOffset:offset);
+            Check(Module.TryGetSection(f.Image.Capture,f.Image.Mapping,f.Image.Owner,Fixture.Capacity,f.Image.Handle,201).Succeeded,"original registration survives cursor setup");
+            f.Reject(GCStaticRootStatus.ProtectedAlias);
+        }
+    }
+    private static void RootHeapRejection()
+    {
+        using(RootFixture f=new())
+        {
+            var full=GuestTestRhpNewFast.TryAllocate(f.Access,f.Heap.Bump,f.BumpCapacity,
+                NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian,new(0x50000000,4096,0,0,0,0),f.Image.Object);
+            Check(full.AllocationSucceeded,"fill page");var r=f.Reject(GCStaticRootStatus.HeapRejected);
+            Check(r.HeapStatus==RhpNewFastStatus.Exhausted && *(ulong*)f.Root==0,"exhaustion stays unattempted");
+        }
+        for(int which=0;which<13;which++)
+        {
+            using RootFixture f=new();
+            switch(which)
+            {
+                case 0:f.Access.Allocator=(BootPageAllocatorState*)((byte*)f.Access.Allocator+8);break;
+                case 1:f.Access.AllocatorCapacity=2;break;
+                case 2:f.Access.Nodes++;break;
+                case 3:f.Access.NodeCount++;break;
+                case 4:f.Access.NodeCapacity++;break;
+                case 5:f.Access.Reservations++;break;
+                case 6:f.Access.ReservationCount++;break;
+                case 7:f.Access.ReservationCapacity++;break;
+                case 8:f.Access.ParentIndex=0;break;
+                case 9:f.Access.Backing+=4096;break;
+                case 10:f.Access.BackingCapacity--;break;
+                case 11:f.Access.Heap=(ManagedHeapPageRangeState*)((byte*)f.Access.Heap+8);break;
+                case 12:f.Access.HeapCapacity--;break;
+            }
+            f.Reject();
+        }
+    }
+    private static void RootRecordTamper()
+    {
+        using RootFixture f=new();Check(f.Call().Succeeded,"publish");
+        for(ulong i=0;i<Core.RequiredRootOwnerBytes;i++)
+        {f.Root[i]^=0x80;f.Reject(query:true);f.Root[i]^=0x80;}
+        Check(f.Call(true).Succeeded,"every byte restored");
+        byte* saved=f.Root;f.Root=f.Image.Image+0x3800;f.RootCapacity=Core.RequiredRootOwnerBytes;
+        new ReadOnlySpan<byte>(saved,(int)Core.RequiredRootOwnerBytes).CopyTo(new Span<byte>(f.Root,(int)Core.RequiredRootOwnerBytes));
+        f.Reject(GCStaticRootStatus.RootChanged,true); // exact copied record cannot change self/capacity
+    }
+    private static void RootLiveTamper()
+    {
+        using RootFixture f=new();Check(f.Call().Succeeded,"publish");
+        (ulong Address,int Bytes)[] ranges=[(f.Image.Entry,4),(f.Image.Mt-24,40),(f.Image.Object,24),
+            (f.Image.Cell,8),((ulong)f.Heap.Page,16),((ulong)f.Image.Owner,16),(f.Image.Address(0x2000),16)];
+        foreach(var range in ranges) for(int i=0;i<range.Bytes;i++)
+        {byte* p=(byte*)range.Address+i;*p^=1;f.Reject(query:true);*p^=1;}
+        W32((byte*)f.Image.Mt+4,32);W64((byte*)f.Image.Mt-24,unchecked((ulong)-24L));
+        f.Reject(GCStaticRootStatus.RootChanged,true); // valid alternate descriptor, no fresh rebinding
+    }
+    private static void RootPoison()
+    {
+        using RootFixture f=new();Check(f.Call(true).Status==GCStaticRootStatus.NotPublished,"empty query");
+        var first=f.Call();Check(first.Succeeded,"publish");
+        // Model an interrupted/poisoned post-commit state, without a production
+        // callback/fault injector or a claim that hardware faults were exercised.
+        *(ulong*)f.Root=1;f.Reject(GCStaticRootStatus.PostCommitRejected);f.Reject(GCStaticRootStatus.PostCommitRejected,true);
+        Check(f.Heap.Bump->AllocationCount==1 && *(ulong*)f.Image.Cell==first.ObjectReference,"no retry after poison");
+        NativeMemory.Clear(f.Root,(nuint)f.RootCapacity);f.Reject();
+        Check(f.Heap.Bump->AllocationCount==1,"lost owner cannot decode published cell/allocate again");
+    }
+    private static void RootAllocation()
+    {
+        using RootFixture f=new();Check(f.Call().Succeeded,"publish");
+        for(int i=0;i<100;i++) Check(f.Call(true).Succeeded,"warm");
+        byte[] before=f.Snapshot();long start=GC.GetAllocatedBytesForCurrentThread();bool passed=true;
+        for(int i=0;i<1000;i++) passed&=f.Call(true).Succeeded;
+        long delta=GC.GetAllocatedBytesForCurrentThread()-start;
+        Check(passed && delta==0,"query allocates zero managed bytes");f.Unchanged(before);
+        Console.WriteLine("M04_012_ROOT_WARM iterations=1000 allocatedBytes="+delta);
+    }
+
+    private sealed class RootFixture : IDisposable
+    {
+        internal readonly Fixture Image;
+        internal readonly HeapFixture Heap;
+        private readonly byte* externalOwner;
+        internal RhpNewFastHeapAccess Access;
+        internal byte* Root;
+        internal ulong RootCapacity=0x1000,BumpCapacity=96;
+        internal RootFixture(Action<Fixture>? configure=null,bool externalRoot=false,int bumpOffset=0)
+        {
+            Image=new(configure);Heap=new(bumpOffset==0?null:Image.Image+bumpOffset);Access=Heap.Access;
+            if(externalRoot)
+            {
+                externalOwner=(byte*)NativeMemory.Alloc(4112);Check(externalOwner!=null,"external root allocation");
+                new Span<byte>(externalOwner,4112).Fill(0x5A);Root=externalOwner+8;NativeMemory.Clear(Root,4096);
+            }
+            else Root=Image.Image+0x2800;
+            Check(Core.RequiredRootOwnerBytes<=0x800,"bounded root fixture");
+        }
+        internal GCStaticRootResult Call(bool query=false)=>query?
+            Core.TryGetRetainedRoot(Image.Capture,Image.Mapping,Image.Owner,Fixture.Capacity,Image.Handle,
+                Image.Metadata,Image.Cells,Image.Object,Access,Heap.Bump,BumpCapacity,Root,RootCapacity):
+            Core.MaterializeOnce(Image.Capture,Image.Mapping,Image.Owner,Fixture.Capacity,Image.Handle,
+                Image.Metadata,Image.Cells,Image.Object,Access,Heap.Bump,BumpCapacity,Root,RootCapacity);
+        internal byte[] Snapshot()=>Image.Snapshot().Concat(new ReadOnlySpan<byte>(Heap.Storage,65536).ToArray())
+            .Concat(externalOwner==null?Array.Empty<byte>():new ReadOnlySpan<byte>(externalOwner,4112).ToArray()).ToArray();
+        internal void Unchanged(byte[] before)=>Check(before.AsSpan().SequenceEqual(Snapshot()),"entire image/Type/root/heap/authority bytes unchanged");
+        internal GCStaticRootResult Reject(GCStaticRootStatus? expected=null,bool query=false)
+        {
+            byte[] before=Snapshot();var r=Call(query);Unchanged(before);
+            Check(!r.Succeeded && (!expected.HasValue || r.Status==expected.Value),"root reject expected="+expected+" actual="+r.Status);
+            Check(r.ObjectReference==0 && r.Cell==0 && r.SeriesStart==0 && r.SeriesBytes==0 && r.AllocationBytes==0,"no usable rejected root");return r;
+        }
+        internal void OnlyPublicationChanges(byte[] before,uint size)
+        {
+            byte[] after=Snapshot();int heapOffset=Image.Snapshot().Length;
+            ulong bump=(ulong)Heap.Bump,image=(ulong)Image.Image;
+            int bumpOffset=bump>=image && bump-image<Fixture.ImageSize
+                ?4096+(int)(bump-image):heapOffset+(int)((byte*)Heap.Bump-Heap.Storage);
+            (int Start,int Bytes)[] allowed=[(4096+(int)(Image.Cell-(ulong)Image.Image),8),
+                (externalOwner==null?4096+(int)(Root-Image.Image):heapOffset+65536+8,(int)Core.RequiredRootOwnerBytes),
+                (heapOffset+(int)(Heap.Page-Heap.Storage),(int)size),(bumpOffset+64,16)];
+            for(int i=0;i<before.Length;i++)
+                if(!allowed.Any(r=>i>=r.Start && i-r.Start<r.Bytes))Check(before[i]==after[i],"publication wrote outside exact intervals "+i);
+        }
+        public void Dispose(){Image.Dispose();Heap.Dispose();NativeMemory.Free(externalOwner);}
+    }
+    private sealed class HeapFixture : IDisposable
+    {
+        internal readonly byte* Storage=(byte*)NativeMemory.AlignedAlloc(65536,4096);
+        internal RhpNewFastHeapAccess Access;
+        internal RhpNewFastBumpState* Bump;
+        internal byte* Page;
+        internal HeapFixture(byte* imageBump=null)
+        {
+            Check(Storage!=null,"heap fixture");new Span<byte>(Storage,65536).Fill(0xA5);
+            Access=new(){Allocator=(BootPageAllocatorState*)(Storage+0x100),AllocatorCapacity=1,
+                Nodes=(BootPageFreeListNode*)(Storage+0x300),NodeCount=1,NodeCapacity=2,
+                Reservations=(BootReservedRange*)(Storage+0x1000),ReservationCount=2,ReservationCapacity=3,
+                ParentIndex=1,Heap=(ManagedHeapPageRangeState*)(Storage+0x2000),HeapCapacity=232,
+                Backing=Storage+0x5000,BackingCapacity=8208};
+            Bump=(RhpNewFastBumpState*)(imageBump==null?Storage+0x3000:imageBump);
+            *Access.Allocator=new(true,4096,0,1,2,8192,0,0);
+            Access.Nodes[0]=new(0,0,0x300000000,0x300002000,2,8192,-1);
+            PhysicalAddress.TryCreateFromUefiBoundary(0x100000,out var image);
+            PhysicalAddress.TryCreateFromUefiBoundary(0x300000000,out var arena);
+            Check(BootReservedRange.TryCreate(BootReservationKind.LoadedImage,image,1,out Access.Reservations[0])==BootReservedRangeStatus.Success,"image reservation");
+            Check(BootReservedRange.TryCreate(BootReservationKind.AllocatorArena,arena,2,out Access.Reservations[1])==BootReservedRangeStatus.Success,"arena reservation");
+            NativeMemory.Clear(Access.Heap,216);NativeMemory.Clear(Bump,80);
+            var h=ManagedHeapPageRangeLiveAllocator.ReserveAndInitializeOnce(Access.Allocator,Access.AllocatorCapacity,
+                Access.Nodes,Access.NodeCount,Access.NodeCapacity,Access.Reservations,Access.ReservationCount,
+                Access.ReservationCapacity,Access.ParentIndex,Access.Backing,Access.BackingCapacity,Access.Heap,Access.HeapCapacity);
+            Check(h.IsReady,"genuine retained heap");Page=(byte*)h.MappedStart;
+            Check(GuestTestRhpNewFast.InitializeOnce(Access,Bump,96).Succeeded,"genuine bump");
+        }
+        public void Dispose()=>NativeMemory.AlignedFree(Storage);
+    }
+
     private sealed class Fixture : IDisposable
     {
         internal const int ImageSize=0x8000;
@@ -362,8 +623,15 @@ internal static unsafe class GCStaticRootsMalformedMetadataTests
         var type=md.TypeDefinitions.Select(h=>md.GetTypeDefinition(h)).Single(t=>md.GetString(t.Name)==nameof(GCStaticRootsMalformedMetadata));
         var method=type.GetMethods().Select(h=>md.GetMethodDefinition(h)).Single(m=>md.GetString(m.Name)=="ValidateOne");
         Check(method.RelativeVirtualAddress!=0 && pe.GetMethodBody(method.RelativeVirtualAddress).GetILBytes()!.Length>0,"actual validator body");
+        string[] required=["MaterializeOnce","TryGetRetainedRoot","AdmitRoot","FreshAllocation","Integrity"];
+        var materialization=required.Select(name=>
+        {
+            var body=type.GetMethods().Select(h=>md.GetMethodDefinition(h)).Single(m=>md.GetString(m.Name)==name);
+            Check(body.RelativeVirtualAddress!=0 && pe.GetMethodBody(body.RelativeVirtualAddress).GetILBytes()!.Length>0,"actual root body "+name);
+            return new{Name=name,Rva=body.RelativeVirtualAddress};
+        }).ToArray();
         File.WriteAllText(Path.Combine(directory,"metadata.json"),JsonSerializer.Serialize(new{AssemblyRefs=md.AssemblyReferences.Count,ValidateOneRva=method.RelativeVirtualAddress,
-            Path=dll,Bytes=new FileInfo(dll).Length,Sha256=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(dll)))}));
+            Materialization=materialization,Path=dll,Bytes=new FileInfo(dll).Length,Sha256=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(dll)))}));
         Console.WriteLine("M04_012_NOSTDLIB sources="+sources.Length+" assemblyRefs=0 artifacts="+directory);
     }
 }

@@ -1777,3 +1777,26 @@ metadata/lifetime evidence are still required. No complete common-suite,
 native-image or QEMU acceptance follows from these focused host checks.
 Gates3/4 remain **Fail**, with no new GC, real ExitBootServices, hosted .NET,
 Kestrel, cloud or production-readiness claim.
+
+
+### M04-012 retained static-base host prerequisite
+
+[Step992](../done/step992.md) adds bounded one-entry materialization and a
+retained-root query through the original TypeManager and heap authority.
+The registered-range query protects complete owner/slot/header/module/row
+extents; the static-base allocator shares the existing sole allocation commit.
+Root/cell publication is ordered after allocation readback, and later genuine
+same-bump allocations do not invalidate the retained root. Modeled poisoned
+states reject reuse; hardware fault injection or rollback is not established.
+
+The seven complete host modules pass81/82/0 with seven readiness records;
+both final builds pass without warnings. The no-stdlib child compiles93 real
+sources with zero AssemblyRefs and actual materialization/query method bodies.
+All934 recorded inputs and nine launch files match before/after/current reads.
+
+These focused checks supersede step990's missing host materialization only.
+They do not prove a genuine compiled static field, its special-ABI barrier,
+the actual new-image metadata or retained-root behavior under QEMU. #81/#548
+remain open/claimed and #82 blocked. The shared EFI integration and exact
+source-profile pins are the next work; no full common/preflight/native/guest
+acceptance is claimed for this intermediate host commit. Gates3/4 remain Fail.

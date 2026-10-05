@@ -15,7 +15,19 @@ public enum TypeManagerModuleStatus : byte
     StorageOverlap = 8,
     AlreadyRegistered = 9,
     RegistrationChanged = 10,
-    SectionAbsent = 11
+    SectionAbsent = 11,
+    RangeRejected = 12,
+    RangePermissionRejected = 13,
+    RangeProtectedOverlap = 14,
+    UnsupportedRangeKind = 15
+}
+
+/// <summary>Finite registered-image observations; neither kind grants mapping or write authority.</summary>
+public enum TypeManagerRegisteredRangeKind : byte
+{
+    Uninitialized = 0,
+    ImmutableMetadata = 1,
+    MutableData = 2
 }
 
 /// <summary>
@@ -146,23 +158,8 @@ public static unsafe class TypeManagerModuleMetadataLiveNativeAOTImage
         M01LoadedImageVirtualMappingEvidence mapping, byte* storage, ulong capacity,
         ulong handle, int sectionId)
     {
-        TypeManagerModuleStatus status = Decode(capture, mapping, out Image image);
+        TypeManagerModuleStatus status = ValidateRegistered(capture, mapping, storage, capacity, handle, out Image image);
         if (status != TypeManagerModuleStatus.Success) return new(status);
-        status = AdmitStorage(image, storage, capacity);
-        if (status != TypeManagerModuleStatus.Success) return new(status);
-        State* state = (State*)storage;
-        ulong expectedHandle = (ulong)storage + (ulong)sizeof(State);
-        if (handle != expectedHandle || state->Phase != Registered ||
-            state->Owner != (ulong)storage || state->Capacity != capacity ||
-            !state->Capture.Equals(capture) || !Same(state->Image, image) ||
-            U64((byte*)image.Slot) != expectedHandle || U64((byte*)image.Slot + 8) != 0 ||
-            !Same(*(NativeAotTypeManagerAbi*)expectedHandle, ExpectedAbi(image)))
-            return new(TypeManagerModuleStatus.RegistrationChanged);
-        byte* snapshot = (byte*)expectedHandle + sizeof(NativeAotTypeManagerAbi);
-        if (!Equal(snapshot, (byte*)image.Base, image.Headers) ||
-            !Equal(snapshot + image.Headers, (byte*)image.Modules, image.ModuleBytes) ||
-            !Equal(snapshot + image.Headers + image.ModuleBytes, (byte*)image.Header, image.TableBytes))
-            return new(TypeManagerModuleStatus.RegistrationChanged);
         for (uint i = 0; i < image.Rows; i++)
         {
             byte* row = (byte*)image.Header + 16 + i * 24;
@@ -171,6 +168,64 @@ public static unsafe class TypeManagerModuleMetadataLiveNativeAOTImage
                     U64(row + 8), U32(row + 4) == 0 ? 8 : (int)(U64(row + 16) - U64(row + 8)));
         }
         return new(TypeManagerModuleStatus.SectionAbsent);
+    }
+
+    /// <summary>
+    /// Revalidates the original registration before observing section permissions.
+    /// Does not read the candidate payload or grant mapping/lifetime/write authority.
+    /// Mutable data excludes the entire owner capacity and every registered extent.
+    /// </summary>
+    public static TypeManagerModuleStatus TryValidateRegisteredRange(EfiLoadedImageRangeCapturePlan capture,
+        M01LoadedImageVirtualMappingEvidence mapping, byte* owner, ulong ownerCapacity,
+        ulong handle, ulong address, ulong bytes, TypeManagerRegisteredRangeKind kind)
+    {
+        TypeManagerModuleStatus status = ValidateRegistered(capture, mapping, owner, ownerCapacity, handle, out Image image);
+        if (status != TypeManagerModuleStatus.Success) return status;
+        if (kind != TypeManagerRegisteredRangeKind.ImmutableMetadata && kind != TypeManagerRegisteredRangeKind.MutableData)
+            return TypeManagerModuleStatus.UnsupportedRangeKind;
+        if (!Span(address, bytes) || address < image.Base || !Within(image.Bytes, address - image.Base, bytes))
+            return TypeManagerModuleStatus.RangeRejected;
+        if (kind == TypeManagerRegisteredRangeKind.ImmutableMetadata)
+            return InSection(image, address, bytes, Read, Write | Execute)
+                ? TypeManagerModuleStatus.Success : TypeManagerModuleStatus.RangePermissionRejected;
+        if (Overlap(address, bytes, (ulong)owner, ownerCapacity) ||
+            Overlap(address, bytes, image.Base, image.Headers) ||
+            Overlap(address, bytes, image.Modules, image.ModuleBytes) ||
+            Overlap(address, bytes, image.Header, image.TableBytes) ||
+            Overlap(address, bytes, image.Slot, SlotBytes))
+            return TypeManagerModuleStatus.RangeProtectedOverlap;
+        for (uint i = 0; i < image.Rows; i++)
+        {
+            byte* row = (byte*)image.Header + 16 + i * 24;
+            ulong length = U32(row + 4) == 0 ? 8 : U64(row + 16) - U64(row + 8);
+            if (Overlap(address, bytes, U64(row + 8), length)) return TypeManagerModuleStatus.RangeProtectedOverlap;
+        }
+        return InSection(image, address, bytes, Read | Write, Execute)
+            ? TypeManagerModuleStatus.Success : TypeManagerModuleStatus.RangePermissionRejected;
+    }
+
+    private static TypeManagerModuleStatus ValidateRegistered(EfiLoadedImageRangeCapturePlan capture,
+        M01LoadedImageVirtualMappingEvidence mapping, byte* storage, ulong capacity,
+        ulong handle, out Image image)
+    {
+        TypeManagerModuleStatus status = Decode(capture, mapping, out image);
+        if (status != TypeManagerModuleStatus.Success) return status;
+        status = AdmitStorage(image, storage, capacity);
+        if (status != TypeManagerModuleStatus.Success) return status;
+        State* state = (State*)storage;
+        ulong expectedHandle = (ulong)storage + (ulong)sizeof(State);
+        if (handle != expectedHandle || state->Phase != Registered ||
+            state->Owner != (ulong)storage || state->Capacity != capacity ||
+            !state->Capture.Equals(capture) || !Same(state->Image, image) ||
+            U64((byte*)image.Slot) != expectedHandle || U64((byte*)image.Slot + 8) != 0 ||
+            !Same(*(NativeAotTypeManagerAbi*)expectedHandle, ExpectedAbi(image)))
+            return TypeManagerModuleStatus.RegistrationChanged;
+        byte* snapshot = (byte*)expectedHandle + sizeof(NativeAotTypeManagerAbi);
+        if (!Equal(snapshot, (byte*)image.Base, image.Headers) ||
+            !Equal(snapshot + image.Headers, (byte*)image.Modules, image.ModuleBytes) ||
+            !Equal(snapshot + image.Headers + image.ModuleBytes, (byte*)image.Header, image.TableBytes))
+            return TypeManagerModuleStatus.RegistrationChanged;
+        return TypeManagerModuleStatus.Success;
     }
 
     private static NativeAotTypeManagerAbi ExpectedAbi(Image image)

@@ -11,6 +11,7 @@ using OS.Boot;
 using OS.Kernel.Runtime;
 using Core = OS.Kernel.Runtime.TypeManagerModuleMetadataLiveNativeAOTImage;
 using Status = OS.Kernel.Runtime.TypeManagerModuleStatus;
+using RangeKind = OS.Kernel.Runtime.TypeManagerRegisteredRangeKind;
 
 internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
 {
@@ -31,6 +32,9 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
         Run("m04.011 repeated foreign and altered owner calls reject", Owner, ref failures);
         Run("m04.011 well formed metadata replacement loses retained identity", MetadataTamper, ref failures);
         Run("m04.011 retained ABI phase snapshot and slot tampering reject", StateTamper, ref failures);
+        Run("m04.011 registered ranges enforce finite permissions and unsigned bounds", RegisteredRanges, ref failures);
+        Run("m04.011 mutable ranges exclude complete owner slot and metadata extents", ProtectedRanges, ref failures);
+        Run("m04.011 range queries retain original registration and never write", RangeIdentity, ref failures);
         Run("m04.011 validation and lookups allocate no managed storage", Allocation, ref failures);
         Run("m04.011 actual source closure compiles without assembly references", NoStdLib, ref failures);
         if (failures != 0) throw new InvalidOperationException("M04-011 host failures=" + failures);
@@ -289,12 +293,120 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
     private static void Allocation()
     {
         using Fixture f = new(); var r = f.Register();
-        for (int i = 0; i < 50; i++) { _ = Core.Validate(f.Capture, f.Mapping); _ = f.Lookup(r.Handle, 204); }
+        for (int i = 0; i < 50; i++)
+        {
+            _ = Core.Validate(f.Capture, f.Mapping); _ = f.Lookup(r.Handle, 204);
+            _ = f.Range(r.Handle, f.Address(0x2200), 64, RangeKind.MutableData);
+            _ = f.Range(r.Handle, f.Address(0x1200), 24, RangeKind.ImmutableMetadata);
+            _ = f.Range(r.Handle, f.Address(0x2008), 8, RangeKind.MutableData);
+        }
         long start = GC.GetAllocatedBytesForCurrentThread();
         bool passed = true;
-        for (int i = 0; i < 1000; i++) passed &= Core.Validate(f.Capture, f.Mapping).Succeeded && f.Lookup(r.Handle, 204).Succeeded;
+        for (int i = 0; i < 1000; i++) passed &= Core.Validate(f.Capture, f.Mapping).Succeeded && f.Lookup(r.Handle, 204).Succeeded &&
+            f.Range(r.Handle, f.Address(0x2200), 64, RangeKind.MutableData) == Status.Success &&
+            f.Range(r.Handle, f.Address(0x1200), 24, RangeKind.ImmutableMetadata) == Status.Success &&
+            f.Range(r.Handle, f.Address(0x2008), 8, RangeKind.MutableData) == Status.RangeProtectedOverlap;
         long finish = GC.GetAllocatedBytesForCurrentThread();
         Check(passed && start == finish, "allocation-free path");
+    }
+
+    private static void RegisteredRanges()
+    {
+        using Fixture f = new(); var r = f.Register(); Check(r.Succeeded, "registered range fixture");
+        (int Offset, ulong Size, RangeKind Kind, Status Expected)[] cases = [
+            (0x1200, 24, RangeKind.ImmutableMetadata, Status.Success),
+            (0x1000, 136, RangeKind.ImmutableMetadata, Status.Success),
+            (0x5000, 16, RangeKind.ImmutableMetadata, Status.Success),
+            (0x1FF8, 8, RangeKind.ImmutableMetadata, Status.Success),
+            (0x1FF8, 9, RangeKind.ImmutableMetadata, Status.RangePermissionRejected),
+            (0x2200, 64, RangeKind.MutableData, Status.Success),
+            (0x3FFF, 1, RangeKind.MutableData, Status.Success),
+            (0x3FFF, 2, RangeKind.MutableData, Status.RangePermissionRejected),
+            (0x2200, 8, RangeKind.ImmutableMetadata, Status.RangePermissionRejected),
+            (0x1300, 8, RangeKind.MutableData, Status.RangePermissionRejected),
+            (0x6000, 8, RangeKind.ImmutableMetadata, Status.RangePermissionRejected),
+            (0x6000, 8, RangeKind.MutableData, Status.RangePermissionRejected),
+            (0x4000, 8, RangeKind.MutableData, Status.RangePermissionRejected),
+            (0x7000, 8, RangeKind.ImmutableMetadata, Status.RangePermissionRejected),
+            (0x7FFF, 2, RangeKind.ImmutableMetadata, Status.RangeRejected),
+            (0x8000, 1, RangeKind.MutableData, Status.RangeRejected)
+        ];
+        foreach (var c in cases) ExpectRange(f, r.Handle, f.Address(c.Offset), c.Size, c.Kind, c.Expected);
+        foreach ((ulong address, ulong size) in new (ulong, ulong)[] {
+            (0, 8), (f.Address(0x2200), 0), (f.Address(0x2200), ulong.MaxValue),
+            (ulong.MaxValue - 7, 8), (1, 8), (f.Address(0) - 1, 1) })
+            ExpectRange(f, r.Handle, address, size, RangeKind.MutableData, Status.RangeRejected);
+        foreach (RangeKind invalid in new[] { RangeKind.Uninitialized, (RangeKind)3, (RangeKind)255 })
+            ExpectRange(f, r.Handle, f.Address(0x2200), 8, invalid, Status.UnsupportedRangeKind);
+        // Registered immutable aliases are legal; changing opaque payload is not
+        // a mutation of the retained PE/RTR snapshot and grants no write authority.
+        f.Image[0x1200] = 0xA9;
+        ExpectRange(f, r.Handle, f.Address(0x1200), 24, RangeKind.ImmutableMetadata, Status.Success);
+    }
+
+    private static void ProtectedRanges()
+    {
+        using Fixture f = new();
+        // GCStaticRegion contains rel32 entries in RO metadata. The future cell
+        // is separate writable data, not the registered row extent itself.
+        W32(f.Row(0), 201); W64(f.Row(0) + 8, f.Address(0x1100)); W64(f.Row(0) + 16, f.Address(0x1104));
+        W32(f.Image + 0x1100, 0x1100); // signed rel32 from 0x1100 to cell 0x2200.
+        W64(f.Row(3) + 8, f.Address(0x2300)); W64(f.Row(3) + 16, f.Address(0x2300));
+        W64(f.Row(4) + 8, f.Address(0x2400)); W64(f.Row(4) + 16, f.Address(0x2418));
+        var r = f.Register(); Check(r.Succeeded, "separate entry/cell registration");
+        ExpectRange(f, r.Handle, f.Address(0x1100), 4, RangeKind.ImmutableMetadata, Status.Success);
+        ExpectRange(f, r.Handle, f.Address(0x2200), 8, RangeKind.MutableData, Status.Success);
+        ExpectRange(f, r.Handle, f.Address(0x22F8), 16, RangeKind.MutableData, Status.Success); // empty row excludes no byte.
+        foreach ((int offset, ulong size) in new (int, ulong)[] {
+            (0, 1), (0x1000, 1), (0x1087, 1), (0x1100, 4),
+            (0x2000, 1), (0x2008, 1), (0x200F, 1), (0x1FFF, 2),
+            (0x2400, 1), (0x2417, 1), (0x23FF, 2), (0x5000, 16) })
+            ExpectRange(f, r.Handle, f.Address(offset), size, RangeKind.MutableData, Status.RangeProtectedOverlap);
+        ExpectRange(f, r.Handle, f.Address(0x2010), 8, RangeKind.MutableData, Status.Success);
+        ExpectRange(f, r.Handle, f.Address(0x2418), 8, RangeKind.MutableData, Status.Success);
+        using Fixture inside = new(); byte* owner = inside.Image + 0x2800;
+        var registered = Core.RegisterOnce(inside.Capture, inside.Mapping, owner, 0x1000);
+        Check(registered.Succeeded && registered.RequiredStorage < 0x1000, "owner unused tail exists");
+        byte[] before = Bytes(inside.Image, Fixture.ImageSize);
+        foreach ((int offset, ulong size) in new (int, ulong)[] { (0x2800, 1), (0x37FF, 1), (0x27FF, 2), (0x37F8, 16) })
+            Check(Core.TryValidateRegisteredRange(inside.Capture, inside.Mapping, owner, 0x1000,
+                registered.Handle, inside.Address(offset), size, RangeKind.MutableData) == Status.RangeProtectedOverlap, "full owner capacity");
+        Check(Core.TryValidateRegisteredRange(inside.Capture, inside.Mapping, owner, 0x1000,
+            registered.Handle, inside.Address(0x3800), 8, RangeKind.MutableData) == Status.Success, "owner endpoint");
+        Check(Bytes(inside.Image, Fixture.ImageSize).AsSpan().SequenceEqual(before), "image owner query unchanged");
+    }
+
+    private static void RangeIdentity()
+    {
+        using Fixture f = new(); var r = f.Register(); Check(r.Succeeded, "range identity fixture");
+        ExpectRange(f, 0, f.Address(0x2200), 8, RangeKind.MutableData, Status.RegistrationChanged);
+        ExpectRange(f, r.Handle + 8, f.Address(0x2200), 8, RangeKind.MutableData, Status.RegistrationChanged);
+        byte[] before = f.AllStorage(), image = Bytes(f.Image, Fixture.ImageSize);
+        Check(Core.TryValidateRegisteredRange(f.Capture, f.Mapping, f.Storage, Fixture.Capacity - 8,
+            r.Handle, f.Address(0x2200), 8, RangeKind.MutableData) == Status.RegistrationChanged, "range capacity identity");
+        Check(Core.TryValidateRegisteredRange(default, f.Mapping, f.Storage, Fixture.Capacity,
+            r.Handle, f.Address(0x2200), 8, RangeKind.MutableData) == Status.ImageAuthorityRejected, "original capture required");
+        Check(f.AllStorage().AsSpan().SequenceEqual(before) && Bytes(f.Image, Fixture.ImageSize).AsSpan().SequenceEqual(image), "foreign admission unchanged");
+        foreach (int offset in new[] { 0x2000, 0x2008, 0x200F, 2 })
+        {
+            f.Image[offset] ^= 1;
+            ExpectRange(f, r.Handle, f.Address(0x2200), 8, RangeKind.MutableData, Status.RegistrationChanged);
+            f.Image[offset] ^= 1;
+        }
+        f.Storage[0] ^= 1;
+        ExpectRange(f, r.Handle, f.Address(0x2200), 8, RangeKind.MutableData, Status.RegistrationChanged);
+        f.Storage[0] ^= 1;
+        W32(f.Section(1) + 36, 0x40000040); // Well formed PE, but original registration changed.
+        ExpectRange(f, r.Handle, f.Address(0x2200), 8, RangeKind.MutableData, Status.MetadataRejected);
+    }
+
+    private static void ExpectRange(Fixture f, ulong handle, ulong address, ulong size, RangeKind kind, Status expected)
+    {
+        byte[] before = f.AllStorage(), image = Bytes(f.Image, Fixture.ImageSize);
+        Status actual = f.Range(handle, address, size, kind);
+        Check(actual == expected, "range expected=" + expected + " actual=" + actual);
+        Check(f.AllStorage().AsSpan().SequenceEqual(before) && Bytes(f.Image, Fixture.ImageSize).AsSpan().SequenceEqual(image), "range check wrote bytes");
+        f.Guards();
     }
 
     private static void Rejected(Action<Fixture> mutate, Status expected)
@@ -360,6 +472,8 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
         }
         internal TypeManagerModuleResult Register() => Core.RegisterOnce(Capture, Mapping, Storage, Capacity);
         internal TypeManagerModuleResult Lookup(ulong handle, int id) => Core.TryGetSection(Capture, Mapping, Storage, Capacity, handle, id);
+        internal Status Range(ulong handle, ulong address, ulong size, RangeKind kind) =>
+            Core.TryValidateRegisteredRange(Capture, Mapping, Storage, Capacity, handle, address, size, kind);
         internal byte[] AllStorage() => Bytes(allocation, (int)Capacity + 16);
         internal void Guards() => Check(*(ulong*)allocation == 0xBAD0BAD0BAD0BAD0 && *(ulong*)(Storage + Capacity) == 0xABCD1234ABCD1234, "canaries");
         public void Dispose() { NativeMemory.AlignedFree(Image); NativeMemory.Free(allocation); }
@@ -445,6 +559,11 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
         string dll = Path.Combine(directory, "bin", "Release", "net10.0", "M04_011_Closure.dll");
         using var stream = File.OpenRead(dll); using PEReader pe = new(stream);
         Check(pe.GetMetadataReader().AssemblyReferences.Count == 0, "AssemblyRefs=0");
+        MetadataReader metadata = pe.GetMetadataReader();
+        var query = metadata.MethodDefinitions.Select(metadata.GetMethodDefinition).Single(m =>
+            metadata.GetString(m.Name) == "TryValidateRegisteredRange");
+        Check(query.RelativeVirtualAddress != 0 && pe.GetMethodBody(query.RelativeVirtualAddress).GetILBytes()!.Length > 0,
+            "actual registered range body");
         Console.WriteLine("M04_011_NOSTDLIB sources=" + sources.Length + " assemblyRefs=0 artifacts=" + directory);
     }
 }
