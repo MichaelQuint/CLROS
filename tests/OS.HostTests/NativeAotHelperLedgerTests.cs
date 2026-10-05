@@ -416,7 +416,9 @@ internal static class NativeAotHelperLedgerTests
                     ExpectEqual("generated symbol one ledger entry",1,CountLedgerSymbol(ledgerSymbols[j]));
                     ExpectEqual("generated object symbol declaration",1,generator.Split('"'+ledgerSymbols[j]+'"',StringSplitOptions.None).Length-1);
                 }
-                ExpectEqual("ordinary callback declaration",1,adapter.Split("RuntimeExport(\""+ledgerSymbols[3]+"\")",StringSplitOptions.None).Length-1);
+                // The mutually exclusive checked-reference and GC-static profiles
+                // each declare this ordinary callback; the exported symbol is shared.
+                ExpectEqual("ordinary callback declarations across two profiles",2,adapter.Split("RuntimeExport(\""+ledgerSymbols[3]+"\")",StringSplitOptions.None).Length-1);
                 ExpectEqual("ordinary callback one ledger entry",1,CountLedgerSymbol(ledgerSymbols[3]));
                 continue;
             }

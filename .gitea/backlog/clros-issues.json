@@ -8388,7 +8388,7 @@
         "M03-003"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -8415,7 +8415,7 @@
       ],
       "collisionLane": null,
       "summary": "Introduce a typed no-stdlib ExitBootServices call adapter.",
-      "currentEvidence": "PR542 merged at dd5fff2417106b619ac6bde499f003b82fd1cb87; M03-003 and its supplement #541 are closed with step986 evidence. Step988 adds the bounded one-attempt host adapter: complete six-module 53/54/0 focused evidence, measured state40/result16, warmed zero allocation, actual four-source no-stdlib compile with zero AssemblyRefs, and successful normal compilation. Default/reused/reentrant or unavailable authority cannot issue a callback; exact opaque keys and UInt64 statuses are preserved. M03-004 remains open/claimed pending controlled EFI ABI/QEMU and common integrated-head evidence. Final-map ordering, retry and first original firmware exit remain M03-005/006/007; no global firmware transition is claimed. Step991 and separately claimed #546 add the default-off controlled EFI profile. Eight complete managed modules pass 115/116/0 and the complete five-group integration passes 5/6/0 with actual mapped callback/orphan controls and fresh default/enabled NativeAOT archives. Full native, common and QEMU acceptance remain pending; issue state and downstream blockers are unchanged.",
+      "currentEvidence": "Step1003 accepts the bounded typed adapter and #546 controlled EFI integration at combined source 2be3386: original solution build, complete unfiltered HostTests (3787 starts/3788 passes/zero failures), dry-run and fresh default/typed-EBS QEMU captures pass. Independent native ABI, raw/lifecycle, numeric callback/storage association and disk accounting agree. Four controlled callbacks preserve zero/high/all-bit keys and full UInt64 statuses with consumed-state and reentry rejection. No original firmware ExitBootServices call or global mode change; #62/#63/#64 retain final-map ordering, retry and real exit.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Introduce a typed no-stdlib ExitBootServices call adapter.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -8468,7 +8468,7 @@
         "docs/efi-build.md"
       ],
       "evidenceBoundary": "Controlled callback and compiled ABI evidence only: do not invoke the original firmware ExitBootServices pointer or publish global BootServicesExited. Final-map ordering, stale-key retry and first actual exit remain M03-005, M03-006 and M03-007. No post-exit execution, general GC, hosted .NET/Kestrel or cloud claim.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M03-005",
@@ -8479,7 +8479,7 @@
         "M03-004"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:test",
         "evidence:qemu",
@@ -8506,7 +8506,7 @@
       ],
       "collisionLane": null,
       "summary": "Prove no allocation or unrelated firmware call occurs between final map capture and exit attempt.",
-      "currentEvidence": "The EFI path captures a map but deliberately skips the ExitBootServices call; post-firmware execution is unproven.",
+      "currentEvidence": "Step1003 accepts prerequisite #61/#546. Steps999/1001 and draft PR549/550 contain host preparation for the retained final-map window and bounded retry, with focused zero-allocation/no-stdlib checks. This issue is ready for controlled EFI integration using the accepted typed adapter; native/QEMU evidence for the final-map window remains required. No real firmware exit or post-firmware execution is proved.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Prove no allocation or unrelated firmware call occurs between final map capture and exit attempt.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -10199,7 +10199,7 @@
         "M04-011"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -10225,7 +10225,7 @@
       ],
       "collisionLane": null,
       "summary": "Materialize GC static roots and reject malformed metadata.",
-      "currentEvidence": "Step992 extends step990 with bounded retained static-base host materialization/query, registered TypeManager range admission and the shared allocator static-MT/receipt routes in #548. Seven complete initializers pass 81 START/82 PASS/0 FAIL; final focused and normal builds have zero warnings/errors. Actual root/result sizes are 600/48, warmed queries allocate zero managed bytes, and the 93-source no-stdlib child has zero AssemblyRefs plus real materialization/query bodies. All 934 inputs and nine launch files remain unchanged. #81/#548 remain claimed/open and #82 blocked pending genuine compiled GCStatics/accessor/barrier association, shared EFI source pins, common/native and QEMU evidence. This host milestone supplies no collecting GC or guest/runtime acceptance.",
+      "currentEvidence": "Step1003 accepts #81/#548 at combined source 2be3386: complete unfiltered HostTests (3787 starts/3788 passes/zero failures), original solution build, dry-run and fresh default/GC-static QEMU captures pass. A genuine compiled static object field uses the original registered image, retained allocator and checked store helper: two allocations/48 bytes, object/null stores, five owned-stack canary checks. Exact managed/COFF/ILC-map/PE bytes match independent native review; raw/lifecycle, metadata/stack numeric association and disk accounting agree. #82 can proceed to collection. No collecting GC, general static/TLS runtime, real firmware exit, hosted .NET/Kestrel or cloud claim.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Materialize GC static roots and reject malformed metadata.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -10278,7 +10278,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves only \"Materialize GC static roots and reject malformed metadata.\" It does not by itself prove the M04 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M04-013",
@@ -10289,7 +10289,7 @@
         "M04-012"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -10315,7 +10315,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement a bounded non-moving collector with explicit root enumeration.",
-      "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
+      "currentEvidence": "Step1003 accepts prerequisite #81/#548 retained GC-static roots and compiler-field guest evidence. Collection remains unimplemented. Implement explicit quiescent roots and authentic allocation/metadata validation, bounded iterative tracing, then atomic sweeping and real dead-block reuse through the same allocator owner. Do not substitute a live-set plan, cursor reset, zeroing-only pass or separate fake heap for reclamation. The existing bump receipts and retained-root query must be updated coherently for reuse; no arbitrary stack roots, moving objects or concurrency is implied.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Implement a bounded non-moving collector with explicit root enumeration.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

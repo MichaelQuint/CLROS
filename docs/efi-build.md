@@ -2488,8 +2488,8 @@ including mapped callback and orphan-process controls, strict parser/streamer
 cases, all profile conflicts, and fresh default/enabled NativeAOT publication.
 Eight complete managed modules separately pass 115/116/0. Both EFI archives
 have zero AssemblyRefs and are retained for independent emitted-code review.
-The full common suite and fresh QEMU acceptance remain pending; publication
-and controlled host execution are not guest boot evidence.
+The full common suite and fresh QEMU acceptance were pending at step991;
+step1003 below supplies that evidence. Publication alone is not guest boot proof.
 
 The intended enabled runner uses `-BuildEfi
 -EnableM03TypedExitBootServicesCallProbe` with explicit fresh EFI/image/log
@@ -2563,7 +2563,7 @@ accounted for as OVMF NVVARS/FAT bookkeeping. Internal tail canaries were
 initialized after registration; no external RAM oracle or numeric guest stack
 canary measurement is claimed.
 
-### GC-static root diagnostic (development evidence)
+### GC-static root diagnostic
 
 The default-off `EnableM04GcStaticRootMaterializationProbe` uses the existing
 M01 loaded-image/live-allocator and M04 endian/span/arithmetic/layout/heap/
@@ -2606,3 +2606,24 @@ and final guest acceptance remain pending.
 coordinator over the single final-map/exit window. Its eight-source no-stdlib
 closure has zero AssemblyRefs. It is not linked into the EFI project and adds
 no profile, firmware transition or guest acceptance claim.
+
+[Step1002](../done/step1002.md) corrects the helper-ledger fixture's source
+declaration count for the two exclusive callback profiles. Complete diagnostic
+checks of the remaining 218 initializers pass after resolving three diagnostic
+dispatch errors. This is not a full common pass; production/native inputs are
+unchanged and the corrected common run and final guest acceptance remain pending.
+
+[Step1003](../done/step1003.md) accepts the combined typed-EBS and GC-static
+batch at `2be3386`. The original full solution build and unfiltered HostTests
+run pass (3787 starts/3788 passes/zero failures), followed by the ordinary
+dry-run and fresh default, typed-EBS and GC-static QEMU captures. All 112 raw
+publisher inputs match the reviewed snapshots; the 42 evaluated flags have
+respectively 0, 1 and 9 enabled values. Each EFI image is byte-identical to
+the independently reviewed native image. Native, raw/lifecycle, numeric
+association and boot-disk accounting reviews pass.
+
+The typed-EBS profile has 30 exact CLROS lines and four controlled callbacks.
+GC has 60 exact CLROS lines, 49 ordered/unique anchors, two allocations/48 bytes,
+two checked stores and five stack checks. The 10056-byte first-party stack
+bound excludes original firmware console/serial bodies. No collecting GC,
+real firmware exit, general runtime, hosted .NET/Kestrel or cloud claim follows.

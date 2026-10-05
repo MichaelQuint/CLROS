@@ -1828,3 +1828,26 @@ it also corrects stale output-authority test expectations for the GC profile.
 The failed common run is preserved. Gates remain unchanged until the corrected
 complete regression and final guest acceptance, and remain incomplete beyond
 this bounded runtime slice even when those pass.
+
+### M03-004 and M04-012 final bounded acceptance
+
+[Step1003](../done/step1003.md) accepts #61/#546 and #81/#548 at the combined
+source commit `2be3386`: original solution build, complete unfiltered common
+suite (3787 starts/3788 passes/zero failures), dry-run, independent native
+review and fresh default/typed-EBS/GC-static QEMU captures all pass. Raw serial,
+ordinary lifecycle, exact native-image association and disk accounting agree.
+
+Typed-EBS forwards four controlled callbacks on its original EFI caller stack;
+it preserves zero/high/all-bit keys and full UInt64 status, rejects consumed
+state and bounded reentry, and never invokes original firmware ExitBootServices.
+GC-static materialization uses one authentic compiled object field, the retained
+registered image and the original sole allocator. Two allocations consume 48
+bytes; object/null stores use the existing checked helper. Five actual-stack
+checks preserve both canaries. The 132-method first-party bound is 10056 bytes;
+original firmware console/serial body depth remains excluded.
+
+This releases #62 final-map-window work and #82 bounded-collector work after
+merge/closure. It does not complete Gates3/4: real firmware exit, collection,
+general static/TLS support, hosted .NET/Kestrel and cloud readiness remain
+incomplete. Pristine disks were reconstructed after capture; configured 750ms
+is not independently measured, and no general filesystem proof is claimed.
