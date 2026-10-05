@@ -19,9 +19,9 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
         "statusCoded=true firmwareFallback=false postExitBootServices=false";
     private const string FailureMarker = "M02_PANIC_SAFE_OWNED_COM1_FAILED";
     private const string CompileClosureSha256 =
-        "b0e23d01f90219119dfc843f3b6f957fe66646e000689dba89e8f5cd3a5ea49e";
+        "4814674efd6228200c7864cce4eea1880dc7bee9dae44accbf552fe6572bd006";
     private const string CanonicalProjectSha256 =
-        "e4bfd842d65b4e6d56ff5b5f7d8b993f17398115cb9ae16d63cd2be98525eb3b";
+        "cf526fefd8aee30207cf3e90025fc141125aa8bdc05e646f05bbc2fa5d098dec";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -153,7 +153,7 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 98
+        return compileItems.Length == 100
             && compileHash == CompileClosureSha256
             && writerIndex >= 0
             && reporterIndex == writerIndex + 1
@@ -225,7 +225,7 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
                 "m02_panic_safe_owned_com1_requires_owned_com1_ready",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=112",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=114",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 CanonicalProjectSha256,
@@ -237,10 +237,10 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
                 "[switch]$EnableM02PanicSafeOwnedCom1Probe",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 112",
+                "$expectedSourceClosureInputCount = 114",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 98",
+                "$compileItems.Count -ne 100",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
                 "-p:EnableM02PanicSafeOwnedCom1Probe=true",

@@ -56,7 +56,7 @@ internal static class M04GCStaticRootMaterializationEfiIntegrationTests
         foreach (string other in flags.Except(Chain.Append(Flag), StringComparer.Ordinal))
             Need(conditions.Count(x => x == "'$(" + Flag + ")' == 'true' and '$(" + other + ")' == 'true'") == 1, "conflict " + other);
         string[] compile = project.Descendants("Compile").Select(x => (string)x.Attribute("Include")!).ToArray();
-        Need(compile.Length == 98 && compile.Distinct(StringComparer.Ordinal).Count() == 98, "unique complete closure");
+        Need(compile.Length == 100 && compile.Distinct(StringComparer.Ordinal).Count() == 100, "unique complete closure");
         foreach (string file in new[] { @"..\OS.Kernel\Runtime\GCStaticRootsMalformedMetadata.cs", @"Runtime\GCStaticRootMaterializationProbe.cs", @"..\OS.Kernel\Diagnostics\GCStaticRootMaterializationProbeAuthority.cs" })
             Need(compile.Contains(file, StringComparer.Ordinal), "compiled source " + file);
     }
