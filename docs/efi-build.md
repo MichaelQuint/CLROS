@@ -2593,6 +2593,10 @@ The combined full regression and final guest acceptance remain pending.
 exact conflict lists omitted the GC-static profile. All five complete small
 initializers pass; full combined and final guest acceptance remain pending.
 
+[Step999](../done/step999.md) prepares the final-map/exit window for M03-005.
+Its seven-source no-stdlib closure compiles with zero AssemblyRefs. It is not
+yet included in the EFI project or runner, and adds no switch or guest claim.
+
 [Step1000](../done/step1000.md) aligns five further EFI fixtures with reviewed
 source hashes, both IDTR profile exclusions and the shared stack getter guard.
 Production inputs and the accepted native review are unchanged; full combined
