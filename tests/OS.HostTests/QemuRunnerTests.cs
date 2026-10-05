@@ -243,6 +243,10 @@ internal static class QemuRunnerTests
             Run("qemu.smoke.preset pal export aliases normalize", () => TestDryRunPalExportMarkerPresetAliases(tempRoot), ref failures);
             Run("qemu.smoke.preset rejects unknown preset", () => TestRejectsUnknownMarkerPreset(tempRoot), ref failures);
             Run("qemu runner accepts forbidden markers", () => TestDryRunForbiddenMarkers(tempRoot), ref failures);
+            Run("qemu firmware RNG option preserves default arguments", () => TestFirmwareRngDefault(tempRoot), ref failures);
+            Run("qemu firmware RNG virtio arguments and source evidence", () => TestFirmwareRngSource(tempRoot, "virtio"), ref failures);
+            Run("qemu firmware RNG missing provider has no device", () => TestFirmwareRngSource(tempRoot, "missing"), ref failures);
+            Run("qemu firmware RNG rejects unknown empty and duplicate choices", TestFirmwareRngRejected, ref failures);
             Run("qemu dry-run emits default workload profile", () => TestDryRunDefaultWorkloadProfile(tempRoot), ref failures);
             Run("qemu dry-run propagates multi workload profile", () => TestDryRunMultiWorkloadProfile(tempRoot), ref failures);
             Run("qemu rejects invalid workload profile", () => TestRejectsInvalidWorkloadProfile(tempRoot), ref failures);
@@ -435,6 +439,42 @@ internal static class QemuRunnerTests
             && output.Contains("ich9-ahci,id=ahci", StringComparison.Ordinal)
             && output.Contains("if=none,id=esp,format=raw,file=" + imagePath, StringComparison.Ordinal)
             && output.Contains("ide-hd,drive=esp,bus=ahci.0", StringComparison.Ordinal);
+    }
+
+    private static bool TestFirmwareRngDefault(string root)
+    {
+        ProcessResult r = RunQemuRunner("--dry-run", "--qemu", "qemu-test", "--image", Path.Combine(root,"rng-default.raw"));
+        return r.ExitCode == 0 && r.Output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal) &&
+            !r.Output.Contains("FIRMWARE_RNG_SOURCE", StringComparison.Ordinal) && !r.Output.Contains("-cpu", StringComparison.Ordinal) &&
+            !r.Output.Contains("rng-builtin", StringComparison.Ordinal) && !r.Output.Contains("virtio-rng-pci", StringComparison.Ordinal);
+    }
+    private static bool TestFirmwareRngSource(string root, string source)
+    {
+        ProcessResult r = RunQemuRunner("--dry-run", "--qemu", "qemu-test", "--image", Path.Combine(root,"rng.raw"), "--firmware-rng-source", source);
+        if (r.ExitCode != 0 || !r.Output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal) ||
+            r.Output.Split('\n').Count(x => x.TrimEnd('\r') == "FIRMWARE_RNG_SOURCE " + source) != 1) return false;
+        string command = r.Output.Split('\n').Single(x => x.StartsWith("qemu-test ", StringComparison.Ordinal));
+        return command.Contains("-device ich9-ahci,id=ahci", StringComparison.Ordinal) &&
+            command.IndexOf("ide-hd,drive=esp,bus=ahci.0",StringComparison.Ordinal) > command.IndexOf("ich9-ahci,id=ahci",StringComparison.Ordinal) &&
+            command.IndexOf("virtio-net-pci,netdev=n0",StringComparison.Ordinal) > command.IndexOf("ide-hd,drive=esp,bus=ahci.0",StringComparison.Ordinal) &&
+            command.IndexOf("-cpu qemu64,-rdrand,-rdseed",StringComparison.Ordinal) > command.IndexOf("virtio-net-pci,netdev=n0",StringComparison.Ordinal) &&
+            command.Contains("-cpu qemu64,-rdrand,-rdseed", StringComparison.Ordinal) &&
+            (source == "virtio" ? command.Contains("-object rng-builtin,id=clrosrng -device virtio-rng-pci,rng=clrosrng", StringComparison.Ordinal) :
+                !command.Contains("rng-builtin", StringComparison.Ordinal) && !command.Contains("virtio-rng-pci", StringComparison.Ordinal));
+    }
+    private static bool TestFirmwareRngRejected()
+    {
+        foreach (string[] args in new string[][] {
+            ["--firmware-rng-source"], ["--firmware-rng-source", ""], ["--firmware-rng-source", "Virtio"],
+            ["--firmware-rng-source", "missing "], ["--firmware-rng-source", "host"],
+            ["--firmware-rng-source", "virtio", "--firmware-rng-source", "virtio"],
+            ["--firmware-rng-source", "virtio", "--firmware-rng-source", "missing"] })
+        {
+            ProcessResult r = RunQemuRunner(["--dry-run", ..args]);
+            if (r.ExitCode == 0 || r.Output.Contains("TEST_PASS", StringComparison.Ordinal) ||
+                r.Output.Contains("TEST_START qemu.runner.dryrun", StringComparison.Ordinal)) return false;
+        }
+        return true;
     }
 
     private static bool TestDryRunSerialLogArguments(string tempRoot)

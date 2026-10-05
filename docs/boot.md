@@ -3756,6 +3756,47 @@ This is injected-provider host evidence only: actual EFI RNG discovery,
 No seed bytes or digest are emitted, and scratch clearing is not a physical
 secure-erasure claim. #60 remains open.
 
+The separate default-off EFI entropy profile in [step980](../done/step980.md)
+uses the original system-table boot-services pointer to locate
+`EFI_RNG_PROTOCOL`. It requests exactly 32 bytes once, with the default
+algorithm selector, into a guarded 64-byte scratch payload. EFI `GetRNG`
+returns a status, not a returned-byte count. The adapter preserves that
+full-width status and reports the number of calls separately.
+
+The adapter admits disjoint complete state and buffer extents before writing.
+It copies each requested byte into a separate guarded retained payload, reads
+it back, clears that scratch byte, and verifies both observations. Guard and
+tail checks precede publication of the retained length. Failed acquisition
+leaves retention unpublished; a late copy/readback failure makes no rollback
+promise. Zero and repeated payload bytes are accepted without a quality test.
+Diagnostics contain status, call counts and lengths, never seed bytes, hashes,
+digests or a classification of uncleared requested scratch.
+
+The complete five-module focused run and both actual NativeAOT publications
+pass. Independent offline review confirms the emitted firmware ABI, guarded
+storage, actual copy/readback/clear sequence, publication order and terminal
+failure loop. These results do not establish a real firmware provider or a
+missing-provider guest outcome. Full common validation and fresh guest
+evidence remain separate. This is pre-firmware-exit retention only; no
+post-exit random generator, entropy-quality guarantee or secure-erasure claim
+follows. #541/#60 remain open and #61 remains blocked.
+
+[Step986](../done/step986.md) accepts the subsequent clean `8942ab7` full
+suite and three fresh QEMU/OVMF captures. The provider-present path discovers
+the real protocol, calls GetRNG once successfully, retains 32 bytes, clears 32
+requested scratch bytes and publishes last. The same enabled EFI image with
+the missing-device configuration observes EFI_NOT_FOUND (9223372036854775822),
+zero GetRNG calls, unchanged retained storage and no publication. Its exact
+failure suffix is followed by 764.127 ms of measured quiet while QEMU remains
+live, then owned termination and EOF. The ordinary runner still classifies
+that captured failure as failure.
+
+These results satisfy the bounded pre-exit entropy-retention boundary for
+#60/#541 after reviewed integration. They permit #61's typed adapter work;
+ordering, retry and the first actual ExitBootServices transition remain later
+slices. No seed value or derivative is logged, and no randomness quality,
+post-firmware service or physical secure-erasure guarantee follows.
+
 Existing guard markers:
 
 ```text

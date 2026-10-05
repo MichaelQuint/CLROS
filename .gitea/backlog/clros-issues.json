@@ -8068,7 +8068,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M03: Real Firmware Exit.",
-      "currentEvidence": "M03-001 (#58/#532) and M03-002 (#59/#539) are closed after reviewed merges and actual bounded pre-EBS guest evidence in steps970/977. Step978 adds the host entropy-retention prerequisite for claimed #60; actual EFI RNG acquisition and guest retention remain pending. Nine children #60 through #68 remain open. No ExitBootServices call, map-key freshness, post-firmware execution/ownership or M03 exit criterion is proved; the epic remains open.",
+      "currentEvidence": "M03-001 (#58/#532) and M03-002 (#59/#539) are closed after reviewed merges and actual bounded pre-EBS guest evidence in steps970/977. Step978 adds host entropy retention; step980 adds #541's opt-in EFI RNG source, complete 201/202/0 focused run, default/enabled NativeAOT publications and accepted offline native review. Full common and real provider/missing-provider guest acceptance remain pending. Nine children #60 through #68 remain open. No ExitBootServices call, map-key freshness, post-firmware execution/ownership or M03 exit criterion is proved; the epic remains open.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -8297,7 +8297,7 @@
         "M03-002"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -8324,7 +8324,7 @@
       ],
       "collisionLane": null,
       "summary": "Copy any firmware-derived entropy seed needed after firmware shutdown, with explicit failure status.",
-      "currentEvidence": "Step978 adds the bounded 32/64-byte host entropy-retention contract over guarded RNG access. Normal HostTests and focused builds pass with zero warnings/errors; all 12 new plus 15 existing RNG/firmware-denial groups pass 27 starts/28 passes/zero failures. Full-span/publication aliases, source errors/exact counts, private retention, scratch clearing, repeat rejection and warmed zero allocation are covered. #59 is closed after PR538, so #60 is claimed. Actual EFI_RNG_PROTOCOL discovery/GetRNG and positive/missing-source guests remain pending; host evidence does not close #60 or unblock #61. No entropy quality, pool/PRNG/TLS, real ExitBootServices or post-firmware readiness is claimed.",
+      "currentEvidence": "Step986 accepts clean source 8942ab7 after the full 3713/3714/0 common suite and three independently reviewed QEMU/OVMF captures. The positive real EFI RNG path retains 32 bytes, clears requested scratch and publishes last. The same enabled EFI with missing-provider configuration observes EFI_NOT_FOUND, zero GetRNG calls, unchanged retained storage and unpublished state, with 764.127 ms measured live quiet then owned termination/EOF. Whole native/source association and complete GPT/FAT/payload/FSInfo/NVVARS accounting pass. Catalog requests done/closed for M03-003 after reviewed merge and issue evidence readback. No entropy quality, post-firmware random service, real ExitBootServices, GC, hosted .NET/Kestrel or cloud claim.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Copy any firmware-derived entropy seed needed after firmware shutdown, with explicit failure status.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -8377,7 +8377,7 @@
         "docs/efi-build.md"
       ],
       "evidenceBoundary": "This issue proves only \"Copy any firmware-derived entropy seed needed after firmware shutdown, with explicit failure status.\" It does not by itself prove the M03 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M03-004",
@@ -8388,7 +8388,7 @@
         "M03-003"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -8415,7 +8415,7 @@
       ],
       "collisionLane": null,
       "summary": "Introduce a typed no-stdlib ExitBootServices call adapter.",
-      "currentEvidence": "The EFI path captures a map but deliberately skips the ExitBootServices call; post-firmware execution is unproven.",
+      "currentEvidence": "Step986 accepts the bounded M03-003 entropy prerequisite after full common and genuine provider/missing-provider QEMU evidence. Catalog requests ready after M03-003 reviewed merge and issue closure readback. The next scope is a typed one-attempt no-stdlib adapter with exact handle, opaque 64-bit map key and full-width status; controlled callback/ABI evidence is distinct from the first real ExitBootServices call owned by M03-007 (#64). Ordering and retry remain separate later slices; post-firmware execution remains unproven.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Introduce a typed no-stdlib ExitBootServices call adapter.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

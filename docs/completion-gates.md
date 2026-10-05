@@ -1634,6 +1634,42 @@ subsequently merged at `34a9fd5`; #59/#539/#536 closed with reviewed evidence.
 entropy-retention implementation. Its actual EFI RNG/guest boundary remains
 pending, so #61 is still blocked.
 
+[Step980](../done/step980.md) adds #541's separate opt-in EFI entropy path.
+The complete focused run passes 201 starts/202 passes/zero failures; both
+default/enabled NativeAOT publications and final normal compilation pass.
+Independent offline review confirms original protocol discovery/GetRNG ABI,
+full-width statuses, guarded static storage, real byte copy/readback/clear,
+publication last and a nonreturning failure branch. Six legacy expectation
+repairs retain their original complete initializers for the later common
+suite. That full suite and fresh provider-present/missing-provider guest
+acceptance remain pending. #541/#60 stay open, #61 stays blocked, and no
+entropy-quality or actual firmware-exit criterion is promoted.
+
+[Step984](../done/step984.md) retains the first failed guest attempt and repairs
+its exact positive firmware-envelope admission. Both observed suffix lengths
+(251 and 6945 bytes) now have complete raw, summary and actual marker-streamer
+coverage. All five original focused modules pass 201 starts/202 passes/zero
+failures; both native publications and normal compilation pass. No kernel or
+raw103 input changed. This is regression evidence only: fresh final-head common
+and default/provider-present/provider-missing captures remain required before
+the entropy issues or their dependent #61 can advance.
+
+[Step986](../done/step986.md) supplies the later accepted `8942ab7` tuple:
+the full suite passes 3,713 starts/3,714 passes/zero failures with one terminal
+and 16 READY lines; fresh default/provider-present/provider-missing QEMU
+captures pass independent raw, lifecycle, native/source and disk reviews.
+The positive path has 27 records and retains/clears 32 bytes. The identical
+enabled image's missing-provider path has 19 records, actual EFI_NOT_FOUND,
+zero GetRNG calls, unchanged retention and unpublished state, followed by
+764.127 ms measured live quiet and verified EOF/cleanup. Ordinary successful
+captures retain their configured drain policy; no measured quiet is inferred
+for those lanes. Exact firmware disk changes are fully accounted.
+
+This accepts only M03-003's bounded pre-exit seed-retention requirement.
+The catalog requests #60 done and #61 ready after evidence-qualified merge
+and tracker readback. Actual firmware exit, retry, post-exit access, general
+randomness, hosted .NET/Kestrel and cloud gates remain incomplete.
+
 The historical reference capture did not satisfy the live executing-stack
 requirement. [Step979](../done/step979.md) added the original-stack sentinel;
 [step981](../done/step981.md) now accepts its fresh `5d894c8` common and guest

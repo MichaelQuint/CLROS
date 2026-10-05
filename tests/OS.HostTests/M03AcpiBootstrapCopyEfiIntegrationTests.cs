@@ -322,7 +322,7 @@ internal static class M03AcpiBootstrapCopyEfiIntegrationTests
         Reject("-RequireMarker","CLROS_M03_002_READY");
         foreach(string option in new[]{"-RequireMarker","-RequireOrderedMarker","-RequireUniqueMarker","-ForbidMarker","-M01RawObservationLog","--http-probe","--extra-arg"})Reject([..positive,option,"extra"]);
         var flags=Regex.Matches(File.ReadAllText(script).Split("$ErrorActionPreference",StringSplitOptions.None)[0],@"\[switch\]\s+\$(Enable\w+)").Select(m=>m.Groups[1].Value).ToArray();
-        Need(flags.Length==38,"actual current requested profile vector");
+        Need(flags.Length==39,"actual current requested profile vector");
         foreach(string other in flags.Where(x=>x!="EnableAcpiPhysicalDiscoveryProbe"))Reject([..positive,"-"+other]);
         Result markerOnly=Dry("-MarkerPreset","acpi");Passed(markerOnly);
         Need(!markerOnly.Output.Contains("CLROS_M03_002_",StringComparison.Ordinal),"historical marker-only preset remains separate");

@@ -68,6 +68,7 @@
 		<EnableM04StringAllocationInvalidLengthProbe Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == ''">false</EnableM04StringAllocationInvalidLengthProbe>
 		<EnableM03MemoryMapCaptureProbe Condition="'$(EnableM03MemoryMapCaptureProbe)' == ''">false</EnableM03MemoryMapCaptureProbe>
 		<EnableM04CheckedReferenceBarrierProbe Condition="'$(EnableM04CheckedReferenceBarrierProbe)' == ''">false</EnableM04CheckedReferenceBarrierProbe>
+		<EnableM03FirmwareEntropySeedProbe Condition="'$(EnableM03FirmwareEntropySeedProbe)' == ''">false</EnableM03FirmwareEntropySeedProbe>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'">
@@ -260,6 +261,10 @@
 		<DefineConstants>$(DefineConstants);M04_CHECKED_REFERENCE_BARRIER_PROBE</DefineConstants>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M03_FIRMWARE_ENTROPY_SEED_PROBE</DefineConstants>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<Compile Include="..\OS.Kernel\Boot\BootHandoffRecord.cs" Link="Boot\BootHandoffRecord.cs" />
 		<Compile Include="..\OS.Kernel\Boot\BootMemoryRegionMaterializer.cs" Link="Boot\BootMemoryRegionMaterializer.cs" />
@@ -349,6 +354,7 @@
 		<Compile Include="Runtime\CheckedReferenceBarrierAdapter.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\CheckedReferenceBulkBarriersIncludingDotNetN10Bulk.cs" Link="Runtime\CheckedReferenceBulkBarriersIncludingDotNetN10Bulk.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\CheckedReferenceBarrierProbeAuthority.cs" Link="Diagnostics\CheckedReferenceBarrierProbeAuthority.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\FirmwareEntropySeedCaptureProbeAuthority.cs" Link="Diagnostics\FirmwareEntropySeedCaptureProbeAuthority.cs" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
 		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
 		<ResolvedILCompilerPack Include="runtime.win-x64.Microsoft.DotNet.ILCompiler">
@@ -1103,6 +1109,82 @@
 		<Error Condition="'$(EnableExitBootServicesFreshMapProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'" Text="m03_memory_map_capture_profile_conflict EnableM03MemoryMapCaptureProbe" />
 		<Error Condition="'$(EnableM03MemoryMapCaptureProbe)' == 'true' and '$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'" Text="m03_memory_map_capture_profile_conflict EnableAcpiPhysicalDiscoveryProbe" />
 		<Error Condition="'$(EnableAcpiPhysicalDiscoveryProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'" Text="m03_memory_map_capture_profile_conflict EnableM03MemoryMapCaptureProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableAcpiPhysicalDiscoveryProbe" />
+		<Error Condition="'$(EnableAcpiPhysicalDiscoveryProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableExitBootServicesFreshMapProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableExitBootServicesFreshMapProbe" />
+		<Error Condition="'$(EnableExitBootServicesFreshMapProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM01LiveAllocatorProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM01LiveAllocatorProbe" />
+		<Error Condition="'$(EnableM01LiveAllocatorProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM01LoadedImageStackProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM01LoadedImageStackProbe" />
+		<Error Condition="'$(EnableM01LoadedImageStackProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM01OwnedPagingProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM01OwnedPagingProbe" />
+		<Error Condition="'$(EnableM01OwnedPagingProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM02CheckedPortIoBindingProbe" />
+		<Error Condition="'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM02Com1OwnedPortIoProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM02Com1OwnedPortIoProbe" />
+		<Error Condition="'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM02DoubleFaultIstProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM02DoubleFaultIstProbe" />
+		<Error Condition="'$(EnableM02DoubleFaultIstProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM02GuardedIstStackAllocationProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM02GuardedIstStackAllocationProbe" />
+		<Error Condition="'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM02IdtrContinuedExecutionProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM02IdtrContinuedExecutionProbe" />
+		<Error Condition="'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM02NormalizedInterruptFramePageProbe" />
+		<Error Condition="'$(EnableM02NormalizedInterruptFramePageProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM02OwnedCom1ReadyProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM02OwnedCom1ReadyProbe" />
+		<Error Condition="'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM02OwnedGdtTssTerminalProbe" />
+		<Error Condition="'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM02OwnedIdtGatePopulationProbe" />
+		<Error Condition="'$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM02OwnedX64GdtEncodingProbe" />
+		<Error Condition="'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM02PageFaultCr2ErrorCodeProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM02PanicSafeOwnedCom1Probe" />
+		<Error Condition="'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM02SafeStubProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM02SafeStubProbe" />
+		<Error Condition="'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM02Ud2VectorStateProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM02Ud2VectorStateProbe" />
+		<Error Condition="'$(EnableM02Ud2VectorStateProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03MemoryMapCaptureProbe" />
+		<Error Condition="'$(EnableM03MemoryMapCaptureProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM04ArithmeticConformanceProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM04ArithmeticConformanceProbe" />
+		<Error Condition="'$(EnableM04ArithmeticConformanceProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM04CheckedReferenceBarrierProbe" />
+		<Error Condition="'$(EnableM04CheckedReferenceBarrierProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM04IndependentEndianConformanceProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM04IndependentEndianConformanceProbe" />
+		<Error Condition="'$(EnableM04IndependentEndianConformanceProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM04LayoutContractProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM04LayoutContractProbe" />
+		<Error Condition="'$(EnableM04LayoutContractProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM04ManagedHeapPageRangeProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM04ManagedHeapPageRangeProbe" />
+		<Error Condition="'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM04RhpNewFastBeforeBindFailureProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM04RhpNewFastExhaustionFailureProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM04RhpNewFastProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM04RhpNewFastProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe" />
+		<Error Condition="'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM04SzArrayAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM04SzArrayAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM04SzArrayAllocationProbe" />
+		<Error Condition="'$(EnableM04SzArrayAllocationProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableUefiGoneSimulationProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableUefiGoneSimulationProbe" />
+		<Error Condition="'$(EnableUefiGoneSimulationProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe" />
 	</Target>
 
 	<Target Name="CustomizeReferences"

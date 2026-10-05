@@ -285,7 +285,7 @@ internal static class M04StringAllocationEfiIntegrationTests
     {
         string root=HostToolProcess.FindRepositoryRoot();XDocument project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
         string[] items=project.Descendants("Compile").Select(x=>x.Attribute("Include")!.Value+"|"+(x.Attribute("Link")?.Value??"")).ToArray();
-        Need(items.Length==88 && items[81]=="..\\OS.Kernel\\Runtime\\GuestTestStringAllocationCharacterStorage.cs|Runtime\\GuestTestStringAllocationCharacterStorage.cs" &&
+        Need(items.Length==89 && items[81]=="..\\OS.Kernel\\Runtime\\GuestTestStringAllocationCharacterStorage.cs|Runtime\\GuestTestStringAllocationCharacterStorage.cs" &&
             items[82]=="..\\OS.Kernel\\Diagnostics\\StringAllocationProbeAuthority.cs|Diagnostics\\StringAllocationProbeAuthority.cs","two exact String includes");
         foreach(var pair in new[]{(Flag,"M04_STRING_ALLOCATION_PROBE"),("EnableM04StringAllocationBeforeBindProbe","M04_STRING_ALLOCATION_BEFORE_BIND_PROBE"),("EnableM04StringAllocationExhaustionProbe","M04_STRING_ALLOCATION_EXHAUSTION_PROBE"),("EnableM04StringAllocationInvalidLengthProbe","M04_STRING_ALLOCATION_INVALID_LENGTH_PROBE")})
         {
@@ -297,7 +297,7 @@ internal static class M04StringAllocationEfiIntegrationTests
             ("src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs","da93a400753bb57a8d17ee8a07dbd6b0b0c8949d1c70c23f44c22a902d7cd14a"),
             ("tests/OS.HostTests/GuestTestStringAllocationCharacterStorageTests.cs","27f774d0f1123a7be7b14cbd4c8d41e22b8fb0b29b16d113745741894aac88b8"),
             ("tests/OS.HostTests/GuestTestRhpNewFastTests.cs","1d98c426348a5d522842a4bf312619f393f8aa289a669cf1abe31c8a9953f885"),
-            ("src/OS/Boot/EfiEntry.cs","18e22a183b2f01a6a1b6bd26322b93c44005bb37ad74b09e986ceaa18e552614")})
+            ("src/OS/Boot/EfiEntry.cs","74eee75baf08f35daa55c099c72a61fbd4af1d2c03cc8e676394a60f09d8672d")})
             Need(Hash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(root,file.Item1)).Replace("\r\n","\n",StringComparison.Ordinal)))==file.Item2,"unchanged host/entry source "+file.Item1);
         string adapter=File.ReadAllText(Path.Combine(root,"src/OS/Runtime/RhpNewFastAllocation.cs"));
         Need(adapter.Contains("GuestTestStringAllocationCharacterStorage.TryAllocate(*access, bump, 80,",StringComparison.Ordinal) &&
@@ -315,8 +315,8 @@ internal static class M04StringAllocationEfiIntegrationTests
         string[] all=Chain.Append(Flag).ToArray();
         string[] conflicts=["EnableM01OwnedPagingProbe",..XDocument.Load(Path.Combine(root,"src/OS/OS.csproj")).Descendants()
             .Where(x=>x.Name.LocalName.StartsWith("EnableM02",StringComparison.Ordinal)).Select(x=>x.Name.LocalName).Distinct(StringComparer.Ordinal),
-            "EnableUefiGoneSimulationProbe","EnableExitBootServicesFreshMapProbe","EnableAcpiPhysicalDiscoveryProbe","EnableM04RhpNewFastBeforeBindFailureProbe","EnableM04RhpNewFastExhaustionFailureProbe","EnableM04SzArrayAllocationBeforeBindProbe","EnableM04SzArrayAllocationExhaustionProbe","EnableM03MemoryMapCaptureProbe","EnableM04CheckedReferenceBarrierProbe"];
-        Need(Chain.Length==9 && conflicts.Length==25,"all exact prerequisites/conflicts");
+            "EnableUefiGoneSimulationProbe","EnableExitBootServicesFreshMapProbe","EnableAcpiPhysicalDiscoveryProbe","EnableM04RhpNewFastBeforeBindFailureProbe","EnableM04RhpNewFastExhaustionFailureProbe","EnableM04SzArrayAllocationBeforeBindProbe","EnableM04SzArrayAllocationExhaustionProbe","EnableM03MemoryMapCaptureProbe","EnableM04CheckedReferenceBarrierProbe","EnableM03FirmwareEntropySeedProbe"];
+        Need(Chain.Length==9 && conflicts.Length==26,"all exact prerequisites/conflicts");
         var conditions=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj")).Descendants("Error").Select(x=>x.Attribute("Condition")!.Value).ToHashSet(StringComparer.Ordinal);
         foreach(string flag in negatives.Prepend(Flag))foreach(string conflict in conflicts)
         {
@@ -330,7 +330,7 @@ internal static class M04StringAllocationEfiIntegrationTests
         {
             Result r=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(root,"scripts",runner?"run-qemu-smoke.ps1":"build-efi-shell.ps1"),
                 ..(runner?new[]{"-DryRun","-BuildEfi"}:new[]{"-PreflightOnly","-LogPath",Path.Combine(directory,"preflight-"+id+".log")}),..flags.Select(x=>"-"+x)]);
-            Save(Path.Combine(directory,(id++).ToString()),r);Need(r.Code!=0 && (r.Output.Contains("m04_",StringComparison.Ordinal) || (flags.Contains("EnableM03MemoryMapCaptureProbe",StringComparer.Ordinal) && r.Output.Contains("m03_memory_map_capture_profile_conflict property=EnableM01LoadedImageStackProbe",StringComparison.Ordinal))),"explicit profile rejection "+string.Join(',',flags)+" "+r.Output);
+            Save(Path.Combine(directory,(id++).ToString()),r);Need(r.Code!=0 && (r.Output.Contains("m04_",StringComparison.Ordinal) || (flags.Contains("EnableM03FirmwareEntropySeedProbe",StringComparer.Ordinal) && r.Output.Contains("m03_firmware_entropy_profile_conflict property=EnableM01LiveAllocatorProbe",StringComparison.Ordinal)) || (flags.Contains("EnableM03MemoryMapCaptureProbe",StringComparer.Ordinal) && r.Output.Contains("m03_memory_map_capture_profile_conflict property=EnableM01LoadedImageStackProbe",StringComparison.Ordinal))),"explicit profile rejection "+string.Join(',',flags)+" "+r.Output);
         }
         foreach(string[] flags in negatives.Select(x=>all.Append(x).ToArray()).Prepend(all))
         {
@@ -352,11 +352,11 @@ internal static class M04StringAllocationEfiIntegrationTests
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
             foreach(var file in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(directory,file.Item2));
             using var document=System.Text.Json.JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=document.RootElement;
-            var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==102,"actual102 raw sources");
+            var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==103,"actual102 raw sources");
             foreach(var input in inputs)Need(Hash(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))==input.GetProperty("sha256").GetString(),"actual raw source unchanged");
-            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==88,"actual88 compile items");
+            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==89,"actual88 compile items");
             var flags=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
-            Need(flags.Length==38,"complete38 evaluated flags");
+            Need(flags.Length==39,"complete39 evaluated flags");
             foreach(var f in flags)Need(f.Value.GetString()==(lane.Item2.Contains(f.Name,StringComparer.Ordinal)?"true":"false"),"actual requested/evaluated profile "+f.Name);
             TestMetadata(directory,lane.Item1!="default");
             if(lane.Item1!="default")TestLinkedRoutes(root,directory,lane.Item1);
