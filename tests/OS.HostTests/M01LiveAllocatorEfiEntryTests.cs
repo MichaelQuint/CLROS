@@ -7,6 +7,7 @@ internal static class M01LiveAllocatorEfiEntryTests
 {
     private const string MemoryMapSymbol = "M03_MEMORY_MAP_CAPTURE_PROBE";
     private const string TypeManagerSymbol = "M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE";
+    private const string TypedEbsSymbol = "M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE";
     private const string EntropySymbol = "M03_FIRMWARE_ENTROPY_SEED_PROBE";
     private const string IssueTestName = "m01.023";
     private const string UnexpectedPanicSymbol =
@@ -1547,7 +1548,7 @@ internal static class M01LiveAllocatorEfiEntryTests
 
     private static bool TestKnownFalsePanicSelector()
     {
-        foreach (string disabledSymbol in new[] { UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol, TypeManagerSymbol })
+        foreach (string disabledSymbol in new[] { UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol, TypeManagerSymbol, TypedEbsSymbol })
         {
         string fixture = "#if " + disabledSymbol + "\nPanicOnly();\n#else\nPanicOff();\n#endif\n"
             + "#if " + StageOneSymbol + "\n#if " + disabledSymbol
@@ -1609,7 +1610,8 @@ internal static class M01LiveAllocatorEfiEntryTests
                     || string.Equals(condition, UnexpectedPanicSymbol, StringComparison.Ordinal)
                     || string.Equals(condition, MemoryMapSymbol, StringComparison.Ordinal)
             || string.Equals(condition, EntropySymbol, StringComparison.Ordinal)
-            || string.Equals(condition, TypeManagerSymbol, StringComparison.Ordinal);
+            || string.Equals(condition, TypeManagerSymbol, StringComparison.Ordinal)
+            || string.Equals(condition, TypedEbsSymbol, StringComparison.Ordinal);
                 bool selectedValue = isStageOne
                     ? stageOneEnabled
                     : isStageTwo && stageTwoEnabled;
