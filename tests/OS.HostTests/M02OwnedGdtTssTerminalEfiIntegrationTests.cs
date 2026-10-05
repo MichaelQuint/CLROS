@@ -468,7 +468,7 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
             root,
             "scripts",
             "run-qemu-smoke.ps1");
-        string source = File.ReadAllText(runnerScriptPath);
+        string source = File.ReadAllText(runnerScriptPath).ReplaceLineEndings("\n");
         int terminalProfile = source.IndexOf(
             "if ($EnableM02OwnedGdtTssTerminalProbe) {",
             StringComparison.Ordinal);
