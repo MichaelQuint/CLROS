@@ -26,6 +26,7 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
         Run("firmware entries bind from checked tables and consume once", FirmwareBinding);
         Run("owned stack entry has bounded storage and a terminal native path", OwnedStackEntry);
         Run("owned arena materializes retained descriptors map storage and four stacks", OwnedArena);
+        Run("loaded image sections retain exact bounded code and data permissions", ImageMappings);
     }
 
     private static void Run(string name, Action action)
@@ -36,6 +37,82 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
     }
     private static void Need(bool value, string reason)
     { if (!value) throw new InvalidOperationException(reason); }
+
+    private static void ImageMappings()
+    {
+        const ulong bytes = 65536;
+        byte* image = (byte*)NativeMemory.AlignedAlloc((nuint)bytes, 4096);
+        Need(image != null, "image fixture allocation");
+        try
+        {
+            new Span<byte>(image, (int)bytes).Clear();
+            *(ushort*)image = 0x5a4d; *(uint*)(image + 60) = 0x80;
+            byte* pe = image + 0x80;
+            *(uint*)pe = 0x4550; *(ushort*)(pe + 4) = 0x8664;
+            *(ushort*)(pe + 6) = 3; *(ushort*)(pe + 20) = 240; *(ushort*)(pe + 22) = 2;
+            byte* optional = pe + 24;
+            *(ushort*)optional = 0x20b; *(uint*)(optional + 16) = 0x1000;
+            *(uint*)(optional + 32) = 4096; *(uint*)(optional + 36) = 512;
+            *(uint*)(optional + 56) = (uint)bytes; *(uint*)(optional + 60) = 512;
+            *(ushort*)(optional + 68) = 10; *(uint*)(optional + 108) = 16;
+            byte* text = optional + 240;
+            *(uint*)(text + 8) = 0x1001; *(uint*)(text + 12) = 0x1000;
+            *(uint*)(text + 16) = 0x1200; *(uint*)(text + 36) = 0x60000020;
+            byte* data = text + 40;
+            *(uint*)(data + 8) = 0x3000; *(uint*)(data + 12) = 0x4000;
+            *(uint*)(data + 16) = 512; *(uint*)(data + 36) = 0xc0000040;
+            byte* readOnly = data + 40;
+            *(uint*)(readOnly + 8) = 0x100; *(uint*)(readOnly + 12) = 0x8000;
+            *(uint*)(readOnly + 16) = 512; *(uint*)(readOnly + 36) = 0x40000040;
+            EfiLoadedImageProtocolObservation observation = EfiLoadedImageProtocolObservation.CaptureFromUefiBoundary(
+                0, 0x1000, 0x2000, (ulong)image, bytes);
+            EfiLoadedImageRangeCapturePlan capture = EfiLoadedImageRangeCapturePlan.Create(&observation, 1, 1, 4096);
+            M01LoadedImageVirtualMappingEvidence mapping = M01LoadedImageVirtualMappingEvidence.CaptureCallerAttestedIdentity(capture);
+            SeparatePageFaultMappingRange* ranges = stackalloc SeparatePageFaultMappingRange[5];
+            ranges[4] = new(0x12345000, 1, PageProtection.Read);
+            Need(FirstExitImageMappings.WriteRanges(capture, mapping, ranges, 5, out ulong count) && count == 4 &&
+                ranges[4].Start == 0x12345000, "derive sections without touching tail");
+            Need(ranges[0].Start == (ulong)image && ranges[0].PageCount == 1 && ranges[0].Protection == PageProtection.Read &&
+                ranges[1].Start == (ulong)image + 0x1000 && ranges[1].PageCount == 2 && ranges[1].Protection == (PageProtection.Read | PageProtection.Execute) &&
+                ranges[2].Start == (ulong)image + 0x4000 && ranges[2].PageCount == 3 && ranges[2].Protection == (PageProtection.Read | PageProtection.Write) &&
+                ranges[3].Start == (ulong)image + 0x8000 && ranges[3].PageCount == 1 && ranges[3].Protection == PageProtection.Read,
+                "PE code, zero-filled data, immutable data and headers have exact page permissions");
+            Need(FirstExitImageMappings.Contains(ranges, count, (ulong)image + 0x4010, 8192, PageProtection.Read | PageProtection.Write) &&
+                !FirstExitImageMappings.Contains(ranges, count, (ulong)image + 0x4010, 8192, PageProtection.Read | PageProtection.Execute) &&
+                !FirstExitImageMappings.Contains(ranges, count, (ulong)image + 0x2ff0, 32, PageProtection.Read | PageProtection.Execute),
+                "retained object containment respects permissions and gaps");
+            byte[] original = new ReadOnlySpan<byte>(image, (int)bytes).ToArray();
+            byte[] output = new ReadOnlySpan<byte>(ranges, 5 * sizeof(SeparatePageFaultMappingRange)).ToArray();
+            foreach (int fault in Enumerable.Range(0, 10))
+            {
+                original.CopyTo(new Span<byte>(image, (int)bytes));
+                switch (fault)
+                {
+                    case 0: *(uint*)(image + 60) = (uint)bytes - 8; break;
+                    case 1: *(ushort*)(pe + 6) = 17; break;
+                    case 2: *(uint*)(optional + 32) = 512; break;
+                    case 3: *(uint*)(text + 36) |= 0x80000000; break;
+                    case 4: *(uint*)(data + 12) = 0x2000; break;
+                    case 5: *(uint*)(data + 8) = (uint)bytes; break;
+                    case 6: *(uint*)(readOnly + 36) = 0; break;
+                    case 7: *(uint*)(optional + 16) = 0x4000; break;
+                    case 8: *(uint*)(optional + 60) = 256; break;
+                    case 9: *(uint*)(readOnly + 12) = 0x8001; break;
+                }
+                Need(!FirstExitImageMappings.WriteRanges(capture, mapping, ranges, 5, out count) && count == 0 &&
+                    output.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(ranges, 5 * sizeof(SeparatePageFaultMappingRange))),
+                    "invalid image refuses before output mutation " + fault);
+            }
+            original.CopyTo(new Span<byte>(image, (int)bytes));
+            Need(!FirstExitImageMappings.WriteRanges(capture, mapping, ranges, 3, out count) &&
+                !FirstExitImageMappings.WriteRanges(capture, mapping, (SeparatePageFaultMappingRange*)image, 5, out count) &&
+                !FirstExitImageMappings.WriteRanges(default, mapping, ranges, 5, out count) &&
+                !FirstExitImageMappings.WriteRanges(capture, default, ranges, 5, out count) &&
+                original.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(image, (int)bytes)),
+                "capacity, overlap and identity evidence refuse without modifying image");
+        }
+        finally { NativeMemory.AlignedFree(image); }
+    }
 
     private static void OwnedArena()
     {
