@@ -1851,3 +1851,19 @@ merge/closure. It does not complete Gates3/4: real firmware exit, collection,
 general static/TLS support, hosted .NET/Kestrel and cloud readiness remain
 incomplete. Pristine disks were reconstructed after capture; configured 750ms
 is not independently measured, and no general filesystem proof is claimed.
+
+### M04-013 collector host implementation
+
+[Step1006](../done/step1006.md) implements explicit-root tracing, validation before
+sweep, and real dead-block reuse through the original retained allocator owner.
+The live-record table preserves receipt identities and the retained static-root
+query through repeated collections. Focused checks pass for live/dead cycles,
+shared children, null/duplicate roots, stale receipts, malformed input without
+partial sweep, and a sole child reached through a static field. Existing fixed,
+array, string and root compatibility groups pass (64 starts/65 passes/zero fails).
+The updated 99-source no-stdlib closure compiles without warnings/errors.
+
+This is host behavior and compile-only evidence. #82/#552 remain open for
+serialized EFI integration, native review, one final complete common gate and
+fresh QEMU acceptance. Gates3/4 remain Fail; no guest collecting GC, arbitrary
+stack roots, concurrent mutators, moving objects or hosted .NET is claimed.

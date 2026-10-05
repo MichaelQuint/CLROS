@@ -1,4 +1,5 @@
 using OS.Boot;
+using OS.Kernel.Memory;
 
 namespace OS.Kernel.Runtime;
 
@@ -7,6 +8,46 @@ public enum CollectorTypeMapStatus : byte
     Uninitialized, Success, UnsupportedProfile, InvalidWindow, InvalidMethodTable,
     ModuleRejected, UnsupportedType, InvalidDescriptor, UnsupportedSeriesCount,
     OverlappingSeries
+}
+
+public enum BoundedCollectionStatus : byte
+{
+    Uninitialized, Success, UnsupportedProfile, InvalidRoots, StorageOverlap,
+    OwnerRejected, ModuleRejected, MetadataRejected, InvalidReference,
+    StaticRootRequired, StaticRootRejected, WorkLimitExceeded
+}
+
+public readonly struct BoundedCollectionResult
+{
+    internal BoundedCollectionResult(BoundedCollectionStatus status,
+        RhpNewFastStatus ownerStatus = default, uint live = 0, uint reclaimed = 0, ulong bytes = 0)
+    { Status = status; OwnerStatus = ownerStatus; LiveObjects = live; ReclaimedObjects = reclaimed; ReclaimedBytes = bytes; }
+    public BoundedCollectionStatus Status { get; }
+    public RhpNewFastStatus OwnerStatus { get; }
+    public uint LiveObjects { get; }
+    public uint ReclaimedObjects { get; }
+    public ulong ReclaimedBytes { get; }
+    public bool Succeeded => Status == BoundedCollectionStatus.Success;
+}
+
+/// <summary>Original mapped image inputs, not copied module authority.</summary>
+public unsafe struct CollectorModuleAccess
+{
+    public EfiLoadedImageRangeCapturePlan Capture;
+    public M01LoadedImageVirtualMappingEvidence Mapping;
+    public byte* Owner;
+    public ulong Capacity;
+    public ulong Handle;
+    public GCStaticReadableWindow Metadata;
+}
+
+/// <summary>Optional original retained GC-static root inputs.</summary>
+public unsafe struct CollectorStaticRootAccess
+{
+    public byte* Owner;
+    public ulong Capacity;
+    public GCStaticReadableWindow Cells;
+    public ulong SystemObjectMethodTable;
 }
 
 public readonly struct CollectorReferenceSeries
@@ -55,14 +96,174 @@ public readonly struct CollectorTypeMapResult
 
 /// <summary>
 /// Building blocks for a bounded synchronous collector over the retained heap.
-/// The first implemented part decodes fixed-object reference maps from the
-/// original registered image. It does not yet trace, sweep, or reclaim objects.
+/// Explicit roots and one retained static base, iterative tracing, and atomic
+/// sweep through the original allocator's collecting mode. No stack scanning,
+/// safepoint discovery, finalizers or concurrent mutators are supported.
 /// Caller mappings, metadata lifetime and exclusive access remain obligations.
 /// </summary>
 public static unsafe class BoundedNonMovingCollectorExplicitRootEnumeration
 {
     public const uint MaximumReferenceSeries = 4;
     public const ulong MaximumObjectBytes = 4096;
+
+    /// <summary>
+    /// All inputs and heap fields remain exclusively stable for this synchronous
+    /// operation. Roots are original allocation receipts (default means null).
+    /// The work limit bounds distinct live objects; internal stack scratch is fixed.
+    /// All live allocations, even unreachable ones, are validated before sweeping.
+    /// Raw field references carry no historical generation; callers must not hide
+    /// live roots or manufacture references after an object's lifetime has ended.
+    /// </summary>
+    public static BoundedCollectionResult Collect(NativeAotLayoutProfile profile,
+        CollectorModuleAccess module, RhpNewFastHeapAccess heap,
+        RhpNewFastBumpState* state, ulong capacity,
+        RhpNewFastResult* roots, uint rootCount, uint rootCapacity,
+        CollectorStaticRootAccess staticRoot = default,
+        uint workLimit = GuestTestRhpNewFast.MaximumTrackedAllocations)
+    {
+        if (profile != NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian)
+            return new(BoundedCollectionStatus.UnsupportedProfile);
+        if (rootCount > rootCapacity || rootCapacity > GuestTestRhpNewFast.MaximumTrackedAllocations ||
+            (rootCapacity == 0 ? roots != null : roots == null || ((ulong)roots & 7) != 0 ||
+                (ulong)roots > ~0UL - rootCapacity * (ulong)sizeof(RhpNewFastResult)))
+            return new(BoundedCollectionStatus.InvalidRoots);
+        if (workLimit > GuestTestRhpNewFast.MaximumTrackedAllocations)
+            return new(BoundedCollectionStatus.WorkLimitExceeded);
+        RhpNewFastStatus ownerStatus = GuestTestRhpNewFast.ValidateCollectingOwner(heap, state, capacity);
+        if (ownerStatus != RhpNewFastStatus.Success)
+            return new(BoundedCollectionStatus.OwnerRejected, ownerStatus);
+        var registered = TypeManagerModuleMetadataLiveNativeAOTImage.TryGetSection(module.Capture,
+            module.Mapping, module.Owner, module.Capacity, module.Handle, 204);
+        if (!registered.Succeeded || module.Mapping.VirtualImageBase.TryGetRawValueForUefiBoundary(
+            out ulong image) != AddressValueStatus.Success)
+            return new(BoundedCollectionStatus.ModuleRejected);
+        if (Overlap((ulong)heap.Backing, heap.BackingCapacity, image, module.Capture.Range.ImageSize) ||
+            Overlap((ulong)heap.Backing, heap.BackingCapacity, (ulong)module.Owner, module.Capacity) ||
+            Overlap((ulong)state, capacity, (ulong)module.Owner, module.Capacity) ||
+            (Overlap((ulong)state, capacity, image, module.Capture.Range.ImageSize) &&
+                TypeManagerModuleMetadataLiveNativeAOTImage.TryValidateRegisteredRange(module.Capture,
+                    module.Mapping, module.Owner, module.Capacity, module.Handle, (ulong)state, capacity,
+                    TypeManagerRegisteredRangeKind.MutableData) != TypeManagerModuleStatus.Success))
+            return new(BoundedCollectionStatus.StorageOverlap);
+        ulong rootBytes = rootCapacity * (ulong)sizeof(RhpNewFastResult);
+        if (rootBytes != 0 && (Overlap((ulong)roots, rootBytes, (ulong)state, capacity) ||
+            Overlap((ulong)roots, rootBytes, (ulong)heap.Backing, heap.BackingCapacity) ||
+            Overlap((ulong)roots, rootBytes, (ulong)module.Owner, module.Capacity)))
+            return new(BoundedCollectionStatus.StorageOverlap);
+
+        ulong* live = stackalloc ulong[3] { 0, 0, 0 };
+        uint* queue = stackalloc uint[(int)GuestTestRhpNewFast.MaximumTrackedAllocations];
+        uint queued = 0;
+        ulong retainedStatic = 0;
+        if (staticRoot.Owner != null)
+        {
+            GCStaticRootResult root = GCStaticRootsMalformedMetadata.TryGetRetainedRoot(module.Capture,
+                module.Mapping, module.Owner, module.Capacity, module.Handle, module.Metadata,
+                staticRoot.Cells, staticRoot.SystemObjectMethodTable, heap, state, capacity,
+                staticRoot.Owner, staticRoot.Capacity);
+            if (!root.Succeeded) return new(BoundedCollectionStatus.StaticRootRejected);
+            retainedStatic = root.ObjectReference;
+        }
+        else if (staticRoot.Capacity != 0 || staticRoot.Cells.Start != 0 || staticRoot.Cells.Bytes != 0 ||
+            staticRoot.SystemObjectMethodTable != 0)
+            return new(BoundedCollectionStatus.StaticRootRejected);
+
+        // Validate every current allocation/map/reference, including dead objects.
+        // The allocator already checked disjoint extents, headers and identities.
+        for (uint i = 0; i < GuestTestRhpNewFast.MaximumTrackedAllocations; i++)
+        {
+            RhpNewFastResult allocation = GuestTestRhpNewFast.ReadTrackedAllocation(state, i, out bool abbreviated);
+            if (!allocation.AllocationSucceeded) continue;
+            CollectorTypeMapResult map = Map(module, profile, allocation, abbreviated);
+            if (!map.Succeeded || map.Prefix.BaseSize != allocation.BytesConsumed)
+                return new(BoundedCollectionStatus.MetadataRejected);
+            if (abbreviated)
+            {
+                if (allocation.ObjectReference != retainedStatic)
+                    return new(BoundedCollectionStatus.StaticRootRequired);
+                if (!Mark(i, live, queue, ref queued, workLimit))
+                    return new(BoundedCollectionStatus.WorkLimitExceeded);
+            }
+            for (uint s = 0; s < map.SeriesCount; s++)
+            {
+                map.TryGetSeries(s, out CollectorReferenceSeries series);
+                for (ulong offset = 0; offset < series.Bytes; offset += 8)
+                {
+                    ulong child = Read64((byte*)(allocation.ObjectReference + series.OffsetFromReference + offset));
+                    if (child != 0 && Find(state, child) == GuestTestRhpNewFast.MaximumTrackedAllocations)
+                        return new(BoundedCollectionStatus.InvalidReference);
+                }
+            }
+        }
+        for (uint i = 0; i < rootCount; i++)
+        {
+            RhpNewFastResult root = roots[i];
+            if (IsNullRoot(root)) continue;
+            if (GuestTestRhpNewFast.TryValidateRetainedAllocation(heap, state, capacity, root) != RhpNewFastStatus.Success)
+                return new(BoundedCollectionStatus.InvalidReference);
+            uint index = Find(state, root.ObjectReference);
+            if (index == GuestTestRhpNewFast.MaximumTrackedAllocations)
+                return new(BoundedCollectionStatus.InvalidReference);
+            if (!Mark(index, live, queue, ref queued, workLimit))
+                return new(BoundedCollectionStatus.WorkLimitExceeded);
+        }
+        for (uint next = 0; next < queued; next++)
+        {
+            RhpNewFastResult allocation = GuestTestRhpNewFast.ReadTrackedAllocation(state, queue[next], out bool abbreviated);
+            CollectorTypeMapResult map = Map(module, profile, allocation, abbreviated);
+            if (!map.Succeeded || map.Prefix.BaseSize != allocation.BytesConsumed)
+                return new(BoundedCollectionStatus.MetadataRejected);
+            for (uint s = 0; s < map.SeriesCount; s++)
+            {
+                map.TryGetSeries(s, out CollectorReferenceSeries series);
+                for (ulong offset = 0; offset < series.Bytes; offset += 8)
+                {
+                    ulong child = Read64((byte*)(allocation.ObjectReference + series.OffsetFromReference + offset));
+                    if (child == 0) continue;
+                    uint index = Find(state, child);
+                    if (index == GuestTestRhpNewFast.MaximumTrackedAllocations)
+                        return new(BoundedCollectionStatus.InvalidReference);
+                    if (!Mark(index, live, queue, ref queued, workLimit))
+                        return new(BoundedCollectionStatus.WorkLimitExceeded);
+                }
+            }
+        }
+        // Quiescence is a caller obligation, not a race detected by a last check.
+        // No heap/owner writes happened above; commit has no fallible suboperations.
+        GuestTestRhpNewFast.CommitSweep(state, live, out uint reclaimed, out ulong bytes);
+        return new(BoundedCollectionStatus.Success, RhpNewFastStatus.Success, queued, reclaimed, bytes);
+    }
+
+    private static CollectorTypeMapResult Map(CollectorModuleAccess m, NativeAotLayoutProfile profile,
+        RhpNewFastResult allocation, bool abbreviated) => InspectType(profile, m.Capture, m.Mapping,
+            m.Owner, m.Capacity, m.Handle, m.Metadata, allocation.MethodTableToken, abbreviated);
+
+    private static uint Find(RhpNewFastBumpState* state, ulong reference)
+    {
+        for (uint i = 0; i < GuestTestRhpNewFast.MaximumTrackedAllocations; i++)
+        {
+            RhpNewFastResult record = GuestTestRhpNewFast.ReadTrackedAllocation(state, i, out _);
+            if (record.AllocationSucceeded && record.ObjectReference == reference) return i;
+        }
+        return GuestTestRhpNewFast.MaximumTrackedAllocations;
+    }
+
+    private static bool Mark(uint index, ulong* live, uint* queue, ref uint queued, uint limit)
+    {
+        ulong bit = 1UL << (int)(index % 64);
+        if ((live[index / 64] & bit) != 0) return true;
+        if (queued >= limit) return false;
+        live[index / 64] |= bit; queue[queued++] = index;
+        return true;
+    }
+
+    private static bool IsNullRoot(RhpNewFastResult r) => r.Status == 0 && r.Operation == 0 && r.HeapStatus == 0 &&
+        r.MappedAllocationStart == 0 && r.MappedAllocationEndExclusive == 0 && r.PhysicalAllocationStart == 0 &&
+        r.PhysicalAllocationEndExclusive == 0 && r.ObjectReference == 0 && r.MethodTableToken == 0 &&
+        r.BytesConsumed == 0 && r.UsedBefore == 0 && r.UsedAfter == 0 && r.AllocationCount == 0;
+
+    private static bool Overlap(ulong a, ulong aBytes, ulong b, ulong bBytes) =>
+        a < b + bBytes && b < a + aBytes;
 
     /// <summary>
     /// Decode ordinary fixed-class or abbreviated GC-static metadata for the

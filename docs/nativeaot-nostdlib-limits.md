@@ -1555,3 +1555,37 @@ The focused host cases and a 99-source no-stdlib compilation pass; the latter
 has zero assembly references and was not executed. See [step1005](../done/step1005.md).
 Issue #82 remains in progress: authoritative allocation tracking, tracing,
 atomic sweep, dead-block reuse and guest acceptance are still required.
+
+### Explicit-root collection and same-owner reuse (step1006)
+
+The #82/#552 host implementation now traces and reclaims bounded fixed objects.
+`GuestTestRhpNewFast.EnableCollection` opts in once, before the first allocation.
+Its original 80-byte prefix remains unchanged; the complete collecting owner
+requires 5520 bytes, including 170 private allocation records. The ordinary
+fixed/static allocation path uses those records to find reusable holes. Allocation
+identities increase monotonically and the observed high-water cursor never
+rewinds. Swept or replaced receipts fail even when address and MethodTable match.
+Existing noncollecting fixed, array, string and retained-root behavior is preserved.
+Arrays and strings are not admitted in collecting mode.
+
+`Collect` validates the original page owner, every live record, registered type
+metadata and all reference fields before sweeping. Explicit roots are original
+allocation receipts; default receipts mean null. One optional original GC-static
+owner is revalidated through `TryGetRetainedRoot`; a tracked static base cannot
+silently be omitted. A fixed queue and three mark words trace at most 170 objects.
+Invalid/interior/foreign references, stale root receipts, corrupt records or
+metadata, and exhausted work limits return without heap/owner writes. After
+validation, an infallible commit clears dead blocks and retires their records;
+the same allocation path reuses those blocks with fresh identities.
+
+Atomic failure behavior assumes synchronous exclusive access throughout the
+operation; it is not synchronization for concurrent mutators. Caller mappings,
+metadata immutability, complete root enumeration and lifetimes remain obligations.
+Raw field pointers carry no historical generation, so manufactured pointers after
+an object's lifetime ends cannot be distinguished from a new object at that address.
+No arbitrary stack walking, moving GC, finalizers or weak references are provided.
+
+[Step1006](../done/step1006.md) records focused graph/failure/reuse cases, existing
+allocator and root compatibility checks, and an updated compile-only no-stdlib
+closure. EFI integration, full batch acceptance and actual guest proof remain
+pending; #82/#552 stay open and Gates3/4 remain Fail.

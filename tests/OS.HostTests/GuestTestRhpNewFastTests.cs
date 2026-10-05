@@ -442,7 +442,8 @@ internal static unsafe class GuestTestRhpNewFastTests
             "NotInitialized", "InvalidState", "HeapAuthorityRejected", "HeapBindingMismatch", "InitialPageNotPristine",
             "UnsupportedProfile", "InvalidMethodTableToken", "InvalidMethodTableFlags", "UnsupportedFixedType",
             "InvalidBaseSize", "Exhausted", "UnsupportedArrayType", "InvalidComponentSize", "InvalidLength", "UnsupportedStringType",
-            "UnsupportedStaticType", "InvalidReceipt", "ReceiptContentsChanged"];
+            "UnsupportedStaticType", "InvalidReceipt", "ReceiptContentsChanged", "CollectionNotEnabled",
+            "InvalidAllocationLedger", "AllocationIdentityExhausted"];
         Require(Enum.GetValues<Status>().Length == statuses.Length, "append-only status count");
         for (int i = 0; i < statuses.Length; i++) Require(((Status)i).ToString() == statuses[i], "stable status values");
         string[] fields = ["InitializedValue", "SelfAddressValue", "CapacityValue", "HeapAddressValue",
