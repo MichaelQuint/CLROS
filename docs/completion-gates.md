@@ -1879,3 +1879,11 @@ The original firmware ExitBootServices slot remains unreachable. Gate3 remains
 Fail until #64 and later real-exit requirements pass. This releases the shared
 integration lane for the already implemented bounded collector, whose official
 integration and final acceptance remain pending; Gate4 remains Fail.
+
+The collector's shared EFI admission is now implemented in
+[step1011](../done/step1011.md). Focused original GC fixture checks, solution build
+and enabled publisher preflight pass. The one integrated common suite and fresh
+official default/GC captures with final native association remain outstanding.
+Development linked-code review reports a 13688-byte first-party stack bound
+within its 16384-byte budget; it is not yet final-image acceptance. #82/#552 stay
+open and Gates3/4 stay Fail.

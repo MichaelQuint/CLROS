@@ -1614,3 +1614,12 @@ The diagnostic now emits `CLROS_M04_013_READY` only after those checks complete.
 [Step1009](../done/step1009.md) observes it exactly once in a fresh development
 QEMU capture with 70 program records and ordinary boot success. Official source
 admission and strict parser integration remain pending.
+
+[Step1011](../done/step1011.md) completes that source admission and strict parser
+integration after the accepted final-map batch. The existing GC profile now
+includes the collector core through 101 explicit Compile items; producer and
+verifier agree on 115 raw inputs. Its original fixture accepts the complete
+70-record stream and rejects missing, duplicate, reordered and altered records.
+The enabled publisher preflight passes. This supersedes the earlier integration
+blocker, but does not replace the pending original full suite, official fresh
+captures and final linked-image association for #82/#552.

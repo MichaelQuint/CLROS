@@ -2642,3 +2642,14 @@ focused EFI fixture passes, including default/enabled publication and strict
 default/enabled QEMU captures with source/native/disk association. Original
 firmware function-body stack depth remains excluded. The next live boundary is
 #64: real firmware exit followed by permanent owned-CR3 adoption.
+
+[Step1011](../done/step1011.md) admits the bounded collector through the existing
+GC-static profile. The explicit closure is 101 Compile items and 115 raw inputs;
+the same 42 flags and nine enabled GC prerequisites remain. Exact reviewed
+allocator/collector text identities and the canonical project check are retained.
+The normal runner now requires 70 records and 59 ordered, unique anchors,
+including nine collection records and `CLROS_M04_013_READY`. It checks the finite
+compiler-object graph, collection counts, reclaimed-address identities, retained
+root, allocation/store counters and all ten stack observations. The original GC
+fixture and enabled publisher preflight pass. Development native/guest evidence
+is preserved; full integrated acceptance and official fresh captures are pending.

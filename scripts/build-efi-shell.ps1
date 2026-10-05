@@ -174,6 +174,7 @@ $script:ExpectedEfiCompileItems = @(
     '..\OS.Kernel\Platform\FirmwareServicesMode.cs|Platform\FirmwareServicesMode.cs',
     '..\OS.Kernel\Diagnostics\TypedExitBootServicesCallProbeAuthority.cs|Diagnostics\TypedExitBootServicesCallProbeAuthority.cs',
     '..\OS.Kernel\Runtime\GCStaticRootsMalformedMetadata.cs|Runtime\GCStaticRootsMalformedMetadata.cs',
+    '..\OS.Kernel\Runtime\BoundedNonMovingCollectorExplicitRootEnumeration.cs|Runtime\BoundedNonMovingCollectorExplicitRootEnumeration.cs',
     'Runtime\GCStaticRootMaterializationProbe.cs|',
     '..\OS.Kernel\Diagnostics\GCStaticRootMaterializationProbeAuthority.cs|Diagnostics\GCStaticRootMaterializationProbeAuthority.cs'
 )
@@ -5045,14 +5046,14 @@ function Test-M01ActiveSourceSurface {
         }
     }
 
-    # Frozen #76 leaf: original POD authority, bounded allocation and existing NoInlining shim.
+    # Reviewed #76/#82 allocator: original POD authority, bounded allocation records and same-owner reuse.
     # Only this complete reviewed source is admitted; publish hashes remain raw.
     if ([string]::Equals($SourceName,
             '..\OS.Kernel\Runtime\GuestTestRhpNewFast.cs',
             [System.StringComparison]::Ordinal)) {
         $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
         if (-not [string]::Equals($identity,
-                '577c430d9bd28ddc8d6dae83cf3e79b56a37261b428b94de1a91f8b6f3d44379',
+                'e7cd46a4c35de92cb9085f198737916697f7479dd0947fd591e4874aa347617e',
                 [System.StringComparison]::Ordinal)) {
             return [pscustomobject] @{ Succeeded=$false; Reason="forbidden_active_source"; Detail=$SourceName + ":reviewed_rhp_new_fast_source_identity"; ActiveText="" }
         }
@@ -5107,6 +5108,20 @@ function Test-M01ActiveSourceSurface {
                 '16c927badb80ebcdea56485463d0bd043ff985253a60621cee12ea7e7c80b519',
                 [System.StringComparison]::Ordinal)) {
             return [pscustomobject] @{ Succeeded=$false; Reason="forbidden_active_source"; Detail=$SourceName + ":reviewed_gc_static_source_identity"; ActiveText="" }
+        }
+        return [pscustomobject] @{ Succeeded=$true; Reason="ok"; Detail=""; ActiveText=$SourceText }
+    }
+
+    # Reviewed bounded collector leaf imports only the already included POD boot contracts.
+    # Admit this exact path and complete text; raw publish authority stays raw.
+    if ([string]::Equals($SourceName,
+            '..\OS.Kernel\Runtime\BoundedNonMovingCollectorExplicitRootEnumeration.cs',
+            [System.StringComparison]::Ordinal)) {
+        $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
+        if (-not [string]::Equals($identity,
+                '48b0007e97704b6337793682311b6257498e21d8adacaaf44b287fac5b975461',
+                [System.StringComparison]::Ordinal)) {
+            return [pscustomobject] @{ Succeeded=$false; Reason="forbidden_active_source"; Detail=$SourceName + ":reviewed_bounded_collector_source_identity"; ActiveText="" }
         }
         return [pscustomobject] @{ Succeeded=$true; Reason="ok"; Detail=""; ActiveText=$SourceText }
     }
@@ -6750,7 +6765,7 @@ function Test-M01SourceClosure {
 
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "cf526fefd8aee30207cf3e90025fc141125aa8bdc05e646f05bbc2fa5d098dec") {
+        "76e4fa3d78fbddd86c3cda78a99e3e87c026ec890061a1b554854a05c4a45a18") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `
@@ -8799,8 +8814,8 @@ try {
             (Format-EvidenceValue $_.Exception.Message))
         exit 1
     }
-    if ($sourceSnapshotBeforePublish.InputCount -ne 114 -or
-        $sourceSnapshotAfterLock.InputCount -ne 114 -or
+    if ($sourceSnapshotBeforePublish.InputCount -ne 115 -or
+        $sourceSnapshotAfterLock.InputCount -ne 115 -or
         $sourceSnapshotBeforePublish.AggregateSha256 -cne
             $sourceSnapshotAfterLock.AggregateSha256 -or
         $sourceSnapshotBeforePublish.AuthoritySha256 -cne
@@ -8813,7 +8828,7 @@ try {
         exit 1
     }
     Write-Host "EFI_PUBLISH_SOURCE_LOCK status=ok"
-    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=114"
+    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=115"
 
 Write-EfiPreflightLine "EFI_PREFLIGHT_START"
 if ($EnableM04GcStaticRootMaterializationProbe) {

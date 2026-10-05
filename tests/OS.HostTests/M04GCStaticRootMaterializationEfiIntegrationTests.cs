@@ -56,8 +56,8 @@ internal static class M04GCStaticRootMaterializationEfiIntegrationTests
         foreach (string other in flags.Except(Chain.Append(Flag), StringComparer.Ordinal))
             Need(conditions.Count(x => x == "'$(" + Flag + ")' == 'true' and '$(" + other + ")' == 'true'") == 1, "conflict " + other);
         string[] compile = project.Descendants("Compile").Select(x => (string)x.Attribute("Include")!).ToArray();
-        Need(compile.Length == 100 && compile.Distinct(StringComparer.Ordinal).Count() == 100, "unique complete closure");
-        foreach (string file in new[] { @"..\OS.Kernel\Runtime\GCStaticRootsMalformedMetadata.cs", @"Runtime\GCStaticRootMaterializationProbe.cs", @"..\OS.Kernel\Diagnostics\GCStaticRootMaterializationProbeAuthority.cs" })
+        Need(compile.Length == 101 && compile.Distinct(StringComparer.Ordinal).Count() == 101, "unique complete closure");
+        foreach (string file in new[] { @"..\OS.Kernel\Runtime\GCStaticRootsMalformedMetadata.cs", @"Runtime\GCStaticRootMaterializationProbe.cs", @"..\OS.Kernel\Runtime\BoundedNonMovingCollectorExplicitRootEnumeration.cs", @"..\OS.Kernel\Diagnostics\GCStaticRootMaterializationProbeAuthority.cs" })
             Need(compile.Contains(file, StringComparer.Ordinal), "compiled source " + file);
     }
 
@@ -94,7 +94,7 @@ internal static class M04GCStaticRootMaterializationEfiIntegrationTests
         Need(enabled.Exit == 0 && enabled.Error.Length == 0, enabled.Output + enabled.Error);
         string[] Markers(string key) => enabled.Output.Split('\n').Single(x => x.StartsWith(key, StringComparison.Ordinal))[key.Length..].TrimEnd('\r').Split(';', StringSplitOptions.RemoveEmptyEntries);
         string[] required = Markers("REQUIRED_MARKERS "), forbidden = Markers("FORBIDDEN_MARKERS "), ordered = Markers("ORDERED_MARKERS "), unique = Markers("UNIQUE_MARKERS ");
-        Need(ordered.Length == 49 && unique.SequenceEqual(ordered, StringComparer.Ordinal), "complete ordered unique vector");
+        Need(ordered.Length == 59 && unique.SequenceEqual(ordered, StringComparer.Ordinal), "complete ordered unique vector");
         SerialMarkerCompletionResult Stream(string[] lines)
         {
             var state = new SerialMarkerStateMachine(required, forbidden, orderedMarkers: ordered, uniqueMarkers: unique);
@@ -102,7 +102,7 @@ internal static class M04GCStaticRootMaterializationEfiIntegrationTests
             return state.Complete();
         }
         Need(Stream(Lines).Passed, "full GC profile stream");
-        foreach (int index in Enumerable.Range(44, 6))
+        foreach (int index in Enumerable.Range(44, 18))
         {
             Need(!Stream(Lines.Where((_, i) => i != index).ToArray()).Passed, "missing GC stage");
             Need(Stream(Lines.Take(index + 1).Concat(Lines.Skip(index)).ToArray()).DuplicateUniqueOccurrenceCount == 1, "duplicate GC stage");
@@ -172,6 +172,16 @@ internal static class M04GCStaticRootMaterializationEfiIntegrationTests
         M04_GC_ROOT 5 0x0000000000000001 0x0000000000000001 0x000000000DC44020 0x7143B6A952D08E2F
         M04_GC_ROOT 6 0x0000000000000001 0x0000000000000002 0x0000000000000002 0x0000000000000030
         M04_GC_ROOT 8 0x0000000000000005 0x195A86B4C327D0EF 0x62C79E1035AB48D6 0x000000000DE1FF00
+        M04_COLLECT 0 0x000000000DB59330 0x0000000000000020 0x0000000000000008 0x0000000000000008
+        M04_COLLECT 1 0x000000000DC44038 0x000000000DC44058 0x000000000DC44078 0x000000000DC44098
+        M04_COLLECT 2 0x0000000000000001 0x0000000000000004 0x0000000000000002 0x0000000000000040
+        M04_COLLECT 3 0x000000000DC44078 0x000000000DC44078 0x0000000000000005 0x0000000000000007
+        M04_COLLECT 4 0x0000000000000001 0x0000000000000002 0x0000000000000003 0x0000000000000058
+        M04_COLLECT 5 0x0000000000000001 0x0000000000000001 0x0000000000000001 0x0000000000000020
+        M04_COLLECT 6 0x0000000000000001 0x0000000000000002 0x0000000000000000 0x0000000000000000
+        M04_COLLECT 7 0x000000000DC44020 0x00000000000000B0 0x0000000000000008 0x0000000000000007
+        M04_COLLECT 8 0x000000000000000A 0x195A86B4C327D0EF 0x62C79E1035AB48D6 0x000000000DE1FE00
+        CLROS_M04_013_READY
         TEST_START boot.sequence
         BOOT_PHASE PhaseA.Audit START
         BOOT_PHASE PhaseA.Audit PASS
@@ -203,16 +213,17 @@ internal static class M04GCStaticRootMaterializationEfiIntegrationTests
         }
         Check $good $true
         $lines=$good.Split(@("`r`n"),[StringSplitOptions]::RemoveEmptyEntries)
-        foreach($i in 44..51) {
-            Check ((@($lines[0..($i-1)])+@($lines[($i+1)..59]) -join "`r`n")+"`r`n") $false
-            Check ((@($lines[0..$i])+@($lines[$i..59]) -join "`r`n")+"`r`n") $false
+        foreach($i in 44..60) {
+            Check ((@($lines[0..($i-1)])+@($lines[($i+1)..69]) -join "`r`n")+"`r`n") $false
+            Check ((@($lines[0..$i])+@($lines[$i..69]) -join "`r`n")+"`r`n") $false
             $bad=$lines.Clone();$bad[$i]+=' ';Check (($bad -join "`r`n")+"`r`n") $false
         }
-        foreach($case in @(@(44,2),@(44,4),@(45,2),@(45,3),@(45,4)) + @(foreach($i in 46..51){foreach($j in 2..5){,@($i,$j)}})) {
+        foreach($case in @(@(44,2),@(44,4),@(45,2),@(45,3),@(45,4)) + @(foreach($i in 46..60){foreach($j in 2..5){,@($i,$j)}})) {
             $bad=$lines.Clone();$words=$bad[$case[0]].Split(' ')
             $words[$case[1]]='0xFFFFFFFFFFFFFFFF';$bad[$case[0]]=$words -join ' '
             Check (($bad -join "`r`n")+"`r`n") $false
         }
+        Check ($good.Replace('CLROS_M04_013_READY','CLROS_M04_013_NOT_READY')) $false
         Check ($good.Replace('M04_GC_ROOT 6','M04_GC_ROOT 255')) $false
         Check ($good.Replace('M04_GC_ROOT 5','M04_GC_ROOT 2')) $false
         Check ($good+"TEST_FAIL hidden`r`n") $false

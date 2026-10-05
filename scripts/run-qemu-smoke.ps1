@@ -508,6 +508,8 @@ $script:M04ManagedHeapPageRangeForbiddenMarkers = @(
 $script:M04GcStaticRootRequiredMarkers = @(
     $script:M04ManagedHeapPageRangeRequiredMarkers[0..($script:M04ManagedHeapPageRangeRequiredMarkers.Count - 9)]
     foreach ($stage in @(0,1,7,3,4,5,6,8)) { "M04_GC_ROOT $stage" }
+    foreach ($stage in 0..8) { "M04_COLLECT $stage" }
+    "CLROS_M04_013_READY"
     $script:M04ManagedHeapPageRangeRequiredMarkers[($script:M04ManagedHeapPageRangeRequiredMarkers.Count - 8)..($script:M04ManagedHeapPageRangeRequiredMarkers.Count - 1)]
 )
 $script:M04RhpNewFastReadyMarker = 'CLROS_M04_007_READY objects=10 compiledNew=4 direct=6 hostConformance=false guestIntegrated=true gate4=Fail'
@@ -1890,7 +1892,7 @@ function Assert-M02UnexpectedVectorPanicPrefix {
 function Assert-M04ManagedHeapPageRangeTranscript {
     param([string] $SerialLogPath, [switch] $IncludeFixedAllocation, [switch] $IncludeArrayAllocation, [switch] $IncludeStringAllocation, [switch] $IncludeCheckedReferences, [switch] $IncludeGcStatics)
     if (([int][bool]$IncludeFixedAllocation + [int][bool]$IncludeArrayAllocation + [int][bool]$IncludeStringAllocation + [int][bool]$IncludeCheckedReferences + [int][bool]$IncludeGcStatics) -gt 1) { throw 'm04_allocation_profile_collision' }
-    $lineCount = if ($IncludeGcStatics) { 60 } elseif ($IncludeCheckedReferences) { 71 } elseif ($IncludeStringAllocation) { 72 } elseif ($IncludeArrayAllocation) { 68 } elseif ($IncludeFixedAllocation) { 78 } else { 52 }
+    $lineCount = if ($IncludeGcStatics) { 70 } elseif ($IncludeCheckedReferences) { 71 } elseif ($IncludeStringAllocation) { 72 } elseif ($IncludeArrayAllocation) { 68 } elseif ($IncludeFixedAllocation) { 78 } else { 52 }
     $path = if ([IO.Path]::IsPathRooted($SerialLogPath)) { $SerialLogPath } else { Join-Path $root $SerialLogPath }
     # No BOM sniffing, trimming, Unicode folding or control removal for acceptance.
     $text = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($path))
@@ -1935,8 +1937,9 @@ function Assert-M04ManagedHeapPageRangeTranscript {
     $referenceRecords = @()
     $gcRecords = @()
     if ($IncludeGcStatics) {
-        $gcRecords = @($captured.GetRange(44,8))
-        $captured.RemoveRange(44,8)
+        $gcRecords = @($captured.GetRange(44,17))
+        if ($captured[61] -cne 'CLROS_M04_013_READY') { throw 'm04_collector_ready' }
+        $captured.RemoveRange(44,18)
     }
     if ($IncludeCheckedReferences) {
         $referenceRecords = @($captured.GetRange(44,19))
@@ -2086,7 +2089,7 @@ function Assert-M04ManagedHeapPageRangeTranscript {
 
 function Assert-M04GcStaticRootRecords {
     param([string[]] $Lines, [hashtable] $Heap)
-    if ($Lines.Count -ne 8) { throw 'm04_gc_static_record_count' }
+    if ($Lines.Count -ne 17) { throw 'm04_gc_static_record_count' }
     $records = @()
     $stages = @(0,1,7,3,4,5,6,8)
     for ($i=0; $i -lt 8; $i++) {
@@ -2136,6 +2139,43 @@ function Assert-M04GcStaticRootRecords {
             throw 'm04_gc_static_stack_overlap'
         }
     }
+
+    # The compiler-object graph extends this same retained heap and static root.
+    # Exact geometry/counts come from the finite diagnostic, not arbitrary GC support.
+    $collector = @()
+    for ($i=0; $i -lt 9; $i++) {
+        $match=[regex]::Match($Lines[8+$i], '\AM04_COLLECT '+$i+' (0x[0-9A-F]{16}) (0x[0-9A-F]{16}) (0x[0-9A-F]{16}) (0x[0-9A-F]{16})\z')
+        if (-not $match.Success) { throw ('m04_collector_record_shape_'+$i) }
+        $fields=@()
+        for ($j=1; $j -le 4; $j++) {
+            $number=[UInt64]0
+            if (-not [UInt64]::TryParse($match.Groups[$j].Value.Substring(2),
+                [Globalization.NumberStyles]::AllowHexSpecifier,
+                [Globalization.CultureInfo]::InvariantCulture,[ref]$number)) { throw 'm04_collector_number' }
+            $fields+=$number
+        }
+        $collector+=,$fields
+    }
+    $map=$collector[0]; $nodes=$collector[1]; $reuse=$collector[3]; $final=$collector[7]; $last=$collector[8]
+    if ($map[0] % 8 -ne 0 -or [decimal]$map[0] -lt [decimal]$image[0] -or
+        [decimal]$map[0]+24 -gt $imageEnd -or $map[0] -eq $value[1] -or
+        $map[1] -ne 32 -or $map[2] -ne 8 -or $map[3] -ne 8) { throw 'm04_collector_type' }
+    for ($i=0; $i -lt 4; $i++) {
+        if ([decimal]$nodes[$i] -ne [decimal]$Heap.retainedStart+56+32*$i) { throw 'm04_collector_graph' }
+    }
+    foreach ($expected in @(@(2,1,4,2,64),@(4,1,2,3,88),@(5,1,1,1,32),@(6,1,2,0,0))) {
+        for ($j=0; $j -lt 4; $j++) {
+            if ($collector[$expected[0]][$j] -ne $expected[$j+1]) { throw 'm04_collector_collection' }
+        }
+    }
+    if ($reuse[0] -ne $nodes[2] -or $reuse[1] -ne $reuse[0] -or
+        $reuse[2] -ne 5 -or $reuse[3] -ne 7 -or $final[0] -ne $value[0] -or
+        $final[1] -ne 176 -or $final[2] -ne 8 -or $final[3] -ne 7 -or
+        [decimal]$Heap.retainedStart+176 -gt [decimal]$Heap.retainedEnd) { throw 'm04_collector_reuse' }
+    if ($last[0] -ne 10 -or $last[1] -ne $checked[1] -or $last[2] -ne $checked[2] -or
+        $last[3] % 8 -ne 0 -or $last[3] -gt $checked[3] -or
+        [decimal]$last[3] -lt [decimal]$stack[0]+16+16384 -or
+        [decimal]$last[3]+8 -gt [decimal]$stack[2]) { throw 'm04_collector_stack' }
 
 }
 
@@ -7108,7 +7148,7 @@ $rhpReason = $arrayReason
     }
     if (-not $EnableM04GcStaticRootMaterializationProbe) {
         foreach ($marker in @($requiredMarkers; $orderedMarkers; $uniqueMarkers)) {
-            if ($marker -cmatch '^M04_GC_ROOT(?: |$)') { Write-Host 'TEST_FAIL qemu.smoke m04_gc_static_requires_explicit_profile'; exit 1 }
+            if ($marker -cmatch '^(?:M04_GC_ROOT|M04_COLLECT|CLROS_M04_013_READY)(?: |$)') { Write-Host 'TEST_FAIL qemu.smoke m04_gc_static_requires_explicit_profile'; exit 1 }
         }
     }
     if (-not $EnableM04TypeManagerModuleRegistrationProbe) {

@@ -10315,7 +10315,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement a bounded non-moving collector with explicit root enumeration.",
-      "currentEvidence": "Steps1005-1009 and draft PR553 implement bounded synchronous fixed-object collection, original-owner tracing/sweep/reuse and stale-receipt rejection. Focused host compatibility checks pass; an isolated development NativeAOT/QEMU run reaches70program records including CLROS_M04_013_READY. Development native review verifies the164-method first-party graph at13688bytes below its entry, within the16KiB diagnostic allowance. Official producer admission/strict profile integration, final native association and common/guest acceptance remain pending under #552 after #551 releases the shared lane. This is not general stack-root/concurrent collection or runtime-gate completion.",
+      "currentEvidence": "Steps1005-1009 implement bounded explicit-root collection, authoritative allocation records, atomic sweep and same-owner reuse, with focused host and development QEMU/native proof. Step1011 adds official EFI source admission and strict70-record GC parsing after PR549/550. The original focused fixture, solution build and enabled publisher preflight pass with101 Compile/115 raw inputs. Full integrated suite, official fresh captures and final native association remain required; #82/#552 stay claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Implement a bounded non-moving collector with explicit root enumeration.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
