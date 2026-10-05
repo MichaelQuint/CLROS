@@ -3781,6 +3781,22 @@ evidence remain separate. This is pre-firmware-exit retention only; no
 post-exit random generator, entropy-quality guarantee or secure-erasure claim
 follows. #541/#60 remain open and #61 remains blocked.
 
+[Step986](../done/step986.md) accepts the subsequent clean `8942ab7` full
+suite and three fresh QEMU/OVMF captures. The provider-present path discovers
+the real protocol, calls GetRNG once successfully, retains 32 bytes, clears 32
+requested scratch bytes and publishes last. The same enabled EFI image with
+the missing-device configuration observes EFI_NOT_FOUND (9223372036854775822),
+zero GetRNG calls, unchanged retained storage and no publication. Its exact
+failure suffix is followed by 764.127 ms of measured quiet while QEMU remains
+live, then owned termination and EOF. The ordinary runner still classifies
+that captured failure as failure.
+
+These results satisfy the bounded pre-exit entropy-retention boundary for
+#60/#541 after reviewed integration. They permit #61's typed adapter work;
+ordering, retry and the first actual ExitBootServices transition remain later
+slices. No seed value or derivative is logged, and no randomness quality,
+post-firmware service or physical secure-erasure guarantee follows.
+
 Existing guard markers:
 
 ```text

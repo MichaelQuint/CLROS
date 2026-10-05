@@ -1018,8 +1018,9 @@ full suite now passes on `854a335` with 3,670 starts/3,671 passes/zero failures
 progress is recorded in [step977](../done/step977.md). [Step981](../done/step981.md)
 accepts the later two-word/five-check live executing-stack evidence and compiled
 8,456-byte local bound within the 16 KiB admission ceiling. PR540 merged at
-`f3b4c83`; #79/#537 closed with evidence and #80 is now claimed. Its host-only
-metadata contract is recorded in [step983](../done/step983.md). Gates3/4 remain
+`f3b4c83`; #79/#537 closed with evidence and #80 was claimed. Its host-only
+metadata contract is recorded in [step983](../done/step983.md), followed by the
+bounded native/QEMU acceptance in [step989](../done/step989.md). Gates3/4 remain
 **Fail**.
 
 ### M02-014 source integration and terminal guest boundary
@@ -1656,6 +1657,22 @@ raw103 input changed. This is regression evidence only: fresh final-head common
 and default/provider-present/provider-missing captures remain required before
 the entropy issues or their dependent #61 can advance.
 
+[Step986](../done/step986.md) supplies the later accepted `8942ab7` tuple:
+the full suite passes 3,713 starts/3,714 passes/zero failures with one terminal
+and 16 READY lines; fresh default/provider-present/provider-missing QEMU
+captures pass independent raw, lifecycle, native/source and disk reviews.
+The positive path has 27 records and retains/clears 32 bytes. The identical
+enabled image's missing-provider path has 19 records, actual EFI_NOT_FOUND,
+zero GetRNG calls, unchanged retention and unpublished state, followed by
+764.127 ms measured live quiet and verified EOF/cleanup. Ordinary successful
+captures retain their configured drain policy; no measured quiet is inferred
+for those lanes. Exact firmware disk changes are fully accounted.
+
+This accepts only M03-003's bounded pre-exit seed-retention requirement.
+The catalog requests #60 done and #61 ready after evidence-qualified merge
+and tracker readback. Actual firmware exit, retry, post-exit access, general
+randomness, hosted .NET/Kestrel and cloud gates remain incomplete.
+
 The historical reference capture did not satisfy the live executing-stack
 requirement. [Step979](../done/step979.md) added the original-stack sentinel;
 [step981](../done/step981.md) now accepts its fresh `5d894c8` common and guest
@@ -1671,7 +1688,7 @@ with evidence and #80 was claimed. No general GC, real
 ExitBootServices, post-firmware access, hosted .NET/Kestrel or cloud support
 follows. Gates3/4/5 and the containing milestones remain incomplete.
 
-### M04-011 metadata host prerequisite
+### M04-011 bounded current-image metadata registration
 
 [Step983](../done/step983.md) supplies the bounded one-module loaded-image
 decoder, separate TypeManager ABI record, one-shot registration and validated
@@ -1688,12 +1705,10 @@ private state 272, result 40 and slot 16. These checks do not execute a native
 image or QEMU. The omitted inert harness dependency in the first compilation
 and its successful unchanged-source retry remain recorded.
 
-#80 stays open/claimed until the shared EFI integration proves current-image
-discovery, registration and a consumer with actual native and QEMU evidence.
-Full common-suite acceptance is also pending for this new contract. #81 root
-enumeration and #82 collection remain blocked. The TypeManager ledger is still
-Deferred; Gates3/4, general runtime, real ExitBootServices, hosted .NET 10,
-Kestrel and cloud readiness remain incomplete.
+Step983 alone did not complete #80; the later step989 evidence below supplies
+the shared EFI integration, full common suite and real QEMU consumer. The
+TypeManager ledger is still Deferred; Gates3/4, general runtime, real
+ExitBootServices, hosted .NET 10, Kestrel and cloud readiness remain incomplete.
 
 [Step985](../done/step985.md) implements the separate default-off current-image
 EFI adapter and 45-record protocol. Its complete managed batch passes
@@ -1703,15 +1718,36 @@ and the final artifact verifier. The whole five-group EFI initializer passes
 normal HostTests Release build also passes. The first failed managed attempt
 and exact-path/full-hash source-admission correction are retained in the step.
 
-These focused results do not complete #544 or #80. Actual native metadata,
-write ordering and stack analysis, the full common suite and fresh guest
-captures remain pending. #81/#82 and the containing runtime gates remain
-blocked/incomplete; no hosted .NET/Kestrel or cloud claim follows.
+These focused results alone did not complete #544 or #80. Step989 supplies
+the subsequent independent native and guest reviews; no hosted .NET/Kestrel
+or cloud claim follows.
 
 [Step987](../done/step987.md) preserves the failed first full common run and
 repairs four legacy raw-project hash expectations for the TypeManager source
 closure. All four complete original initializers pass 27 starts/28 passes/zero
 failures, including both UD2 publication paths. The 106 native inputs remain
 unchanged. Independent offline native analysis has separately accepted the
-focused TypeManager image; the repaired clean-head full suite and fresh guest
-captures are still required. #544/#80 remain incomplete and #81 remains blocked.
+focused TypeManager image.
+
+[Step989](../done/step989.md) completes the scoped #544/#80 milestone. At
+`34bd75c`, the complete common suite passes 3733 starts/3734 passes/zero failures
+with one host terminal and 17 selected readiness records. Sources and all five
+launch binaries remain unchanged. Actual common and guest native files match
+the independently accepted emitted-code/ABI/write-order/stack proof in full.
+
+Fresh ordinary-runner default and TypeManager QEMU captures are accepted after
+independent raw/lifecycle/provenance, numeric native association and disk
+accounting reviews. The executing image's one RTR16.0 module has 31 rows;
+registration requires 1824 bytes in 4096-byte storage and publishes a 48-byte
+ABI through the 16-byte slot. A slot-derived consumer reads all six ABI words.
+The 45 ordered unique enabled records include capacity, repeat and foreign
+rejections, present-empty/missing section distinction and retained readback.
+Default boot also passes. All changed disk bytes are accounted for; pristine
+images were reconstructed after capture, not observed before launch.
+
+This releases #81 GC static-root materialization as the next dependency step.
+#82 remains blocked on that unimplemented work. The general `TypeManagerRtrScans`
+ledger remains Deferred, and Gates3/4 remain **Fail**. There is no upstream
+runtime registry, GC/static initialization, collection, hosted .NET/Kestrel,
+real ExitBootServices or cloud-readiness acceptance. Tail canaries are internal
+post-registration checks; no external RAM or numeric guest stack proof follows.

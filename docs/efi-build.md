@@ -2438,6 +2438,23 @@ both NativeAOT publications. The original capture remains failed; the missing
 lane did not run. A new final-head common suite and three fresh captures remain
 required. No seed values or entropy-quality claims are added.
 
+[Step986](../done/step986.md) records the later successful three-lane capture
+from accepted common head `8942ab7`. The positive image uses the exact 251-byte
+suffix above and all 27 owned records. The missing-provider capture reuses
+the complete enabled EFI bytes, emits 19 owned records ending in the expected
+failure, and has no firmware suffix. Its separate capture-only observer proves
+764.127 ms of quiet while the process remains live, then owned termination and
+EOF. The unchanged ordinary streamer rejects its TEST_FAIL record.
+
+All seven archived native/managed files per lane match the reviewed common
+publications. The only sidecar differences are the exact output path and
+timestamp, bound to each actual publication; the missing lane inherits the
+positive publication. Independent disk accounting verifies the EFI payload,
+GPT/FAT/FSInfo and all firmware NVVARS changes. Ordinary pristine images were
+reconstructed after capture; the missing lane also retains its actual
+prelaunch pristine image. None of this proves real ExitBootServices or a
+post-firmware random service.
+
 ### M04-011 opt-in current-image module registration
 
 `EnableM04TypeManagerModuleRegistrationProbe` adds a mutually exclusive,
@@ -2463,10 +2480,10 @@ registration; they are internal checks, not external guards or a stack probe.
 [Step985](../done/step985.md) records the complete eleven-module managed batch
 (194 starts/195 passes/zero failures), the complete five-group EFI initializer
 (5 starts/6 passes/zero failures), both default/enabled NativeAOT publications
-and a successful normal HostTests Release build. These are focused host and
-publication results. Current emitted-code/ABI/stack review, the complete common
-suite and fresh default/enabled QEMU captures remain required. No GC-static
-initialization, root enumeration, collecting GC or hosted runtime is accepted.
+and a successful normal HostTests Release build. These were focused host and
+publication results; step989 below records the subsequent common, native and
+guest acceptance. No GC-static initialization, root enumeration, collecting GC
+or hosted runtime is accepted.
 
 [Step987](../done/step987.md) corrects four legacy fixtures that compare the
 complete raw OS.csproj bytes. They now expect SHA256
@@ -2474,4 +2491,30 @@ complete raw OS.csproj bytes. They now expect SHA256
 for the existing TypeManager closure. Their original assertions and complete
 initializers are retained; the focused regression passes 27 starts/28 passes/
 zero failures. No EFI input or profile behavior changed. The first full common
-failure remains recorded and requires a new clean-head full-suite run.
+failure remains recorded.
+
+[Step989](../done/step989.md) accepts the finite one-module adapter at tested
+commit `34bd75c`: the complete common suite passes 3733 starts/3734 passes/zero
+failures, and independent native, raw serial/lifecycle/provenance, numeric
+association and disk reviews accept fresh default and TypeManager QEMU captures.
+The executing image supplies one RTR16.0 module with 31 rows. Registration uses
+1824 of 4096 admitted bytes, publishes the separate 48-byte ABI through the
+16-byte slot, and a real slot-derived consumer reads all six ABI words. The
+45 ordered unique records include the rejection paths and end at the expected
+terminal record. General TypeManager/runtime support remains deferred.
+
+The accepted guest commands used the ordinary runner, `-BuildEfi`, a 30-second
+QEMU timeout, and explicit fresh artifact/image/serial/summary paths. The
+enabled command additionally used both switches below; the default command
+used neither:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 -BuildEfi -EnableM04TypeManagerModuleRegistrationProbe -EnableM01LoadedImageStackProbe -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30
+```
+
+Both wrappers returned zero; QEMU was runner-terminated with signed exit -1.
+The 750ms quiet interval is configured, not independently measured. Pristine
+disk images were reconstructed after capture; all changed disk bytes were
+accounted for as OVMF NVVARS/FAT bookkeeping. Internal tail canaries were
+initialized after registration; no external RAM oracle or numeric guest stack
+canary measurement is claimed.

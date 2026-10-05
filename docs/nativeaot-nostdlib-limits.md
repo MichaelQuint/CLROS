@@ -240,7 +240,7 @@ allocation, GC, dispatch, exception or runtime-completion requirements.
 | Thread statics | Deferred | Ledger entry `ThreadStatics`; no TLS bootstrap or NativeAOT thread-static base helper exists |
 | Exception handling/unwind | Deferred | Ledger entry `ExceptionUnwind`; throw helpers halt and catch/finally/unwind are not implemented |
 | Module initialization | Deferred | Ledger entry `ModuleInitialization`; no kernel/runtime module initialization helper behavior is implemented |
-| TypeManager/RTR scans | Deferred | Ledger entry `TypeManagerRtrScans`; step983 adds a host-tested one-module owner, while live registration and hosted runtime metadata scanning remain unaccepted |
+| TypeManager/RTR scans | Deferred | Ledger entry `TypeManagerRtrScans`; step989 accepts one bounded current-image module and slot-derived consumer in QEMU, while general registry/scanning and hosted runtime support remain unaccepted |
 | GC stack roots | Deferred | Ledger entry `GcStackRoots`; stack-root registration/scanning helpers are not implemented |
 | EFI reverse P/Invoke helpers | EFI-only link stubs | Ledger entry `EfiReversePInvoke`; `RhpReversePInvoke`, `RhpReversePInvokeReturn`, `RhpPInvoke`, and `RhpPInvokeReturn` exist only in the EFI shim and do not satisfy Gate 4 |
 | EFI type-cast helpers | EFI-only fail-fast stubs | Ledger entry `EfiFailFastTypeCasts`; `RhpFallbackFailFast` and `RhTypeCast_*` helpers halt and do not satisfy kernel/runtime completion |
@@ -1378,7 +1378,7 @@ usage or arbitrary firmware/interrupt stack safety. No collecting GC,
 wider-vector preservation, unwind support, real ExitBootServices or hosted
 runtime is claimed; Gates3/4 remain **Fail**.
 
-### M04-011 one-module metadata host contract
+### M04-011 one-module metadata registration
 
 [Step983](../done/step983.md) adds
 `TypeManagerModuleMetadataLiveNativeAOTImage`: an allocation-free, status-coded
@@ -1405,11 +1405,11 @@ Release build also passes. The first focused build failed because its ignored
 harness omitted an existing helper-source dependency; the retry linked that
 unchanged source without invoking its initializer or changing product code.
 
-This is host and managed-compilation evidence only. #80 remains open/claimed;
-the shared EFI supplement must discover and register the actual current image,
-exercise a real consumer, and produce fresh native/QEMU evidence. The upstream
-runtime registry, GC/static initialization, TLS, cctors, roots, collection,
-concurrency and hardware-fault rollback are not implemented by this contract.
+Step983 is host and managed-compilation evidence only. The subsequent step989
+acceptance discovers and registers the actual current image and exercises a
+slot-derived consumer in QEMU. The upstream runtime registry, GC/static
+initialization, TLS, cctors, roots, collection, concurrency and hardware-fault
+rollback are not implemented by this contract.
 Callers retain actual mapping and lifetime obligations; numeric admission is
 not a mapping probe. `TypeManagerRtrScans` remains Deferred and Gates3/4 remain
 **Fail**; #81/#82 and hosted .NET/Kestrel remain unaccepted.
@@ -1425,7 +1425,20 @@ without relaxing generic source guards.
 The full eleven-module managed batch passes 194 starts/195 passes/zero failures;
 the complete five-group native integration initializer passes 5 starts/6 passes
 with actual default/enabled publications. Both builds and the normal HostTests
-Release build succeed. This does not establish emitted native layout, stack
-safety or guest registration: independent image analysis, clean-head common
-validation and fresh QEMU evidence remain pending. The runtime ledger stays
-Deferred and the preceding unsupported-feature boundaries remain unchanged.
+Release build succeed. These focused checks are followed by the independently
+reviewed [step989](../done/step989.md) milestone: full common validation at
+`34bd75c` passes 3733 starts/3734 passes/zero failures, and fresh default and
+TypeManager QEMU captures pass the raw/lifecycle/provenance, native association
+and disk reviews. All seven complete native files per profile match the
+accepted emitted-code proof. The enabled image uses 1824 bytes of its 4096-byte
+owner buffer, one RTR16.0 module with 31 rows, a separate 48-byte ABI and the
+full 16-byte slot; the real slot-derived consumer reads all six ABI words.
+
+The accepted static stack bound is 16159 bytes including the entry allowance,
+within the 135168-byte usable owned stack; firmware/interrupt depth is excluded.
+This is emitted-code analysis, not an observed guest stack-top/canary number.
+The enabled transcript contains 45 ordered unique records and immediate EOF;
+its tail canaries are initialized after registration. These finite results
+complete #544/#80 and unblock #81, while #82 still depends on GC-static roots.
+The runtime ledger stays Deferred and the preceding unsupported-feature
+boundaries remain unchanged.
