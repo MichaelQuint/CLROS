@@ -13,6 +13,9 @@ public struct FirstExitImageReferences
     public ulong AdapterState, AdapterStateBytes;
     public ulong AllocatorState, AllocatorStateBytes;
     public ulong CopiedAcpi, CopiedAcpiBytes;
+    // Optional in host-only compositions. The EFI adapter must retain its
+    // original installed NativeAOT stack-probe page, outside the loaded image.
+    public ulong RuntimeSupportCode, RuntimeSupportCodeBytes;
 }
 
 public enum FirstExitDiagnosticStatus : uint
@@ -161,7 +164,7 @@ public static unsafe class FirstExitPostExitDiagnostics
 public static unsafe class FirstExitRetainedMappings
 {
     public const ulong MaximumRanges = FirstExitImageMappings.MaximumSections + 1 +
-        FirstExitOwnedArena.MappingRangeCount + 2;
+        FirstExitOwnedArena.MappingRangeCount + 3;
     private const ulong LowEnd = 0x0000800000000000;
     private const PageProtection Data = PageProtection.Read | PageProtection.Write;
     private const PageProtection Code = PageProtection.Read | PageProtection.Execute;
@@ -193,6 +196,9 @@ public static unsafe class FirstExitRetainedMappings
             !allocator.IsInitialized || allocator.Protection != Data || allocator.CachePolicy != PageCachePolicy.WriteBack ||
             allocator.PageCount == 0 || allocator.PageCount > SeparateDisabledDefaultPageFaultPageTables.MaximumRetainedRangePages ||
             allocator.Start < 4096 || (allocator.Start & 4095) != 0 || allocator.Start >= LowEnd - allocator.PageCount * 4096 ||
+            (references.RuntimeSupportCode == 0 ? references.RuntimeSupportCodeBytes != 0 :
+                references.RuntimeSupportCodeBytes != 4096 || (references.RuntimeSupportCode & 4095) != 0 ||
+                references.RuntimeSupportCode >= LowEnd - 4096) ||
             SeparateDisabledDefaultPageFaultPageTables.ValidateRequest(tables) != SeparatePageFaultPageTableStatus.Success ||
             tables.ArenaStart.TryGetRawValueForHardwareRegisterBoundary(out ulong root) != AddressValueStatus.Success ||
             root >= 0x100000000UL - tables.ArenaPageCount * 4096 ||
@@ -213,14 +219,16 @@ public static unsafe class FirstExitRetainedMappings
             if ((ulong)state < references.AdapterState || references.AdapterStateBytes < (ulong)sizeof(FirstExitOwnedArenaState) ||
                 (ulong)state - references.AdapterState > references.AdapterStateBytes - (ulong)sizeof(FirstExitOwnedArenaState)) return false;
 
-        ulong* starts = stackalloc ulong[5];
-        ulong* lengths = stackalloc ulong[5];
+        ulong* starts = stackalloc ulong[6];
+        ulong* lengths = stackalloc ulong[6];
         starts[0] = pending[0].Start; lengths[0] = capture.Range.ImageSize;
         starts[1] = (ulong)arena.Storage; lengths[1] = FirstExitOwnedArena.Bytes;
         starts[2] = (ulong)code; lengths[2] = FirstExitCodeBundle.Bytes;
         starts[3] = allocator.Start; lengths[3] = allocator.PageCount * 4096;
         starts[4] = root; lengths[4] = tables.ArenaPageCount * 4096;
-        for (int i = 0; i < 5; i++) for (int j = 0; j < i; j++)
+        int allocations = references.RuntimeSupportCode == 0 ? 5 : 6;
+        starts[5] = references.RuntimeSupportCode; lengths[5] = references.RuntimeSupportCodeBytes;
+        for (int i = 0; i < allocations; i++) for (int j = 0; j < i; j++)
             if (FirstExitDescriptors.Overlaps(starts[i], lengths[i], starts[j], lengths[j])) return false;
 
         if (!FirstExitOwnedArena.WriteMappingRanges(ref arena, pending + count,
@@ -228,12 +236,13 @@ public static unsafe class FirstExitRetainedMappings
         count += arenaCount;
         pending[count++] = new SeparatePageFaultMappingRange((ulong)code, FirstExitCodeBundle.Bytes / 4096, Code);
         pending[count++] = allocator;
+        if (allocations == 6) pending[count++] = new SeparatePageFaultMappingRange(references.RuntimeSupportCode, 1, Code);
         ulong totalPages = 0;
         for (ulong i = 0; i < count; i++) totalPages += pending[i].PageCount;
         ulong outputBytes = count * (ulong)sizeof(SeparatePageFaultMappingRange);
         if (capacity < count || totalPages > SeparateDisabledDefaultPageFaultPageTables.MaximumRetainedMappedPages ||
             (ulong)ranges >= LowEnd - outputBytes) return false;
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < allocations; i++)
         {
             if (i == 1 && FirstExitOwnedArena.InMainStack(arena, (ulong)ranges, outputBytes)) continue;
             if (FirstExitDescriptors.Overlaps((ulong)ranges, outputBytes, starts[i], lengths[i])) return false;

@@ -258,7 +258,7 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             SeparatePageFaultMappingRange* output = stackalloc SeparatePageFaultMappingRange[(int)FirstExitRetainedMappings.MaximumRanges];
             new Span<byte>(output, (int)FirstExitRetainedMappings.MaximumRanges * sizeof(SeparatePageFaultMappingRange)).Fill(0xa5);
             byte[] before = new ReadOnlySpan<byte>(output, (int)FirstExitRetainedMappings.MaximumRanges * sizeof(SeparatePageFaultMappingRange)).ToArray();
-            for (int failure = 0; failure < 6; failure++)
+            for (int failure = 0; failure < 11; failure++)
             {
                 var candidate = references;
                 var range = backing;
@@ -267,6 +267,12 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 if (failure == 2) candidate.CopiedAcpiBytes = 3 * 4096;
                 if (failure == 3) range = new((ulong)code, 2, PageProtection.Read | PageProtection.Write);
                 if (failure == 4) range = new(0x100000, 2, PageProtection.Read | PageProtection.Write);
+                if (failure == 6) candidate.RuntimeSupportCodeBytes = 4096;
+                if (failure >= 7) { candidate.RuntimeSupportCode = 0x500000; candidate.RuntimeSupportCodeBytes = 4096; }
+                if (failure == 7) candidate.RuntimeSupportCodeBytes = 8192;
+                if (failure == 8) candidate.RuntimeSupportCode++;
+                if (failure == 9) candidate.RuntimeSupportCode = imageData;
+                if (failure == 10) candidate.RuntimeSupportCode = 0x100000;
                 Need(!FirstExitRetainedMappings.WriteRanges(ref arena, code, capture, mapping, candidate, range, tables,
                     output, failure == 5 ? 1UL : FirstExitRetainedMappings.MaximumRanges, out ulong refused) && refused == 0 &&
                     before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(output, before.Length)), "inventory refuses without writes " + failure);
@@ -280,6 +286,13 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 !new ReadOnlySpan<byte>(output + count, (int)(FirstExitRetainedMappings.MaximumRanges - count) * sizeof(SeparatePageFaultMappingRange))
                     .ContainsAnyExcept((byte)0xa5), "complete inventory and untouched capacity tail");
             VerifyRetainedArenaImage(arena.Storage, output, count, FirstExitRetainedMappings.MaximumRanges, 109);
+            references.RuntimeSupportCode = 0x500000;
+            references.RuntimeSupportCodeBytes = 4096;
+            Need(FirstExitRetainedMappings.WriteRanges(ref arena, code, capture, mapping, references, backing, tables,
+                output, FirstExitRetainedMappings.MaximumRanges, out count) && count == 12 &&
+                output[11].Start == 0x500000 && output[11].PageCount == 1 &&
+                output[11].Protection == (PageProtection.Read | PageProtection.Execute), "retain original runtime helper RX page");
+            VerifyRetainedArenaImage(arena.Storage, output, count, FirstExitRetainedMappings.MaximumRanges, 110);
             VerifyPostExitReport(ref arena, code, capture, mapping, references, backing, output, count);
         }
         finally { NativeMemory.AlignedFree(allocator); }
