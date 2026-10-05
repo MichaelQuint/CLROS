@@ -2601,3 +2601,8 @@ yet included in the EFI project or runner, and adds no switch or guest claim.
 source hashes, both IDTR profile exclusions and the shared stack getter guard.
 Production inputs and the accepted native review are unchanged; full combined
 and final guest acceptance remain pending.
+
+[Step1001](../done/step1001.md) prepares M03-006's bounded stale-key retry
+coordinator over the single final-map/exit window. Its eight-source no-stdlib
+closure has zero AssemblyRefs. It is not linked into the EFI project and adds
+no profile, firmware transition or guest acceptance claim.

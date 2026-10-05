@@ -4367,6 +4367,18 @@ is implemented. [Step999](../done/step999.md) records focused host and no-stdlib
 compile evidence only; M03-005 remains blocked on M03-004 acceptance and still
 needs live EFI integration and QEMU evidence.
 
+The preparatory M03-006 `BoundedRetryStaleKeyStatus` coordinator composes at
+most two such windows with separate retained states and the same owned buffer.
+Only a returned exit call with exact `EFI_INVALID_PARAMETER` permits another
+capture. Capture/admission/metadata failures and other exit statuses stop;
+the loop neither grows the buffer nor exposes allocation or logging callbacks.
+The result distinguishes windows started from actual exit calls and retains
+the final window result. The outer state prevents reentry/reuse and cannot
+overlap the map buffer. [Step1001](../done/step1001.md) records focused host and
+no-stdlib compilation only. This is preparatory work over M03-005; neither issue
+has firmware acceptance, and firmware access invalidation remains the caller's
+responsibility after any future real successful exit.
+
 1. Treat the accepted M01-026 tuple as the bounded M01 milestone exit and begin
    M02 diagnostics work after tracker review/synchronization. Keep real
    `ExitBootServices` blocked until owned serial, descriptor tables, fault
