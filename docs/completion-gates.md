@@ -1654,6 +1654,22 @@ raw103 input changed. This is regression evidence only: fresh final-head common
 and default/provider-present/provider-missing captures remain required before
 the entropy issues or their dependent #61 can advance.
 
+[Step986](../done/step986.md) supplies the later accepted `8942ab7` tuple:
+the full suite passes 3,713 starts/3,714 passes/zero failures with one terminal
+and 16 READY lines; fresh default/provider-present/provider-missing QEMU
+captures pass independent raw, lifecycle, native/source and disk reviews.
+The positive path has 27 records and retains/clears 32 bytes. The identical
+enabled image's missing-provider path has 19 records, actual EFI_NOT_FOUND,
+zero GetRNG calls, unchanged retention and unpublished state, followed by
+764.127 ms measured live quiet and verified EOF/cleanup. Ordinary successful
+captures retain their configured drain policy; no measured quiet is inferred
+for those lanes. Exact firmware disk changes are fully accounted.
+
+This accepts only M03-003's bounded pre-exit seed-retention requirement.
+The catalog requests #60 done and #61 ready after evidence-qualified merge
+and tracker readback. Actual firmware exit, retry, post-exit access, general
+randomness, hosted .NET/Kestrel and cloud gates remain incomplete.
+
 The historical reference capture did not satisfy the live executing-stack
 requirement. [Step979](../done/step979.md) added the original-stack sentinel;
 [step981](../done/step981.md) now accepts its fresh `5d894c8` common and guest

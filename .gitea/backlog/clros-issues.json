@@ -8297,7 +8297,7 @@
         "M03-002"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -8324,7 +8324,7 @@
       ],
       "collisionLane": null,
       "summary": "Copy any firmware-derived entropy seed needed after firmware shutdown, with explicit failure status.",
-      "currentEvidence": "Step978 proves the bounded 32/64-byte host retention contract. Step980 adds the separately scoped #541 default-off EFI_RNG_PROTOCOL adapter: one 32-byte request, private guarded copy/readback/clear and publication last, with finite virtio/missing-provider runner options and no seed-bearing diagnostics. All five complete focused modules pass 201 starts/202 passes/zero failures; both actual NativeAOT publications and final normal compilation pass. Independent offline review confirms emitted firmware ABI, actual storage/load/store/clear, full-width statuses and terminal failure loop. Six legacy expectation repairs preserve complete coverage for the pending common suite. Real positive/missing-provider guest evidence remains pending; #60/#541 stay open and #61 stays blocked. No entropy quality, pool/PRNG/TLS, real ExitBootServices or post-firmware readiness is claimed.",
+      "currentEvidence": "Step986 accepts clean source 8942ab7 after the full 3713/3714/0 common suite and three independently reviewed QEMU/OVMF captures. The positive real EFI RNG path retains 32 bytes, clears requested scratch and publishes last. The same enabled EFI with missing-provider configuration observes EFI_NOT_FOUND, zero GetRNG calls, unchanged retained storage and unpublished state, with 764.127 ms measured live quiet then owned termination/EOF. Whole native/source association and complete GPT/FAT/payload/FSInfo/NVVARS accounting pass. Catalog requests done/closed for M03-003 after reviewed merge and issue evidence readback. No entropy quality, post-firmware random service, real ExitBootServices, GC, hosted .NET/Kestrel or cloud claim.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Copy any firmware-derived entropy seed needed after firmware shutdown, with explicit failure status.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -8377,7 +8377,7 @@
         "docs/efi-build.md"
       ],
       "evidenceBoundary": "This issue proves only \"Copy any firmware-derived entropy seed needed after firmware shutdown, with explicit failure status.\" It does not by itself prove the M03 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M03-004",
@@ -8388,7 +8388,7 @@
         "M03-003"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -8415,7 +8415,7 @@
       ],
       "collisionLane": null,
       "summary": "Introduce a typed no-stdlib ExitBootServices call adapter.",
-      "currentEvidence": "The EFI path captures a map but deliberately skips ExitBootServices; post-firmware execution is unproven. Step980 supplies focused and offline native evidence for the #60/#541 entropy prerequisite, but its complete common and genuine provider/missing-provider guests are still pending. #61 remains blocked until #60 closes; its controlled typed-adapter scope must not be expanded into the first real ExitBootServices call owned by #64.",
+      "currentEvidence": "Step986 accepts the bounded M03-003 entropy prerequisite after full common and genuine provider/missing-provider QEMU evidence. Catalog requests ready after M03-003 reviewed merge and issue closure readback. The next scope is a typed one-attempt no-stdlib adapter with exact handle, opaque 64-bit map key and full-width status; controlled callback/ABI evidence is distinct from the first real ExitBootServices call owned by M03-007 (#64). Ordering and retry remain separate later slices; post-firmware execution remains unproven.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Introduce a typed no-stdlib ExitBootServices call adapter.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

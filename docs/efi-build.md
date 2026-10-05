@@ -2437,3 +2437,20 @@ EOF contract are unchanged. The complete five-module regression passes
 both NativeAOT publications. The original capture remains failed; the missing
 lane did not run. A new final-head common suite and three fresh captures remain
 required. No seed values or entropy-quality claims are added.
+
+[Step986](../done/step986.md) records the later successful three-lane capture
+from accepted common head `8942ab7`. The positive image uses the exact 251-byte
+suffix above and all 27 owned records. The missing-provider capture reuses
+the complete enabled EFI bytes, emits 19 owned records ending in the expected
+failure, and has no firmware suffix. Its separate capture-only observer proves
+764.127 ms of quiet while the process remains live, then owned termination and
+EOF. The unchanged ordinary streamer rejects its TEST_FAIL record.
+
+All seven archived native/managed files per lane match the reviewed common
+publications. The only sidecar differences are the exact output path and
+timestamp, bound to each actual publication; the missing lane inherits the
+positive publication. Independent disk accounting verifies the EFI payload,
+GPT/FAT/FSInfo and all firmware NVVARS changes. Ordinary pristine images were
+reconstructed after capture; the missing lane also retains its actual
+prelaunch pristine image. None of this proves real ExitBootServices or a
+post-firmware random service.
