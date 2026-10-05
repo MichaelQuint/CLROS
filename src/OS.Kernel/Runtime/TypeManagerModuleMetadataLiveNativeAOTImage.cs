@@ -27,7 +27,8 @@ public enum TypeManagerRegisteredRangeKind : byte
 {
     Uninitialized = 0,
     ImmutableMetadata = 1,
-    MutableData = 2
+    MutableData = 2,
+    ReadableSectionData = 3
 }
 
 /// <summary>
@@ -181,13 +182,31 @@ public static unsafe class TypeManagerModuleMetadataLiveNativeAOTImage
     {
         TypeManagerModuleStatus status = ValidateRegistered(capture, mapping, owner, ownerCapacity, handle, out Image image);
         if (status != TypeManagerModuleStatus.Success) return status;
-        if (kind != TypeManagerRegisteredRangeKind.ImmutableMetadata && kind != TypeManagerRegisteredRangeKind.MutableData)
+        if (kind != TypeManagerRegisteredRangeKind.ImmutableMetadata && kind != TypeManagerRegisteredRangeKind.MutableData &&
+            kind != TypeManagerRegisteredRangeKind.ReadableSectionData)
             return TypeManagerModuleStatus.UnsupportedRangeKind;
         if (!Span(address, bytes) || address < image.Base || !Within(image.Bytes, address - image.Base, bytes))
             return TypeManagerModuleStatus.RangeRejected;
         if (kind == TypeManagerRegisteredRangeKind.ImmutableMetadata)
             return InSection(image, address, bytes, Read, Write | Execute)
                 ? TypeManagerModuleStatus.Success : TypeManagerModuleStatus.RangePermissionRejected;
+        if (kind == TypeManagerRegisteredRangeKind.ReadableSectionData)
+        {
+            // NativeAOT puts the GC-static entry table in writable .data.
+            // This permits reads only within a registered row, never writes;
+            // consumers retain their own payload snapshot under exclusive access.
+            if (!InSection(image, address, bytes, Read, Execute))
+                return TypeManagerModuleStatus.RangePermissionRejected;
+            for (uint i = 0; i < image.Rows; i++)
+            {
+                byte* row = (byte*)image.Header + 16 + i * 24;
+                ulong start = U64(row + 8);
+                ulong length = U32(row + 4) == 0 ? 8 : U64(row + 16) - start;
+                if (address >= start && Within(length, address - start, bytes))
+                    return TypeManagerModuleStatus.Success;
+            }
+            return TypeManagerModuleStatus.RangeRejected;
+        }
         if (Overlap(address, bytes, (ulong)owner, ownerCapacity) ||
             Overlap(address, bytes, image.Base, image.Headers) ||
             Overlap(address, bytes, image.Modules, image.ModuleBytes) ||

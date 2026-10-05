@@ -154,7 +154,9 @@ namespace System
 
         internal static void BulkMoveWithWriteBarrier(ref byte destination, ref byte source, nuint length)
         {
-#if M04_CHECKED_REFERENCE_BARRIER_PROBE
+#if M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE
+            while (true) RuntimeFailFast.Halt();
+#elif M04_CHECKED_REFERENCE_BARRIER_PROBE
             OS.Runtime.RhpNewFastAllocation.MoveReferences(ref destination, ref source, length);
 #else
             Memmove(ref destination, ref source, length);

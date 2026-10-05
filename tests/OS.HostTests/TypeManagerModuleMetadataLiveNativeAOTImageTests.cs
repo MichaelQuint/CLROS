@@ -336,7 +336,7 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
             (0, 8), (f.Address(0x2200), 0), (f.Address(0x2200), ulong.MaxValue),
             (ulong.MaxValue - 7, 8), (1, 8), (f.Address(0) - 1, 1) })
             ExpectRange(f, r.Handle, address, size, RangeKind.MutableData, Status.RangeRejected);
-        foreach (RangeKind invalid in new[] { RangeKind.Uninitialized, (RangeKind)3, (RangeKind)255 })
+        foreach (RangeKind invalid in new[] { RangeKind.Uninitialized, (RangeKind)4, (RangeKind)255 })
             ExpectRange(f, r.Handle, f.Address(0x2200), 8, invalid, Status.UnsupportedRangeKind);
         // Registered immutable aliases are legal; changing opaque payload is not
         // a mutation of the retained PE/RTR snapshot and grants no write authority.
@@ -355,6 +355,11 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
         W64(f.Row(4) + 8, f.Address(0x2400)); W64(f.Row(4) + 16, f.Address(0x2418));
         var r = f.Register(); Check(r.Succeeded, "separate entry/cell registration");
         ExpectRange(f, r.Handle, f.Address(0x1100), 4, RangeKind.ImmutableMetadata, Status.Success);
+        ExpectRange(f, r.Handle, f.Address(0x1100), 4, RangeKind.ReadableSectionData, Status.Success);
+        ExpectRange(f, r.Handle, f.Address(0x2400), 24, RangeKind.ReadableSectionData, Status.Success);
+        ExpectRange(f, r.Handle, f.Address(0x2200), 8, RangeKind.ReadableSectionData, Status.RangeRejected);
+        ExpectRange(f, r.Handle, f.Address(0x23FF), 2, RangeKind.ReadableSectionData, Status.RangeRejected);
+        ExpectRange(f, r.Handle, f.Address(0x6000), 8, RangeKind.ReadableSectionData, Status.RangePermissionRejected);
         ExpectRange(f, r.Handle, f.Address(0x2200), 8, RangeKind.MutableData, Status.Success);
         ExpectRange(f, r.Handle, f.Address(0x22F8), 16, RangeKind.MutableData, Status.Success); // empty row excludes no byte.
         foreach ((int offset, ulong size) in new (int, ulong)[] {

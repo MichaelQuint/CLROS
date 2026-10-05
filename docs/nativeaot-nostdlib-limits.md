@@ -1513,3 +1513,19 @@ genuine compiler GCStatics/accessor association, compiled reference stores via
 the checked barrier, native ABI and fresh guest evidence remain outstanding.
 #81/#548 stay open, #82 blocked, and Gates3/4 Fail. No collecting GC, general
 GCHandle, concurrent/root-reset support, hosted .NET/Kestrel or cloud claim.
+
+### GC-static EFI development milestone (step994)
+
+The default-off `EnableM04GcStaticRootMaterializationProbe` has development
+QEMU/OVMF evidence for one compiler-emitted `static object` field: register the
+original image, materialize and retain its base, allocate a genuine value through
+the same cursor, store/read that object, then store/read null. The existing
+checked-barrier thunk performs two scalar stores; two allocations consume 48
+bytes. This is bounded noncollecting support. Compatibility declarations are refreshed; final integrated
+acceptance remains pending; see [step994](../done/step994.md).
+
+NativeAOT places the section201 entry array in writable `.data`. The Type range
+query's `ReadableSectionData` kind admits reads inside registered non-executable
+row payloads, without granting write access. GC-root ownership retains and checks
+the entry bytes. Descriptors, abbreviated method tables and Object metadata still
+require immutable readable storage; mutable destinations exclude registered rows.

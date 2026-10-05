@@ -1800,3 +1800,20 @@ the actual new-image metadata or retained-root behavior under QEMU. #81/#548
 remain open/claimed and #82 blocked. The shared EFI integration and exact
 source-profile pins are the next work; no full common/preflight/native/guest
 acceptance is claimed for this intermediate host commit. Gates3/4 remain Fail.
+
+### M04-012 compiled static-root development evidence
+
+[Step994](../done/step994.md) extends step992 with a genuine compiler-emitted
+static object field. Fresh enabled QEMU/OVMF execution publishes one retained
+base, allocates a value through the same cursor, stores/reads the object, and
+stores/reads null through the existing checked barrier. The strict transcript
+passes with two allocations/48 bytes and two stores. A fresh default boot also
+passes with the diagnostic absent.
+
+Focused runtime checks and the three new parser/profile groups pass. Existing
+compatibility pins and selectors now describe the complete 98-source/42-flag
+closure. The native review binds all 535 emitted method byte ranges to the
+linked image and verifies the changed cell/helper/publication boundary; the
+complete coordinator/stack and common regression acceptance remain pending.
+#81/#548 remain open, #82 blocked, and Gates3/4 Fail. This is neither a
+collecting GC nor general static/TLS, hosted .NET/Kestrel, or cloud support.

@@ -2851,3 +2851,27 @@ numeric checks. Capture/review provisional flags remain historical; parent
 joint acceptance supplies the bounded conclusions. No real ExitBootServices,
 post-firmware access, collecting GC, hosted .NET/Kestrel or Gate3/4/5 completion
 is established.
+
+### GC-static materialization diagnostic
+
+The bounded development profile from [step994](../done/step994.md) runs with:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 -BuildEfi `
+  -EnableM04GcStaticRootMaterializationProbe `
+  -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe `
+  -EnableM04IndependentEndianConformanceProbe `
+  -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe `
+  -EnableM04ArithmeticConformanceProbe -EnableM04LayoutContractProbe `
+  -EnableM04ManagedHeapPageRangeProbe -EnableM04RhpNewFastProbe `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30
+```
+
+Use separate artifact/image/serial/summary paths when preserving earlier runs.
+The strict parser accepts 58 CLROS records, including six `M04_GC_ROOT` stages
+(0, 1, 3, 4, 5, 6), and checks image/heap bounds, two allocations totaling 48
+bytes, and two scalar stores (object and null). Stages 2 and 255 indicate
+failure. The 47 ordered/unique markers finish with the ordinary boot pass.
+This is a noncollecting, pre-ExitBootServices diagnostic; the final integrated
+acceptance is still pending.

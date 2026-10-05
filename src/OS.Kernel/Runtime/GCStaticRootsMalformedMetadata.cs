@@ -155,7 +155,7 @@ public static unsafe class GCStaticRootsMalformedMetadata
         ulong entry = region.Section;
         if ((entry & 3) != 0 || !Contains(metadata, entry, 4))
             return new(GCStaticMetadataStatus.EntryRejected);
-        if (permissions && (!Range(capture, mapping, owner, ownerCapacity, moduleHandle, entry, 4, false) ||
+        if (permissions && (!EntryRange(capture, mapping, owner, ownerCapacity, moduleHandle, entry) ||
             !Range(capture, mapping, owner, ownerCapacity, moduleHandle, expectedSystemObjectMethodTable, 24, false)))
             return new(GCStaticMetadataStatus.CallerBoundsRejected);
         if (!Relative32(entry, U32((byte*)entry), out ulong cell) ||
@@ -340,7 +340,7 @@ public static unsafe class GCStaticRootsMalformedMetadata
         GCStaticMetadataResult saved = root->Decoded;
         if (!Contains(metadata, saved.Entry, 4) || !Contains(metadata, saved.Descriptor, 40) ||
             !Contains(metadata, saved.RelatedType, 24) ||
-            !Range(capture, mapping, typeOwner, typeCapacity, handle, saved.Entry, 4, false) ||
+            !EntryRange(capture, mapping, typeOwner, typeCapacity, handle, saved.Entry) ||
             !Range(capture, mapping, typeOwner, typeCapacity, handle, saved.Descriptor, 40, false) ||
             !Range(capture, mapping, typeOwner, typeCapacity, handle, saved.RelatedType, 24, false) ||
             !Equal(root->Snapshot, (byte*)saved.Entry, 4) ||
@@ -451,6 +451,10 @@ public static unsafe class GCStaticRootsMalformedMetadata
         new(GCStaticRootStatus.Success, GCStaticMetadataStatus.Success, TypeManagerModuleStatus.Success,
             RhpNewFastStatus.Success, receipt.ObjectReference, metadata.Cell,
             receipt.ObjectReference + metadata.SeriesOffset, metadata.SeriesBytes, receipt.BytesConsumed);
+    private static bool EntryRange(EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping,
+        byte* owner, ulong capacity, ulong handle, ulong entry) =>
+        TypeManagerModuleMetadataLiveNativeAOTImage.TryValidateRegisteredRange(capture, mapping, owner, capacity,
+            handle, entry, 4, TypeManagerRegisteredRangeKind.ReadableSectionData) == TypeManagerModuleStatus.Success;
     private static bool Range(EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping,
         byte* owner, ulong capacity, ulong handle, ulong address, ulong bytes, bool mutable) =>
         TypeManagerModuleMetadataLiveNativeAOTImage.TryValidateRegisteredRange(capture, mapping, owner, capacity,

@@ -273,23 +273,23 @@
       <LinkerArg Include="/MAPINFO:EXPORTS" />
     </ItemGroup>
     <Exec
-      Condition="'$(EnableM04CheckedReferenceBarrierProbe)' == 'true'"
+      Condition="('$(EnableM04CheckedReferenceBarrierProbe)' == 'true' Or '$(EnableM04GcStaticRootMaterializationProbe)' == 'true')"
       Command="&quot;$(_ClrosX64SerializerToolExecutable)&quot; --checked-reference-barriers --output-root &quot;$(_ClrosX64SerializerNativeIntermediateRoot)&quot; --output-file &quot;$(_ClrosCheckedReferenceObjectName)&quot;"
       ConsoleToMSBuild="true"
       IgnoreExitCode="false"
       Timeout="60000" />
     <Error
-      Condition="'$(EnableM04CheckedReferenceBarrierProbe)' == 'true' And !Exists('$(_ClrosCheckedReferenceObject)')"
+      Condition="('$(EnableM04CheckedReferenceBarrierProbe)' == 'true' Or '$(EnableM04GcStaticRootMaterializationProbe)' == 'true') And !Exists('$(_ClrosCheckedReferenceObject)')"
       Text="CLROS_M04_010_GENERATOR_FAILED object_missing" />
     <GetFileHash
-      Condition="'$(EnableM04CheckedReferenceBarrierProbe)' == 'true'"
+      Condition="('$(EnableM04CheckedReferenceBarrierProbe)' == 'true' Or '$(EnableM04GcStaticRootMaterializationProbe)' == 'true')"
       Files="$(_ClrosCheckedReferenceObject)" Algorithm="SHA256" HashEncoding="hex">
       <Output TaskParameter="Hash" PropertyName="_ClrosCheckedReferenceActualSha256" />
     </GetFileHash>
     <Error
-      Condition="'$(EnableM04CheckedReferenceBarrierProbe)' == 'true' And '$(_ClrosCheckedReferenceActualSha256)' != 'E96ABF595503B9D1AE38DEE740F93AE9B3EB84F05D6395B931E4B5D74F65D808'"
+      Condition="('$(EnableM04CheckedReferenceBarrierProbe)' == 'true' Or '$(EnableM04GcStaticRootMaterializationProbe)' == 'true') And '$(_ClrosCheckedReferenceActualSha256)' != 'E96ABF595503B9D1AE38DEE740F93AE9B3EB84F05D6395B931E4B5D74F65D808'"
       Text="CLROS_M04_010_GENERATOR_FAILED object_hash_mismatch" />
-    <ItemGroup Condition="'$(EnableM04CheckedReferenceBarrierProbe)' == 'true'">
+    <ItemGroup Condition="('$(EnableM04CheckedReferenceBarrierProbe)' == 'true' Or '$(EnableM04GcStaticRootMaterializationProbe)' == 'true')">
       <NativeLibrary Include="$(_ClrosCheckedReferenceObject)" />
       <LinkerArg Include="&quot;$(_ClrosCheckedReferenceObject)&quot;" />
       <LinkerArg Include="/INCLUDE:RhpAssignRef" />

@@ -622,7 +622,9 @@ internal static unsafe partial class RhpNewFastAllocation
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     internal static ulong Allocate(ulong token)
     {
-#if M04_CHECKED_REFERENCE_BARRIER_PROBE
+#if M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE
+        return AllocateGcValue(token);
+#elif M04_CHECKED_REFERENCE_BARRIER_PROBE
         return AllocateReferenceRole(token);
 #elif M04_STRING_ALLOCATION_PROBE
         return AllocateStringRoute(token, TypePlain(), 1, 1, 0, 0);

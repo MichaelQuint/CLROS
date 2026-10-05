@@ -37,6 +37,7 @@ internal static unsafe class GCStaticRootsMalformedMetadataTests
         Run("m04.012 read-only validation allocates no managed storage", Allocation, ref failures);
         Run("m04.012 actual source compiles without assembly references", NoStdLib, ref failures);
         Run("m04.012 root publication commits one admitted static allocation", RootPublication, ref failures);
+        Run("m04.012 registered writable entry table supports publication with retained tamper checks", WritableEntryTable, ref failures);
         Run("m04.012 root repeat and later same-cursor allocation preserve lifetime", RootRepeat, ref failures);
         Run("m04.012 root storage and complete capacities reject before writes", RootStorage, ref failures);
         Run("m04.012 external root ownership and image cursor extents are admitted", RootOwnerLocations, ref failures);
@@ -416,6 +417,27 @@ internal static unsafe class GCStaticRootsMalformedMetadataTests
         Console.WriteLine("M04_012_ROOT_WARM iterations=1000 allocatedBytes="+delta);
     }
 
+    private static void WritableEntryTable()
+    {
+        using (RootFixture f = new(x =>
+        {
+            x.SetLocations(0x2300,0x2200,0x1400,0x1180);
+            x.Metadata = new((ulong)x.Image,Fixture.ImageSize);
+        }))
+        {
+            byte[] before=f.Snapshot();Check(f.Call().Succeeded,"real compiler RW entry placement");
+            f.OnlyPublicationChanges(before,24);
+            Check(f.Call(true).Succeeded && f.Call().Succeeded,"retained RW entry repeat");
+            ((byte*)f.Image.Entry)[0]^=4;
+            f.Reject(query:true);
+        }
+        using (RootFixture f = new(x =>
+        {
+            x.SetLocations(0x6200,0x2200,0x1400,0x1180);
+            x.Metadata = new((ulong)x.Image,Fixture.ImageSize);
+        })) f.Reject(GCStaticRootStatus.MetadataRejected);
+    }
+
     private sealed class RootFixture : IDisposable
     {
         internal readonly Fixture Image;
@@ -581,8 +603,9 @@ internal static unsafe class GCStaticRootsMalformedMetadataTests
         string osProject=Path.Combine(root,"src","OS","OS.csproj");
         string core=Path.Combine(root,"src","OS.Kernel","Runtime","GCStaticRootsMalformedMetadata.cs");
         string[] sources=XDocument.Load(osProject).Descendants("Compile").Select(x=>Path.GetFullPath(
-            Path.Combine(Path.GetDirectoryName(osProject)!,x.Attribute("Include")!.Value))).Append(core).ToArray();
-        Check(sources.Distinct(StringComparer.OrdinalIgnoreCase).Count()==sources.Length,"explicit unique closure");
+            Path.Combine(Path.GetDirectoryName(osProject)!,x.Attribute("Include")!.Value))).ToArray();
+        Check(sources.Distinct(StringComparer.OrdinalIgnoreCase).Count()==sources.Length &&
+            sources.Count(p=>string.Equals(p,core,StringComparison.OrdinalIgnoreCase))==1,"explicit unique closure");
         var identities=sources.Append(osProject).Select(p=>new{Path=p,Bytes=new FileInfo(p).Length,
             Sha256=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(p)))}).ToArray();
         File.WriteAllText(Path.Combine(directory,"inputs.json"),JsonSerializer.Serialize(identities,new JsonSerializerOptions{WriteIndented=true}));
