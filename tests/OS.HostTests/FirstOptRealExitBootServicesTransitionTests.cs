@@ -142,6 +142,7 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 !FirstExitImageMappings.Contains(ranges, count, (ulong)image + 0x4010, 8192, PageProtection.Read | PageProtection.Execute) &&
                 !FirstExitImageMappings.Contains(ranges, count, (ulong)image + 0x2ff0, 32, PageProtection.Read | PageProtection.Execute),
                 "retained object containment respects permissions and gaps");
+            VerifyCodeBundle(capture, mapping, (ulong)image + 0x1000, (ulong)image + 0x4000);
             byte[] original = new ReadOnlySpan<byte>(image, (int)bytes).ToArray();
             byte[] output = new ReadOnlySpan<byte>(ranges, 5 * sizeof(SeparatePageFaultMappingRange)).ToArray();
             foreach (int fault in Enumerable.Range(0, 10))
@@ -173,6 +174,47 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 "capacity, overlap and identity evidence refuse without modifying image");
         }
         finally { NativeMemory.AlignedFree(image); }
+    }
+
+    private static void VerifyCodeBundle(EfiLoadedImageRangeCapturePlan capture,
+        M01LoadedImageVirtualMappingEvidence mapping, ulong callback, ulong nonExecutableTarget)
+    {
+        byte* allocation = (byte*)NativeMemory.AlignedAlloc(FirstExitCodeBundle.Bytes + 8192, 4096);
+        byte* data = (byte*)NativeMemory.AlignedAlloc(FirstExitOwnedArena.Bytes, 4096);
+        Need(allocation != null && data != null, "code bundle backing");
+        byte* code = allocation + 4096;
+        try
+        {
+            new Span<byte>(allocation, (int)FirstExitCodeBundle.Bytes + 8192).Fill(0xa5);
+            FirstExitOwnedArenaState arena = default;
+            Need(FirstExitOwnedArena.Materialize(ref arena, data, FirstExitOwnedArena.Bytes, (ulong)code, 56), "bundle arena");
+            Need(!FirstExitCodeBundle.Materialize(code, FirstExitCodeBundle.Bytes - 1, ref arena, capture, mapping, callback) &&
+                !FirstExitCodeBundle.Materialize(code, FirstExitCodeBundle.Bytes, ref arena, capture, mapping, nonExecutableTarget) &&
+                !FirstExitCodeBundle.Materialize(data, FirstExitCodeBundle.Bytes, ref arena, capture, mapping, callback) &&
+                arena.Fault->Phase == 0 && !new ReadOnlySpan<byte>(code, (int)FirstExitCodeBundle.Bytes).ContainsAnyExcept((byte)0xa5),
+                "capacity, data callback and code/data overlap refuse before mutation");
+            Need(FirstExitCodeBundle.Materialize(code, FirstExitCodeBundle.Bytes, ref arena, capture, mapping, callback) &&
+                arena.Fault->Phase == 1 && arena.Fault->Backend.IsReady &&
+                FirstExitCodeBundle.ValidateReadBack(code, FirstExitCodeBundle.Bytes, ref arena, capture, mapping, callback),
+                "actual composed code and bound port stubs read back");
+            Need(!new ReadOnlySpan<byte>(allocation, 4096).ContainsAnyExcept((byte)0xa5) &&
+                !new ReadOnlySpan<byte>(code + FirstExitCodeBundle.Bytes, 4096).ContainsAnyExcept((byte)0xa5), "bundle output extent");
+            byte[] original = new ReadOnlySpan<byte>(code, (int)FirstExitCodeBundle.Bytes).ToArray();
+            foreach (uint offset in new uint[] { 0, FirstExitCodeBundle.FaultOffset + 71, FirstExitCodeBundle.Out8Offset,
+                FirstExitCodeBundle.In8Offset, FirstExitCodeBundle.StackEntryOffset, FirstExitCodeBundle.PermanentOffset, 6000 })
+            {
+                code[offset] ^= 1;
+                Need(!FirstExitCodeBundle.ValidateReadBack(code, FirstExitCodeBundle.Bytes, ref arena, capture, mapping, callback),
+                    "byte mutation rejected at " + offset);
+                code[offset] ^= 1;
+            }
+            Need(!FirstExitCodeBundle.Materialize(code, FirstExitCodeBundle.Bytes, ref arena, capture, mapping, callback) &&
+                !FirstExitCodeBundle.ValidateReadBack(code, FirstExitCodeBundle.Bytes, ref arena, capture, mapping, callback + 1) &&
+                original.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(code, (int)FirstExitCodeBundle.Bytes)),
+                "prepared bundle cannot be regenerated or retargeted by readback");
+            // No generated IN/OUT or privileged transition instruction is executed.
+        }
+        finally { NativeMemory.AlignedFree(allocation); NativeMemory.AlignedFree(data); }
     }
 
     private static void OwnedArena()

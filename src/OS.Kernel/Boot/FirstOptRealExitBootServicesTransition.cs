@@ -5,6 +5,119 @@ using OS.Std.Hash;
 
 namespace OS.Boot;
 
+/// <summary>
+/// Materialize and read back one three-page retained code allocation. Callers own
+/// writable backing during preparation and must separately publish it RX, retain
+/// its mappings and validate native stack budgets. No generated function is called
+/// here. Keep the original arena/context and loaded image stable and exclusive.
+/// </summary>
+public static unsafe class FirstExitCodeBundle
+{
+    public const uint Bytes = 3 * 4096;
+    public const uint FaultOffset = 4096;
+    public const uint Out8Offset = 4352;
+    public const uint In8Offset = 4368;
+    public const uint StackEntryOffset = 8192;
+    public const uint PermanentOffset = 8448;
+    private const ulong LowEnd = 0x0000800000000000;
+
+    public static bool Materialize(byte* code, ulong capacity, ref FirstExitOwnedArenaState arena,
+        EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping, ulong callback)
+    {
+        if (!Admit(code, capacity, ref arena, capture, mapping, callback, 0)) return false;
+        for (uint index = 0; index < Bytes; index++) code[index] = 0;
+        bool emitted = NormalizeErrorCodeNonErrorCodeInterruptFrame.Materialize(
+                code, 4096, (ulong)code, (ulong)code + FaultOffset).Succeeded &&
+            FirstExitTerminalFaultStub.Emit(code + FaultOffset, Out8Offset - FaultOffset,
+                (ulong)arena.Fault, callback, out _) &&
+            PortIoStubPlan.Out8.Emit(code + Out8Offset, PortIoStubPlan.Out8RequiredByteLength).Succeeded &&
+            PortIoStubPlan.In8.Emit(code + In8Offset, PortIoStubPlan.In8RequiredByteLength).Succeeded &&
+            FirstExitOwnedStackStub.Emit(code + StackEntryOffset, PermanentOffset - StackEntryOffset, out _) &&
+            FirstExitPermanentCr3Stub.Emit(code + PermanentOffset, Bytes - PermanentOffset, out _) &&
+            CheckBytes(code, (ulong)arena.Fault, callback);
+        if (!emitted)
+        {
+            arena.Fault->Phase = 4;
+            return false;
+        }
+        // Only the actual read-back-checked canonical port stub bytes authorize
+        // this binding. Publication/execution authority is still the adapter's job.
+        var binding = InvokeIn8Out8CheckedUnmanagedFunctionPointers.Bind(
+            CheckedPortIoFunctionPointerBindingRequest.Create(true, Com1OwnedPortIoBackend.BasePort,
+                (nuint)(code + Out8Offset), (nuint)(code + In8Offset + PortIoStubPlan.In8RequiredByteLength),
+                PortIoStubPlan.Out8RequiredByteLength + PortIoStubPlan.In8RequiredByteLength,
+                0, In8Offset - Out8Offset, (nuint)(code + Out8Offset), (nuint)(code + In8Offset),
+                PortIoStubPlan.Out8RequiredByteLength, PortIoStubPlan.In8RequiredByteLength,
+                PortIoStubPlan.Out8RequiredByteLength, PortIoStubPlan.In8RequiredByteLength));
+        if (!FirstExitTerminalFaultStub.Prepare(ref *arena.Fault, new Com1OwnedPortIoBackend(binding)))
+        {
+            arena.Fault->Phase = 4;
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Check the complete byte layout before publication/entry, including padding
+    /// and embedded context/callback addresses. Original data must remain unchanged;
+    /// this is not an allocation certificate or a live permission observation.
+    /// </summary>
+    public static bool ValidateReadBack(byte* code, ulong capacity, ref FirstExitOwnedArenaState arena,
+        EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping, ulong callback)
+        => Admit(code, capacity, ref arena, capture, mapping, callback, 1) &&
+            arena.Fault->Backend.IsReady && CheckBytes(code, (ulong)arena.Fault, callback);
+
+    private static bool Admit(byte* code, ulong capacity, ref FirstExitOwnedArenaState arena,
+        EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping, ulong callback, uint phase)
+    {
+        ulong address = (ulong)code, data = (ulong)arena.Storage;
+        if (capacity != Bytes || address < 4096 || (address & 4095) != 0 || address >= LowEnd - Bytes ||
+            !arena.IsReady || data < 4096 || (data & 4095) != 0 || data >= LowEnd - FirstExitOwnedArena.Bytes ||
+            FirstExitDescriptors.Overlaps(address, Bytes, data, FirstExitOwnedArena.Bytes)) return false;
+        fixed (FirstExitOwnedArenaState* state = &arena)
+            if (FirstExitDescriptors.Overlaps(address, Bytes, (ulong)state, (ulong)sizeof(FirstExitOwnedArenaState)) ||
+                FirstExitDescriptors.Overlaps(data, FirstExitOwnedArena.Bytes, (ulong)state, (ulong)sizeof(FirstExitOwnedArenaState))) return false;
+        SeparatePageFaultMappingRange* imageRanges = stackalloc SeparatePageFaultMappingRange[(int)FirstExitImageMappings.MaximumSections + 1];
+        if (!FirstExitImageMappings.WriteRanges(capture, mapping, imageRanges, FirstExitImageMappings.MaximumSections + 1, out ulong count) ||
+            !FirstExitImageMappings.Contains(imageRanges, count, callback, 1, PageProtection.Read | PageProtection.Execute) ||
+            FirstExitDescriptors.Overlaps(address, Bytes, imageRanges[0].Start, capture.Range.ImageSize) ||
+            FirstExitDescriptors.Overlaps(data, FirstExitOwnedArena.Bytes, imageRanges[0].Start, capture.Range.ImageSize) ||
+            !FirstExitOwnedArena.ValidateCanaries(arena) || arena.Fault->Phase != phase || arena.Fault->Reserved != 0) return false;
+        return FirstExitTerminalFaultStub.RequiredBytes > 0 && FirstExitTerminalFaultStub.RequiredBytes <= Out8Offset - FaultOffset &&
+            FirstExitOwnedStackStub.RequiredBytes > 0 && FirstExitOwnedStackStub.RequiredBytes <= PermanentOffset - StackEntryOffset &&
+            FirstExitPermanentCr3Stub.RequiredBytes > 0 && FirstExitPermanentCr3Stub.RequiredBytes <= 1024;
+    }
+
+    private static bool CheckBytes(byte* code, ulong context, ulong callback)
+    {
+        if (!NormalizeErrorCodeNonErrorCodeInterruptFrame.ValidateReadBack(
+            code, 4096, (ulong)code, (ulong)code + FaultOffset).Succeeded) return false;
+        byte* scratch = stackalloc byte[1024];
+        if (!FirstExitTerminalFaultStub.Emit(scratch, 1024, context, callback, out uint faultBytes) ||
+            !Equal(scratch, code + FaultOffset, faultBytes) ||
+            !PortIoStubPlan.Out8.Emit(scratch, PortIoStubPlan.Out8RequiredByteLength).Succeeded ||
+            !Equal(scratch, code + Out8Offset, PortIoStubPlan.Out8RequiredByteLength) ||
+            !PortIoStubPlan.In8.Emit(scratch, PortIoStubPlan.In8RequiredByteLength).Succeeded ||
+            !Equal(scratch, code + In8Offset, PortIoStubPlan.In8RequiredByteLength) ||
+            !FirstExitOwnedStackStub.Emit(scratch, 1024, out uint entryBytes) ||
+            !Equal(scratch, code + StackEntryOffset, entryBytes) ||
+            !FirstExitPermanentCr3Stub.Emit(scratch, 1024, out uint permanentBytes) ||
+            !Equal(scratch, code + PermanentOffset, permanentBytes)) return false;
+        for (uint index = 4096; index < Bytes; index++)
+            if (!Inside(index, FaultOffset, faultBytes) && !Inside(index, Out8Offset, PortIoStubPlan.Out8RequiredByteLength) &&
+                !Inside(index, In8Offset, PortIoStubPlan.In8RequiredByteLength) && !Inside(index, StackEntryOffset, entryBytes) &&
+                !Inside(index, PermanentOffset, permanentBytes) && code[index] != 0) return false;
+        return true;
+    }
+
+    private static bool Inside(uint offset, uint start, uint bytes) => offset >= start && offset - start < bytes;
+    private static bool Equal(byte* left, byte* right, uint bytes)
+    {
+        for (uint index = 0; index < bytes; index++) if (left[index] != right[index]) return false;
+        return true;
+    }
+}
+
 // Stack layout after the existing normalizer and the terminal stub's 15 pushes.
 // The handler never restores registers or returns through this frame.
 public struct FirstExitFaultFrame
@@ -532,8 +645,9 @@ public unsafe struct FirstExitOwnedArenaState
 /// The remaining eight pages are guard reservations: this helper does not unmap
 /// them. The eventual owned hierarchy must omit them and map all other pages RW,
 /// NX. Firmware mappings remain unchanged while preparing/calling boot services.
-/// The separate vector page must already contain authenticated owned terminal
-/// stubs. Retain the original state exclusively; never copy/reset it or free its
+/// The separate vector page is reserved by address during preparation and must
+/// contain authenticated owned terminal stubs before entry. Retain the original
+/// state exclusively; never copy/reset it or free its
 /// storage after successful EBS. Preparation does not load any CPU descriptor.
 /// </summary>
 public static unsafe class FirstExitOwnedArena
