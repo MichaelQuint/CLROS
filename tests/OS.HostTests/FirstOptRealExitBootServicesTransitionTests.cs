@@ -41,17 +41,23 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
 
     private static readonly byte[] FaultOutput = new byte[4096];
     private static int faultOutputBytes, faultPolls;
+    private static int faultTransmitByteLimit = int.MaxValue;
+    private static byte* faultCorruptCanary;
+    private static int faultCorruptAfterBytes;
     private static bool faultDivisorLatch, faultTransmitReady;
     [UnmanagedCallersOnly]
     private static void FaultOut8(ushort port, byte value)
     {
         if (port == 0x3fb) faultDivisorLatch = (value & 0x80) != 0;
         if (port == 0x3f8 && !faultDivisorLatch && faultOutputBytes < FaultOutput.Length)
+        {
             FaultOutput[faultOutputBytes++] = value;
+            if (faultCorruptCanary != null && faultOutputBytes == faultCorruptAfterBytes) *faultCorruptCanary ^= 1;
+        }
     }
     [UnmanagedCallersOnly]
     private static byte FaultIn8(ushort port)
-    { faultPolls++; return port == 0x3fd && faultTransmitReady ? (byte)0x20 : (byte)0; }
+    { faultPolls++; return port == 0x3fd && faultTransmitReady && faultOutputBytes < faultTransmitByteLimit ? (byte)0x20 : (byte)0; }
 
     private static void TerminalFault()
     {
@@ -274,8 +280,131 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 !new ReadOnlySpan<byte>(output + count, (int)(FirstExitRetainedMappings.MaximumRanges - count) * sizeof(SeparatePageFaultMappingRange))
                     .ContainsAnyExcept((byte)0xa5), "complete inventory and untouched capacity tail");
             VerifyRetainedArenaImage(arena.Storage, output, count, FirstExitRetainedMappings.MaximumRanges, 109);
+            VerifyPostExitReport(ref arena, code, capture, mapping, references, backing, output, count);
         }
         finally { NativeMemory.AlignedFree(allocator); }
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern void* VirtualAlloc(void* address, nuint bytes, uint allocationType, uint protection);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool VirtualFree(void* address, nuint bytes, uint freeType);
+    [UnmanagedCallersOnly]
+    private static ulong ReportMap(ulong* bytes, void* buffer, ulong* key, ulong* width, uint* version)
+    { *bytes = 40; *key = 1; *width = 40; *version = 1; return 0; }
+    [UnmanagedCallersOnly]
+    private static ulong ReportExit(void* image, ulong key) => key == 1 ? 0UL : 1UL;
+
+    private static void VerifyPostExitReport(ref FirstExitOwnedArenaState arena, byte* code,
+        EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping,
+        FirstExitImageReferences references, SeparatePageFaultMappingRange allocator,
+        SeparatePageFaultMappingRange* ranges, ulong count)
+    {
+        // The production reporter requires identity backing below 4 GiB. This
+        // Windows-host fixture allocates ordinary RW pages there; it never loads CR3.
+        if (!OperatingSystem.IsWindows())
+        { Console.WriteLine("CLROS_M03_007_REPORT_FIXTURE_SKIPPED reason=windows_low_address_allocation"); return; }
+        ulong* entries = null;
+        for (uint hint = 0x30000000; hint < 0x60000000 && entries == null; hint += 0x01000000)
+            entries = (ulong*)VirtualAlloc((void*)(nuint)hint, 55 * 4096, 0x3000, 4);
+        Need(entries != null, "low identity table backing");
+        try
+        {
+            references.CopiedAcpi += 4096;
+            X64PageTableImagePage* pages = (X64PageTableImagePage*)(references.AdapterState + 4096);
+            Need(55 * sizeof(X64PageTableImagePage) <= 4096, "retained metadata fixture extent");
+            PhysicalAddress.TryCreateFromHardwareRegisterBoundary((ulong)entries, out PhysicalAddress root);
+            X64PatMappingToken.TryCreate(0x0006_0501_0007_0406, 0, 3, 4, out X64PatMappingToken pat);
+            FirstExitDiagnosticMemory memory = new() { Code = code, Capture = capture, Mapping = mapping,
+                References = references, Allocator = allocator, Tables = new(root, 55,
+                    X64PageTableEncodingPreconditions.CreateObserved(48, true, true, false, false, pat)),
+                Pages = pages, PageCapacity = 55, Entries = entries, EntryCapacity = 55 * 512 };
+            Need(SeparateDisabledDefaultPageFaultPageTables.BuildRetainedImage(memory.Tables, ranges, count,
+                FirstExitRetainedMappings.MaximumRanges, pages, 55, entries, 55 * 512).Succeeded, "build actual identity-backed supplied tables");
+            Need(FirstExitOwnedStackStub.Prepare(ref *arena.StackEntry, 0x100000, 0x668,
+                arena.StackBottom, arena.StackTop, FirstExitOwnedArena.LowerCanary, FirstExitOwnedArena.UpperCanary, 196608,
+                (delegate* unmanaged<FirstExitOwnedStackContext*, void>)references.EntryCallback,
+                (void*)references.AdapterState, references.AdapterStateBytes), "prepare original entry");
+            Need(FirstExitPermanentCr3Stub.Prepare(ref *arena.Permanent, 0x100000, (ulong)entries, 0x668,
+                arena.StackBottom, arena.StackTop, 4096, FirstExitOwnedArena.LowerCanary, FirstExitOwnedArena.UpperCanary,
+                (delegate* unmanaged<FirstExitTransitionState*, FirstExitPermanentCr3Context*, void>)references.DiagnosticCallback,
+                (void*)references.AdapterState, arena.Descriptors), "prepare original continuation");
+            BoundedExitRetryState retry = default;
+            BoundedExitRetryResult attempt = BoundedRetryStaleKeyStatus.Execute(ref retry,
+                FirmwareServicesMode.BootServicesAvailable, &ReportMap, &ReportExit, (void*)123, arena.Map, FirstExitOwnedArena.MapBytes);
+            Need(attempt.Succeeded, "controlled successful exit result");
+            *(BoundedExitRetryResult*)((byte*)arena.Transition + Marshal.OffsetOf<FirstExitTransitionState>("AttemptValue")) = attempt;
+            *(uint*)arena.Transition = (uint)FirstExitPhase.OwnedContinuation;
+            ((uint*)arena.Transition)[1] = (uint)FirmwareServicesMode.BootServicesExited;
+            *(uint*)arena.Binding = 2; // model the native adapter's already-consumed binding
+            arena.StackEntry->Phase = 2; arena.StackEntry->ObservedRsp = arena.StackTop - FirstExitOwnedStackStub.CallStackBytes;
+            arena.Permanent->Phase = FirstExitAdoptionPhase.OwnedDiagnostic;
+            arena.Permanent->ObservedCr3 = (ulong)entries; arena.Permanent->ObservedCr4 = 0x668 & ~0x80UL;
+            arena.Permanent->ObservedRsp = arena.StackTop - 4096 - 8;
+            FirstExitDescriptorContext* descriptor = arena.Descriptors;
+            descriptor->Gdt[13] |= 1; descriptor->Gdt[21] |= 1; descriptor->Gdt[29] |= 2;
+            descriptor->Gdt[descriptor->FirmwareCs + 5] |= 1;
+            for (int i = 0; i < 16; i++) { descriptor->ObservedGdtr[i] = descriptor->Gdtr[i]; descriptor->ObservedIdtr[i] = descriptor->FinalIdtr[i]; }
+            descriptor->ObservedTr = 24; descriptor->ObservedCs = 8;
+            descriptor->ObservedDs = descriptor->ObservedEs = descriptor->ObservedSs = 16;
+            Need(!FirstExitOwnedArena.ValidateDescriptors(ref arena, (ulong)code) &&
+                FirstExitOwnedArena.ValidateInstalledDescriptors(ref arena, (ulong)code), "fresh and installed descriptor checks stay distinct");
+            SeparatePageFaultMappingRange* ownedScratch = (SeparatePageFaultMappingRange*)(arena.StackBottom + 8);
+            Need(FirstExitRetainedMappings.WriteInstalledRanges(ref arena, code, capture, mapping, references, allocator,
+                memory.Tables, ownedScratch, FirstExitRetainedMappings.MaximumRanges, out ulong installedCount) && installedCount == count,
+                "post-adoption declarations can use bounded main-stack scratch");
+            nuint out8 = (nuint)(delegate* unmanaged<ushort, byte, void>)&FaultOut8;
+            nuint in8 = (nuint)(delegate* unmanaged<ushort, byte>)&FaultIn8;
+            nuint first = Math.Min(out8, in8), end = Math.Max(out8 + 7, in8 + 5);
+            arena.Fault->Backend = new Com1OwnedPortIoBackend(InvokeIn8Out8CheckedUnmanagedFunctionPointers.Bind(
+                CheckedPortIoFunctionPointerBindingRequest.Create(true, 0x3f8, first, end, 12,
+                    out8 - first, in8 - first, out8, in8, 7, 5, 7, 5)));
+            // Controlled host port callbacks replace the fixture backend. Native
+            // observations above are modeled, not evidence of privileged execution.
+            ref FirstExitDiagnosticState state = ref *(FirstExitDiagnosticState*)(references.AdapterState + 64);
+            const string firstMarker = "M03_EBS_RETURNED_SUCCESS\r\n";
+            const string secondMarker = "M03_PERMANENT_CR3_ADOPTED\r\n";
+            const string thirdMarker = "M03_POST_EBS_OWNED_DIAGNOSTIC\r\n";
+            for (int scenario = 0; scenario < 13; scenario++)
+            {
+                state = default; faultOutputBytes = faultPolls = 0; faultTransmitReady = true; faultTransmitByteLimit = int.MaxValue;
+                FirstExitDiagnosticMemory candidate = memory;
+                if (scenario == 1) arena.Permanent->ObservedCr3 ^= 4096;
+                if (scenario == 2) descriptor->ObservedTr = 16;
+                if (scenario == 3) entries[0] ^= 1;
+                if (scenario == 4) faultTransmitReady = false;
+                if (scenario == 5) faultTransmitByteLimit = firstMarker.Length;
+                if (scenario == 6) candidate.Entries++;
+                if (scenario == 7) descriptor->Gdt[13] ^= 0x10;
+                if (scenario == 8) arena.Permanent->ObservedRsp = arena.StackBottom;
+                if (scenario == 9) { faultCorruptCanary = (byte*)(arena.StackBottom - 8); faultCorruptAfterBytes = firstMarker.Length + secondMarker.Length; }
+                if (scenario == 10) faultTransmitByteLimit = firstMarker.Length + secondMarker.Length;
+                if (scenario == 11) ((uint*)arena.Transition)[1] = (uint)FirmwareServicesMode.BootServicesAvailable;
+                if (scenario == 12) arena.Permanent->Phase = FirstExitAdoptionPhase.Prepared;
+                bool passed = FirstExitPostExitDiagnostics.Report(ref state, ref arena, candidate);
+                string observed = Encoding.ASCII.GetString(FaultOutput, 0, faultOutputBytes);
+                string expected = scenario == 0 ? firstMarker + secondMarker + thirdMarker :
+                    scenario is 9 or 10 ? firstMarker + secondMarker : scenario is 3 or 5 ? firstMarker : "";
+                Need(passed == (scenario == 0) && observed == expected, "post-exit marker gating " + scenario);
+                FirstExitDiagnosticStatus expectedStatus = scenario == 0 ? FirstExitDiagnosticStatus.Completed :
+                    scenario is 3 or 9 ? FirstExitDiagnosticStatus.ValidationFailed :
+                    scenario is 4 or 5 or 10 ? FirstExitDiagnosticStatus.SerialFailed : FirstExitDiagnosticStatus.AdmissionFailed;
+                Need(state.Status == expectedStatus, "post-exit status " + scenario);
+                int priorBytes = faultOutputBytes, priorPolls = faultPolls;
+                Need(!FirstExitPostExitDiagnostics.Report(ref state, ref arena, candidate) && faultOutputBytes == priorBytes && faultPolls == priorPolls,
+                    "every report attempt is consumed");
+                if (scenario == 1) arena.Permanent->ObservedCr3 ^= 4096;
+                if (scenario == 2) descriptor->ObservedTr = 24;
+                if (scenario == 3) entries[0] ^= 1;
+                if (scenario == 7) descriptor->Gdt[13] ^= 0x10;
+                if (scenario == 8) arena.Permanent->ObservedRsp = arena.StackTop - 4096 - 8;
+                if (scenario == 9) { *faultCorruptCanary ^= 1; faultCorruptCanary = null; }
+                if (scenario == 11) ((uint*)arena.Transition)[1] = (uint)FirmwareServicesMode.BootServicesExited;
+                if (scenario == 12) arena.Permanent->Phase = FirstExitAdoptionPhase.OwnedDiagnostic;
+            }
+            Console.WriteLine("CLROS_M03_007_REPORT_HOST_READY identityBacking=true markerBytes=84 guestExecution=false");
+        }
+        finally { faultTransmitByteLimit = int.MaxValue; faultCorruptCanary = null; VirtualFree(entries, 0, 0x8000); }
     }
 
     private static void OwnedArena()

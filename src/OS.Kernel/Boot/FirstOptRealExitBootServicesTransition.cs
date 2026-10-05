@@ -15,6 +15,142 @@ public struct FirstExitImageReferences
     public ulong CopiedAcpi, CopiedAcpiBytes;
 }
 
+public enum FirstExitDiagnosticStatus : uint
+{
+    Empty, AdmissionFailed, SerialFailed, ValidationFailed, Completed
+}
+
+public struct FirstExitDiagnosticState
+{
+    public FirstExitDiagnosticStatus Status;
+}
+
+// The adapter retains the original inputs in its image-resident state. All
+// pointers must remain accessible/exclusive; declarations are not capabilities.
+public unsafe struct FirstExitDiagnosticMemory
+{
+    public byte* Code;
+    public EfiLoadedImageRangeCapturePlan Capture;
+    public M01LoadedImageVirtualMappingEvidence Mapping;
+    public FirstExitImageReferences References;
+    public SeparatePageFaultMappingRange Allocator;
+    public SeparatePageFaultPageTableRequest Tables;
+    public X64PageTableImagePage* Pages;
+    public ulong PageCapacity;
+    public ulong* Entries;
+    public ulong EntryCapacity;
+}
+
+/// <summary>
+/// One-use reporting from the terminal owned callback. Admit the original native
+/// observations, reconstruct essential mappings and audit the actual root backing
+/// before advancing success markers. No firmware function or output is accepted.
+/// The caller must authenticate this callback/native observation provenance and
+/// halt after every return, including success. Host-supplied observations alone
+/// are not proof that hardware performed ExitBootServices or loaded CR3.
+/// </summary>
+public static unsafe class FirstExitPostExitDiagnostics
+{
+    public static bool Report(ref FirstExitDiagnosticState state, ref FirstExitOwnedArenaState arena,
+        FirstExitDiagnosticMemory memory)
+    {
+        if (state.Status != FirstExitDiagnosticStatus.Empty) return false;
+        fixed (FirstExitDiagnosticState* address = &state)
+        {
+            ulong start = (ulong)address, owner = memory.References.AdapterState, bytes = memory.References.AdapterStateBytes;
+            if (start < owner || bytes < (ulong)sizeof(FirstExitDiagnosticState) ||
+                start - owner > bytes - (ulong)sizeof(FirstExitDiagnosticState)) return false;
+            fixed (FirstExitOwnedArenaState* handle = &arena)
+                if (FirstExitDescriptors.Overlaps(start, (ulong)sizeof(FirstExitDiagnosticState),
+                    (ulong)handle, (ulong)sizeof(FirstExitOwnedArenaState))) return false;
+        }
+        state.Status = FirstExitDiagnosticStatus.AdmissionFailed;
+        if (!arena.IsReady || !FirstExitOwnedArena.ValidateCanaries(arena) ||
+            memory.Tables.ArenaStart.TryGetRawValueForHardwareRegisterBoundary(out ulong root) != AddressValueStatus.Success ||
+            root == 0 || (ulong)memory.Entries != root ||
+            memory.PageCapacity != memory.Tables.ArenaPageCount || memory.EntryCapacity != memory.PageCapacity * 512 ||
+            arena.Transition->Phase != FirstExitPhase.OwnedContinuation ||
+            arena.Transition->Mode != FirmwareServicesMode.BootServicesExited || !arena.Transition->Attempt.Succeeded ||
+            !arena.Transition->RetainedFirmwareCallbacksCleared || !arena.Binding->IsConsumed || !arena.Binding->RetainedPointersCleared)
+            return false;
+        FirstExitPermanentCr3Context* adoption = arena.Permanent;
+        FirstExitOwnedStackContext* entry = arena.StackEntry;
+        if (adoption->Phase != FirstExitAdoptionPhase.OwnedDiagnostic || adoption->Reserved != 0 ||
+            adoption->OwnedCr3 != root || adoption->ObservedCr3 != root ||
+            (adoption->FirmwareCr3 & ~0x18UL) == 0 || adoption->FirmwareCr3 >= 0x100000000 ||
+            (adoption->FirmwareCr3 & 0xfe7) != 0 || (adoption->FirmwareCr3 & ~0xfffUL) == root ||
+            (adoption->FirmwareCr4 & ~0x7ffUL) != 0 || (adoption->FirmwareCr4 & 0x20) == 0 ||
+            adoption->ObservedCr4 != (adoption->FirmwareCr4 & ~0x80UL) ||
+            adoption->StackBottom != arena.StackBottom || adoption->StackTop != arena.StackTop ||
+            adoption->MinimumRsp <= arena.StackBottom || adoption->MinimumRsp >= arena.StackTop ||
+            adoption->ObservedRsp < adoption->MinimumRsp || adoption->ObservedRsp >= arena.StackTop || (adoption->ObservedRsp & 15) != 8 ||
+            adoption->LowerCanary != FirstExitOwnedArena.LowerCanary || adoption->UpperCanary != FirstExitOwnedArena.UpperCanary ||
+            adoption->Descriptors != arena.Descriptors || (ulong)adoption->Diagnostic != memory.References.DiagnosticCallback ||
+            (ulong)adoption->DiagnosticContext != memory.References.AdapterState ||
+            entry->Phase != 2 || entry->Reserved != 0 || entry->FirmwareCr3 != adoption->FirmwareCr3 || entry->FirmwareCr4 != adoption->FirmwareCr4 ||
+            entry->StackBottom != arena.StackBottom || entry->StackTop != arena.StackTop || entry->ObservedRsp != arena.StackTop - FirstExitOwnedStackStub.CallStackBytes ||
+            (ulong)entry->Entry != memory.References.EntryCallback || (ulong)entry->EntryContext != memory.References.AdapterState)
+            return false;
+        SeparatePageFaultMappingRange* ranges = stackalloc SeparatePageFaultMappingRange[(int)FirstExitRetainedMappings.MaximumRanges];
+        if (!FirstExitRetainedMappings.WriteInstalledRanges(ref arena, memory.Code, memory.Capture, memory.Mapping,
+            memory.References, memory.Allocator, memory.Tables, ranges, FirstExitRetainedMappings.MaximumRanges, out ulong count) ||
+            !FirstExitImageMappings.Contains(ranges, count, (ulong)memory.Pages,
+                memory.PageCapacity * (ulong)sizeof(X64PageTableImagePage), PageProtection.Read | PageProtection.Write)) return false;
+
+        state.Status = FirstExitDiagnosticStatus.SerialFailed;
+        Com1OwnedPortIoBackend backend = arena.Fault->Backend;
+        if (!backend.ConfigureDefault().Succeeded || !WriteMarker(backend, 0)) return false;
+        state.Status = FirstExitDiagnosticStatus.ValidationFailed;
+        if (!SeparateDisabledDefaultPageFaultPageTables.AuditRetainedAccessedImage(memory.Tables,
+            ranges, count, FirstExitRetainedMappings.MaximumRanges, memory.Pages, memory.PageCapacity,
+            memory.Entries, memory.EntryCapacity).Succeeded || !FirstExitOwnedArena.ValidateCanaries(arena)) return false;
+        state.Status = FirstExitDiagnosticStatus.SerialFailed;
+        if (!WriteMarker(backend, 1)) return false;
+        state.Status = FirstExitDiagnosticStatus.ValidationFailed;
+        if (!FirstExitOwnedArena.ValidateCanaries(arena)) return false;
+        state.Status = FirstExitDiagnosticStatus.SerialFailed;
+        if (!WriteMarker(backend, 2)) return false;
+        state.Status = FirstExitDiagnosticStatus.Completed;
+        return true;
+    }
+
+    private static bool WriteMarker(Com1OwnedPortIoBackend backend, uint marker)
+    {
+        // Fixed ASCII payloads include CRLF. No strings, formatting allocation or
+        // arbitrary callback is used between observations and the owned UART.
+        ulong* words = stackalloc ulong[4];
+        uint bytes;
+        if (marker == 0)
+        {
+            words[0] = 0x5f5342455f33304dUL; words[1] = 0x44454e5255544552UL;
+            words[2] = 0x535345434355535fUL; words[3] = 0x0000000000000a0dUL; bytes = 26;
+        }
+        else if (marker == 1)
+        {
+            words[0] = 0x4d5245505f33304dUL; words[1] = 0x52435f544e454e41UL;
+            words[2] = 0x4554504f44415f33UL; words[3] = 0x00000000000a0d44UL; bytes = 27;
+        }
+        else if (marker == 2)
+        {
+            words[0] = 0x54534f505f33304dUL; words[1] = 0x4e574f5f5342455fUL;
+            words[2] = 0x4e474149445f4445UL; words[3] = 0x000a0d434954534fUL; bytes = 31;
+        }
+        else return false;
+        for (uint index = 0; index < bytes; index++)
+        {
+            bool ready = false;
+            for (int poll = 0; poll < PanicSafeFormattingSerialReportingOwnedCom1.DefaultTransmitReadyPollLimit; poll++)
+            {
+                Com1OwnedPortIoOperationResult read = backend.ReadByte(Com1OwnedPortIoBackend.LineStatusRegisterPort);
+                if (!read.Succeeded) return false;
+                if ((read.Value & PanicSafeFormattingSerialReportingOwnedCom1.TransmitHoldingRegisterEmptyMask) != 0) { ready = true; break; }
+            }
+            if (!ready || !backend.WriteByte(Com1OwnedPortIoBackend.DataRegisterPort, ((byte*)words)[index]).Succeeded) return false;
+        }
+        return true;
+    }
+}
+
 /// <summary>
 /// Compose the complete first-exit mapping declarations before building tables:
 /// original image, owned arena without guards, authenticated code and the original
@@ -35,6 +171,22 @@ public static unsafe class FirstExitRetainedMappings
         FirstExitImageReferences references, SeparatePageFaultMappingRange allocator,
         SeparatePageFaultPageTableRequest tables,
         SeparatePageFaultMappingRange* ranges, ulong capacity, out ulong written)
+        => WriteRangesCore(ref arena, code, capture, mapping, references, allocator, tables, ranges, capacity, false, out written);
+
+    // Reconstruct expected declarations after the native continuation recorded
+    // installed descriptors. Caller-owned scratch may lie on the owned main stack.
+    public static bool WriteInstalledRanges(ref FirstExitOwnedArenaState arena, byte* code,
+        EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping,
+        FirstExitImageReferences references, SeparatePageFaultMappingRange allocator,
+        SeparatePageFaultPageTableRequest tables,
+        SeparatePageFaultMappingRange* ranges, ulong capacity, out ulong written)
+        => WriteRangesCore(ref arena, code, capture, mapping, references, allocator, tables, ranges, capacity, true, out written);
+
+    private static bool WriteRangesCore(ref FirstExitOwnedArenaState arena, byte* code,
+        EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping,
+        FirstExitImageReferences references, SeparatePageFaultMappingRange allocator,
+        SeparatePageFaultPageTableRequest tables,
+        SeparatePageFaultMappingRange* ranges, ulong capacity, bool installed, out ulong written)
     {
         written = 0;
         if (ranges == null || ((ulong)ranges & 7) != 0 || capacity == 0 || capacity > MaximumRanges ||
@@ -44,7 +196,8 @@ public static unsafe class FirstExitRetainedMappings
             SeparateDisabledDefaultPageFaultPageTables.ValidateRequest(tables) != SeparatePageFaultPageTableStatus.Success ||
             tables.ArenaStart.TryGetRawValueForHardwareRegisterBoundary(out ulong root) != AddressValueStatus.Success ||
             root >= 0x100000000UL - tables.ArenaPageCount * 4096 ||
-            !FirstExitCodeBundle.ValidateReadBack(code, FirstExitCodeBundle.Bytes, ref arena, capture, mapping, references.FaultCallback))
+            !(installed ? FirstExitCodeBundle.ValidateInstalledReadBack(code, FirstExitCodeBundle.Bytes, ref arena, capture, mapping, references.FaultCallback) :
+                FirstExitCodeBundle.ValidateReadBack(code, FirstExitCodeBundle.Bytes, ref arena, capture, mapping, references.FaultCallback)))
             return false;
 
         SeparatePageFaultMappingRange* pending = stackalloc SeparatePageFaultMappingRange[(int)MaximumRanges];
@@ -81,7 +234,10 @@ public static unsafe class FirstExitRetainedMappings
         if (capacity < count || totalPages > SeparateDisabledDefaultPageFaultPageTables.MaximumRetainedMappedPages ||
             (ulong)ranges >= LowEnd - outputBytes) return false;
         for (int i = 0; i < 5; i++)
+        {
+            if (i == 1 && FirstExitOwnedArena.InMainStack(arena, (ulong)ranges, outputBytes)) continue;
             if (FirstExitDescriptors.Overlaps((ulong)ranges, outputBytes, starts[i], lengths[i])) return false;
+        }
         // Commit only after all declarations and aliases have passed. Caller may
         // build/audit from this scratch output, then discard it before entry.
         for (ulong i = 0; i < count; i++) ranges[i] = pending[i];
@@ -152,8 +308,13 @@ public static unsafe class FirstExitCodeBundle
         => Admit(code, capacity, ref arena, capture, mapping, callback, 1) &&
             arena.Fault->Backend.IsReady && CheckBytes(code, (ulong)arena.Fault, callback);
 
+    public static bool ValidateInstalledReadBack(byte* code, ulong capacity, ref FirstExitOwnedArenaState arena,
+        EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping, ulong callback)
+        => Admit(code, capacity, ref arena, capture, mapping, callback, 1, true) &&
+            arena.Fault->Backend.IsReady && CheckBytes(code, (ulong)arena.Fault, callback);
+
     private static bool Admit(byte* code, ulong capacity, ref FirstExitOwnedArenaState arena,
-        EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping, ulong callback, uint phase)
+        EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping, ulong callback, uint phase, bool installed = false)
     {
         ulong address = (ulong)code, data = (ulong)arena.Storage;
         if (capacity != Bytes || address < 4096 || (address & 4095) != 0 || address >= LowEnd - Bytes ||
@@ -167,7 +328,7 @@ public static unsafe class FirstExitCodeBundle
             !FirstExitImageMappings.Contains(imageRanges, count, callback, 1, PageProtection.Read | PageProtection.Execute) ||
             FirstExitDescriptors.Overlaps(address, Bytes, imageRanges[0].Start, capture.Range.ImageSize) ||
             FirstExitDescriptors.Overlaps(data, FirstExitOwnedArena.Bytes, imageRanges[0].Start, capture.Range.ImageSize) ||
-            !FirstExitOwnedArena.ValidateDescriptors(ref arena, address) ||
+            !(installed ? FirstExitOwnedArena.ValidateInstalledDescriptors(ref arena, address) : FirstExitOwnedArena.ValidateDescriptors(ref arena, address)) ||
             arena.Fault->Phase != phase || arena.Fault->Reserved != 0) return false;
         return FirstExitTerminalFaultStub.RequiredBytes > 0 && FirstExitTerminalFaultStub.RequiredBytes <= Out8Offset - FaultOffset &&
             FirstExitOwnedStackStub.RequiredBytes > 0 && FirstExitOwnedStackStub.RequiredBytes <= PermanentOffset - StackEntryOffset &&
@@ -764,7 +925,8 @@ public static unsafe class FirstExitOwnedArena
         if (!state.IsReady || !PageRange((ulong)state.Data, Bytes) ||
             ranges == null || ((ulong)ranges & 7) != 0 || (ulong)ranges >= LowEnd - bytes ||
             capacity < MappingRangeCount || capacity > SeparateDisabledDefaultPageFaultPageTables.MaximumRetainedRanges ||
-            FirstExitDescriptors.Overlaps((ulong)ranges, bytes, (ulong)state.Data, Bytes)) return false;
+            (FirstExitDescriptors.Overlaps((ulong)ranges, bytes, (ulong)state.Data, Bytes) &&
+                !InMainStack(state, (ulong)ranges, bytes))) return false;
         fixed (FirstExitOwnedArenaState* address = &state)
             if (FirstExitDescriptors.Overlaps((ulong)ranges, bytes, (ulong)address,
                 (ulong)sizeof(FirstExitOwnedArenaState))) return false;
@@ -841,6 +1003,14 @@ public static unsafe class FirstExitOwnedArena
     /// pointers before following them. This does not observe live GDTR/IDTR/TR.
     /// </summary>
     public static bool ValidateDescriptors(ref FirstExitOwnedArenaState state, ulong vectorPage)
+        => ValidateDescriptorsCore(ref state, vectorPage, false);
+
+    // Validate supplied installed storage and native-recorded observations. This
+    // helper itself does not execute SGDT/SIDT/STR or establish their provenance.
+    public static bool ValidateInstalledDescriptors(ref FirstExitOwnedArenaState state, ulong vectorPage)
+        => ValidateDescriptorsCore(ref state, vectorPage, true);
+
+    private static bool ValidateDescriptorsCore(ref FirstExitOwnedArenaState state, ulong vectorPage, bool installed)
     {
         if (state.Reserved != 0 || !PageRange(vectorPage, 4096) || !ValidateCanaries(state) ||
             FirstExitDescriptors.Overlaps((ulong)state.Data, Bytes, vectorPage, 4096)) return false;
@@ -852,17 +1022,28 @@ public static unsafe class FirstExitOwnedArena
             context->Gdt != gdt || context->Tss != tss || context->FinalIdt != finalIdt || context->BridgeIdt != bridge ||
             !PseudoDescriptor(context->Gdtr, gdt, (ushort)(cs < 40 ? 39 : cs + 7)) ||
             !PseudoDescriptor(context->FinalIdtr, finalIdt, 4095) || !PseudoDescriptor(context->BridgeIdtr, bridge, 4095) ||
-            context->ObservedTr != 0 || context->ObservedCs != 0 || context->ObservedDs != 0 ||
-            context->ObservedEs != 0 || context->ObservedSs != 0 ||
-            !OwnedX64GdtContainingNullN64BitCode.Verify(gdt, 4096, (ulong)tss, 103).Succeeded ||
+            context->ObservedTr != (installed ? 24 : 0) || context->ObservedCs != (installed ? 8 : 0) ||
+            context->ObservedDs != (installed ? 16 : 0) || context->ObservedEs != (installed ? 16 : 0) || context->ObservedSs != (installed ? 16 : 0) ||
             !PopulateAllN256IDTVectorsOwnedGatesNever.ValidateReadBack(finalIdt, 4096, (ulong)finalIdt, vectorPage).Succeeded)
             return false;
+        byte* expectedGdt = stackalloc byte[40];
+        if (!OwnedX64GdtContainingNullN64BitCode.Encode(expectedGdt, 40, (ulong)tss, 103).Succeeded) return false;
+        if (installed) expectedGdt[29] |= 2; // LTR must have made this TSS busy.
+        for (int i = 0; i < 40; i++)
+        {
+            byte observed = gdt[i];
+            if (installed && (i == 13 || i == 21)) observed &= 0xfe; // hardware accessed bit only
+            if (observed != expectedGdt[i]) return false;
+        }
         for (int i = 0; i < 16; i++)
-            if (context->ObservedGdtr[i] != 0 || context->ObservedIdtr[i] != 0) return false;
+            if (context->ObservedGdtr[i] != (installed ? context->Gdtr[i] : 0) ||
+                context->ObservedIdtr[i] != (installed ? context->FinalIdtr[i] : 0)) return false;
         for (int i = 40; i < 4096; i++)
         {
-            byte expected = cs >= 40 && i >= cs && i - cs < 8 ? gdt[8 + i - cs] : (byte)0;
-            if (gdt[i] != expected) return false;
+            byte expected = cs >= 40 && i >= cs && i - cs < 8 ? expectedGdt[8 + i - cs] : (byte)0;
+            byte observed = gdt[i];
+            if (installed && cs >= 40 && i == cs + 5) observed &= 0xfe;
+            if (observed != expected) return false;
         }
         for (int i = 0; i < 4096; i++)
         {
@@ -890,6 +1071,10 @@ public static unsafe class FirstExitOwnedArena
         for (int i = 10; i < 16; i++) if (descriptor[i] != 0) return false;
         return true;
     }
+
+    internal static bool InMainStack(FirstExitOwnedArenaState state, ulong address, ulong bytes)
+        => state.IsReady && PageRange((ulong)state.Data, Bytes) && bytes != 0 &&
+            address >= state.StackBottom && address < state.StackTop && bytes <= state.StackTop - address;
 
     private static bool PageRange(ulong start, ulong bytes)
         => start != 0 && start < LowEnd && (start & 4095) == 0 && bytes < LowEnd - start;
