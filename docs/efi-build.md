@@ -2454,3 +2454,21 @@ GPT/FAT/FSInfo and all firmware NVVARS changes. Ordinary pristine images were
 reconstructed after capture; the missing lane also retains its actual
 prelaunch pristine image. None of this proves real ExitBootServices or a
 post-firmware random service.
+
+### M03-004 host adapter prerequisite
+
+[Step988](../done/step988.md) compiles the actual typed one-attempt adapter
+together with unchanged `FirmwareServicesMode.cs`, `MinimalRuntime.cs` and
+`MethodImplAttribute.cs` under .NET 10/C# 14, NoStdLib and disabled implicit
+framework references. Metadata inspection finds zero AssemblyRefs and actual
+Prepare/Attempt IL bodies. That child assembly is not executed or published
+as EFI; the existing EFI Compile list and all probe profiles remain unchanged.
+
+The complete six-module focused harness passes 53 starts/54 passes/zero
+failures, followed by a successful normal Release HostTests compilation.
+Controlled unmanaged host callbacks prove exact opaque handle/key forwarding,
+full-width status preservation, one-shot/reentry refusal and unchanged global
+firmware mode. A separately claimed shared-file supplement must source-link
+this core, inspect its actual emitted indirect ABI and prove a default-off
+controlled callback profile under QEMU. The original firmware ExitBootServices
+slot, final-map ordering, retry and post-exit behavior are outside this evidence.

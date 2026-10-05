@@ -3797,6 +3797,33 @@ ordering, retry and the first actual ExitBootServices transition remain later
 slices. No seed value or derivative is logged, and no randomness quality,
 post-firmware service or physical secure-erasure guarantee follows.
 
+
+### M03-004 typed one-attempt adapter
+
+[Step988](../done/step988.md) adds the host-tested
+`TypedNoStdlibExitBootServicesCallAdapter`. `Prepare` admits only empty
+caller-owned POD state, an explicitly available firmware mode, a nonnull
+`delegate* unmanaged<void*, ulong, ulong>` and a nonnull opaque image handle.
+`Attempt` rechecks admission, stores the complete map key and marks the state
+in flight before one indirect call. Every returned UInt64 status consumes the
+attempt; adapter refusal remains distinct from firmware success or failure.
+Zero and high-bit keys are valid. Refused admission, reuse and callback reentry
+leave the retained state unchanged and issue no additional callback.
+
+The complete new module and five existing firmware/map/exit-plan modules pass
+53 starts/54 passes/zero failures. Actual host layouts are 40-byte state and
+16-byte result; warmed managed attempts allocate zero bytes. The actual
+four-source no-stdlib compile has zero AssemblyRefs and is not executed.
+Callers must retain and serialize the state and supply valid callable authority;
+copying or resetting state, hostile mutation and arbitrary-pointer executability
+are outside the contract.
+
+This host evidence does not establish the emitted EFI ABI or a firmware exit.
+The adapter leaves global firmware mode unchanged. #61 remains claimed pending
+its separate controlled native/QEMU supplement and common integration gate;
+#62, #63 and #64 retain final-map ordering, stale-key retry and the first actual
+ExitBootServices transition respectively.
+
 Existing guard markers:
 
 ```text
