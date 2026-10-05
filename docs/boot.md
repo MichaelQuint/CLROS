@@ -4374,7 +4374,8 @@ serialization remain caller obligations. No retry or firmware-mode transition
 is implemented. [Step999](../done/step999.md) records focused host and no-stdlib
 compile evidence. M03-004 is accepted. [Step1004](../done/step1004.md) now
 links this window and the bounded retry below into the existing default-off
-typed-EBS diagnostic; full-batch and fresh QEMU acceptance remain pending.
+typed-EBS diagnostic. [Step1010](../done/step1010.md) accepts the complete
+batch and fresh default/enabled QEMU evidence for this controlled boundary.
 
 The preparatory M03-006 `BoundedRetryStaleKeyStatus` coordinator composes at
 most two such windows with separate retained states and the same owned buffer.
@@ -4384,9 +4385,10 @@ the loop neither grows the buffer nor exposes allocation or logging callbacks.
 The result distinguishes windows started from actual exit calls and retains
 the final window result. The outer state prevents reentry/reuse and cannot
 overlap the map buffer. [Step1001](../done/step1001.md) records focused host and
-no-stdlib compilation only. This is preparatory work over M03-005; neither issue
-has firmware acceptance, and firmware access invalidation remains the caller's
-responsibility after any future real successful exit.
+no-stdlib compilation. [Step1010](../done/step1010.md) accepts five authentic
+GetMemoryMap captures and five controlled exit callbacks, including stale-key
+retry and exhaustion. No original firmware exit occurs; firmware access
+invalidation remains required after a future real successful exit.
 
 1. Treat the accepted M01-026 tuple as the bounded M01 milestone exit and begin
    M02 diagnostics work after tracker review/synchronization. Keep real

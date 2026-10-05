@@ -2637,4 +2637,8 @@ It never reads the original firmware exit slot. The source closure is now
 100 Compile items/114 raw inputs, with the same 42 profile flags. The complete
 focused EFI fixture passes, including default/enabled publication and strict
 45-record transcript checks. The default image retains step1003's exact bytes.
-Full-batch, changed-native review and fresh guest acceptance are pending.
+[Step1010](../done/step1010.md) accepts the original full suite
+(3798starts/3799passes/zero failures), changed-native review and fresh ordinary
+default/enabled QEMU captures with source/native/disk association. Original
+firmware function-body stack depth remains excluded. The next live boundary is
+#64: real firmware exit followed by permanent owned-CR3 adoption.
