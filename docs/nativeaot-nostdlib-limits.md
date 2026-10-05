@@ -1539,3 +1539,19 @@ Five owned-stack canary checks pass within the reviewed first-party bound.
 #81/#548 are ready for closure after merge and #82 can proceed to collection.
 This does not implement collection, free/reuse, general roots/static/TLS,
 exceptions, concurrency or hosted .NET; Gates3/4 remain Fail.
+
+### Bounded collector reference maps (step1005)
+
+`BoundedNonMovingCollectorExplicitRootEnumeration.InspectType` now decodes
+pointer-free fixed types and up to four disjoint positive GCDesc series from
+registered immutable image metadata. Every read also fits the caller's explicit
+readable window. The abbreviated GC-static MethodTable uses its actual 16-byte
+prefix; ordinary fixed types require 24 bytes. Negative/repeating descriptors,
+variable-sized types, finalizers, overlapping series and malformed ranges fail
+without changing caller storage. Results are immediate observations, not retained
+root or allocation capabilities.
+
+The focused host cases and a 99-source no-stdlib compilation pass; the latter
+has zero assembly references and was not executed. See [step1005](../done/step1005.md).
+Issue #82 remains in progress: authoritative allocation tracking, tracing,
+atomic sweep, dead-block reuse and guest acceptance are still required.
