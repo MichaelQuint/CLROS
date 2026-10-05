@@ -1589,3 +1589,14 @@ No arbitrary stack walking, moving GC, finalizers or weak references are provide
 allocator and root compatibility checks, and an updated compile-only no-stdlib
 closure. EFI integration, full batch acceptance and actual guest proof remain
 pending; #82/#552 stay open and Gates3/4 remain Fail.
+
+The existing default-off GC diagnostic now also has a prepared compiler-object
+collection path ([step1007](../done/step1007.md)). It binds the collecting owner
+before materializing the static base, preserves the prior object/null store
+checks, and then builds a real reference chain and unreachable cycle. Four
+collections check reclamation, same-address reuse, stale receipts and repeated
+retained-root lifetime, with five additional owned-stack canary observations.
+The enabled 99-source no-stdlib closure compiles. This code has not been published
+or executed in a guest; shared project admission and strict serial parsing are
+still pending behind #551. The original enabled project/profile is therefore
+not yet ready to run from this development branch.

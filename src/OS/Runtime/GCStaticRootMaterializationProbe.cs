@@ -21,6 +21,23 @@ internal static class GcStaticFixture
     internal static ref object Address() => ref s_value;
 }
 
+// A genuine compiler-described fixed class with one reference series. Its
+// constructor and accessors run only after the original allocator is bound.
+internal sealed class GcCollectorNode
+{
+    private GcCollectorNode child;
+    private readonly ulong tag;
+    internal GcCollectorNode(ulong value) { RhpNewFastAllocation.ConstructorEntered(); tag = value; }
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal void SetChild(GcCollectorNode value) => child = value;
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal GcCollectorNode GetChild() => child;
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal ulong GetTag() => tag;
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal ref GcCollectorNode ChildAddress() => ref child;
+}
+
 internal static unsafe partial class RhpNewFastAllocation
 {
     private const ulong GcCookie = 0x7143B6A952D08E2F;
@@ -41,6 +58,12 @@ internal static unsafe partial class RhpNewFastAllocation
     private static GCStaticReadableWindow s_gcImage;
     private static ulong s_gcHandle, s_gcPhase, s_gcCalls, s_gcField, s_gcOperation;
     private static RhpNewFastResult s_gcValue;
+    private struct GcCollectingStorage
+    {
+        internal RhpNewFastBumpState State;
+        internal fixed ulong Records[680];
+    }
+    private static GcCollectingStorage s_gcCollecting;
 
     internal static void RunGcStatics(RhpNewFastHeapAccess original,
         EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping)
@@ -55,15 +78,18 @@ internal static unsafe partial class RhpNewFastAllocation
         s_gcImage = new(image, capture.Range.ImageSize);
         GcLine(0, image, capture.Range.ImageSize, 0, 0);
         fixed (RhpNewFastHeapAccess* a = &s_access)
-        fixed (RhpNewFastBumpState* b = &s_bump)
+        fixed (GcCollectingStorage* collecting = &s_gcCollecting)
         fixed (RhpAllocationControl* c = &s_control)
         fixed (RhpObservationStorage* r = &s_records)
         fixed (GcTypeStorage* type = &s_gcType)
         fixed (GcRootStorage* root = &s_gcRoot)
         {
+            RhpNewFastBumpState* b = &collecting->State;
             if (RhpNewFastAllocationCore.Prepare(original, a, b, c, r,
                     (byte*)image, capture.Range.ImageSize) != RhpAdmissionStatus.Success ||
-                !RhpNewFastAllocationCore.Bind(a, b, c, r).Succeeded)
+                (ulong)sizeof(GcCollectingStorage) != GuestTestRhpNewFast.RequiredCollectingStateBytes ||
+                !GuestTestRhpNewFast.InitializeOnce(*a, b, (ulong)sizeof(GcCollectingStorage)).Succeeded ||
+                GuestTestRhpNewFast.EnableCollection(*a, b, (ulong)sizeof(GcCollectingStorage)) != RhpNewFastStatus.Success)
                 RejectGc(2);
             TypeManagerModuleResult registered = TypeManagerModuleMetadataLiveNativeAOTImage.RegisterOnce(
                 capture, mapping, (byte*)type, (ulong)sizeof(GcTypeStorage));
@@ -76,7 +102,7 @@ internal static unsafe partial class RhpNewFastAllocation
             ArmGcStack((ulong)&stackWitness);
             GCStaticRootResult materialized = GCStaticRootsMalformedMetadata.MaterializeOnce(
                 capture, mapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
-                s_gcImage, s_gcImage, GcObjectType(), *a, b, GuestTestRhpNewFast.RequiredStateBytes,
+                s_gcImage, s_gcImage, GcObjectType(), *a, b, GuestTestRhpNewFast.RequiredCollectingStateBytes,
                 (byte*)root, (ulong)sizeof(GcRootStorage));
             if (!materialized.Succeeded)
             {
@@ -92,7 +118,7 @@ internal static unsafe partial class RhpNewFastAllocation
             GcLine(3, materialized.Cell, materialized.ObjectReference, s_gcField, materialized.AllocationBytes);
             GCStaticRootResult repeated = GCStaticRootsMalformedMetadata.MaterializeOnce(
                 capture, mapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
-                s_gcImage, s_gcImage, GcObjectType(), *a, b, GuestTestRhpNewFast.RequiredStateBytes,
+                s_gcImage, s_gcImage, GcObjectType(), *a, b, GuestTestRhpNewFast.RequiredCollectingStateBytes,
                 (byte*)root, (ulong)sizeof(GcRootStorage));
             if (!repeated.Succeeded || repeated.ObjectReference != materialized.ObjectReference ||
                 b->AllocationCount != 1) RejectGc(8);
@@ -119,6 +145,7 @@ internal static unsafe partial class RhpNewFastAllocation
             s_gcPhase = 4;
             GcLine(6, s_gcOperation, s_gcCalls, b->AllocationCount, b->UsedBytes);
             GcLine(8, s_gcStack.Checks, s_gcStack.Final0, s_gcStack.Final1, s_gcStack.MinimumWitness);
+            RunCollectorGraph();
         }
     }
 
@@ -169,15 +196,16 @@ internal static unsafe partial class RhpNewFastAllocation
             !GcStackSeparate(start, end, authority, 768) ||
             !GcStackSeparate(start, end, s_gcImage.Start, s_gcImage.Bytes)) return false;
         fixed (RhpNewFastHeapAccess* a = &s_access)
-        fixed (RhpNewFastBumpState* b = &s_bump)
+        fixed (GcCollectingStorage* collecting = &s_gcCollecting)
         fixed (RhpAllocationControl* c = &s_control)
         fixed (RhpObservationStorage* r = &s_records)
         {
+            RhpNewFastBumpState* b = &collecting->State;
             // Ready authenticates every original pointer and exact capacity
             // before the disjointness checks read the retained access fields.
             return RhpNewFastAllocationCore.Ready(a, b, c, r) == RhpAdmissionStatus.Success &&
                 GcStackSeparate(start, end, (ulong)a, (ulong)sizeof(RhpNewFastHeapAccess)) &&
-                GcStackSeparate(start, end, (ulong)b, (ulong)sizeof(RhpNewFastBumpState)) &&
+                GcStackSeparate(start, end, (ulong)b, (ulong)sizeof(GcCollectingStorage)) &&
                 GcStackSeparate(start, end, (ulong)c, (ulong)sizeof(RhpAllocationControl)) &&
                 GcStackSeparate(start, end, (ulong)r, (ulong)sizeof(RhpObservationStorage)) &&
                 GcStackSeparate(start, end, (ulong)a->Allocator, 56) &&
@@ -192,18 +220,20 @@ internal static unsafe partial class RhpNewFastAllocation
         at != 0 && bytes != 0 && at <= ulong.MaxValue - bytes && (at + bytes <= start || at >= end);
 
     // This is the only new allocation role. The static base and this real value
-    // share s_bump; the existing six-role reference diagnostic remains separate.
+    // share the collecting owner; the six-role reference diagnostic stays separate.
     private static ulong AllocateGcValue(ulong token)
     {
+        if (s_gcPhase == 4) return AllocateCollectorNode(token);
         if (s_gcPhase != 2 || token != TypePlain() || s_gcValue.ObjectReference != 0 ||
             !ReadGcRoot().Succeeded) RejectGc(12);
         if (!RhpNewFastAllocationCore.TryReadPrefix((byte*)s_gcImage.Start, s_gcImage.Bytes,
                 token, TypePlain(), out NativeAotMethodTablePrefix prefix, out _, out _, out _))
             RejectGc(13);
-        fixed (RhpNewFastBumpState* bump = &s_bump)
+        fixed (GcCollectingStorage* collecting = &s_gcCollecting)
         {
+            RhpNewFastBumpState* bump = &collecting->State;
             RhpNewFastResult result = GuestTestRhpNewFast.TryAllocate(s_access, bump,
-                GuestTestRhpNewFast.RequiredStateBytes, NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian,
+                GuestTestRhpNewFast.RequiredCollectingStateBytes, NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian,
                 prefix, token);
             if (!result.AllocationSucceeded || result.AllocationCount != 2 || result.BytesConsumed != 24 ||
                 GcReadWord(result.MappedAllocationStart) != 0 ||
@@ -218,6 +248,7 @@ internal static unsafe partial class RhpNewFastAllocation
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static uint ApplyGcReference(ulong operation, ulong destination, ulong operand, ulong bytes)
     {
+        if (s_gcPhase == 4) return ApplyCollectorReference(operation, destination, operand, bytes);
         // Admit only the two actual scalar stores. No bulk, stack, array or
         // foreign-reference route falls through to an unchecked memory write.
         if (s_gcPhase != 3 || s_gcCalls > 1 || (operation != 1 && operation != 2) || bytes != 8 ||
@@ -226,10 +257,11 @@ internal static unsafe partial class RhpNewFastAllocation
         GCStaticRootResult root = ReadGcRoot();
         if (!root.Succeeded || root.SeriesStart != destination || root.SeriesBytes != 8 ||
             s_gcValue.ObjectReference == 0 || s_gcValue.MethodTableToken != TypePlain()) return 0;
-        fixed (RhpNewFastBumpState* bump = &s_bump)
+        fixed (GcCollectingStorage* collecting = &s_gcCollecting)
         {
+            RhpNewFastBumpState* bump = &collecting->State;
             if (GuestTestRhpNewFast.TryValidateRetainedAllocation(s_access, bump,
-                    GuestTestRhpNewFast.RequiredStateBytes, s_gcValue) != RhpNewFastStatus.Success ||
+                    GuestTestRhpNewFast.RequiredCollectingStateBytes, s_gcValue) != RhpNewFastStatus.Success ||
                 GcReadWord(s_gcValue.ObjectReference + 8) != GcCookie) return 0;
             CheckedReferenceBulkResult result = CheckedReferenceBulkBarriersIncludingDotNetN10Bulk.TryStore(
                 s_access, CheckedReferenceBulkProfile.NonCollectingExclusiveRetainedPage,
@@ -244,10 +276,288 @@ internal static unsafe partial class RhpNewFastAllocation
     {
         fixed (GcTypeStorage* type = &s_gcType)
         fixed (GcRootStorage* root = &s_gcRoot)
-        fixed (RhpNewFastBumpState* bump = &s_bump)
+        fixed (GcCollectingStorage* collecting = &s_gcCollecting)
+        {
+            RhpNewFastBumpState* bump = &collecting->State;
             return GCStaticRootsMalformedMetadata.TryGetRetainedRoot(s_gcCapture, s_gcMapping,
                 (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle, s_gcImage, s_gcImage, GcObjectType(),
-                s_access, bump, GuestTestRhpNewFast.RequiredStateBytes, (byte*)root, (ulong)sizeof(GcRootStorage));
+                s_access, bump, GuestTestRhpNewFast.RequiredCollectingStateBytes, (byte*)root, (ulong)sizeof(GcRootStorage));
+        }
+    }
+
+    private const ulong CollectorCookie = 0xC011EC7000000000;
+    private struct GcNodeReceipts
+    {
+        internal RhpNewFastResult Node0;
+#pragma warning disable CS0649 // Written through bounded sequential POD slots.
+        internal RhpNewFastResult Node1, Node2, Node3, Node4, Node5;
+#pragma warning restore CS0649
+        internal ulong Count;
+    }
+    private static GcNodeReceipts s_gcNodes;
+    private static ulong s_collectorPhase, s_collectorStores, s_collectorFieldOffset;
+
+    private static void RunCollectorGraph()
+    {
+        if (s_gcPhase != 4 || s_gcCalls != 2 || s_collectorPhase != 0 || s_gcNodes.Count != 0 ||
+            Bits(GcStaticFixture.Get()) != 0 || !ReadGcRoot().Succeeded) RejectGc(101);
+        fixed (GcTypeStorage* type = &s_gcType)
+        {
+            CollectorTypeMapResult map = BoundedNonMovingCollectorExplicitRootEnumeration.InspectType(
+                NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian, s_gcCapture, s_gcMapping,
+                (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle, s_gcImage, CollectorNodeType());
+            if (!map.Succeeded || map.Prefix.BaseSize != 32 || map.SeriesCount != 1 ||
+                !map.TryGetSeries(0, out CollectorReferenceSeries series) || series.Bytes != 8)
+                RejectGc(102);
+            map.TryGetSeries(0, out CollectorReferenceSeries admitted);
+            s_collectorFieldOffset = admitted.OffsetFromReference;
+            CollectorLine(0, map.MethodTable, map.Prefix.BaseSize, s_collectorFieldOffset, admitted.Bytes);
+        }
+        s_collectorPhase = 1;
+        BuildCollectorGraph(); // All temporary managed locals leave scope here.
+        if (s_gcNodes.Count != 4 || s_collectorStores != 4 || s_control.ConstructorCount != 5 ||
+            Bits(GcStaticFixture.Get()) != NodeReceipt(0).ObjectReference ||
+            ReadStaticCollectorTag(false) != CollectorCookie + 1 ||
+            ReadStaticCollectorTag(true) != CollectorCookie + 2) RejectGc(103);
+        CollectorLine(1, NodeReceipt(0).ObjectReference, NodeReceipt(1).ObjectReference,
+            NodeReceipt(2).ObjectReference, NodeReceipt(3).ObjectReference);
+        CheckCollectorStack(5);
+
+        s_collectorPhase = 2;
+        // Preserve the earlier scalar fixture through an explicit original receipt.
+        RhpNewFastResult prior = s_gcValue;
+        BoundedCollectionResult first = CollectGcGraph(&prior, 1);
+        if (!first.Succeeded || first.LiveObjects != 4 || first.ReclaimedObjects != 2 ||
+            first.ReclaimedBytes != 64 || !CollectorReceiptValid(0) || !CollectorReceiptValid(1) ||
+            CollectorReceiptValid(2) || CollectorReceiptValid(3) ||
+            ReadStaticCollectorTag(false) != CollectorCookie + 1 ||
+            ReadStaticCollectorTag(true) != CollectorCookie + 2 || !ReadGcRoot().Succeeded)
+            RejectGc(104);
+        EmitCollection(2, first);
+        CheckCollectorStack(6);
+
+        s_collectorPhase = 3;
+        ReplaceCollectorRoot(CollectorCookie + 5);
+        RhpNewFastResult reused = NodeReceipt(4), dead = NodeReceipt(2);
+        if (s_gcNodes.Count != 5 || s_collectorStores != 5 ||
+            reused.ObjectReference != dead.ObjectReference || reused.MethodTableToken != dead.MethodTableToken ||
+            reused.AllocationCount <= dead.AllocationCount || CollectorReceiptValid(2) ||
+            !CollectorReceiptValid(4) || ReadStaticCollectorTag(false) != CollectorCookie + 5)
+            RejectGc(105);
+        CollectorLine(3, dead.ObjectReference, reused.ObjectReference, dead.AllocationCount, reused.AllocationCount);
+
+        s_collectorPhase = 4;
+        BoundedCollectionResult second = CollectGcGraph(null, 0);
+        if (!second.Succeeded || second.LiveObjects != 2 || second.ReclaimedObjects != 3 ||
+            second.ReclaimedBytes != 88 || CollectorReceiptValid(0) || CollectorReceiptValid(1) ||
+            !CollectorReceiptValid(4) || ReadStaticCollectorTag(false) != CollectorCookie + 5)
+            RejectGc(106);
+        EmitCollection(4, second);
+        CheckCollectorStack(7);
+        GcStaticFixture.Set(null);
+        if (s_collectorStores != 6 || Bits(GcStaticFixture.Get()) != 0) RejectGc(107);
+        BoundedCollectionResult third = CollectGcGraph(null, 0);
+        if (!third.Succeeded || third.LiveObjects != 1 || third.ReclaimedObjects != 1 ||
+            third.ReclaimedBytes != 32 || CollectorReceiptValid(4) || !ReadGcRoot().Succeeded)
+            RejectGc(108);
+        EmitCollection(5, third);
+        CheckCollectorStack(8);
+
+        s_collectorPhase = 5;
+        ReplaceCollectorRoot(CollectorCookie + 6);
+        RhpNewFastResult final = NodeReceipt(5);
+        if (s_gcNodes.Count != 6 || s_collectorStores != 7 || final.UsedBefore != 24 ||
+            final.AllocationCount != 8 || final.ObjectReference != s_gcValue.ObjectReference ||
+            s_control.ConstructorCount != 7 || ReadStaticCollectorTag(false) != CollectorCookie + 6)
+            RejectGc(109);
+        s_collectorPhase = 6;
+        BoundedCollectionResult repeat = CollectGcGraph(null, 0);
+        if (!repeat.Succeeded || repeat.LiveObjects != 2 || repeat.ReclaimedObjects != 0 ||
+            repeat.ReclaimedBytes != 0 || !CollectorReceiptValid(5) || !ReadGcRoot().Succeeded)
+            RejectGc(110);
+        EmitCollection(6, repeat);
+        CheckCollectorStack(9);
+        fixed (GcCollectingStorage* collecting = &s_gcCollecting)
+        {
+            if (collecting->State.UsedBytes != 176 || collecting->State.AllocationCount != 8 ||
+                GuestTestRhpNewFast.TryValidateRetainedAllocation(s_access, &collecting->State,
+                    (ulong)sizeof(GcCollectingStorage), s_gcValue) == RhpNewFastStatus.Success)
+                RejectGc(111);
+            CollectorLine(7, final.ObjectReference, collecting->State.UsedBytes,
+                collecting->State.AllocationCount, s_collectorStores);
+        }
+        CollectorLine(8, s_gcStack.Checks, s_gcStack.Final0, s_gcStack.Final1, s_gcStack.MinimumWitness);
+        s_collectorPhase = 7; s_gcPhase = 5;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void BuildCollectorGraph()
+    {
+        GcCollectorNode parent = NewCollectorNode(CollectorCookie + 1);
+        GcCollectorNode child = NewCollectorNode(CollectorCookie + 2);
+        GcCollectorNode deadA = NewCollectorNode(CollectorCookie + 3);
+        GcCollectorNode deadB = NewCollectorNode(CollectorCookie + 4);
+        if (CollectorField(parent) != Bits(parent) + s_collectorFieldOffset ||
+            CollectorField(child) != Bits(child) + s_collectorFieldOffset ||
+            CollectorField(deadA) != Bits(deadA) + s_collectorFieldOffset ||
+            CollectorField(deadB) != Bits(deadB) + s_collectorFieldOffset) RejectGc(112);
+        parent.SetChild(child);
+        deadA.SetChild(deadB);
+        deadB.SetChild(deadA);
+        GcStaticFixture.Set(parent);
+        if (Bits(parent.GetChild()) != Bits(child) || Bits(deadA.GetChild()) != Bits(deadB) ||
+            Bits(deadB.GetChild()) != Bits(deadA) || child.GetTag() != CollectorCookie + 2)
+            RejectGc(113);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static GcCollectorNode NewCollectorNode(ulong tag) => new GcCollectorNode(tag);
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void ReplaceCollectorRoot(ulong tag)
+    {
+        GcCollectorNode replacement = NewCollectorNode(tag);
+        if (Bits(replacement.GetChild()) != 0 || replacement.GetTag() != tag ||
+            CollectorField(replacement) != Bits(replacement) + s_collectorFieldOffset) RejectGc(114);
+        GcStaticFixture.Set(replacement);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static ulong ReadStaticCollectorTag(bool child)
+    {
+        object value = GcStaticFixture.Get();
+        GcCollectorNode node = Unsafe.As<object, GcCollectorNode>(ref value);
+        return child ? node.GetChild().GetTag() : node.GetTag();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static ulong CollectorNodeType() => (ulong)Internal.Runtime.MethodTable.Of<GcCollectorNode>();
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static ulong CollectorField(GcCollectorNode node)
+    {
+        fixed (byte* field = &Unsafe.As<GcCollectorNode, byte>(ref node.ChildAddress())) return (ulong)field;
+    }
+
+    private static RhpNewFastResult NodeReceipt(uint index)
+    {
+        if (index >= 6 || index >= s_gcNodes.Count) RejectGc(115);
+        fixed (GcNodeReceipts* records = &s_gcNodes) return (&records->Node0)[index];
+    }
+
+    private static bool CollectorReceiptValid(uint index)
+    {
+        fixed (GcCollectingStorage* collecting = &s_gcCollecting)
+            return GuestTestRhpNewFast.TryValidateRetainedAllocation(s_access, &collecting->State,
+                (ulong)sizeof(GcCollectingStorage), NodeReceipt(index)) == RhpNewFastStatus.Success;
+    }
+
+    private static ulong AllocateCollectorNode(ulong token)
+    {
+        ulong expectedCount = s_collectorPhase == 1 ? s_gcNodes.Count < 4 ? s_gcNodes.Count : 99UL
+            : s_collectorPhase == 3 ? 4UL : s_collectorPhase == 5 ? 5UL : 99UL;
+        if (expectedCount >= 6 || expectedCount != s_gcNodes.Count ||
+            token != CollectorNodeType() || !ReadGcRoot().Succeeded)
+            RejectGc(116);
+        fixed (GcTypeStorage* type = &s_gcType)
+        fixed (GcCollectingStorage* collecting = &s_gcCollecting)
+        fixed (GcNodeReceipts* records = &s_gcNodes)
+        {
+            CollectorTypeMapResult map = BoundedNonMovingCollectorExplicitRootEnumeration.InspectType(
+                NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian, s_gcCapture, s_gcMapping, (byte*)type,
+                (ulong)sizeof(GcTypeStorage), s_gcHandle, s_gcImage, token);
+            if (!map.Succeeded || map.Prefix.BaseSize != 32 || map.SeriesCount != 1) RejectGc(117);
+            RhpNewFastResult result = GuestTestRhpNewFast.TryAllocate(s_access, &collecting->State,
+                (ulong)sizeof(GcCollectingStorage), NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian,
+                map.Prefix, token);
+            if (!result.AllocationSucceeded || result.AllocationCount != expectedCount + 3 ||
+                result.BytesConsumed != 32 || GcReadWord(result.MappedAllocationStart) != 0 ||
+                GcReadWord(result.ObjectReference) != token || GcReadWord(result.ObjectReference + 8) != 0 ||
+                GcReadWord(result.ObjectReference + 16) != 0) RejectGc(118);
+            (&records->Node0)[expectedCount] = result;
+            records->Count++;
+            return result.ObjectReference;
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static uint ApplyCollectorReference(ulong operation, ulong destination, ulong operand, ulong bytes)
+    {
+        if ((operation != 1 && operation != 2) || bytes != 8 || s_collectorStores >= 7 ||
+            !ReadGcRoot().Succeeded) return 0;
+        ulong expectedDestination = s_gcField, expectedOperand = 0;
+        uint destinationNode = 99, operandNode = 99;
+        if (s_collectorPhase == 1 && s_gcNodes.Count == 4)
+        {
+            if (s_collectorStores == 0) { destinationNode = 0; operandNode = 1; }
+            else if (s_collectorStores == 1) { destinationNode = 2; operandNode = 3; }
+            else if (s_collectorStores == 2) { destinationNode = 3; operandNode = 2; }
+            else if (s_collectorStores == 3) operandNode = 0;
+            else return 0;
+        }
+        else if (s_collectorPhase == 3 && s_collectorStores == 4 && s_gcNodes.Count == 5) operandNode = 4;
+        else if (s_collectorPhase == 4 && s_collectorStores == 5) { }
+        else if (s_collectorPhase == 5 && s_collectorStores == 6 && s_gcNodes.Count == 6) operandNode = 5;
+        else return 0;
+        if (destinationNode != 99)
+        {
+            if (!CollectorReceiptValid(destinationNode)) return 0;
+            expectedDestination = NodeReceipt(destinationNode).ObjectReference + s_collectorFieldOffset;
+        }
+        else if (GcFieldAddress() != s_gcField) return 0;
+        if (operandNode != 99)
+        {
+            if (!CollectorReceiptValid(operandNode)) return 0;
+            expectedOperand = NodeReceipt(operandNode).ObjectReference;
+        }
+        if (destination != expectedDestination || operand != expectedOperand) return 0;
+        // Mutator stores and collection never overlap; this existing checked
+        // scalar store is not a concurrent/generational barrier or a card table.
+        CheckedReferenceBulkResult result = CheckedReferenceBulkBarriersIncludingDotNetN10Bulk.TryStore(
+            s_access, CheckedReferenceBulkProfile.NonCollectingExclusiveRetainedPage,
+            destination - (ulong)s_access.Backing, operand);
+        if (!result.Succeeded || result.BytesWritten != 8) return 0;
+        s_collectorStores++;
+        return 1;
+    }
+
+    private static BoundedCollectionResult CollectGcGraph(RhpNewFastResult* roots, uint count)
+    {
+        fixed (GcTypeStorage* type = &s_gcType)
+        fixed (GcRootStorage* root = &s_gcRoot)
+        fixed (GcCollectingStorage* collecting = &s_gcCollecting)
+            return BoundedNonMovingCollectorExplicitRootEnumeration.Collect(
+                NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian,
+                new CollectorModuleAccess { Capture = s_gcCapture, Mapping = s_gcMapping, Owner = (byte*)type,
+                    Capacity = (ulong)sizeof(GcTypeStorage), Handle = s_gcHandle, Metadata = s_gcImage },
+                s_access, &collecting->State, (ulong)sizeof(GcCollectingStorage), roots, count, count,
+                new CollectorStaticRootAccess { Owner = (byte*)root, Capacity = (ulong)sizeof(GcRootStorage),
+                    Cells = s_gcImage, SystemObjectMethodTable = GcObjectType() });
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void CheckCollectorStack(ulong expected)
+    {
+        ulong witness = 0, address = (ulong)&witness;
+        ulong authority = 0, start = 0, end = 0, initialRsp = 0;
+        if (s_gcPhase != 4 || expected < 5 || expected > 9 || s_gcStack.Checks != expected ||
+            !GcStackContext(address, out authority, out start, out end, out initialRsp) ||
+            authority != s_gcStack.Authority || start != s_gcStack.Start || end != s_gcStack.End ||
+            initialRsp != s_gcStack.InitialRsp || address > s_gcStack.Witness ||
+            GcReadWord(start) != GcStackWord0 || GcReadWord(start + 8) != GcStackWord1) RejectGc(119);
+        s_gcStack.Checks++;
+        if (address < s_gcStack.MinimumWitness) s_gcStack.MinimumWitness = address;
+    }
+
+    private static void EmitCollection(ulong stage, BoundedCollectionResult result) =>
+        CollectorLine(stage, (ulong)result.Status, result.LiveObjects, result.ReclaimedObjects, result.ReclaimedBytes);
+
+    private static void CollectorLine(ulong stage, ulong a, ulong b, ulong c, ulong d)
+    {
+        Write((byte)'M'); Write((byte)'0'); Write((byte)'4'); Write((byte)'_');
+        Write((byte)'C'); Write((byte)'O'); Write((byte)'L'); Write((byte)'L'); Write((byte)'E');
+        Write((byte)'C'); Write((byte)'T'); Write((byte)' ');
+        Decimal(stage); Write(32); Hex(a); Write(32); Hex(b); Write(32); Hex(c); Write(32); Hex(d); End();
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
