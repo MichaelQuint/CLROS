@@ -2588,3 +2588,7 @@ common/default-and-enabled acceptance remains pending.
 [Step997](../done/step997.md) records acceptance of the GC first-party native
 review and the three-profile output-authority compatibility correction.
 The combined full regression and final guest acceptance remain pending.
+
+[Step998](../done/step998.md) corrects five older diagnostic fixtures whose
+exact conflict lists omitted the GC-static profile. All five complete small
+initializers pass; full combined and final guest acceptance remain pending.
