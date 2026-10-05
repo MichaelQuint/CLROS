@@ -10199,7 +10199,7 @@
         "M04-011"
       ],
       "labels": [
-        "agent:ready",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -10215,7 +10215,7 @@
         "docs/completion-gates.md"
       ],
       "forbiddenPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -10225,7 +10225,7 @@
       ],
       "collisionLane": null,
       "summary": "Materialize GC static roots and reject malformed metadata.",
-      "currentEvidence": "Step989 completes the sole prerequisite #80/M04-011 with one bounded executing-image module and slot-derived consumer in QEMU. This issue is now ready for GC static-root materialization and malformed metadata rejection; root storage, allocator/barrier integration, lifetime and genuine compiled-accessor evidence are not yet implemented or accepted. #82 remains blocked on this issue.",
+      "currentEvidence": "Step990 accepts the read-only host metadata prerequisite: authenticated TypeManager lookup plus one signed-relative section201 entry, tag1 cell, abbreviated MethodTable and positive GCDesc series. Five complete initializers pass 42 START/43 PASS/0 FAIL; the actual 93-source no-stdlib child has zero AssemblyRefs and a nonempty validator body, and the normal HostTests Release build passes. The issue remains claimed/open. Genuine compiler metadata, registered cell-write permissions, sole-allocator materialization, static-field barrier authority and retained-root lifetime are still required; #82 remains blocked. This step supplies no full common-suite, native-image or guest acceptance.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Materialize GC static roots and reject malformed metadata.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

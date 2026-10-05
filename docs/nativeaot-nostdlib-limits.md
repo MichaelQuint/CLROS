@@ -1442,3 +1442,36 @@ its tail canaries are initialized after registration. These finite results
 complete #544/#80 and unblock #81, while #82 still depends on GC-static roots.
 The runtime ledger stays Deferred and the preceding unsupported-feature
 boundaries remain unchanged.
+
+### M04-012 read-only GC-static metadata admission
+
+[Step990](../done/step990.md) adds `GCStaticRootsMalformedMetadata.ValidateOne`.
+Each call revalidates the registered TypeManager owner and section201 lookup,
+then admits one signed field-relative entry, an aligned eight-byte cell, a
+16-byte abbreviated MethodTable and one positive GCDesc series. Caller-supplied
+readable windows must lie within the original image. They express mapping and
+lifetime obligations, not PE write permissions or physical mapping proof.
+
+The supported uninitialized form has tag1 and zero upper32 bits. The decoder
+checks the related Object MethodTable address, HasPointers flags, aligned base
+size24..4096, signed series length and pointer offsets before returning scalar
+observations. Missing/empty sections, malformed spans, protected aliases and
+valid unsupported forms have distinct status results. Every call authenticates
+the owner again; row payload observations are fresh and are not retained
+publication authority. No allocation, write, callback or static initialization
+occurs. In particular, an initialized absolute cell is not accepted as an
+uninitialized relative pointer.
+
+The five complete focused initializers pass42 starts/43 passes/zero failures,
+including all15 new groups, whole-buffer preservation and a warmed1000-call
+zero-allocation assertion. Actual host layouts are window16/result88. The
+current92 explicit EFI sources plus this core compile as a93-source no-stdlib
+library with zero AssemblyRefs and a nonempty `ValidateOne` body; this managed
+DLL is not executed. The normal HostTests Release compilation also passes.
+
+This is the first host prerequisite for #81, which remains open and claimed.
+Genuine compiler section201/GCDesc association, explicit cell-write permission,
+sole-allocator static-base materialization, static-field barrier authority and
+retained-root lifetime remain unimplemented. #82 remains blocked. There is no
+new native-image, QEMU, GCHandle, collecting-GC, real ExitBootServices or hosted
+runtime evidence; Gates3/4 remain **Fail**.

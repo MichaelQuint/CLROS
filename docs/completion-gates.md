@@ -1751,3 +1751,29 @@ ledger remains Deferred, and Gates3/4 remain **Fail**. There is no upstream
 runtime registry, GC/static initialization, collection, hosted .NET/Kestrel,
 real ExitBootServices or cloud-readiness acceptance. Tail canaries are internal
 post-registration checks; no external RAM or numeric guest stack proof follows.
+
+### M04-012 host metadata prerequisite
+
+[Step990](../done/step990.md) accepts only the read-only GC-static metadata
+validator. It reuses the registered TypeManager authority and admits one
+signed relative section201 entry, tagged cell, abbreviated MethodTable and
+positive GCDesc series within caller-attested readable windows. It rejects
+malformed/overflowing spans and aliases without changing any protected bytes;
+valid unsupported shapes are distinguished from malformed metadata. The result
+contains immediate observations, with no authority to allocate or publish roots.
+
+The actual five-initializer focused stream passes42 starts/43 passes/zero
+failures with one terminal and five READY records. The new93-source no-stdlib
+child compiles with zero AssemblyRefs and a nonempty validator body, and both
+focused and normal HostTests Release builds pass. All934 recorded inputs and
+nine launch files remain unchanged through the three execution stages. The
+pre-execution alias-fixture correction and artifact-only packaging correction
+are retained in the step; neither required a product execution retry.
+
+#81 stays open/claimed and #82 stays blocked. This milestone does not execute
+compiler-generated GC-static accessors or materialize/retain a root. Registered
+cell-write permissions, allocator/barrier integration and actual compiler
+metadata/lifetime evidence are still required. No complete common-suite,
+native-image or QEMU acceptance follows from these focused host checks.
+Gates3/4 remain **Fail**, with no new GC, real ExitBootServices, hosted .NET,
+Kestrel, cloud or production-readiness claim.
