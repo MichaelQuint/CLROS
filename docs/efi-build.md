@@ -2473,6 +2473,32 @@ this core, inspect its actual emitted indirect ABI and prove a default-off
 controlled callback profile under QEMU. The original firmware ExitBootServices
 slot, final-map ordering, retry and post-exit behavior are outside this evidence.
 
+### M03-004 controlled EFI profile integration
+
+[Step991](../done/step991.md) supplies the #546 integration above. The mutually
+exclusive `EnableM03TypedExitBootServicesCallProbe` flag defaults to false;
+it source-links the existing typed adapter and adds a same-image unmanaged
+callback. It uses the original EFI caller stack with all M01 flags disabled.
+The exact closure contains 95 Compile items, 109 raw inputs and 41 flags.
+Producer, artifact verifier and smoke-runner source/profile checks agree on
+that closure. All original fixture initializers remain intact.
+
+The new whole integration module passes five starts/six passes/zero failures,
+including mapped callback and orphan-process controls, strict parser/streamer
+cases, all profile conflicts, and fresh default/enabled NativeAOT publication.
+Eight complete managed modules separately pass 115/116/0. Both EFI archives
+have zero AssemblyRefs and are retained for independent emitted-code review.
+The full common suite and fresh QEMU acceptance remain pending; publication
+and controlled host execution are not guest boot evidence.
+
+The intended enabled runner uses `-BuildEfi
+-EnableM03TypedExitBootServicesCallProbe` with explicit fresh EFI/image/log
+paths and the installed QEMU/OVMF pair. Its numeric grammar has 30 ordered,
+unique records: 13 original preceding records, nine controlled records, then
+eight original boot records. Actual firmware suffix bytes and ordinary-runner
+lifecycle checks are retained. No original firmware exit pointer, final-map
+key, retry, global mode transition or M01 stack capacity is supplied here.
+
 ### M04-011 opt-in current-image module registration
 
 `EnableM04TypeManagerModuleRegistrationProbe` adds a mutually exclusive,

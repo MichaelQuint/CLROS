@@ -3824,6 +3824,17 @@ its separate controlled native/QEMU supplement and common integration gate;
 #62, #63 and #64 retain final-map ordering, stale-key retry and the first actual
 ExitBootServices transition respectively.
 
+[Step991](../done/step991.md) adds the separately claimed #546 default-off EFI
+integration. Four retained states exercise zero, high-bit and all-bit keys,
+full-width statuses, consumed-state refusal and same-state reentry. A private
+counter covers every callback entry, including an orphan entry before any
+active-state check. The actual mapped callback tests and fresh default/enabled
+EFI publications pass. Eight focused managed modules pass 115/116/0; the
+complete new integration module passes 5/6/0. Full native review, the common
+suite and fresh QEMU evidence are still pending. The READY record explicitly
+says `controlled=true realExitBootServices=false`; it never claims a firmware
+exit or authorizes a global mode change.
+
 Existing guard markers:
 
 ```text
