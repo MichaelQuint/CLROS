@@ -749,6 +749,21 @@ $script:M03TypedExitBootServicesRequiredMarkers = @(
     "M03_TYPED_EBS_CASE id=3",
     "CLROS_M03_004_READY",
     "TEST_PASS m03.004",
+    "TEST_START m03.005",
+    "M03_FINAL_MAP_IMAGE",
+    "M03_FINAL_MAP_CALL case=0 index=0",
+    "M03_FINAL_MAP_RESULT case=0",
+    "CLROS_M03_005_READY",
+    "TEST_PASS m03.005",
+    "TEST_START m03.006",
+    "M03_FINAL_MAP_CALL case=1 index=0",
+    "M03_FINAL_MAP_CALL case=1 index=1",
+    "M03_FINAL_MAP_RESULT case=1",
+    "M03_FINAL_MAP_CALL case=2 index=0",
+    "M03_FINAL_MAP_CALL case=2 index=1",
+    "M03_FINAL_MAP_RESULT case=2",
+    "CLROS_M03_006_READY",
+    "TEST_PASS m03.006",
     "TEST_START boot.sequence",
     "BOOT_PHASE PhaseA.Audit START",
     "BOOT_PHASE PhaseA.Audit PASS",
@@ -2515,7 +2530,7 @@ function Assert-M03TypedExitBootServicesTranscript {
     $owned=$text.Substring($start,$end-$start)
     if([regex]::IsMatch($owned,'[^\x20-\x7E\r\n]')){throw 'm03_typed_ebs_non_ascii'}
     $lines=$owned.Split([string[]]@("`r`n"),[StringSplitOptions]::None)
-    $count=30
+    $count=45
     if($lines.Count -ne $count+1 -or $lines[$count].Length -ne 0){throw 'm03_typed_ebs_line_count'}
     $fixed=@{
         0='TEST_START efi.main'
@@ -2532,14 +2547,20 @@ function Assert-M03TypedExitBootServicesTranscript {
         15='M03_TYPED_EBS_ADMISSION default=6 missingFunction=3 missingHandle=4 simulated=5 exited=5 readyDenied=5 readyPrepare=7 unchanged=1 calls=0'
         20='CLROS_M03_004_READY controlled=true realExitBootServices=false states=4 calls=4 reuse=4 reentry=1 mode=0'
         21='TEST_PASS m03.004'
-        22='TEST_START boot.sequence'
-        23='BOOT_PHASE PhaseA.Audit START'
-        24='BOOT_PHASE PhaseA.Audit PASS'
-        25='BOOT_PHASE PhaseA.Diagnostics START'
-        26='BOOT_PHASE PhaseA.Diagnostics PASS'
-        27='OS_BOOT_OK'
-        28='TEST_PASS boot.sequence'
-        29='OS_SMOKE_PASS'
+        22='TEST_START m03.005'
+        26='CLROS_M03_005_READY controlled=true realExitBootServices=false captures=1 exits=1 reuseRejected=true'
+        27='TEST_PASS m03.005'
+        28='TEST_START m03.006'
+        35='CLROS_M03_006_READY controlled=true realExitBootServices=false cases=2 maxAttempts=2 captures=4 exits=4 exhausted=1'
+        36='TEST_PASS m03.006'
+        37='TEST_START boot.sequence'
+        38='BOOT_PHASE PhaseA.Audit START'
+        39='BOOT_PHASE PhaseA.Audit PASS'
+        40='BOOT_PHASE PhaseA.Diagnostics START'
+        41='BOOT_PHASE PhaseA.Diagnostics PASS'
+        42='OS_BOOT_OK'
+        43='TEST_PASS boot.sequence'
+        44='OS_SMOKE_PASS'
     }
     foreach($index in $fixed.Keys){if(-not [string]::Equals($lines[$index],$fixed[$index],[StringComparison]::Ordinal)){throw ('m03_typed_ebs_literal_'+$index)}}
     $counts=@()
@@ -2565,7 +2586,30 @@ function Assert-M03TypedExitBootServicesTranscript {
         if($case.id -ne $i -or [decimal]$case.state -ne [decimal]$image.storage+40*$i -or $case.handle -ne $image.handle -or
            $case.key -ne $keys[$i] -or $case.status -ne $statuses[$i] -or $case.calls -ne 1 -or $case.phase -ne 2 -or
            $case.reuseAttempt -ne 9 -or $case.reusePrepare -ne 9 -or $case.unchanged -ne 1 -or
-           $case.reentryAttempt -ne $reentry -or $case.reentryPrepare -ne $reentry -or $case.reentryUnchanged -ne $preserved){throw ('m03_typed_ebs_case_'+$i)}
+            $case.reentryAttempt -ne $reentry -or $case.reentryPrepare -ne $reentry -or $case.reentryUnchanged -ne $preserved){throw ('m03_typed_ebs_case_'+$i)}
+    }
+    $map=Read-M03MemoryMapCaptureRecord $lines[23] 'M03_FINAL_MAP_IMAGE' @('handle:dec','getMemoryMap:dec','buffer:dec','capacity:dec')
+    if($map.handle -ne $image.handle -or $map.getMemoryMap -eq 0 -or $map.buffer -eq 0 -or
+       $map.buffer % 8 -ne 0 -or $map.capacity -ne 131072 -or
+       [decimal]$map.buffer+$map.capacity -gt [decimal][UInt64]::MaxValue){throw 'm03_final_map_geometry'}
+    for($id=0;$id -lt 3;$id++){
+        $first=@(24,29,32)[$id];$calls=if($id -eq 0){1}else{2}
+        for($i=0;$i -lt $calls;$i++){
+            $call=Read-M03MemoryMapCaptureRecord $lines[$first+$i] 'M03_FINAL_MAP_CALL' @('case:dec','index:dec','enter:dec','returned:dec','exit:dec','captureStatus:dec','key:dec','mapBytes:dec','descriptorBytes:dec','descriptorVersion:dec','exitStatus:dec')
+            $status=if($id -eq 2 -or ($id -eq 1 -and $i -eq 0)){[UInt64]'9223372036854775810'}else{[UInt64]0}
+            if($call.case -ne $id -or $call.index -ne $i -or $call.enter -ne 3*$i+1 -or
+               $call.returned -ne 3*$i+2 -or $call.exit -ne 3*$i+3 -or $call.captureStatus -ne 0 -or
+               $call.exitStatus -ne $status -or $call.descriptorBytes -lt 40 -or
+               $call.mapBytes -lt $call.descriptorBytes -or $call.mapBytes -gt $map.capacity -or
+               $call.mapBytes % $call.descriptorBytes -ne 0 -or $call.mapBytes/$call.descriptorBytes -gt 4096 -or
+               $call.descriptorVersion -eq 0 -or $call.descriptorVersion -gt [UInt32]::MaxValue){throw ('m03_final_map_call_'+$id+'_'+$i)}
+            # Keys are opaque. Two genuine captures may return the same value.
+        }
+        $result=Read-M03MemoryMapCaptureRecord $lines[$first+$calls] 'M03_FINAL_MAP_RESULT' @('case:dec','status:dec','windows:dec','captures:dec','exits:dec','reuse:dec','preserved:dec')
+        $expectedStatus=if($id -eq 2){4}else{1};$reuse=if($id -eq 0){3}else{6}
+        if($result.case -ne $id -or $result.status -ne $expectedStatus -or $result.windows -ne $calls -or
+           $result.captures -ne $calls -or $result.exits -ne $calls -or $result.reuse -ne $reuse -or
+           $result.preserved -ne 1){throw ('m03_final_map_result_'+$id)}
     }
 }
 
@@ -2595,10 +2639,10 @@ function Assert-M03TypedExitBootServicesRunnerResult {
     # Both admitted suffixes contain two firmware lines. Only the full variant
     # adds an unterminated console drawing; the preceding raw check binds every byte.
     $suffixBytes=$raw.Length-($serial.IndexOf("OS_SMOKE_PASS`r`n",[StringComparison]::Ordinal)+15)
-    $streamLines=35;$invalidLines=2
-    if($suffixBytes -eq 251){$streamLines=34;$invalidLines=1}
+    $streamLines=50;$invalidLines=2
+    if($suffixBytes -eq 251){$streamLines=49;$invalidLines=1}
     $invalid=0;foreach($b in $raw){if($b -ne 9 -and $b -ne 10 -and $b -ne 13 -and ($b -lt 32 -or $b -gt 126)){$invalid++}}
-    $stream='SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+$raw.Length+' lines='+$streamLines+' invalidBytes='+$invalid+' invalidLines='+$invalidLines+' orderedSeen=30 outOfOrder=0 uniqueSeen=30 duplicateUnique=0'
+    $stream='SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+$raw.Length+' lines='+$streamLines+' invalidBytes='+$invalid+' invalidLines='+$invalidLines+' orderedSeen=45 outOfOrder=0 uniqueSeen=45 duplicateUnique=0'
     if(-not [string]::Equals($lines[10],$stream,[StringComparison]::Ordinal)){throw 'm03_typed_ebs_stream_accounting'}
     $summaryPath=if([IO.Path]::IsPathRooted($SummaryLogPath)){$SummaryLogPath}else{Join-Path $root $SummaryLogPath}
     $summary=New-Object 'System.Collections.Generic.List[string]';$summary.Add('QEMU_SMOKE_STATUS pass')
@@ -9264,7 +9308,7 @@ $rhpReason = $arrayReason
         try {
             Assert-M03TypedExitBootServicesRunnerResult -Lines $heapRunnerLines -SummaryLogPath $SummaryLog -SerialLogPath $SerialLog -RequiredMarkers $requiredMarkers -OrderedMarkers $orderedMarkers -UniqueMarkers $uniqueMarkers -ForbiddenMarkers $forbiddenMarkers -ImagePath $Image -Profile $WorkloadProfile
         } catch { Write-Host ('TEST_FAIL qemu.smoke '+$_.Exception.Message); exit 1 }
-        Write-Host 'QEMU_SCRIPT_M03_TYPED_EBS_TRANSCRIPT exactWholeLines=true lines=30 states=4 calls=4 controlled=true realExitBootServices=false'
+        Write-Host 'QEMU_SCRIPT_M03_TYPED_EBS_TRANSCRIPT exactWholeLines=true lines=45 states=4 calls=4 mapCaptures=5 controlledExits=5 controlled=true realExitBootServices=false'
     }
 
     if ($EnableM03FirmwareEntropySeedProbe -and -not $DryRun -and $runnerExitCode -eq 0) {

@@ -4372,8 +4372,9 @@ caller-owned capture buffer, not a separate copied map; individual descriptors
 are not validated here. Buffer provenance, function-pointer authenticity and
 serialization remain caller obligations. No retry or firmware-mode transition
 is implemented. [Step999](../done/step999.md) records focused host and no-stdlib
-compile evidence only; M03-005 remains blocked on M03-004 acceptance and still
-needs live EFI integration and QEMU evidence.
+compile evidence. M03-004 is accepted. [Step1004](../done/step1004.md) now
+links this window and the bounded retry below into the existing default-off
+typed-EBS diagnostic; full-batch and fresh QEMU acceptance remain pending.
 
 The preparatory M03-006 `BoundedRetryStaleKeyStatus` coordinator composes at
 most two such windows with separate retained states and the same owned buffer.

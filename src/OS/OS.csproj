@@ -374,6 +374,8 @@
 		<Compile Include="Runtime\NativeAotModuleRegistrationProbe.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\TypeManagerModuleRegistrationProbeAuthority.cs" Link="Diagnostics\TypeManagerModuleRegistrationProbeAuthority.cs" />
 		<Compile Include="..\OS.Kernel\Boot\TypedNoStdlibExitBootServicesCallAdapter.cs" Link="Boot\TypedNoStdlibExitBootServicesCallAdapter.cs" />
+		<Compile Include="..\OS.Kernel\Boot\NoAllocationOrUnrelatedFirmwareCallOccursBetween.cs" Link="Boot\NoAllocationOrUnrelatedFirmwareCallOccursBetween.cs" />
+		<Compile Include="..\OS.Kernel\Boot\BoundedRetryStaleKeyStatus.cs" Link="Boot\BoundedRetryStaleKeyStatus.cs" />
 		<Compile Include="..\OS.Kernel\Platform\FirmwareServicesMode.cs" Link="Platform\FirmwareServicesMode.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\TypedExitBootServicesCallProbeAuthority.cs" Link="Diagnostics\TypedExitBootServicesCallProbeAuthority.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\GCStaticRootsMalformedMetadata.cs" Link="Runtime\GCStaticRootsMalformedMetadata.cs" />

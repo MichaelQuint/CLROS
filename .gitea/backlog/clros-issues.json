@@ -8479,7 +8479,7 @@
         "M03-004"
       ],
       "labels": [
-        "agent:ready",
+        "agent:claimed",
         "priority:p1",
         "type:test",
         "evidence:qemu",

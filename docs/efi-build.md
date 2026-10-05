@@ -2627,3 +2627,14 @@ GC has 60 exact CLROS lines, 49 ordered/unique anchors, two allocations/48 bytes
 two checked stores and five stack checks. The 10056-byte first-party stack
 bound excludes original firmware console/serial bodies. No collecting GC,
 real firmware exit, general runtime, hosted .NET/Kestrel or cloud claim follows.
+
+[Step1004](../done/step1004.md) integrates the final-map window and bounded
+stale-key retry into `EnableM03TypedExitBootServicesCallProbe`. The diagnostic
+uses authentic GetMemoryMap captures into a private retained 128 KiB buffer,
+with one controlled successful exit, stale-then-success, and two stale returns.
+Five captures precede five controlled exits; all reporting occurs afterwards.
+It never reads the original firmware exit slot. The source closure is now
+100 Compile items/114 raw inputs, with the same 42 profile flags. The complete
+focused EFI fixture passes, including default/enabled publication and strict
+45-record transcript checks. The default image retains step1003's exact bytes.
+Full-batch, changed-native review and fresh guest acceptance are pending.
