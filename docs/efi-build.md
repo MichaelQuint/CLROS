@@ -2592,3 +2592,7 @@ The combined full regression and final guest acceptance remain pending.
 [Step998](../done/step998.md) corrects five older diagnostic fixtures whose
 exact conflict lists omitted the GC-static profile. All five complete small
 initializers pass; full combined and final guest acceptance remain pending.
+
+[Step999](../done/step999.md) prepares the final-map/exit window for M03-005.
+Its seven-source no-stdlib closure compiles with zero AssemblyRefs. It is not
+yet included in the EFI project or runner, and adds no switch or guest claim.

@@ -4352,6 +4352,21 @@ The `APP_PACKAGE_READY`, `APP_LAUNCH_READY`, `APP_PAYLOAD_READY`, `APP_EXEC_MAPP
 
 ## Next Steps
 
+The preparatory M03-005 `NoAllocationOrUnrelatedFirmwareCallOccursBetween`
+window accepts an already-owned writable map buffer and one retained state.
+It admits the typed exit adapter before a single final `GetMemoryMap`, validates
+the returned metadata locally, then forwards that capture's opaque key directly
+to the exit attempt. The API exposes neither an allocator nor a logging callback.
+It rejects missing/unavailable authority before capture, prevents recursive or
+reused windows, and never attempts exit after failed capture or malformed metadata.
+The buffer may have changed even when capture fails. Its record describes the
+caller-owned capture buffer, not a separate copied map; individual descriptors
+are not validated here. Buffer provenance, function-pointer authenticity and
+serialization remain caller obligations. No retry or firmware-mode transition
+is implemented. [Step999](../done/step999.md) records focused host and no-stdlib
+compile evidence only; M03-005 remains blocked on M03-004 acceptance and still
+needs live EFI integration and QEMU evidence.
+
 1. Treat the accepted M01-026 tuple as the bounded M01 milestone exit and begin
    M02 diagnostics work after tracker review/synchronization. Keep real
    `ExitBootServices` blocked until owned serial, descriptor tables, fault
