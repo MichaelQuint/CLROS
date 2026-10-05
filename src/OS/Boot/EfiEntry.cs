@@ -17375,7 +17375,7 @@ public static unsafe class EfiEntry
             }
         }
 
-#if M04_RHP_NEW_FAST_PROBE || M02_UNEXPECTED_VECTOR_PANIC_PROBE
+#if M04_RHP_NEW_FAST_PROBE || M02_UNEXPECTED_VECTOR_PANIC_PROBE || M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE
         internal static bool TryGetOriginalLoadedImage(out byte* image, out ulong bytes)
         {
             image = null;
@@ -17396,6 +17396,24 @@ public static unsafe class EfiEntry
             bytes = capture.Range.ImageSize;
             return true;
         }
+
+#if M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE
+        internal static bool TryGetOriginalTypeManagerImage(out EfiLoadedImageRangeCapturePlan capture,
+            out M01LoadedImageVirtualMappingEvidence mapping)
+        {
+            capture = default;
+            mapping = default;
+            if (!TryGetOriginalLoadedImage(out byte* image, out ulong bytes)) return false;
+            EfiLoadedImageRangeCapturePlan originalCapture = s_evidenceScratch.LoadedImageCapture;
+            M01LoadedImageVirtualMappingEvidence originalMapping = s_evidenceScratch.LoadedImageVirtualMapping;
+            if (!originalCapture.Succeeded || !originalMapping.IsValidFor(originalCapture) ||
+                originalMapping.VirtualImageBase.TryGetRawValueForUefiBoundary(out ulong address) != AddressValueStatus.Success ||
+                address != (ulong)image || originalCapture.Range.ImageSize != bytes) return false;
+            capture = originalCapture;
+            mapping = originalMapping;
+            return true;
+        }
+#endif
 
 #if M04_RHP_NEW_FAST_PROBE
         internal static void WriteRhpByte(byte value) => EfiEntry.Write(s_console, s_serial, value);
@@ -17649,6 +17667,14 @@ public static unsafe class EfiEntry
 #endif
 #if M04_RHP_NEW_FAST_PROBE
                 M01StageTwoAdapter.RunRhpNewFastAfterZeroCheckpoint();
+#endif
+#if M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE
+                // Default capture on authority failure is rejected by the same
+                // adapter; no reconstructed image authority is fabricated.
+                TryGetOriginalTypeManagerImage(out EfiLoadedImageRangeCapturePlan typeManagerCapture,
+                    out M01LoadedImageVirtualMappingEvidence typeManagerMapping);
+                if (!OS.Runtime.NativeAotModuleRegistrationProbe.Run(typeManagerCapture, typeManagerMapping,
+                        new EfiConsoleAdapter(s_console, s_serial))) Spin();
 #endif
                 EfiEntry.WriteBootSequencePlan(
                     s_console,

@@ -13,7 +13,7 @@ internal static class M02CheckedPortIoFunctionPointerEfiIntegrationTests
     private const string FailureMarker =
         "M02_CHECKED_PORT_IO_BINDING_FAILED";
     private const string CompileClosureSha256 =
-        "54bfa32fa851eb9a5f96ee8f3b8d9bd3f916b01dc629d5497cb42d97f6d79993";
+        "248ec765427dd391ad6324e3c96f8e8d4d234c67302628c0d4a4eeadd0e9ecb1";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -147,7 +147,7 @@ internal static class M02CheckedPortIoFunctionPointerEfiIntegrationTests
         string artifactScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 89
+        return compileItems.Length == 92
             && compileKeys.Count(key => key.Contains(
                 "InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs",
                 StringComparison.Ordinal)) == 1
@@ -169,7 +169,13 @@ internal static class M02CheckedPortIoFunctionPointerEfiIntegrationTests
             && symbols.Length == 1
             && symbols[0].Elements("DefineConstants").Single().Value ==
                 "$(DefineConstants);M02_CHECKED_PORT_IO_BINDING_PROBE"
-            && errorConditions.Length == 27
+            && errorConditions.Length == 29
+            && errorConditions.Contains(
+                "'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'",
+                StringComparer.Ordinal)
+            && errorConditions.Contains(
+                "'$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
+                StringComparer.Ordinal)
             && errorConditions.Contains(
                 "'$(EnableM04CheckedReferenceBarrierProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
                 StringComparer.Ordinal)
@@ -260,7 +266,7 @@ internal static class M02CheckedPortIoFunctionPointerEfiIntegrationTests
             && prerequisiteConditions.Length == 1
             && dependentConditions.Length == 1
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=103",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=106",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 "[switch] $EnableM02CheckedPortIoBindingProbe",
@@ -269,10 +275,10 @@ internal static class M02CheckedPortIoFunctionPointerEfiIntegrationTests
                 "$arguments += \"-p:EnableM02CheckedPortIoBindingProbe=true\"",
                 StringComparison.Ordinal)
             && artifactScript.Contains(
-                "$expectedSourceClosureInputCount = 103",
+                "$expectedSourceClosureInputCount = 106",
                 StringComparison.Ordinal)
             && artifactScript.Contains(
-                "$compileItems.Count -ne 89",
+                "$compileItems.Count -ne 92",
                 StringComparison.Ordinal);
     }
 
