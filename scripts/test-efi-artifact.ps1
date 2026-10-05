@@ -37,6 +37,7 @@ param(
     [switch]$EnableM03MemoryMapCaptureProbe,
     [switch]$EnableM03FirmwareEntropySeedProbe,
     [switch]$EnableM04TypeManagerModuleRegistrationProbe,
+    [switch]$EnableM03TypedExitBootServicesCallProbe,
     [switch]$EnableM04CheckedReferenceBarrierProbe,
     [switch]$EnableM01LoadedImageStackProbe,
     [switch]$EnableM01LiveAllocatorProbe,
@@ -68,7 +69,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 106
+$expectedSourceClosureInputCount = 109
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -203,7 +204,10 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Diagnostics\FirmwareEntropySeedCaptureProbeAuthority.cs|Diagnostics\FirmwareEntropySeedCaptureProbeAuthority.cs',
     '..\OS.Kernel\Runtime\TypeManagerModuleMetadataLiveNativeAOTImage.cs|Runtime\TypeManagerModuleMetadataLiveNativeAOTImage.cs',
     'Runtime\NativeAotModuleRegistrationProbe.cs|',
-    '..\OS.Kernel\Diagnostics\TypeManagerModuleRegistrationProbeAuthority.cs|Diagnostics\TypeManagerModuleRegistrationProbeAuthority.cs'
+    '..\OS.Kernel\Diagnostics\TypeManagerModuleRegistrationProbeAuthority.cs|Diagnostics\TypeManagerModuleRegistrationProbeAuthority.cs',
+    '..\OS.Kernel\Boot\TypedNoStdlibExitBootServicesCallAdapter.cs|Boot\TypedNoStdlibExitBootServicesCallAdapter.cs',
+    '..\OS.Kernel\Platform\FirmwareServicesMode.cs|Platform\FirmwareServicesMode.cs',
+    '..\OS.Kernel\Diagnostics\TypedExitBootServicesCallProbeAuthority.cs|Diagnostics\TypedExitBootServicesCallProbeAuthority.cs'
 )
 $expectedPackageBuildClosure = @(
     [pscustomobject]@{
@@ -3884,6 +3888,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM03MemoryMapCaptureProbe," +
             "EnableM03FirmwareEntropySeedProbe," +
             "EnableM04TypeManagerModuleRegistrationProbe," +
+            "EnableM03TypedExitBootServicesCallProbe," +
             "EnableM01LoadedImageStackProbe," +
             "EnableM01LiveAllocatorProbe," +
             "EnableM01OwnedPagingProbe," +
@@ -4044,6 +4049,9 @@ function Invoke-PostRestoreEvaluationSnapshot {
     }
     if ($EnableM04TypeManagerModuleRegistrationProbe) {
         $arguments += "-p:EnableM04TypeManagerModuleRegistrationProbe=true"
+    }
+    if ($EnableM03TypedExitBootServicesCallProbe) {
+        $arguments += "-p:EnableM03TypedExitBootServicesCallProbe=true"
     }
     if ($EnableM04CheckedReferenceBarrierProbe) {
         $arguments += "-p:EnableM04CheckedReferenceBarrierProbe=true"
@@ -4299,6 +4307,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM03FirmwareEntropySeedProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04TypeManagerModuleRegistrationProbe =
             $EnableM04TypeManagerModuleRegistrationProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM03TypedExitBootServicesCallProbe =
+            $EnableM03TypedExitBootServicesCallProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04CheckedReferenceBarrierProbe =
             $EnableM04CheckedReferenceBarrierProbe.IsPresent.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
@@ -4372,7 +4382,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 92 -or
+    if ($compileItems.Count -ne 95 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4502,6 +4512,53 @@ function Assert-PostRestoreEvidenceMatchesSnapshot {
 }
 
 Write-Output "TEST_START $testName"
+if ($EnableM03TypedExitBootServicesCallProbe) {
+    foreach ($typedEbsConflict in @(
+        'EnableM01LoadedImageStackProbe',
+        'EnableM01LiveAllocatorProbe',
+        'EnableM01OwnedPagingProbe',
+        'EnableM02SafeStubProbe',
+        'EnableM02CheckedPortIoBindingProbe',
+        'EnableM02Com1OwnedPortIoProbe',
+        'EnableM02OwnedCom1ReadyProbe',
+        'EnableM02PanicSafeOwnedCom1Probe',
+        'EnableM02OwnedX64GdtEncodingProbe',
+        'EnableM02GuardedIstStackAllocationProbe',
+        'EnableM02OwnedGdtTssTerminalProbe',
+        'EnableM02NormalizedInterruptFramePageProbe',
+        'EnableM02OwnedIdtGatePopulationProbe',
+        'EnableM02IdtrContinuedExecutionProbe',
+        'EnableM02Ud2VectorStateProbe',
+        'EnableM04IndependentEndianConformanceProbe',
+        'EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe',
+        'EnableM04ArithmeticConformanceProbe',
+        'EnableM04LayoutContractProbe',
+        'EnableM04ManagedHeapPageRangeProbe',
+        'EnableM02PageFaultCr2ErrorCodeProbe',
+        'EnableM02DoubleFaultIstProbe',
+        'EnableM02UnexpectedVectorPanicProbe',
+        'EnableM04RhpNewFastProbe',
+        'EnableM04RhpNewFastBeforeBindFailureProbe',
+        'EnableM04RhpNewFastExhaustionFailureProbe',
+        'EnableM04SzArrayAllocationProbe',
+        'EnableM04SzArrayAllocationBeforeBindProbe',
+        'EnableM04SzArrayAllocationExhaustionProbe',
+        'EnableM04StringAllocationProbe',
+        'EnableM04StringAllocationBeforeBindProbe',
+        'EnableM04StringAllocationExhaustionProbe',
+        'EnableM04StringAllocationInvalidLengthProbe',
+        'EnableM03MemoryMapCaptureProbe',
+        'EnableM04CheckedReferenceBarrierProbe',
+        'EnableM03FirmwareEntropySeedProbe',
+        'EnableM04TypeManagerModuleRegistrationProbe',
+        'EnableUefiGoneSimulationProbe',
+        'EnableExitBootServicesFreshMapProbe',
+        'EnableAcpiPhysicalDiscoveryProbe'
+    )) {
+        if ([bool](Get-Variable -Name $typedEbsConflict -ValueOnly)) { Write-Output ('TEST_FAIL efi.artifact m03_typed_ebs_profile_conflict property='+$typedEbsConflict); exit 1 }
+    }
+}
+
 if ($EnableM03FirmwareEntropySeedProbe) {
     foreach ($entropyConflict in @(
         "EnableAcpiPhysicalDiscoveryProbe",
@@ -4642,6 +4699,7 @@ if ($EnableM04CheckedReferenceBarrierProbe) {
         "EnableM03MemoryMapCaptureProbe",
         "EnableM03FirmwareEntropySeedProbe",
         "EnableM04TypeManagerModuleRegistrationProbe",
+        "EnableM03TypedExitBootServicesCallProbe",
         "EnableUefiGoneSimulationProbe",
         "EnableExitBootServicesFreshMapProbe",
         "EnableAcpiPhysicalDiscoveryProbe"
