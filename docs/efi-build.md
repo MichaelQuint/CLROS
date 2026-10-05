@@ -2584,3 +2584,7 @@ strict numeric transcript now has 60 CLROS lines and 49 ordered/unique anchors.
 Fresh QEMU development evidence passes with both canaries retained. The
 10,056-byte first-party coordinator bound excludes firmware body depth; final
 common/default-and-enabled acceptance remains pending.
+
+[Step997](../done/step997.md) records acceptance of the GC first-party native
+review and the three-profile output-authority compatibility correction.
+The combined full regression and final guest acceptance remain pending.

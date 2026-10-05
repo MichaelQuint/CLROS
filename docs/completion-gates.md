@@ -1822,3 +1822,9 @@ collecting GC nor general static/TLS, hosted .NET/Kestrel, or cloud support.
 read-only canary checks for this GC-static development slice. Its fresh guest
 passes both canaries and the same two allocations/stores. This does not change
 the gate result: complete common and final native/guest acceptance are pending.
+
+[Step997](../done/step997.md) accepts the bounded GC first-party native review;
+it also corrects stale output-authority test expectations for the GC profile.
+The failed common run is preserved. Gates remain unchanged until the corrected
+complete regression and final guest acceptance, and remain incomplete beyond
+this bounded runtime slice even when those pass.
