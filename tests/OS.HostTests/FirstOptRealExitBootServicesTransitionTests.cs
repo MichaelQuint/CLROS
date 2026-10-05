@@ -12,6 +12,7 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
     private static ulong captureStatus, exitStatus;
     private static int maps, exits, continuations, reentries;
     private static FirstExitTransitionState* active;
+    private static FirstExitDescriptorContext* descriptors;
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -19,6 +20,7 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
         Run("admission and failed exits cannot transfer", Failures);
         Run("successful exit transfers once and cannot return to its caller", TerminalTransfer);
         Run("permanent CR3 preparation and emitted continuation", PermanentContinuation);
+        Run("owned descriptor bridge preserves selectors across adoption", DescriptorPreparation);
     }
 
     private static void Run(string name, Action action)
@@ -52,16 +54,28 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
         ulong firmware = 0xF801000, ulong owned = 0x100000, ulong cr4 = 0x668,
         ulong bottom = 0x200008, ulong top = 0x240000, ulong depth = 16384)
         => FirstExitPermanentCr3Stub.Prepare(ref context, firmware, owned, cr4,
-            bottom, top, depth, 0x1122334455667788, 0x8877665544332211, &Diagnostic, (void*)123);
+            bottom, top, depth, 0x1122334455667788, 0x8877665544332211, &Diagnostic, (void*)123, descriptors);
 
     private static void PermanentContinuation()
+    {
+        byte* memory = NewDescriptorFixture();
+        descriptors = (FirstExitDescriptorContext*)memory;
+        try
+        {
+            Need(PrepareDescriptors(memory), "prepare actual descriptor buffers");
+            PermanentContinuationCore();
+        }
+        finally { descriptors = null; NativeMemory.AlignedFree(memory); }
+    }
+
+    private static void PermanentContinuationCore()
     {
         Need(!RuntimeHelpers.IsReferenceOrContainsReferences<FirstExitPermanentCr3Context>() &&
             sizeof(FirstExitPermanentCr3Context) == FirstExitPermanentCr3Stub.ContextBytes, "POD context size");
         (string Field, int Offset)[] layout = [("FirmwareCr3", 0), ("OwnedCr3", 8), ("FirmwareCr4", 16),
             ("StackBottom", 24), ("StackTop", 32), ("MinimumRsp", 40), ("LowerCanary", 48), ("UpperCanary", 56),
             ("Diagnostic", 64), ("DiagnosticContext", 72), ("ObservedCr3", 80), ("ObservedCr4", 88),
-            ("Phase", 96), ("ObservedRsp", 104)];
+            ("Phase", 96), ("ObservedRsp", 104), ("Descriptors", 112)];
         foreach (var field in layout)
             Need((int)Marshal.OffsetOf<FirstExitPermanentCr3Context>(field.Field) == field.Offset, "native offset " + field.Field);
         Need((int)Marshal.OffsetOf<FirstExitTransitionState>("PhaseValue") == 0 &&
@@ -89,7 +103,9 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
         ulong contextAddress = (ulong)&context;
         Need(!Prepare(ref context, bottom: contextAddress, top: contextAddress + 0x10000), "context overlaps live stack");
         Need(!FirstExitPermanentCr3Stub.Prepare(ref context, 0xF801000, 0x100000, 0x668,
-            0x200008, 0x240000, 16384, 1, 2, null, null), "missing diagnostic");
+            0x200008, 0x240000, 16384, 1, 2, null, null, descriptors), "missing diagnostic");
+        Need(!FirstExitPermanentCr3Stub.Prepare(ref context, 0xF801000, 0x100000, 0x668,
+            0x200008, 0x240000, 16384, 1, 2, &Diagnostic, null, null), "missing descriptors");
 
         uint bytes = FirstExitPermanentCr3Stub.RequiredBytes;
         byte* output = stackalloc byte[(int)bytes + 2];
@@ -108,6 +124,97 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
         string directory = Path.Combine(HostToolProcess.FindRepositoryRoot(), "artifacts/issue64/permanent-stub");
         Directory.CreateDirectory(directory);
         File.WriteAllBytes(Path.Combine(directory, "continuation.bin"), raw);
+    }
+
+    private static byte* NewDescriptorFixture()
+    {
+        byte* memory = (byte*)NativeMemory.AlignedAlloc(5 * 4096, 4096);
+        Need(memory != null, "allocate descriptor fixture");
+        ResetDescriptors(memory);
+        return memory;
+    }
+
+    private static void ResetDescriptors(byte* memory)
+    {
+        new Span<byte>(memory, 5 * 4096).Clear();
+        byte* gdt = memory + 4096, tss = memory + 8192, idt = memory + 12288;
+        byte* raw = stackalloc byte[184];
+        byte* scratch = (byte*)(((ulong)raw + 15) & ~15UL);
+        var prepared = OS.Kernel.Diagnostics.OwnedGDTTSSGeneratedAuditedCSharpStubBytes.PrepareContext(
+            scratch, (ulong)tss - 64, 168);
+        Need(prepared.ContextPrepared, "reuse M02 GDT/TSS materializer");
+        new ReadOnlySpan<byte>(scratch + 24, 40).CopyTo(new Span<byte>(gdt, 40));
+        new ReadOnlySpan<byte>(scratch + 64, 104).CopyTo(new Span<byte>(tss, 104));
+        *(ulong*)(tss + 4) = 0x240000;
+        *(ulong*)(tss + 36) = 0x300000; *(ulong*)(tss + 44) = 0x304000; *(ulong*)(tss + 52) = 0x308000;
+        for (int vector = 0; vector < 256; vector++)
+        {
+            byte* gate = idt + vector * 16;
+            uint handler = (uint)(0x100000 + vector * 16);
+            *(ushort*)gate = (ushort)handler; *(ushort*)(gate + 6) = (ushort)(handler >> 16);
+            *(ushort*)(gate + 2) = 8; gate[5] = 0x8e;
+            gate[4] = vector == 2 ? (byte)3 : vector == 8 ? (byte)1 : vector == 14 ? (byte)2 : (byte)0;
+        }
+    }
+
+    private static bool PrepareDescriptors(byte* memory, ushort firmwareCs = 56)
+        => FirstExitDescriptors.Prepare(ref *(FirstExitDescriptorContext*)memory,
+            memory + 4096, 4096, memory + 8192, 104, memory + 12288, 4096, memory + 16384, 4096, firmwareCs);
+
+    private static void DescriptorPreparation()
+    {
+        Need(sizeof(FirstExitDescriptorContext) == 128 &&
+            !RuntimeHelpers.IsReferenceOrContainsReferences<FirstExitDescriptorContext>(), "descriptor POD ABI");
+        (string Field, int Offset)[] layout = [("Gdtr", 0), ("BridgeIdtr", 16), ("FinalIdtr", 32),
+            ("ObservedGdtr", 48), ("ObservedIdtr", 64), ("ObservedTr", 80), ("FirmwareCs", 82),
+            ("ObservedCs", 84), ("ObservedDs", 86), ("ObservedEs", 88), ("ObservedSs", 90),
+            ("Prepared", 92), ("Gdt", 96), ("Tss", 104), ("BridgeIdt", 112), ("FinalIdt", 120)];
+        foreach (var field in layout)
+            Need((int)Marshal.OffsetOf<FirstExitDescriptorContext>(field.Field) == field.Offset, "descriptor native offset " + field.Field);
+        byte* memory = NewDescriptorFixture();
+        try
+        {
+            foreach (ushort selector in new ushort[] { 8, 56, 4088 })
+            {
+                ResetDescriptors(memory);
+                Need(PrepareDescriptors(memory, selector), "valid bridge selector");
+                FirstExitDescriptorContext* d = (FirstExitDescriptorContext*)memory;
+                Need(d->Prepared == 1 && *(ushort*)d->Gdtr == Math.Max(39, selector + 7) &&
+                    *(ulong*)(d->Gdtr + 2) == (ulong)d->Gdt &&
+                    *(ulong*)(d->Gdt + selector) == *(ulong*)(d->Gdt + 8), "GDT alias and extent");
+                for (int vector = 0; vector < 256; vector++)
+                {
+                    byte* bridge = d->BridgeIdt + vector * 16, final = d->FinalIdt + vector * 16;
+                    Need(*(ushort*)(bridge + 2) == selector && bridge[4] == 0 && *(ushort*)(final + 2) == 8,
+                        "bridge uses current CS and no unloaded IST");
+                    Need(*(ushort*)bridge == *(ushort*)final && new ReadOnlySpan<byte>(bridge + 5, 11).SequenceEqual(
+                        new ReadOnlySpan<byte>(final + 5, 11)), "same owned terminal handler");
+                }
+                Need(!PrepareDescriptors(memory, selector), "descriptor preparation single use");
+            }
+            foreach (ushort selector in new ushort[] { 0, 7, 16, 24, 32, 4096, ushort.MaxValue })
+            { ResetDescriptors(memory); Need(!PrepareDescriptors(memory, selector), "invalid/colliding code selector"); }
+            // Each invalid input is rejected before context/bridge/GDT mutation.
+            foreach (int offset in new[] { 4096, 4096 + 13, 4096 + 29, 4096 + 40,
+                8192, 8192 + 36, 8192 + 102, 12288 + 2, 12288 + 4, 12288 + 5,
+                12288 + 12, 12288 + 15 * 16 + 11, 16384 })
+            {
+                ResetDescriptors(memory); memory[offset] ^= 1;
+                byte[] before = new ReadOnlySpan<byte>(memory, 5 * 4096).ToArray();
+                Need(!PrepareDescriptors(memory) && new ReadOnlySpan<byte>(memory, 5 * 4096).SequenceEqual(before),
+                    "refuse invalid descriptor at " + offset + " without mutation");
+            }
+            ResetDescriptors(memory);
+            Need(!FirstExitDescriptors.Prepare(ref *(FirstExitDescriptorContext*)memory,
+                memory + 4096, 4096, memory + 8192, 104, memory + 12288, 4096, memory + 12288, 4096, 56), "overlapping IDTs");
+            foreach (int shortBuffer in new[] { 0, 1, 2, 3 })
+                Need(!FirstExitDescriptors.Prepare(ref *(FirstExitDescriptorContext*)memory,
+                    memory + 4096, shortBuffer == 0 ? 4095UL : 4096UL,
+                    memory + 8192, shortBuffer == 1 ? 103UL : 104UL,
+                    memory + 12288, shortBuffer == 2 ? 4095UL : 4096UL,
+                    memory + 16384, shortBuffer == 3 ? 4095UL : 4096UL, 56), "short descriptor buffer");
+        }
+        finally { NativeMemory.AlignedFree(memory); }
     }
 
     private static FirstExitReturn Invoke(ref FirstExitTransitionState state, byte* buffer, void* context)
