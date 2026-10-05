@@ -507,7 +507,7 @@ $script:M04ManagedHeapPageRangeForbiddenMarkers = @(
 )
 $script:M04GcStaticRootRequiredMarkers = @(
     $script:M04ManagedHeapPageRangeRequiredMarkers[0..($script:M04ManagedHeapPageRangeRequiredMarkers.Count - 9)]
-    foreach ($stage in @(0,1,3,4,5,6)) { "M04_GC_ROOT $stage" }
+    foreach ($stage in @(0,1,7,3,4,5,6,8)) { "M04_GC_ROOT $stage" }
     $script:M04ManagedHeapPageRangeRequiredMarkers[($script:M04ManagedHeapPageRangeRequiredMarkers.Count - 8)..($script:M04ManagedHeapPageRangeRequiredMarkers.Count - 1)]
 )
 $script:M04RhpNewFastReadyMarker = 'CLROS_M04_007_READY objects=10 compiledNew=4 direct=6 hostConformance=false guestIntegrated=true gate4=Fail'
@@ -1875,7 +1875,7 @@ function Assert-M02UnexpectedVectorPanicPrefix {
 function Assert-M04ManagedHeapPageRangeTranscript {
     param([string] $SerialLogPath, [switch] $IncludeFixedAllocation, [switch] $IncludeArrayAllocation, [switch] $IncludeStringAllocation, [switch] $IncludeCheckedReferences, [switch] $IncludeGcStatics)
     if (([int][bool]$IncludeFixedAllocation + [int][bool]$IncludeArrayAllocation + [int][bool]$IncludeStringAllocation + [int][bool]$IncludeCheckedReferences + [int][bool]$IncludeGcStatics) -gt 1) { throw 'm04_allocation_profile_collision' }
-    $lineCount = if ($IncludeGcStatics) { 58 } elseif ($IncludeCheckedReferences) { 71 } elseif ($IncludeStringAllocation) { 72 } elseif ($IncludeArrayAllocation) { 68 } elseif ($IncludeFixedAllocation) { 78 } else { 52 }
+    $lineCount = if ($IncludeGcStatics) { 60 } elseif ($IncludeCheckedReferences) { 71 } elseif ($IncludeStringAllocation) { 72 } elseif ($IncludeArrayAllocation) { 68 } elseif ($IncludeFixedAllocation) { 78 } else { 52 }
     $path = if ([IO.Path]::IsPathRooted($SerialLogPath)) { $SerialLogPath } else { Join-Path $root $SerialLogPath }
     # No BOM sniffing, trimming, Unicode folding or control removal for acceptance.
     $text = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($path))
@@ -1920,8 +1920,8 @@ function Assert-M04ManagedHeapPageRangeTranscript {
     $referenceRecords = @()
     $gcRecords = @()
     if ($IncludeGcStatics) {
-        $gcRecords = @($captured.GetRange(44,6))
-        $captured.RemoveRange(44,6)
+        $gcRecords = @($captured.GetRange(44,8))
+        $captured.RemoveRange(44,8)
     }
     if ($IncludeCheckedReferences) {
         $referenceRecords = @($captured.GetRange(44,19))
@@ -2071,10 +2071,10 @@ function Assert-M04ManagedHeapPageRangeTranscript {
 
 function Assert-M04GcStaticRootRecords {
     param([string[]] $Lines, [hashtable] $Heap)
-    if ($Lines.Count -ne 6) { throw 'm04_gc_static_record_count' }
+    if ($Lines.Count -ne 8) { throw 'm04_gc_static_record_count' }
     $records = @()
-    $stages = @(0,1,3,4,5,6)
-    for ($i=0; $i -lt 6; $i++) {
+    $stages = @(0,1,7,3,4,5,6,8)
+    for ($i=0; $i -lt 8; $i++) {
         $pattern = '\AM04_GC_ROOT ' + $stages[$i] + ' (0x[0-9A-F]{16}) (0x[0-9A-F]{16}) (0x[0-9A-F]{16}) (0x[0-9A-F]{16})\z'
         $match = [regex]::Match($Lines[$i], $pattern)
         if (-not $match.Success) { throw ('m04_gc_static_record_shape_'+$i) }
@@ -2088,8 +2088,8 @@ function Assert-M04GcStaticRootRecords {
         }
         $records += ,$values
     }
-    $image=$records[0]; $module=$records[1]; $root=$records[2]
-    $value=$records[3]; $stored=$records[4]; $cleared=$records[5]
+    $image=$records[0]; $module=$records[1]; $stack=$records[2]; $root=$records[3]
+    $value=$records[4]; $stored=$records[5]; $cleared=$records[6]; $checked=$records[7]
     $imageEnd=[decimal]$image[0]+$image[1]
     if ($image[0] -eq 0 -or $image[0] % 4096 -ne 0 -or $image[1] -eq 0 -or
         $imageEnd -gt [decimal][UInt64]::MaxValue -or $image[2] -ne 0 -or $image[3] -ne 0 -or
@@ -2108,6 +2108,20 @@ function Assert-M04GcStaticRootRecords {
     if ($stored[0] -ne 1 -or $stored[1] -ne 1 -or $stored[2] -ne $value[0] -or
         $stored[3] -ne [UInt64]0x7143B6A952D08E2F -or $cleared[0] -ne 1 -or
         $cleared[1] -ne 2 -or $cleared[2] -ne 2 -or $cleared[3] -ne 48) { throw 'm04_gc_static_store_readback' }
+    if ($stack[0] -eq 0 -or $stack[0] % 4096 -ne 0 -or
+        [decimal]$stack[1]-$stack[0] -ne 135168 -or [decimal]$stack[2] -ne [decimal]$stack[1]-40 -or
+        $checked[0] -ne 5 -or $checked[1] -ne [UInt64]0x195A86B4C327D0EF -or
+        $checked[2] -ne [UInt64]0x62C79E1035AB48D6 -or $checked[3] -gt $stack[3]) { throw 'm04_gc_static_stack_identity' }
+    foreach ($witness in @($stack[3],$checked[3])) {
+        if ($witness % 8 -ne 0 -or [decimal]$witness -lt [decimal]$stack[0]+16+16384 -or
+            [decimal]$witness+8 -gt [decimal]$stack[2]) { throw 'm04_gc_static_stack_witness' }
+    }
+    foreach ($range in @(@($image[0],$imageEnd),@($Heap.retainedStart,$Heap.retainedEnd))) {
+        if ([decimal]$stack[0] -lt [decimal]$range[1] -and [decimal]$range[0] -lt [decimal]$stack[1]) {
+            throw 'm04_gc_static_stack_overlap'
+        }
+    }
+
 }
 
 function Assert-M04RhpNewFastTranscript {
@@ -9278,7 +9292,7 @@ $rhpReason = $arrayReason
             Assert-M04ManagedHeapPageRangeTranscript -SerialLogPath $SerialLog -IncludeGcStatics
         }
         catch { Write-Host ("TEST_FAIL qemu.smoke.m04.012 strict_transcript_invalid reason=" + $_.Exception.Message); exit 1 }
-        Write-Host 'QEMU_SCRIPT_M04_GC_STATIC_TRANSCRIPT exactWholeLines=true lines=58 allocations=2 scalarStores=2 nonCollecting=true'
+        Write-Host 'QEMU_SCRIPT_M04_GC_STATIC_TRANSCRIPT exactWholeLines=true lines=60 allocations=2 scalarStores=2 stackChecks=5 nonCollecting=true'
     }
     elseif ($EnableM04CheckedReferenceBarrierProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
         try {

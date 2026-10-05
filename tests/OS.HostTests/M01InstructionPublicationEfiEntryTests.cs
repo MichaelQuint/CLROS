@@ -4004,7 +4004,8 @@ internal static class M01InstructionPublicationEfiEntryTests
             || string.Equals(condition, TypeManagerSymbol, StringComparison.Ordinal)
             || string.Equals(condition, TypedEbsSymbol, StringComparison.Ordinal)
             || string.Equals(condition, GcStaticSymbol, StringComparison.Ordinal)
-            || string.Equals(condition, TypeManagerSymbol + " || " + GcStaticSymbol, StringComparison.Ordinal);
+            || string.Equals(condition, TypeManagerSymbol + " || " + GcStaticSymbol, StringComparison.Ordinal)
+            || string.Equals(condition, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, StringComparison.Ordinal);
                 bool selectedValue =
                     string.Equals(
                         condition,

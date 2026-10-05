@@ -24,6 +24,14 @@ internal static class GcStaticFixture
 internal static unsafe partial class RhpNewFastAllocation
 {
     private const ulong GcCookie = 0x7143B6A952D08E2F;
+    private const ulong GcStackBytes = 33 * 4096, GcStackBudget = 16384;
+    private const ulong GcStackWord0 = 0x195A86B4C327D0EF, GcStackWord1 = 0x62C79E1035AB48D6;
+    private struct GcStackState
+    {
+        internal ulong Authority, Start, End, InitialRsp, Witness, MinimumWitness;
+        internal ulong Checks, Final0, Final1;
+    }
+    private static GcStackState s_gcStack;
     private struct GcTypeStorage { internal fixed ulong Words[512]; }
     private struct GcRootStorage { internal fixed ulong Words[128]; }
     private static GcTypeStorage s_gcType;
@@ -37,6 +45,7 @@ internal static unsafe partial class RhpNewFastAllocation
     internal static void RunGcStatics(RhpNewFastHeapAccess original,
         EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping)
     {
+        ulong stackWitness = 0;
         ulong image = 0;
         if (s_gcPhase != 0 || !capture.Succeeded || !mapping.IsValidFor(capture) ||
             mapping.VirtualImageBase.TryGetRawValueForUefiBoundary(out image) != AddressValueStatus.Success)
@@ -64,6 +73,7 @@ internal static unsafe partial class RhpNewFastAllocation
                 capture, mapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle, 201);
             GcLine(1, (ulong)entries.Status, entries.Section, unchecked((ulong)entries.Length), s_gcHandle);
             if (!entries.Succeeded || entries.Length != 4) RejectGc(4);
+            ArmGcStack((ulong)&stackWitness);
             GCStaticRootResult materialized = GCStaticRootsMalformedMetadata.MaterializeOnce(
                 capture, mapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                 s_gcImage, s_gcImage, GcObjectType(), *a, b, GuestTestRhpNewFast.RequiredStateBytes,
@@ -74,6 +84,7 @@ internal static unsafe partial class RhpNewFastAllocation
                     (ulong)materialized.ModuleStatus, (ulong)materialized.HeapStatus);
                 RejectGc(5);
             }
+            CheckGcStack(0);
             if (b->AllocationCount != 1 || materialized.SeriesBytes != 8 ||
                 Bits(GcStaticFixture.Get()) != 0) RejectGc(6);
             s_gcField = GcFieldAddress();
@@ -85,26 +96,100 @@ internal static unsafe partial class RhpNewFastAllocation
                 (byte*)root, (ulong)sizeof(GcRootStorage));
             if (!repeated.Succeeded || repeated.ObjectReference != materialized.ObjectReference ||
                 b->AllocationCount != 1) RejectGc(8);
+            CheckGcStack(1);
 
             s_gcPhase = 2;
             RhpPlainFixture value = NewPlain(GcCookie);
             if (s_gcPhase != 3 || Bits(value) != s_gcValue.ObjectReference ||
                 ReadPlain(value) != GcCookie || c->ConstructorCount != 1 || b->AllocationCount != 2)
                 RejectGc(9);
+            CheckGcStack(2);
             GcLine(4, s_gcValue.ObjectReference, s_gcValue.MethodTableToken,
                 s_gcValue.UsedBefore, s_gcValue.UsedAfter);
             GcStaticFixture.Set(value);
             if (s_gcCalls != 1 || Bits(GcStaticFixture.Get()) != Bits(value) ||
                 GcReadWord(s_gcField) != Bits(value) || !ReadGcRoot().Succeeded) RejectGc(10);
+            CheckGcStack(3);
             GcLine(5, s_gcOperation, s_gcCalls, GcReadWord(s_gcField), ReadPlain(value));
             GcStaticFixture.Set(null);
             if (s_gcCalls != 2 || Bits(GcStaticFixture.Get()) != 0 ||
                 GcReadWord(s_gcField) != 0 || !ReadGcRoot().Succeeded ||
                 ReadPlain(value) != GcCookie || b->AllocationCount != 2) RejectGc(11);
+            CheckGcStack(4);
             s_gcPhase = 4;
             GcLine(6, s_gcOperation, s_gcCalls, b->AllocationCount, b->UsedBytes);
+            GcLine(8, s_gcStack.Checks, s_gcStack.Final0, s_gcStack.Final1, s_gcStack.MinimumWitness);
         }
     }
+
+    // Authenticate the existing owned stack before its only two sentinel writes.
+    // The witness is a real local address, not a claimed current RSP. Native
+    // review separately bounds the deepest reachable frames below this point.
+    private static void ArmGcStack(ulong witness)
+    {
+        ulong authority = 0, start = 0, end = 0, initialRsp = 0;
+        if (s_gcPhase != 1 || s_gcStack.Start != 0 ||
+            !GcStackContext(witness, out authority, out start, out end, out initialRsp))
+            RejectGc(15);
+        s_gcStack = new GcStackState { Authority = authority, Start = start, End = end,
+            InitialRsp = initialRsp, Witness = witness, MinimumWitness = witness };
+        *(ulong*)start = GcStackWord0;
+        *(ulong*)(start + 8) = GcStackWord1;
+        if (GcReadWord(start) != GcStackWord0 || GcReadWord(start + 8) != GcStackWord1) RejectGc(16);
+        GcLine(7, start, end, initialRsp, witness);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void CheckGcStack(ulong expected)
+    {
+        ulong witness = 0, address = (ulong)&witness;
+        ulong authority = 0, start = 0, end = 0, initialRsp = 0;
+        if (expected >= 5 || s_gcStack.Checks != expected ||
+            s_gcPhase != (expected < 2 ? 1UL : 3UL) ||
+            s_gcCalls != (expected < 3 ? 0UL : expected - 2) ||
+            !GcStackContext(address, out authority, out start, out end, out initialRsp) ||
+            authority != s_gcStack.Authority || start != s_gcStack.Start || end != s_gcStack.End ||
+            initialRsp != s_gcStack.InitialRsp || address > s_gcStack.Witness)
+            RejectGc(17);
+        // Read-only checks: a corrupted sentinel is never silently rearmed.
+        ulong word0 = GcReadWord(start), word1 = GcReadWord(start + 8);
+        if (word0 != GcStackWord0 || word1 != GcStackWord1) RejectGc(18);
+        s_gcStack.Final0 = word0; s_gcStack.Final1 = word1; s_gcStack.Checks++;
+        if (address < s_gcStack.MinimumWitness) s_gcStack.MinimumWitness = address;
+    }
+
+    private static bool GcStackContext(ulong witness, out ulong authority,
+        out ulong start, out ulong end, out ulong initialRsp)
+    {
+        authority = start = end = initialRsp = 0;
+        if (!EfiEntry.TryGetOriginalReferenceStack(out authority, out start, out end, out initialRsp) ||
+            start == 0 || (start & 4095) != 0 || start > ulong.MaxValue - GcStackBytes ||
+            end != start + GcStackBytes || initialRsp != end - 40 ||
+            (witness & 7) != 0 || witness < start + 16 + GcStackBudget || witness > initialRsp - 8 ||
+            !GcStackSeparate(start, end, authority, 768) ||
+            !GcStackSeparate(start, end, s_gcImage.Start, s_gcImage.Bytes)) return false;
+        fixed (RhpNewFastHeapAccess* a = &s_access)
+        fixed (RhpNewFastBumpState* b = &s_bump)
+        fixed (RhpAllocationControl* c = &s_control)
+        fixed (RhpObservationStorage* r = &s_records)
+        {
+            // Ready authenticates every original pointer and exact capacity
+            // before the disjointness checks read the retained access fields.
+            return RhpNewFastAllocationCore.Ready(a, b, c, r) == RhpAdmissionStatus.Success &&
+                GcStackSeparate(start, end, (ulong)a, (ulong)sizeof(RhpNewFastHeapAccess)) &&
+                GcStackSeparate(start, end, (ulong)b, (ulong)sizeof(RhpNewFastBumpState)) &&
+                GcStackSeparate(start, end, (ulong)c, (ulong)sizeof(RhpAllocationControl)) &&
+                GcStackSeparate(start, end, (ulong)r, (ulong)sizeof(RhpObservationStorage)) &&
+                GcStackSeparate(start, end, (ulong)a->Allocator, 56) &&
+                GcStackSeparate(start, end, (ulong)a->Nodes, 48) &&
+                GcStackSeparate(start, end, (ulong)a->Reservations, 200) &&
+                GcStackSeparate(start, end, (ulong)a->Heap, a->HeapCapacity) &&
+                GcStackSeparate(start, end, (ulong)a->Backing, a->BackingCapacity);
+        }
+    }
+
+    private static bool GcStackSeparate(ulong start, ulong end, ulong at, ulong bytes) =>
+        at != 0 && bytes != 0 && at <= ulong.MaxValue - bytes && (at + bytes <= start || at >= end);
 
     // This is the only new allocation role. The static base and this real value
     // share s_bump; the existing six-role reference diagnostic remains separate.

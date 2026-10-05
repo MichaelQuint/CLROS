@@ -1817,3 +1817,8 @@ linked image and verifies the changed cell/helper/publication boundary; the
 complete coordinator/stack and common regression acceptance remain pending.
 #81/#548 remain open, #82 blocked, and Gates3/4 Fail. This is neither a
 collecting GC nor general static/TLS, hosted .NET/Kestrel, or cloud support.
+
+[Step995](../done/step995.md) supplies the missing actual-stack witness and five
+read-only canary checks for this GC-static development slice. Its fresh guest
+passes both canaries and the same two allocations/stores. This does not change
+the gate result: complete common and final native/guest acceptance are pending.

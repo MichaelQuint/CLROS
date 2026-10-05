@@ -115,7 +115,7 @@ internal static class M01LoadedImageStackEfiEntryTests
 
     private static bool TestDefaultOffProfile()
     {
-        foreach (string disabledSymbol in new[] { DoubleFaultSymbol, UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol, TypeManagerSymbol, TypedEbsSymbol, GcStaticSymbol, TypeManagerSymbol + " || " + GcStaticSymbol })
+        foreach (string disabledSymbol in new[] { DoubleFaultSymbol, UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol, TypeManagerSymbol, TypedEbsSymbol, GcStaticSymbol, TypeManagerSymbol + " || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol })
         {
             string selectorFixture = "#if " + disabledSymbol + "\nDfOnly();\n#else\nDfOff();\n#endif\n"
                 + "#if UNRELATED_PROBE\nUnknown();\n#else\nUnknownElse();\n#endif\n";
@@ -3087,7 +3087,8 @@ internal static class M01LoadedImageStackEfiEntryTests
             || string.Equals(condition, TypeManagerSymbol, StringComparison.Ordinal)
             || string.Equals(condition, TypedEbsSymbol, StringComparison.Ordinal)
             || string.Equals(condition, GcStaticSymbol, StringComparison.Ordinal)
-            || string.Equals(condition, TypeManagerSymbol + " || " + GcStaticSymbol, StringComparison.Ordinal);
+            || string.Equals(condition, TypeManagerSymbol + " || " + GcStaticSymbol, StringComparison.Ordinal)
+            || string.Equals(condition, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, StringComparison.Ordinal);
                 bool selectedValue = isStageOne && enabled;
                 stack.Push(
                     new PreprocessorFrame(

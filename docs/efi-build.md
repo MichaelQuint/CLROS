@@ -2577,3 +2577,10 @@ one retained static-base allocation, and one ordinary value allocation through
 the same cursor. Both enabled and default fresh QEMU boots pass. Complete
 regression and final native/stack acceptance remain pending; this diagnostic
 does not implement collection or general static initialization.
+
+[Step995](../done/step995.md) adds original-owned-stack admission, two canaries
+armed once, and five read-only checks around the actual GC operations. The
+strict numeric transcript now has 60 CLROS lines and 49 ordered/unique anchors.
+Fresh QEMU development evidence passes with both canaries retained. The
+10,056-byte first-party coordinator bound excludes firmware body depth; final
+common/default-and-enabled acceptance remains pending.
