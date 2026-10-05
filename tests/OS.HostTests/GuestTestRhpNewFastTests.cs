@@ -30,6 +30,10 @@ internal static unsafe class GuestTestRhpNewFastTests
             Group("exhaustion", CheckExhaustion);
             Group("storage", CheckStorage);
             Group("state_authority", CheckStateAndAuthority);
+            Group("static_bytes", CheckStaticBytes);
+            Group("static_admission", CheckStaticAdmission);
+            Group("retained_receipts", CheckRetainedReceipts);
+            Group("shared_controller", CheckSharedController);
             Group("zero_allocation", CheckPodAndAllocation);
             Group("nostdlib", CheckNoStdLibCompilation);
             Console.WriteLine("CLROS_M04_007_HOST_READY pageBytes=4096 minimumObjectBytes=24"
@@ -437,7 +441,8 @@ internal static unsafe class GuestTestRhpNewFastTests
         string[] statuses = ["Uninitialized", "Success", "InvalidStorage", "StorageOverlap", "AlreadyInitialized",
             "NotInitialized", "InvalidState", "HeapAuthorityRejected", "HeapBindingMismatch", "InitialPageNotPristine",
             "UnsupportedProfile", "InvalidMethodTableToken", "InvalidMethodTableFlags", "UnsupportedFixedType",
-            "InvalidBaseSize", "Exhausted", "UnsupportedArrayType", "InvalidComponentSize", "InvalidLength", "UnsupportedStringType"];
+            "InvalidBaseSize", "Exhausted", "UnsupportedArrayType", "InvalidComponentSize", "InvalidLength", "UnsupportedStringType",
+            "UnsupportedStaticType", "InvalidReceipt", "ReceiptContentsChanged"];
         Require(Enum.GetValues<Status>().Length == statuses.Length, "append-only status count");
         for (int i = 0; i < statuses.Length; i++) Require(((Status)i).ToString() == statuses[i], "stable status values");
         string[] fields = ["InitializedValue", "SelfAddressValue", "CapacityValue", "HeapAddressValue",
@@ -461,6 +466,167 @@ internal static unsafe class GuestTestRhpNewFastTests
         passed &= Allocate(f, token: 0).Status == Status.InvalidMethodTableToken;
         passed &= Allocate(f, size: 4096).Status == Status.Exhausted;
         passed &= Bind(f).Status == Status.AlreadyInitialized;
+        RhpNewFastResult receipt = Static(f, size: 32);
+        passed &= receipt.AllocationSucceeded && Receipt(f, receipt) == Status.Success;
+        passed &= Static(f, flags: 0).Status == Status.UnsupportedStaticType;
+        passed &= Receipt(f, default) == Status.InvalidReceipt;
+    }
+
+    private static void CheckStaticBytes()
+    {
+        using Fixture f = new();
+        foreach (uint size in new uint[] { 24, 32, 4096 })
+        {
+            f.Reset(); Require(Bind(f).Succeeded, "static bind");
+            new Span<byte>(f.Page, 4096).Fill(0xD3);
+            byte[] before = f.Snapshot();
+            RhpNewFastResult r = Static(f, size: size);
+            CheckResult(f, r, 0, size, 1, Token); CheckBytes(f.Page, size, Token);
+            f.OnlyChanged(before, (0x3000, 80), (f.PageOffset, (int)size));
+            Require(Read64(f.Page + 16) == 0, "static payload is zero, no array or String length store");
+            before = f.Snapshot(); Require(Receipt(f, r) == Status.Success, "genuine static receipt"); f.Unchanged(before);
+            if (size == 4096) ExpectStatic(f, Status.Exhausted);
+        }
+        // One cursor for old and new routes; each previous payload survives.
+        f.Reset(); Bind(f);
+        RhpNewFastResult first = Allocate(f); f.Page[16] = 0xA7;
+        RhpNewFastResult second = Static(f, size: 32, token: Token2); f.Page[40] = 0xB8;
+        RhpNewFastResult third = Allocate(f);
+        CheckResult(f, third, 56, 24, 3, Token);
+        Require(first.UsedAfter == 24 && second.UsedBefore == 24 && second.UsedAfter == 56 &&
+            f.Page[16] == 0xA7 && f.Page[40] == 0xB8, "shared sole cursor and old payload preservation");
+        Require(Receipt(f, first) == Status.Success && Receipt(f, second) == Status.Success &&
+            Receipt(f, third) == Status.Success, "retained earlier receipts survive later allocations");
+    }
+
+    private static void CheckStaticAdmission()
+    {
+        using Fixture f = new(); Bind(f); new Span<byte>(f.Page, 4096).Fill(0x79);
+        foreach (uint flags in new uint[] { 0, 1, 0x01000001, 0x00010000, 0x50000000,
+            0x51000000, 0x81000008, 0x81000002, uint.MaxValue })
+            ExpectStatic(f, Status.UnsupportedStaticType, flags: flags);
+        foreach (uint size in new uint[] { 0, 8, 16, 23, 25, 31, uint.MaxValue })
+            ExpectStatic(f, Status.InvalidBaseSize, size: size);
+        foreach (uint size in new uint[] { 4104, 0xFFFFFFF8 })
+            ExpectStatic(f, Status.UnsupportedStaticType, size: size);
+        ExpectStatic(f, Status.UnsupportedProfile, flags: 0, size: 0, token: 0, profile: default);
+        ExpectStatic(f, Status.InvalidMethodTableToken, flags: 0, size: 0, token: 0);
+        ExpectStatic(f, Status.UnsupportedStaticType, flags: 0, size: 0);
+        foreach (ulong token in new ulong[] { 0, 1, Token + 1, ulong.MaxValue - 15,
+            (ulong)f.Access.Allocator + 48, (ulong)f.Access.Nodes + f.Access.NodeCapacity * 48 - 8,
+            (ulong)f.Access.Reservations + f.Access.ReservationCapacity * 40 - 8,
+            (ulong)f.Access.Heap + f.Access.HeapCapacity - 8,
+            (ulong)f.Access.Backing + f.Access.BackingCapacity - 8,
+            (ulong)f.State + f.StateCapacity - 8 })
+            ExpectStatic(f, Status.InvalidMethodTableToken, token: token);
+        // No dereference of synthetic tokens: numeric 16-byte static admission
+        // differs from the unchanged ordinary 24-byte prefix at exact endpoints.
+        foreach (ulong token in new ulong[] { (ulong)f.State - 16, ulong.MaxValue - 23 })
+        {
+            Expect(f, Status.InvalidMethodTableToken, token: token);
+            RhpNewFastResult r = Static(f, token: token);
+            Require(r.AllocationSucceeded && Receipt(f, r) == Status.Success, "exact abbreviated token boundary");
+        }
+        f.Reset();
+        ExpectStatic(f, Status.NotInitialized, flags: 0, size: 0, token: 0, profile: default);
+    }
+
+    private static void CheckRetainedReceipts()
+    {
+        using Fixture f = new(); RhpNewFastResult bound = Bind(f);
+        RhpNewFastResult receipt = Static(f, size: 32);
+        ExpectReceipt(f, receipt, Status.Success);
+        ExpectReceipt(f, default, Status.InvalidReceipt); ExpectReceipt(f, bound, Status.InvalidReceipt);
+        f.Page[16] = 0xE7; f.Page[31] = 0x4B;
+        ExpectReceipt(f, receipt, Status.Success); // Payload is deliberately mutable.
+        Require(Allocate(f).AllocationSucceeded, "later ordinary allocation");
+        ExpectReceipt(f, receipt, Status.Success);
+        for (int i = 0; i < 16; i++)
+        {
+            f.Page[i] ^= 1;
+            ExpectReceipt(f, receipt, Status.ReceiptContentsChanged);
+            f.Page[i] ^= 1;
+        }
+        using Fixture other = new(); Bind(other);
+        RhpNewFastResult foreign = Static(other, size: 32);
+        byte[] otherBefore = other.Snapshot(); ExpectReceipt(f, foreign, Status.InvalidReceipt); other.Unchanged(otherBefore);
+        // Corrupt each scalar receipt member, without claiming a POD checksum or
+        // forged-authority detector. The original receipt is retained separately.
+        string[] fields = ["MappedAllocationStart", "MappedAllocationEndExclusive", "PhysicalAllocationStart",
+            "PhysicalAllocationEndExclusive", "ObjectReference", "MethodTableToken", "BytesConsumed",
+            "UsedBefore", "UsedAfter", "AllocationCount"];
+        for (int i = 0; i < fields.Length; i++)
+        {
+            int offset = Marshal.OffsetOf<RhpNewFastResult>("<" + fields[i] + ">k__BackingField").ToInt32();
+            Require(offset == 8 + i * 8, "receipt scalar offset " + fields[i]);
+            RhpNewFastResult corrupted = receipt;
+            *(ulong*)((byte*)&corrupted + offset) = ulong.MaxValue;
+            ExpectReceipt(f, corrupted, Status.InvalidReceipt);
+        }
+        foreach (string field in new[] { "Status", "Operation", "HeapStatus" })
+        {
+            int offset = Marshal.OffsetOf<RhpNewFastResult>("<" + field + ">k__BackingField").ToInt32();
+            RhpNewFastResult corrupted = receipt; ((byte*)&corrupted)[offset] = 0;
+            ExpectReceipt(f, corrupted, Status.InvalidReceipt);
+        }
+        // Exact earlier count/used association: malformed boundaries must reject
+        // before any candidate-pointer read, even when other addresses are genuine.
+        foreach ((int offset, ulong value) in new (int, ulong)[] { (56, 16), (56, 25), (64, 8), (72, 24), (80, 0), (80, 2) })
+        {
+            RhpNewFastResult corrupted = receipt; *(ulong*)((byte*)&corrupted + offset) = value;
+            ExpectReceipt(f, corrupted, Status.InvalidReceipt);
+        }
+        ExpectReceipt(f, receipt, Status.Success);
+    }
+
+    private static void CheckSharedController()
+    {
+        using Fixture f = new();
+        for (int slot = 0; slot < 10; slot++)
+        {
+            f.Reset(); Bind(f); RhpNewFastResult r = Static(f); ((ulong*)f.State)[slot] ^= 8;
+            Status expected = slot < 3 || slot >= 8 ? Status.InvalidState : Status.HeapBindingMismatch;
+            byte[] before = f.Snapshot();
+            RhpNewFastResult old = Allocate(f), added = Static(f);
+            Require(old.Status == expected && added.Status == expected && old.HeapStatus == added.HeapStatus &&
+                Receipt(f, r) == expected, "ordinary/static/receipt controller agreement " + slot);
+            f.Unchanged(before);
+        }
+        f.Reset(); Bind(f); RhpNewFastResult receipt = Static(f);
+        RhpNewFastHeapAccess access = f.Access; access.NodeCapacity = 1;
+        byte[] snapshot = f.Snapshot();
+        Require(Alloc.TryAllocate(access, f.State, f.StateCapacity, Profile, Prefix(), Token).Status == Status.HeapAuthorityRejected &&
+            Alloc.TryAllocateStaticBase(access, f.State, f.StateCapacity, Profile, 0x01000000, 24, Token).Status == Status.HeapAuthorityRejected &&
+            Alloc.TryValidateRetainedAllocation(access, f.State, f.StateCapacity, receipt) == Status.HeapAuthorityRejected, "same original thirteen-input retained check");
+        f.Unchanged(snapshot);
+        f.Access.Heap[0] = default;
+        snapshot = f.Snapshot();
+        Require(Static(f).Status == Status.HeapAuthorityRejected && Receipt(f, receipt) == Status.HeapAuthorityRejected, "lost retained heap");
+        f.Unchanged(snapshot);
+        f.Reset(); Bind(f); receipt = Static(f);
+        access = f.Access; access.Backing = (byte*)(ulong.MaxValue - 4095);
+        snapshot = f.Snapshot();
+        Require(Alloc.TryAllocateStaticBase(access, f.State, f.StateCapacity, Profile, 0x01000000, 24, Token).Status == Status.InvalidStorage &&
+            Alloc.TryValidateRetainedAllocation(access, f.State, f.StateCapacity, receipt) == Status.InvalidStorage, "overflow rejected before synthetic pointer dereference");
+        f.Unchanged(snapshot);
+        Require(Alloc.TryValidateRetainedAllocation(f.Access, (RhpNewFastBumpState*)f.Access.Backing,
+            f.StateCapacity, receipt) == Status.StorageOverlap, "controller/backing alias");
+        f.Unchanged(snapshot);
+    }
+
+    private static RhpNewFastResult Static(Fixture f, uint flags = 0x01000000, uint size = 24,
+        ulong token = Token, NativeAotLayoutProfile profile = Profile) =>
+        Alloc.TryAllocateStaticBase(f.Access, f.State, f.StateCapacity, profile, flags, size, token);
+    private static Status Receipt(Fixture f, RhpNewFastResult receipt) =>
+        Alloc.TryValidateRetainedAllocation(f.Access, f.State, f.StateCapacity, receipt);
+    private static void ExpectStatic(Fixture f, Status status, uint flags = 0x01000000, uint size = 24,
+        ulong token = Token, NativeAotLayoutProfile profile = Profile)
+    {
+        byte[] before = f.Snapshot(); Rejected(Static(f, flags, size, token, profile), status); f.Unchanged(before);
+    }
+    private static void ExpectReceipt(Fixture f, RhpNewFastResult receipt, Status status)
+    {
+        byte[] before = f.Snapshot(); Require(Receipt(f, receipt) == status, "receipt expected=" + status); f.Unchanged(before);
     }
 
     private static NativeAotMethodTablePrefix Prefix(uint flags = 0x50000000, uint size = 24) =>
@@ -634,7 +800,8 @@ internal static unsafe class GuestTestRhpNewFastTests
             "actual allocation method is present");
         TypeDefinition allocator = metadata.TypeDefinitions.Select(metadata.GetTypeDefinition)
             .Single(t => metadata.GetString(t.Name) == "GuestTestRhpNewFast");
-        foreach (string name in new[] { "TryAllocate", "TryAllocateArray", "TryAllocateString", "AllocateCore" })
+        foreach (string name in new[] { "TryAllocate", "TryAllocateArray", "TryAllocateString", "AllocateCore",
+            "TryAllocateStaticBase", "TryValidateRetainedAllocation", "ValidateController" })
         {
             MethodDefinition entry = allocator.GetMethods().Select(metadata.GetMethodDefinition)
                 .Single(m => metadata.GetString(m.Name) == name);

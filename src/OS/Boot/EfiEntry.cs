@@ -17697,7 +17697,7 @@ public static unsafe class EfiEntry
             return true;
         }
 
-#if M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE
+#if M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE || M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE
         internal static bool TryGetOriginalTypeManagerImage(out EfiLoadedImageRangeCapturePlan capture,
             out M01LoadedImageVirtualMappingEvidence mapping)
         {
@@ -17720,7 +17720,7 @@ public static unsafe class EfiEntry
 #endif
 #endif
 
-#if M04_CHECKED_REFERENCE_BARRIER_PROBE
+#if M04_CHECKED_REFERENCE_BARRIER_PROBE || M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE
         internal static bool TryGetOriginalReferenceStack(out ulong authority,
             out ulong start, out ulong end, out ulong initialRsp)
         {
@@ -18554,7 +18554,14 @@ public static unsafe class EfiEntry
                     ParentIndex = heap->ParentIndex, Backing = (byte*)record->VirtualStart,
                     BackingCapacity = 8192, Heap = heap, HeapCapacity = ManagedHeapPageRangeLiveAllocator.RequiredStateBytes
                 };
+#if M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE
+                if (!M01StageOneAdapter.TryGetOriginalTypeManagerImage(out EfiLoadedImageRangeCapturePlan capture,
+                        out M01LoadedImageVirtualMappingEvidence mapping))
+                    OS.Runtime.RhpNewFastAllocation.RejectAdapter(OS.Runtime.RhpAdmissionStatus.InvalidImage, 14);
+                OS.Runtime.RhpNewFastAllocation.RunGcStatics(original, capture, mapping);
+#else
                 OS.Runtime.RhpNewFastAllocation.Run(original, image, imageBytes);
+#endif
             }
         }
 #endif
@@ -19667,7 +19674,7 @@ public static unsafe class EfiEntry
     internal static void WriteRhpByte(byte value) => M01StageOneAdapter.WriteRhpByte(value);
 #endif
 
-#if M04_CHECKED_REFERENCE_BARRIER_PROBE
+#if M04_CHECKED_REFERENCE_BARRIER_PROBE || M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE
     internal static bool TryGetOriginalReferenceStack(out ulong authority,
         out ulong start, out ulong end, out ulong initialRsp) =>
         M01StageOneAdapter.TryGetOriginalReferenceStack(out authority, out start, out end, out initialRsp);

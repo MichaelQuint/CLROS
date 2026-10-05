@@ -1442,3 +1442,100 @@ its tail canaries are initialized after registration. These finite results
 complete #544/#80 and unblock #81, while #82 still depends on GC-static roots.
 The runtime ledger stays Deferred and the preceding unsupported-feature
 boundaries remain unchanged.
+
+### M04-012 read-only GC-static metadata admission
+
+[Step990](../done/step990.md) adds `GCStaticRootsMalformedMetadata.ValidateOne`.
+Each call revalidates the registered TypeManager owner and section201 lookup,
+then admits one signed field-relative entry, an aligned eight-byte cell, a
+16-byte abbreviated MethodTable and one positive GCDesc series. Caller-supplied
+readable windows must lie within the original image. They express mapping and
+lifetime obligations, not PE write permissions or physical mapping proof.
+
+The supported uninitialized form has tag1 and zero upper32 bits. The decoder
+checks the related Object MethodTable address, HasPointers flags, aligned base
+size24..4096, signed series length and pointer offsets before returning scalar
+observations. Missing/empty sections, malformed spans, protected aliases and
+valid unsupported forms have distinct status results. Every call authenticates
+the owner again; row payload observations are fresh and are not retained
+publication authority. No allocation, write, callback or static initialization
+occurs. In particular, an initialized absolute cell is not accepted as an
+uninitialized relative pointer.
+
+The five complete focused initializers pass42 starts/43 passes/zero failures,
+including all15 new groups, whole-buffer preservation and a warmed1000-call
+zero-allocation assertion. Actual host layouts are window16/result88. The
+current92 explicit EFI sources plus this core compile as a93-source no-stdlib
+library with zero AssemblyRefs and a nonempty `ValidateOne` body; this managed
+DLL is not executed. The normal HostTests Release compilation also passes.
+
+This is the first host prerequisite for #81, which remains open and claimed.
+Genuine compiler section201/GCDesc association, explicit cell-write permission,
+sole-allocator static-base materialization, static-field barrier authority and
+retained-root lifetime remain unimplemented. #82 remains blocked. There is no
+new native-image, QEMU, GCHandle, collecting-GC, real ExitBootServices or hosted
+runtime evidence; Gates3/4 remain **Fail**.
+
+
+### M04-012 retained static-base host materialization
+
+[Step992](../done/step992.md) implements the next #81 host slice with #548's
+TypeManager range query and abbreviated-MT allocator route. ValidateOne keeps
+its read-only contract. MaterializeOnce authenticates the original registered
+image, supported metadata, writable cell, caller-owned root storage and all
+original retained-heap inputs. It uses the existing sole allocation commit,
+checks actual zero payload/MT/syncblock, completes a private retained record,
+then publishes the actual allocation reference in one aligned cell store.
+
+The private root is self/capacity-bound and retains the metadata bytes and
+genuine receipt. Its local byte checksum detects accidental record changes;
+it is not authentication against hostile forging or resets. A published repeat
+or query revalidates the original authority, cell, metadata and receipt without
+decoding the absolute published reference as rel32. Later allocations and
+payload writes are legal. Pre-commit rejection preserves all storage; a
+post-commit discrepancy leaves a poisoned non-retryable record without rollback.
+
+Image-contained root/bump storage must be admitted RW/nonexecutable data and
+exclude registered protected extents through its full capacity. External root
+storage retains caller mapping/lifetime obligations. Backing storage must be
+disjoint from the image and authority buffers. The allocator's scalar16-byte
+MT route shares the existing fixed/array/String controller and sole commit;
+it never reads a fabricated ordinary24-byte MethodTable prefix.
+
+Seven whole host modules pass81 starts/82 passes/zero failures, including
+existing array/String regressions. The root owner is600 bytes and result48;
+1000 warmed queries allocate zero managed bytes. The actual93-source no-stdlib
+child has zero AssemblyRefs and nonempty validator/materialization/query
+bodies; it is not executed. Normal HostTests Release compilation passes.
+
+This supersedes the unimplemented host-materialization items in step990;
+genuine compiler GCStatics/accessor association, compiled reference stores via
+the checked barrier, native ABI and fresh guest evidence remain outstanding.
+#81/#548 stay open, #82 blocked, and Gates3/4 Fail. No collecting GC, general
+GCHandle, concurrent/root-reset support, hosted .NET/Kestrel or cloud claim.
+
+### GC-static EFI development milestone (step994)
+
+The default-off `EnableM04GcStaticRootMaterializationProbe` has development
+QEMU/OVMF evidence for one compiler-emitted `static object` field: register the
+original image, materialize and retain its base, allocate a genuine value through
+the same cursor, store/read that object, then store/read null. The existing
+checked-barrier thunk performs two scalar stores; two allocations consume 48
+bytes. This is bounded noncollecting support. Compatibility declarations are refreshed; final integrated
+acceptance remains pending; see [step994](../done/step994.md).
+
+NativeAOT places the section201 entry array in writable `.data`. The Type range
+query's `ReadableSectionData` kind admits reads inside registered non-executable
+row payloads, without granting write access. GC-root ownership retains and checks
+the entry bytes. Descriptors, abbreviated method tables and Object metadata still
+require immutable readable storage; mutable destinations exclude registered rows.
+
+[Step1003](../done/step1003.md) supplies final common/native/QEMU acceptance
+for this bounded GC-static slice: 3787/3788/0 complete host results, exact
+native-image reuse, and fresh default/enabled captures with raw/lifecycle and
+disk reviews. The actual static field/cell, relative metadata, scalar object
+MethodTable and sole-allocator receipts agree with the numeric guest record.
+Five owned-stack canary checks pass within the reviewed first-party bound.
+#81/#548 are ready for closure after merge and #82 can proceed to collection.
+This does not implement collection, free/reuse, general roots/static/TLS,
+exceptions, concurrency or hosted .NET; Gates3/4 remain Fail.

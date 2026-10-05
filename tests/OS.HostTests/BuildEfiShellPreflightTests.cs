@@ -3705,13 +3705,13 @@ internal static class BuildEfiShellPreflightTests
         string script = File.ReadAllText(buildScriptPath);
         string[] requiredText =
         [
-            "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=109",
+            "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=112",
             "Write-Host (\"EFI_PUBLISH_OUTPUT_AUTHORITY status=ok leaves=\" + $outputPublicationPlan.Paths.Count)",
             "Write-Host (\"EFI_PUBLISH_VERIFIER_INPUT_AUTHORITY status=ok inputs=\" + $verifierInputLocks.Count)",
             "Write-Host (\"EFI_PUBLISH_VERIFIER_INPUTS_UNCHANGED status=ok inputs=\" + $verifierInputLocks.Count)",
-            "$expectedVerifierInputCount = if ($EnableM04CheckedReferenceBarrierProbe) { 10 } else { 8 }",
+            "$expectedVerifierInputCount = if ($EnableM04CheckedReferenceBarrierProbe -or $EnableM04GcStaticRootMaterializationProbe) { 10 } else { 8 }",
             "if ($verifierInputLocks.Count -ne $expectedVerifierInputCount)",
-            "if ($EnableM04CheckedReferenceBarrierProbe) { $paths += $efiFullPath + \".references.obj\" }",
+            "if ($EnableM04CheckedReferenceBarrierProbe -or $EnableM04GcStaticRootMaterializationProbe) { $paths += $efiFullPath + \".references.obj\" }",
             "$verifierInputs += [pscustomobject]@{Path=$referenceObjectPath; RootPath=$repositoryRoot; Purpose=\"linked-reference-object\"}",
             "$verifierInputs += [pscustomobject]@{Path=$referenceObjectOutputPath; RootPath=$outputPublicationPlan.Directory; Purpose=\"preserved-reference-object\"}",
             "FileMode]::CreateNew",
@@ -3783,9 +3783,10 @@ internal static class BuildEfiShellPreflightTests
             }
 
             $caseBase = $CaseRoot
-            foreach ($enabled in @($false, $true)) {
-            $EnableM04CheckedReferenceBarrierProbe = $enabled
-            $mode = if ($enabled) { "enabled" } else { "default" }
+            foreach ($mode in @("default", "checked", "gc")) {
+            $EnableM04CheckedReferenceBarrierProbe = $mode -eq "checked"
+            $EnableM04GcStaticRootMaterializationProbe = $mode -eq "gc"
+            $enabled = $EnableM04CheckedReferenceBarrierProbe -or $EnableM04GcStaticRootMaterializationProbe
             $CaseRoot = Join-Path $caseBase $mode
             New-Item -ItemType Directory -Path $CaseRoot | Out-Null
             $repo = Join-Path $CaseRoot "repo"
@@ -4100,7 +4101,8 @@ internal static class BuildEfiShellPreflightTests
             caseRoot);
         return result.ExitCode == 0
             && result.Output.Contains("M01_OUTPUT_AUTHORITY_VECTOR_PASS mode=default leaves=5 inputs=8", StringComparison.Ordinal)
-            && result.Output.Contains("M01_OUTPUT_AUTHORITY_VECTOR_PASS mode=enabled leaves=6 inputs=10", StringComparison.Ordinal)
+            && result.Output.Contains("M01_OUTPUT_AUTHORITY_VECTOR_PASS mode=checked leaves=6 inputs=10", StringComparison.Ordinal)
+            && result.Output.Contains("M01_OUTPUT_AUTHORITY_VECTOR_PASS mode=gc leaves=6 inputs=10", StringComparison.Ordinal)
             && result.Output.Contains(
                 "M01_EMPTY_OUTPUT_AUTHORITY_PASS",
                 StringComparison.Ordinal)
@@ -4119,7 +4121,7 @@ internal static class BuildEfiShellPreflightTests
         string switchMarker =
             "EFI_PREFLIGHT_M01_SWITCHES status=ok " + expectedSwitches;
         const string closureMarker =
-            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=95 prerequisiteGap=UefiMemoryType";
+            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=98 prerequisiteGap=UefiMemoryType";
         bool passed = result.ExitCode == 0
             && result.Output.Contains(switchMarker, StringComparison.Ordinal)
             && result.Output.Contains(closureMarker, StringComparison.Ordinal)
@@ -4907,7 +4909,7 @@ internal static class BuildEfiShellPreflightTests
         [
             "EFI_PREFLIGHT_M01_SWITCHES status=ok loadedImageStack=false liveAllocator=false ownedPaging=false m02SafeStub=false",
             "EFI_PREFLIGHT_M02_SWITCHES status=ok enabled=false loadedImageStack=false liveAllocator=false ownedPaging=false checkedPortIoBinding=false",
-            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=95 prerequisiteGap=UefiMemoryType",
+            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=98 prerequisiteGap=UefiMemoryType",
             "EFI_PREFLIGHT_DOTNET path=\"",
             "sdkVersion=\"10.0.3",
             "EFI_PREFLIGHT_MSVC_LINKER path=\"" + Path.GetFullPath(tools.LinkerPath) + "\" version=\"14.40.33807\"",

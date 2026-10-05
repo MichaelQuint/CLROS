@@ -62,9 +62,9 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
         "referenceFilesRequired=false hostConformance=false " +
         "guestIntegrated=true gate4=Fail";
     private const string CompileClosureSha256 =
-        "009285d63e989198df121babd6e42595836bff6298b79ca521bdd12939ad8b4b";
+        "b0e23d01f90219119dfc843f3b6f957fe66646e000689dba89e8f5cd3a5ea49e";
     private const string SourceClosureSha256 =
-        "98bab3768c27334d4a603186a2e80bc6cf4fa1c7a0a7c66f92fa6db64c5f7914";
+        "b12a58711b200cd0a690a54e4df9e114c1c1bb09610b4b8b819ce2feb1e21fad";
     private const string FrozenProductionSha256 =
         "00EC277C3F6A0DB49CB54B34810202EE1D508318B29733C3F0392A7BC36CFA38";
     private const string FrozenHostLeafSha256 =
@@ -225,7 +225,7 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
             verifier,
             "$expectedEfiCompileItems = @(");
 
-        return compileItems.Length == 95
+        return compileItems.Length == 98
             && compileHash == CompileClosureSha256
             && buildCompileFirewall.SequenceEqual(
                 compileKeys,
@@ -268,7 +268,7 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
                 "$EnableM02OwnedIdtGatePopulationProbe.IsPresent",
                 StringComparison.Ordinal)
             && build.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=109",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=112",
                 StringComparison.Ordinal)
             && build.Contains(IdtKey, StringComparison.Ordinal)
             && build.Contains(
@@ -278,10 +278,10 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
                 "[switch]$EnableM02OwnedIdtGatePopulationProbe",
                 StringComparison.Ordinal)
             && verifier.Contains(
-                "$expectedSourceClosureInputCount = 109",
+                "$expectedSourceClosureInputCount = 112",
                 StringComparison.Ordinal)
             && verifier.Contains(
-                "$compileItems.Count -ne 95",
+                "$compileItems.Count -ne 98",
                 StringComparison.Ordinal)
             && verifier.Contains(IdtKey, StringComparison.Ordinal)
             && verifier.Contains(
@@ -1560,7 +1560,7 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
             && evidence.GetProperty("entrySourceSha256").GetString() ==
                 Sha256File(Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs"))
                     .ToLowerInvariant()
-            && evaluation.GetProperty("compileCount").GetInt32() == 95
+            && evaluation.GetProperty("compileCount").GetInt32() == 98
             && evaluation.GetProperty("compileSha256").GetString() ==
                 CompileClosureSha256
             && evaluation.GetProperty("projectReferenceCount").GetInt32() == 0
@@ -1584,7 +1584,7 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
             && properties.GetProperty(
                     "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe")
                 .GetString() == "false"
-            && inputElements.Length == 109
+            && inputElements.Length == 112
             && actualPaths.SequenceEqual(expectedPaths, StringComparer.Ordinal)
             && inputHashesExact;
     }

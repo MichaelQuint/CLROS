@@ -1751,3 +1751,103 @@ ledger remains Deferred, and Gates3/4 remain **Fail**. There is no upstream
 runtime registry, GC/static initialization, collection, hosted .NET/Kestrel,
 real ExitBootServices or cloud-readiness acceptance. Tail canaries are internal
 post-registration checks; no external RAM or numeric guest stack proof follows.
+
+### M04-012 host metadata prerequisite
+
+[Step990](../done/step990.md) accepts only the read-only GC-static metadata
+validator. It reuses the registered TypeManager authority and admits one
+signed relative section201 entry, tagged cell, abbreviated MethodTable and
+positive GCDesc series within caller-attested readable windows. It rejects
+malformed/overflowing spans and aliases without changing any protected bytes;
+valid unsupported shapes are distinguished from malformed metadata. The result
+contains immediate observations, with no authority to allocate or publish roots.
+
+The actual five-initializer focused stream passes42 starts/43 passes/zero
+failures with one terminal and five READY records. The new93-source no-stdlib
+child compiles with zero AssemblyRefs and a nonempty validator body, and both
+focused and normal HostTests Release builds pass. All934 recorded inputs and
+nine launch files remain unchanged through the three execution stages. The
+pre-execution alias-fixture correction and artifact-only packaging correction
+are retained in the step; neither required a product execution retry.
+
+#81 stays open/claimed and #82 stays blocked. This milestone does not execute
+compiler-generated GC-static accessors or materialize/retain a root. Registered
+cell-write permissions, allocator/barrier integration and actual compiler
+metadata/lifetime evidence are still required. No complete common-suite,
+native-image or QEMU acceptance follows from these focused host checks.
+Gates3/4 remain **Fail**, with no new GC, real ExitBootServices, hosted .NET,
+Kestrel, cloud or production-readiness claim.
+
+
+### M04-012 retained static-base host prerequisite
+
+[Step992](../done/step992.md) adds bounded one-entry materialization and a
+retained-root query through the original TypeManager and heap authority.
+The registered-range query protects complete owner/slot/header/module/row
+extents; the static-base allocator shares the existing sole allocation commit.
+Root/cell publication is ordered after allocation readback, and later genuine
+same-bump allocations do not invalidate the retained root. Modeled poisoned
+states reject reuse; hardware fault injection or rollback is not established.
+
+The seven complete host modules pass81/82/0 with seven readiness records;
+both final builds pass without warnings. The no-stdlib child compiles93 real
+sources with zero AssemblyRefs and actual materialization/query method bodies.
+All934 recorded inputs and nine launch files match before/after/current reads.
+
+These focused checks supersede step990's missing host materialization only.
+They do not prove a genuine compiled static field, its special-ABI barrier,
+the actual new-image metadata or retained-root behavior under QEMU. #81/#548
+remain open/claimed and #82 blocked. The shared EFI integration and exact
+source-profile pins are the next work; no full common/preflight/native/guest
+acceptance is claimed for this intermediate host commit. Gates3/4 remain Fail.
+
+### M04-012 compiled static-root development evidence
+
+[Step994](../done/step994.md) extends step992 with a genuine compiler-emitted
+static object field. Fresh enabled QEMU/OVMF execution publishes one retained
+base, allocates a value through the same cursor, stores/reads the object, and
+stores/reads null through the existing checked barrier. The strict transcript
+passes with two allocations/48 bytes and two stores. A fresh default boot also
+passes with the diagnostic absent.
+
+Focused runtime checks and the three new parser/profile groups pass. Existing
+compatibility pins and selectors now describe the complete 98-source/42-flag
+closure. The native review binds all 535 emitted method byte ranges to the
+linked image and verifies the changed cell/helper/publication boundary; the
+complete coordinator/stack and common regression acceptance remain pending.
+#81/#548 remain open, #82 blocked, and Gates3/4 Fail. This is neither a
+collecting GC nor general static/TLS, hosted .NET/Kestrel, or cloud support.
+
+[Step995](../done/step995.md) supplies the missing actual-stack witness and five
+read-only canary checks for this GC-static development slice. Its fresh guest
+passes both canaries and the same two allocations/stores. This does not change
+the gate result: complete common and final native/guest acceptance are pending.
+
+[Step997](../done/step997.md) accepts the bounded GC first-party native review;
+it also corrects stale output-authority test expectations for the GC profile.
+The failed common run is preserved. Gates remain unchanged until the corrected
+complete regression and final guest acceptance, and remain incomplete beyond
+this bounded runtime slice even when those pass.
+
+### M03-004 and M04-012 final bounded acceptance
+
+[Step1003](../done/step1003.md) accepts #61/#546 and #81/#548 at the combined
+source commit `2be3386`: original solution build, complete unfiltered common
+suite (3787 starts/3788 passes/zero failures), dry-run, independent native
+review and fresh default/typed-EBS/GC-static QEMU captures all pass. Raw serial,
+ordinary lifecycle, exact native-image association and disk accounting agree.
+
+Typed-EBS forwards four controlled callbacks on its original EFI caller stack;
+it preserves zero/high/all-bit keys and full UInt64 status, rejects consumed
+state and bounded reentry, and never invokes original firmware ExitBootServices.
+GC-static materialization uses one authentic compiled object field, the retained
+registered image and the original sole allocator. Two allocations consume 48
+bytes; object/null stores use the existing checked helper. Five actual-stack
+checks preserve both canaries. The 132-method first-party bound is 10056 bytes;
+original firmware console/serial body depth remains excluded.
+
+This releases #62 final-map-window work and #82 bounded-collector work after
+merge/closure. It does not complete Gates3/4: real firmware exit, collection,
+general static/TLS support, hosted .NET/Kestrel and cloud readiness remain
+incomplete. Pristine disks were reconstructed after capture; configured 750ms
+is not independently measured, and no general filesystem proof is claimed.

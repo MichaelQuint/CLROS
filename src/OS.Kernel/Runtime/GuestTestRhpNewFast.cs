@@ -69,7 +69,10 @@ public enum RhpNewFastStatus : byte
     UnsupportedArrayType = 16,
     InvalidComponentSize = 17,
     InvalidLength = 18,
-    UnsupportedStringType = 19
+    UnsupportedStringType = 19,
+    UnsupportedStaticType = 20,
+    InvalidReceipt = 21,
+    ReceiptContentsChanged = 22
 }
 
 public enum RhpNewFastOperation : byte
@@ -165,6 +168,52 @@ public static unsafe class GuestTestRhpNewFast
         NativeAotMethodTablePrefix prefix, ulong methodTableToken) =>
         AllocateCore(access, state, stateCapacity, profile, prefix, methodTableToken, NativeAotLayoutShape.FixedObject, 0);
 
+    /// <summary>
+    /// Explicit abbreviated-MT route. The caller authenticates the real metadata;
+    /// only the numeric 16-byte token span is admitted here, never dereferenced.
+    /// Shares the existing full authority check and sole allocation commit.
+    /// </summary>
+    public static RhpNewFastResult TryAllocateStaticBase(RhpNewFastHeapAccess access,
+        RhpNewFastBumpState* state, ulong stateCapacity, NativeAotLayoutProfile profile,
+        uint flags, uint baseSize, ulong methodTableToken) =>
+        AllocateCore(access, state, stateCapacity, profile,
+            new NativeAotMethodTablePrefix(flags, baseSize, 0, 0, 0, 0), methodTableToken,
+            NativeAotLayoutShape.FixedObject, 0, true);
+
+    /// <summary>
+    /// Read-only containment/readback of a genuine retained original receipt.
+    /// Not a ledger or forgery detector: caller retains exclusive stable no-reset,
+    /// no-free lifetime and receipt/metadata provenance. Later allocations are legal.
+    /// Payload changes are legal; the retained syncblock and MT slot must match.
+    /// </summary>
+    public static RhpNewFastStatus TryValidateRetainedAllocation(RhpNewFastHeapAccess access,
+        RhpNewFastBumpState* state, ulong stateCapacity, RhpNewFastResult receipt)
+    {
+        RhpNewFastStatus status = ValidateController(access, state, stateCapacity, out ManagedHeapPageRangeResult heap);
+        if (status != RhpNewFastStatus.Success) return status;
+        ulong before = receipt.UsedBefore, size = receipt.BytesConsumed, count = receipt.AllocationCount;
+        if (!receipt.AllocationSucceeded || receipt.HeapStatus != ManagedHeapPageRangeStatus.Success ||
+            size < 24 || size > PageBytes || (size & 7) != 0 || (before & 7) != 0 ||
+            before > state->UsedValue || size > state->UsedValue - before ||
+            receipt.UsedAfter != before + size || count == 0 || count > state->CountValue ||
+            (before == 0) != (count == 1) || count - 1 > before / 24 ||
+            (receipt.UsedAfter == state->UsedValue) != (count == state->CountValue) ||
+            state->CountValue - count > (state->UsedValue - receipt.UsedAfter) / 24 ||
+            receipt.MappedAllocationStart != heap.MappedStart + before ||
+            receipt.MappedAllocationEndExclusive != heap.MappedStart + before + size ||
+            receipt.PhysicalAllocationStart != heap.PhysicalStart + before ||
+            receipt.PhysicalAllocationEndExclusive != heap.PhysicalStart + before + size ||
+            receipt.ObjectReference != heap.MappedStart + before + 8 ||
+            !ValidToken(access, state, stateCapacity, receipt.MethodTableToken, 16))
+            return RhpNewFastStatus.InvalidReceipt;
+        // Only now are all reads known to be inside the current retained page.
+        byte* bytes = (byte*)receipt.MappedAllocationStart;
+        for (int i = 0; i < 8; i++)
+            if (bytes[i] != 0 || bytes[8 + i] != (byte)(receipt.MethodTableToken >> (i * 8)))
+                return RhpNewFastStatus.ReceiptContentsChanged;
+        return RhpNewFastStatus.Success;
+    }
+
     internal static RhpNewFastResult TryAllocateArray(RhpNewFastHeapAccess access,
         RhpNewFastBumpState* state, ulong stateCapacity, NativeAotLayoutProfile profile,
         NativeAotMethodTablePrefix prefix, ulong methodTableToken, int length) =>
@@ -179,31 +228,25 @@ public static unsafe class GuestTestRhpNewFast
     // The core never depends on the public array/String wrappers or their files.
     private static RhpNewFastResult AllocateCore(RhpNewFastHeapAccess access,
         RhpNewFastBumpState* state, ulong stateCapacity, NativeAotLayoutProfile profile,
-        NativeAotMethodTablePrefix prefix, ulong methodTableToken, NativeAotLayoutShape shape, long length)
+        NativeAotMethodTablePrefix prefix, ulong methodTableToken, NativeAotLayoutShape shape, long length, bool staticBase = false)
     {
-        RhpNewFastStatus status = ValidateStorage(access, state, stateCapacity);
-        if (status != RhpNewFastStatus.Success) return Fail(status);
-        if (state->InitializedValue == 0) return Fail(RhpNewFastStatus.NotInitialized);
-        if (state->InitializedValue != 1 || state->SelfAddressValue != (ulong)state ||
-            state->CapacityValue != stateCapacity || state->UsedValue > PageBytes ||
-            (state->UsedValue & 7) != 0 || (state->UsedValue == 0) != (state->CountValue == 0) ||
-            state->CountValue > state->UsedValue / 24)
-            return Fail(RhpNewFastStatus.InvalidState);
-
-        ManagedHeapPageRangeResult heap = Retained(access);
-        if (!heap.IsReady) return Fail(RhpNewFastStatus.HeapAuthorityRejected, heapStatus: heap.Status);
-        if (!CoherentPage(heap) || state->HeapAddressValue != (ulong)access.Heap ||
-            state->HeapCapacityValue != access.HeapCapacity || state->MappedStartValue != heap.MappedStart ||
-            state->PhysicalStartValue != heap.PhysicalStart || state->PhysicalEndValue != heap.PhysicalEndExclusive)
-            return Fail(RhpNewFastStatus.HeapBindingMismatch, heapStatus: heap.Status);
+        RhpNewFastStatus status = ValidateController(access, state, stateCapacity, out ManagedHeapPageRangeResult heap);
+        if (status != RhpNewFastStatus.Success) return Fail(status, heapStatus: heap.Status);
 
         // Existing objects can make ContentsAreZeroNow false without losing ownership.
         if (profile != NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian)
             return Fail(RhpNewFastStatus.UnsupportedProfile);
-        if (!ValidToken(access, state, stateCapacity, methodTableToken))
+        if (!ValidToken(access, state, stateCapacity, methodTableToken, staticBase ? 16UL : 24UL))
             return Fail(RhpNewFastStatus.InvalidMethodTableToken);
         ulong size;
-        if (shape == NativeAotLayoutShape.SzArray)
+        if (staticBase)
+        {
+            size = prefix.BaseSize;
+            status = prefix.Flags != 0x01000000 ? RhpNewFastStatus.UnsupportedStaticType
+                : size < 24 || (size & 7) != 0 ? RhpNewFastStatus.InvalidBaseSize
+                : size > PageBytes ? RhpNewFastStatus.UnsupportedStaticType : RhpNewFastStatus.Success;
+        }
+        else if (shape == NativeAotLayoutShape.SzArray)
             status = AdmitArrayType(profile, prefix, (int)length, out size);
         else if (shape == NativeAotLayoutShape.String)
             status = AdmitStringType(profile, prefix, length, out size);
@@ -232,6 +275,29 @@ public static unsafe class GuestTestRhpNewFast
         return new RhpNewFastResult(RhpNewFastStatus.Success, RhpNewFastOperation.Allocation,
             heap.Status, start, start + size, physical, physical + size, start + 8,
             methodTableToken, size, before, after, count);
+    }
+
+    private static RhpNewFastStatus ValidateController(RhpNewFastHeapAccess access,
+        RhpNewFastBumpState* state, ulong stateCapacity, out ManagedHeapPageRangeResult heap)
+    {
+        heap = default;
+        RhpNewFastStatus status = ValidateStorage(access, state, stateCapacity);
+        if (status != RhpNewFastStatus.Success) return status;
+        if (state->InitializedValue == 0) return RhpNewFastStatus.NotInitialized;
+        if (state->InitializedValue != 1 || state->SelfAddressValue != (ulong)state ||
+            state->CapacityValue != stateCapacity || state->UsedValue > PageBytes ||
+            (state->UsedValue & 7) != 0 || (state->UsedValue == 0) != (state->CountValue == 0) ||
+            state->CountValue > state->UsedValue / 24)
+            return RhpNewFastStatus.InvalidState;
+
+        heap = Retained(access);
+        if (!heap.IsReady) return RhpNewFastStatus.HeapAuthorityRejected;
+        if (!CoherentPage(heap) || state->HeapAddressValue != (ulong)access.Heap ||
+            state->HeapCapacityValue != access.HeapCapacity || state->MappedStartValue != heap.MappedStart ||
+            state->PhysicalStartValue != heap.PhysicalStart || state->PhysicalEndValue != heap.PhysicalEndExclusive)
+            return RhpNewFastStatus.HeapBindingMismatch;
+
+        return RhpNewFastStatus.Success;
     }
 
     private static RhpNewFastStatus ValidateStorage(RhpNewFastHeapAccess access,
@@ -275,16 +341,16 @@ public static unsafe class GuestTestRhpNewFast
         (heap.MappedStart & 4095) == 0 && heap.MappedStart <= ~0UL - PageBytes;
 
     private static bool ValidToken(RhpNewFastHeapAccess a, RhpNewFastBumpState* state,
-        ulong stateCapacity, ulong token)
+        ulong stateCapacity, ulong token, ulong tokenBytes)
     {
         // Numeric disjointness only: no mapped/readable/authentic metadata claim.
-        if (token == 0 || (token & 7) != 0 || token > ~0UL - 24) return false;
-        return !Overlaps(token, 24, (ulong)a.Allocator, 56) &&
-            !Overlaps(token, 24, (ulong)a.Nodes, a.NodeCapacity * 48) &&
-            !Overlaps(token, 24, (ulong)a.Reservations, a.ReservationCapacity * 40) &&
-            !Overlaps(token, 24, (ulong)a.Heap, a.HeapCapacity) &&
-            !Overlaps(token, 24, (ulong)a.Backing, a.BackingCapacity) &&
-            !Overlaps(token, 24, (ulong)state, stateCapacity);
+        if (token == 0 || (token & 7) != 0 || token > ~0UL - tokenBytes) return false;
+        return !Overlaps(token, tokenBytes, (ulong)a.Allocator, 56) &&
+            !Overlaps(token, tokenBytes, (ulong)a.Nodes, a.NodeCapacity * 48) &&
+            !Overlaps(token, tokenBytes, (ulong)a.Reservations, a.ReservationCapacity * 40) &&
+            !Overlaps(token, tokenBytes, (ulong)a.Heap, a.HeapCapacity) &&
+            !Overlaps(token, tokenBytes, (ulong)a.Backing, a.BackingCapacity) &&
+            !Overlaps(token, tokenBytes, (ulong)state, stateCapacity);
     }
 
     // Pinned dotnet/dotnet 94ea82652cdd4e0f8046b5bd5becbd11461482ca:

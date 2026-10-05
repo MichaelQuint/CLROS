@@ -2,6 +2,16 @@ using OS.Kernel.Runtime;
 
 namespace OS.Runtime;
 
+#if NOSTDLIB_EFI && M04_RHP_NEW_FAST_PROBE && M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE
+internal static unsafe partial class RhpNewFastAllocation
+{
+    [System.Runtime.RuntimeExport("CLROS_CheckedReferenceBarrier_Apply")]
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static uint GcReferenceCallback(ulong operation, ulong destination, ulong operand, ulong bytes) =>
+        ApplyGcReference(operation, destination, operand, bytes);
+}
+#endif
+
 // These offsets come from actual C# field-address roots in the enabled image.
 // The bounded numeric checks below do not authenticate a compiler layout by themselves.
 internal struct CheckedReferenceGeometry

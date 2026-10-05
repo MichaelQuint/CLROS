@@ -2851,3 +2851,33 @@ numeric checks. Capture/review provisional flags remain historical; parent
 joint acceptance supplies the bounded conclusions. No real ExitBootServices,
 post-firmware access, collecting GC, hosted .NET/Kestrel or Gate3/4/5 completion
 is established.
+
+### GC-static materialization diagnostic
+
+The bounded profile accepted in [step1003](../done/step1003.md) runs with:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 -BuildEfi `
+  -EnableM04GcStaticRootMaterializationProbe `
+  -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe `
+  -EnableM04IndependentEndianConformanceProbe `
+  -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe `
+  -EnableM04ArithmeticConformanceProbe -EnableM04LayoutContractProbe `
+  -EnableM04ManagedHeapPageRangeProbe -EnableM04RhpNewFastProbe `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30
+```
+
+Use separate artifact/image/serial/summary paths when preserving earlier runs.
+The strict parser accepts 60 CLROS records, including eight `M04_GC_ROOT` stages
+(0, 1, 7, 3, 4, 5, 6, 8), and checks image/heap bounds, two allocations totaling 48
+bytes, and two scalar stores (object and null). Stages 2 and 255 indicate
+failure. The 49 ordered/unique markers finish with the ordinary boot pass.
+Stages 7/8 bind the original owned stack and five read-only canary checks.
+Step1003 records the final full-suite, native, serial/lifecycle and disk review.
+This remains a noncollecting, pre-ExitBootServices diagnostic. The same batch
+accepts the default profile and `-EnableM03TypedExitBootServicesCallProbe`:
+four controlled callbacks, 30 exact CLROS records, no real firmware exit.
+All three QEMU processes were runner-terminated with signed exit -1 after
+success. The configured 750ms drain was not independently timed; pristine
+disk images used for accounting were reconstructed after execution.

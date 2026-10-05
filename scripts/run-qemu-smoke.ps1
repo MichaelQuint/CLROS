@@ -71,6 +71,7 @@ param(
     [switch] $EnableM03MemoryMapCaptureProbe,
     [switch] $EnableM03FirmwareEntropySeedProbe,
     [switch] $EnableM04TypeManagerModuleRegistrationProbe,
+    [switch] $EnableM04GcStaticRootMaterializationProbe,
     [switch] $EnableM03TypedExitBootServicesCallProbe,
     [string] $FirmwareRngSource = "",
     [switch] $EnableM04CheckedReferenceBarrierProbe,
@@ -503,6 +504,11 @@ $script:M04ManagedHeapPageRangeForbiddenMarkers = @(
     $script:M04LayoutContractForbiddenMarkers
     "M04_HEAP_PAGE_RANGE_FAILED"
     "TEST_FAIL m04.006"
+)
+$script:M04GcStaticRootRequiredMarkers = @(
+    $script:M04ManagedHeapPageRangeRequiredMarkers[0..($script:M04ManagedHeapPageRangeRequiredMarkers.Count - 9)]
+    foreach ($stage in @(0,1,7,3,4,5,6,8)) { "M04_GC_ROOT $stage" }
+    $script:M04ManagedHeapPageRangeRequiredMarkers[($script:M04ManagedHeapPageRangeRequiredMarkers.Count - 8)..($script:M04ManagedHeapPageRangeRequiredMarkers.Count - 1)]
 )
 $script:M04RhpNewFastReadyMarker = 'CLROS_M04_007_READY objects=10 compiledNew=4 direct=6 hostConformance=false guestIntegrated=true gate4=Fail'
 $script:M04RhpNewFastRequiredMarkers = @(
@@ -1867,9 +1873,9 @@ function Assert-M02UnexpectedVectorPanicPrefix {
 }
 
 function Assert-M04ManagedHeapPageRangeTranscript {
-    param([string] $SerialLogPath, [switch] $IncludeFixedAllocation, [switch] $IncludeArrayAllocation, [switch] $IncludeStringAllocation, [switch] $IncludeCheckedReferences)
-    if (([int][bool]$IncludeFixedAllocation + [int][bool]$IncludeArrayAllocation + [int][bool]$IncludeStringAllocation + [int][bool]$IncludeCheckedReferences) -gt 1) { throw 'm04_allocation_profile_collision' }
-    $lineCount = if ($IncludeCheckedReferences) { 71 } elseif ($IncludeStringAllocation) { 72 } elseif ($IncludeArrayAllocation) { 68 } elseif ($IncludeFixedAllocation) { 78 } else { 52 }
+    param([string] $SerialLogPath, [switch] $IncludeFixedAllocation, [switch] $IncludeArrayAllocation, [switch] $IncludeStringAllocation, [switch] $IncludeCheckedReferences, [switch] $IncludeGcStatics)
+    if (([int][bool]$IncludeFixedAllocation + [int][bool]$IncludeArrayAllocation + [int][bool]$IncludeStringAllocation + [int][bool]$IncludeCheckedReferences + [int][bool]$IncludeGcStatics) -gt 1) { throw 'm04_allocation_profile_collision' }
+    $lineCount = if ($IncludeGcStatics) { 60 } elseif ($IncludeCheckedReferences) { 71 } elseif ($IncludeStringAllocation) { 72 } elseif ($IncludeArrayAllocation) { 68 } elseif ($IncludeFixedAllocation) { 78 } else { 52 }
     $path = if ([IO.Path]::IsPathRooted($SerialLogPath)) { $SerialLogPath } else { Join-Path $root $SerialLogPath }
     # No BOM sniffing, trimming, Unicode folding or control removal for acceptance.
     $text = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($path))
@@ -1912,6 +1918,11 @@ function Assert-M04ManagedHeapPageRangeTranscript {
     $arrayRecords = @()
     $stringRecords = @()
     $referenceRecords = @()
+    $gcRecords = @()
+    if ($IncludeGcStatics) {
+        $gcRecords = @($captured.GetRange(44,8))
+        $captured.RemoveRange(44,8)
+    }
     if ($IncludeCheckedReferences) {
         $referenceRecords = @($captured.GetRange(44,19))
         $captured.RemoveRange(44,19)
@@ -2055,6 +2066,62 @@ function Assert-M04ManagedHeapPageRangeTranscript {
     if ($IncludeArrayAllocation) { Assert-M04SzArrayAllocationRecords -Lines $arrayRecords -Heap $retained }
     if ($IncludeStringAllocation) { Assert-M04StringAllocationRecords -Lines $stringRecords -Heap $retained }
     if ($IncludeCheckedReferences) { Assert-M04CheckedReferenceBarrierRecords -Lines $referenceRecords -Heap $retained }
+    if ($IncludeGcStatics) { Assert-M04GcStaticRootRecords -Lines $gcRecords -Heap $retained }
+}
+
+function Assert-M04GcStaticRootRecords {
+    param([string[]] $Lines, [hashtable] $Heap)
+    if ($Lines.Count -ne 8) { throw 'm04_gc_static_record_count' }
+    $records = @()
+    $stages = @(0,1,7,3,4,5,6,8)
+    for ($i=0; $i -lt 8; $i++) {
+        $pattern = '\AM04_GC_ROOT ' + $stages[$i] + ' (0x[0-9A-F]{16}) (0x[0-9A-F]{16}) (0x[0-9A-F]{16}) (0x[0-9A-F]{16})\z'
+        $match = [regex]::Match($Lines[$i], $pattern)
+        if (-not $match.Success) { throw ('m04_gc_static_record_shape_'+$i) }
+        $values = @()
+        for ($j=1; $j -le 4; $j++) {
+            $value = [UInt64]0
+            if (-not [UInt64]::TryParse($match.Groups[$j].Value.Substring(2),
+                    [Globalization.NumberStyles]::AllowHexSpecifier,
+                    [Globalization.CultureInfo]::InvariantCulture, [ref]$value)) { throw 'm04_gc_static_number' }
+            $values += $value
+        }
+        $records += ,$values
+    }
+    $image=$records[0]; $module=$records[1]; $stack=$records[2]; $root=$records[3]
+    $value=$records[4]; $stored=$records[5]; $cleared=$records[6]; $checked=$records[7]
+    $imageEnd=[decimal]$image[0]+$image[1]
+    if ($image[0] -eq 0 -or $image[0] % 4096 -ne 0 -or $image[1] -eq 0 -or
+        $imageEnd -gt [decimal][UInt64]::MaxValue -or $image[2] -ne 0 -or $image[3] -ne 0 -or
+        $module[0] -ne 1 -or $module[2] -ne 4 -or $module[3] -eq 0) { throw 'm04_gc_static_image_module' }
+    foreach ($range in @(@($module[1],4,4),@($root[0],8,8),@($value[1],24,8))) {
+        if ($range[0] % $range[2] -ne 0 -or [decimal]$range[0] -lt [decimal]$image[0] -or
+            [decimal]$range[0]+$range[1] -gt $imageEnd) { throw 'm04_gc_static_image_range' }
+    }
+    if ($root[3] -ne 24 -or [decimal]$root[1] -ne [decimal]$Heap.retainedStart+8 -or
+        [decimal]$root[2] -ne [decimal]$root[1]+8 -or
+        [decimal]$value[0] -ne [decimal]$Heap.retainedStart+32 -or
+        $value[2] -ne 24 -or $value[3] -ne 48 -or
+        [decimal]$Heap.retainedStart+48 -gt [decimal]$Heap.retainedEnd) { throw 'm04_gc_static_allocations' }
+    # The reviewed emitted setter calls RhpAssignRef (operation 1), and its getter
+    # and address root both load this same published cell then the field at +8.
+    if ($stored[0] -ne 1 -or $stored[1] -ne 1 -or $stored[2] -ne $value[0] -or
+        $stored[3] -ne [UInt64]0x7143B6A952D08E2F -or $cleared[0] -ne 1 -or
+        $cleared[1] -ne 2 -or $cleared[2] -ne 2 -or $cleared[3] -ne 48) { throw 'm04_gc_static_store_readback' }
+    if ($stack[0] -eq 0 -or $stack[0] % 4096 -ne 0 -or
+        [decimal]$stack[1]-$stack[0] -ne 135168 -or [decimal]$stack[2] -ne [decimal]$stack[1]-40 -or
+        $checked[0] -ne 5 -or $checked[1] -ne [UInt64]0x195A86B4C327D0EF -or
+        $checked[2] -ne [UInt64]0x62C79E1035AB48D6 -or $checked[3] -gt $stack[3]) { throw 'm04_gc_static_stack_identity' }
+    foreach ($witness in @($stack[3],$checked[3])) {
+        if ($witness % 8 -ne 0 -or [decimal]$witness -lt [decimal]$stack[0]+16+16384 -or
+            [decimal]$witness+8 -gt [decimal]$stack[2]) { throw 'm04_gc_static_stack_witness' }
+    }
+    foreach ($range in @(@($image[0],$imageEnd),@($Heap.retainedStart,$Heap.retainedEnd))) {
+        if ([decimal]$stack[0] -lt [decimal]$range[1] -and [decimal]$range[0] -lt [decimal]$stack[1]) {
+            throw 'm04_gc_static_stack_overlap'
+        }
+    }
+
 }
 
 function Assert-M04RhpNewFastTranscript {
@@ -6288,6 +6355,58 @@ try {
         exit 1
     }
 
+    if ($EnableM04GcStaticRootMaterializationProbe) {
+        if (-not $BuildEfi -or $SkipImageBuild -or $M01RawObservationLog.Length -ne 0) { Write-Host "TEST_FAIL qemu.smoke m04_gc_static_requires_fresh_build"; exit 1 }
+        foreach ($gcFlag in @(
+            'EnableM01LoadedImageStackProbe',
+            'EnableM01LiveAllocatorProbe',
+            'EnableM04IndependentEndianConformanceProbe',
+            'EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe',
+            'EnableM04ArithmeticConformanceProbe',
+            'EnableM04LayoutContractProbe',
+            'EnableM04ManagedHeapPageRangeProbe',
+            'EnableM04RhpNewFastProbe'
+        )) {
+            if (-not [bool](Get-Variable -Name $gcFlag -ValueOnly)) { Write-Host ("TEST_FAIL qemu.smoke m04_gc_static_profile_invalid property="+$gcFlag); exit 1 }
+        }
+        foreach ($gcFlag in @(
+            'EnableM01OwnedPagingProbe',
+            'EnableM02SafeStubProbe',
+            'EnableM02CheckedPortIoBindingProbe',
+            'EnableM02Com1OwnedPortIoProbe',
+            'EnableM02OwnedCom1ReadyProbe',
+            'EnableM02PanicSafeOwnedCom1Probe',
+            'EnableM02OwnedX64GdtEncodingProbe',
+            'EnableM02GuardedIstStackAllocationProbe',
+            'EnableM02OwnedGdtTssTerminalProbe',
+            'EnableM02NormalizedInterruptFramePageProbe',
+            'EnableM02OwnedIdtGatePopulationProbe',
+            'EnableM02IdtrContinuedExecutionProbe',
+            'EnableM02Ud2VectorStateProbe',
+            'EnableM02PageFaultCr2ErrorCodeProbe',
+            'EnableM02DoubleFaultIstProbe',
+            'EnableM02UnexpectedVectorPanicProbe',
+            'EnableM04RhpNewFastBeforeBindFailureProbe',
+            'EnableM04RhpNewFastExhaustionFailureProbe',
+            'EnableM04SzArrayAllocationProbe',
+            'EnableM04SzArrayAllocationBeforeBindProbe',
+            'EnableM04SzArrayAllocationExhaustionProbe',
+            'EnableM04StringAllocationProbe',
+            'EnableM04StringAllocationBeforeBindProbe',
+            'EnableM04StringAllocationExhaustionProbe',
+            'EnableM04StringAllocationInvalidLengthProbe',
+            'EnableM03MemoryMapCaptureProbe',
+            'EnableM04CheckedReferenceBarrierProbe',
+            'EnableM03FirmwareEntropySeedProbe',
+            'EnableM04TypeManagerModuleRegistrationProbe',
+            'EnableM03TypedExitBootServicesCallProbe',
+            'EnableUefiGoneSimulationProbe',
+            'EnableExitBootServicesFreshMapProbe',
+            'EnableAcpiPhysicalDiscoveryProbe'
+        )) {
+            if ([bool](Get-Variable -Name $gcFlag -ValueOnly)) { Write-Host ("TEST_FAIL qemu.smoke m04_gc_static_profile_conflict property="+$gcFlag); exit 1 }
+        }
+    }
     if ($EnableM03TypedExitBootServicesCallProbe) {
         foreach ($typedEbsConflict in @(
             "EnableM01LoadedImageStackProbe",
@@ -6327,6 +6446,7 @@ try {
             "EnableM04CheckedReferenceBarrierProbe",
             "EnableM03FirmwareEntropySeedProbe",
             "EnableM04TypeManagerModuleRegistrationProbe",
+        "EnableM04GcStaticRootMaterializationProbe",
             "EnableUefiGoneSimulationProbe",
             "EnableExitBootServicesFreshMapProbe",
             "EnableAcpiPhysicalDiscoveryProbe"
@@ -6498,6 +6618,7 @@ try {
         "EnableM03MemoryMapCaptureProbe",
         "EnableM03FirmwareEntropySeedProbe",
         "EnableM04TypeManagerModuleRegistrationProbe",
+        "EnableM04GcStaticRootMaterializationProbe",
         "EnableM03TypedExitBootServicesCallProbe",
         "EnableUefiGoneSimulationProbe",
         "EnableExitBootServicesFreshMapProbe",
@@ -6941,6 +7062,11 @@ $rhpReason = $arrayReason
             }
         }
     }
+    if (-not $EnableM04GcStaticRootMaterializationProbe) {
+        foreach ($marker in @($requiredMarkers; $orderedMarkers; $uniqueMarkers)) {
+            if ($marker -cmatch '^M04_GC_ROOT(?: |$)') { Write-Host 'TEST_FAIL qemu.smoke m04_gc_static_requires_explicit_profile'; exit 1 }
+        }
+    }
     if (-not $EnableM04TypeManagerModuleRegistrationProbe) {
         foreach ($marker in @($requiredMarkers; $orderedMarkers; $uniqueMarkers)) {
             if ($marker -cmatch '^(CLROS_M04_011_|TEST_(START|PASS) m04\.011)') {
@@ -6967,6 +7093,12 @@ $rhpReason = $arrayReason
         $orderedMarkers = @(ConvertTo-QemuSmokeMarkerList -Values $script:M03TypedExitBootServicesRequiredMarkers)
         $uniqueMarkers = @(ConvertTo-QemuSmokeMarkerList -Values $script:M03TypedExitBootServicesRequiredMarkers)
         $forbiddenMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($forbiddenMarkers; 'TEST_FAIL'; 'OS_SMOKE_FAIL'; 'UEFI_EBS_CALLED'; 'UEFI_BOOT_SERVICES_EXITED'))
+    }
+    elseif ($EnableM04GcStaticRootMaterializationProbe) {
+        $requiredMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($requiredMarkers; $script:M04GcStaticRootRequiredMarkers))
+        $orderedMarkers = @($script:M04GcStaticRootRequiredMarkers)
+        $uniqueMarkers = @($script:M04GcStaticRootRequiredMarkers)
+        $forbiddenMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($forbiddenMarkers; $script:M04ManagedHeapPageRangeForbiddenMarkers; 'M04_GC_ROOT 2 '; 'M04_GC_ROOT 255 '; 'TEST_FAIL'; 'OS_SMOKE_FAIL'))
     }
     elseif ($EnableM04TypeManagerModuleRegistrationProbe) {
         $requiredMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($requiredMarkers; $script:M04TypeManagerRequiredMarkers))
@@ -8847,6 +8979,7 @@ $rhpReason = $arrayReason
         }
         if ($EnableM03FirmwareEntropySeedProbe) { $buildArguments += "-EnableM03FirmwareEntropySeedProbe" }
         if ($EnableM04TypeManagerModuleRegistrationProbe) { $buildArguments += "-EnableM04TypeManagerModuleRegistrationProbe" }
+        if ($EnableM04GcStaticRootMaterializationProbe) { $buildArguments += "-EnableM04GcStaticRootMaterializationProbe" }
         if ($EnableM03TypedExitBootServicesCallProbe) { $buildArguments += "-EnableM03TypedExitBootServicesCallProbe" }
         if ($EnableM04CheckedReferenceBarrierProbe) {
             $buildArguments +=
@@ -9153,6 +9286,14 @@ $rhpReason = $arrayReason
         }
         Write-Host "QEMU_SCRIPT_M03_MEMORY_MAP_CAPTURE_TRANSCRIPT exactWholeLines=true lines=31 observerBytes=488 capacity=131072 firmwareAvailable=true exitBootServices=false"
     }
+    elseif ($EnableM04GcStaticRootMaterializationProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
+        try {
+            Assert-M04ManagedHeapRunnerResult -Lines $heapRunnerLines
+            Assert-M04ManagedHeapPageRangeTranscript -SerialLogPath $SerialLog -IncludeGcStatics
+        }
+        catch { Write-Host ("TEST_FAIL qemu.smoke.m04.012 strict_transcript_invalid reason=" + $_.Exception.Message); exit 1 }
+        Write-Host 'QEMU_SCRIPT_M04_GC_STATIC_TRANSCRIPT exactWholeLines=true lines=60 allocations=2 scalarStores=2 stackChecks=5 nonCollecting=true'
+    }
     elseif ($EnableM04CheckedReferenceBarrierProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
         try {
             Assert-M04ManagedHeapRunnerResult -Lines $heapRunnerLines
@@ -9230,6 +9371,12 @@ $rhpReason = $arrayReason
         if (Test-M02DoubleFaultIstOwnedMarker -Marker ([Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($serialPath)))) {
             Write-Host 'TEST_FAIL qemu.smoke.m02.015 unexpected_profile_record'
             exit 97
+        }
+    }
+    if (-not $EnableM04GcStaticRootMaterializationProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
+        $serialPath = if ([IO.Path]::IsPathRooted($SerialLog)) { $SerialLog } else { Join-Path $root $SerialLog }
+        if ([regex]::IsMatch([Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($serialPath)), '(?i)M04_GC_ROOT')) {
+            Write-Host 'TEST_FAIL qemu.smoke.m04.012 unexpected_profile_record'; exit 1
         }
     }
     if (-not $EnableM04CheckedReferenceBarrierProbe -and -not $DryRun -and $runnerExitCode -eq 0) {

@@ -71,6 +71,7 @@
 		<EnableM03FirmwareEntropySeedProbe Condition="'$(EnableM03FirmwareEntropySeedProbe)' == ''">false</EnableM03FirmwareEntropySeedProbe>
 		<EnableM04TypeManagerModuleRegistrationProbe Condition="'$(EnableM04TypeManagerModuleRegistrationProbe)' == ''">false</EnableM04TypeManagerModuleRegistrationProbe>
 		<EnableM03TypedExitBootServicesCallProbe Condition="'$(EnableM03TypedExitBootServicesCallProbe)' == ''">false</EnableM03TypedExitBootServicesCallProbe>
+		<EnableM04GcStaticRootMaterializationProbe Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == ''">false</EnableM04GcStaticRootMaterializationProbe>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'">
@@ -275,6 +276,10 @@
 		<DefineConstants>$(DefineConstants);M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE</DefineConstants>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE</DefineConstants>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<Compile Include="..\OS.Kernel\Boot\BootHandoffRecord.cs" Link="Boot\BootHandoffRecord.cs" />
 		<Compile Include="..\OS.Kernel\Boot\BootMemoryRegionMaterializer.cs" Link="Boot\BootMemoryRegionMaterializer.cs" />
@@ -371,6 +376,9 @@
 		<Compile Include="..\OS.Kernel\Boot\TypedNoStdlibExitBootServicesCallAdapter.cs" Link="Boot\TypedNoStdlibExitBootServicesCallAdapter.cs" />
 		<Compile Include="..\OS.Kernel\Platform\FirmwareServicesMode.cs" Link="Platform\FirmwareServicesMode.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\TypedExitBootServicesCallProbeAuthority.cs" Link="Diagnostics\TypedExitBootServicesCallProbeAuthority.cs" />
+		<Compile Include="..\OS.Kernel\Runtime\GCStaticRootsMalformedMetadata.cs" Link="Runtime\GCStaticRootsMalformedMetadata.cs" />
+		<Compile Include="Runtime\GCStaticRootMaterializationProbe.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\GCStaticRootMaterializationProbeAuthority.cs" Link="Diagnostics\GCStaticRootMaterializationProbeAuthority.cs" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
 		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
 		<ResolvedILCompilerPack Include="runtime.win-x64.Microsoft.DotNet.ILCompiler">
@@ -393,6 +401,81 @@
 
 	<Target Name="ValidateM01ProbeSwitches"
 			BeforeTargets="BeforeCompile">
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' != '' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'false'" Text="m04_gc_static_profile_invalid EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM01LoadedImageStackProbe)' != 'true'" Text="m04_gc_static_profile_invalid EnableM01LoadedImageStackProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM01LiveAllocatorProbe)' != 'true'" Text="m04_gc_static_profile_invalid EnableM01LiveAllocatorProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM04IndependentEndianConformanceProbe)' != 'true'" Text="m04_gc_static_profile_invalid EnableM04IndependentEndianConformanceProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' != 'true'" Text="m04_gc_static_profile_invalid EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM04ArithmeticConformanceProbe)' != 'true'" Text="m04_gc_static_profile_invalid EnableM04ArithmeticConformanceProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM04LayoutContractProbe)' != 'true'" Text="m04_gc_static_profile_invalid EnableM04LayoutContractProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM04ManagedHeapPageRangeProbe)' != 'true'" Text="m04_gc_static_profile_invalid EnableM04ManagedHeapPageRangeProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM04RhpNewFastProbe)' != 'true'" Text="m04_gc_static_profile_invalid EnableM04RhpNewFastProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM01OwnedPagingProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM01OwnedPagingProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM02SafeStubProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM02SafeStubProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM02CheckedPortIoBindingProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM02Com1OwnedPortIoProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM02Com1OwnedPortIoProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM02OwnedCom1ReadyProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM02OwnedCom1ReadyProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM02PanicSafeOwnedCom1Probe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM02OwnedX64GdtEncodingProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM02GuardedIstStackAllocationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM02GuardedIstStackAllocationProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM02OwnedGdtTssTerminalProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM02NormalizedInterruptFramePageProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM02OwnedIdtGatePopulationProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM02IdtrContinuedExecutionProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM02IdtrContinuedExecutionProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM02Ud2VectorStateProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM02Ud2VectorStateProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM02PageFaultCr2ErrorCodeProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM02DoubleFaultIstProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM02DoubleFaultIstProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04RhpNewFastBeforeBindFailureProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04RhpNewFastExhaustionFailureProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04SzArrayAllocationProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04SzArrayAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04SzArrayAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM03MemoryMapCaptureProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04CheckedReferenceBarrierProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04TypeManagerModuleRegistrationProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableM03TypedExitBootServicesCallProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM03TypedExitBootServicesCallProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableUefiGoneSimulationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableUefiGoneSimulationProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableExitBootServicesFreshMapProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableExitBootServicesFreshMapProbe" />
+		<Error Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableAcpiPhysicalDiscoveryProbe" />
+		<Error Condition="'$(EnableM01OwnedPagingProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM02NormalizedInterruptFramePageProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM02Ud2VectorStateProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM02DoubleFaultIstProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM04SzArrayAllocationProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM03MemoryMapCaptureProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM04CheckedReferenceBarrierProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM03TypedExitBootServicesCallProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableUefiGoneSimulationProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableExitBootServicesFreshMapProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableAcpiPhysicalDiscoveryProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
 		<Error Condition="'$(EnableM04CheckedReferenceBarrierProbe)' == 'true' and '$(EnableM01LoadedImageStackProbe)' != 'true'" Text="m04_checked_reference_profile_invalid EnableM01LoadedImageStackProbe" />
 		<Error Condition="'$(EnableM04CheckedReferenceBarrierProbe)' == 'true' and '$(EnableM01LiveAllocatorProbe)' != 'true'" Text="m04_checked_reference_profile_invalid EnableM01LiveAllocatorProbe" />
 		<Error Condition="'$(EnableM04CheckedReferenceBarrierProbe)' == 'true' and '$(EnableM04IndependentEndianConformanceProbe)' != 'true'" Text="m04_checked_reference_profile_invalid EnableM04IndependentEndianConformanceProbe" />
