@@ -55,7 +55,7 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
     private const string CompileClosureSha256 =
         "b0e23d01f90219119dfc843f3b6f957fe66646e000689dba89e8f5cd3a5ea49e";
     private const string SourceClosureSha256 =
-        "98bab3768c27334d4a603186a2e80bc6cf4fa1c7a0a7c66f92fa6db64c5f7914";
+        "b12a58711b200cd0a690a54e4df9e114c1c1bb09610b4b8b819ce2feb1e21fad";
     private const string FrozenProductionSha256 =
         "7CBF5DD9FB17D8D9608237FC78D06FE00B40D7AFE8669E1196C72B9F1B6848EB";
     private const string FrozenHostLeafSha256 =
@@ -204,7 +204,13 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
                 "'$(EnableM02Ud2VectorStateProbe)' == 'true' and " +
                 "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true'")
             .ToArray();
-        bool exclusionsExact = idtrExclusions.Length == forbiddenSwitches.Length + arrayExclusions.Length + stringExclusions.Length + 5 &&
+        bool exclusionsExact = idtrExclusions.Length == forbiddenSwitches.Length + arrayExclusions.Length + stringExclusions.Length + 7 &&
+            idtrExclusions.Count(error =>
+                error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM03TypedExitBootServicesCallProbe)' == 'true'" &&
+                error.Attribute("Text")?.Value == "m03_typed_ebs_profile_conflict EnableM03TypedExitBootServicesCallProbe") == 1 &&
+            idtrExclusions.Count(error =>
+                error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" &&
+                error.Attribute("Text")?.Value == "m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe") == 1 &&
             idtrExclusions.Count(error =>
                 error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'" &&
                 error.Attribute("Text")?.Value == "m04_type_manager_profile_conflict EnableM04TypeManagerModuleRegistrationProbe") == 1 &&

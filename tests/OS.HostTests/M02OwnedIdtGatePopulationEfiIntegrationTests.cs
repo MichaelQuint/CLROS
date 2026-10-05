@@ -64,7 +64,7 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
     private const string CompileClosureSha256 =
         "b0e23d01f90219119dfc843f3b6f957fe66646e000689dba89e8f5cd3a5ea49e";
     private const string SourceClosureSha256 =
-        "98bab3768c27334d4a603186a2e80bc6cf4fa1c7a0a7c66f92fa6db64c5f7914";
+        "b12a58711b200cd0a690a54e4df9e114c1c1bb09610b4b8b819ce2feb1e21fad";
     private const string FrozenProductionSha256 =
         "00EC277C3F6A0DB49CB54B34810202EE1D508318B29733C3F0392A7BC36CFA38";
     private const string FrozenHostLeafSha256 =

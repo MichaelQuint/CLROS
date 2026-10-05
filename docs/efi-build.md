@@ -2592,3 +2592,8 @@ The combined full regression and final guest acceptance remain pending.
 [Step998](../done/step998.md) corrects five older diagnostic fixtures whose
 exact conflict lists omitted the GC-static profile. All five complete small
 initializers pass; full combined and final guest acceptance remain pending.
+
+[Step1000](../done/step1000.md) aligns five further EFI fixtures with reviewed
+source hashes, both IDTR profile exclusions and the shared stack getter guard.
+Production inputs and the accepted native review are unchanged; full combined
+and final guest acceptance remain pending.
