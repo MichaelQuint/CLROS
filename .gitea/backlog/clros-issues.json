@@ -8068,7 +8068,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M03: Real Firmware Exit.",
-      "currentEvidence": "M03-001 (#58/#532) and M03-002 (#59/#539) are closed after reviewed merges and actual bounded pre-EBS guest evidence in steps970/977. Step978 adds host entropy retention; step980 adds #541's opt-in EFI RNG source, complete 201/202/0 focused run, default/enabled NativeAOT publications and accepted offline native review. Full common and real provider/missing-provider guest acceptance remain pending. Nine children #60 through #68 remain open. No ExitBootServices call, map-key freshness, post-firmware execution/ownership or M03 exit criterion is proved; the epic remains open.",
+      "currentEvidence": "Prerequisite #56 and children #58-#63 are accepted/closed after step1010 and the PR549/550 batch. Five children #64-#68 remain incomplete. Controlled pre-exit map/retry proof does not establish real firmware exit, permanent owned-CR3 adoption, post-firmware operation or the M03 exit criterion. The epic remains open/blocked.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -8479,7 +8479,7 @@
         "M03-004"
       ],
       "labels": [
-        "agent:ready",
+        "agent:done",
         "priority:p1",
         "type:test",
         "evidence:qemu",
@@ -8506,7 +8506,7 @@
       ],
       "collisionLane": null,
       "summary": "Prove no allocation or unrelated firmware call occurs between final map capture and exit attempt.",
-      "currentEvidence": "Step1003 accepts prerequisite #61/#546. Steps999/1001 and draft PR549/550 contain host preparation for the retained final-map window and bounded retry, with focused zero-allocation/no-stdlib checks. This issue is ready for controlled EFI integration using the accepted typed adapter; native/QEMU evidence for the final-map window remains required. No real firmware exit or post-firmware execution is proved.",
+      "currentEvidence": "Step1010 accepts combined #62/#63/#551 at source75dee18: original full3798/3799/0 suite, fresh default/enabled QEMU, all114source inputs and native/disk association. An authentic final GetMemoryMap into a retained128KiB buffer immediately precedes a controlled exit callback; no allocation/logging/unrelated firmware operation is available inside the successful window. Real firmware exit remains #64.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Prove no allocation or unrelated firmware call occurs between final map capture and exit attempt.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -8559,7 +8559,7 @@
         "docs/efi-build.md"
       ],
       "evidenceBoundary": "This issue proves only \"Prove no allocation or unrelated firmware call occurs between final map capture and exit attempt.\" It does not by itself prove the M03 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M03-006",
@@ -8570,7 +8570,7 @@
         "M03-005"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -8597,7 +8597,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement bounded retry only for the correct stale-map-key status.",
-      "currentEvidence": "The EFI path captures a map but deliberately skips the ExitBootServices call; post-firmware execution is unproven.",
+      "currentEvidence": "Step1010 accepts combined #62/#63/#551 at source75dee18: original full3798/3799/0 suite, fresh default/enabled QEMU, all114source inputs and native/disk association. Only exact EFI_INVALID_PARAMETER triggers recapture, at most twice. Guest cases prove stale-then-success and exhaustion; consumed state rejects reuse. Five captures/exits are ordered; repeated opaque keys are valid. No original firmware ExitBootServices or global transition occurs.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Implement bounded retry only for the correct stale-map-key status.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -8650,7 +8650,7 @@
         "docs/efi-build.md"
       ],
       "evidenceBoundary": "This issue proves only \"Implement bounded retry only for the correct stale-map-key status.\" It does not by itself prove the M03 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M03-007",
@@ -8663,7 +8663,7 @@
         "M03-006"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -8692,7 +8692,7 @@
       ],
       "collisionLane": "lane:efi-entry",
       "summary": "Perform the first opt-in real ExitBootServices call under firmware CR3, then permanently adopt the reviewed owned hierarchy before any post-firmware marker or callback.",
-      "currentEvidence": "The EFI path captures a map but deliberately skips the ExitBootServices call; post-firmware execution is unproven.",
+      "currentEvidence": "Step1010 accepts #63; prerequisites #333 and#56 are already closed. The first real ExitBootServices/permanent-owned-CR3 path is now ready to implement. Final capture and exit must run under firmware CR3; successful return must immediately adopt the reviewed owned mappings and use owned COM1 with no firmware callback or fallback. This boundary remains unimplemented/unproved.",
       "implementationNotes": [
         "Implement exactly one bounded live slice: perform the first opt-in real ExitBootServices transition and the immediately following permanent owned-CR3 adoption.",
         "Require reviewed closure of the M01-026 reversible CR3 proof, M02-016 owned COM1/descriptors/failure-classification proof, and M03-006 bounded stale-map-key retry before this issue may be claimed.",
@@ -9142,7 +9142,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M04: NativeAOT Runtime Correctness.",
-      "currentEvidence": "Nine earlier M04 keyed children (#70 through #78) are closed. Step981 accepts the bounded M04-010/#79/#537 returning-reference profile at 5d894c8: full 3704/ 3705/0/16READY, fresh default/reference/ACPI captures, two executing-stack words preserved through five checks and conservative 8456-byte local bound within 16KiB. PR540 merged at f3b4c83 and #79/#537 closed with evidence. #80 is now claimed; step983 adds its bounded one-module host contract (81START/82PASS/0FAIL, actual89-source no-stdlib AssemblyRefs0), with live metadata integration and full common acceptance still pending. Metadata registration, collecting GC/root enumeration, dispatch, exceptions and general runtime completion remain unaccepted; Gate4 stays Fail. This epic remains a coordination tracker with no implementation ownership.",
+      "currentEvidence": "Prerequisite #425 is closed. Child issues #70-#81 are closed with their scoped accepted evidence. #82/#552 implement bounded collection and allocator reuse and have development host/native/QEMU evidence in draft PR553; official integration and final acceptance remain pending. The epic remains open/blocked by incomplete children #82-#92 and the runtime milestone criterion. Dispatch, general runtime initialization, exceptions, hosted.NET/Kestrel and runtime completion Gate4 are not established.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -10289,7 +10289,7 @@
         "M04-012"
       ],
       "labels": [
-        "agent:ready",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -10315,7 +10315,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement a bounded non-moving collector with explicit root enumeration.",
-      "currentEvidence": "Step1003 accepts prerequisite #81/#548 retained GC-static roots and compiler-field guest evidence. Collection remains unimplemented. Implement explicit quiescent roots and authentic allocation/metadata validation, bounded iterative tracing, then atomic sweeping and real dead-block reuse through the same allocator owner. Do not substitute a live-set plan, cursor reset, zeroing-only pass or separate fake heap for reclamation. The existing bump receipts and retained-root query must be updated coherently for reuse; no arbitrary stack roots, moving objects or concurrency is implied.",
+      "currentEvidence": "Steps1005-1009 and draft PR553 implement bounded synchronous fixed-object collection, original-owner tracing/sweep/reuse and stale-receipt rejection. Focused host compatibility checks pass; an isolated development NativeAOT/QEMU run reaches70program records including CLROS_M04_013_READY. Development native review verifies the164-method first-party graph at13688bytes below its entry, within the16KiB diagnostic allowance. Official producer admission/strict profile integration, final native association and common/guest acceptance remain pending under #552 after #551 releases the shared lane. This is not general stack-root/concurrent collection or runtime-gate completion.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Implement a bounded non-moving collector with explicit root enumeration.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

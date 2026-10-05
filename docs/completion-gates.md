@@ -1867,3 +1867,15 @@ This is host behavior and compile-only evidence. #82/#552 remain open for
 serialized EFI integration, native review, one final complete common gate and
 fresh QEMU acceptance. Gates3/4 remain Fail; no guest collecting GC, arbitrary
 stack roots, concurrent mutators, moving objects or hosted .NET is claimed.
+
+### Accepted bounded final-map window and retry
+
+[Step1010](../done/step1010.md) accepts #62/#63/#551: authentic final-map
+captures into retained storage, controlled exit callbacks, exact stale-key retry
+with a two-attempt ceiling, exhaustion and consumed-state refusal. One original
+full suite and fresh ordinary default/enabled QEMU captures pass; the enabled
+transcript has45CLROS records and both boot-disk payloads match reviewed images.
+The original firmware ExitBootServices slot remains unreachable. Gate3 remains
+Fail until #64 and later real-exit requirements pass. This releases the shared
+integration lane for the already implemented bounded collector, whose official
+integration and final acceptance remain pending; Gate4 remains Fail.

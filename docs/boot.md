@@ -4360,6 +4360,36 @@ The `APP_PACKAGE_READY`, `APP_LAUNCH_READY`, `APP_PAYLOAD_READY`, `APP_EXEC_MAPP
 
 ## Next Steps
 
+The preparatory M03-005 `NoAllocationOrUnrelatedFirmwareCallOccursBetween`
+window accepts an already-owned writable map buffer and one retained state.
+It admits the typed exit adapter before a single final `GetMemoryMap`, validates
+the returned metadata locally, then forwards that capture's opaque key directly
+to the exit attempt. The API exposes neither an allocator nor a logging callback.
+It rejects missing/unavailable authority before capture, prevents recursive or
+reused windows, and never attempts exit after failed capture or malformed metadata.
+The buffer may have changed even when capture fails. Its record describes the
+caller-owned capture buffer, not a separate copied map; individual descriptors
+are not validated here. Buffer provenance, function-pointer authenticity and
+serialization remain caller obligations. No retry or firmware-mode transition
+is implemented. [Step999](../done/step999.md) records focused host and no-stdlib
+compile evidence. M03-004 is accepted. [Step1004](../done/step1004.md) now
+links this window and the bounded retry below into the existing default-off
+typed-EBS diagnostic. [Step1010](../done/step1010.md) accepts the complete
+batch and fresh default/enabled QEMU evidence for this controlled boundary.
+
+The preparatory M03-006 `BoundedRetryStaleKeyStatus` coordinator composes at
+most two such windows with separate retained states and the same owned buffer.
+Only a returned exit call with exact `EFI_INVALID_PARAMETER` permits another
+capture. Capture/admission/metadata failures and other exit statuses stop;
+the loop neither grows the buffer nor exposes allocation or logging callbacks.
+The result distinguishes windows started from actual exit calls and retains
+the final window result. The outer state prevents reentry/reuse and cannot
+overlap the map buffer. [Step1001](../done/step1001.md) records focused host and
+no-stdlib compilation. [Step1010](../done/step1010.md) accepts five authentic
+GetMemoryMap captures and five controlled exit callbacks, including stale-key
+retry and exhaustion. No original firmware exit occurs; firmware access
+invalidation remains required after a future real successful exit.
+
 1. Treat the accepted M01-026 tuple as the bounded M01 milestone exit and begin
    M02 diagnostics work after tracker review/synchronization. Keep real
    `ExitBootServices` blocked until owned serial, descriptor tables, fault

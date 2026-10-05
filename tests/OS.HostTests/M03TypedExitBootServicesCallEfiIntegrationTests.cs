@@ -12,12 +12,25 @@ using System.Xml.Linq;
 #if TYPED_EBS_CAPTURE_HOST
 using OS.Boot;
 using Core = OS.Boot.EfiEntry.TypedExitBootServicesCallProbe;
+using MapCore = OS.Boot.EfiEntry.FinalMapRetryProbe;
 internal static unsafe class TypedEbsCaptureHost
 {
     private static void Need(bool value,string reason){if(!value)throw new InvalidOperationException(reason);}
     private static void Run(string name,Action test){Console.WriteLine("TEST_START m03.typedebs.host "+name);test();Console.WriteLine("TEST_PASS m03.typedebs.host "+name);}
     private static ulong Entries()=>(ulong)typeof(Core).GetField("s_totalEntries",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static)!.GetValue(null)!;
     private static byte[] Bytes(void* address,int length)=>new ReadOnlySpan<byte>(address,length).ToArray();
+    private static ulong mapEntries;
+    private static bool mapReentryDenied;
+    [UnmanagedCallersOnly]
+    private static ulong Map(ulong* size,void* buffer,ulong* key,ulong* stride,uint* version)
+    {
+        mapEntries++;
+        if(*size!=4096)return 0x8000000000000005UL;
+        if(mapEntries==1)mapReentryDenied=!MapCore.Execute((void*)1,&Map,(byte*)buffer,*size);
+        *size=48;*stride=48;*version=1;*key=mapEntries<=3?0:ulong.MaxValue;
+        ((byte*)buffer)[0]=0xA5;
+        return 0;
+    }
     private static int Main(string[] args)
     {
         if(args.Length==1&&args[0]=="orphan"){
@@ -62,6 +75,23 @@ internal static unsafe class TypedEbsCaptureHost
                 Core.Storage* s=(Core.Storage*)admitted;Core.Storage* n=(Core.Storage*)second;byte[] before=Bytes(s,4096),zero=Bytes(n,4096);
                 Need(!Core.Execute(s,(void*)1)&&!Core.Execute(n,(void*)1),"no rearm");Need(Bytes(s,4096).SequenceEqual(before)&&Bytes(n,4096).SequenceEqual(zero)&&Entries()==4,"all retained and fresh bytes unchanged");
             });
+            Run("actual final-map ordering stale retry exhaustion and consumed storage",()=>{
+                byte* buffer=(byte*)second;
+                Need(MapCore.Execute((void*)0x123456789ABCDEF0UL,&Map,buffer,4096),"actual three-case coordinator");
+                Need(mapEntries==5&&mapReentryDenied&&buffer[0]==0xA5,"five real captures and rejected coordinator reentry");
+                var names=new[]{"s_single","s_success","s_exhausted"};
+                for(int i=0;i<3;i++){
+                    var c=(MapCore.Case)typeof(MapCore).GetField(names[i],System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static)!.GetValue(null)!;
+                    ulong count=i==0?1UL:2UL;
+                    Need(c.Captures==count&&c.Exits==count&&c.Sequence==3*count&&c.Error==0&&c.Preserved==1,"actual call counts/order and whole consumed-state preservation");
+                    Need(c.Status==(i==2?4UL:1UL)&&c.Windows==count&&c.Reuse==(i==0?3UL:6UL),"exact final statuses and reuse refusals");
+                    Need(c.First.EnterOrder==1&&c.First.ReturnOrder==2&&c.First.ExitOrder==3&&c.First.CaptureStatus==0,"first capture precedes exit");
+                    Need(c.First.Key==(i==2?ulong.MaxValue:0)&&c.First.MapBytes==48&&c.First.DescriptorBytes==48&&c.First.DescriptorVersion==1,"actual captured opaque key/geometry");
+                    if(i!=0)Need(c.Second.EnterOrder==4&&c.Second.ReturnOrder==5&&c.Second.ExitOrder==6&&c.Second.Key==c.First.Key&&c.Second.CaptureStatus==0,"fresh capture even when opaque keys repeat");
+                    Need(c.First.ExitStatus==(i==0?0UL:0x8000000000000002UL)&&(i==0||c.Second.ExitStatus==(i==1?0UL:0x8000000000000002UL)),"only precise stale status retries");
+                }
+                Need(!MapCore.Execute((void*)1,&Map,buffer,4096)&&mapEntries==5,"consumed coordinator cannot capture again");
+            });
             Console.WriteLine("TEST_PASS m03.typedebs.host.tests");return 0;
         }finally{NativeMemory.AlignedFree(storage);NativeMemory.AlignedFree(fresh);}
     }
@@ -105,8 +135,8 @@ internal static class M03TypedExitBootServicesCallEfiIntegrationTests
         string root=Root();var project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
         var defaults=project.Descendants(Flag).ToArray();Need(defaults.Length==1&&defaults[0].Value=="false"&&(string?)defaults[0].Attribute("Condition")=="'$("+Flag+")' == ''","one false default");
         var define=project.Descendants("DefineConstants").Single(x=>x.Value.Contains("M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE",StringComparison.Ordinal));Need((string?)define.Parent?.Attribute("Condition")=="'$("+Flag+")' == 'true'"&&define.Value=="$(DefineConstants);M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE","exact conditional symbol");
-        var compile=project.Descendants("Compile").Select(x=>(string)x.Attribute("Include")!).ToArray();Need(compile.Length==98&&compile.Distinct(StringComparer.Ordinal).Count()==98,"actual ordered full closure");
-        Need(compile.Skip(92).Take(3).SequenceEqual(new[]{@"..\OS.Kernel\Boot\TypedNoStdlibExitBootServicesCallAdapter.cs",@"..\OS.Kernel\Platform\FirmwareServicesMode.cs",@"..\OS.Kernel\Diagnostics\TypedExitBootServicesCallProbeAuthority.cs"},StringComparer.Ordinal),"three exact typed EBS source positions");
+        var compile=project.Descendants("Compile").Select(x=>(string)x.Attribute("Include")!).ToArray();Need(compile.Length==100&&compile.Distinct(StringComparer.Ordinal).Count()==100,"actual ordered full closure");
+        Need(compile.Skip(92).Take(5).SequenceEqual(new[]{@"..\OS.Kernel\Boot\TypedNoStdlibExitBootServicesCallAdapter.cs",@"..\OS.Kernel\Boot\NoAllocationOrUnrelatedFirmwareCallOccursBetween.cs",@"..\OS.Kernel\Boot\BoundedRetryStaleKeyStatus.cs",@"..\OS.Kernel\Platform\FirmwareServicesMode.cs",@"..\OS.Kernel\Diagnostics\TypedExitBootServicesCallProbeAuthority.cs"},StringComparer.Ordinal),"five exact typed EBS source positions");
         Need(Hash(Path.Combine(root,"src/OS.Kernel/Boot/TypedNoStdlibExitBootServicesCallAdapter.cs"))=="7227E860B5E4F97D47C9C269B889C975E30F21C506F9ECB51424F5417E2945DB","unchanged host core");
         Need(Hash(Path.Combine(root,"tests/OS.HostTests/TypedNoStdlibExitBootServicesCallAdapterTests.cs"))=="98F5A225E855D311A54D8792C7619C03365051004A6200F34DD48107D1E3F587","unchanged whole host fixture");
         Need(File.ReadAllText(Path.Combine(root,"src/OS.Kernel/Diagnostics/TypedExitBootServicesCallProbeAuthority.cs")).Contains("public const bool EnableTypedExitBootServicesCallProbe = false;",StringComparison.Ordinal),"default false authority");
@@ -135,7 +165,7 @@ internal static class M03TypedExitBootServicesCallEfiIntegrationTests
         string[] inputs=[..sources.Select(x=>Path.Combine(root,x)),Path.Combine(directory,"Attribute.cs"),project];var identities=inputs.Select(path=>new{Path=path,Bytes=new FileInfo(path).Length,Sha256=Hash(path)}).ToArray();File.WriteAllText(Path.Combine(directory,"inputs.json"),JsonSerializer.Serialize(identities));
         Passed(Process(Path.Combine(directory,"build"),"dotnet","build",project,"-c","Release","--nologo","-m:1","--disable-build-servers","-p:UseSharedCompilation=false"));
         Result run=Process(Path.Combine(directory,"run"),"dotnet",Path.Combine(directory,"bin/Release/net10.0/Capture.dll"));Passed(run);
-        Need(run.Output.Contains("TEST_PASS m03.typedebs.host.tests",StringComparison.Ordinal)&&run.Output.Split('\n').Count(x=>x.StartsWith("TEST_START m03.typedebs.host ",StringComparison.Ordinal))==3,"complete three-group actual core child");
+        Need(run.Output.Contains("TEST_PASS m03.typedebs.host.tests",StringComparison.Ordinal)&&run.Output.Split('\n').Count(x=>x.StartsWith("TEST_START m03.typedebs.host ",StringComparison.Ordinal))==4,"complete four-group actual core child");
         Result orphan=Process(Path.Combine(directory,"orphan"),"dotnet",Path.Combine(directory,"bin/Release/net10.0/Capture.dll"),"orphan");Passed(orphan);Need(orphan.Output.Contains("TEST_PASS m03.typedebs.orphan.tests",StringComparison.Ordinal),"separate actual null-active callback entry control");
         foreach(var input in identities)Need(Hash(input.Path)==input.Sha256,"unchanged child input "+input.Path);
     }
@@ -186,6 +216,21 @@ internal static class M03TypedExitBootServicesCallEfiIntegrationTests
         'M03_TYPED_EBS_CASE id=3 state=3145848 handle=1311768467463790320 key=9223372036854775808 status=0 calls=1 phase=2 reuseAttempt=9 reusePrepare=9 unchanged=1 reentryAttempt=8 reentryPrepare=8 reentryUnchanged=1',
         'CLROS_M03_004_READY controlled=true realExitBootServices=false states=4 calls=4 reuse=4 reentry=1 mode=0',
         'TEST_PASS m03.004',
+        'TEST_START m03.005',
+        'M03_FINAL_MAP_IMAGE handle=1311768467463790320 getMemoryMap=2097408 buffer=4194304 capacity=131072',
+        'M03_FINAL_MAP_CALL case=0 index=0 enter=1 returned=2 exit=3 captureStatus=0 key=0 mapBytes=48 descriptorBytes=48 descriptorVersion=1 exitStatus=0',
+        'M03_FINAL_MAP_RESULT case=0 status=1 windows=1 captures=1 exits=1 reuse=3 preserved=1',
+        'CLROS_M03_005_READY controlled=true realExitBootServices=false captures=1 exits=1 reuseRejected=true',
+        'TEST_PASS m03.005',
+        'TEST_START m03.006',
+        'M03_FINAL_MAP_CALL case=1 index=0 enter=1 returned=2 exit=3 captureStatus=0 key=0 mapBytes=48 descriptorBytes=48 descriptorVersion=1 exitStatus=9223372036854775810',
+        'M03_FINAL_MAP_CALL case=1 index=1 enter=4 returned=5 exit=6 captureStatus=0 key=0 mapBytes=48 descriptorBytes=48 descriptorVersion=1 exitStatus=0',
+        'M03_FINAL_MAP_RESULT case=1 status=1 windows=2 captures=2 exits=2 reuse=6 preserved=1',
+        'M03_FINAL_MAP_CALL case=2 index=0 enter=1 returned=2 exit=3 captureStatus=0 key=0 mapBytes=48 descriptorBytes=48 descriptorVersion=1 exitStatus=9223372036854775810',
+        'M03_FINAL_MAP_CALL case=2 index=1 enter=4 returned=5 exit=6 captureStatus=0 key=0 mapBytes=48 descriptorBytes=48 descriptorVersion=1 exitStatus=9223372036854775810',
+        'M03_FINAL_MAP_RESULT case=2 status=4 windows=2 captures=2 exits=2 reuse=6 preserved=1',
+        'CLROS_M03_006_READY controlled=true realExitBootServices=false cases=2 maxAttempts=2 captures=4 exits=4 exhausted=1',
+        'TEST_PASS m03.006',
         'TEST_START boot.sequence',
         'BOOT_PHASE PhaseA.Audit START',
         'BOOT_PHASE PhaseA.Audit PASS',
@@ -205,13 +250,16 @@ internal static class M03TypedExitBootServicesCallEfiIntegrationTests
             if($accepted -ne $expected){throw ('transcript case '+$script:cases+' expected='+$expected)};$script:cases++
         }
         Check $good $true
-        for($i=0;$i -lt 30;$i++){
+        for($i=0;$i -lt 45;$i++){
             foreach($replacement in @('',($lines[$i]+' '),(' '+$lines[$i]),($lines[$i]+' extra=1'),($lines[$i]+"`0"))){$copy=@($lines);$copy[$i]=$replacement;Check (Bytes $copy) $false}
             $copy=@($lines);$copy[$i]=$copy[$i].ToLowerInvariant();if($copy[$i] -cne $lines[$i]){Check (Bytes $copy) $false}
-            $copy=@($lines[0..$i])+@($lines[$i..29]);Check (Bytes $copy) $false
+            $copy=@($lines[0..$i])+@($lines[$i..44]);Check (Bytes $copy) $false
         }
         foreach($pair in @(@('storageBytes=600','storageBytes=599'),@('stateBytes=40','stateBytes=48'),@('handle=1311768467463790320','handle=0'),@('callback=2097152','callback=0'),@('storage=3145728','storage=18446744073709551615'),@('state=3145768','state=3145728'),@('key=9223372036854775808','key=0'),@('key=18446744073709551615','key=18446744073709551616'),@('status=9223372036854775810','status=2147483650'),@('status=13835058055282164003','status=291'),@('calls=1','calls=2'),@('phase=2','phase=3'),@('reuseAttempt=9','reuseAttempt=2'),@('reusePrepare=9','reusePrepare=1'),@('unchanged=1','unchanged=0'),@('reentryAttempt=8','reentryAttempt=2'),@('reentryPrepare=8','reentryPrepare=1'),@('reentryUnchanged=1','reentryUnchanged=0'),@('realExitBootServices=false','realExitBootServices=true'),@('regions=4','regions=3'),@('freeBytes=81920','freeBytes=81921'))){
             if($pair.Count -ne 2){throw 'raw mutation pair'};$mutated=[Text.Encoding]::ASCII.GetString($good).Replace($pair[0],$pair[1]);if([string]::Equals($mutated,[Text.Encoding]::ASCII.GetString($good),[StringComparison]::Ordinal)){throw 'raw mutation unchanged'};Check ([Text.Encoding]::ASCII.GetBytes($mutated)) $false
+        }
+        foreach($pair in @(@('getMemoryMap=2097408','getMemoryMap=0'),@('buffer=4194304','buffer=4194305'),@('capacity=131072','capacity=131071'),@('returned=2 exit=3','returned=3 exit=2'),@('captureStatus=0','captureStatus=1'),@('mapBytes=48','mapBytes=49'),@('descriptorBytes=48','descriptorBytes=32'),@('descriptorVersion=1','descriptorVersion=0'),@('exitStatus=9223372036854775810','exitStatus=2147483650'),@('status=4 windows=2','status=1 windows=2'),@('reuse=6 preserved=1','reuse=6 preserved=0'))){
+            Check ([Text.Encoding]::ASCII.GetBytes([Text.Encoding]::ASCII.GetString($good).Replace($pair[0],$pair[1]))) $false
         }
         $copy=@($lines);$copy[16]=$lines[17];$copy[17]=$lines[16];Check (Bytes $copy) $false
         Check ([Text.Encoding]::ASCII.GetBytes([Text.Encoding]::ASCII.GetString($good).Replace("`r`n","`n"))) $false
@@ -246,6 +294,21 @@ internal static class M03TypedExitBootServicesCallEfiIntegrationTests
         'M03_TYPED_EBS_CASE id=3',
         'CLROS_M03_004_READY',
         'TEST_PASS m03.004',
+        'TEST_START m03.005',
+        'M03_FINAL_MAP_IMAGE',
+        'M03_FINAL_MAP_CALL case=0 index=0',
+        'M03_FINAL_MAP_RESULT case=0',
+        'CLROS_M03_005_READY',
+        'TEST_PASS m03.005',
+        'TEST_START m03.006',
+        'M03_FINAL_MAP_CALL case=1 index=0',
+        'M03_FINAL_MAP_CALL case=1 index=1',
+        'M03_FINAL_MAP_RESULT case=1',
+        'M03_FINAL_MAP_CALL case=2 index=0',
+        'M03_FINAL_MAP_CALL case=2 index=1',
+        'M03_FINAL_MAP_RESULT case=2',
+        'CLROS_M03_006_READY',
+        'TEST_PASS m03.006',
         'TEST_START boot.sequence',
         'BOOT_PHASE PhaseA.Audit START',
         'BOOT_PHASE PhaseA.Audit PASS',
@@ -257,7 +320,7 @@ internal static class M03TypedExitBootServicesCallEfiIntegrationTests
         $required=New-Object 'System.Collections.Generic.List[string]'
         foreach($value in @('OS_BOOT_OK','TEST_PASS boot.sequence','OS_SMOKE_PASS','UEFI_MEMORY_MAP_OWNED','BOOT_HANDOFF_READY','UEFI_MEMORY_MAP_NORMALIZED','BOOT_MEMORY_MAP_ACCEPTED','BOOT_MEMORY_REGIONS_READY','BOOT_MEMORY_REGION_COUNT','BOOT_PAGE_ALLOCATOR_READY','BOOT_ACPI_RSDP_HANDOFF_READY','UEFI_ACPI_RSDP_READY')+$ordered){if(-not $required.Contains($value)){$required.Add($value)}}
         $forbidden=@('OS_SMOKE_FAIL','TEST_FAIL','UEFI_EBS_CALLED','UEFI_BOOT_SERVICES_EXITED')
-        $runner=@('QEMU_DISCOVERY result=qemu.exe checked=qemu.exe','OVMF_DISCOVERY result=ovmf.fd checked=ovmf.fd','TEST_START qemu.smoke','IMAGE_ARTIFACT image.raw',('SERIAL_LOG '+$serialPath),'OVMF_CODE ovmf.fd','WORKLOAD_PROFILE SingleMinimalApi','MARKER_PRESETS none',('REQUIRED_MARKERS '+[string]::Join(';',$required)),('ORDERED_MARKERS '+[string]::Join(';',$ordered)),('UNIQUE_MARKERS '+[string]::Join(';',$ordered)),('FORBIDDEN_MARKERS '+[string]::Join(';',$forbidden)),('SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+($preamble.Length+$good.Length+$suffix.Length)+' lines=35 invalidBytes=207 invalidLines=2 orderedSeen=30 outOfOrder=0 uniqueSeen=30 duplicateUnique=0'),'SERIAL_MARKER_DRAIN milliseconds=750','QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=-1',('SUMMARY_LOG '+$summaryPath),'TEST_PASS qemu.smoke')
+        $runner=@('QEMU_DISCOVERY result=qemu.exe checked=qemu.exe','OVMF_DISCOVERY result=ovmf.fd checked=ovmf.fd','TEST_START qemu.smoke','IMAGE_ARTIFACT image.raw',('SERIAL_LOG '+$serialPath),'OVMF_CODE ovmf.fd','WORKLOAD_PROFILE SingleMinimalApi','MARKER_PRESETS none',('REQUIRED_MARKERS '+[string]::Join(';',$required)),('ORDERED_MARKERS '+[string]::Join(';',$ordered)),('UNIQUE_MARKERS '+[string]::Join(';',$ordered)),('FORBIDDEN_MARKERS '+[string]::Join(';',$forbidden)),('SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+($preamble.Length+$good.Length+$suffix.Length)+' lines=50 invalidBytes=207 invalidLines=2 orderedSeen=45 outOfOrder=0 uniqueSeen=45 duplicateUnique=0'),'SERIAL_MARKER_DRAIN milliseconds=750','QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=-1',('SUMMARY_LOG '+$summaryPath),'TEST_PASS qemu.smoke')
         $summary=@('QEMU_SMOKE_STATUS pass')+@($runner[3],$runner[4],$runner[6],$runner[7],$runner[8],$runner[9],$runner[10],$runner[11])+@($lines|ForEach-Object{'OBSERVED_MARKER '+$_})+@('APP_EXIT_RESULT none','APP_EXIT_MALFORMED none','MISSING_MARKERS none','OUT_OF_ORDER_MARKERS none','DUPLICATE_UNIQUE_MARKERS none','FORBIDDEN_MARKER_HIT none','FAIL_REASON none','SERIAL_TAIL_LIMIT lines=8 chars=240')
         $serial=[Text.Encoding]::UTF8.GetString([byte[]]($preamble+$good+$suffix))
         foreach($line in @($serial.Split([string[]]@("`r`n"),[StringSplitOptions]::None)|Where-Object {$_.Trim().Length -gt 0}|Select-Object -Last 8)){$value=$line.Trim();if($value.Length -gt 240){$value=$value.Substring(0,237)+'...'};$summary+='SERIAL_TAIL_LINE '+$value}
@@ -270,7 +333,7 @@ internal static class M03TypedExitBootServicesCallEfiIntegrationTests
         foreach($exit in @('0','-2147483648','2147483647')){$copy=@($runner);$copy[14]='QEMU_PROCESS_RESULT disposition=runner-terminated exitCode='+$exit;Runner $copy $true}
         foreach($exit in @('none','-0','01','+1','2147483648','-2147483649')){$copy=@($runner);$copy[14]='QEMU_PROCESS_RESULT disposition=runner-terminated exitCode='+$exit;Runner $copy $false}
         for($i=0;$i -lt $runner.Count;$i++){$copy=@($runner);$copy[$i]+="`0";Runner $copy $false}
-        foreach($pair in @(@(12,'invalidBytes=207','invalidBytes=208'),@(12,'lines=35','lines=34'),@(12,'orderedSeen=30','orderedSeen=29'),@(12,'status=Passed','status=Timeout'),@(13,'milliseconds=750','milliseconds=749'),@(13,'milliseconds','Milliseconds'),@(14,'runner-terminated','exited'),@(14,'runner-terminated','cleanup-failed'))){$copy=@($runner);$copy[$pair[0]]=$copy[$pair[0]].Replace($pair[1],$pair[2]);Runner $copy $false}
+        foreach($pair in @(@(12,'invalidBytes=207','invalidBytes=208'),@(12,'lines=50','lines=49'),@(12,'orderedSeen=45','orderedSeen=44'),@(12,'status=Passed','status=Timeout'),@(13,'milliseconds=750','milliseconds=749'),@(13,'milliseconds','Milliseconds'),@(14,'runner-terminated','exited'),@(14,'runner-terminated','cleanup-failed'))){$copy=@($runner);$copy[$pair[0]]=$copy[$pair[0]].Replace($pair[1],$pair[2]);Runner $copy $false}
         foreach($extra in @('TEST_FAIL x','OS_SMOKE_FAIL','QEMU_PROCESS_CLEANUP_FAILED','TEST_START qemu.smoke')){Runner @($runner+$extra) $false}
         foreach($pair in @(@('QEMU_SMOKE_STATUS pass','QEMU_SMOKE_STATUS fail'),@('FAIL_REASON none','FAIL_REASON timeout'),@('MISSING_MARKERS none','MISSING_MARKERS x'),@('DUPLICATE_UNIQUE_MARKERS none','DUPLICATE_UNIQUE_MARKERS x'),@(('SERIAL_LOG '+$serialPath),'SERIAL_LOG different'))){if($pair.Count -ne 2){throw 'summary mutation pair'};$mutated=$summaryText.Replace($pair[0],$pair[1]);if([string]::Equals($mutated,$summaryText,[StringComparison]::Ordinal)){throw 'summary mutation unchanged'};[IO.File]::WriteAllText($summaryPath,$mutated,[Text.Encoding]::UTF8);Runner $runner $false}
         [IO.File]::WriteAllText($summaryPath,$summaryText+"OS_SMOKE_FAIL`r`n",[Text.Encoding]::UTF8);Runner $runner $false
@@ -288,7 +351,7 @@ internal static class M03TypedExitBootServicesCallEfiIntegrationTests
         Check $good $false $preamble ([byte[]]($shortSuffix+65))
         Check $good $false $preamble ([byte[]]@())
         Check $good $true $preamble $shortSuffix
-        $shortRunner=@($runner);$shortRunner[12]='SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+($preamble.Length+$good.Length+$shortSuffix.Length)+' lines=34 invalidBytes=15 invalidLines=1 orderedSeen=30 outOfOrder=0 uniqueSeen=30 duplicateUnique=0'
+        $shortRunner=@($runner);$shortRunner[12]='SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+($preamble.Length+$good.Length+$shortSuffix.Length)+' lines=49 invalidBytes=15 invalidLines=1 orderedSeen=45 outOfOrder=0 uniqueSeen=45 duplicateUnique=0'
         $shortSerial=[Text.Encoding]::UTF8.GetString([byte[]]($preamble+$good+$shortSuffix))
         $shortSummary=@($summary|Where-Object{-not $_.StartsWith('SERIAL_TAIL_LINE ',[StringComparison]::Ordinal)})
         foreach($line in @($shortSerial.Split([string[]]@("`r`n"),[StringSplitOptions]::None)|Where-Object{$_.Trim().Length -gt 0}|Select-Object -Last 8)){$value=$line.Trim();if($value.Length -gt 240){$value=$value.Substring(0,237)+'...'};$shortSummary+='SERIAL_TAIL_LINE '+$value}
@@ -321,6 +384,21 @@ internal static class M03TypedExitBootServicesCallEfiIntegrationTests
         "M03_TYPED_EBS_CASE id=3 state=3145848 handle=1311768467463790320 key=9223372036854775808 status=0 calls=1 phase=2 reuseAttempt=9 reusePrepare=9 unchanged=1 reentryAttempt=8 reentryPrepare=8 reentryUnchanged=1",
         "CLROS_M03_004_READY controlled=true realExitBootServices=false states=4 calls=4 reuse=4 reentry=1 mode=0",
         "TEST_PASS m03.004",
+        "TEST_START m03.005",
+        "M03_FINAL_MAP_IMAGE handle=1311768467463790320 getMemoryMap=2097408 buffer=4194304 capacity=131072",
+        "M03_FINAL_MAP_CALL case=0 index=0 enter=1 returned=2 exit=3 captureStatus=0 key=0 mapBytes=48 descriptorBytes=48 descriptorVersion=1 exitStatus=0",
+        "M03_FINAL_MAP_RESULT case=0 status=1 windows=1 captures=1 exits=1 reuse=3 preserved=1",
+        "CLROS_M03_005_READY controlled=true realExitBootServices=false captures=1 exits=1 reuseRejected=true",
+        "TEST_PASS m03.005",
+        "TEST_START m03.006",
+        "M03_FINAL_MAP_CALL case=1 index=0 enter=1 returned=2 exit=3 captureStatus=0 key=0 mapBytes=48 descriptorBytes=48 descriptorVersion=1 exitStatus=9223372036854775810",
+        "M03_FINAL_MAP_CALL case=1 index=1 enter=4 returned=5 exit=6 captureStatus=0 key=0 mapBytes=48 descriptorBytes=48 descriptorVersion=1 exitStatus=0",
+        "M03_FINAL_MAP_RESULT case=1 status=1 windows=2 captures=2 exits=2 reuse=6 preserved=1",
+        "M03_FINAL_MAP_CALL case=2 index=0 enter=1 returned=2 exit=3 captureStatus=0 key=0 mapBytes=48 descriptorBytes=48 descriptorVersion=1 exitStatus=9223372036854775810",
+        "M03_FINAL_MAP_CALL case=2 index=1 enter=4 returned=5 exit=6 captureStatus=0 key=0 mapBytes=48 descriptorBytes=48 descriptorVersion=1 exitStatus=9223372036854775810",
+        "M03_FINAL_MAP_RESULT case=2 status=4 windows=2 captures=2 exits=2 reuse=6 preserved=1",
+        "CLROS_M03_006_READY controlled=true realExitBootServices=false cases=2 maxAttempts=2 captures=4 exits=4 exhausted=1",
+        "TEST_PASS m03.006",
         "TEST_START boot.sequence",
         "BOOT_PHASE PhaseA.Audit START",
         "BOOT_PHASE PhaseA.Audit PASS",
@@ -339,15 +417,15 @@ internal static class M03TypedExitBootServicesCallEfiIntegrationTests
         Passed(preflight);Need(preflight.Output.Split('\n').Count(x=>x.TrimEnd('\r')=="EFI_PREFLIGHT_OK")==1,"actual enabled producer preflight succeeds");
         string[] Vector(string prefix)=>result.Output.Split('\n').Single(x=>x.StartsWith(prefix+" ",StringComparison.Ordinal))[(prefix.Length+1)..].TrimEnd('\r').Split(';').Select(x=>x.Trim()).ToArray();
         var required=Vector("REQUIRED_MARKERS");var ordered=Vector("ORDERED_MARKERS");var unique=Vector("UNIQUE_MARKERS");var forbidden=Vector("FORBIDDEN_MARKERS");
-        foreach(var vector in new[]{required,ordered,unique})Need(vector.Length==30&&vector.Distinct(StringComparer.Ordinal).Count()==30,"actual30 canonical unique vectors");
+        foreach(var vector in new[]{required,ordered,unique})Need(vector.Length==45&&vector.Distinct(StringComparer.Ordinal).Count()==45,"actual45 canonical unique vectors");
         Need(required.Order(StringComparer.Ordinal).SequenceEqual(ordered.Order(StringComparer.Ordinal),StringComparer.Ordinal)&&ordered.SequenceEqual(unique,StringComparer.Ordinal),"actual complete set and ordered/unique sequence");
         OS.Tools.QemuRunner.SerialMarkerCompletionResult Stream(string[] lines){var state=new OS.Tools.QemuRunner.SerialMarkerStateMachine(required,forbidden,orderedMarkers:ordered,uniqueMarkers:unique);Need(state.Feed(Encoding.ASCII.GetBytes(string.Join("\r\n",lines)+"\r\n")).Succeeded,"actual streamer Feed");return state.Complete();}
-        var accepted=Stream(ProtocolLines);Need(accepted.Passed&&accepted.LinesProcessed==30&&accepted.OrderedSeenCount==30&&accepted.UniqueSeenCount==30,"genuine full-token streamer success");
+        var accepted=Stream(ProtocolLines);Need(accepted.Passed&&accepted.LinesProcessed==45&&accepted.OrderedSeenCount==45&&accepted.UniqueSeenCount==45,"genuine full-token streamer success");
         foreach(string forbiddenTransition in new[]{"UEFI_EBS_CALLED","UEFI_BOOT_SERVICES_EXITED"}){
             var state=new OS.Tools.QemuRunner.SerialMarkerStateMachine(required,forbidden,orderedMarkers:ordered,uniqueMarkers:unique);
             var feed=state.Feed(Encoding.ASCII.GetBytes(forbiddenTransition+"\r\n"));Need(!feed.Succeeded||!state.Complete().Passed,"real transition marker is forbidden");
         }
-        foreach(int index in Enumerable.Range(13,9)){
+        foreach(int index in Enumerable.Range(13,24)){
             var missing=Stream(ProtocolLines.Where((_,i)=>i!=index).ToArray());Need(!missing.Passed&&missing.MissingRequiredMarkers!.Count>0,"missing controlled row");
             var duplicate=Stream(ProtocolLines.Take(index+1).Concat(ProtocolLines.Skip(index)).ToArray());Need(!duplicate.Passed&&duplicate.DuplicateUniqueOccurrenceCount==1,"duplicate controlled row");
             string[] swapped=[..ProtocolLines];(swapped[index],swapped[index+1])=(swapped[index+1],swapped[index]);Need(Stream(swapped).OutOfOrderOccurrenceCount>0,"reordered controlled row");

@@ -2593,10 +2593,19 @@ The combined full regression and final guest acceptance remain pending.
 exact conflict lists omitted the GC-static profile. All five complete small
 initializers pass; full combined and final guest acceptance remain pending.
 
+[Step999](../done/step999.md) prepares the final-map/exit window for M03-005.
+Its seven-source no-stdlib closure compiles with zero AssemblyRefs. It is not
+yet included in the EFI project or runner, and adds no switch or guest claim.
+
 [Step1000](../done/step1000.md) aligns five further EFI fixtures with reviewed
 source hashes, both IDTR profile exclusions and the shared stack getter guard.
 Production inputs and the accepted native review are unchanged; full combined
 and final guest acceptance remain pending.
+
+[Step1001](../done/step1001.md) prepares M03-006's bounded stale-key retry
+coordinator over the single final-map/exit window. Its eight-source no-stdlib
+closure has zero AssemblyRefs. It is not linked into the EFI project and adds
+no profile, firmware transition or guest acceptance claim.
 
 [Step1002](../done/step1002.md) corrects the helper-ledger fixture's source
 declaration count for the two exclusive callback profiles. Complete diagnostic
@@ -2618,3 +2627,18 @@ GC has 60 exact CLROS lines, 49 ordered/unique anchors, two allocations/48 bytes
 two checked stores and five stack checks. The 10056-byte first-party stack
 bound excludes original firmware console/serial bodies. No collecting GC,
 real firmware exit, general runtime, hosted .NET/Kestrel or cloud claim follows.
+
+[Step1004](../done/step1004.md) integrates the final-map window and bounded
+stale-key retry into `EnableM03TypedExitBootServicesCallProbe`. The diagnostic
+uses authentic GetMemoryMap captures into a private retained 128 KiB buffer,
+with one controlled successful exit, stale-then-success, and two stale returns.
+Five captures precede five controlled exits; all reporting occurs afterwards.
+It never reads the original firmware exit slot. The source closure is now
+100 Compile items/114 raw inputs, with the same 42 profile flags. The complete
+focused EFI fixture passes, including default/enabled publication and strict
+45-record transcript checks. The default image retains step1003's exact bytes.
+[Step1010](../done/step1010.md) accepts the original full suite
+(3798starts/3799passes/zero failures), changed-native review and fresh ordinary
+default/enabled QEMU captures with source/native/disk association. Original
+firmware function-body stack depth remains excluded. The next live boundary is
+#64: real firmware exit followed by permanent owned-CR3 adoption.
