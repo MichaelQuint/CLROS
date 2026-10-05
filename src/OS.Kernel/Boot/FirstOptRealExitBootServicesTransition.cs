@@ -1,4 +1,6 @@
 using OS.Kernel.Platform;
+using OS.Kernel.Diagnostics;
+using OS.Kernel.Memory;
 using OS.Std.Hash;
 
 namespace OS.Boot;
@@ -305,6 +307,7 @@ public static unsafe class FirstExitOwnedArena
     public const uint PageCount = 105;
     public const uint Bytes = PageCount * 4096;
     public const uint MapBytes = 16 * 4096;
+    public const uint MappingRangeCount = 5;
     public const ulong LowerCanary = 0x4d3033535441434b;
     public const ulong UpperCanary = 0x4d30335550504552;
     private const ulong LowEnd = 0x0000800000000000;
@@ -312,6 +315,40 @@ public static unsafe class FirstExitOwnedArena
     public static bool IsGuardPage(uint page)
         => page == 21 || page == 86 || page == 87 || page == 92 ||
            page == 93 || page == 98 || page == 99 || page == 104;
+
+    /// <summary>
+    /// Describe only the retained arena's non-guard pages for BuildRetainedImage.
+    /// Other retained image/allocator/ACPI/code ranges remain caller obligations.
+    /// This writes declarations, not page tables; it does not change live mappings.
+    /// Keep the original ready state and accessible arena stable during this call.
+    /// </summary>
+    public static bool WriteMappingRanges(ref FirstExitOwnedArenaState state,
+        SeparatePageFaultMappingRange* ranges, ulong capacity, out ulong written)
+    {
+        written = 0;
+        ulong bytes = MappingRangeCount * (ulong)sizeof(SeparatePageFaultMappingRange);
+        if (!state.IsReady || !PageRange((ulong)state.Data, Bytes) ||
+            ranges == null || ((ulong)ranges & 7) != 0 || (ulong)ranges >= LowEnd - bytes ||
+            capacity < MappingRangeCount || capacity > SeparateDisabledDefaultPageFaultPageTables.MaximumRetainedRanges ||
+            FirstExitDescriptors.Overlaps((ulong)ranges, bytes, (ulong)state.Data, Bytes)) return false;
+        fixed (FirstExitOwnedArenaState* address = &state)
+            if (FirstExitDescriptors.Overlaps((ulong)ranges, bytes, (ulong)address,
+                (ulong)sizeof(FirstExitOwnedArenaState))) return false;
+        if (!ValidateCanaries(state)) return false;
+
+        // The shared guard predicate is the single source of interval boundaries.
+        uint start = 0;
+        for (uint page = 0; page <= PageCount; page++)
+        {
+            if (page != PageCount && !IsGuardPage(page)) continue;
+            if (page > start)
+                ranges[written++] = new SeparatePageFaultMappingRange(
+                    (ulong)state.Data + start * 4096UL, page - start,
+                    PageProtection.Read | PageProtection.Write);
+            start = page + 1;
+        }
+        return written == MappingRangeCount;
+    }
 
     public static bool Materialize(ref FirstExitOwnedArenaState state, byte* data,
         ulong capacity, ulong ownedVectorPage, ushort firmwareCs)

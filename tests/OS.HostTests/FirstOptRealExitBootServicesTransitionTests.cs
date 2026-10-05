@@ -5,6 +5,8 @@ using System.Security;
 using System.Text;
 using OS.Boot;
 using OS.Kernel.Platform;
+using OS.Kernel.Diagnostics;
+using OS.Kernel.Memory;
 using Transition = OS.Boot.FirstOptRealExitBootServicesTransition;
 
 internal static unsafe class FirstOptRealExitBootServicesTransitionTests
@@ -73,6 +75,32 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 if (FirstExitOwnedArena.IsGuardPage(page))
                 { guards++; Need(!new ReadOnlySpan<byte>(data + page * 4096, 4096).ContainsAnyExcept((byte)0), "reserved guard page remains zero"); }
             Need(guards == 8, "guard reservations for four stacks; mapping still deferred");
+            SeparatePageFaultMappingRange* mapping = stackalloc SeparatePageFaultMappingRange[6];
+            mapping[0] = new(0x12345000, 1, PageProtection.Read);
+            mapping[5] = new(0x54321000, 1, PageProtection.Read);
+            Need(!FirstExitOwnedArena.WriteMappingRanges(ref state, mapping, 4, out ulong mappedRanges) &&
+                mappedRanges == 0 && mapping[0].Start == 0x12345000 &&
+                !FirstExitOwnedArena.WriteMappingRanges(ref state, (SeparatePageFaultMappingRange*)data, 5, out mappedRanges),
+                "short or arena-aliased mapping output refuses without writes");
+            Need(FirstExitOwnedArena.WriteMappingRanges(ref state, mapping, 6, out mappedRanges) &&
+                mappedRanges == 5 && mapping[5].Start == 0x54321000, "five ranges leave capacity tail intact");
+            for (uint page = 0; page < FirstExitOwnedArena.PageCount; page++)
+            {
+                int covering = 0;
+                for (ulong range = 0; range < mappedRanges; range++)
+                {
+                    Need(mapping[range].Protection == (PageProtection.Read | PageProtection.Write), "arena RW/NX intent");
+                    ulong address = (ulong)data + page * 4096UL;
+                    if (address >= mapping[range].Start && address - mapping[range].Start < mapping[range].PageCount * 4096)
+                        covering++;
+                }
+                Need(covering == (FirstExitOwnedArena.IsGuardPage(page) ? 0 : 1), "exact arena coverage excludes all eight guards");
+            }
+            VerifyRetainedArenaImage(data, mapping, mappedRanges);
+            data[22 * 4096] ^= 1;
+            Need(!FirstExitOwnedArena.WriteMappingRanges(ref state, mapping, 6, out mappedRanges) && mappedRanges == 0,
+                "damaged stack canary refuses mapping declarations");
+            data[22 * 4096] ^= 1;
             foreach (uint offset in new uint[] { 22 * 4096, 86 * 4096 - 16, 88 * 4096, 92 * 4096 - 16,
                 94 * 4096, 98 * 4096 - 16, 100 * 4096, 104 * 4096 - 16 })
             { data[offset] ^= 1; Need(!FirstExitOwnedArena.ValidateCanaries(state), "each canary is checked"); data[offset] ^= 1; }
@@ -80,6 +108,45 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 !FirstExitOwnedArena.Materialize(ref state, data, FirstExitOwnedArena.Bytes, 0x100000, 56), "prepared arena cannot be reset");
         }
         finally { NativeMemory.AlignedFree(allocation); }
+    }
+
+    private static void VerifyRetainedArenaImage(byte* data, SeparatePageFaultMappingRange* ranges, ulong rangeCount)
+    {
+        const ulong root = 0x100000;
+        const ulong tablePages = SeparateDisabledDefaultPageFaultPageTables.MaximumTablePages;
+        ulong* entries = (ulong*)NativeMemory.AlignedAlloc((nuint)(tablePages * 4096), 4096);
+        Need(entries != null, "retained mapping backing");
+        try
+        {
+            new Span<ulong>(entries, (int)tablePages * 512).Clear();
+            X64PageTableImagePage* metadata = stackalloc X64PageTableImagePage[(int)tablePages];
+            PhysicalAddress.TryCreateFromHardwareRegisterBoundary(root, out PhysicalAddress physical);
+            X64PatMappingToken.TryCreate(0x0006_0501_0007_0406, 0, 3, 4, out X64PatMappingToken pat);
+            X64PageTableEncodingPreconditions mode = X64PageTableEncodingPreconditions.CreateObserved(48, true, true, false, false, pat);
+            SeparatePageFaultPageTableResult result = SeparateDisabledDefaultPageFaultPageTables.BuildRetainedImage(
+                new(physical, tablePages, mode), ranges, rangeCount, 6,
+                metadata, tablePages, entries, tablePages * 512);
+            Need(result.Succeeded && result.MappedPages == tablePages + 97, "actual arena declarations build an audited hierarchy");
+            // Independent raw-bit walk checks the real output, including every guard gap.
+            for (uint page = 0; page < FirstExitOwnedArena.PageCount; page++)
+            {
+                ulong address = (ulong)data + page * 4096UL;
+                ulong table = 0, leaf = 0;
+                for (int level = 4; level >= 1; level--)
+                {
+                    ulong raw = entries[table * 512 + ((address >> (12 + 9 * (level - 1))) & 511)];
+                    if (raw == 0) break;
+                    if (level == 1) { leaf = raw; break; }
+                    ulong target = raw & 0x000f_ffff_ffff_f000;
+                    Need((raw & ~0x000f_ffff_ffff_f000UL) == 3 && target >= root && target - root < tablePages * 4096,
+                        "arena oracle follows only owned tables");
+                    table = (target - root) / 4096;
+                }
+                Need(leaf == (FirstExitOwnedArena.IsGuardPage(page) ? 0 : address | (1UL << 63) | 3),
+                    "actual arena mapping is exact RW/NX or an absent guard");
+            }
+        }
+        finally { NativeMemory.AlignedFree(entries); }
     }
 
     private static void OwnedStackEntry()
