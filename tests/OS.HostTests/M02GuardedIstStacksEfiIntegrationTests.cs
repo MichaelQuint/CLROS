@@ -18,11 +18,11 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
     private const string FailureMarker =
         "M02_GUARDED_IST_STACK_ALLOCATION_FAILED";
     private const string CompileClosureSha256 =
-        "54bfa32fa851eb9a5f96ee8f3b8d9bd3f916b01dc629d5497cb42d97f6d79993";
+        "248ec765427dd391ad6324e3c96f8e8d4d234c67302628c0d4a4eeadd0e9ecb1";
     private const string ProjectFileSha256 =
-        "e55c4225fd2725f6e338e0f60d5113d59b4db964552ca0c157be1be1e2ae7b99";
+        "bc74c58deea0556a1e752c3f1b6b58e9a5f44fcc7c5901b1e5959e97d6bca953";
     private const string CanonicalProjectShapeSha256 =
-        "351d5246c4d63cc812c4586e2aa1815fe08dbf012af7aab3a5b9b628ac64e28e";
+        "793cfc8d81f1d112768d5b3cadf98b60d7f8a2aeda650d8515af4ee78589bb44";
 
     private static readonly (string Path, string Sha256)[] ImmutableReviewedInputs =
     [
@@ -170,7 +170,7 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
 
         return maxValueDeclarations.Count == 1
             && runtime.Contains("public struct UInt64", StringComparison.Ordinal)
-            && compileItems.Length == 89
+            && compileItems.Length == 92
             && compileHash == CompileClosureSha256
             && projectHash == ProjectFileSha256
             && gdtIndex >= 0
@@ -186,7 +186,10 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
             && symbolGroups.Length == 1
             && symbolGroups[0].Elements("DefineConstants").Single().Value ==
                 "$(DefineConstants);M02_GUARDED_IST_STACK_ALLOCATION_PROBE"
-            && dependencyConditions.Length == 12
+            && dependencyConditions.Length == 13
+            && dependencyConditions.Contains(
+                "'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'",
+                StringComparer.Ordinal)
             && dependencyConditions.Contains(
                 "'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'",
                 StringComparer.Ordinal)
@@ -233,17 +236,17 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
                 "guarded_ist_stack_allocation_requires_owned_x64_gdt_encoding",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=103",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=106",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 CanonicalProjectShapeSha256,
                 StringComparison.Ordinal)
             && buildScript.Contains(GuardedIstKey, StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 103",
+                "$expectedSourceClosureInputCount = 106",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 89",
+                "$compileItems.Count -ne 92",
                 StringComparison.Ordinal)
             && verifierScript.Contains(GuardedIstKey, StringComparison.Ordinal)
             && verifierScript.Contains(

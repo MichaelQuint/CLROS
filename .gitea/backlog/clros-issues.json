@@ -9142,7 +9142,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M04: NativeAOT Runtime Correctness.",
-      "currentEvidence": "Nine earlier M04 keyed children (#70 through #78) are closed. Step981 accepts the bounded M04-010/#79/#537 returning-reference profile at 5d894c8: full 3704/ 3705/0/16READY, fresh default/reference/ACPI captures, two executing-stack words preserved through five checks and conservative 8456-byte local bound within 16KiB. This catalog requests M04-010 closure; actual tracker closure is separate and #80 remains blocked until then. Metadata registration, collecting GC/root enumeration, dispatch, exceptions and general runtime completion remain unaccepted; Gate4 stays Fail. This epic remains a coordination tracker with no implementation ownership.",
+      "currentEvidence": "Nine earlier M04 keyed children (#70 through #78) are closed. Step981 accepts the bounded M04-010/#79/#537 returning-reference profile at 5d894c8: full 3704/ 3705/0/16READY, fresh default/reference/ACPI captures, two executing-stack words preserved through five checks and conservative 8456-byte local bound within 16KiB. PR540 merged at f3b4c83 and #79/#537 closed with evidence. #80 is now claimed; step983 adds its bounded one-module host contract (81START/82PASS/0FAIL, actual89-source no-stdlib AssemblyRefs0), with live metadata integration and full common acceptance still pending. Metadata registration, collecting GC/root enumeration, dispatch, exceptions and general runtime completion remain unaccepted; Gate4 stays Fail. This epic remains a coordination tracker with no implementation ownership.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -10044,7 +10044,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement checked reference and bulk write barriers, including .NET 10 bulk-move requirements.",
-      "currentEvidence": "Steps967/973 establish retained-page stores, three returning reference helpers and the managed bulk bridge. Step977 had no live stack sentinel; steps979/981 add and accept two original-stack words, five checks and the strict 71-record reference body. Clean 5d894c8 passes full 3704START/ 3705PASS/0FAIL/16READY and fresh default/reference/ACPI capture reviews (reference 71, ACPI 35). Same-image native proof binds actual word loads/stores, witness entryRSP-minus 72, exact 8448/conservative 8456-byte local bound within 16KiB, original authority and full 24-byte prefixes. Review failures and historical source attempts are preserved. Catalog closed/done is limited to the noncollecting exclusive retained-page profile; tracker #79/#537 closure is separate. General WriteBarriers, collecting GC, root enumeration, concurrency, wider-vector/unwind support, EBS and hosted runtime remain unaccepted.",
+      "currentEvidence": "Steps967/973 establish retained-page stores, three returning reference helpers and the managed bulk bridge. Step977 had no live stack sentinel; steps979/981 add and accept two original-stack words, five checks and the strict 71-record reference body. Clean 5d894c8 passes full 3704START/ 3705PASS/0FAIL/16READY and fresh default/reference/ACPI capture reviews (reference 71, ACPI 35). Same-image native proof binds actual word loads/stores, witness entryRSP-minus 72, exact 8448/conservative 8456-byte local bound within 16KiB, original authority and full 24-byte prefixes. Review failures and historical source attempts are preserved. Catalog closed/done is limited to the noncollecting exclusive retained-page profile; PR540 merged at f3b4c83 and tracker #79/#537 closed with evidence. General WriteBarriers, collecting GC, root enumeration, concurrency, wider-vector/unwind support, EBS and hosted runtime remain unaccepted.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Implement checked reference and bulk write barriers, including .NET 10 bulk-move requirements.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -10109,7 +10109,7 @@
         "M04-010"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -10135,7 +10135,7 @@
       ],
       "collisionLane": null,
       "summary": "Register TypeManager/module metadata from the live NativeAOT image.",
-      "currentEvidence": "Step981 accepts the bounded M04-010 live stack-sentinel/common/guest milestone at 5d894c8. The #79/#537 tracker closure action remains separate, so #80 retains agent:blocked until that dependency is actually closed. TypeManager/module registration is still unimplemented; no metadata registration, collecting GC, dispatch, exceptions or general runtime completion is claimed.",
+      "currentEvidence": "Step989 completes #80/#544 bounded one-module current-image registration and slot-derived ABI consumption. At 34bd75c the full common suite passes 3733START/3734PASS/0FAIL/1terminal; native emitted-code, exact common/guest file association, raw lifecycle/provenance and disk accounting reviews accept fresh default and TypeManager QEMU captures. One RTR16.0 module/31 rows, required1824 of4096 bytes, ABI48 and full16-byte slot; 45 ordered unique enabled records cover capacity/repeat/foreign rejection and present-empty/missing lookup. #81 is now ready; general TypeManagerRtrScans remains Deferred, Gates3/4 Fail, and no GC roots/collection/hosted .NET/Kestrel/real ExitBootServices/cloud readiness is accepted.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Register TypeManager/module metadata from the live NativeAOT image.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -10188,7 +10188,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves only \"Register TypeManager/module metadata from the live NativeAOT image.\" It does not by itself prove the M04 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M04-012",
@@ -10199,7 +10199,7 @@
         "M04-011"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -10225,7 +10225,7 @@
       ],
       "collisionLane": null,
       "summary": "Materialize GC static roots and reject malformed metadata.",
-      "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
+      "currentEvidence": "Step989 completes the sole prerequisite #80/M04-011 with one bounded executing-image module and slot-derived consumer in QEMU. This issue is now ready for GC static-root materialization and malformed metadata rejection; root storage, allocator/barrier integration, lifetime and genuine compiled-accessor evidence are not yet implemented or accepted. #82 remains blocked on this issue.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Materialize GC static roots and reject malformed metadata.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

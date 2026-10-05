@@ -860,6 +860,18 @@ internal static class BuildEfiShellPreflightTests
         (string Name, Action<SourceClosureFixture> Mutate, string Reason)[] cases =
         [
             (
+                "reviewed-type-manager-altered-source",
+                source => AppendSource(
+                    source, "Runtime", "TypeManagerModuleMetadataLiveNativeAOTImage.cs",
+                    "\n// Alter the complete reviewed source identity.\n"),
+                "forbidden_active_source"),
+            (
+                "reviewed-type-manager-wrong-path",
+                source => File.Copy(
+                    SourcePath(source, "Runtime", "TypeManagerModuleMetadataLiveNativeAOTImage.cs"),
+                    SourcePath(source, "Memory", "PageProtection.cs"), overwrite: true),
+                "forbidden_active_source"),
+            (
                 "active-span",
                 source => AppendSource(
                     source,
@@ -1077,7 +1089,13 @@ internal static class BuildEfiShellPreflightTests
                 tempRoot,
                 "m01-source-negative-" + name);
             mutate(source);
-            if (!ExpectM01SourceClosureFailure(tools, source, reason))
+            string? expectedDetail = name switch
+            {
+                "reviewed-type-manager-altered-source" => @"..\OS.Kernel\Runtime\TypeManagerModuleMetadataLiveNativeAOTImage.cs:reviewed_type_manager_source_identity",
+                "reviewed-type-manager-wrong-path" => @"..\OS.Kernel\Memory\PageProtection.cs:using_directive",
+                _ => null
+            };
+            if (!ExpectM01SourceClosureFailure(tools, source, reason, expectedDetail))
             {
                 Console.WriteLine("M01 forbidden-source case failed: " + name);
                 return false;
@@ -3673,7 +3691,7 @@ internal static class BuildEfiShellPreflightTests
         string script = File.ReadAllText(buildScriptPath);
         string[] requiredText =
         [
-            "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=103",
+            "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=106",
             "Write-Host (\"EFI_PUBLISH_OUTPUT_AUTHORITY status=ok leaves=\" + $outputPublicationPlan.Paths.Count)",
             "Write-Host (\"EFI_PUBLISH_VERIFIER_INPUT_AUTHORITY status=ok inputs=\" + $verifierInputLocks.Count)",
             "Write-Host (\"EFI_PUBLISH_VERIFIER_INPUTS_UNCHANGED status=ok inputs=\" + $verifierInputLocks.Count)",
@@ -4087,7 +4105,7 @@ internal static class BuildEfiShellPreflightTests
         string switchMarker =
             "EFI_PREFLIGHT_M01_SWITCHES status=ok " + expectedSwitches;
         const string closureMarker =
-            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=89 prerequisiteGap=UefiMemoryType";
+            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=92 prerequisiteGap=UefiMemoryType";
         bool passed = result.ExitCode == 0
             && result.Output.Contains(switchMarker, StringComparison.Ordinal)
             && result.Output.Contains(closureMarker, StringComparison.Ordinal)
@@ -4186,7 +4204,8 @@ internal static class BuildEfiShellPreflightTests
     private static bool ExpectM01SourceClosureFailure(
         ToolFixture tools,
         SourceClosureFixture source,
-        string? expectedReason)
+        string? expectedReason,
+        string? expectedDetail = null)
     {
         ProcessResult result = RunPreflight(
             tools,
@@ -4213,6 +4232,14 @@ internal static class BuildEfiShellPreflightTests
                 && result.Output.Contains(
                     "reason=" + expectedReason,
                     StringComparison.Ordinal);
+        }
+
+        if (expectedDetail is not null)
+        {
+            string detail = "detail=\"" + expectedDetail + "\"";
+            passed = passed
+                && result.Output.Contains(detail, StringComparison.Ordinal)
+                && log.Contains(detail, StringComparison.Ordinal);
         }
 
         if (!passed)
@@ -4866,7 +4893,7 @@ internal static class BuildEfiShellPreflightTests
         [
             "EFI_PREFLIGHT_M01_SWITCHES status=ok loadedImageStack=false liveAllocator=false ownedPaging=false m02SafeStub=false",
             "EFI_PREFLIGHT_M02_SWITCHES status=ok enabled=false loadedImageStack=false liveAllocator=false ownedPaging=false checkedPortIoBinding=false",
-            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=89 prerequisiteGap=UefiMemoryType",
+            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=92 prerequisiteGap=UefiMemoryType",
             "EFI_PREFLIGHT_DOTNET path=\"",
             "sdkVersion=\"10.0.3",
             "EFI_PREFLIGHT_MSVC_LINKER path=\"" + Path.GetFullPath(tools.LinkerPath) + "\" version=\"14.40.33807\"",

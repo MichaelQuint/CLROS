@@ -398,7 +398,7 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
             && symbols.Length == 1
             && symbols[0].Elements("DefineConstants").Single().Value
                 == "$(DefineConstants);M02_SAFE_STUB_PROBE"
-            && errorConditions.Length == 13
+            && errorConditions.Length == 14
             && errorConditions.Contains(
                 "'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'",
                 StringComparer.Ordinal)
@@ -454,7 +454,7 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
                 "[switch] $EnableM02SafeStubProbe",
                 StringComparison.Ordinal)
             && script.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=103",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=106",
                 StringComparison.Ordinal)
             && script.Contains(
                 "reviewed=\" + $m01SourceClosure.ReviewedSourceCount",
