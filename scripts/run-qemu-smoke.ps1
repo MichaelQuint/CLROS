@@ -71,6 +71,7 @@ param(
     [switch] $EnableM03MemoryMapCaptureProbe,
     [switch] $EnableM03FirmwareEntropySeedProbe,
     [switch] $EnableM04TypeManagerModuleRegistrationProbe,
+    [switch] $EnableM03TypedExitBootServicesCallProbe,
     [string] $FirmwareRngSource = "",
     [switch] $EnableM04CheckedReferenceBarrierProbe,
     [switch] $SkipImageBuild
@@ -709,6 +710,39 @@ $script:M03FirmwareEntropyRequiredMarkers = @(
     "M03_ENTROPY_RETAIN",
     "CLROS_M03_003_READY bytes=32",
     "TEST_PASS m03.003.efi",
+    "TEST_START boot.sequence",
+    "BOOT_PHASE PhaseA.Audit START",
+    "BOOT_PHASE PhaseA.Audit PASS",
+    "BOOT_PHASE PhaseA.Diagnostics START",
+    "BOOT_PHASE PhaseA.Diagnostics PASS",
+    "OS_BOOT_OK",
+    "TEST_PASS boot.sequence",
+    "OS_SMOKE_PASS"
+)
+
+$script:M03TypedExitBootServicesRequiredMarkers = @(
+    "TEST_START efi.main",
+    "EFI_CONSOLE_READY",
+    "UEFI_MEMORY_MAP_READY",
+    "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT",
+    "UEFI_MEMORY_MAP_OWNED",
+    "BOOT_HANDOFF_READY",
+    "UEFI_MEMORY_MAP_NORMALIZED",
+    "BOOT_MEMORY_MAP_ACCEPTED",
+    "BOOT_MEMORY_REGIONS_READY",
+    "BOOT_MEMORY_REGION_COUNT",
+    "BOOT_PAGE_ALLOCATOR_READY",
+    "BOOT_ACPI_RSDP_HANDOFF_READY",
+    "UEFI_ACPI_RSDP_READY",
+    "TEST_START m03.004",
+    "M03_TYPED_EBS_IMAGE",
+    "M03_TYPED_EBS_ADMISSION",
+    "M03_TYPED_EBS_CASE id=0",
+    "M03_TYPED_EBS_CASE id=1",
+    "M03_TYPED_EBS_CASE id=2",
+    "M03_TYPED_EBS_CASE id=3",
+    "CLROS_M03_004_READY",
+    "TEST_PASS m03.004",
     "TEST_START boot.sequence",
     "BOOT_PHASE PhaseA.Audit START",
     "BOOT_PHASE PhaseA.Audit PASS",
@@ -2391,6 +2425,130 @@ function Assert-M03AcpiBootstrapTranscript {
     if($total -gt 266240 -or $retain.total -ne $total -or $retain.descriptors -ne 5 -or $retain.guards -ne 32 -or
        $retain.tail -ne 266240-$total -or $retain.mismatches -ne 0){throw 'm03_acpi_retained_accounting'}
 }
+
+function Assert-M03TypedExitBootServicesTranscript {
+    param([string] $SerialLogPath)
+    $path=if([IO.Path]::IsPathRooted($SerialLogPath)){$SerialLogPath}else{Join-Path $root $SerialLogPath}
+    $bytes=[IO.File]::ReadAllBytes($path)
+    if($bytes.Length -lt 304 -or $bytes.Length -gt 32768){throw 'm03_typed_ebs_raw_extent'}
+    $text=(New-Object Text.UTF8Encoding($false,$true)).GetString($bytes)
+    $start=$text.IndexOf("TEST_START efi.main`r`n",[StringComparison]::Ordinal)
+    $terminal="OS_SMOKE_PASS`r`n"
+    $at=$text.IndexOf($terminal,[StringComparison]::Ordinal);$end=$at+$terminal.Length
+    if($start -ne 304 -or $at -lt 304){throw 'm03_typed_ebs_protocol_extent'}
+    $sha=[Security.Cryptography.SHA256]::Create()
+    try {
+        $pre=[BitConverter]::ToString($sha.ComputeHash($bytes,0,304)).Replace('-','')
+        if(-not [string]::Equals($pre,'BB50E913C752428AE49AE6C20879196F507926CC685CAD83986494244299D124',[StringComparison]::Ordinal)){throw 'm03_typed_ebs_firmware_prefix'}
+        $suffix=[BitConverter]::ToString($sha.ComputeHash($bytes,$end,$bytes.Length-$end)).Replace('-','')
+        $full=$bytes.Length-$end -eq 6945 -and [string]::Equals($suffix,'BFBB6B92A5EEE7728E1AA54A2A4D262135215D7D2F267696E508A23BD514C61D',[StringComparison]::Ordinal)
+        $short=$bytes.Length-$end -eq 251 -and [string]::Equals($suffix,'011BC86409F7A01C1494F57146920B37184A02063B7E995B44A99C6B083E6615',[StringComparison]::Ordinal)
+        if(-not ($full -or $short)){throw 'm03_typed_ebs_firmware_suffix'}
+    } finally {$sha.Dispose()}
+    $owned=$text.Substring($start,$end-$start)
+    if([regex]::IsMatch($owned,'[^\x20-\x7E\r\n]')){throw 'm03_typed_ebs_non_ascii'}
+    $lines=$owned.Split([string[]]@("`r`n"),[StringSplitOptions]::None)
+    $count=30
+    if($lines.Count -ne $count+1 -or $lines[$count].Length -ne 0){throw 'm03_typed_ebs_line_count'}
+    $fixed=@{
+        0='TEST_START efi.main'
+        1='EFI_CONSOLE_READY'
+        2='UEFI_MEMORY_MAP_READY'
+        4='UEFI_MEMORY_MAP_OWNED'
+        5='BOOT_HANDOFF_READY'
+        6='UEFI_MEMORY_MAP_NORMALIZED'
+        7='BOOT_MEMORY_MAP_ACCEPTED'
+        8='BOOT_MEMORY_REGIONS_READY'
+        11='BOOT_ACPI_RSDP_HANDOFF_READY'
+        12='UEFI_ACPI_RSDP_READY'
+        13='TEST_START m03.004'
+        15='M03_TYPED_EBS_ADMISSION default=6 missingFunction=3 missingHandle=4 simulated=5 exited=5 readyDenied=5 readyPrepare=7 unchanged=1 calls=0'
+        20='CLROS_M03_004_READY controlled=true realExitBootServices=false states=4 calls=4 reuse=4 reentry=1 mode=0'
+        21='TEST_PASS m03.004'
+        22='TEST_START boot.sequence'
+        23='BOOT_PHASE PhaseA.Audit START'
+        24='BOOT_PHASE PhaseA.Audit PASS'
+        25='BOOT_PHASE PhaseA.Diagnostics START'
+        26='BOOT_PHASE PhaseA.Diagnostics PASS'
+        27='OS_BOOT_OK'
+        28='TEST_PASS boot.sequence'
+        29='OS_SMOKE_PASS'
+    }
+    foreach($index in $fixed.Keys){if(-not [string]::Equals($lines[$index],$fixed[$index],[StringComparison]::Ordinal)){throw ('m03_typed_ebs_literal_'+$index)}}
+    $counts=@()
+    foreach($entry in @(@(3,'UEFI_MEMORY_MAP_DESCRIPTOR_COUNT '),@(9,'BOOT_MEMORY_REGION_COUNT '))){
+        $m=[regex]::Match($lines[$entry[0]],'\A'+[regex]::Escape($entry[1])+'([1-9][0-9]*)\z');$n=[UInt64]0
+        if(-not $m.Success -or -not [UInt64]::TryParse($m.Groups[1].Value,[Globalization.NumberStyles]::None,[Globalization.CultureInfo]::InvariantCulture,[ref]$n) -or $n -gt 4096){throw 'm03_typed_ebs_region_count'}
+        $counts+=$n
+    }
+    if($counts[0] -ne $counts[1]){throw 'm03_typed_ebs_region_count_match'}
+    $a=Read-M03MemoryMapCaptureRecord $lines[10] 'BOOT_PAGE_ALLOCATOR_READY status=Ready' @('regions:dec','conventionalPages:dec','conventionalBytes:dec','freeNodes:dec','freePages:dec','freeBytes:dec','pageSize:dec','statusCode:dec')
+    if($a.regions -ne $counts[0] -or $a.freeNodes -lt 1 -or $a.freeNodes -gt $a.regions -or $a.conventionalPages -lt $a.freeNodes -or
+       $a.conventionalPages -ne $a.freePages -or [decimal]$a.conventionalPages*4096 -ne [decimal]$a.conventionalBytes -or
+       $a.conventionalBytes -ne $a.freeBytes -or $a.pageSize -ne 4096 -or $a.statusCode -ne 0){throw 'm03_typed_ebs_allocator_accounting'}
+
+    $image=Read-M03MemoryMapCaptureRecord $lines[14] 'M03_TYPED_EBS_IMAGE' @('handle:dec','callback:dec','storage:dec','storageBytes:dec','stateBytes:dec')
+    if($image.handle -eq 0 -or $image.callback -eq 0 -or $image.storage -eq 0 -or $image.storage % 8 -ne 0 -or
+       $image.storageBytes -ne 600 -or $image.stateBytes -ne 40 -or [decimal]$image.storage+600 -gt [decimal][UInt64]::MaxValue){throw 'm03_typed_ebs_geometry'}
+    $keys=@([UInt64]0,[UInt64]'9223372036854775808',[UInt64]::MaxValue,[UInt64]'9223372036854775808')
+    $statuses=@([UInt64]0,[UInt64]'9223372036854775810',[UInt64]'13835058055282164003',[UInt64]0)
+    for($i=0;$i -lt 4;$i++){
+        $case=Read-M03MemoryMapCaptureRecord $lines[16+$i] 'M03_TYPED_EBS_CASE' @('id:dec','state:dec','handle:dec','key:dec','status:dec','calls:dec','phase:dec','reuseAttempt:dec','reusePrepare:dec','unchanged:dec','reentryAttempt:dec','reentryPrepare:dec','reentryUnchanged:dec')
+        $reentry=if($i -eq 3){8}else{0};$preserved=if($i -eq 3){1}else{0}
+        if($case.id -ne $i -or [decimal]$case.state -ne [decimal]$image.storage+40*$i -or $case.handle -ne $image.handle -or
+           $case.key -ne $keys[$i] -or $case.status -ne $statuses[$i] -or $case.calls -ne 1 -or $case.phase -ne 2 -or
+           $case.reuseAttempt -ne 9 -or $case.reusePrepare -ne 9 -or $case.unchanged -ne 1 -or
+           $case.reentryAttempt -ne $reentry -or $case.reentryPrepare -ne $reentry -or $case.reentryUnchanged -ne $preserved){throw ('m03_typed_ebs_case_'+$i)}
+    }
+}
+
+function Assert-M03TypedExitBootServicesRunnerResult {
+    param([string[]] $Lines,[string] $SummaryLogPath,[string] $SerialLogPath,
+        [string[]] $RequiredMarkers,[string[]] $OrderedMarkers,[string[]] $UniqueMarkers,[string[]] $ForbiddenMarkers,
+        [string] $ImagePath,[string] $Profile)
+    # Closed ordinary stdout binds the source-configured 750ms quiet drain. It
+    # does not claim a separately measured duration or an archived runner DLL.
+    if($Lines.Count -ne 17){throw 'm03_typed_ebs_runner_count'}
+    foreach($line in $Lines){if([regex]::IsMatch($line,'[\x00-\x1f\x7f-\uffff]')){throw 'm03_typed_ebs_runner_control'}}
+    $q=[regex]::Match($Lines[0],'\AQEMU_DISCOVERY result=(.+) checked=(.+)\z')
+    $o=[regex]::Match($Lines[1],'\AOVMF_DISCOVERY result=(.+) checked=(.+)\z')
+    if(-not $q.Success -or -not $o.Success -or $q.Groups[1].Value -ceq 'not_found' -or $o.Groups[1].Value -ceq 'not_found'){throw 'm03_typed_ebs_discovery'}
+    $lines=@($Lines[2..16])
+    $expected=@('TEST_START qemu.smoke',('IMAGE_ARTIFACT '+$ImagePath),('SERIAL_LOG '+$SerialLogPath),('OVMF_CODE '+$o.Groups[1].Value),
+        ('WORKLOAD_PROFILE '+$Profile),'MARKER_PRESETS none',('REQUIRED_MARKERS '+[string]::Join(';',$RequiredMarkers)),
+        ('ORDERED_MARKERS '+[string]::Join(';',$OrderedMarkers)),('UNIQUE_MARKERS '+[string]::Join(';',$UniqueMarkers)),
+        ('FORBIDDEN_MARKERS '+[string]::Join(';',$ForbiddenMarkers)),$lines[10],'SERIAL_MARKER_DRAIN milliseconds=750',$lines[12],
+        ('SUMMARY_LOG '+$SummaryLogPath),'TEST_PASS qemu.smoke')
+    for($i=0;$i -lt 15;$i++){if(-not [string]::Equals($lines[$i],$expected[$i],[StringComparison]::Ordinal)){throw ('m03_typed_ebs_runner_record_'+$i)}}
+    $exit=[Int32]0;$m=[regex]::Match($lines[12],'\AQEMU_PROCESS_RESULT disposition=runner-terminated exitCode=(0|-?[1-9][0-9]*)\z')
+    if(-not $m.Success -or -not [Int32]::TryParse($m.Groups[1].Value,[Globalization.NumberStyles]::AllowLeadingSign,[Globalization.CultureInfo]::InvariantCulture,[ref]$exit)){throw 'm03_typed_ebs_runner_exit'}
+    $serialPath=if([IO.Path]::IsPathRooted($SerialLogPath)){$SerialLogPath}else{Join-Path $root $SerialLogPath}
+    Assert-M03TypedExitBootServicesTranscript $serialPath
+    $raw=[IO.File]::ReadAllBytes($serialPath);$serial=(New-Object Text.UTF8Encoding($false,$true)).GetString($raw)
+    # Both admitted suffixes contain two firmware lines. Only the full variant
+    # adds an unterminated console drawing; the preceding raw check binds every byte.
+    $suffixBytes=$raw.Length-($serial.IndexOf("OS_SMOKE_PASS`r`n",[StringComparison]::Ordinal)+15)
+    $streamLines=35;$invalidLines=2
+    if($suffixBytes -eq 251){$streamLines=34;$invalidLines=1}
+    $invalid=0;foreach($b in $raw){if($b -ne 9 -and $b -ne 10 -and $b -ne 13 -and ($b -lt 32 -or $b -gt 126)){$invalid++}}
+    $stream='SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+$raw.Length+' lines='+$streamLines+' invalidBytes='+$invalid+' invalidLines='+$invalidLines+' orderedSeen=30 outOfOrder=0 uniqueSeen=30 duplicateUnique=0'
+    if(-not [string]::Equals($lines[10],$stream,[StringComparison]::Ordinal)){throw 'm03_typed_ebs_stream_accounting'}
+    $summaryPath=if([IO.Path]::IsPathRooted($SummaryLogPath)){$SummaryLogPath}else{Join-Path $root $SummaryLogPath}
+    $summary=New-Object 'System.Collections.Generic.List[string]';$summary.Add('QEMU_SMOKE_STATUS pass')
+    foreach($i in @(1,2,4,5,6,7,8,9)){$summary.Add($expected[$i])}
+    $protocol=$serial.Substring(304,$serial.IndexOf("OS_SMOKE_PASS`r`n",[StringComparison]::Ordinal)+15-304).Split([string[]]@("`r`n"),[StringSplitOptions]::None)
+    foreach($line in $protocol){if($line.Length -gt 0){$summary.Add('OBSERVED_MARKER '+$line)}}
+    foreach($line in @('APP_EXIT_RESULT none','APP_EXIT_MALFORMED none','MISSING_MARKERS none','OUT_OF_ORDER_MARKERS none','DUPLICATE_UNIQUE_MARKERS none','FORBIDDEN_MARKER_HIT none','FAIL_REASON none','SERIAL_TAIL_LIMIT lines=8 chars=240')){$summary.Add($line)}
+    $tail=@($serial.Split([string[]]@("`r`n"),[StringSplitOptions]::None) | Where-Object {$_.Trim().Length -gt 0} | Select-Object -Last 8)
+    foreach($line in $tail){$s=$line.Trim();if($s.Length -gt 240){$s=$s.Substring(0,237)+'...'};$summary.Add('SERIAL_TAIL_LINE '+$s)}
+    # Ordinary Program writes Encoding.UTF8, including its BOM; exact bytes also
+    # bind all firmware tail characters without generic whitespace normalization.
+    $want=[byte[]]([Text.Encoding]::UTF8.GetPreamble()+[Text.Encoding]::UTF8.GetBytes([string]::Join("`r`n",$summary)+"`r`n"))
+    $actual=[IO.File]::ReadAllBytes($summaryPath)
+    if($actual.Length -ne $want.Length){throw 'm03_typed_ebs_summary_length'}
+    for($i=0;$i -lt $want.Length;$i++){if($actual[$i] -ne $want[$i]){throw 'm03_typed_ebs_summary_bytes'}}
+}
+
 
 function Assert-M04TypeManagerTranscript {
     param([string] $SerialLogPath)
@@ -6130,6 +6288,59 @@ try {
         exit 1
     }
 
+    if ($EnableM03TypedExitBootServicesCallProbe) {
+        foreach ($typedEbsConflict in @(
+            "EnableM01LoadedImageStackProbe",
+            "EnableM01LiveAllocatorProbe",
+            "EnableM01OwnedPagingProbe",
+            "EnableM02SafeStubProbe",
+            "EnableM02CheckedPortIoBindingProbe",
+            "EnableM02Com1OwnedPortIoProbe",
+            "EnableM02OwnedCom1ReadyProbe",
+            "EnableM02PanicSafeOwnedCom1Probe",
+            "EnableM02OwnedX64GdtEncodingProbe",
+            "EnableM02GuardedIstStackAllocationProbe",
+            "EnableM02OwnedGdtTssTerminalProbe",
+            "EnableM02NormalizedInterruptFramePageProbe",
+            "EnableM02OwnedIdtGatePopulationProbe",
+            "EnableM02IdtrContinuedExecutionProbe",
+            "EnableM02Ud2VectorStateProbe",
+            "EnableM04IndependentEndianConformanceProbe",
+            "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe",
+            "EnableM04ArithmeticConformanceProbe",
+            "EnableM04LayoutContractProbe",
+            "EnableM04ManagedHeapPageRangeProbe",
+            "EnableM02PageFaultCr2ErrorCodeProbe",
+            "EnableM02DoubleFaultIstProbe",
+            "EnableM02UnexpectedVectorPanicProbe",
+            "EnableM04RhpNewFastProbe",
+            "EnableM04RhpNewFastBeforeBindFailureProbe",
+            "EnableM04RhpNewFastExhaustionFailureProbe",
+            "EnableM04SzArrayAllocationProbe",
+            "EnableM04SzArrayAllocationBeforeBindProbe",
+            "EnableM04SzArrayAllocationExhaustionProbe",
+            "EnableM04StringAllocationProbe",
+            "EnableM04StringAllocationBeforeBindProbe",
+            "EnableM04StringAllocationExhaustionProbe",
+            "EnableM04StringAllocationInvalidLengthProbe",
+            "EnableM03MemoryMapCaptureProbe",
+            "EnableM04CheckedReferenceBarrierProbe",
+            "EnableM03FirmwareEntropySeedProbe",
+            "EnableM04TypeManagerModuleRegistrationProbe",
+            "EnableUefiGoneSimulationProbe",
+            "EnableExitBootServicesFreshMapProbe",
+            "EnableAcpiPhysicalDiscoveryProbe"
+        )) {
+            if ([bool](Get-Variable -Name $typedEbsConflict -ValueOnly)) { Write-Host ('TEST_FAIL qemu.smoke m03_typed_ebs_profile_conflict property='+$typedEbsConflict); exit 1 }
+        }
+        if (-not $BuildEfi -or $SkipImageBuild -or $PSBoundParameters.ContainsKey('M01RawObservationLog') -or $RequireNativeAppMarkers -or @($args).Count -ne 0) {
+            Write-Host 'TEST_FAIL qemu.smoke m03_typed_ebs_requires_build_and_original_capture'; exit 1
+        }
+        foreach ($key in @('RequireMarker','RequireOrderedMarker','RequireUniqueMarker','ForbidMarker','MarkerPreset')) {
+            if ($PSBoundParameters.ContainsKey($key)) { Write-Host ('TEST_FAIL qemu.smoke m03_typed_ebs_forbids_override parameter='+$key); exit 1 }
+        }
+    }
+
     if ($EnableM04TypeManagerModuleRegistrationProbe) {
         if (-not $EnableM01LoadedImageStackProbe) { Write-Host 'TEST_FAIL qemu.smoke m04_type_manager_requires_original_loaded_image'; exit 1 }
         foreach ($conflict in @(
@@ -6287,6 +6498,7 @@ try {
         "EnableM03MemoryMapCaptureProbe",
         "EnableM03FirmwareEntropySeedProbe",
         "EnableM04TypeManagerModuleRegistrationProbe",
+        "EnableM03TypedExitBootServicesCallProbe",
         "EnableUefiGoneSimulationProbe",
         "EnableExitBootServicesFreshMapProbe",
         "EnableAcpiPhysicalDiscoveryProbe"
@@ -6722,6 +6934,13 @@ $rhpReason = $arrayReason
             }
         }
     }
+    if (-not $EnableM03TypedExitBootServicesCallProbe) {
+        foreach ($marker in @($requiredMarkers; $orderedMarkers; $uniqueMarkers)) {
+            if ($marker -cmatch '^(M03_TYPED_EBS_|CLROS_M03_004_READY|TEST_(START|PASS) m03\.004)') {
+                Write-Host 'TEST_FAIL qemu.smoke m03_typed_ebs_requires_explicit_profile'; exit 1
+            }
+        }
+    }
     if (-not $EnableM04TypeManagerModuleRegistrationProbe) {
         foreach ($marker in @($requiredMarkers; $orderedMarkers; $uniqueMarkers)) {
             if ($marker -cmatch '^(CLROS_M04_011_|TEST_(START|PASS) m04\.011)') {
@@ -6742,6 +6961,12 @@ $rhpReason = $arrayReason
         $orderedMarkers = @(ConvertTo-QemuSmokeMarkerList -Values $script:M03AcpiBootstrapRequiredMarkers)
         $uniqueMarkers = @(ConvertTo-QemuSmokeMarkerList -Values $script:M03AcpiBootstrapRequiredMarkers)
         $forbiddenMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @('OS_SMOKE_FAIL'; 'TEST_FAIL'; 'ACPI_DISCOVERY_FAIL'))
+    }
+    elseif ($EnableM03TypedExitBootServicesCallProbe) {
+        $requiredMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($requiredMarkers; $script:M03TypedExitBootServicesRequiredMarkers))
+        $orderedMarkers = @(ConvertTo-QemuSmokeMarkerList -Values $script:M03TypedExitBootServicesRequiredMarkers)
+        $uniqueMarkers = @(ConvertTo-QemuSmokeMarkerList -Values $script:M03TypedExitBootServicesRequiredMarkers)
+        $forbiddenMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($forbiddenMarkers; 'TEST_FAIL'; 'OS_SMOKE_FAIL'; 'UEFI_EBS_CALLED'; 'UEFI_BOOT_SERVICES_EXITED'))
     }
     elseif ($EnableM04TypeManagerModuleRegistrationProbe) {
         $requiredMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($requiredMarkers; $script:M04TypeManagerRequiredMarkers))
@@ -8622,6 +8847,7 @@ $rhpReason = $arrayReason
         }
         if ($EnableM03FirmwareEntropySeedProbe) { $buildArguments += "-EnableM03FirmwareEntropySeedProbe" }
         if ($EnableM04TypeManagerModuleRegistrationProbe) { $buildArguments += "-EnableM04TypeManagerModuleRegistrationProbe" }
+        if ($EnableM03TypedExitBootServicesCallProbe) { $buildArguments += "-EnableM03TypedExitBootServicesCallProbe" }
         if ($EnableM04CheckedReferenceBarrierProbe) {
             $buildArguments +=
                 "-EnableM04CheckedReferenceBarrierProbe"
@@ -8764,8 +8990,8 @@ $rhpReason = $arrayReason
             $m01RawObservationCapture.EnvironmentState = $null
         }
     }
-    elseif (($EnableM04TypeManagerModuleRegistrationProbe -or $EnableM03FirmwareEntropySeedProbe -or $EnableAcpiPhysicalDiscoveryProbe -or $EnableM03MemoryMapCaptureProbe -or $EnableM04ManagedHeapPageRangeProbe -or $EnableM02PageFaultCr2ErrorCodeProbe -or $EnableM02DoubleFaultIstProbe -or $EnableM02UnexpectedVectorPanicProbe) -and -not $DryRun) {
-        $heapRunnerLines = @(Invoke-NativeCommand -Command { & dotnet run @arguments } -RequireEmptyError:($EnableM04TypeManagerModuleRegistrationProbe -or $EnableM03FirmwareEntropySeedProbe -or $EnableAcpiPhysicalDiscoveryProbe -or $EnableM02UnexpectedVectorPanicProbe -or $EnableM03MemoryMapCaptureProbe))
+    elseif (($EnableM03TypedExitBootServicesCallProbe -or $EnableM04TypeManagerModuleRegistrationProbe -or $EnableM03FirmwareEntropySeedProbe -or $EnableAcpiPhysicalDiscoveryProbe -or $EnableM03MemoryMapCaptureProbe -or $EnableM04ManagedHeapPageRangeProbe -or $EnableM02PageFaultCr2ErrorCodeProbe -or $EnableM02DoubleFaultIstProbe -or $EnableM02UnexpectedVectorPanicProbe) -and -not $DryRun) {
+        $heapRunnerLines = @(Invoke-NativeCommand -Command { & dotnet run @arguments } -RequireEmptyError:($EnableM03TypedExitBootServicesCallProbe -or $EnableM04TypeManagerModuleRegistrationProbe -or $EnableM03FirmwareEntropySeedProbe -or $EnableAcpiPhysicalDiscoveryProbe -or $EnableM02UnexpectedVectorPanicProbe -or $EnableM03MemoryMapCaptureProbe))
         foreach ($line in $heapRunnerLines) { Write-Host $line }
     }
     else {
@@ -8900,6 +9126,12 @@ $rhpReason = $arrayReason
             Assert-M04TypeManagerRunnerResult -Lines $heapRunnerLines -SummaryLogPath $SummaryLog -SerialLogPath $SerialLog -RequiredMarkers $requiredMarkers -OrderedMarkers $orderedMarkers -UniqueMarkers $uniqueMarkers -ForbiddenMarkers $forbiddenMarkers -ImagePath $Image -Profile $WorkloadProfile
         } catch { Write-Host ('TEST_FAIL qemu.smoke '+$_.Exception.Message); exit 1 }
         Write-Host 'QEMU_SCRIPT_M04_TYPE_MANAGER_TRANSCRIPT exactWholeLines=true lines=45 abiBytes=48 slotBytes=16 storage=4096 tailCanariesAfterRegistration=true'
+    }
+    if ($EnableM03TypedExitBootServicesCallProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
+        try {
+            Assert-M03TypedExitBootServicesRunnerResult -Lines $heapRunnerLines -SummaryLogPath $SummaryLog -SerialLogPath $SerialLog -RequiredMarkers $requiredMarkers -OrderedMarkers $orderedMarkers -UniqueMarkers $uniqueMarkers -ForbiddenMarkers $forbiddenMarkers -ImagePath $Image -Profile $WorkloadProfile
+        } catch { Write-Host ('TEST_FAIL qemu.smoke '+$_.Exception.Message); exit 1 }
+        Write-Host 'QEMU_SCRIPT_M03_TYPED_EBS_TRANSCRIPT exactWholeLines=true lines=30 states=4 calls=4 controlled=true realExitBootServices=false'
     }
 
     if ($EnableM03FirmwareEntropySeedProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
