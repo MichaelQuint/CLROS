@@ -388,6 +388,10 @@ internal static unsafe partial class RhpNewFastAllocation
         }
         CollectorLine(8, s_gcStack.Checks, s_gcStack.Final0, s_gcStack.Final1, s_gcStack.MinimumWitness);
         s_collectorPhase = 7; s_gcPhase = 5;
+        Write((byte)'C'); Write((byte)'L'); Write((byte)'R'); Write((byte)'O'); Write((byte)'S'); Write((byte)'_');
+        Write((byte)'M'); Write((byte)'0'); Write((byte)'4'); Write((byte)'_');
+        Write((byte)'0'); Write((byte)'1'); Write((byte)'3'); Write((byte)'_');
+        Write((byte)'R'); Write((byte)'E'); Write((byte)'A'); Write((byte)'D'); Write((byte)'Y'); End();
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

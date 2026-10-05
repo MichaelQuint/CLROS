@@ -1609,3 +1609,8 @@ same-address reuse with a fresh identity, subsequent reclamation and a no-op
 repeat all passed the diagnostic's checks. Both canaries survived ten observations.
 This does not replace official source admission, strict runner/profile validation,
 native association/stack review or the finished batch's common acceptance.
+
+The diagnostic now emits `CLROS_M04_013_READY` only after those checks complete.
+[Step1009](../done/step1009.md) observes it exactly once in a fresh development
+QEMU capture with 70 program records and ordinary boot success. Official source
+admission and strict parser integration remain pending.
