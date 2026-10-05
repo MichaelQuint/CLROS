@@ -186,8 +186,20 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
         try
         {
             new Span<byte>(allocation, (int)FirstExitCodeBundle.Bytes + 8192).Fill(0xa5);
-            FirstExitOwnedArenaState arena = default;
+            ref FirstExitOwnedArenaState arena = ref *(FirstExitOwnedArenaState*)(nonExecutableTarget + 16);
+            arena = default; // original adapter state lives in the fixture's RW image section
             Need(FirstExitOwnedArena.Materialize(ref arena, data, FirstExitOwnedArena.Bytes, (ulong)code, 56), "bundle arena");
+            Need(FirstExitOwnedArena.ValidateDescriptors(ref arena, (ulong)code) &&
+                !FirstExitOwnedArena.ValidateDescriptors(ref arena, (ulong)code + 4096), "IDTs bind the exact vector page");
+            foreach (int offset in new int[] { 2, 80, 96, 4096 + 13, 4096 + 56, 8192 + 36,
+                8192 + 200, 12288 + 16, 16384 + 2, 16384 + 4 })
+            {
+                data[offset] ^= 1;
+                Need(!FirstExitCodeBundle.Materialize(code, FirstExitCodeBundle.Bytes, ref arena, capture, mapping, callback) &&
+                    arena.Fault->Phase == 0 && !new ReadOnlySpan<byte>(code, (int)FirstExitCodeBundle.Bytes).ContainsAnyExcept((byte)0xa5),
+                    "changed descriptor storage refuses before code writes " + offset);
+                data[offset] ^= 1;
+            }
             Need(!FirstExitCodeBundle.Materialize(code, FirstExitCodeBundle.Bytes - 1, ref arena, capture, mapping, callback) &&
                 !FirstExitCodeBundle.Materialize(code, FirstExitCodeBundle.Bytes, ref arena, capture, mapping, nonExecutableTarget) &&
                 !FirstExitCodeBundle.Materialize(data, FirstExitCodeBundle.Bytes, ref arena, capture, mapping, callback) &&
@@ -212,9 +224,58 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 !FirstExitCodeBundle.ValidateReadBack(code, FirstExitCodeBundle.Bytes, ref arena, capture, mapping, callback + 1) &&
                 original.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(code, (int)FirstExitCodeBundle.Bytes)),
                 "prepared bundle cannot be regenerated or retargeted by readback");
+            VerifyCompleteRetainedMappings(ref arena, code, capture, mapping, callback, nonExecutableTarget);
+            arena = default;
             // No generated IN/OUT or privileged transition instruction is executed.
         }
         finally { NativeMemory.AlignedFree(allocation); NativeMemory.AlignedFree(data); }
+    }
+
+    private static void VerifyCompleteRetainedMappings(ref FirstExitOwnedArenaState arena, byte* code,
+        EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping,
+        ulong callback, ulong imageData)
+    {
+        byte* allocator = (byte*)NativeMemory.AlignedAlloc(8192, 4096);
+        Need(allocator != null, "retained allocator backing");
+        try
+        {
+            FirstExitImageReferences references = new() { EntryCallback = callback + 8,
+                DiagnosticCallback = callback + 16, FaultCallback = callback,
+                AdapterState = imageData, AdapterStateBytes = 512,
+                AllocatorState = imageData + 1024, AllocatorStateBytes = 128,
+                CopiedAcpi = imageData + 4096, CopiedAcpiBytes = 4096 };
+            PhysicalAddress.TryCreateFromHardwareRegisterBoundary(0x100000, out PhysicalAddress root);
+            X64PatMappingToken.TryCreate(0x0006_0501_0007_0406, 0, 3, 4, out X64PatMappingToken pat);
+            var tables = new SeparatePageFaultPageTableRequest(root, 55,
+                X64PageTableEncodingPreconditions.CreateObserved(48, true, true, false, false, pat));
+            var backing = new SeparatePageFaultMappingRange((ulong)allocator, 2, PageProtection.Read | PageProtection.Write);
+            SeparatePageFaultMappingRange* output = stackalloc SeparatePageFaultMappingRange[(int)FirstExitRetainedMappings.MaximumRanges];
+            new Span<byte>(output, (int)FirstExitRetainedMappings.MaximumRanges * sizeof(SeparatePageFaultMappingRange)).Fill(0xa5);
+            byte[] before = new ReadOnlySpan<byte>(output, (int)FirstExitRetainedMappings.MaximumRanges * sizeof(SeparatePageFaultMappingRange)).ToArray();
+            for (int failure = 0; failure < 6; failure++)
+            {
+                var candidate = references;
+                var range = backing;
+                if (failure == 0) candidate.EntryCallback = imageData;
+                if (failure == 1) candidate.AdapterState += 512;
+                if (failure == 2) candidate.CopiedAcpiBytes = 3 * 4096;
+                if (failure == 3) range = new((ulong)code, 2, PageProtection.Read | PageProtection.Write);
+                if (failure == 4) range = new(0x100000, 2, PageProtection.Read | PageProtection.Write);
+                Need(!FirstExitRetainedMappings.WriteRanges(ref arena, code, capture, mapping, candidate, range, tables,
+                    output, failure == 5 ? 1UL : FirstExitRetainedMappings.MaximumRanges, out ulong refused) && refused == 0 &&
+                    before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(output, before.Length)), "inventory refuses without writes " + failure);
+            }
+            Need(!FirstExitRetainedMappings.WriteRanges(ref arena, code, capture, mapping, references, backing, tables,
+                (SeparatePageFaultMappingRange*)imageData, FirstExitRetainedMappings.MaximumRanges, out _), "inventory cannot overwrite image inputs");
+            Need(FirstExitRetainedMappings.WriteRanges(ref arena, code, capture, mapping, references, backing, tables,
+                output, FirstExitRetainedMappings.MaximumRanges, out ulong count) && count == 11 &&
+                output[9].Start == (ulong)code && output[9].PageCount == 3 && output[9].Protection == (PageProtection.Read | PageProtection.Execute) &&
+                output[10].Start == (ulong)allocator && output[10].PageCount == 2 &&
+                !new ReadOnlySpan<byte>(output + count, (int)(FirstExitRetainedMappings.MaximumRanges - count) * sizeof(SeparatePageFaultMappingRange))
+                    .ContainsAnyExcept((byte)0xa5), "complete inventory and untouched capacity tail");
+            VerifyRetainedArenaImage(arena.Storage, output, count, FirstExitRetainedMappings.MaximumRanges, 109);
+        }
+        finally { NativeMemory.AlignedFree(allocator); }
     }
 
     private static void OwnedArena()
@@ -291,7 +352,8 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
         finally { NativeMemory.AlignedFree(allocation); }
     }
 
-    private static void VerifyRetainedArenaImage(byte* data, SeparatePageFaultMappingRange* ranges, ulong rangeCount)
+    private static void VerifyRetainedArenaImage(byte* data, SeparatePageFaultMappingRange* ranges, ulong rangeCount,
+        ulong rangeCapacity = 6, ulong expectedMappedPages = 97)
     {
         const ulong root = 0x100000;
         const ulong tablePages = SeparateDisabledDefaultPageFaultPageTables.MaximumTablePages;
@@ -305,13 +367,12 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             X64PatMappingToken.TryCreate(0x0006_0501_0007_0406, 0, 3, 4, out X64PatMappingToken pat);
             X64PageTableEncodingPreconditions mode = X64PageTableEncodingPreconditions.CreateObserved(48, true, true, false, false, pat);
             SeparatePageFaultPageTableResult result = SeparateDisabledDefaultPageFaultPageTables.BuildRetainedImage(
-                new(physical, tablePages, mode), ranges, rangeCount, 6,
+                new(physical, tablePages, mode), ranges, rangeCount, rangeCapacity,
                 metadata, tablePages, entries, tablePages * 512);
-            Need(result.Succeeded && result.MappedPages == tablePages + 97, "actual arena declarations build an audited hierarchy");
+            Need(result.Succeeded && result.MappedPages == tablePages + expectedMappedPages, "actual retained declarations build an audited hierarchy");
             // Independent raw-bit walk checks the real output, including every guard gap.
-            for (uint page = 0; page < FirstExitOwnedArena.PageCount; page++)
+            ulong Leaf(ulong address)
             {
-                ulong address = (ulong)data + page * 4096UL;
                 ulong table = 0, leaf = 0;
                 for (int level = 4; level >= 1; level--)
                 {
@@ -323,6 +384,22 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                         "arena oracle follows only owned tables");
                     table = (target - root) / 4096;
                 }
+                return leaf;
+            }
+            for (ulong range = 0; range < rangeCount; range++)
+                for (ulong page = 0; page < ranges[range].PageCount; page++)
+                {
+                    ulong address = ranges[range].Start + page * 4096;
+                    PageProtection protection = ranges[range].Protection;
+                    ulong expected = address | 1;
+                    if ((protection & PageProtection.Write) != 0) expected |= 2;
+                    if ((protection & PageProtection.Execute) == 0) expected |= 1UL << 63;
+                    Need(Leaf(address) == expected, "independent retained range permissions");
+                }
+            for (uint page = 0; page < FirstExitOwnedArena.PageCount; page++)
+            {
+                ulong address = (ulong)data + page * 4096UL;
+                ulong leaf = Leaf(address);
                 Need(leaf == (FirstExitOwnedArena.IsGuardPage(page) ? 0 : address | (1UL << 63) | 3),
                     "actual arena mapping is exact RW/NX or an absent guard");
             }
