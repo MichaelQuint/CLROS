@@ -5525,7 +5525,7 @@ function Test-M01SerializerTargetsImport {
     }
 
     $expectedTargetsHash =
-        "8f5660327597c786e4941e56f502afd04b6309e6941a9ccc1df0592331b99279"
+        "0b4d6c9cd071a42961a388f428b0886d57c7d2b34632bba9706f2a80fd4da151"
     $targetsHash = Get-M01CanonicalXmlSha256 -Document $targets
     if ($targetsHash -ne $expectedTargetsHash) {
         return [pscustomobject] @{

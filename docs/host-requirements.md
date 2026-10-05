@@ -6,6 +6,17 @@ The repository currently builds on Windows with .NET 10. The normal solution bui
 
 The EFI publish requirement is a host toolchain requirement. It is not caused by Hyper-V. Hyper-V can affect later QEMU acceleration choices, but `scripts/build-efi-shell.ps1` fails or passes before any VM boot path is involved.
 
+Open `CLROS.slnx` in Visual Studio 2026. The `OS` project retains its explicit
+no-stdlib NativeAOT configuration. Its imported serializer targets use path
+normalization supported by both Visual Studio's full-framework MSBuild and
+`dotnet` MSBuild. If an older checkout reports `MSB4186` for
+`Path.TrimEndingDirectorySeparator`, update the checkout and reload the project.
+Visual Studio 2026 Insiders 18.11.12224.323 project evaluation was checked using
+its MSBuild with `DesignTimeBuild=true` and `BuildingInsideVisualStudio=true`;
+the user also confirmed that all solution projects load after this fix.
+Publish EFI images through
+`scripts/build-efi-shell.ps1`, which also verifies the artifact.
+
 ## Implemented Behavior
 
 Required for all current host builds:

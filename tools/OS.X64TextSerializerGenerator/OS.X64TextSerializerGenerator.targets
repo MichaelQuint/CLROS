@@ -7,7 +7,7 @@
     <_ClrosX64SerializerCanonicalRootTargets>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\Directory.Build.targets'))</_ClrosX64SerializerCanonicalRootTargets>
     <_ClrosX64SerializerObjectName>CLROS.X64.InstructionPublication.obj</_ClrosX64SerializerObjectName>
     <_ClrosCheckedReferenceObjectName>CLROS.X64.CheckedReferenceBarriers.obj</_ClrosCheckedReferenceObjectName>
-    <_ClrosX64SerializerCanonicalSdkDirectory>$([System.IO.Path]::TrimEndingDirectorySeparator('$(MSBuildToolsPath)'))</_ClrosX64SerializerCanonicalSdkDirectory>
+    <_ClrosX64SerializerCanonicalSdkDirectory>$([System.IO.Path]::GetFullPath('$(MSBuildToolsPath)\.'))</_ClrosX64SerializerCanonicalSdkDirectory>
     <_ClrosX64SerializerCanonicalSdksPath>$([System.IO.Path]::GetFullPath('$(_ClrosX64SerializerCanonicalSdkDirectory)\Sdks'))</_ClrosX64SerializerCanonicalSdksPath>
     <_ClrosX64SerializerCanonicalMsbuildExtensionsPath>$(_ClrosX64SerializerCanonicalSdkDirectory)\</_ClrosX64SerializerCanonicalMsbuildExtensionsPath>
     <_ClrosX64SerializerCanonicalDisabledUserExtensions>$([System.IO.Path]::GetFullPath('$(BaseIntermediateOutputPath)disabled-user-extensions'))</_ClrosX64SerializerCanonicalDisabledUserExtensions>
@@ -99,7 +99,7 @@
         Condition="'$(_ClrosX64SerializerTrackingPathIsRooted)' == 'True'">$([System.IO.Path]::GetFullPath('$(NativeIntermediateOutputPath)'))</_ClrosX64SerializerTrackingRootCandidate>
       <_ClrosX64SerializerTrackingRootCandidate
         Condition="'$(_ClrosX64SerializerTrackingPathIsRooted)' != 'True'">$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(NativeIntermediateOutputPath)'))</_ClrosX64SerializerTrackingRootCandidate>
-      <_ClrosX64SerializerTrackingRoot>$([System.IO.Path]::TrimEndingDirectorySeparator('$(_ClrosX64SerializerTrackingRootCandidate)'))</_ClrosX64SerializerTrackingRoot>
+      <_ClrosX64SerializerTrackingRoot>$([System.IO.Path]::GetFullPath('$(_ClrosX64SerializerTrackingRootCandidate)\.'))</_ClrosX64SerializerTrackingRoot>
       <_ClrosX64SerializerTrackedObject>$(_ClrosX64SerializerTrackingRoot)\CLROS.X64.InstructionPublication.obj</_ClrosX64SerializerTrackedObject>
       <_ClrosCheckedReferenceTrackedObject>$(_ClrosX64SerializerTrackingRoot)\CLROS.X64.CheckedReferenceBarriers.obj</_ClrosCheckedReferenceTrackedObject>
       <_ClrosX64SerializerTrackedToolRoot>$(_ClrosX64SerializerTrackingRoot)\clros-x64-serializer-tool\</_ClrosX64SerializerTrackedToolRoot>
@@ -111,7 +111,7 @@
       Condition="!$([System.IO.Path]::IsPathRooted('$(NativeIntermediateOutputPath)')) And '$(_ClrosX64SerializerTrackingRootCandidate)' != '$([System.IO.Path]::GetFullPath(&quot;$(MSBuildProjectDirectory)\$(NativeIntermediateOutputPath)&quot;))'"
       Text="CLROS_M01_034_GENERATOR_FAILED tracking_root_override" />
     <Error
-      Condition="'$(_ClrosX64SerializerTrackingRoot)' != '$([System.IO.Path]::TrimEndingDirectorySeparator(&quot;$(_ClrosX64SerializerTrackingRootCandidate)&quot;))'"
+      Condition="'$(_ClrosX64SerializerTrackingRoot)' != '$([System.IO.Path]::GetFullPath(&quot;$(_ClrosX64SerializerTrackingRootCandidate)\.&quot;))'"
       Text="CLROS_M01_034_GENERATOR_FAILED tracking_root_override" />
     <Error
       Condition="'$(_ClrosX64SerializerTrackedObject)' != '$(_ClrosX64SerializerTrackingRoot)\CLROS.X64.InstructionPublication.obj'"
@@ -182,7 +182,7 @@
         Condition="'$(_ClrosX64SerializerNativeIntermediatePathIsRooted)' == 'True'">$([System.IO.Path]::GetFullPath('$(NativeIntermediateOutputPath)'))</_ClrosX64SerializerNativeIntermediateRootCandidate>
       <_ClrosX64SerializerNativeIntermediateRootCandidate
         Condition="'$(_ClrosX64SerializerNativeIntermediatePathIsRooted)' != 'True'">$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(NativeIntermediateOutputPath)'))</_ClrosX64SerializerNativeIntermediateRootCandidate>
-      <_ClrosX64SerializerNativeIntermediateRoot>$([System.IO.Path]::TrimEndingDirectorySeparator('$(_ClrosX64SerializerNativeIntermediateRootCandidate)'))</_ClrosX64SerializerNativeIntermediateRoot>
+      <_ClrosX64SerializerNativeIntermediateRoot>$([System.IO.Path]::GetFullPath('$(_ClrosX64SerializerNativeIntermediateRootCandidate)\.'))</_ClrosX64SerializerNativeIntermediateRoot>
       <_ClrosX64SerializerToolRoot>$(_ClrosX64SerializerNativeIntermediateRoot)\clros-x64-serializer-tool\</_ClrosX64SerializerToolRoot>
       <_ClrosX64SerializerToolIntermediate>$(_ClrosX64SerializerToolRoot)obj\</_ClrosX64SerializerToolIntermediate>
       <_ClrosX64SerializerToolOutput>$(_ClrosX64SerializerToolRoot)bin\$(Configuration)\net10.0\</_ClrosX64SerializerToolOutput>
@@ -200,7 +200,7 @@
       Condition="!$([System.IO.Path]::IsPathRooted('$(NativeIntermediateOutputPath)')) And '$(_ClrosX64SerializerNativeIntermediateRootCandidate)' != '$([System.IO.Path]::GetFullPath(&quot;$(MSBuildProjectDirectory)\$(NativeIntermediateOutputPath)&quot;))'"
       Text="CLROS_M01_034_GENERATOR_FAILED native_intermediate_root_override" />
     <Error
-      Condition="'$(_ClrosX64SerializerNativeIntermediateRoot)' != '$([System.IO.Path]::TrimEndingDirectorySeparator(&quot;$(_ClrosX64SerializerNativeIntermediateRootCandidate)&quot;))'"
+      Condition="'$(_ClrosX64SerializerNativeIntermediateRoot)' != '$([System.IO.Path]::GetFullPath(&quot;$(_ClrosX64SerializerNativeIntermediateRootCandidate)\.&quot;))'"
       Text="CLROS_M01_034_GENERATOR_FAILED native_intermediate_root_override" />
     <Error
       Condition="'$(_ClrosX64SerializerToolRoot)' != '$(_ClrosX64SerializerNativeIntermediateRoot)\clros-x64-serializer-tool\'"
