@@ -1600,3 +1600,12 @@ The enabled 99-source no-stdlib closure compiles. This code has not been publish
 or executed in a guest; shared project admission and strict serial parsing are
 still pending behind #551. The original enabled project/profile is therefore
 not yet ready to run from this development branch.
+
+[Step1008](../done/step1008.md) adds development NativeAOT/QEMU evidence for
+that source at `836790c`. An isolated project compiled the same 99 original
+source files with the existing nine-switch profile. The guest reached all nine
+collector records and normal boot success: dead-cycle reclamation, actual
+same-address reuse with a fresh identity, subsequent reclamation and a no-op
+repeat all passed the diagnostic's checks. Both canaries survived ten observations.
+This does not replace official source admission, strict runner/profile validation,
+native association/stack review or the finished batch's common acceptance.
