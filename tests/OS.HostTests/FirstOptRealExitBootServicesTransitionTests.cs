@@ -22,6 +22,7 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
         Run("permanent CR3 preparation and emitted continuation", PermanentContinuation);
         Run("owned descriptor bridge preserves selectors across adoption", DescriptorPreparation);
         Run("firmware entries bind from checked tables and consume once", FirmwareBinding);
+        Run("owned stack entry has bounded storage and a terminal native path", OwnedStackEntry);
     }
 
     private static void Run(string name, Action action)
@@ -32,6 +33,57 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
     }
     private static void Need(bool value, string reason)
     { if (!value) throw new InvalidOperationException(reason); }
+
+    private static void OwnedStackEntry()
+    {
+        Need(sizeof(FirstExitOwnedStackContext) == 88 &&
+            !RuntimeHelpers.IsReferenceOrContainsReferences<FirstExitOwnedStackContext>(), "stack-entry POD ABI");
+        (string Field, int Offset)[] fields = [("FirmwareCr3", 0), ("FirmwareCr4", 8), ("StackBottom", 16),
+            ("StackTop", 24), ("LowerCanary", 32), ("UpperCanary", 40), ("Entry", 48),
+            ("EntryContext", 56), ("EntryStackBytes", 64), ("ObservedRsp", 72), ("Phase", 80)];
+        foreach (var field in fields)
+            Need((int)Marshal.OffsetOf<FirstExitOwnedStackContext>(field.Field) == field.Offset, "stack-entry offset " + field.Field);
+        byte* memory = (byte*)NativeMemory.AlignedAlloc(4 * 4096, 4096);
+        Need(memory != null, "allocate stack-entry fixture");
+        try
+        {
+            new Span<byte>(memory, 4 * 4096).Clear();
+            ulong bottom = (ulong)memory + 8, top = (ulong)memory + 8192;
+            var entry = (delegate* unmanaged<FirstExitOwnedStackContext*, void>)0x100000;
+            FirstExitOwnedStackContext context = default;
+            bool Prepare(ulong budget, ulong end, ulong cr3 = 0x1018, ulong cr4 = 0x20)
+                => FirstExitOwnedStackStub.Prepare(ref context, cr3, cr4, bottom, end, 11, 22,
+                    budget, entry, memory + 12288, 256);
+            Need(Prepare(4096, top) && context.Phase == 1 && context.EntryStackBytes == 4096 &&
+                context.StackBottom == bottom && context.StackTop == top && context.ObservedRsp == 0 &&
+                context.EntryContext == memory + 12288, "prepare retained stack without native execution");
+            byte[] prepared = MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref context, 1)).ToArray();
+            Need(!Prepare(4096, top) && MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref context, 1)).SequenceEqual(prepared),
+                "single-use preparation is unchanged on rejection");
+            context = default;
+            Need(!Prepare(0, top) && !Prepare(top - bottom, top) && !Prepare(4096, top - 8) &&
+                !Prepare(4096, top, 0) && !Prepare(4096, top, 0x1001) && !Prepare(4096, top, 0x1018, 0x100020),
+                "reject budget, alignment and unsupported CPU roots/modes");
+            Need(!FirstExitOwnedStackStub.Prepare(ref *(FirstExitOwnedStackContext*)(memory + 16),
+                0x1000, 0x20, bottom, top, 11, 22, 4096, entry, memory + 12288, 256), "stack cannot overwrite its context");
+            Need(!FirstExitOwnedStackStub.Prepare(ref context, 0x1000, 0x20, bottom, top, 11, 22,
+                4096, entry, memory + 128, 256) && context.Phase == 0, "entry context disjoint from stack");
+            Need(Prepare(top - bottom - FirstExitOwnedStackStub.CallStackBytes, top), "exact budget boundary");
+
+            byte[] code = new byte[FirstExitOwnedStackStub.RequiredBytes];
+            fixed (byte* output = code)
+            {
+                Need(!FirstExitOwnedStackStub.Emit(output, (uint)code.Length - 1, out uint count) && count == 0 &&
+                    code.All(value => value == 0), "short destination is not mutated");
+                Need(FirstExitOwnedStackStub.Emit(output, (uint)code.Length, out count) && count == code.Length,
+                    "emit actual owned-stack entry for independent decoding");
+            }
+            string path = Path.Combine(HostToolProcess.FindRepositoryRoot(), "artifacts/issue64/stack-entry");
+            Directory.CreateDirectory(path);
+            File.WriteAllBytes(Path.Combine(path, "entry.bin"), code);
+        }
+        finally { NativeMemory.AlignedFree(memory); }
+    }
 
     private static void SealTable(byte* table, int bytes)
     {
