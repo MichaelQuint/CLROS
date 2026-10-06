@@ -10,11 +10,23 @@ internal static class StdCrc32Tests
         RunScenario("std.crc32 ascii check vector", TestAsciiCheckVector);
         RunScenario("std.crc32 binary vector", TestBinaryVector);
         RunScenario("std.crc32 incremental update", TestIncrementalUpdate);
+        RunScenario("std.crc32 byte updates", TestByteUpdates);
     }
 
     private static void TestEmptyInput()
     {
         ExpectValue("empty", 0x00000000u, Crc32.Compute(ReadOnlySpan<byte>.Empty));
+    }
+
+    private static void TestByteUpdates()
+    {
+        ExpectValue("empty byte stream", 0u, Crc32.Finish(Crc32.InitialState));
+        uint state = Crc32.InitialState;
+        foreach (byte value in "123456789"u8) state = Crc32.UpdateByte(state, value);
+        ExpectValue("bytewise ascii", 0xCBF43926u, Crc32.Finish(state));
+        state = Crc32.InitialState;
+        for (int value = 0; value < 256; value++) state = Crc32.UpdateByte(state, (byte)value);
+        ExpectValue("all byte values", 0x29058C73u, Crc32.Finish(state));
     }
 
     private static void TestAsciiCheckVector()
