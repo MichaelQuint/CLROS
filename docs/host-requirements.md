@@ -108,6 +108,35 @@ it made the existing linked-artifact acceptance test pass independently; the
 subsequent full suite passed with 3,509 pass markers and zero failures (see
 `done/step925.md`). Package presence and host checks are not EFI boot evidence.
 
+## Focused host fixture runs
+
+During implementation, run selected existing fixture files with PowerShell:
+
+```powershell
+.\scripts\run-host-tests-focused.ps1 -TestFile DiagnosticsTests.cs
+.\scripts\run-host-tests-focused.ps1 -TestFile DiagnosticsTests.cs,BootInfoTests.cs
+```
+
+Use basenames from `tests/OS.HostTests`; add any required helper or companion
+fixture files to the explicit list. `HostToolProcess.cs` is included automatically.
+The script builds a unique project under `artifacts/host-tests-focused`, retaining
+the original project references and settings. It compiles the selected original
+files directly, including their module initializers, without rewriting tests.
+`Program.cs` and paths outside the fixture directory are rejected.
+
+Each run retains the selected paths/hashes, native commands and exits, build/run
+logs and `result.json`. Success requires actual fixture markers, no failure
+markers, unchanged selected sources and `TEST_PASS host.tests.focused`.
+Fixtures without module initializers do not run automatically; selecting only
+helpers fails the marker check. Selected fixtures can still publish EFI images
+or invoke external tools, so choose the smallest relevant set and serialize
+fixtures that share outputs. `-Configuration Release` selects a release build.
+
+Focused success is partial host evidence. It does not emit `TEST_PASS host.tests`
+or replace a required complete suite or guest capture. Use the unchanged
+`dotnet run --project tests/OS.HostTests/OS.HostTests.csproj --no-build` command
+for the complete harness after a coherent implementation batch.
+
 ## Verification
 
 Verify the .NET SDK:
