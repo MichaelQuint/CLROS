@@ -2008,6 +2008,33 @@ contracts alone do not establish the accepted live transition.
 
 ## Tests
 
+### Prepare acceptance from current inputs
+
+Finish production changes and text normalization before freezing the acceptance
+commit. Review the entire changed-file list against existing assertions, including
+backlog ownership notes and dependency contracts, canonical docs, source/Compile
+closures, feature defaults, generator inputs, native object sizes and transcript
+grammar. A hash/count-only search does not cover semantic catalog requirements.
+Keep raw source hashes separate from documented canonical-text hashes.
+
+Run the affected original checks before the expensive full harness. Record the
+explicit method selection and exclusions. An artifact-only diagnostic may invoke
+unchanged methods from reviewed source copies with only ModuleInitializer
+attributes removed; bind the source copies, executed assembly, references and
+current inputs. Such a diagnostic never replaces the unfiltered harness.
+
+Build and run that original harness against a clean frozen commit. Keep edits,
+competing builds and native publications out of its checkout until its terminal
+result and unchanged source/binary inventories are reviewed. After a failure,
+preserve the failed attempt, identify the exact predicate, check related omitted
+assertions and demonstrate the correction before starting another full run.
+
+Use fresh output paths for each final native publication and guest. Retain native
+objects/maps, managed inputs, the complete property vector, image payload, raw
+serial stream and process lifecycle. Bind debugger controls to that exact image
+and its actual symbols. Prior-image runs remain historical evidence. Review
+capture helpers, tool-format assumptions and cleanup receipts before execution.
+
 Expected commands:
 
 ```powershell
