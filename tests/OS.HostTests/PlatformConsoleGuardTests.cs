@@ -46,7 +46,7 @@ internal static class PlatformConsoleGuardTests
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
         ConsoleSinkDouble sink = new ConsoleSinkDouble(available: true);
-        IPlatformConsole console = new GuardedConsoleDouble(firmware, sink);
+        IPlatformConsole console = new GuardedPlatformConsole(firmware, sink);
 
         PlatformConsoleResult result = console.WriteLine("OS_BOOT_OK");
 
@@ -56,6 +56,7 @@ internal static class PlatformConsoleGuardTests
             && result.Operation == PlatformConsoleOperations.OutputString
             && result.CharacterCount == 10
             && result.Message.Length == 0
+            && sink.AvailabilityReadCount == 1
             && sink.LineCount == 1
             && sink.LastLine == "OS_BOOT_OK";
     }
@@ -65,7 +66,7 @@ internal static class PlatformConsoleGuardTests
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
         _ = firmware.EnterUefiGoneSimulation();
         ConsoleSinkDouble sink = new ConsoleSinkDouble(available: true);
-        IPlatformConsole console = new GuardedConsoleDouble(firmware, sink);
+        IPlatformConsole console = new GuardedPlatformConsole(firmware, sink);
 
         PlatformConsoleResult result = console.WriteLine("OS_BOOT_OK");
 
@@ -75,6 +76,7 @@ internal static class PlatformConsoleGuardTests
             && result.Operation == PlatformConsoleOperations.OutputString
             && result.CharacterCount == 0
             && result.Message.Contains("UefiGoneSimulated", StringComparison.Ordinal)
+            && sink.AvailabilityReadCount == 0
             && sink.LineCount == 0;
     }
 
@@ -83,7 +85,7 @@ internal static class PlatformConsoleGuardTests
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
         _ = firmware.MarkBootServicesExited();
         ConsoleSinkDouble sink = new ConsoleSinkDouble(available: true);
-        IPlatformConsole console = new GuardedConsoleDouble(firmware, sink);
+        IPlatformConsole console = new GuardedPlatformConsole(firmware, sink);
 
         PlatformConsoleResult result = console.WriteLine("OS_BOOT_OK");
 
@@ -93,6 +95,7 @@ internal static class PlatformConsoleGuardTests
             && result.Operation == PlatformConsoleOperations.OutputString
             && result.CharacterCount == 0
             && result.Message.Contains("BootServicesExited", StringComparison.Ordinal)
+            && sink.AvailabilityReadCount == 0
             && sink.LineCount == 0;
     }
 
@@ -100,7 +103,7 @@ internal static class PlatformConsoleGuardTests
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
         ConsoleSinkDouble sink = new ConsoleSinkDouble(available: true);
-        IPlatformConsole console = new GuardedConsoleDouble(firmware, sink);
+        IPlatformConsole console = new GuardedPlatformConsole(firmware, sink);
 
         PlatformConsoleResult result = console.WriteLine("OS_BOOT_OK\nBAD");
 
@@ -117,7 +120,7 @@ internal static class PlatformConsoleGuardTests
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
         ConsoleSinkDouble sink = new ConsoleSinkDouble(available: false);
-        IPlatformConsole console = new GuardedConsoleDouble(firmware, sink);
+        IPlatformConsole console = new GuardedPlatformConsole(firmware, sink);
 
         PlatformConsoleResult result = console.WriteLine("OS_BOOT_OK");
 
@@ -130,43 +133,25 @@ internal static class PlatformConsoleGuardTests
             && sink.LineCount == 0;
     }
 
-    private sealed class GuardedConsoleDouble : IPlatformConsole
+    private sealed class ConsoleSinkDouble : IPlatformConsoleSink
     {
-        private readonly IPlatformFirmware _firmware;
-        private readonly ConsoleSinkDouble _sink;
+        private readonly bool _available;
 
-        public GuardedConsoleDouble(IPlatformFirmware firmware, ConsoleSinkDouble sink)
-        {
-            _firmware = firmware;
-            _sink = sink;
-        }
-
-        public PlatformConsoleResult WriteLine(string line)
-        {
-            FirmwareCallResult guardResult = _firmware.RequireBootServices(
-                PlatformConsoleOperations.OutputString);
-
-            PlatformConsoleResult result = _sink.Available
-                ? PlatformConsoleResult.Written(guardResult, line)
-                : PlatformConsoleResult.SinkUnavailable(guardResult, line);
-
-            if (result.Succeeded)
-            {
-                _sink.WriteLine(line);
-            }
-
-            return result;
-        }
-    }
-
-    private sealed class ConsoleSinkDouble
-    {
         public ConsoleSinkDouble(bool available)
         {
-            Available = available;
+            _available = available;
         }
 
-        public bool Available { get; }
+        public bool Available
+        {
+            get
+            {
+                AvailabilityReadCount++;
+                return _available;
+            }
+        }
+
+        public int AvailabilityReadCount { get; private set; }
 
         public int LineCount { get; private set; }
 
