@@ -18,8 +18,10 @@ final map/bounded exit retry, then terminal owned descriptor/CR3 adoption and CO
 reporting. The adapter cannot resume the boot plan after entering the owned stack.
 `Probes.EnableM03FirstRealExitBootServicesProbe` owns its compile-time toggle;
 without the explicit symbol the boundary refuses before touching arena storage.
-The normal managed boot path is unchanged. Acceptance is pending in
-[step1032](../done/step1032.md).
+The normal managed boot path is unchanged. [Step1032](../done/step1032.md)
+retains preparation; [step1051](../done/step1051.md) records the accepted terminal
+profile at `e64e9dc`. It does not establish general adapter revocation or a
+continuing post-firmware workload.
 
 The firmware entry path emits `TEST_START efi.main`, `EFI_CONSOLE_READY`, UEFI memory-map status markers, `BOOT_HANDOFF_READY`, `BOOT_MEMORY_MAP_ACCEPTED`, `BOOT_MEMORY_REGIONS_READY`, `BOOT_MEMORY_REGION_COUNT <count>`, `BOOT_ACPI_RSDP_HANDOFF_READY`, and `UEFI_ACPI_RSDP_READY` before it enters the ordered `boot.sequence` marker plan.
 

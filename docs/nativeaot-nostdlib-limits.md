@@ -1747,8 +1747,13 @@ and original collector call site, linked-adapter checks and a single shared
 transcript helper. The staged ordinary churn wrapper passes with the exact
 step1036 EFI and linker-map hashes, so the scoped native review can be reused.
 
-This is development guest evidence using allocator APIs directly, not proof of
+The staged results above use allocator APIs directly and do not prove
 compiler-created allocations. Stack witnesses/canaries alone do not establish a
 native stack bound. #82 is accepted and closed. [Step1042](../done/step1042.md)
-integrates the reviewed profiles under shared lane #560; #83 remains open for full
-batch regression and final artifact/lifecycle/disk association.
+integrates the reviewed profiles under shared lane #560; [step1051](../done/step1051.md)
+records final common and fresh guest acceptance at `e64e9dc`, including the
+independently reviewed native and retained-control associations. This remains a
+bounded explicit/retained-static-root collector diagnostic. Compiler cctor
+execution/once/reentry (#562), full cached exception/rethrow (#84), concurrent
+initialization, general GC/runtime startup and hosted .NET/Kestrel remain
+unproved; Gates3/4/5 remain **Fail**.
