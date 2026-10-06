@@ -20,9 +20,9 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
     private const string CompileClosureSha256 =
         "e9e7264dd23b1f34596cd867f0a66346fe8009cb86edb688bb8bf33be44291a4";
     private const string ProjectFileSha256 =
-        "5dc0105832660a000ed660a44d3ed63f5187ee7e34d7189912d5853adb3eb9c5";
+        "b491e8fbf65aaa615cec0a2f9d77306d33c23c0e2adcbbabd6c566d4076cccc4";
     private const string CanonicalProjectShapeSha256 =
-        "76e4fa3d78fbddd86c3cda78a99e3e87c026ec890061a1b554854a05c4a45a18";
+        "6c382da0acddc8f53939c30e02087ab77168db4add9340d6e4f6ecb3463b6049";
 
     private static readonly (string Path, string Sha256)[] ImmutableReviewedInputs =
     [

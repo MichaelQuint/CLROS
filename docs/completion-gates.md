@@ -14,7 +14,10 @@ M03-007 remains pending: [step1032](../done/step1032.md) stages the explicit
 first-exit publisher, `BootSequence`/`Probes` integration and terminal runner.
 Its development guest evidence does not change a numbered gate. Acceptance
 still requires the reviewed integrated source, default regression and canonical
-native/negative evidence; #64 and draft PR554 remain open.
+native/negative evidence; #64 and draft PR554 remain open. The shared integration
+is now in PR559 ([step1042](../done/step1042.md)). Its first common build passed,
+but stale host linkage assertions stopped the suite before guest captures;
+[step1043](../done/step1043.md) records their focused correction and retained failure.
 
 Gate status is explicit:
 

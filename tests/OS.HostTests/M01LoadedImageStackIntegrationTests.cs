@@ -3075,9 +3075,7 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
             || !BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
                 @"..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs",
                 @"Boot\M01LoadedImageStackIntegration.cs")
-            || efiProject.Contains(
-                "BootSequence.cs",
-                StringComparison.Ordinal)
+            || !BootSequencePlanTests.HasNoStdlibBootAuthorityBoundary()
             || Regex.IsMatch(
                 efiProject,
                 @"<Compile\s+Include\s*=\s*""[^""]*[*?]",

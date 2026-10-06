@@ -297,7 +297,7 @@ internal static class M04StringAllocationEfiIntegrationTests
             ("src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs","e7cd46a4c35de92cb9085f198737916697f7479dd0947fd591e4874aa347617e"),
             ("tests/OS.HostTests/GuestTestStringAllocationCharacterStorageTests.cs","27f774d0f1123a7be7b14cbd4c8d41e22b8fb0b29b16d113745741894aac88b8"),
             ("tests/OS.HostTests/GuestTestRhpNewFastTests.cs","b4ec1e95244041f4071ce6293a3f31924ecd960308529a352a13347d92e8e6c4"),
-            ("src/OS/Boot/EfiEntry.cs","af975405125c368ec7520ab1fd35f2feac9e762650e78d64a1cb835110bde14d")})
+            ("src/OS/Boot/EfiEntry.cs","fb01bf1164ec570a72513bb212a5d03637a2107066d564c6a00ef5032546864e")})
             Need(Hash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(root,file.Item1)).Replace("\r\n","\n",StringComparison.Ordinal)))==file.Item2,"reviewed host/entry source "+file.Item1);
         string adapter=File.ReadAllText(Path.Combine(root,"src/OS/Runtime/RhpNewFastAllocation.cs"));
         Need(adapter.Contains("GuestTestStringAllocationCharacterStorage.TryAllocate(*access, bump, 80,",StringComparison.Ordinal) &&

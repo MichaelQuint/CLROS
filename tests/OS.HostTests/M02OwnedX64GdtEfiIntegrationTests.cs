@@ -18,7 +18,7 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
     private const string CompileClosureSha256 =
         "e9e7264dd23b1f34596cd867f0a66346fe8009cb86edb688bb8bf33be44291a4";
     private const string CanonicalProjectSha256 =
-        "76e4fa3d78fbddd86c3cda78a99e3e87c026ec890061a1b554854a05c4a45a18";
+        "6c382da0acddc8f53939c30e02087ab77168db4add9340d6e4f6ecb3463b6049";
 
     private static readonly (string Path, string Sha256)[] ImmutableReviewedInputs =
     [
