@@ -1909,6 +1909,10 @@ same development image: 577 associated methods, 169 reachable methods with linke
 unwind checks, and 15720 bytes including a conservative reference-thunk allowance
 within the existing 16384-byte clearance. Firmware bodies, interrupt nesting and
 complete stack-pointer/caller-argument provenance are outside that result.
+[Step1039](../done/step1039.md) completes the scoped review of the new churn
+caller's aggregate windows, native buffers and source bounds. It inherits the
+original collector contracts and firmware/interrupt exclusions; final canonical
+artifact association and official acceptance remain pending.
 
 [Step1038](../done/step1038.md) adds a separate churn-record validator. An ignored
 runner copy composes it after existing whole-transcript/GC checks: the actual

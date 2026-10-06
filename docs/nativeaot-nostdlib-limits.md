@@ -1666,8 +1666,13 @@ GC entry; conservatively adding the verified 448-byte reference thunk gives
 15720 bytes within the existing 16384-byte diagnostic clearance. Actual unwind
 records, call alignment and nonvolatile-register restoration checks pass. The
 reachable graph has no FS/GS-relative TLS access. Firmware callback bodies and
-interrupt nesting are excluded; stack-derived pointer/caller-argument provenance
-and final canonical-image association remain outside this conditional result.
+interrupt nesting are excluded. [Step1039](../done/step1039.md) completes the
+scoped new-code pointer/caller review: actual module240/heap104/root88/static40/
+return48 caller windows are disjoint, and native root/batch/retired/cookie buffers
+cover the bounded source indices. Four existing-method deltas resolve to the
+same read-only cookie; the GC entry changes only by the new call and shifted
+branches. This inherits the original collector's pointer/lifetime contracts;
+final canonical-image association remains required.
 
 [Step1038](../done/step1038.md) prepares
 `scripts/seeded-collector-churn-records.ps1`. Its record validator checks the eleven
