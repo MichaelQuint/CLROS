@@ -8944,7 +8944,7 @@
       "labels": [
         "agent:blocked",
         "priority:p1",
-        "type:tooling",
+        "type:implementation",
         "evidence:qemu",
         "component:boot",
         "phase:m03-ebs",
@@ -8953,12 +8953,10 @@
       "priority": "priority:p1",
       "ownedPaths": [
         "src/OS.Kernel/Boot/OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs",
-        "tests/OS.HostTests/OwnedAllocatorDescriptorTablesACPISnapshotPanicOutputTests.cs",
-        "docs/boot.md",
-        "docs/efi-build.md"
+        "tests/OS.HostTests/OwnedAllocatorDescriptorTablesACPISnapshotPanicOutputTests.cs"
       ],
       "forbiddenPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -8969,17 +8967,16 @@
       ],
       "collisionLane": null,
       "summary": "Prove owned allocator, descriptor tables, ACPI snapshot, and panic output remain usable after exit.",
-      "currentEvidence": "The EFI path captures a map but deliberately skips the ExitBootServices call; post-firmware execution is unproven.",
+      "currentEvidence": "The real first ExitBootServices transition, retained original allocator/image/ACPI ownership and firmware revocation are implemented on accepted master (PR571). #66 owned post-firmware diagnostics is implemented in the current #572 integration but its frozen acceptance remains pending. This issue stays blocked on #66. A new post-exit allocator operation, copied-ACPI consumption and installed-descriptor/panic exercise remain unimplemented; the former statement that the EFI path deliberately skips ExitBootServices was stale.",
       "implementationNotes": [
-        "Implement exactly one bounded slice: Prove owned allocator, descriptor tables, ACPI snapshot, and panic output remain usable after exit.",
-        "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
-        "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
-        "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
-        "The proposed owned paths are exact for this slice: src/OS.Kernel/Boot/OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs, tests/OS.HostTests/OwnedAllocatorDescriptorTablesACPISnapshotPanicOutputTests.cs, docs/boot.md, docs/efi-build.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Exercise a valid aligned, non-overflowing case for: Prove owned allocator, descriptor tables, ACPI snapshot, and panic output remain usable after exit.",
-        "Failure cases: Cover zero/default addresses, size overflow, end-address wrap, misalignment, overlap, exhaustion, stale ownership, double release, and prohibited writable-executable state as applicable.",
-        "Explicitly inapplicable here: Packet loss, disk path traversal, and cloud resource cleanup are outside this address/memory slice.",
-        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
+        "Use C# 14/.NET 10, bounded status results and caller-owned state. Consume the original post-EBS arena, consumed handoff, owned CR3/stack, original allocator and copied ACPI owners; do not reacquire firmware data or construct an unrelated new allocator/snapshot.",
+        "After actual exit, allocate one page through the retained BootPageAllocatorMutator, admit its exact backing, perform a bounded write/read, free it and verify accounting/restoration. Reuse existing M01 allocator contracts instead of duplicating their initialization or full hostile-input matrix.",
+        "Reread and use the existing copied ACPI payload after exit with its original bounds, identity and checksums. Verify the installed owned descriptor identities, not merely their pre-exit construction plan.",
+        "Exercise the original owned fault/panic transport in a separate deliberate terminal guest control. The positive guest must reach its normal owned success tail; the fault control must show the expected owned diagnostic and no success afterward.",
+        "Admit exact retained backing before reads/writes. Reject stale, aliased or mismatched owners without mutation; preserve canaries and forbid success after partial serial output or reentry. Actual descriptor dispatch/panic transport cannot be established by fabricated host observations.",
+        "Core leaf ownership is exactly the two C# paths. Parent serialized integration owns docs/boot.md, docs/efi-build.md and docs/completion-gates.md, and must separately claim every shared boot/probe/project/publisher/runner path. Do not start this leaf while #66 remains unaccepted.",
+        "Focused host checks cover new post-exit orchestration and failure boundaries. Run the original common suite once on frozen integration; bind fresh native/guest records to that source. Reserve a unique done step only after implementation evidence exists.",
+        "Real QEMU/OVMF serial evidence is mandatory. The integration must implement and record an exact strict child-profile command and its separate terminal control; requesting CLROS_M03_010_READY from the existing default profile is not proof."
       ],
       "referenceInfluences": [
         {
@@ -8994,14 +8991,12 @@
         }
       ],
       "acceptanceCriteria": [
-        "The repository implements and tests the scoped behavior: Prove owned allocator, descriptor tables, ACPI snapshot, and panic output remain usable after exit.",
-        "Only declared owned paths are changed; lane-controlled integration files are touched only when this issue owns that lane.",
-        "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
-        "Affected canonical documentation is updated without promoting unsupported completion gates.",
-        "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Exercise a valid aligned, non-overflowing case for: Prove owned allocator, descriptor tables, ACPI snapshot, and panic output remain usable after exit.",
-        "Applicable failure cases are asserted: Cover zero/default addresses, size overflow, end-address wrap, misalignment, overlap, exhaustion, stale ownership, double release, and prohibited writable-executable state as applicable.",
-        "The evidence report explicitly records these non-goals: Packet loss, disk path traversal, and cloud resource cleanup are outside this address/memory slice."
+        "The positive fresh guest performs a real allocation, bounded memory write/read, release and accounting check through the original retained allocator after successful ExitBootServices.",
+        "The same guest consumes the original copied ACPI data and verifies installed owned descriptor identities after exit, without firmware reacquisition or an unrelated replacement owner.",
+        "A separate controlled terminal fault exercises actual installed descriptor dispatch and owned panic/serial output, with exact expected fault evidence and no success tail.",
+        "Focused host checks reject stale or aliased original ownership, invalid extents, exhausted allocation, partial output and reentry while preserving state/canaries as specified. Existing lower-level allocator checks are reused.",
+        "Shared files and docs have a serialized integration owner. Frozen original build/full harness, native verifier, fresh guests, naming and diff checks pass with exact commands, current source/native hashes and lifecycle evidence.",
+        "No forbidden native source, generated artifact, secret or unreviewed reference code is committed. A reserved done step and evidence-review comment record limitations, failures and the post-exit owned-subsystem boundary."
       ],
       "requiredMarkers": [
         "TEST_START m03.010",
@@ -9014,14 +9009,13 @@
         "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
         "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun",
         "git diff --check",
-        "git status --short",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M03_010_READY\""
+        "git status --short"
       ],
       "documentationPaths": [
         "docs/boot.md",
         "docs/efi-build.md"
       ],
-      "evidenceBoundary": "This issue proves only \"Prove owned allocator, descriptor tables, ACPI snapshot, and panic output remain usable after exit.\" It does not by itself prove the M03 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
+      "evidenceBoundary": "This issue proves continued use of the original owned allocator, copied ACPI, installed descriptor state and panic diagnostics after the real exit transition. It does not establish scheduling, general hardware support, complete M03, hosted .NET/Kestrel, cloud or production readiness. Exact positive-profile and terminal-control commands must be added by the integration owner before closure; dry runs and requested markers alone are not boot proof.",
       "desiredState": "open"
     },
     {
@@ -10649,7 +10643,8 @@
       "milestone": "M04",
       "parentKey": "M04-EPIC",
       "dependencyKeys": [
-        "M04-016"
+        "M04-016",
+        "M04-021"
       ],
       "labels": [
         "agent:blocked",
@@ -10668,7 +10663,7 @@
         "docs/completion-gates.md"
       ],
       "forbiddenPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -10678,16 +10673,16 @@
       ],
       "collisionLane": null,
       "summary": "Implement boxing, unboxing, and checked cast helpers.",
-      "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
+      "currentEvidence": "The allocation, original module owner, explicit-root collector and successful constructor precursors have accepted evidence. M04-016 (#85) is implemented but still awaiting current frozen acceptance. Full boxing/unboxing/checked casts remain unimplemented; invalid casts and null unboxing need M04-021 (#90) actual exception execution. A status return or terminal stub cannot fulfill those failures.",
       "implementationNotes": [
-        "Implement exactly one bounded slice: Implement boxing, unboxing, and checked cast helpers.",
+        "Implement actual pinned boxing, unboxing and checked-cast helpers only after M04-016 and M04-021 acceptance. The dotnet/dotnet 94ea82652cdd4e0f8046b5bd5becbd11461482ca RuntimeExports.cs RhUnboxAny/RhUnbox2 and TypeCast.cs checked casts require real NullReference/InvalidCast exceptions; preserve those semantics.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
         "The proposed owned paths are exact for this slice: src/OS.Kernel/Runtime/BoxingUnboxingCheckedCastHelpers.cs, tests/OS.HostTests/BoxingUnboxingCheckedCastHelpersTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Execute or validate the well-formed runtime/application case required by: Implement boxing, unboxing, and checked cast helpers.",
-        "Failure cases: Cover null/default values, size/count overflow, malformed metadata, missing import, relocation overflow, overlapping sections, W+X, root loss, write-barrier omission, cctor recursion/failure, bad cast, unwind corruption, and nonzero exit as applicable.",
-        "Explicitly inapplicable here: DHCP loss and provider cleanup are outside this runtime/application slice unless the title explicitly crosses them.",
+        "Positive cases: actual boxed payload copy, empty/populated nullable behavior, reference-bearing copy/barriers and root retention, valid unboxing identity/data, and each explicitly declared checked-cast domain.",
+        "Failure cases: actual invalid-cast and null-unbox exception propagation plus malformed/stale type metadata and invalid object or payload ranges. Do not substitute status-only compatibility checks or a successful allocation for boxing/cast acceptance.",
+        "Declare the precise supported class/interface/array/nullable domains before claim. M04-021 owns the nonthrowing exception-type predicate it requires and must not depend backwards on this full helper issue.",
         "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
       ],
       "referenceInfluences": [
@@ -10708,9 +10703,9 @@
         "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
         "Affected canonical documentation is updated without promoting unsupported completion gates.",
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Execute or validate the well-formed runtime/application case required by: Implement boxing, unboxing, and checked cast helpers.",
-        "Applicable failure cases are asserted: Cover null/default values, size/count overflow, malformed metadata, missing import, relocation overflow, overlapping sections, W+X, root loss, write-barrier omission, cctor recursion/failure, bad cast, unwind corruption, and nonzero exit as applicable.",
-        "The evidence report explicitly records these non-goals: DHCP loss and provider cleanup are outside this runtime/application slice unless the title explicitly crosses them."
+        "Positive cases: actual boxed payload copy, empty/populated nullable behavior, reference-bearing copy/barriers and root retention, valid unboxing identity/data, and each explicitly declared checked-cast domain.",
+        "Failure cases: actual invalid-cast and null-unbox exception propagation plus malformed/stale type metadata and invalid object or payload ranges. Do not substitute status-only compatibility checks or a successful allocation for boxing/cast acceptance.",
+        "Declare the precise supported class/interface/array/nullable domains before claim. M04-021 owns the nonthrowing exception-type predicate it requires and must not depend backwards on this full helper issue."
       ],
       "requiredMarkers": [
         "TEST_START m04.017",
@@ -10919,10 +10914,10 @@
       "milestone": "M04",
       "parentKey": "M04-EPIC",
       "dependencyKeys": [
-        "M04-019"
+        "M04-011"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -10933,12 +10928,10 @@
       "priority": "priority:p1",
       "ownedPaths": [
         "src/OS.Kernel/Runtime/X64PERuntimeFunctionUnwindMetadataHostileInput.cs",
-        "tests/OS.HostTests/X64PERuntimeFunctionUnwindMetadataHostileInputTests.cs",
-        "docs/nativeaot-nostdlib-limits.md",
-        "docs/completion-gates.md"
+        "tests/OS.HostTests/X64PERuntimeFunctionUnwindMetadataHostileInputTests.cs"
       ],
       "forbiddenPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -10948,17 +10941,16 @@
       ],
       "collisionLane": null,
       "summary": "Parse x64 PE runtime-function/unwind metadata with hostile-input tests.",
-      "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
+      "currentEvidence": "M04-011 (#80) is accepted: the original NativeAOT image registration, immutable metadata/RX range authority and module revalidation are available on accepted master 3ba0dd5 (step989, PR543). PE runtime-function parsing does not require delegates or TLS, so the former M04-019 dependency is removed. Core implementation is claimed in the isolated codex/m04-unwind-metadata worktree; no parser or guest acceptance is claimed yet. Current #66/#85/#572 acceptance remains separate and frozen.",
       "implementationNotes": [
-        "Implement exactly one bounded slice: Parse x64 PE runtime-function/unwind metadata with hostile-input tests.",
-        "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
-        "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
-        "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
-        "The proposed owned paths are exact for this slice: src/OS.Kernel/Runtime/X64PERuntimeFunctionUnwindMetadataHostileInput.cs, tests/OS.HostTests/X64PERuntimeFunctionUnwindMetadataHostileInputTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Execute or validate the well-formed runtime/application case required by: Parse x64 PE runtime-function/unwind metadata with hostile-input tests.",
-        "Failure cases: Cover null/default values, size/count overflow, malformed metadata, missing import, relocation overflow, overlapping sections, W+X, root loss, write-barrier omission, cctor recursion/failure, bad cast, unwind corruption, and nonzero exit as applicable.",
-        "Explicitly inapplicable here: DHCP loss and provider cleanup are outside this runtime/application slice unless the title explicitly crosses them.",
-        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
+        "Implement a small C# 14/.NET 10 status-returning decoder/index over the original registered x64 PE, using caller-owned storage and explicit capacities. Revalidate the retained module before metadata payload reads. Do not invent a ReadyToRun section for the PE exception directory.",
+        "Bound every RVA, byte extent, count and output operation. Require immutable metadata and admitted executable function/handler ranges. Validate actual 12-byte runtime-function records, ordering/nonoverlap, pinned unwind versions/opcodes/operands, code offsets, frame-register constraints, handler/chain extents and cycle bounds; unsupported forms fail explicitly. Publish no usable partial success.",
+        "Every successful lookup carries its owning PE base and original module identity. Preserve the SharpOS regression addendum: two-image positives and hostile cross-image, overflow, unsorted, overlapping, out-of-image and chained records.",
+        "Core leaf ownership is limited to the two declared C# paths. The parent owns catalog/tracker reconciliation and later canonical documentation; docs/nativeaot-nostdlib-limits.md and docs/completion-gates.md are reserved for serialized integration. No shared boot/probe/project/publisher/runner edits belong to this leaf.",
+        "Reuse TypeManagerModuleMetadataLiveNativeAOTImage and the existing PE validation knowledge in scripts/test-efi-artifact.ps1. The PowerShell validator is an independent oracle, not the kernel decoder. Use primary pinned runtime/PE format definitions; reference repositories remain read-only test influences.",
+        "Use focused host groups for the new parser and hostile boundaries. The isolated leaf may build its normal host project and invoke its own original methods in an artifact-only diagnostic. Do not launch the several-hour common harness or native publisher during leaf development; the parent runs original unfiltered acceptance after integration is frozen.",
+        "The separately claimed integration must consume the real current EFI metadata, map selected real method PCs to records, and associate serial values with the captured native image. Retain TEST_START/TEST_PASS m04.020 and CLROS_M04_020_READY. A marker override alone is not a new guest profile; its exact publish/run command must be recorded after the profile exists.",
+        "Parsing does not restore registers, walk executing frames, execute handlers or scan GC roots. M04-021 owns language-specific EH data, exception creation/type matching, search and execution. Reserve a unique done step after implementation evidence exists; preserve failures and deferred work."
       ],
       "referenceInfluences": [
         {
@@ -10973,14 +10965,12 @@
         }
       ],
       "acceptanceCriteria": [
-        "The repository implements and tests the scoped behavior: Parse x64 PE runtime-function/unwind metadata with hostile-input tests.",
-        "Only declared owned paths are changed; lane-controlled integration files are touched only when this issue owns that lane.",
-        "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
-        "Affected canonical documentation is updated without promoting unsupported completion gates.",
-        "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Execute or validate the well-formed runtime/application case required by: Parse x64 PE runtime-function/unwind metadata with hostile-input tests.",
-        "Applicable failure cases are asserted: Cover null/default values, size/count overflow, malformed metadata, missing import, relocation overflow, overlapping sections, W+X, root loss, write-barrier omission, cctor recursion/failure, bad cast, unwind corruption, and nonzero exit as applicable.",
-        "The evidence report explicitly records these non-goals: DHCP loss and provider cleanup are outside this runtime/application slice unless the title explicitly crosses them."
+        "A bounded no-allocation kernel decoder validates the original registered image and its actual PE exception directory before returning a runtime-function/unwind description. Status failures do not expose a usable partial index.",
+        "Function records and all consumed unwind slots/optional fields remain inside admitted immutable metadata or RX ranges as appropriate; unsupported versions, flags and operations are explicit errors.",
+        "Focused host tests cover two owning image bases, no-match PCs, boundary RVAs/counts/output capacity, corrupt operands/order/frame registers, handler and chain backing/cycles, stale registration and cross-image confusion.",
+        "A fresh real QEMU/OVMF capture consumes current-image metadata and maps real compiled method PCs, with original source/native/serial associations and stable markers. Host fixtures or requested marker strings alone do not satisfy this criterion.",
+        "Only declared leaf paths change; shared integration and canonical documentation have a serialized owner. The original full suite, relevant native verification, naming and diff checks pass on the frozen integrated source.",
+        "No forbidden native source, generated artifact, secret or unreviewed reference code is committed. A reserved done step and evidence-review comment record commands, hashes, failures, limitations and the parser-only boundary."
       ],
       "requiredMarkers": [
         "TEST_START m04.020",
@@ -10989,18 +10979,19 @@
         "CLROS_M04_020_READY"
       ],
       "requiredCommands": [
-        "dotnet build .\\CLROS.slnx --nologo -m:1",
-        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun",
+        "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
         "git diff --check",
         "git status --short",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M04_020_READY\""
+        "dotnet build .\\CLROS.slnx --nologo -m:1",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check-naming.ps1",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun"
       ],
       "documentationPaths": [
         "docs/nativeaot-nostdlib-limits.md",
         "docs/completion-gates.md"
       ],
-      "evidenceBoundary": "This issue proves only \"Parse x64 PE runtime-function/unwind metadata with hostile-input tests.\" It does not by itself prove the M04 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
+      "evidenceBoundary": "This issue proves bounded per-image x64 PE runtime-function/unwind metadata decoding, lookup and real-image consumption only. It does not prove actual stack unwinding, catch/finally execution, restored registers, general exception support, GC stack scanning, M04 completion, hosted .NET/Kestrel or cloud readiness. Fresh guest evidence remains mandatory; the integration owner must add its exact implemented profile command before closure.",
       "desiredState": "open"
     },
     {
@@ -11038,9 +11029,10 @@
       ],
       "collisionLane": null,
       "summary": "Implement throw, catch, finally, rethrow, and unwind in separately gated slices.",
-      "currentEvidence": "The module owner and bounded explicit-root collector have accepted evidence. Actual throw/catch/finally/rethrow and unwind remain unimplemented. M04-020 supplies validated runtime-function/unwind metadata; this issue supplies the execution mechanism that full M04-015 later uses for constructor exception caching, without a backwards dependency.",
+      "currentEvidence": "The module owner and bounded explicit-root collector have accepted evidence. Actual throw/catch/finally/rethrow and unwind remain unimplemented. M04-020 supplies validated runtime-function/unwind metadata; this issue supplies the execution mechanism that full M04-015 later uses for constructor exception caching, without a backwards dependency. The nonthrowing exception-type predicate is also an implementation obligation here: current RhTypeCast_IsInstanceOfException still halts. This issue must not depend backwards on full M04-017; M04-017 consumes real exception behavior after this issue.",
       "implementationNotes": [
-        "Implement the actual pinned ILC throw, handler search, stack unwind, catch, finally and rethrow mechanisms in separately gated slices. Retain the M04-020 dependency and do not depend on full M04-015, which consumes this mechanism afterward.",
+        "Implement the actual pinned ILC throw, language-specific EH metadata, exception-object creation, handler search, stack unwind, catch, finally and rethrow mechanisms in separately gated slices. Retain M04-020; do not depend on full M04-015 or M04-017, which consume this mechanism later.",
+        "Implement the required nonthrowing exception-type match from pinned runtime semantics instead of invoking the current halting RhTypeCast_IsInstanceOfException stub. Any reusable predicate extracted later requires exact disjoint ownership; do not create a backwards full-cast dependency.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
@@ -11070,7 +11062,8 @@
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
         "Actual compiler-emitted throw/catch/finally/rethrow paths execute over the pinned image and validated runtime-function metadata, with expected handler order, exception identity and restored frame/register state.",
         "Nested cleanup and outer rethrow preserve rooted exception objects and module/context lifetime; invalid metadata, handlers and stack transitions fail closed rather than dispatching to unchecked code, and unhandled exceptions follow the documented terminal policy.",
-        "No status-callback or terminal-only substitute counts as throw/unwind acceptance. The resulting mechanism supports full M04-015 constructor failure integration, which remains a separate incomplete requirement until its cached-failure guest evidence is accepted."
+        "No status-callback or terminal-only substitute counts as throw/unwind acceptance. The resulting mechanism supports full M04-015 constructor failure integration, which remains a separate incomplete requirement until its cached-failure guest evidence is accepted.",
+        "Actual handler search uses a validated nonthrowing type predicate and real language-specific EH records. The parser in M04-020 does not supply exception-object construction, type matching or handler execution."
       ],
       "requiredMarkers": [
         "TEST_START m04.021",
