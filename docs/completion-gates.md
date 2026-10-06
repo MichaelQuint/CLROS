@@ -22,6 +22,16 @@ final acceptance. Gates3/4/5 remain **Fail**; general adapter revocation,
 firmware-page reclamation, compiler cctors and general runtime support remain
 incomplete.
 
+M03-008 and M04-024 implementation is active under shared issue #570 and draft
+PR571. Their retained-capability and constructor cores passed focused host
+checks (6 and 8 groups respectively). Default-off EFI integration now has
+development native/QEMU passes for the 73-record revocation and 82-record
+constructor profiles. Final guest and original unfiltered common acceptance remain pending in
+[step1052](../done/step1052.md). This does not close a gate or establish general
+firmware revocation, exception caching/rethrow, cross-thread initialization,
+hosted .NET, Kestrel or cloud readiness. The complete freshness review must
+reconcile existing fixtures as well as newly added tests before acceptance.
+
 Gate status is explicit:
 
 - `Pass` means every acceptance item for that gate has preserved evidence.

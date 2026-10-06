@@ -163,9 +163,9 @@ internal static class M04NativeAotModuleRegistrationEfiIntegrationTests
         var defaults=project.Descendants(Flag).ToArray();Need(defaults.Length==1&&defaults[0].Value=="false"&&(string?)defaults[0].Attribute("Condition")=="'$("+Flag+")' == ''","one false default");
         var define=project.Descendants("DefineConstants").Single(x=>x.Value.Contains("M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE",StringComparison.Ordinal));
         Need((string?)define.Parent?.Attribute("Condition")=="'$("+Flag+")' == 'true'"&&define.Value=="$(DefineConstants);M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE","exact symbol");
-        var compile=project.Descendants("Compile").ToArray();Need(compile.Length==108,"actual complete source closure");
+        var compile=project.Descendants("Compile").ToArray();Need(compile.Length==112,"actual complete source closure");
         foreach(string name in new[]{"..\\OS.Kernel\\Runtime\\TypeManagerModuleMetadataLiveNativeAOTImage.cs","Runtime\\NativeAotModuleRegistrationProbe.cs","..\\OS.Kernel\\Diagnostics\\TypeManagerModuleRegistrationProbeAuthority.cs"})Need(compile.Count(x=>(string?)x.Attribute("Include")==name)==1,"one real source "+name);
-        Need(Hash(Path.Combine(root,"src/OS.Kernel/Runtime/TypeManagerModuleMetadataLiveNativeAOTImage.cs"))=="D71B47498F238BE5241B839666F624BF96CF602DE17C11D4CA056EA19B0CFADA","reviewed registered-range core");
+        Need(Hash(Path.Combine(root,"src/OS.Kernel/Runtime/TypeManagerModuleMetadataLiveNativeAOTImage.cs"))=="3CFA1D3A627A6C9F7230FA368B3C7B6F025CD744784E75E506CF9B8CB5F51421","reviewed registered-range core");
         string entry=File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.cs"));
         foreach(string text in new[]{"TryGetOriginalTypeManagerImage","originalCapture = s_evidenceScratch.LoadedImageCapture","originalMapping = s_evidenceScratch.LoadedImageVirtualMapping","OS.Runtime.NativeAotModuleRegistrationProbe.Run(typeManagerCapture, typeManagerMapping"})Need(entry.Contains(text,StringComparison.Ordinal),"actual original authority "+text);
         Need(File.ReadAllText(Path.Combine(root,"src/OS.Kernel/Diagnostics/TypeManagerModuleRegistrationProbeAuthority.cs")).Contains("public const bool EnableTypeManagerModuleRegistrationProbe = false;",StringComparison.Ordinal),"disabled compile-time authority");
@@ -174,18 +174,20 @@ internal static class M04NativeAotModuleRegistrationEfiIntegrationTests
         foreach(string text in new[]{"valid.RequiredStorage - 1","storage, capacity","ulong consumerHandle = ReadWord(slot.Section)","consumerHandle, 202","consumerHandle, 204","consumerHandle, 213","consumerHandle, 0","MethodImplOptions.NoInlining"})Need(adapter.Contains(text,StringComparison.Ordinal),"genuine consumer "+text);
         Need(adapter.IndexOf("if (!registered.Succeeded",StringComparison.Ordinal)<adapter.IndexOf("storage[i] = Canary(i)",StringComparison.Ordinal),"only successful registration admits canary writes");
         var errors=project.Descendants("Error").Select(x=>(string)x.Attribute("Condition")!).ToArray();
-        string[] flags=Regex.Matches(File.ReadAllText(Path.Combine(root,"src/OS/OS.csproj")),@"\$\((Enable\w+Probe)\)").Select(x=>x.Groups[1].Value).Distinct(StringComparer.Ordinal).ToArray();Need(flags.Length==44,"forty-four actual flags");
+        string[] flags=Regex.Matches(File.ReadAllText(Path.Combine(root,"src/OS/OS.csproj")),@"\$\((Enable\w+Probe)\)").Select(x=>x.Groups[1].Value).Distinct(StringComparer.Ordinal).ToArray();Need(flags.Length==46,"forty-six actual flags");
         Need(errors.Count(x=>x=="'$("+Flag+")' != '' and '$("+Flag+")' != 'true' and '$("+Flag+")' != 'false'")==1,"exact invalid-value guard");
         Need(errors.Count(x=>x=="'$("+Flag+")' == 'true' and '$(EnableM01LoadedImageStackProbe)' != 'true'")==1,"exact original M01 prerequisite");
         foreach(string other in flags.Where(x=>x!=Flag&&x!="EnableM01LoadedImageStackProbe")){
-            if(other=="EnableM03FirstRealExitBootServicesProbe"){
+            if(other=="EnableM03FirstRealExitBootServicesProbe"||other=="EnableM03FirmwareAdapterRevocationProbe"){
+                if(other=="EnableM03FirmwareAdapterRevocationProbe")
+                    Need(errors.Count(x=>x=="'$(EnableM03FirmwareAdapterRevocationProbe)' == 'true' and '$(EnableM03FirstRealExitBootServicesProbe)' != 'true'")==1,"exact inherited revocation prerequisite");
                 Need(errors.Count(x=>x=="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$("+Flag+")' == 'true'")==1,"exact incoming first-exit conflict");
                 continue;
             }
-            if(other=="EnableM04SeededCollectorChurnProbe"){
-                Need(errors.Count(x=>x=="'$(EnableM04SeededCollectorChurnProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'")==1
+            if(other=="EnableM04SeededCollectorChurnProbe"||other=="EnableM04ClassConstructorExecutionProbe"){
+                Need(errors.Count(x=>x=="'$("+other+")' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'")==1
                     &&errors.Count(x=>x=="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$("+Flag+")' == 'true'")==1
-                    &&errors.Count(x=>x=="'$("+Flag+")' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'")==1,"exact inherited churn GC conflicts");
+                    &&errors.Count(x=>x=="'$("+Flag+")' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'")==1,"exact inherited GC conflicts "+other);
                 continue;
             }
             Need(errors.Contains("'$("+Flag+")' == 'true' and '$("+other+")' == 'true'",StringComparer.Ordinal)&&errors.Contains("'$("+other+")' == 'true' and '$("+Flag+")' == 'true'",StringComparer.Ordinal),"reciprocal conflict "+other);
@@ -445,8 +447,8 @@ internal static class M04NativeAotModuleRegistrationEfiIntegrationTests
             string[] swapped=[..ProtocolLines];(swapped[index],swapped[index+1])=(swapped[index+1],swapped[index]);Need(Stream(swapped).OutOfOrderOccurrenceCount>0,"reordered registration row");
         }
         void Reject(string[] args,string reason){Result failure=Dry(args);Need(failure.Exit!=0&&!failure.Timeout&&(failure.Output+failure.Error).Contains(reason,StringComparison.Ordinal),"profile rejection "+reason);}
-        string project=File.ReadAllText(Path.Combine(root,"src/OS/OS.csproj"));string[] flags=Regex.Matches(project,@"\$\((Enable\w+Probe)\)").Select(x=>x.Groups[1].Value).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();Need(flags.Length==44,"actual44 profile flags");
-        foreach(string other in flags.Where(x=>x!=Flag&&x!="EnableM01LoadedImageStackProbe"))Reject([..positive,"-"+other],other=="EnableM04SeededCollectorChurnProbe"?"m04_churn_requires_gc_profile":other=="EnableM03FirstRealExitBootServicesProbe"?"m03_first_exit_requires property=EnableM01LiveAllocatorProbe":other=="EnableM04GcStaticRootMaterializationProbe"?"m04_gc_static_profile_invalid property=EnableM01LiveAllocatorProbe":other=="EnableM03TypedExitBootServicesCallProbe"?"m03_typed_ebs_profile_conflict property=EnableM01LoadedImageStackProbe":"m04_type_manager_profile_conflict property="+other);
+        string project=File.ReadAllText(Path.Combine(root,"src/OS/OS.csproj"));string[] flags=Regex.Matches(project,@"\$\((Enable\w+Probe)\)").Select(x=>x.Groups[1].Value).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();Need(flags.Length==46,"actual46 profile flags");
+        foreach(string other in flags.Where(x=>x!=Flag&&x!="EnableM01LoadedImageStackProbe"))Reject([..positive,"-"+other],other=="EnableM03FirmwareAdapterRevocationProbe"?"m03_revocation_requires_first_exit":other=="EnableM04ClassConstructorExecutionProbe"?"m04_cctor_requires_gc_profile":other=="EnableM04SeededCollectorChurnProbe"?"m04_churn_requires_gc_profile":other=="EnableM03FirstRealExitBootServicesProbe"?"m03_first_exit_requires property=EnableM01LiveAllocatorProbe":other=="EnableM04GcStaticRootMaterializationProbe"?"m04_gc_static_profile_invalid property=EnableM01LiveAllocatorProbe":other=="EnableM03TypedExitBootServicesCallProbe"?"m03_typed_ebs_profile_conflict property=EnableM01LoadedImageStackProbe":"m04_type_manager_profile_conflict property="+other);
         Reject(["-"+Flag,"-EnableM01LoadedImageStackProbe"],"m04_type_manager_requires_build_and_original_capture");
         Reject(["-BuildEfi","-"+Flag],"m04_type_manager_requires_original_loaded_image");
         Reject([..positive,"-SkipImageBuild"],"m04_type_manager_requires_build_and_original_capture");

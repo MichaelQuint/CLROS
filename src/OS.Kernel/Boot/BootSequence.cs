@@ -230,6 +230,16 @@ public static class BootSequence
     private static bool IsFirstRealExitBootServicesEnabled() =>
         OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe;
 
+    /// <summary>After retained module/static publication and before constructor consumers.</summary>
+    public static unsafe OS.Kernel.Runtime.CompilerClassConstructorStatus RunCompilerClassConstructors(
+        byte* storage, ulong capacity) =>
+        OS.Kernel.Diagnostics.Probes.EnableM04ClassConstructorExecutionProbe
+            ? OS.Kernel.Runtime.CompilerClassConstructorExecution.RunEager(storage, capacity)
+            : OS.Kernel.Runtime.CompilerClassConstructorStatus.NotBound;
+
+    public static bool IsFirmwareAdapterRevocationEnabled() =>
+        OS.Kernel.Diagnostics.Probes.EnableM03FirmwareAdapterRevocationProbe;
+
 #if !NOSTDLIB_EFI
     private const int NativeManifestEnvironmentDiagnosticMarkerCapacity = 512;
     private const int FetchAppHttpTcpExchangeDiagnosticMarkerCapacity = 1024;

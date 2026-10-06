@@ -14,8 +14,20 @@ public static partial class Probes
     public const bool EnableM03FirstRealExitBootServicesProbe = false;
 #endif
 
+#if M03_FIRMWARE_ADAPTER_REVOCATION_PROBE
+    public const bool EnableM03FirmwareAdapterRevocationProbe = true;
+#else
+    public const bool EnableM03FirmwareAdapterRevocationProbe = false;
+#endif
+
+#if M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE
+    public const bool EnableM04ClassConstructorExecutionProbe = true;
+#else
+    public const bool EnableM04ClassConstructorExecutionProbe = false;
+#endif
+
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 17;
+    public const int ProbeCatalogCount = 19;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -164,6 +176,16 @@ public static partial class Probes
             ProbeRisk.Destructive,
             "Exits firmware boot services and adopts owned descriptors, CR3 and COM1 before terminal halt.");
     }
+
+    public static ProbeDefinition GetM03FirmwareAdapterRevocationProbe() =>
+        new(UefiExitBootServicesGroup, nameof(EnableM03FirmwareAdapterRevocationProbe),
+            EnableM03FirmwareAdapterRevocationProbe, ProbeRisk.Destructive,
+            "Checks retained typed firmware capabilities deny after real exit and owned CR3 adoption.");
+
+    public static ProbeDefinition GetM04ClassConstructorExecutionProbe() =>
+        new("runtime.cctor", nameof(EnableM04ClassConstructorExecutionProbe),
+            EnableM04ClassConstructorExecutionProbe, ProbeRisk.Destructive,
+            "Executes compiler eager and lazy constructors once with single-thread recursive access.");
 
     public static ProbeDefinition GetAcpiPhysicalDiscoveryProbe()
     {
@@ -320,6 +342,12 @@ public static partial class Probes
                 return true;
             case 16:
                 definition = GetM03FirstRealExitBootServicesProbe();
+                return true;
+            case 17:
+                definition = GetM03FirmwareAdapterRevocationProbe();
+                return true;
+            case 18:
+                definition = GetM04ClassConstructorExecutionProbe();
                 return true;
             default:
                 definition = default;

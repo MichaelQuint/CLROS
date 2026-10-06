@@ -44,6 +44,13 @@ public static unsafe class EfiEntry
             internal ulong PreparationCheckpoint;
             internal uint TableMemoryType;
             internal fixed ulong PageMetadata[165]; // 55 * 24 bytes, naturally aligned
+#if M03_FIRMWARE_ADAPTER_REVOCATION_PROBE
+            internal FirmwareAdapterAuthority AdapterAuthority;
+            internal AdapterHandles OriginalHandles, CopiedHandles;
+            internal EfiSimpleTextOutputProtocol* AdapterConsole;
+            internal EfiBootServices* AdapterServices;
+            internal fixed ulong AdapterEntries[8];
+#endif
         }
         private static Storage s_storage;
 
@@ -86,6 +93,13 @@ public static unsafe class EfiEntry
                     WritePreparationFailure(console, serial, state->PreparationCheckpoint, state->TableMemoryType);
                     return;
                 }
+#if M03_FIRMWARE_ADAPTER_REVOCATION_PROBE
+                // A real empty OutputString succeeded through the admitted handle.
+                ulong* admitted = stackalloc ulong[4];
+                admitted[0] = 0x504144415f33304dUL; admitted[1] = 0x494d44415f524554UL;
+                admitted[2] = 0x3020312044455454UL; admitted[3] = 0x0000000000000a0dUL;
+                for (int i = 0; i < 26; i++) Write(console, serial, ((byte*)admitted)[i]);
+#endif
                 state->Phase = 3;
                 ((delegate* unmanaged<FirstExitOwnedStackContext*, void>)
                     (state->Memory.Code + FirstExitCodeBundle.StackEntryOffset))(state->Arena.StackEntry);
@@ -188,11 +202,178 @@ public static unsafe class EfiEntry
                     state->Memory.Entries, TablePages * 512).Succeeded ||
                 X64InstructionPublication.Serialize() != X64InstructionPublication.ExpectedSuccessCookie ||
                 !state->Arena.Fault->Backend.ConfigureDefault().Succeeded) return false;
+#if M03_FIRMWARE_ADAPTER_REVOCATION_PROBE
+            state->PreparationCheckpoint = 95;
+            if (!PrepareAdapters(state, services)) return false;
+#endif
             state->ImageHandle = null;
             state->SystemTable = null;
             state->PreparationCheckpoint = 100;
             return true;
         }
+
+#if M03_FIRMWARE_ADAPTER_REVOCATION_PROBE
+        private struct AdapterHandles
+        {
+            internal FirmwareConsoleCapability Console;
+            internal FirmwareMemoryMapCapability MemoryMap;
+            internal FirmwareFileSystemCapability FileSystem;
+            internal FirmwareTimerCapability Timer;
+            internal FirmwareRandomCapability Random;
+            internal FirmwareConfigurationTableCapability ConfigurationTable;
+            internal FirmwarePhysicalMemoryCapability PhysicalMemory;
+            internal FirmwareFramebufferCapability Framebuffer;
+        }
+
+        private static bool PrepareAdapters(Storage* state, EfiBootServices* services)
+        {
+            if (!BootSequence.IsFirmwareAdapterRevocationEnabled() || state->SystemTable->ConOut == null ||
+                state->SystemTable->ConOut->OutputString == null) return false;
+            state->AdapterConsole = state->SystemTable->ConOut;
+            state->AdapterServices = services;
+            FirmwareAdapterBackends backends = new FirmwareAdapterBackends
+            {
+                Context = state, ContextBytes = (ulong)sizeof(Storage), Console = &AdapterConsole,
+                MemoryMap = &AdapterMemoryMap, FileSystem = &AdapterFileSystem, Timer = &AdapterTimer,
+                Random = &AdapterRandom, ConfigurationTable = &AdapterConfiguration,
+                PhysicalMemory = &AdapterPhysicalMemory, Framebuffer = &AdapterFramebuffer
+            };
+            // The original retained owner is essential: never bind a copied arena.
+            if (ConsoleFilesystemTimerRNGConfigurationTablePhysicalMemory.Bind(ref state->AdapterAuthority,
+                &state->Arena, state->Memory.References, backends) != FirmwareAdapterStatus.Success) return false;
+            state->OriginalHandles = new AdapterHandles
+            {
+                Console = ConsoleFilesystemTimerRNGConfigurationTablePhysicalMemory.Console(ref state->AdapterAuthority),
+                MemoryMap = ConsoleFilesystemTimerRNGConfigurationTablePhysicalMemory.MemoryMap(ref state->AdapterAuthority),
+                FileSystem = ConsoleFilesystemTimerRNGConfigurationTablePhysicalMemory.FileSystem(ref state->AdapterAuthority),
+                Timer = ConsoleFilesystemTimerRNGConfigurationTablePhysicalMemory.Timer(ref state->AdapterAuthority),
+                Random = ConsoleFilesystemTimerRNGConfigurationTablePhysicalMemory.Random(ref state->AdapterAuthority),
+                ConfigurationTable = ConsoleFilesystemTimerRNGConfigurationTablePhysicalMemory.ConfigurationTable(ref state->AdapterAuthority),
+                PhysicalMemory = ConsoleFilesystemTimerRNGConfigurationTablePhysicalMemory.PhysicalMemory(ref state->AdapterAuthority),
+                Framebuffer = ConsoleFilesystemTimerRNGConfigurationTablePhysicalMemory.Framebuffer(ref state->AdapterAuthority)
+            };
+            state->CopiedHandles = state->OriginalHandles;
+            char empty = '\0';
+            FirmwareAdapterCallResult positive = state->OriginalHandles.Console.Write(&empty, 1);
+            return positive.Succeeded && positive.FirmwareStatus == 0 && state->AdapterEntries[0] == 1 && AdapterEntryCount(state) == 1;
+        }
+
+        // Every typed thunk counts entry before reading its firmware provider. The
+        // optional providers are explicitly unavailable; this profile does not
+        // discover filesystem, RNG or GOP protocols or promise functional services.
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static ulong AdapterConsole(void* context, char* text, ulong characters)
+        {
+            Storage* state = (Storage*)context; state->AdapterEntries[0]++;
+            if (characters == 0 || text[characters - 1] != '\0') return 0x8000000000000002UL;
+            return state->AdapterConsole->OutputString(state->AdapterConsole, (ushort*)text);
+        }
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static ulong AdapterMemoryMap(void* context, byte* buffer, ulong capacity, FirmwareAdapterMemoryMapInfo* info)
+        {
+            Storage* state = (Storage*)context; state->AdapterEntries[1]++;
+            ulong bytes = capacity, key = 0, stride = 0; uint version = 0;
+            ulong status = state->AdapterServices->GetMemoryMap(&bytes, buffer, &key, &stride, &version);
+            info->Bytes = bytes; info->MapKey = key; info->DescriptorBytes = stride; info->DescriptorVersion = version; info->Reserved = 0;
+            return status;
+        }
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static ulong AdapterFileSystem(void* context, ulong handle, ulong offset, byte* buffer, ulong capacity, ulong* actual)
+        { ((Storage*)context)->AdapterEntries[2]++; return 0x8000000000000003UL; }
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static ulong AdapterTimer(void* context, ulong* value)
+        {
+            Storage* state = (Storage*)context; state->AdapterEntries[3]++;
+            void* entry = state->AdapterServices->GetNextMonotonicCount;
+            return entry == null ? 0x8000000000000003UL : ((delegate* unmanaged<ulong*, ulong>)entry)(value);
+        }
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static ulong AdapterRandom(void* context, byte* buffer, ulong bytes)
+        { ((Storage*)context)->AdapterEntries[4]++; return 0x8000000000000003UL; }
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static ulong AdapterConfiguration(void* context, ulong low, ulong high, ulong* table)
+        { ((Storage*)context)->AdapterEntries[5]++; return 0x8000000000000003UL; }
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static ulong AdapterPhysicalMemory(void* context, ulong address, byte* buffer, ulong bytes)
+        { ((Storage*)context)->AdapterEntries[6]++; return 0x8000000000000003UL; }
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static ulong AdapterFramebuffer(void* context, FirmwareAdapterFramebufferInfo* info)
+        { ((Storage*)context)->AdapterEntries[7]++; return 0x8000000000000003UL; }
+
+        private static ulong AdapterEntryCount(Storage* state)
+        { ulong count = 0; for (int i = 0; i < 8; i++) count += state->AdapterEntries[i]; return count; }
+
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static bool ReportRevokedAdapters(Storage* state)
+        {
+            if (state->Diagnostic.Status != FirstExitDiagnosticStatus.Completed || AdapterEntryCount(state) != 1 ||
+                !WriteAdapterMarker(state, 0, 0)) return false;
+            byte* output = stackalloc byte[128];
+            for (uint index = 0; index < 8; index++)
+            {
+                for (int j = 0; j < 128; j++) output[j] = 0xa5;
+                FirmwareAdapterCallResult result;
+                // These output addresses are on the original owned stack. A
+                // denial must precede even range validation, not just the call.
+                switch (index)
+                {
+                    case 0: result = state->CopiedHandles.Console.Write((char*)output, 1); break;
+                    case 1: result = state->CopiedHandles.MemoryMap.Capture(output, 64, (FirmwareAdapterMemoryMapInfo*)(output + 64)); break;
+                    case 2: result = state->CopiedHandles.FileSystem.Read(1, 0, output, 64, (ulong*)(output + 64)); break;
+                    case 3: result = state->CopiedHandles.Timer.Read((ulong*)output); break;
+                    case 4: result = state->CopiedHandles.Random.Fill(output, 64); break;
+                    case 5: result = state->CopiedHandles.ConfigurationTable.Find(0, 0, (ulong*)output); break;
+                    case 6: result = state->CopiedHandles.PhysicalMemory.Read(0, output, 64); break;
+                    default: result = state->CopiedHandles.Framebuffer.Snapshot((FirmwareAdapterFramebufferInfo*)output); break;
+                }
+                bool preserved = result.Status == FirmwareAdapterStatus.ServicesUnavailable && !result.Succeeded &&
+                    result.FirmwareStatus == 0 && AdapterEntryCount(state) == 1;
+                for (int j = 0; j < 128; j++) if (output[j] != 0xa5) preserved = false;
+                for (int j = 0; j < sizeof(AdapterHandles); j++)
+                    if (((byte*)&state->OriginalHandles)[j] != ((byte*)&state->CopiedHandles)[j]) preserved = false;
+                if (!preserved || !FirstExitOwnedArena.ValidateCanaries(state->Arena))
+                { _ = WriteAdapterMarker(state, 4, 0); return false; }
+                if (!WriteAdapterMarker(state, 1, index)) return false;
+            }
+            return WriteAdapterMarker(state, 2, 0) && WriteAdapterMarker(state, 3, 0);
+        }
+
+        private static bool WriteAdapterMarker(Storage* state, uint marker, uint index)
+        {
+            if (!FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+            ulong* words = stackalloc ulong[4]; uint bytes;
+            if (marker == 0)
+            { words[0] = 0x4154535f54534554UL; words[1] = 0x302e33306d205452UL; words[2] = 0x000000000a0d3830UL; bytes = 20; }
+            else if (marker == 1 && index < 8)
+            {
+                words[0] = 0x504144415f33304dUL; words[1] = 0x494e45445f524554UL;
+                words[2] = 0x3020342030204445UL; words[3] = 0x000000000a0d3120UL;
+                ((byte*)words)[19] = (byte)('0' + index); bytes = 28;
+            }
+            else if (marker == 2)
+            { words[0] = 0x304d5f534f524c43UL; words[1] = 0x45525f3830305f33UL; words[2] = 0x0000000a0d594441UL; bytes = 21; }
+            else if (marker == 3)
+            { words[0] = 0x5341505f54534554UL; words[1] = 0x30302e33306d2053UL; words[2] = 0x00000000000a0d38UL; bytes = 19; }
+            else
+            {
+                words[0] = 0x4941465f54534554UL; words[1] = 0x30302e33306d204cUL;
+                words[2] = 0x61636f7665722038UL; words[3] = 0x00000a0d6e6f6974UL; bytes = 30;
+            }
+            Com1OwnedPortIoBackend backend = state->Arena.Fault->Backend;
+            for (uint i = 0; i < bytes; i++)
+            {
+                bool ready = false;
+                for (int poll = 0; poll < PanicSafeFormattingSerialReportingOwnedCom1.DefaultTransmitReadyPollLimit; poll++)
+                {
+                    Com1OwnedPortIoOperationResult read = backend.ReadByte(Com1OwnedPortIoBackend.LineStatusRegisterPort);
+                    if (!read.Succeeded) return false;
+                    if ((read.Value & PanicSafeFormattingSerialReportingOwnedCom1.TransmitHoldingRegisterEmptyMask) != 0) { ready = true; break; }
+                }
+                if (!ready || !backend.WriteByte(Com1OwnedPortIoBackend.DataRegisterPort, ((byte*)words)[i]).Succeeded) return false;
+            }
+            return true;
+        }
+#endif
 
         private static bool Allocate(EfiBootServices* services, uint type, ulong pages,
             ulong image, ulong imageBytes, SeparatePageFaultMappingRange allocator, out ulong address)
@@ -263,7 +444,12 @@ public static unsafe class EfiEntry
             {
                 if (state->Phase != 4 || !state->Arena.IsReady || transition != state->Arena.Transition ||
                     context != state->Arena.Permanent || context->DiagnosticContext != state) return;
+#if M03_FIRMWARE_ADAPTER_REVOCATION_PROBE
+                if (FirstExitPostExitDiagnostics.Report(ref state->Diagnostic, ref state->Arena, state->Memory))
+                    _ = ReportRevokedAdapters(state);
+#else
                 _ = FirstExitPostExitDiagnostics.Report(ref state->Diagnostic, ref state->Arena, state->Memory);
+#endif
                 // All returns, including success, terminate in the native stub.
             }
         }

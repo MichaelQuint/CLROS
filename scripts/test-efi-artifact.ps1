@@ -41,6 +41,8 @@ param(
     [switch]$EnableM04SeededCollectorChurnProbe,
     [switch]$EnableM03TypedExitBootServicesCallProbe,
     [switch]$EnableM03FirstRealExitBootServicesProbe,
+    [switch]$EnableM03FirmwareAdapterRevocationProbe,
+    [switch]$EnableM04ClassConstructorExecutionProbe,
     [switch]$EnableM04CheckedReferenceBarrierProbe,
     [switch]$EnableM01LoadedImageStackProbe,
     [switch]$EnableM01LiveAllocatorProbe,
@@ -72,7 +74,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 122
+$expectedSourceClosureInputCount = 126
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -223,7 +225,11 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Diagnostics\GCStaticRootMaterializationProbeAuthority.cs|Diagnostics\GCStaticRootMaterializationProbeAuthority.cs',
     '..\..\std\no-runtime\shared\DeterministicRandom32.cs|Std\DeterministicRandom32.cs',
     '..\OS.Kernel\Runtime\SeededAllocationChurnCollectionRootRetentionGuestProbes.cs|Runtime\SeededAllocationChurnCollectionRootRetentionGuestProbes.cs',
-    'Runtime\SeededCollectorChurnProbe.cs|'
+    'Runtime\SeededCollectorChurnProbe.cs|',
+    '..\OS.Kernel\Boot\ConsoleFilesystemTimerRNGConfigurationTablePhysicalMemory.cs|Boot\ConsoleFilesystemTimerRNGConfigurationTablePhysicalMemory.cs',
+    '..\OS.Kernel\Runtime\CompilerClassConstructorExecution.cs|Runtime\CompilerClassConstructorExecution.cs',
+    'Runtime\ClassConstructorRunner.cs|',
+    'Runtime\CompilerClassConstructorExecutionProbe.cs|'
 )
 $expectedPackageBuildClosure = @(
     [pscustomobject]@{
@@ -3908,6 +3914,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM04SeededCollectorChurnProbe," +
             "EnableM03TypedExitBootServicesCallProbe," +
             "EnableM03FirstRealExitBootServicesProbe," +
+            "EnableM03FirmwareAdapterRevocationProbe," +
+            "EnableM04ClassConstructorExecutionProbe," +
             "EnableM01LoadedImageStackProbe," +
             "EnableM01LiveAllocatorProbe," +
             "EnableM01OwnedPagingProbe," +
@@ -4080,6 +4088,12 @@ function Invoke-PostRestoreEvaluationSnapshot {
     }
     if ($EnableM03FirstRealExitBootServicesProbe) {
         $arguments += "-p:EnableM03FirstRealExitBootServicesProbe=true"
+    }
+    if ($EnableM03FirmwareAdapterRevocationProbe) {
+        $arguments += "-p:EnableM03FirmwareAdapterRevocationProbe=true"
+    }
+    if ($EnableM04ClassConstructorExecutionProbe) {
+        $arguments += "-p:EnableM04ClassConstructorExecutionProbe=true"
     }
     if ($EnableM04CheckedReferenceBarrierProbe) {
         $arguments += "-p:EnableM04CheckedReferenceBarrierProbe=true"
@@ -4343,6 +4357,10 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM03TypedExitBootServicesCallProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM03FirstRealExitBootServicesProbe =
             $EnableM03FirstRealExitBootServicesProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM03FirmwareAdapterRevocationProbe =
+            $EnableM03FirmwareAdapterRevocationProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM04ClassConstructorExecutionProbe =
+            $EnableM04ClassConstructorExecutionProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04CheckedReferenceBarrierProbe =
             $EnableM04CheckedReferenceBarrierProbe.IsPresent.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
@@ -4416,7 +4434,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 108 -or
+    if ($compileItems.Count -ne 112 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4546,6 +4564,9 @@ function Assert-PostRestoreEvidenceMatchesSnapshot {
 }
 
 Write-Output "TEST_START $testName"
+if ($EnableM03FirmwareAdapterRevocationProbe -and -not $EnableM03FirstRealExitBootServicesProbe) { Write-Failure 'm03_revocation_requires_first_exit'; exit 1 }
+if ($EnableM04ClassConstructorExecutionProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Failure 'm04_cctor_requires_gc_profile'; exit 1 }
+if ($EnableM04ClassConstructorExecutionProbe -and $EnableM04SeededCollectorChurnProbe) { Write-Failure 'm04_cctor_churn_conflict'; exit 1 }
 if ($EnableM04SeededCollectorChurnProbe -and -not $EnableM04GcStaticRootMaterializationProbe) {
     Write-Output "TEST_FAIL efi.artifact m04_churn_requires_gc_profile"; exit 1
 }
@@ -7919,6 +7940,49 @@ if ($EnableM04SeededCollectorChurnProbe) {
     $backing = Resolve-FileBackedRvaRange $sections ($address - $imageBase) 1 $bytes.LongLength 'churn_adapter_not_backed' 'churn_adapter_ambiguous'
     Assert-CodeSectionCharacteristics $backing.Section 'churn_adapter_section_invalid'
 } elseif ($churnBinding.Count -ne 0) { Write-Failure 'churn_unrequested_native_adapter' $churnSymbol }
+
+# Bind each child profile to its actual retained adapters and managed compiler
+# helpers. RX containment establishes provenance only; guest callsite/ordering
+# review is still required for constructor invocation and firmware revocation.
+$retainedProfiles = @(
+    [pscustomobject]@{
+        Enabled=[bool]$EnableM03FirmwareAdapterRevocationProbe; Name='firmware_revocation'; Symbols=@(
+            'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__ReportRevokedAdapters',
+            'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__AdapterConsole',
+            'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__AdapterMemoryMap',
+            'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__AdapterFileSystem',
+            'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__AdapterTimer',
+            'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__AdapterRandom',
+            'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__AdapterConfiguration',
+            'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__AdapterPhysicalMemory',
+            'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__AdapterFramebuffer'
+        )
+    },
+    [pscustomobject]@{
+        Enabled=[bool]$EnableM04ClassConstructorExecutionProbe; Name='compiler_cctor'; Symbols=@(
+            'OS_OS_Runtime_RhpNewFastAllocation__BindAndRunCompilerClassConstructors',
+            'OS_OS_Runtime_RhpNewFastAllocation__CctorDirectRead',
+            'OS_System_Runtime_CompilerServices_ClassConstructorRunner__EnsureClassConstructorRun',
+            'OS_System_Runtime_CompilerServices_ClassConstructorRunner__CheckStaticClassConstructionReturnNonGCStaticBase',
+            'OS_System_Runtime_CompilerServices_ClassConstructorRunner__CheckStaticClassConstructionReturnGCStaticBase'
+        )
+    }
+)
+foreach ($profile in $retainedProfiles) {
+    foreach ($symbol in $profile.Symbols) {
+        $binding = [regex]::Matches($linkerMapText, '(?m)^\s*([0-9A-Fa-f]{4}):([0-9A-Fa-f]{8})\s+'+[regex]::Escape($symbol)+'\s+([0-9A-Fa-f]{16})\s+(.+?)\s*$')
+        if (-not $profile.Enabled) {
+            if ($binding.Count -ne 0) { Write-Failure ($profile.Name+'_unrequested_native_adapter') $symbol }
+            continue
+        }
+        if ($binding.Count -ne 1 -or $binding[0].Groups[4].Value -notmatch '(?i)(?:^|[\s\\/()])OS\.obj(?=$|[\s()])') { Write-Failure ($profile.Name+'_native_adapter_missing') $symbol }
+        $address = Convert-HexUInt64 $binding[0].Groups[3].Value ($profile.Name+'_address_invalid')
+        if ($address -le $imageBase -or [decimal]$address-$imageBase -ge $sizeOfImage) { Write-Failure ($profile.Name+'_rva_invalid') $symbol }
+        $backing = Resolve-FileBackedRvaRange $sections ($address-$imageBase) 1 $bytes.LongLength ($profile.Name+'_not_backed') ($profile.Name+'_ambiguous')
+        Assert-CodeSectionCharacteristics $backing.Section ($profile.Name+'_section_invalid')
+    }
+}
+if ([regex]::IsMatch($linkerMapText, 'ClassConstructorRunner__[^\s]*ThreadStatic')) { Write-Failure 'compiler_cctor_thread_static_unsupported' }
 
 # Bind the real-exit profile to actual linked callbacks, not only replayed properties.
 $firstExitSymbols = @(

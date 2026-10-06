@@ -106,12 +106,22 @@ internal static class DiagnosticsTests
                 nameof(Probes.EnableM01LiveAllocatorProbe)) ||
             !IsCompileTimeFalseProbe(
                 nameof(Probes.EnableM01OwnedPagingProbe)) ||
-            Probes.ProbeCatalogCount != 17 ||
+            Probes.ProbeCatalogCount != 19 ||
             !IsCompileTimeFalseProbe(nameof(Probes.EnableM03FirstRealExitBootServicesProbe)) ||
             !Probes.TryGetProbe(16, out ProbeDefinition firstExit) ||
             firstExit.Name != nameof(Probes.EnableM03FirstRealExitBootServicesProbe) ||
             firstExit.EnabledByDefault || firstExit.Risk != ProbeRisk.Destructive ||
-            firstExit.Group != Probes.UefiExitBootServicesGroup)
+            firstExit.Group != Probes.UefiExitBootServicesGroup ||
+            !IsCompileTimeFalseProbe(nameof(Probes.EnableM03FirmwareAdapterRevocationProbe)) ||
+            !Probes.TryGetProbe(17, out ProbeDefinition revocation) ||
+            revocation.Name != nameof(Probes.EnableM03FirmwareAdapterRevocationProbe) ||
+            revocation.EnabledByDefault || revocation.Risk != ProbeRisk.Destructive ||
+            revocation.Group != Probes.UefiExitBootServicesGroup ||
+            !IsCompileTimeFalseProbe(nameof(Probes.EnableM04ClassConstructorExecutionProbe)) ||
+            !Probes.TryGetProbe(18, out ProbeDefinition constructors) ||
+            constructors.Name != nameof(Probes.EnableM04ClassConstructorExecutionProbe) ||
+            constructors.EnabledByDefault || constructors.Risk != ProbeRisk.Destructive ||
+            constructors.Group != "runtime.cctor")
         {
             return false;
         }
