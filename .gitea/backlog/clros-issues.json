@@ -9142,7 +9142,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M04: NativeAOT Runtime Correctness.",
-      "currentEvidence": "Prerequisite #425 and children #70-#81 are closed with scoped accepted evidence. Step1041 accepts #82/#552 bounded collection and allocator reuse at 42a516e: full common suite 3800START/3801PASS/0FAIL and fresh default/GC QEMU captures with final source/native/lifecycle/disk association. Closure follows PR553 merge. The epic remains open/blocked by incomplete children #83-#92 and the runtime milestone criterion. General runtime initialization, exceptions, hosted .NET/Kestrel and completion Gate4 are not established.",
+      "currentEvidence": "Prerequisite #425 and children #70-#81 are closed with scoped accepted evidence. Step1041 accepts #82/#552 bounded collection and allocator reuse at 42a516e: full common suite 3800START/3801PASS/0FAIL and fresh default/GC QEMU captures with final source/native/lifecycle/disk association. PR553 merged at 8501315af1bbdd03adc9db1a23b082540cb67038; #82/#552 are closed/done. The epic remains open/blocked by incomplete children #83-#92 and the M04-024 constructor-execution precursor and the runtime milestone criterion. General runtime initialization, exceptions, hosted .NET/Kestrel and completion Gate4 are not established.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -9161,7 +9161,7 @@
         }
       ],
       "acceptanceCriteria": [
-        "All 23 keyed child issues are closed with reviewed evidence.",
+        "All 24 keyed child issues are closed with reviewed evidence.",
         "Replace fail-fast runtime helpers only after host and guest evidence.",
         "Canonical documentation and completion gates state only what current first-party evidence proves."
       ],
@@ -10315,7 +10315,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement a bounded non-moving collector with explicit root enumeration.",
-      "currentEvidence": "Step1041 accepts bounded explicit-root collection, authoritative allocation records, atomic sweep and same-owner reuse at source 42a516e. The solution build and original unfiltered suite pass 3800START/3801PASS/0FAIL with unchanged inputs. Fresh ordinary default/GC QEMU captures pass 21/70 records; four collections retain transitive/static/explicit roots, reclaim a dead cycle, reuse addresses with fresh identities and preserve 10 stack checks. Final PE/link/ILC maps match reviewed bytes; all nondebug COFF bytes, symbols and relocations match. Source/native/caller-buffer/lifecycle/disk review accepts 101 Compile/115 raw inputs and 42 flags. #82/#552 are eligible for closure after PR553 merge; #83 integration follows. General GC/runtime startup, real firmware exit, hosted .NET/Kestrel and Gates3/4 remain unproven.",
+      "currentEvidence": "Step1041 accepts bounded explicit-root collection, authoritative allocation records, atomic sweep and same-owner reuse at source 42a516e. The solution build and original unfiltered suite pass 3800START/3801PASS/0FAIL with unchanged inputs. Fresh ordinary default/GC QEMU captures pass 21/70 records; four collections retain transitive/static/explicit roots, reclaim a dead cycle, reuse addresses with fresh identities and preserve 10 stack checks. Final PE/link/ILC maps match reviewed bytes; all nondebug COFF bytes, symbols and relocations match. Source/native/caller-buffer/lifecycle/disk review accepts 101 Compile/115 raw inputs and 42 flags. PR553 merged at 8501315af1bbdd03adc9db1a23b082540cb67038 and #82/#552 are closed/done; #83 integration follows. General GC/runtime startup, real firmware exit, hosted .NET/Kestrel and Gates3/4 remain unproven.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Implement a bounded non-moving collector with explicit root enumeration.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -10466,7 +10466,8 @@
       "milestone": "M04",
       "parentKey": "M04-EPIC",
       "dependencyKeys": [
-        "M04-014"
+        "M04-024",
+        "M04-021"
       ],
       "labels": [
         "agent:blocked",
@@ -10485,7 +10486,7 @@
         "docs/completion-gates.md"
       ],
       "forbiddenPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -10495,17 +10496,18 @@
       ],
       "collisionLane": null,
       "summary": "Implement class-constructor discovery, state transitions, execution, and recursion/failure handling.",
-      "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
+      "currentEvidence": "The retained ILC 10.0.8 module, allocation and explicit-root collector are accepted, but compiled class-constructor execution and cached failure semantics are not. M04-024 supplies the real eager/lazy invocation, once and same-thread reentry precursor; M04-021 supplies actual exception handling and unwind. This issue remains open for full constructor failure integration and may not close on terminal-only or successful-path evidence.",
       "implementationNotes": [
-        "Implement exactly one bounded slice: Implement class-constructor discovery, state transitions, execution, and recursion/failure handling.",
-        "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
+        "Complete the original constructor discovery, state transitions, execution, recursion and failure behavior by reusing M04-024 execution and M04-021 unwind; do not replace it with a narrower terminal-only scope.",
+        "Extend the accepted M04-024 execution core through an explicit ownership transfer when needed, without creating a second constructor runner, module owner or competing state table. Constructor-specific exception caching belongs here; the general unwind mechanism belongs to M04-021.",
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
         "The proposed owned paths are exact for this slice: src/OS.Kernel/Runtime/ClassConstructorDiscoveryStateTransitionsExecutionRecursionFailure.cs, tests/OS.HostTests/ClassConstructorDiscoveryStateTransitionsExecutionRecursionFailureTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Demonstrate the exact successful repository/evidence behavior required by: Implement class-constructor discovery, state transitions, execution, and recursion/failure handling.",
-        "Failure cases: Cover missing file/tool, duplicate key, malformed input, stale path/claim, nonzero process exit, missing marker, hash mismatch, and unauthorized write as applicable.",
-        "Explicitly inapplicable here: Live device I/O, packet loss, runtime unwind, and cloud cleanup are outside this repository/tooling slice.",
-        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
+        "Positive case: A genuine compiler-emitted throwing cctor unwinds through the runtime runner; its correctly wrapped TypeInitializationException remains rooted, and a later access rethrows that cached failure without rerunning the constructor or publishing initialized state. Preserve M04-024 once and CLR-compatible same-thread reentry behavior.",
+        "Failure cases: Cover nested constructor failure, original exception and wrapper identity/lifetime, repeated failed access, finally/cleanup ordering, malformed or stale context/module ownership, failure while initialization is active, and capacity exhaustion without premature success publication.",
+        "A compiled cctor returns void. Status-returning callback surrogates, token-only plans, fail-fast loops and terminal probes do not prove catch, cached exception objects or repeated-access rethrow. Hosted .NET, multiple-thread initialization and cloud readiness require separate evidence.",
+        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only.",
+        "M04-021 must not depend back on this issue: the acyclic order is M04-024, M04-016 through M04-021, then full M04-015. Shared source and integration-path ownership must be claimed before modifications."
       ],
       "referenceInfluences": [
         {
@@ -10525,9 +10527,9 @@
         "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
         "Affected canonical documentation is updated without promoting unsupported completion gates.",
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Demonstrate the exact successful repository/evidence behavior required by: Implement class-constructor discovery, state transitions, execution, and recursion/failure handling.",
-        "Applicable failure cases are asserted: Cover missing file/tool, duplicate key, malformed input, stale path/claim, nonzero process exit, missing marker, hash mismatch, and unauthorized write as applicable.",
-        "The evidence report explicitly records these non-goals: Live device I/O, packet loss, runtime unwind, and cloud cleanup are outside this repository/tooling slice."
+        "Real compiled eager/lazy constructor behavior from M04-024 remains intact, including once-only execution and same-thread partial-static reentry without reinvocation; a real throwing cctor is handled through the M04-021 mechanism.",
+        "The same correctly wrapped TypeInitializationException is retained as a GC root and rethrown on repeated access without rerunning the body; nested failures and finally/cleanup preserve module/context lifetime, failed state and a nonzero lazy completion word.",
+        "Terminal failure containment, a status-callback substitute or a successful-path-only guest probe cannot close this issue. Full failure evidence is required before M04-023 audits constructor helpers or the M04 completion gate advances."
       ],
       "requiredMarkers": [
         "TEST_START m04.015",
@@ -10547,7 +10549,7 @@
         "docs/nativeaot-nostdlib-limits.md",
         "docs/completion-gates.md"
       ],
-      "evidenceBoundary": "This issue proves only \"Implement class-constructor discovery, state transitions, execution, and recursion/failure handling.\" It does not by itself prove the M04 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
+      "evidenceBoundary": "Completes actual constructor execution, CLR-compatible same-thread recursion and rooted cached TypeInitializationException/repeated-access rethrow in the explicitly demonstrated runtime profile, using M04-024 and M04-021. Terminal-only precursor evidence cannot satisfy this issue. It does not by itself prove multithreaded initialization, hosted .NET/Kestrel, cloud support or the full M04 milestone.",
       "desiredState": "open"
     },
     {
@@ -10556,7 +10558,7 @@
       "milestone": "M04",
       "parentKey": "M04-EPIC",
       "dependencyKeys": [
-        "M04-015"
+        "M04-024"
       ],
       "labels": [
         "agent:blocked",
@@ -10575,7 +10577,7 @@
         "docs/completion-gates.md"
       ],
       "forbiddenPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -10587,14 +10589,14 @@
       "summary": "Implement interface dispatch without copying SharpOS's runtime wholesale.",
       "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
       "implementationNotes": [
-        "Implement exactly one bounded slice: Implement interface dispatch without copying SharpOS's runtime wholesale.",
+        "Implement actual compiler-emitted interface dispatch using the accepted constructor-execution precursor M04-024. Full constructor exception caching remains with M04-015 after unwind, rather than forming a dependency cycle.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
         "The proposed owned paths are exact for this slice: src/OS.Kernel/Runtime/InterfaceDispatchCopyingSharpOSSRuntimeWholesale.cs, tests/OS.HostTests/InterfaceDispatchCopyingSharpOSSRuntimeWholesaleTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Complete the valid packet or socket transition required by: Implement interface dispatch without copying SharpOS's runtime wholesale.",
-        "Failure cases: Cover truncation, bad length/checksum, loss, duplication, reordering, stale neighbor/lease/cache entry, partial I/O, retransmission timeout, reset, half-close, cancellation, and capacity exhaustion as applicable.",
-        "Explicitly inapplicable here: UEFI map-key retry and PE relocation failures are outside this network slice.",
+        "Positive case: A compiler-emitted interface call reaches the intended receiver implementation through the actual dispatch cell/resolver/helper path, with the emitted image and returned value associated with that path; repeated calls exercise the documented cache behavior.",
+        "Failure cases: Reject null receivers, absent or incompatible interface implementations, malformed or stale dispatch metadata/cells, invalid slots and non-executable targets before an unsafe call; preserve module/receiver authority and bounded cache capacity.",
+        "Direct calls and compiler devirtualization can bypass the resolver and do not alone prove interface dispatch. Record actual pinned ILC callsites; throwing error semantics remain deferred to M04-021 and must not be replaced by fabricated successful results.",
         "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
       ],
       "referenceInfluences": [
@@ -10615,9 +10617,9 @@
         "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
         "Affected canonical documentation is updated without promoting unsupported completion gates.",
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Complete the valid packet or socket transition required by: Implement interface dispatch without copying SharpOS's runtime wholesale.",
-        "Applicable failure cases are asserted: Cover truncation, bad length/checksum, loss, duplication, reordering, stale neighbor/lease/cache entry, partial I/O, retransmission timeout, reset, half-close, cancellation, and capacity exhaustion as applicable.",
-        "The evidence report explicitly records these non-goals: UEFI map-key retry and PE relocation failures are outside this network slice."
+        "A real compiler-emitted interface call is bound to its dispatch metadata and actual resolver/helper invocation in the same native image, returns the correct implementation result, and preserves receiver and module ownership.",
+        "Null, incompatible, malformed, stale, out-of-range and non-executable dispatch inputs are rejected within the documented pre-unwind policy; repeated valid dispatch and cache behavior are demonstrated without unsafe fallback calls.",
+        "Optimized direct calls, host-only plans and token-only simulations do not count as guest dispatch proof. Constructor exception caching remains mandatory in M04-015 and is not a prerequisite of this returning dispatch slice."
       ],
       "requiredMarkers": [
         "TEST_START m04.016",
@@ -11025,7 +11027,7 @@
         "docs/completion-gates.md"
       ],
       "forbiddenPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -11035,16 +11037,16 @@
       ],
       "collisionLane": null,
       "summary": "Implement throw, catch, finally, rethrow, and unwind in separately gated slices.",
-      "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
+      "currentEvidence": "The module owner and bounded explicit-root collector have accepted evidence. Actual throw/catch/finally/rethrow and unwind remain unimplemented. M04-020 supplies validated runtime-function/unwind metadata; this issue supplies the execution mechanism that full M04-015 later uses for constructor exception caching, without a backwards dependency.",
       "implementationNotes": [
-        "Implement exactly one bounded slice: Implement throw, catch, finally, rethrow, and unwind in separately gated slices.",
+        "Implement the actual pinned ILC throw, handler search, stack unwind, catch, finally and rethrow mechanisms in separately gated slices. Retain the M04-020 dependency and do not depend on full M04-015, which consumes this mechanism afterward.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
         "The proposed owned paths are exact for this slice: src/OS.Kernel/Runtime/ThrowCatchFinallyRethrowUnwindSeparatelyGatedSlices.cs, tests/OS.HostTests/ThrowCatchFinallyRethrowUnwindSeparatelyGatedSlicesTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Complete the valid packet or socket transition required by: Implement throw, catch, finally, rethrow, and unwind in separately gated slices.",
-        "Failure cases: Cover truncation, bad length/checksum, loss, duplication, reordering, stale neighbor/lease/cache entry, partial I/O, retransmission timeout, reset, half-close, cancellation, and capacity exhaustion as applicable.",
-        "Explicitly inapplicable here: UEFI map-key retry and PE relocation failures are outside this network slice.",
+        "Positive case: A real compiled throwing fixture crosses validated native frames, executes the selected catch and finally blocks in order, and rethrows the same exception to an outer handler while preserving the owned stack, registers and module lifetime.",
+        "Failure cases: Reject malformed, truncated, unsupported or stale unwind/handler metadata, invalid instruction and stack ranges, non-executable handler targets and invalid frame transitions; demonstrate nested handlers, cleanup ordering, unhandled failure termination and retained exception roots.",
+        "Host-only unwind plans, status callbacks, fabricated frames and terminal loops do not prove real exception execution. M04-015 owns later constructor-specific TypeInitializationException wrapping, rooting, caching and repeated-access rethrow; this issue must expose the actual mechanism it needs without depending back on it.",
         "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
       ],
       "referenceInfluences": [
@@ -11065,9 +11067,9 @@
         "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
         "Affected canonical documentation is updated without promoting unsupported completion gates.",
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Complete the valid packet or socket transition required by: Implement throw, catch, finally, rethrow, and unwind in separately gated slices.",
-        "Applicable failure cases are asserted: Cover truncation, bad length/checksum, loss, duplication, reordering, stale neighbor/lease/cache entry, partial I/O, retransmission timeout, reset, half-close, cancellation, and capacity exhaustion as applicable.",
-        "The evidence report explicitly records these non-goals: UEFI map-key retry and PE relocation failures are outside this network slice."
+        "Actual compiler-emitted throw/catch/finally/rethrow paths execute over the pinned image and validated runtime-function metadata, with expected handler order, exception identity and restored frame/register state.",
+        "Nested cleanup and outer rethrow preserve rooted exception objects and module/context lifetime; invalid metadata, handlers and stack transitions fail closed rather than dispatching to unchecked code, and unhandled exceptions follow the documented terminal policy.",
+        "No status-callback or terminal-only substitute counts as throw/unwind acceptance. The resulting mechanism supports full M04-015 constructor failure integration, which remains a separate incomplete requirement until its cached-failure guest evidence is accepted."
       ],
       "requiredMarkers": [
         "TEST_START m04.021",
@@ -11186,7 +11188,8 @@
       "milestone": "M04",
       "parentKey": "M04-EPIC",
       "dependencyKeys": [
-        "M04-022"
+        "M04-022",
+        "M04-015"
       ],
       "labels": [
         "agent:blocked",
@@ -11225,7 +11228,8 @@
         "Positive case: Demonstrate the exact successful repository/evidence behavior required by: Add one QEMU probe per helper before changing any fail-fast stub to successful behavior.",
         "Failure cases: Cover missing file/tool, duplicate key, malformed input, stale path/claim, nonzero process exit, missing marker, hash mismatch, and unauthorized write as applicable.",
         "Explicitly inapplicable here: Live device I/O, packet loss, runtime unwind, and cloud cleanup are outside this repository/tooling slice.",
-        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
+        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only.",
+        "The final helper audit depends on full M04-015 as well as M04-022 so constructor cached-failure and repeated-access rethrow behavior cannot be bypassed by the M04-024 execution precursor."
       ],
       "referenceInfluences": [
         {
@@ -11268,6 +11272,98 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves only \"Add one QEMU probe per helper before changing any fail-fast stub to successful behavior.\" It does not by itself prove the M04 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
+      "desiredState": "open"
+    },
+    {
+      "key": "M04-024",
+      "title": "[M04-024] Execute compiler-emitted eager/lazy class constructors with once and same-thread reentry.",
+      "milestone": "M04",
+      "parentKey": "M04-EPIC",
+      "dependencyKeys": [
+        "M04-014"
+      ],
+      "labels": [
+        "agent:blocked",
+        "priority:p1",
+        "type:implementation",
+        "evidence:qemu",
+        "component:runtime",
+        "phase:m04-runtime",
+        "reference:test-only"
+      ],
+      "priority": "priority:p1",
+      "ownedPaths": [
+        "src/OS.Kernel/Runtime/CompilerClassConstructorExecution.cs",
+        "tests/OS.HostTests/CompilerClassConstructorExecutionTests.cs",
+        "docs/nativeaot-nostdlib-limits.md",
+        "docs/completion-gates.md"
+      ],
+      "forbiddenPaths": [
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/Runtime/**",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Runtime/TypeManagerModuleMetadataLiveNativeAOTImage.cs",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "tests/OS.HostTests/Program.cs",
+        "scripts/**",
+        "README.md",
+        "references/** (read-only except the dedicated references/AGENTS.override.md issue)",
+        "done/** (reserve a new step only after implementation evidence exists)"
+      ],
+      "collisionLane": null,
+      "summary": "Execute real pinned ILC eager/lazy class constructors once, with CLR-compatible same-thread partial-static reentry, using the original retained module and bounded caller-owned state.",
+      "currentEvidence": "Read-only preparation pins installed ILC 10.0.8 to dotnet/dotnet 94ea82652cdd4e0f8046b5bd5becbd11461482ca. Compiler source establishes eager section205 signed rel32 entries, one-word lazy contexts and named managed ClassConstructorRunner helpers. The retained staged churn PE contains no section205 or ClassConstructorRunner; existing host state/work-item plans do not execute constructors. M04-014 acceptance and a separately claimed shared integration lane are still required; no constructor execution evidence is claimed.",
+      "implementationNotes": [
+        "Implement one bounded precursor with real compiler-emitted managed void constructor invocation; retain full M04-015 for actual exception caching/rethrow after M04-021. Do not replace the original full constructor issue with terminal-only acceptance.",
+        "Read docs/nativeaot-nostdlib-limits.md, docs/efi-build.md, docs/boot.md, docs/boot-order.md and docs/reference-map.md, plus the existing retained TypeManager and GC-static owner. The source-pinned handoff is artifacts/m04-cctor-preparation/handoff.md; primary source must be independently checked if that generated artifact is unavailable.",
+        "Use C# 14/.NET 10, caller-owned bounded records and the original module handle, executable-image bounds and mutable-context authority. Reuse the retained registration; do not register a competing TypeManager, invent target tokens or allocate a separate constructor-state object graph.",
+        "For eager section205 on pinned win-x64, decode each 4-byte signed displacement relative to its entry address. Validate and snapshot the complete bounded table and executable targets before any invocation. Eager entries have no lazy completion word: runner-owned once bookkeeping must prevent reinvocation.",
+        "For lazy constructors, expose the exact System.Runtime.CompilerServices.ClassConstructorRunner managed helper seam through the separately owned adapter. Adding this type changes ILC policy. The compiler emits an 8-byte cctorMethodAddress at non-GC-static-base minus 8; retain external state and clear that word only after the real constructor returns successfully.",
+        "For same-thread reentry into an active context, return the existing static base without reinvoking or clearing the completion word, allowing partial-static observations. Cover direct recursion and A-to-B-to-A; blanket cycle rejection is not CLR-compatible recursion. Cross-thread contention is outside this single-thread precursor.",
+        "Heap/module/GC-static storage must be ready, then bind the runner, invoke eager constructors and only then enter dependent consumers through BootSequence. Preserve the current one-cell GC-static materializer unless a separately owned slice explicitly expands it. Force selected fixture initialization to require actual runtime execution rather than compile-time preinitialization.",
+        "The exact new core/test paths are src/OS.Kernel/Runtime/CompilerClassConstructorExecution.cs and tests/OS.HostTests/CompilerClassConstructorExecutionTests.cs. Extend the existing host harness with that focused fixture through its shared registration lane. Full M04-015 must reuse/extend this core via explicit ownership transfer instead of implementing a second runner.",
+        "The proposed owned paths are exact for this slice: src/OS.Kernel/Runtime/CompilerClassConstructorExecution.cs, tests/OS.HostTests/CompilerClassConstructorExecutionTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Runtime compiler adapter, retained-owner executable-range validation, entry, BootSequence, probe toggles, explicit project closure and publisher/smoke/host-runner registration remain a separate unclaimed integration lane. This issue grants no ownership of those shared paths; acquire that lane before guest integration.",
+        "Pre-invocation malformed/foreign/stale authority and capacity failures return explicit failure without executing a target. Any real constructor terminal failure must preserve noncompletion and cannot return a success marker. A status-returning callback is not evidence of a compiled cctor failure, exception capture or retry.",
+        "Reserve a new done step only after implementation/evidence exists. Real QEMU/OVMF serial evidence and same-image compiler-call/target association are required; host-only plans, dry runs and empty eager tables do not close this issue."
+      ],
+      "referenceInfluences": [
+        {
+          "path": "references/nativeaot-patcher-main/src/Cosmos.Kernel.Core/Runtime/ManagedModule.cs",
+          "use": "test-only",
+          "notes": "Derive eager-table/startup-order cases only. Pin the actual compiler context and named helper signatures to installed ILC 10.0.8 primary source; do not copy reference runtime, plugs, native bridges or exception machinery."
+        }
+      ],
+      "acceptanceCriteria": [
+        "Actual compiler-emitted eager and lazy managed void cctors execute from the original retained module with bounded code/context authority; no opaque-token-only or callback-status substitute satisfies invocation.",
+        "The entire signed-rel32 eager table and callable targets are validated before invocation; runner-owned eager once state prevents repetition. Lazy context ownership is validated and its completion word is cleared only after successful return.",
+        "First access, repeated access, nested constructors, direct same-thread recursion and A-to-B-to-A demonstrate once-only invocation and permitted partial-static access without falsely completing an active lazy context.",
+        "Malformed tables, invalid or non-executable targets, foreign/stale or misaligned contexts, capacity exhaustion and premature runner use are rejected without unsafe invocation or success publication; terminal constructor failure never pretends to establish cached exception behavior.",
+        "Actual generated helper/callsite and table/context associations in the same native image distinguish runtime execution from ILC preinitialization; selected static-base helpers return the correct original base.",
+        "Only the declared core/test/doc paths are edited unless a separately claimed integration lane transfers the exact shared paths. The existing module owner, GC-static materialization boundary and default-off probe policy are preserved.",
+        "Relevant existing-harness checks and fresh QEMU/OVMF serial markers pass with retained source/native association; no generated artifacts, copied reference implementation, forbidden native source or secrets are committed.",
+        "Full M04-015 remains open for rooted/cached TypeInitializationException and repeated-access rethrow after M04-021. This precursor cannot close full constructor failure handling, M04-023 or the M04 runtime milestone."
+      ],
+      "requiredMarkers": [
+        "TEST_START m04.024",
+        "TEST_PASS m04.024",
+        "TEST_FAIL m04.024 <reason>",
+        "CLROS_M04_024_READY"
+      ],
+      "requiredCommands": [
+        "dotnet build .\\CLROS.slnx --nologo -m:1",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun",
+        "git diff --check",
+        "git status --short",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M04_024_READY\""
+      ],
+      "documentationPaths": [
+        "docs/nativeaot-nostdlib-limits.md",
+        "docs/completion-gates.md"
+      ],
+      "evidenceBoundary": "Proves only actual eager/lazy constructor execution, once and CLR-compatible same-thread reentry in the declared bounded single-thread module profile. Eager once state is runner-owned; lazy completion uses the compiler context word. It does not prove caught/cached constructor exceptions, repeated-access exception rethrow, multiple-thread initialization, full M04-015/M04-023 completion, hosted .NET/Kestrel or the runtime milestone.",
       "desiredState": "open"
     },
     {
