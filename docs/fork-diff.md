@@ -188,6 +188,16 @@ relicense it. The separate runtime fork and upstream execution reports remain
 unreproduced. String constructor work supplies corroboration only, and this
 delta supplies no new memory-map/EBS implementation or CLROS evidence.
 
+### Upstream step189 reviewed on 2026-10-06
+
+The next commit, `d5a8ed0df90e2f182379edcf4c4d420c8348cd4c`, adds useful
+precise-root decoder, interior-pointer and service-table compatibility cases.
+See the [source-to-issue crosswalk](reference-map.md#sharpos-upstream-refresh-2026-10-06)
+for #193/#176/#164. The kernel remains net8/ILC8; no new firmware revocation,
+cctor or dispatch implementation changes CLROS's immediate dependency order.
+The independently bounded collector acceptance remains valid for its declared
+scope. This source review did not build, execute or import SharpOS code.
+
 ### Boot and diagnostics
 
 - `references/SharpOS-main/OS/src/Boot/ExitBootServicesProbe.cs` demonstrates

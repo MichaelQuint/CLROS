@@ -4,6 +4,41 @@
 
 The no-stdlib surface is not implemented beyond the first EFI shell boundary. `std/no-runtime/shared` contains small host-tested helper slices for shared compatible contracts, but it is not a complete BCL or runtime surface.
 
+## Class-constructor implementation order
+
+The pinned ILC 10.0.8 package identifies source revision
+[`94ea82652cdd4e0f8046b5bd5becbd11461482ca`](https://github.com/dotnet/dotnet/tree/94ea82652cdd4e0f8046b5bd5becbd11461482ca/src/runtime).
+Its presence check for `System.Runtime.CompilerServices.ClassConstructorRunner`
+enables lazy initialization. The compiler allocates one pointer-sized context
+word immediately before the non-GC static base; named managed helpers return
+the incoming non-GC or GC base. Eager section 205 instead contains signed
+relative-32 entries on win-x64. These are source-derived ABI requirements,
+not implemented or guest-tested constructor behavior.
+
+M04-024 separates real eager/lazy execution, once semantics and same-thread
+reentry from the full M04-015 failure requirement. After M04-014 it enables
+M04-016 dispatch and the existing path through M04-021 exception/unwind work.
+M04-015 then completes constructor-specific exception caching and rethrow;
+M04-023's final helper audit depends on it as well as M04-022. This removes the
+otherwise circular dependency between constructor failure handling and unwinding
+without weakening the full constructor milestone.
+
+The precursor must reuse the retained module/GC owner, admit actual compiler
+contexts and executable targets, invoke real managed `void` constructors, and
+clear the lazy completion word only after successful return. Eager entries use
+runner-owned once bookkeeping; they have no lazy context word. In same-thread
+`A -> B -> A` recursion, the active A returns its partial static base without
+reinvocation or clearing its word. A status-returning callback or blanket
+cycle rejection cannot substitute for this behavior. Cross-thread execution
+remains a separate prerequisite.
+
+Terminal containment before unwinding is available proves only that the failed
+constructor did not complete. Full M04-015 still requires a real throwing
+constructor, rooted/cached `TypeInitializationException`, and repeated-access
+rethrow without running the constructor again. The existing host state tables
+and token plans do not satisfy either guest boundary. Shared EFI/boot/project/
+probe/script integration requires its separately claimed lane.
+
 ## Implemented Behavior
 
 - `OS.Std.CompatibilityStatus` records compatibility states.
