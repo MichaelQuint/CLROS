@@ -326,6 +326,12 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
             (0x1300, 8, RangeKind.MutableData, Status.RangePermissionRejected),
             (0x6000, 8, RangeKind.ImmutableMetadata, Status.RangePermissionRejected),
             (0x6000, 8, RangeKind.MutableData, Status.RangePermissionRejected),
+            (0x6000, 0x1000, RangeKind.ExecutableEntry, Status.Success),
+            (0x6FFF, 1, RangeKind.ExecutableEntry, Status.Success),
+            (0x6FFF, 2, RangeKind.ExecutableEntry, Status.RangePermissionRejected),
+            (0x2200, 8, RangeKind.ExecutableEntry, Status.RangePermissionRejected),
+            (0x1300, 8, RangeKind.ExecutableEntry, Status.RangePermissionRejected),
+            (0, 1, RangeKind.ExecutableEntry, Status.RangePermissionRejected),
             (0x4000, 8, RangeKind.MutableData, Status.RangePermissionRejected),
             (0x7000, 8, RangeKind.ImmutableMetadata, Status.RangePermissionRejected),
             (0x7FFF, 2, RangeKind.ImmutableMetadata, Status.RangeRejected),
@@ -336,8 +342,14 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
             (0, 8), (f.Address(0x2200), 0), (f.Address(0x2200), ulong.MaxValue),
             (ulong.MaxValue - 7, 8), (1, 8), (f.Address(0) - 1, 1) })
             ExpectRange(f, r.Handle, address, size, RangeKind.MutableData, Status.RangeRejected);
-        foreach (RangeKind invalid in new[] { RangeKind.Uninitialized, (RangeKind)4, (RangeKind)255 })
+        foreach (RangeKind invalid in new[] { RangeKind.Uninitialized, (RangeKind)5, (RangeKind)255 })
             ExpectRange(f, r.Handle, f.Address(0x2200), 8, invalid, Status.UnsupportedRangeKind);
+        using Fixture unreadableCode = new();
+        W32(unreadableCode.Section(3) + 36, 0x20000020);
+        var unreadable = unreadableCode.Register();
+        Check(unreadable.Succeeded, "unreadable code remains opaque to registration");
+        ExpectRange(unreadableCode, unreadable.Handle, unreadableCode.Address(0x6000), 1,
+            RangeKind.ExecutableEntry, Status.RangePermissionRejected);
         // Registered immutable aliases are legal; changing opaque payload is not
         // a mutation of the retained PE/RTR snapshot and grants no write authority.
         f.Image[0x1200] = 0xA9;

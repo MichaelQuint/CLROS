@@ -2,6 +2,21 @@
 
 ## Current Status
 
+The probe catalogue has 19 entries, with default-off destructive M03-008 and
+M04-024 entries appended at indices 17 and 18. The revocation profile extends
+the first-exit transcript to 73 application records: an admitted pre-entry
+console operation, then eight post-exit `M03_ADAPTER_DENIED` rows with unchanged
+outputs and no additional backend calls, and `CLROS_M03_008_READY`.
+The constructor profile extends GC-static diagnostics to 82 records, including
+`M04_CCTOR` stages 0 through 8 and `CLROS_M04_024_READY`. The runner binds its
+runtime seed to the original admitted module handle XOR heap backing, validates
+eight once-only constructor invocations and compiler-emitted helper reentry
+counts (five at depth one, three at depth two), and rejects failure stage 255
+or unrequested child output. Both final record contracts and the original full
+host gate are accepted at `2b5a4b0`. See [step1053](../done/step1053.md) for exact
+source/native/raw/lifecycle/disk association and
+the [profile definitions](efi-build.md#retained-firmware-and-constructor-profiles).
+
 M03-007 has accepted default-off terminal continuation evidence at `e64e9dc`
 using owned COM1, descriptor tables, main/IST stacks and CR3 after the real
 firmware exit. Its probe remains catalogued as destructive in `Probes.cs`; see

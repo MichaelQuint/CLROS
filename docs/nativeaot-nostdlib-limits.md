@@ -2,7 +2,10 @@
 
 ## Current Status
 
-The no-stdlib surface is not implemented beyond the first EFI shell boundary. `std/no-runtime/shared` contains small host-tested helper slices for shared compatible contracts, but it is not a complete BCL or runtime surface.
+CLROS implements a bounded no-stdlib NativeAOT subset for the EFI shell and the
+optional allocation, collection, metadata and constructor probes described
+below. `std/no-runtime/shared` contains compatible helper slices; it is not a
+complete BCL or general runtime surface.
 
 ## Class-constructor implementation order
 
@@ -13,7 +16,12 @@ enables lazy initialization. The compiler allocates one pointer-sized context
 word immediately before the non-GC static base; named managed helpers return
 the incoming non-GC or GC base. Eager section 205 instead contains signed
 relative-32 entries on win-x64. These are source-derived ABI requirements,
-not implemented or guest-tested constructor behavior.
+now implemented by the bounded M04-024 core and profile-only compiler adapter.
+The original full host gate and fresh native/QEMU constructor capture are
+accepted at `2b5a4b0` in [step1053](../done/step1053.md). Same-image review proves
+the real eager target, seven lazy contexts, successful-return completion,
+original static-base returns and bounded direct/cyclic reentry. Development
+history remains in [step1052](../done/step1052.md).
 
 M04-024 separates real eager/lazy execution, once semantics and same-thread
 reentry from the full M04-015 failure requirement. After M04-014 it enables
@@ -37,7 +45,27 @@ constructor did not complete. Full M04-015 still requires a real throwing
 constructor, rooted/cached `TypeInitializationException`, and repeated-access
 rethrow without running the constructor again. The existing host state tables
 and token plans do not satisfy either guest boundary. Shared EFI/boot/project/
-probe/script integration requires its separately claimed lane.
+probe/script integration is owned by #570.
+
+`CompilerClassConstructorExecution` revalidates the original retained module
+owner and registered ranges on every entry. It snapshots and validates all
+eager targets before invocation, tracks once state per table entry (identical
+folded targets are allowed), and validates lazy mutable contexts and readable,
+executable, nonwritable targets. State lives outside the one-word compiler
+context. Active direct or cyclic same-thread access returns the partial static
+base without clearing the callable; only successful outer completion clears
+it. The EFI adapter uses zero-initialized retained POD storage, the original GC
+owner, and runtime-fed compiler fixtures. Host synthetic executable ranges are
+validated but never executed. Actual compiler targets, helper callsites and
+context/table identities still require same-image native and guest evidence.
+
+The pinned compiler also guards a constructor's accesses to its own static
+storage. The fixture therefore observes five depth-one and three depth-two
+active helper reentries while all eight constructor bodies execute once.
+These counts are derived from the emitted compiler callsites and checked
+against the real guest, not interpreted as repeated constructor invocation.
+The profile's empty `IsVolatile` metadata type exists only to encode the
+compiler-required volatile pointer field; it adds no runtime behavior.
 
 ## Implemented Behavior
 
@@ -271,7 +299,7 @@ allocation, GC, dispatch, exception or runtime-completion requirements.
 | String allocation helpers | Bounded retained-page EFI String guest accepted | `StringAllocation` remains incomplete. Step964 accepts the separately classified `EfiStringAllocation` path, compiled constructors and UTF-16 storage, with default/fixed/array regressions and three String rejection cases; general String/BCL, GC and write barriers remain unsupported |
 | Write barriers | General runtime support deferred; bounded returning-helper guest progress | Step967's opaque-word host leaf remains distinct from step977's profile-bound authenticated reference route and managed bulk bridge. Step981 accepts two live sentinel words/five checks in the bounded noncollecting profile; ledger entry `WriteBarriers` remains incomplete and no collecting-GC barrier support is established |
 | Interface dispatch | Deferred | Ledger entry `InterfaceDispatch`; EFI type-cast helpers fail fast and do not prove interface dispatch |
-| Class constructors | Deferred | Ledger entry `ClassConstructors`; `NativeAotClassConstructorStateTable` proves caller-owned state transitions, cycle detection, duplicate/missing/capacity errors, failed-cctor preservation, and caller-owned `NATIVEAOT_CCTOR_STATE` diagnostic formatting. `NativeAotClassConstructorRunnerPreflight` proves ready/default/failed/pending/missing-metadata preflight status, caller-owned `NATIVEAOT_CCTOR_RUNNER_PREFLIGHT` diagnostic formatting, and host-tested `BootSequence` readiness markers only. `NativeAotClassConstructorWorkItemPlanner` now proves caller-owned work-item metadata planning from already-supplied target tokens plus caller-owned `NATIVEAOT_CCTOR_WORK_ITEMS` diagnostic formatting and host-tested `NATIVEAOT_CCTOR_WORK_ITEMS_READY` / `NATIVEAOT_CCTOR_WORK_ITEMS_NOT_READY` BootSequence readiness markers while preserving no-delegate/no-reflection/no-execution boundaries. No cctor runner invocation, constructor execution, metadata discovery, or constructor-body failure diagnostics is implemented |
+| Class constructors | Bounded execution core; guest acceptance pending | The general `ClassConstructors` ledger gate remains deferred. Existing host state/preflight/work-item contracts do not execute constructors. M04-024 adds actual eager/lazy managed invocation over the retained TypeManager owner, profile-only compiler helpers and same-thread reentry; focused host range/state checks pass. Same-image native and guest acceptance is pending in step1052. Exceptions, cached failure/rethrow and cross-thread initialization remain unsupported. |
 | Thread statics | Deferred | Ledger entry `ThreadStatics`; no TLS bootstrap or NativeAOT thread-static base helper exists |
 | Exception handling/unwind | Deferred | Ledger entry `ExceptionUnwind`; throw helpers halt and catch/finally/unwind are not implemented |
 | Module initialization | Deferred | Ledger entry `ModuleInitialization`; no kernel/runtime module initialization helper behavior is implemented |

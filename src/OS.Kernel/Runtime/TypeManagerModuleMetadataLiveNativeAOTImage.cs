@@ -28,7 +28,8 @@ public enum TypeManagerRegisteredRangeKind : byte
     Uninitialized = 0,
     ImmutableMetadata = 1,
     MutableData = 2,
-    ReadableSectionData = 3
+    ReadableSectionData = 3,
+    ExecutableEntry = 4
 }
 
 /// <summary>
@@ -183,12 +184,18 @@ public static unsafe class TypeManagerModuleMetadataLiveNativeAOTImage
         TypeManagerModuleStatus status = ValidateRegistered(capture, mapping, owner, ownerCapacity, handle, out Image image);
         if (status != TypeManagerModuleStatus.Success) return status;
         if (kind != TypeManagerRegisteredRangeKind.ImmutableMetadata && kind != TypeManagerRegisteredRangeKind.MutableData &&
-            kind != TypeManagerRegisteredRangeKind.ReadableSectionData)
+            kind != TypeManagerRegisteredRangeKind.ReadableSectionData && kind != TypeManagerRegisteredRangeKind.ExecutableEntry)
             return TypeManagerModuleStatus.UnsupportedRangeKind;
         if (!Span(address, bytes) || address < image.Base || !Within(image.Bytes, address - image.Base, bytes))
             return TypeManagerModuleStatus.RangeRejected;
         if (kind == TypeManagerRegisteredRangeKind.ImmutableMetadata)
             return InSection(image, address, bytes, Read, Write | Execute)
+                ? TypeManagerModuleStatus.Success : TypeManagerModuleStatus.RangePermissionRejected;
+        // This proves retained RX section containment, not arbitrary instruction
+        // boundaries. Constructor targets still require their compiler-table or
+        // lazy-context provenance and the same-image native association.
+        if (kind == TypeManagerRegisteredRangeKind.ExecutableEntry)
+            return InSection(image, address, bytes, Read | Execute, Write)
                 ? TypeManagerModuleStatus.Success : TypeManagerModuleStatus.RangePermissionRejected;
         if (kind == TypeManagerRegisteredRangeKind.ReadableSectionData)
         {

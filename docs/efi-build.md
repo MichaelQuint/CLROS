@@ -1,5 +1,39 @@
 # EFI Build
 
+## Retained firmware and constructor profiles
+
+Integration #570 introduces two default-off child profiles. Development evidence
+remains in [step1052](../done/step1052.md); [step1053](../done/step1053.md) accepts
+the original full host gate and five fresh default/churn/first-exit/revocation/
+constructor captures at `2b5a4b0`. All final source/native/raw/lifecycle/disk
+associations pass, including two fresh corruption controls for the changed
+churn image. Historical control results are not relabelled as current runs.
+
+`EnableM03FirmwareAdapterRevocationProbe` requires
+`EnableM03FirstRealExitBootServicesProbe` and its three prerequisites:
+`EnableM01LoadedImageStackProbe`, `EnableM01LiveAllocatorProbe` and
+`EnableAcpiPhysicalDiscoveryProbe`. It preserves the first-exit terminal path
+and requires exactly 73 application records, including eight copied capability
+denials and `CLROS_M03_008_READY`.
+
+`EnableM04ClassConstructorExecutionProbe` requires
+`EnableM04GcStaticRootMaterializationProbe` and all eight GC prerequisites
+listed in the seeded-churn section below. It is mutually exclusive with
+`EnableM04SeededCollectorChurnProbe`. Its 82-record transcript has nine numbered
+constructor rows and `CLROS_M04_024_READY`; it is a distinct grammar from the
+82-record churn transcript. The compiler helper type is completely absent
+outside this profile, because its presence changes ILC lazy-initialization
+policy.
+
+Project, publisher and verifier preserve the original Compile ordering and
+append four C# inputs: 112 Compile items, 126 source-authority inputs and 46
+explicit feature switches. Every source/project pin must derive from those
+actual bytes before a frozen acceptance run. Direct publisher output must be a
+file directly inside `artifacts/efi`; the QEMU wrapper passes `-EfiArtifact`
+through to that publisher and has the same restriction when `-BuildEfi` is
+selected. Give the EFI file a unique name there, with distinct logs and image
+paths in each run directory, and keep rejected development receipts.
+
 ## Seeded collector churn profile (M04-014)
 
 The default-off `EnableM04SeededCollectorChurnProbe` extends the existing GC
@@ -63,7 +97,8 @@ command creates a new GUID-named artifact directory and uses fresh output paths;
 it does not write into the sealed acceptance capture:
 
 ```powershell
-$firstExitRun = Join-Path (Get-Location).Path ('artifacts\first-exit-repro-' + [Guid]::NewGuid().ToString('N'))
+$firstExitId = [Guid]::NewGuid().ToString('N')
+$firstExitRun = Join-Path (Get-Location).Path ('artifacts\first-exit-repro-' + $firstExitId)
 New-Item -ItemType Directory -Path $firstExitRun | Out-Null
 & "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" `
   -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-qemu-smoke.ps1 `
@@ -71,7 +106,7 @@ New-Item -ItemType Directory -Path $firstExitRun | Out-Null
   -Qemu "C:/Program Files/qemu/qemu-system-x86_64.exe" `
   -OvmfCode "C:/Program Files/qemu/share/edk2-x86_64-code.fd" `
   -TimeoutSeconds 30 `
-  -EfiArtifact (Join-Path $firstExitRun 'BOOTX64.EFI') `
+  -EfiArtifact (Join-Path (Get-Location).Path ('artifacts\efi\first-exit-' + $firstExitId + '.EFI')) `
   -Image (Join-Path $firstExitRun 'clros.raw') `
   -SerialLog (Join-Path $firstExitRun 'serial.log') `
   -SummaryLog (Join-Path $firstExitRun 'summary.log') `
