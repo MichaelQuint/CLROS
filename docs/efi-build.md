@@ -2651,5 +2651,17 @@ The normal runner now requires 70 records and 59 ordered, unique anchors,
 including nine collection records and `CLROS_M04_013_READY`. It checks the finite
 compiler-object graph, collection counts, reclaimed-address identities, retained
 root, allocation/store counters and all ten stack observations. The original GC
-fixture and enabled publisher preflight pass. Development native/guest evidence
-is preserved; full integrated acceptance and official fresh captures are pending.
+fixture and enabled publisher preflight pass.
+
+[Step1041](../done/step1041.md) completes the integrated acceptance at `42a516e`:
+the full host suite and fresh ordinary default/GC QEMU captures pass, with
+source/native/lifecycle and boot-disk association. The final collector EFI is
+byte-identical to the reviewed development image; the canonical COFF differs
+only in debug information, while runtime bytes, symbols and relocations match.
+The default and GC profiles contain 21 and 70 CLROS records respectively.
+
+The runner's informational GC summary still says `lines=60` and
+`nonCollecting=true`; those fields are obsolete. The actual strict parser,
+70-record raw capture and `CLROS_M04_013_READY` establish the scoped acceptance.
+The prepared first-exit/churn integration corrects that summary. No general
+runtime, hosted .NET or real firmware-exit claim follows from this profile.
