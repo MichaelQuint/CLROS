@@ -1624,7 +1624,7 @@ The enabled publisher preflight passes. This supersedes the earlier integration
 blocker, but does not replace the pending original full suite, official fresh
 captures and final linked-image association for #82/#552.
 
-### Seeded retained-heap churn preparation (step1035)
+### Seeded retained-heap churn preparation (steps1035-1036)
 
 `SeededAllocationChurnCollectionRootRetentionGuestProbes.Run` exercises the
 original collecting owner with 1-64 seeded rounds and four explicit root slots.
@@ -1646,7 +1646,20 @@ Focused host checks cover repeatability, zero managed scratch allocation,
 retained-root payloads, a sole child held through a static base, same-owner reuse,
 cleanup, invalid bounds/types, stale roots and noncollecting owners. The shared
 probe and utility also compile in an isolated 103-source no-stdlib closure with
-zero assembly references. See [step1035](../done/step1035.md). This preparation
-uses allocator APIs directly; it does not establish compiler-created allocation,
-actual guest invocation, native stack bounds or EFI admission. #83 remains open
-behind #82 acceptance and its own later guest integration.
+zero assembly references. See [step1035](../done/step1035.md).
+
+[Step1036](../done/step1036.md) adds a default-excluded native adapter. An isolated
+104-source publication adds its call after the original collector graph in a
+copied source file; the canonical project, call site and probe flags are unchanged.
+On QEMU/OVMF, three 64-round seeds completed 476 allocations and reclamations,
+198 collections and 312 observed address reuses while retaining the actual
+compiled static field and its child payload. Eleven ordered `M04_CHURN` records,
+four unchanged stack-canary checks, `CLROS_M04_014_READY` and the normal smoke
+terminal marker were captured. Same-image debugger controls corrupting the low
+stack canary or retained child payload both emitted failure records and entered
+the existing fail-fast spin without readiness or smoke success.
+
+This is development guest evidence using allocator APIs directly, not proof of
+compiler-created allocations. Stack witnesses/canaries do not establish a native
+stack bound. #83 remains open behind #82 acceptance, canonical source/profile and
+strict serial admission, final native/stack review and official guest captures.

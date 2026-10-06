@@ -1896,7 +1896,16 @@ explicit and static roots through seeded batches, verify fresh identities and
 address reuse, and release temporary objects. The new code compiles without
 standard-library assembly references in an isolated closure.
 
-This is host and compile-only evidence. No `CLROS_M04_014_READY` guest marker is
-claimed, and no default probe or EFI source admission changes. #83 still requires
-#82 acceptance, serialized guest integration, native/stack review, and actual
-QEMU/OVMF evidence. Gates3/4 remain unchanged.
+[Step1036](../done/step1036.md) extends preparation to an isolated native adapter
+and actual QEMU/OVMF development execution. Three seeds completed 192 rounds,
+476 allocations/reclamations, 198 collections and 312 observed address reuses;
+the compiled static root and child payload survived. The guest emitted eleven
+ordered churn records, four unchanged canary checks, `CLROS_M04_014_READY` and
+`OS_SMOKE_PASS`. Two same-image debugger corruptions produced the expected
+failure records and fail-fast spin with no readiness or smoke success.
+
+The call site exists only in an ignored source copy and the adapter is excluded
+from the canonical project. This is development evidence, not official acceptance
+or a native stack bound. #83 still requires #82 acceptance, serialized source and
+profile admission, strict serial integration, final native/stack review and
+official captures. Gates3/4 remain unchanged.
