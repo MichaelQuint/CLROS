@@ -678,6 +678,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             "Program.cs",
             "Amd64CoffWriter.cs",
             "CheckedReferenceBarrierThunkGenerator.cs",
+            "InterfaceDispatchThunkGenerator.cs",
             "InstructionPublicationSerializerGenerator.cs"
         ];
 

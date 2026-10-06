@@ -1,5 +1,35 @@
 # EFI Build
 
+## Diagnostics and dispatch integration in development
+
+Shared issue #572 adds `EnableM04InterfaceDispatchProbe`, disabled by default.
+It requires `EnableM04ClassConstructorExecutionProbe` and that profile's entire
+GC prerequisite chain. It inherits the constructor/churn exclusion. The
+compiler-generated calls use the separate C#-authored
+`CLROS.X64.InterfaceDispatch.obj`; the existing 336-byte serializer and
+1,645-byte reference-barrier objects retain their byte identities. The new
+object is 828 bytes, with one callback and one compiler-data REL32 relocation.
+The verifier checks object ownership, exact linked code outside those fields,
+both relocation targets, RX callback/code and RW initialized cell storage.
+Those checks do not by themselves prove the callback graph or dispatch results.
+
+The current explicit closure is 114 Compile items, 129 raw inputs and 47
+feature properties (44 literal false defaults, with three inherited defaults).
+The generator has five C# files and seven declared inputs. Before acceptance,
+derive project/source hashes and all fixture vectors from these actual inputs.
+Normalize authored text before pinning it; preserve raw byte hashes in evidence.
+
+Development native inspection measured and bound the cell contribution at 112
+bytes and the base class's sealed table at four bytes. A/B use ordinary vtable
+slots and have no sealed tables. A corrected native publication passes the
+verifier, and the first development guest passes the complete 158-record stream.
+Final frozen guest/control captures and full acceptance are still pending. Recheck
+the actual final contributions instead of reusing these development receipts. See
+[step1054](../done/step1054.md) for development evidence and the freshness review.
+The M03-009 owned diagnostic tail also changes the current first-exit/revocation
+record contracts to 66/78; the following section records the preceding accepted
+revision's 61/73 contracts.
+
 ## Retained firmware and constructor profiles
 
 Integration #570 introduces two default-off child profiles. Development evidence
@@ -25,8 +55,8 @@ constructor rows and `CLROS_M04_024_READY`; it is a distinct grammar from the
 outside this profile, because its presence changes ILC lazy-initialization
 policy.
 
-Project, publisher and verifier preserve the original Compile ordering and
-append four C# inputs: 112 Compile items, 126 source-authority inputs and 46
+That accepted revision preserved the original Compile ordering and
+appended four C# inputs: 112 Compile items, 126 source-authority inputs and 46
 explicit feature switches. Every source/project pin must derive from those
 actual bytes before a frozen acceptance run. Direct publisher output must be a
 file directly inside `artifacts/efi`; the QEMU wrapper passes `-EfiArtifact`

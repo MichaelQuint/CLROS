@@ -10,6 +10,17 @@ tuple, and a default-off M02-010 LoaderData materialization/readback tuple, plus
 broad host-tested planning contracts, but it is not a functional kernel, not
 cloud-ready, and not production-ready.
 
+M03-009 and M04-016 are in development under shared issue #572. The owned
+diagnostic tail and bounded dispatch core have focused host evidence; the
+argument-preserving COFF bridge, no-stdlib managed compile and corrected native
+publication also pass their development checks. Native inspection binds the
+112-byte cell contribution, sole four-byte base sealed table and five indirect
+callsites. The first development dispatch guest passes all 158 application
+records, including 15 real calls and the original collector/constructor checks.
+Final frozen guest/control captures and the original full common acceptance
+gate are still pending. Source-derived fixture review is a prerequisite to that gate, not a replacement for it. See
+[step1054](../done/step1054.md). Gates3/4/5 remain **Fail**.
+
 M03-007 and M04-014 now have scoped integrated acceptance under shared lane
 #560 at `e64e9dc1bd1f66ca522bd22aafe8bcd3388428ff` ([step1051](../done/step1051.md)).
 The original unfiltered common run passed with 3814 starts, 3815 passes including

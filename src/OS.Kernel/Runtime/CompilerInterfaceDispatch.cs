@@ -248,7 +248,7 @@ public static unsafe class CompilerInterfaceDispatch
             ulong address = s->CellsStart + offset, stub = *(ulong*)address, value = *(ulong*)(address + 8);
             if (stub == 0)
             {
-                if (run == 0 || value > ushort.MaxValue) return CompilerInterfaceDispatchStatus.CellRejected;
+                if (run == 0 || value > 0xFFFFUL) return CompilerInterfaceDispatchStatus.CellRejected;
                 if (selectedInRun) { slot = (ushort)value; found = true; selectedInRun = false; }
                 run = 0;
             }

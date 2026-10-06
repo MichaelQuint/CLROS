@@ -53,9 +53,9 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
         "idtrLoaded=false faultTriggered=false " +
         "markerTransport=uefiSerial postExitBootServices=false";
     private const string CompileClosureSha256 =
-        "46c8170ce64d3fc211445ec7ba8cff22161a0435aeff60eb43b31080a0a4076c";
+        "7e1ccc7ff27d560e10ef512c09b0a8c1ec3f0c9d58ee98a11013e9a0de0a1f88";
     private const string SourceClosureSha256 =
-        "a76068858279416a1b963f8f09c631acc7a05c929c6a5c68d51b9dc0ae06e640";
+        "065f8372e9909eac4123d2d0e7259de910ca44ca6d2436c9a88428f75c0e15e9";
     private const string FrozenProductionSha256 =
         "7CBF5DD9FB17D8D9608237FC78D06FE00B40D7AFE8669E1196C72B9F1B6848EB";
     private const string FrozenHostLeafSha256 =
@@ -286,7 +286,7 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
             verifier,
             "$expectedEfiCompileItems = @(");
 
-        return compileItems.Length == 112
+        return compileItems.Length == 114
             && compileHash == CompileClosureSha256
             && buildCompileFirewall.SequenceEqual(
                 compileKeys,
@@ -323,16 +323,16 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
                 "-p:EnableM02IdtrContinuedExecutionProbe=true",
                 StringComparison.Ordinal)
             && build.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=126",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=129",
                 StringComparison.Ordinal)
             && verifier.Contains(
                 "[switch]$EnableM02IdtrContinuedExecutionProbe",
                 StringComparison.Ordinal)
             && verifier.Contains(
-                "$expectedSourceClosureInputCount = 126",
+                "$expectedSourceClosureInputCount = 129",
                 StringComparison.Ordinal)
             && verifier.Contains(
-                "$compileItems.Count -ne 112",
+                "$compileItems.Count -ne 114",
                 StringComparison.Ordinal)
             && qemu.Contains(
                 "[switch] $EnableM02IdtrContinuedExecutionProbe",
@@ -2264,7 +2264,7 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
             && evidence.GetProperty("entrySourceSha256").GetString() ==
                 Sha256File(Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs"))
                     .ToLowerInvariant()
-            && evaluation.GetProperty("compileCount").GetInt32() == 112
+            && evaluation.GetProperty("compileCount").GetInt32() == 114
             && evaluation.GetProperty("compileSha256").GetString() ==
                 CompileClosureSha256
             && evaluation.GetProperty("projectReferenceCount").GetInt32() == 0
@@ -2291,7 +2291,7 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
             && properties.GetProperty(
                     "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe")
                 .GetString() == "false"
-            && inputElements.Length == 126
+            && inputElements.Length == 129
             && actualPaths.SequenceEqual(expectedPaths, StringComparer.Ordinal)
             && inputHashesExact;
     }
@@ -2314,6 +2314,7 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
             "tools/Directory.Build.props",
             "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs",
             "tools/OS.X64TextSerializerGenerator/CheckedReferenceBarrierThunkGenerator.cs",
+            "tools/OS.X64TextSerializerGenerator/InterfaceDispatchThunkGenerator.cs",
             "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs",
             "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.csproj",
             "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.targets",

@@ -26,8 +26,14 @@ public static partial class Probes
     public const bool EnableM04ClassConstructorExecutionProbe = false;
 #endif
 
+#if M04_INTERFACE_DISPATCH_PROBE
+    public const bool EnableM04InterfaceDispatchProbe = true;
+#else
+    public const bool EnableM04InterfaceDispatchProbe = false;
+#endif
+
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 19;
+    public const int ProbeCatalogCount = 20;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -186,6 +192,11 @@ public static partial class Probes
         new("runtime.cctor", nameof(EnableM04ClassConstructorExecutionProbe),
             EnableM04ClassConstructorExecutionProbe, ProbeRisk.Destructive,
             "Executes compiler eager and lazy constructors once with single-thread recursive access.");
+
+    public static ProbeDefinition GetM04InterfaceDispatchProbe() =>
+        new("runtime.dispatch", nameof(EnableM04InterfaceDispatchProbe),
+            EnableM04InterfaceDispatchProbe, ProbeRisk.Destructive,
+            "Resolves compiler instance-interface cells with retained module, receiver and target authority.");
 
     public static ProbeDefinition GetAcpiPhysicalDiscoveryProbe()
     {
@@ -348,6 +359,9 @@ public static partial class Probes
                 return true;
             case 18:
                 definition = GetM04ClassConstructorExecutionProbe();
+                return true;
+            case 19:
+                definition = GetM04InterfaceDispatchProbe();
                 return true;
             default:
                 definition = default;

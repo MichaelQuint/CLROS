@@ -19,16 +19,16 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
         "TEST_FAIL m02.013 vector_or_register_mismatch";
     private const ulong ValidCodeAddress = 0x0020_0000UL;
     private const ulong ValidDataAddress = 0x0030_0000UL;
-    private const int ExpectedSourceInputCount = 126;
-    private const int ExpectedCompileCount = 112;
+    private const int ExpectedSourceInputCount = 129;
+    private const int ExpectedCompileCount = 114;
     private const string ExpectedSourceClosureSha256 =
-        "a76068858279416a1b963f8f09c631acc7a05c929c6a5c68d51b9dc0ae06e640";
+        "065f8372e9909eac4123d2d0e7259de910ca44ca6d2436c9a88428f75c0e15e9";
     private const string ExpectedProjectSha256 =
-        "b57007be8a437e884ff3f0aead627c20ddcef0c51de06377b7af21ff50e2e7e1";
+        "277623b6960d8778a7eafe2aff304b07ffb591ce7e3eb25c529490f63ebf71b5";
     private const string ExpectedEntrySha256 =
         "995d3248a9607bef0ee3b56d44a21638d30b9eaad976551c601e10fa8ef16e96";
     private const string ExpectedCompileSha256 =
-        "46c8170ce64d3fc211445ec7ba8cff22161a0435aeff60eb43b31080a0a4076c";
+        "7e1ccc7ff27d560e10ef512c09b0a8c1ec3f0c9d58ee98a11013e9a0de0a1f88";
     private const string ExpectedTransitionSha256 =
         "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     private const string HostReadyMarker =
@@ -1639,6 +1639,7 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
             "tools/Directory.Build.props",
             "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs",
             "tools/OS.X64TextSerializerGenerator/CheckedReferenceBarrierThunkGenerator.cs",
+            "tools/OS.X64TextSerializerGenerator/InterfaceDispatchThunkGenerator.cs",
             "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs",
             "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.csproj",
             "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.targets",

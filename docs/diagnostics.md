@@ -2,8 +2,14 @@
 
 ## Current Status
 
-The probe catalogue has 19 entries, with default-off destructive M03-008 and
-M04-024 entries appended at indices 17 and 18. The revocation profile extends
+The probe catalogue has 20 entries. M03-008 and M04-024 occupy indices 17 and
+18; the new destructive, default-off M04-016 dispatch entry is index 19 in
+`runtime.dispatch`. Integration #572 is still in development. M03-009 adds five
+owned-writer records to the first-exit/revocation profiles, making their current
+contracts 66/78 application records. Changed-profile guest acceptance remains
+pending in [step1054](../done/step1054.md).
+
+The preceding accepted revocation profile extended
 the first-exit transcript to 73 application records: an admitted pre-entry
 console operation, then eight post-exit `M03_ADAPTER_DENIED` rows with unchanged
 outputs and no additional backend calls, and `CLROS_M03_008_READY`.

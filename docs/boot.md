@@ -2,6 +2,14 @@
 
 ## Current Status
 
+M03-009 extends the owned post-exit writer with five records ending in
+`TEST_PASS m03.009`. Its host checks cover partial writes, the final CRLF,
+canary failures and consumed reentry. Integration #572 is still in development:
+the first-exit and revocation contracts become 66 and 78 application records,
+respectively. Fresh native/QEMU acceptance for these changed profiles is pending;
+the accepted captures below describe the preceding source revision. See
+[step1054](../done/step1054.md).
+
 M03-008 adds a default-off typed firmware-capability revocation profile under
 integration issue #570. It binds console, memory-map, filesystem, timer, RNG,
 configuration-table, physical-memory and framebuffer handles to the original
