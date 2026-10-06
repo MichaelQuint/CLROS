@@ -250,9 +250,12 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
         foreach(string name in new[]{"UnexpectedVectorPanicProbeAuthority.cs","UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassification.cs"})
             Require(items.Count(x=>x.Attribute("Include")?.Value=="..\\OS.Kernel\\Diagnostics\\"+name && x.Attribute("Link")?.Value=="Diagnostics\\"+name)==1,"one linked declaration "+name);
         var defaults=project.Descendants().Where(x=>x.Attribute("Condition")?.Value=="'$("+x.Name.LocalName+")' == ''" && x.Name.LocalName.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
-        Require(defaults.Length==39 && defaults.All(x=>x.Value=="false") && defaults.Count(x=>x.Name.LocalName==Flag)==1,"39 literal false defaults");
+        Require(defaults.Length==41 && defaults.All(x=>x.Value=="false") && defaults.Count(x=>x.Name.LocalName==Flag)==1,"41 literal false defaults");
+        foreach(string addedFlag in new[]{"EnableM03FirstRealExitBootServicesProbe","EnableM04SeededCollectorChurnProbe"})
+            Require(defaults.Count(x=>x.Name.LocalName==addedFlag && x.Value=="false")==1,"one literal false default "+addedFlag);
         var errors=project.Descendants("Error").Where(x=>x.Attribute("Condition")!.Value.Contains("$("+Flag+")",StringComparison.Ordinal)).ToArray();
-        Require(errors.Length==74,"eight prerequisites and both directions of 33 conflicts");
+        Require(errors.Length==75,"eight prerequisites, both directions of 33 conflicts, and one first-exit conflict");
+        Require(errors.Count(x=>x.Attribute("Condition")?.Value=="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'")==1,"exact incoming first-exit conflict");
         foreach(string prerequisite in Prerequisites)Require(errors.Count(x=>x.Attribute("Condition")?.Value=="'$("+Flag+")' == 'true' and '$("+prerequisite+")' != 'true'")==1,"exact prerequisite "+prerequisite);
         string[] conflicts=Conflicts(project);Require(conflicts.Length==33,"exact conflict vector");
         foreach(string conflict in conflicts)foreach((string a,string b) in new[]{(Flag,conflict),(conflict,Flag)})

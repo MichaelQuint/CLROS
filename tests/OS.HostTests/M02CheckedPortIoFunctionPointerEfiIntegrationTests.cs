@@ -169,7 +169,11 @@ internal static class M02CheckedPortIoFunctionPointerEfiIntegrationTests
             && symbols.Length == 1
             && symbols[0].Elements("DefineConstants").Single().Value ==
                 "$(DefineConstants);M02_CHECKED_PORT_IO_BINDING_PROBE"
-            && errorConditions.Length == 33
+            && errorConditions.Length == 34
+            && errorConditions.Count(condition => string.Equals(
+                condition,
+                "'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
+                StringComparison.Ordinal)) == 1
             && errorConditions.Contains(
                 "'$(EnableM03TypedExitBootServicesCallProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
                 StringComparer.Ordinal)

@@ -174,10 +174,20 @@ internal static class M04NativeAotModuleRegistrationEfiIntegrationTests
         foreach(string text in new[]{"valid.RequiredStorage - 1","storage, capacity","ulong consumerHandle = ReadWord(slot.Section)","consumerHandle, 202","consumerHandle, 204","consumerHandle, 213","consumerHandle, 0","MethodImplOptions.NoInlining"})Need(adapter.Contains(text,StringComparison.Ordinal),"genuine consumer "+text);
         Need(adapter.IndexOf("if (!registered.Succeeded",StringComparison.Ordinal)<adapter.IndexOf("storage[i] = Canary(i)",StringComparison.Ordinal),"only successful registration admits canary writes");
         var errors=project.Descendants("Error").Select(x=>(string)x.Attribute("Condition")!).ToArray();
-        string[] flags=Regex.Matches(File.ReadAllText(Path.Combine(root,"src/OS/OS.csproj")),@"\$\((Enable\w+Probe)\)").Select(x=>x.Groups[1].Value).Distinct(StringComparer.Ordinal).ToArray();Need(flags.Length==44,"forty-two actual flags");
+        string[] flags=Regex.Matches(File.ReadAllText(Path.Combine(root,"src/OS/OS.csproj")),@"\$\((Enable\w+Probe)\)").Select(x=>x.Groups[1].Value).Distinct(StringComparer.Ordinal).ToArray();Need(flags.Length==44,"forty-four actual flags");
         Need(errors.Count(x=>x=="'$("+Flag+")' != '' and '$("+Flag+")' != 'true' and '$("+Flag+")' != 'false'")==1,"exact invalid-value guard");
         Need(errors.Count(x=>x=="'$("+Flag+")' == 'true' and '$(EnableM01LoadedImageStackProbe)' != 'true'")==1,"exact original M01 prerequisite");
         foreach(string other in flags.Where(x=>x!=Flag&&x!="EnableM01LoadedImageStackProbe")){
+            if(other=="EnableM03FirstRealExitBootServicesProbe"){
+                Need(errors.Count(x=>x=="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$("+Flag+")' == 'true'")==1,"exact incoming first-exit conflict");
+                continue;
+            }
+            if(other=="EnableM04SeededCollectorChurnProbe"){
+                Need(errors.Count(x=>x=="'$(EnableM04SeededCollectorChurnProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'")==1
+                    &&errors.Count(x=>x=="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' and '$("+Flag+")' == 'true'")==1
+                    &&errors.Count(x=>x=="'$("+Flag+")' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'")==1,"exact inherited churn GC conflicts");
+                continue;
+            }
             Need(errors.Contains("'$("+Flag+")' == 'true' and '$("+other+")' == 'true'",StringComparer.Ordinal)&&errors.Contains("'$("+other+")' == 'true' and '$("+Flag+")' == 'true'",StringComparer.Ordinal),"reciprocal conflict "+other);
         }
     }

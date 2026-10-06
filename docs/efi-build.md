@@ -34,6 +34,16 @@ keeps first-exit publications and security-cookie storage out of historical
 default profiles while preserving their exact implementation guards. This is
 host-fixture evidence; the common and fresh guest acceptance batch is still
 required before these issues close.
+
+[step1050](../done/step1050.md) corrects five existing fixture assumptions about
+profile relationships, raw project identity and the mutually exclusive
+security-cookie owners. Independently reviewed diagnostic evidence accounts
+for all 421 original initializers and both original main checks. The failed
+attempts and separate complete-module recovery remain recorded. The final
+reviewer also binds both retained churn corruption controls through 81 reference
+identities. The original unfiltered common run and fresh guest acceptance remain
+required before closure.
+
 Build and capture it through the ordinary wrapper:
 
 ```powershell
