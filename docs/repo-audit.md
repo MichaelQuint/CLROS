@@ -225,6 +225,11 @@ and the reachable local Gitea tracker:
   recovery checks; this is a traversal correction, not a performance benchmark.
   [Step954](../done/step954.md) records the accepted integrated host gate and
   final naming/source-firewall checks for this correction.
+  A compiled, case-insensitive union of the existing naming patterns now skips
+  per-rule evaluation for lines that cannot match. Candidate lines retain the
+  original rule order, reference allowances and diagnostics; streaming line
+  numbers and source-firewall checks are unchanged. [Step1048](../done/step1048.md)
+  records the focused host checks and baseline-output comparison.
 - `tools/OS.QemuRunner` can dry-run and run a QEMU/OVMF smoke, capture serial logs, and require `OS_SMOKE_PASS`.
 - `tools/OS.ManifestTool` validates manifest v0 JSON with machine-readable markers.
 - `tools/OS.LibvirtRunner` generates deterministic host-side domain XML in dry-run mode without requiring libvirt.

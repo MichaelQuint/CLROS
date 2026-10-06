@@ -46,6 +46,13 @@ $disallowedPatterns = @(
     @{ Pattern = '`src/Kernel/Diagnostics/Probes\.cs`'; Reason = "Use src/OS.Kernel/Diagnostics/Probes.cs." }
 )
 
+$prefilterPattern = ($disallowedPatterns | ForEach-Object {
+    '(?:' + $_.Pattern + ')'
+}) -join '|'
+$prefilter = [regex]::new($prefilterPattern,
+    [System.Text.RegularExpressions.RegexOptions]::Compiled -bor
+    [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+
 function Get-RelativePath {
     param([string] $Path)
 
@@ -115,6 +122,10 @@ foreach ($file in $files) {
 
     foreach ($line in [System.IO.File]::ReadLines($file.FullName)) {
         $lineNumber++
+
+        if (-not $prefilter.IsMatch($line)) {
+            continue
+        }
 
         foreach ($entry in $disallowedPatterns) {
             $isAllowedReferenceDiscussion =
