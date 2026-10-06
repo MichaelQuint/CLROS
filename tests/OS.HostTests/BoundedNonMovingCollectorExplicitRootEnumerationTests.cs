@@ -277,7 +277,7 @@ internal static unsafe class BoundedNonMovingCollectorExplicitRootEnumerationTes
             Capacity = 4096, Handle = image.Handle, Metadata = image.Window }, heap.Access, heap.State,
             HeapFixture.Capacity, roots, count, count, retained, limit);
 
-    private sealed class HeapFixture : IDisposable
+    internal sealed class HeapFixture : IDisposable
     {
         internal const ulong Capacity = 5520;
         internal byte* Storage = (byte*)NativeMemory.AlignedAlloc(65536, 4096);
@@ -322,7 +322,7 @@ internal static unsafe class BoundedNonMovingCollectorExplicitRootEnumerationTes
         public void Dispose() => NativeMemory.AlignedFree(Storage);
     }
 
-    private sealed class Fixture : IDisposable
+    internal sealed class Fixture : IDisposable
     {
         private readonly byte* storage;
         internal byte* Image => storage + 4096;

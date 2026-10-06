@@ -1623,3 +1623,30 @@ verifier agree on 115 raw inputs. Its original fixture accepts the complete
 The enabled publisher preflight passes. This supersedes the earlier integration
 blocker, but does not replace the pending original full suite, official fresh
 captures and final linked-image association for #82/#552.
+
+### Seeded retained-heap churn preparation (step1035)
+
+`SeededAllocationChurnCollectionRootRetentionGuestProbes.Run` exercises the
+original collecting owner with 1-64 seeded rounds and four explicit root slots.
+Each round allocates 1-4 pointer-free 24-byte objects, replaces one root, collects,
+and verifies payload retention, retired receipts, fresh allocation identities
+and actual address reuse. Final cleanup releases the probe roots while retaining
+one caller-supplied permanent receipt and the optional original GC-static base.
+The initial collection may reclaim other objects; callers must supply every
+external live root and keep mappings/metadata stable under exclusive access.
+Initial reclamation has separate counters. Failures report partial progress;
+this destructive diagnostic does not roll back earlier rounds.
+
+`OS.Std.DeterministicRandom32.Next(ref uint)` supplies repeatable xorshift32
+scheduling. A zero state selects the fixed `DefaultSeed`; the helper allocates
+nothing, throws no exceptions and provides no entropy or security guarantee.
+It is an OS-specific utility, not an implementation of `System.Random`.
+
+Focused host checks cover repeatability, zero managed scratch allocation,
+retained-root payloads, a sole child held through a static base, same-owner reuse,
+cleanup, invalid bounds/types, stale roots and noncollecting owners. The shared
+probe and utility also compile in an isolated 103-source no-stdlib closure with
+zero assembly references. See [step1035](../done/step1035.md). This preparation
+uses allocator APIs directly; it does not establish compiler-created allocation,
+actual guest invocation, native stack bounds or EFI admission. #83 remains open
+behind #82 acceptance and its own later guest integration.

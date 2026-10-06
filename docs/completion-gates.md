@@ -1887,3 +1887,16 @@ official default/GC captures with final native association remain outstanding.
 Development linked-code review reports a 13688-byte first-party stack bound
 within its 16384-byte budget; it is not yet final-image acceptance. #82/#552 stay
 open and Gates3/4 stay Fail.
+
+### M04-014 seeded churn preparation
+
+[Step1035](../done/step1035.md) prepares a shared allocation/churn/collection
+diagnostic against the implemented #82 allocator. Focused host cases retain
+explicit and static roots through seeded batches, verify fresh identities and
+address reuse, and release temporary objects. The new code compiles without
+standard-library assembly references in an isolated closure.
+
+This is host and compile-only evidence. No `CLROS_M04_014_READY` guest marker is
+claimed, and no default probe or EFI source admission changes. #83 still requires
+#82 acceptance, serialized guest integration, native/stack review, and actual
+QEMU/OVMF evidence. Gates3/4 remain unchanged.
