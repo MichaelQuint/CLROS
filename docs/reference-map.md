@@ -69,7 +69,7 @@ captured logs, stable markers, and the matching entry in
 | `references/PatienceOS-main` | Test-vector reference | `src/` for host-testing unsafe console/buffer routines against caller-owned stack memory. | Do not adopt its 32-bit Multiboot, VGA, or assembly path. |
 | `references/RoseOS-master` | Test-vector reference | `Loader/`, `Kernel/`, and `WindowsTest/` for UEFI memory-map sizing, `ExitBootServices`, PE validation, reservation, and allocator regressions. | Do not copy its map-buffer sizing, loaded-image reclamation, fixed allocator assumptions, C, or assembly. |
 | `references/Sharpen-master` | Conceptual reference | `kernel/` and `user/` for a historical subsystem/device/filesystem/network census. | Do not copy the old native-heavy x86 implementation. |
-| `references/SharpOS-main` | Selective primary, owner-authorized CC0 reference | `OS/`, `std/`, `apps_native/`, `bootasm/`, `docs/`, and `done/` for modern C# NativeAOT boot/runtime, PE apps, PAL, scheduler, storage, and evidence patterns. The owner-supplied permission record and upstream CC0-1.0 license permit selective reuse of SharpOS-authored source. | The local archive's content matches upstream `b80ee3a4175e1522d1a12ba7fe371a49da3207f5` except for its omitted top-level `LICENSE`; still bind adaptations to exact paths and hashes. The October 1 review pinned `dfad516b816d29b971d23ef116d4dbebeedcd25e`; the October 3 research refresh below pins `75c045963af300cc48072e12681eb90cd2c60e04`. SharpOS relies on a separate CoreCLR fork, still has no network driver, and contains separately licensed/GPL material. It is not CLROS architecture or evidence. |
+| `references/SharpOS-main` | Selective primary, owner-authorized CC0 reference | `OS/`, `std/`, `apps_native/`, `bootasm/`, `docs/`, and `done/` for modern C# NativeAOT boot/runtime, PE apps, PAL, scheduler, storage, and evidence patterns. The owner-supplied permission record and upstream CC0-1.0 license permit selective reuse of SharpOS-authored source. | The local archive's content matches upstream `b80ee3a4175e1522d1a12ba7fe371a49da3207f5` except for its omitted top-level `LICENSE`; still bind adaptations to exact paths and hashes. The October 1 review pinned `dfad516b816d29b971d23ef116d4dbebeedcd25e`; the October 6 research refresh below pins `d5a8ed0df90e2f182379edcf4c4d420c8348cd4c`. SharpOS relies on a separate CoreCLR fork, still has no network driver, and contains separately licensed/GPL material. It is not CLROS architecture or evidence. |
 | `references/SharpOS-master` | Test-vector reference | `Kernel/`, `AOT/`, and historical test material for arithmetic, casts, arrays, strings, generics, exceptions, delegates, interfaces, boxing, and cctor behavior. | Historical custom compiler/runtime; inspected CS test headers declare GPL v3 with a Classpath exception. Recreate tests independently and do not copy implementation. |
 | `references/smolsharp-main` | Conceptual reference | `src/` and build properties for binary-size, section-stripping, CRT-removal, and DirectPInvoke threat-model review. | Size cannot remove unwind/protection/diagnostic data. The snapshot has no top-level license evidence and points at AGPL ZeroLib work; do not copy it into CLROS. |
 | `references/xOS-main` | Ignore | `xOS/` and `xOSTests/` describe a Cosmos shell application. | It is not a kernel/runtime architecture; its bundled `CosmosOS-License` applies to Cosmos-derived material, not automatically to every dependency. |
@@ -178,6 +178,32 @@ not overridden by root CC0. Do not import the new formatting implementation
 or its `RhpStackProbe` patch to `ret`. Nothing here advances CLROS's .NET 10,
 GC, EBS, hosted-runtime or completion-gate evidence.
 
+### SharpOS upstream refresh (2026-10-06)
+
+Reviewed the single new commit [step189, `d5a8ed0`](https://github.com/daniilvaino/SharpOS/commit/d5a8ed0df90e2f182379edcf4c4d420c8348cd4c),
+dated October 4, after the October 3 revision above. Its GCInfo decoder fixes
+untracked-slot flags and unsigned deltas, and reconstructs fully interruptible
+state from recorded chunks. The walker excludes volatile registers in inactive
+caller frames. An object-start bitmap resolves interior candidates before any
+header read or mark-bit write.
+
+These are future precise-root cases for [#193](http://localhost:3000/admin/CLROS/issues/193#issuecomment-15802)
+and app metadata [#176](http://localhost:3000/admin/CLROS/issues/176#issuecomment-15804).
+They do not invalidate the accepted bounded explicit-root collector or require
+repeating its frozen acceptance run. The appended V3 service-table fields also
+reinforce old/new producer compatibility in [#164](http://localhost:3000/admin/CLROS/issues/164#issuecomment-15805).
+The region barrier exposes two useful compiler lessons: some emitted stores
+bypass helpers, and a frameless helper needs a proven stack/call ABI before
+calling a managed failure path. Do not import its deliberate-fault rejection
+or allocating preflight.
+
+The kernel still targets net8 with ILC 8.0.27; establish the .NET 10 metadata
+and helper contract before adapting any algorithm. Per-file dotnet MIT notices
+remain separate from root CC0. This static review imported no code, ran no
+upstream tests, changed no completion gate, and supplies no direct firmware
+revocation, constructor or dispatch implementation. Native pipes remain outside
+the immediate single-workload path.
+
 ## Secondary NativeAOT/Cosmos Gen3 Crosswalk
 
 These local paths also exist:
@@ -194,6 +220,43 @@ Use them to cross-check specifications, derive independent tests, and identify
 failure modes. A CLROS implementation still follows `BootSequence.cs`,
 `Probes.cs`, `std/no-runtime/shared`, `OSHost_*`, caller-owned buffers, status
 results, stable markers, and the documented no-reference-build boundary.
+
+### nativeaot-patcher upstream refresh (2026-10-06)
+
+The requested repository's `main` is pinned at [f910382](https://github.com/valentinbreiz/nativeaot-patcher/commit/f910382228d46e811f907c08c50ad860db7c1a74),
+dated September 21. All 888 ordinary files in the supplied snapshot byte-match
+[e33ed96](https://github.com/valentinbreiz/nativeaot-patcher/tree/e33ed962dd97d8d9cfd7529d1c94941306a2aad9),
+dated July 25; only upstream's top-level `LICENSE` is omitted. The archive also
+lacks the two gitlink dependencies. There are 459 newly reachable commits,
+including merged branch history. This establishes matching content, not the
+archive's extraction date or the latest state of the separately advertised
+CosmosOS/Cosmos destination.
+
+| Inspected code | CLROS implementation use |
+| --- | --- |
+| `src/Cosmos.Kernel.Core/Runtime/ManagedModule.cs`, `RunInitializers` | #84: initialize static storage, discover `EagerCctor` section 205, decode the target-specific signed rel32/native-pointer encoding, and invoke a managed function pointer. This walker already existed in the archive. CLROS must validate the entire table and executable targets against its retained module owner before invocation. It does not supply lazy once/recursion/failure behavior. |
+| [Startup-order fix `0e10d09`](https://github.com/valentinbreiz/nativeaot-patcher/commit/0e10d0949b84983ded052fa05812b2c310e0e750), `SortAutoInitialedAssemblies.cs` and `Cosmos.Build.Ilc.targets` | #84: heap/runtime initialization precedes the framework constructor runner, which precedes kernel consumers. Encode prerequisites in CLROS's `BootSequence`; no plug-aware build sorter is needed. |
+| [Pinned official `ClassConstructorRunner.cs`](https://github.com/dotnet/runtime/blob/baf4eb1e0b672338897fc20de49daffe5f84569c/src/coreclr/nativeaot/System.Private.CoreLib/src/System/Runtime/CompilerServices/ClassConstructorRunner.cs) | #84: verify the compiler context/call contract against primary .NET source. It clears the method address only on success, caches exceptions and tracks thread/cycle ownership. CLROS's bounded single-thread/status policy must not claim those complete CLR semantics. |
+| `GCSegment.cs`, `GarbageCollector.PreciseStack.cs`, `GCHandleManager.cs` | #193: object-start lookup for interior roots and distinct handle kinds are useful later seams. Review pointer units and failed allocations independently; the inspected enumerator adds a byte count to a `GCObject*`, and handle allocation dereferences an unchecked result. These are static concerns, not reproduced failures or reasons to reopen #82/#83. |
+| [EFI calling-convention fix `cdafa67`](https://github.com/valentinbreiz/nativeaot-patcher/commit/cdafa67d9515a6e3dae7f3901d8a213e420a67e2), `EfiNative.cs` and `EfiRtc.cs` | #65: distinguish calling convention, mapping authority and service lifetime. Cosmos bridges System V to Microsoft x64 and retains runtime services through Limine mappings. CLROS already targets win-x64 and needs its own all-adapter revocation; do not add the assembly thunk. |
+
+Current source targets net10.0, but its SDK request `10.0.201` with
+`latestFeature` and ILC `$(BundledNETCoreAppPackageVersion)` do not establish
+CLROS's exact ILC 10.0.8 contract. Its runtime gitlink is
+`baf4eb1e0b672338897fc20de49daffe5f84569c`. Patched CoreLib, plugs,
+Limine/ELF and native/System V bridges remain separate architecture choices.
+The newer ext2/symlink and DNS/socket work is future reference material;
+`SocketProtocolSupportPalPlug.cs` still exposes IPv4 only. None provides
+CLROS networking or Kestrel evidence.
+
+The archive's MIT text and current BSD-3-Clause text are now recovered; see
+[the license record](license-audit.md#nativeaot-patcher-provenance-refresh-2026-10-06).
+File-local .NET MIT notices remain applicable. Exact hashes, source links and
+the comparison are retained under
+`artifacts/orchestration-20261001/nativeaot-patcher-refresh-20261006`.
+This was static source research with no reference build, code import or gate
+promotion. The next concrete use is #84's real discovery/invocation boundary,
+after its existing churn dependency is accepted.
 
 ## Tests
 

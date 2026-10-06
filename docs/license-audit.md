@@ -70,9 +70,9 @@ it is not a claim that the private attachment is stored in Git.
 ## Snapshot Ledger
 
 Archive revision is `unknown` by default because the supplied snapshots contain
-no `.git` metadata. SharpOS is the documented exception: an independent,
-complete content comparison identifies its upstream commit while preserving the
-archive's missing-metadata caveat.
+no `.git` metadata. SharpOS and nativeaot-patcher are documented exceptions:
+independent complete content comparisons identify matching upstream commits
+while preserving the archives' missing-metadata caveat.
 
 | Snapshot | Local evidence | Default reuse disposition |
 | --- | --- | --- |
@@ -95,7 +95,7 @@ archive's missing-metadata caveat.
 | `libvirt-csharp-main` | `src/libvirt/libvirt.csproj` declares `LGPL-2.1-only`; no top-level license text is present. | Host-only package/API comparison. Prefer `virsh`; recover the LGPL text and revision before distribution. |
 | `MOOS-master` | README links an upstream license, but the license text is absent locally. | Concepts/negative ABI tests only until provenance is recovered. |
 | `MOSA-Project-master` | README states New BSD and links a missing upstream license; `Source/Docs/license.rst` and bundled tool licenses require separate review. | Independent behavior tests are preferred; recover exact notices before copying. |
-| `nativeaot-patcher-main` | README states MIT and links a missing top-level `LICENSE`; no commit metadata exists. | Strong selective reference, but direct reuse remains blocked pending the exact MIT text, revision, and per-file dependency review. |
+| `nativeaot-patcher-main` | All 888 ordinary files match `e33ed962dd97d8d9cfd7529d1c94941306a2aad9`, with upstream `LICENSE` omitted and gitlink dependencies absent. That revision is MIT; reviewed tip `f910382228d46e811f907c08c50ad860db7c1a74` uses BSD-3-Clause, with separate .NET MIT headers. | Named, pinned files are eligible for narrow attributed adaptation after the source-adaptation record below. This is not blanket clearance of dependencies or permission to import Cosmos's runtime architecture. |
 | `Nitrocid-main` | Project files declare `GPL-3.0-or-later`; source headers repeat GPL terms. | Do not copy into first-party code; optional hosted/tool use would require explicit GPL handling. |
 | `PatienceOS-main` | No local project license evidence. | Test-pattern ideas only. |
 | `RoseOS-master` | No top-level license; EfiSharp carries a file called `RoseOS License`, but that copy is not provenance for this snapshot. | Negative UEFI/allocator tests only until exact RoseOS provenance is restored. |
@@ -110,8 +110,8 @@ archive's missing-metadata caveat.
 
 These URLs are present in local READMEs, badges, project metadata, or the
 supplied project context. They identify a provenance investigation target but,
-except for the independently content-identified SharpOS snapshot documented
-above, do not identify the commit represented by an archive.
+except for the independently content-identified SharpOS and nativeaot-patcher
+snapshots documented here, do not identify the commit represented by an archive.
 
 | Snapshot | Candidate upstream |
 | --- | --- |
@@ -196,6 +196,44 @@ The SharpOS CC0 evidence does not supersede a file-local third-party license,
 and the absence of the external CoreCLR fork prevents reproducible
 hosted-runtime provenance.
 
+## nativeaot-patcher provenance refresh (2026-10-06)
+
+The complete local comparison identifies matching content at
+[`e33ed962dd97d8d9cfd7529d1c94941306a2aad9`](https://github.com/valentinbreiz/nativeaot-patcher/tree/e33ed962dd97d8d9cfd7529d1c94941306a2aad9):
+888 matching files, no changed/extra local files, and only `LICENSE` missing
+among upstream ordinary files. The two gitlink dependencies are absent from
+the archive. The recovered [MIT license](https://github.com/valentinbreiz/nativeaot-patcher/blob/e33ed962dd97d8d9cfd7529d1c94941306a2aad9/LICENSE)
+names Kaleb McGhie aka zarlo; its SHA-256 is
+`06e55a337bd7d0289092ea4ace9c9bc0dbedd25a05d14edb2a7114fac82cc767`.
+
+Commit [`d542234`](https://github.com/valentinbreiz/nativeaot-patcher/commit/d54223432f6c736582b9f9f54d50a8189b759bc1)
+changed the project default and many Cosmos-authored headers to BSD-3-Clause
+on August 23. The reviewed September 21 tip
+`f910382228d46e811f907c08c50ad860db7c1a74` has the [CosmosOS/COSMOS project license](https://github.com/valentinbreiz/nativeaot-patcher/blob/f910382228d46e811f907c08c50ad860db7c1a74/LICENSE),
+SHA-256 `29f118db54e6264efc3f28ba9ab456ca9cc69a8959c2dbb071c5620e0be04072`.
+Retain its source/binary notices and non-endorsement condition for applicable
+adaptations. Do not apply that change retroactively to the identified MIT
+snapshot or treat a root license as replacing file-local terms.
+
+`ReadyToRunHeader.cs`, `TypeManagerHandle.cs` and other .NET-derived files retain
+MIT/.NET Foundation headers. Prefer the matching primary runtime source where
+practical; the inspected runtime gitlink is
+`baf4eb1e0b672338897fc20de49daffe5f84569c`. `ManagedModule.cs` and
+`ModuleHelpers.cs` have no overriding license header and mirror NativeAOT
+concepts: retain the pinned project notice and any traced .NET attribution
+instead of asserting exclusive Cosmos authorship. LAI, media, fonts,
+compression and other unreviewed dependencies receive no blanket clearance.
+SharpOS's owner grant does not apply to this repository.
+
+The previous unknown-revision/missing-license blocker is resolved for these
+identified inputs. Every actual adaptation still needs the ten-field record
+above, exact source hashes and the implementing issue's owned paths. Existing
+behavior-only issue scopes are unchanged by this review. Full license texts,
+the primary runner, and 20 selected input pins are retained as research under
+`artifacts/references/nativeaot-patcher-20261006-primary` and
+`artifacts/orchestration-20261001/nativeaot-patcher-refresh-20261006`.
+No source was imported into production or the supplied reference archive.
+
 ## First-Party and Distribution Rules
 
 - First-party kernel/std/app source remains C#; do not commit `.c`, `.cpp`,
@@ -239,8 +277,9 @@ git diff --check
    commit, exact source path/hash, and recorded CC0/owner permission evidence.
    Separately recover canonical upstream URLs, immutable revisions, retrieval
    dates, and complete license texts for
-   `nativeaot-patcher-main`, `zerosharp-master`, and `EfiSharp-main` before
-   their first direct source adaptation.
+   `zerosharp-master` and `EfiSharp-main` before their first direct source
+   adaptation. For nativeaot-patcher, use the recovered immutable MIT/BSD
+   records above and review the particular source/dependency notices.
 2. Add a machine-readable attribution/provenance ledger and SBOM generation
    before distributing binaries containing third-party material.
 3. Treat every future reference update as a new immutable snapshot requiring a
