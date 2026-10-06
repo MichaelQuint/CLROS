@@ -9,6 +9,9 @@ internal static class M01LoadedImageStackEfiEntryTests
     private const string TypedEbsSymbol = "M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE";
     private const string GcStaticSymbol = "M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE";
     private const string EntropySymbol = "M03_FIRMWARE_ENTROPY_SEED_PROBE";
+    private const string FirstExitSymbol = "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE";
+    private const string FirstExitPrerequisiteCondition =
+        "!M01_LOADED_IMAGE_STACK_PROBE || !M01_LIVE_ALLOCATOR_PROBE || !ACPI_PHYSICAL_DISCOVERY_PROBE";
     private const string IssueTestName = "m01.021";
     private const string ProbeSymbol = "M01_LOADED_IMAGE_STACK_PROBE";
     private const string DoubleFaultSymbol = "M02_DOUBLE_FAULT_IST_PROBE";
@@ -115,7 +118,7 @@ internal static class M01LoadedImageStackEfiEntryTests
 
     private static bool TestDefaultOffProfile()
     {
-        foreach (string disabledSymbol in new[] { DoubleFaultSymbol, UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol, TypeManagerSymbol, TypedEbsSymbol, GcStaticSymbol, TypeManagerSymbol + " || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol })
+        foreach (string disabledSymbol in new[] { DoubleFaultSymbol, UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol, TypeManagerSymbol, TypedEbsSymbol, GcStaticSymbol, TypeManagerSymbol + " || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, FirstExitSymbol, "M04_MANAGED_HEAP_PAGE_RANGE_PROBE || " + FirstExitSymbol, TypeManagerSymbol + " || " + GcStaticSymbol + " || " + FirstExitSymbol, "M04_RHP_NEW_FAST_PROBE || " + UnexpectedPanicSymbol + " || " + TypeManagerSymbol + " || " + FirstExitSymbol })
         {
             string selectorFixture = "#if " + disabledSymbol + "\nDfOnly();\n#else\nDfOff();\n#endif\n"
                 + "#if UNRELATED_PROBE\nUnknown();\n#else\nUnknownElse();\n#endif\n";
@@ -156,19 +159,22 @@ internal static class M01LoadedImageStackEfiEntryTests
                 + ProbeSymbol
                 + @"[ \t]*$",
             RegexOptions.CultureInvariant).Count;
+        // The first-exit prerequisite rejects an invalid profile; it does not
+        // enable another stage-one implementation block.
+        int firstExitPrerequisiteBlocks = Regex.Matches(
+            source,
+            @"(?m)^[ \t]*#if[ \t]+"
+                + Regex.Escape(FirstExitPrerequisiteCondition)
+                + @"[ \t]*$",
+            RegexOptions.CultureInvariant).Count;
         if (exactProbeBlocks != 1
-            || Regex.IsMatch(
+            || firstExitPrerequisiteBlocks != 1
+            || exactProbeBlocks + firstExitPrerequisiteBlocks != Regex.Matches(
                 source,
                 @"(?m)^[ \t]*#(?:if|elif)[^\r\n]*\b"
                     + ProbeSymbol
                     + @"\b[^\r\n]*$",
-                RegexOptions.CultureInvariant)
-                && exactProbeBlocks != Regex.Matches(
-                    source,
-                    @"(?m)^[ \t]*#(?:if|elif)[^\r\n]*\b"
-                        + ProbeSymbol
-                        + @"\b[^\r\n]*$",
-                    RegexOptions.CultureInvariant).Count)
+                RegexOptions.CultureInvariant).Count)
         {
             return Failure("probe-guard-is-not-exact");
         }
@@ -3087,6 +3093,10 @@ internal static class M01LoadedImageStackEfiEntryTests
             || string.Equals(condition, TypeManagerSymbol, StringComparison.Ordinal)
             || string.Equals(condition, TypedEbsSymbol, StringComparison.Ordinal)
             || string.Equals(condition, GcStaticSymbol, StringComparison.Ordinal)
+            || string.Equals(condition, FirstExitSymbol, StringComparison.Ordinal)
+            || string.Equals(condition, "M04_MANAGED_HEAP_PAGE_RANGE_PROBE || " + FirstExitSymbol, StringComparison.Ordinal)
+            || string.Equals(condition, TypeManagerSymbol + " || " + GcStaticSymbol + " || " + FirstExitSymbol, StringComparison.Ordinal)
+            || string.Equals(condition, "M04_RHP_NEW_FAST_PROBE || " + UnexpectedPanicSymbol + " || " + TypeManagerSymbol + " || " + FirstExitSymbol, StringComparison.Ordinal)
             || string.Equals(condition, TypeManagerSymbol + " || " + GcStaticSymbol, StringComparison.Ordinal)
             || string.Equals(condition, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, StringComparison.Ordinal);
                 bool selectedValue = isStageOne && enabled;

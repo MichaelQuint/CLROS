@@ -246,13 +246,16 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
     private static void TestProject()
     {
         string root=Root();var project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
-        var items=project.Descendants("Compile").ToArray();Require(items.Length==101,"101 exact compiler inputs");
+        var items=project.Descendants("Compile").ToArray();Require(items.Length==108,"108 exact compiler inputs");
         foreach(string name in new[]{"UnexpectedVectorPanicProbeAuthority.cs","UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassification.cs"})
             Require(items.Count(x=>x.Attribute("Include")?.Value=="..\\OS.Kernel\\Diagnostics\\"+name && x.Attribute("Link")?.Value=="Diagnostics\\"+name)==1,"one linked declaration "+name);
         var defaults=project.Descendants().Where(x=>x.Attribute("Condition")?.Value=="'$("+x.Name.LocalName+")' == ''" && x.Name.LocalName.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
-        Require(defaults.Length==39 && defaults.All(x=>x.Value=="false") && defaults.Count(x=>x.Name.LocalName==Flag)==1,"39 literal false defaults");
+        Require(defaults.Length==41 && defaults.All(x=>x.Value=="false") && defaults.Count(x=>x.Name.LocalName==Flag)==1,"41 literal false defaults");
+        foreach(string addedFlag in new[]{"EnableM03FirstRealExitBootServicesProbe","EnableM04SeededCollectorChurnProbe"})
+            Require(defaults.Count(x=>x.Name.LocalName==addedFlag && x.Value=="false")==1,"one literal false default "+addedFlag);
         var errors=project.Descendants("Error").Where(x=>x.Attribute("Condition")!.Value.Contains("$("+Flag+")",StringComparison.Ordinal)).ToArray();
-        Require(errors.Length==74,"eight prerequisites and both directions of 33 conflicts");
+        Require(errors.Length==75,"eight prerequisites, both directions of 33 conflicts, and one first-exit conflict");
+        Require(errors.Count(x=>x.Attribute("Condition")?.Value=="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'")==1,"exact incoming first-exit conflict");
         foreach(string prerequisite in Prerequisites)Require(errors.Count(x=>x.Attribute("Condition")?.Value=="'$("+Flag+")' == 'true' and '$("+prerequisite+")' != 'true'")==1,"exact prerequisite "+prerequisite);
         string[] conflicts=Conflicts(project);Require(conflicts.Length==33,"exact conflict vector");
         foreach(string conflict in conflicts)foreach((string a,string b) in new[]{(Flag,conflict),(conflict,Flag)})
@@ -442,10 +445,10 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(Path.Combine(root,artifact)+suffix,Path.Combine(dir,"image.EFI"+suffix));
             foreach(var file in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(dir,file.Item2));
             using var document=JsonDocument.Parse(File.ReadAllText(Path.Combine(root,artifact)+".link.json"));var evidence=document.RootElement;
-            var inputs=evidence.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Require(inputs.Length==115,"115 raw source inputs");
+            var inputs=evidence.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Require(inputs.Length==122,"122 raw source inputs");
             foreach(var input in inputs)Require(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))).Equals(input.GetProperty("sha256").GetString(),StringComparison.OrdinalIgnoreCase),"same raw source");
-            var evaluation=evidence.GetProperty("postRestoreEvaluation");Require(evaluation.GetProperty("compileCount").GetInt32()==101,"101 compiler items");
-            var flags=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Require(flags.Length==42,"42 exact evaluated switches");
+            var evaluation=evidence.GetProperty("postRestoreEvaluation");Require(evaluation.GetProperty("compileCount").GetInt32()==108,"108 compiler items");
+            var flags=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Require(flags.Length==44,"44 exact evaluated switches");
             foreach(var flag in flags)Require(flag.Value.GetString()==(enabled&&(flag.Name==Flag||Prerequisites.Contains(flag.Name,StringComparer.Ordinal))?"true":"false"),"evaluated "+flag.Name);
             using var pe=new PEReader(File.OpenRead(Path.Combine(dir,"OS.dll")));var md=pe.GetMetadataReader();Require(md.AssemblyReferences.Count==0&&md.GetString(md.GetAssemblyDefinition().Name)=="OS","actual no-stdlib OS");
             var types=md.TypeDefinitions.Where(h=>md.GetString(md.GetTypeDefinition(h).Name)=="M02UnexpectedVectorPanicAdapter").ToArray();Require(types.Length==(enabled?1:0),"compiled default adapter exclusion");

@@ -285,7 +285,7 @@ internal static class M04StringAllocationEfiIntegrationTests
     {
         string root=HostToolProcess.FindRepositoryRoot();XDocument project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
         string[] items=project.Descendants("Compile").Select(x=>x.Attribute("Include")!.Value+"|"+(x.Attribute("Link")?.Value??"")).ToArray();
-        Need(items.Length==101 && items[81]=="..\\OS.Kernel\\Runtime\\GuestTestStringAllocationCharacterStorage.cs|Runtime\\GuestTestStringAllocationCharacterStorage.cs" &&
+        Need(items.Length==108 && items[81]=="..\\OS.Kernel\\Runtime\\GuestTestStringAllocationCharacterStorage.cs|Runtime\\GuestTestStringAllocationCharacterStorage.cs" &&
             items[82]=="..\\OS.Kernel\\Diagnostics\\StringAllocationProbeAuthority.cs|Diagnostics\\StringAllocationProbeAuthority.cs","two exact String includes");
         foreach(var pair in new[]{(Flag,"M04_STRING_ALLOCATION_PROBE"),("EnableM04StringAllocationBeforeBindProbe","M04_STRING_ALLOCATION_BEFORE_BIND_PROBE"),("EnableM04StringAllocationExhaustionProbe","M04_STRING_ALLOCATION_EXHAUSTION_PROBE"),("EnableM04StringAllocationInvalidLengthProbe","M04_STRING_ALLOCATION_INVALID_LENGTH_PROBE")})
         {
@@ -297,7 +297,7 @@ internal static class M04StringAllocationEfiIntegrationTests
             ("src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs","e7cd46a4c35de92cb9085f198737916697f7479dd0947fd591e4874aa347617e"),
             ("tests/OS.HostTests/GuestTestStringAllocationCharacterStorageTests.cs","27f774d0f1123a7be7b14cbd4c8d41e22b8fb0b29b16d113745741894aac88b8"),
             ("tests/OS.HostTests/GuestTestRhpNewFastTests.cs","b4ec1e95244041f4071ce6293a3f31924ecd960308529a352a13347d92e8e6c4"),
-            ("src/OS/Boot/EfiEntry.cs","af975405125c368ec7520ab1fd35f2feac9e762650e78d64a1cb835110bde14d")})
+            ("src/OS/Boot/EfiEntry.cs","fb01bf1164ec570a72513bb212a5d03637a2107066d564c6a00ef5032546864e")})
             Need(Hash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(root,file.Item1)).Replace("\r\n","\n",StringComparison.Ordinal)))==file.Item2,"reviewed host/entry source "+file.Item1);
         string adapter=File.ReadAllText(Path.Combine(root,"src/OS/Runtime/RhpNewFastAllocation.cs"));
         Need(adapter.Contains("GuestTestStringAllocationCharacterStorage.TryAllocate(*access, bump, 80,",StringComparison.Ordinal) &&
@@ -352,11 +352,11 @@ internal static class M04StringAllocationEfiIntegrationTests
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
             foreach(var file in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(directory,file.Item2));
             using var document=System.Text.Json.JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=document.RootElement;
-            var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==115,"actual115 raw sources");
+            var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==122,"actual122 raw sources");
             foreach(var input in inputs)Need(Hash(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))==input.GetProperty("sha256").GetString(),"actual raw source unchanged");
-            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==101,"actual101 compile items");
+            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==108,"actual108 compile items");
             var flags=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
-            Need(flags.Length==42,"complete42 evaluated flags");
+            Need(flags.Length==44,"complete44 evaluated flags");
             foreach(var f in flags)Need(f.Value.GetString()==(lane.Item2.Contains(f.Name,StringComparer.Ordinal)?"true":"false"),"actual requested/evaluated profile "+f.Name);
             TestMetadata(directory,lane.Item1!="default");
             if(lane.Item1!="default")TestLinkedRoutes(root,directory,lane.Item1);

@@ -737,6 +737,49 @@ internal static class BootSequencePlanTests
         return true;
     }
 
+    internal static bool HasNoStdlibBootAuthorityBoundary()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        var project = System.Xml.Linq.XDocument.Load(Path.Combine(root, "src/OS/OS.csproj"));
+        if (!BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Boot\BootSequence.cs", @"Boot\BootSequence.cs")
+            || !BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
+                @"..\OS.Kernel\Diagnostics\Probes.cs", @"Diagnostics\Probes.cs")
+            || !project.Descendants("DefineConstants").Any(element =>
+                element.Attribute("Condition") is null && element.Parent?.Attribute("Condition") is null
+                && element.Value.Split(';').Contains("NOSTDLIB_EFI", StringComparer.Ordinal))
+            || !project.Descendants("NoStdLib").Any(element => element.Value == "true")
+            || project.Descendants("ProjectReference").Any())
+            return false;
+
+        // These files deliberately share a small EFI surface; their host-only
+        // imports, catalogs and presenters must stay inside the existing guards.
+        return HasGuardedSurface("src/OS.Kernel/Boot/BootSequence.cs", 3,
+            ["public static class BootSequence",
+             "public static unsafe OS.Boot.FirstExitReturn RunFirstRealExitBootServicesTransition(",
+             "private static bool IsFirstRealExitBootServicesEnabled() =>"])
+            && HasGuardedSurface("src/OS.Kernel/Diagnostics/Probes.cs", 2,
+            ["public static partial class Probes",
+             "public const bool EnableM04SeededCollectorChurnProbe = true;",
+             "public const bool EnableM04SeededCollectorChurnProbe = false;",
+             "public const bool EnableM03FirstRealExitBootServicesProbe = true;",
+             "public const bool EnableM03FirstRealExitBootServicesProbe = false;"]);
+
+        bool HasGuardedSurface(string relativePath, int expectedRegions, string[] declarations)
+        {
+            string source = File.ReadAllText(Path.Combine(root, relativePath)).ReplaceLineEndings("\n");
+            var guarded = new Regex(@"(?ms)^#if !NOSTDLIB_EFI\n.*?^#endif$");
+            MatchCollection regions = guarded.Matches(source);
+            if (regions.Count != expectedRegions || regions.Any(region =>
+                Regex.IsMatch(region.Value["#if !NOSTDLIB_EFI\n".Length..], @"(?m)^#(?:if|elif|else)\b")))
+                return false;
+            string efi = guarded.Replace(source, string.Empty);
+            return Regex.Matches(efi, @"(?m)^[ \t]*(?:public|private|internal|protected|using)\b[^\n]*")
+                .Select(match => match.Value.Trim()).SequenceEqual(declarations, StringComparer.Ordinal)
+                && !Regex.IsMatch(efi, @"\b(?:string|Span|ReadOnlySpan|ISerialSink|BootEventRingBuffer|ProbeDefinition)\b");
+        }
+    }
+
     private static bool TestM01StageOnePlanPreservesEfiLinkageBoundary()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -762,14 +805,6 @@ internal static class BootSequencePlanTests
 
             string normalized = include.Replace('/', '\\');
             if (normalized.Contains('*'))
-            {
-                return false;
-            }
-
-            if (string.Equals(
-                Path.GetFileName(normalized),
-                "BootSequence.cs",
-                StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
@@ -864,6 +899,7 @@ internal static class BootSequencePlanTests
         return defaultCompileItemsDisabled
             && planLinked
             && integrationLinked
+            && HasNoStdlibBootAuthorityBoundary()
             && probeCallsConfined
             && !compactProbe.Contains(
                 "M01LoadedImageStackIntegration.Prepare(",
@@ -921,14 +957,6 @@ internal static class BootSequencePlanTests
             }
 
             if (string.Equals(
-                Path.GetFileName(normalized),
-                "BootSequence.cs",
-                StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            if (string.Equals(
                 normalized,
                 @"..\OS.Kernel\Boot\BootSequencePlan.cs",
                 StringComparison.OrdinalIgnoreCase))
@@ -948,6 +976,7 @@ internal static class BootSequencePlanTests
         return defaultCompileItemsDisabled
             && planLinked
             && integrationLinked
+            && HasNoStdlibBootAuthorityBoundary()
             && !efiEntrySource.Contains(
                 "RunM01LiveAllocatorIntegration",
                 StringComparison.Ordinal)
@@ -995,14 +1024,6 @@ internal static class BootSequencePlanTests
             }
 
             if (string.Equals(
-                Path.GetFileName(normalized),
-                "BootSequence.cs",
-                StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            if (string.Equals(
                 normalized,
                 @"..\OS.Kernel\Boot\BootSequencePlan.cs",
                 StringComparison.OrdinalIgnoreCase))
@@ -1022,6 +1043,7 @@ internal static class BootSequencePlanTests
         return defaultCompileItemsDisabled
             && planLinked
             && integrationLinked
+            && HasNoStdlibBootAuthorityBoundary()
             && !efiEntrySource.Contains(
                 "RunM01LivePagingIntegration",
                 StringComparison.Ordinal)

@@ -67,7 +67,9 @@ param(
     [switch] $EnableM03FirmwareEntropySeedProbe,
     [switch] $EnableM04TypeManagerModuleRegistrationProbe,
     [switch] $EnableM04GcStaticRootMaterializationProbe,
+    [switch] $EnableM04SeededCollectorChurnProbe,
     [switch] $EnableM03TypedExitBootServicesCallProbe,
+    [switch] $EnableM03FirstRealExitBootServicesProbe,
     [switch] $EnableM04CheckedReferenceBarrierProbe
 )
 
@@ -171,12 +173,19 @@ $script:ExpectedEfiCompileItems = @(
     '..\OS.Kernel\Boot\TypedNoStdlibExitBootServicesCallAdapter.cs|Boot\TypedNoStdlibExitBootServicesCallAdapter.cs',
     '..\OS.Kernel\Boot\NoAllocationOrUnrelatedFirmwareCallOccursBetween.cs|Boot\NoAllocationOrUnrelatedFirmwareCallOccursBetween.cs',
     '..\OS.Kernel\Boot\BoundedRetryStaleKeyStatus.cs|Boot\BoundedRetryStaleKeyStatus.cs',
+    '..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs|Boot\FirstOptRealExitBootServicesTransition.cs',
+    '..\OS.Kernel\Boot\BootSequence.cs|Boot\BootSequence.cs',
+    '..\OS.Kernel\Diagnostics\Probes.cs|Diagnostics\Probes.cs',
+    '..\..\std\no-runtime\shared\Hash\Crc32.cs|Std\Hash\Crc32.cs',
     '..\OS.Kernel\Platform\FirmwareServicesMode.cs|Platform\FirmwareServicesMode.cs',
     '..\OS.Kernel\Diagnostics\TypedExitBootServicesCallProbeAuthority.cs|Diagnostics\TypedExitBootServicesCallProbeAuthority.cs',
     '..\OS.Kernel\Runtime\GCStaticRootsMalformedMetadata.cs|Runtime\GCStaticRootsMalformedMetadata.cs',
     '..\OS.Kernel\Runtime\BoundedNonMovingCollectorExplicitRootEnumeration.cs|Runtime\BoundedNonMovingCollectorExplicitRootEnumeration.cs',
     'Runtime\GCStaticRootMaterializationProbe.cs|',
-    '..\OS.Kernel\Diagnostics\GCStaticRootMaterializationProbeAuthority.cs|Diagnostics\GCStaticRootMaterializationProbeAuthority.cs'
+    '..\OS.Kernel\Diagnostics\GCStaticRootMaterializationProbeAuthority.cs|Diagnostics\GCStaticRootMaterializationProbeAuthority.cs',
+    '..\..\std\no-runtime\shared\DeterministicRandom32.cs|Std\DeterministicRandom32.cs',
+    '..\OS.Kernel\Runtime\SeededAllocationChurnCollectionRootRetentionGuestProbes.cs|Runtime\SeededAllocationChurnCollectionRootRetentionGuestProbes.cs',
+    'Runtime\SeededCollectorChurnProbe.cs|'
 )
 
 $script:ExpectedSerializerTargetsImport =
@@ -1904,7 +1913,9 @@ function Invoke-M01PostRestoreEvaluation {
         [bool] $M03FirmwareEntropySeedEnabled,
         [bool] $M04TypeManagerModuleRegistrationEnabled,
         [bool] $M04GcStaticRootMaterializationEnabled,
+        [bool] $M04SeededCollectorChurnEnabled,
         [bool] $M03TypedExitBootServicesCallEnabled,
+        [bool] $M03FirstRealExitBootServicesEnabled,
         [bool] $M04CheckedReferenceBarrierEnabled,
         [bool] $LoadedImageStackEnabled,
         [bool] $LiveAllocatorEnabled,
@@ -1963,7 +1974,9 @@ function Invoke-M01PostRestoreEvaluation {
             "EnableM03FirmwareEntropySeedProbe," +
             "EnableM04TypeManagerModuleRegistrationProbe," +
             "EnableM04GcStaticRootMaterializationProbe," +
+            "EnableM04SeededCollectorChurnProbe," +
             "EnableM03TypedExitBootServicesCallProbe," +
+            "EnableM03FirstRealExitBootServicesProbe," +
             "EnableM01LoadedImageStackProbe," +
             "EnableM01LiveAllocatorProbe," +
             "EnableM01OwnedPagingProbe," +
@@ -2140,8 +2153,12 @@ function Invoke-M01PostRestoreEvaluation {
         $M04TypeManagerModuleRegistrationEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM04GcStaticRootMaterializationProbe=" +
         $M04GcStaticRootMaterializationEnabled.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableM04SeededCollectorChurnProbe=" +
+        $M04SeededCollectorChurnEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM03TypedExitBootServicesCallProbe=" +
         $M03TypedExitBootServicesCallEnabled.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableM03FirstRealExitBootServicesProbe=" +
+        $M03FirstRealExitBootServicesEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM04CheckedReferenceBarrierProbe=" +
         $M04CheckedReferenceBarrierEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM01LoadedImageStackProbe=" + $LoadedImageStackEnabled.ToString().ToLowerInvariant())
@@ -2259,8 +2276,12 @@ function Invoke-M01PostRestoreEvaluation {
             $M04TypeManagerModuleRegistrationEnabled.ToString().ToLowerInvariant()
         EnableM04GcStaticRootMaterializationProbe =
             $M04GcStaticRootMaterializationEnabled.ToString().ToLowerInvariant()
+        EnableM04SeededCollectorChurnProbe =
+            $M04SeededCollectorChurnEnabled.ToString().ToLowerInvariant()
         EnableM03TypedExitBootServicesCallProbe =
             $M03TypedExitBootServicesCallEnabled.ToString().ToLowerInvariant()
+        EnableM03FirstRealExitBootServicesProbe =
+            $M03FirstRealExitBootServicesEnabled.ToString().ToLowerInvariant()
         EnableM04CheckedReferenceBarrierProbe =
             $M04CheckedReferenceBarrierEnabled.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
@@ -4270,7 +4291,9 @@ for ($index = 5; $index -lt $verifierArguments.Count; $index += 2) {
         $parameterName -ceq "EnableM03FirmwareEntropySeedProbe" -or
         $parameterName -ceq "EnableM04TypeManagerModuleRegistrationProbe" -or
         $parameterName -ceq "EnableM04GcStaticRootMaterializationProbe" -or
+        $parameterName -ceq "EnableM04SeededCollectorChurnProbe" -or
         $parameterName -ceq "EnableM03TypedExitBootServicesCallProbe" -or
+        $parameterName -ceq "EnableM03FirstRealExitBootServicesProbe" -or
         $parameterName -ceq "EnableM04CheckedReferenceBarrierProbe" -or
         $parameterName -ceq "EnableM01LoadedImageStackProbe" -or
         $parameterName -ceq "EnableM01LiveAllocatorProbe" -or
@@ -5060,6 +5083,43 @@ function Test-M01ActiveSourceSurface {
         return [pscustomobject] @{ Succeeded=$true; Reason="ok"; Detail=""; ActiveText=$SourceText }
     }
 
+    # Only the two compile-time branches of the reviewed probe catalog are admitted.
+    # Native compilation excludes the managed catalog and retains the explicit toggle.
+    if ([string]::Equals($SourceName, '..\OS.Kernel\Diagnostics\Probes.cs', [StringComparison]::Ordinal)) {
+        $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
+        if ($identity -cne 'cb83bbf0055c959175ceac5a1a7471f30c2b68727275bd9f76c9d132dc883966') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_first_exit_probe_identity'; ActiveText='' } }
+        return [pscustomobject]@{ Succeeded=$true; Reason='ok'; Detail=''; ActiveText=$SourceText }
+    }
+
+    # First-exit source and shared CRC closure reviewed in steps1029..1031.
+    if ([string]::Equals($SourceName, '..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs', [StringComparison]::Ordinal)) {
+        $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
+        if ($identity -cne 'f3ec02b972b0c8785f551db1c0d3e25f6c77d227d60beeab59f3edc912260b1d') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_first_exit_source_identity'; ActiveText='' } }
+        return [pscustomobject]@{ Succeeded=$true; Reason='ok'; Detail=''; ActiveText=$SourceText }
+    }
+    if ([string]::Equals($SourceName, '..\..\std\no-runtime\shared\Hash\Crc32.cs', [StringComparison]::Ordinal)) {
+        $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
+        if ($identity -cne '228540b7c150ea26100ea9f509772ee89bbe10a45ef2c4d8e95a4b250c56333e') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_first_exit_source_identity'; ActiveText='' } }
+        return [pscustomobject]@{ Succeeded=$true; Reason='ok'; Detail=''; ActiveText=$SourceText }
+    }
+
+    # Seeded churn adds no general runtime support; admit only the reviewed leaves.
+    if ([string]::Equals($SourceName, '..\..\std\no-runtime\shared\DeterministicRandom32.cs', [StringComparison]::Ordinal)) {
+        $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
+        if ($identity -cne '6ca5e3e3e839017ca27fb73884b7665315b3e2df3c1f49a5fe012a3e56c2ae33') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_seeded_churn_source_identity'; ActiveText='' } }
+        return [pscustomobject]@{ Succeeded=$true; Reason='ok'; Detail=''; ActiveText=$SourceText }
+    }
+    if ([string]::Equals($SourceName, '..\OS.Kernel\Runtime\SeededAllocationChurnCollectionRootRetentionGuestProbes.cs', [StringComparison]::Ordinal)) {
+        $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
+        if ($identity -cne '43cbaad55c19a90b4f763792cf974ab9c9dfe3b5ce76dd1ebffa716de12241a9') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_seeded_churn_source_identity'; ActiveText='' } }
+        return [pscustomobject]@{ Succeeded=$true; Reason='ok'; Detail=''; ActiveText=$SourceText }
+    }
+    if ([string]::Equals($SourceName, 'Runtime\SeededCollectorChurnProbe.cs', [StringComparison]::Ordinal)) {
+        $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
+        if ($identity -cne '69aeb22b1c23f17f7748b07b68629698216da53a3d9b39fa6f6aac6bc17e6768') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_seeded_churn_source_identity'; ActiveText='' } }
+        return [pscustomobject]@{ Succeeded=$true; Reason='ok'; Detail=''; ActiveText=$SourceText }
+    }
+
     # Frozen #510 image leaf imports only the already included POD boot/memory contracts.
     # Admission is exact path plus complete text identity; raw authority hashes stay raw.
     if ([string]::Equals($SourceName,
@@ -5067,7 +5127,7 @@ function Test-M01ActiveSourceSurface {
             [System.StringComparison]::Ordinal)) {
         $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
         if (-not [string]::Equals($identity,
-                'c03ff7f0d1b9be2ec5a17cdc01057d8ab10c7c097786797b0dfa1bb1ea016fbb',
+                '4ec0cfb1cd2a07f0834463c5fd2ea1d6882e3fc76e85b3d9e49607b47abbb3e2',
                 [System.StringComparison]::Ordinal)) {
             return [pscustomobject] @{
                 Succeeded = $false
@@ -5737,7 +5797,9 @@ function Test-M01EvaluatedSourceClosure {
         [bool] $M03FirmwareEntropySeedEnabled,
         [bool] $M04TypeManagerModuleRegistrationEnabled,
         [bool] $M04GcStaticRootMaterializationEnabled,
+        [bool] $M04SeededCollectorChurnEnabled,
         [bool] $M03TypedExitBootServicesCallEnabled,
+        [bool] $M03FirstRealExitBootServicesEnabled,
         [bool] $M04CheckedReferenceBarrierEnabled,
         [bool] $UefiGoneSimulationEnabled,
         [bool] $ExitBootServicesFreshMapEnabled,
@@ -5833,8 +5895,12 @@ function Test-M01EvaluatedSourceClosure {
             $M04TypeManagerModuleRegistrationEnabled.ToString().ToLowerInvariant()
         "EnableM04GcStaticRootMaterializationProbe" =
             $M04GcStaticRootMaterializationEnabled.ToString().ToLowerInvariant()
+        "EnableM04SeededCollectorChurnProbe" =
+            $M04SeededCollectorChurnEnabled.ToString().ToLowerInvariant()
         "EnableM03TypedExitBootServicesCallProbe" =
             $M03TypedExitBootServicesCallEnabled.ToString().ToLowerInvariant()
+        "EnableM03FirstRealExitBootServicesProbe" =
+            $M03FirstRealExitBootServicesEnabled.ToString().ToLowerInvariant()
         "EnableM04CheckedReferenceBarrierProbe" =
             $M04CheckedReferenceBarrierEnabled.ToString().ToLowerInvariant()
     }
@@ -5901,8 +5967,12 @@ function Test-M01EvaluatedSourceClosure {
             $M04TypeManagerModuleRegistrationEnabled
         "M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE" =
             $M04GcStaticRootMaterializationEnabled
+        "M04_SEEDED_COLLECTOR_CHURN_PROBE" =
+            $M04SeededCollectorChurnEnabled
         "M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE" =
             $M03TypedExitBootServicesCallEnabled
+        "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE" =
+            $M03FirstRealExitBootServicesEnabled
         "M04_CHECKED_REFERENCE_BARRIER_PROBE" =
             $M04CheckedReferenceBarrierEnabled
         "UEFI_GONE_SIMULATION_PROBE" = $UefiGoneSimulationEnabled
@@ -5963,7 +6033,9 @@ function Test-M01EvaluatedSourceClosure {
             "EnableM03FirmwareEntropySeedProbe," +
             "EnableM04TypeManagerModuleRegistrationProbe," +
             "EnableM04GcStaticRootMaterializationProbe," +
+            "EnableM04SeededCollectorChurnProbe," +
             "EnableM03TypedExitBootServicesCallProbe," +
+            "EnableM03FirstRealExitBootServicesProbe," +
                 "DefineConstants," +
                 "EnableDefaultCompileItems," +
                 "NoStdLib," +
@@ -6152,9 +6224,17 @@ function Test-M01EvaluatedSourceClosure {
             $arguments +=
                 "-p:EnableM04GcStaticRootMaterializationProbe=true"
         }
+        if ($M04SeededCollectorChurnEnabled) {
+            $arguments +=
+                "-p:EnableM04SeededCollectorChurnProbe=true"
+        }
         if ($M03TypedExitBootServicesCallEnabled) {
             $arguments +=
                 "-p:EnableM03TypedExitBootServicesCallProbe=true"
+        }
+        if ($M03FirstRealExitBootServicesEnabled) {
+            $arguments +=
+                "-p:EnableM03FirstRealExitBootServicesProbe=true"
         }
         if ($M04CheckedReferenceBarrierEnabled) {
             $arguments +=
@@ -6714,7 +6794,9 @@ function Test-M01SourceClosure {
         [bool] $M03FirmwareEntropySeedEnabled,
         [bool] $M04TypeManagerModuleRegistrationEnabled,
         [bool] $M04GcStaticRootMaterializationEnabled,
+        [bool] $M04SeededCollectorChurnEnabled,
         [bool] $M03TypedExitBootServicesCallEnabled,
+        [bool] $M03FirstRealExitBootServicesEnabled,
         [bool] $M04CheckedReferenceBarrierEnabled,
         [bool] $UefiGoneSimulationEnabled,
         [bool] $ExitBootServicesFreshMapEnabled,
@@ -6765,7 +6847,7 @@ function Test-M01SourceClosure {
 
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "76e4fa3d78fbddd86c3cda78a99e3e87c026ec890061a1b554854a05c4a45a18") {
+        "6c382da0acddc8f53939c30e02087ab77168db4add9340d6e4f6ecb3463b6049") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `
@@ -6880,8 +6962,12 @@ function Test-M01SourceClosure {
             "M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE"
         "EnableM04GcStaticRootMaterializationProbe" =
             "M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE"
+        "EnableM04SeededCollectorChurnProbe" =
+            "M04_SEEDED_COLLECTOR_CHURN_PROBE"
         "EnableM03TypedExitBootServicesCallProbe" =
             "M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE"
+        "EnableM03FirstRealExitBootServicesProbe" =
+            "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE"
         "EnableM04CheckedReferenceBarrierProbe" =
             "M04_CHECKED_REFERENCE_BARRIER_PROBE"
         "EnableUefiGoneSimulationProbe" = "UEFI_GONE_SIMULATION_PROBE"
@@ -7179,8 +7265,12 @@ function Test-M01SourceClosure {
             "M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE"
         "EnableM04GcStaticRootMaterializationProbe" =
             "M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE"
+        "EnableM04SeededCollectorChurnProbe" =
+            "M04_SEEDED_COLLECTOR_CHURN_PROBE"
         "EnableM03TypedExitBootServicesCallProbe" =
             "M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE"
+        "EnableM03FirstRealExitBootServicesProbe" =
+            "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE"
         "EnableM04CheckedReferenceBarrierProbe" =
             "M04_CHECKED_REFERENCE_BARRIER_PROBE"
     }
@@ -8304,6 +8394,55 @@ function Test-M01SourceClosure {
         "'`$(EnableExitBootServicesFreshMapProbe)' == 'true' and '`$(EnableM04GcStaticRootMaterializationProbe)' == 'true'",
         "'`$(EnableAcpiPhysicalDiscoveryProbe)' == 'true' and '`$(EnableM04GcStaticRootMaterializationProbe)' == 'true'"
     )
+    $requiredErrorConditions += @(
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' != '' and '`$(EnableM03FirstRealExitBootServicesProbe)' != 'true' and '`$(EnableM03FirstRealExitBootServicesProbe)' != 'false'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM01LoadedImageStackProbe)' != 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM01LiveAllocatorProbe)' != 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableAcpiPhysicalDiscoveryProbe)' != 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM01OwnedPagingProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM02SafeStubProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM02Com1OwnedPortIoProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM02OwnedCom1ReadyProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM02GuardedIstStackAllocationProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM02IdtrContinuedExecutionProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM02Ud2VectorStateProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM04IndependentEndianConformanceProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM04ArithmeticConformanceProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM04LayoutContractProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM04ManagedHeapPageRangeProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM02DoubleFaultIstProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM02UnexpectedVectorPanicProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM04RhpNewFastProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM04SzArrayAllocationProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM04StringAllocationProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM03MemoryMapCaptureProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM04CheckedReferenceBarrierProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM03FirmwareEntropySeedProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM03TypedExitBootServicesCallProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableM04GcStaticRootMaterializationProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableUefiGoneSimulationProbe)' == 'true'",
+        "'`$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '`$(EnableExitBootServicesFreshMapProbe)' == 'true'"
+    )
+    $requiredErrorConditions += @(
+        "'`$(EnableM04SeededCollectorChurnProbe)' != '' and '`$(EnableM04SeededCollectorChurnProbe)' != 'true' and '`$(EnableM04SeededCollectorChurnProbe)' != 'false'",
+        "'`$(EnableM04SeededCollectorChurnProbe)' == 'true' and '`$(EnableM04GcStaticRootMaterializationProbe)' != 'true'"
+    )
     if ($errorConditions.Count -ne $requiredErrorConditions.Count -or
         $validationTargets[0].SelectNodes("*").Count -ne $errorNodes.Count) {
         return New-M01SourceClosureResult `
@@ -8640,7 +8779,9 @@ function Test-M01SourceClosure {
         -M03FirmwareEntropySeedEnabled $M03FirmwareEntropySeedEnabled `
         -M04TypeManagerModuleRegistrationEnabled $M04TypeManagerModuleRegistrationEnabled `
         -M04GcStaticRootMaterializationEnabled $M04GcStaticRootMaterializationEnabled `
+        -M04SeededCollectorChurnEnabled $M04SeededCollectorChurnEnabled `
         -M03TypedExitBootServicesCallEnabled $M03TypedExitBootServicesCallEnabled `
+        -M03FirstRealExitBootServicesEnabled $M03FirstRealExitBootServicesEnabled `
         -M04CheckedReferenceBarrierEnabled $M04CheckedReferenceBarrierEnabled `
         -UefiGoneSimulationEnabled $UefiGoneSimulationEnabled `
         -ExitBootServicesFreshMapEnabled $ExitBootServicesFreshMapEnabled `
@@ -8814,8 +8955,8 @@ try {
             (Format-EvidenceValue $_.Exception.Message))
         exit 1
     }
-    if ($sourceSnapshotBeforePublish.InputCount -ne 115 -or
-        $sourceSnapshotAfterLock.InputCount -ne 115 -or
+    if ($sourceSnapshotBeforePublish.InputCount -ne 122 -or
+        $sourceSnapshotAfterLock.InputCount -ne 122 -or
         $sourceSnapshotBeforePublish.AggregateSha256 -cne
             $sourceSnapshotAfterLock.AggregateSha256 -or
         $sourceSnapshotBeforePublish.AuthoritySha256 -cne
@@ -8828,9 +8969,12 @@ try {
         exit 1
     }
     Write-Host "EFI_PUBLISH_SOURCE_LOCK status=ok"
-    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=115"
+    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=122"
 
 Write-EfiPreflightLine "EFI_PREFLIGHT_START"
+if ($EnableM04SeededCollectorChurnProbe -and -not $EnableM04GcStaticRootMaterializationProbe) {
+    Write-Output "TEST_FAIL efi.shell.publish m04_churn_requires_gc_profile"; exit 1
+}
 if ($EnableM04GcStaticRootMaterializationProbe) {
     foreach ($gcFlag in @(
         'EnableM01LoadedImageStackProbe',
@@ -8880,6 +9024,59 @@ if ($EnableM04GcStaticRootMaterializationProbe) {
         'EnableAcpiPhysicalDiscoveryProbe'
     )) {
         if ([bool](Get-Variable -Name $gcFlag -ValueOnly)) { Write-Output ("TEST_FAIL efi.shell.publish m04_gc_static_profile_conflict property="+$gcFlag); exit 1 }
+    }
+}
+
+if ($EnableM03FirstRealExitBootServicesProbe) {
+    foreach ($dependency in @(
+        'EnableM01LoadedImageStackProbe',
+        'EnableM01LiveAllocatorProbe',
+        'EnableAcpiPhysicalDiscoveryProbe'
+    )) {
+        if (-not [bool](Get-Variable -Name $dependency -ValueOnly)) { Write-Output ("TEST_FAIL efi.shell.publish m03_first_exit_requires property="+$dependency); exit 1 }
+    }
+    foreach ($conflict in @(
+        'EnableM01OwnedPagingProbe',
+        'EnableM02SafeStubProbe',
+        'EnableM02CheckedPortIoBindingProbe',
+        'EnableM02Com1OwnedPortIoProbe',
+        'EnableM02OwnedCom1ReadyProbe',
+        'EnableM02PanicSafeOwnedCom1Probe',
+        'EnableM02OwnedX64GdtEncodingProbe',
+        'EnableM02GuardedIstStackAllocationProbe',
+        'EnableM02OwnedGdtTssTerminalProbe',
+        'EnableM02NormalizedInterruptFramePageProbe',
+        'EnableM02OwnedIdtGatePopulationProbe',
+        'EnableM02IdtrContinuedExecutionProbe',
+        'EnableM02Ud2VectorStateProbe',
+        'EnableM04IndependentEndianConformanceProbe',
+        'EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe',
+        'EnableM04ArithmeticConformanceProbe',
+        'EnableM04LayoutContractProbe',
+        'EnableM04ManagedHeapPageRangeProbe',
+        'EnableM02PageFaultCr2ErrorCodeProbe',
+        'EnableM02DoubleFaultIstProbe',
+        'EnableM02UnexpectedVectorPanicProbe',
+        'EnableM04RhpNewFastProbe',
+        'EnableM04RhpNewFastBeforeBindFailureProbe',
+        'EnableM04RhpNewFastExhaustionFailureProbe',
+        'EnableM04SzArrayAllocationProbe',
+        'EnableM04SzArrayAllocationBeforeBindProbe',
+        'EnableM04SzArrayAllocationExhaustionProbe',
+        'EnableM04StringAllocationProbe',
+        'EnableM04StringAllocationBeforeBindProbe',
+        'EnableM04StringAllocationExhaustionProbe',
+        'EnableM04StringAllocationInvalidLengthProbe',
+        'EnableM03MemoryMapCaptureProbe',
+        'EnableM04CheckedReferenceBarrierProbe',
+        'EnableM03FirmwareEntropySeedProbe',
+        'EnableM04TypeManagerModuleRegistrationProbe',
+        'EnableM03TypedExitBootServicesCallProbe',
+        'EnableM04GcStaticRootMaterializationProbe',
+        'EnableUefiGoneSimulationProbe',
+        'EnableExitBootServicesFreshMapProbe'
+    )) {
+        if ([bool](Get-Variable -Name $conflict -ValueOnly)) { Write-Output ("TEST_FAIL efi.shell.publish m03_first_exit_profile_conflict property="+$conflict); exit 1 }
     }
 }
 
@@ -10096,7 +10293,9 @@ $m01SourceClosure = Test-M01SourceClosure `
     -M03FirmwareEntropySeedEnabled $EnableM03FirmwareEntropySeedProbe.IsPresent `
     -M04TypeManagerModuleRegistrationEnabled $EnableM04TypeManagerModuleRegistrationProbe.IsPresent `
     -M04GcStaticRootMaterializationEnabled $EnableM04GcStaticRootMaterializationProbe.IsPresent `
+    -M04SeededCollectorChurnEnabled $EnableM04SeededCollectorChurnProbe.IsPresent `
     -M03TypedExitBootServicesCallEnabled $EnableM03TypedExitBootServicesCallProbe.IsPresent `
+    -M03FirstRealExitBootServicesEnabled $EnableM03FirstRealExitBootServicesProbe.IsPresent `
     -M04CheckedReferenceBarrierEnabled $EnableM04CheckedReferenceBarrierProbe.IsPresent `
     -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
     -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
@@ -10848,11 +11047,19 @@ if ($EnableM04TypeManagerModuleRegistrationProbe) {
 }
 if ($EnableM04GcStaticRootMaterializationProbe) {
     $arguments += "-p:EnableM04GcStaticRootMaterializationProbe=true"
-    Write-Host "EFI_PROBE M04_TYPE_MANAGER_MODULE_REGISTRATION"
+    Write-Host "EFI_PROBE M04_GC_STATIC_ROOT_MATERIALIZATION"
+}
+if ($EnableM04SeededCollectorChurnProbe) {
+    $arguments += "-p:EnableM04SeededCollectorChurnProbe=true"
+    Write-Host "EFI_PROBE M04_SEEDED_COLLECTOR_CHURN"
 }
 if ($EnableM03TypedExitBootServicesCallProbe) {
     $arguments += "-p:EnableM03TypedExitBootServicesCallProbe=true"
     Write-Host "EFI_PROBE M03_TYPED_EXIT_BOOT_SERVICES_CALL"
+}
+if ($EnableM03FirstRealExitBootServicesProbe) {
+    $arguments += "-p:EnableM03FirstRealExitBootServicesProbe=true"
+    Write-Host "EFI_PROBE M03_FIRST_REAL_EXIT_BOOT_SERVICES"
 }
 if ($EnableM04CheckedReferenceBarrierProbe) {
     $arguments += "-p:EnableM04CheckedReferenceBarrierProbe=true"
@@ -11002,7 +11209,9 @@ $methodImplAttributeSourcePath = Join-Path $repositoryRoot (
         -M03FirmwareEntropySeedEnabled $EnableM03FirmwareEntropySeedProbe.IsPresent `
         -M04TypeManagerModuleRegistrationEnabled $EnableM04TypeManagerModuleRegistrationProbe.IsPresent `
         -M04GcStaticRootMaterializationEnabled $EnableM04GcStaticRootMaterializationProbe.IsPresent `
+        -M04SeededCollectorChurnEnabled $EnableM04SeededCollectorChurnProbe.IsPresent `
         -M03TypedExitBootServicesCallEnabled $EnableM03TypedExitBootServicesCallProbe.IsPresent `
+        -M03FirstRealExitBootServicesEnabled $EnableM03FirstRealExitBootServicesProbe.IsPresent `
         -M04CheckedReferenceBarrierEnabled $EnableM04CheckedReferenceBarrierProbe.IsPresent `
         -UefiGoneSimulationEnabled $EnableUefiGoneSimulationProbe.IsPresent `
         -ExitBootServicesFreshMapEnabled $EnableExitBootServicesFreshMapProbe.IsPresent `
@@ -11260,7 +11469,9 @@ try {
         -M03FirmwareEntropySeedEnabled $EnableM03FirmwareEntropySeedProbe.IsPresent `
         -M04TypeManagerModuleRegistrationEnabled $EnableM04TypeManagerModuleRegistrationProbe.IsPresent `
         -M04GcStaticRootMaterializationEnabled $EnableM04GcStaticRootMaterializationProbe.IsPresent `
+        -M04SeededCollectorChurnEnabled $EnableM04SeededCollectorChurnProbe.IsPresent `
         -M03TypedExitBootServicesCallEnabled $EnableM03TypedExitBootServicesCallProbe.IsPresent `
+        -M03FirstRealExitBootServicesEnabled $EnableM03FirstRealExitBootServicesProbe.IsPresent `
         -M04CheckedReferenceBarrierEnabled $EnableM04CheckedReferenceBarrierProbe.IsPresent `
         -LoadedImageStackEnabled $EnableM01LoadedImageStackProbe.IsPresent `
         -LiveAllocatorEnabled $EnableM01LiveAllocatorProbe.IsPresent `
@@ -11466,7 +11677,9 @@ if ($exitCode -eq 0) {
                 -M03FirmwareEntropySeedEnabled $EnableM03FirmwareEntropySeedProbe.IsPresent `
                 -M04TypeManagerModuleRegistrationEnabled $EnableM04TypeManagerModuleRegistrationProbe.IsPresent `
                 -M04GcStaticRootMaterializationEnabled $EnableM04GcStaticRootMaterializationProbe.IsPresent `
+                -M04SeededCollectorChurnEnabled $EnableM04SeededCollectorChurnProbe.IsPresent `
                 -M03TypedExitBootServicesCallEnabled $EnableM03TypedExitBootServicesCallProbe.IsPresent `
+                -M03FirstRealExitBootServicesEnabled $EnableM03FirstRealExitBootServicesProbe.IsPresent `
                 -M04CheckedReferenceBarrierEnabled $EnableM04CheckedReferenceBarrierProbe.IsPresent `
                 -LoadedImageStackEnabled $EnableM01LoadedImageStackProbe.IsPresent `
                 -LiveAllocatorEnabled $EnableM01LiveAllocatorProbe.IsPresent `
@@ -11900,7 +12113,9 @@ if ($exitCode -eq 0) {
     $verificationArguments += @("-EnableM03FirmwareEntropySeedProbe", $EnableM03FirmwareEntropySeedProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM04TypeManagerModuleRegistrationProbe", $EnableM04TypeManagerModuleRegistrationProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM04GcStaticRootMaterializationProbe", $EnableM04GcStaticRootMaterializationProbe.IsPresent.ToString().ToLowerInvariant())
+    $verificationArguments += @("-EnableM04SeededCollectorChurnProbe", $EnableM04SeededCollectorChurnProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM03TypedExitBootServicesCallProbe", $EnableM03TypedExitBootServicesCallProbe.IsPresent.ToString().ToLowerInvariant())
+    $verificationArguments += @("-EnableM03FirstRealExitBootServicesProbe", $EnableM03FirstRealExitBootServicesProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM04CheckedReferenceBarrierProbe", $EnableM04CheckedReferenceBarrierProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM01LoadedImageStackProbe", $EnableM01LoadedImageStackProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM01LiveAllocatorProbe", $EnableM01LiveAllocatorProbe.IsPresent.ToString().ToLowerInvariant())

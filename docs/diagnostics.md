@@ -2,6 +2,17 @@
 
 ## Current Status
 
+M03-007 has accepted default-off terminal continuation evidence at `e64e9dc`
+using owned COM1, descriptor tables, main/IST stacks and CR3 after the real
+firmware exit. Its probe remains catalogued as destructive in `Probes.cs`; see
+the [profile command](efi-build.md#first-real-exit-profile-m03-007) and
+[step1051](../done/step1051.md). The final review associates the retained bounded
+native/negative scenarios with the actual accepted image; debugger-injected
+faults are not spontaneous or general interrupt-service evidence. This does not
+change the historical M02 boundary or broader Gate3 **Fail** status, and does not
+prove persistent fault recovery, arbitrary nested faults or general firmware
+adapter revocation.
+
 The bounded M02 technical exit is now supported by the separately accepted
 pre-`ExitBootServices` local-QEMU experiments for owned COM1, private descriptor
 state and controlled UD2/PF/DF/vector-32 delivery. All 20 keyed children have

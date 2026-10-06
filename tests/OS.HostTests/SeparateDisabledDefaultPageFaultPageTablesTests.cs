@@ -22,6 +22,7 @@ internal static unsafe class SeparateDisabledDefaultPageFaultPageTablesTests
         {
             TestDefaultsAndBound();
             TestIndependentPositiveWalks();
+            TestRetainedImages();
             TestInvalidRanges();
             TestModeAndArenaBoundaries();
             TestStorageBoundaries();
@@ -78,6 +79,90 @@ internal static unsafe class SeparateDisabledDefaultPageFaultPageTablesTests
             Offset<SeparatePageFaultPageTableRequest>("<ArenaPageCount>k__BackingField");
         Bytes(ref inconsistent)[arenaCount]++;
         Require(!inconsistent.Succeeded, "result request and absence counts must agree");
+    }
+
+    private static void TestRetainedImages()
+    {
+        Console.WriteLine("TEST_START m03.007.retained_page_image");
+        // A 16-MiB image crosses all three hierarchy-prefix boundaries; the
+        // owned stack exceeds the old limit and RO data must remain NX.
+        using (Fixture image = new(true))
+        {
+            image.RangeCount = 3;
+            image.Request = Request(pages: 55);
+            image.Ranges[0] = new((1UL << 39) - Page, 4096, Rx);
+            image.Ranges[1] = new(0x80_0000, 64, Rw);
+            image.Ranges[2] = new(0x90_0000, 32, PageProtection.Read);
+            VerifyImage(image);
+            SeparatePageFaultPageTableResult result = image.Audit();
+            Require(result.UsesRetainedImageLimits &&
+                result.UsedTablePages == result.ConservativeTablePageBound, "exact retained table requirement");
+            ulong required = result.UsedTablePages;
+            image.EntryBytes.Clear();
+            image.Request = Request(pages: required - 1);
+            RejectUnchanged(image, Status.InsufficientTablePages);
+            image.Request = Request(pages: required);
+            VerifyImage(image);
+            for (ulong index = 0; index < required * 512; index++)
+                if (image.Entries[index] != 0) image.Entries[index] |= 0x20;
+            ulong writable = FindEntry(image, image.Ranges[1].Start, 1);
+            image.Entries[writable] |= 0x40;
+            Require(!image.Audit().Succeeded && image.AuditAccessed().Succeeded,
+                "only the accessed-image entry point accepts hardware A/D changes");
+            byte[] snapshot = image.EntryBytes.ToArray();
+            NoHardware(image.AuditAccessed());
+            Require(snapshot.AsSpan().SequenceEqual(image.EntryBytes), "accessed audit never clears hardware bits");
+            ulong code = FindEntry(image, image.Ranges[0].Start, 1);
+            image.Entries[code] |= 0x40;
+            Require(image.AuditAccessed().Status == Status.MappingMismatch, "dirty executable leaf is rejected");
+            image.Entries[code] &= ~0x40UL;
+            image.Entries[0] |= 0x40;
+            Require(image.AuditAccessed().Status == Status.MalformedEntry, "dirty intermediate pointer is rejected");
+            image.Entries[0] &= ~0x40UL;
+            ulong leaf = FindEntry(image, image.Ranges[2].Start, 1);
+            image.Entries[leaf] &= ~Nx;
+            Require(image.AuditAccessed().Status == Status.MappingMismatch, "retained RO data cannot become executable");
+        }
+        using (Fixture sparse = new(true))
+        {
+            sparse.RangeCount = 32;
+            sparse.Request = Request(pages: 55);
+            for (ulong index = 0; index < 32; index++)
+                sparse.Ranges[index] = new(0x40_0000 + (31 - index) * 2 * Page, 1, Rw);
+            VerifyImage(sparse); // independent oracle rejects any mapped gap
+            sparse.EntryBytes.Clear();
+            sparse.Request = Request((1UL << 39) - Page, 55);
+            VerifyImage(sparse); // count the arena itself across every prefix boundary
+            sparse.EntryBytes.Clear();
+            sparse.Request = Request(pages: 55);
+            for (ulong index = 0; index < 32; index++)
+                sparse.Ranges[index] = new((index + 1) << 39, 1, Rw);
+            RejectUnchanged(sparse, Status.InsufficientTablePages);
+            sparse.RangeCount = 33;
+            RejectUnchanged(sparse, Status.InvalidRangeCount);
+        }
+        using (Fixture maximum = new(true))
+        {
+            maximum.Request = Request(pages: 55);
+            maximum.Ranges[0] = new(0x40_0000, 4096, Rx);
+            maximum.Ranges[1] = new(0x200_0000, 4096, Rw);
+            VerifyImage(maximum);
+            maximum.EntryBytes.Clear();
+            maximum.RangeCount = 3;
+            maximum.Ranges[2] = new(0x400_0000, 1, Rw);
+            RejectUnchanged(maximum, Status.InvalidRange);
+            maximum.RangeCount = 2;
+            maximum.Ranges[0] = new(0x40_0000, 4097, Rx);
+            RejectUnchanged(maximum, Status.InvalidRange);
+        }
+        using (Fixture legacy = new())
+        {
+            legacy.Ranges[0] = new(0x40_0000, 17, Rx);
+            RejectUnchanged(legacy, Status.InvalidRange);
+            legacy.Ranges[0] = new(0x40_0000, 1, PageProtection.Read);
+            RejectUnchanged(legacy, Status.InvalidRange);
+        }
+        Console.WriteLine("TEST_PASS m03.007.retained_page_image");
     }
 
     private static void TestIndependentPositiveWalks()
@@ -386,7 +471,8 @@ internal static unsafe class SeparateDisabledDefaultPageFaultPageTablesTests
             for (ulong page = 0; page < fixture.Ranges[range].PageCount; page++)
             {
                 ulong address = fixture.Ranges[range].Start + page * Page;
-                expected.Add(address, address | (fixture.Ranges[range].Protection == Rx ? 1UL : Nx | 3));
+                expected.Add(address, address | (fixture.Ranges[range].Protection == Rx ? 1UL :
+                    fixture.Ranges[range].Protection == Rw ? Nx | 3 : Nx | 1));
             }
         ulong root = Raw(fixture.Request.ArenaStart);
         for (ulong page = 0; page < fixture.Request.ArenaPageCount; page++)
@@ -532,6 +618,7 @@ internal static unsafe class SeparateDisabledDefaultPageFaultPageTablesTests
         private readonly byte* _pageAllocation;
         private readonly byte* _entryAllocation;
         private const ulong Canary = 0xfeed_1234_dead_5678;
+        private readonly bool _retained;
         internal readonly SeparatePageFaultMappingRange* Ranges;
         internal readonly X64PageTableImagePage* Pages;
         internal readonly ulong* Entries;
@@ -540,16 +627,18 @@ internal static unsafe class SeparateDisabledDefaultPageFaultPageTablesTests
         internal Span<byte> PageBytes => new(Pages, checked(55 * sizeof(X64PageTableImagePage)));
         internal Span<byte> EntryBytes => new(Entries, checked((int)Image.MaximumEntries * sizeof(ulong)));
 
-        internal Fixture()
+        internal Fixture(bool retained = false)
         {
-            Ranges = (SeparatePageFaultMappingRange*)NativeMemory.AlignedAlloc((nuint)(8 * sizeof(SeparatePageFaultMappingRange)), 8);
+            _retained = retained;
+            int rangeCapacity = retained ? 32 : 8;
+            Ranges = (SeparatePageFaultMappingRange*)NativeMemory.AlignedAlloc((nuint)(rangeCapacity * sizeof(SeparatePageFaultMappingRange)), 8);
             _pageAllocation = (byte*)NativeMemory.AlignedAlloc((nuint)(55 * sizeof(X64PageTableImagePage) + 16), 8);
             _entryAllocation = (byte*)NativeMemory.AlignedAlloc((nuint)(Image.MaximumEntries * sizeof(ulong) + 16), 8);
             Pages = (X64PageTableImagePage*)(_pageAllocation + 8);
             Entries = (ulong*)(_entryAllocation + 8);
             PageBytes.Clear();
             EntryBytes.Clear();
-            new Span<byte>(Ranges, 8 * sizeof(SeparatePageFaultMappingRange)).Clear();
+            new Span<byte>(Ranges, rangeCapacity * sizeof(SeparatePageFaultMappingRange)).Clear();
             Ranges[0] = new(0x40_0000, 2, Rx);
             Ranges[1] = new(0x80_0000, 8, Rw);
             *(ulong*)_pageAllocation = Canary;
@@ -558,8 +647,14 @@ internal static unsafe class SeparateDisabledDefaultPageFaultPageTablesTests
             *(ulong*)(_entryAllocation + 8 + EntryBytes.Length) = Canary;
         }
 
-        internal SeparatePageFaultPageTableResult Build() => Image.Build(Request, Ranges, RangeCount, 8, Pages, 55, Entries, Image.MaximumEntries);
-        internal SeparatePageFaultPageTableResult Audit() => Image.Audit(Request, Ranges, RangeCount, 8, Pages, 55, Entries, Image.MaximumEntries);
+        internal SeparatePageFaultPageTableResult Build() => _retained
+            ? Image.BuildRetainedImage(Request, Ranges, RangeCount, 32, Pages, 55, Entries, Image.MaximumEntries)
+            : Image.Build(Request, Ranges, RangeCount, 8, Pages, 55, Entries, Image.MaximumEntries);
+        internal SeparatePageFaultPageTableResult Audit() => _retained
+            ? Image.AuditRetainedImage(Request, Ranges, RangeCount, 32, Pages, 55, Entries, Image.MaximumEntries)
+            : Image.Audit(Request, Ranges, RangeCount, 8, Pages, 55, Entries, Image.MaximumEntries);
+        internal SeparatePageFaultPageTableResult AuditAccessed() => Image.AuditRetainedAccessedImage(
+            Request, Ranges, RangeCount, 32, Pages, 55, Entries, Image.MaximumEntries);
         internal void AssertCanaries() => Require(*(ulong*)_pageAllocation == Canary &&
             *(ulong*)(_pageAllocation + 8 + PageBytes.Length) == Canary && *(ulong*)_entryAllocation == Canary &&
             *(ulong*)(_entryAllocation + 8 + EntryBytes.Length) == Canary, "caller span canaries");

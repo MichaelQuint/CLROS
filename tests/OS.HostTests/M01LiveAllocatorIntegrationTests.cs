@@ -2249,12 +2249,7 @@ internal static unsafe class M01LiveAllocatorIntegrationTests
             || !BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
                 @"..\OS.Kernel\Boot\M01LiveAllocatorIntegration.cs",
                 @"Boot\M01LiveAllocatorIntegration.cs")
-            || efiProject.Contains(
-                "BootSequence.cs",
-                StringComparison.Ordinal)
-            || efiProject.Contains(
-                "Probes.cs",
-                StringComparison.Ordinal))
+            || !BootSequencePlanTests.HasNoStdlibBootAuthorityBoundary())
         {
             return SourceFailure("efi-project-boundary");
         }

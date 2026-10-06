@@ -38,7 +38,9 @@ param(
     [switch]$EnableM03FirmwareEntropySeedProbe,
     [switch]$EnableM04TypeManagerModuleRegistrationProbe,
     [switch]$EnableM04GcStaticRootMaterializationProbe,
+    [switch]$EnableM04SeededCollectorChurnProbe,
     [switch]$EnableM03TypedExitBootServicesCallProbe,
+    [switch]$EnableM03FirstRealExitBootServicesProbe,
     [switch]$EnableM04CheckedReferenceBarrierProbe,
     [switch]$EnableM01LoadedImageStackProbe,
     [switch]$EnableM01LiveAllocatorProbe,
@@ -70,7 +72,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 115
+$expectedSourceClosureInputCount = 122
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -209,12 +211,19 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Boot\TypedNoStdlibExitBootServicesCallAdapter.cs|Boot\TypedNoStdlibExitBootServicesCallAdapter.cs',
     '..\OS.Kernel\Boot\NoAllocationOrUnrelatedFirmwareCallOccursBetween.cs|Boot\NoAllocationOrUnrelatedFirmwareCallOccursBetween.cs',
     '..\OS.Kernel\Boot\BoundedRetryStaleKeyStatus.cs|Boot\BoundedRetryStaleKeyStatus.cs',
+    '..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs|Boot\FirstOptRealExitBootServicesTransition.cs',
+    '..\OS.Kernel\Boot\BootSequence.cs|Boot\BootSequence.cs',
+    '..\OS.Kernel\Diagnostics\Probes.cs|Diagnostics\Probes.cs',
+    '..\..\std\no-runtime\shared\Hash\Crc32.cs|Std\Hash\Crc32.cs',
     '..\OS.Kernel\Platform\FirmwareServicesMode.cs|Platform\FirmwareServicesMode.cs',
     '..\OS.Kernel\Diagnostics\TypedExitBootServicesCallProbeAuthority.cs|Diagnostics\TypedExitBootServicesCallProbeAuthority.cs',
     '..\OS.Kernel\Runtime\GCStaticRootsMalformedMetadata.cs|Runtime\GCStaticRootsMalformedMetadata.cs',
     '..\OS.Kernel\Runtime\BoundedNonMovingCollectorExplicitRootEnumeration.cs|Runtime\BoundedNonMovingCollectorExplicitRootEnumeration.cs',
     'Runtime\GCStaticRootMaterializationProbe.cs|',
-    '..\OS.Kernel\Diagnostics\GCStaticRootMaterializationProbeAuthority.cs|Diagnostics\GCStaticRootMaterializationProbeAuthority.cs'
+    '..\OS.Kernel\Diagnostics\GCStaticRootMaterializationProbeAuthority.cs|Diagnostics\GCStaticRootMaterializationProbeAuthority.cs',
+    '..\..\std\no-runtime\shared\DeterministicRandom32.cs|Std\DeterministicRandom32.cs',
+    '..\OS.Kernel\Runtime\SeededAllocationChurnCollectionRootRetentionGuestProbes.cs|Runtime\SeededAllocationChurnCollectionRootRetentionGuestProbes.cs',
+    'Runtime\SeededCollectorChurnProbe.cs|'
 )
 $expectedPackageBuildClosure = @(
     [pscustomobject]@{
@@ -3896,7 +3905,9 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM03FirmwareEntropySeedProbe," +
             "EnableM04TypeManagerModuleRegistrationProbe," +
             "EnableM04GcStaticRootMaterializationProbe," +
+            "EnableM04SeededCollectorChurnProbe," +
             "EnableM03TypedExitBootServicesCallProbe," +
+            "EnableM03FirstRealExitBootServicesProbe," +
             "EnableM01LoadedImageStackProbe," +
             "EnableM01LiveAllocatorProbe," +
             "EnableM01OwnedPagingProbe," +
@@ -4061,8 +4072,14 @@ function Invoke-PostRestoreEvaluationSnapshot {
     if ($EnableM04GcStaticRootMaterializationProbe) {
         $arguments += "-p:EnableM04GcStaticRootMaterializationProbe=true"
     }
+    if ($EnableM04SeededCollectorChurnProbe) {
+        $arguments += "-p:EnableM04SeededCollectorChurnProbe=true"
+    }
     if ($EnableM03TypedExitBootServicesCallProbe) {
         $arguments += "-p:EnableM03TypedExitBootServicesCallProbe=true"
+    }
+    if ($EnableM03FirstRealExitBootServicesProbe) {
+        $arguments += "-p:EnableM03FirstRealExitBootServicesProbe=true"
     }
     if ($EnableM04CheckedReferenceBarrierProbe) {
         $arguments += "-p:EnableM04CheckedReferenceBarrierProbe=true"
@@ -4320,8 +4337,12 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM04TypeManagerModuleRegistrationProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04GcStaticRootMaterializationProbe =
             $EnableM04GcStaticRootMaterializationProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM04SeededCollectorChurnProbe =
+            $EnableM04SeededCollectorChurnProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM03TypedExitBootServicesCallProbe =
             $EnableM03TypedExitBootServicesCallProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM03FirstRealExitBootServicesProbe =
+            $EnableM03FirstRealExitBootServicesProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04CheckedReferenceBarrierProbe =
             $EnableM04CheckedReferenceBarrierProbe.IsPresent.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
@@ -4395,7 +4416,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 101 -or
+    if ($compileItems.Count -ne 108 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4525,6 +4546,9 @@ function Assert-PostRestoreEvidenceMatchesSnapshot {
 }
 
 Write-Output "TEST_START $testName"
+if ($EnableM04SeededCollectorChurnProbe -and -not $EnableM04GcStaticRootMaterializationProbe) {
+    Write-Output "TEST_FAIL efi.artifact m04_churn_requires_gc_profile"; exit 1
+}
 if ($EnableM04GcStaticRootMaterializationProbe) {
     foreach ($gcFlag in @(
         'EnableM01LoadedImageStackProbe',
@@ -4576,6 +4600,60 @@ if ($EnableM04GcStaticRootMaterializationProbe) {
         if ([bool](Get-Variable -Name $gcFlag -ValueOnly)) { Write-Output ("TEST_FAIL efi.artifact m04_gc_static_profile_conflict property="+$gcFlag); exit 1 }
     }
 }
+
+if ($EnableM03FirstRealExitBootServicesProbe) {
+    foreach ($dependency in @(
+        'EnableM01LoadedImageStackProbe',
+        'EnableM01LiveAllocatorProbe',
+        'EnableAcpiPhysicalDiscoveryProbe'
+    )) {
+        if (-not [bool](Get-Variable -Name $dependency -ValueOnly)) { Write-Output ("TEST_FAIL efi.artifact m03_first_exit_requires property="+$dependency); exit 1 }
+    }
+    foreach ($conflict in @(
+        'EnableM01OwnedPagingProbe',
+        'EnableM02SafeStubProbe',
+        'EnableM02CheckedPortIoBindingProbe',
+        'EnableM02Com1OwnedPortIoProbe',
+        'EnableM02OwnedCom1ReadyProbe',
+        'EnableM02PanicSafeOwnedCom1Probe',
+        'EnableM02OwnedX64GdtEncodingProbe',
+        'EnableM02GuardedIstStackAllocationProbe',
+        'EnableM02OwnedGdtTssTerminalProbe',
+        'EnableM02NormalizedInterruptFramePageProbe',
+        'EnableM02OwnedIdtGatePopulationProbe',
+        'EnableM02IdtrContinuedExecutionProbe',
+        'EnableM02Ud2VectorStateProbe',
+        'EnableM04IndependentEndianConformanceProbe',
+        'EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe',
+        'EnableM04ArithmeticConformanceProbe',
+        'EnableM04LayoutContractProbe',
+        'EnableM04ManagedHeapPageRangeProbe',
+        'EnableM02PageFaultCr2ErrorCodeProbe',
+        'EnableM02DoubleFaultIstProbe',
+        'EnableM02UnexpectedVectorPanicProbe',
+        'EnableM04RhpNewFastProbe',
+        'EnableM04RhpNewFastBeforeBindFailureProbe',
+        'EnableM04RhpNewFastExhaustionFailureProbe',
+        'EnableM04SzArrayAllocationProbe',
+        'EnableM04SzArrayAllocationBeforeBindProbe',
+        'EnableM04SzArrayAllocationExhaustionProbe',
+        'EnableM04StringAllocationProbe',
+        'EnableM04StringAllocationBeforeBindProbe',
+        'EnableM04StringAllocationExhaustionProbe',
+        'EnableM04StringAllocationInvalidLengthProbe',
+        'EnableM03MemoryMapCaptureProbe',
+        'EnableM04CheckedReferenceBarrierProbe',
+        'EnableM03FirmwareEntropySeedProbe',
+        'EnableM04TypeManagerModuleRegistrationProbe',
+        'EnableM03TypedExitBootServicesCallProbe',
+        'EnableM04GcStaticRootMaterializationProbe',
+        'EnableUefiGoneSimulationProbe',
+        'EnableExitBootServicesFreshMapProbe'
+    )) {
+        if ([bool](Get-Variable -Name $conflict -ValueOnly)) { Write-Output ("TEST_FAIL efi.artifact m03_first_exit_profile_conflict property="+$conflict); exit 1 }
+    }
+}
+
 
 if ($EnableM03TypedExitBootServicesCallProbe) {
     foreach ($typedEbsConflict in @(
@@ -7830,6 +7908,38 @@ if (-not (Test-ByteSequenceEqual $actualUnwindInfoBytes $expectedUnwindInfoBytes
     Write-Failure "serializer_unwind_bytes_mismatch"
 }
 $runtimeValidationStopwatch.Stop()
+
+# Churn selection must match the actual linked adapter, in both directions.
+$churnSymbol = 'OS_OS_Runtime_RhpNewFastAllocation__RunSeededCollectorChurn'
+$churnBinding = [regex]::Matches($linkerMapText, '(?m)^\s*([0-9A-Fa-f]{4}):([0-9A-Fa-f]{8})\s+' + [regex]::Escape($churnSymbol) + '\s+([0-9A-Fa-f]{16})\s+(.+?)\s*$')
+if ($EnableM04SeededCollectorChurnProbe) {
+    if ($churnBinding.Count -ne 1 -or $churnBinding[0].Groups[4].Value -notmatch '(?i)(?:^|[\s\\/()])OS\.obj(?=$|[\s()])') { Write-Failure 'churn_native_adapter_missing' $churnSymbol }
+    $address = Convert-HexUInt64 $churnBinding[0].Groups[3].Value 'churn_adapter_address_invalid'
+    if ($address -le $imageBase -or [decimal]$address - $imageBase -ge $sizeOfImage) { Write-Failure 'churn_adapter_rva_invalid' $churnSymbol }
+    $backing = Resolve-FileBackedRvaRange $sections ($address - $imageBase) 1 $bytes.LongLength 'churn_adapter_not_backed' 'churn_adapter_ambiguous'
+    Assert-CodeSectionCharacteristics $backing.Section 'churn_adapter_section_invalid'
+} elseif ($churnBinding.Count -ne 0) { Write-Failure 'churn_unrequested_native_adapter' $churnSymbol }
+
+# Bind the real-exit profile to actual linked callbacks, not only replayed properties.
+$firstExitSymbols = @(
+    'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__Enter',
+    'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__Diagnose',
+    'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__Fault'
+)
+foreach ($symbol in $firstExitSymbols) {
+    $binding = [regex]::Matches($linkerMapText, '(?m)^\s*([0-9A-Fa-f]{4}):([0-9A-Fa-f]{8})\s+' + [regex]::Escape($symbol) + '\s+([0-9A-Fa-f]{16})\s+(.+?)\s*$')
+    if (-not $EnableM03FirstRealExitBootServicesProbe) {
+        if ($binding.Count -ne 0) { Write-Failure 'first_exit_unrequested_native_callback' $symbol }
+        continue
+    }
+    if ($binding.Count -ne 1 -or $binding[0].Groups[4].Value -notmatch '(?i)(?:^|[\s\\/()])OS\.obj(?=$|[\s()])') {
+        Write-Failure 'first_exit_native_callback_missing' $symbol
+    }
+    $address = Convert-HexUInt64 $binding[0].Groups[3].Value 'first_exit_callback_address_invalid'
+    if ($address -le $imageBase -or [decimal]$address - $imageBase -ge $sizeOfImage) { Write-Failure 'first_exit_callback_rva_invalid' $symbol }
+    $backing = Resolve-FileBackedRvaRange $sections ($address - $imageBase) 1 $bytes.LongLength 'first_exit_callback_not_backed' 'first_exit_callback_ambiguous'
+    Assert-CodeSectionCharacteristics $backing.Section 'first_exit_callback_section_invalid'
+}
 
 # The optional three-export object is admitted only for this explicit profile.
 # This binds the fixed bridge, not the callback's full graph/stack/SIMD safety.

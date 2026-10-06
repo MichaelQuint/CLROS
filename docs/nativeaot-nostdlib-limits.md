@@ -1679,3 +1679,81 @@ This admits the finite synchronous collector and same-owner reuse. Arbitrary
 stack scanning, concurrent or moving GC, general runtime initialization and
 hosted .NET remain unsupported. Firmware/interrupt stack depth is excluded.
 Gates3/4 remain Fail. Seeded churn and real-exit integration are the next work.
+
+### Seeded retained-heap churn preparation (steps1035-1036)
+
+`SeededAllocationChurnCollectionRootRetentionGuestProbes.Run` exercises the
+original collecting owner with 1-64 seeded rounds and four explicit root slots.
+Each round allocates 1-4 pointer-free 24-byte objects, replaces one root, collects,
+and verifies payload retention, retired receipts, fresh allocation identities
+and actual address reuse. Final cleanup releases the probe roots while retaining
+one caller-supplied permanent receipt and the optional original GC-static base.
+The initial collection may reclaim other objects; callers must supply every
+external live root and keep mappings/metadata stable under exclusive access.
+Initial reclamation has separate counters. Failures report partial progress;
+this destructive diagnostic does not roll back earlier rounds.
+
+`OS.Std.DeterministicRandom32.Next(ref uint)` supplies repeatable xorshift32
+scheduling. A zero state selects the fixed `DefaultSeed`; the helper allocates
+nothing, throws no exceptions and provides no entropy or security guarantee.
+It is an OS-specific utility, not an implementation of `System.Random`.
+
+Focused host checks cover repeatability, zero managed scratch allocation,
+retained-root payloads, a sole child held through a static base, same-owner reuse,
+cleanup, invalid bounds/types, stale roots and noncollecting owners. The shared
+probe and utility also compile in an isolated 103-source no-stdlib closure with
+zero assembly references. See [step1035](../done/step1035.md).
+
+[Step1036](../done/step1036.md) adds a default-excluded native adapter. An isolated
+104-source publication adds its call after the original collector graph in a
+copied source file; the canonical project, call site and probe flags are unchanged.
+On QEMU/OVMF, three 64-round seeds completed 476 allocations and reclamations,
+198 collections and 312 observed address reuses while retaining the actual
+compiled static field and its child payload. Eleven ordered `M04_CHURN` records,
+four unchanged stack-canary checks, `CLROS_M04_014_READY` and the normal smoke
+terminal marker were captured. Same-image debugger controls corrupting the low
+stack canary or retained child payload both emitted failure records and entered
+the existing fail-fast spin without readiness or smoke success.
+
+[Step1037](../done/step1037.md) associates all 577 compiled methods with the exact
+development PE and checks the 169-method GC/churn call graph. Conditional native
+stack accounting is 14344 bytes below the seeded entry and 15272 below the full
+GC entry; conservatively adding the verified 448-byte reference thunk gives
+15720 bytes within the existing 16384-byte diagnostic clearance. Actual unwind
+records, call alignment and nonvolatile-register restoration checks pass. The
+reachable graph has no FS/GS-relative TLS access. Firmware callback bodies and
+interrupt nesting are excluded. [Step1039](../done/step1039.md) completes the
+scoped new-code pointer/caller review: actual module240/heap104/root88/static40/
+return48 caller windows are disjoint, and native root/batch/retired/cookie buffers
+cover the bounded source indices. Four existing-method deltas resolve to the
+same read-only cookie; the GC entry changes only by the new call and shifted
+branches. This inherits the original collector's pointer/lifetime contracts;
+final canonical-image association remains required.
+
+[Step1038](../done/step1038.md) prepares
+`scripts/seeded-collector-churn-records.ps1`. Its record validator checks the eleven
+ordered rows and ready marker against the preceding validated GC records: original
+type/static root/child, exact seeded accounting and fingerprints, cumulative
+allocation identity, retained payload, stack-witness continuity and canaries.
+The caller must still validate raw framing, the original GC/heap records and
+runner lifecycle. An ignored runner copy composes these checks over the complete
+82-record development transcript; the actual capture passes and 26 malformed or
+failed captures reject under Windows PowerShell 5.1. The canonical runner and
+profile remain unchanged, so this helper is preparation for later integration.
+
+[Step1040](../done/step1040.md) prepares the shared first-exit/churn integration:
+108 explicit compile inputs, 44 profile switches, the default-off churn authority
+and original collector call site, linked-adapter checks and a single shared
+transcript helper. The staged ordinary churn wrapper passes with the exact
+step1036 EFI and linker-map hashes, so the scoped native review can be reused.
+
+The staged results above use allocator APIs directly and do not prove
+compiler-created allocations. Stack witnesses/canaries alone do not establish a
+native stack bound. #82 is accepted and closed. [Step1042](../done/step1042.md)
+integrates the reviewed profiles under shared lane #560; [step1051](../done/step1051.md)
+records final common and fresh guest acceptance at `e64e9dc`, including the
+independently reviewed native and retained-control associations. This remains a
+bounded explicit/retained-static-root collector diagnostic. Compiler cctor
+execution/once/reentry (#562), full cached exception/rethrow (#84), concurrent
+initialization, general GC/runtime startup and hosted .NET/Kestrel remain
+unproved; Gates3/4/5 remain **Fail**.

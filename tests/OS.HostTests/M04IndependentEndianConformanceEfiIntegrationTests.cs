@@ -12,7 +12,7 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
     private const string FailureMarker =
         "M04_ENDIAN_CONFORMANCE_FAILED";
     private const string CompileClosureSha256 =
-        "cd11b6f11911097ee759222b6d14c97a9631c711ef5f655ab3fd192dd416eb65";
+        "e9e7264dd23b1f34596cd867f0a66346fe8009cb86edb688bb8bf33be44291a4";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -131,7 +131,7 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 101
+        return compileItems.Length == 108
             && compileHash == CompileClosureSha256
             && backendIndex >= 0
             && ownedWriterIndex == backendIndex + 1
@@ -156,7 +156,7 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
                 "$arguments +=\n                \"-p:EnableM04IndependentEndianConformanceProbe=true\"",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=115",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=122",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 "\"-EnableM04IndependentEndianConformanceProbe\",\n            \"true\"",
@@ -171,10 +171,10 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
                 "[switch]$EnableM04IndependentEndianConformanceProbe",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 115",
+                "$expectedSourceClosureInputCount = 122",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 101",
+                "$compileItems.Count -ne 108",
                 StringComparison.Ordinal);
     }
 
@@ -299,12 +299,69 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
             && CountOccurrences(
                 source,
                 "WriteM04IndependentEndianConformanceFailureLine(") == 2
-            && CountOccurrences(source, "\"__security_cookie\"") == 1
+            && HasGuardedSecurityCookieOwners(source)
             && !source.Contains(
                 "M04SecurityCookieStorageAnchor",
                 StringComparison.Ordinal)
             && CountOccurrences(source, ReadyMarker) == 0
             && CountOccurrences(source, FailureMarker) == 0;
+    }
+
+    private static bool HasGuardedSecurityCookieOwners(string source)
+    {
+        source = source.Replace("\r\n", "\n", StringComparison.Ordinal);
+        const string export =
+            "[System.Runtime.RuntimeExport(\"__security_cookie\")]";
+        string incompatibleProfiles = """
+            #if M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE
+            using OS.Kernel.Diagnostics;
+            using OS.Kernel.Platform;
+            #if !M01_LOADED_IMAGE_STACK_PROBE || !M01_LIVE_ALLOCATOR_PROBE || !ACPI_PHYSICAL_DISCOVERY_PROBE
+            #error The first real exit requires the original loaded-image, live allocator and copied ACPI adapters.
+            #endif
+            #if M01_OWNED_PAGING_PROBE || M04_MANAGED_HEAP_PAGE_RANGE_PROBE || M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE || M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE
+            #error The first real exit is an exclusive firmware-CR3 path, with no intervening paging, heap or controlled exit probe.
+            #endif
+            """.Replace("\r\n", "\n", StringComparison.Ordinal);
+
+        bool HasOwner(string guard, string owner, string declaration)
+        {
+            string ownerToken = "    private static class " + owner + "\n    {";
+            // Only comments/blank lines may separate the guard and owner.
+            // Adapter types close at four spaces; their members close deeper.
+            MatchCollection matches = Regex.Matches(
+                source,
+                "^#if " + Regex.Escape(guard) + "\n"
+                    + @"(?:[ \t]*//[^\n]*\n|[ \t]*\n)*"
+                    + Regex.Escape(ownerToken)
+                    + @"\n(?<body>[\s\S]*?)\n    \}\n#endif(?=\n|\z)",
+                RegexOptions.Multiline | RegexOptions.CultureInvariant);
+            if (CountOccurrences(source, ownerToken) != 1 || matches.Count != 1)
+            {
+                return false;
+            }
+
+            string body = matches[0].Groups["body"].Value;
+            return CountOccurrences(body, export) == 1
+                && CountOccurrences(body, "\"__security_cookie\"") == 1
+                && CountOccurrences(body, "SecurityCookieStorageAnchor(") == 1
+                && CountOccurrences(body, declaration) == 1;
+        }
+
+        return CountOccurrences(source, "\"__security_cookie\"") == 2
+            && CountOccurrences(source, export) == 2
+            && CountOccurrences(source, incompatibleProfiles) == 1
+            && HasOwner(
+                "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE",
+                "M03FirstExitAdapter",
+                export + "\n        private static ulong SecurityCookieStorageAnchor()"
+                    + " => 0x434c_524f_5347_5331UL;")
+            && HasOwner(
+                "M01_OWNED_PAGING_PROBE",
+                "M01StageThreeAdapter",
+                export + "\n        private static ulong SecurityCookieStorageAnchor()\n"
+                    + "        {\n            return 0x434c_524f_5347_5331UL;\n"
+                    + "        }");
     }
 
     private static bool TestQemuProfile()

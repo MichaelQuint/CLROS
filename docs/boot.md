@@ -30,6 +30,14 @@ absence, and aggregate four-epoch cookie success. All three M01 profiles remain
 explicit pre-`ExitBootServices` opt-ins, and the default EFI path remains
 unchanged.
 
+The separate default-off M03-007 profile has source-bound QEMU/OVMF acceptance
+at `e64e9dc1bd1f66ca522bd22aafe8bcd3388428ff` for one real
+ExitBootServices transition, permanent owned-CR3/descriptor adoption, retained
+ACPI/allocator checks and terminal owned-COM1 reporting ([step1051](../done/step1051.md)).
+The default smoke and older reversible M01 profiles retain their existing scopes.
+This accepts neither general firmware-adapter revocation nor firmware-page
+reclamation, continuing workload execution or broader kernel readiness.
+
 This is still an EFI application smoke, not a functional kernel. The current evidence proves that firmware reaches `EfiMain`, that `EfiMain` can capture the UEFI memory map on the tested QEMU host, copy the raw descriptor bytes into an OS-owned static buffer, validate the live owned handoff record, normalize and accept a live owned-map summary, materialize compact boot memory-region records into OS-owned static storage, carry a discovered ACPI RSDP pointer into the typed handoff record, optionally validate live ACPI RSDP/root SDT/MCFG bytes before `ExitBootServices` in an explicit probe build, and emit the ordered boot phase marker plan.
 
 ## Implemented Behavior
@@ -4292,15 +4300,15 @@ arbitrary or systemwide W^X/NX enforcement.
 
 The memory-map snapshot is now copied from the firmware-allocated buffer into a fixed static OS-owned buffer before the smoke marker is emitted. The firmware source pointer is still retained only as provenance in `BootHandoffRecord`.
 
-`UefiMemoryMapCapture` now owns the EFI boundary's `GetMemoryMap`, `AllocatePool`, copy-plan validation, and owned-copy mechanics. `EfiEntry` still owns firmware-visible markers and handoff record population. The live EFI path materializes compact `BootMemoryRegionRecord` entries into static storage, but the map key still requires a future retry contract before real `ExitBootServices`.
+`UefiMemoryMapCapture` now owns the EFI boundary's `GetMemoryMap`, `AllocatePool`, copy-plan validation, and owned-copy mechanics. `EfiEntry` still owns firmware-visible markers and handoff record population. The live EFI path materializes compact `BootMemoryRegionRecord` entries into static storage, but this default-path snapshot is not an exit credential. The separate M03-007 profile performs its own final capture and bounded stale-key retry.
 
 `UefiMemoryDescriptorReader` is host-tested against synthetic owned byte buffers. The live EFI artifact uses the narrower no-stdlib-safe `EfiMemoryMapNormalizer` and `BootMemoryRegionMaterializer` pointer paths instead of the span-based host reader.
 
-The captured map key is valid only for the memory-map instance returned by `GetMemoryMap`. Later boot-services calls can invalidate it, so a future real `ExitBootServices` path must keep a retry loop and cannot assume the logged key remains valid after additional firmware calls.
+The captured map key is valid only for the memory-map instance returned by `GetMemoryMap`. Later boot-services calls can invalidate it, so the explicit M03-007 path uses its bounded final-capture/retry window and cannot assume an earlier logged key remains valid after additional firmware calls.
 
 `UefiExitBootServicesPlan` is plan-only. It models when a fresh memory map is required and when stale map-key failure should retry, but it does not call `ExitBootServices`, does not mutate `FirmwareServicesGuard`, and is not firmware-shutdown evidence.
 
-`PlatformFirmwareExitBootServicesResult` is also not firmware-shutdown evidence. It models the future firmware-call result after the guard and function-pointer checks, but no live EFI artifact calls `ExitBootServices` through this contract yet.
+`PlatformFirmwareExitBootServicesResult` is also not firmware-shutdown evidence. It models a firmware-call result after guard and function-pointer checks; the accepted M03-007 transition has its own source-bound retained callback authority. The host result contract alone is not that live proof.
 
 `IPlatformSerial`, `GuardedPlatformSerial`, `Com1PlatformSerialTransport`, and `OwnedSerialDiagnostics` are host-tested boundary/formatter/adapter contracts only. They distinguish firmware-backed and owned transports under UEFI-gone simulation and write to injected or fakeable transports, but they do not perform real COM1 port I/O, call `ExitBootServices`, or prove live serial output after firmware shutdown.
 
@@ -4359,6 +4367,18 @@ allocator-readiness metadata marker, and ACPI scan.
 The `APP_PACKAGE_READY`, `APP_LAUNCH_READY`, `APP_PAYLOAD_READY`, `APP_EXEC_MAPPING_READY`, `APP_EXEC_MEMORY_READY`, `APP_INVOCATION_READY`, `APP_ARGS_HANDOFF_READY`, `APP_LIFECYCLE_READY`, `APP_ENTRY_READY`, `APP_SELECTION_READY`, `APP_SELECTION_PREFLIGHT_READY`, `APP_PACKAGE_FILE_STAGING_PREFLIGHT_READY`, `NATIVE_MANIFEST_ENV_READY`, `FETCHAPP_CONFIG_PREFLIGHT_READY`, `FETCHAPP_HTTP_ENDPOINT_READY`, `FETCH_APP_HTTP_COMPLETION_READY`, `APP_EXIT_OBSERVER_READY`, `NATIVEAOT_CCTOR_RUNNER_PREFLIGHT_READY`, and `NATIVEAOT_CCTOR_WORK_ITEMS_READY` markers are not QEMU-proven and are not emitted by the default firmware-visible boot path. They are host-tested managed readiness helpers for future app-selection, package-loading, executable-mapping, invocation, argument handoff, lifecycle, final pre-entry, native manifest environment handoff, FetchApp config preflight, FetchApp request endpoint metadata, FetchApp completion, app-exit observation, runtime cctor-runner preflight, and runtime cctor work-item boundaries. They do not prove live package I/O, live virtio-blk reads, boot-time package loading, manifest/config reads from live storage, process environment materialization, executable page allocation, permission changes, payload copying, stack allocation, stack switching, thread creation, final ABI dispatch, stdout/stderr routing, exit capture, restart policy, relocation, hosted .NET, Kestrel, app execution, live networking, live HTTP GET, live app-exit observation, constructor invocation, metadata discovery, or module initialization.
 
 ## Next Steps
+
+The M03-007 implementation now has an explicit first real-exit profile, documented
+in [EFI build](efi-build.md#first-real-exit-profile-m03-007). `BootSequence` owns
+the terminal transition from authenticated firmware callbacks to the retained
+owned continuation. Preparation reserves code, map, page tables, descriptors,
+main stack and three IST stacks before the final capture/exit window. On success
+the continuation adopts owned descriptors and CR3, checks retained ACPI/allocator
+state, and emits only through owned COM1. No firmware memory is reclaimed and no
+general adapter revocation is claimed. [Step1032](../done/step1032.md) retains
+staged preparation; [step1051](../done/step1051.md) records the accepted integrated
+common run and fresh source/native/lifecycle/disk association at `e64e9dc`.
+The next firmware-boundary work is general adapter revocation under #65.
 
 The preparatory M03-005 `NoAllocationOrUnrelatedFirmwareCallOccursBetween`
 window accepts an already-owned writable map buffer and one retained state.

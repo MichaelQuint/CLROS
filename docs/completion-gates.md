@@ -10,6 +10,18 @@ tuple, and a default-off M02-010 LoaderData materialization/readback tuple, plus
 broad host-tested planning contracts, but it is not a functional kernel, not
 cloud-ready, and not production-ready.
 
+M03-007 and M04-014 now have scoped integrated acceptance under shared lane
+#560 at `e64e9dc1bd1f66ca522bd22aafe8bcd3388428ff` ([step1051](../done/step1051.md)).
+The original unfiltered common run passed with 3814 starts, 3815 passes including
+one `TEST_PASS host.tests`, and zero failures. Fresh default/churn/first-exit
+captures and independent source/native/lifecycle/disk association preserve the
+bounded real-exit/permanent-owned-CR3 and pre-EBS collector-churn evidence.
+Steps1032/1042/1043/1050 retain staged integration, failed attempts, fixture
+corrections and supplementary diagnostics. They are not substituted for this
+final acceptance. Gates3/4/5 remain **Fail**; general adapter revocation,
+firmware-page reclamation, compiler cctors and general runtime support remain
+incomplete.
+
 Gate status is explicit:
 
 - `Pass` means every acceptance item for that gate has preserved evidence.
@@ -163,8 +175,8 @@ numbered gate status.
 | 1. Clean build | Fail | From clean, pushed commit `32a8f3b91e17e1fc7e4b296730a5ea6565c38369`, the source-frozen 11-step M00 baseline passed solution build, host build/run with exactly one `TEST_PASS host.tests`, naming/source firewall, QEMU dry runs, qcow2/libvirt intent, `git diff --check`, and `git status --short`; `done/step845.md` records hashes | Repeat from an independently clean checkout/runner and preserve release/CI evidence that no untracked source, forbidden first-party `.c/.cpp/.h/.asm/.s`, or secret is required |
 | 2. Boot | Pass | Current default real QEMU/OVMF evidence from clean commit `32a8f3b91e17e1fc7e4b296730a5ea6565c38369` reaches all 12 required firmware-visible markers including `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and `OS_SMOKE_PASS`, with no `TEST_FAIL` or `OS_SMOKE_FAIL`; manifest SHA-256 `D398F73FF5051D138D5F2A77CE4EF51277BD2DE289F58BA5383FC6FC74D02E65` binds source, command, tools, EFI, image, serial, summary, timestamps, and hashes. Separate opt-in commit `8f1edea17f2de425520e239af58d37aa3b182146` and manifest SHA-256 `94A28FE683FC068C88F42AB806B3E9A06DB5467FD35488B6ADF397AC8F8A8188` preserve the bounded M01 pre-EBS owned-root tuple. Separate opt-in commit `cf8ce63c37a9c62a0f8f736adda14b6bd3e19a9a` preserves the 48-required/34-forbidden M02 offset-zero safe-stub tuple; opt-in ACPI and UEFI-gone probe artifacts remain separate historical marker evidence | Keep this scoped to EFI smoke and the explicitly bounded M01 and M02 tuples until later gates prove `ExitBootServices`, owned diagnostics/drivers, storage, networking, app launch, or hosted workload behavior |
 | 3. Fault diagnostics | Fail | Host-tested boot-event ring, panic formatter, panic serial reporter, COM1 configuration/writer contracts, GDT/TSS/IST/IDT descriptor plans, fault-vector metadata, fault-entry/fault-probe stub plans, and readiness markers exist. The M02-007/M02-008 tuples preserve bounded caller-owned GDT and temporary guarded-IST arena evidence; M02-009 separately loads and reads back a private terminal GDT/TSS before halting. The default-off M02-010 tuple at source `b88a485c8562a0022ffaae760fb47ca9d5addba2` materializes and reads back all 256 fixed slots in one temporary 4,096-byte LoaderData page, verifies the nine/247 vector split and FNV `428D0353A96B7ACE`, releases every EFI-successful allocation exactly once including an invalid zero-address result, and emits the exact guest marker under QEMU/OVMF. It explicitly reports `stubExecution=false`, `idtInstalled=false`, and `faultTriggered=false` | Publish executable entries under owned W^X/NX policy, implement a reviewed common entry and register/frame capture, install real IDT/IDTR plus GDT/TSS/IST routing, implement handlers, and prove controlled null-pointer and invalid-opcode panic probes in QEMU without triple fault or silent reboot |
-| 4. std/runtime | Fail | Host-tested `OS.Std.*` helper slices exist for ASCII/text formatting, memory operations, endian primitives, native integer helpers, integer math, array helpers, CRC32, and internet checksums; the allocation-free M04-002 catalog adds 25 explicit MOSA-derived `UInt16` read vectors and seven reverse vectors with duplicate/malformed/order/hash rejection and frozen fingerprint `E81E4451E8D999F6`. Its source-frozen complete host run at pushed commit `8ee0311d2a7c225b77b4efa7d86bce6831c71826` exited `0` with one exact host M04-002 envelope, zero actual failures, terminal `TEST_PASS host.tests`, and stdout SHA-256 `6F98CEE6C07F749F17DC28F9D3C797D52E4B1F0062F0DD4CC4DF078D77D51493`. The default-off real-QEMU run still correctly proves the marker is absent by default. A separate opt-in 53-compile-item/66-authority-input EFI profile now validates the frozen catalog under QEMU/OVMF and emits exactly one `CLROS_M04_002_READY ... hostConformance=false guestIntegrated=true gate4=Fail` between console-ready and memory-map-ready markers, with no failure marker; EFI/serial SHA-256 values are `44F4A7B5E2929884869F324E998ABC5B89559707ACC4BA65412EB818B18D9CA0` and `05EE15A753899894F86CCA0318CC724DC22671C78D12E4C7CD87E3BA2F262453`. The M04-003 leaf adds exactly 16 POD span/overlap/memory-cast/unaligned-width vectors, atomic catalog copy and execution, malformed/duplicate/order/hash rejection, .NET 10 cross-checks, and frozen fingerprint `F03FF59D36F39ECD`; its separate host marker remains `hostConformance=true guestIntegrated=false gate4=Fail`. A default-off 59-compile-item/72-authority-input combined M04-002+M04-003 profile now links the reviewed pointer core into EFI. The accepted real-QEMU tuple at evidence source `dedb55c3ddb155336ef4c7f387cf14b533c37f09` emitted exactly one `CLROS_M04_003_READY ... hostConformance=false guestIntegrated=true gate4=Fail` after the M04-002 marker and before memory-map-ready, reached one `OS_SMOKE_PASS`, and emitted no forbidden marker; its EFI and serial SHA-256 values are `0F8A7E3FB5D626E7017D2839DA0E3C966D86A53E769B9D39A3D0275F974A550B` and `65E677830952D0C1657ECF6F038BA1441AC1CC30F556185502BDE7FE53EDDDDC` (`done/step919.md`). These fixed catalogs do not prove general span, `MemoryMarshal`, `BinaryPrimitives`, or runtime compatibility. Host-tested caller-owned boot page allocator mutation, class-constructor state-table transitions, cctor state diagnostic formatting, cctor runner preflight metadata validation, and BootSequence cctor preflight readiness markers exist below the live runtime-helper boundary; `NativeAotHelperLedger` tracks runtime gaps; the allocation-free `OS.Std.NoRuntime` compatibility ledger source-binds all 45 current `MinimalRuntime.cs` canonical `System.*` declarations and 20 runtime exports, preserves their four link-only no-op, twelve fail-fast, one audited stack-probe, one profile-bound fixed-allocation and two profile-bound SZ-array classifications, fails closed for unknown/default values, and explicitly cannot satisfy this gate | Complete the supported BCL subset, object/array/string allocation helpers, GC/root scanning, interface dispatch, full cctor runner/metadata execution, exceptions/finally/catch, thread statics, and broader runtime-helper QEMU/host tests; do not treat fixed-catalog host or guest markers as Gate 4 completion |
-| 5. UEFI encapsulation | Fail | `EfiMain` uses no-stdlib adapters to capture/copy UEFI memory-map bytes, validate handoff, normalize compact records, carry ACPI RSDP provenance, and emit probe markers; host tests cover guarded platform interfaces including read-only filesystem denial under UEFI-gone simulation; the separate M01-026 tuple proves one scoped pre-EBS allocation/map/temporary-root/restoration interval while firmware remains available | Finish platform interfaces, own post-firmware serial/framebuffer/physical-memory/MMIO rules, simulate forbidden firmware calls broadly, and implement real `ExitBootServices` only after diagnostics and drivers can continue |
+| 4. std/runtime | Fail | Host-tested `OS.Std.*` helper slices exist for ASCII/text formatting, memory operations, endian primitives, native integer helpers, integer math, array helpers, CRC32, and internet checksums; the allocation-free M04-002 catalog adds 25 explicit MOSA-derived `UInt16` read vectors and seven reverse vectors with duplicate/malformed/order/hash rejection and frozen fingerprint `E81E4451E8D999F6`. Its source-frozen complete host run at pushed commit `8ee0311d2a7c225b77b4efa7d86bce6831c71826` exited `0` with one exact host M04-002 envelope, zero actual failures, terminal `TEST_PASS host.tests`, and stdout SHA-256 `6F98CEE6C07F749F17DC28F9D3C797D52E4B1F0062F0DD4CC4DF078D77D51493`. The default-off real-QEMU run still correctly proves the marker is absent by default. A separate opt-in 53-compile-item/66-authority-input EFI profile now validates the frozen catalog under QEMU/OVMF and emits exactly one `CLROS_M04_002_READY ... hostConformance=false guestIntegrated=true gate4=Fail` between console-ready and memory-map-ready markers, with no failure marker; EFI/serial SHA-256 values are `44F4A7B5E2929884869F324E998ABC5B89559707ACC4BA65412EB818B18D9CA0` and `05EE15A753899894F86CCA0318CC724DC22671C78D12E4C7CD87E3BA2F262453`. The M04-003 leaf adds exactly 16 POD span/overlap/memory-cast/unaligned-width vectors, atomic catalog copy and execution, malformed/duplicate/order/hash rejection, .NET 10 cross-checks, and frozen fingerprint `F03FF59D36F39ECD`; its separate host marker remains `hostConformance=true guestIntegrated=false gate4=Fail`. A default-off 59-compile-item/72-authority-input combined M04-002+M04-003 profile now links the reviewed pointer core into EFI. The accepted real-QEMU tuple at evidence source `dedb55c3ddb155336ef4c7f387cf14b533c37f09` emitted exactly one `CLROS_M04_003_READY ... hostConformance=false guestIntegrated=true gate4=Fail` after the M04-002 marker and before memory-map-ready, reached one `OS_SMOKE_PASS`, and emitted no forbidden marker; its EFI and serial SHA-256 values are `0F8A7E3FB5D626E7017D2839DA0E3C966D86A53E769B9D39A3D0275F974A550B` and `65E677830952D0C1657ECF6F038BA1441AC1CC30F556185502BDE7FE53EDDDDC` (`done/step919.md`). These fixed catalogs do not prove general span, `MemoryMarshal`, `BinaryPrimitives`, or runtime compatibility. Host-tested caller-owned boot page allocator mutation, class-constructor state-table transitions, cctor state diagnostic formatting, cctor runner preflight metadata validation, and BootSequence cctor preflight readiness markers exist below the live runtime-helper boundary; `NativeAotHelperLedger` tracks runtime gaps; the allocation-free `OS.Std.NoRuntime` compatibility ledger source-binds all 45 current `MinimalRuntime.cs` canonical `System.*` declarations and 20 runtime exports, preserves their four link-only no-op, twelve fail-fast, one audited stack-probe, one profile-bound fixed-allocation and two profile-bound SZ-array classifications, fails closed for unknown/default values, and explicitly cannot satisfy this gate. The accepted default-off M04-014 profile at `e64e9dc` adds bounded direct allocation/churn/collection with explicit/retained-static roots ([step1051](../done/step1051.md)); it does not prove compiler-created allocation or general runtime startup | Complete the supported BCL subset, object/array/string allocation helpers, GC/root scanning, interface dispatch, full cctor runner/metadata execution, exceptions/finally/catch, thread statics, and broader runtime-helper QEMU/host tests; do not treat fixed-catalog host or guest markers as Gate 4 completion |
+| 5. UEFI encapsulation | Fail | `EfiMain` uses no-stdlib adapters to capture/copy UEFI memory-map bytes, validate handoff, normalize compact records, carry ACPI RSDP provenance, and emit probe markers; host tests cover guarded platform interfaces including read-only filesystem denial under UEFI-gone simulation; the separate M01-026 tuple proves one scoped pre-EBS allocation/map/temporary-root/restoration interval while firmware remains available. The separate accepted M03-007 profile at `e64e9dc` proves its bounded real exit, permanent owned-CR3 adoption and terminal owned-COM1 reporting ([step1051](../done/step1051.md)) | Complete general firmware-adapter revocation (#65), remaining platform interfaces, reusable post-firmware serial/framebuffer/physical-memory/MMIO policy and continuing driver/workload execution |
 | 6. Platform | Fail | Host-tested ACPI RSDP/root SDT/MCFG parsing, PCI ECAM/header/BAR/scanner planning, physical MMIO ownership planning, framebuffer metadata guards, and virtio PCI metadata contracts exist; opt-in ACPI probe has pre-`ExitBootServices` QEMU markers | Implement ACPI table use, APIC/IOAPIC/HPET/TSC, live ECAM mapping, live PCI enumeration, BAR mapping, interrupts/MSI, serial ownership, framebuffer text, and QEMU-visible platform logs |
 | 7. Storage | Fail | Host-tested block-device contracts, GPT/FAT32/package parsers, caller-owned GPT partition selector metadata, generated image package placement/readback, package filesystem APIs, manifest/package loaders over mocks, package-file staging preflight markers, a completed read-session-to-`IReadOnlyBlockDevice` adapter, and virtio-blk queue/read planning contracts exist | Implement live PCI-backed virtio-blk, sector reads, partition/filesystem reads from the guest after firmware handoff, manifest/package loading from disk, and storage error probes |
 | 8. Networking | Fail | Host-tested Ethernet, ARP, IPv4, ICMP echo packets/frames/receive dispatch, UDP, DHCP, DNS, TCP handshake/payload/close/connection-table metadata, HTTP request/response/GET planning, formatter diagnostics, HTTP static TCP response plan diagnostic formatting plus `HTTP_STATIC_TCP_RESPONSE_READY` BootSequence marker aggregation and opt-in `http-static-tcp-response` QEMU marker-preset contract, virtio-net RX TCP dispatch diagnostic formatting, manifest/config-derived FetchApp HTTP request endpoint parsing/diagnostic formatting plus `FETCHAPP_HTTP_ENDPOINT_READY` BootSequence marker aggregation and opt-in QEMU marker-preset contract, FetchApp HTTP completion expectation planning/diagnostic formatting, manifest-side FetchApp config preflight plus `FETCHAPP_CONFIG_PREFLIGHT_READY` BootSequence marker aggregation, FetchApp HTTP completion planning/diagnostic formatting, opt-in QEMU marker-preset contract for `FETCH_APP_HTTP_COMPLETION_READY`, socket PAL mocks, and virtio-net RX/TX queue planning contracts exist | Implement live virtio-net RX/TX, DHCP lease acquisition, DNS resolution, TCP connect/read/write/close, HTTP GET through packet I/O, FetchApp execution, and optional HTTP server evidence |
@@ -1114,7 +1126,7 @@ hosted runtime, Kestrel or cloud support. Gates 3 and 4 remain Fail.
 
 ## Unsupported Behavior
 
-Hardware fault diagnostics, allocator-owned mutable free-list installation from compact boot regions, complete UEFI encapsulation, ExitBootServices, owned serial/framebuffer, runtime helpers, storage, networking, app loading, socket bind/listen behavior, exported PAL socket/timer/thread/file contracts, hosted .NET 10, Kestrel, ISO generation, libvirt real boot, provider cloud import, CI, and hardening remain incomplete. Libvirt lifecycle planning and check-serial validation are host-only contract evidence; they do not connect to libvirt, start a VM, poll live serial output, or prove cleanup against a live domain.
+Hardware fault diagnostics, allocator-owned mutable free-list installation from compact boot regions, complete UEFI encapsulation beyond the bounded M03-007 exit, reusable owned serial/framebuffer, runtime helpers, storage, networking, app loading, socket bind/listen behavior, exported PAL socket/timer/thread/file contracts, hosted .NET 10, Kestrel, ISO generation, libvirt real boot, provider cloud import, CI, and hardening remain incomplete. Libvirt lifecycle planning and check-serial validation are host-only contract evidence; they do not connect to libvirt, start a VM, poll live serial output, or prove cleanup against a live domain.
 
 `SingleMinimalApi` and `MultiMinimalApi` are not complete. `SingleMinimalApi` still requires the hosted runtime or app-target boundary, live package/config access, socket/timer/thread prerequisites, Kestrel bind, an external HTTP probe, and serial evidence. `MultiMinimalApi` additionally requires process tables, per-app address spaces, supervisor/restart policy, and crash isolation.
 
@@ -1472,7 +1484,7 @@ networking, or hosted workload launch.
 
 `UefiExitBootServicesLiveWiringPlan` is host-tested only. It does not call firmware, change the live EFI path, or prove post-firmware execution.
 
-`PlatformFirmwareExitBootServicesResult` is host-tested only. It maps the future call result into retry-plan status, but no live EFI artifact calls `ExitBootServices`.
+`PlatformFirmwareExitBootServicesResult` is host-tested only. It maps a call result into retry-plan status; the separately accepted M03-007 transition supplies its own retained callback authority and live evidence.
 
 `IPlatformConsole` is host-tested through a guarded double only. The live EFI artifact now routes byte output through a separate no-stdlib `EfiConsoleAdapter`, but this still does not prove a managed `IPlatformConsole` implementation or post-firmware owned serial output.
 
@@ -1610,9 +1622,10 @@ The `kestrel.smoke.package.v0` contract is documentation evidence only. It defin
    implement executable publication, a reviewed common interrupt entry, and
    IDT/IDTR/IST-backed controlled fault evidence only in the later issues that
    own those risks.
-2. Finish UEFI platform interfaces before real firmware shutdown.
-3. Add post-firmware diagnostic output paths before a real
-   `ExitBootServices` probe.
+2. Complete general firmware-adapter revocation (#65) and remaining UEFI
+   platform interfaces after the bounded M03-007 transition.
+3. Extend reusable post-firmware diagnostic and continuing driver/workload paths
+   without treating the terminal M03-007 probe as that broader implementation.
 4. Start diagnostics-first IDT/fault panic infrastructure after post-UEFI
    diagnostics requirements are represented by tests.
 5. Add libvirt real boot once local raw/qcow2 QEMU smoke remains stable.
@@ -1898,9 +1911,56 @@ buffers, lifecycle and disk accounting are associated. PE/link/ILC maps match
 the reviewed bytes; COFF differences are exclusively in debug information.
 The first-party stack bound is 13688 bytes, or 14136 with a conservative thunk
 allowance, within the 16384-byte clearance. Firmware body/interrupt stack depth
-remains excluded. #83 can proceed after merge and closure of #82/#552.
+remains excluded. PR553 merged at `8501315`; #82/#552 are closed and #83 is claimed.
 
 This is one diagnostic-owned 4096-byte heap with synchronous nonmoving
 collection and explicit/retained-static roots. General GC/runtime startup,
 real ExitBootServices, hosted .NET/Kestrel and cloud readiness are not established.
 Gates3/4 remain Fail.
+
+### M04-014 seeded churn preparation and acceptance
+
+[Step1035](../done/step1035.md) prepares a shared allocation/churn/collection
+diagnostic against the implemented #82 allocator. Focused host cases retain
+explicit and static roots through seeded batches, verify fresh identities and
+address reuse, and release temporary objects. The new code compiles without
+standard-library assembly references in an isolated closure.
+
+[Step1036](../done/step1036.md) extends preparation to an isolated native adapter
+and actual QEMU/OVMF development execution. Three seeds completed 192 rounds,
+476 allocations/reclamations, 198 collections and 312 observed address reuses;
+the compiled static root and child payload survived. The guest emitted eleven
+ordered churn records, four unchanged canary checks, `CLROS_M04_014_READY` and
+`OS_SMOKE_PASS`. Two same-image debugger corruptions produced the expected
+failure records and fail-fast spin with no readiness or smoke success.
+
+[Step1037](../done/step1037.md) adds conditional native stack/ABI evidence for this
+same development image: 577 associated methods, 169 reachable methods with linked
+unwind checks, and 15720 bytes including a conservative reference-thunk allowance
+within the existing 16384-byte clearance. Firmware bodies, interrupt nesting and
+complete stack-pointer/caller-argument provenance are outside that result.
+[Step1039](../done/step1039.md) completes the scoped review of the new churn
+caller's aggregate windows, native buffers and source bounds. It inherits the
+original collector contracts and firmware/interrupt exclusions; final canonical
+artifact association and official acceptance remain pending.
+
+[Step1038](../done/step1038.md) adds a separate churn-record validator. An ignored
+runner copy composes it after existing whole-transcript/GC checks: the actual
+82-record development capture passes, 26 corrupt/failed captures reject, and the
+GC-only profile rejects churn records. This is parser preparation, not canonical
+profile admission or a new guest run.
+
+[Step1040](../done/step1040.md) prepares the combined first-exit/churn integration
+with explicit source and switch admission, the original-collector call site,
+strict serial integration and one batch of existing-fixture updates. Its staged
+churn publication has exactly the reviewed development EFI and linker-map hashes;
+the ordinary wrapper passes its fresh QEMU/OVMF capture and 82-record check.
+The collector prerequisite is accepted and closed. [Step1042](../done/step1042.md)
+integrates the reviewed first-exit/churn patch under shared lane #560.
+[step1051](../done/step1051.md) records final acceptance at `e64e9dc`: the original full
+common gate, fresh 21/82/61-record default/churn/first-exit captures and final
+source/native/lifecycle/disk association. The bounded churn probe uses allocator
+APIs directly and retains explicit/static roots through reclamation and address
+reuse; it does not prove compiler-created allocation or general runtime startup.
+The retained corruption controls remain associated with the reviewed same-image
+behavior. Gates3/4/5 remain **Fail**.

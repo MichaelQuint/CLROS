@@ -10379,7 +10379,7 @@
         "M04-013"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -10405,7 +10405,7 @@
       ],
       "collisionLane": "lane:probes",
       "summary": "Add seeded allocation/churn/collection and root-retention guest probes.",
-      "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
+      "currentEvidence": "Prerequisite #82 and collector integration #552 are closed after accepted PR553 merge 8501315. Steps1035-1040 implement seeded churn, the deterministic helper, native adapter and strict 82-record validation with staged native/QEMU evidence. Step1042 integrates the first-exit/churn profiles under separately claimed shared lane #560 on codex/m04-014-seeded-churn; PR559 now targets master. All 122 publisher inputs and 108 compile items match reviewed staging. One final integrated common run and fresh per-profile source/native/lifecycle/disk acceptance remain required. #83 is open/claimed; general runtime, hosted .NET/Kestrel and Gates3/4 are not established.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add seeded allocation/churn/collection and root-retention guest probes.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

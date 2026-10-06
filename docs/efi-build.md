@@ -1,5 +1,95 @@
 # EFI Build
 
+## Seeded collector churn profile (M04-014)
+
+The default-off `EnableM04SeededCollectorChurnProbe` extends the existing GC
+profile. Pass it together with `EnableM04GcStaticRootMaterializationProbe` and
+all eight GC prerequisites: `EnableM01LoadedImageStackProbe`,
+`EnableM01LiveAllocatorProbe`, `EnableM04IndependentEndianConformanceProbe`,
+`EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe`,
+`EnableM04ArithmeticConformanceProbe`, `EnableM04LayoutContractProbe`,
+`EnableM04ManagedHeapPageRangeProbe` and `EnableM04RhpNewFastProbe`.
+
+Use `run-qemu-smoke.ps1 -BuildEfi` with those ten switches and the QEMU/OVMF
+arguments below. The wrapper requires a fresh image and validates exactly 82
+application records, including eleven churn rows and `CLROS_M04_014_READY`.
+The three fixed seeds complete 192 rounds, 476 direct allocations/reclamations,
+198 collections and four read-only stack-canary checks. This is a bounded
+diagnostic of the original explicit-root collector before ExitBootServices.
+
+The project, publisher and verifier carry the same explicit switch; the verifier
+requires the linked adapter only when selected. The runner loads the shared
+`seeded-collector-churn-records.ps1` validator, first validates the original GC
+records, then binds churn identities and counters to them. GC-only/default
+profiles reject churn output. The first-exit profile is incompatible with GC
+and therefore with churn. Combined integration evidence is in
+[step1040](../done/step1040.md) and [step1042](../done/step1042.md).
+[step1051](../done/step1051.md) records final common and fresh default/churn/first-exit
+acceptance at `e64e9dc1bd1f66ca522bd22aafe8bcd3388428ff`, including
+source/native/lifecycle/disk association. The profiles have exactly 21, 82 and 61
+application records respectively; churn remains a bounded pre-EBS diagnostic.
+
+## First real exit profile (M03-007)
+
+The integrated, default-off first-exit profile has scoped acceptance under #64
+and shared lane #560 at `e64e9dc`; see [step1051](../done/step1051.md).
+[Step1032](../done/step1032.md) and [step1042](../done/step1042.md) preserve preparation.
+The source-fixture selector migration in [step1046](../done/step1046.md)
+keeps first-exit publications and security-cookie storage out of historical
+default profiles while preserving their exact implementation guards. That
+host-fixture evidence remains distinct from the later accepted common and fresh
+guest batch.
+
+[step1050](../done/step1050.md) corrects five existing fixture assumptions about
+profile relationships, raw project identity and the mutually exclusive
+security-cookie owners. Independently reviewed diagnostic evidence accounts
+for all 421 original initializers and both original main checks. The failed
+attempts and separate complete-module recovery remain recorded. The final
+reviewer also binds both retained churn corruption controls through 81 reference
+identities. The later original unfiltered common run passed with 3814 starts,
+3815 passes including one `TEST_PASS host.tests`, and zero failures; all five
+common phases exited zero with clean, unchanged inputs. [step1051](../done/step1051.md)
+records the separate final native/guest acceptance. Failed and supplementary
+diagnostic receipts in step1050 remain unchanged.
+
+The exact accepted invocation and archived paths are retained in
+[step1051](../done/step1051.md) and
+`artifacts/m03-m04-final-acceptance/integrated-e64e9dc/final-capture/first-exit/wrapper.command.json`
+in the primary checkout. It used Windows PowerShell, `-BuildEfi`, all four
+switches below and a 30-second guest timeout.
+
+For a future reproduction, run from the intended clean CLROS checkout. This
+command creates a new GUID-named artifact directory and uses fresh output paths;
+it does not write into the sealed acceptance capture:
+
+```powershell
+$firstExitRun = Join-Path (Get-Location).Path ('artifacts\first-exit-repro-' + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $firstExitRun | Out-Null
+& "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" `
+  -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-qemu-smoke.ps1 `
+  -BuildEfi `
+  -Qemu "C:/Program Files/qemu/qemu-system-x86_64.exe" `
+  -OvmfCode "C:/Program Files/qemu/share/edk2-x86_64-code.fd" `
+  -TimeoutSeconds 30 `
+  -EfiArtifact (Join-Path $firstExitRun 'BOOTX64.EFI') `
+  -Image (Join-Path $firstExitRun 'clros.raw') `
+  -SerialLog (Join-Path $firstExitRun 'serial.log') `
+  -SummaryLog (Join-Path $firstExitRun 'summary.log') `
+  -EnableM03FirstRealExitBootServicesProbe `
+  -EnableM01LoadedImageStackProbe `
+  -EnableM01LiveAllocatorProbe `
+  -EnableAcpiPhysicalDiscoveryProbe
+```
+
+All three prerequisite switches are required; other diagnostic profiles are
+rejected. The publisher forwards the switch to actual compilation and verifies
+the linked Enter/Diagnose/Fault callbacks. The runner requires a fresh build and
+disk, the exact 61 application records, copied-ACPI numeric consistency, 750 ms
+quiet drain and runner-owned teardown. Marker/preset overrides, alternate raw
+observers and trailing output are rejected. The guest halts after owned COM1
+reporting; runner exit zero does not mean EFI returned to firmware. This profile
+does not reclaim firmware pages or start a workload.
+
 ## Current Status
 
 An explicit EFI NativeAOT project shell exists at `src/OS/OS.csproj`. It is
@@ -1842,15 +1932,14 @@ rights are source/path predicates, not separately printed descriptor dumps.
 
 ## Unsupported Behavior
 
-The project is not yet a functional kernel. `ExitBootServices`, owned drivers,
-a full firmware abstraction layer, reservation-subtracted allocator-owned
-memory state, post-firmware physical mappings, and panic-safe diagnostics are
-pending. `UefiExitBootServicesLiveWiringPlan` documents and host-tests the
-future live call order, and `PlatformFirmwareExitBootServicesResult` documents
-the future firmware-call result mapping, but the live `EfiEntry` path keeps
-firmware shutdown disabled until the owned stack/serial/data prerequisites,
-typed call adapter, and real bounded stale-key retry are implemented and
-proven.
+The project is not yet a functional kernel. The default path retains firmware
+services. The accepted default-off M03-007 profile proves only its bounded real
+exit, retained mappings and terminal owned diagnostics ([step1051](../done/step1051.md)).
+General adapter revocation (#65), firmware-page reclamation, reusable
+post-firmware physical/MMIO interfaces, continuing drivers/workloads and broader
+panic-safe diagnostics remain incomplete. The host-tested
+`UefiExitBootServicesLiveWiringPlan` and `PlatformFirmwareExitBootServicesResult`
+contracts alone do not establish the accepted live transition.
 
 ## Tests
 
@@ -2640,8 +2729,10 @@ focused EFI fixture passes, including default/enabled publication and strict
 [Step1010](../done/step1010.md) accepts the original full suite
 (3798starts/3799passes/zero failures), changed-native review and fresh ordinary
 default/enabled QEMU captures with source/native/disk association. Original
-firmware function-body stack depth remains excluded. The next live boundary is
-#64: real firmware exit followed by permanent owned-CR3 adoption.
+firmware function-body stack depth remains excluded. At that milestone, the next
+live boundary was #64: real firmware exit followed by permanent owned-CR3
+adoption. Its later scoped acceptance is recorded in
+[step1051](../done/step1051.md).
 
 [Step1011](../done/step1011.md) admits the bounded collector through the existing
 GC-static profile. The explicit closure is 101 Compile items and 115 raw inputs;
@@ -2660,8 +2751,8 @@ byte-identical to the reviewed development image; the canonical COFF differs
 only in debug information, while runtime bytes, symbols and relocations match.
 The default and GC profiles contain 21 and 70 CLROS records respectively.
 
-The runner's informational GC summary still says `lines=60` and
-`nonCollecting=true`; those fields are obsolete. The actual strict parser,
+At the accepted `42a516e` revision, the runner's informational GC summary said
+`lines=60` and `nonCollecting=true`; those fields were obsolete. The strict parser,
 70-record raw capture and `CLROS_M04_013_READY` establish the scoped acceptance.
-The prepared first-exit/churn integration corrects that summary. No general
+The first-exit/churn integration in [step1042](../done/step1042.md) corrects that summary. No general
 runtime, hosted .NET or real firmware-exit claim follows from this profile.
