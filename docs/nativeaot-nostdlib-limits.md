@@ -1620,6 +1620,27 @@ integration after the accepted final-map batch. The existing GC profile now
 includes the collector core through 101 explicit Compile items; producer and
 verifier agree on 115 raw inputs. Its original fixture accepts the complete
 70-record stream and rejects missing, duplicate, reordered and altered records.
-The enabled publisher preflight passes. This supersedes the earlier integration
-blocker, but does not replace the pending original full suite, official fresh
-captures and final linked-image association for #82/#552.
+The enabled publisher preflight passes. Final acceptance is recorded below.
+
+### Accepted bounded collection and reuse (step1041)
+
+[Step1041](../done/step1041.md) accepts #82/#552 at source `42a516e`:
+the unfiltered host suite passes (3800 starts, 3801 passes, zero failures), and
+fresh ordinary default/GC QEMU captures contain 21/70 CLROS records. Four
+collections preserve explicit and retained static roots, trace the compiled
+child field, reclaim a dead cycle, reuse its address with a fresh identity,
+reject the stale receipt, and finish with two live objects. Eight allocation
+identities and a 176-byte high-water mark remain within the original 4096-byte
+heap; all ten owned-stack canary observations pass.
+
+The final EFI, link map and ILC map match the reviewed native image. Canonical
+publication changes only debug-section bytes in its COFF object; all other
+bytes, symbols and relocations match. Scoped caller/buffer review supplements
+the existing ABI, unwind and 13688-byte first-party stack analysis (14136 with
+the conservative thunk allowance, below the 16384-byte clearance). Source,
+native observations, process lifecycle and boot-disk accounting agree.
+
+This admits the finite synchronous collector and same-owner reuse. Arbitrary
+stack scanning, concurrent or moving GC, general runtime initialization and
+hosted .NET remain unsupported. Firmware/interrupt stack depth is excluded.
+Gates3/4 remain Fail. Seeded churn and real-exit integration are the next work.
