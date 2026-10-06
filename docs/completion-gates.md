@@ -1904,8 +1904,14 @@ ordered churn records, four unchanged canary checks, `CLROS_M04_014_READY` and
 `OS_SMOKE_PASS`. Two same-image debugger corruptions produced the expected
 failure records and fail-fast spin with no readiness or smoke success.
 
+[Step1037](../done/step1037.md) adds conditional native stack/ABI evidence for this
+same development image: 577 associated methods, 169 reachable methods with linked
+unwind checks, and 15720 bytes including a conservative reference-thunk allowance
+within the existing 16384-byte clearance. Firmware bodies, interrupt nesting and
+complete stack-pointer/caller-argument provenance are outside that result.
+
 The call site exists only in an ignored source copy and the adapter is excluded
-from the canonical project. This is development evidence, not official acceptance
-or a native stack bound. #83 still requires #82 acceptance, serialized source and
-profile admission, strict serial integration, final native/stack review and
-official captures. Gates3/4 remain unchanged.
+from the canonical project. This is development evidence, not official acceptance.
+#83 still requires #82 acceptance, serialized source and profile admission, strict
+serial integration, remaining native review and official captures. Gates3/4 remain
+unchanged.

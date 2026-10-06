@@ -1659,7 +1659,17 @@ terminal marker were captured. Same-image debugger controls corrupting the low
 stack canary or retained child payload both emitted failure records and entered
 the existing fail-fast spin without readiness or smoke success.
 
+[Step1037](../done/step1037.md) associates all 577 compiled methods with the exact
+development PE and checks the 169-method GC/churn call graph. Conditional native
+stack accounting is 14344 bytes below the seeded entry and 15272 below the full
+GC entry; conservatively adding the verified 448-byte reference thunk gives
+15720 bytes within the existing 16384-byte diagnostic clearance. Actual unwind
+records, call alignment and nonvolatile-register restoration checks pass. The
+reachable graph has no FS/GS-relative TLS access. Firmware callback bodies and
+interrupt nesting are excluded; stack-derived pointer/caller-argument provenance
+and final canonical-image association remain outside this conditional result.
+
 This is development guest evidence using allocator APIs directly, not proof of
-compiler-created allocations. Stack witnesses/canaries do not establish a native
-stack bound. #83 remains open behind #82 acceptance, canonical source/profile and
-strict serial admission, final native/stack review and official guest captures.
+compiler-created allocations. Stack witnesses/canaries alone do not establish a
+native stack bound. #83 remains open behind #82 acceptance, canonical source/profile
+and strict serial admission, remaining native review and official guest captures.
