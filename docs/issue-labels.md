@@ -250,6 +250,23 @@ no label, dependency or ownership change was made. A body-only checkbox edit
 would be overwritten by the current renderer. This audit does not change that
 renderer or apply a broad tracker synchronization.
 
+## Constructor dependency repair
+
+The October 6 review identified a dependency cycle that would arise if full
+M04-015 constructor failure handling simply gained M04-021 unwinding as a
+prerequisite. M04-021 already followed M04-015 through dispatch, casts,
+delegates, thread-static metadata and unwind metadata.
+
+M04-024 now owns the real constructor execution prerequisite: discovery,
+bounded original-module authority, once semantics and same-thread reentry.
+The order is M04-014 -> M04-024 -> M04-016 through M04-021 -> full M04-015.
+M04-023 also waits for M04-015, preserving the complete helper audit. The
+M04 epic now tracks 24 children. Full M04-015 retains actual exception caching
+and repeated-access rethrow; terminal failure is not substituted for completion.
+Generated repository/network acceptance text in M04-015/016/021 is replaced by
+the corresponding runtime requirements. This is a dependency/acceptance repair,
+not constructor implementation or a completion-gate change.
+
 ## Milestone state policy
 
 [Step962](../done/step962.md) adds explicit milestone intent to the existing

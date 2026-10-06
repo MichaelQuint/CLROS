@@ -515,8 +515,8 @@ function Test-Manifest {
     if ($milestones.Count -ne 16) {
         throw "Manifest must contain exactly 16 milestones; found $($milestones.Count)."
     }
-    if ($issues.Count -ne 345) {
-        throw "Manifest must contain 16 epics plus 329 children; found $($issues.Count)."
+    if ($issues.Count -ne 346) {
+        throw "Manifest must contain 16 epics plus 330 children; found $($issues.Count)."
     }
 
     $milestoneByKey = @{}
@@ -628,7 +628,7 @@ function Test-Manifest {
     }
 
     $expectedChildren = @{
-        M00 = 23; M01 = 36; M02 = 19; M03 = 11; M04 = 23; M05 = 21; M06 = 19; M07 = 25
+        M00 = 23; M01 = 36; M02 = 19; M03 = 11; M04 = 24; M05 = 21; M06 = 19; M07 = 25
         M08 = 20; M09 = 30; M10 = 14; M11 = 18; M12 = 18; M13 = 18; M14 = 18; M15 = 15
     }
     foreach ($milestoneKey in $expectedChildren.Keys) {
@@ -2161,7 +2161,7 @@ try {
     }
     $manifest = Get-Content -LiteralPath $resolvedManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $validated = Test-Manifest -Manifest $manifest
-    Write-SyncLine "SYNC_MANIFEST_VALID milestones=$($validated.milestones.Count) labels=$($validated.labels.Count) epics=16 children=329 issues=$($validated.issues.Count)"
+    Write-SyncLine "SYNC_MANIFEST_VALID milestones=$($validated.milestones.Count) labels=$($validated.labels.Count) epics=16 children=330 issues=$($validated.issues.Count)"
 
     if ($SelfTest) {
         if ($Apply) {
