@@ -311,7 +311,8 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
     {
         string root = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
-            Path.Combine(root, "scripts", "run-qemu-smoke.ps1"));
+            Path.Combine(root, "scripts", "run-qemu-smoke.ps1"))
+            .Replace("\r\n", "\n", StringComparison.Ordinal);
 
         return source.Contains(
                 "[switch] $EnableM04IndependentEndianConformanceProbe",
