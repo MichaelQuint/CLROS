@@ -347,7 +347,7 @@ internal static class M04RhpNewFastEfiIntegrationTests
         string root=HostToolProcess.FindRepositoryRoot();
         XDocument p=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
         string[] compile=p.Descendants("Compile").Select(x=>x.Attribute("Include")!.Value+"|"+(x.Attribute("Link")?.Value??"")).ToArray();
-        Need(compile.Length==100 && compile[79]=="..\\OS.Kernel\\Runtime\\GuestTestRhpNewFast.cs|Runtime\\GuestTestRhpNewFast.cs" && compile[80]=="..\\OS.Kernel\\Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs|Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs" && compile[83]=="Runtime\\RhpNewFastAllocation.cs|","exact appended closure");
+        Need(compile.Length==101 && compile[79]=="..\\OS.Kernel\\Runtime\\GuestTestRhpNewFast.cs|Runtime\\GuestTestRhpNewFast.cs" && compile[80]=="..\\OS.Kernel\\Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs|Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs" && compile[83]=="Runtime\\RhpNewFastAllocation.cs|","exact appended closure");
         foreach(string flag in new[]{Flag,"EnableM04RhpNewFastBeforeBindFailureProbe","EnableM04RhpNewFastExhaustionFailureProbe"})
         {
             XElement value=p.Descendants(flag).Single();
@@ -355,7 +355,7 @@ internal static class M04RhpNewFastEfiIntegrationTests
         }
         foreach(string required in Chain)Need(p.Descendants("Error").Any(x=>x.Attribute("Condition")?.Value=="'$("+Flag+")' == 'true' and '$("+required+")' != 'true'"),"explicit prerequisite "+required);
         string leaf=File.ReadAllText(Path.Combine(root,"src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs")).Replace("\r\n","\n",StringComparison.Ordinal);
-        Need(Hash(Encoding.UTF8.GetBytes(leaf))=="577c430d9bd28ddc8d6dae83cf3e79b56a37261b428b94de1a91f8b6f3d44379","frozen allocation leaf");
+        Need(Hash(Encoding.UTF8.GetBytes(leaf))=="e7cd46a4c35de92cb9085f198737916697f7479dd0947fd591e4874aa347617e","frozen allocation leaf");
         string entry=File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.cs"));
         int zero=entry.IndexOf("if (!M01StageTwoAdapter.ValidateManagedHeapBeforeBootPlan",StringComparison.Ordinal);
         int handoff=entry.IndexOf("M01StageTwoAdapter.RunRhpNewFastAfterZeroCheckpoint();",StringComparison.Ordinal);
@@ -488,9 +488,9 @@ internal static class M04RhpNewFastEfiIntegrationTests
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
             foreach(var file in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(directory,file.Item2));
             using var document=System.Text.Json.JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=document.RootElement;
-            var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==114,"actual114 raw sources");
+            var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==115,"actual115 raw sources");
             foreach(var input in inputs)Need(Hash(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))==input.GetProperty("sha256").GetString(),"actual raw source unchanged");
-            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==100,"actual100 compile items");
+            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==101,"actual101 compile items");
             var flags=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
             Need(flags.Length==42,"complete42 evaluated flags");
             foreach(var f in flags)Need(f.Value.GetString()==(lane.Item2.Contains(f.Name,StringComparer.Ordinal)?"true":"false"),"actual requested/evaluated profile "+f.Name);

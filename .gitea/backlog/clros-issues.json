@@ -9142,7 +9142,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M04: NativeAOT Runtime Correctness.",
-      "currentEvidence": "Prerequisite #425 is closed. Child issues #70-#81 are closed with their scoped accepted evidence. #82/#552 implement bounded collection and allocator reuse and have development host/native/QEMU evidence in draft PR553; official integration and final acceptance remain pending. The epic remains open/blocked by incomplete children #82-#92 and the runtime milestone criterion. Dispatch, general runtime initialization, exceptions, hosted.NET/Kestrel and runtime completion Gate4 are not established.",
+      "currentEvidence": "Prerequisite #425 and children #70-#81 are closed with scoped accepted evidence. Step1041 accepts #82/#552 bounded collection and allocator reuse at 42a516e: full common suite 3800START/3801PASS/0FAIL and fresh default/GC QEMU captures with final source/native/lifecycle/disk association. Closure follows PR553 merge. The epic remains open/blocked by incomplete children #83-#92 and the runtime milestone criterion. General runtime initialization, exceptions, hosted .NET/Kestrel and completion Gate4 are not established.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -10289,7 +10289,7 @@
         "M04-012"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -10315,7 +10315,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement a bounded non-moving collector with explicit root enumeration.",
-      "currentEvidence": "Steps1005-1009 and draft PR553 implement bounded synchronous fixed-object collection, original-owner tracing/sweep/reuse and stale-receipt rejection. Focused host compatibility checks pass; an isolated development NativeAOT/QEMU run reaches70program records including CLROS_M04_013_READY. Development native review verifies the164-method first-party graph at13688bytes below its entry, within the16KiB diagnostic allowance. Official producer admission/strict profile integration, final native association and common/guest acceptance remain pending under #552 after #551 releases the shared lane. This is not general stack-root/concurrent collection or runtime-gate completion.",
+      "currentEvidence": "Step1041 accepts bounded explicit-root collection, authoritative allocation records, atomic sweep and same-owner reuse at source 42a516e. The solution build and original unfiltered suite pass 3800START/3801PASS/0FAIL with unchanged inputs. Fresh ordinary default/GC QEMU captures pass 21/70 records; four collections retain transitive/static/explicit roots, reclaim a dead cycle, reuse addresses with fresh identities and preserve 10 stack checks. Final PE/link/ILC maps match reviewed bytes; all nondebug COFF bytes, symbols and relocations match. Source/native/caller-buffer/lifecycle/disk review accepts 101 Compile/115 raw inputs and 42 flags. #82/#552 are eligible for closure after PR553 merge; #83 integration follows. General GC/runtime startup, real firmware exit, hosted .NET/Kestrel and Gates3/4 remain unproven.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Implement a bounded non-moving collector with explicit root enumeration.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -10368,7 +10368,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves only \"Implement a bounded non-moving collector with explicit root enumeration.\" It does not by itself prove the M04 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M04-014",

@@ -246,7 +246,7 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
     private static void TestProject()
     {
         string root=Root();var project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
-        var items=project.Descendants("Compile").ToArray();Require(items.Length==100,"100 exact compiler inputs");
+        var items=project.Descendants("Compile").ToArray();Require(items.Length==101,"101 exact compiler inputs");
         foreach(string name in new[]{"UnexpectedVectorPanicProbeAuthority.cs","UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassification.cs"})
             Require(items.Count(x=>x.Attribute("Include")?.Value=="..\\OS.Kernel\\Diagnostics\\"+name && x.Attribute("Link")?.Value=="Diagnostics\\"+name)==1,"one linked declaration "+name);
         var defaults=project.Descendants().Where(x=>x.Attribute("Condition")?.Value=="'$("+x.Name.LocalName+")' == ''" && x.Name.LocalName.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
@@ -259,7 +259,7 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
             Require(errors.Count(x=>x.Attribute("Condition")?.Value=="'$("+a+")' == 'true' and '$("+b+")' == 'true'")==1,"reciprocal conflict "+a+"/"+b);
         foreach(var pair in new[]{("src/OS.Kernel/Diagnostics/UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassification.cs","EC3583012BAACA4B9CD9D13093C941196478A3FE12C89330C86D8C7AE39CA899"),
             ("tests/OS.HostTests/UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassificationTests.cs","9A5EA1B4D40BC957063AC63322DC78108BAE575ABD050032CB9B6D1AD02076CD"),
-            ("src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs","577C430D9BD28DDC8D6DAE83CF3E79B56A37261B428B94DE1A91F8B6F3D44379")})
+            ("src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs","e7cd46a4c35de92cb9085f198737916697f7479dd0947fd591e4874aa347617e")})
             Require(Hash(File.ReadAllText(Path.Combine(root,pair.Item1)).Replace("\r\n","\n",StringComparison.Ordinal)).Equals(pair.Item2,StringComparison.OrdinalIgnoreCase),"reviewed normalized source "+pair.Item1);
         string entry=File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.cs")),adapter=Adapter(entry);
         string run=Member(adapter,"internal static void Run("),callback=Member(adapter,"private static uint Callback("),prepare=Member(adapter,"internal static bool Prepare(");
@@ -442,9 +442,9 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(Path.Combine(root,artifact)+suffix,Path.Combine(dir,"image.EFI"+suffix));
             foreach(var file in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(dir,file.Item2));
             using var document=JsonDocument.Parse(File.ReadAllText(Path.Combine(root,artifact)+".link.json"));var evidence=document.RootElement;
-            var inputs=evidence.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Require(inputs.Length==114,"114 raw source inputs");
+            var inputs=evidence.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Require(inputs.Length==115,"115 raw source inputs");
             foreach(var input in inputs)Require(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))).Equals(input.GetProperty("sha256").GetString(),StringComparison.OrdinalIgnoreCase),"same raw source");
-            var evaluation=evidence.GetProperty("postRestoreEvaluation");Require(evaluation.GetProperty("compileCount").GetInt32()==100,"100 compiler items");
+            var evaluation=evidence.GetProperty("postRestoreEvaluation");Require(evaluation.GetProperty("compileCount").GetInt32()==101,"101 compiler items");
             var flags=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Require(flags.Length==42,"42 exact evaluated switches");
             foreach(var flag in flags)Require(flag.Value.GetString()==(enabled&&(flag.Name==Flag||Prerequisites.Contains(flag.Name,StringComparer.Ordinal))?"true":"false"),"evaluated "+flag.Name);
             using var pe=new PEReader(File.OpenRead(Path.Combine(dir,"OS.dll")));var md=pe.GetMetadataReader();Require(md.AssemblyReferences.Count==0&&md.GetString(md.GetAssemblyDefinition().Name)=="OS","actual no-stdlib OS");

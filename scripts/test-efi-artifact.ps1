@@ -70,7 +70,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 114
+$expectedSourceClosureInputCount = 115
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -212,6 +212,7 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Platform\FirmwareServicesMode.cs|Platform\FirmwareServicesMode.cs',
     '..\OS.Kernel\Diagnostics\TypedExitBootServicesCallProbeAuthority.cs|Diagnostics\TypedExitBootServicesCallProbeAuthority.cs',
     '..\OS.Kernel\Runtime\GCStaticRootsMalformedMetadata.cs|Runtime\GCStaticRootsMalformedMetadata.cs',
+    '..\OS.Kernel\Runtime\BoundedNonMovingCollectorExplicitRootEnumeration.cs|Runtime\BoundedNonMovingCollectorExplicitRootEnumeration.cs',
     'Runtime\GCStaticRootMaterializationProbe.cs|',
     '..\OS.Kernel\Diagnostics\GCStaticRootMaterializationProbeAuthority.cs|Diagnostics\GCStaticRootMaterializationProbeAuthority.cs'
 )
@@ -4394,7 +4395,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 100 -or
+    if ($compileItems.Count -ne 101 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or

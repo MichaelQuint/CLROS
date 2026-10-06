@@ -262,13 +262,13 @@ internal static class M04ArrayAllocationEfiIntegrationTests
     {
         string root=HostToolProcess.FindRepositoryRoot();XDocument project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
         string[] items=project.Descendants("Compile").Select(x=>x.Attribute("Include")!.Value+"|"+(x.Attribute("Link")?.Value??"")).ToArray();
-        Need(items.Length==100 && items[80]=="..\\OS.Kernel\\Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs|Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs","one real array wrapper include");
+        Need(items.Length==101 && items[80]=="..\\OS.Kernel\\Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs|Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs","one real array wrapper include");
         foreach(var pair in new[]{(Flag,"M04_SZ_ARRAY_ALLOCATION_PROBE"),("EnableM04SzArrayAllocationBeforeBindProbe","M04_SZ_ARRAY_ALLOCATION_BEFORE_BIND_PROBE"),("EnableM04SzArrayAllocationExhaustionProbe","M04_SZ_ARRAY_ALLOCATION_EXHAUSTION_PROBE")}) {
             var value=project.Descendants(pair.Item1).Single();Need(value.Value=="false" && value.Attribute("Condition")?.Value=="'$("+pair.Item1+")' == ''","default false");
             Need(project.Descendants("PropertyGroup").Single(x=>x.Attribute("Condition")?.Value=="'$("+pair.Item1+")' == 'true'").Element("DefineConstants")?.Value=="$(DefineConstants);"+pair.Item2,"exact selected compiler symbol");
         }
         foreach(string required in Chain)Need(project.Descendants("Error").Any(x=>x.Attribute("Condition")?.Value=="'$("+Flag+")' == 'true' and '$("+required+")' != 'true'"),"explicit prerequisite "+required);
-        foreach(var file in new[]{("GuestTestArrayAllocationLengthOverflowChecks.cs","3181b70d4a9bad1dd957ecba9e9d6c860275780cc26b61961019f9341c1138a9"),("GuestTestRhpNewFast.cs","577c430d9bd28ddc8d6dae83cf3e79b56a37261b428b94de1a91f8b6f3d44379")})
+        foreach(var file in new[]{("GuestTestArrayAllocationLengthOverflowChecks.cs","3181b70d4a9bad1dd957ecba9e9d6c860275780cc26b61961019f9341c1138a9"),("GuestTestRhpNewFast.cs","e7cd46a4c35de92cb9085f198737916697f7479dd0947fd591e4874aa347617e")})
             Need(Hash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(root,"src/OS.Kernel/Runtime",file.Item1)).Replace("\r\n","\n",StringComparison.Ordinal)))==file.Item2,"frozen host source");
         string shim=File.ReadAllText(Path.Combine(root,"src/OS/Runtime/MinimalRuntime.cs")),adapter=File.ReadAllText(Path.Combine(root,"src/OS/Runtime/RhpNewFastAllocation.cs"));
         Need(shim.Contains("private int _numComponents;",StringComparison.Ordinal) && shim.Contains("public int Length => _numComponents;",StringComparison.Ordinal),"minimal actual compiler Array contract");
@@ -393,9 +393,9 @@ internal static class M04ArrayAllocationEfiIntegrationTests
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
             foreach(var file in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(directory,file.Item2));
             using var document=System.Text.Json.JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=document.RootElement;
-            var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==114,"actual114 raw sources");
+            var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==115,"actual115 raw sources");
             foreach(var input in inputs)Need(Hash(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))==input.GetProperty("sha256").GetString(),"actual raw source unchanged");
-            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==100,"actual100 compile items");
+            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==101,"actual101 compile items");
             var flags=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
             Need(flags.Length==42,"complete42 evaluated flags");
             foreach(var f in flags)Need(f.Value.GetString()==(lane.Item2.Contains(f.Name,StringComparer.Ordinal)?"true":"false"),"actual requested/evaluated profile "+f.Name);

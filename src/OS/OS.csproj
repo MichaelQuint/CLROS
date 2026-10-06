@@ -379,6 +379,7 @@
 		<Compile Include="..\OS.Kernel\Platform\FirmwareServicesMode.cs" Link="Platform\FirmwareServicesMode.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\TypedExitBootServicesCallProbeAuthority.cs" Link="Diagnostics\TypedExitBootServicesCallProbeAuthority.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\GCStaticRootsMalformedMetadata.cs" Link="Runtime\GCStaticRootsMalformedMetadata.cs" />
+		<Compile Include="..\OS.Kernel\Runtime\BoundedNonMovingCollectorExplicitRootEnumeration.cs" Link="Runtime\BoundedNonMovingCollectorExplicitRootEnumeration.cs" />
 		<Compile Include="Runtime\GCStaticRootMaterializationProbe.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\GCStaticRootMaterializationProbeAuthority.cs" Link="Diagnostics\GCStaticRootMaterializationProbeAuthority.cs" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />

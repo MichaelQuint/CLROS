@@ -1539,3 +1539,108 @@ Five owned-stack canary checks pass within the reviewed first-party bound.
 #81/#548 are ready for closure after merge and #82 can proceed to collection.
 This does not implement collection, free/reuse, general roots/static/TLS,
 exceptions, concurrency or hosted .NET; Gates3/4 remain Fail.
+
+### Bounded collector reference maps (step1005)
+
+`BoundedNonMovingCollectorExplicitRootEnumeration.InspectType` now decodes
+pointer-free fixed types and up to four disjoint positive GCDesc series from
+registered immutable image metadata. Every read also fits the caller's explicit
+readable window. The abbreviated GC-static MethodTable uses its actual 16-byte
+prefix; ordinary fixed types require 24 bytes. Negative/repeating descriptors,
+variable-sized types, finalizers, overlapping series and malformed ranges fail
+without changing caller storage. Results are immediate observations, not retained
+root or allocation capabilities.
+
+The focused host cases and a 99-source no-stdlib compilation pass; the latter
+has zero assembly references and was not executed. See [step1005](../done/step1005.md).
+Issue #82 remains in progress: authoritative allocation tracking, tracing,
+atomic sweep, dead-block reuse and guest acceptance are still required.
+
+### Explicit-root collection and same-owner reuse (step1006)
+
+The #82/#552 host implementation now traces and reclaims bounded fixed objects.
+`GuestTestRhpNewFast.EnableCollection` opts in once, before the first allocation.
+Its original 80-byte prefix remains unchanged; the complete collecting owner
+requires 5520 bytes, including 170 private allocation records. The ordinary
+fixed/static allocation path uses those records to find reusable holes. Allocation
+identities increase monotonically and the observed high-water cursor never
+rewinds. Swept or replaced receipts fail even when address and MethodTable match.
+Existing noncollecting fixed, array, string and retained-root behavior is preserved.
+Arrays and strings are not admitted in collecting mode.
+
+`Collect` validates the original page owner, every live record, registered type
+metadata and all reference fields before sweeping. Explicit roots are original
+allocation receipts; default receipts mean null. One optional original GC-static
+owner is revalidated through `TryGetRetainedRoot`; a tracked static base cannot
+silently be omitted. A fixed queue and three mark words trace at most 170 objects.
+Invalid/interior/foreign references, stale root receipts, corrupt records or
+metadata, and exhausted work limits return without heap/owner writes. After
+validation, an infallible commit clears dead blocks and retires their records;
+the same allocation path reuses those blocks with fresh identities.
+
+Atomic failure behavior assumes synchronous exclusive access throughout the
+operation; it is not synchronization for concurrent mutators. Caller mappings,
+metadata immutability, complete root enumeration and lifetimes remain obligations.
+Raw field pointers carry no historical generation, so manufactured pointers after
+an object's lifetime ends cannot be distinguished from a new object at that address.
+No arbitrary stack walking, moving GC, finalizers or weak references are provided.
+
+[Step1006](../done/step1006.md) records focused graph/failure/reuse cases, existing
+allocator and root compatibility checks, and an updated compile-only no-stdlib
+closure. EFI integration, full batch acceptance and actual guest proof remain
+pending; #82/#552 stay open and Gates3/4 remain Fail.
+
+The existing default-off GC diagnostic now also has a prepared compiler-object
+collection path ([step1007](../done/step1007.md)). It binds the collecting owner
+before materializing the static base, preserves the prior object/null store
+checks, and then builds a real reference chain and unreachable cycle. Four
+collections check reclamation, same-address reuse, stale receipts and repeated
+retained-root lifetime, with five additional owned-stack canary observations.
+The enabled 99-source no-stdlib closure compiles. This code has not been published
+or executed in a guest; shared project admission and strict serial parsing are
+still pending behind #551. The original enabled project/profile is therefore
+not yet ready to run from this development branch.
+
+[Step1008](../done/step1008.md) adds development NativeAOT/QEMU evidence for
+that source at `836790c`. An isolated project compiled the same 99 original
+source files with the existing nine-switch profile. The guest reached all nine
+collector records and normal boot success: dead-cycle reclamation, actual
+same-address reuse with a fresh identity, subsequent reclamation and a no-op
+repeat all passed the diagnostic's checks. Both canaries survived ten observations.
+This does not replace official source admission, strict runner/profile validation,
+native association/stack review or the finished batch's common acceptance.
+
+The diagnostic now emits `CLROS_M04_013_READY` only after those checks complete.
+[Step1009](../done/step1009.md) observes it exactly once in a fresh development
+QEMU capture with 70 program records and ordinary boot success. Official source
+admission and strict parser integration remain pending.
+
+[Step1011](../done/step1011.md) completes that source admission and strict parser
+integration after the accepted final-map batch. The existing GC profile now
+includes the collector core through 101 explicit Compile items; producer and
+verifier agree on 115 raw inputs. Its original fixture accepts the complete
+70-record stream and rejects missing, duplicate, reordered and altered records.
+The enabled publisher preflight passes. Final acceptance is recorded below.
+
+### Accepted bounded collection and reuse (step1041)
+
+[Step1041](../done/step1041.md) accepts #82/#552 at source `42a516e`:
+the unfiltered host suite passes (3800 starts, 3801 passes, zero failures), and
+fresh ordinary default/GC QEMU captures contain 21/70 CLROS records. Four
+collections preserve explicit and retained static roots, trace the compiled
+child field, reclaim a dead cycle, reuse its address with a fresh identity,
+reject the stale receipt, and finish with two live objects. Eight allocation
+identities and a 176-byte high-water mark remain within the original 4096-byte
+heap; all ten owned-stack canary observations pass.
+
+The final EFI, link map and ILC map match the reviewed native image. Canonical
+publication changes only debug-section bytes in its COFF object; all other
+bytes, symbols and relocations match. Scoped caller/buffer review supplements
+the existing ABI, unwind and 13688-byte first-party stack analysis (14136 with
+the conservative thunk allowance, below the 16384-byte clearance). Source,
+native observations, process lifecycle and boot-disk accounting agree.
+
+This admits the finite synchronous collector and same-owner reuse. Arbitrary
+stack scanning, concurrent or moving GC, general runtime initialization and
+hosted .NET remain unsupported. Firmware/interrupt stack depth is excluded.
+Gates3/4 remain Fail. Seeded churn and real-exit integration are the next work.

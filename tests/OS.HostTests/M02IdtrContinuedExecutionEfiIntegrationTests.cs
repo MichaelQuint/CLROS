@@ -53,9 +53,9 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
         "idtrLoaded=false faultTriggered=false " +
         "markerTransport=uefiSerial postExitBootServices=false";
     private const string CompileClosureSha256 =
-        "4814674efd6228200c7864cce4eea1880dc7bee9dae44accbf552fe6572bd006";
+        "cd11b6f11911097ee759222b6d14c97a9631c711ef5f655ab3fd192dd416eb65";
     private const string SourceClosureSha256 =
-        "1398fc49b209dea5b63250befbd47c3b776ce3ca2b5c1624cbab8f78a4f926aa";
+        "582f57bee5e28206caa240befd7aaf3bc3b4d6fc1e0d1b242dd5fbf846883b6a";
     private const string FrozenProductionSha256 =
         "7CBF5DD9FB17D8D9608237FC78D06FE00B40D7AFE8669E1196C72B9F1B6848EB";
     private const string FrozenHostLeafSha256 =
@@ -286,7 +286,7 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
             verifier,
             "$expectedEfiCompileItems = @(");
 
-        return compileItems.Length == 100
+        return compileItems.Length == 101
             && compileHash == CompileClosureSha256
             && buildCompileFirewall.SequenceEqual(
                 compileKeys,
@@ -323,16 +323,16 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
                 "-p:EnableM02IdtrContinuedExecutionProbe=true",
                 StringComparison.Ordinal)
             && build.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=114",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=115",
                 StringComparison.Ordinal)
             && verifier.Contains(
                 "[switch]$EnableM02IdtrContinuedExecutionProbe",
                 StringComparison.Ordinal)
             && verifier.Contains(
-                "$expectedSourceClosureInputCount = 114",
+                "$expectedSourceClosureInputCount = 115",
                 StringComparison.Ordinal)
             && verifier.Contains(
-                "$compileItems.Count -ne 100",
+                "$compileItems.Count -ne 101",
                 StringComparison.Ordinal)
             && qemu.Contains(
                 "[switch] $EnableM02IdtrContinuedExecutionProbe",
@@ -2264,7 +2264,7 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
             && evidence.GetProperty("entrySourceSha256").GetString() ==
                 Sha256File(Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs"))
                     .ToLowerInvariant()
-            && evaluation.GetProperty("compileCount").GetInt32() == 100
+            && evaluation.GetProperty("compileCount").GetInt32() == 101
             && evaluation.GetProperty("compileSha256").GetString() ==
                 CompileClosureSha256
             && evaluation.GetProperty("projectReferenceCount").GetInt32() == 0
@@ -2291,7 +2291,7 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
             && properties.GetProperty(
                     "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe")
                 .GetString() == "false"
-            && inputElements.Length == 114
+            && inputElements.Length == 115
             && actualPaths.SequenceEqual(expectedPaths, StringComparer.Ordinal)
             && inputHashesExact;
     }

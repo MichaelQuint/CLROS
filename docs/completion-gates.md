@@ -1852,6 +1852,21 @@ general static/TLS support, hosted .NET/Kestrel and cloud readiness remain
 incomplete. Pristine disks were reconstructed after capture; configured 750ms
 is not independently measured, and no general filesystem proof is claimed.
 
+### M04-013 collector host implementation
+
+[Step1006](../done/step1006.md) implements explicit-root tracing, validation before
+sweep, and real dead-block reuse through the original retained allocator owner.
+The live-record table preserves receipt identities and the retained static-root
+query through repeated collections. Focused checks pass for live/dead cycles,
+shared children, null/duplicate roots, stale receipts, malformed input without
+partial sweep, and a sole child reached through a static field. Existing fixed,
+array, string and root compatibility groups pass (64 starts/65 passes/zero fails).
+The updated 99-source no-stdlib closure compiles without warnings/errors.
+
+Step1006 established host behavior and compile-only evidence. Its later
+integration and guest acceptance are recorded in step1041 below. Gates3/4
+remain Fail; arbitrary stack roots, concurrent mutators, moving objects and
+hosted .NET remain unsupported.
 
 ### Accepted bounded final-map window and retry
 
@@ -1862,5 +1877,30 @@ full suite and fresh ordinary default/enabled QEMU captures pass; the enabled
 transcript has45CLROS records and both boot-disk payloads match reviewed images.
 The original firmware ExitBootServices slot remains unreachable. Gate3 remains
 Fail until #64 and later real-exit requirements pass. This releases the shared
-integration lane for the already implemented bounded collector, whose official
-integration and final acceptance remain pending; Gate4 remains Fail.
+integration lane for the bounded collector, subsequently accepted in step1041
+below; Gate4 remains Fail.
+
+The collector's shared EFI admission is now implemented in
+[step1011](../done/step1011.md). Focused original GC fixture checks, solution build
+and enabled publisher preflight pass. Final acceptance follows below.
+
+### Accepted bounded collector and allocation reuse
+
+[Step1041](../done/step1041.md) accepts #82/#552 at `42a516e`. The original
+solution build, complete unfiltered suite (3800 starts/3801 passes/zero failures),
+post-common dry-run and fresh default/GC QEMU captures pass. The 70-record GC
+transcript demonstrates four bounded collections, transitive/static/explicit
+root retention, dead-cycle reclamation, same-address reuse with stale-receipt
+rejection, and ten intact owned-stack observations.
+
+The final image, source closure, native method/metadata observations, caller
+buffers, lifecycle and disk accounting are associated. PE/link/ILC maps match
+the reviewed bytes; COFF differences are exclusively in debug information.
+The first-party stack bound is 13688 bytes, or 14136 with a conservative thunk
+allowance, within the 16384-byte clearance. Firmware body/interrupt stack depth
+remains excluded. #83 can proceed after merge and closure of #82/#552.
+
+This is one diagnostic-owned 4096-byte heap with synchronous nonmoving
+collection and explicit/retained-static roots. General GC/runtime startup,
+real ExitBootServices, hosted .NET/Kestrel and cloud readiness are not established.
+Gates3/4 remain Fail.

@@ -21,8 +21,9 @@ public unsafe struct RhpNewFastHeapAccess
 }
 
 /// <summary>
-/// One stable, initially zeroed controller for one retained page. No reset/free
-/// operation exists. Self-binding detects accidental copies, not forged PODs,
+/// One stable, initially zeroed controller for one retained page. Collecting mode
+/// uses additional caller storage; the original 80-byte prefix stays fixed.
+/// Self-binding detects accidental copies, not forged PODs,
 /// external resets, ABA, duplicate controllers or concurrent modification.
 /// </summary>
 public struct RhpNewFastBumpState
@@ -38,7 +39,8 @@ public struct RhpNewFastBumpState
     internal ulong UsedValue;
     internal ulong CountValue;
 
-    public bool IsInitialized => InitializedValue == 1;
+    public bool IsInitialized => InitializedValue == 1 || InitializedValue == 2;
+    public bool IsCollecting => InitializedValue == 2;
     public ulong SelfAddress => SelfAddressValue;
     public ulong HeapAddress => HeapAddressValue;
     public ulong MappedStart => MappedStartValue;
@@ -72,7 +74,10 @@ public enum RhpNewFastStatus : byte
     UnsupportedStringType = 19,
     UnsupportedStaticType = 20,
     InvalidReceipt = 21,
-    ReceiptContentsChanged = 22
+    ReceiptContentsChanged = 22,
+    CollectionNotEnabled = 23,
+    InvalidAllocationLedger = 24,
+    AllocationIdentityExhausted = 25
 }
 
 public enum RhpNewFastOperation : byte
@@ -134,6 +139,37 @@ public static unsafe class GuestTestRhpNewFast
 {
     public static ulong RequiredStateBytes => (ulong)sizeof(RhpNewFastBumpState);
     private const ulong PageBytes = 4096;
+    public const uint MaximumTrackedAllocations = 170; // floor(4096 / minimum object 24)
+    public static ulong RequiredCollectingStateBytes => RequiredStateBytes +
+        MaximumTrackedAllocations * (ulong)sizeof(AllocationRecord);
+
+    private struct AllocationRecord
+    {
+        public ulong Offset;
+        public uint Bytes;
+        public uint StaticBase;
+        public ulong MethodTable;
+        public ulong Sequence;
+    }
+
+    /// <summary>
+    /// One-way opt-in before the first allocation. Records occupy the additional
+    /// zeroed owner storage, not the retained heap. Caller retains exclusive access
+    /// and stable lifetime for the complete capacity. No reset/adoption is supported.
+    /// </summary>
+    public static RhpNewFastStatus EnableCollection(RhpNewFastHeapAccess access,
+        RhpNewFastBumpState* state, ulong stateCapacity)
+    {
+        RhpNewFastStatus status = ValidateController(access, state, stateCapacity, out _);
+        if (status != RhpNewFastStatus.Success) return status;
+        if (state->InitializedValue != 1 || state->UsedValue != 0 || state->CountValue != 0)
+            return RhpNewFastStatus.AlreadyInitialized;
+        if (stateCapacity < RequiredCollectingStateBytes) return RhpNewFastStatus.InvalidStorage;
+        for (ulong i = RequiredStateBytes; i < RequiredCollectingStateBytes; i++)
+            if (((byte*)state)[i] != 0) return RhpNewFastStatus.InvalidAllocationLedger;
+        state->InitializedValue = 2;
+        return RhpNewFastStatus.Success;
+    }
 
     public static RhpNewFastResult InitializeOnce(RhpNewFastHeapAccess access,
         RhpNewFastBumpState* state, ulong stateCapacity)
@@ -182,8 +218,10 @@ public static unsafe class GuestTestRhpNewFast
 
     /// <summary>
     /// Read-only containment/readback of a genuine retained original receipt.
-    /// Not a ledger or forgery detector: caller retains exclusive stable no-reset,
-    /// no-free lifetime and receipt/metadata provenance. Later allocations are legal.
+    /// Collecting mode additionally requires the current live record and allocation
+    /// identity; swept/replaced receipts fail even if the address and MT are reused.
+    /// Not a forgery detector: caller retains exclusive stable lifetime and receipt/
+    /// metadata provenance. Later allocations are legal.
     /// Payload changes are legal; the retained syncblock and MT slot must match.
     /// </summary>
     public static RhpNewFastStatus TryValidateRetainedAllocation(RhpNewFastHeapAccess access,
@@ -196,9 +234,9 @@ public static unsafe class GuestTestRhpNewFast
             size < 24 || size > PageBytes || (size & 7) != 0 || (before & 7) != 0 ||
             before > state->UsedValue || size > state->UsedValue - before ||
             receipt.UsedAfter != before + size || count == 0 || count > state->CountValue ||
-            (before == 0) != (count == 1) || count - 1 > before / 24 ||
+            (state->InitializedValue == 1 && ((before == 0) != (count == 1) || count - 1 > before / 24 ||
             (receipt.UsedAfter == state->UsedValue) != (count == state->CountValue) ||
-            state->CountValue - count > (state->UsedValue - receipt.UsedAfter) / 24 ||
+            state->CountValue - count > (state->UsedValue - receipt.UsedAfter) / 24)) ||
             receipt.MappedAllocationStart != heap.MappedStart + before ||
             receipt.MappedAllocationEndExclusive != heap.MappedStart + before + size ||
             receipt.PhysicalAllocationStart != heap.PhysicalStart + before ||
@@ -206,6 +244,16 @@ public static unsafe class GuestTestRhpNewFast
             receipt.ObjectReference != heap.MappedStart + before + 8 ||
             !ValidToken(access, state, stateCapacity, receipt.MethodTableToken, 16))
             return RhpNewFastStatus.InvalidReceipt;
+        if (state->InitializedValue == 2)
+        {
+            bool found = false;
+            AllocationRecord* records = Records(state);
+            for (uint i = 0; i < MaximumTrackedAllocations; i++)
+                if (records[i].Sequence == count && records[i].Offset == before &&
+                    records[i].Bytes == size && records[i].MethodTable == receipt.MethodTableToken)
+                { found = true; break; }
+            if (!found) return RhpNewFastStatus.InvalidReceipt;
+        }
         // Only now are all reads known to be inside the current retained page.
         byte* bytes = (byte*)receipt.MappedAllocationStart;
         for (int i = 0; i < 8; i++)
@@ -256,8 +304,30 @@ public static unsafe class GuestTestRhpNewFast
             size = prefix.BaseSize;
         }
         if (status != RhpNewFastStatus.Success) return Fail(status);
+        bool collecting = state->InitializedValue == 2;
+        if (collecting && shape != NativeAotLayoutShape.FixedObject)
+            return Fail(RhpNewFastStatus.UnsupportedFixedType);
+        if (state->CountValue == ~0UL) return Fail(RhpNewFastStatus.AllocationIdentityExhausted);
         ulong before = state->UsedValue;
-        if (size > PageBytes - before) return Fail(RhpNewFastStatus.Exhausted);
+        uint recordIndex = MaximumTrackedAllocations;
+        if (collecting)
+        {
+            AllocationRecord* records = Records(state);
+            for (uint i = 0; i < MaximumTrackedAllocations; i++)
+                if (records[i].Sequence == 0) { recordIndex = i; break; }
+            if (recordIndex == MaximumTrackedAllocations) return Fail(RhpNewFastStatus.Exhausted);
+            // First fit across unsorted live records, bounded by their count.
+            before = 0;
+            for (uint pass = 0; pass <= MaximumTrackedAllocations; pass++)
+            {
+                bool moved = false;
+                for (uint i = 0; i < MaximumTrackedAllocations; i++)
+                    if (records[i].Sequence != 0 && Overlaps(before, size, records[i].Offset, records[i].Bytes))
+                    { before = records[i].Offset + records[i].Bytes; moved = true; break; }
+                if (!moved) break;
+            }
+        }
+        if (before > PageBytes || size > PageBytes - before) return Fail(RhpNewFastStatus.Exhausted);
 
         // Full page and cursor/size bounds above prove all following sums fit.
         ulong start = heap.MappedStart + before;
@@ -270,7 +340,12 @@ public static unsafe class GuestTestRhpNewFast
         for (int i = 0; i < 8; i++) bytes[8 + i] = (byte)(methodTableToken >> (i * 8));
         if (shape != NativeAotLayoutShape.FixedObject)
             for (int i = 0; i < 4; i++) bytes[16 + i] = (byte)((uint)length >> (i * 8));
-        state->UsedValue = after;
+        if (collecting)
+            Records(state)[recordIndex] = new AllocationRecord
+            { Offset = before, Bytes = (uint)size, StaticBase = staticBase ? 1U : 0,
+              MethodTable = methodTableToken, Sequence = count };
+        // High-water observation never rewinds; identity count never reuses a value.
+        if (after > state->UsedValue) state->UsedValue = after;
         state->CountValue = count;
         return new RhpNewFastResult(RhpNewFastStatus.Success, RhpNewFastOperation.Allocation,
             heap.Status, start, start + size, physical, physical + size, start + 8,
@@ -284,10 +359,11 @@ public static unsafe class GuestTestRhpNewFast
         RhpNewFastStatus status = ValidateStorage(access, state, stateCapacity);
         if (status != RhpNewFastStatus.Success) return status;
         if (state->InitializedValue == 0) return RhpNewFastStatus.NotInitialized;
-        if (state->InitializedValue != 1 || state->SelfAddressValue != (ulong)state ||
+        if ((state->InitializedValue != 1 && state->InitializedValue != 2) || state->SelfAddressValue != (ulong)state ||
             state->CapacityValue != stateCapacity || state->UsedValue > PageBytes ||
             (state->UsedValue & 7) != 0 || (state->UsedValue == 0) != (state->CountValue == 0) ||
-            state->CountValue > state->UsedValue / 24)
+            (state->InitializedValue == 1 && state->CountValue > state->UsedValue / 24) ||
+            (state->InitializedValue == 2 && stateCapacity < RequiredCollectingStateBytes))
             return RhpNewFastStatus.InvalidState;
 
         heap = Retained(access);
@@ -297,7 +373,79 @@ public static unsafe class GuestTestRhpNewFast
             state->PhysicalStartValue != heap.PhysicalStart || state->PhysicalEndValue != heap.PhysicalEndExclusive)
             return RhpNewFastStatus.HeapBindingMismatch;
 
+        return state->InitializedValue == 2 ? ValidateLedger(access, state, stateCapacity)
+            : RhpNewFastStatus.Success;
+    }
+
+    private static AllocationRecord* Records(RhpNewFastBumpState* state) =>
+        (AllocationRecord*)((byte*)state + RequiredStateBytes);
+
+    private static RhpNewFastStatus ValidateLedger(RhpNewFastHeapAccess access,
+        RhpNewFastBumpState* state, ulong capacity)
+    {
+        AllocationRecord* records = Records(state);
+        for (uint i = 0; i < MaximumTrackedAllocations; i++)
+        {
+            AllocationRecord r = records[i];
+            if (r.Sequence == 0)
+            {
+                if (r.Offset != 0 || r.Bytes != 0 || r.StaticBase != 0 || r.MethodTable != 0)
+                    return RhpNewFastStatus.InvalidAllocationLedger;
+                continue;
+            }
+            if (r.Sequence > state->CountValue || r.Bytes < 24 || (r.Bytes & 7) != 0 ||
+                (r.Offset & 7) != 0 || r.Offset > state->UsedValue || r.Bytes > state->UsedValue - r.Offset ||
+                r.StaticBase > 1 || !ValidToken(access, state, capacity, r.MethodTable, r.StaticBase == 1 ? 16UL : 24UL))
+                return RhpNewFastStatus.InvalidAllocationLedger;
+            for (uint j = 0; j < i; j++)
+                if (records[j].Sequence != 0 && (records[j].Sequence == r.Sequence ||
+                    Overlaps(r.Offset, r.Bytes, records[j].Offset, records[j].Bytes)))
+                    return RhpNewFastStatus.InvalidAllocationLedger;
+            byte* bytes = (byte*)(state->MappedStartValue + r.Offset);
+            for (int j = 0; j < 8; j++)
+                if (bytes[j] != 0 || bytes[8 + j] != (byte)(r.MethodTable >> (j * 8)))
+                    return RhpNewFastStatus.ReceiptContentsChanged;
+        }
         return RhpNewFastStatus.Success;
+    }
+
+    internal static RhpNewFastStatus ValidateCollectingOwner(RhpNewFastHeapAccess access,
+        RhpNewFastBumpState* state, ulong capacity)
+    {
+        RhpNewFastStatus status = ValidateController(access, state, capacity, out _);
+        return status != RhpNewFastStatus.Success ? status : state->InitializedValue == 2
+            ? RhpNewFastStatus.Success : RhpNewFastStatus.CollectionNotEnabled;
+    }
+
+    // Only called inside a validated, exclusive collection operation. The record
+    // remains private to the original allocator; consumers receive scalar receipts.
+    internal static RhpNewFastResult ReadTrackedAllocation(RhpNewFastBumpState* state,
+        uint index, out bool staticBase)
+    {
+        AllocationRecord r = Records(state)[index];
+        staticBase = r.StaticBase == 1;
+        if (r.Sequence == 0) return default;
+        ulong start = state->MappedStartValue + r.Offset, physical = state->PhysicalStartValue + r.Offset;
+        return new(RhpNewFastStatus.Success, RhpNewFastOperation.Allocation,
+            ManagedHeapPageRangeStatus.Success, start, start + r.Bytes, physical, physical + r.Bytes,
+            start + 8, r.MethodTable, r.Bytes, r.Offset, r.Offset + r.Bytes, r.Sequence);
+    }
+
+    // Infallible commit after the collector validates the complete graph. No
+    // callbacks, metadata reads or status-producing operations after the first write.
+    internal static void CommitSweep(RhpNewFastBumpState* state, ulong* live,
+        out uint reclaimedObjects, out ulong reclaimedBytes)
+    {
+        reclaimedObjects = 0; reclaimedBytes = 0;
+        AllocationRecord* records = Records(state);
+        for (uint i = 0; i < MaximumTrackedAllocations; i++)
+            if (records[i].Sequence != 0 && (live[i / 64] & (1UL << (int)(i % 64))) == 0)
+            {
+                byte* start = (byte*)(state->MappedStartValue + records[i].Offset);
+                for (uint j = 0; j < records[i].Bytes; j++) start[j] = 0;
+                reclaimedObjects++; reclaimedBytes += records[i].Bytes;
+                records[i] = default;
+            }
     }
 
     private static RhpNewFastStatus ValidateStorage(RhpNewFastHeapAccess access,
