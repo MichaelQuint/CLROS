@@ -1910,6 +1910,12 @@ unwind checks, and 15720 bytes including a conservative reference-thunk allowanc
 within the existing 16384-byte clearance. Firmware bodies, interrupt nesting and
 complete stack-pointer/caller-argument provenance are outside that result.
 
+[Step1038](../done/step1038.md) adds a separate churn-record validator. An ignored
+runner copy composes it after existing whole-transcript/GC checks: the actual
+82-record development capture passes, 26 corrupt/failed captures reject, and the
+GC-only profile rejects churn records. This is parser preparation, not canonical
+profile admission or a new guest run.
+
 The call site exists only in an ignored source copy and the adapter is excluded
 from the canonical project. This is development evidence, not official acceptance.
 #83 still requires #82 acceptance, serialized source and profile admission, strict

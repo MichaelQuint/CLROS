@@ -1669,6 +1669,17 @@ reachable graph has no FS/GS-relative TLS access. Firmware callback bodies and
 interrupt nesting are excluded; stack-derived pointer/caller-argument provenance
 and final canonical-image association remain outside this conditional result.
 
+[Step1038](../done/step1038.md) prepares
+`scripts/seeded-collector-churn-records.ps1`. Its record validator checks the eleven
+ordered rows and ready marker against the preceding validated GC records: original
+type/static root/child, exact seeded accounting and fingerprints, cumulative
+allocation identity, retained payload, stack-witness continuity and canaries.
+The caller must still validate raw framing, the original GC/heap records and
+runner lifecycle. An ignored runner copy composes these checks over the complete
+82-record development transcript; the actual capture passes and 26 malformed or
+failed captures reject under Windows PowerShell 5.1. The canonical runner and
+profile remain unchanged, so this helper is preparation for later integration.
+
 This is development guest evidence using allocator APIs directly, not proof of
 compiler-created allocations. Stack witnesses/canaries alone do not establish a
 native stack bound. #83 remains open behind #82 acceptance, canonical source/profile
