@@ -2,7 +2,7 @@
 
 ## Current Status
 
-No CloudReady release is complete as of 2026-08-25. The repository has a
+No CloudReady release is complete as of 2026-10-06. The repository has a
 current source-bound default EFI/QEMU smoke proof, separate source-bound
 opt-in pre-EBS M01/M02 tuples, a separate opt-in fixed-catalog M04-002 guest
 validation tuple, a combined default-off M04-002+M04-003 fixed-catalog guest
@@ -19,18 +19,24 @@ bounded real-exit/permanent-owned-CR3 and pre-EBS collector-churn evidence.
 Steps1032/1042/1043/1050 retain staged integration, failed attempts, fixture
 corrections and supplementary diagnostics. They are not substituted for this
 final acceptance. Gates3/4/5 remain **Fail**; general adapter revocation,
-firmware-page reclamation, compiler cctors and general runtime support remain
-incomplete.
+firmware-page reclamation and general runtime support remain incomplete.
 
-M03-008 and M04-024 implementation is active under shared issue #570 and draft
-PR571. Their retained-capability and constructor cores passed focused host
-checks (6 and 8 groups respectively). Default-off EFI integration now has
-development native/QEMU passes for the 73-record revocation and 82-record
-constructor profiles. Final guest and original unfiltered common acceptance remain pending in
-[step1052](../done/step1052.md). This does not close a gate or establish general
-firmware revocation, exception caching/rethrow, cross-thread initialization,
-hosted .NET, Kestrel or cloud readiness. The complete freshness review must
-reconcile existing fixtures as well as newly added tests before acceptance.
+M03-008 and M04-024 have scoped acceptance under shared issue #570 / PR571 at
+`2b5a4b08863f135e39133bb1dc9f4490bb63c870` ([step1053](../done/step1053.md)). The
+original unfiltered host gate passed 3833 starts, 3834 passes including the
+terminal `host.tests`, and zero failures. Independent source/PDB/metadata review
+accounts for all 430 original test files and 425 actual module initializers.
+Fresh default/churn/first-exit/revocation/constructor captures passed their
+21/82/61/73/82-record contracts and exact source/native/lifecycle/disk review.
+The changed churn image has two fresh, independently reviewed canary and
+static-payload rejection controls; old image results were not reused.
+
+This accepts eight retained typed capability denials after real firmware exit
+and actual compiler eager/lazy once execution with same-thread partial-static
+reentry. It does not close a gate or establish general firmware revocation,
+optional provider functionality, firmware reclamation, exception caching/rethrow,
+cross-thread initialization, hosted .NET, Kestrel or cloud readiness. Historical
+development and failed attempts remain in [step1052](../done/step1052.md).
 
 Gate status is explicit:
 

@@ -12,9 +12,10 @@ The constructor profile extends GC-static diagnostics to 82 records, including
 runtime seed to the original admitted module handle XOR heap backing, validates
 eight once-only constructor invocations and compiler-emitted helper reentry
 counts (five at depth one, three at depth two), and rejects failure stage 255
-or unrequested child output. Development captures pass both record contracts;
-final common and guest acceptance remain pending. See
-[step1052](../done/step1052.md) and the [profile definitions](efi-build.md#retained-firmware-and-constructor-profiles).
+or unrequested child output. Both final record contracts and the original full
+host gate are accepted at `2b5a4b0`. See [step1053](../done/step1053.md) for exact
+source/native/raw/lifecycle/disk association and
+the [profile definitions](efi-build.md#retained-firmware-and-constructor-profiles).
 
 M03-007 has accepted default-off terminal continuation evidence at `e64e9dc`
 using owned COM1, descriptor tables, main/IST stacks and CR3 after the real

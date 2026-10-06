@@ -21,8 +21,9 @@ first constructor-bearing static accessor. `BootSequence.RunCompilerClassConstru
 runs the eager table, followed by actual compiler lazy helpers. Its toggle is
 `Probes.EnableM04ClassConstructorExecutionProbe`; it is exclusive with seeded
 collector churn. These are optional diagnostic substeps, not new ordinary boot
-phases. Their current acceptance boundary is recorded in
-[step1052](../done/step1052.md).
+phases. Their accepted source-bound execution and current limitations are
+recorded in [step1053](../done/step1053.md); [step1052](../done/step1052.md)
+preserves development history.
 
 `src/OS.Kernel/Boot/BootSequence.cs` is the managed boot-order boundary. `BootSequencePlan.cs` is the allocation-free marker plan used by both `BootSequence.Run` and the no-stdlib EFI artifact so firmware smoke output cannot bypass the ordered phase markers.
 

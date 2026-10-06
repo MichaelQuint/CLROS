@@ -2,7 +2,10 @@
 
 ## Current Status
 
-The no-stdlib surface is not implemented beyond the first EFI shell boundary. `std/no-runtime/shared` contains small host-tested helper slices for shared compatible contracts, but it is not a complete BCL or runtime surface.
+CLROS implements a bounded no-stdlib NativeAOT subset for the EFI shell and the
+optional allocation, collection, metadata and constructor probes described
+below. `std/no-runtime/shared` contains compatible helper slices; it is not a
+complete BCL or general runtime surface.
 
 ## Class-constructor implementation order
 
@@ -14,9 +17,11 @@ word immediately before the non-GC static base; named managed helpers return
 the incoming non-GC or GC base. Eager section 205 instead contains signed
 relative-32 entries on win-x64. These are source-derived ABI requirements,
 now implemented by the bounded M04-024 core and profile-only compiler adapter.
-Focused host admission/state checks and a development native/QEMU capture pass;
-final common and guest acceptance is pending
-in [step1052](../done/step1052.md).
+The original full host gate and fresh native/QEMU constructor capture are
+accepted at `2b5a4b0` in [step1053](../done/step1053.md). Same-image review proves
+the real eager target, seven lazy contexts, successful-return completion,
+original static-base returns and bounded direct/cyclic reentry. Development
+history remains in [step1052](../done/step1052.md).
 
 M04-024 separates real eager/lazy execution, once semantics and same-thread
 reentry from the full M04-015 failure requirement. After M04-014 it enables

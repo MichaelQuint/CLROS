@@ -8068,7 +8068,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M03: Real Firmware Exit.",
-      "currentEvidence": "Prerequisite #56 and children #58-#63 are accepted/closed after step1010 and the PR549/550 batch. Five children #64-#68 remain incomplete. Controlled pre-exit map/retry proof does not establish real firmware exit, permanent owned-CR3 adoption, post-firmware operation or the M03 exit criterion. The epic remains open/blocked.",
+      "currentEvidence": "Prerequisite #56 and children #58-#65 have scoped accepted evidence. Step1051/PR559 accepts #64 first real firmware exit with permanent owned CR3 and terminal owned COM1; step1053/PR571 accepts #65 retained typed adapter revocation. Three children #66-#68 remain incomplete. Optional provider functionality, firmware-page reclamation and the full M03 exit criterion remain unproved. The epic remains open/blocked; bounded opt-in evidence does not promote Gate3.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -8764,7 +8764,7 @@
         "M03-007"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -8791,7 +8791,7 @@
       ],
       "collisionLane": null,
       "summary": "Invalidate console, map, filesystem, timer, RNG, configuration-table, physical-memory, and framebuffer firmware adapters after success.",
-      "currentEvidence": "Prerequisite acceptance remains recorded in step1051/PR559. Reviewed cores are committed in d902b8f681b85e3fda53919f7ef7bc6e3aee8ac6; shared integration is claimed in #570 and draft PR571. The ordinary wrapper development capture revocation-guest1 passed its full 73-record QEMU/OVMF grammar with all127 recorded production inputs unchanged and exact native artifacts retained. Step1052 records the source review, focused host checks and preserved failures. Original unfiltered common acceptance, final fresh guest review, merge and issue closure remain pending.",
+      "currentEvidence": "Step1053 accepts implementation 2b5a4b08863f135e39133bb1dc9f4490bb63c870 under shared #570 / PR571: original full common gate 3833 START / 3834 PASS / 0 FAIL, fresh 73-record revocation guest and independent exact source/native/lifecycle/disk association. All eight copied typed capabilities retain original arena authority and deny before backend access after real firmware exit/owned CR3, with unchanged outputs and zero backend delta. Step1052 preserves development history. Optional provider functionality, firmware-page reclamation and the broader M03 criterion remain outside this scope.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Invalidate console, map, filesystem, timer, RNG, configuration-table, physical-memory, and framebuffer firmware adapters after success.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -8844,7 +8844,7 @@
         "docs/efi-build.md"
       ],
       "evidenceBoundary": "This issue proves only \"Invalidate console, map, filesystem, timer, RNG, configuration-table, physical-memory, and framebuffer firmware adapters after success.\" It does not by itself prove the M03 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M03-009",
@@ -9142,7 +9142,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M04: NativeAOT Runtime Correctness.",
-      "currentEvidence": "Prerequisite #425 and children #70-#81 are closed with scoped accepted evidence. Step1041 accepts #82/#552 bounded collection and allocator reuse at 42a516e: full common suite 3800START/3801PASS/0FAIL and fresh default/GC QEMU captures with final source/native/lifecycle/disk association. PR553 merged at 8501315af1bbdd03adc9db1a23b082540cb67038; #82/#552 are closed/done. The epic remains open/blocked by incomplete children #83-#92 and the M04-024 constructor-execution precursor and the runtime milestone criterion. General runtime initialization, exceptions, hosted .NET/Kestrel and completion Gate4 are not established.",
+      "currentEvidence": "Prerequisite #425 and children #70-#83 have scoped accepted evidence, including step1041/PR553 bounded collection/reuse and step1051/PR559 seeded churn. Step1053/PR571 accepts the M04-024 (#562) eager/lazy execution precursor at 2b5a4b0, with the original full common gate and fresh constructor/changed-churn evidence. Children #84-#92 and the full runtime milestone criterion remain incomplete. Full #84 still requires #90 exception/unwind support. General runtime initialization, exceptions, hosted .NET/Kestrel and Gate4 are not established; the epic remains open/blocked.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -11283,7 +11283,7 @@
         "M04-014"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -11313,7 +11313,7 @@
       ],
       "collisionLane": null,
       "summary": "Execute real pinned ILC eager/lazy class constructors once, with CLR-compatible same-thread partial-static reentry, using the original retained module and bounded caller-owned state.",
-      "currentEvidence": "Prerequisite acceptance remains recorded in step1051/PR559. Reviewed cores are committed in d902b8f681b85e3fda53919f7ef7bc6e3aee8ac6; shared integration is claimed in #570 and draft PR571. The ordinary wrapper development capture cctor-guest2 passed its full 82-record QEMU/OVMF grammar with all127 recorded production inputs unchanged and exact native artifacts retained. Step1052 records the source review, focused host checks and preserved failures. Original unfiltered common acceptance, final fresh guest review, merge and issue closure remain pending. All eight actual constructors execute once; compiler own-static guards account for five depth-one and three depth-two helper reentries. Full M04-015 cached failure/rethrow remains separate after M04-021.",
+      "currentEvidence": "Step1053 accepts implementation 2b5a4b08863f135e39133bb1dc9f4490bb63c870 under shared #570 / PR571: original full common gate 3833 START / 3834 PASS / 0 FAIL, fresh 82-record constructor guest and independent exact compiler/native/source/lifecycle/disk association. Actual section205 eager and seven lazy constructors execute once; direct and A-B-A reentry preserves partial statics, original bases and successful-return completion. Compiler own-static guards account for five depth-one and three depth-two helper reentries. Step1052 preserves development history. Full M04-015 remains open for cached failure/rethrow after M04-021; threading/general runtime and Gate4 are not established.",
       "implementationNotes": [
         "Implement one bounded precursor with real compiler-emitted managed void constructor invocation; retain full M04-015 for actual exception caching/rethrow after M04-021. Do not replace the original full constructor issue with terminal-only acceptance.",
         "Read docs/nativeaot-nostdlib-limits.md, docs/efi-build.md, docs/boot.md, docs/boot-order.md and docs/reference-map.md, plus the existing retained TypeManager and GC-static owner. The source-pinned handoff is artifacts/m04-cctor-preparation/handoff.md; primary source must be independently checked if that generated artifact is unavailable.",
@@ -11364,7 +11364,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "Proves only actual eager/lazy constructor execution, once and CLR-compatible same-thread reentry in the declared bounded single-thread module profile. Eager once state is runner-owned; lazy completion uses the compiler context word. It does not prove caught/cached constructor exceptions, repeated-access exception rethrow, multiple-thread initialization, full M04-015/M04-023 completion, hosted .NET/Kestrel or the runtime milestone.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-EPIC",

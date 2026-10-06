@@ -2,10 +2,12 @@
 
 ## Retained firmware and constructor profiles
 
-Integration #570 introduces two default-off child profiles. Native development
-and final acceptance evidence are recorded separately in
-[step1052](../done/step1052.md). Development native/QEMU captures pass; final
-common and guest acceptance remain pending.
+Integration #570 introduces two default-off child profiles. Development evidence
+remains in [step1052](../done/step1052.md); [step1053](../done/step1053.md) accepts
+the original full host gate and five fresh default/churn/first-exit/revocation/
+constructor captures at `2b5a4b0`. All final source/native/raw/lifecycle/disk
+associations pass, including two fresh corruption controls for the changed
+churn image. Historical control results are not relabelled as current runs.
 
 `EnableM03FirmwareAdapterRevocationProbe` requires
 `EnableM03FirstRealExitBootServicesProbe` and its three prerequisites:
