@@ -25,8 +25,8 @@ namespace OS.Boot;
 public static unsafe class EfiEntry
 {
 #if M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE
-    // This symbol is deliberately absent from OS.csproj. Native closure/stack
-    // review and the shared EFI lane must admit it before an executable probe.
+    // Explicit default-off profile. BootSequence consumes the prepared firmware
+    // binding only after M01, copied ACPI and the ordinary boot marker plan.
     private static class M03FirstExitAdapter
     {
         private const ulong Page = 4096, TablePages = 55;
@@ -251,17 +251,8 @@ public static unsafe class EfiEntry
                     context->Phase != 2 || context->EntryContext != state ||
                     !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return;
                 state->Phase = 4;
-                if (FirstExitFirmwareBinding.Consume(ref *state->Arena.Binding, FirmwareServicesMode.BootServicesAvailable,
-                    out var getMap, out var exit, out void* handle) != FirstExitBindingStatus.Consumed) return;
-                // This is the only real EBS call path. The core transfers directly
-                // to emitted permanent adoption after success. Every failure
-                // returns only to the owned entry stub's CLI/HLT loop.
-                _ = FirstOptRealExitBootServicesTransition.AttemptAndTransfer(ref *state->Arena.Transition,
-                    FirmwareServicesMode.BootServicesAvailable, getMap, exit, handle,
-                    state->Arena.Map, FirstExitOwnedArena.MapBytes,
-                    (delegate* unmanaged<FirstExitTransitionState*, void*, void>)
-                        (state->Memory.Code + FirstExitCodeBundle.PermanentOffset),
-                    state->Arena.Permanent, FirstExitPermanentCr3Stub.ContextBytes);
+                // Every return reaches only the owned entry stub's CLI/HLT loop.
+                _ = BootSequence.RunFirstRealExitBootServicesTransition(ref state->Arena, state->Memory.Code);
             }
         }
 

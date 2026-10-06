@@ -1,5 +1,49 @@
 # EFI Build
 
+## Seeded collector churn profile (M04-014)
+
+The default-off `EnableM04SeededCollectorChurnProbe` extends the existing GC
+profile. Pass it together with `EnableM04GcStaticRootMaterializationProbe` and
+all eight GC prerequisites: `EnableM01LoadedImageStackProbe`,
+`EnableM01LiveAllocatorProbe`, `EnableM04IndependentEndianConformanceProbe`,
+`EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe`,
+`EnableM04ArithmeticConformanceProbe`, `EnableM04LayoutContractProbe`,
+`EnableM04ManagedHeapPageRangeProbe` and `EnableM04RhpNewFastProbe`.
+
+Use `run-qemu-smoke.ps1 -BuildEfi` with those ten switches and the QEMU/OVMF
+arguments below. The wrapper requires a fresh image and validates exactly 82
+application records, including eleven churn rows and `CLROS_M04_014_READY`.
+The three fixed seeds complete 192 rounds, 476 direct allocations/reclamations,
+198 collections and four read-only stack-canary checks. This is a bounded
+diagnostic of the original explicit-root collector before ExitBootServices.
+
+The project, publisher and verifier carry the same explicit switch; the verifier
+requires the linked adapter only when selected. The runner loads the shared
+`seeded-collector-churn-records.ps1` validator, first validates the original GC
+records, then binds churn identities and counters to them. GC-only/default
+profiles reject churn output. The first-exit profile is incompatible with GC
+and therefore with churn. Combined integration evidence is in
+[step1040](../done/step1040.md) and [step1042](../done/step1042.md); final acceptance remains pending.
+
+## First real exit profile (M03-007)
+
+The integrated, default-off first-exit profile is pending acceptance under #64
+and #560; see [step1032](../done/step1032.md) and [step1042](../done/step1042.md).
+Build and capture it through the ordinary wrapper:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 -BuildEfi -EnableM03FirstRealExitBootServicesProbe -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableAcpiPhysicalDiscoveryProbe -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
+```
+
+All three prerequisite switches are required; other diagnostic profiles are
+rejected. The publisher forwards the switch to actual compilation and verifies
+the linked Enter/Diagnose/Fault callbacks. The runner requires a fresh build and
+disk, the exact 61 application records, copied-ACPI numeric consistency, 750 ms
+quiet drain and runner-owned teardown. Marker/preset overrides, alternate raw
+observers and trailing output are rejected. The guest halts after owned COM1
+reporting; runner exit zero does not mean EFI returned to firmware. This profile
+does not reclaim firmware pages or start a workload.
+
 ## Current Status
 
 An explicit EFI NativeAOT project shell exists at `src/OS/OS.csproj`. It is
@@ -2660,8 +2704,8 @@ byte-identical to the reviewed development image; the canonical COFF differs
 only in debug information, while runtime bytes, symbols and relocations match.
 The default and GC profiles contain 21 and 70 CLROS records respectively.
 
-The runner's informational GC summary still says `lines=60` and
-`nonCollecting=true`; those fields are obsolete. The actual strict parser,
+At the accepted `42a516e` revision, the runner's informational GC summary said
+`lines=60` and `nonCollecting=true`; those fields were obsolete. The strict parser,
 70-record raw capture and `CLROS_M04_013_READY` establish the scoped acceptance.
-The prepared first-exit/churn integration corrects that summary. No general
+The first-exit/churn integration in [step1042](../done/step1042.md) corrects that summary. No general
 runtime, hosted .NET or real firmware-exit claim follows from this profile.

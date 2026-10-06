@@ -2,7 +2,20 @@ namespace OS.Kernel.Diagnostics;
 
 public static partial class Probes
 {
-    public const int ProbeCatalogCount = 16;
+#if M04_SEEDED_COLLECTOR_CHURN_PROBE
+    public const bool EnableM04SeededCollectorChurnProbe = true;
+#else
+    public const bool EnableM04SeededCollectorChurnProbe = false;
+#endif
+
+#if M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE
+    public const bool EnableM03FirstRealExitBootServicesProbe = true;
+#else
+    public const bool EnableM03FirstRealExitBootServicesProbe = false;
+#endif
+
+#if !NOSTDLIB_EFI
+    public const int ProbeCatalogCount = 17;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -140,6 +153,16 @@ public static partial class Probes
             EnableExitBootServicesFreshMapProbe,
             ProbeRisk.BoundarySimulation,
             "Requires a fresh UEFI memory map before a future ExitBootServices attempt without calling firmware.");
+    }
+
+    public static ProbeDefinition GetM03FirstRealExitBootServicesProbe()
+    {
+        return new ProbeDefinition(
+            UefiExitBootServicesGroup,
+            nameof(EnableM03FirstRealExitBootServicesProbe),
+            EnableM03FirstRealExitBootServicesProbe,
+            ProbeRisk.Destructive,
+            "Exits firmware boot services and adopts owned descriptors, CR3 and COM1 before terminal halt.");
     }
 
     public static ProbeDefinition GetAcpiPhysicalDiscoveryProbe()
@@ -295,6 +318,9 @@ public static partial class Probes
             case 15:
                 definition = GetM01OwnedPagingProbe();
                 return true;
+            case 16:
+                definition = GetM03FirstRealExitBootServicesProbe();
+                return true;
             default:
                 definition = default;
                 return false;
@@ -331,8 +357,10 @@ public static partial class Probes
             destination.Length,
             ProbeCatalogCount);
     }
+#endif
 }
 
+#if !NOSTDLIB_EFI
 public enum M01LiveProbePolicyStatus : byte
 {
     Uninitialized = 0,
@@ -426,3 +454,4 @@ public readonly struct ProbeDefinition(
 
     public string Description { get; } = description;
 }
+#endif

@@ -19,6 +19,16 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
     [ModuleInitializer]
     internal static void RunAll()
     {
+        Run("default boot boundary refuses before reading unprepared storage", () =>
+        {
+            FirstExitOwnedArenaState arena = default;
+            Need(BootSequence.RunFirstRealExitBootServicesTransition(ref arena, null) == FirstExitReturn.NotStarted,
+                "default-off boot boundary must not consume firmware or dereference the arena");
+            Need(Probes.TryGetProbe(16, out var probe) &&
+                probe.Name == nameof(Probes.EnableM03FirstRealExitBootServicesProbe) &&
+                !probe.EnabledByDefault && probe.Risk == ProbeRisk.Destructive &&
+                probe.Group == Probes.UefiExitBootServicesGroup, "destructive default-off catalog entry");
+        });
         Run("admission and failed exits cannot transfer", Failures);
         Run("successful exit transfers once and cannot return to its caller", TerminalTransfer);
         Run("permanent CR3 preparation and emitted continuation", PermanentContinuation);

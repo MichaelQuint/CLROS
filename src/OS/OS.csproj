@@ -71,7 +71,9 @@
 		<EnableM03FirmwareEntropySeedProbe Condition="'$(EnableM03FirmwareEntropySeedProbe)' == ''">false</EnableM03FirmwareEntropySeedProbe>
 		<EnableM04TypeManagerModuleRegistrationProbe Condition="'$(EnableM04TypeManagerModuleRegistrationProbe)' == ''">false</EnableM04TypeManagerModuleRegistrationProbe>
 		<EnableM03TypedExitBootServicesCallProbe Condition="'$(EnableM03TypedExitBootServicesCallProbe)' == ''">false</EnableM03TypedExitBootServicesCallProbe>
+		<EnableM03FirstRealExitBootServicesProbe Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == ''">false</EnableM03FirstRealExitBootServicesProbe>
 		<EnableM04GcStaticRootMaterializationProbe Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == ''">false</EnableM04GcStaticRootMaterializationProbe>
+		<EnableM04SeededCollectorChurnProbe Condition="'$(EnableM04SeededCollectorChurnProbe)' == ''">false</EnableM04SeededCollectorChurnProbe>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'">
@@ -276,8 +278,16 @@
 		<DefineConstants>$(DefineConstants);M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE</DefineConstants>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE</DefineConstants>
+	</PropertyGroup>
+
 	<PropertyGroup Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM04SeededCollectorChurnProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_SEEDED_COLLECTOR_CHURN_PROBE</DefineConstants>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -376,12 +386,19 @@
 		<Compile Include="..\OS.Kernel\Boot\TypedNoStdlibExitBootServicesCallAdapter.cs" Link="Boot\TypedNoStdlibExitBootServicesCallAdapter.cs" />
 		<Compile Include="..\OS.Kernel\Boot\NoAllocationOrUnrelatedFirmwareCallOccursBetween.cs" Link="Boot\NoAllocationOrUnrelatedFirmwareCallOccursBetween.cs" />
 		<Compile Include="..\OS.Kernel\Boot\BoundedRetryStaleKeyStatus.cs" Link="Boot\BoundedRetryStaleKeyStatus.cs" />
+		<Compile Include="..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs" Link="Boot\FirstOptRealExitBootServicesTransition.cs" />
+		<Compile Include="..\OS.Kernel\Boot\BootSequence.cs" Link="Boot\BootSequence.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\Probes.cs" Link="Diagnostics\Probes.cs" />
+		<Compile Include="..\..\std\no-runtime\shared\Hash\Crc32.cs" Link="Std\Hash\Crc32.cs" />
 		<Compile Include="..\OS.Kernel\Platform\FirmwareServicesMode.cs" Link="Platform\FirmwareServicesMode.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\TypedExitBootServicesCallProbeAuthority.cs" Link="Diagnostics\TypedExitBootServicesCallProbeAuthority.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\GCStaticRootsMalformedMetadata.cs" Link="Runtime\GCStaticRootsMalformedMetadata.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\BoundedNonMovingCollectorExplicitRootEnumeration.cs" Link="Runtime\BoundedNonMovingCollectorExplicitRootEnumeration.cs" />
 		<Compile Include="Runtime\GCStaticRootMaterializationProbe.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\GCStaticRootMaterializationProbeAuthority.cs" Link="Diagnostics\GCStaticRootMaterializationProbeAuthority.cs" />
+		<Compile Include="..\..\std\no-runtime\shared\DeterministicRandom32.cs" Link="Std\DeterministicRandom32.cs" />
+		<Compile Include="..\OS.Kernel\Runtime\SeededAllocationChurnCollectionRootRetentionGuestProbes.cs" Link="Runtime\SeededAllocationChurnCollectionRootRetentionGuestProbes.cs" />
+		<Compile Include="Runtime\SeededCollectorChurnProbe.cs" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
 		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
 		<ResolvedILCompilerPack Include="runtime.win-x64.Microsoft.DotNet.ILCompiler">
@@ -1446,6 +1463,51 @@
 		<Error Condition="'$(EnableM04CheckedReferenceBarrierProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'" Text="m04_type_manager_profile_conflict EnableM04TypeManagerModuleRegistrationProbe" />
 		<Error Condition="'$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m04_type_manager_profile_conflict EnableM03FirmwareEntropySeedProbe" />
 		<Error Condition="'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'" Text="m04_type_manager_profile_conflict EnableM04TypeManagerModuleRegistrationProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' != '' and '$(EnableM03FirstRealExitBootServicesProbe)' != 'true' and '$(EnableM03FirstRealExitBootServicesProbe)' != 'false'" Text="m03_first_exit_switch_invalid" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM01LoadedImageStackProbe)' != 'true'" Text="m03_first_exit_requires EnableM01LoadedImageStackProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM01LiveAllocatorProbe)' != 'true'" Text="m03_first_exit_requires EnableM01LiveAllocatorProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableAcpiPhysicalDiscoveryProbe)' != 'true'" Text="m03_first_exit_requires EnableAcpiPhysicalDiscoveryProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM01OwnedPagingProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM01OwnedPagingProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02SafeStubProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM02SafeStubProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM02CheckedPortIoBindingProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02Com1OwnedPortIoProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM02Com1OwnedPortIoProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02OwnedCom1ReadyProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM02OwnedCom1ReadyProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM02PanicSafeOwnedCom1Probe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM02OwnedX64GdtEncodingProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02GuardedIstStackAllocationProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM02GuardedIstStackAllocationProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM02OwnedGdtTssTerminalProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM02NormalizedInterruptFramePageProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM02OwnedIdtGatePopulationProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02IdtrContinuedExecutionProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM02IdtrContinuedExecutionProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02Ud2VectorStateProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM02Ud2VectorStateProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM04IndependentEndianConformanceProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM04IndependentEndianConformanceProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM04ArithmeticConformanceProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM04ArithmeticConformanceProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM04LayoutContractProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM04LayoutContractProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM04ManagedHeapPageRangeProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM04ManagedHeapPageRangeProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM02PageFaultCr2ErrorCodeProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02DoubleFaultIstProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM02DoubleFaultIstProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM02UnexpectedVectorPanicProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM04RhpNewFastProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM04RhpNewFastProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM04RhpNewFastBeforeBindFailureProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM04RhpNewFastExhaustionFailureProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM04SzArrayAllocationProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM04SzArrayAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM04SzArrayAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM04StringAllocationProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM04StringAllocationBeforeBindProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM04StringAllocationExhaustionProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM04StringAllocationInvalidLengthProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM03MemoryMapCaptureProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM04CheckedReferenceBarrierProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM03FirmwareEntropySeedProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM04TypeManagerModuleRegistrationProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM03TypedExitBootServicesCallProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM03TypedExitBootServicesCallProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableM04GcStaticRootMaterializationProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableUefiGoneSimulationProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableUefiGoneSimulationProbe" />
+		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableExitBootServicesFreshMapProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableExitBootServicesFreshMapProbe" />
+		<Error Condition="'$(EnableM04SeededCollectorChurnProbe)' != '' and '$(EnableM04SeededCollectorChurnProbe)' != 'true' and '$(EnableM04SeededCollectorChurnProbe)' != 'false'" Text="m04_churn_switch_invalid" />
+		<Error Condition="'$(EnableM04SeededCollectorChurnProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'" Text="m04_churn_requires_gc_profile" />
 	</Target>
 
 	<Target Name="CustomizeReferences"

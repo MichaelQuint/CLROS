@@ -4360,6 +4360,16 @@ The `APP_PACKAGE_READY`, `APP_LAUNCH_READY`, `APP_PAYLOAD_READY`, `APP_EXEC_MAPP
 
 ## Next Steps
 
+The M03-007 implementation now has an explicit first real-exit profile, documented
+in [EFI build](efi-build.md#first-real-exit-profile-m03-007). `BootSequence` owns
+the terminal transition from authenticated firmware callbacks to the retained
+owned continuation. Preparation reserves code, map, page tables, descriptors,
+main stack and three IST stacks before the final capture/exit window. On success
+the continuation adopts owned descriptors and CR3, checks retained ACPI/allocator
+state, and emits only through owned COM1. No firmware memory is reclaimed and no
+general adapter revocation is claimed. Staged guest results are development
+evidence; [step1032](../done/step1032.md) records the remaining acceptance work.
+
 The preparatory M03-005 `NoAllocationOrUnrelatedFirmwareCallOccursBetween`
 window accepts an already-owned writable map buffer and one retained state.
 It admits the typed exit adapter before a single final `GetMemoryMap`, validates

@@ -2,6 +2,14 @@
 
 ## Current Status
 
+M03-007 adds a staged default-off terminal continuation using owned COM1,
+descriptor tables, main/IST stacks and CR3 after the real firmware exit. Its
+probe is catalogued as destructive in `Probes.cs`; see the
+[profile command](efi-build.md#first-real-exit-profile-m03-007) and
+[pending evidence](../done/step1032.md). The earlier debugger-injected fault
+experiments remain development evidence. Canonical negative/native acceptance
+is still required; this does not change the accepted M02 diagnostic boundary.
+
 The bounded M02 technical exit is now supported by the separately accepted
 pre-`ExitBootServices` local-QEMU experiments for owned COM1, private descriptor
 state and controlled UD2/PF/DF/vector-32 delivery. All 20 keyed children have

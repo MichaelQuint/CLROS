@@ -146,6 +146,9 @@ internal static unsafe partial class RhpNewFastAllocation
             GcLine(6, s_gcOperation, s_gcCalls, b->AllocationCount, b->UsedBytes);
             GcLine(8, s_gcStack.Checks, s_gcStack.Final0, s_gcStack.Final1, s_gcStack.MinimumWitness);
             RunCollectorGraph();
+#if M04_SEEDED_COLLECTOR_CHURN_PROBE
+            if (OS.Kernel.Diagnostics.Probes.EnableM04SeededCollectorChurnProbe) RunSeededCollectorChurn();
+#endif
         }
     }
 

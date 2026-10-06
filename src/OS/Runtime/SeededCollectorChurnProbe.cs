@@ -4,8 +4,8 @@ using System.Runtime.CompilerServices;
 
 namespace OS.Runtime;
 
-// Prepared adapter only: the canonical project has no source admission or call
-// site yet. The diagnostic mutates the original collector heap before EBS.
+// Explicit diagnostic substep of the GC profile. It mutates the original
+// collector heap before EBS, after the retained graph and stack checks pass.
 internal static unsafe partial class RhpNewFastAllocation
 {
     private static ulong s_seededPhase, s_seededChecks, s_seededMinimumWitness;

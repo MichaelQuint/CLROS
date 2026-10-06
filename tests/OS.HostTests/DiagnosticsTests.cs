@@ -106,7 +106,12 @@ internal static class DiagnosticsTests
                 nameof(Probes.EnableM01LiveAllocatorProbe)) ||
             !IsCompileTimeFalseProbe(
                 nameof(Probes.EnableM01OwnedPagingProbe)) ||
-            Probes.ProbeCatalogCount != 16)
+            Probes.ProbeCatalogCount != 17 ||
+            !IsCompileTimeFalseProbe(nameof(Probes.EnableM03FirstRealExitBootServicesProbe)) ||
+            !Probes.TryGetProbe(16, out ProbeDefinition firstExit) ||
+            firstExit.Name != nameof(Probes.EnableM03FirstRealExitBootServicesProbe) ||
+            firstExit.EnabledByDefault || firstExit.Risk != ProbeRisk.Destructive ||
+            firstExit.Group != Probes.UefiExitBootServicesGroup)
         {
             return false;
         }

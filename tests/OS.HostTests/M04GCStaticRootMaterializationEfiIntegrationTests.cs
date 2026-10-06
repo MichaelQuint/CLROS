@@ -52,11 +52,14 @@ internal static class M04GCStaticRootMaterializationEfiIntegrationTests
             Need(conditions.Count(x => x == "'$(" + Flag + ")' == 'true' and '$(" + prerequisite + ")' != 'true'") == 1, "explicit prerequisite " + prerequisite);
         string[] flags = Regex.Matches(project.ToString(), @"\$\((Enable\w+Probe)\)")
             .Select(x => x.Groups[1].Value).Distinct(StringComparer.Ordinal).ToArray();
-        Need(flags.Length == 42, "complete actual profile vector");
-        foreach (string other in flags.Except(Chain.Append(Flag), StringComparer.Ordinal))
-            Need(conditions.Count(x => x == "'$(" + Flag + ")' == 'true' and '$(" + other + ")' == 'true'") == 1, "conflict " + other);
+        Need(flags.Length == 44, "complete actual profile vector");
+        Need(conditions.Contains("'$(EnableM04SeededCollectorChurnProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'"),"churn inherits GC prerequisites and conflicts");
+        foreach (string other in flags.Except(Chain.Append(Flag).Append("EnableM04SeededCollectorChurnProbe"), StringComparer.Ordinal))
+            Need(conditions.Count(x => x == (other == "EnableM03FirstRealExitBootServicesProbe"
+                ? "'$(" + other + ")' == 'true' and '$(" + Flag + ")' == 'true'"
+                : "'$(" + Flag + ")' == 'true' and '$(" + other + ")' == 'true'")) == 1, "conflict " + other);
         string[] compile = project.Descendants("Compile").Select(x => (string)x.Attribute("Include")!).ToArray();
-        Need(compile.Length == 101 && compile.Distinct(StringComparer.Ordinal).Count() == 101, "unique complete closure");
+        Need(compile.Length == 108 && compile.Distinct(StringComparer.Ordinal).Count() == 108, "unique complete closure");
         foreach (string file in new[] { @"..\OS.Kernel\Runtime\GCStaticRootsMalformedMetadata.cs", @"Runtime\GCStaticRootMaterializationProbe.cs", @"..\OS.Kernel\Runtime\BoundedNonMovingCollectorExplicitRootEnumeration.cs", @"..\OS.Kernel\Diagnostics\GCStaticRootMaterializationProbeAuthority.cs" })
             Need(compile.Contains(file, StringComparer.Ordinal), "compiled source " + file);
     }

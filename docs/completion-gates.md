@@ -10,6 +10,12 @@ tuple, and a default-off M02-010 LoaderData materialization/readback tuple, plus
 broad host-tested planning contracts, but it is not a functional kernel, not
 cloud-ready, and not production-ready.
 
+M03-007 remains pending: [step1032](../done/step1032.md) stages the explicit
+first-exit publisher, `BootSequence`/`Probes` integration and terminal runner.
+Its development guest evidence does not change a numbered gate. Acceptance
+still requires the reviewed integrated source, default regression and canonical
+native/negative evidence; #64 and draft PR554 remain open.
+
 Gate status is explicit:
 
 - `Pass` means every acceptance item for that gate has preserved evidence.
@@ -1898,7 +1904,7 @@ buffers, lifecycle and disk accounting are associated. PE/link/ILC maps match
 the reviewed bytes; COFF differences are exclusively in debug information.
 The first-party stack bound is 13688 bytes, or 14136 with a conservative thunk
 allowance, within the 16384-byte clearance. Firmware body/interrupt stack depth
-remains excluded. #83 can proceed after merge and closure of #82/#552.
+remains excluded. PR553 merged at `8501315`; #82/#552 are closed and #83 is claimed.
 
 This is one diagnostic-owned 4096-byte heap with synchronous nonmoving
 collection and explicit/retained-static roots. General GC/runtime startup,
@@ -1937,8 +1943,12 @@ runner copy composes it after existing whole-transcript/GC checks: the actual
 GC-only profile rejects churn records. This is parser preparation, not canonical
 profile admission or a new guest run.
 
-The call site exists only in an ignored source copy and the adapter is excluded
-from the canonical project. This is development evidence, not official acceptance.
-#83 still requires #82 acceptance, serialized source and profile admission, strict
-serial integration, remaining native review and official captures. Gates3/4 remain
-unchanged.
+[Step1040](../done/step1040.md) prepares the combined first-exit/churn integration
+with explicit source and switch admission, the original-collector call site,
+strict serial integration and one batch of existing-fixture updates. Its staged
+churn publication has exactly the reviewed development EFI and linker-map hashes;
+the ordinary wrapper passes its fresh QEMU/OVMF capture and 82-record check.
+The collector prerequisite is accepted and closed. [Step1042](../done/step1042.md)
+integrates the reviewed first-exit/churn patch under shared lane #560. #83 remains
+open for full batch regression and final artifact/lifecycle/disk association.
+Gates3/4 remain unchanged.

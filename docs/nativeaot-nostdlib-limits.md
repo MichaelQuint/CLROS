@@ -1706,7 +1706,14 @@ runner lifecycle. An ignored runner copy composes these checks over the complete
 failed captures reject under Windows PowerShell 5.1. The canonical runner and
 profile remain unchanged, so this helper is preparation for later integration.
 
+[Step1040](../done/step1040.md) prepares the shared first-exit/churn integration:
+108 explicit compile inputs, 44 profile switches, the default-off churn authority
+and original collector call site, linked-adapter checks and a single shared
+transcript helper. The staged ordinary churn wrapper passes with the exact
+step1036 EFI and linker-map hashes, so the scoped native review can be reused.
+
 This is development guest evidence using allocator APIs directly, not proof of
 compiler-created allocations. Stack witnesses/canaries alone do not establish a
-native stack bound. #83 remains open behind #82 acceptance, canonical source/profile
-and strict serial admission, remaining native review and official guest captures.
+native stack bound. #82 is accepted and closed. [Step1042](../done/step1042.md)
+integrates the reviewed profiles under shared lane #560; #83 remains open for full
+batch regression and final artifact/lifecycle/disk association.

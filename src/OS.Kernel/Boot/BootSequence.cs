@@ -1,3 +1,4 @@
+#if !NOSTDLIB_EFI
 using System.Text;
 using OS.Drivers;
 using OS.Manifest;
@@ -8,9 +9,11 @@ using OS.Kernel.Runtime;
 using OS.Net;
 using OS.Pal;
 using OS.Storage;
+#endif
 
 namespace OS.Boot;
 
+#if !NOSTDLIB_EFI
 public enum EarlyDiagnosticsReadinessStatus
 {
     Ready = 0,
@@ -195,8 +198,39 @@ public enum NativeAppArgumentHandoffReadinessStatus
     HandoffFailed = 2
 }
 
+#endif
 public static class BootSequence
 {
+    /// <summary>
+    /// Opt-in terminal boot boundary, after the original M01 allocator, copied
+    /// ACPI and boot marker plan. The adapter enters on the prepared owned stack;
+    /// this boundary consumes firmware authority before the final map/exit window.
+    /// Success transfers directly to owned descriptor/CR3 adoption and cannot return.
+    /// </summary>
+    public static unsafe OS.Boot.FirstExitReturn RunFirstRealExitBootServicesTransition(
+        ref OS.Boot.FirstExitOwnedArenaState arena, byte* code)
+    {
+        if (!IsFirstRealExitBootServicesEnabled())
+            return OS.Boot.FirstExitReturn.NotStarted;
+        if (!arena.IsReady || code == null ||
+            !OS.Boot.FirstExitOwnedArena.ValidateCanaries(arena))
+            return OS.Boot.FirstExitReturn.InvalidStorage;
+        if (OS.Boot.FirstExitFirmwareBinding.Consume(ref *arena.Binding,
+                OS.Kernel.Platform.FirmwareServicesMode.BootServicesAvailable,
+                out var getMap, out var exit, out void* handle) != OS.Boot.FirstExitBindingStatus.Consumed)
+            return OS.Boot.FirstExitReturn.FirmwareUnavailable;
+        return OS.Boot.FirstOptRealExitBootServicesTransition.AttemptAndTransfer(ref *arena.Transition,
+            OS.Kernel.Platform.FirmwareServicesMode.BootServicesAvailable, getMap, exit, handle,
+            arena.Map, OS.Boot.FirstExitOwnedArena.MapBytes,
+            (delegate* unmanaged<OS.Boot.FirstExitTransitionState*, void*, void>)
+                (code + OS.Boot.FirstExitCodeBundle.PermanentOffset),
+            arena.Permanent, OS.Boot.FirstExitPermanentCr3Stub.ContextBytes);
+    }
+
+    private static bool IsFirstRealExitBootServicesEnabled() =>
+        OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe;
+
+#if !NOSTDLIB_EFI
     private const int NativeManifestEnvironmentDiagnosticMarkerCapacity = 512;
     private const int FetchAppHttpTcpExchangeDiagnosticMarkerCapacity = 1024;
     private const int VirtioNetRxTcpDispatchDiagnosticMarkerCapacity = 1024;
@@ -3574,4 +3608,5 @@ public static class BootSequence
         events.Record(line);
         serial.WriteLine(line);
     }
+#endif
 }

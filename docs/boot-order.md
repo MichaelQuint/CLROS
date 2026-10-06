@@ -1,8 +1,25 @@
 # Boot Order
 
+The optional seeded churn diagnostic is a substep of the existing GC diagnostic,
+after `RunCollectorGraph` has established the retained static child and checked
+the original stack. `Probes.EnableM04SeededCollectorChurnProbe` owns its
+default-off compile-time toggle. It adds no boot phase and does not bypass or
+advance the ordinary `BootSequence` plan or ExitBootServices boundary.
+
 ## Current Status
 
 `src/OS.Kernel/Boot/BootSequence.cs` is the managed boot-order boundary. `BootSequencePlan.cs` is the allocation-free marker plan used by both `BootSequence.Run` and the no-stdlib EFI artifact so firmware smoke output cannot bypass the ordered phase markers.
+
+The default-off M03-007 profile also source-links the no-stdlib slice of
+`BootSequence.RunFirstRealExitBootServicesTransition`. Its order is copied ACPI,
+original M01 loaded-image/stack and allocator preparation, the ordinary boot marker
+plan, first-exit preparation, owned stack entry, one consumed firmware binding,
+final map/bounded exit retry, then terminal owned descriptor/CR3 adoption and COM1
+reporting. The adapter cannot resume the boot plan after entering the owned stack.
+`Probes.EnableM03FirstRealExitBootServicesProbe` owns its compile-time toggle;
+without the explicit symbol the boundary refuses before touching arena storage.
+The normal managed boot path is unchanged. Acceptance is pending in
+[step1032](../done/step1032.md).
 
 The firmware entry path emits `TEST_START efi.main`, `EFI_CONSOLE_READY`, UEFI memory-map status markers, `BOOT_HANDOFF_READY`, `BOOT_MEMORY_MAP_ACCEPTED`, `BOOT_MEMORY_REGIONS_READY`, `BOOT_MEMORY_REGION_COUNT <count>`, `BOOT_ACPI_RSDP_HANDOFF_READY`, and `UEFI_ACPI_RSDP_READY` before it enters the ordered `boot.sequence` marker plan.
 
