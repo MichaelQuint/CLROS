@@ -23,6 +23,11 @@ public sealed class GuardedPlatformConsole : IPlatformConsole
         FirmwareCallResult guardResult = _firmware.RequireBootServices(
             PlatformConsoleOperations.OutputString);
 
+        if (!guardResult.Succeeded)
+        {
+            return PlatformConsoleResult.FirmwareServicesUnavailable(guardResult);
+        }
+
         PlatformConsoleResult result = _sink.Available
             ? PlatformConsoleResult.Written(guardResult, line)
             : PlatformConsoleResult.SinkUnavailable(guardResult, line);

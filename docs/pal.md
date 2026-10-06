@@ -83,6 +83,11 @@ Current work is limited to boundary design, Kestrel-critical ABI contract defini
 - `IPlatformMemoryMap` defines the first narrow memory-map platform contract. It models a guarded memory-map snapshot copy as a status-coded operation and reports the attempted firmware operation plus firmware-services mode on failure.
 - `PlatformMemoryMapResult` and `PlatformMemoryMapStatus` distinguish successful snapshot copies, unavailable firmware services, and invalid snapshots without throwing from kernel-facing paths.
 - `IPlatformConsole` defines a narrow guarded firmware-console output contract. It models one marker-line write as a status-coded operation, validates bounded printable ASCII line input before a sink write, and reports firmware-services mode on failure.
+- `GuardedPlatformConsole` returns immediately when the firmware guard denies
+  access, before reading sink availability or writing a line. Existing console
+  cases exercise this production adapter with a counting sink; simulated and
+  marked-exited modes require zero backend accesses. This is host-contract
+  evidence, not the live retained-capability revocation required by M03-008.
 - `PlatformConsoleResult` and `PlatformConsoleStatus` distinguish successful line writes, unavailable firmware services, invalid marker lines, and missing console sinks without throwing from kernel-facing paths.
 - `IPlatformTimer` defines a narrow guarded firmware-timer read contract. It models monotonic tick plus frequency metadata as a status-coded operation and denies reads after UEFI-gone simulation or marked `ExitBootServices`.
 - `PlatformTimerResult` and `PlatformTimerStatus` distinguish successful monotonic reads, unavailable firmware services, and invalid timer metadata without throwing from kernel-facing paths.
@@ -821,7 +826,10 @@ UEFI encapsulation is a prerequisite for later PAL and hosted-tier work, but it 
 
 `IPlatformMemoryMap` is an encapsulation guardrail only. The host tests use a guarded test double and do not prove live UEFI descriptor copying, OS-owned memory-map storage, or `ExitBootServices`.
 
-`IPlatformConsole` is an encapsulation guardrail only. The host tests use a guarded test double and do not prove live UEFI `OutputString`, serial fallback, owned post-firmware serial output, or integration with `EfiEntry`.
+`IPlatformConsole` is an encapsulation guardrail only. The host tests use
+`GuardedPlatformConsole` with a counting sink and do not prove live UEFI
+`OutputString`, serial fallback, owned post-firmware serial output, or integration
+with `EfiEntry`.
 
 `IPlatformTimer` is an encapsulation guardrail only. The host tests use an injected metadata source and do not prove HPET, APIC timer, TSC calibration, scheduler wakeups, `Task.Delay`, hosted .NET timers, or Kestrel timeout behavior.
 
