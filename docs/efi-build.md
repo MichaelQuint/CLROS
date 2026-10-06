@@ -29,6 +29,11 @@ and therefore with churn. Combined integration evidence is in
 
 The integrated, default-off first-exit profile is pending acceptance under #64
 and #560; see [step1032](../done/step1032.md) and [step1042](../done/step1042.md).
+The source-fixture selector migration in [step1046](../done/step1046.md)
+keeps first-exit publications and security-cookie storage out of historical
+default profiles while preserving their exact implementation guards. This is
+host-fixture evidence; the common and fresh guest acceptance batch is still
+required before these issues close.
 Build and capture it through the ordinary wrapper:
 
 ```powershell

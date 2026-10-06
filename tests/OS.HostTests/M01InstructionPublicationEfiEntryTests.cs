@@ -10,6 +10,7 @@ internal static class M01InstructionPublicationEfiEntryTests
     private const string TypedEbsSymbol = "M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE";
     private const string GcStaticSymbol = "M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE";
     private const string EntropySymbol = "M03_FIRMWARE_ENTROPY_SEED_PROBE";
+    private const string FirstExitSymbol = "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE";
     private const string IssueTestName = "m01.035";
     private const string ReadyMarker = "CLROS_M01_035_READY";
     private const string StageOneSymbol =
@@ -234,7 +235,8 @@ internal static class M01InstructionPublicationEfiEntryTests
             !panicAlias.Contains("#if m02_unexpected_vector_panic_probe", StringComparison.Ordinal))
             return Failure("unexpected-vector-selector-ordinal-and-unknown");
 
-        if (!TestFixedAllocationProfileIsolation(source)) return false;
+        if (!TestFixedAllocationProfileIsolation(source)
+            || !TestFirstExitProfileIsolation(source)) return false;
 
         string sanitized = SanitizeCode(profile111);
         if (Regex.Matches(
@@ -265,6 +267,48 @@ internal static class M01InstructionPublicationEfiEntryTests
 
         return ValidateContract(profile111, out string failure)
             || Failure("positive-contract=" + failure);
+    }
+
+    private static bool TestFirstExitProfileIsolation(string source)
+    {
+        string disabled = SelectProfile(source, true, true, false, false);
+        string enabled = SelectProfile(source, true, true, false, false,
+            firstExitEnabled: true);
+        string adapter = FindTypeBody(enabled, "M03FirstExitAdapter") ?? string.Empty;
+        string prepare = FindMethodBody(adapter, "Prepare") ?? string.Empty;
+        string query = FindMethodBody(adapter, "Query") ?? string.Empty;
+        // First exit retains the two stage-one publications and adds one each
+        // for the architectural query and final retained code bundle.
+        if (CountDirectSerializerCalls(disabled) != 2
+            || CountIdentifierOccurrences(disabled, "M03FirstExitAdapter") != 0
+            || CountDirectSerializerCalls(enabled) != 4
+            || CountDirectExpectedCookieReferences(enabled) != 4
+            || CountDirectSerializerCalls(adapter) != 2
+            || CountDirectSerializerCalls(prepare) != 1
+            || CountDirectExpectedCookieReferences(prepare) != 1
+            || CountDirectSerializerCalls(query) != 1
+            || CountDirectExpectedCookieReferences(query) != 1
+            || FindTypeBody(enabled, "M01StageThreeAdapter") is not null)
+            return Failure("first-exit-publication-isolation");
+
+        string synthetic = "#if " + FirstExitSymbol + "\n" + SerializerCall
+            + ";\n#else\nFirstExitOff();\n#endif\n"
+            + "#if UNRELATED_PROBE\nUnknown();\n#else\nUnknownElse();\n#endif\n";
+        string selected = SelectProfile(synthetic, true, true, false, false,
+            firstExitEnabled: true);
+        string unselected = SelectProfile(synthetic, true, true, false, false,
+            stringInvalidLengthEnabled: true);
+        string alias = SelectProfile(synthetic.Replace(FirstExitSymbol,
+            FirstExitSymbol.ToLowerInvariant(), StringComparison.Ordinal), false, false, false, false);
+        if (CountDirectSerializerCalls(selected) != 1
+            || CountDirectSerializerCalls(unselected) != 0
+            || selected.Contains("FirstExitOff();", StringComparison.Ordinal)
+            || !unselected.Contains("FirstExitOff();", StringComparison.Ordinal)
+            || !selected.Contains("#if UNRELATED_PROBE", StringComparison.Ordinal)
+            || !selected.Contains("UnknownElse();", StringComparison.Ordinal)
+            || !alias.Contains("#if m03_first_real_exit_boot_services_probe", StringComparison.Ordinal))
+            return Failure("first-exit-selector-ordinal-and-unknown");
+        return true;
     }
 
     private static bool TestFixedAllocationProfileIsolation(string source)
@@ -3945,7 +3989,8 @@ internal static class M01InstructionPublicationEfiEntryTests
         bool stringEnabled = false,
         bool stringBeforeBindEnabled = false,
         bool stringExhaustionEnabled = false,
-        bool stringInvalidLengthEnabled = false)
+        bool stringInvalidLengthEnabled = false,
+        bool firstExitEnabled = false)
     {
         StringBuilder output = new();
         Stack<PreprocessorFrame> stack = new();
@@ -3957,8 +4002,14 @@ internal static class M01InstructionPublicationEfiEntryTests
             if (trimmed.StartsWith("#if ", StringComparison.Ordinal))
             {
                 string condition = trimmed[4..].Trim();
+                bool firstExitCondition = string.Equals(condition, FirstExitSymbol, StringComparison.Ordinal)
+                    || string.Equals(condition, "M04_MANAGED_HEAP_PAGE_RANGE_PROBE || " + FirstExitSymbol, StringComparison.Ordinal)
+                    || string.Equals(condition, TypeManagerSymbol + " || " + GcStaticSymbol + " || " + FirstExitSymbol, StringComparison.Ordinal);
+                bool loadedImageCondition = string.Equals(condition,
+                    M04RhpNewFastSymbol + " || " + M02UnexpectedVectorPanicSymbol + " || " + TypeManagerSymbol + " || " + FirstExitSymbol,
+                    StringComparison.Ordinal);
                 bool selected =
-                    string.Equals(
+                    firstExitCondition || loadedImageCondition || string.Equals(
                         condition,
                         StageOneSymbol,
                         StringComparison.Ordinal)
@@ -4007,7 +4058,9 @@ internal static class M01InstructionPublicationEfiEntryTests
             || string.Equals(condition, TypeManagerSymbol + " || " + GcStaticSymbol, StringComparison.Ordinal)
             || string.Equals(condition, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, StringComparison.Ordinal);
                 bool selectedValue =
-                    string.Equals(
+                    firstExitCondition ? firstExitEnabled
+                    : loadedImageCondition ? rhpNewFastEnabled || unexpectedVectorPanicEnabled || firstExitEnabled
+                    : string.Equals(
                         condition,
                         StageOneSymbol,
                         StringComparison.Ordinal)
@@ -4056,7 +4109,8 @@ internal static class M01InstructionPublicationEfiEntryTests
                                                     : string.Equals(condition, M04StringSymbol, StringComparison.Ordinal) ? stringEnabled
                                                     : string.Equals(condition, M04StringBeforeSymbol, StringComparison.Ordinal) ? stringBeforeBindEnabled
                                                     : string.Equals(condition, M04StringExhaustionSymbol, StringComparison.Ordinal) ? stringExhaustionEnabled
-                                                    : stringInvalidLengthEnabled;
+                                                    : string.Equals(condition, M04StringInvalidLengthSymbol, StringComparison.Ordinal) ? stringInvalidLengthEnabled
+                                                    : false;
                 stack.Push(
                     new PreprocessorFrame(
                         selected,

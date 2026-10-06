@@ -13,6 +13,7 @@ internal static class M01LivePagingEfiEntryTests
     private const string TypedEbsSymbol = "M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE";
     private const string GcStaticSymbol = "M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE";
     private const string EntropySymbol = "M03_FIRMWARE_ENTROPY_SEED_PROBE";
+    private const string FirstExitSymbol = "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE";
     private const string IssueTestName = "m01.025";
     private const string ReadyMarker = "CLROS_M01_025_READY";
     private const string UnexpectedPanicSymbol =
@@ -2282,12 +2283,16 @@ internal static class M01LivePagingEfiEntryTests
             return Failure("baseline=" + baselineFailure);
         }
 
+        string stageThree = FindTypeBody(source, "M01StageThreeAdapter") ?? string.Empty;
+        if (stageThree.Length == 0) return Failure("mutation-stage-three-missing");
+        int stageThreeStart = source.IndexOf(stageThree, StringComparison.Ordinal);
+
         (string Name, string Old, string New)[] mutations =
         [
             (
                 "guard",
-                "#if M01_OWNED_PAGING_PROBE",
-                "#if true // M01_OWNED_PAGING_PROBE"
+                "\n#if M01_OWNED_PAGING_PROBE\n",
+                "\n#if true // M01_OWNED_PAGING_PROBE\n"
             ),
             (
                 "allocate-address-mode",
@@ -2524,7 +2529,10 @@ internal static class M01LivePagingEfiEntryTests
         foreach ((string name, string oldText, string newText)
             in mutations)
         {
-            if (!source.Contains(
+            // Other adapters may contain the same text before stage three.
+            bool guard = name == "guard";
+            string scope = guard ? source : stageThree;
+            if (!scope.Contains(
                     oldText,
                     StringComparison.Ordinal))
             {
@@ -2534,7 +2542,8 @@ internal static class M01LivePagingEfiEntryTests
             string mutated = ReplaceFirst(
                 source,
                 oldText,
-                newText);
+                newText,
+                guard ? 0 : stageThreeStart);
             if (ValidateEssentialContract(
                     mutated,
                     out string mutationFailure))
@@ -2545,6 +2554,8 @@ internal static class M01LivePagingEfiEntryTests
                     + " detail="
                     + mutationFailure);
             }
+            if (guard && mutationFailure != "guards")
+                return Failure("guard-mutation-wrong-rejection=" + mutationFailure);
         }
 
         return true;
@@ -3208,7 +3219,7 @@ internal static class M01LivePagingEfiEntryTests
 
     private static bool TestKnownFalsePanicSelector()
     {
-        foreach (string disabledSymbol in new[] { UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol, TypeManagerSymbol, TypedEbsSymbol, GcStaticSymbol, TypeManagerSymbol + " || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol })
+        foreach (string disabledSymbol in new[] { UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol, TypeManagerSymbol, TypedEbsSymbol, GcStaticSymbol, TypeManagerSymbol + " || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, FirstExitSymbol })
         {
         string fixture = "#if " + disabledSymbol + "\nPanicOnly();\n#else\nPanicOff();\n#endif\n"
             + "#if " + StageOneSymbol + "\n#if " + disabledSymbol
@@ -3273,6 +3284,7 @@ internal static class M01LivePagingEfiEntryTests
                         StageThreeSymbol,
                         StringComparison.Ordinal)
                     || string.Equals(condition, UnexpectedPanicSymbol, StringComparison.Ordinal)
+                    || string.Equals(condition, FirstExitSymbol, StringComparison.Ordinal)
                     || string.Equals(condition, MemoryMapSymbol, StringComparison.Ordinal)
             || string.Equals(condition, EntropySymbol, StringComparison.Ordinal)
             || string.Equals(condition, TypeManagerSymbol, StringComparison.Ordinal)
@@ -3896,10 +3908,12 @@ internal static class M01LivePagingEfiEntryTests
     private static string ReplaceFirst(
         string source,
         string oldText,
-        string newText)
+        string newText,
+        int startIndex)
     {
         int index = source.IndexOf(
             oldText,
+            startIndex,
             StringComparison.Ordinal);
         if (index < 0)
         {
