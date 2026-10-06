@@ -381,7 +381,10 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             const string firstMarker = "M03_EBS_RETURNED_SUCCESS\r\n";
             const string secondMarker = "M03_PERMANENT_CR3_ADOPTED\r\n";
             const string thirdMarker = "M03_POST_EBS_OWNED_DIAGNOSTIC\r\n";
-            for (int scenario = 0; scenario < 13; scenario++)
+            const string readyMarker = "CLROS_M03_007_READY\r\n";
+            const string passMarker = "TEST_PASS m03.007\r\n";
+            string transitionMarkers = firstMarker + secondMarker + thirdMarker;
+            for (int scenario = 0; scenario < 17; scenario++)
             {
                 state = default; faultOutputBytes = faultPolls = 0; faultTransmitReady = true; faultTransmitByteLimit = int.MaxValue;
                 FirstExitDiagnosticMemory candidate = memory;
@@ -397,14 +400,19 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 if (scenario == 10) faultTransmitByteLimit = firstMarker.Length + secondMarker.Length;
                 if (scenario == 11) ((uint*)arena.Transition)[1] = (uint)FirmwareServicesMode.BootServicesAvailable;
                 if (scenario == 12) arena.Permanent->Phase = FirstExitAdoptionPhase.Prepared;
+                if (scenario == 13) faultTransmitByteLimit = transitionMarkers.Length;
+                if (scenario == 14) { faultCorruptCanary = (byte*)(arena.StackBottom - 8); faultCorruptAfterBytes = transitionMarkers.Length; }
+                if (scenario == 15) faultTransmitByteLimit = transitionMarkers.Length + readyMarker.Length;
+                if (scenario == 16) { faultCorruptCanary = (byte*)(arena.StackBottom - 8); faultCorruptAfterBytes = transitionMarkers.Length + readyMarker.Length; }
                 bool passed = FirstExitPostExitDiagnostics.Report(ref state, ref arena, candidate);
                 string observed = Encoding.ASCII.GetString(FaultOutput, 0, faultOutputBytes);
-                string expected = scenario == 0 ? firstMarker + secondMarker + thirdMarker :
+                string expected = scenario == 0 ? transitionMarkers + readyMarker + passMarker :
+                    scenario is 15 or 16 ? transitionMarkers + readyMarker : scenario is 13 or 14 ? transitionMarkers :
                     scenario is 9 or 10 ? firstMarker + secondMarker : scenario is 3 or 5 ? firstMarker : "";
                 Need(passed == (scenario == 0) && observed == expected, "post-exit marker gating " + scenario);
                 FirstExitDiagnosticStatus expectedStatus = scenario == 0 ? FirstExitDiagnosticStatus.Completed :
-                    scenario is 3 or 9 ? FirstExitDiagnosticStatus.ValidationFailed :
-                    scenario is 4 or 5 or 10 ? FirstExitDiagnosticStatus.SerialFailed : FirstExitDiagnosticStatus.AdmissionFailed;
+                    scenario is 3 or 9 or 14 or 16 ? FirstExitDiagnosticStatus.ValidationFailed :
+                    scenario is 4 or 5 or 10 or 13 or 15 ? FirstExitDiagnosticStatus.SerialFailed : FirstExitDiagnosticStatus.AdmissionFailed;
                 Need(state.Status == expectedStatus, "post-exit status " + scenario);
                 int priorBytes = faultOutputBytes, priorPolls = faultPolls;
                 Need(!FirstExitPostExitDiagnostics.Report(ref state, ref arena, candidate) && faultOutputBytes == priorBytes && faultPolls == priorPolls,
@@ -414,11 +422,11 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 if (scenario == 3) entries[0] ^= 1;
                 if (scenario == 7) descriptor->Gdt[13] ^= 0x10;
                 if (scenario == 8) arena.Permanent->ObservedRsp = arena.StackTop - 4096 - 8;
-                if (scenario == 9) { *faultCorruptCanary ^= 1; faultCorruptCanary = null; }
+                if (scenario is 9 or 14 or 16) { *faultCorruptCanary ^= 1; faultCorruptCanary = null; }
                 if (scenario == 11) ((uint*)arena.Transition)[1] = (uint)FirmwareServicesMode.BootServicesExited;
                 if (scenario == 12) arena.Permanent->Phase = FirstExitAdoptionPhase.OwnedDiagnostic;
             }
-            Console.WriteLine("CLROS_M03_007_REPORT_HOST_READY identityBacking=true markerBytes=84 guestExecution=false");
+            Console.WriteLine("CLROS_M03_007_REPORT_HOST_READY identityBacking=true markerBytes=124 guestExecution=false");
         }
         finally { faultTransmitByteLimit = int.MaxValue; faultCorruptCanary = null; VirtualFree(entries, 0, 0x8000); }
     }

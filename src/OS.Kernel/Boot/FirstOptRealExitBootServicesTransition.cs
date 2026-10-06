@@ -113,6 +113,15 @@ public static unsafe class FirstExitPostExitDiagnostics
         if (!FirstExitOwnedArena.ValidateCanaries(arena)) return false;
         state.Status = FirstExitDiagnosticStatus.SerialFailed;
         if (!WriteMarker(backend, 2)) return false;
+        // Readiness and the terminal pass line use the same owned transport.
+        // Recheck canaries before either claim; a partial write never completes.
+        for (uint marker = 3; marker < 5; marker++)
+        {
+            state.Status = FirstExitDiagnosticStatus.ValidationFailed;
+            if (!FirstExitOwnedArena.ValidateCanaries(arena)) return false;
+            state.Status = FirstExitDiagnosticStatus.SerialFailed;
+            if (!WriteMarker(backend, marker)) return false;
+        }
         state.Status = FirstExitDiagnosticStatus.Completed;
         return true;
     }
@@ -137,6 +146,16 @@ public static unsafe class FirstExitPostExitDiagnostics
         {
             words[0] = 0x54534f505f33304dUL; words[1] = 0x4e574f5f5342455fUL;
             words[2] = 0x4e474149445f4445UL; words[3] = 0x000a0d434954534fUL; bytes = 31;
+        }
+        else if (marker == 3)
+        {
+            words[0] = 0x304d5f534f524c43UL; words[1] = 0x45525f3730305f33UL;
+            words[2] = 0x0000000a0d594441UL; words[3] = 0; bytes = 21;
+        }
+        else if (marker == 4)
+        {
+            words[0] = 0x5341505f54534554UL; words[1] = 0x30302e33306d2053UL;
+            words[2] = 0x00000000000a0d37UL; words[3] = 0; bytes = 19;
         }
         else return false;
         for (uint index = 0; index < bytes; index++)

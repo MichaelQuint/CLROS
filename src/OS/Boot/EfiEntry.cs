@@ -67,6 +67,15 @@ public static unsafe class EfiEntry
         internal static void Run(EfiSimpleTextOutputProtocol* console,
             EfiSerialIoProtocol* serial, EfiBootServices* services)
         {
+            // TEST_START m03.007; this is before the final map/exit window.
+            for (int i = 0; i < 20; i++)
+            {
+                ulong word = (i / 8) switch
+                {
+                    0 => 0x4154535f54534554UL, 1 => 0x302e33306d205452UL, _ => 0x000000000a0d3730UL
+                };
+                Write(console, serial, (byte)(word >> ((i % 8) * 8)));
+            }
             fixed (Storage* state = &s_storage)
             {
                 if (!Prepare(state, services))
