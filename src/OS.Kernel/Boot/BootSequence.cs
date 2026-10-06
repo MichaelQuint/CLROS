@@ -246,10 +246,10 @@ public static class BootSequence
         out OS.Kernel.Runtime.CompilerInterfaceDispatchResolution resolution)
     {
         resolution = default;
-        if (!OS.Kernel.Diagnostics.Probes.EnableM04InterfaceDispatchProbe)
-            return OS.Kernel.Runtime.CompilerInterfaceDispatchStatus.NotBound;
-        return OS.Kernel.Runtime.CompilerInterfaceDispatch.Resolve(
-            storage, capacity, receiver, cell, out resolution);
+        return OS.Kernel.Diagnostics.Probes.EnableM04InterfaceDispatchProbe
+            ? OS.Kernel.Runtime.CompilerInterfaceDispatch.Resolve(
+                storage, capacity, receiver, cell, out resolution)
+            : OS.Kernel.Runtime.CompilerInterfaceDispatchStatus.NotBound;
     }
 
 #if !NOSTDLIB_EFI
