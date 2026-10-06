@@ -10,7 +10,7 @@ using OS.Kernel.Platform;
 #if !M01_LOADED_IMAGE_STACK_PROBE || !M01_LIVE_ALLOCATOR_PROBE || !ACPI_PHYSICAL_DISCOVERY_PROBE
 #error The first real exit requires the original loaded-image, live allocator and copied ACPI adapters.
 #endif
-#if M01_OWNED_PAGING_PROBE || M04_MANAGED_HEAP_PAGE_RANGE_PROBE || M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE
+#if M01_OWNED_PAGING_PROBE || M04_MANAGED_HEAP_PAGE_RANGE_PROBE || M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE || M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE
 #error The first real exit is an exclusive firmware-CR3 path, with no intervening paging, heap or controlled exit probe.
 #endif
 #if M02_OWNED_GDT_TSS_TERMINAL_PROBE || M02_UD2_VECTOR_STATE_PROBE || M02_PAGE_FAULT_CR2_ERROR_CODE_PROBE || M02_DOUBLE_FAULT_IST_PROBE || M02_UNEXPECTED_VECTOR_PANIC_PROBE
@@ -41,9 +41,18 @@ public static unsafe class EfiEntry
             internal FirstExitOwnedArenaState Arena;
             internal FirstExitDiagnosticState Diagnostic;
             internal FirstExitDiagnosticMemory Memory;
+            internal ulong PreparationCheckpoint;
+            internal uint TableMemoryType;
             internal fixed ulong PageMetadata[165]; // 55 * 24 bytes, naturally aligned
         }
         private static Storage s_storage;
+
+        // Reuse the existing no-CRT EFI convention: NativeAOT reads this
+        // retained RX symbol as fixed cookie storage and emits its own checks.
+        // Never call it. Randomized cookie initialization remains hardening
+        // work; this anchor only supplies the compiler-required storage.
+        [System.Runtime.RuntimeExport("__security_cookie")]
+        private static ulong SecurityCookieStorageAnchor() => 0x434c_524f_5347_5331UL;
 
         internal static bool CaptureOriginalEntry(void* imageHandle, EfiSystemTable* table)
         {
@@ -65,7 +74,7 @@ public static unsafe class EfiEntry
                     // Only this pre-entry branch may use firmware output. Partial
                     // allocations remain reserved until VM teardown on failure.
                     state->Phase = 5;
-                    WritePreparationFailure(console, serial);
+                    WritePreparationFailure(console, serial, state->PreparationCheckpoint, state->TableMemoryType);
                     return;
                 }
                 state->Phase = 3;
@@ -79,6 +88,7 @@ public static unsafe class EfiEntry
 
         private static bool Prepare(Storage* state, EfiBootServices* services)
         {
+            state->PreparationCheckpoint = 10;
             if (state->Phase != 1 || state->ImageHandle == null || state->SystemTable == null ||
                 services == null || services != state->SystemTable->BootServices || services->AllocatePages == null ||
                 !M01StageOneAdapter.TryGetOriginalTypeManagerImage(out var capture, out var mapping) ||
@@ -94,6 +104,7 @@ public static unsafe class EfiEntry
                 AllocatorState = allocatorState, AllocatorStateBytes = M01LiveAllocatorStaticState.RequiredStorageBytes,
                 RuntimeSupportCode = stackProbePage, RuntimeSupportCodeBytes = Page
             };
+            state->PreparationCheckpoint = 20;
             fixed (AcpiBootstrapWorkspace* workspace = &s_acpiBootstrap)
             fixed (AcpiBootstrapOwnedBuffer* copied = &s_acpiBootstrapOwned)
             {
@@ -101,12 +112,14 @@ public static unsafe class EfiEntry
                 references.CopiedAcpi = (ulong)copied;
                 references.CopiedAcpiBytes = (ulong)sizeof(AcpiBootstrapOwnedBuffer);
             }
+            state->PreparationCheckpoint = 30;
             SeparatePageFaultMappingRange* ranges = stackalloc SeparatePageFaultMappingRange[(int)FirstExitRetainedMappings.MaximumRanges];
             if (!FirstExitImageMappings.WriteRanges(capture, mapping, ranges, FirstExitRetainedMappings.MaximumRanges, out ulong count) ||
                 !FirstExitImageMappings.Contains(ranges, count, references.AdapterState, references.AdapterStateBytes, PageProtection.Read | PageProtection.Write) ||
                 !FirstExitImageMappings.Contains(ranges, count, references.CopiedAcpi, references.CopiedAcpiBytes, PageProtection.Read | PageProtection.Write) ||
                 !FirstExitImageMappings.Contains(ranges, count, references.AllocatorState, references.AllocatorStateBytes, PageProtection.Read | PageProtection.Write)) return false;
             ulong image = ranges[0].Start, imageBytes = capture.Range.ImageSize;
+            state->PreparationCheckpoint = 40;
             if (!Allocate(services, 1, 3, image, imageBytes, allocator, out ulong code) ||
                 !Allocate(services, 2, FirstExitOwnedArena.PageCount, image, imageBytes, allocator, out ulong data) ||
                 !Disjoint(code, FirstExitCodeBundle.Bytes, data, FirstExitOwnedArena.Bytes) ||
@@ -117,12 +130,15 @@ public static unsafe class EfiEntry
                 !Disjoint(data, FirstExitOwnedArena.Bytes, stackProbePage, Page) ||
                 !Disjoint(tables, TablePages * Page, stackProbePage, Page)) return false;
 
-            if (!Query(code, out var cpu, out ulong cs, out var conditions) ||
-                !FirstExitOwnedArena.Materialize(ref state->Arena, (byte*)data, FirstExitOwnedArena.Bytes, code, (ushort)cs) ||
+            state->PreparationCheckpoint = 50;
+            if (!Query(code, out var cpu, out ulong cs, out var conditions)) return false;
+            state->PreparationCheckpoint = 60;
+            if (!FirstExitOwnedArena.Materialize(ref state->Arena, (byte*)data, FirstExitOwnedArena.Bytes, code, (ushort)cs) ||
                 !FirstExitCodeBundle.Materialize((byte*)code, FirstExitCodeBundle.Bytes,
                     ref state->Arena, capture, mapping, references.FaultCallback) ||
                 PhysicalAddress.TryCreateFromUefiBoundary(tables, out var root) != AddressValueStatus.Success) return false;
 
+            state->PreparationCheckpoint = 70;
             state->Memory = new FirstExitDiagnosticMemory
             {
                 Code = (byte*)code, Capture = capture, Mapping = mapping, References = references, Allocator = allocator,
@@ -146,11 +162,17 @@ public static unsafe class EfiEntry
             // Original firmware table header sizes are admitted against the
             // already copied map before the binder reads their complete CRCs.
             FirmwareMemoryMapRecord map = s_bootHandoff.MemoryMap;
-            if (!TableExtent((byte*)state->SystemTable, 120, map, out ulong systemBytes) ||
-                !TableExtent((byte*)services, 240, map, out ulong bootBytes) ||
-                FirstExitFirmwareBinding.Bind(ref *state->Arena.Binding, FirmwareServicesMode.BootServicesAvailable,
-                    state->ImageHandle, (byte*)state->SystemTable, systemBytes, (byte*)services, bootBytes, map) != FirstExitBindingStatus.Ready ||
-                !FirstExitCodeBundle.ValidateReadBack((byte*)code, FirstExitCodeBundle.Bytes, ref state->Arena,
+            state->PreparationCheckpoint = 81;
+            if (!TableExtent((byte*)state->SystemTable, 120, map, out ulong systemBytes, out state->TableMemoryType)) return false;
+            state->PreparationCheckpoint = 82;
+            if (!TableExtent((byte*)services, 240, map, out ulong bootBytes, out state->TableMemoryType)) return false;
+            FirstExitBindingStatus binding = FirstExitFirmwareBinding.Bind(ref *state->Arena.Binding,
+                FirmwareServicesMode.BootServicesAvailable, state->ImageHandle,
+                (byte*)state->SystemTable, systemBytes, (byte*)services, bootBytes, map);
+            state->PreparationCheckpoint = 830 + (ulong)binding;
+            if (binding != FirstExitBindingStatus.Ready) return false;
+            state->PreparationCheckpoint = 90;
+            if (!FirstExitCodeBundle.ValidateReadBack((byte*)code, FirstExitCodeBundle.Bytes, ref state->Arena,
                     capture, mapping, references.FaultCallback) ||
                 !SeparateDisabledDefaultPageFaultPageTables.AuditRetainedImage(state->Memory.Tables,
                     ranges, count, FirstExitRetainedMappings.MaximumRanges, state->Memory.Pages, TablePages,
@@ -159,6 +181,7 @@ public static unsafe class EfiEntry
                 !state->Arena.Fault->Backend.ConfigureDefault().Succeeded) return false;
             state->ImageHandle = null;
             state->SystemTable = null;
+            state->PreparationCheckpoint = 100;
             return true;
         }
 
@@ -178,9 +201,10 @@ public static unsafe class EfiEntry
         private static bool Disjoint(ulong a, ulong an, ulong b, ulong bn)
             => a <= ulong.MaxValue - an && b <= ulong.MaxValue - bn && (a + an <= b || b + bn <= a);
 
-        private static bool TableExtent(byte* table, uint minimum, FirmwareMemoryMapRecord map, out ulong bytes)
+        private static bool TableExtent(byte* table, uint minimum, FirmwareMemoryMapRecord map, out ulong bytes, out uint memoryType)
         {
             bytes = 0;
+            memoryType = 0xffffffff;
             if (table == null || !map.HasOwnedCopy() || !UefiMemoryMapCopyPlanResult.Create(map, map.MapSize).Succeeded) return false;
             uint size = *(uint*)(table + 12); // Original EFI entry/table contract supplies the header itself.
             ulong address = (ulong)table;
@@ -194,8 +218,13 @@ public static unsafe class EfiEntry
                 if (address < start + pages * Page && start < address + size)
                 {
                     uint type = *(uint*)descriptor;
+                    memoryType = type;
+                    // Firmware may keep a service table in its image's code
+                    // descriptor (OVMF's DXE core does this). Admit service
+                    // code/data types for reading, without granting execution
+                    // or retaining these firmware pages after exit.
                     if (address < start || address + size > start + pages * Page ||
-                        (type != 4 && type != 6)) return false; // One complete boot/runtime service data descriptor.
+                        type < 3 || type > 6) return false;
                     matches++;
                 }
             }
@@ -249,10 +278,10 @@ public static unsafe class EfiEntry
             }
         }
 
-        private static void WritePreparationFailure(EfiSimpleTextOutputProtocol* console, EfiSerialIoProtocol* serial)
+        private static void WritePreparationFailure(EfiSimpleTextOutputProtocol* console, EfiSerialIoProtocol* serial, ulong checkpoint, uint memoryType)
         {
             // TEST_FAIL m03.007 preparation\r\n; no success claim before owned adoption.
-            for (int i = 0; i < 31; i++)
+            for (int i = 0; i < 29; i++)
             {
                 ulong word = (i / 8) switch
                 {
@@ -260,6 +289,11 @@ public static unsafe class EfiEntry
                 };
                 Write(console, serial, (byte)(word >> ((i % 8) * 8)));
             }
+            Write(console, serial, (byte)'=');
+            WriteUnsignedDecimal(console, serial, checkpoint);
+            Write(console, serial, (byte)'/');
+            WriteUnsignedDecimal(console, serial, memoryType);
+            WriteCrLf(console, serial);
         }
 
         private static bool Query(ulong code, out X64PagingModePreflightObservation cpu,

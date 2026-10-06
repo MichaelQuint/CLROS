@@ -1027,7 +1027,8 @@ public static unsafe class FirstExitOwnedArena
         byte* gdt = state.Data + 4096, tss = state.Data + 8192;
         byte* finalIdt = state.Data + 12288, bridge = state.Data + 16384;
         ushort cs = context->FirmwareCs;
-        if (context->Prepared != 1 || (cs & 7) != 0 || (cs != 8 && cs < 40) || cs > 4088 ||
+        // The native adoption stub consumes the descriptor context before LIDT/LGDT/LTR.
+        if (context->Prepared != (installed ? 2u : 1u) || (cs & 7) != 0 || (cs != 8 && cs < 40) || cs > 4088 ||
             context->Gdt != gdt || context->Tss != tss || context->FinalIdt != finalIdt || context->BridgeIdt != bridge ||
             !PseudoDescriptor(context->Gdtr, gdt, (ushort)(cs < 40 ? 39 : cs + 7)) ||
             !PseudoDescriptor(context->FinalIdtr, finalIdt, 4095) || !PseudoDescriptor(context->BridgeIdtr, bridge, 4095) ||

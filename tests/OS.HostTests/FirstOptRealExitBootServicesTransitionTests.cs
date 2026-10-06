@@ -360,6 +360,9 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             for (int i = 0; i < 16; i++) { descriptor->ObservedGdtr[i] = descriptor->Gdtr[i]; descriptor->ObservedIdtr[i] = descriptor->FinalIdtr[i]; }
             descriptor->ObservedTr = 24; descriptor->ObservedCs = 8;
             descriptor->ObservedDs = descriptor->ObservedEs = descriptor->ObservedSs = 16;
+            Need(!FirstExitOwnedArena.ValidateInstalledDescriptors(ref arena, (ulong)code),
+                "installed observations require the descriptor context consumed by the native stub");
+            descriptor->Prepared = 2;
             Need(!FirstExitOwnedArena.ValidateDescriptors(ref arena, (ulong)code) &&
                 FirstExitOwnedArena.ValidateInstalledDescriptors(ref arena, (ulong)code), "fresh and installed descriptor checks stay distinct");
             SeparatePageFaultMappingRange* ownedScratch = (SeparatePageFaultMappingRange*)(arena.StackBottom + 8);
