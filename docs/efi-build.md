@@ -1,6 +1,6 @@
 # EFI Build
 
-## Diagnostics and dispatch integration in development
+## Accepted diagnostics and dispatch integration
 
 Shared issue #572 adds `EnableM04InterfaceDispatchProbe`, disabled by default.
 It requires `EnableM04ClassConstructorExecutionProbe` and that profile's entire
@@ -15,20 +15,28 @@ Those checks do not by themselves prove the callback graph or dispatch results.
 
 That diagnostics/dispatch wave introduced 114 Compile items, 129 raw inputs and 47
 feature properties (44 literal false defaults, with three inherited defaults).
-The generator has five C# files and seven declared inputs. Before acceptance,
-derive project/source hashes and all fixture vectors from these actual inputs.
-Normalize authored text before pinning it; preserve raw byte hashes in evidence.
+The generator has five C# files and seven declared inputs. Final acceptance at
+`d5bef46` derives project/source hashes and fixture vectors from those actual
+inputs ([step1063](../done/step1063.md)). For later changes, normalize authored
+text before pinning it and preserve raw byte hashes in evidence.
 
-Development native inspection measured and bound the cell contribution at 112
-bytes and the base class's sealed table at four bytes. A/B use ordinary vtable
-slots and have no sealed tables. A corrected native publication passes the
-verifier, and the first development guest passes the complete 158-record stream.
-Final frozen guest/control captures and full acceptance are still pending. Recheck
-the actual final contributions instead of reusing these development receipts. See
-[step1054](../done/step1054.md) for development evidence and the freshness review.
-The M03-009 owned diagnostic tail also changes the current first-exit/revocation
-record contracts to 66/78; the following section records the preceding accepted
-revision's 61/73 contracts.
+Final native review binds the actual 112-byte cell contribution and four-byte
+base sealed table; A/B use ordinary vtable slots and have no sealed tables.
+The current dispatch image passes all 158 records and 15 real calls. Its
+current-image null-receiver control observes initialized GC context zero and
+halts before target entry. The original full host gate passes 3,845 starts,
+3,846 passes and zero failures; six fresh captures and three rejection controls
+have independent native/raw/lifecycle/disk review in [step1063](../done/step1063.md).
+The original failed timed-stop control is preserved; repaired controls record
+complete stop state and enforce a bounded unchanged-serial halt observation.
+All three passing quiet samples remained on the original loops, so they do not
+exercise the repair's off-loop reacquisition branch. No positive capture was
+repeated for that driver-only change.
+
+The M03-009 owned diagnostic tail changes the current first-exit/revocation
+contracts to 66/78. The following section retains the preceding accepted
+revision's 61/73 contracts as history. Step1054 retains development evidence;
+step1056 retains the catalog failure/correction and recovery boundary.
 
 ## Retained firmware and constructor profiles
 
