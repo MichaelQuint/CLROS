@@ -31,7 +31,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const int MaximumRuntimeFunctionRecords = 2048;
     private const int MaximumLinkResponseTokens = 4096;
     private const int VerifierFixtureProcessTimeoutMilliseconds = 120_000;
-    private const int ExpectedSourceClosureInputCount = 129;
+    private const int ExpectedSourceClosureInputCount = 131;
     private const string SerializerSymbol =
         "CLROS_X64_SerializeInstructionPublication";
     private const string ToolDirectoryBuildPropsPath =
@@ -45,7 +45,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const string EmptySha256 =
         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     private const string CompileClosureSha256 =
-        "7e1ccc7ff27d560e10ef512c09b0a8c1ec3f0c9d58ee98a11013e9a0de0a1f88";
+        "a3594674eda76a3702aff90fdb7b509932a7e2ed8d949ac1552fdb73b500d478";
     private const string AnalyzerClosureSha256 =
         "bea3e700acbeec374acb02a39b8c154e03291cf380edf850fea2114193b7ea14";
     private const string ManagedFixtureConfiguration = "Release";
@@ -2615,7 +2615,7 @@ internal static class EfiArtifactVerificationScriptTests
                 "MSBUILDDISABLENODEREUSE",
                 StringComparison.Ordinal)
             && verifierSource.Contains(
-                "$expectedSourceClosureInputCount = 129",
+                "$expectedSourceClosureInputCount = 131",
                 StringComparison.Ordinal)
             && stableReasons.All(reason => verifierSource.Contains(
                 reason,
@@ -5100,6 +5100,7 @@ internal static class EfiArtifactVerificationScriptTests
             ["EnableM03MemoryMapCaptureProbe"] = "false",
             ["EnableM03FirmwareEntropySeedProbe"] = "false",
             ["EnableM04TypeManagerModuleRegistrationProbe"] = "false",
+            ["EnableM04X64UnwindMetadataProbe"] = "false",
             ["EnableM03TypedExitBootServicesCallProbe"] = "false",
             ["EnableM03FirstRealExitBootServicesProbe"] = "false",
             ["EnableM04GcStaticRootMaterializationProbe"] = "false",
@@ -5228,7 +5229,7 @@ internal static class EfiArtifactVerificationScriptTests
         };
         return new Dictionary<string, object?>
         {
-            ["compileCount"] = 114,
+            ["compileCount"] = 116,
             ["compileSha256"] = CompileClosureSha256,
             ["projectReferenceCount"] = 0,
             ["projectReferenceSha256"] = EmptySha256,

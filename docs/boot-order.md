@@ -8,6 +8,15 @@ advance the ordinary `BootSequence` plan or ExitBootServices boundary.
 
 ## Current Status
 
+M04-020 runs inside the original module-registration diagnostic after its
+existing records. `Probes.EnableM04X64UnwindMetadataProbe` guards the
+`BootSequence.RunX64UnwindMetadata` lookup boundary. The child reuses the retained
+module and original M01 stack; it creates no second registration and adds no
+ordinary boot phase. [Step1071](../done/step1071.md) accepts #574 at `4625fd7`
+after the original full host gate, three fresh ordinary profiles and independent
+current-image native, stack, serial, disk and lifecycle review. The indexed
+decoder is included in that accepted source; step1057 remains development history.
+
 The M04-016 dispatch diagnostic is a default-off child of M04-024. It starts
 after `RunCollectorGraph` has completed, while the original registered module,
 collecting allocator, retained roots and owned stack remain live. The callback

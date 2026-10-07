@@ -70,6 +70,7 @@
 		<EnableM04CheckedReferenceBarrierProbe Condition="'$(EnableM04CheckedReferenceBarrierProbe)' == ''">false</EnableM04CheckedReferenceBarrierProbe>
 		<EnableM03FirmwareEntropySeedProbe Condition="'$(EnableM03FirmwareEntropySeedProbe)' == ''">false</EnableM03FirmwareEntropySeedProbe>
 		<EnableM04TypeManagerModuleRegistrationProbe Condition="'$(EnableM04TypeManagerModuleRegistrationProbe)' == ''">false</EnableM04TypeManagerModuleRegistrationProbe>
+		<EnableM04X64UnwindMetadataProbe Condition="'$(EnableM04X64UnwindMetadataProbe)' == ''">false</EnableM04X64UnwindMetadataProbe>
 		<EnableM03TypedExitBootServicesCallProbe Condition="'$(EnableM03TypedExitBootServicesCallProbe)' == ''">false</EnableM03TypedExitBootServicesCallProbe>
 		<EnableM03FirstRealExitBootServicesProbe Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == ''">false</EnableM03FirstRealExitBootServicesProbe>
 		<EnableM04GcStaticRootMaterializationProbe Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == ''">false</EnableM04GcStaticRootMaterializationProbe>
@@ -276,6 +277,9 @@
 	<PropertyGroup Condition="'$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM04X64UnwindMetadataProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_X64_UNWIND_METADATA_PROBE</DefineConstants>
+	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM03TypedExitBootServicesCallProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE</DefineConstants>
@@ -419,6 +423,8 @@
 		<Compile Include="Runtime\CompilerClassConstructorExecutionProbe.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\CompilerInterfaceDispatch.cs" Link="Runtime\CompilerInterfaceDispatch.cs" />
 		<Compile Include="Runtime\InterfaceDispatchProbe.cs" />
+		<Compile Include="..\OS.Kernel\Runtime\X64PERuntimeFunctionUnwindMetadataHostileInput.cs" Link="Runtime\X64PERuntimeFunctionUnwindMetadataHostileInput.cs" />
+		<Compile Include="Runtime\X64UnwindMetadataProbe.cs" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
 		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
 		<ResolvedILCompilerPack Include="runtime.win-x64.Microsoft.DotNet.ILCompiler">
@@ -1406,6 +1412,8 @@
 		<Error Condition="'$(EnableM03TypedExitBootServicesCallProbe)' == 'true' and '$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'" Text="m03_typed_ebs_profile_conflict EnableAcpiPhysicalDiscoveryProbe" />
 		<Error Condition="'$(EnableAcpiPhysicalDiscoveryProbe)' == 'true' and '$(EnableM03TypedExitBootServicesCallProbe)' == 'true'" Text="m03_typed_ebs_profile_conflict EnableM03TypedExitBootServicesCallProbe" />
 		<Error Condition="'$(EnableM04TypeManagerModuleRegistrationProbe)' != '' and '$(EnableM04TypeManagerModuleRegistrationProbe)' != 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' != 'false'" Text="m04_type_manager_profile_value_invalid" />
+		<Error Condition="'$(EnableM04X64UnwindMetadataProbe)' != '' and '$(EnableM04X64UnwindMetadataProbe)' != 'true' and '$(EnableM04X64UnwindMetadataProbe)' != 'false'" Text="m04_x64_unwind_metadata_profile_value_invalid" />
+		<Error Condition="'$(EnableM04X64UnwindMetadataProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' != 'true'" Text="m04_x64_unwind_metadata_requires_original_module" />
 		<Error Condition="'$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true' and '$(EnableM01LoadedImageStackProbe)' != 'true'" Text="m04_type_manager_requires_original_loaded_image" />
 		<Error Condition="'$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true' and '$(EnableM01LiveAllocatorProbe)' == 'true'" Text="m04_type_manager_profile_conflict EnableM01LiveAllocatorProbe" />
 		<Error Condition="'$(EnableM01LiveAllocatorProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'" Text="m04_type_manager_profile_conflict EnableM04TypeManagerModuleRegistrationProbe" />

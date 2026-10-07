@@ -1570,6 +1570,40 @@ complete #544/#80 and unblock #81, while #82 still depends on GC-static roots.
 The runtime ledger stays Deferred and the preceding unsupported-feature
 boundaries remain unchanged.
 
+### M04-020 x64 unwind metadata prerequisite
+
+`X64PERuntimeFunctionUnwindMetadataHostileInput` validates and snapshots one
+retained module's PE runtime-function directory and decoded unwind prefixes.
+Both absolute-PC `Lookup` and indexed `LookupFunction` revalidate the original
+registration and complete snapshot before selecting a listed function. Indexed
+misses return zero payload only after that validation. The shared implementation
+adds no second parser or retained state; [step1060](../done/step1060.md) records
+the nine original host groups with indexed bounds, identity and allocation
+checks. Indexed access permits a later EH decoder to check nearest-root grouping;
+it does not itself establish handler ownership. Admission is bounded to 2,048
+functions and 32 chain links, version
+one records and the documented same-image listed-chain/save-only secondary
+subset. Language-specific handler data has only a reported start, not a generic
+admitted payload length. A missing function row does not establish a safe leaf.
+
+The nine focused core groups in [step1055](../done/step1055.md) are host evidence.
+The default-off #574 adapter reuses the original module, invokes actual sample
+methods and passes a development native publication and ordinary 67-record QEMU
+profile in [step1057](../done/step1057.md), before the indexed API change. That
+older image is not acceptance evidence for the changed source. The decoder's bounded stack buffer
+requires the existing no-CRT fixed RX security-cookie anchor; it is never
+called, and randomized initialization remains separate hardening work.
+[Step1071](../done/step1071.md) accepts the current indexed decoder at `4625fd7`
+after the original full host gate and fresh default/TypeManager/unwind captures.
+All 298 current runtime-function rows reproduce the 7,412-byte snapshot, and
+all 80 reachable unwind-profile methods pass current native/ABI/stack review.
+The bound is 7,440 bytes below module entry and 8,768 below its continuation,
+excluding opaque firmware callback bodies. Exact four-success/two-miss lookup
+observations, original ownership and both stack sentinels are retained.
+General stack walking, restored registers, GC stack scanning, handler search,
+exception objects, catch/finally and rethrow remain outside this parser and
+belong to M04-021. The general exception/unwind ledger remains deferred.
+
 ### M04-012 read-only GC-static metadata admission
 
 [Step990](../done/step990.md) adds `GCStaticRootsMalformedMetadata.ValidateOne`.

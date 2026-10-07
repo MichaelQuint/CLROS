@@ -163,6 +163,12 @@ internal static unsafe class NativeAotModuleRegistrationProbe
             Section(console, 213, o.Empty); Section(console, 0, o.Absent);
             Token(console, 15); console.WriteCrLf(); Token(console, 16); console.WriteCrLf();
             Token(console, 17); console.WriteCrLf(); Token(console, 18); console.WriteCrLf();
+#if M04_X64_UNWIND_METADATA_PROBE
+            if (!X64UnwindMetadataProbe.Run(capture, mapping, (byte*)buffer->Words,
+                    Capacity, o.Handle, console)) return false;
+            if (!Preserved((byte*)buffer->Words, o.Required))
+            { Token(console, 1); Number(console, 15); console.WriteCrLf(); return false; }
+#endif
             return true;
         }
     }

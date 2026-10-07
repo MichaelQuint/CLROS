@@ -3219,7 +3219,7 @@ internal static class M01LivePagingEfiEntryTests
 
     private static bool TestKnownFalsePanicSelector()
     {
-        foreach (string disabledSymbol in new[] { UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol, TypeManagerSymbol, TypedEbsSymbol, GcStaticSymbol, TypeManagerSymbol + " || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, FirstExitSymbol })
+        foreach (string disabledSymbol in new[] { UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol, TypeManagerSymbol, TypedEbsSymbol, GcStaticSymbol, TypeManagerSymbol + " || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol + " || M04_X64_UNWIND_METADATA_PROBE", FirstExitSymbol })
         {
         string fixture = "#if " + disabledSymbol + "\nPanicOnly();\n#else\nPanicOff();\n#endif\n"
             + "#if " + StageOneSymbol + "\n#if " + disabledSymbol
@@ -3291,7 +3291,8 @@ internal static class M01LivePagingEfiEntryTests
             || string.Equals(condition, TypedEbsSymbol, StringComparison.Ordinal)
             || string.Equals(condition, GcStaticSymbol, StringComparison.Ordinal)
             || string.Equals(condition, TypeManagerSymbol + " || " + GcStaticSymbol, StringComparison.Ordinal)
-            || string.Equals(condition, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, StringComparison.Ordinal);
+            || string.Equals(condition, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, StringComparison.Ordinal)
+            || string.Equals(condition, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol + " || M04_X64_UNWIND_METADATA_PROBE", StringComparison.Ordinal);
                 bool selectedValue =
                     string.Equals(
                         condition,

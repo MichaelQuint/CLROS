@@ -13,7 +13,7 @@ The verifier checks object ownership, exact linked code outside those fields,
 both relocation targets, RX callback/code and RW initialized cell storage.
 Those checks do not by themselves prove the callback graph or dispatch results.
 
-The current explicit closure is 114 Compile items, 129 raw inputs and 47
+That diagnostics/dispatch wave introduced 114 Compile items, 129 raw inputs and 47
 feature properties (44 literal false defaults, with three inherited defaults).
 The generator has five C# files and seven declared inputs. Final acceptance at
 `d5bef46` derives project/source hashes and fixture vectors from those actual
@@ -2751,6 +2751,45 @@ disk images were reconstructed after capture; all changed disk bytes were
 accounted for as OVMF NVVARS/FAT bookkeeping. Internal tail canaries were
 initialized after registration; no external RAM oracle or numeric guest stack
 canary measurement is claimed.
+
+### M04-020 current-image unwind metadata acceptance
+
+`EnableM04X64UnwindMetadataProbe` is disabled by default and requires
+`EnableM04TypeManagerModuleRegistrationProbe`, which retains its original
+`EnableM01LoadedImageStackProbe` prerequisite and exclusions. The child uses the
+same registered module, a measured 64 KiB static snapshot with a 32-byte unused
+tail guard, and the original 33-page stack. Two actual invoked method pointers
+are looked up alongside their last in-range bytes and two expected misses.
+
+Step1057 records the explicitly enabled C# EFI profile compiling with zero
+warnings/errors before the indexed decoder extension. Its build command is:
+
+```powershell
+dotnet build .\src\OS\OS.csproj --nologo -m:1 -p:EnableM01LoadedImageStackProbe=true -p:EnableM04TypeManagerModuleRegistrationProbe=true -p:EnableM04X64UnwindMetadataProbe=true
+```
+
+The complete integration has 116 Compile items, 131 raw inputs, 48 public
+properties (45 literal false defaults) and 21 diagnostic catalog entries.
+Publisher/verifier/runner integration and focused checks passed on that source.
+Development native publication and the ordinary QEMU wrapper passed the complete
+67-record profile, as recorded in [step1057](../done/step1057.md). The indexed API
+in [step1060](../done/step1060.md) changes decoder identity; those older native
+bytes are not evidence for the changed source. Its exact publisher source guard
+and dependent aggregate fixtures are reconciled in [step1062](../done/step1062.md).
+Fresh current-source native and guest acceptance pass at `4625fd7` in
+[step1071](../done/step1071.md), including the indexed decoder. The original full
+host gate has 3,864 starts, 3,865 passes and no failures. Current default,
+TypeManager and unwind profiles have 21/45/67 complete application records.
+Independent reviews bind all current publisher inputs, emitted code, stack
+bounds, raw serial, runner lifecycle and actual postboot FAT payloads. The
+unwind graph uses 7,440 bytes below module entry and 8,768 below the original
+continuation; firmware callback bodies are excluded. The decoder's bounded
+stack buffer uses the existing fixed RX cookie-anchor convention; randomized
+initialization remains separate hardening work.
+The original TypeManager records remain intact; selected guest output adds a strict
+22-record metadata tail. Do not accept a marker override or a host fixture as
+real-image consumption. Version-one/listed-chain bounds remain enforced even if
+an emitted compiler record is unsupported. No stack walk or handler executes.
 
 ### GC-static root diagnostic
 

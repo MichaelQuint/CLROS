@@ -240,6 +240,14 @@ public static class BootSequence
     public static bool IsFirmwareAdapterRevocationEnabled() =>
         OS.Kernel.Diagnostics.Probes.EnableM03FirmwareAdapterRevocationProbe;
 
+    /// <summary>Look up current-image metadata after binding the original retained module.</summary>
+    public static unsafe OS.Kernel.Runtime.X64UnwindMetadataResult RunX64UnwindMetadata(
+        byte* storage, ulong capacity, ulong instructionPointer) =>
+        OS.Kernel.Diagnostics.Probes.EnableM04X64UnwindMetadataProbe
+            ? OS.Kernel.Runtime.X64PERuntimeFunctionUnwindMetadataHostileInput.Lookup(
+                storage, capacity, instructionPointer)
+            : default;
+
     /// <summary>Resolve only after the retained module, allocator and compiler-cell snapshot are bound.</summary>
     public static unsafe OS.Kernel.Runtime.CompilerInterfaceDispatchStatus RunInterfaceDispatch(
         byte* storage, ulong capacity, ulong receiver, ulong cell,
