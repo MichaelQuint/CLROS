@@ -2018,9 +2018,11 @@ rights are source/path predicates, not separately printed descriptor dumps.
 The project is not yet a functional kernel. The default path retains firmware
 services. The accepted default-off M03-007 profile proves only its bounded real
 exit, retained mappings and terminal owned diagnostics ([step1051](../done/step1051.md)).
-General adapter revocation (#65), firmware-page reclamation, reusable
-post-firmware physical/MMIO interfaces, continuing drivers/workloads and broader
-panic-safe diagnostics remain incomplete. The host-tested
+The accepted revocation profile covers exactly eight retained capabilities
+([step1053](../done/step1053.md)); owned post-exit diagnostics have their separate
+bounded acceptance ([step1063](../done/step1063.md)). Firmware-page reclamation,
+general post-firmware physical/MMIO interfaces, continuing drivers/workloads
+and broader panic recovery remain incomplete. The host-tested
 `UefiExitBootServicesLiveWiringPlan` and `PlatformFirmwareExitBootServicesResult`
 contracts alone do not establish the accepted live transition.
 
@@ -2076,8 +2078,7 @@ dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 .\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -RequireMarker OS_SMOKE_PASS,UEFI_MEMORY_MAP_OWNED,BOOT_HANDOFF_READY,UEFI_MEMORY_MAP_NORMALIZED,BOOT_MEMORY_MAP_ACCEPTED,BOOT_MEMORY_REGIONS_READY,BOOT_MEMORY_REGION_COUNT
 .\scripts\build-efi-shell.ps1 -EnableUefiGoneSimulationProbe -EfiOutputPath artifacts/efi/BOOTX64-SIM.EFI -LogPath artifacts/logs/efi-shell-publish-sim.log
 .\scripts\run-qemu-smoke.ps1 -EfiArtifact artifacts/efi/BOOTX64-SIM.EFI -Image artifacts/images/os-sim.raw -SerialLog artifacts/logs/qemu-smoke-sim.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -MarkerPreset uefi-gone
-.\scripts\build-efi-shell.ps1 -EnableAcpiPhysicalDiscoveryProbe -EfiOutputPath artifacts/efi/BOOTX64-ACPI.EFI -LogPath artifacts/logs/efi-shell-publish-acpi.log
-.\scripts\run-qemu-smoke.ps1 -EfiArtifact artifacts/efi/BOOTX64-ACPI.EFI -Image artifacts/images/os-acpi.raw -SerialLog artifacts/logs/qemu-smoke-acpi.log -SummaryLog artifacts/logs/qemu-smoke-acpi.summary.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -MarkerPreset acpi
+.\scripts\run-qemu-smoke.ps1 -BuildEfi -EnableAcpiPhysicalDiscoveryProbe -MarkerPreset acpi -EfiArtifact artifacts/efi/BOOTX64-ACPI.EFI -Image artifacts/images/os-acpi.raw -SerialLog artifacts/logs/qemu-smoke-acpi.log -SummaryLog artifacts/logs/qemu-smoke-acpi.summary.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30
 ```
 
 Current evidence from 2026-05-21:
@@ -2906,6 +2907,30 @@ At the accepted `42a516e` revision, the runner's informational GC summary said
 The first-exit/churn integration in [step1042](../done/step1042.md) corrects that summary. No general
 runtime, hosted .NET or real firmware-exit claim follows from this profile.
 
+## Bounded throw/catch profile
+
+`EnableM04SimpleThrowCatchProbe` remains false by default and requires the
+collecting-GC profile with its complete ancestry. The accepted `ead4fca` closure
+has 121 explicit `Compile` items, 137 raw publication inputs, 51 public flags
+with 48 literal false defaults, and six C# generator files with eight declared
+inputs. The C# generator supplies the 1,350-byte COFF object; publisher/verifier
+checks bind its actual throw, selection/continuation callbacks and exact EH
+contribution.
+
+[Step1075](../done/step1075.md) records the original common gate and three fresh
+ordinary `-BuildEfi` captures: default, GC and simple-catch profiles emit 21, 70
+and 82 application records respectively. The catch transcript includes rejection
+of an invalid local RIP through the production admission predicate, then the
+required real catch and continuation. Live context stays unchanged; this is not
+terminal corrupted-context proof. Complete commands and final source, native,
+raw, lifecycle and disk identities are retained in the step and each original
+`wrapper.command.json`.
+
+[Step1066](../done/step1066.md) retains the 81-record development guest and its
+CLI-versus-wrapper limitation. Final acceptance uses fresh ordinary wrappers;
+older counts and images are not relabeled. General EH and broader gates remain
+incomplete.
+
 ## Owned subsystem survival and panic profiles
 
 The disabled #67 survival profile requires EnableM01LoadedImageStackProbe,
@@ -2928,7 +2953,7 @@ earlier Desktop module-resolution failure and all archives in
 [step1067](../done/step1067.md). The fresh acceptance below supersedes that
 pending status without changing the original failed receipt.
 
-The merged development source now has 117 ordered Compile items, 132 raw
+At step1069, the merged development source had 117 ordered Compile items, 132 raw
 publication inputs, 50 profile flags and 47 literal false defaults. Its fixture
 reconciliation includes the final step1068 verifier identity. One fresh managed
 build and 45 original focused checks plus two existing authority helpers pass;

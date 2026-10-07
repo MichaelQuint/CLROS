@@ -399,8 +399,8 @@ Current evidence from 2026-05-21:
 
 ## Next Steps
 
-1. `scripts/build-efi-shell.ps1` now preflights the MSVC x64 linker and Windows
-   SDK UM x64 library before `dotnet publish`. Extend the preflight to report
-   the resolved MSVC and SDK versions if a future step needs version pinning.
-2. Add repository CI workflow files that run the documented validation commands
-   on a compatible Windows agent and upload logs/artifacts.
+1. Keep `scripts/build-efi-shell.ps1` tool discovery and reported MSVC/Windows
+   SDK versions bound to the actual selected tools when the host changes.
+2. Validate the existing `.gitea/workflows/ci-smoke.yml` on a compatible Windows
+   runner and retain its logs/artifacts. Workflow presence alone is not CI
+   execution evidence.

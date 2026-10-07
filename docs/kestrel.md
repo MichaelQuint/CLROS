@@ -574,5 +574,7 @@ The first Kestrel proof depends on several major unfinished areas. Until those a
 2. Keep the host-build Minimal API fixture aligned with `kestrel.smoke.package.v0`, including `OS_SMOKE_EXPECTED_BODY` config propagation, before promoting it to guest smoke evidence.
 3. Point the QEMU runner HTTP probe at the guest `kestrel.smoke` endpoint after guest sockets and hosted Kestrel startup exist.
 4. Extend PAL socket and package-file mock tests toward the exact hosted runtime adapter status paths before attempting app-level Kestrel HTTP smoke.
-5. Add raw TCP state-machine tests beyond active-open handshake toward listen/accept/data/close behavior.
+5. Extend the existing host-only active/passive handshake, listen/accept,
+   payload and close contracts toward real timers, retransmission and live NIC
+   integration before claiming guest sockets or Kestrel.
 6. Add guest-side smoke markers only when the hosted runtime can launch a packaged app.

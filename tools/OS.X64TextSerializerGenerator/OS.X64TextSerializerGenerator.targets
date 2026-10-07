@@ -8,6 +8,7 @@
     <_ClrosX64SerializerObjectName>CLROS.X64.InstructionPublication.obj</_ClrosX64SerializerObjectName>
     <_ClrosCheckedReferenceObjectName>CLROS.X64.CheckedReferenceBarriers.obj</_ClrosCheckedReferenceObjectName>
     <_ClrosInterfaceDispatchObjectName>CLROS.X64.InterfaceDispatch.obj</_ClrosInterfaceDispatchObjectName>
+    <_ClrosSimpleCatchObjectName>CLROS.X64.SimpleThrowCatch.obj</_ClrosSimpleCatchObjectName>
     <_ClrosX64SerializerCanonicalSdkDirectory>$([System.IO.Path]::GetFullPath('$(MSBuildToolsPath)\.'))</_ClrosX64SerializerCanonicalSdkDirectory>
     <_ClrosX64SerializerCanonicalSdksPath>$([System.IO.Path]::GetFullPath('$(_ClrosX64SerializerCanonicalSdkDirectory)\Sdks'))</_ClrosX64SerializerCanonicalSdksPath>
     <_ClrosX64SerializerCanonicalMsbuildExtensionsPath>$(_ClrosX64SerializerCanonicalSdkDirectory)\</_ClrosX64SerializerCanonicalMsbuildExtensionsPath>
@@ -24,6 +25,7 @@
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)CheckedReferenceBarrierThunkGenerator.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)InstructionPublicationSerializerGenerator.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)InterfaceDispatchThunkGenerator.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)ExceptionHandlingThunkGenerator.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(MSBuildThisFileFullPath)" />
   </ItemGroup>
 
@@ -31,7 +33,7 @@
           BeforeTargets="PrepareForBuild"
           Condition="'$(MSBuildProjectFullPath)' == '$(MSBuildThisFileDirectory)OS.X64TextSerializerGenerator.csproj'">
     <Error
-      Condition="'@(Compile-&gt;'%(Identity)', '|')' != 'Amd64CoffWriter.cs|CheckedReferenceBarrierThunkGenerator.cs|InstructionPublicationSerializerGenerator.cs|InterfaceDispatchThunkGenerator.cs|Program.cs'"
+      Condition="'@(Compile-&gt;'%(Identity)', '|')' != 'Amd64CoffWriter.cs|CheckedReferenceBarrierThunkGenerator.cs|ExceptionHandlingThunkGenerator.cs|InstructionPublicationSerializerGenerator.cs|InterfaceDispatchThunkGenerator.cs|Program.cs'"
       Text="CLROS_M01_034_GENERATOR_FAILED compile_closure_mismatch actual=@(Compile-&gt;'%(Identity)', '|')" />
     <Error
       Condition="'@(ProjectReference)' != '' Or '@(Reference)' != '' Or '@(PackageReference)' != ''"
@@ -105,6 +107,7 @@
       <_ClrosX64SerializerTrackedObject>$(_ClrosX64SerializerTrackingRoot)\CLROS.X64.InstructionPublication.obj</_ClrosX64SerializerTrackedObject>
       <_ClrosCheckedReferenceTrackedObject>$(_ClrosX64SerializerTrackingRoot)\CLROS.X64.CheckedReferenceBarriers.obj</_ClrosCheckedReferenceTrackedObject>
       <_ClrosInterfaceDispatchTrackedObject>$(_ClrosX64SerializerTrackingRoot)\CLROS.X64.InterfaceDispatch.obj</_ClrosInterfaceDispatchTrackedObject>
+      <_ClrosSimpleCatchTrackedObject>$(_ClrosX64SerializerTrackingRoot)\CLROS.X64.SimpleThrowCatch.obj</_ClrosSimpleCatchTrackedObject>
       <_ClrosX64SerializerTrackedToolRoot>$(_ClrosX64SerializerTrackingRoot)\clros-x64-serializer-tool\</_ClrosX64SerializerTrackedToolRoot>
     </PropertyGroup>
     <Error
@@ -128,8 +131,12 @@
     <Error
       Condition="'$(_ClrosInterfaceDispatchTrackedObject)' != '$(_ClrosX64SerializerTrackingRoot)\CLROS.X64.InterfaceDispatch.obj'"
       Text="CLROS_M04_016_GENERATOR_FAILED tracking_object_override" />
+    <Error
+      Condition="'$(_ClrosSimpleCatchTrackedObject)' != '$(_ClrosX64SerializerTrackingRoot)\CLROS.X64.SimpleThrowCatch.obj'"
+      Text="CLROS_M04_021_GENERATOR_FAILED tracking_object_override" />
     <ItemGroup>
       <FileWrites Include="$(_ClrosInterfaceDispatchTrackedObject)" />
+      <FileWrites Include="$(_ClrosSimpleCatchTrackedObject)" />
       <FileWrites Include="$(_ClrosX64SerializerTrackedObject)" />
       <FileWrites Include="$(_ClrosCheckedReferenceTrackedObject)" />
       <FileWrites
@@ -169,6 +176,9 @@
       Condition="'$(_ClrosInterfaceDispatchObjectName)' != 'CLROS.X64.InterfaceDispatch.obj' Or '$(_ClrosInterfaceDispatchActualSha256)' != ''"
       Text="CLROS_M04_016_GENERATOR_FAILED object_contract_override" />
     <Error
+      Condition="'$(_ClrosSimpleCatchObjectName)' != 'CLROS.X64.SimpleThrowCatch.obj' Or '$(_ClrosSimpleCatchActualSha256)' != ''"
+      Text="CLROS_M04_021_GENERATOR_FAILED object_contract_override" />
+    <Error
       Condition="'$(ClrosX64InstructionPublicationSymbol)' != 'CLROS_X64_SerializeInstructionPublication'"
       Text="CLROS_M01_034_GENERATOR_FAILED symbol_override" />
     <Error
@@ -202,6 +212,7 @@
       <ClrosX64InstructionPublicationObject>$(_ClrosX64SerializerNativeIntermediateRoot)\$(_ClrosX64SerializerObjectName)</ClrosX64InstructionPublicationObject>
       <_ClrosCheckedReferenceObject>$(_ClrosX64SerializerNativeIntermediateRoot)\$(_ClrosCheckedReferenceObjectName)</_ClrosCheckedReferenceObject>
       <_ClrosInterfaceDispatchObject>$(_ClrosX64SerializerNativeIntermediateRoot)\$(_ClrosInterfaceDispatchObjectName)</_ClrosInterfaceDispatchObject>
+      <_ClrosSimpleCatchObject>$(_ClrosX64SerializerNativeIntermediateRoot)\$(_ClrosSimpleCatchObjectName)</_ClrosSimpleCatchObject>
       <ClrosX64InstructionPublicationMap>$(_ClrosX64SerializerNativeIntermediateRoot)\OS.link.map</ClrosX64InstructionPublicationMap>
     </PropertyGroup>
     <Error
@@ -240,6 +251,9 @@
     <Error
       Condition="'$(_ClrosInterfaceDispatchObject)' != '$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.InterfaceDispatch.obj'"
       Text="CLROS_M04_016_GENERATOR_FAILED object_path_override" />
+    <Error
+      Condition="'$(_ClrosSimpleCatchObject)' != '$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.SimpleThrowCatch.obj'"
+      Text="CLROS_M04_021_GENERATOR_FAILED object_path_override" />
     <Error
       Condition="'@(_ClrosX64SerializerGeneratorInput)' == ''"
       Text="CLROS_M01_034_GENERATOR_FAILED inputs_missing" />
@@ -330,6 +344,24 @@
       <LinkerArg Include="/INCLUDE:RhpInitialDynamicInterfaceDispatch" />
       <LinkerArg Include="/INCLUDE:CLROS_InterfaceDispatch_GetCellSection" />
       <LinkerArg Include="/INCLUDE:CLROS_InterfaceDispatch_GetInitialStub" />
+    </ItemGroup>
+    <Exec Condition="'$(EnableM04SimpleThrowCatchProbe)' == 'true'"
+      Command="&quot;$(_ClrosX64SerializerToolExecutable)&quot; --simple-throw-catch --output-root &quot;$(_ClrosX64SerializerNativeIntermediateRoot)&quot; --output-file &quot;CLROS.X64.SimpleThrowCatch.obj&quot;"
+      ConsoleToMSBuild="true" IgnoreExitCode="false" Timeout="60000" />
+    <Error Condition="'$(EnableM04SimpleThrowCatchProbe)' == 'true' And !Exists('$(_ClrosSimpleCatchObject)')"
+      Text="CLROS_M04_021_GENERATOR_FAILED object_missing" />
+    <GetFileHash Condition="'$(EnableM04SimpleThrowCatchProbe)' == 'true'"
+      Files="$(_ClrosSimpleCatchObject)" Algorithm="SHA256" HashEncoding="hex">
+      <Output TaskParameter="Hash" PropertyName="_ClrosSimpleCatchActualSha256" />
+    </GetFileHash>
+    <Error Condition="'$(EnableM04SimpleThrowCatchProbe)' == 'true' And '$(_ClrosSimpleCatchActualSha256)' != 'DD32DC30808C3B6DD42981DF652B95F62236BDC8C45C1DAA3DDE32BAB1C981AB'"
+      Text="CLROS_M04_021_GENERATOR_FAILED object_hash_mismatch" />
+    <ItemGroup Condition="'$(EnableM04SimpleThrowCatchProbe)' == 'true'">
+      <NativeLibrary Include="$(_ClrosSimpleCatchObject)" />
+      <LinkerArg Include="&quot;$(_ClrosSimpleCatchObject)&quot;" />
+      <LinkerArg Include="/INCLUDE:RhpThrowEx" />
+      <LinkerArg Include="/INCLUDE:CLROS_Eh_GetClauseTable" />
+      <FileWrites Include="$(_ClrosSimpleCatchObject)" />
     </ItemGroup>
   </Target>
 

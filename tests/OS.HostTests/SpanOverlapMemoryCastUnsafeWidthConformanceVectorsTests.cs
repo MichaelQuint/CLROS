@@ -1046,6 +1046,7 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
             "std",
             "no-runtime",
             "shared",
+            "Memory",
             "SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs");
         if (!File.Exists(sourcePath))
         {
@@ -1261,6 +1262,7 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
                 "std",
                 "no-runtime",
                 "shared",
+                "Memory",
                 "SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs");
             string project =
                 """

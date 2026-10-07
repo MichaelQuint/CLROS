@@ -72,7 +72,8 @@ public enum DotNetN10SystemDeclaration : byte
     RhpNewFastRuntime = 45,
     DefaultMemberAttribute = 46,
     IndexerNameAttribute = 47,
-    RuntimeImports = 48
+    RuntimeImports = 48,
+    Exception = 49
 }
 
 public readonly struct DotNetN10SystemDeclarationCompatibilityEntry
@@ -183,7 +184,7 @@ public readonly struct DotNetN10RuntimeExportCompatibilityEntry
 
 public static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
 {
-    public const int SystemDeclarationCount = 48;
+    public const int SystemDeclarationCount = 49;
 
     public const int RuntimeExportCount = 21;
 
@@ -301,6 +302,9 @@ public static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             47 => SystemDeclaration(DotNetN10SystemDeclaration.RuntimeImports,
                 DotNetN10SystemDeclarationCategory.RuntimeExportInfrastructure,
                 DotNetN10HelperSupportState.NarrowlyImplemented),
+            // M04_SIMPLE_THROW_CATCH_PROBE supplies only an empty compiler identity;
+            // messages, stack traces, nested exceptions and general exception services are unsupported.
+            48 => StubbedCore(DotNetN10SystemDeclaration.Exception),
             _ => InvalidSystemDeclarationEntry()
         };
     }

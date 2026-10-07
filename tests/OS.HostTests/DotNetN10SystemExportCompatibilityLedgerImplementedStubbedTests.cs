@@ -86,7 +86,7 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
                 .SystemDeclarationCount,
             sourceDeclarations.Count);
-        ExpectEqual("audited source declaration snapshot", 48, sourceDeclarations.Count);
+        ExpectEqual("audited source declaration snapshot", 49, sourceDeclarations.Count);
 
         HashSet<string> remaining = new HashSet<string>(
             sourceDeclarations,
@@ -178,9 +178,13 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
         }
 
         ExpectEqual("narrow declaration count", 11, narrowCount);
-        ExpectEqual("stubbed declaration count", 35, stubbedCount);
+        ExpectEqual("stubbed declaration count", 36, stubbedCount);
         ExpectEqual("forbidden declaration count", 2, forbiddenCount);
 
+        ExpectSystemClassification(
+            DotNetN10SystemDeclaration.Exception,
+            DotNetN10SystemDeclarationCategory.CoreType,
+            DotNetN10HelperSupportState.Stubbed);
         ExpectSystemClassification(
             DotNetN10SystemDeclaration.RuntimeFailFast,
             DotNetN10SystemDeclarationCategory.RuntimeControl,
@@ -514,6 +518,7 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             DotNetN10SystemDeclaration.DefaultMemberAttribute => "System.Reflection.DefaultMemberAttribute",
             DotNetN10SystemDeclaration.IndexerNameAttribute => "System.Runtime.CompilerServices.IndexerNameAttribute",
             DotNetN10SystemDeclaration.RuntimeImports => "System.Runtime.RuntimeImports",
+            DotNetN10SystemDeclaration.Exception => "System.Exception",
             _ => "invalid"
         };
     }

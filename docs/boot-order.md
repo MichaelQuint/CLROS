@@ -759,24 +759,43 @@ permission changes, relocation, or native-tier or hosted .NET app launch.
 
 ## Next Steps
 
-1. Wire the transition marker helper only after the live EFI path can perform a real `ExitBootServices` call and preserve diagnostics afterward.
-2. Add an owned serial diagnostics phase only after a real serial writer exists.
+1. Preserve the accepted opt-in real `ExitBootServices` transition and owned
+   diagnostic tail in [step1063](../done/step1063.md). A continuing default
+   post-firmware boot phase needs its own lifecycle and subsystem evidence.
+2. Preserve the original owned COM1 authority used by the accepted opt-in
+   profiles when extending diagnostics to continuing execution.
 3. Preserve the separately owned M02-005 and M02-006 pre-firmware direct COM1
    marker proofs, keep their UEFI evidence lines distinct from the direct
-   transport, and do not treat either as the future post-firmware diagnostic
-   path.
+   transport, and keep both separate from the accepted bounded post-firmware
+   diagnostic path.
 4. Preserve the accepted default-off M02-010/M02-011 materialization profiles,
    M02-012 reversible IDTR adapter, and M02-013 terminal vector-6 profile,
    including their distinct cleanup, continuation, terminal, and guest-marker
-   boundaries. Reusable common dispatch, safe fault continuation, persistent
-   descriptor state, live W^X/NX enforcement, and post-firmware diagnostics
-   remain later owned boundaries.
-5. Wire the early diagnostics readiness helper only after generated stubs can be copied to executable memory and safely invoked under W^X policy.
-6. Wire the controlled fault-probe readiness helper only after early diagnostics can survive generated-stub execution and fault handling.
+   boundaries. Later accepted profiles add common-entry terminal faults and
+   post-firmware diagnostics; safe fault continuation, default descriptor
+   lifecycle and general live W^X/NX enforcement remain later boundaries.
+5. Keep the early diagnostics readiness helper's host planning contract distinct
+   from executed-stub evidence; future default execution needs its own publication
+   and permission policy.
+6. Keep controlled fault-probe readiness distinct from terminal fault-delivery
+   evidence. Any recoverable route needs an explicit continuation policy.
 7. Wire the app-selection readiness helper only after live block-device package reads can supply the manifest/package/descriptor prerequisites.
-8. Add probe toggles for destructive fault tests.
+8. Keep destructive fault probes explicit and default-off in `Probes`.
 9. Promote future placeholder phases from documented ledger entries to emitted phases only when the required subsystem evidence exists.
 10. Prevent any subsystem from bypassing `BootSequence`.
+
+## Bounded throw/catch diagnostic order
+
+The default-off `EnableM04SimpleThrowCatchProbe` child follows the original
+collector graph. It explicitly roots the fixture exception and completes
+prethrow collection before `Thrower` enters `Catcher`'s typed clause. The shared
+admission predicate rejects one invalid local RIP before handler selection;
+original live capture and transfer state remain unchanged. The real catch and
+compiled continuation retain the same receipt. Selection, catch and continuation
+permit no allocation or collection. The child excludes churn, constructors,
+interface dispatch and standalone unwind-metadata profiles and adds no ordinary
+phase. [Step1075](../done/step1075.md) records bounded acceptance at `ead4fca`;
+[step1066](../done/step1066.md) remains the original development record.
 
 ## Owned subsystem diagnostic order
 
@@ -787,5 +806,7 @@ then precede the finite owned result tail. The panic child replaces its final
 ready/pass with armed/entered/fault records and the original terminal halt path.
 It requires survival, which requires first-exit and its existing prerequisites;
 survival excludes firmware revocation. Neither child adds an ordinary boot
-phase. Managed evidence and the unaccepted development image are recorded in
-[step1067](../done/step1067.md); actual post-exit survival/fault proof is pending.
+phase. [Step1067](../done/step1067.md) retains the initial development evidence;
+[step1074](../done/step1074.md) accepts the bounded post-exit survival and separate
+terminal fault at `4ef299f`. This does not establish default continuation,
+reclamation or recoverable fault handling.

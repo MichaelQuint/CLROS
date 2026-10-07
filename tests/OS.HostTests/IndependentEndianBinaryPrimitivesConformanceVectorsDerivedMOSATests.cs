@@ -521,6 +521,7 @@ internal static class
             "std",
             "no-runtime",
             "shared",
+            "Binary",
             "IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs");
         if (!File.Exists(sourcePath))
         {

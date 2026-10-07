@@ -98,7 +98,8 @@ rg -n "SharpOS" .\AGENTS.md .\README.md .\docs .\src .\std .\apps .\tools .\test
 ```
 
 The second command may find deliberate reference-repository context in docs, but
-first-party project naming must remain `OS`.
+first-party project naming must remain `CLROS`. The stable `OS` assembly,
+namespace, source-path and hosted-ABI prefixes retain their documented identities.
 
 ## Known Limitations
 

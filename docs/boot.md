@@ -4145,8 +4145,7 @@ Firmware smoke proof:
 .\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -RequireMarker OS_BOOT_OK,"TEST_PASS boot.sequence",OS_SMOKE_PASS,UEFI_MEMORY_MAP_OWNED,BOOT_HANDOFF_READY,UEFI_MEMORY_MAP_NORMALIZED,BOOT_MEMORY_MAP_ACCEPTED,BOOT_MEMORY_REGIONS_READY,BOOT_MEMORY_REGION_COUNT,BOOT_PAGE_ALLOCATOR_READY,BOOT_ACPI_RSDP_HANDOFF_READY,UEFI_ACPI_RSDP_READY
 .\scripts\build-efi-shell.ps1 -EnableUefiGoneSimulationProbe -EfiOutputPath artifacts/efi/BOOTX64-SIM.EFI -LogPath artifacts/logs/efi-shell-publish-sim.log
 .\scripts\run-qemu-smoke.ps1 -EfiArtifact artifacts/efi/BOOTX64-SIM.EFI -Image artifacts/images/os-sim.raw -SerialLog artifacts/logs/qemu-smoke-sim.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -MarkerPreset uefi-gone
-.\scripts\build-efi-shell.ps1 -EnableAcpiPhysicalDiscoveryProbe -EfiOutputPath artifacts/efi/BOOTX64-ACPI.EFI -LogPath artifacts/logs/efi-shell-publish-acpi.log
-.\scripts\run-qemu-smoke.ps1 -EfiArtifact artifacts/efi/BOOTX64-ACPI.EFI -Image artifacts/images/os-acpi.raw -SerialLog artifacts/logs/qemu-smoke-acpi.log -SummaryLog artifacts/logs/qemu-smoke-acpi.summary.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -MarkerPreset acpi
+.\scripts\run-qemu-smoke.ps1 -BuildEfi -EnableAcpiPhysicalDiscoveryProbe -MarkerPreset acpi -EfiArtifact artifacts/efi/BOOTX64-ACPI.EFI -Image artifacts/images/os-acpi.raw -SerialLog artifacts/logs/qemu-smoke-acpi.log -SummaryLog artifacts/logs/qemu-smoke-acpi.summary.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30
 ```
 
 Evidence from 2026-05-21:
@@ -4423,7 +4422,10 @@ state, and emits only through owned COM1. No firmware memory is reclaimed and no
 general adapter revocation is claimed. [Step1032](../done/step1032.md) retains
 staged preparation; [step1051](../done/step1051.md) records the accepted integrated
 common run and fresh source/native/lifecycle/disk association at `e64e9dc`.
-The next firmware-boundary work is general adapter revocation under #65.
+The subsequent eight-capability adapter revocation and owned post-exit
+diagnostics scopes are accepted in [step1053](../done/step1053.md) and
+[step1063](../done/step1063.md). General firmware-page reclamation and continuing
+platform/driver/workload services remain later boundaries.
 
 The preparatory M03-005 `NoAllocationOrUnrelatedFirmwareCallOccursBetween`
 window accepts an already-owned writable map buffer and one retained state.
@@ -4467,19 +4469,33 @@ invalidation remains required after a future real successful exit.
      define the expected register dump field order and caller-owned
      frame-to-panic-output readiness boundary before real handlers are added.
 
-## Owned subsystem survival development
+## Bounded throw/catch accepted scope
 
-Issue #67 now wires the original allocator round trip through BootSequence
-after the original real-exit transition. The operation invokes the owned
+The default-off #582 child runs inside the original pre-exit collecting-GC
+diagnostic, using the registered module, retained allocation receipt/root and
+owned M01 stack. `BootSequence` guards the child and one-frame interpreter;
+no ordinary boot phase or `ExitBootServices` behavior is added.
+[Step1075](../done/step1075.md) accepts one real compiled throw across a frame
+into a typed catch and its continuation at `ead4fca`. The same-image invalid
+local RIP check rejects through the shared capture-admission predicate before
+selection, without modifying live context. [Step1066](../done/step1066.md)
+preserves the earlier development guest; general EH remains #90 work.
+
+## Owned subsystem survival accepted scope
+
+The default-off #67 child runs the original allocator round trip through
+`BootSequence` after the real exit transition. The operation invokes the owned
 diagnostic reporter once, restores the allocation and accounting, then admits
 and reads the original copied ACPI state. Descriptor checks use retained native
 adoption observations and current storage/canaries; they are not fresh reads of
-descriptor registers. The separate disabled panic child reads the original
-unmapped arena guard and admits the installed fault callback's original
-vector/error/CR2/CR3 and IST2 frame before owned terminal reporting.
+descriptor registers. The separate panic child reads the original unmapped arena
+guard and admits the installed fault callback's vector/error/CR2/CR3 and IST2
+frame before owned terminal reporting.
 
-Managed compilation and controlled parser checks pass. The original native
-publication timed out in artifact verification. One unchanged verifier-only
-invocation then passed in 52.9 seconds; independent native review found no scoped
-blocker. No guest has run. [Step1067](../done/step1067.md) records the evidence and
-remaining original common/native/guest acceptance. #67 remains open.
+[Step1074](../done/step1074.md) accepts frozen `4ef299f` with the original full
+host gate and four fresh ordinary captures. Survival emits 76 application
+records; the separate 77-record fault path terminates without the success tail.
+Actual native, raw/process and GPT/FAT/EFI associations pass. Step1067 retains
+the original development publication timeout and its later verifier-only result;
+they are not relabeled as a passing publication. General reclamation, fault
+recovery and continuing platform services remain separate work.

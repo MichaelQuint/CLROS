@@ -126,10 +126,11 @@ extension and cannot authenticate fabricated compiler metadata or POD authority.
 
 Seven focused host groups cover admission, identity, hostile inputs, bounded
 hierarchies, unchanged backing/canaries and zero managed allocation. The actual
-`RhTypeCast_IsInstanceOfException` export remains a halting placeholder. This
-core is not in the EFI Compile list and has no guest proof, EH-record search,
-exception construction, stack restoration, catch/finally/rethrow or cctor
-failure caching. #90 retains its unwind and real-execution acceptance gates.
+`RhTypeCast_IsInstanceOfException` export remains a halting placeholder. The
+#575 leaf supplied no EFI Compile integration, guest proof, EH-record search,
+exception construction or stack restoration. The separate #582 profile below
+integrates the predicate for its bounded development catch; general EH and cctor
+failure caching remain unsupported. #90 retains its unwind and real-execution acceptance gates.
 
 ## NativeAOT EH clause metadata
 
@@ -163,7 +164,9 @@ Typed-prefix range admission does not validate a class or perform matching.
 Chains, reverse-PInvoke, unknown kinds/flags, split code and cross-module targets
 remain unsupported. The leaf changes no EFI export/profile and supplies no
 exception construction/rooting, handler search, invocation, stack restoration
-or actual throw/catch/finally/rethrow. Merge acceptance waits for #89/#574.
+or actual throw/catch/finally/rethrow. The leaf is accepted after #89/#574
+integration; the separate bounded #582 execution evidence below does not extend
+the metadata reader's contract to general EH.
 
 ## Implemented Behavior
 
@@ -279,14 +282,14 @@ or actual throw/catch/finally/rethrow. Merge acceptance waits for #89/#574.
 - `OS.Std.ArrayHelpers` provides a host-tested partial unmanaged-span helper slice for `Clear`, `Fill`, `IndexOf`, `LastIndexOf`, BCL-shaped `BinarySearch` insertion-point results, full-span `Sort`, status-coded range-limited `TrySort`, and status-coded `TryBinarySearch` over caller-specified ranges. The current slice is no-throw, allocation-free, deterministic for small buffers, and constrained to unmanaged element types.
 - `src/OS/Runtime/MinimalRuntime.cs` defines the current compiler-required primitive stubs, throw helpers, memory helpers, fail-fast type-cast placeholders, `IDynamicInterfaceCastable` metadata shape, and reverse-P/Invoke exports needed by the explicit EFI shell project.
 - `OS.Std.NoRuntime.DotNetN10SystemExportCompatibilityLedgerImplementedStubbed`
-  records a source-bound compatibility snapshot for all 45 current canonical
-  `System.*` declarations and all 18 `[RuntimeExport]` methods in
+  records a source-bound compatibility snapshot for all 49 current canonical
+  `System.*` declarations and all 21 `[RuntimeExport]` methods in
   `MinimalRuntime.cs`. It uses readonly reference-free entries and
   switch-indexed retrieval without arrays, reflection, LINQ, exceptions, or a
   canonical `System.*` namespace surface. Unknown indices and default entries
   fail closed. The ledger classifies the runtime exports as four link-only
   no-ops, twelve fail-fast helpers, one audited stack-probe helper, and the
-  profile-bound fixed-allocation export; the ledger itself adds
+  profile-bound fixed-allocation, two SZ-array and string exports; the ledger itself adds
   no runtime behavior and cannot satisfy completion Gate 4.
 - `BootPageFreeListBuilder`, `BootPageAllocatorStateInitializer`,
   `BootPageAllocatorMutation`, `BootPageAllocatorReadinessComposer`, and
@@ -372,13 +375,14 @@ Boundary rules:
 
 `std/no-runtime/shared/DotNetN10SystemExportCompatibilityLedgerImplementedStubbed.cs`
 is the allocation-free declaration/export classification companion to that
-planning ledger. Its 45 declaration identities follow current
-`MinimalRuntime.cs` source order, distinguish generic arities, and carry stable
-unknown, narrowly-implemented, stubbed, or forbidden support states. Its 20
+planning ledger. Its 49 append-only declaration identities bind current
+`MinimalRuntime.cs` declarations, distinguish generic arities, and carry stable
+unknown, narrowly-implemented, stubbed, or forbidden support states. Its 21
 export identities preserve source order: four link-only transition no-ops,
 eleven fail-fast type-cast helpers plus `RhpFallbackFailFast`, the audited
 `RhpStackProbe` bridge, the profile-bound `RhpNewFast` export, then the two
-appended SZ-array exports. The fixed allocator
+appended SZ-array and string exports. The guarded empty Exception identity
+is classified as Stubbed and adds no general exception services. The fixed allocator
 defaults to self-contained failure; its opt-in adapter is implemented and
 artifact-tested in step946, with bounded real guest acceptance in step949.
 Step952 adds the array host contract and focused artifact checks; step954
@@ -399,7 +403,7 @@ allocation, GC, dispatch, exception or runtime-completion requirements.
 | Interface dispatch | Bounded ordinary-instance dispatch accepted | Step1063 accepts the finite M04-016 native/guest slice and same-image rejection control. General ledger entry `InterfaceDispatch` remains incomplete; unsupported shapes and EFI type-cast helpers still fail fast |
 | Class constructors | Bounded eager/lazy execution accepted | Steps1053/1063 accept actual M04-024 invocation over the retained TypeManager owner, profile-only compiler helpers and same-thread reentry. The general `ClassConstructors` ledger remains deferred: exceptions, cached failure/rethrow and cross-thread initialization are unsupported. Earlier host planning contracts alone do not execute constructors. |
 | Thread statics | Deferred | Ledger entry `ThreadStatics`; no TLS bootstrap or NativeAOT thread-static base helper exists |
-| Exception handling/unwind | Deferred | Ledger entry `ExceptionUnwind`; throw helpers halt and catch/finally/unwind are not implemented |
+| Exception handling/unwind | General support deferred; finite throw/catch development | Ledger entry `ExceptionUnwind` remains incomplete. Step1066 records one disabled profile executing a real typed catch and continuation. Finally, filters, rethrow and general EH remain unsupported |
 | Module initialization | Deferred | Ledger entry `ModuleInitialization`; no kernel/runtime module initialization helper behavior is implemented |
 | TypeManager/RTR scans | Deferred | Ledger entry `TypeManagerRtrScans`; step989 accepts one bounded current-image module and slot-derived consumer in QEMU, while general registry/scanning and hosted runtime support remain unaccepted |
 | GC stack roots | Deferred | Ledger entry `GcStackRoots`; stack-root registration/scanning helpers are not implemented |
@@ -409,13 +413,13 @@ allocation, GC, dispatch, exception or runtime-completion requirements.
 
 ## Unsupported Behavior
 
-The required BCL subset, real NativeAOT helpers, GC, class constructor runner,
-exceptions, thread statics, TypeManager/RTR scans, hosted .NET 10 runtime
-boundary, ASP.NET Minimal API hosting, and Kestrel prerequisites are not
-implemented. The `OS.Std.NoRuntime` declaration/export ledger is
-classification metadata only: it does not make the EFI shim callable by the
-kernel, replace the canonical `System.*` stubs, or promote any narrowly
-implemented, stubbed, or forbidden entry into Gate 4 evidence.
+The full BCL/runtime surface remains incomplete beyond the accepted bounded
+helper, retained-heap/collector, constructor, module and dispatch slices described
+above. General exception handling, thread statics, hosted .NET 10, ASP.NET
+Minimal API hosting and Kestrel remain unsupported. The `OS.Std.NoRuntime`
+declaration/export ledger is classification metadata only: it does not make
+the EFI shim callable by the kernel, replace the canonical `System.*` stubs,
+or promote a classified entry into full Gate 4 acceptance.
 
 ### M04-004 integer operator conformance
 
@@ -886,7 +890,8 @@ rejects length1. The direct invalid-length case passes full-width4294967297 to
 the helper and rejects before a constructor. Rejections compare the complete
 state and retained heap. The helper ledger appends EFI-only area17/status8;
 six EFI-only entries remain excluded from general runtime completion. The
-canonical shim ledger reports48 declarations and21 exports.
+canonical shim ledger at that string milestone reported48 declarations and21 exports;
+#582 subsequently appends the guarded Exception identity as declaration49.
 
 At step963, the complete managed harness passed 63 starts/64 passes; the
 separate complete String EFI harness passed 6 starts/7 passes, including five actual NativeAOT
@@ -1232,20 +1237,20 @@ No `TEST_FAIL` or `M04_ENDIAN_CONFORMANCE_FAILED` line appeared.
 
 `tests/OS.HostTests/StdArrayHelpersTests.cs` covers the current partial unmanaged-span array helper slice: empty-span clear/fill behavior, full-span clear, partial-span fill, first/last/missing search over duplicate values, BCL-shaped binary-search exact matches, insertion-point complements, duplicate-match tolerance, full-span sort for empty, single-element, already-sorted, reverse, and duplicate values, status-coded range-limited `TrySort` success/invalid-range behavior, status-coded range-limited `TryBinarySearch` found/not-found/invalid-range behavior, and default-result rejection. It emits `TEST_PASS std.arrayhelpers clear fill unmanaged spans`, `TEST_PASS std.arrayhelpers indexof unmanaged spans`, `TEST_PASS std.arrayhelpers binarysearch insertion points`, `TEST_PASS std.arrayhelpers sort unmanaged spans`, `TEST_PASS std.arrayhelpers trysort range and status`, `TEST_PASS std.arrayhelpers trysort default result is not success`, `TEST_PASS std.arrayhelpers trybinarysearch found range`, `TEST_PASS std.arrayhelpers trybinarysearch notfound range`, `TEST_PASS std.arrayhelpers trybinarysearch invalid range`, and `TEST_PASS std.arrayhelpers trybinarysearch default result is not success`.
 
-`tests/OS.HostTests/NativeAotHelperLedgerTests.cs` verifies that the helper ledger contains the required runtime helper areas, carries symbol/contract detail, evidence, required contract, allowed milestone stub behavior, current test coverage, owner subsystem, next-step text, and completion-gate applicability, leaves incomplete runtime helpers unmarked as complete, prevents EFI-only helpers from satisfying kernel/runtime completion, represents all 20 current EFI `[RuntimeExport]` symbols from `src/OS/Runtime/MinimalRuntime.cs` in exactly one ledger entry, keeps `RhpStackProbe`, the profile-bound `RhpNewFast` entry and the two SZ-array exports separate from the four reverse-P/Invoke and twelve fail-fast symbols, preserves existing append-only enum values, and keeps `BootPageAllocatorMutation` evidence below the object/array/string allocation helper completion boundary. It emits `TEST_PASS runtime.nativeaot helper ledger structured columns`, `TEST_PASS runtime.nativeaot helper ledger append-only values`, and `TEST_PASS runtime.nativeaot helper ledger allocator mutation boundary`.
+`tests/OS.HostTests/NativeAotHelperLedgerTests.cs` verifies that the helper ledger contains the required runtime helper areas, carries symbol/contract detail, evidence, required contract, allowed milestone stub behavior, current test coverage, owner subsystem, next-step text, and completion-gate applicability, leaves incomplete runtime helpers unmarked as complete, prevents EFI-only helpers from satisfying kernel/runtime completion, represents all 21 current EFI `[RuntimeExport]` symbols from `src/OS/Runtime/MinimalRuntime.cs` in exactly one ledger entry, keeps `RhpStackProbe`, the profile-bound `RhpNewFast` entry and the two SZ-array exports plus RhNewString separate from the four reverse-P/Invoke and twelve fail-fast symbols, preserves existing append-only enum values, and keeps `BootPageAllocatorMutation` evidence below the object/array/string allocation helper completion boundary. It emits `TEST_PASS runtime.nativeaot helper ledger structured columns`, `TEST_PASS runtime.nativeaot helper ledger append-only values`, and `TEST_PASS runtime.nativeaot helper ledger allocator mutation boundary`.
 
 `tests/OS.HostTests/DotNetN10SystemExportCompatibilityLedgerImplementedStubbedTests.cs`
-derives the 45 current canonical `System.*` declarations and 20
+derives the 49 current canonical `System.*` declarations and 21
 `[RuntimeExport]` methods directly from `src/OS/Runtime/MinimalRuntime.cs`, then
-binds their source order and observed helper bodies to the allocation-free
+binds their identities and observed helper bodies to the allocation-free
 `OS.Std.NoRuntime` ledger. It verifies the four link-only no-op, twelve
 fail-fast, one audited stack-probe, one profile-bound fixed-allocation export
-and two appended SZ-array exports
+and two appended SZ-array exports plus the string export
 classification; stable categories and support
 states; reference-free entries; switch-indexed retrieval; fail-closed unknown
 and default values; absence of a canonical `System.*` namespace; and the
 unchanged failing Gate 4 boundary. It emits exactly one
-`CLROS_M04_001_READY declarations=45 runtimeExports=20 linkOnlyNoOp=4
+`CLROS_M04_001_READY declarations=49 runtimeExports=21 linkOnlyNoOp=4
 failFast=12 auditedStackProbe=1 gate4=Fail canonicalSystemNamespace=false`
 marker between `TEST_START m04.001` and `TEST_PASS m04.001`.
 
@@ -1485,7 +1490,8 @@ preflight, and work-item plan results for future runner diagnostics.
    than changing the M04-002 vector identities.
 5. Migrate IPv4, ICMP, UDP, and TCP checksum paths onto `OS.Std.Net.InternetChecksum` where it reduces duplicated packet-local checksum loops.
 6. Replace shell-only runtime placeholders with tested runtime helpers as the boot path starts using them.
-7. Reserve heap pages from a live allocator state and define GC root/write-barrier ownership before changing object allocation helper status.
+7. Preserve the accepted retained-heap, root and write-barrier authority when
+   extending allocation or collection beyond their bounded profiles.
 8. Add helper-specific QEMU probes before changing any panic-stubbed helper to successful behavior.
 
 ### M04-010 returning-helper integration checkpoint
@@ -1668,8 +1674,9 @@ unchanged backing and warmed zero allocation. Caller-supplied numeric extents
 and a context do not prove mapping, compiler provenance or a live instruction
 boundary; original storage and code must remain exclusively stable. Recovered
 RSP advances inside the admitted stack, and raw RIP must be same-image RX.
-The core is not in the EFI Compile list. #89/#574 acceptance still gates its
-integration; live stack walking, CPU transfer, EH records/handlers, exception
+The #578 host leaf introduced no EFI Compile change. The separate #582
+development profile adds the core to its disabled closure; #89/#574 acceptance
+still gates final integration; live stack walking, CPU transfer, EH records/handlers, exception
 roots and compiled throw/catch/finally/rethrow remain #90 work.
 
 ### M04-012 read-only GC-static metadata admission
@@ -1951,3 +1958,31 @@ bounded explicit/retained-static-root collector diagnostic. Compiler cctor
 execution/once/reentry (#562), full cached exception/rethrow (#84), concurrent
 initialization, general GC/runtime startup and hosted .NET/Kestrel remain
 unproved; Gates3/4/5 remain **Fail**.
+
+## Bounded throw/catch accepted scope
+
+The default-off #582 child allocates a compiler-generated derived exception
+through the original allocator, retains its explicit receipt root through
+prethrow collection, then executes a non-inlined throw into a typed base-class
+catch. Original module metadata, the one-frame interpreter and bounded type
+predicate select the actual compiler funclet. The C# COFF bridge captures real
+GP/XMM state, validates the returned continuation, and restores post-catch state
+on the selected caller stack. [Step1075](../done/step1075.md) accepts this exact
+`ead4fca` profile; [step1066](../done/step1066.md) remains its earlier development
+boundary.
+
+The same-image negative check changes only a local RIP scalar and uses the
+production capture-admission predicate before any unwind/handler selection.
+Live capture, roots, phase and transfer state stay unchanged. This is bounded
+input rejection, not a corrupted-live-context terminal-halt result. Actual
+compiled catch entry and continuation remain required by the positive path.
+
+The profile requires measured Win64 frames, exact ILC/COFF contribution lengths,
+stable original module/heap/stack authority, disabled CET and no allocation or
+collection during dispatch. General finally/filter/rethrow, nested/collided
+exceptions, automatic stack roots, EH-safe collection, constructor-failure
+caching and general exception construction remain unsupported. The accepted
+host-only #578/#579 leaf contracts are unchanged; this profile supplies only its
+additional finite execution proof. #90 and Gate 4 remain incomplete.
+
+The guarded empty `System.Exception` declaration is only the compiler-required identity for this fixture hierarchy. The canonical declaration ledger appends identity 49 as `CoreType/Stubbed`; it supplies no message, stack trace, inner exception or other exception service. All runtime-completion fields remain false.

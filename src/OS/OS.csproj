@@ -79,6 +79,7 @@
 		<EnableM03OwnedSubsystemSurvivalProbe Condition="'$(EnableM03OwnedSubsystemSurvivalProbe)' == ''">false</EnableM03OwnedSubsystemSurvivalProbe>
 		<EnableM03OwnedSubsystemPanicProbe Condition="'$(EnableM03OwnedSubsystemPanicProbe)' == ''">false</EnableM03OwnedSubsystemPanicProbe>
 		<EnableM04ClassConstructorExecutionProbe Condition="'$(EnableM04ClassConstructorExecutionProbe)' == ''">false</EnableM04ClassConstructorExecutionProbe>
+		<EnableM04SimpleThrowCatchProbe Condition="'$(EnableM04SimpleThrowCatchProbe)' == ''">false</EnableM04SimpleThrowCatchProbe>
 		<EnableM04InterfaceDispatchProbe Condition="'$(EnableM04InterfaceDispatchProbe)' == ''">false</EnableM04InterfaceDispatchProbe>
 	</PropertyGroup>
 
@@ -314,6 +315,9 @@
 	<PropertyGroup Condition="'$(EnableM04ClassConstructorExecutionProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM04SimpleThrowCatchProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_SIMPLE_THROW_CATCH_PROBE</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM04InterfaceDispatchProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_INTERFACE_DISPATCH_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -380,9 +384,9 @@
 		<Compile Include="..\OS.Kernel\Diagnostics\CpuFaultFrame.cs" Link="Diagnostics\CpuFaultFrame.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\DisabledDefaultUd2VectorState.cs" Link="Diagnostics\DisabledDefaultUd2VectorState.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\DisabledDefaultUd2VectorStateTransition.cs" Link="Diagnostics\DisabledDefaultUd2VectorStateTransition.cs" />
-		<Compile Include="..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" Link="Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" />
-		<Compile Include="..\..\std\no-runtime\shared\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs" Link="Std\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs" />
-		<Compile Include="..\..\std\no-runtime\shared\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs" Link="Std\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs" />
+		<Compile Include="..\..\std\no-runtime\shared\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" Link="Std\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" />
+		<Compile Include="..\..\std\no-runtime\shared\Memory\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs" Link="Std\Memory\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs" />
+		<Compile Include="..\..\std\no-runtime\shared\Numerics\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs" Link="Std\Numerics\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs" Link="Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\ManagedHeapPageRangeLiveAllocator.cs" Link="Runtime\ManagedHeapPageRangeLiveAllocator.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs" Link="Boot\M01LoadedImageStackIntegration.cs" />
@@ -436,6 +440,10 @@
 		<Compile Include="Runtime\InterfaceDispatchProbe.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\X64PERuntimeFunctionUnwindMetadataHostileInput.cs" Link="Runtime\X64PERuntimeFunctionUnwindMetadataHostileInput.cs" />
 		<Compile Include="Runtime\X64UnwindMetadataProbe.cs" />
+		<Compile Include="..\OS.Kernel\Runtime\ExceptionTypeMatch.cs" Link="Runtime\ExceptionTypeMatch.cs" />
+		<Compile Include="..\OS.Kernel\Runtime\X64FrameUnwind.cs" Link="Runtime\X64FrameUnwind.cs" />
+		<Compile Include="..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs" Link="Runtime\NativeAotEhClauseMetadata.cs" />
+		<Compile Include="Runtime\ExceptionCatchProbe.cs" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
 		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
 		<ResolvedILCompilerPack Include="runtime.win-x64.Microsoft.DotNet.ILCompiler">
@@ -1557,6 +1565,9 @@
 		<Error Condition="'$(EnableM03OwnedSubsystemSurvivalProbe)' == 'true' and '$(EnableM03FirmwareAdapterRevocationProbe)' == 'true'" Text="m03_owned_revocation_conflict" />
 		<Error Condition="'$(EnableM04ClassConstructorExecutionProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'" Text="m04_cctor_requires_gc_profile" />
 		<Error Condition="'$(EnableM04ClassConstructorExecutionProbe)' == 'true' and '$(EnableM04SeededCollectorChurnProbe)' == 'true'" Text="m04_cctor_profile_conflict EnableM04SeededCollectorChurnProbe" />
+		<Error Condition="'$(EnableM04SimpleThrowCatchProbe)' != '' and '$(EnableM04SimpleThrowCatchProbe)' != 'true' and '$(EnableM04SimpleThrowCatchProbe)' != 'false'" Text="m04_simple_catch_switch_invalid" />
+		<Error Condition="'$(EnableM04SimpleThrowCatchProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'" Text="m04_simple_catch_requires_gc_profile" />
+		<Error Condition="'$(EnableM04SimpleThrowCatchProbe)' == 'true' and ('$(EnableM04SeededCollectorChurnProbe)' == 'true' or '$(EnableM04ClassConstructorExecutionProbe)' == 'true' or '$(EnableM04InterfaceDispatchProbe)' == 'true' or '$(EnableM04X64UnwindMetadataProbe)' == 'true')" Text="m04_simple_catch_profile_conflict" />
 		<Error Condition="'$(EnableM04InterfaceDispatchProbe)' != '' and '$(EnableM04InterfaceDispatchProbe)' != 'true' and '$(EnableM04InterfaceDispatchProbe)' != 'false'" Text="m04_dispatch_switch_invalid" />
 		<Error Condition="'$(EnableM04InterfaceDispatchProbe)' == 'true' and '$(EnableM04ClassConstructorExecutionProbe)' != 'true'" Text="m04_dispatch_requires_cctor_profile" />
 	</Target>

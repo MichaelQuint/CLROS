@@ -2,7 +2,7 @@
 
 ## Current Status
 
-The probe catalogue has 21 entries. M03-008 and M04-024 occupy indices 17 and
+The probe catalogue has 24 entries. M03-008 and M04-024 occupy indices 17 and
 18; the new destructive, default-off M04-016 dispatch entry is index 19 in
 `runtime.dispatch`. Integration #572 is accepted at `d5bef46` in
 [step1063](../done/step1063.md). M03-009 adds five owned-writer records to the
@@ -24,6 +24,12 @@ and 21-record default profile pass at `4625fd7` in
 [step1071](../done/step1071.md), with original full host and independent native,
 stack, raw transcript, disk and lifecycle acceptance. Step1057 retains the
 earlier development evidence.
+
+Owned survival and panic occupy indices 21 and 22, accepted in
+[step1074](../done/step1074.md). The default-off simple-catch child is index 23;
+[step1075](../done/step1075.md) accepts its 82-record collecting-GC profile at
+`ead4fca`, including the real catch/continuation and local-input admission
+rejection. These finite profiles do not establish general exception handling.
 
 The preceding accepted revocation profile extended
 the first-exit transcript to 73 application records: an admitted pre-entry
@@ -1713,52 +1719,78 @@ stage.
 
 1. Preserve the accepted default-off M02-010 and M02-011 returning LoaderData
    materialization, readback, cleanup, and guest-marker boundaries and M02-013's
-   separate terminal fault-delivery evidence. Implement a reusable common entry,
-   recovery/return policy, and default descriptor ownership only in later issues
-   that explicitly own and test those boundaries.
-2. Map M02-008's planned guard/stack ranges and write the fixed IST indices into
-   owned TSS state only in later issues that own page-table and descriptor-table
-   installation; the accepted EFI profile remains temporary pre-firmware proof.
-3. Preserve the M02-005 bounded owned-COM1 marker proof, then wire the writer
-   through `SerialDiagnosticsGuard` only when a later issue owns the live
-   post-firmware diagnostic boundary.
-4. Add persistent/default IDT/GDT/TSS/IST setup only in later issues that own
-   page-table and descriptor installation. M02-013 proves one fresh terminal
-   setup, while M02-007 still does not execute `lgdt`/`ltr` and M02-008 still
-   does not map its planned guard/stack ranges.
+   separate terminal fault-delivery evidence. Later accepted common-entry
+   terminal profiles remain distinct from future recovery/return policy and
+   default descriptor ownership.
+2. Preserve later accepted opt-in profiles' installed guard/IST/TSS observations
+   separately from M02-008's allocation-only leaf. Continuing stack and
+   descriptor lifecycles need their own ownership evidence.
+3. Keep M02-005's bounded pre-firmware owned-COM1 marker proof separate from
+   M03-009's accepted post-exit writer in [step1063](../done/step1063.md).
+   Neither promotes the host `SerialDiagnosticsGuard` contract into a default
+   continuing diagnostic service.
+4. Add default IDT/GDT/TSS/IST lifecycle and safe recovery only in work that owns
+   those continuing-execution boundaries. The accepted installed terminal
+   profiles do not change M02-007's encoding-only or M02-008's allocation-only
+   leaf contracts.
 5. Add real executable-stub page transitions using the W^X layout, materialization, and page-transition plan contracts.
 6. Keep M02-004's configuration-only marker, M02-005's pre-firmware direct
-   COM1 payload, M02-006's panic-safe route, and future post-firmware diagnostics
-   as distinct evidence.
-7. Wire the COM1 backend contract into an owned serial writer only after generated stubs can be safely mapped executable and invoked.
+   COM1 payload, M02-006's panic-safe route, and accepted bounded post-firmware
+   diagnostics as distinct evidence.
+7. Preserve the original admitted COM1 callback and owned writer authority when
+   extending the accepted diagnostic paths; additional routes require their own
+   publication, lifetime and permission checks.
 8. Preserve the M02-013 host request/audit contract and its accepted default-off
    terminal EFI/QEMU profile as distinct evidence. Keep the exact host and guest
-   markers separate. Add any safe continuation, descriptor restoration,
-   persistent descriptor ownership, or post-firmware route only in later work
-   that explicitly owns those boundaries.
+   markers separate. Safe continuation and default descriptor restoration or
+   lifecycle remain separate work; bounded post-firmware diagnostic acceptance
+   does not establish those behaviors.
 9. Keep the controlled null-read profile explicit through
    `EnableM02PageFaultCr2ErrorCodeProbe`. It consumes the disabled M01-015
    intent; `Probes.EnableNullPointerPanicProbe` remains false in the narrow
    `NullPointerProbeAuthority.cs` partial-class file. Keep the M02-014 adapter's
    actual guest evidence separate from host intent and source inclusion.
-10. Wire a reusable handler's register capture into `CpuFaultFrame`; do not
-    substitute M02-013's private terminal context as that default boundary.
+10. A future default or recoverable handler needs its own register-capture
+    contract in `CpuFaultFrame`; M02-013's private terminal context does not
+    establish that boundary.
 11. Keep M02-003 binding readiness, M02-004 configuration, M02-005 bounded
-   payload output, M02-006 panic-safe routing, and future post-EBS claims
-   distinct.
+   payload output, M02-006 panic-safe routing and accepted bounded post-EBS
+   diagnostics distinct from general continuing-execution claims.
 
-## Owned subsystem result and panic profiles in development
+## Bounded throw/catch diagnostic
 
-Issue #67 adds two destructive, default-off children. Positive output preserves
-the original 66 first-exit application records and adds ten: test-start, one
-allocator row, five original copied-ACPI rows, a descriptor row, ready and pass.
-The panic form has 77 application records: it replaces ready/pass with armed,
-entered and the existing terminal fault record. With the fixed firmware
-preamble, the respective stream counts are 78 and 79. Every M03_OWNED stage
-contains eight fixed-width hexadecimal fields tied to the original authorities.
+The accepted `ead4fca` integration places the default-off simple-catch probe at
+catalogue index 23, after the two owned-subsystem profiles. Its complete
+collecting-GC transcript requires 82 application records and 71
+required/ordered/unique anchors. Nine numeric child stages bind original
+module/stack/receipt authority, a local input rejected by the production
+capture-admission predicate, the captured and selected caller contexts, typed
+handler, actual catch entry and actual returned continuation. Stage 2 changes
+only a local RIP scalar; it does not mutate the live capture or enter a handler.
+`CLROS_M04_SIMPLE_CATCH_READY` and `TEST_PASS m04.021.simple-catch` still require
+the real compiled catch and continuation. Failures remain
+`TEST_FAIL m04.021.simple-catch <reason>`. The earlier 81-record development
+guest is preserved in [step1066](../done/step1066.md). [Step1075](../done/step1075.md)
+accepts the original common gate and current 82-record guest with final native,
+raw, lifecycle and disk association. Local-input admission rejection does not
+prove terminal rejection after live context corruption or general exception
+recovery.
 
-The separate expected-panic runner mode retains the measured 750 ms unchanged
-serial drain, owned teardown and exit 19 classification. Its terminal fault
-cannot count as ordinary boot success. The original M02 panic mode is retained.
-Controlled parser cases pass; no actual #67 positive or panic guest has run.
-See [step1067](../done/step1067.md) for source/native evidence and limitations.
+## Owned subsystem result and panic profiles
+
+Issue #67 adds two destructive, default-off children at catalogue indices 21
+and 22. Positive output preserves the original 66 first-exit application records
+and adds ten: test-start, one allocator row, five original copied-ACPI rows, a
+descriptor row, ready and pass. The panic form has 77 application records: it
+replaces ready/pass with armed, entered and the terminal fault record. With the
+fixed firmware preamble, the respective stream counts are 78 and 79. Every
+`M03_OWNED` stage contains eight fixed-width hexadecimal fields tied to the
+original authorities.
+
+[Step1074](../done/step1074.md) accepts both actual guests at `4ef299f`, with
+independent native and raw/process/disk review. The panic capture binds the
+faulting instruction and guard address to original CR3 and the 184-byte IST2
+frame. Runner exit 19 becomes wrapper exit 0 only after the exact terminal
+transcript and measured 757 ms quiet interval; no success follows the fault.
+This remains distinct from ordinary boot success, recovery and the unchanged
+M02 panic mode. [Step1067](../done/step1067.md) preserves development failures.

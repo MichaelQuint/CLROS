@@ -31,7 +31,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const int MaximumRuntimeFunctionRecords = 2048;
     private const int MaximumLinkResponseTokens = 4096;
     private const int VerifierFixtureProcessTimeoutMilliseconds = 120_000;
-    private const int ExpectedSourceClosureInputCount = 132;
+    private const int ExpectedSourceClosureInputCount = 137;
     private const string SerializerSymbol =
         "CLROS_X64_SerializeInstructionPublication";
     private const string ToolDirectoryBuildPropsPath =
@@ -45,7 +45,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const string EmptySha256 =
         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     private const string CompileClosureSha256 =
-        "70a0a63c6bb5a2673d5df58e6bd8758cc620d061abac9c027a3d4bb7f16bb652";
+        "8f97464a82c221d17190da6d5347e5fa998a5863dae0edb4a7012f8ec9bb8ab1";
     private const string AnalyzerClosureSha256 =
         "bea3e700acbeec374acb02a39b8c154e03291cf380edf850fea2114193b7ea14";
     private const string ManagedFixtureConfiguration = "Release";
@@ -2619,7 +2619,7 @@ internal static class EfiArtifactVerificationScriptTests
                 "MSBUILDDISABLENODEREUSE",
                 StringComparison.Ordinal)
             && verifierSource.Contains(
-                "$expectedSourceClosureInputCount = 132",
+                "$expectedSourceClosureInputCount = 137",
                 StringComparison.Ordinal)
             && stableReasons.All(reason => verifierSource.Contains(
                 reason,
@@ -4898,7 +4898,8 @@ internal static class EfiArtifactVerificationScriptTests
             "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs",
             "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs",
             "tools/OS.X64TextSerializerGenerator/CheckedReferenceBarrierThunkGenerator.cs",
-            "tools/OS.X64TextSerializerGenerator/InterfaceDispatchThunkGenerator.cs"
+            "tools/OS.X64TextSerializerGenerator/InterfaceDispatchThunkGenerator.cs",
+            "tools/OS.X64TextSerializerGenerator/ExceptionHandlingThunkGenerator.cs"
         ];
         foreach (string relativePath in explicitRelativePaths)
         {
@@ -5238,6 +5239,7 @@ internal static class EfiArtifactVerificationScriptTests
             ["EnableM04X64UnwindMetadataProbe"] = "false",
             ["EnableM03OwnedSubsystemSurvivalProbe"] = "false",
             ["EnableM03OwnedSubsystemPanicProbe"] = "false",
+            ["EnableM04SimpleThrowCatchProbe"] = "false",
             ["EnableM03TypedExitBootServicesCallProbe"] = "false",
             ["EnableM03FirstRealExitBootServicesProbe"] = "false",
             ["EnableM04GcStaticRootMaterializationProbe"] = "false",
@@ -5366,7 +5368,7 @@ internal static class EfiArtifactVerificationScriptTests
         };
         return new Dictionary<string, object?>
         {
-            ["compileCount"] = 117,
+            ["compileCount"] = 121,
             ["compileSha256"] = CompileClosureSha256,
             ["projectReferenceCount"] = 0,
             ["projectReferenceSha256"] = EmptySha256,
@@ -5533,7 +5535,8 @@ internal static class EfiArtifactVerificationScriptTests
             "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs",
             "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs",
             "tools/OS.X64TextSerializerGenerator/CheckedReferenceBarrierThunkGenerator.cs",
-            "tools/OS.X64TextSerializerGenerator/InterfaceDispatchThunkGenerator.cs"
+            "tools/OS.X64TextSerializerGenerator/InterfaceDispatchThunkGenerator.cs",
+            "tools/OS.X64TextSerializerGenerator/ExceptionHandlingThunkGenerator.cs"
         ];
         foreach (string relativePath in explicitPaths)
         {
