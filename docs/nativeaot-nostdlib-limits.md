@@ -1591,6 +1591,40 @@ General stack walking, restored registers, GC stack scanning, handler search,
 exception objects, catch/finally and rethrow remain outside this parser and
 belong to M04-021. The general exception/unwind ledger remains deferred.
 
+### M04-021 bounded one-frame host interpreter
+
+`X64FrameUnwind.UnwindOne` in #578 ([step1059](../done/step1059.md))
+revalidates the original module and unwind snapshot, reads a caller-owned bounded
+stack, and returns one POD caller context. It carries RIP/RSP, the nonvolatile
+integer registers and all XMM6-XMM15 bits. It does not overlay Windows CONTEXT
+or capture/restore processor registers. Every failure returns a status with a
+zero payload; input context, image, metadata and stack remain unchanged.
+
+The supported subset is version-one non-chained normal frames: integer/XMM
+saves, small/large allocation and frame-pointer operations, with only executed
+operations undone in a partial prolog. SAVE and SET_FPREG use the original fixed
+frame base even if an earlier restore changed the candidate frame register.
+This defensive admitted-shape rule does not claim full RtlVirtualUnwind
+equivalence. Missing function records do not establish leaf frames.
+
+An internal recognizer plans the remaining epilog before reading the stack:
+ADD RSP or supported non-SIB LEA from the declared frame register, nonvolatile
+POPs, and RET/F3 RET. The limits are 32 bytes and 16 instructions. Partial
+POP/RET suffixes do not repeat prior restores; epilog results have
+`InEpilog=true` and `EstablisherFrame=0`. Tail jumps, RET imm16, F2, unsupported
+prefixes/addressing, truncation and exhausted limits reject without falling
+back to body unwinding. Some legitimate body instructions are conservatively
+unsupported. Machine/chained frames and cross-image returns are excluded.
+
+Six focused host groups pass, including exact-end reads, late atomic failure,
+unchanged backing and warmed zero allocation. Caller-supplied numeric extents
+and a context do not prove mapping, compiler provenance or a live instruction
+boundary; original storage and code must remain exclusively stable. Recovered
+RSP advances inside the admitted stack, and raw RIP must be same-image RX.
+The core is not in the EFI Compile list. #89/#574 acceptance still gates its
+integration; live stack walking, CPU transfer, EH records/handlers, exception
+roots and compiled throw/catch/finally/rethrow remain #90 work.
+
 ### M04-012 read-only GC-static metadata admission
 
 [Step990](../done/step990.md) adds `GCStaticRootsMalformedMetadata.ValidateOne`.
