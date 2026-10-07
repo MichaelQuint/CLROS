@@ -65,6 +65,13 @@ root lifetime or exception execution is established. #90 remains dependent on
 accepted unwind metadata and its own real throw/catch/finally/rethrow evidence.
 This leaf changes no completion-gate status.
 
+#579 adds a host-only decoder for pinned NativeAOT Windows EH clauses
+([step1061](../done/step1061.md)). Six focused groups pass for real wire formats,
+complete-table validation, exact bounds, nearest-root funclet association and
+zero-allocation reads. The caller still supplies compiler-contribution extents;
+live ILC/COFF association and actual exception execution remain unproved.
+This leaf changes no EFI export or completion gate and awaits #89/#574 acceptance.
+
 Gate status is explicit:
 
 - `Pass` means every acceptance item for that gate has preserved evidence.
