@@ -4437,17 +4437,13 @@ the final window result. The outer state prevents reentry/reuse and cannot
 overlap the map buffer. [Step1001](../done/step1001.md) records focused host and
 no-stdlib compilation. [Step1010](../done/step1010.md) accepts five authentic
 GetMemoryMap captures and five controlled exit callbacks, including stale-key
-retry and exhaustion. No original firmware exit occurs; firmware access
-invalidation remains required after a future real successful exit.
+retry and exhaustion. No original firmware exit occurs in that controlled
+profile. The separate accepted real-exit and capability-revocation profiles
+are recorded above; their evidence must not be inferred from this fixture.
 
-1. Treat the accepted M01-026 tuple as the bounded M01 milestone exit and begin
-   M02 diagnostics work after tracker review/synchronization. Keep real
-   `ExitBootServices` blocked until owned serial, descriptor tables, fault
-   handling, and the retry boundary have matching evidence.
-2. Keep extending the QEMU UEFI-gone simulation as new firmware-guarded platform interfaces are added, keeping real `ExitBootServices` blocked until post-firmware diagnostics are implemented.
-3. Add a real `ExitBootServices` probe only after the retry plan, diagnostics, and owned output paths have evidence.
-4. Begin diagnostics-first IDT/fault panic work after post-UEFI diagnostics requirements are represented by tests and evidence.
-   - The host-tested `CpuFaultFrame`, `PanicFormatter.FormatFault`,
-     `CpuFaultEntryFrameLayout`, and `CpuFaultPanicReadiness` contracts now
-     define the expected register dump field order and caller-owned
-     frame-to-panic-output readiness boundary before real handlers are added.
+1. Preserve the accepted real-exit, retained ownership, capability cutoff and
+   terminal diagnostic profiles while extending continuing post-firmware work.
+2. Route each additional firmware-backed interface through the same explicit
+   availability/ownership boundary and retain its denial evidence after exit.
+3. Keep general reclamation, interrupts/recovery and continuing drivers or
+   workloads separate until their own completion-gate evidence is accepted.

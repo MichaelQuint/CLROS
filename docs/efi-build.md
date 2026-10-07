@@ -2218,10 +2218,10 @@ Any next-step EFI build work must keep the freestanding constraints explicit. If
 8. Move UEFI structs behind platform interfaces.
    - Keep the low-level UEFI table pointers isolated to the EFI boundary.
    - Expose only the narrow operations required for console diagnostics, memory-map ownership, firmware shutdown state, and optional filesystem/protocol discovery.
-9. Implement post-firmware COM1 before enabling any real firmware shutdown.
-10. Copy required firmware data, add the typed `ExitBootServices` call adapter,
-   and implement the bounded stale-map-key retry only after its M01/M02
-   dependencies pass.
+9. Preserve the accepted real-exit and owned-COM1 profiles while extending
+   continuing post-firmware services.
+10. Preserve copied firmware data, the typed `ExitBootServices` adapter and
+   bounded stale-key retry; admit each additional retained owner before use.
 11. Route additional platform interfaces through the UEFI-gone simulation path
    as they are introduced.
 12. Replace permissive shell-only runtime placeholders with audited runtime

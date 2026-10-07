@@ -185,6 +185,15 @@ Use the Gitea API when instructed or when doing backlog maintenance.
 - Repository: `http://localhost:3000/admin/CLROS`
 - API base: `http://localhost:3000/api/v1/repos/admin/CLROS`
 
+These loopback addresses identify Gitea on the current source computer. On
+another machine, verify the intended server and `admin/CLROS` repository
+against the final handoff before any tracker operation. The destination
+machine's own `localhost` Gitea is a different server. The default handoff
+continues to use the source server at `192.168.4.35`; verify that address
+on arrival. Existing loopback-only helpers and backlog synchronization run
+on the source host unless endpoint support is explicitly reviewed. See
+[Windows handoff](docs/windows-handoff.md).
+
 Rules:
 
 - Use only credentials supplied by the current task context or secure

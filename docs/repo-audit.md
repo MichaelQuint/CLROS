@@ -282,7 +282,7 @@ This is not a full kernel boot. `EfiMain` emits the shared ordered boot marker p
 
 ## Runtime Status
 
-No functional no-stdlib NativeAOT runtime helper implementation exists yet. `src/OS/Runtime/MinimalRuntime.cs` contains only minimal compiler-required shell stubs and placeholders for the EFI publish boundary, while `std/no-runtime/shared` contains small host-tested `OS.Std.Ascii`, byte-span `OS.Std.MemoryExtensions`, and endian helper slices that must be expanded before broader kernel or app usage.
+The no-stdlib NativeAOT boundary now includes accepted bounded allocation, module registration, explicit/static roots, collection, compiler-generated constructors and interface dispatch. Current-image unwind metadata is accepted in [step1071](../done/step1071.md); exception-type matching, one-frame restoration and EH-clause parsing also have bounded host acceptance. `src/OS/Runtime/MinimalRuntime.cs` still has unsupported helper paths, and these slices do not establish general runtime or BCL compatibility. See [runtime limits](nativeaot-nostdlib-limits.md) and the [completion gates](completion-gates.md).
 
 ## App Status
 
@@ -295,7 +295,7 @@ The example app projects exist and currently emit deferred-status markers only:
 
 ## Driver Status
 
-No first-party APIC, serial port hardware backend, framebuffer, live PCI, virtio-blk, or virtio-net driver implementation exists yet. Host-tested ACPI RSDP discovery/validation, RSDT/XSDT pointer-list parsing, MCFG-to-ECAM parsing, PCI ECAM address planning, PCI type-0 header parsing, PCI BAR metadata decoding, injected-reader PCI scanning, virtio PCI capability parsing/discovery, virtio initialization planning, virtio-blk split-ring descriptor materialization, and virtio-net queue/header metadata contracts exist. The opt-in ACPI physical discovery probe has live QEMU table-discovery markers, but these are not live hardware enumeration or driver evidence.
+Owned COM1 configuration/output has accepted bounded guest and post-exit evidence. First-party APIC, general framebuffer, live PCI, virtio-blk and virtio-net drivers remain incomplete. Host-tested ACPI RSDP discovery/validation, RSDT/XSDT pointer-list parsing, MCFG-to-ECAM parsing, PCI ECAM address planning, PCI type-0 header parsing, PCI BAR metadata decoding, injected-reader PCI scanning, virtio PCI capability parsing/discovery, virtio initialization planning, virtio-blk split-ring descriptor materialization, and virtio-net queue/header metadata contracts exist. The opt-in ACPI physical discovery probe has live QEMU table-discovery markers, but these are not live hardware enumeration or driver evidence.
 
 ## Networking Status
 
@@ -413,18 +413,20 @@ Current M00 recovery evidence from 2026-07-25:
 
 ## Known Limitations
 
-- This audit cannot claim runtime, live driver, live storage, live network, app execution, or hosted-workload readiness.
-- The default solution projects are plain `net10.0` scaffolds. The explicit `src/OS` EFI shell is no-stdlib and now has first-marker QEMU proof, but it is not a functional kernel artifact.
+- Accepted bounded boot, runtime and serial-diagnostic profiles do not establish general runtime/driver support, live storage/networking, app execution or hosted-workload readiness.
+- The solution includes implemented .NET 10 host contracts and tools alongside the explicit no-stdlib `src/OS` EFI project. Its accepted bounded QEMU profiles do not make it a functional general-purpose kernel.
 - SharpOS-authored source in `references/SharpOS-main` is eligible for
   selective adaptation under the recorded owner permission and public CC0
   evidence, but each adaptation still requires exact local path/hash,
   provenance, boundary, first-party review, and CLROS tests. File-local vendor,
   GPL, CoreCLR, WAD, and media rights remain separate.
 
-## Required Post-M02-017 Sequence
+## Historical Post-M02-017 Sequence
 
-The accepted M02-017 merge requires this ordered durability sequence. Later
-tracker comments and synchronizer logs prove which steps completed.
+The following sequence records the earlier M02-017 durability checkpoint;
+it is not a current next-step list. Later accepted M02 diagnostics and
+post-exit evidence supersede its implementation prerequisites. Retained
+tracker comments and synchronizer logs record the original completion.
 
 1. Implement and independently review M02-020 from the exact six owned
    catalog/synchronizer/test/document paths and one newly reserved done step.

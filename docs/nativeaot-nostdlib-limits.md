@@ -163,7 +163,8 @@ Typed-prefix range admission does not validate a class or perform matching.
 Chains, reverse-PInvoke, unknown kinds/flags, split code and cross-module targets
 remain unsupported. The leaf changes no EFI export/profile and supplies no
 exception construction/rooting, handler search, invocation, stack restoration
-or actual throw/catch/finally/rethrow. Merge acceptance waits for #89/#574.
+or actual throw/catch/finally/rethrow. #579 is accepted and merged through
+PR #581 as this bounded host metadata contract; general EH remains #90 work.
 
 ## Implemented Behavior
 
@@ -1669,9 +1670,10 @@ unchanged backing and warmed zero allocation. Caller-supplied numeric extents
 and a context do not prove mapping, compiler provenance or a live instruction
 boundary; original storage and code must remain exclusively stable. Recovered
 RSP advances inside the admitted stack, and raw RIP must be same-image RX.
-The core is not in the EFI Compile list. #89/#574 acceptance still gates its
-integration; live stack walking, CPU transfer, EH records/handlers, exception
-roots and compiled throw/catch/finally/rethrow remain #90 work.
+The accepted #578 host core is merged through PR #580. This accepted scope
+does not establish live stack walking, CPU transfer, handler execution,
+exception roots or compiled throw/catch/finally/rethrow. #579 separately
+accepts bounded host EH-record parsing; general execution remains #90 work.
 
 ### M04-012 read-only GC-static metadata admission
 
