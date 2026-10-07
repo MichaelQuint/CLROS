@@ -131,6 +131,40 @@ core is not in the EFI Compile list and has no guest proof, EH-record search,
 exception construction, stack restoration, catch/finally/rethrow or cctor
 failure caching. #90 retains its unwind and real-execution acceptance gates.
 
+## NativeAOT EH clause metadata
+
+`NativeAotEhClauseMetadata.ReadClause` implements #579's host-only Windows
+NativeAOT metadata leaf ([step1061](../done/step1061.md)). It revalidates the
+original module and unwind snapshot, discovers the EH RVA in the pinned
+ILC 10.0.8 trailer, and reads one physical clause only after validating the
+complete table and every referenced funclet's nearest preceding root.
+An intervening root rejects even an earlier selected row. Failure payloads
+are zero; no-EH and out-of-range results have distinct statuses.
+
+The format has low-bit compressed unsigned fields of one through five bytes,
+fixed typed-target RVAs and optional associated-data before the EH pointer.
+Windows handler flags determine whether the unwind tail is aligned and skips
+a personality DWORD; an odd code count without those flags is not rounded.
+Typed, filter and shared fault/finally kinds retain physical order, nested/equal
+try ranges, end-exclusive containment and legal empty try-group boundaries.
+CLROS limits a table to 64 rows and 4096 bytes. Nonminimal widths follow the
+pinned permissive runtime decoder; this is not LEB128 or a Windows scope table.
+
+The caller must supply exact same-image compiler code and EH contribution
+extents, including funclets and folded aliases, with EH padding excluded.
+Neither PE xdata nor the stream supplies the EH byte length. Numeric bounds,
+root-row ends, section tails and the next symbol cannot establish that native
+ownership. All image, registration and snapshot storage must remain mapped and
+exclusively stable for each call. The reader takes no persistent EH snapshot.
+
+Six original focused host groups pass, including the intervening-root
+regression, late-error atomicity, unchanged inputs and zero managed allocation.
+Typed-prefix range admission does not validate a class or perform matching.
+Chains, reverse-PInvoke, unknown kinds/flags, split code and cross-module targets
+remain unsupported. The leaf changes no EFI export/profile and supplies no
+exception construction/rooting, handler search, invocation, stack restoration
+or actual throw/catch/finally/rethrow. Merge acceptance waits for #89/#574.
+
 ## Implemented Behavior
 
 - `OS.Std.CompatibilityStatus` records compatibility states.
