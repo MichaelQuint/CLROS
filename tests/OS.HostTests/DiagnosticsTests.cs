@@ -106,7 +106,7 @@ internal static class DiagnosticsTests
                 nameof(Probes.EnableM01LiveAllocatorProbe)) ||
             !IsCompileTimeFalseProbe(
                 nameof(Probes.EnableM01OwnedPagingProbe)) ||
-            Probes.ProbeCatalogCount != 22 ||
+            Probes.ProbeCatalogCount != 24 ||
             !IsCompileTimeFalseProbe(nameof(Probes.EnableM03FirstRealExitBootServicesProbe)) ||
             !Probes.TryGetProbe(16, out ProbeDefinition firstExit) ||
             firstExit.Name != nameof(Probes.EnableM03FirstRealExitBootServicesProbe) ||
@@ -132,8 +132,18 @@ internal static class DiagnosticsTests
             unwind.Name != nameof(Probes.EnableM04X64UnwindMetadataProbe) ||
             unwind.EnabledByDefault || unwind.Risk != ProbeRisk.Destructive ||
             unwind.Group != "runtime.unwind-metadata" ||
+            !IsCompileTimeFalseProbe(nameof(Probes.EnableM03OwnedSubsystemSurvivalProbe)) ||
+            !Probes.TryGetProbe(21, out ProbeDefinition survival) ||
+            survival.Name != nameof(Probes.EnableM03OwnedSubsystemSurvivalProbe) ||
+            survival.EnabledByDefault || survival.Risk != ProbeRisk.Destructive ||
+            survival.Group != Probes.UefiExitBootServicesGroup ||
+            !IsCompileTimeFalseProbe(nameof(Probes.EnableM03OwnedSubsystemPanicProbe)) ||
+            !Probes.TryGetProbe(22, out ProbeDefinition panic) ||
+            panic.Name != nameof(Probes.EnableM03OwnedSubsystemPanicProbe) ||
+            panic.EnabledByDefault || panic.Risk != ProbeRisk.Destructive ||
+            panic.Group != Probes.UefiExitBootServicesGroup ||
             !IsCompileTimeFalseProbe(nameof(Probes.EnableM04SimpleThrowCatchProbe)) ||
-            !Probes.TryGetProbe(21, out ProbeDefinition simpleCatch) ||
+            !Probes.TryGetProbe(23, out ProbeDefinition simpleCatch) ||
             simpleCatch.Name != nameof(Probes.EnableM04SimpleThrowCatchProbe) ||
             simpleCatch.EnabledByDefault || simpleCatch.Risk != ProbeRisk.Destructive ||
             simpleCatch.Group != "runtime.exception")

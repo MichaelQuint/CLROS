@@ -31,7 +31,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const int MaximumRuntimeFunctionRecords = 2048;
     private const int MaximumLinkResponseTokens = 4096;
     private const int VerifierFixtureProcessTimeoutMilliseconds = 120_000;
-    private const int ExpectedSourceClosureInputCount = 136;
+    private const int ExpectedSourceClosureInputCount = 137;
     private const string SerializerSymbol =
         "CLROS_X64_SerializeInstructionPublication";
     private const string ToolDirectoryBuildPropsPath =
@@ -45,7 +45,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const string EmptySha256 =
         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     private const string CompileClosureSha256 =
-        "f36aa897f314bb169a667353c2d37c70d4767cf57aa95babf44103af85f2817a";
+        "8f97464a82c221d17190da6d5347e5fa998a5863dae0edb4a7012f8ec9bb8ab1";
     private const string AnalyzerClosureSha256 =
         "bea3e700acbeec374acb02a39b8c154e03291cf380edf850fea2114193b7ea14";
     private const string ManagedFixtureConfiguration = "Release";
@@ -196,6 +196,10 @@ internal static class EfiArtifactVerificationScriptTests
         try
         {
             Directory.CreateDirectory(tempRoot);
+            Run(
+                "efi artifact verifier preserves literal path and reparse admission",
+                () => TestReparsePathHelper(tempRoot),
+                ref failures);
             Run(
                 "efi artifact verifier accepts linked serializer PE, map, object, and unwind evidence",
                 () => TestValidArtifactPasses(tempRoot),
@@ -2615,7 +2619,7 @@ internal static class EfiArtifactVerificationScriptTests
                 "MSBUILDDISABLENODEREUSE",
                 StringComparison.Ordinal)
             && verifierSource.Contains(
-                "$expectedSourceClosureInputCount = 136",
+                "$expectedSourceClosureInputCount = 137",
                 StringComparison.Ordinal)
             && stableReasons.All(reason => verifierSource.Contains(
                 reason,
@@ -3074,6 +3078,137 @@ internal static class EfiArtifactVerificationScriptTests
         return FailedWith(
             result,
             "post_restore_user_extensions_path_present");
+    }
+
+    private static bool TestReparsePathHelper(string tempRoot)
+    {
+        string probeRoot = Path.Combine(tempRoot, "path-helper");
+        Directory.CreateDirectory(probeRoot);
+        string script = Path.Combine(probeRoot, "probe.ps1");
+        File.WriteAllText(script, """
+            param([string]$VerifierPath, [string]$ProbeRoot)
+            $ErrorActionPreference = "Stop"
+            Set-StrictMode -Version Latest
+            function Assert-Probe([bool]$Condition, [string]$Reason) {
+                if (-not $Condition) { throw $Reason }
+            }
+            function Write-Failure([string]$Reason, [string]$Detail) {
+                throw "PATH_REJECT|$Reason|$Detail"
+            }
+            $tokens = $null
+            $errors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $VerifierPath, [ref]$tokens, [ref]$errors)
+            Assert-Probe ($errors.Count -eq 0) "parse_failed"
+            $functions = @($ast.FindAll({ param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                    $node.Name -ceq "Assert-NoReparsePoints"
+            }, $true))
+            Assert-Probe ($functions.Count -eq 1) "helper_missing"
+            . ([scriptblock]::Create($functions[0].Extent.Text))
+            function Check-Path([string]$Root, [string]$Path, [string]$Expected) {
+                $actual = "accepted"
+                try { Assert-NoReparsePoints -RootPath $Root -Path $Path -Reason "fixture_reparse" }
+                catch {
+                    $actual = $_.Exception.Message
+                    if (-not $actual.StartsWith("PATH_REJECT|", [StringComparison]::Ordinal)) {
+                        $actual = "EXCEPTION|" + $_.Exception.GetType().Name
+                    }
+                }
+                Assert-Probe ($actual -ceq $Expected) "expected=$Expected actual=$actual"
+            }
+            $literal = [IO.Path]::Combine($ProbeRoot, "literal [abc] #; space")
+            [void][IO.Directory]::CreateDirectory($literal)
+            $file = [IO.Path]::Combine($literal, "hidden [x].txt")
+            [IO.File]::WriteAllText($file, "owned fixture")
+            [IO.File]::SetAttributes($file, [IO.FileAttributes]::Hidden)
+            try {
+                Check-Path $ProbeRoot $file "accepted"
+                Check-Path ($ProbeRoot + "\") $literal "accepted"
+                Check-Path $ProbeRoot ($ProbeRoot + "\.\literal [abc] #; space\hidden [x].txt") "accepted"
+                Check-Path $ProbeRoot $ProbeRoot "accepted"
+                $outside = $ProbeRoot + "-outside\leaf"
+                Check-Path $ProbeRoot $outside "PATH_REJECT|fixture_reparse|path=$outside"
+                $missing = [IO.Path]::Combine($ProbeRoot, "missing")
+                Check-Path $ProbeRoot ($missing + "\leaf") "PATH_REJECT|fixture_reparse|path=$missing type=ItemNotFoundException"
+                # Preserve the original strict-mode error for a provider-null item.
+                Check-Path $ProbeRoot ($file + "\leaf") "EXCEPTION|PropertyNotFoundException"
+                Write-Output "PATH_HELPER_CASES literal_hidden_normalized_root_containment_missing_file_parent=pass"
+                $target = [IO.Path]::Combine($ProbeRoot, "target")
+                [void][IO.Directory]::CreateDirectory($target)
+                [IO.File]::WriteAllText([IO.Path]::Combine($target, "leaf"), "owned target")
+                $junction = [IO.Path]::Combine($ProbeRoot, "junction")
+                $junctionCreated = $false
+                try {
+                    try {
+                        [void](New-Item -ItemType Junction -Path $junction -Target $target -ErrorAction Stop)
+                        $junctionCreated = $true
+                    }
+                    catch { Write-Output ("PATH_HELPER_JUNCTION_UNAVAILABLE " + $_.Exception.GetType().Name) }
+                    if ($junctionCreated) {
+                        Check-Path $ProbeRoot ($junction + "\leaf") "PATH_REJECT|fixture_reparse|path=$junction"
+                        Write-Output "PATH_HELPER_JUNCTION rejected=true"
+                    }
+                }
+                finally { if ($junctionCreated) { [IO.Directory]::Delete($junction) } }
+                $link = [IO.Path]::Combine($ProbeRoot, "file-link")
+                $linkCreated = $false
+                try {
+                    try {
+                        [void](New-Item -ItemType SymbolicLink -Path $link -Target $file -ErrorAction Stop)
+                        $linkCreated = $true
+                    }
+                    catch { Write-Output ("PATH_HELPER_SYMLINK_UNAVAILABLE " + $_.Exception.GetType().Name) }
+                    if ($linkCreated) {
+                        Check-Path $ProbeRoot $link "PATH_REJECT|fixture_reparse|path=$link"
+                        Write-Output "PATH_HELPER_SYMLINK rejected=true"
+                    }
+                }
+                finally { if ($linkCreated) { [IO.File]::Delete($link) } }
+                $restricted = [IO.Path]::Combine($ProbeRoot, "restricted")
+                [IO.File]::WriteAllText($restricted, "owned ACL fixture")
+                $originalAcl = Get-Acl -LiteralPath $restricted
+                $aclChanged = $false
+                try {
+                    try {
+                        $deniedAcl = Get-Acl -LiteralPath $restricted
+                        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                            [System.Security.Principal.WindowsIdentity]::GetCurrent().User,
+                            [System.Security.AccessControl.FileSystemRights]::ReadAttributes,
+                            [System.Security.AccessControl.AccessControlType]::Deny)
+                        $deniedAcl.AddAccessRule($rule)
+                        Set-Acl -LiteralPath $restricted -AclObject $deniedAcl
+                        $aclChanged = $true
+                    }
+                    catch { Write-Output ("PATH_HELPER_ACL_UNAVAILABLE " + $_.Exception.GetType().Name) }
+                    if ($aclChanged) {
+                        $providerError = $null
+                        try { [void](Get-Item -LiteralPath $restricted -Force -ErrorAction Stop) }
+                        catch { $providerError = $_.Exception.GetType().Name }
+                        if ($null -eq $providerError) {
+                            Write-Output "PATH_HELPER_ACL_UNAVAILABLE provider_still_reads_attributes"
+                        }
+                        else {
+                            Check-Path $ProbeRoot $restricted "PATH_REJECT|fixture_reparse|path=$restricted type=$providerError"
+                            Write-Output "PATH_HELPER_ACL rejected=true"
+                        }
+                    }
+                }
+                finally { if ($aclChanged) { Set-Acl -LiteralPath $restricted -AclObject $originalAcl } }
+            }
+            finally { [IO.File]::SetAttributes($file, [IO.FileAttributes]::Normal) }
+            Write-Output ("PATH_HELPER_PROBE_PASS edition=" + $PSVersionTable.PSEdition + " version=" + $PSVersionTable.PSVersion)
+            """, new UTF8Encoding(false));
+        ProcessResult result = RunBoundedProcess(
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+                "WindowsPowerShell", "v1.0", "powershell.exe"),
+            ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script,
+                Path.Combine(HostToolProcess.FindRepositoryRoot(), "scripts", "test-efi-artifact.ps1"),
+                probeRoot],
+            30_000);
+        Console.WriteLine(result.Output);
+        return result.ExitCode == 0 && !result.TimedOut &&
+            result.Output.Contains("PATH_HELPER_PROBE_PASS edition=Desktop version=5.1", StringComparison.Ordinal);
     }
 
     private static bool TestAuthorityOutputHardlink(string tempRoot)
@@ -5102,6 +5237,8 @@ internal static class EfiArtifactVerificationScriptTests
             ["EnableM03FirmwareEntropySeedProbe"] = "false",
             ["EnableM04TypeManagerModuleRegistrationProbe"] = "false",
             ["EnableM04X64UnwindMetadataProbe"] = "false",
+            ["EnableM03OwnedSubsystemSurvivalProbe"] = "false",
+            ["EnableM03OwnedSubsystemPanicProbe"] = "false",
             ["EnableM04SimpleThrowCatchProbe"] = "false",
             ["EnableM03TypedExitBootServicesCallProbe"] = "false",
             ["EnableM03FirstRealExitBootServicesProbe"] = "false",
@@ -5231,7 +5368,7 @@ internal static class EfiArtifactVerificationScriptTests
         };
         return new Dictionary<string, object?>
         {
-            ["compileCount"] = 120,
+            ["compileCount"] = 121,
             ["compileSha256"] = CompileClosureSha256,
             ["projectReferenceCount"] = 0,
             ["projectReferenceSha256"] = EmptySha256,

@@ -20,6 +20,18 @@ public static partial class Probes
     public const bool EnableM03FirmwareAdapterRevocationProbe = false;
 #endif
 
+#if M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE
+    public const bool EnableM03OwnedSubsystemSurvivalProbe = true;
+#else
+    public const bool EnableM03OwnedSubsystemSurvivalProbe = false;
+#endif
+
+#if M03_OWNED_SUBSYSTEM_PANIC_PROBE
+    public const bool EnableM03OwnedSubsystemPanicProbe = true;
+#else
+    public const bool EnableM03OwnedSubsystemPanicProbe = false;
+#endif
+
 #if M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE
     public const bool EnableM04ClassConstructorExecutionProbe = true;
 #else
@@ -45,7 +57,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 22;
+    public const int ProbeCatalogCount = 24;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -220,6 +232,16 @@ public static partial class Probes
             EnableM04X64UnwindMetadataProbe, ProbeRisk.Destructive,
             "Consumes current-image x64 unwind metadata through the original module registration.");
 
+    public static ProbeDefinition GetM03OwnedSubsystemSurvivalProbe() =>
+        new(UefiExitBootServicesGroup, nameof(EnableM03OwnedSubsystemSurvivalProbe),
+            EnableM03OwnedSubsystemSurvivalProbe, ProbeRisk.Destructive,
+            "Uses the original allocator, copied ACPI and installed descriptor observations after real exit.");
+
+    public static ProbeDefinition GetM03OwnedSubsystemPanicProbe() =>
+        new(UefiExitBootServicesGroup, nameof(EnableM03OwnedSubsystemPanicProbe),
+            EnableM03OwnedSubsystemPanicProbe, ProbeRisk.Destructive,
+            "Reads an original unmapped guard to enter the installed page-fault gate and halt through owned diagnostics.");
+
     public static ProbeDefinition GetAcpiPhysicalDiscoveryProbe()
     {
         return new ProbeDefinition(
@@ -385,11 +407,17 @@ public static partial class Probes
             case 19:
                 definition = GetM04InterfaceDispatchProbe();
                 return true;
-            case 21:
-                definition = GetM04SimpleThrowCatchProbe();
-                return true;
             case 20:
                 definition = GetM04X64UnwindMetadataProbe();
+                return true;
+            case 21:
+                definition = GetM03OwnedSubsystemSurvivalProbe();
+                return true;
+            case 22:
+                definition = GetM03OwnedSubsystemPanicProbe();
+                return true;
+            case 23:
+                definition = GetM04SimpleThrowCatchProbe();
                 return true;
             default:
                 definition = default;

@@ -15,13 +15,13 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
     private const string FailureMarker =
         "M04_SPAN_MEMORY_CONFORMANCE_FAILED";
     private const string CompileClosureSha256 =
-        "f36aa897f314bb169a667353c2d37c70d4767cf57aa95babf44103af85f2817a";
+        "8f97464a82c221d17190da6d5347e5fa998a5863dae0edb4a7012f8ec9bb8ab1";
     private const string ProjectFileSha256 =
-        "47feb1cc1b4856e844b26847fdef1167aa4f5d7eb3ac2e7aa2dfea58b43a0e14";
+        "df29e044ab2d22947b9753d9601df6f3c82f1cb551d935be9d3fff821ce7a8dc";
     private const string FrozenProductionSha256 =
         "0c818f89ecc761a4e5692ce3970e98d577381b98bbe540f6ec5f154130c12153";
     private const string FrozenHostTestSha256 =
-        "6ebbc0f3c1ed86c5e93377f0bd24d9fc7e707d7881d7ca8d483a52ee30867b1f";
+        "06049a329e48c25871a02c6cbefddfab6a0d2de39cbc4d999a8dea25c1dbc953";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -100,9 +100,9 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
             .ToArray();
         string compileHash = Sha256Text(string.Join("\n", compileKeys) + "\n");
         const string EndianCatalogKey =
-            @"..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
+            @"..\..\std\no-runtime\shared\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
         const string SpanMemoryCatalogKey =
-            @"..\..\std\no-runtime\shared\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs|Std\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs";
+            @"..\..\std\no-runtime\shared\Memory\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs|Std\Memory\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs";
         const string LoadedImageKey =
             @"..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs|Boot\M01LoadedImageStackIntegration.cs";
         int endianIndex = Array.IndexOf(compileKeys, EndianCatalogKey);
@@ -136,6 +136,7 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
             "std",
             "no-runtime",
             "shared",
+            "Memory",
             "SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs");
         string leafTestPath = Path.Combine(
             root,
@@ -144,7 +145,7 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
             "SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests.cs");
         string production = File.ReadAllText(productionPath);
 
-        return compileItems.Length == 120
+        return compileItems.Length == 121
             && compileHash == CompileClosureSha256
             && Sha256File(projectPath) == ProjectFileSha256
             && endianIndex >= 0
@@ -324,12 +325,12 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
         const string Flag =
             "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe";
         const string CompileKey =
-            @"..\..\std\no-runtime\shared\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs|Std\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs";
+            @"..\..\std\no-runtime\shared\Memory\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs|Std\Memory\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs";
 
         return build.Contains("[switch] $" + Flag, StringComparison.Ordinal)
             && build.Contains(CompileKey, StringComparison.Ordinal)
             && build.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=136",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=137",
                 StringComparison.Ordinal)
             && build.Contains(
                 "-p:" + Flag + "=true",
@@ -351,20 +352,20 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
                 StringComparison.Ordinal)
             && verifier.Contains("[switch]$" + Flag, StringComparison.Ordinal)
             && verifier.Contains(
-                "$expectedSourceClosureInputCount = 136",
+                "$expectedSourceClosureInputCount = 137",
                 StringComparison.Ordinal)
             && verifierTests.Contains(
-                "ExpectedSourceClosureInputCount = 136",
+                "ExpectedSourceClosureInputCount = 137",
                 StringComparison.Ordinal)
             && verifierTests.Contains(
-                "[\"compileCount\"] = 120",
+                "[\"compileCount\"] = 121",
                 StringComparison.Ordinal)
             && verifierTests.Contains(
                 "[\"EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe\"] =\n                \"false\"",
                 StringComparison.Ordinal)
             && verifier.Contains(CompileKey, StringComparison.Ordinal)
             && verifier.Contains(
-                "$compileItems.Count -ne 120",
+                "$compileItems.Count -ne 121",
                 StringComparison.Ordinal)
             && verifier.Contains(
                 "-p:" + Flag + "=true",

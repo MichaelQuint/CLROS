@@ -2050,3 +2050,22 @@ behavior. Gates3/4/5 remain **Fail**.
 ## Bounded throw/catch development evidence
 
 Issue #582 has one independently reviewed development native image and one same-image QEMU/OVMF execution reaching the real typed catch and compiled continuation with the original rooted object. The complete 81-record transcript passes its original validators; [step1066](../done/step1066.md) preserves source, native, command and artifact identities. This does not close #582 or #90: final accepted dependencies, frozen-source common/profile acceptance and the targeted malformed-context criterion remain outstanding. General EH, finally/filter/rethrow, nested exceptions, constructor-failure caching, automatic stack roots, hosted .NET/Kestrel and all broader readiness gates remain incomplete.
+
+## Owned subsystem survival development boundary
+
+Issue #67 implements the post-exit original-allocator operation, original copied
+ACPI readback and descriptor/canary checks, with a separate disabled installed
+page-fault panic path. Selected EFI C#, kernel and runner compilation and three
+controlled integration groups pass. The original publication timed out; a
+separate unchanged verifier-only invocation passes and independent native review
+finds no scoped blocker. There is no positive or panic guest evidence for these
+new paths, and full acceptance remains pending. [Step1067](../done/step1067.md) records
+the preserved failures, source/tool/native identities and pending final common,
+native, raw/lifecycle/FAT and guest proof. #67 and all broader gates remain open;
+these checks do not establish a continuing workload or general kernel readiness.
+
+[Step1069](../done/step1069.md) reconciles the current owned-subsystem and unwind
+source/profile guards after the verifier optimization. All 47 selected checks
+pass with newly built managed dependencies and unchanged production inputs.
+This completes the focused reconciliation only; it does not satisfy the full
+host, current native-image, positive-guest or separate terminal-guest gates.

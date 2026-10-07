@@ -787,3 +787,15 @@ permission changes, relocation, or native-tier or hosted .NET app launch.
 ## Bounded throw/catch diagnostic order
 
 The disabled `EnableM04SimpleThrowCatchProbe` child follows the original collector graph. It allocates and explicitly roots the actual fixture exception, completes the prethrow collection, executes Thrower inside Catcher's typed clause, and retains the same receipt through the compiled continuation. Selection and continuation callbacks permit no allocation or collection. It is exclusive with churn, constructor, interface-dispatch and standalone unwind-metadata profiles. The `BootSequence`-guarded child adds no ordinary phase; [step1066](../done/step1066.md) records development evidence only.
+
+## Owned subsystem diagnostic order
+
+The disabled #67 survival child runs inside the original first-exit Diagnose
+continuation. BootSequence gates the allocator operation; that operation emits
+the original diagnostics once. Copied ACPI readback and descriptor/canary checks
+then precede the finite owned result tail. The panic child replaces its final
+ready/pass with armed/entered/fault records and the original terminal halt path.
+It requires survival, which requires first-exit and its existing prerequisites;
+survival excludes firmware revocation. Neither child adds an ordinary boot
+phase. Managed evidence and the unaccepted development image are recorded in
+[step1067](../done/step1067.md); actual post-exit survival/fault proof is pending.

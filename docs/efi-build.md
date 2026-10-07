@@ -1950,6 +1950,16 @@ The canonical 57-source closure receives the same single-link and
 distinct-identity requirement. Package and tool inputs are reparse-checked and
 mutation-locked; they are not claimed to be globally unique file identities.
 
+The verifier's component walk uses `Path.Combine` and `File.GetAttributes`
+on successful paths, retaining the original literal PowerShell provider lookup
+and failure handling when the attribute lookup fails. It still visits every
+component at every existing authority checkpoint; it does not cache ancestry,
+skip reparse checks, reduce hashing or extend the verifier timeout. The focused
+Windows PowerShell 5.1 comparison in [step1068](../done/step1068.md) preserves
+strict-mode behavior and measured about 88.6% less helper wall time across the
+same 1,030 paths. This measures only the component walk; full current-source
+artifact acceptance and whole-verifier timing remain separate evidence.
+
 The final frozen-source artifact counts, scan timings, source and restore
 closure hashes, and two-copy wall-clock-separated reproducibility results are
 recorded in `done/step886.md`. The lifecycle check separately proves that build
@@ -2899,6 +2909,43 @@ runtime, hosted .NET or real firmware-exit claim follows from this profile.
 
 ## Bounded throw/catch development profile
 
-Issue #582 adds `EnableM04SimpleThrowCatchProbe`, false by default, beneath the existing GC-static profile and its complete ancestry. The source closure is 120 explicit Compile entries, 136 raw publication inputs, 49 public flags with 46 literal false defaults, and six C# generator files/eight declared generator inputs. The generator adds a 1,350-byte C#-authored COFF object; the existing objects retain their identities. The publisher and verifier bind the real throw helper, selection/continuation callbacks and exact EH contribution. Structural publication alone does not establish stack transfer.
+Issue #582 adds `EnableM04SimpleThrowCatchProbe`, false by default, beneath the existing GC-static profile and its complete ancestry. The combined owned-subsystem/throw-catch source closure has 121 explicit Compile entries, 137 raw publication inputs, 51 public flags with 48 literal false defaults, and six C# generator files/eight declared generator inputs. The original development counts are preserved in step1066. The generator adds a 1,350-byte C#-authored COFF object; the existing objects retain their identities. The publisher and verifier bind the real throw helper, selection/continuation callbacks and exact EH contribution. Structural publication alone does not establish stack transfer.
+
+The current source also calls the same capture-admission predicate with one
+invalid local RIP value before selecting a handler. It preserves the live
+capture and transfer state. The strict transcript now requires 82 application
+records, including the local rejection and subsequent real catch/continuation.
+Current native and guest acceptance of this addition remains pending; it is not
+a corrupted-live-context or terminal-rejection claim.
 
 The successful development publication and its independent native review are preserved in [step1066](../done/step1066.md). Its single guest used the ordinary ImageBuilder/QemuRunner commands with the original wrapper's strict validators, because the wrapper requires `-BuildEfi` and this development capture intentionally reused the already reviewed image. Final acceptance must use fresh ordinary wrapper captures after prerequisite and common-gate acceptance.
+
+## Owned subsystem development profile
+
+The disabled #67 survival profile requires EnableM01LoadedImageStackProbe,
+EnableM01LiveAllocatorProbe, EnableAcpiPhysicalDiscoveryProbe,
+EnableM03FirstRealExitBootServicesProbe and EnableM03OwnedSubsystemSurvivalProbe.
+The separate terminal profile additionally selects EnableM03OwnedSubsystemPanicProbe.
+All existing first-exit prerequisites and exclusions remain; survival and
+firmware revocation are explicitly exclusive.
+
+The initial development closure has 115 Compile entries, 130 raw publication
+inputs and 49 referenced flags with 46 literal false defaults. These are the
+specific pre-integration image's identities, not unconditional future counts.
+Original locked preflight passes. Native compilation/linking produced an image,
+but the original artifact verifier hit its unchanged 60-second limit without a
+verdict. One unchanged verifier-only invocation later passed in 52,906 ms under
+the same 60-second bound, with all 130 source, 56 native and 28 tool inputs
+unchanged. Independent native review found no scoped blocker; no guest has run.
+Preserve the original failed publication, earlier Desktop module-resolution
+failure and all archives in [step1067](../done/step1067.md). Final merged source pins and original
+verification must pass before guest acceptance.
+
+The merged development source now has 117 ordered Compile items, 132 raw
+publication inputs, 50 profile flags and 47 literal false defaults. Its fixture
+reconciliation includes the final step1068 verifier identity. One fresh managed
+build and 45 original focused checks plus two existing authority helpers pass;
+the kernel, runner and shared DLLs are bound to that build. [Step1069](../done/step1069.md)
+records the exact current hashes and preserved historical contracts. This is
+focused source/profile evidence; the original full gate and fresh default,
+first-exit parent, survival and panic captures remain pending.

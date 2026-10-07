@@ -73,6 +73,8 @@ param(
     [switch] $EnableM03TypedExitBootServicesCallProbe,
     [switch] $EnableM03FirstRealExitBootServicesProbe,
     [switch] $EnableM03FirmwareAdapterRevocationProbe,
+    [switch] $EnableM03OwnedSubsystemSurvivalProbe,
+    [switch] $EnableM03OwnedSubsystemPanicProbe,
     [switch] $EnableM04ClassConstructorExecutionProbe,
     [switch] $EnableM04InterfaceDispatchProbe,
     [switch] $EnableM04CheckedReferenceBarrierProbe
@@ -144,9 +146,9 @@ $script:ExpectedEfiCompileItems = @(
     '..\OS.Kernel\Diagnostics\CpuFaultFrame.cs|Diagnostics\CpuFaultFrame.cs',
     '..\OS.Kernel\Diagnostics\DisabledDefaultUd2VectorState.cs|Diagnostics\DisabledDefaultUd2VectorState.cs',
     '..\OS.Kernel\Diagnostics\DisabledDefaultUd2VectorStateTransition.cs|Diagnostics\DisabledDefaultUd2VectorStateTransition.cs',
-    '..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs',
-    '..\..\std\no-runtime\shared\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs|Std\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs',
-    '..\..\std\no-runtime\shared\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs|Std\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs',
+    '..\..\std\no-runtime\shared\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs',
+    '..\..\std\no-runtime\shared\Memory\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs|Std\Memory\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs',
+    '..\..\std\no-runtime\shared\Numerics\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs|Std\Numerics\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs',
     '..\OS.Kernel\Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs|Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs',
     '..\OS.Kernel\Runtime\ManagedHeapPageRangeLiveAllocator.cs|Runtime\ManagedHeapPageRangeLiveAllocator.cs',
     '..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs|Boot\M01LoadedImageStackIntegration.cs',
@@ -179,6 +181,7 @@ $script:ExpectedEfiCompileItems = @(
     '..\OS.Kernel\Boot\NoAllocationOrUnrelatedFirmwareCallOccursBetween.cs|Boot\NoAllocationOrUnrelatedFirmwareCallOccursBetween.cs',
     '..\OS.Kernel\Boot\BoundedRetryStaleKeyStatus.cs|Boot\BoundedRetryStaleKeyStatus.cs',
     '..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs|Boot\FirstOptRealExitBootServicesTransition.cs',
+    '..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs|Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs',
     '..\OS.Kernel\Boot\BootSequence.cs|Boot\BootSequence.cs',
     '..\OS.Kernel\Diagnostics\Probes.cs|Diagnostics\Probes.cs',
     '..\..\std\no-runtime\shared\Hash\Crc32.cs|Std\Hash\Crc32.cs',
@@ -1940,6 +1943,8 @@ function Invoke-M01PostRestoreEvaluation {
         [bool] $M03TypedExitBootServicesCallEnabled,
         [bool] $M03FirstRealExitBootServicesEnabled,
         [bool] $M03FirmwareAdapterRevocationEnabled,
+        [bool] $M03OwnedSubsystemSurvivalEnabled,
+        [bool] $M03OwnedSubsystemPanicEnabled,
         [bool] $M04ClassConstructorExecutionEnabled,
         [bool] $M04InterfaceDispatchEnabled,
         [bool] $M04CheckedReferenceBarrierEnabled,
@@ -2006,6 +2011,8 @@ function Invoke-M01PostRestoreEvaluation {
             "EnableM03TypedExitBootServicesCallProbe," +
             "EnableM03FirstRealExitBootServicesProbe," +
             "EnableM03FirmwareAdapterRevocationProbe," +
+            "EnableM03OwnedSubsystemSurvivalProbe," +
+            "EnableM03OwnedSubsystemPanicProbe," +
             "EnableM04ClassConstructorExecutionProbe," +
             "EnableM04InterfaceDispatchProbe," +
             "EnableM01LoadedImageStackProbe," +
@@ -2196,6 +2203,10 @@ function Invoke-M01PostRestoreEvaluation {
         $M03FirstRealExitBootServicesEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM03FirmwareAdapterRevocationProbe=" +
         $M03FirmwareAdapterRevocationEnabled.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableM03OwnedSubsystemSurvivalProbe=" +
+        $M03OwnedSubsystemSurvivalEnabled.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableM03OwnedSubsystemPanicProbe=" +
+        $M03OwnedSubsystemPanicEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM04ClassConstructorExecutionProbe=" +
         $M04ClassConstructorExecutionEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM04InterfaceDispatchProbe=" +
@@ -2329,6 +2340,10 @@ function Invoke-M01PostRestoreEvaluation {
             $M03FirstRealExitBootServicesEnabled.ToString().ToLowerInvariant()
         EnableM03FirmwareAdapterRevocationProbe =
             $M03FirmwareAdapterRevocationEnabled.ToString().ToLowerInvariant()
+        EnableM03OwnedSubsystemSurvivalProbe =
+            $M03OwnedSubsystemSurvivalEnabled.ToString().ToLowerInvariant()
+        EnableM03OwnedSubsystemPanicProbe =
+            $M03OwnedSubsystemPanicEnabled.ToString().ToLowerInvariant()
         EnableM04ClassConstructorExecutionProbe =
             $M04ClassConstructorExecutionEnabled.ToString().ToLowerInvariant()
         EnableM04InterfaceDispatchProbe =
@@ -4348,6 +4363,8 @@ for ($index = 5; $index -lt $verifierArguments.Count; $index += 2) {
         $parameterName -ceq "EnableM03TypedExitBootServicesCallProbe" -or
         $parameterName -ceq "EnableM03FirstRealExitBootServicesProbe" -or
         $parameterName -ceq "EnableM03FirmwareAdapterRevocationProbe" -or
+        $parameterName -ceq "EnableM03OwnedSubsystemSurvivalProbe" -or
+        $parameterName -ceq "EnableM03OwnedSubsystemPanicProbe" -or
         $parameterName -ceq "EnableM04ClassConstructorExecutionProbe" -or
         $parameterName -ceq "EnableM04InterfaceDispatchProbe" -or
         $parameterName -ceq "EnableM04CheckedReferenceBarrierProbe" -or
@@ -5185,7 +5202,14 @@ function Test-M01ActiveSourceSurface {
     # Native compilation excludes the managed catalog and retains the explicit toggle.
     if ([string]::Equals($SourceName, '..\OS.Kernel\Diagnostics\Probes.cs', [StringComparison]::Ordinal)) {
         $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
-        if ($identity -cne '0bfa9a4a48e05084d42084fbb9c8e9bf858db30b6102830dd8dff5a9934a851f') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_first_exit_probe_identity'; ActiveText='' } }
+        if ($identity -cne '0055406938d41636ae14e616eebcd6da6941406f02bdd8cdc53d65237bccd408') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_first_exit_probe_identity'; ActiveText='' } }
+        return [pscustomobject]@{ Succeeded=$true; Reason='ok'; Detail=''; ActiveText=$SourceText }
+    }
+
+    # Exact reviewed allocator operation; never admit a changed leaf by name alone.
+    if ([string]::Equals($SourceName, '..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs', [StringComparison]::Ordinal)) {
+        $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
+        if ($identity -cne '88053c5a7a7c46aae39e0c68d03d3dd6ab83047640e3a22455148e53023a44fe') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_owned_allocator_identity'; ActiveText='' } }
         return [pscustomobject]@{ Succeeded=$true; Reason='ok'; Detail=''; ActiveText=$SourceText }
     }
 
@@ -5903,6 +5927,8 @@ function Test-M01EvaluatedSourceClosure {
         [bool] $M03TypedExitBootServicesCallEnabled,
         [bool] $M03FirstRealExitBootServicesEnabled,
         [bool] $M03FirmwareAdapterRevocationEnabled,
+        [bool] $M03OwnedSubsystemSurvivalEnabled,
+        [bool] $M03OwnedSubsystemPanicEnabled,
         [bool] $M04ClassConstructorExecutionEnabled,
         [bool] $M04InterfaceDispatchEnabled,
         [bool] $M04CheckedReferenceBarrierEnabled,
@@ -6012,6 +6038,10 @@ function Test-M01EvaluatedSourceClosure {
             $M03FirstRealExitBootServicesEnabled.ToString().ToLowerInvariant()
         "EnableM03FirmwareAdapterRevocationProbe" =
             $M03FirmwareAdapterRevocationEnabled.ToString().ToLowerInvariant()
+        "EnableM03OwnedSubsystemSurvivalProbe" =
+            $M03OwnedSubsystemSurvivalEnabled.ToString().ToLowerInvariant()
+        "EnableM03OwnedSubsystemPanicProbe" =
+            $M03OwnedSubsystemPanicEnabled.ToString().ToLowerInvariant()
         "EnableM04ClassConstructorExecutionProbe" =
             $M04ClassConstructorExecutionEnabled.ToString().ToLowerInvariant()
         "EnableM04InterfaceDispatchProbe" =
@@ -6094,6 +6124,10 @@ function Test-M01EvaluatedSourceClosure {
             $M03FirstRealExitBootServicesEnabled
         "M03_FIRMWARE_ADAPTER_REVOCATION_PROBE" =
             $M03FirmwareAdapterRevocationEnabled
+        "M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE" =
+            $M03OwnedSubsystemSurvivalEnabled
+        "M03_OWNED_SUBSYSTEM_PANIC_PROBE" =
+            $M03OwnedSubsystemPanicEnabled
         "M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE" =
             $M04ClassConstructorExecutionEnabled
         "M04_INTERFACE_DISPATCH_PROBE" =
@@ -6164,6 +6198,8 @@ function Test-M01EvaluatedSourceClosure {
             "EnableM03TypedExitBootServicesCallProbe," +
             "EnableM03FirstRealExitBootServicesProbe," +
             "EnableM03FirmwareAdapterRevocationProbe," +
+            "EnableM03OwnedSubsystemSurvivalProbe," +
+            "EnableM03OwnedSubsystemPanicProbe," +
             "EnableM04ClassConstructorExecutionProbe," +
             "EnableM04InterfaceDispatchProbe," +
                 "DefineConstants," +
@@ -6377,6 +6413,14 @@ function Test-M01EvaluatedSourceClosure {
         if ($M03FirmwareAdapterRevocationEnabled) {
             $arguments +=
                 "-p:EnableM03FirmwareAdapterRevocationProbe=true"
+        }
+        if ($M03OwnedSubsystemSurvivalEnabled) {
+            $arguments +=
+                "-p:EnableM03OwnedSubsystemSurvivalProbe=true"
+        }
+        if ($M03OwnedSubsystemPanicEnabled) {
+            $arguments +=
+                "-p:EnableM03OwnedSubsystemPanicProbe=true"
         }
         if ($M04ClassConstructorExecutionEnabled) {
             $arguments +=
@@ -6954,6 +6998,8 @@ function Test-M01SourceClosure {
         [bool] $M03TypedExitBootServicesCallEnabled,
         [bool] $M03FirstRealExitBootServicesEnabled,
         [bool] $M03FirmwareAdapterRevocationEnabled,
+        [bool] $M03OwnedSubsystemSurvivalEnabled,
+        [bool] $M03OwnedSubsystemPanicEnabled,
         [bool] $M04ClassConstructorExecutionEnabled,
         [bool] $M04InterfaceDispatchEnabled,
         [bool] $M04CheckedReferenceBarrierEnabled,
@@ -7006,7 +7052,7 @@ function Test-M01SourceClosure {
 
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "74f2253484e40ce0d0289c59312cb23127e800614d747d4a624469bddc5f320e") {
+        "52b4d0078a27607575f02e2b1c21c750281d746badf5d354db5b40ccb27d7c5a") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `
@@ -7133,6 +7179,10 @@ function Test-M01SourceClosure {
             "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE"
         "EnableM03FirmwareAdapterRevocationProbe" =
             "M03_FIRMWARE_ADAPTER_REVOCATION_PROBE"
+        "EnableM03OwnedSubsystemSurvivalProbe" =
+            "M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE"
+        "EnableM03OwnedSubsystemPanicProbe" =
+            "M03_OWNED_SUBSYSTEM_PANIC_PROBE"
         "EnableM04ClassConstructorExecutionProbe" =
             "M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE"
         "EnableM04InterfaceDispatchProbe" =
@@ -7446,6 +7496,10 @@ function Test-M01SourceClosure {
             "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE"
         "EnableM03FirmwareAdapterRevocationProbe" =
             "M03_FIRMWARE_ADAPTER_REVOCATION_PROBE"
+        "EnableM03OwnedSubsystemSurvivalProbe" =
+            "M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE"
+        "EnableM03OwnedSubsystemPanicProbe" =
+            "M03_OWNED_SUBSYSTEM_PANIC_PROBE"
         "EnableM04ClassConstructorExecutionProbe" =
             "M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE"
         "EnableM04InterfaceDispatchProbe" =
@@ -8626,6 +8680,11 @@ function Test-M01SourceClosure {
         "'`$(EnableM03FirmwareAdapterRevocationProbe)' != '' and '`$(EnableM03FirmwareAdapterRevocationProbe)' != 'true' and '`$(EnableM03FirmwareAdapterRevocationProbe)' != 'false'",
         "'`$(EnableM04ClassConstructorExecutionProbe)' != '' and '`$(EnableM04ClassConstructorExecutionProbe)' != 'true' and '`$(EnableM04ClassConstructorExecutionProbe)' != 'false'",
         "'`$(EnableM03FirmwareAdapterRevocationProbe)' == 'true' and '`$(EnableM03FirstRealExitBootServicesProbe)' != 'true'",
+        "'`$(EnableM03OwnedSubsystemSurvivalProbe)' != '' and '`$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true' and '`$(EnableM03OwnedSubsystemSurvivalProbe)' != 'false'",
+        "'`$(EnableM03OwnedSubsystemPanicProbe)' != '' and '`$(EnableM03OwnedSubsystemPanicProbe)' != 'true' and '`$(EnableM03OwnedSubsystemPanicProbe)' != 'false'",
+        "'`$(EnableM03OwnedSubsystemSurvivalProbe)' == 'true' and '`$(EnableM03FirstRealExitBootServicesProbe)' != 'true'",
+        "'`$(EnableM03OwnedSubsystemPanicProbe)' == 'true' and '`$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true'",
+        "'`$(EnableM03OwnedSubsystemSurvivalProbe)' == 'true' and '`$(EnableM03FirmwareAdapterRevocationProbe)' == 'true'",
         "'`$(EnableM04ClassConstructorExecutionProbe)' == 'true' and '`$(EnableM04GcStaticRootMaterializationProbe)' != 'true'",
         "'`$(EnableM04ClassConstructorExecutionProbe)' == 'true' and '`$(EnableM04SeededCollectorChurnProbe)' == 'true'",
         "'`$(EnableM04InterfaceDispatchProbe)' != '' and '`$(EnableM04InterfaceDispatchProbe)' != 'true' and '`$(EnableM04InterfaceDispatchProbe)' != 'false'",
@@ -8982,6 +9041,8 @@ function Test-M01SourceClosure {
         -M03TypedExitBootServicesCallEnabled $M03TypedExitBootServicesCallEnabled `
         -M03FirstRealExitBootServicesEnabled $M03FirstRealExitBootServicesEnabled `
         -M03FirmwareAdapterRevocationEnabled $M03FirmwareAdapterRevocationEnabled `
+        -M03OwnedSubsystemSurvivalEnabled $M03OwnedSubsystemSurvivalEnabled `
+        -M03OwnedSubsystemPanicEnabled $M03OwnedSubsystemPanicEnabled `
         -M04ClassConstructorExecutionEnabled $M04ClassConstructorExecutionEnabled `
         -M04InterfaceDispatchEnabled $M04InterfaceDispatchEnabled `
         -M04CheckedReferenceBarrierEnabled $M04CheckedReferenceBarrierEnabled `
@@ -9157,8 +9218,8 @@ try {
             (Format-EvidenceValue $_.Exception.Message))
         exit 1
     }
-    if ($sourceSnapshotBeforePublish.InputCount -ne 136 -or
-        $sourceSnapshotAfterLock.InputCount -ne 136 -or
+    if ($sourceSnapshotBeforePublish.InputCount -ne 137 -or
+        $sourceSnapshotAfterLock.InputCount -ne 137 -or
         $sourceSnapshotBeforePublish.AggregateSha256 -cne
             $sourceSnapshotAfterLock.AggregateSha256 -or
         $sourceSnapshotBeforePublish.AuthoritySha256 -cne
@@ -9171,10 +9232,13 @@ try {
         exit 1
     }
     Write-Host "EFI_PUBLISH_SOURCE_LOCK status=ok"
-    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=136"
+    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=137"
 
 Write-EfiPreflightLine "EFI_PREFLIGHT_START"
 if ($EnableM03FirmwareAdapterRevocationProbe -and -not $EnableM03FirstRealExitBootServicesProbe) { Write-Output "TEST_FAIL efi.shell.publish m03_revocation_requires_first_exit"; exit 1 }
+if ($EnableM03OwnedSubsystemSurvivalProbe -and -not $EnableM03FirstRealExitBootServicesProbe) { Write-Output "TEST_FAIL efi.shell.publish m03_owned_requires_first_exit"; exit 1 }
+if ($EnableM03OwnedSubsystemPanicProbe -and -not $EnableM03OwnedSubsystemSurvivalProbe) { Write-Output "TEST_FAIL efi.shell.publish m03_owned_panic_requires_survival"; exit 1 }
+if ($EnableM03OwnedSubsystemSurvivalProbe -and $EnableM03FirmwareAdapterRevocationProbe) { Write-Output "TEST_FAIL efi.shell.publish m03_owned_revocation_conflict"; exit 1 }
 if ($EnableM04ClassConstructorExecutionProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Output "TEST_FAIL efi.shell.publish m04_cctor_requires_gc_profile"; exit 1 }
 if ($EnableM04ClassConstructorExecutionProbe -and $EnableM04SeededCollectorChurnProbe) { Write-Output "TEST_FAIL efi.shell.publish m04_cctor_churn_conflict"; exit 1 }
 if ($EnableM04InterfaceDispatchProbe -and -not $EnableM04ClassConstructorExecutionProbe) { Write-Output "TEST_FAIL efi.shell.publish m04_dispatch_requires_cctor_profile"; exit 1 }
@@ -10508,6 +10572,8 @@ $m01SourceClosure = Test-M01SourceClosure `
     -M03TypedExitBootServicesCallEnabled $EnableM03TypedExitBootServicesCallProbe.IsPresent `
     -M03FirstRealExitBootServicesEnabled $EnableM03FirstRealExitBootServicesProbe.IsPresent `
     -M03FirmwareAdapterRevocationEnabled $EnableM03FirmwareAdapterRevocationProbe.IsPresent `
+    -M03OwnedSubsystemSurvivalEnabled $EnableM03OwnedSubsystemSurvivalProbe.IsPresent `
+    -M03OwnedSubsystemPanicEnabled $EnableM03OwnedSubsystemPanicProbe.IsPresent `
     -M04ClassConstructorExecutionEnabled $EnableM04ClassConstructorExecutionProbe.IsPresent `
     -M04InterfaceDispatchEnabled $EnableM04InterfaceDispatchProbe.IsPresent `
     -M04CheckedReferenceBarrierEnabled $EnableM04CheckedReferenceBarrierProbe.IsPresent `
@@ -11287,6 +11353,14 @@ if ($EnableM03FirmwareAdapterRevocationProbe) {
     $arguments += "-p:EnableM03FirmwareAdapterRevocationProbe=true"
     Write-Host "EFI_PROBE M03_FIRMWARE_ADAPTER_REVOCATION"
 }
+if ($EnableM03OwnedSubsystemSurvivalProbe) {
+    $arguments += "-p:EnableM03OwnedSubsystemSurvivalProbe=true"
+    Write-Host "EFI_PROBE M03_OWNED_SUBSYSTEM_SURVIVAL"
+}
+if ($EnableM03OwnedSubsystemPanicProbe) {
+    $arguments += "-p:EnableM03OwnedSubsystemPanicProbe=true"
+    Write-Host "EFI_PROBE M03_OWNED_SUBSYSTEM_PANIC"
+}
 if ($EnableM04ClassConstructorExecutionProbe) {
     $arguments += "-p:EnableM04ClassConstructorExecutionProbe=true"
     Write-Host "EFI_PROBE M04_CLASS_CONSTRUCTOR_EXECUTION"
@@ -11451,6 +11525,8 @@ $methodImplAttributeSourcePath = Join-Path $repositoryRoot (
         -M03TypedExitBootServicesCallEnabled $EnableM03TypedExitBootServicesCallProbe.IsPresent `
         -M03FirstRealExitBootServicesEnabled $EnableM03FirstRealExitBootServicesProbe.IsPresent `
         -M03FirmwareAdapterRevocationEnabled $EnableM03FirmwareAdapterRevocationProbe.IsPresent `
+        -M03OwnedSubsystemSurvivalEnabled $EnableM03OwnedSubsystemSurvivalProbe.IsPresent `
+        -M03OwnedSubsystemPanicEnabled $EnableM03OwnedSubsystemPanicProbe.IsPresent `
         -M04ClassConstructorExecutionEnabled $EnableM04ClassConstructorExecutionProbe.IsPresent `
         -M04InterfaceDispatchEnabled $EnableM04InterfaceDispatchProbe.IsPresent `
         -M04CheckedReferenceBarrierEnabled $EnableM04CheckedReferenceBarrierProbe.IsPresent `
@@ -11716,6 +11792,8 @@ try {
         -M03TypedExitBootServicesCallEnabled $EnableM03TypedExitBootServicesCallProbe.IsPresent `
         -M03FirstRealExitBootServicesEnabled $EnableM03FirstRealExitBootServicesProbe.IsPresent `
         -M03FirmwareAdapterRevocationEnabled $EnableM03FirmwareAdapterRevocationProbe.IsPresent `
+        -M03OwnedSubsystemSurvivalEnabled $EnableM03OwnedSubsystemSurvivalProbe.IsPresent `
+        -M03OwnedSubsystemPanicEnabled $EnableM03OwnedSubsystemPanicProbe.IsPresent `
         -M04ClassConstructorExecutionEnabled $EnableM04ClassConstructorExecutionProbe.IsPresent `
         -M04InterfaceDispatchEnabled $EnableM04InterfaceDispatchProbe.IsPresent `
         -M04CheckedReferenceBarrierEnabled $EnableM04CheckedReferenceBarrierProbe.IsPresent `
@@ -11929,6 +12007,8 @@ if ($exitCode -eq 0) {
                 -M03TypedExitBootServicesCallEnabled $EnableM03TypedExitBootServicesCallProbe.IsPresent `
                 -M03FirstRealExitBootServicesEnabled $EnableM03FirstRealExitBootServicesProbe.IsPresent `
                 -M03FirmwareAdapterRevocationEnabled $EnableM03FirmwareAdapterRevocationProbe.IsPresent `
+                -M03OwnedSubsystemSurvivalEnabled $EnableM03OwnedSubsystemSurvivalProbe.IsPresent `
+                -M03OwnedSubsystemPanicEnabled $EnableM03OwnedSubsystemPanicProbe.IsPresent `
                 -M04ClassConstructorExecutionEnabled $EnableM04ClassConstructorExecutionProbe.IsPresent `
                 -M04InterfaceDispatchEnabled $EnableM04InterfaceDispatchProbe.IsPresent `
                 -M04CheckedReferenceBarrierEnabled $EnableM04CheckedReferenceBarrierProbe.IsPresent `
@@ -12422,6 +12502,8 @@ if ($exitCode -eq 0) {
     $verificationArguments += @("-EnableM03TypedExitBootServicesCallProbe", $EnableM03TypedExitBootServicesCallProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM03FirstRealExitBootServicesProbe", $EnableM03FirstRealExitBootServicesProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM03FirmwareAdapterRevocationProbe", $EnableM03FirmwareAdapterRevocationProbe.IsPresent.ToString().ToLowerInvariant())
+    $verificationArguments += @("-EnableM03OwnedSubsystemSurvivalProbe", $EnableM03OwnedSubsystemSurvivalProbe.IsPresent.ToString().ToLowerInvariant())
+    $verificationArguments += @("-EnableM03OwnedSubsystemPanicProbe", $EnableM03OwnedSubsystemPanicProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM04ClassConstructorExecutionProbe", $EnableM04ClassConstructorExecutionProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM04InterfaceDispatchProbe", $EnableM04InterfaceDispatchProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM04CheckedReferenceBarrierProbe", $EnableM04CheckedReferenceBarrierProbe.IsPresent.ToString().ToLowerInvariant())

@@ -1753,4 +1753,32 @@ stage.
 
 ## Bounded throw/catch diagnostic
 
-The #582 integration appends the default-off simple-catch probe at catalogue index 21. Its complete collecting-GC transcript contains 81 application records and 70 required/ordered/unique anchors. Eight numeric child stages bind original module/stack/receipt authority, the captured and selected caller contexts, typed handler, actual catch entry and actual returned continuation. `CLROS_M04_SIMPLE_CATCH_READY` and `TEST_PASS m04.021.simple-catch` require the compiled catch and continuation observations. Failures remain `TEST_FAIL m04.021.simple-catch <reason>`. One development guest passes; final common/profile acceptance and the targeted malformed-context criterion remain pending ([step1066](../done/step1066.md)).
+The combined #67/#582 integration places the default-off simple-catch probe at
+catalogue index 23, after the two owned-subsystem profiles. Its complete
+collecting-GC transcript requires 82 application records and 71
+required/ordered/unique anchors. Nine numeric child stages bind original
+module/stack/receipt authority, a local input rejected by the production
+capture-admission predicate, the captured and selected caller contexts, typed
+handler, actual catch entry and actual returned continuation. Stage 2 changes
+only a local RIP scalar; it does not mutate the live capture or enter a handler.
+`CLROS_M04_SIMPLE_CATCH_READY` and `TEST_PASS m04.021.simple-catch` still require
+the real compiled catch and continuation. Failures remain
+`TEST_FAIL m04.021.simple-catch <reason>`. The earlier 81-record development
+guest is preserved in [step1066](../done/step1066.md); final common/profile,
+native and current 82-record guest acceptance remain pending.
+
+## Owned subsystem result and panic profiles in development
+
+Issue #67 adds two destructive, default-off children. Positive output preserves
+the original 66 first-exit application records and adds ten: test-start, one
+allocator row, five original copied-ACPI rows, a descriptor row, ready and pass.
+The panic form has 77 application records: it replaces ready/pass with armed,
+entered and the existing terminal fault record. With the fixed firmware
+preamble, the respective stream counts are 78 and 79. Every M03_OWNED stage
+contains eight fixed-width hexadecimal fields tied to the original authorities.
+
+The separate expected-panic runner mode retains the measured 750 ms unchanged
+serial drain, owned teardown and exit 19 classification. Its terminal fault
+cannot count as ordinary boot success. The original M02 panic mode is retained.
+Controlled parser cases pass; no actual #67 positive or panic guest has run.
+See [step1067](../done/step1067.md) for source/native evidence and limitations.

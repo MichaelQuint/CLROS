@@ -89,7 +89,7 @@ internal static unsafe partial class RhpNewFastAllocation
         ulong result = Catcher(exception);
         if (s_ehPhase != 6 || s_ehCatchEntries != 1 || s_ehContinuations != 1 ||
             result != s_ehSeed + 1 || !EhObjectIntact() || !CheckEhStack()) RejectEh(6);
-        EhLine(7, s_ehChecks, s_ehMinimum, GcReadWord(s_gcStack.Start), GcReadWord(s_gcStack.Start + 8));
+        EhLine(8, s_ehChecks, s_ehMinimum, GcReadWord(s_gcStack.Start), GcReadWord(s_gcStack.Start + 8));
         // No collection occurs between the explicit rooted collection and the
         // actual compiled continuation. Root lifetime ends only here.
         s_ehPhase = 7; s_ehReceipt = default;
@@ -120,7 +120,7 @@ internal static unsafe partial class RhpNewFastAllocation
         if (s_ehPhase != 4 || s_ehCatchEntries != 0 || Bits(value) != s_ehReceipt.ObjectReference ||
             value.Payload != s_ehSeed || !EhObjectIntact() || !CheckEhStack()) RejectEh(7);
         s_ehCatchEntries++;
-        EhLine(4, Bits(value), value.Payload, s_ehSelected, s_ehCatchEntries);
+        EhLine(5, Bits(value), value.Payload, s_ehSelected, s_ehCatchEntries);
     }
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void CatchContinued(SimpleCatchBase value, ulong result)
@@ -129,7 +129,7 @@ internal static unsafe partial class RhpNewFastAllocation
             Bits(value) != s_ehReceipt.ObjectReference || result != s_ehSeed + 1 ||
             !EhObjectIntact() || !CheckEhStack()) RejectEh(8);
         s_ehContinuations++; s_ehPhase = 6;
-        EhLine(6, Bits(value), value.Payload, result, s_ehContinuations);
+        EhLine(7, Bits(value), value.Payload, result, s_ehContinuations);
     }
 
     private static ulong AllocateCatchException(ulong token)
@@ -174,9 +174,20 @@ internal static unsafe partial class RhpNewFastAllocation
         if (!EhGeometryReady()) return RejectEh(13); // retain the bounded admission switch
         ulong thrower = (ulong)(delegate* managed<System.Exception, void>)&Thrower;
         ulong catcher = (ulong)(delegate* managed<SimpleCatchBase, ulong>)&Catcher;
-        if (captured->Rip != thrower + EhThrowReturnOffset || captured->Rsp != (ulong)captured + 816 ||
-            captured->Rip == 0 || captured->Rsp < s_gcStack.Start + 16400 || captured->Rsp > s_gcStack.InitialRsp)
-            return RejectEh(14);
+        ulong originalRip = captured->Rip, originalRsp = captured->Rsp;
+        if (!CaptureAdmitted((ulong)captured, originalRip, originalRsp, thrower)) return RejectEh(14);
+        // Exercise the same admission predicate with local scalar data only.
+        // The live bridge capture, transfer buffer and CPU state are untouched;
+        // this is admission-rejection evidence, not a terminal-halt control.
+        ulong invalidRip = originalRip ^ 1UL;
+        ulong originalType = s_ehReceipt.MethodTableToken;
+        bool invalidAdmitted = CaptureAdmitted((ulong)captured, invalidRip, originalRsp, thrower);
+        if (invalidAdmitted || captured->Rip != originalRip || captured->Rsp != originalRsp ||
+            s_ehPhase != 3 || s_ehSelected != 0 || s_ehTransferAddress != 0 ||
+            s_ehCaller.Rip != 0 || s_ehCaller.Rsp != 0 || s_ehCatchEntries != 0 || s_ehContinuations != 0 ||
+            s_ehReceipt.ObjectReference != exception || s_ehReceipt.MethodTableToken != originalType ||
+            s_ehReceipt.AllocationCount != 9 || !EhObjectIntact()) return RejectEh(21);
+        EhLine(2, originalRip, invalidRip, originalRsp, invalidAdmitted ? 1UL : 0UL);
         fixed (GcTypeStorage* type = &s_gcType)
         fixed (GcCollectingStorage* owner = &s_gcCollecting)
         fixed (EhStorage* storage = &s_ehStorage)
@@ -216,8 +227,8 @@ internal static unsafe partial class RhpNewFastAllocation
             if (!match.Succeeded || !match.Matches || !EhObjectIntact()) return RejectEh(19);
             s_ehCaller = unwound.Caller; s_ehSelected = clause.HandlerAddress; s_ehTransferAddress = (ulong)transfer;
             *transfer = new EhTransfer { Funclet = clause.HandlerAddress, Caller = unwound.Caller };
-            EhLine(2, captured->Rip, captured->Rsp, unwound.Caller.Rip, unwound.Caller.Rsp);
-            EhLine(3, clause.TypeAddress, clause.HandlerAddress, unwound.Caller.Rbp, unwound.ReturnSlot);
+            EhLine(3, captured->Rip, captured->Rsp, unwound.Caller.Rip, unwound.Caller.Rsp);
+            EhLine(4, clause.TypeAddress, clause.HandlerAddress, unwound.Caller.Rbp, unwound.ReturnSlot);
             s_ehPhase = 4; return 1;
         }
     }
@@ -237,8 +248,13 @@ internal static unsafe partial class RhpNewFastAllocation
             transfer->Funclet != s_ehSelected || transfer->Caller.Rsp != s_ehCaller.Rsp ||
             post->Rsp <= (ulong)post + 240 || post->Rsp > s_gcStack.InitialRsp)
             return RejectEh(20);
-        EhLine(5, rip, post->Rsp, post->Rbp, s_ehCatchEntries); s_ehPhase = 5; return 1;
+        EhLine(6, rip, post->Rsp, post->Rbp, s_ehCatchEntries); s_ehPhase = 5; return 1;
     }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static bool CaptureAdmitted(ulong capturedAddress, ulong rip, ulong rsp, ulong thrower) =>
+        rip == thrower + EhThrowReturnOffset && rsp == capturedAddress + 816 &&
+        rip != 0 && rsp >= s_gcStack.Start + 16400 && rsp <= s_gcStack.InitialRsp;
 
     private static bool BridgeLayout(X64UnwindContext* input, EhTransfer* output, EhControl* controls) =>
         (ulong)input >= 32 && StackSpan((ulong)input - 32, 848) &&

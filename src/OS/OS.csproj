@@ -76,6 +76,8 @@
 		<EnableM04GcStaticRootMaterializationProbe Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == ''">false</EnableM04GcStaticRootMaterializationProbe>
 		<EnableM04SeededCollectorChurnProbe Condition="'$(EnableM04SeededCollectorChurnProbe)' == ''">false</EnableM04SeededCollectorChurnProbe>
 		<EnableM03FirmwareAdapterRevocationProbe Condition="'$(EnableM03FirmwareAdapterRevocationProbe)' == ''">false</EnableM03FirmwareAdapterRevocationProbe>
+		<EnableM03OwnedSubsystemSurvivalProbe Condition="'$(EnableM03OwnedSubsystemSurvivalProbe)' == ''">false</EnableM03OwnedSubsystemSurvivalProbe>
+		<EnableM03OwnedSubsystemPanicProbe Condition="'$(EnableM03OwnedSubsystemPanicProbe)' == ''">false</EnableM03OwnedSubsystemPanicProbe>
 		<EnableM04ClassConstructorExecutionProbe Condition="'$(EnableM04ClassConstructorExecutionProbe)' == ''">false</EnableM04ClassConstructorExecutionProbe>
 		<EnableM04SimpleThrowCatchProbe Condition="'$(EnableM04SimpleThrowCatchProbe)' == ''">false</EnableM04SimpleThrowCatchProbe>
 		<EnableM04InterfaceDispatchProbe Condition="'$(EnableM04InterfaceDispatchProbe)' == ''">false</EnableM04InterfaceDispatchProbe>
@@ -302,6 +304,14 @@
 		<DefineConstants>$(DefineConstants);M03_FIRMWARE_ADAPTER_REVOCATION_PROBE</DefineConstants>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$(EnableM03OwnedSubsystemSurvivalProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM03OwnedSubsystemPanicProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M03_OWNED_SUBSYSTEM_PANIC_PROBE</DefineConstants>
+	</PropertyGroup>
+
 	<PropertyGroup Condition="'$(EnableM04ClassConstructorExecutionProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -374,9 +384,9 @@
 		<Compile Include="..\OS.Kernel\Diagnostics\CpuFaultFrame.cs" Link="Diagnostics\CpuFaultFrame.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\DisabledDefaultUd2VectorState.cs" Link="Diagnostics\DisabledDefaultUd2VectorState.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\DisabledDefaultUd2VectorStateTransition.cs" Link="Diagnostics\DisabledDefaultUd2VectorStateTransition.cs" />
-		<Compile Include="..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" Link="Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" />
-		<Compile Include="..\..\std\no-runtime\shared\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs" Link="Std\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs" />
-		<Compile Include="..\..\std\no-runtime\shared\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs" Link="Std\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs" />
+		<Compile Include="..\..\std\no-runtime\shared\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" Link="Std\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs" />
+		<Compile Include="..\..\std\no-runtime\shared\Memory\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs" Link="Std\Memory\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs" />
+		<Compile Include="..\..\std\no-runtime\shared\Numerics\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs" Link="Std\Numerics\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs" Link="Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\ManagedHeapPageRangeLiveAllocator.cs" Link="Runtime\ManagedHeapPageRangeLiveAllocator.cs" />
 		<Compile Include="..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs" Link="Boot\M01LoadedImageStackIntegration.cs" />
@@ -409,6 +419,7 @@
 		<Compile Include="..\OS.Kernel\Boot\NoAllocationOrUnrelatedFirmwareCallOccursBetween.cs" Link="Boot\NoAllocationOrUnrelatedFirmwareCallOccursBetween.cs" />
 		<Compile Include="..\OS.Kernel\Boot\BoundedRetryStaleKeyStatus.cs" Link="Boot\BoundedRetryStaleKeyStatus.cs" />
 		<Compile Include="..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs" Link="Boot\FirstOptRealExitBootServicesTransition.cs" />
+		<Compile Include="..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs" Link="Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs" />
 		<Compile Include="..\OS.Kernel\Boot\BootSequence.cs" Link="Boot\BootSequence.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\Probes.cs" Link="Diagnostics\Probes.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\Hash\Crc32.cs" Link="Std\Hash\Crc32.cs" />
@@ -1547,6 +1558,11 @@
 		<Error Condition="'$(EnableM03FirmwareAdapterRevocationProbe)' != '' and '$(EnableM03FirmwareAdapterRevocationProbe)' != 'true' and '$(EnableM03FirmwareAdapterRevocationProbe)' != 'false'" Text="m03_revocation_switch_invalid" />
 		<Error Condition="'$(EnableM04ClassConstructorExecutionProbe)' != '' and '$(EnableM04ClassConstructorExecutionProbe)' != 'true' and '$(EnableM04ClassConstructorExecutionProbe)' != 'false'" Text="m04_cctor_switch_invalid" />
 		<Error Condition="'$(EnableM03FirmwareAdapterRevocationProbe)' == 'true' and '$(EnableM03FirstRealExitBootServicesProbe)' != 'true'" Text="m03_revocation_requires_first_exit_profile" />
+		<Error Condition="'$(EnableM03OwnedSubsystemSurvivalProbe)' != '' and '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true' and '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'false'" Text="m03_owned_switch_invalid EnableM03OwnedSubsystemSurvivalProbe" />
+		<Error Condition="'$(EnableM03OwnedSubsystemPanicProbe)' != '' and '$(EnableM03OwnedSubsystemPanicProbe)' != 'true' and '$(EnableM03OwnedSubsystemPanicProbe)' != 'false'" Text="m03_owned_switch_invalid EnableM03OwnedSubsystemPanicProbe" />
+		<Error Condition="'$(EnableM03OwnedSubsystemSurvivalProbe)' == 'true' and '$(EnableM03FirstRealExitBootServicesProbe)' != 'true'" Text="m03_owned_requires_first_exit" />
+		<Error Condition="'$(EnableM03OwnedSubsystemPanicProbe)' == 'true' and '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true'" Text="m03_owned_panic_requires_survival" />
+		<Error Condition="'$(EnableM03OwnedSubsystemSurvivalProbe)' == 'true' and '$(EnableM03FirmwareAdapterRevocationProbe)' == 'true'" Text="m03_owned_revocation_conflict" />
 		<Error Condition="'$(EnableM04ClassConstructorExecutionProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'" Text="m04_cctor_requires_gc_profile" />
 		<Error Condition="'$(EnableM04ClassConstructorExecutionProbe)' == 'true' and '$(EnableM04SeededCollectorChurnProbe)' == 'true'" Text="m04_cctor_profile_conflict EnableM04SeededCollectorChurnProbe" />
 		<Error Condition="'$(EnableM04SimpleThrowCatchProbe)' != '' and '$(EnableM04SimpleThrowCatchProbe)' != 'true' and '$(EnableM04SimpleThrowCatchProbe)' != 'false'" Text="m04_simple_catch_switch_invalid" />

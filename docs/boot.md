@@ -20,6 +20,18 @@ actual writer/stack review and fresh disk/lifecycle association pass in
 captures below retain their original source boundary. Continuing post-firmware
 allocator/platform work remains #67.
 
+The allocator portion of M03-010 is host-tested in
+[step1065](../done/step1065.md). It consumes the original diagnostic admission,
+allocates one page from the retained M01 owner, writes and restores two bounded
+words, frees the exact receipt and verifies the original accounting. Four
+focused groups cover restoration, owner/alias refusal and consumed failure paths.
+Prior native observations are modeled by that host fixture. Shared EFI
+integration is implemented in [step1067](../done/step1067.md), with current
+source/profile reconciliation in [step1069](../done/step1069.md). Fresh guest
+proof of copied-ACPI use, installed-descriptor validation and the separate
+terminal fault control remains pending; the allocator leaf alone does not
+complete #67.
+
 M03-008 adds a default-off typed firmware-capability revocation profile under
 integration issue #570. It binds console, memory-map, filesystem, timer, RNG,
 configuration-table, physical-memory and framebuffer handles to the original
@@ -4455,3 +4467,20 @@ invalidation remains required after a future real successful exit.
 ## Bounded throw/catch development
 
 The optional #582 profile executes inside the original pre-exit collecting-GC diagnostic. It reuses the registered module, original allocation receipts, retained static storage and owned M01 stack. `BootSequence` guards the child and the one-frame interpreter entry; it introduces no normal boot phase or ExitBootServices behavior. The first finite development guest reaches the real typed catch and compiled continuation ([step1066](../done/step1066.md)); final integration acceptance remains pending.
+
+## Owned subsystem survival development
+
+Issue #67 now wires the original allocator round trip through BootSequence
+after the original real-exit transition. The operation invokes the owned
+diagnostic reporter once, restores the allocation and accounting, then admits
+and reads the original copied ACPI state. Descriptor checks use retained native
+adoption observations and current storage/canaries; they are not fresh reads of
+descriptor registers. The separate disabled panic child reads the original
+unmapped arena guard and admits the installed fault callback's original
+vector/error/CR2/CR3 and IST2 frame before owned terminal reporting.
+
+Managed compilation and controlled parser checks pass. The original native
+publication timed out in artifact verification. One unchanged verifier-only
+invocation then passed in 52.9 seconds; independent native review found no scoped
+blocker. No guest has run. [Step1067](../done/step1067.md) records the evidence and
+remaining original common/native/guest acceptance. #67 remains open.

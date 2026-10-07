@@ -77,6 +77,8 @@ param(
     [switch] $EnableM03TypedExitBootServicesCallProbe,
     [switch] $EnableM03FirstRealExitBootServicesProbe,
     [switch] $EnableM03FirmwareAdapterRevocationProbe,
+    [switch] $EnableM03OwnedSubsystemSurvivalProbe,
+    [switch] $EnableM03OwnedSubsystemPanicProbe,
     [switch] $EnableM04ClassConstructorExecutionProbe,
     [switch] $EnableM04InterfaceDispatchProbe,
     [switch] $EnableM04SimpleThrowCatchProbe,
@@ -523,7 +525,7 @@ $script:M04GcStaticRootRequiredMarkers = @(
 $script:M04SimpleCatchRequiredMarkers = @(
     $script:M04GcStaticRootRequiredMarkers[0..($script:M04GcStaticRootRequiredMarkers.Count - 9)]
     'TEST_START m04.021.simple-catch'
-    foreach ($stage in 0..7) { "M04_CATCH $stage" }
+    foreach ($stage in 0..8) { "M04_CATCH $stage" }
     'TEST_PASS m04.021.simple-catch'
     'CLROS_M04_SIMPLE_CATCH_READY'
     $script:M04GcStaticRootRequiredMarkers[($script:M04GcStaticRootRequiredMarkers.Count - 8)..($script:M04GcStaticRootRequiredMarkers.Count - 1)]
@@ -786,6 +788,18 @@ $script:M03FirstExitTerminalMarkers = @(
     'TEST_PASS m03.009'
 )
 $script:M03FirstExitRequiredMarkers = @($script:M03AcpiBootstrapRequiredMarkers[0..26]; $script:M03FirstExitStageMarkers; $script:M03AcpiBootstrapRequiredMarkers[27..34]; $script:M03FirstExitTerminalMarkers)
+$script:M03OwnedSubsystemMarkers = @(
+    $script:M03FirstExitRequiredMarkers
+    'TEST_START m03.010'
+    foreach ($index in 0..6) { "M03_OWNED $index" }
+    'CLROS_M03_010_READY'
+    'TEST_PASS m03.010'
+)
+$script:M03OwnedSubsystemPanicMarkers = @(
+    $script:M03FirstExitRequiredMarkers
+    'TEST_START m03.010'
+    foreach ($index in 0..8) { "M03_OWNED $index" }
+)
 $script:M03RevocationTerminalMarkers = @(
     'TEST_START m03.008'
     foreach ($index in 0..7) { "M03_ADAPTER_DENIED $index 4 0 1" }
@@ -1882,6 +1896,68 @@ function Assert-M02UnexpectedVectorPanicRunnerResult {
     if(-not [string]::Equals($summary,$expectedText,[StringComparison]::Ordinal)){throw 'm02_unexpected_vector_panic_summary_exact'}
 }
 
+function Assert-M03OwnedSubsystemPanicRunnerResult {
+    param([string[]] $Lines,[string] $SummaryLogPath,[string] $SerialLogPath,
+        [string[]] $RequiredMarkers,[string[]] $OrderedMarkers,[string[]] $UniqueMarkers,[string[]] $ForbiddenMarkers,
+        [string[]] $MarkerPresets,[string] $ImagePath,[string] $Profile)
+    # A finite stdout schema also rejects extra failure/cleanup/restart records,
+    # including split/control-disguised records, without misreading inventory text.
+    if($Lines.Count -ne 18 -or @($MarkerPresets).Count -ne 0){throw 'm03_owned_subsystem_panic_runner_inventory'}
+    foreach($line in $Lines){if([regex]::IsMatch($line,'[\x00-\x1f\x7f-\uffff]')){throw 'm03_owned_subsystem_panic_runner_control'}}
+    $qemuDiscovery=[regex]::Match($Lines[0],'\AQEMU_DISCOVERY result=(.+) checked=(.+)\z')
+    $ovmfDiscovery=[regex]::Match($Lines[1],'\AOVMF_DISCOVERY result=(.+) checked=(.+)\z')
+    if(-not $qemuDiscovery.Success -or -not $ovmfDiscovery.Success -or
+        [string]::Equals($qemuDiscovery.Groups[1].Value,'not_found',[StringComparison]::Ordinal) -or
+        [string]::Equals($ovmfDiscovery.Groups[1].Value,'not_found',[StringComparison]::Ordinal)){throw 'm03_owned_subsystem_panic_discovery'}
+    $Lines=@($Lines[2..17])
+    $required=New-Object 'System.Collections.Generic.List[string]'
+    foreach($v in @($RequiredMarkers)){if(-not $required.Contains($v)){$required.Add($v)}}
+    $forbidden=New-Object 'System.Collections.Generic.List[string]'
+    foreach($v in @('OS_SMOKE_FAIL','TEST_FAIL')+@($ForbiddenMarkers)){if(-not $forbidden.Contains($v)){$forbidden.Add($v)}}
+    $ordered=if(@($OrderedMarkers).Count -eq 0){'none'}else{[string]::Join(';',$OrderedMarkers)}
+    $unique=if(@($UniqueMarkers).Count -eq 0){'none'}else{[string]::Join(';',$UniqueMarkers)}
+    $expected=@('TEST_START qemu.smoke',('IMAGE_ARTIFACT '+$ImagePath),('SERIAL_LOG '+$SerialLogPath),$Lines[3],
+        ('WORKLOAD_PROFILE '+$Profile),'MARKER_PRESETS none',('REQUIRED_MARKERS '+[string]::Join(';',$required)),
+        ('ORDERED_MARKERS '+$ordered),('UNIQUE_MARKERS '+$unique),('FORBIDDEN_MARKERS '+[string]::Join(';',$forbidden)),
+        'EXPECTED_PANIC_PROFILE m03.owned-subsystem',$Lines[11],$Lines[12],$Lines[13],('SUMMARY_LOG '+$SummaryLogPath),
+        'QEMU_EXPECTED_PANIC outcome=expected-panic reason=expected_owned_subsystem_panic')
+    for($i=0;$i -lt 16;$i++){if(-not [string]::Equals($Lines[$i],$expected[$i],[StringComparison]::Ordinal)){throw ('m03_owned_subsystem_panic_runner_record_'+$i)}}
+    if(-not [string]::Equals($Lines[3],('OVMF_CODE '+$ovmfDiscovery.Groups[1].Value),[StringComparison]::Ordinal)){throw 'm03_owned_subsystem_panic_runner_firmware'}
+    $native=[regex]::Match($Lines[13],'\AQEMU_PROCESS_RESULT disposition=runner-terminated exitCode=(0|-?[1-9][0-9]*)\z');$exitCode=[Int32]0
+    if(-not $native.Success -or -not [Int32]::TryParse($native.Groups[1].Value,[Globalization.NumberStyles]::AllowLeadingSign,[Globalization.CultureInfo]::InvariantCulture,[ref]$exitCode)){throw 'm03_owned_subsystem_panic_native_exit'}
+    $drain=[regex]::Match($Lines[12],'\ASERIAL_MARKER_DRAIN milliseconds=750 observedMilliseconds=(0|[1-9][0-9]*)\z');$quiet=[Int64]0
+    if(-not $drain.Success -or -not [Int64]::TryParse($drain.Groups[1].Value,[Globalization.NumberStyles]::None,[Globalization.CultureInfo]::InvariantCulture,[ref]$quiet) -or $quiet -lt 750){throw 'm03_owned_subsystem_panic_quiet'}
+    $serialPath=if([IO.Path]::IsPathRooted($SerialLogPath)){$SerialLogPath}else{Join-Path $root $SerialLogPath}
+    $raw=[IO.File]::ReadAllBytes($serialPath);$serial=[Text.Encoding]::UTF8.GetString($raw)
+    Assert-M03AcpiBootstrapTranscript -SerialLogPath $serialPath -FirstRealExit -OwnedSurvival -OwnedPanic
+    $invalid=0;foreach($byte in $raw){if($byte -ne 9 -and $byte -ne 10 -and $byte -ne 13 -and ($byte -lt 32 -or $byte -gt 126)){$invalid++}}
+    $stream='SERIAL_MARKER_STREAM status=ExpectedPanic terminal=ExpectedPanic bytes='+$raw.Length+' lines=79 invalidBytes='+$invalid+' invalidLines=1 orderedSeen='+@($OrderedMarkers).Count+' outOfOrder=0 uniqueSeen='+@($UniqueMarkers).Count+' duplicateUnique=0'
+    if(-not [string]::Equals($Lines[11],$stream,[StringComparison]::Ordinal)){throw 'm03_owned_subsystem_panic_stream_accounting'}
+    $summaryPath=if([IO.Path]::IsPathRooted($SummaryLogPath)){$SummaryLogPath}else{Join-Path $root $SummaryLogPath}
+    $summaryBytes=[IO.File]::ReadAllBytes($summaryPath);$summary=[Text.Encoding]::UTF8.GetString($summaryBytes)
+    if($summaryBytes.Length -gt 1048576 -or [regex]::IsMatch($summary,'[^\x20-\x7e\r\n]|(?<!\r)\n|\r(?!\n)')){throw 'm03_owned_subsystem_panic_summary_delimiter'}
+    $expectedSummary=New-Object 'System.Collections.Generic.List[string]'
+    $expectedSummary.Add('QEMU_SMOKE_STATUS expected-panic')
+    foreach($i in @(1,2,4,5,6,7,8,9)){$expectedSummary.Add($expected[$i])}
+    $allMarkers=@($required)+@($OrderedMarkers)+@($UniqueMarkers)+@($forbidden)
+    $serialLines=$serial.Split(@("`r`n"),[StringSplitOptions]::None)
+    foreach($line in $serialLines){
+        $observed=[regex]::IsMatch($line,'\A(?:TEST_|BOOT_|OS_|UEFI_|ACPI_)') -or [string]::Equals($line,'APP_EXIT',[StringComparison]::Ordinal) -or $line.StartsWith('APP_EXIT ',[StringComparison]::Ordinal)
+        if(-not $observed){foreach($marker in $allMarkers){if([string]::Equals($line,$marker,[StringComparison]::Ordinal) -or $line.StartsWith($marker+' ',[StringComparison]::Ordinal)){$observed=$true;break}}}
+        if($observed){$expectedSummary.Add('OBSERVED_MARKER '+$line)}
+    }
+    foreach($line in @('APP_EXIT_RESULT none','APP_EXIT_MALFORMED none','MISSING_MARKERS none','OUT_OF_ORDER_MARKERS none',
+        'DUPLICATE_UNIQUE_MARKERS none','FORBIDDEN_MARKER_HIT none','FAIL_REASON expected_owned_subsystem_panic',
+        ('EXPECTED_PANIC_DRAIN milliseconds=750 observedMilliseconds='+$quiet),$Lines[13])){$expectedSummary.Add($line)}
+    $sha=[Security.Cryptography.SHA256]::Create();try{$hash=[BitConverter]::ToString($sha.ComputeHash($raw)).Replace('-','')}finally{$sha.Dispose()}
+    $expectedSummary.Add('EXPECTED_PANIC_CAPTURE bytes='+$raw.Length+' sha256='+$hash)
+    $expectedSummary.Add('SERIAL_TAIL_LIMIT lines=8 chars=240')
+    $tail=@($serialLines | Where-Object {$_.Length -gt 0} | Select-Object -Last 8)
+    foreach($line in $tail){$value=$line.Trim();if($value.Length -gt 240){$value=$value.Substring(0,237)+'...'};$expectedSummary.Add('SERIAL_TAIL_LINE '+$value)}
+    $expectedText=[string]::Join("`r`n",$expectedSummary)+"`r`n"
+    if(-not [string]::Equals($summary,$expectedText,[StringComparison]::Ordinal)){throw 'm03_owned_subsystem_panic_summary_exact'}
+}
+
 function Assert-M02UnexpectedVectorPanicPrefix {
     param([string] $Text)
     if ($Text.Length -gt 1048576) { throw 'm02_unexpected_vector_panic_capture_extent' }
@@ -1996,7 +2072,7 @@ function Assert-M04ManagedHeapPageRangeTranscript {
     if ($IncludeClassConstructors -and (-not $IncludeGcStatics -or $IncludeSeededChurn)) { throw 'm04_cctor_profile_collision' }
     if ($IncludeInterfaceDispatch -and -not $IncludeClassConstructors) { throw 'm04_dispatch_requires_cctor_records' }
     if ($IncludeSimpleCatch -and (-not $IncludeGcStatics -or $IncludeSeededChurn -or $IncludeClassConstructors -or $IncludeInterfaceDispatch)) { throw 'm04_simple_catch_profile_collision' }
-    $lineCount = if ($IncludeSimpleCatch) { 81 } elseif ($IncludeInterfaceDispatch) { 158 } elseif ($IncludeClassConstructors) { 82 } elseif ($IncludeSeededChurn) { 82 } elseif ($IncludeGcStatics) { 70 } elseif ($IncludeCheckedReferences) { 71 } elseif ($IncludeStringAllocation) { 72 } elseif ($IncludeArrayAllocation) { 68 } elseif ($IncludeFixedAllocation) { 78 } else { 52 }
+    $lineCount = if ($IncludeSimpleCatch) { 82 } elseif ($IncludeInterfaceDispatch) { 158 } elseif ($IncludeClassConstructors) { 82 } elseif ($IncludeSeededChurn) { 82 } elseif ($IncludeGcStatics) { 70 } elseif ($IncludeCheckedReferences) { 71 } elseif ($IncludeStringAllocation) { 72 } elseif ($IncludeArrayAllocation) { 68 } elseif ($IncludeFixedAllocation) { 78 } else { 52 }
     $path = if ([IO.Path]::IsPathRooted($SerialLogPath)) { $SerialLogPath } else { Join-Path $root $SerialLogPath }
     # No BOM sniffing, trimming, Unicode folding or control removal for acceptance.
     $text = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($path))
@@ -2045,8 +2121,8 @@ function Assert-M04ManagedHeapPageRangeTranscript {
     $dispatchRecords = @()
     $catchRecords = @()
     if ($IncludeSimpleCatch) {
-        $catchRecords = @($captured.GetRange(62,11))
-        $captured.RemoveRange(62,11)
+        $catchRecords = @($captured.GetRange(62,12))
+        $captured.RemoveRange(62,12)
     }
     if ($IncludeInterfaceDispatch) {
         $dispatchRecords = @($captured.GetRange(74,76))
@@ -2223,10 +2299,10 @@ function Assert-M04SimpleCatchSelection {
 
 function Assert-M04SimpleCatchRecords {
     param([string[]] $Lines,[string[]] $GcLines,[hashtable] $Heap)
-    if($Lines.Count -ne 11 -or $Lines[0] -cne 'TEST_START m04.021.simple-catch' -or
-        $Lines[9] -cne 'TEST_PASS m04.021.simple-catch' -or $Lines[10] -cne 'CLROS_M04_SIMPLE_CATCH_READY') { throw 'm04_simple_catch_count' }
+    if($Lines.Count -ne 12 -or $Lines[0] -cne 'TEST_START m04.021.simple-catch' -or
+        $Lines[10] -cne 'TEST_PASS m04.021.simple-catch' -or $Lines[11] -cne 'CLROS_M04_SIMPLE_CATCH_READY') { throw 'm04_simple_catch_count' }
     $rows=@()
-    for($i=0;$i -lt 8;$i++) {
+    for($i=0;$i -lt 9;$i++) {
         $m=[regex]::Match($Lines[$i+1],('\AM04_CATCH '+$i+' (0x[0-9A-F]{16}) (0x[0-9A-F]{16}) (0x[0-9A-F]{16}) (0x[0-9A-F]{16})\z'))
         if(-not $m.Success){throw 'm04_simple_catch_row_shape'}
         $rows+=,@((1..4|ForEach-Object{[Convert]::ToUInt64($m.Groups[$_].Value.Substring(2),16)}))
@@ -2238,8 +2314,8 @@ function Assert-M04SimpleCatchRecords {
         $parents+=,@((2..5|ForEach-Object{[Convert]::ToUInt64($parts[$_].Substring(2),16)}))
     }
     $image=$parents[0];$module=$parents[1];$stack=$parents[2];$canaries=$parents[3]
-    $bind=$rows[0];$object=$rows[1];$frames=$rows[2];$match=$rows[3]
-    $caught=$rows[4];$resume=$rows[5];$continued=$rows[6];$checked=$rows[7]
+    $bind=$rows[0];$object=$rows[1];$rejected=$rows[2];$frames=$rows[3];$match=$rows[4]
+    $caught=$rows[5];$resume=$rows[6];$continued=$rows[7];$checked=$rows[8]
     $imageEnd=[decimal]$image[0]+$image[1]
     if($bind[0] -ne $module[3] -or $bind[1]%8 -ne 0 -or $bind[1] -lt $image[0] -or
         [decimal]$bind[1]+65536 -gt $imageEnd -or $bind[2] -lt 288 -or $bind[2] -ge 65536 -or
@@ -2253,6 +2329,10 @@ function Assert-M04SimpleCatchRecords {
     foreach($at in @($frames[0],$frames[2],$match[1],$resume[0])) {
         if($at -lt $image[0] -or [decimal]$at -ge $imageEnd) { throw 'm04_simple_catch_code_range' }
     }
+    # Local candidate rejection precedes selection; the original frame is then
+    # used unchanged by the real unwind/catch path. No terminal-halt claim.
+    if($rejected[0] -ne $frames[0] -or $rejected[1] -ne ([UInt64]$frames[0] -bxor [UInt64]1) -or
+        $rejected[2] -ne $frames[1] -or $rejected[3] -ne 0) { throw 'm04_simple_catch_local_admission' }
     if([decimal]$frames[3] -ne [decimal]$frames[1]+48 -or [decimal]$match[2] -ne [decimal]$frames[3]+48 -or
         [decimal]$match[3] -ne [decimal]$frames[1]+40 -or [decimal]$match[1] -ne [decimal]$frames[2]+25 -or
         [decimal]$resume[0] -ne [decimal]$frames[2]+1 -or $resume[1] -ne $frames[3] -or $resume[2] -ne $match[2] -or $resume[3] -ne 1) { throw 'm04_simple_catch_native_frame_association' }
@@ -2807,15 +2887,71 @@ function Assert-M03MemoryMapCaptureRunnerResult {
     if (-not $match.Success -or -not [Int32]::TryParse($match.Groups[1].Value,[Globalization.NumberStyles]::AllowLeadingSign,[Globalization.CultureInfo]::InvariantCulture,[ref]$exitCode)) { throw 'm03_capture_runner_exit' }
 }
 
+function Assert-M03OwnedSubsystemRecords {
+    param([string[]] $Lines,[object[]] $AcpiRows,[switch] $Panic)
+    $count=if($Panic){77}else{76}
+    if($Lines.Count -ne $count -or $Lines[66] -cne 'TEST_START m03.010' -or $AcpiRows.Count -ne 5){throw 'm03_owned_record_count'}
+    if(-not $Panic -and ($Lines[74] -cne 'CLROS_M03_010_READY' -or $Lines[75] -cne 'TEST_PASS m03.010')){throw 'm03_owned_terminal'}
+    $rows=@();$last=if($Panic){8}else{6}
+    for($stage=0;$stage -le $last;$stage++){
+        $match=[regex]::Match($Lines[67+$stage],('\AM03_OWNED '+$stage+'((?: 0x[0-9A-F]{16}){8})\z'))
+        if(-not $match.Success){throw ('m03_owned_row_'+$stage)}
+        $rows+=,@(($match.Groups[1].Value.TrimStart().Split(' ') | ForEach-Object {[Convert]::ToUInt64($_.Substring(2),16)}))
+    }
+    $limit=[decimal]140737488355328
+    $a=$rows[0];$d=$rows[6]
+    if($a[0] -eq 0 -or $a[0]%8 -ne 0 -or [decimal]$a[0]+312 -ge $limit -or
+       $a[2] -eq 0 -or $a[2]%4096 -ne 0 -or [decimal]$a[2]+8192 -ge $limit -or
+       $a[1] -ne $a[2] -or $a[3] -ne 2 -or $a[4] -ne 2 -or $a[5] -ne 8192 -or $a[6] -ne 0 -or $a[7] -ne 0){throw 'm03_owned_allocator'}
+    $workspace=$rows[1][0];$copied=$rows[1][1];$offset=[decimal]0
+    if($workspace -eq 0 -or $workspace%8 -ne 0 -or [decimal]$workspace -ge $limit -or
+       $copied -lt 16 -or ($copied-16)%8 -ne 0 -or [decimal]$copied+266256 -ge $limit){throw 'm03_owned_acpi_owner'}
+    for($i=0;$i -lt 5;$i++){
+        $r=$rows[$i+1];$prior=$AcpiRows[$i]
+        if($r[0] -ne $workspace -or $r[1] -ne $copied -or $r[2] -ne $prior.physical -or
+           $r[3] -ne $offset -or $r[3] -ne $prior.offset -or [decimal]$copied+$offset -ne $prior.owned -or
+           $r[4] -ne $prior.length -or $r[5] -ne $prior.signature -or $r[6] -ne $prior.rootIndex -or
+           $r[7] -ne $r[4] -or $r[7] -ne $prior.compared -or $prior.mismatches -ne 0){throw ('m03_owned_acpi_association_'+$i)}
+        $offset+=$r[4]
+    }
+    if($d[0] -eq 0 -or $d[0]%4096 -ne 0 -or [decimal]$d[0]+430080 -ge $limit -or
+       $d[1] -eq 0 -or $d[1]%4096 -ne 0 -or [decimal]$d[1]+225280 -ge [decimal]4294967296 -or
+       $d[2] -eq 0 -or $d[2]%4096 -ne 0 -or [decimal]$d[2]+12288 -ge $limit -or
+       $d[3] -ne $d[0]+4096 -or $d[4] -ne $d[0]+8192 -or $d[5] -ne $d[0]+12288 -or $d[6] -ne 24 -or
+       $d[7] -le $d[0]+90120 -or $d[7] -ge $d[0]+352240 -or $d[7]%16 -ne 8){throw 'm03_owned_descriptors'}
+    # Independently reject impossible overlapping retained image and allocation extents.
+    $starts=@([decimal]$a[0],[decimal]($copied-16),[decimal]$a[2],[decimal]$d[0],[decimal]$d[1],[decimal]$d[2])
+    $lengths=@([decimal]312,[decimal]266272,[decimal]8192,[decimal]430080,[decimal]225280,[decimal]12288)
+    for($i=0;$i -lt $starts.Count;$i++){for($j=0;$j -lt $i;$j++){
+        if($starts[$i] -lt $starts[$j]+$lengths[$j] -and $starts[$j] -lt $starts[$i]+$lengths[$i]){throw 'm03_owned_alias'}
+    }}
+    if(-not $Panic){return}
+    $arm=$rows[7];$entered=$rows[8]
+    if($arm[0] -ne $d[0]+86016 -or $arm[1] -ne $d[1] -or $arm[2] -ne $d[0]+1024 -or
+       $arm[3] -ne $d[2] -or $arm[4] -ne $d[0] -or $arm[5] -ne $d[0]+90120 -or $arm[6] -ne $d[0]+352240 -or $arm[7] -ne $d[0]+401392 -or
+       $entered[0] -ne $arm[0] -or $entered[1] -ne $arm[1] -or $entered[2] -ne $arm[2] -or
+       $entered[4] -ne $d[0]+385032 -or $entered[5] -ne $arm[7] -or $entered[3] -lt $entered[4] -or
+       $entered[3] -gt $entered[5]-184 -or $entered[3]%8 -ne 0 -or $entered[6] -ne 14 -or $entered[7] -ne 0){throw 'm03_owned_installed_gate'}
+    $names=@('rip','rsp','rbp','rflags','cr2','cr3','rax','rbx','rcx','rdx','rsi','rdi','r8','r9','r10','r11','r12','r13','r14','r15')
+    $pattern='\AOS_SMOKE_FAIL subsystem=boot reason=exit-fault vector=14 errorCodePresent=true errorCode=0x0000000000000000'
+    foreach($name in $names){$pattern+=' '+$name+'=(0x[0-9A-F]{16})'}
+    $match=[regex]::Match($Lines[76],$pattern+'\z')
+    if(-not $match.Success){throw 'm03_owned_fault_shape'}
+    $fault=@(1..20 | ForEach-Object {[Convert]::ToUInt64($match.Groups[$_].Value.Substring(2),16)})
+    if($fault[0] -eq 0 -or [decimal]$fault[0] -ge $limit -or $fault[1] -lt $arm[5] -or $fault[1] -ge $arm[6] -or
+       ($fault[3] -band [UInt64]514) -ne 2 -or $fault[4] -ne $arm[0] -or $fault[5] -ne $arm[1]){throw 'm03_owned_fault_association'}
+}
+
 function Assert-M03AcpiBootstrapTranscript {
-    param([string] $SerialLogPath,[switch] $FirstRealExit,[switch] $FirmwareRevocation)
+    param([string] $SerialLogPath,[switch] $FirstRealExit,[switch] $FirmwareRevocation,[switch] $OwnedSurvival,[switch] $OwnedPanic)
+    if (($OwnedSurvival -and (-not $FirstRealExit -or $FirmwareRevocation)) -or ($OwnedPanic -and -not $OwnedSurvival)) { throw 'm03_owned_profile_invalid' }
     if ($FirmwareRevocation -and -not $FirstRealExit) { throw 'm03_revocation_requires_first_exit' }
     $path=if([IO.Path]::IsPathRooted($SerialLogPath)){$SerialLogPath}else{Join-Path $root $SerialLogPath}
     $bytes=[IO.File]::ReadAllBytes($path)
     if(($FirstRealExit -and $bytes.Length -lt 304) -or (-not $FirstRealExit -and $bytes.Length -lt 7249) -or $bytes.Length -gt 32768){throw 'm03_acpi_raw_extent'}
     $text=(New-Object Text.UTF8Encoding($false,$true)).GetString($bytes)
     $start=$text.IndexOf("TEST_START efi.main`r`n",[StringComparison]::Ordinal)
-    $end=if($FirmwareRevocation){$text.IndexOf("TEST_PASS m03.008`r`n",[StringComparison]::Ordinal)+19}elseif($FirstRealExit){$text.IndexOf("TEST_PASS m03.009`r`n",[StringComparison]::Ordinal)+19}else{$text.IndexOf("OS_SMOKE_PASS`r`n",[StringComparison]::Ordinal)+15}
+    $end=if($OwnedPanic){$text.Length}elseif($OwnedSurvival){$text.IndexOf("TEST_PASS m03.010`r`n",[StringComparison]::Ordinal)+19}elseif($FirmwareRevocation){$text.IndexOf("TEST_PASS m03.008`r`n",[StringComparison]::Ordinal)+19}elseif($FirstRealExit){$text.IndexOf("TEST_PASS m03.009`r`n",[StringComparison]::Ordinal)+19}else{$text.IndexOf("OS_SMOKE_PASS`r`n",[StringComparison]::Ordinal)+15}
     if($start -ne 304 -or $end -lt 319){throw 'm03_acpi_protocol_extent'}
     # The accepted firmware framing is fixed; new captures cannot extend it.
     $sha=[Security.Cryptography.SHA256]::Create()
@@ -2828,7 +2964,7 @@ function Assert-M03AcpiBootstrapTranscript {
     $owned=$text.Substring($start,$end-$start)
     if([regex]::IsMatch($owned,'[^\x20-\x7E\r\n]')){throw 'm03_acpi_non_ascii'}
     $lines=$owned.Split([string[]]@("`r`n"),[StringSplitOptions]::None)
-    $lineCount=if($FirmwareRevocation){78}elseif($FirstRealExit){66}else{35}
+    $lineCount=if($OwnedPanic){77}elseif($OwnedSurvival){76}elseif($FirmwareRevocation){78}elseif($FirstRealExit){66}else{35}
     if($lines.Count -ne $lineCount+1 -or $lines[$lineCount].Length -ne 0){throw 'm03_acpi_line_count'}
     $fixed=@{
         0='TEST_START efi.main';1='EFI_CONSOLE_READY';2='UEFI_MEMORY_MAP_READY';4='UEFI_MEMORY_MAP_OWNED'
@@ -2893,6 +3029,7 @@ function Assert-M03AcpiBootstrapTranscript {
     $retain=Read-M03MemoryMapCaptureRecord $lines[24] 'CLROS_M03_002_RETAIN' @('total:dec','descriptors:dec','guards:dec','tail:dec','mismatches:dec')
     if($total -gt 266240 -or $retain.total -ne $total -or $retain.descriptors -ne 5 -or $retain.guards -ne 32 -or
        $retain.tail -ne 266240-$total -or $retain.mismatches -ne 0){throw 'm03_acpi_retained_accounting'}
+    if ($OwnedSurvival) { Assert-M03OwnedSubsystemRecords -Lines @($lines[0..($lineCount-1)]) -AcpiRows $rows -Panic:$OwnedPanic }
 }
 
 function Assert-M03TypedExitBootServicesTranscript {
@@ -3404,7 +3541,7 @@ function Assert-M03FirmwareEntropyRunnerResult {
 function Assert-M03AcpiBootstrapRunnerResult {
     param([string[]] $Lines,[string] $SummaryLogPath,[string] $SerialLogPath,
         [string[]] $RequiredMarkers,[string[]] $OrderedMarkers,[string[]] $UniqueMarkers,[string[]] $ForbiddenMarkers,
-        [string] $ImagePath,[string] $Profile,[switch] $FirstRealExit,[switch] $FirmwareRevocation)
+        [string] $ImagePath,[string] $Profile,[switch] $FirstRealExit,[switch] $FirmwareRevocation,[switch] $OwnedSurvival)
     # Closed ordinary stdout binds the source-configured 750ms quiet drain. It
     # does not claim a separately measured duration or an archived runner DLL.
     if($Lines.Count -ne 17){throw 'm03_acpi_runner_count'}
@@ -3422,7 +3559,7 @@ function Assert-M03AcpiBootstrapRunnerResult {
     $exit=[Int32]0;$m=[regex]::Match($lines[12],'\AQEMU_PROCESS_RESULT disposition=runner-terminated exitCode=(0|-?[1-9][0-9]*)\z')
     if(-not $m.Success -or -not [Int32]::TryParse($m.Groups[1].Value,[Globalization.NumberStyles]::AllowLeadingSign,[Globalization.CultureInfo]::InvariantCulture,[ref]$exit)){throw 'm03_acpi_runner_exit'}
     $serialPath=if([IO.Path]::IsPathRooted($SerialLogPath)){$SerialLogPath}else{Join-Path $root $SerialLogPath}
-    Assert-M03AcpiBootstrapTranscript $serialPath -FirstRealExit:$FirstRealExit -FirmwareRevocation:$FirmwareRevocation
+    Assert-M03AcpiBootstrapTranscript $serialPath -FirstRealExit:$FirstRealExit -FirmwareRevocation:$FirmwareRevocation -OwnedSurvival:$OwnedSurvival
     $raw=[IO.File]::ReadAllBytes($serialPath);$serial=(New-Object Text.UTF8Encoding($false,$true)).GetString($raw)
     # The exact accepted firmware byte fixture contributes two prefix lines,
     # two suffix lines and one unterminated console line; only the latter and
@@ -3430,6 +3567,7 @@ function Assert-M03AcpiBootstrapRunnerResult {
     $invalid=0;foreach($b in $raw){if($b -ne 9 -and $b -ne 10 -and $b -ne 13 -and ($b -lt 32 -or $b -gt 126)){$invalid++}}
     $stream='SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+$raw.Length+' lines=40 invalidBytes='+$invalid+' invalidLines=2 orderedSeen=35 outOfOrder=0 uniqueSeen=35 duplicateUnique=0'
     if($FirstRealExit){$stream='SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+$raw.Length+' lines=68 invalidBytes='+$invalid+' invalidLines=1 orderedSeen=66 outOfOrder=0 uniqueSeen=66 duplicateUnique=0'}
+    if($OwnedSurvival){$stream='SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+$raw.Length+' lines=78 invalidBytes='+$invalid+' invalidLines=1 orderedSeen=76 outOfOrder=0 uniqueSeen=76 duplicateUnique=0'}
     if($FirmwareRevocation){$stream='SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+$raw.Length+' lines=80 invalidBytes='+$invalid+' invalidLines=1 orderedSeen=78 outOfOrder=0 uniqueSeen=78 duplicateUnique=0'}
     if(-not [string]::Equals($lines[10],$stream,[StringComparison]::Ordinal)){throw 'm03_acpi_stream_accounting'}
     $summaryPath=if([IO.Path]::IsPathRooted($SummaryLogPath)){$SummaryLogPath}else{Join-Path $root $SummaryLogPath}
@@ -6893,6 +7031,9 @@ try {
     }
 
     if ($EnableM03FirmwareAdapterRevocationProbe -and -not $EnableM03FirstRealExitBootServicesProbe) { Write-Host "TEST_FAIL qemu.smoke m03_revocation_requires_first_exit"; exit 1 }
+    if ($EnableM03OwnedSubsystemSurvivalProbe -and -not $EnableM03FirstRealExitBootServicesProbe) { Write-Host "TEST_FAIL qemu.smoke m03_owned_requires_first_exit"; exit 1 }
+    if ($EnableM03OwnedSubsystemPanicProbe -and -not $EnableM03OwnedSubsystemSurvivalProbe) { Write-Host "TEST_FAIL qemu.smoke m03_owned_panic_requires_survival"; exit 1 }
+    if ($EnableM03OwnedSubsystemSurvivalProbe -and $EnableM03FirmwareAdapterRevocationProbe) { Write-Host "TEST_FAIL qemu.smoke m03_owned_revocation_conflict"; exit 1 }
 if ($EnableM04InterfaceDispatchProbe -and -not $EnableM04ClassConstructorExecutionProbe) { Write-Host "TEST_FAIL qemu.smoke m04_dispatch_requires_cctor_profile"; exit 1 }
 if ($EnableM04X64UnwindMetadataProbe -and -not $EnableM04TypeManagerModuleRegistrationProbe) { Write-Host "TEST_FAIL qemu.smoke m04_x64_unwind_metadata_requires_original_module"; exit 1 }
 if ($EnableM04SimpleThrowCatchProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Host 'TEST_FAIL qemu.smoke m04_simple_catch_requires_gc_profile'; exit 1 }
@@ -7662,6 +7803,8 @@ $rhpReason = $arrayReason
         }
     }
     foreach ($profile in @(
+        @([bool]$EnableM03OwnedSubsystemSurvivalProbe, '^(M03_OWNED|CLROS_M03_010_READY|TEST_(START|PASS) m03\.010)', 'm03_owned'),
+        @([bool]$EnableM03OwnedSubsystemPanicProbe, '^M03_OWNED [78](?: |$)', 'm03_owned_panic'),
         @([bool]$EnableM03FirmwareAdapterRevocationProbe, '^(M03_ADAPTER_|CLROS_M03_008_READY|TEST_(START|PASS) m03\.008)', 'm03_revocation'),
         @([bool]$EnableM04ClassConstructorExecutionProbe, '^(M04_CCTOR|CLROS_M04_024_READY|TEST_(START|PASS) m04\.024)', 'm04_cctor'),
         @([bool]$EnableM04InterfaceDispatchProbe, '^(M04_DISPATCH|CLROS_M04_016_READY|TEST_(START|PASS) m04\.016)', 'm04_dispatch'),
@@ -7706,7 +7849,14 @@ $rhpReason = $arrayReason
             }
         }
     }
-    if ($EnableM03FirmwareAdapterRevocationProbe) {
+    if ($EnableM03OwnedSubsystemSurvivalProbe) {
+        $selected = if ($EnableM03OwnedSubsystemPanicProbe) { $script:M03OwnedSubsystemPanicMarkers } else { $script:M03OwnedSubsystemMarkers }
+        $requiredMarkers = @($selected); $orderedMarkers = @($selected); $uniqueMarkers = @($selected)
+        $forbiddenMarkers = @('OS_SMOKE_FAIL','TEST_FAIL','ACPI_DISCOVERY_FAIL')
+        if ($EnableM03OwnedSubsystemPanicProbe) { $forbiddenMarkers += @('CLROS_M03_010_READY','TEST_PASS m03.010') }
+        else { $forbiddenMarkers += @('M03_OWNED 7','M03_OWNED 8') }
+    }
+    elseif ($EnableM03FirmwareAdapterRevocationProbe) {
         $requiredMarkers = @($script:M03RevocationRequiredMarkers)
         $orderedMarkers = @($script:M03RevocationRequiredMarkers)
         $uniqueMarkers = @($script:M03RevocationRequiredMarkers)
@@ -9651,6 +9801,8 @@ $rhpReason = $arrayReason
         if ($EnableM03TypedExitBootServicesCallProbe) { $buildArguments += "-EnableM03TypedExitBootServicesCallProbe" }
         if ($EnableM03FirstRealExitBootServicesProbe) { $buildArguments += "-EnableM03FirstRealExitBootServicesProbe" }
         if ($EnableM03FirmwareAdapterRevocationProbe) { $buildArguments += "-EnableM03FirmwareAdapterRevocationProbe" }
+        if ($EnableM03OwnedSubsystemSurvivalProbe) { $buildArguments += "-EnableM03OwnedSubsystemSurvivalProbe" }
+        if ($EnableM03OwnedSubsystemPanicProbe) { $buildArguments += "-EnableM03OwnedSubsystemPanicProbe" }
         if ($EnableM04ClassConstructorExecutionProbe) { $buildArguments += "-EnableM04ClassConstructorExecutionProbe" }
         if ($EnableM04InterfaceDispatchProbe) { $buildArguments += "-EnableM04InterfaceDispatchProbe" }
         if ($EnableM04SimpleThrowCatchProbe) { $buildArguments += "-EnableM04SimpleThrowCatchProbe" }
@@ -9743,6 +9895,7 @@ $rhpReason = $arrayReason
     )
 
     if ($EnableM02UnexpectedVectorPanicProbe) { $arguments += "--expect-unexpected-vector-panic" }
+    if ($EnableM03OwnedSubsystemPanicProbe) { $arguments += "--expect-owned-subsystem-panic" }
     if ($EnableM03FirmwareEntropySeedProbe) { $arguments += @("--firmware-rng-source", $FirmwareRngSource) }
 
     if ($EnableM02OwnedGdtTssTerminalProbe -or $EnableM03FirstRealExitBootServicesProbe -or $EnableM04X64UnwindMetadataProbe) {
@@ -9806,6 +9959,14 @@ $rhpReason = $arrayReason
         }
     }
     $runnerExitCode = $script:LastNativeExitCode
+    if ($EnableM03OwnedSubsystemPanicProbe -and -not $DryRun) {
+        if ($runnerExitCode -ne 19) { Write-Host ('TEST_FAIL qemu.smoke.m03.010 expected_panic_runner_classification exit='+$runnerExitCode); exit 99 }
+        try {
+            Assert-M03OwnedSubsystemPanicRunnerResult -Lines $heapRunnerLines -SummaryLogPath $SummaryLog -SerialLogPath $SerialLog -RequiredMarkers $requiredMarkers -OrderedMarkers $orderedMarkers -UniqueMarkers $uniqueMarkers -ForbiddenMarkers $forbiddenMarkers -MarkerPresets $markerPresets -ImagePath $Image -Profile $WorkloadProfile
+        } catch { Write-Host ('TEST_FAIL qemu.smoke.m03.010 expected_panic_evidence_invalid reason='+$_.Exception.Message); exit 99 }
+        Write-Host 'QEMU_SCRIPT_M03_OWNED_SUBSYSTEM_PANIC outcome=expected-panic runnerExit=19 exactWholeLines=true lines=77 measuredQuiet=true'
+        exit 0
+    }
     if ($EnableM02UnexpectedVectorPanicProbe -and -not $DryRun) {
         if ($runnerExitCode -ne 19) {
             Write-Host ('TEST_FAIL qemu.smoke.m02.016 expected_panic_runner_classification exit=' + $runnerExitCode)
@@ -9922,10 +10083,11 @@ $rhpReason = $arrayReason
     }
     if ($EnableM03FirstRealExitBootServicesProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
         try {
-            Assert-M03AcpiBootstrapRunnerResult -Lines $heapRunnerLines -SummaryLogPath $SummaryLog -SerialLogPath $SerialLog -RequiredMarkers $requiredMarkers -OrderedMarkers $orderedMarkers -UniqueMarkers $uniqueMarkers -ForbiddenMarkers $forbiddenMarkers -ImagePath $Image -Profile $WorkloadProfile -FirstRealExit -FirmwareRevocation:$EnableM03FirmwareAdapterRevocationProbe
+            Assert-M03AcpiBootstrapRunnerResult -Lines $heapRunnerLines -SummaryLogPath $SummaryLog -SerialLogPath $SerialLog -RequiredMarkers $requiredMarkers -OrderedMarkers $orderedMarkers -UniqueMarkers $uniqueMarkers -ForbiddenMarkers $forbiddenMarkers -ImagePath $Image -Profile $WorkloadProfile -FirstRealExit -FirmwareRevocation:$EnableM03FirmwareAdapterRevocationProbe -OwnedSurvival:$EnableM03OwnedSubsystemSurvivalProbe
         }
         catch { Write-Host ('TEST_FAIL qemu.smoke.m03.007 strict_transcript_invalid reason='+$_.Exception.Message); exit 1 }
-        if ($EnableM03FirmwareAdapterRevocationProbe) { Write-Host 'QEMU_SCRIPT_M03_REVOCATION_TRANSCRIPT exactWholeLines=true lines=78 capabilities=8 backendCallsAfterExit=0 outputBytesPreserved=true terminal=true' }
+        if ($EnableM03OwnedSubsystemSurvivalProbe) { Write-Host 'QEMU_SCRIPT_M03_OWNED_SUBSYSTEM_TRANSCRIPT exactWholeLines=true lines=76 allocatorRestored=true acpiTables=5 installedDescriptors=true terminal=true' }
+        elseif ($EnableM03FirmwareAdapterRevocationProbe) { Write-Host 'QEMU_SCRIPT_M03_REVOCATION_TRANSCRIPT exactWholeLines=true lines=78 capabilities=8 backendCallsAfterExit=0 outputBytesPreserved=true terminal=true' }
         else { Write-Host 'QEMU_SCRIPT_M03_FIRST_EXIT_TRANSCRIPT exactWholeLines=true lines=66 terminal=true' }
     }
     elseif ($EnableAcpiPhysicalDiscoveryProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
@@ -9978,7 +10140,7 @@ $rhpReason = $arrayReason
         }
         catch { Write-Host ("TEST_FAIL qemu.smoke.m04.012 strict_transcript_invalid reason=" + $_.Exception.Message); exit 1 }
         if ($EnableM04SimpleThrowCatchProbe) {
-            Write-Host 'QEMU_SCRIPT_M04_SIMPLE_CATCH_TRANSCRIPT exactWholeLines=true lines=81 stages=8 typedCatch=1 compiledContinuation=1 originalReceipt=9 stackChecks=6'
+            Write-Host 'QEMU_SCRIPT_M04_SIMPLE_CATCH_TRANSCRIPT exactWholeLines=true lines=82 stages=9 localAdmissionRejections=1 typedCatch=1 compiledContinuation=1 originalReceipt=9 stackChecks=6'
         } elseif ($EnableM04InterfaceDispatchProbe) {
             Write-Host 'QEMU_SCRIPT_M04_DISPATCH_TRANSCRIPT exactWholeLines=true lines=158 orderedMarkers=74 dispatchStages=73 calls=15 operations=5 allocations=2 cacheEntries=10 cacheHits=5 stackChecks=17'
         } elseif ($EnableM04ClassConstructorExecutionProbe) {
@@ -10083,7 +10245,9 @@ $rhpReason = $arrayReason
         catch { Write-Host 'TEST_FAIL qemu.smoke.m04.016 unexpected_profile_record'; exit 1 }
         try { Assert-M04X64UnwindMetadataSelection -Text $rawProfileText -Enabled ([bool]$EnableM04X64UnwindMetadataProbe) }
         catch { Write-Host 'TEST_FAIL qemu.smoke.m04.020 unexpected_profile_record'; exit 1 }
-        if ((-not $EnableM03FirmwareAdapterRevocationProbe -and [regex]::IsMatch($rawProfileText, '(?i)M03_ADAPTER_|CLROS_M03_008_READY|m03\.008')) -or
+        if ((-not $EnableM03OwnedSubsystemSurvivalProbe -and [regex]::IsMatch($rawProfileText, '(?i)M03_OWNED|CLROS_M03_010_READY|m03\.010')) -or
+            (-not $EnableM03OwnedSubsystemPanicProbe -and [regex]::IsMatch($rawProfileText, '(?m)^M03_OWNED [78](?: |$)')) -or
+            (-not $EnableM03FirmwareAdapterRevocationProbe -and [regex]::IsMatch($rawProfileText, '(?i)M03_ADAPTER_|CLROS_M03_008_READY|m03\.008')) -or
             (-not $EnableM04ClassConstructorExecutionProbe -and [regex]::IsMatch($rawProfileText, '(?i)M04_CCTOR|CLROS_M04_024_READY|m04\.024'))) {
             Write-Host 'TEST_FAIL qemu.smoke unexpected_revocation_or_cctor_profile'; exit 1
         }
