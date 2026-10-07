@@ -2007,3 +2007,16 @@ APIs directly and retains explicit/static roots through reclamation and address
 reuse; it does not prove compiler-created allocation or general runtime startup.
 The retained corruption controls remain associated with the reviewed same-image
 behavior. Gates3/4/5 remain **Fail**.
+
+## Owned subsystem survival development boundary
+
+Issue #67 implements the post-exit original-allocator operation, original copied
+ACPI readback and descriptor/canary checks, with a separate disabled installed
+page-fault panic path. Selected EFI C#, kernel and runner compilation and three
+controlled integration groups pass. The original publication timed out; a
+separate unchanged verifier-only invocation passes and independent native review
+finds no scoped blocker. There is no positive or panic guest evidence for these
+new paths, and full acceptance remains pending. [Step1067](../done/step1067.md) records
+the preserved failures, source/tool/native identities and pending final common,
+native, raw/lifecycle/FAT and guest proof. #67 and all broader gates remain open;
+these checks do not establish a continuing workload or general kernel readiness.

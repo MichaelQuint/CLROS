@@ -4450,3 +4450,20 @@ invalidation remains required after a future real successful exit.
      `CpuFaultEntryFrameLayout`, and `CpuFaultPanicReadiness` contracts now
      define the expected register dump field order and caller-owned
      frame-to-panic-output readiness boundary before real handlers are added.
+
+## Owned subsystem survival development
+
+Issue #67 now wires the original allocator round trip through BootSequence
+after the original real-exit transition. The operation invokes the owned
+diagnostic reporter once, restores the allocation and accounting, then admits
+and reads the original copied ACPI state. Descriptor checks use retained native
+adoption observations and current storage/canaries; they are not fresh reads of
+descriptor registers. The separate disabled panic child reads the original
+unmapped arena guard and admits the installed fault callback's original
+vector/error/CR2/CR3 and IST2 frame before owned terminal reporting.
+
+Managed compilation and controlled parser checks pass. The original native
+publication timed out in artifact verification. One unchanged verifier-only
+invocation then passed in 52.9 seconds; independent native review found no scoped
+blocker. No guest has run. [Step1067](../done/step1067.md) records the evidence and
+remaining original common/native/guest acceptance. #67 remains open.

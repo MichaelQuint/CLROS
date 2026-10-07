@@ -240,6 +240,16 @@ public static class BootSequence
     public static bool IsFirmwareAdapterRevocationEnabled() =>
         OS.Kernel.Diagnostics.Probes.EnableM03FirmwareAdapterRevocationProbe;
 
+    /// <summary>One original owned allocator operation after real exit; the operation invokes diagnostics once.</summary>
+    public static unsafe OS.Boot.OwnedAllocatorRoundTripStatus RunOwnedSubsystemAllocatorRoundTrip(
+        ref OS.Boot.OwnedAllocatorRoundTripState state, ref OS.Boot.FirstExitDiagnosticState diagnostic,
+        ref OS.Boot.FirstExitOwnedArenaState arena, OS.Boot.FirstExitDiagnosticMemory memory,
+        OS.Boot.M01LiveAllocatorStaticState* owner) =>
+        OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe
+            ? OS.Boot.OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.RunAllocatorRoundTrip(
+                ref state, ref diagnostic, ref arena, memory, owner)
+            : OS.Boot.OwnedAllocatorRoundTripStatus.AdmissionFailed;
+
     /// <summary>Resolve only after the retained module, allocator and compiler-cell snapshot are bound.</summary>
     public static unsafe OS.Kernel.Runtime.CompilerInterfaceDispatchStatus RunInterfaceDispatch(
         byte* storage, ulong capacity, ulong receiver, ulong cell,

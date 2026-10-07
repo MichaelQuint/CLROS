@@ -768,3 +768,15 @@ permission changes, relocation, or native-tier or hosted .NET app launch.
 8. Add probe toggles for destructive fault tests.
 9. Promote future placeholder phases from documented ledger entries to emitted phases only when the required subsystem evidence exists.
 10. Prevent any subsystem from bypassing `BootSequence`.
+
+## Owned subsystem diagnostic order
+
+The disabled #67 survival child runs inside the original first-exit Diagnose
+continuation. BootSequence gates the allocator operation; that operation emits
+the original diagnostics once. Copied ACPI readback and descriptor/canary checks
+then precede the finite owned result tail. The panic child replaces its final
+ready/pass with armed/entered/fault records and the original terminal halt path.
+It requires survival, which requires first-exit and its existing prerequisites;
+survival excludes firmware revocation. Neither child adds an ordinary boot
+phase. Managed evidence and the unaccepted development image are recorded in
+[step1067](../done/step1067.md); actual post-exit survival/fault proof is pending.

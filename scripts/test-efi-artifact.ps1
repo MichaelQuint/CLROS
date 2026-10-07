@@ -42,6 +42,8 @@ param(
     [switch]$EnableM03TypedExitBootServicesCallProbe,
     [switch]$EnableM03FirstRealExitBootServicesProbe,
     [switch]$EnableM03FirmwareAdapterRevocationProbe,
+    [switch]$EnableM03OwnedSubsystemSurvivalProbe,
+    [switch]$EnableM03OwnedSubsystemPanicProbe,
     [switch]$EnableM04ClassConstructorExecutionProbe,
     [switch]$EnableM04InterfaceDispatchProbe,
     [switch]$EnableM04CheckedReferenceBarrierProbe,
@@ -75,7 +77,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 129
+$expectedSourceClosureInputCount = 130
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -215,6 +217,7 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Boot\NoAllocationOrUnrelatedFirmwareCallOccursBetween.cs|Boot\NoAllocationOrUnrelatedFirmwareCallOccursBetween.cs',
     '..\OS.Kernel\Boot\BoundedRetryStaleKeyStatus.cs|Boot\BoundedRetryStaleKeyStatus.cs',
     '..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs|Boot\FirstOptRealExitBootServicesTransition.cs',
+    '..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs|Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs',
     '..\OS.Kernel\Boot\BootSequence.cs|Boot\BootSequence.cs',
     '..\OS.Kernel\Diagnostics\Probes.cs|Diagnostics\Probes.cs',
     '..\..\std\no-runtime\shared\Hash\Crc32.cs|Std\Hash\Crc32.cs',
@@ -3919,6 +3922,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM03TypedExitBootServicesCallProbe," +
             "EnableM03FirstRealExitBootServicesProbe," +
             "EnableM03FirmwareAdapterRevocationProbe," +
+            "EnableM03OwnedSubsystemSurvivalProbe," +
+            "EnableM03OwnedSubsystemPanicProbe," +
             "EnableM04ClassConstructorExecutionProbe," +
             "EnableM04InterfaceDispatchProbe," +
             "EnableM01LoadedImageStackProbe," +
@@ -4096,6 +4101,12 @@ function Invoke-PostRestoreEvaluationSnapshot {
     }
     if ($EnableM03FirmwareAdapterRevocationProbe) {
         $arguments += "-p:EnableM03FirmwareAdapterRevocationProbe=true"
+    }
+    if ($EnableM03OwnedSubsystemSurvivalProbe) {
+        $arguments += "-p:EnableM03OwnedSubsystemSurvivalProbe=true"
+    }
+    if ($EnableM03OwnedSubsystemPanicProbe) {
+        $arguments += "-p:EnableM03OwnedSubsystemPanicProbe=true"
     }
     if ($EnableM04ClassConstructorExecutionProbe) {
         $arguments += "-p:EnableM04ClassConstructorExecutionProbe=true"
@@ -4367,6 +4378,10 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM03FirstRealExitBootServicesProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM03FirmwareAdapterRevocationProbe =
             $EnableM03FirmwareAdapterRevocationProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM03OwnedSubsystemSurvivalProbe =
+            $EnableM03OwnedSubsystemSurvivalProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM03OwnedSubsystemPanicProbe =
+            $EnableM03OwnedSubsystemPanicProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04ClassConstructorExecutionProbe =
             $EnableM04ClassConstructorExecutionProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04InterfaceDispatchProbe =
@@ -4444,7 +4459,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 114 -or
+    if ($compileItems.Count -ne 115 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4575,6 +4590,9 @@ function Assert-PostRestoreEvidenceMatchesSnapshot {
 
 Write-Output "TEST_START $testName"
 if ($EnableM03FirmwareAdapterRevocationProbe -and -not $EnableM03FirstRealExitBootServicesProbe) { Write-Failure 'm03_revocation_requires_first_exit'; exit 1 }
+if ($EnableM03OwnedSubsystemSurvivalProbe -and -not $EnableM03FirstRealExitBootServicesProbe) { Write-Failure 'm03_owned_requires_first_exit'; exit 1 }
+if ($EnableM03OwnedSubsystemPanicProbe -and -not $EnableM03OwnedSubsystemSurvivalProbe) { Write-Failure 'm03_owned_panic_requires_survival'; exit 1 }
+if ($EnableM03OwnedSubsystemSurvivalProbe -and $EnableM03FirmwareAdapterRevocationProbe) { Write-Failure 'm03_owned_revocation_conflict'; exit 1 }
 if ($EnableM04ClassConstructorExecutionProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Failure 'm04_cctor_requires_gc_profile'; exit 1 }
 if ($EnableM04ClassConstructorExecutionProbe -and $EnableM04SeededCollectorChurnProbe) { Write-Failure 'm04_cctor_churn_conflict'; exit 1 }
 if ($EnableM04InterfaceDispatchProbe -and -not $EnableM04ClassConstructorExecutionProbe) { Write-Failure 'm04_dispatch_requires_cctor_profile'; exit 1 }
@@ -7960,6 +7978,8 @@ if ($EnableM04SeededCollectorChurnProbe) {
 # helpers. RX containment establishes provenance only; guest callsite/ordering
 # review is still required for constructor invocation and firmware revocation.
 $retainedProfiles = @(
+    [pscustomobject]@{ Enabled=[bool]$EnableM03OwnedSubsystemSurvivalProbe; Name='owned_subsystem'; Symbols=@('OS_OS_Boot_EfiEntry_M03FirstExitAdapter__ReportOwnedSubsystems') },
+    [pscustomobject]@{ Enabled=[bool]$EnableM03OwnedSubsystemPanicProbe; Name='owned_subsystem_panic'; Symbols=@('OS_OS_Boot_EfiEntry_M03FirstExitAdapter__ReadOwnedGuard') },
     [pscustomobject]@{
         Enabled=[bool]$EnableM03FirmwareAdapterRevocationProbe; Name='firmware_revocation'; Symbols=@(
             'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__ReportRevokedAdapters',

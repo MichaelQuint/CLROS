@@ -2856,3 +2856,24 @@ At the accepted `42a516e` revision, the runner's informational GC summary said
 70-record raw capture and `CLROS_M04_013_READY` establish the scoped acceptance.
 The first-exit/churn integration in [step1042](../done/step1042.md) corrects that summary. No general
 runtime, hosted .NET or real firmware-exit claim follows from this profile.
+
+## Owned subsystem development profile
+
+The disabled #67 survival profile requires EnableM01LoadedImageStackProbe,
+EnableM01LiveAllocatorProbe, EnableAcpiPhysicalDiscoveryProbe,
+EnableM03FirstRealExitBootServicesProbe and EnableM03OwnedSubsystemSurvivalProbe.
+The separate terminal profile additionally selects EnableM03OwnedSubsystemPanicProbe.
+All existing first-exit prerequisites and exclusions remain; survival and
+firmware revocation are explicitly exclusive.
+
+The initial development closure has 115 Compile entries, 130 raw publication
+inputs and 49 referenced flags with 46 literal false defaults. These are the
+specific pre-integration image's identities, not unconditional future counts.
+Original locked preflight passes. Native compilation/linking produced an image,
+but the original artifact verifier hit its unchanged 60-second limit without a
+verdict. One unchanged verifier-only invocation later passed in 52,906 ms under
+the same 60-second bound, with all 130 source, 56 native and 28 tool inputs
+unchanged. Independent native review found no scoped blocker; no guest has run.
+Preserve the original failed publication, earlier Desktop module-resolution
+failure and all archives in [step1067](../done/step1067.md). Final merged source pins and original
+verification must pass before guest acceptance.

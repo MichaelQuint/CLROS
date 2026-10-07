@@ -44,6 +44,14 @@ public static unsafe class EfiEntry
             internal ulong PreparationCheckpoint;
             internal uint TableMemoryType;
             internal fixed ulong PageMetadata[165]; // 55 * 24 bytes, naturally aligned
+#if M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE
+            internal OwnedAllocatorRoundTripState OwnedAllocator;
+            internal ulong OwnedPhase; // 0 fresh, 1 consumed, 2 positive complete, 3 armed, 4 fault entered, 5 reported
+            internal ulong AcpiWorkspace, AcpiWorkspaceBytes;
+#if M03_OWNED_SUBSYSTEM_PANIC_PROBE
+            internal ulong PanicGuard, UnexpectedGuardValue;
+#endif
+#endif
 #if M03_FIRMWARE_ADAPTER_REVOCATION_PROBE
             internal FirmwareAdapterAuthority AdapterAuthority;
             internal AdapterHandles OriginalHandles, CopiedHandles;
@@ -134,6 +142,10 @@ public static unsafe class EfiEntry
                 if (workspace->Phase != 3 || !ReadBackAcpiBootstrap(workspace, copied->Bytes, AcpiOwnedPayloadCapacity)) return false;
                 references.CopiedAcpi = (ulong)copied;
                 references.CopiedAcpiBytes = (ulong)sizeof(AcpiBootstrapOwnedBuffer);
+#if M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE
+                state->AcpiWorkspace = (ulong)workspace;
+                state->AcpiWorkspaceBytes = (ulong)sizeof(AcpiBootstrapWorkspace);
+#endif
             }
             state->PreparationCheckpoint = 30;
             SeparatePageFaultMappingRange* ranges = stackalloc SeparatePageFaultMappingRange[(int)FirstExitRetainedMappings.MaximumRanges];
@@ -169,6 +181,9 @@ public static unsafe class EfiEntry
                 Pages = (X64PageTableImagePage*)state->PageMetadata, PageCapacity = TablePages,
                 Entries = (ulong*)tables, EntryCapacity = TablePages * 512
             };
+#if M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE
+            if (!AdmitOwnedAcpiState(state)) return false;
+#endif
             for (ulong i = 0; i < TablePages * 512; i++) state->Memory.Entries[i] = 0;
             if (!FirstExitRetainedMappings.WriteRanges(ref state->Arena, (byte*)code, capture, mapping,
                     references, allocator, state->Memory.Tables, ranges, FirstExitRetainedMappings.MaximumRanges, out count) ||
@@ -444,7 +459,9 @@ public static unsafe class EfiEntry
             {
                 if (state->Phase != 4 || !state->Arena.IsReady || transition != state->Arena.Transition ||
                     context != state->Arena.Permanent || context->DiagnosticContext != state) return;
-#if M03_FIRMWARE_ADAPTER_REVOCATION_PROBE
+#if M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE
+                _ = ReportOwnedSubsystems(state);
+#elif M03_FIRMWARE_ADAPTER_REVOCATION_PROBE
                 if (FirstExitPostExitDiagnostics.Report(ref state->Diagnostic, ref state->Arena, state->Memory))
                     _ = ReportRevokedAdapters(state);
 #else
@@ -460,9 +477,159 @@ public static unsafe class EfiEntry
             fixed (Storage* state = &s_storage)
             {
                 if (state->Phase != 4 || !state->Arena.IsReady || context != state->Arena.Fault) return;
+#if M03_OWNED_SUBSYSTEM_PANIC_PROBE
+                ulong bottom = (ulong)state->Arena.Storage + 94 * Page + 8;
+                ulong top = (ulong)state->Arena.Storage + 98 * Page - 16;
+                if (state->OwnedPhase != 3 || context->Phase != 2 || frame == null ||
+                    (ulong)frame < bottom || (ulong)frame > top - FirstExitTerminalFaultStub.FrameBytes ||
+                    frame->Vector != 14 || frame->HasErrorCode != 1 || frame->ErrorCode != 0 ||
+                    cr2 != state->PanicGuard || cr3 != (ulong)state->Memory.Entries ||
+                    !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return;
+                state->OwnedPhase = 4;
+                if (!WriteOwnedRow(state, 8, cr2, cr3, (ulong)context, (ulong)frame, bottom, top, frame->Vector, frame->ErrorCode)) return;
+                if (FirstExitTerminalFaultStub.Report(frame, context, cr2, cr3)) state->OwnedPhase = 5;
+#else
                 _ = FirstExitTerminalFaultStub.Report(frame, context, cr2, cr3);
+#endif
             }
         }
+
+#if M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE
+        // Every mutable source and metadata owner read by AcpiSnapshotAdmission
+        // is original image storage; physical addresses in the rows are identities.
+        private static bool AdmitOwnedAcpiState(Storage* state)
+        {
+            fixed (AcpiBootstrapWorkspace* workspace = &s_acpiBootstrap)
+            fixed (AcpiBootstrapOwnedBuffer* copied = &s_acpiBootstrapOwned)
+            fixed (OwnedMemoryRegionBuffer* regions = &s_ownedMemoryRegions)
+            fixed (BootMemoryRegionMaterializationResult* map = &s_memoryRegionMaterialization)
+            fixed (EfiConfigurationTableScanResult* scan = &s_acpiRsdpScanResult)
+            {
+                if (state->AcpiWorkspace != (ulong)workspace || state->AcpiWorkspaceBytes != (ulong)sizeof(AcpiBootstrapWorkspace) ||
+                    state->Memory.References.CopiedAcpi != (ulong)copied ||
+                    state->Memory.References.CopiedAcpiBytes != (ulong)sizeof(AcpiBootstrapOwnedBuffer) ||
+                    state->Memory.References.AdapterState != (ulong)state || state->Memory.References.AdapterStateBytes != (ulong)sizeof(Storage)) return false;
+                SeparatePageFaultMappingRange* ranges = stackalloc SeparatePageFaultMappingRange[(int)FirstExitImageMappings.MaximumSections + 1];
+                if (!FirstExitImageMappings.WriteRanges(state->Memory.Capture, state->Memory.Mapping, ranges,
+                    FirstExitImageMappings.MaximumSections + 1, out ulong count)) return false;
+                ulong* addresses = stackalloc ulong[7]; ulong* lengths = stackalloc ulong[7];
+                addresses[0] = (ulong)workspace; lengths[0] = (ulong)sizeof(AcpiBootstrapWorkspace);
+                addresses[1] = (ulong)copied; lengths[1] = (ulong)sizeof(AcpiBootstrapOwnedBuffer);
+                addresses[2] = (ulong)regions; lengths[2] = (ulong)sizeof(OwnedMemoryRegionBuffer);
+                addresses[3] = (ulong)map; lengths[3] = (ulong)sizeof(BootMemoryRegionMaterializationResult);
+                addresses[4] = (ulong)scan; lengths[4] = (ulong)sizeof(EfiConfigurationTableScanResult);
+                addresses[5] = (ulong)state; lengths[5] = (ulong)sizeof(Storage);
+                addresses[6] = state->Memory.References.AllocatorState; lengths[6] = M01LiveAllocatorStaticState.RequiredStorageBytes;
+                for (int i = 0; i < 7; i++)
+                {
+                    if (!FirstExitImageMappings.Contains(ranges, count, addresses[i], lengths[i], PageProtection.Read | PageProtection.Write)) return false;
+                    for (int j = 0; j < i; j++) if (!Disjoint(addresses[i], lengths[i], addresses[j], lengths[j])) return false;
+                }
+                return true;
+            }
+        }
+
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static bool ReportOwnedSubsystems(Storage* state)
+        {
+            if (state->OwnedPhase != 0 || !AdmitOwnedAcpiState(state) ||
+                !M01StageTwoAdapter.TryGetOriginalExitAllocator(out ulong owner, out var backing) ||
+                owner != state->Memory.References.AllocatorState || backing.Start != state->Memory.Allocator.Start ||
+                backing.PageCount != state->Memory.Allocator.PageCount) return false;
+            state->OwnedPhase = 1;
+            if (BootSequence.RunOwnedSubsystemAllocatorRoundTrip(ref state->OwnedAllocator, ref state->Diagnostic,
+                ref state->Arena, state->Memory, (M01LiveAllocatorStaticState*)owner) != OwnedAllocatorRoundTripStatus.Completed) return false;
+            if (!WriteOwnedLiteral(state, 0)) return false;
+            M01LiveAllocatorStaticState* allocator = (M01LiveAllocatorStaticState*)owner;
+            if (!WriteOwnedRow(state, 0, owner, state->OwnedAllocator.Page, backing.Start, backing.PageCount,
+                allocator->AllocatorState.FreePageCount, allocator->AllocatorState.FreeByteCount,
+                allocator->AllocatorState.AllocatedPageCount, allocator->AllocatorState.AllocatedByteCount)) return false;
+            fixed (AcpiBootstrapWorkspace* workspace = &s_acpiBootstrap)
+            fixed (AcpiBootstrapOwnedBuffer* copied = &s_acpiBootstrapOwned)
+            {
+                if (!AdmitOwnedAcpiState(state) || workspace->Phase != 3 ||
+                    !ReadBackAcpiBootstrap(workspace, copied->Bytes, AcpiOwnedPayloadCapacity)) return OwnedFailure(state);
+                for (uint role = 0; role < 5; role++)
+                {
+                    ulong* row = workspace->Descriptors + role * 6;
+                    if (!WriteOwnedRow(state, role + 1, (ulong)workspace, (ulong)(copied->Bytes + 16),
+                        row[0], row[4], row[2], row[1], row[3], row[5])) return false;
+                }
+            }
+            if (!FirstExitOwnedArena.ValidateInstalledDescriptors(ref state->Arena, (ulong)state->Memory.Code) ||
+                !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return OwnedFailure(state);
+            FirstExitDescriptorContext* descriptors = state->Arena.Descriptors;
+            if (!WriteOwnedRow(state, 6, (ulong)state->Arena.Storage, (ulong)state->Memory.Entries, (ulong)state->Memory.Code,
+                (ulong)descriptors->Gdt, (ulong)descriptors->Tss, (ulong)descriptors->FinalIdt,
+                descriptors->ObservedTr, state->Arena.Permanent->ObservedRsp)) return false;
+#if M03_OWNED_SUBSYSTEM_PANIC_PROBE
+            state->PanicGuard = (ulong)state->Arena.Storage + 21 * Page;
+            if (!FirstExitOwnedArena.IsGuardPage(21) || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return OwnedFailure(state);
+            state->OwnedPhase = 3;
+            if (!WriteOwnedRow(state, 7, state->PanicGuard, (ulong)state->Memory.Entries, (ulong)state->Arena.Fault,
+                (ulong)state->Memory.Code, (ulong)state->Arena.Storage, state->Arena.StackBottom, state->Arena.StackTop,
+                (ulong)state->Arena.Storage + 98 * Page - 16)) return false;
+            state->UnexpectedGuardValue = ReadOwnedGuard((ulong*)state->PanicGuard);
+            return OwnedFailure(state);
+#else
+            if (!WriteOwnedLiteral(state, 1) || !WriteOwnedLiteral(state, 2)) return false;
+            state->OwnedPhase = 2;
+            return true;
+#endif
+        }
+
+#if M03_OWNED_SUBSYSTEM_PANIC_PROBE
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static ulong ReadOwnedGuard(ulong* address) => *address;
+#endif
+
+        private static bool OwnedFailure(Storage* state) { _ = WriteOwnedLiteral(state, 3); return false; }
+
+        private static bool WriteOwnedLiteral(Storage* state, uint marker)
+        {
+            ulong* words = stackalloc ulong[4]; uint bytes;
+            if (marker == 0) { words[0] = 0x4154535f54534554UL; words[1] = 0x302e33306d205452UL; words[2] = 0xa0d3031UL; bytes = 20; }
+            else if (marker == 1) { words[0] = 0x304d5f534f524c43UL; words[1] = 0x45525f3031305f33UL; words[2] = 0xa0d594441UL; bytes = 21; }
+            else if (marker == 2) { words[0] = 0x5341505f54534554UL; words[1] = 0x31302e33306d2053UL; words[2] = 0xa0d30UL; bytes = 19; }
+            else { words[0] = 0x4941465f54534554UL; words[1] = 0x31302e33306d204cUL; words[2] = 0x5f64656e776f2030UL; words[3] = 0xa0d6574617473UL; bytes = 31; }
+            return WriteOwnedBytes(state, (byte*)words, bytes);
+        }
+
+        private static bool WriteOwnedRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d, ulong e, ulong f, ulong g, ulong h)
+        {
+            if (stage > 8) return false;
+            byte* text = stackalloc byte[165]; *(ulong*)text = 0x454e574f5f33304dUL; *(ushort*)(text + 8) = 0x2044;
+            text[10] = (byte)('0' + stage); uint length = 11;
+            ulong* values = stackalloc ulong[8]; values[0] = a; values[1] = b; values[2] = c; values[3] = d;
+            values[4] = e; values[5] = f; values[6] = g; values[7] = h;
+            for (int i = 0; i < 8; i++)
+            {
+                text[length++] = (byte)' '; text[length++] = (byte)'0'; text[length++] = (byte)'x';
+                for (int shift = 60; shift >= 0; shift -= 4)
+                { uint digit = (uint)((values[i] >> shift) & 15); text[length++] = (byte)(digit < 10 ? '0' + digit : 'A' + digit - 10); }
+            }
+            text[length++] = 13; text[length++] = 10;
+            return WriteOwnedBytes(state, text, length);
+        }
+
+        private static bool WriteOwnedBytes(Storage* state, byte* text, uint bytes)
+        {
+            if (state->Diagnostic.Status != FirstExitDiagnosticStatus.Completed || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+            Com1OwnedPortIoBackend backend = state->Arena.Fault->Backend;
+            for (uint i = 0; i < bytes; i++)
+            {
+                bool ready = false;
+                for (int poll = 0; poll < PanicSafeFormattingSerialReportingOwnedCom1.DefaultTransmitReadyPollLimit; poll++)
+                {
+                    Com1OwnedPortIoOperationResult read = backend.ReadByte(Com1OwnedPortIoBackend.LineStatusRegisterPort);
+                    if (!read.Succeeded) return false;
+                    if ((read.Value & PanicSafeFormattingSerialReportingOwnedCom1.TransmitHoldingRegisterEmptyMask) != 0) { ready = true; break; }
+                }
+                if (!ready || !backend.WriteByte(Com1OwnedPortIoBackend.DataRegisterPort, text[i]).Succeeded) return false;
+            }
+            return true;
+        }
+#endif
 
         private static void WritePreparationFailure(EfiSimpleTextOutputProtocol* console, EfiSerialIoProtocol* serial, ulong checkpoint, uint memoryType)
         {
