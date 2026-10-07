@@ -67,6 +67,35 @@ against the real guest, not interpreted as repeated constructor invocation.
 The profile's empty `IsVolatile` metadata type exists only to encode the
 compiler-required volatile pointer field; it adds no runtime behavior.
 
+## Bounded exception-type predicate
+
+`ExceptionTypeMatch.Match` is a host-tested prerequisite for M04-021 handler
+search, scoped in #575 and [step1058](../done/step1058.md). For a nonnull object,
+it validates the original retained allocation and module authority, then admits
+both complete class chains before reporting exact/base identity or a nonmatch.
+Each chain is limited to 32 immutable same-image 24-byte MethodTable prefixes.
+The pinned ILC 10.0.8 accessor uses a direct absolute related-type pointer;
+imported, tagged and relative encodings are not resolved. Malformed metadata,
+cycles, excessive depth and unsupported types return distinct failure statuses.
+Null returns an admitted nonmatch after profile validation without dereferencing
+the target or owner. No partial successful match survives a later bad ancestor.
+
+The supported subset is canonical, non-generic fixed classes with no extended
+flags. Interfaces as targets, arrays, strings, value types, generics, dynamic
+types and finalizers are excluded. Interface/vtable/GC tails are not traversed;
+class identity is neither hash/size equality nor general assignability. Both
+classes need not derive from System.Exception. Callers retain exclusive stable
+image, registration, object and receipt lifetime. The existing collecting ledger
+rejects swept/replaced receipts; the predicate supplies no rooting or lifetime
+extension and cannot authenticate fabricated compiler metadata or POD authority.
+
+Seven focused host groups cover admission, identity, hostile inputs, bounded
+hierarchies, unchanged backing/canaries and zero managed allocation. The actual
+`RhTypeCast_IsInstanceOfException` export remains a halting placeholder. This
+core is not in the EFI Compile list and has no guest proof, EH-record search,
+exception construction, stack restoration, catch/finally/rethrow or cctor
+failure caching. #90 retains its unwind and real-execution acceptance gates.
+
 ## Implemented Behavior
 
 - `OS.Std.CompatibilityStatus` records compatibility states.
