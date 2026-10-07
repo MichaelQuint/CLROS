@@ -1809,7 +1809,10 @@ adds an original-module child with two actual sampled method pointers, four
 successful lookup observations and two misses. [Step1057](../done/step1057.md)
 records development native publication and a complete ordinary 67-record QEMU
 profile. Final native/stack review, original common acceptance and frozen guest
-evidence are still pending. #89 and #574 remain open.
+evidence are still pending. #89 and #574 remain open. [Step1060](../done/step1060.md)
+adds indexed access through the same retained-owner/snapshot validator, with all
+nine original host groups passing. This supports a later nearest-root EH check;
+the changed decoder requires fresh native evidence at final integration.
 This work does not establish stack unwinding, exception-object construction,
 language handlers, catch/finally, GC stack scanning or general runtime support.
 No completion gate is promoted by compilation or a host metadata fixture.

@@ -33,9 +33,25 @@ internal static unsafe class X64PERuntimeFunctionUnwindMetadataHostileInputTests
     private static void Check(bool value, string reason) { if (!value) throw new InvalidOperationException(reason); }
     private static void Failure(X64UnwindMetadataResult result, Status expected, string reason)
     {
-        Check(result.Status == expected && !result.Succeeded && result.ImageBase == 0 && result.ModuleHandle == 0 &&
-            result.BeginRva == 0 && result.UnwindRva == 0, reason + " actual=" + result.Status);
+        Check(result.Status == expected && !result.Succeeded && result.RequiredStorage == 0 && result.ImageBase == 0 &&
+            result.ModuleOwner == 0 && result.ModuleHandle == 0 && result.FunctionCount == 0 && result.FunctionIndex == 0 &&
+            result.BeginRva == 0 && result.EndRva == 0 && result.UnwindRva == 0 && result.PrimaryUnwindRva == 0 &&
+            result.HandlerRva == 0 && result.LanguageDataStartRva == 0 && result.FixedAllocationBytes == 0 &&
+            result.StackBytes == 0 && result.ChainDepth == 0 && result.PrologBytes == 0 && result.CodeSlots == 0 &&
+            result.FrameRegister == 0 && result.FrameOffset == 0 && result.Flags == 0 && result.PrimaryFlags == 0,
+            reason + " actual=" + result.Status);
     }
+
+    private static void SameResult(X64UnwindMetadataResult actual, X64UnwindMetadataResult expected, string reason) =>
+        Check(actual.Status == expected.Status && actual.RequiredStorage == expected.RequiredStorage &&
+            actual.ImageBase == expected.ImageBase && actual.ModuleOwner == expected.ModuleOwner && actual.ModuleHandle == expected.ModuleHandle &&
+            actual.FunctionCount == expected.FunctionCount && actual.FunctionIndex == expected.FunctionIndex &&
+            actual.BeginRva == expected.BeginRva && actual.EndRva == expected.EndRva && actual.UnwindRva == expected.UnwindRva &&
+            actual.PrimaryUnwindRva == expected.PrimaryUnwindRva && actual.HandlerRva == expected.HandlerRva &&
+            actual.LanguageDataStartRva == expected.LanguageDataStartRva && actual.FixedAllocationBytes == expected.FixedAllocationBytes &&
+            actual.StackBytes == expected.StackBytes && actual.ChainDepth == expected.ChainDepth && actual.PrologBytes == expected.PrologBytes &&
+            actual.CodeSlots == expected.CodeSlots && actual.FrameRegister == expected.FrameRegister && actual.FrameOffset == expected.FrameOffset &&
+            actual.Flags == expected.Flags && actual.PrimaryFlags == expected.PrimaryFlags, reason);
 
     private static void TwoImages()
     {
@@ -48,6 +64,16 @@ internal static unsafe class X64PERuntimeFunctionUnwindMetadataHostileInputTests
             x.BeginRva == y.BeginRva && x.EndRva == 0x6080 && x.FunctionIndex == 0 && x.FunctionCount == 2 &&
             x.UnwindRva == 0x1200 && x.PrimaryUnwindRva == 0x1200 && x.FixedAllocationBytes == 32 && x.StackBytes == 40, "owning bases, data");
         Check(a.Lookup(0x607F).Succeeded && a.Lookup(0x6100).Succeeded, "range interiors");
+        byte[] image = Bytes(a.Image, Fixture.ImageBytes), owner = Bytes(a.Owner, (int)Fixture.Capacity), snapshot = Bytes(a.Snapshot, (int)Fixture.Capacity);
+        SameResult(a.LookupFunction(0), x, "first index matches active PC");
+        SameResult(b.LookupFunction(0), y, "indexed lookup retains the other original image");
+        SameResult(a.LookupFunction(1), a.Lookup(0x6100), "last index matches its beginning");
+        SameResult(a.LookupFunction(1), a.Lookup(0x617F), "last index matches its final included PC");
+        foreach (uint index in new uint[] { x.FunctionCount, uint.MaxValue })
+            Failure(a.LookupFunction(index), Status.NotFound, "index count/uint maximum");
+        Check(Bytes(a.Image, Fixture.ImageBytes).AsSpan().SequenceEqual(image) &&
+            Bytes(a.Owner, (int)Fixture.Capacity).AsSpan().SequenceEqual(owner) &&
+            Bytes(a.Snapshot, (int)Fixture.Capacity).AsSpan().SequenceEqual(snapshot), "indexed lookup preserves all backing bytes");
         foreach (uint pc in new uint[] { 0, 0x6080, 0x60FF, 0x6180, Fixture.ImageBytes })
             Failure(a.Lookup(pc), Status.NotFound, "exclusive end/gap/outside");
         Failure(Core.Lookup(a.Snapshot, Fixture.Capacity, b.Address(0x6000)), Status.NotFound, "foreign absolute PC");
@@ -164,6 +190,7 @@ internal static unsafe class X64PERuntimeFunctionUnwindMetadataHostileInputTests
             f.Chain(0x1240, 0x6000, 0x6080, 0x1200); f.Chain(0x1280, 0x6100, 0x6180, 0x1240);
             Check(f.Bind().Succeeded, "listed two-hop chain");
             var r = f.Lookup(0x6200);
+            SameResult(f.LookupFunction(2), r, "indexed chain uses the same primary walk");
             Check(r.Succeeded && r.BeginRva == 0x6200 && r.UnwindRva == 0x1280 && r.PrimaryUnwindRva == 0x1200 &&
                 r.ChainDepth == 2 && r.FixedAllocationBytes == 32 && r.StackBytes == 40 && r.Flags == 4 && r.PrimaryFlags == 0, "chain resolves owning primary");
         }
@@ -218,23 +245,50 @@ internal static unsafe class X64PERuntimeFunctionUnwindMetadataHostileInputTests
     {
         using Fixture f = new(); Check(f.Bind().Succeeded, "bind");
         f.Image[0x1205] = 0x42; // Well-formed replacement: allocation 40 instead of 32.
-        Failure(f.Lookup(0x6000), Status.MetadataChanged, "well formed metadata replacement"); f.Image[0x1205] = 0x32;
+        Failure(f.Lookup(0x6000), Status.MetadataChanged, "well formed metadata replacement");
+        Failure(f.LookupFunction(0), Status.MetadataChanged, "indexed well formed metadata replacement");
+        Failure(f.LookupFunction(2), Status.MetadataChanged, "invalid index cannot bypass metadata revalidation"); f.Image[0x1205] = 0x32;
         Check(f.Lookup(0x6000).Succeeded, "original restored");
+        f.Image[0x1241] = 1;
+        Failure(f.LookupFunction(0), Status.MetadataChanged, "indexed lookup revalidates the unselected function too"); f.Image[0x1241] = 0;
         f.Snapshot[Core.StateBytes + 3] ^= 1;
-        Failure(f.Lookup(0x6000), Status.MetadataChanged, "snapshot change"); f.Snapshot[Core.StateBytes + 3] ^= 1;
+        Failure(f.Lookup(0x6000), Status.MetadataChanged, "snapshot change");
+        Failure(f.LookupFunction(0), Status.MetadataChanged, "indexed snapshot change");
+        Failure(f.LookupFunction(uint.MaxValue), Status.MetadataChanged, "maximum index cannot bypass snapshot revalidation"); f.Snapshot[Core.StateBytes + 3] ^= 1;
         using Fixture copy = new(); new ReadOnlySpan<byte>(f.Snapshot, (int)Fixture.Capacity).CopyTo(new Span<byte>(copy.Snapshot, (int)Fixture.Capacity));
         Failure(copy.Lookup(0x6000), Status.NotBound, "copied state is not original owner");
-        f.Owner[0] ^= 1; Failure(f.Lookup(0x6000), Status.ModuleRejected, "retained module phase changed"); f.Owner[0] ^= 1;
-        W64(f.Image + 0x2000, copy.Address(0x2000)); Failure(f.Lookup(0x6000), Status.ModuleRejected, "published module identity changed");
+        Failure(copy.LookupFunction(0), Status.NotBound, "indexed copied snapshot");
+        Failure(copy.LookupFunction(uint.MaxValue), Status.NotBound, "maximum index cannot bypass copied snapshot");
+        copy.Register(); byte[] owner = Bytes(f.Owner, (int)Fixture.Capacity);
+        new ReadOnlySpan<byte>(copy.Owner, (int)Fixture.Capacity).CopyTo(new Span<byte>(f.Owner, (int)Fixture.Capacity));
+        Failure(f.Lookup(0x6000), Status.ModuleRejected, "copied registration cannot replace original owner");
+        Failure(f.LookupFunction(0), Status.ModuleRejected, "indexed copied registration");
+        owner.AsSpan().CopyTo(new Span<byte>(f.Owner, (int)Fixture.Capacity));
+        Check(f.LookupFunction(0).Succeeded, "original owner restoration remains usable");
+        SameResult(f.LookupFunction(0), f.Lookup(0x6000), "original registration and snapshot restored");
+        f.Owner[0] ^= 1;
+        Failure(f.Lookup(0x6000), Status.ModuleRejected, "retained module phase changed");
+        Failure(f.LookupFunction(0), Status.ModuleRejected, "indexed retained module phase changed");
+        Failure(f.LookupFunction(2), Status.ModuleRejected, "invalid index cannot bypass stale registration"); f.Owner[0] ^= 1;
+        W64(f.Image + 0x2000, copy.Address(0x2000));
+        Failure(f.Lookup(0x6000), Status.ModuleRejected, "published module identity changed");
+        Failure(f.LookupFunction(0), Status.ModuleRejected, "indexed published module identity changed");
+        f.Guards(); copy.Guards();
     }
 
     private static void Allocation()
     {
         using Fixture f = new(); Check(f.Bind().Succeeded, "bind");
-        for (int i = 0; i < 16; i++) { _ = f.Lookup(0x6000); _ = Core.Validate(f.Capture, f.Mapping, f.Owner, Fixture.Capacity, f.Handle); }
+        for (int i = 0; i < 16; i++)
+        {
+            _ = f.Lookup(0x6000); _ = f.LookupFunction(0); _ = f.LookupFunction(1); _ = f.LookupFunction(2);
+            _ = Core.Validate(f.Capture, f.Mapping, f.Owner, Fixture.Capacity, f.Handle);
+        }
         long before = GC.GetAllocatedBytesForCurrentThread();
         bool good = true;
-        for (int i = 0; i < 32; i++) good &= f.Lookup(0x6000).Succeeded && Core.Validate(f.Capture, f.Mapping, f.Owner, Fixture.Capacity, f.Handle).Succeeded;
+        for (int i = 0; i < 32; i++) good &= f.Lookup(0x6000).Succeeded && f.LookupFunction(0).Succeeded &&
+            f.LookupFunction(1).Succeeded && f.LookupFunction(2).Status == Status.NotFound &&
+            Core.Validate(f.Capture, f.Mapping, f.Owner, Fixture.Capacity, f.Handle).Succeeded;
         long after = GC.GetAllocatedBytesForCurrentThread();
         Check(good && before == after, "no managed allocation");
     }
@@ -284,6 +338,7 @@ internal static unsafe class X64PERuntimeFunctionUnwindMetadataHostileInputTests
         }
         internal X64UnwindMetadataResult Bind() { Register(); return Core.Bind(Capture, Mapping, Owner, Capacity, Handle, Snapshot, Capacity); }
         internal X64UnwindMetadataResult Lookup(uint pc) => Core.Lookup(Snapshot, Capacity, Address(pc));
+        internal X64UnwindMetadataResult LookupFunction(uint index) => Core.LookupFunction(Snapshot, Capacity, index);
         internal void Row(uint i, uint begin, uint end, uint unwind)
         {
             byte* p = Image + 0x1100 + i * 12; W32(p, begin); W32(p + 4, end); W32(p + 8, unwind);

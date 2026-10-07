@@ -87,7 +87,17 @@ public static unsafe class X64PERuntimeFunctionUnwindMetadataHostileInput
     }
 
     /// <summary>Absolute active PC, begin-inclusive/end-exclusive. NotFound does not prove a leaf frame.</summary>
-    public static X64UnwindMetadataResult Lookup(byte* storage, ulong capacity, ulong instructionPointer)
+    public static X64UnwindMetadataResult Lookup(byte* storage, ulong capacity, ulong instructionPointer) =>
+        LookupCore(storage, capacity, instructionPointer, false);
+
+    /// <summary>
+    /// Zero-based listed function after original-owner and full-snapshot
+    /// revalidation. An out-of-range index returns NotFound with no payload.
+    /// </summary>
+    public static X64UnwindMetadataResult LookupFunction(byte* storage, ulong capacity, uint functionIndex) =>
+        LookupCore(storage, capacity, functionIndex, true);
+
+    private static X64UnwindMetadataResult LookupCore(byte* storage, ulong capacity, ulong key, bool indexed)
     {
         if (!Span((ulong)storage, capacity) || ((ulong)storage & 7) != 0 || capacity < StateBytes)
             return Failure(X64UnwindMetadataStatus.StorageRejected);
@@ -106,29 +116,37 @@ public static unsafe class X64PERuntimeFunctionUnwindMetadataHostileInput
         status = Scan(image, storage, state.Required, 2, out ulong consumed);
         if (status != X64UnwindMetadataStatus.Success) return Failure(status);
         if (consumed != state.Required) return Failure(X64UnwindMetadataStatus.MetadataChanged);
-        if (instructionPointer < image.Base || instructionPointer - image.Base >= image.Bytes)
-            return Failure(X64UnwindMetadataStatus.NotFound);
-        uint pc = (uint)(instructionPointer - image.Base), lo = 0, hi = image.Count;
         byte* directory = storage + StateBytes;
-        while (lo < hi)
+        uint index = image.Count;
+        if (indexed)
         {
-            uint mid = lo + (hi - lo) / 2;
-            byte* row = directory + mid * 12;
-            uint begin = U32(row), end = U32(row + 4);
-            if (pc < begin) hi = mid;
-            else if (pc >= end) lo = mid + 1;
-            else
-            {
-                ulong ignored = 0;
-                status = Walk(image, begin, end, U32(row + 8), null, 0, 0, ref ignored, out var result);
-                if (status != X64UnwindMetadataStatus.Success) return Failure(status);
-                result.RequiredStorage = state.Required; result.FunctionCount = image.Count; result.FunctionIndex = mid;
-                result.ImageBase = image.Base; result.ModuleOwner = (ulong)image.Owner; result.ModuleHandle = image.Handle;
-                result.Status = X64UnwindMetadataStatus.Success;
-                return result;
-            }
+            if (key >= image.Count) return Failure(X64UnwindMetadataStatus.NotFound);
+            index = (uint)key;
         }
-        return Failure(X64UnwindMetadataStatus.NotFound);
+        else
+        {
+            if (key < image.Base || key - image.Base >= image.Bytes)
+                return Failure(X64UnwindMetadataStatus.NotFound);
+            uint pc = (uint)(key - image.Base), lo = 0, hi = image.Count;
+            while (lo < hi)
+            {
+                uint mid = lo + (hi - lo) / 2;
+                byte* row = directory + mid * 12;
+                uint begin = U32(row), end = U32(row + 4);
+                if (pc < begin) hi = mid;
+                else if (pc >= end) lo = mid + 1;
+                else { index = mid; break; }
+            }
+            if (index == image.Count) return Failure(X64UnwindMetadataStatus.NotFound);
+        }
+        byte* selected = directory + index * 12;
+        ulong ignored = 0;
+        status = Walk(image, U32(selected), U32(selected + 4), U32(selected + 8), null, 0, 0, ref ignored, out var result);
+        if (status != X64UnwindMetadataStatus.Success) return Failure(status);
+        result.RequiredStorage = state.Required; result.FunctionCount = image.Count; result.FunctionIndex = index;
+        result.ImageBase = image.Base; result.ModuleOwner = (ulong)image.Owner; result.ModuleHandle = image.Handle;
+        result.Status = X64UnwindMetadataStatus.Success;
+        return result;
     }
 
     private static X64UnwindMetadataStatus Open(EfiLoadedImageRangeCapturePlan capture,

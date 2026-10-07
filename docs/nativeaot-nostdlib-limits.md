@@ -1574,8 +1574,14 @@ boundaries remain unchanged.
 
 `X64PERuntimeFunctionUnwindMetadataHostileInput` validates and snapshots one
 retained module's PE runtime-function directory and decoded unwind prefixes.
-Lookup revalidates the original registration and snapshot before resolving an
-absolute PC. Admission is bounded to 2,048 functions and 32 chain links, version
+Both absolute-PC `Lookup` and indexed `LookupFunction` revalidate the original
+registration and complete snapshot before selecting a listed function. Indexed
+misses return zero payload only after that validation. The shared implementation
+adds no second parser or retained state; [step1060](../done/step1060.md) records
+the nine original host groups with indexed bounds, identity and allocation
+checks. Indexed access permits a later EH decoder to check nearest-root grouping;
+it does not itself establish handler ownership. Admission is bounded to 2,048
+functions and 32 chain links, version
 one records and the documented same-image listed-chain/save-only secondary
 subset. Language-specific handler data has only a reported start, not a generic
 admitted payload length. A missing function row does not establish a safe leaf.
@@ -1583,7 +1589,8 @@ admitted payload length. A missing function row does not establish a safe leaf.
 The nine focused core groups in [step1055](../done/step1055.md) are host evidence.
 The default-off #574 adapter reuses the original module, invokes actual sample
 methods and passes a development native publication and ordinary 67-record QEMU
-profile in [step1057](../done/step1057.md). The decoder's bounded stack buffer
+profile in [step1057](../done/step1057.md), before the indexed API change. That
+older image is not acceptance evidence for the changed source. The decoder's bounded stack buffer
 requires the existing no-CRT fixed RX security-cookie anchor; it is never
 called, and randomized initialization remains separate hardening work. Final
 current-image lookup, capacity and stack acceptance remain pending.
