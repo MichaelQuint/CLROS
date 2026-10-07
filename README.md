@@ -15,16 +15,17 @@
 
 > Current status: an experimental C# NativeAOT boot/runtime prototype with
 > accepted QEMU/OVMF evidence for real firmware exit, owned serial diagnostics,
-> and bounded allocation, collection, constructors, and interface dispatch.
+> and bounded allocation, collection, constructors, interface dispatch, and typed catch.
 > It does not yet run a standalone .NET application or Kestrel. It is not a
 > functional general-purpose kernel, not cloud-ready, and not production-ready.
 
 ## Progress
 
-**Status snapshot: October 7, 2026, 12:58 a.m. EDT.** Accepted work is recorded
-through upstream `master` commit `7489823`; development work is listed separately
-below. Evidence links pin the accepted revisions so historical checkouts can
-still locate the corresponding records.
+**Status snapshot: October 7, 2026.** Accepted implementation is recorded through
+`master` commit `1e6a8dbd11e3220c1ca433b72d57e418cdc86b05`, including [step1075](done/step1075.md).
+Evidence records retain their original tested revisions; acceptance does not
+extend automatically to later source changes. The broader backlog is paused
+at a clean stopping point for the Windows handoff.
 
 Progress is gate-based; issue counts and test counts are not completion
 percentages. The goal remains a C#-first NativeAOT operating system for one
@@ -32,7 +33,7 @@ configured workload, with .NET 10 applications and mandatory ASP.NET Minimal
 API/Kestrel support, followed by verified Azure and AWS deployment.
 
 The [completion gates](docs/completion-gates.md) are the source of truth. In the
-[accepted gate ledger](http://localhost:3000/admin/CLROS/src/commit/7489823d0ad6668c76bff444418e252688f7a9ab/docs/completion-gates.md),
+[accepted gate ledger](http://localhost:3000/admin/CLROS/src/commit/1e6a8dbd11e3220c1ca433b72d57e418cdc86b05/docs/completion-gates.md),
 only Gate 2 passes; all other numbered gates remain **Fail**. Gate 2 covers the
 firmware-visible boot smoke. Separate accepted default-off profiles now prove a
 bounded real `ExitBootServices` transition and runtime operations; those results
@@ -66,24 +67,38 @@ do not complete the broader firmware, diagnostics, or runtime gates.
   does not itself execute exceptions in the guest.
   [Step1058](http://localhost:3000/admin/CLROS/src/commit/9e0afe190a6b7661a798f2894562ab9b5a71d106/done/step1058.md)
   records its evidence boundary.
+- **Current-image unwind metadata (#89/#574):** the guest validates retained
+  runtime-function/unwind metadata and locates actual compiled methods through
+  the original module owner. This is metadata lookup, not live stack unwinding.
+  [Step1071](done/step1071.md) records final host, native and three-profile guest
+  acceptance.
+- **Exception prerequisites, host-only (#578/#579):** accepted helpers recover
+  one caller context from admitted stack/metadata bytes and decode bounded
+  NativeAOT EH clauses. They do not themselves restore CPU registers or execute
+  handlers. [Step1059](done/step1059.md) and [step1061](done/step1061.md) preserve
+  their focused evidence and original development boundaries; their metadata
+  dependency is now accepted.
+- **Owned subsystems after exit (#67) and verifier optimization (#584):** the
+  positive guest performs and restores an original-allocator operation, reads
+  original copied ACPI and checks installed descriptor/canary identities. A
+  separate installed page-fault control reports through owned COM1 and halts.
+  [Step1074](done/step1074.md) accepts this bounded scope and the included
+  verifier path-walk optimization; its measured improvement is helper-only.
+- **First bounded compiler throw/catch (#582):** one real throw crosses a frame
+  into a typed base-class catch and resumes its compiled continuation with the
+  original rooted exception. The same-image invalid-local-RIP check rejects
+  through the production admission predicate before selection, without changing
+  live context. [Step1075](done/step1075.md) records final acceptance. General
+  exception handling, including finally and rethrow, remains incomplete.
 
-The latest accepted full host suite completed with **3,845 `TEST_START`,
-3,846 `TEST_PASS` including the final `host.tests` summary, and zero failures**
-at implementation `d5bef46`. The solution build had zero warnings/errors.
-Six fresh ordinary QEMU/OVMF captures passed: default, collector churn, first
-exit, firmware revocation, constructors, and interface dispatch. Three fresh
-controls rejected canary corruption, static-payload corruption, and a null
-receiver. These are recorded results from step1063, not new runs for this README
-or a claim that every later development commit passed the same suite.
-
-### In development, not yet accepted
-
-| Work | Evidence and remaining boundary at this snapshot |
-| --- | --- |
-| [Unwind metadata (#89/#574)](http://localhost:3000/admin/CLROS/issues/574) | A development QEMU profile consumes the actual NativeAOT image's unwind metadata and locates compiled methods. The final full host suite is underway; final native/guest acceptance remains pending. Metadata lookup alone is not stack unwinding. |
-| [One-frame unwind (#578)](http://localhost:3000/admin/CLROS/issues/578) and [EH clauses (#579)](http://localhost:3000/admin/CLROS/issues/579) | Implementations and focused host reviews are complete; integration depends on accepted unwind metadata. Host tests do not prove restoration of live CPU state or execution of handlers. |
-| [First real throw/catch (#582)](http://localhost:3000/admin/CLROS/issues/582) | One development QEMU run threw across a frame into a typed catch and continued to `OS_SMOKE_PASS`. Freshness reconciliation, negative-control evidence, accepted dependencies, the full host gate, and fresh ordinary-wrapper acceptance remain pending. This is not general exception handling. |
-| [Post-exit subsystem survival (#67)](http://localhost:3000/admin/CLROS/issues/67) | A retained allocator round trip passes focused host tests. Integration of continuing allocator, descriptor, ACPI, and panic operations after exit is underway; guest acceptance is pending. |
+The latest accepted full host suite passed at implementation `ead4fca`, with
+**3,888 `TEST_START`, 3,889 `TEST_PASS` including `host.tests`, and zero failures**.
+The clean solution build and three fresh ordinary captures passed: default,
+collecting GC, and bounded throw/catch, with 21/70/82 application records.
+[Step1075](done/step1075.md) binds the actual sources, native images, complete
+transcripts, process results and disk evidence. Step1074 preserves the separate
+owned-subsystem acceptance; step1063 retains the earlier runtime profiles and
+rejection controls. No broad kernel or runtime gate is promoted.
 
 The [live Gitea backlog](http://localhost:3000/admin/CLROS/issues) tracks current
 ownership and dependencies. Development evidence and issue closure do not
@@ -98,9 +113,9 @@ disabled by default and are not all combined into one continuing kernel boot.
 | --- | --- |
 | Build and EFI image | .NET 10/C# 14 host builds and an explicit no-stdlib NativeAOT EFI artifact; host tools produce the GPT/FAT32 boot image. |
 | Default boot | QEMU/OVMF reaches the ordered `OS_BOOT_OK` and `OS_SMOKE_PASS` markers while firmware remains available. `BootSequence.cs` owns phase ordering and `Probes.cs` owns diagnostic toggles. |
-| Owned memory and firmware handoff | Separate bounded profiles exercise an owned stack, allocator arena, paging transitions, retained memory-map/ACPI data, real firmware exit, and typed capability revocation. General page reclamation and continuing platform services remain incomplete. |
+| Owned memory and firmware handoff | Separate bounded profiles exercise an owned stack, allocator arena, paging transitions, retained memory-map/ACPI data, real firmware exit, and typed capability revocation. Bounded post-exit allocator use, copied-ACPI readback and installed descriptor/canary checks are accepted; general page reclamation and continuing platform services remain incomplete. |
 | Fault and serial diagnostics | Accepted bounded profiles cover owned descriptor/IST state, UD2, page fault, double fault, unexpected-vector panic, and direct COM1 output. Post-exit readiness reporting is accepted; general fault recovery is not. |
-| NativeAOT runtime subset | Guest evidence covers bounded fixed-object, byte/long-array and String allocation, checked reference helpers, one-module registration, static roots, nonmoving collection, compiler-generated constructors, and ordinary-instance interface dispatch. This is a limited runtime subset, not the full .NET libraries or GC. |
+| NativeAOT runtime subset | Guest evidence covers bounded fixed-object, byte/long-array and String allocation, checked reference helpers, one-module registration, static roots, nonmoving collection, compiler-generated constructors, and ordinary-instance interface dispatch. Current-image unwind metadata is accepted; one-frame restoration and EH-clause helpers retain their bounded host contracts, and one separate profile executes a real throw, typed catch and compiled continuation. This is a limited runtime subset, not the full .NET libraries, GC or exception runtime. |
 | Shared utilities | Host-tested ASCII/text, numeric formatting, memory, endian, checksum, and collection helpers; selected fixed conformance catalogs also execute in the EFI guest. |
 | PAL, storage, networking, and app groundwork | Host-tested ABI contracts, parser/planner logic, mock PAL tables, disk/package/image tools, protocol frames, and app launch/lifecycle metadata. These do not establish live guest drivers, packet I/O, package loading, or app execution. |
 | Evidence tooling | Stable test/serial markers, source and artifact checks, host image tools, QEMU runners, CI dry-run scaffolding, and immutable `done/stepNN.md` records. Executed CI and cloud-provider acceptance remain separate gates. |
@@ -109,7 +124,7 @@ disabled by default and are not all combined into one continuing kernel boot.
 
 | Area | Missing before claim |
 | --- | --- |
-| Continuing post-firmware kernel | General firmware-page reclamation, allocator/platform survival, interrupt/timer services, and recovery beyond the accepted bounded or terminal profiles. |
+| Continuing post-firmware kernel | General firmware-page reclamation, continuing allocator/platform services, interrupt/timer services, and recovery beyond the accepted bounded or terminal profiles. |
 | General runtime correctness | Automatic stack-root scanning, broader allocation/GC support, full throw/catch/finally/rethrow, constructor failure caching, thread statics, and remaining runtime helpers. Bounded dispatch does not support every interface/type shape or concurrent execution. |
 | Scheduler and synchronization | Live scheduling, thread lifecycle, blocking waits, hardware timer integration, ThreadPool, `Monitor`, and `Task` support. |
 | Live platform and storage | Device discovery, MMIO/interrupt/DMA integration, storage drivers, and post-exit disk-backed manifest/package loading. |
@@ -277,6 +292,7 @@ Start here:
 - `AGENTS.md` - project invariants, agent workflow, and evidence rules.
 - `docs/documentation-map.md` - where canonical information belongs.
 - `docs/host-requirements.md` - Windows/.NET/QEMU/toolchain requirements.
+- [Windows development-machine handoff](docs/windows-handoff.md) - preserve source, evidence and tracker access, then verify the destination.
 - `docs/completion-gates.md` - claim boundaries and current gate evidence.
 - `docs/boot.md` and `docs/boot-order.md` - boot flow and marker order.
 - `docs/pal.md` - hosted runtime and `OSHost_*` PAL boundary.

@@ -2,8 +2,12 @@
 
 ## Current Status
 
-The probe catalogue has 24 entries. M03-008 and M04-024 occupy indices 17 and
-18; the new destructive, default-off M04-016 dispatch entry is index 19 in
+The accepted probe catalogue has 24 entries at `ead4fca`: M03-008 and
+M04-024 occupy indices 17 and 18, unwind metadata is index 20, owned survival
+and panic are indices 21/22, and simple catch is index 23. The earlier accepted
+`4ef299f` source had 23 entries ([step1069](../done/step1069.md)); that historical
+count remains source-specific. The destructive, default-off M04-016 dispatch
+entry is index 19 in
 `runtime.dispatch`. Integration #572 is accepted at `d5bef46` in
 [step1063](../done/step1063.md). M03-009 adds five owned-writer records to the
 first-exit/revocation profiles, now accepted at 66/78 application records.
@@ -1790,7 +1794,8 @@ original authorities.
 [Step1074](../done/step1074.md) accepts both actual guests at `4ef299f`, with
 independent native and raw/process/disk review. The panic capture binds the
 faulting instruction and guard address to original CR3 and the 184-byte IST2
-frame. Runner exit 19 becomes wrapper exit 0 only after the exact terminal
-transcript and measured 757 ms quiet interval; no success follows the fault.
-This remains distinct from ordinary boot success, recovery and the unchanged
-M02 panic mode. [Step1067](../done/step1067.md) preserves development failures.
+frame. The expected-panic mode requires at least 750 ms of measured unchanged serial
+output and owned teardown. Runner exit 19 becomes wrapper exit 0 only after the
+exact terminal transcript; the accepted capture measures 757 ms. No owned-survival
+success tail or bytes follow the fault. This remains distinct from ordinary boot
+success, recovery and the unchanged M02 panic mode. [Step1067](../done/step1067.md) preserves development failures.

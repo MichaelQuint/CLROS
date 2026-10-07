@@ -164,9 +164,9 @@ Typed-prefix range admission does not validate a class or perform matching.
 Chains, reverse-PInvoke, unknown kinds/flags, split code and cross-module targets
 remain unsupported. The leaf changes no EFI export/profile and supplies no
 exception construction/rooting, handler search, invocation, stack restoration
-or actual throw/catch/finally/rethrow. The leaf is accepted after #89/#574
-integration; the separate bounded #582 execution evidence below does not extend
-the metadata reader's contract to general EH.
+or actual throw/catch/finally/rethrow. #579 is accepted and merged through
+PR #581 as this bounded host metadata contract; the separate bounded #582 profile below adds finite execution proof without
+extending the metadata reader's contract to general EH. #90 remains open.
 
 ## Implemented Behavior
 
@@ -1674,10 +1674,12 @@ unchanged backing and warmed zero allocation. Caller-supplied numeric extents
 and a context do not prove mapping, compiler provenance or a live instruction
 boundary; original storage and code must remain exclusively stable. Recovered
 RSP advances inside the admitted stack, and raw RIP must be same-image RX.
-The #578 host leaf introduced no EFI Compile change. The separate #582
-development profile adds the core to its disabled closure; #89/#574 acceptance
-still gates final integration; live stack walking, CPU transfer, EH records/handlers, exception
-roots and compiled throw/catch/finally/rethrow remain #90 work.
+The accepted #578 host core is merged through PR #580. This accepted scope
+does not establish live stack walking, CPU transfer, handler execution,
+exception roots or compiled throw/catch/finally/rethrow. #579 separately
+accepts bounded host EH-record parsing; the separately accepted #582 profile adds
+one real caller restoration and typed catch under its own exact image/stack
+constraints ([step1075](../done/step1075.md)). General EH remains #90 work.
 
 ### M04-012 read-only GC-static metadata admission
 

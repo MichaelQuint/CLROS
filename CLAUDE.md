@@ -73,10 +73,13 @@ Then read the matching subsystem docs:
 
 ## Current Evidence Boundary
 
-The current repository is early boot/runtime boundary work plus host-tested
-contracts and QEMU/OVMF smoke evidence for the firmware-visible marker path.
-Storage, PAL, app-model, and networking slices are host-tested parser,
-planning, mock-table, or caller-owned-buffer evidence only.
+The repository has host-tested contracts and accepted QEMU/OVMF profiles for
+firmware-visible boot, bounded real firmware exit, owned post-exit diagnostics
+and subsystem use, and selected runtime operations. Each accepted profile has
+its own scope in `docs/completion-gates.md`; these results do not establish a
+general runtime or continuing platform services. Storage, PAL, app-model, and
+networking slices remain host-tested parser, planning, mock-table, or
+caller-owned-buffer evidence only.
 
 Networking currently includes host-tested UDP/TCP checksum slices through
 active/passive handshakes, HTTP GET payload frames, and active close FIN/ACK
@@ -116,6 +119,10 @@ API base:
 ```text
 http://localhost:3000/api/v1/repos/admin/CLROS
 ```
+
+These loopback addresses identify the source development machine's Gitea.
+Follow `docs/windows-handoff.md` on another machine; its localhost may host a
+different server. Existing local REST helpers enforce the source endpoint.
 
 Use Basic Auth only from the active task context or secure environment. Do not
 store credentials in this file or any issue body.

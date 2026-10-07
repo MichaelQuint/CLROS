@@ -4454,20 +4454,16 @@ the final window result. The outer state prevents reentry/reuse and cannot
 overlap the map buffer. [Step1001](../done/step1001.md) records focused host and
 no-stdlib compilation. [Step1010](../done/step1010.md) accepts five authentic
 GetMemoryMap captures and five controlled exit callbacks, including stale-key
-retry and exhaustion. No original firmware exit occurs; firmware access
-invalidation remains required after a future real successful exit.
+retry and exhaustion. No original firmware exit occurs in that controlled
+profile. The separate accepted real-exit and capability-revocation profiles
+are recorded above; their evidence must not be inferred from this fixture.
 
-1. Treat the accepted M01-026 tuple as the bounded M01 milestone exit and begin
-   M02 diagnostics work after tracker review/synchronization. Keep real
-   `ExitBootServices` blocked until owned serial, descriptor tables, fault
-   handling, and the retry boundary have matching evidence.
-2. Keep extending the QEMU UEFI-gone simulation as new firmware-guarded platform interfaces are added, keeping real `ExitBootServices` blocked until post-firmware diagnostics are implemented.
-3. Add a real `ExitBootServices` probe only after the retry plan, diagnostics, and owned output paths have evidence.
-4. Begin diagnostics-first IDT/fault panic work after post-UEFI diagnostics requirements are represented by tests and evidence.
-   - The host-tested `CpuFaultFrame`, `PanicFormatter.FormatFault`,
-     `CpuFaultEntryFrameLayout`, and `CpuFaultPanicReadiness` contracts now
-     define the expected register dump field order and caller-owned
-     frame-to-panic-output readiness boundary before real handlers are added.
+1. Preserve the accepted real-exit, retained ownership, capability cutoff and
+   terminal diagnostic profiles while extending continuing post-firmware work.
+2. Route each additional firmware-backed interface through the same explicit
+   availability/ownership boundary and retain its denial evidence after exit.
+3. Keep general reclamation, interrupts/recovery and continuing drivers or
+   workloads separate until their own completion-gate evidence is accepted.
 
 ## Bounded throw/catch accepted scope
 
@@ -4492,10 +4488,10 @@ descriptor registers. The separate panic child reads the original unmapped arena
 guard and admits the installed fault callback's vector/error/CR2/CR3 and IST2
 frame before owned terminal reporting.
 
-[Step1074](../done/step1074.md) accepts frozen `4ef299f` with the original full
-host gate and four fresh ordinary captures. Survival emits 76 application
-records; the separate 77-record fault path terminates without the success tail.
-Actual native, raw/process and GPT/FAT/EFI associations pass. Step1067 retains
-the original development publication timeout and its later verifier-only result;
-they are not relabeled as a passing publication. General reclamation, fault
-recovery and continuing platform services remain separate work.
+[Step1067](../done/step1067.md) preserves the initial publication timeout and
+subsequent unchanged verifier-only result. [Step1074](../done/step1074.md)
+accepts the final bounded integration at 4ef299f with the original common gate,
+four fresh ordinary captures and independent current-native/raw/payload review.
+The positive and separate terminal-panic profiles contain 76 and 77 application
+records. General reclamation, fault recovery and continuing workloads remain
+outside this acceptance.

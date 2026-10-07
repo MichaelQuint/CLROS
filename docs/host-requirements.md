@@ -150,13 +150,14 @@ Verify Visual Studio Build Tools are installed:
 
 ```powershell
 $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
-& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+$vsInstall = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+$vsInstall
 ```
 
 Verify MSVC and Windows SDK files exist. `link.exe` does not need to be on the normal PowerShell `PATH`; the .NET NativeAOT targets can discover it from the Visual Studio installation.
 
 ```powershell
-Get-ChildItem "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools" -Recurse -Filter link.exe |
+Get-ChildItem (Join-Path $vsInstall "VC\Tools\MSVC") -Recurse -Filter link.exe |
     Where-Object { $_.FullName -match "Hostx64\\x64" } |
     Select-Object -First 1 FullName
 
@@ -288,8 +289,8 @@ proof.
 Required agent capabilities:
 
 - Windows 10 or Windows 11 x64 with PowerShell 5.1 or newer.
-- .NET SDK 10.0.300 or newer compatible .NET 10 SDK.
-- Visual Studio Build Tools 2022 with `Microsoft.VisualStudio.Workload.VCTools`
+- The stable .NET SDK 10.0.300 feature band with patch selection governed by `global.json`.
+- Visual Studio or Build Tools with `Microsoft.VisualStudio.Workload.VCTools`
   and `Microsoft.VisualStudio.Component.VC.Tools.x86.x64`.
 - Windows 10/11 SDK UM x64 libraries, including `kernel32.lib`.
 - QEMU for dry-run command discovery and optional real smoke:
@@ -381,7 +382,7 @@ dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 .\scripts\build-efi-shell.ps1
 ```
 
-Current evidence from 2026-05-21:
+Historical baseline evidence from 2026-05-21:
 
 - `dotnet build .\CLROS.slnx --nologo -m:1` passed with 0 warnings and 0 errors.
 - Host tests emitted `TEST_PASS host.tests`.

@@ -23,8 +23,14 @@ intended deployment model is a minimal single-workload cloud appliance:
 - .NET 10 applications as first-class workloads.
 - ASP.NET Minimal API/Kestrel support as a mandatory milestone.
 
-Current implementation is early boot/runtime boundary work with host-tested
-contracts and QEMU/OVMF smoke evidence for the firmware-visible marker path.
+Current implementation is bounded boot/runtime work with host-tested contracts
+and accepted QEMU/OVMF profiles for real firmware exit, owned diagnostics and
+subsystem use, allocation/collection, constructors, dispatch and unwind metadata.
+One-frame restoration and EH-clause decoding retain their accepted host-only
+contracts. The separate bounded throw/catch profile has final acceptance in
+`done/step1075.md`: one real throw, typed catch and compiled continuation, with
+local-input admission rejection. General EH remains incomplete. See
+`docs/completion-gates.md` for each scope.
 Storage, PAL, app-model, and networking progress is still host-tested
 contract/planning evidence only; networking now includes UDP/TCP checksum
 slices through active/passive handshakes, HTTP GET payload frames, and active
@@ -184,6 +190,15 @@ Use the Gitea API when instructed or when doing backlog maintenance.
 
 - Repository: `http://localhost:3000/admin/CLROS`
 - API base: `http://localhost:3000/api/v1/repos/admin/CLROS`
+
+These loopback addresses identify Gitea on the current source computer. On
+another machine, verify the intended server and `admin/CLROS` repository
+against the final handoff before any tracker operation. The destination
+machine's own `localhost` Gitea is a different server. The default handoff
+continues to use the source server at `192.168.4.35`; verify that address
+on arrival. Existing loopback-only helpers and backlog synchronization run
+on the source host unless endpoint support is explicitly reviewed. See
+[Windows handoff](docs/windows-handoff.md).
 
 Rules:
 

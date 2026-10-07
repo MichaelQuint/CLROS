@@ -22,6 +22,7 @@ Canonical repository docs:
 | Quick project status and common commands | `README.md` | Current status, first-run command set, or high-level limits change |
 | Repository audit and evidence snapshot | `docs/repo-audit.md` | Top-level implementation status, evidence boundary, or audit summary changes |
 | Host prerequisites | `docs/host-requirements.md` | Required SDK, Windows, Visual Studio, QEMU, OVMF, or toolchain changes |
+| Windows development-machine handoff | `docs/windows-handoff.md` | Final source/ref/evidence transfer, destination verification, or tracker endpoint instructions change |
 | Architecture overview | `docs/architecture.md` | Cross-subsystem architecture, milestone ordering, or workload-profile boundaries change |
 | Completion gates and claim boundaries | `docs/completion-gates.md` | Any gate status, evidence, or remaining-work boundary changes |
 | Boot and boot order | `docs/boot.md`, `docs/boot-order.md`, `docs/efi-build.md` | EFI, boot marker, handoff, memory-map, `ExitBootServices`, or build path changes |

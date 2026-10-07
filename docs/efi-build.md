@@ -174,13 +174,14 @@ Windows SDK, QEMU, and OVMF installed. `scripts/build-efi-shell.ps1` publishes a
 NativeAOT x64 PE with EFI application subsystem and stages it as
 `artifacts/efi/BOOTX64.EFI`.
 
-The most recent staged artifact enables `M01_LOADED_IMAGE_STACK_PROBE`,
+The historical M01 staging checkpoint below enabled `M01_LOADED_IMAGE_STACK_PROBE`,
 `M01_LIVE_ALLOCATOR_PROBE`, and `M01_OWNED_PAGING_PROBE`. It contains the
 M01-021 loaded-image/page-allocation/map/ledger/owned-stack wiring, the M01-023
 allocator-arena adapter, and M01-025's stage-three source wiring. M01-024 owns
-the accepted stage-two QEMU/OVMF tuple. The M01-025 stage-three artifact has
-host/source and PE-verification evidence only; it has not executed under
-QEMU/OVMF.
+the accepted stage-two QEMU/OVMF tuple. The M01-025 stage-three artifact had
+host/source and PE-verification evidence only at that checkpoint; it had not
+executed under QEMU/OVMF. Later accepted profiles are recorded above and in
+the owned-subsystem section below.
 
 A separate default-off M02-010 artifact has now been built, independently
 verified, and executed under QEMU/OVMF from exact source head
@@ -1504,8 +1505,10 @@ passing numbered gate; Gate 3 and Gate 4 remain `Fail`.
 `EnableM04IndependentEndianConformanceProbe` is a default-false, independent
 profile. At its acceptance head it added exactly one explicit compile item:
 `std/no-runtime/shared/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs`.
+Its current source location is
+`std/no-runtime/shared/Binary/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs`.
 That historical accepted project closure had 53 compile items and the canonical
-build/verifier authority had 66 inputs. The current development tree has 62/75
+build/verifier authority had 66 inputs. The then-current development tree had 62/75
 after the later M02-005 writer, M02-006 reporter, M02-007 GDT encoder, and
 M02-008 guarded-IST arena contract plus the default-off M02-009 terminal stub,
 M02-010 normalized interrupt-entry page, M02-011 owned-IDT materializer,
@@ -1567,10 +1570,10 @@ returning opt-in profile. It requires
 terminal `EnableM02OwnedGdtTssTerminalProbe` profile is enabled. The explicit
 project links exactly one frozen source immediately after the M04-002 endian
 catalog and before `M01LoadedImageStackIntegration.cs`:
-`std/no-runtime/shared/SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs`.
+`std/no-runtime/shared/Memory/SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs`.
 At the accepted M04-003 source head the build and artifact-verifier closure was
-59 compile items and 72 source-authority inputs. The current development closure
-was 62/75 after the later M02-010, M02-011, and M02-012 sources; the current
+59 compile items and 72 source-authority inputs. The then-current development closure
+was 62/75 after the later M02-010, M02-011, and M02-012 sources; the later historical
 68/81 closure is described in the M04-004 section below. Both scripts
 carry the exact property and
 `M04_SPAN_OVERLAP_MEMORY_CAST_UNSAFE_WIDTH_CONFORMANCE_PROBE` symbol without
@@ -2189,7 +2192,7 @@ They are not a complete firmware abstraction layer.
 
 `IPlatformConsole` is host-tested as a guardable platform contract only. `EfiEntry` now routes byte writes through a no-stdlib `EfiConsoleAdapter`, but this is still not the full managed `IPlatformConsole` implementation and it does not prove post-ExitBootServices owned serial output.
 
-The memory-map source buffer is firmware-allocated by the source-linked capture helper, but the descriptor bytes are copied into a static OS-owned buffer before `UEFI_MEMORY_MAP_OWNED` is emitted, the owned handoff validates before `BOOT_HANDOFF_READY` is emitted, the compact live summary normalizes before `UEFI_MEMORY_MAP_NORMALIZED` is emitted, and compact boot-region records materialize before `BOOT_MEMORY_REGIONS_READY` is emitted. A later step must still keep a valid map-key retry path for `ExitBootServices` and turn the compact records into allocator-owned usable/reserved page ranges.
+The memory-map source buffer is firmware-allocated by the source-linked capture helper, but the descriptor bytes are copied into a static OS-owned buffer before `UEFI_MEMORY_MAP_OWNED` is emitted, the owned handoff validates before `BOOT_HANDOFF_READY` is emitted, the compact live summary normalizes before `UEFI_MEMORY_MAP_NORMALIZED` is emitted, and compact boot-region records materialize before `BOOT_MEMORY_REGIONS_READY` is emitted. The separate accepted first-exit profile supplies the bounded fresh-map/key-retry transition and retained allocator ownership; this default-path capture alone does not establish those operations or general firmware-page reclamation.
 
 The logged default-path memory-map metadata proves the map captured at that
 point in the EFI path. M01-022 provides one accepted guest log for the
@@ -2228,10 +2231,10 @@ Any next-step EFI build work must keep the freestanding constraints explicit. If
 8. Move UEFI structs behind platform interfaces.
    - Keep the low-level UEFI table pointers isolated to the EFI boundary.
    - Expose only the narrow operations required for console diagnostics, memory-map ownership, firmware shutdown state, and optional filesystem/protocol discovery.
-9. Implement post-firmware COM1 before enabling any real firmware shutdown.
-10. Copy required firmware data, add the typed `ExitBootServices` call adapter,
-   and implement the bounded stale-map-key retry only after its M01/M02
-   dependencies pass.
+9. Preserve the accepted real-exit and owned-COM1 profiles while extending
+   continuing post-firmware services.
+10. Preserve copied firmware data, the typed `ExitBootServices` adapter and
+   bounded stale-key retry; admit each additional retained owner before use.
 11. Route additional platform interfaces through the UEFI-gone simulation path
    as they are introduced.
 12. Replace permissive shell-only runtime placeholders with audited runtime
@@ -2953,7 +2956,7 @@ earlier Desktop module-resolution failure and all archives in
 [step1067](../done/step1067.md). The fresh acceptance below supersedes that
 pending status without changing the original failed receipt.
 
-At step1069, the merged development source had 117 ordered Compile items, 132 raw
+The accepted 4ef299f source has 117 ordered Compile items, 132 raw
 publication inputs, 50 profile flags and 47 literal false defaults. Its fixture
 reconciliation includes the final step1068 verifier identity. One fresh managed
 build and 45 original focused checks plus two existing authority helpers pass;

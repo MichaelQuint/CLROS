@@ -8068,7 +8068,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M03: Real Firmware Exit.",
-      "currentEvidence": "Prerequisite #56 and children #58-#65 have scoped accepted evidence. Step1051/PR559 accepts #64 first real firmware exit with permanent owned CR3 and terminal owned COM1; step1053/PR571 accepts #65 retained typed adapter revocation. Three children #66-#68 remain incomplete. Optional provider functionality, firmware-page reclamation and the full M03 exit criterion remain unproved. The epic remains open/blocked; bounded opt-in evidence does not promote Gate3.",
+      "currentEvidence": "Prerequisite #56 and children #58-#66 have scoped accepted evidence. Step1051/PR559 accepts #64 first real firmware exit with permanent owned CR3 and terminal owned COM1; step1053/PR571 accepts #65 retained typed adapter revocation. Step1063/PR573 now accepts and closes #66 post-exit owned diagnostics at merge a6f5229e4f2a32be12ff3378dc51c0b28882fda0. Child #67 now has accepted final original-allocator/copied-ACPI/descriptor/panic evidence in step1074 / PR586, merged as `19475d4f2f808f0ef8ba68e15065780c574f2a14` ([closure evidence](http://localhost:3000/admin/CLROS/issues/67#issuecomment-16598)); #68 default promotion remains incomplete. Optional provider functionality, firmware-page reclamation and the full M03 criterion remain unproved. The epic stays blocked; bounded opt-in evidence does not promote Gate3.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -9029,7 +9029,7 @@
         "M03-010"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -9056,7 +9056,7 @@
       ],
       "collisionLane": "lane:boot-sequence",
       "summary": "Promote the verified exit path from opt-in to default after repeated clean QEMU runs.",
-      "currentEvidence": "The EFI path captures a map but deliberately skips the ExitBootServices call; post-firmware execution is unproven.",
+      "currentEvidence": "The opt-in real ExitBootServices transition, permanent owned CR3, owned diagnostics, firmware-adapter revocation, and the original retained allocator/copied-ACPI/descriptor/panic exercise have accepted evidence in #64-#67. #67 is accepted and closed in step1074 / PR586, merged as `19475d4f2f808f0ef8ba68e15065780c574f2a14`; its [closure evidence](http://localhost:3000/admin/CLROS/issues/67#issuecomment-16598) records the exact tested source and profiles. Default boot promotion and the repeated clean QEMU runs required by this issue are still unimplemented. The allocator exercise reuses and restores the original retained arena; it does not reclaim firmware pages or prove that arbitrary boot-services/firmware allocations are reusable. Preserve conservative firmware reservations unless a separately reviewed lifetime/ownership proof authorizes reclamation. This issue remains open and ready for later work; the user-paused backlog is not resumed by that label.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Promote the verified exit path from opt-in to default after repeated clean QEMU runs.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -9134,7 +9134,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M04: NativeAOT Runtime Correctness.",
-      "currentEvidence": "Prerequisite #425 and children #70-#83 have scoped accepted evidence, including step1041/PR553 bounded collection/reuse and step1051/PR559 seeded churn. Step1053/PR571 accepts the M04-024 (#562) eager/lazy execution precursor at 2b5a4b0, with the original full common gate and fresh constructor/changed-churn evidence. Children #84-#92 and the full runtime milestone criterion remain incomplete. Full #84 still requires #90 exception/unwind support. General runtime initialization, exceptions, hosted .NET/Kestrel and Gate4 are not established; the epic remains open/blocked.",
+      "currentEvidence": "Prerequisite #425 and children #70-#83 have scoped accepted evidence, including step1041/PR553 collection/reuse and step1051/PR559 seeded churn. Step1053/PR571 accepts M04-024 (#562) eager/lazy constructor execution; full #84 still requires #90 exception/failure semantics. Step1063/PR573 accepts #85 dispatch at merge a6f5229e4f2a32be12ff3378dc51c0b28882fda0. M04-020/#89 and #574 are accepted in step1071/PR576 (merge 347391f7357e895568146866c7ff005d6ee853da); #575/#578/#579 supply accepted bounded host helpers. Step1075 accepts #582 for one real throw across one frame, typed catch and compiled continuation with the same rooted object plus the local RIP scalar admission rejection; no corrupted-live-context terminal control or general EH is established. Evidence commit `c70e3e5177eab8dcc4566d14ac891a67138296d2`; PR583 merge `1e6a8dbd11e3220c1ca433b72d57e418cdc86b05`; verified issue582 evidence comment `http://localhost:3000/admin/CLROS/issues/582#issuecomment-16624`. The remaining keyed children are #84, #86-#88 and #90-#92; full #90 stays open despite the accepted bounded child. The epic, Gate4, general runtime initialization/exception semantics, hosted .NET/Kestrel and cloud readiness remain incomplete.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -9285,7 +9285,7 @@
       ],
       "priority": "priority:p1",
       "ownedPaths": [
-        "std/no-runtime/shared/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs",
+        "std/no-runtime/shared/Binary/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs",
         "tests/OS.HostTests/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSATests.cs",
         "docs/nativeaot-nostdlib-limits.md",
         "docs/completion-gates.md"
@@ -9307,7 +9307,7 @@
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
-        "The proposed owned paths are exact for this slice: std/no-runtime/shared/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs, tests/OS.HostTests/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSATests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "The proposed owned paths are exact for this slice: std/no-runtime/shared/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs, tests/OS.HostTests/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSATests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue. Current source location after the byte-preserving step1073 organization change: std/no-runtime/shared/Binary/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs. The original ownership scope above is retained as historical narration.",
         "Positive case: Demonstrate the exact successful repository/evidence behavior required by: Add independent endian and BinaryPrimitives conformance vectors derived from MOSA.",
         "Failure cases: Cover missing file/tool, duplicate key, malformed input, stale path/claim, nonzero process exit, missing marker, hash mismatch, and unauthorized write as applicable.",
         "Explicitly inapplicable here: Live device I/O, packet loss, runtime unwind, and cloud cleanup are outside this repository/tooling slice.",
@@ -9375,7 +9375,7 @@
       ],
       "priority": "priority:p1",
       "ownedPaths": [
-        "std/no-runtime/shared/SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs",
+        "std/no-runtime/shared/Memory/SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs",
         "tests/OS.HostTests/SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests.cs",
         "docs/nativeaot-nostdlib-limits.md",
         "docs/completion-gates.md"
@@ -9397,7 +9397,7 @@
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
-        "The proposed owned paths are exact for this slice: std/no-runtime/shared/SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs, tests/OS.HostTests/SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "The proposed owned paths are exact for this slice: std/no-runtime/shared/SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs, tests/OS.HostTests/SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue. Current source location after the byte-preserving step1073 organization change: std/no-runtime/shared/Memory/SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs. The original ownership scope above is retained as historical narration.",
         "Positive case: Demonstrate the exact successful repository/evidence behavior required by: Add span, overlap, memory-cast, and unsafe-width conformance vectors.",
         "Failure cases: Cover missing file/tool, duplicate key, malformed input, stale path/claim, nonzero process exit, missing marker, hash mismatch, and unauthorized write as applicable.",
         "Explicitly inapplicable here: Live device I/O, packet loss, runtime unwind, and cloud cleanup are outside this repository/tooling slice.",
@@ -9465,7 +9465,7 @@
       ],
       "priority": "priority:p1",
       "ownedPaths": [
-        "std/no-runtime/shared/IndependentArithmeticShiftCastN64BitDivisionRemainder.cs",
+        "std/no-runtime/shared/Numerics/IndependentArithmeticShiftCastN64BitDivisionRemainder.cs",
         "tests/OS.HostTests/IndependentArithmeticShiftCastN64BitDivisionRemainderTests.cs",
         "docs/nativeaot-nostdlib-limits.md",
         "docs/completion-gates.md"
@@ -9487,7 +9487,7 @@
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
-        "The proposed owned paths are exact for this slice: std/no-runtime/shared/IndependentArithmeticShiftCastN64BitDivisionRemainder.cs, tests/OS.HostTests/IndependentArithmeticShiftCastN64BitDivisionRemainderTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "The proposed owned paths are exact for this slice: std/no-runtime/shared/IndependentArithmeticShiftCastN64BitDivisionRemainder.cs, tests/OS.HostTests/IndependentArithmeticShiftCastN64BitDivisionRemainderTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue. Current source location after the byte-preserving step1073 organization change: std/no-runtime/shared/Numerics/IndependentArithmeticShiftCastN64BitDivisionRemainder.cs. The original ownership scope above is retained as historical narration.",
         "Positive case: Execute runtime-supplied integer operands against independent expected values, including wrapping arithmetic, signed/unsigned shifts with masked counts, narrowing/sign extension, all eight enum underlying widths, and signed/unsigned 64-bit division and remainder.",
         "Failure cases: Reject unknown operations and zero divisors without exceptions; explicitly classify signed minimum/-1 before division/remainder; test invalid catalog indices, default results, wrong-value detection, and zero-allocation repeated execution.",
         "Explicitly inapplicable here: This is integer conformance, not networking. Checked-overflow exception delivery, floating-point, enum metadata/boxing, allocation/GC, and general runtime compatibility are outside this slice.",
@@ -10371,7 +10371,7 @@
         "M04-013"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -10397,7 +10397,7 @@
       ],
       "collisionLane": "lane:probes",
       "summary": "Add seeded allocation/churn/collection and root-retention guest probes.",
-      "currentEvidence": "Prerequisite #82 and collector integration #552 are closed after accepted PR553 merge 8501315. Steps1035-1040 implement seeded churn, the deterministic helper, native adapter and strict 82-record validation with staged native/QEMU evidence. Step1042 integrates the first-exit/churn profiles under separately claimed shared lane #560 on codex/m04-014-seeded-churn; PR559 now targets master. All 122 publisher inputs and 108 compile items match reviewed staging. One final integrated common run and fresh per-profile source/native/lifecycle/disk acceptance remain required. #83 is open/claimed; general runtime, hosted .NET/Kestrel and Gates3/4 are not established.",
+      "currentEvidence": "Accepted at implementation e64e9dc1bd1f66ca522bd22aafe8bcd3388428ff, recorded in step1051 / evidence commit 32ed478e9b48221abfbf07f91ce4b69957cc647e, and merged by PR559 at 69b49591995cf8dc226d4d189540cf890c04af23. The original full suite passed 3814 starts/3815 passes/zero failures; fresh ordinary default/churn/first-exit captures and current source/native/lifecycle/disk reviews passed. This closes #83 for bounded pre-EBS direct-allocator churn and collection with explicit and retained-static roots: three seeds, 192 rounds, 476 allocations/reclamations and 198 collections. Step1051 retains both same-image corruption controls and the original failed native review. It does not prove compiler-created allocation, general runtime initialization, firmware-page reclamation, hosted .NET/Kestrel or Gates 3/4. Successful compiled constructors are separately accepted in step1053; full constructor failure caching/rethrow remains #84.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add seeded allocation/churn/collection and root-retention guest probes.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -10450,7 +10450,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves only \"Add seeded allocation/churn/collection and root-retention guest probes.\" It does not by itself prove the M04 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M04-015",
@@ -10488,7 +10488,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement class-constructor discovery, state transitions, execution, and recursion/failure handling.",
-      "currentEvidence": "The retained ILC 10.0.8 module, allocation and explicit-root collector are accepted, but compiled class-constructor execution and cached failure semantics are not. M04-024 supplies the real eager/lazy invocation, once and same-thread reentry precursor; M04-021 supplies actual exception handling and unwind. This issue remains open for full constructor failure integration and may not close on terminal-only or successful-path evidence.",
+      "currentEvidence": "The retained ILC 10.0.8 module, allocation and explicit-root collector are accepted. M04-024 (#562) compiled eager/lazy constructor execution, once-only behavior and same-thread reentry are accepted in done/step1053.md and PR #571 (implementation commit 2b5a4b0). Cached constructor failure semantics remain unimplemented; M04-021 (#90) must supply actual exception handling and unwind. This issue remains open and blocked on #90 for full constructor failure integration, and may not close on terminal-only or successful-path evidence.",
       "implementationNotes": [
         "Complete the original constructor discovery, state transitions, execution, recursion and failure behavior by reusing M04-024 execution and M04-021 unwind; do not replace it with a narrower terminal-only scope.",
         "Extend the accepted M04-024 execution core through an explicit ownership transfer when needed, without creating a second constructor runner, module owner or competing state table. Constructor-specific exception caching belongs here; the general unwind mechanism belongs to M04-021.",
@@ -10676,7 +10676,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement boxing, unboxing, and checked cast helpers.",
-      "currentEvidence": "The allocation, original module owner, explicit-root collector and successful constructor precursors have accepted evidence. M04-016 (#85) is implemented but still awaiting current frozen acceptance. Full boxing/unboxing/checked casts remain unimplemented; invalid casts and null unboxing need M04-021 (#90) actual exception execution. A status return or terminal stub cannot fulfill those failures.",
+      "currentEvidence": "M04-016 (#85) is accepted in step1063 / PR573, merge a6f5229e4f2a32be12ff3378dc51c0b28882fda0, and closed. The allocation, original module owner, explicit-root collector and successful constructor precursors also have accepted evidence. Full boxing/unboxing/checked casts remain unimplemented; invalid casts and null unboxing still need M04-021 (#90) actual exception execution. The first bounded catch is accepted under #582 in step1075 (one real throw, typed catch, compiled continuation and local RIP scalar admission rejection), but full #90 remains incomplete. A status return or terminal stub cannot fulfill these failure semantics. This issue remains blocked on #90.",
       "implementationNotes": [
         "Implement actual pinned boxing, unboxing and checked-cast helpers only after M04-016 and M04-021 acceptance. The dotnet/dotnet 94ea82652cdd4e0f8046b5bd5becbd11461482ca RuntimeExports.cs RhUnboxAny/RhUnbox2 and TypeCast.cs checked casts require real NullReference/InvalidCast exceptions; preserve those semantics.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -10944,7 +10944,7 @@
       ],
       "collisionLane": null,
       "summary": "Parse x64 PE runtime-function/unwind metadata with hostile-input tests.",
-      "currentEvidence": "M04-011 (#80) is accepted: the original NativeAOT image registration, immutable metadata/RX range authority and module revalidation are available on accepted master 3ba0dd5 (step989, PR543). PE runtime-function parsing does not require delegates or TLS, so the former M04-019 dependency is removed. Core implementation is claimed in the isolated codex/m04-unwind-metadata worktree; no parser or guest acceptance is claimed yet. Current #66/#85/#572 acceptance remains separate and frozen.",
+      "currentEvidence": "Accepted bounded original-image metadata decoding and consumption at implementation 4625fd74128e28207d66e6cd7865c21dfd87546b; evidence-only commit 9e165c166934a1f156512aec14e5226cf4766ef1 records step1071. PR576 merged at 347391f7357e895568146866c7ff005d6ee853da; #89/#574 are closed. The original solution build and full 3864-start/3865-pass/zero-failure suite passed. Fresh ordinary default/TypeManager/unwind captures passed 21/45/67 complete application records with current native, raw framing, lifecycle and postboot FAT-payload reviews. Full commands, hashes and retained failures are in step1071; parent-final-acceptance.json SHA256 CB1563F0965714F43057EC35F62A4106811E98A877E9ECCD1683E664F3062D3D. This evidence proves metadata decoding/lookup, not actual register restoration or language-handler execution.",
       "implementationNotes": [
         "Implement a small C# 14/.NET 10 status-returning decoder/index over the original registered x64 PE, using caller-owned storage and explicit capacities. Revalidate the retained module before metadata payload reads. Do not invent a ReadyToRun section for the PE exception directory.",
         "The proposed owned paths are exact for this slice: src/OS.Kernel/Runtime/X64PERuntimeFunctionUnwindMetadataHostileInput.cs, tests/OS.HostTests/X64PERuntimeFunctionUnwindMetadataHostileInputTests.cs. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -10995,7 +10995,7 @@
         "docs/nativeaot-nostdlib-limits.md",
         "docs/completion-gates.md"
       ],
-      "evidenceBoundary": "This issue proves bounded per-image x64 PE runtime-function/unwind metadata decoding, lookup and real-image consumption only. It does not prove actual stack unwinding, catch/finally execution, restored registers, general exception support, GC stack scanning, M04 completion, hosted .NET/Kestrel or cloud readiness. Fresh guest evidence remains mandatory; the integration owner must add its exact implemented profile command before closure.",
+      "evidenceBoundary": "This issue proves bounded per-image x64 PE runtime-function/unwind metadata decoding, lookup and real-image consumption only. It does not prove actual stack unwinding, catch/finally execution, restored registers, general exception support, GC stack scanning, M04 completion, hosted .NET/Kestrel or cloud readiness. Accepted ordinary-wrapper commands and guest/native evidence are preserved in done/step1071.md; later changes require evidence for their actual source and profile.",
       "desiredState": "closed"
     },
     {
@@ -11007,7 +11007,7 @@
         "M04-020"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -11033,18 +11033,21 @@
       ],
       "collisionLane": null,
       "summary": "Implement throw, catch, finally, rethrow, and unwind in separately gated slices.",
-      "currentEvidence": "The module owner and bounded explicit-root collector have accepted evidence. Actual throw/catch/finally/rethrow and unwind remain unimplemented. M04-020 supplies validated runtime-function/unwind metadata; this issue supplies the execution mechanism that full M04-015 later uses for constructor exception caching, without a backwards dependency. The nonthrowing exception-type predicate is also an implementation obligation here: current RhTypeCast_IsInstanceOfException still halts. This issue must not depend backwards on full M04-017; M04-017 consumes real exception behavior after this issue.",
+      "currentEvidence": "The original retained module and bounded explicit-root collector are accepted. #575 supplies the accepted bounded nonthrowing exception-type matcher. M04-020/#89 and #574 are accepted in step1071 / PR576 (merge 347391f7357e895568146866c7ff005d6ee853da); #578 and #579 are accepted bounded host caller-context restoration and EH-clause decoding leaves (PR580 and PR581). #582 is accepted in step1075 for one compiled throw across one frame, one typed base catch and the actual compiled continuation, with the same explicitly rooted object. Its final frozen source is `ead4fcadda66c03e1b0609c55c9649e81cb92fca`; parent accepted the common/native/raw/process/disk/guest evidence and rehashed 3,172 final identities. Evidence commit `c70e3e5177eab8dcc4566d14ac891a67138296d2`; PR583 merge `1e6a8dbd11e3220c1ca433b72d57e418cdc86b05`; verified issue582 evidence comment `http://localhost:3000/admin/CLROS/issues/582#issuecomment-16624`. Its local admission check passes a local RIP scalar copy (`originalRip ^ 1UL`) to production `CaptureAdmitted`; other scalar inputs and the live 240-byte capture remain unchanged. It verifies rejection before metadata selection or funclet state changes; no copied/corrupted live context, terminal `RejectEh` halt or arbitrary-corruption proof is claimed. Accepted #582 removes its serialized lane prerequisite, while this full issue stays open and `agent:ready`. Readiness records prerequisites, not a new work assignment; the broader backlog remains paused. The orchestrator records the next separately gated scope and exact disjoint/shared-file ownership before implementation. General finally/filter/rethrow execution, nested and collided exception handling, cleanup/search order, unhandled policy, and the remaining exception-root/lifetime cases are incomplete. RhTypeCast_IsInstanceOfException still halts; the separately admitted matcher does not establish that general export. Full M04-015 constructor failure/caching and M04-017 boxing/unboxing/checked-cast failure behavior consume this mechanism later and must not become backwards dependencies. #90 stays open; no Gate4 or hosted/runtime completion is promoted.",
       "implementationNotes": [
         "Implement the actual pinned ILC throw, language-specific EH metadata, exception-object creation, handler search, stack unwind, catch, finally and rethrow mechanisms in separately gated slices. Retain M04-020; do not depend on full M04-015 or M04-017, which consume this mechanism later.",
-        "Implement the required nonthrowing exception-type match from pinned runtime semantics instead of invoking the current halting RhTypeCast_IsInstanceOfException stub. Any reusable predicate extracted later requires exact disjoint ownership; do not create a backwards full-cast dependency.",
+        "Reuse the existing #575 `ExceptionTypeMatch.Match` in `src/OS.Kernel/Runtime/ExceptionTypeMatch.cs` and its `tests/OS.HostTests/ExceptionTypeMatchTests.cs` fixture for the admitted bounded class-identity predicate. It already implements the nonthrowing matcher; do not reimplement or re-extract it. Respect its pinned layout, retained allocation/module authority, same-image non-generic class subset and caller lifetime limits. The `RhTypeCast_IsInstanceOfException` export still halts: this helper and the bounded #582 integration do not establish that export or general casts. Any extension or export wiring needs an explicit separately claimed scope and disjoint ownership recorded by the orchestrator; no backwards full-cast dependency.",
+        "Reuse #578 `X64FrameUnwind.UnwindOne` in `src/OS.Kernel/Runtime/X64FrameUnwind.cs` with `tests/OS.HostTests/X64FrameUnwindTests.cs`, and #579 `NativeAotEhClauseMetadata.ReadClause` in `src/OS.Kernel/Runtime/NativeAotEhClauseMetadata.cs` with `tests/OS.HostTests/NativeAotEhClauseMetadataTests.cs`. These existing bounded helpers supply caller-context values and validated clause decoding, respectively; they do not themselves transfer the CPU, perform general handler search, execute finally/rethrow, or extend object/module lifetime. Preserve their unsupported-shape and same-image contribution bounds.",
+        "Inspect the existing bounded #582 adapter `src/OS/Runtime/ExceptionCatchProbe.cs`, generator `tools/OS.X64TextSerializerGenerator/ExceptionHandlingThunkGenerator.cs`, and paired fixtures `tests/OS.HostTests/ExceptionHandlingThunkGeneratorTests.cs` and `tests/OS.HostTests/M04SimpleThrowCatchEfiIntegrationTests.cs` before planning later execution work. They compose the existing helpers for the explicitly measured fixture; they are not a generic full-EH implementation or automatically writable paths under #90.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
-        "The proposed owned paths are exact for this slice: src/OS.Kernel/Runtime/ThrowCatchFinallyRethrowUnwindSeparatelyGatedSlices.cs, tests/OS.HostTests/ThrowCatchFinallyRethrowUnwindSeparatelyGatedSlicesTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "The paths listed below are the historical #90 proposal, not an instruction to create a duplicate monolithic implementation and not a newly assigned slice. The two proposed C# files do not exist in the inspected #582 tree; current behavior is in the accepted helpers and bounded integration named above. Before later implementation, the orchestrator records the smallest remaining behavior and exact owned paths, including any shared-file ownership transfer. Any additional shared integration file requires a separately claimed collision-lane issue. This issue grants no new write ownership.",
         "Positive case: A real compiled throwing fixture crosses validated native frames, executes the selected catch and finally blocks in order, and rethrows the same exception to an outer handler while preserving the owned stack, registers and module lifetime.",
         "Failure cases: Reject malformed, truncated, unsupported or stale unwind/handler metadata, invalid instruction and stack ranges, non-executable handler targets and invalid frame transitions; demonstrate nested handlers, cleanup ordering, unhandled failure termination and retained exception roots.",
         "Host-only unwind plans, status callbacks, fabricated frames and terminal loops do not prove real exception execution. M04-015 owns later constructor-specific TypeInitializationException wrapping, rooting, caching and repeated-access rethrow; this issue must expose the actual mechanism it needs without depending back on it.",
-        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
+        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only.",
+        "The full-issue markers and marker-only QEMU command are future completion requirements. They do not enable the bounded catch profile or prove full EH; executable future commands must include the implemented profile and complete prerequisites. Preserve step1075 commands as historical bounded acceptance."
       ],
       "referenceInfluences": [
         {
