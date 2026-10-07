@@ -1,5 +1,43 @@
 # EFI Build
 
+## Accepted diagnostics and dispatch integration
+
+Shared issue #572 adds `EnableM04InterfaceDispatchProbe`, disabled by default.
+It requires `EnableM04ClassConstructorExecutionProbe` and that profile's entire
+GC prerequisite chain. It inherits the constructor/churn exclusion. The
+compiler-generated calls use the separate C#-authored
+`CLROS.X64.InterfaceDispatch.obj`; the existing 336-byte serializer and
+1,645-byte reference-barrier objects retain their byte identities. The new
+object is 828 bytes, with one callback and one compiler-data REL32 relocation.
+The verifier checks object ownership, exact linked code outside those fields,
+both relocation targets, RX callback/code and RW initialized cell storage.
+Those checks do not by themselves prove the callback graph or dispatch results.
+
+The current explicit closure is 114 Compile items, 129 raw inputs and 47
+feature properties (44 literal false defaults, with three inherited defaults).
+The generator has five C# files and seven declared inputs. Final acceptance at
+`d5bef46` derives project/source hashes and fixture vectors from those actual
+inputs ([step1063](../done/step1063.md)). For later changes, normalize authored
+text before pinning it and preserve raw byte hashes in evidence.
+
+Final native review binds the actual 112-byte cell contribution and four-byte
+base sealed table; A/B use ordinary vtable slots and have no sealed tables.
+The current dispatch image passes all 158 records and 15 real calls. Its
+current-image null-receiver control observes initialized GC context zero and
+halts before target entry. The original full host gate passes 3,845 starts,
+3,846 passes and zero failures; six fresh captures and three rejection controls
+have independent native/raw/lifecycle/disk review in [step1063](../done/step1063.md).
+The original failed timed-stop control is preserved; repaired controls record
+complete stop state and enforce a bounded unchanged-serial halt observation.
+All three passing quiet samples remained on the original loops, so they do not
+exercise the repair's off-loop reacquisition branch. No positive capture was
+repeated for that driver-only change.
+
+The M03-009 owned diagnostic tail changes the current first-exit/revocation
+contracts to 66/78. The following section retains the preceding accepted
+revision's 61/73 contracts as history. Step1054 retains development evidence;
+step1056 retains the catalog failure/correction and recovery boundary.
+
 ## Retained firmware and constructor profiles
 
 Integration #570 introduces two default-off child profiles. Development evidence
@@ -25,8 +63,8 @@ constructor rows and `CLROS_M04_024_READY`; it is a distinct grammar from the
 outside this profile, because its presence changes ILC lazy-initialization
 policy.
 
-Project, publisher and verifier preserve the original Compile ordering and
-append four C# inputs: 112 Compile items, 126 source-authority inputs and 46
+That accepted revision preserved the original Compile ordering and
+appended four C# inputs: 112 Compile items, 126 source-authority inputs and 46
 explicit feature switches. Every source/project pin must derive from those
 actual bytes before a frozen acceptance run. Direct publisher output must be a
 file directly inside `artifacts/efi`; the QEMU wrapper passes `-EfiArtifact`
@@ -1977,6 +2015,33 @@ panic-safe diagnostics remain incomplete. The host-tested
 contracts alone do not establish the accepted live transition.
 
 ## Tests
+
+### Prepare acceptance from current inputs
+
+Finish production changes and text normalization before freezing the acceptance
+commit. Review the entire changed-file list against existing assertions, including
+backlog ownership notes and dependency contracts, canonical docs, source/Compile
+closures, feature defaults, generator inputs, native object sizes and transcript
+grammar. A hash/count-only search does not cover semantic catalog requirements.
+Keep raw source hashes separate from documented canonical-text hashes.
+
+Run the affected original checks before the expensive full harness. Record the
+explicit method selection and exclusions. An artifact-only diagnostic may invoke
+unchanged methods from reviewed source copies with only ModuleInitializer
+attributes removed; bind the source copies, executed assembly, references and
+current inputs. Such a diagnostic never replaces the unfiltered harness.
+
+Build and run that original harness against a clean frozen commit. Keep edits,
+competing builds and native publications out of its checkout until its terminal
+result and unchanged source/binary inventories are reviewed. After a failure,
+preserve the failed attempt, identify the exact predicate, check related omitted
+assertions and demonstrate the correction before starting another full run.
+
+Use fresh output paths for each final native publication and guest. Retain native
+objects/maps, managed inputs, the complete property vector, image payload, raw
+serial stream and process lifecycle. Bind debugger controls to that exact image
+and its actual symbols. Prior-image runs remain historical evidence. Review
+capture helpers, tool-format assumptions and cleanup receipts before execution.
 
 Expected commands:
 

@@ -759,7 +759,8 @@ internal static class BootSequencePlanTests
              "public static unsafe OS.Boot.FirstExitReturn RunFirstRealExitBootServicesTransition(",
              "private static bool IsFirstRealExitBootServicesEnabled() =>",
              "public static unsafe OS.Kernel.Runtime.CompilerClassConstructorStatus RunCompilerClassConstructors(",
-             "public static bool IsFirmwareAdapterRevocationEnabled() =>"])
+             "public static bool IsFirmwareAdapterRevocationEnabled() =>",
+             "public static unsafe OS.Kernel.Runtime.CompilerInterfaceDispatchStatus RunInterfaceDispatch("])
             && HasGuardedSurface("src/OS.Kernel/Diagnostics/Probes.cs", 2,
             ["public static partial class Probes",
              "public const bool EnableM04SeededCollectorChurnProbe = true;",
@@ -769,7 +770,9 @@ internal static class BootSequencePlanTests
              "public const bool EnableM03FirmwareAdapterRevocationProbe = true;",
              "public const bool EnableM03FirmwareAdapterRevocationProbe = false;",
              "public const bool EnableM04ClassConstructorExecutionProbe = true;",
-             "public const bool EnableM04ClassConstructorExecutionProbe = false;"]);
+             "public const bool EnableM04ClassConstructorExecutionProbe = false;",
+             "public const bool EnableM04InterfaceDispatchProbe = true;",
+             "public const bool EnableM04InterfaceDispatchProbe = false;"]);
 
         bool HasGuardedSurface(string relativePath, int expectedRegions, string[] declarations)
         {

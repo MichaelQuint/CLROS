@@ -27,6 +27,7 @@ internal static class CheckedReferenceBarrierCoffWriterTests
     private static int Main()
     {
         DefaultPolicy();
+        ExternalDataPolicy();
         CompleteObject();
         RelocationBounds();
         UndefinedSymbols();
@@ -60,6 +61,37 @@ internal static class CheckedReferenceBarrierCoffWriterTests
         byte[] destination = Pattern(300); byte[] before = (byte[])destination.Clone();
         Check(!Amd64CoffWriter.TryWrite(in d, destination, false, out int written, out error) &&
             written == 0 && error == CoffWriteError.InvalidRelocation && destination.SequenceEqual(before), "explicit false write");
+    }
+
+    private static void ExternalDataPolicy()
+    {
+        var data = new Amd64CoffObjectDefinition(0x8664, 0,
+            [new(".text", [0x48,0x8D,0x05,0,0,0,0,0xC3], 0x60500020, [new(3,1,4)])],
+            [new("Getter",0,1,0x20,2), new("CellData",0,0,0,2)]);
+        Reject(data, false, CoffWriteError.InvalidRelocation);
+        Reject(data, true, CoffWriteError.InvalidRelocation);
+        Check(Amd64CoffWriter.TryGetRequiredSize(in data,false,true,out int size,out var error) &&
+            Amd64CoffWriter.TryWrite(in data,new byte[size],false,true,out int count,out error) && count==size,
+            "independent data opt-in without function opt-in");
+        var function = data with { Symbols = [new("Getter",0,1,0x20,2),new("Callback",0,0,0x20,2)] };
+        DataReject(function, CoffWriteError.InvalidRelocation);
+        foreach (var symbol in new[] {
+            data.Symbols![1] with { Value=1 }, data.Symbols[1] with { SectionNumber=-1 },
+            data.Symbols[1] with { SectionNumber=-2 }, data.Symbols[1] with { StorageClass=3 },
+            data.Symbols[1] with { Type=1 } })
+            DataReject(data with { Symbols=[data.Symbols[0],symbol] }, CoffWriteError.InvalidRelocation);
+        foreach (var relocation in new CoffRelocationDefinition[] {new(5,1,4),new(uint.MaxValue,1,4),new(3,2,4),new(3,1,3),new(3,1,5)})
+            DataReject(data with { Sections=[data.Sections![0] with { Relocations=[relocation] }] }, CoffWriteError.InvalidRelocation);
+        DataReject(data with { Sections=[data.Sections![0] with { Characteristics=0x40300040 }] }, CoffWriteError.InvalidRelocation);
+        DataReject(data with { Sections=[data.Sections![0] with { Relocations=[new(3,1,4),new(4,1,4)] }] }, CoffWriteError.InvalidRelocation);
+        DataReject(data, CoffWriteError.CapacityExceeded, size-1);
+
+        static void DataReject(Amd64CoffObjectDefinition input, CoffWriteError expected, int capacity=300)
+        {
+            byte[] bytes=Pattern(334), before=(byte[])bytes.Clone();
+            Check(!Amd64CoffWriter.TryWrite(in input,bytes.AsSpan(17,capacity),false,true,out int written,out var error) &&
+                written==0 && error==expected && bytes.SequenceEqual(before), "data mode bounded atomic rejection "+expected);
+        }
     }
 
     private static void CompleteObject()

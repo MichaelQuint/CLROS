@@ -1463,33 +1463,39 @@ internal static class QemuRunnerTests
     {
         string imagePath = CreateRawImageFile(tempRoot, "unrequested-first-exit.raw");
         string ovmfPath = CreateEmptyFile(tempRoot, "unrequested-first-exit-OVMF_CODE.fd");
-        string serialLog = Path.Combine(tempRoot, "unrequested-first-exit-serial.log");
-        string summaryLog = Path.Combine(tempRoot, "unrequested-first-exit-summary.log");
-        string qemuPath = CreateFakeQemuScript(tempRoot,
+        string[][] cases =
         [
-            .. SmokeScriptDefaultRequiredMarkers.Split(';').Where(marker => marker != "OS_SMOKE_PASS"),
-            "TEST_START m03.007",
-            "M03_EBS_RETURNED_SUCCESS",
-            "M03_PERMANENT_CR3_ADOPTED",
-            "M03_POST_EBS_OWNED_DIAGNOSTIC",
-            "CLROS_M03_007_READY",
-            "TEST_PASS m03.007",
-            "OS_SMOKE_PASS"
-        ]);
-
-        ProcessResult result = RunQemuSmokeScript(
-            "-SkipImageBuild", "-Image", imagePath,
-            "-SerialLog", serialLog, "-SummaryLog", summaryLog,
-            "-Qemu", qemuPath, "-OvmfCode", ovmfPath);
-        File.WriteAllText(Path.Combine(tempRoot, "unrequested-first-exit-wrapper.log"),
-            "WRAPPER_EXIT " + result.ExitCode + Environment.NewLine + result.Output);
-
-        return result.ExitCode == 1
-            && result.Output.Contains("TEST_PASS qemu.smoke", StringComparison.Ordinal)
-            && result.Output.Contains(
-                "TEST_FAIL qemu.smoke.m03.007 unexpected_profile_record",
-                StringComparison.Ordinal)
-            && File.ReadAllText(serialLog).Contains("M03_EBS_RETURNED_SUCCESS", StringComparison.Ordinal);
+            ["TEST_START m03.007", "M03_EBS_RETURNED_SUCCESS", "M03_PERMANENT_CR3_ADOPTED",
+                "M03_POST_EBS_OWNED_DIAGNOSTIC", "CLROS_M03_007_READY", "TEST_PASS m03.007"],
+            ["TEST_START m03.009", "UEFI_EBS_SUCCESS", "POST_FIRMWARE_DIAGNOSTICS_READY",
+                "CLROS_M03_009_READY", "TEST_PASS m03.009"],
+            // This existing simulation/readiness marker alone makes no actual-exit claim.
+            ["POST_FIRMWARE_DIAGNOSTICS_READY"]
+        ];
+        for (int index = 0; index < cases.Length; index++)
+        {
+            string name = "unrequested-first-exit-" + index;
+            string serialLog = Path.Combine(tempRoot, name + "-serial.log");
+            string summaryLog = Path.Combine(tempRoot, name + "-summary.log");
+            string qemuPath = CreateFakeQemuScript(tempRoot,
+            [
+                .. SmokeScriptDefaultRequiredMarkers.Split(';').Where(marker => marker != "OS_SMOKE_PASS"),
+                .. cases[index],
+                "OS_SMOKE_PASS"
+            ]);
+            ProcessResult result = RunQemuSmokeScript(
+                "-SkipImageBuild", "-Image", imagePath,
+                "-SerialLog", serialLog, "-SummaryLog", summaryLog,
+                "-Qemu", qemuPath, "-OvmfCode", ovmfPath);
+            File.WriteAllText(Path.Combine(tempRoot, name + "-wrapper.log"),
+                "WRAPPER_EXIT " + result.ExitCode + Environment.NewLine + result.Output);
+            bool mustReject = index < 2;
+            if (result.ExitCode != (mustReject ? 1 : 0)
+                || !result.Output.Contains("TEST_PASS qemu.smoke", StringComparison.Ordinal)
+                || result.Output.Contains("TEST_FAIL qemu.smoke.m03.007 unexpected_profile_record", StringComparison.Ordinal) != mustReject
+                || !File.ReadAllText(serialLog).Contains(cases[index][0], StringComparison.Ordinal)) return false;
+        }
+        return true;
     }
 
     private static bool TestSmokeScriptForwardsAcpiPhysicalDiscoveryProbe()

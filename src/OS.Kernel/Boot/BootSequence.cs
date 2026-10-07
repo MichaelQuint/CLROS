@@ -240,6 +240,18 @@ public static class BootSequence
     public static bool IsFirmwareAdapterRevocationEnabled() =>
         OS.Kernel.Diagnostics.Probes.EnableM03FirmwareAdapterRevocationProbe;
 
+    /// <summary>Resolve only after the retained module, allocator and compiler-cell snapshot are bound.</summary>
+    public static unsafe OS.Kernel.Runtime.CompilerInterfaceDispatchStatus RunInterfaceDispatch(
+        byte* storage, ulong capacity, ulong receiver, ulong cell,
+        out OS.Kernel.Runtime.CompilerInterfaceDispatchResolution resolution)
+    {
+        resolution = default;
+        return OS.Kernel.Diagnostics.Probes.EnableM04InterfaceDispatchProbe
+            ? OS.Kernel.Runtime.CompilerInterfaceDispatch.Resolve(
+                storage, capacity, receiver, cell, out resolution)
+            : OS.Kernel.Runtime.CompilerInterfaceDispatchStatus.NotBound;
+    }
+
 #if !NOSTDLIB_EFI
     private const int NativeManifestEnvironmentDiagnosticMarkerCapacity = 512;
     private const int FetchAppHttpTcpExchangeDiagnosticMarkerCapacity = 1024;

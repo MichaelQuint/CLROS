@@ -6,10 +6,12 @@ internal static class Program
 {
     private const string TestName = "x64.serializer.generate";
     private const string BarrierTestName = "m04.010.thunks.generate";
+    private const string DispatchTestName = "m04.016.thunk.generate";
 
     private static int Main(string[] args)
     {
-        string testName = Array.IndexOf(args, "--checked-reference-barriers") >= 0 ? BarrierTestName : TestName;
+        string testName = Array.IndexOf(args, "--interface-dispatch") >= 0 ? DispatchTestName
+            : Array.IndexOf(args, "--checked-reference-barriers") >= 0 ? BarrierTestName : TestName;
         Console.WriteLine($"TEST_START {testName}");
 
         CliParseResult parseResult = ParseArguments(args);
@@ -29,7 +31,9 @@ internal static class Program
 
         byte[] objectBytes;
         CoffWriteError generationError;
-        bool generated = parseResult.CheckedReferences
+        bool generated = parseResult.InterfaceDispatch
+            ? TryGenerateInterfaceDispatch(out objectBytes, out generationError)
+            : parseResult.CheckedReferences
             ? TryGenerateCheckedReferences(out objectBytes, out generationError)
             : InstructionPublicationSerializerGenerator.TryGenerate(
                 InstructionPublicationSerializerGenerator.ObjectSizeBytes,
@@ -48,7 +52,7 @@ internal static class Program
         }
 
         string hash = Convert.ToHexString(SHA256.HashData(objectBytes));
-        string ready = parseResult.CheckedReferences ? "M04_CHECKED_REFERENCE_THUNKS_READY" : "X64_SERIALIZER_OBJECT_READY";
+        string ready = parseResult.InterfaceDispatch ? "M04_INTERFACE_DISPATCH_THUNK_READY" : parseResult.CheckedReferences ? "M04_CHECKED_REFERENCE_THUNKS_READY" : "X64_SERIALIZER_OBJECT_READY";
         Console.WriteLine(
             $"{ready} bytes={objectBytes.Length} " +
             $"sha256={hash} state={writeResult.State}");
@@ -70,6 +74,19 @@ internal static class Program
         return true;
     }
 
+    private static bool TryGenerateInterfaceDispatch(out byte[] objectBytes, out CoffWriteError error)
+    {
+        objectBytes = new byte[828];
+        if (!InterfaceDispatchThunkGenerator.TryGenerate(objectBytes, out int written, out error)) return false;
+        if (written != 828 || Convert.ToHexString(SHA256.HashData(objectBytes)) !=
+            "228630B0AD4D6AB298414FDA0FCF07E76CB4699A63339FA59BA331AFDC3AEB61")
+        {
+            error = CoffWriteError.InternalInvariant;
+            return false;
+        }
+        return true;
+    }
+
     private static CliParseResult ParseArguments(string[] args)
     {
         if (args.Length == 0)
@@ -80,12 +97,21 @@ internal static class Program
         string? outputRoot = null;
         string? outputFile = null;
         bool checkedReferences = false;
+        bool interfaceDispatch = false;
 
         for (int index = 0; index < args.Length; index++)
         {
             string option = args[index];
+            if (option == "--interface-dispatch")
+            {
+                if (interfaceDispatch) return CliParseResult.Fail("argument_duplicate");
+                if (checkedReferences) return CliParseResult.Fail("argument_mode_conflict");
+                interfaceDispatch = true;
+                continue;
+            }
             if (option == "--checked-reference-barriers")
             {
+                if (interfaceDispatch) return CliParseResult.Fail("argument_mode_conflict");
                 if (checkedReferences) return CliParseResult.Fail("argument_duplicate");
                 checkedReferences = true;
                 continue;
@@ -127,7 +153,7 @@ internal static class Program
             return CliParseResult.Fail("arguments_missing");
         }
 
-        return new(true, outputRoot, outputFile, null, checkedReferences);
+        return new(true, outputRoot, outputFile, null, checkedReferences, interfaceDispatch);
     }
 
     private static bool TryResolveOutput(
@@ -397,7 +423,8 @@ internal static class Program
         string? OutputRoot,
         string? OutputFile,
         string? ErrorCode,
-        bool CheckedReferences = false)
+        bool CheckedReferences = false,
+        bool InterfaceDispatch = false)
     {
         public static CliParseResult Fail(string errorCode) =>
             new(false, null, null, errorCode);

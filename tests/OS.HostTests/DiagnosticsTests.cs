@@ -106,7 +106,7 @@ internal static class DiagnosticsTests
                 nameof(Probes.EnableM01LiveAllocatorProbe)) ||
             !IsCompileTimeFalseProbe(
                 nameof(Probes.EnableM01OwnedPagingProbe)) ||
-            Probes.ProbeCatalogCount != 19 ||
+            Probes.ProbeCatalogCount != 20 ||
             !IsCompileTimeFalseProbe(nameof(Probes.EnableM03FirstRealExitBootServicesProbe)) ||
             !Probes.TryGetProbe(16, out ProbeDefinition firstExit) ||
             firstExit.Name != nameof(Probes.EnableM03FirstRealExitBootServicesProbe) ||
@@ -121,7 +121,12 @@ internal static class DiagnosticsTests
             !Probes.TryGetProbe(18, out ProbeDefinition constructors) ||
             constructors.Name != nameof(Probes.EnableM04ClassConstructorExecutionProbe) ||
             constructors.EnabledByDefault || constructors.Risk != ProbeRisk.Destructive ||
-            constructors.Group != "runtime.cctor")
+            constructors.Group != "runtime.cctor" ||
+            !IsCompileTimeFalseProbe(nameof(Probes.EnableM04InterfaceDispatchProbe)) ||
+            !Probes.TryGetProbe(19, out ProbeDefinition dispatch) ||
+            dispatch.Name != nameof(Probes.EnableM04InterfaceDispatchProbe) ||
+            dispatch.EnabledByDefault || dispatch.Risk != ProbeRisk.Destructive ||
+            dispatch.Group != "runtime.dispatch")
         {
             return false;
         }

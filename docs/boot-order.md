@@ -8,6 +8,16 @@ advance the ordinary `BootSequence` plan or ExitBootServices boundary.
 
 ## Current Status
 
+The M04-016 dispatch diagnostic is a default-off child of M04-024. It starts
+after `RunCollectorGraph` has completed, while the original registered module,
+collecting allocator, retained roots and owned stack remain live. The callback
+enters `BootSequence.RunInterfaceDispatch`, guarded by
+`Probes.EnableM04InterfaceDispatchProbe`. It adds no ordinary boot phase.
+Final source-bound native/QEMU acceptance at `d5bef46` passes the complete
+158-record dispatch stream, 15 real calls and current-image null-receiver
+control ([step1063](../done/step1063.md)). The constructor-only profile keeps
+its existing order and record contract. No ordinary phase is advanced.
+
 The M03-008 child profile binds typed capabilities before original owned-stack
 entry and proves one admitted console operation. Entry consumes the original
 authority; after real firmware exit and permanent owned-CR3 adoption, all eight

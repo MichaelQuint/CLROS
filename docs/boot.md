@@ -2,6 +2,16 @@
 
 ## Current Status
 
+M03-009 extends the owned post-exit writer with five records ending in
+`TEST_PASS m03.009`. Its host checks cover partial writes, the final CRLF,
+canary failures and consumed reentry. Integration #572 now has accepted current
+native/QEMU evidence at `d5bef46`: first-exit and revocation emit 66 and 78 complete
+application records through the original owned COM1 backend. The full host gate,
+actual writer/stack review and fresh disk/lifecycle association pass in
+[step1063](../done/step1063.md). Development remains in step1054; the older
+captures below retain their original source boundary. Continuing post-firmware
+allocator/platform work remains #67.
+
 M03-008 adds a default-off typed firmware-capability revocation profile under
 integration issue #570. It binds console, memory-map, filesystem, timer, RNG,
 configuration-table, physical-memory and framebuffer handles to the original

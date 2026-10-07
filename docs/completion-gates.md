@@ -10,6 +10,24 @@ tuple, and a default-off M02-010 LoaderData materialization/readback tuple, plus
 broad host-tested planning contracts, but it is not a functional kernel, not
 cloud-ready, and not production-ready.
 
+M03-009 and M04-016 have scoped acceptance under shared issue #572 at
+`d5bef46006e4f36aaeabc48f3f460fd533093700` ([step1063](../done/step1063.md)). The
+original unfiltered host gate passes 3,845 starts/3,846 passes, including terminal
+`host.tests`, with zero failures. Six fresh default/churn/first-exit/revocation/
+constructor/dispatch captures pass 21/82/66/78/82/158 records and independent
+source/native/ABI/stack/raw/lifecycle/disk review. Three current-image controls
+reject canary corruption, static-payload corruption and a real null receiver.
+The earlier failed timed-stop control is preserved separately; the passing
+controls retain unchanged serial at the original loops after full quiet intervals.
+
+This accepts the owned five-record post-exit tail and finite ordinary-instance
+interface calls, including mandatory variance and declaring-owner behavior:
+15 actual calls, ten cache entries and five hits. Exact compiler cell/sealed
+extents and original module/heap/stack authority remain required. It does not
+establish general exception handling, concurrency or full runtime correctness.
+Steps1054/1056 retain development, catalog failure and recovery history.
+Gates3/4/5 remain **Fail**.
+
 M03-007 and M04-014 now have scoped integrated acceptance under shared lane
 #560 at `e64e9dc1bd1f66ca522bd22aafe8bcd3388428ff` ([step1051](../done/step1051.md)).
 The original unfiltered common run passed with 3814 starts, 3815 passes including

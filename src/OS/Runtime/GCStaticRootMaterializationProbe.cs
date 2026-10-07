@@ -153,6 +153,9 @@ internal static unsafe partial class RhpNewFastAllocation
             GcLine(6, s_gcOperation, s_gcCalls, b->AllocationCount, b->UsedBytes);
             GcLine(8, s_gcStack.Checks, s_gcStack.Final0, s_gcStack.Final1, s_gcStack.MinimumWitness);
             RunCollectorGraph();
+#if M04_INTERFACE_DISPATCH_PROBE
+            if (OS.Kernel.Diagnostics.Probes.EnableM04InterfaceDispatchProbe) RunCompilerInterfaceDispatch();
+#endif
 #if M04_SEEDED_COLLECTOR_CHURN_PROBE
             if (OS.Kernel.Diagnostics.Probes.EnableM04SeededCollectorChurnProbe) RunSeededCollectorChurn();
 #endif
@@ -233,6 +236,9 @@ internal static unsafe partial class RhpNewFastAllocation
     // share the collecting owner; the six-role reference diagnostic stays separate.
     private static ulong AllocateGcValue(ulong token)
     {
+#if M04_INTERFACE_DISPATCH_PROBE
+        if (s_gcPhase == 5) return AllocateDispatchReceiver(token);
+#endif
         if (s_gcPhase == 4) return AllocateCollectorNode(token);
         if (s_gcPhase != 2 || token != TypePlain() || s_gcValue.ObjectReference != 0 ||
             !ReadGcRoot().Succeeded) RejectGc(12);
