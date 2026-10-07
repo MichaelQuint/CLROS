@@ -2753,7 +2753,8 @@ same registered module, a measured 64 KiB static snapshot with a 32-byte unused
 tail guard, and the original 33-page stack. Two actual invoked method pointers
 are looked up alongside their last in-range bytes and two expected misses.
 
-The explicitly enabled C# EFI profile compiles with zero warnings/errors:
+Step1057 records the explicitly enabled C# EFI profile compiling with zero
+warnings/errors before the indexed decoder extension. Its build command is:
 
 ```powershell
 dotnet build .\src\OS\OS.csproj --nologo -m:1 -p:EnableM01LoadedImageStackProbe=true -p:EnableM04TypeManagerModuleRegistrationProbe=true -p:EnableM04X64UnwindMetadataProbe=true
@@ -2761,9 +2762,13 @@ dotnet build .\src\OS\OS.csproj --nologo -m:1 -p:EnableM01LoadedImageStackProbe=
 
 The complete integration has 116 Compile items, 131 raw inputs, 48 public
 properties (45 literal false defaults) and 21 diagnostic catalog entries.
-Publisher/verifier/runner integration and the focused checks pass. Development
-native publication and the ordinary QEMU wrapper pass the complete 67-record
-profile, as recorded in [step1057](../done/step1057.md). The decoder's bounded
+Publisher/verifier/runner integration and focused checks passed on that source.
+Development native publication and the ordinary QEMU wrapper passed the complete
+67-record profile, as recorded in [step1057](../done/step1057.md). The indexed API
+in [step1060](../done/step1060.md) changes decoder identity; those older native
+bytes are not evidence for the changed source. Its exact publisher source guard
+and dependent aggregate fixtures are reconciled in [step1062](../done/step1062.md).
+Fresh current-source native and guest acceptance remain pending. The decoder's bounded
 stack buffer uses the existing fixed RX cookie-anchor convention; randomized
 initialization remains separate hardening work. Frozen common acceptance and
 final native/stack/raw-serial/image/lifecycle review remain #574 obligations.

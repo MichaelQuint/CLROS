@@ -5147,7 +5147,7 @@ function Test-M01ActiveSourceSurface {
     # Reviewed metadata-only core; retain its exact bounded version-one decoder.
     if ([string]::Equals($SourceName, '..\OS.Kernel\Runtime\X64PERuntimeFunctionUnwindMetadataHostileInput.cs', [StringComparison]::Ordinal)) {
         $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
-        if ($identity -cne '49508a7f0a5a5b9f248d3abbedce8b757bd71304fdcbf5946e77d42f3e9f75da') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_x64_unwind_metadata_source_identity'; ActiveText='' } }
+        if ($identity -cne '12fac853b9dc2357d25315e4bedd0e43df0af76854079b7ae030bca36aed5253') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_x64_unwind_metadata_source_identity'; ActiveText='' } }
         return [pscustomobject]@{ Succeeded=$true; Reason='ok'; Detail=''; ActiveText=$SourceText }
     }
 
