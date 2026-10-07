@@ -17,8 +17,9 @@ native/QEMU evidence at `d5bef46`: first-exit and revocation emit 66 and 78 comp
 application records through the original owned COM1 backend. The full host gate,
 actual writer/stack review and fresh disk/lifecycle association pass in
 [step1063](../done/step1063.md). Development remains in step1054; the older
-captures below retain their original source boundary. Continuing post-firmware
-allocator/platform work remains #67.
+captures below retain their original source boundary. The bounded owned-subsystem
+continuation is accepted below; general reclamation and continuing platform
+services remain separate work.
 
 The allocator portion of M03-010 is host-tested in
 [step1065](../done/step1065.md). It consumes the original diagnostic admission,
@@ -27,10 +28,14 @@ words, frees the exact receipt and verifies the original accounting. Four
 focused groups cover restoration, owner/alias refusal and consumed failure paths.
 Prior native observations are modeled by that host fixture. Shared EFI
 integration is implemented in [step1067](../done/step1067.md), with current
-source/profile reconciliation in [step1069](../done/step1069.md). Fresh guest
-proof of copied-ACPI use, installed-descriptor validation and the separate
-terminal fault control remains pending; the allocator leaf alone does not
-complete #67.
+source/profile reconciliation in [step1069](../done/step1069.md). The complete
+bounded integration is accepted at 4ef299f in [step1074](../done/step1074.md):
+four fresh ordinary captures cover default boot, first exit, survival and the
+separate installed page-fault/IST2 panic. The positive path emits 76 application
+records, including copied-ACPI readback, installed descriptor/canary checks and
+restored original allocator accounting. The 77-record panic path terminates
+without the success tail. These profiles do not establish general reclamation,
+fault recovery or continuing drivers/workloads.
 
 M03-008 adds a default-off typed firmware-capability revocation profile under
 integration issue #570. It binds console, memory-map, filesystem, timer, RNG,

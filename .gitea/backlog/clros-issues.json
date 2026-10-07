@@ -8943,7 +8943,7 @@
         "M03-009"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -8968,7 +8968,7 @@
       ],
       "collisionLane": null,
       "summary": "Prove owned allocator, descriptor tables, ACPI snapshot, and panic output remain usable after exit.",
-      "currentEvidence": "The real first ExitBootServices transition, retained original allocator/image/ACPI ownership and firmware revocation are implemented on accepted master (PR571). #66 owned post-firmware diagnostics is implemented in the current #572 integration but its frozen acceptance remains pending. This issue stays blocked on #66. A new post-exit allocator operation, copied-ACPI consumption and installed-descriptor/panic exercise remain unimplemented; the former statement that the EFI path deliberately skips ExitBootServices was stale.",
+      "currentEvidence": "Accepted frozen integration 4ef299f091a80a282144e565cb1180d70b68052b, step1074: original full common gate (3872 starts, 3873 passes, zero failures) and fresh ordinary default/first-exit/survival/panic captures. The positive guest uses the original retained allocator, restores its accounting, consumes original copied ACPI and checks installed descriptor/canary identities. The separate real installed page-fault control binds current native MOV/RIP/CR2/CR3 and its 184-byte IST2 frame, with runner 19 mapped to wrapper 0 only after the exact terminal grammar and measured 757-ms quiet. Independent current-source/native/raw/lifecycle/GPT/FAT/EFI reviews pass. #66 was already accepted in step1063; no dependency remains for this completed bounded scope.",
       "implementationNotes": [
         "Use C# 14/.NET 10, bounded status results and caller-owned state. Consume the original post-EBS arena, consumed handoff, owned CR3/stack, original allocator and copied ACPI owners; do not reacquire firmware data or construct an unrelated new allocator/snapshot.",
         "The proposed owned paths are exact for this slice: src/OS.Kernel/Boot/OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs, tests/OS.HostTests/OwnedAllocatorDescriptorTablesACPISnapshotPanicOutputTests.cs. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -9017,8 +9017,8 @@
         "docs/boot.md",
         "docs/efi-build.md"
       ],
-      "evidenceBoundary": "This issue proves continued use of the original owned allocator, copied ACPI, installed descriptor state and panic diagnostics after the real exit transition. It does not establish scheduling, general hardware support, complete M03, hosted .NET/Kestrel, cloud or production readiness. Exact positive-profile and terminal-control commands must be added by the integration owner before closure; dry runs and requested markers alone are not boot proof.",
-      "desiredState": "open"
+      "evidenceBoundary": "Accepted scope is continued bounded use of the original owned allocator, copied ACPI, installed descriptor identities and one terminal owned page-fault/COM1 control after real exit. Exact executed positive and terminal commands are preserved in step1074 and its per-profile wrapper.command.json records. Actual postboot disks establish payload association, not captured prelaunch filesystem deltas. General reclamation, interrupts/recovery, continuing drivers/workloads, complete M03, hosted .NET/Kestrel, cloud and production readiness remain incomplete.",
+      "desiredState": "closed"
     },
     {
       "key": "M03-011",

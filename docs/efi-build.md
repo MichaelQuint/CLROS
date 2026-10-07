@@ -2900,7 +2900,7 @@ At the accepted `42a516e` revision, the runner's informational GC summary said
 The first-exit/churn integration in [step1042](../done/step1042.md) corrects that summary. No general
 runtime, hosted .NET or real firmware-exit claim follows from this profile.
 
-## Owned subsystem development profile
+## Owned subsystem survival and panic profiles
 
 The disabled #67 survival profile requires EnableM01LoadedImageStackProbe,
 EnableM01LiveAllocatorProbe, EnableAcpiPhysicalDiscoveryProbe,
@@ -2916,10 +2916,11 @@ Original locked preflight passes. Native compilation/linking produced an image,
 but the original artifact verifier hit its unchanged 60-second limit without a
 verdict. One unchanged verifier-only invocation later passed in 52,906 ms under
 the same 60-second bound, with all 130 source, 56 native and 28 tool inputs
-unchanged. Independent native review found no scoped blocker; no guest has run.
-Preserve the original failed publication, earlier Desktop module-resolution
-failure and all archives in [step1067](../done/step1067.md). Final merged source pins and original
-verification must pass before guest acceptance.
+unchanged. Independent native review found no scoped blocker; no guest had run
+at that development checkpoint. Preserve the original failed publication,
+earlier Desktop module-resolution failure and all archives in
+[step1067](../done/step1067.md). The fresh acceptance below supersedes that
+pending status without changing the original failed receipt.
 
 The merged development source now has 117 ordered Compile items, 132 raw
 publication inputs, 50 profile flags and 47 literal false defaults. Its fixture
@@ -2927,5 +2928,16 @@ reconciliation includes the final step1068 verifier identity. One fresh managed
 build and 45 original focused checks plus two existing authority helpers pass;
 the kernel, runner and shared DLLs are bound to that build. [Step1069](../done/step1069.md)
 records the exact current hashes and preserved historical contracts. This is
-focused source/profile evidence; the original full gate and fresh default,
-first-exit parent, survival and panic captures remain pending.
+focused source/profile evidence. [Step1074](../done/step1074.md) now accepts the
+frozen 4ef299f source with the original full gate and four fresh ordinary
+publications/captures: default 21, first-exit 66, survival 76 and panic 77 application
+records. The panic runner returns 19; only its exact terminal transcript and
+measured quiet interval allow the wrapper to return 0. Fresh native, raw/lifecycle
+and GPT/FAT/EFI payload association pass. Complete executed command vectors and
+source/tool/producer identities are retained per profile. All selected flags
+remain disabled by default; this does not promote broader completion gates.
+
+The step1068 verifier path-walk optimization is included in that accepted source.
+Its approximately 8.74x measured gain applies to the helper benchmark only, with
+unchanged authority checks and deadline. Symlink creation and ACL-denial fixture
+coverage remain unavailable on this host, as recorded in the original results.
