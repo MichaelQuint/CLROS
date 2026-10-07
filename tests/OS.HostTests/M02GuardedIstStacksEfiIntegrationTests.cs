@@ -18,11 +18,11 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
     private const string FailureMarker =
         "M02_GUARDED_IST_STACK_ALLOCATION_FAILED";
     private const string CompileClosureSha256 =
-        "a3594674eda76a3702aff90fdb7b509932a7e2ed8d949ac1552fdb73b500d478";
+        "70a0a63c6bb5a2673d5df58e6bd8758cc620d061abac9c027a3d4bb7f16bb652";
     private const string ProjectFileSha256 =
-        "252ab89892b6868b7f364d00711c76ff22b6ee669208c23eeee259be0124d6f5";
+        "7d0fbe7e3bcd63da642ac39113c62cc2b1b24e475204ea71497ede2e5cf91147";
     private const string CanonicalProjectShapeSha256 =
-        "8e3b1cb059fdc03831a73e7f6eae5aa0c31936ed30af843b82d3bb62b4903159";
+        "b99d68b6ac3f3c1548fc3c4afd620a2f652e1175933629a97898d492342e018d";
 
     private static readonly (string Path, string Sha256)[] ImmutableReviewedInputs =
     [
@@ -170,7 +170,7 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
 
         return maxValueDeclarations.Count == 1
             && runtime.Contains("public struct UInt64", StringComparison.Ordinal)
-            && compileItems.Length == 116
+            && compileItems.Length == 117
             && compileHash == CompileClosureSha256
             && projectHash == ProjectFileSha256
             && gdtIndex >= 0
@@ -242,17 +242,17 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
                 "guarded_ist_stack_allocation_requires_owned_x64_gdt_encoding",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=131",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=132",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 CanonicalProjectShapeSha256,
                 StringComparison.Ordinal)
             && buildScript.Contains(GuardedIstKey, StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 131",
+                "$expectedSourceClosureInputCount = 132",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 116",
+                "$compileItems.Count -ne 117",
                 StringComparison.Ordinal)
             && verifierScript.Contains(GuardedIstKey, StringComparison.Ordinal)
             && verifierScript.Contains(

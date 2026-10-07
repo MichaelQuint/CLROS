@@ -17,8 +17,25 @@ native/QEMU evidence at `d5bef46`: first-exit and revocation emit 66 and 78 comp
 application records through the original owned COM1 backend. The full host gate,
 actual writer/stack review and fresh disk/lifecycle association pass in
 [step1063](../done/step1063.md). Development remains in step1054; the older
-captures below retain their original source boundary. Continuing post-firmware
-allocator/platform work remains #67.
+captures below retain their original source boundary. The bounded owned-subsystem
+continuation is accepted below; general reclamation and continuing platform
+services remain separate work.
+
+The allocator portion of M03-010 is host-tested in
+[step1065](../done/step1065.md). It consumes the original diagnostic admission,
+allocates one page from the retained M01 owner, writes and restores two bounded
+words, frees the exact receipt and verifies the original accounting. Four
+focused groups cover restoration, owner/alias refusal and consumed failure paths.
+Prior native observations are modeled by that host fixture. Shared EFI
+integration is implemented in [step1067](../done/step1067.md), with current
+source/profile reconciliation in [step1069](../done/step1069.md). The complete
+bounded integration is accepted at 4ef299f in [step1074](../done/step1074.md):
+four fresh ordinary captures cover default boot, first exit, survival and the
+separate installed page-fault/IST2 panic. The positive path emits 76 application
+records, including copied-ACPI readback, installed descriptor/canary checks and
+restored original allocator accounting. The 77-record panic path terminates
+without the success tail. These profiles do not establish general reclamation,
+fault recovery or continuing drivers/workloads.
 
 M03-008 adds a default-off typed firmware-capability revocation profile under
 integration issue #570. It binds console, memory-map, filesystem, timer, RNG,
@@ -4449,3 +4466,20 @@ invalidation remains required after a future real successful exit.
      `CpuFaultEntryFrameLayout`, and `CpuFaultPanicReadiness` contracts now
      define the expected register dump field order and caller-owned
      frame-to-panic-output readiness boundary before real handlers are added.
+
+## Owned subsystem survival development
+
+Issue #67 now wires the original allocator round trip through BootSequence
+after the original real-exit transition. The operation invokes the owned
+diagnostic reporter once, restores the allocation and accounting, then admits
+and reads the original copied ACPI state. Descriptor checks use retained native
+adoption observations and current storage/canaries; they are not fresh reads of
+descriptor registers. The separate disabled panic child reads the original
+unmapped arena guard and admits the installed fault callback's original
+vector/error/CR2/CR3 and IST2 frame before owned terminal reporting.
+
+Managed compilation and controlled parser checks pass. The original native
+publication timed out in artifact verification. One unchanged verifier-only
+invocation then passed in 52.9 seconds; independent native review found no scoped
+blocker. No guest has run. [Step1067](../done/step1067.md) records the evidence and
+remaining original common/native/guest acceptance. #67 remains open.

@@ -293,7 +293,11 @@ internal static class M01InstructionPublicationEfiEntryTests
 
         string synthetic = "#if " + FirstExitSymbol + "\n" + SerializerCall
             + ";\n#else\nFirstExitOff();\n#endif\n"
-            + "#if UNRELATED_PROBE\nUnknown();\n#else\nUnknownElse();\n#endif\n";
+            + "#if UNRELATED_PROBE\nUnknown();\n#else\nUnknownElse();\n#endif\n"
+            + "#if M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE\nOwnedOnly();\n"
+            + "#elif M03_FIRMWARE_ADAPTER_REVOCATION_PROBE\nRevocationOnly();\n"
+            + "#else\nOwnedOff();\n#endif\n"
+            + "#if M03_OWNED_SUBSYSTEM_PANIC_PROBE\nOwnedPanicOnly();\n#endif\n";
         string selected = SelectProfile(synthetic, true, true, false, false,
             firstExitEnabled: true);
         string unselected = SelectProfile(synthetic, true, true, false, false,
@@ -306,6 +310,10 @@ internal static class M01InstructionPublicationEfiEntryTests
             || !unselected.Contains("FirstExitOff();", StringComparison.Ordinal)
             || !selected.Contains("#if UNRELATED_PROBE", StringComparison.Ordinal)
             || !selected.Contains("UnknownElse();", StringComparison.Ordinal)
+            || !selected.Contains("OwnedOff();", StringComparison.Ordinal)
+            || selected.Contains("OwnedOnly();", StringComparison.Ordinal)
+            || selected.Contains("RevocationOnly();", StringComparison.Ordinal)
+            || selected.Contains("OwnedPanicOnly();", StringComparison.Ordinal)
             || !alias.Contains("#if m03_first_real_exit_boot_services_probe", StringComparison.Ordinal))
             return Failure("first-exit-selector-ordinal-and-unknown");
         return true;
@@ -4055,6 +4063,8 @@ internal static class M01InstructionPublicationEfiEntryTests
             || string.Equals(condition, TypeManagerSymbol, StringComparison.Ordinal)
             || string.Equals(condition, TypedEbsSymbol, StringComparison.Ordinal)
             || string.Equals(condition, GcStaticSymbol, StringComparison.Ordinal)
+            || string.Equals(condition, "M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE", StringComparison.Ordinal)
+            || string.Equals(condition, "M03_OWNED_SUBSYSTEM_PANIC_PROBE", StringComparison.Ordinal)
             || string.Equals(condition, TypeManagerSymbol + " || " + GcStaticSymbol, StringComparison.Ordinal)
             || string.Equals(condition, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, StringComparison.Ordinal)
             || string.Equals(condition, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol + " || M04_X64_UNWIND_METADATA_PROBE", StringComparison.Ordinal);
@@ -4117,7 +4127,8 @@ internal static class M01InstructionPublicationEfiEntryTests
                         selected,
                         emit,
                         selectedValue,
-                        SeenElse: false));
+                        SeenElse: false,
+                        IsOwnedSurvival: string.Equals(condition, "M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE", StringComparison.Ordinal)));
                 if (selected)
                 {
                     emit = emit && selectedValue;
@@ -4127,6 +4138,18 @@ internal static class M01InstructionPublicationEfiEntryTests
                     output.AppendLine(line);
                 }
 
+                continue;
+            }
+
+            if (string.Equals(trimmed, "#elif M03_FIRMWARE_ADAPTER_REVOCATION_PROBE", StringComparison.Ordinal)
+                && stack.Count != 0 && stack.Peek().IsOwnedSurvival)
+            {
+                PreprocessorFrame frame = stack.Pop();
+                if (frame.SeenElse || frame.SeenOwnedRevocation)
+                    throw new InvalidOperationException("Invalid owned revocation branch.");
+                // Both children are disabled in this existing first-exit profile.
+                stack.Push(frame with { SeenOwnedRevocation = true });
+                emit = false;
                 continue;
             }
 
@@ -4883,5 +4906,7 @@ internal static class M01InstructionPublicationEfiEntryTests
         bool IsSelected,
         bool ParentEmit,
         bool SelectedValue,
-        bool SeenElse);
+        bool SeenElse,
+        bool IsOwnedSurvival = false,
+        bool SeenOwnedRevocation = false);
 }

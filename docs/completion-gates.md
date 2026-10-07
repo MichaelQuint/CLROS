@@ -983,7 +983,7 @@ zero failures and unchanged launch binaries. All nine fresh default, panic,
 UD2, page-fault, double-fault, fixed, mixed-array, before-bind and exhaustion
 profiles pass their independent source/native/raw/lifecycle/disk reviews.
 The panic has76 records,650-byte/24-field current-state metadata and the exact
-vector32 fault, followed by EOF. Actual wrapper0, source-bound runner19,
+vector32 fault, followed by EOF. Actual wrapper 0, source-bound runner19,
 QEMU signed-1/owned termination and measured760ms quiet agree. The intended
 OS_SMOKE_FAIL is accepted only as that complete expected-panic outcome.
 
@@ -2046,3 +2046,25 @@ APIs directly and retains explicit/static roots through reclamation and address
 reuse; it does not prove compiler-created allocation or general runtime startup.
 The retained corruption controls remain associated with the reviewed same-image
 behavior. Gates3/4/5 remain **Fail**.
+
+## Owned subsystem survival accepted boundary
+
+[Step1074](../done/step1074.md) accepts the bounded #67 integration and #584
+verifier optimization at frozen source 4ef299f. The original solution build/full
+harness, naming, default dry run and diff check pass. All 2,061 source records and
+16 producer artifacts remain bound to the unfiltered 3,872-start/3,873-pass result.
+Four fresh ordinary captures contain 21/66/76/77 application records for default,
+first exit, owned survival and the separate controlled installed page fault.
+
+The positive guest uses the original allocator for a restored one-page operation,
+rereads original copied ACPI and checks installed descriptor/canary identities.
+The terminal control binds its actual faulting MOV, RIP/CR2, original CR3 and
+184-byte IST2 frame to the fresh native image. Runner 19 becomes wrapper 0 only
+after exact raw validation and the measured 757-ms quiet interval; no success
+follows the fault. Independent native and raw/process/GPT/FAT/EFI review passes.
+
+Steps 1065, 1067, 1068 and 1069 retain the leaf, initial failed publication, helper-only
+benchmark and focused reconciliation history. The original publication timeout
+remains failed; the fresh current captures establish acceptance. General firmware
+reclamation, interrupts/recovery, continuing drivers/workloads, hosted .NET/Kestrel,
+cloud and production readiness remain incomplete. No numbered gate changes.
