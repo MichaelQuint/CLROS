@@ -7,7 +7,7 @@ optional allocation, collection, metadata and constructor probes described
 below. `std/no-runtime/shared` contains compatible helper slices; it is not a
 complete BCL or general runtime surface.
 
-## Bounded interface dispatch in development
+## Accepted bounded interface dispatch
 
 M04-016 uses the original registered module and current allocator receipt to
 admit a receiver before reading its method table. The core consumes the pinned
@@ -30,14 +30,14 @@ It preserves GP/XMM argument state and the original stack arguments, then
 tail-jumps to the validated target. A rejected callback returns zero and the
 bridge halts locally. The bridge is not an exception/unwind implementation.
 
-Focused core/bridge checks, the no-stdlib managed compile and a development
-native publication pass. Inspection measures 112 bytes for five cells plus two
-terminators, and one four-byte sealed table owned by the base class; all five
-consumers retain real R11 indirect calls. The probe now binds those extents.
-The first development guest passes all 15 real calls, with ten cache entries
-and five cache hits while retaining the original stack, roots and counters.
-Final frozen acceptance remains pending under #572
-([step1054](../done/step1054.md)). Dynamic types,
+Final native/QEMU acceptance at `d5bef46` binds 112 bytes for five cells plus two
+terminators and the four-byte base sealed table. All five consumers retain real
+R11 indirect calls. The fresh guest passes all 15 calls, ten cache entries and
+five cache hits while retaining the original stack, roots and counters.
+Current native ABI/stack/caller-storage review, the full 158-record stream and
+the same-image null-receiver rejection pass in [step1063](../done/step1063.md).
+That step also records the original complete host gate, ancestor/default
+regressions and preserved control failure. Dynamic types,
 arrays/boxing, generic receiver classes, generic virtual methods, default/static
 interface implementations, large struct returns, concurrency and throwing
 dispatch failures remain unsupported. This does not complete Gate4.
@@ -333,8 +333,8 @@ allocation, GC, dispatch, exception or runtime-completion requirements.
 | Array allocation helpers | General support deferred; bounded opt-in EFI guest evidence accepted | Step952 adds the shared retained-page SZ-array leaf and separately classified `EfiSzArrayAllocation` exports. Step954 accepts the complete host gate and eight fresh profiles with independent native/metadata/prefix, transcript/lifecycle and disk review. Genuine byte/long allocations, length/index/store readback, before-bind rejection and shared-page exhaustion are bounded guest observations. General `ArrayAllocation` completion, managed reference stores and GC remain deferred |
 | String allocation helpers | Bounded retained-page EFI String guest accepted | `StringAllocation` remains incomplete. Step964 accepts the separately classified `EfiStringAllocation` path, compiled constructors and UTF-16 storage, with default/fixed/array regressions and three String rejection cases; general String/BCL, GC and write barriers remain unsupported |
 | Write barriers | General runtime support deferred; bounded returning-helper guest progress | Step967's opaque-word host leaf remains distinct from step977's profile-bound authenticated reference route and managed bulk bridge. Step981 accepts two live sentinel words/five checks in the bounded noncollecting profile; ledger entry `WriteBarriers` remains incomplete and no collecting-GC barrier support is established |
-| Interface dispatch | Bounded core and bridge in development | M04-016 has focused host/managed-compile evidence; native-layout and guest acceptance remain pending under #572. Ledger entry `InterfaceDispatch` remains incomplete; EFI type-cast helpers still fail fast |
-| Class constructors | Bounded execution core; guest acceptance pending | The general `ClassConstructors` ledger gate remains deferred. Existing host state/preflight/work-item contracts do not execute constructors. M04-024 adds actual eager/lazy managed invocation over the retained TypeManager owner, profile-only compiler helpers and same-thread reentry; focused host range/state checks pass. Same-image native and guest acceptance is pending in step1052. Exceptions, cached failure/rethrow and cross-thread initialization remain unsupported. |
+| Interface dispatch | Bounded ordinary-instance dispatch accepted | Step1063 accepts the finite M04-016 native/guest slice and same-image rejection control. General ledger entry `InterfaceDispatch` remains incomplete; unsupported shapes and EFI type-cast helpers still fail fast |
+| Class constructors | Bounded eager/lazy execution accepted | Steps1053/1063 accept actual M04-024 invocation over the retained TypeManager owner, profile-only compiler helpers and same-thread reentry. The general `ClassConstructors` ledger remains deferred: exceptions, cached failure/rethrow and cross-thread initialization are unsupported. Earlier host planning contracts alone do not execute constructors. |
 | Thread statics | Deferred | Ledger entry `ThreadStatics`; no TLS bootstrap or NativeAOT thread-static base helper exists |
 | Exception handling/unwind | Deferred | Ledger entry `ExceptionUnwind`; throw helpers halt and catch/finally/unwind are not implemented |
 | Module initialization | Deferred | Ledger entry `ModuleInitialization`; no kernel/runtime module initialization helper behavior is implemented |
