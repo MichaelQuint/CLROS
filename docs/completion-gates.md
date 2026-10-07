@@ -56,6 +56,15 @@ optional provider functionality, firmware reclamation, exception caching/rethrow
 cross-thread initialization, hosted .NET, Kestrel or cloud readiness. Historical
 development and failed attempts remain in [step1052](../done/step1052.md).
 
+#575 adds a bounded host-only exception-type predicate
+([step1058](../done/step1058.md)). Seven focused groups validate retained
+object/module authority, exact/base class identity, invalid/unsupported input,
+32-node hierarchy bounds, unchanged storage and zero managed allocation.
+The EFI export remains halting; no compiled catch, EH search, stack restoration,
+root lifetime or exception execution is established. #90 remains dependent on
+accepted unwind metadata and its own real throw/catch/finally/rethrow evidence.
+This leaf changes no completion-gate status.
+
 Gate status is explicit:
 
 - `Pass` means every acceptance item for that gate has preserved evidence.
