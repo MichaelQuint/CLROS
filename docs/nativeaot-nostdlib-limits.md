@@ -1541,6 +1541,27 @@ complete #544/#80 and unblock #81, while #82 still depends on GC-static roots.
 The runtime ledger stays Deferred and the preceding unsupported-feature
 boundaries remain unchanged.
 
+### M04-020 x64 unwind metadata prerequisite
+
+`X64PERuntimeFunctionUnwindMetadataHostileInput` validates and snapshots one
+retained module's PE runtime-function directory and decoded unwind prefixes.
+Lookup revalidates the original registration and snapshot before resolving an
+absolute PC. Admission is bounded to 2,048 functions and 32 chain links, version
+one records and the documented same-image listed-chain/save-only secondary
+subset. Language-specific handler data has only a reported start, not a generic
+admitted payload length. A missing function row does not establish a safe leaf.
+
+The nine focused core groups in [step1055](../done/step1055.md) are host evidence.
+The default-off #574 adapter reuses the original module, invokes actual sample
+methods and passes a development native publication and ordinary 67-record QEMU
+profile in [step1057](../done/step1057.md). The decoder's bounded stack buffer
+requires the existing no-CRT fixed RX security-cookie anchor; it is never
+called, and randomized initialization remains separate hardening work. Final
+current-image lookup, capacity and stack acceptance remain pending.
+General stack walking, restored registers, GC stack scanning, handler search,
+exception objects, catch/finally and rethrow remain outside this parser and
+belong to M04-021. The general exception/unwind ledger remains deferred.
+
 ### M04-012 read-only GC-static metadata admission
 
 [Step990](../done/step990.md) adds `GCStaticRootsMalformedMetadata.ValidateOne`.

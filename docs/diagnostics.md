@@ -2,12 +2,21 @@
 
 ## Current Status
 
-The probe catalogue has 20 entries. M03-008 and M04-024 occupy indices 17 and
+The probe catalogue has 21 entries. M03-008 and M04-024 occupy indices 17 and
 18; the new destructive, default-off M04-016 dispatch entry is index 19 in
 `runtime.dispatch`. Integration #572 is still in development. M03-009 adds five
 owned-writer records to the first-exit/revocation profiles, making their current
 contracts 66/78 application records. Changed-profile guest acceptance remains
 pending in [step1054](../done/step1054.md).
+
+The destructive, default-off M04-020 entry is index 20 in
+`runtime.unwind-metadata`. Its new child emits a 22-record tail: start, 19
+canonical decimal `CLROS_M04_020_DATA` rows, ready, pass. Those rows describe the
+original owner, measured metadata snapshot, actual sampled method PCs and
+function/unwind ranges, plus stack/storage preservation. Four successful range
+lookups and two expected misses remain distinct from unwinding execution.
+Development native publication and the complete 67-record guest profile pass
+in [step1057](../done/step1057.md); final acceptance remains pending #574.
 
 The preceding accepted revocation profile extended
 the first-exit transcript to 73 application records: an admitted pre-entry

@@ -12,7 +12,7 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
     private const string FailureMarker =
         "M04_ENDIAN_CONFORMANCE_FAILED";
     private const string CompileClosureSha256 =
-        "7e1ccc7ff27d560e10ef512c09b0a8c1ec3f0c9d58ee98a11013e9a0de0a1f88";
+        "a3594674eda76a3702aff90fdb7b509932a7e2ed8d949ac1552fdb73b500d478";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -131,7 +131,7 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 114
+        return compileItems.Length == 116
             && compileHash == CompileClosureSha256
             && backendIndex >= 0
             && ownedWriterIndex == backendIndex + 1
@@ -156,7 +156,7 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
                 "$arguments +=\n                \"-p:EnableM04IndependentEndianConformanceProbe=true\"",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=129",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=131",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 "\"-EnableM04IndependentEndianConformanceProbe\",\n            \"true\"",
@@ -171,10 +171,10 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
                 "[switch]$EnableM04IndependentEndianConformanceProbe",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 129",
+                "$expectedSourceClosureInputCount = 131",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 114",
+                "$compileItems.Count -ne 116",
                 StringComparison.Ordinal);
     }
 

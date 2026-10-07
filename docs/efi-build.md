@@ -13,7 +13,7 @@ The verifier checks object ownership, exact linked code outside those fields,
 both relocation targets, RX callback/code and RW initialized cell storage.
 Those checks do not by themselves prove the callback graph or dispatch results.
 
-The current explicit closure is 114 Compile items, 129 raw inputs and 47
+That diagnostics/dispatch wave introduced 114 Compile items, 129 raw inputs and 47
 feature properties (44 literal false defaults, with three inherited defaults).
 The generator has five C# files and seven declared inputs. Before acceptance,
 derive project/source hashes and all fixture vectors from these actual inputs.
@@ -2716,6 +2716,34 @@ disk images were reconstructed after capture; all changed disk bytes were
 accounted for as OVMF NVVARS/FAT bookkeeping. Internal tail canaries were
 initialized after registration; no external RAM oracle or numeric guest stack
 canary measurement is claimed.
+
+### M04-020 current-image unwind metadata development
+
+`EnableM04X64UnwindMetadataProbe` is disabled by default and requires
+`EnableM04TypeManagerModuleRegistrationProbe`, which retains its original
+`EnableM01LoadedImageStackProbe` prerequisite and exclusions. The child uses the
+same registered module, a measured 64 KiB static snapshot with a 32-byte unused
+tail guard, and the original 33-page stack. Two actual invoked method pointers
+are looked up alongside their last in-range bytes and two expected misses.
+
+The explicitly enabled C# EFI profile compiles with zero warnings/errors:
+
+```powershell
+dotnet build .\src\OS\OS.csproj --nologo -m:1 -p:EnableM01LoadedImageStackProbe=true -p:EnableM04TypeManagerModuleRegistrationProbe=true -p:EnableM04X64UnwindMetadataProbe=true
+```
+
+The complete integration has 116 Compile items, 131 raw inputs, 48 public
+properties (45 literal false defaults) and 21 diagnostic catalog entries.
+Publisher/verifier/runner integration and the focused checks pass. Development
+native publication and the ordinary QEMU wrapper pass the complete 67-record
+profile, as recorded in [step1057](../done/step1057.md). The decoder's bounded
+stack buffer uses the existing fixed RX cookie-anchor convention; randomized
+initialization remains separate hardening work. Frozen common acceptance and
+final native/stack/raw-serial/image/lifecycle review remain #574 obligations.
+The original TypeManager records remain intact; selected guest output adds a strict
+22-record metadata tail. Do not accept a marker override or a host fixture as
+real-image consumption. Version-one/listed-chain bounds remain enforced even if
+an emitted compiler record is unsupported. No stack walk or handler executes.
 
 ### GC-static root diagnostic
 
