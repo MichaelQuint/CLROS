@@ -1817,6 +1817,17 @@ This work does not establish stack unwinding, exception-object construction,
 language handlers, catch/finally, GC stack scanning or general runtime support.
 No completion gate is promoted by compilation or a host metadata fixture.
 
+### M04-021 one-frame interpreter remains host-only
+
+#578 ([step1059](../done/step1059.md)) adds a bounded one-frame virtual
+unwinder returning POD register values from original module metadata and
+caller-owned stack bytes. Six focused groups pass for normal/partial-prolog
+and supported epilog cases, hostile inputs, atomic failure and zero allocation.
+Independent review accepts that limited host contract. Its merge and closure
+still wait for #89/#574 acceptance. No live context capture/transfer, executing
+stack walk, EH search, handler execution or compiled exception behavior is
+established; #90 and the existing completion gates remain incomplete.
+
 ### M04-012 host metadata prerequisite
 
 [Step990](../done/step990.md) accepts only the read-only GC-static metadata
