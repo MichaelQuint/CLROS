@@ -1146,18 +1146,25 @@ function Assert-NoReparsePoints {
                 [System.IO.Path]::AltDirectorySeparatorChar
             ),
             [System.StringSplitOptions]::RemoveEmptyEntries)) {
-        $currentPath = Join-Path $currentPath $segment
+        $currentPath = [System.IO.Path]::Combine($currentPath, $segment)
         try {
-            $item = Get-Item `
-                -LiteralPath $currentPath `
-                -Force `
-                -ErrorAction Stop
+            $attributes = [System.IO.File]::GetAttributes($currentPath)
         }
         catch {
-            Write-Failure $Reason (
-                "path=$currentPath type=$($_.Exception.GetType().Name)")
+            # Preserve the provider's failure details on the exceptional path.
+            try {
+                $item = Get-Item `
+                    -LiteralPath $currentPath `
+                    -Force `
+                    -ErrorAction Stop
+            }
+            catch {
+                Write-Failure $Reason (
+                    "path=$currentPath type=$($_.Exception.GetType().Name)")
+            }
+            $attributes = $item.Attributes
         }
-        if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+        if (($attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
             Write-Failure $Reason "path=$currentPath"
         }
     }
