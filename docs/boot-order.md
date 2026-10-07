@@ -21,9 +21,10 @@ after `RunCollectorGraph` has completed, while the original registered module,
 collecting allocator, retained roots and owned stack remain live. The callback
 enters `BootSequence.RunInterfaceDispatch`, guarded by
 `Probes.EnableM04InterfaceDispatchProbe`. It adds no ordinary boot phase.
-Development native inspection and the first 158-record dispatch guest pass.
-Final frozen acceptance remains pending under #572; the original
-constructor-only profile keeps its existing order and record contract.
+Final source-bound native/QEMU acceptance at `d5bef46` passes the complete
+158-record dispatch stream, 15 real calls and current-image null-receiver
+control ([step1063](../done/step1063.md)). The constructor-only profile keeps
+its existing order and record contract. No ordinary phase is advanced.
 
 The M03-008 child profile binds typed capabilities before original owned-stack
 entry and proves one admitted console operation. Entry consumes the original

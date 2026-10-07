@@ -8855,7 +8855,7 @@
         "M03-008"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -8880,7 +8880,7 @@
       ],
       "collisionLane": null,
       "summary": "Emit UEFI_EBS_SUCCESS and POST_FIRMWARE_DIAGNOSTICS_READY through owned COM1.",
-      "currentEvidence": "Prerequisite M03-008 is accepted in step1053 / merged PR571 at 3ba0dd55235625aba4af394e4b55c3fd6586c573. Core754471d725ff38191f8ae240bc5bcff22b015148 appends the five owned-COM1 M03-009 records, with a40-byte buffer, 235-byte complete report, canary-gated claims and consumed partial attempts. Ten focused host groups pass; the shared66/78-record first-exit/revocation grammar and final native/guest acceptance belong to #572. The default profile still does not exit firmware. This issue remains open.",
+      "currentEvidence": "Step1063 accepts implementation d5bef46006e4f36aaeabc48f3f460fd533093700 under #572 / PR573, merged a6f5229e4f2a32be12ff3378dc51c0b28882fda0. The original complete host gate passes 3845 START / 3846 PASS / 0 FAIL; fresh first-exit/revocation guests pass all66/78 records with independent actual writer/native/stack/raw/lifecycle/disk review. The original owned COM1 reporter appends the five M03-009 records using a40-byte logical buffer and maximum33-byte record including CRLF; completion follows the full tail, with partial attempts and reentry consumed. #66 and #572 closed after evidence comments16432/16427. Default firmware behavior and broader M03, reclamation and continuing allocator/platform limits remain unchanged; #67 owns the next operations. Steps1054/1056/1063 preserve failed attempts and evidence boundaries.",
       "implementationNotes": [
         "Reuse FirstExitPostExitDiagnostics.Report with unchanged original arena, mapping, transition and owned-COM1 authority. No new reporter, EFI entry, Compile item, probe or boot phase is required for this slice.",
         "The proposed owned paths are exact for this slice: src/OS.Kernel/Boot/FirstOptRealExitBootServicesTransition.cs, tests/OS.HostTests/FirstOptRealExitBootServicesTransitionTests.cs. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -8932,7 +8932,7 @@
         "docs/efi-build.md"
       ],
       "evidenceBoundary": "This issue proves only \"Emit UEFI_EBS_SUCCESS and POST_FIRMWARE_DIAGNOSTICS_READY through owned COM1.\" It does not by itself prove the M03 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M03-010",
@@ -10553,7 +10553,7 @@
         "M04-024"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -10577,7 +10577,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement interface dispatch without copying SharpOS's runtime wholesale.",
-      "currentEvidence": "Prerequisite M04-024 is accepted in step1053 / merged PR571. Core788e007cbe5d4020b21785cb6824c9202e3f4572 (integrated e35149cc6324b922f4add1547c06a23f5a403e9a) implements bounded original module/cell/receiver authority, external POD cache, class reference variance and declaring-owner slot resolution. Eight focused host groups pass, including collector address reuse and rejection of adjacent valid RX data outside the declared sealed table. The three-export Win64 bridge and actual five indirect callsites have development native proof: 112-byte cell contribution and one four-byte base sealed table. The first development guest passes 158 records and 15 calls; final frozen common/guest/control acceptance remains pending under #572. Full M04-015 constructor exception caching still requires M04-021.",
+      "currentEvidence": "Step1063 accepts implementation d5bef46006e4f36aaeabc48f3f460fd533093700 under #572 / PR573, merged a6f5229e4f2a32be12ff3378dc51c0b28882fda0. The original complete host gate passes3845 START /3846 PASS /0 FAIL; fresh dispatch passes158 records and15 real calls with mandatory variance/declaring-owner behavior, ten cache entries and five hits. Independent current native/ABI/stack/raw/lifecycle/disk review binds the112-byte compiler cell contribution and four-byte base sealed table. The same-image null-RCX control rejects before target entry and retains original quiet-loop/cell/context evidence. #85 and #572 closed after evidence comments16439/16427. The first failed timed-stop control remains failed; three subsequent current-image controls pass. General interface shapes, concurrency, throwing failure semantics and Gate4 remain incomplete; M04-015 exception caching still requires M04-021.",
       "implementationNotes": [
         "Implement actual compiler-emitted interface dispatch using the accepted constructor-execution precursor M04-024. Full constructor exception caching remains with M04-015 after unwind, rather than forming a dependency cycle.",
         "The proposed owned paths are exact for this slice: src/OS.Kernel/Runtime/CompilerInterfaceDispatch.cs, tests/OS.HostTests/CompilerInterfaceDispatchTests.cs. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -10638,7 +10638,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves only \"Implement interface dispatch without copying SharpOS's runtime wholesale.\" It does not by itself prove the M04 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M04-017",
