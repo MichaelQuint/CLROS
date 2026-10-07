@@ -4056,7 +4056,8 @@ internal static class M01InstructionPublicationEfiEntryTests
             || string.Equals(condition, TypedEbsSymbol, StringComparison.Ordinal)
             || string.Equals(condition, GcStaticSymbol, StringComparison.Ordinal)
             || string.Equals(condition, TypeManagerSymbol + " || " + GcStaticSymbol, StringComparison.Ordinal)
-            || string.Equals(condition, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, StringComparison.Ordinal);
+            || string.Equals(condition, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, StringComparison.Ordinal)
+            || string.Equals(condition, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol + " || M04_X64_UNWIND_METADATA_PROBE", StringComparison.Ordinal);
                 bool selectedValue =
                     firstExitCondition ? firstExitEnabled
                     : loadedImageCondition ? rhpNewFastEnabled || unexpectedVectorPanicEnabled || firstExitEnabled

@@ -118,7 +118,7 @@ internal static class M01LoadedImageStackEfiEntryTests
 
     private static bool TestDefaultOffProfile()
     {
-        foreach (string disabledSymbol in new[] { DoubleFaultSymbol, UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol, TypeManagerSymbol, TypedEbsSymbol, GcStaticSymbol, TypeManagerSymbol + " || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, FirstExitSymbol, "M04_MANAGED_HEAP_PAGE_RANGE_PROBE || " + FirstExitSymbol, TypeManagerSymbol + " || " + GcStaticSymbol + " || " + FirstExitSymbol, "M04_RHP_NEW_FAST_PROBE || " + UnexpectedPanicSymbol + " || " + TypeManagerSymbol + " || " + FirstExitSymbol })
+        foreach (string disabledSymbol in new[] { DoubleFaultSymbol, UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol, TypeManagerSymbol, TypedEbsSymbol, GcStaticSymbol, TypeManagerSymbol + " || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol + " || M04_X64_UNWIND_METADATA_PROBE", FirstExitSymbol, "M04_MANAGED_HEAP_PAGE_RANGE_PROBE || " + FirstExitSymbol, TypeManagerSymbol + " || " + GcStaticSymbol + " || " + FirstExitSymbol, "M04_RHP_NEW_FAST_PROBE || " + UnexpectedPanicSymbol + " || " + TypeManagerSymbol + " || " + FirstExitSymbol })
         {
             string selectorFixture = "#if " + disabledSymbol + "\nDfOnly();\n#else\nDfOff();\n#endif\n"
                 + "#if UNRELATED_PROBE\nUnknown();\n#else\nUnknownElse();\n#endif\n";
@@ -3098,7 +3098,8 @@ internal static class M01LoadedImageStackEfiEntryTests
             || string.Equals(condition, TypeManagerSymbol + " || " + GcStaticSymbol + " || " + FirstExitSymbol, StringComparison.Ordinal)
             || string.Equals(condition, "M04_RHP_NEW_FAST_PROBE || " + UnexpectedPanicSymbol + " || " + TypeManagerSymbol + " || " + FirstExitSymbol, StringComparison.Ordinal)
             || string.Equals(condition, TypeManagerSymbol + " || " + GcStaticSymbol, StringComparison.Ordinal)
-            || string.Equals(condition, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, StringComparison.Ordinal);
+            || string.Equals(condition, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, StringComparison.Ordinal)
+            || string.Equals(condition, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol + " || M04_X64_UNWIND_METADATA_PROBE", StringComparison.Ordinal);
                 bool selectedValue = isStageOne && enabled;
                 stack.Push(
                     new PreprocessorFrame(

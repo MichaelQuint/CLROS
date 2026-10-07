@@ -32,8 +32,14 @@ public static partial class Probes
     public const bool EnableM04InterfaceDispatchProbe = false;
 #endif
 
+#if M04_X64_UNWIND_METADATA_PROBE
+    public const bool EnableM04X64UnwindMetadataProbe = true;
+#else
+    public const bool EnableM04X64UnwindMetadataProbe = false;
+#endif
+
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 20;
+    public const int ProbeCatalogCount = 21;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -197,6 +203,11 @@ public static partial class Probes
         new("runtime.dispatch", nameof(EnableM04InterfaceDispatchProbe),
             EnableM04InterfaceDispatchProbe, ProbeRisk.Destructive,
             "Resolves compiler instance-interface cells with retained module, receiver and target authority.");
+
+    public static ProbeDefinition GetM04X64UnwindMetadataProbe() =>
+        new("runtime.unwind-metadata", nameof(EnableM04X64UnwindMetadataProbe),
+            EnableM04X64UnwindMetadataProbe, ProbeRisk.Destructive,
+            "Consumes current-image x64 unwind metadata through the original module registration.");
 
     public static ProbeDefinition GetAcpiPhysicalDiscoveryProbe()
     {
@@ -362,6 +373,9 @@ public static partial class Probes
                 return true;
             case 19:
                 definition = GetM04InterfaceDispatchProbe();
+                return true;
+            case 20:
+                definition = GetM04X64UnwindMetadataProbe();
                 return true;
             default:
                 definition = default;

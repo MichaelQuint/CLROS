@@ -2,7 +2,7 @@
 
 ## Current Status
 
-The probe catalogue has 20 entries. M03-008 and M04-024 occupy indices 17 and
+The probe catalogue has 21 entries. M03-008 and M04-024 occupy indices 17 and
 18; the new destructive, default-off M04-016 dispatch entry is index 19 in
 `runtime.dispatch`. Integration #572 is accepted at `d5bef46` in
 [step1063](../done/step1063.md). M03-009 adds five owned-writer records to the
@@ -12,6 +12,18 @@ churn's current-image canary/static-payload controls also pass. All destructive
 profiles remain default-off. Development and preserved failures remain in
 steps1054/1056; the first failed timed-stop control remains distinct from the
 three passing fresh controls.
+
+The destructive, default-off M04-020 entry is index 20 in
+`runtime.unwind-metadata`. Its new child emits a 22-record tail: start, 19
+canonical decimal `CLROS_M04_020_DATA` rows, ready, pass. Those rows describe the
+original owner, measured metadata snapshot, actual sampled method PCs and
+function/unwind ranges, plus stack/storage preservation. Four successful range
+lookups and two expected misses remain distinct from unwinding execution.
+The complete 67-record guest profile, unchanged 45-record TypeManager profile
+and 21-record default profile pass at `4625fd7` in
+[step1071](../done/step1071.md), with original full host and independent native,
+stack, raw transcript, disk and lifecycle acceptance. Step1057 retains the
+earlier development evidence.
 
 The preceding accepted revocation profile extended
 the first-exit transcript to 73 application records: an admitted pre-entry

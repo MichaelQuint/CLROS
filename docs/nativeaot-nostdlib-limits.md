@@ -131,6 +131,40 @@ core is not in the EFI Compile list and has no guest proof, EH-record search,
 exception construction, stack restoration, catch/finally/rethrow or cctor
 failure caching. #90 retains its unwind and real-execution acceptance gates.
 
+## NativeAOT EH clause metadata
+
+`NativeAotEhClauseMetadata.ReadClause` implements #579's host-only Windows
+NativeAOT metadata leaf ([step1061](../done/step1061.md)). It revalidates the
+original module and unwind snapshot, discovers the EH RVA in the pinned
+ILC 10.0.8 trailer, and reads one physical clause only after validating the
+complete table and every referenced funclet's nearest preceding root.
+An intervening root rejects even an earlier selected row. Failure payloads
+are zero; no-EH and out-of-range results have distinct statuses.
+
+The format has low-bit compressed unsigned fields of one through five bytes,
+fixed typed-target RVAs and optional associated-data before the EH pointer.
+Windows handler flags determine whether the unwind tail is aligned and skips
+a personality DWORD; an odd code count without those flags is not rounded.
+Typed, filter and shared fault/finally kinds retain physical order, nested/equal
+try ranges, end-exclusive containment and legal empty try-group boundaries.
+CLROS limits a table to 64 rows and 4096 bytes. Nonminimal widths follow the
+pinned permissive runtime decoder; this is not LEB128 or a Windows scope table.
+
+The caller must supply exact same-image compiler code and EH contribution
+extents, including funclets and folded aliases, with EH padding excluded.
+Neither PE xdata nor the stream supplies the EH byte length. Numeric bounds,
+root-row ends, section tails and the next symbol cannot establish that native
+ownership. All image, registration and snapshot storage must remain mapped and
+exclusively stable for each call. The reader takes no persistent EH snapshot.
+
+Six original focused host groups pass, including the intervening-root
+regression, late-error atomicity, unchanged inputs and zero managed allocation.
+Typed-prefix range admission does not validate a class or perform matching.
+Chains, reverse-PInvoke, unknown kinds/flags, split code and cross-module targets
+remain unsupported. The leaf changes no EFI export/profile and supplies no
+exception construction/rooting, handler search, invocation, stack restoration
+or actual throw/catch/finally/rethrow. Merge acceptance waits for #89/#574.
+
 ## Implemented Behavior
 
 - `OS.Std.CompatibilityStatus` records compatibility states.
@@ -1570,6 +1604,74 @@ its tail canaries are initialized after registration. These finite results
 complete #544/#80 and unblock #81, while #82 still depends on GC-static roots.
 The runtime ledger stays Deferred and the preceding unsupported-feature
 boundaries remain unchanged.
+
+### M04-020 x64 unwind metadata prerequisite
+
+`X64PERuntimeFunctionUnwindMetadataHostileInput` validates and snapshots one
+retained module's PE runtime-function directory and decoded unwind prefixes.
+Both absolute-PC `Lookup` and indexed `LookupFunction` revalidate the original
+registration and complete snapshot before selecting a listed function. Indexed
+misses return zero payload only after that validation. The shared implementation
+adds no second parser or retained state; [step1060](../done/step1060.md) records
+the nine original host groups with indexed bounds, identity and allocation
+checks. Indexed access permits a later EH decoder to check nearest-root grouping;
+it does not itself establish handler ownership. Admission is bounded to 2,048
+functions and 32 chain links, version
+one records and the documented same-image listed-chain/save-only secondary
+subset. Language-specific handler data has only a reported start, not a generic
+admitted payload length. A missing function row does not establish a safe leaf.
+
+The nine focused core groups in [step1055](../done/step1055.md) are host evidence.
+The default-off #574 adapter reuses the original module, invokes actual sample
+methods and passes a development native publication and ordinary 67-record QEMU
+profile in [step1057](../done/step1057.md), before the indexed API change. That
+older image is not acceptance evidence for the changed source. The decoder's bounded stack buffer
+requires the existing no-CRT fixed RX security-cookie anchor; it is never
+called, and randomized initialization remains separate hardening work.
+[Step1071](../done/step1071.md) accepts the current indexed decoder at `4625fd7`
+after the original full host gate and fresh default/TypeManager/unwind captures.
+All 298 current runtime-function rows reproduce the 7,412-byte snapshot, and
+all 80 reachable unwind-profile methods pass current native/ABI/stack review.
+The bound is 7,440 bytes below module entry and 8,768 below its continuation,
+excluding opaque firmware callback bodies. Exact four-success/two-miss lookup
+observations, original ownership and both stack sentinels are retained.
+General stack walking, restored registers, GC stack scanning, handler search,
+exception objects, catch/finally and rethrow remain outside this parser and
+belong to M04-021. The general exception/unwind ledger remains deferred.
+
+### M04-021 bounded one-frame host interpreter
+
+`X64FrameUnwind.UnwindOne` in #578 ([step1059](../done/step1059.md))
+revalidates the original module and unwind snapshot, reads a caller-owned bounded
+stack, and returns one POD caller context. It carries RIP/RSP, the nonvolatile
+integer registers and all XMM6-XMM15 bits. It does not overlay Windows CONTEXT
+or capture/restore processor registers. Every failure returns a status with a
+zero payload; input context, image, metadata and stack remain unchanged.
+
+The supported subset is version-one non-chained normal frames: integer/XMM
+saves, small/large allocation and frame-pointer operations, with only executed
+operations undone in a partial prolog. SAVE and SET_FPREG use the original fixed
+frame base even if an earlier restore changed the candidate frame register.
+This defensive admitted-shape rule does not claim full RtlVirtualUnwind
+equivalence. Missing function records do not establish leaf frames.
+
+An internal recognizer plans the remaining epilog before reading the stack:
+ADD RSP or supported non-SIB LEA from the declared frame register, nonvolatile
+POPs, and RET/F3 RET. The limits are 32 bytes and 16 instructions. Partial
+POP/RET suffixes do not repeat prior restores; epilog results have
+`InEpilog=true` and `EstablisherFrame=0`. Tail jumps, RET imm16, F2, unsupported
+prefixes/addressing, truncation and exhausted limits reject without falling
+back to body unwinding. Some legitimate body instructions are conservatively
+unsupported. Machine/chained frames and cross-image returns are excluded.
+
+Six focused host groups pass, including exact-end reads, late atomic failure,
+unchanged backing and warmed zero allocation. Caller-supplied numeric extents
+and a context do not prove mapping, compiler provenance or a live instruction
+boundary; original storage and code must remain exclusively stable. Recovered
+RSP advances inside the admitted stack, and raw RIP must be same-image RX.
+The core is not in the EFI Compile list. #89/#574 acceptance still gates its
+integration; live stack walking, CPU transfer, EH records/handlers, exception
+roots and compiled throw/catch/finally/rethrow remain #90 work.
 
 ### M04-012 read-only GC-static metadata admission
 

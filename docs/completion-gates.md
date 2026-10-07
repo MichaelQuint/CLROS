@@ -65,6 +65,13 @@ root lifetime or exception execution is established. #90 remains dependent on
 accepted unwind metadata and its own real throw/catch/finally/rethrow evidence.
 This leaf changes no completion-gate status.
 
+#579 adds a host-only decoder for pinned NativeAOT Windows EH clauses
+([step1061](../done/step1061.md)). Six focused groups pass for real wire formats,
+complete-table validation, exact bounds, nearest-root funclet association and
+zero-allocation reads. The caller still supplies compiler-contribution extents;
+live ILC/COFF association and actual exception execution remain unproved.
+This leaf changes no EFI export or completion gate and awaits #89/#574 acceptance.
+
 Gate status is explicit:
 
 - `Pass` means every acceptance item for that gate has preserved evidence.
@@ -1807,6 +1814,38 @@ ledger remains Deferred, and Gates3/4 remain **Fail**. There is no upstream
 runtime registry, GC/static initialization, collection, hosted .NET/Kestrel,
 real ExitBootServices or cloud-readiness acceptance. Tail canaries are internal
 post-registration checks; no external RAM or numeric guest stack proof follows.
+
+### M04-020 bounded metadata consumption accepted
+
+[Step1055](../done/step1055.md) records nine focused groups for the bounded x64
+PE runtime-function/unwind parser and retained-owner snapshot. Integration #574
+adds an original-module child with two actual sampled method pointers, four
+successful lookup observations and two misses. [Step1057](../done/step1057.md)
+records development native publication and a complete ordinary 67-record QEMU
+profile. [Step1060](../done/step1060.md)
+adds indexed access through the same retained-owner/snapshot validator, with all
+nine original host groups passing. This supports a later nearest-root EH check;
+the changed decoder is included in the accepted `4625fd7` source in
+[step1071](../done/step1071.md). The original full gate passes 3,864 starts and
+3,865 passes with zero failures. Three fresh default/TypeManager/unwind captures
+pass 21/45/67 complete records, current native/ABI/stack review, complete raw
+framing/lifecycle review and actual postboot FAT payload comparison. This
+completes the bounded #89/#574 metadata prerequisite; numbered gates retain
+their broader requirements and status.
+This work does not establish stack unwinding, exception-object construction,
+language handlers, catch/finally, GC stack scanning or general runtime support.
+No completion gate is promoted by compilation or a host metadata fixture.
+
+### M04-021 one-frame interpreter remains host-only
+
+#578 ([step1059](../done/step1059.md)) adds a bounded one-frame virtual
+unwinder returning POD register values from original module metadata and
+caller-owned stack bytes. Six focused groups pass for normal/partial-prolog
+and supported epilog cases, hostile inputs, atomic failure and zero allocation.
+Independent review accepts that limited host contract. Its merge and closure
+still wait for #89/#574 acceptance. No live context capture/transfer, executing
+stack walk, EH search, handler execution or compiled exception behavior is
+established; #90 and the existing completion gates remain incomplete.
 
 ### M04-012 host metadata prerequisite
 
