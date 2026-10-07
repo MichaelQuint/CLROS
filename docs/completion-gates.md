@@ -2036,3 +2036,9 @@ new paths, and full acceptance remains pending. [Step1067](../done/step1067.md) 
 the preserved failures, source/tool/native identities and pending final common,
 native, raw/lifecycle/FAT and guest proof. #67 and all broader gates remain open;
 these checks do not establish a continuing workload or general kernel readiness.
+
+[Step1069](../done/step1069.md) reconciles the current owned-subsystem and unwind
+source/profile guards after the verifier optimization. All 47 selected checks
+pass with newly built managed dependencies and unchanged production inputs.
+This completes the focused reconciliation only; it does not satisfy the full
+host, current native-image, positive-guest or separate terminal-guest gates.

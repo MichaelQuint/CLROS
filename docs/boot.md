@@ -25,9 +25,12 @@ The allocator portion of M03-010 is host-tested in
 allocates one page from the retained M01 owner, writes and restores two bounded
 words, frees the exact receipt and verifies the original accounting. Four
 focused groups cover restoration, owner/alias refusal and consumed failure paths.
-Prior native observations are modeled by that host fixture. Actual post-exit
-EFI integration, copied-ACPI use, installed-descriptor validation and a separate
-terminal fault control remain pending; this leaf does not complete #67.
+Prior native observations are modeled by that host fixture. Shared EFI
+integration is implemented in [step1067](../done/step1067.md), with current
+source/profile reconciliation in [step1069](../done/step1069.md). Fresh guest
+proof of copied-ACPI use, installed-descriptor validation and the separate
+terminal fault control remains pending; the allocator leaf alone does not
+complete #67.
 
 M03-008 adds a default-off typed firmware-capability revocation profile under
 integration issue #570. It binds console, memory-map, filesystem, timer, RNG,

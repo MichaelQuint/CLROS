@@ -2920,3 +2920,12 @@ unchanged. Independent native review found no scoped blocker; no guest has run.
 Preserve the original failed publication, earlier Desktop module-resolution
 failure and all archives in [step1067](../done/step1067.md). Final merged source pins and original
 verification must pass before guest acceptance.
+
+The merged development source now has 117 ordered Compile items, 132 raw
+publication inputs, 50 profile flags and 47 literal false defaults. Its fixture
+reconciliation includes the final step1068 verifier identity. One fresh managed
+build and 45 original focused checks plus two existing authority helpers pass;
+the kernel, runner and shared DLLs are bound to that build. [Step1069](../done/step1069.md)
+records the exact current hashes and preserved historical contracts. This is
+focused source/profile evidence; the original full gate and fresh default,
+first-exit parent, survival and panic captures remain pending.
