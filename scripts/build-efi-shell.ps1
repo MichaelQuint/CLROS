@@ -66,6 +66,7 @@ param(
     [switch] $EnableM03MemoryMapCaptureProbe,
     [switch] $EnableM03FirmwareEntropySeedProbe,
     [switch] $EnableM04TypeManagerModuleRegistrationProbe,
+    [switch] $EnableM04X64UnwindMetadataProbe,
     [switch] $EnableM04GcStaticRootMaterializationProbe,
     [switch] $EnableM04SeededCollectorChurnProbe,
     [switch] $EnableM03TypedExitBootServicesCallProbe,
@@ -197,7 +198,9 @@ $script:ExpectedEfiCompileItems = @(
     'Runtime\ClassConstructorRunner.cs|',
     'Runtime\CompilerClassConstructorExecutionProbe.cs|',
     '..\OS.Kernel\Runtime\CompilerInterfaceDispatch.cs|Runtime\CompilerInterfaceDispatch.cs',
-    'Runtime\InterfaceDispatchProbe.cs|'
+    'Runtime\InterfaceDispatchProbe.cs|',
+    '..\OS.Kernel\Runtime\X64PERuntimeFunctionUnwindMetadataHostileInput.cs|Runtime\X64PERuntimeFunctionUnwindMetadataHostileInput.cs',
+    'Runtime\X64UnwindMetadataProbe.cs|'
 )
 
 $script:ExpectedSerializerTargetsImport =
@@ -1926,6 +1929,7 @@ function Invoke-M01PostRestoreEvaluation {
         [bool] $M03MemoryMapCaptureEnabled,
         [bool] $M03FirmwareEntropySeedEnabled,
         [bool] $M04TypeManagerModuleRegistrationEnabled,
+        [bool] $M04X64UnwindMetadataEnabled,
         [bool] $M04GcStaticRootMaterializationEnabled,
         [bool] $M04SeededCollectorChurnEnabled,
         [bool] $M03TypedExitBootServicesCallEnabled,
@@ -1992,6 +1996,7 @@ function Invoke-M01PostRestoreEvaluation {
             "EnableM03MemoryMapCaptureProbe," +
             "EnableM03FirmwareEntropySeedProbe," +
             "EnableM04TypeManagerModuleRegistrationProbe," +
+            "EnableM04X64UnwindMetadataProbe," +
             "EnableM04GcStaticRootMaterializationProbe," +
             "EnableM04SeededCollectorChurnProbe," +
             "EnableM03TypedExitBootServicesCallProbe," +
@@ -2175,6 +2180,8 @@ function Invoke-M01PostRestoreEvaluation {
         $M03FirmwareEntropySeedEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM04TypeManagerModuleRegistrationProbe=" +
         $M04TypeManagerModuleRegistrationEnabled.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableM04X64UnwindMetadataProbe=" +
+        $M04X64UnwindMetadataEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM04GcStaticRootMaterializationProbe=" +
         $M04GcStaticRootMaterializationEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM04SeededCollectorChurnProbe=" +
@@ -2308,6 +2315,8 @@ function Invoke-M01PostRestoreEvaluation {
             $M03FirmwareEntropySeedEnabled.ToString().ToLowerInvariant()
         EnableM04TypeManagerModuleRegistrationProbe =
             $M04TypeManagerModuleRegistrationEnabled.ToString().ToLowerInvariant()
+        EnableM04X64UnwindMetadataProbe =
+            $M04X64UnwindMetadataEnabled.ToString().ToLowerInvariant()
         EnableM04GcStaticRootMaterializationProbe =
             $M04GcStaticRootMaterializationEnabled.ToString().ToLowerInvariant()
         EnableM04SeededCollectorChurnProbe =
@@ -4334,6 +4343,7 @@ for ($index = 5; $index -lt $verifierArguments.Count; $index += 2) {
         $parameterName -ceq "EnableM03MemoryMapCaptureProbe" -or
         $parameterName -ceq "EnableM03FirmwareEntropySeedProbe" -or
         $parameterName -ceq "EnableM04TypeManagerModuleRegistrationProbe" -or
+        $parameterName -ceq "EnableM04X64UnwindMetadataProbe" -or
         $parameterName -ceq "EnableM04GcStaticRootMaterializationProbe" -or
         $parameterName -ceq "EnableM04SeededCollectorChurnProbe" -or
         $parameterName -ceq "EnableM03TypedExitBootServicesCallProbe" -or
@@ -5151,11 +5161,18 @@ function Test-M01ActiveSourceSurface {
         return [pscustomobject]@{ Succeeded=$true; Reason='ok'; Detail=''; ActiveText=$SourceText }
     }
 
+    # Reviewed metadata-only core; retain its exact bounded version-one decoder.
+    if ([string]::Equals($SourceName, '..\OS.Kernel\Runtime\X64PERuntimeFunctionUnwindMetadataHostileInput.cs', [StringComparison]::Ordinal)) {
+        $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
+        if ($identity -cne '12fac853b9dc2357d25315e4bedd0e43df0af76854079b7ae030bca36aed5253') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_x64_unwind_metadata_source_identity'; ActiveText='' } }
+        return [pscustomobject]@{ Succeeded=$true; Reason='ok'; Detail=''; ActiveText=$SourceText }
+    }
+
     # Only the two compile-time branches of the reviewed probe catalog are admitted.
     # Native compilation excludes the managed catalog and retains the explicit toggle.
     if ([string]::Equals($SourceName, '..\OS.Kernel\Diagnostics\Probes.cs', [StringComparison]::Ordinal)) {
         $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
-        if ($identity -cne 'ddd7966c2b92c845beac10cf59a7e27e3c935587116b2da47723edb1283ef230') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_first_exit_probe_identity'; ActiveText='' } }
+        if ($identity -cne '21b78df2a804156be0b832849c693cf6aac5e92d89787b6137346e4e9136c74f') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_first_exit_probe_identity'; ActiveText='' } }
         return [pscustomobject]@{ Succeeded=$true; Reason='ok'; Detail=''; ActiveText=$SourceText }
     }
 
@@ -5872,6 +5889,7 @@ function Test-M01EvaluatedSourceClosure {
         [bool] $M03MemoryMapCaptureEnabled,
         [bool] $M03FirmwareEntropySeedEnabled,
         [bool] $M04TypeManagerModuleRegistrationEnabled,
+        [bool] $M04X64UnwindMetadataEnabled,
         [bool] $M04GcStaticRootMaterializationEnabled,
         [bool] $M04SeededCollectorChurnEnabled,
         [bool] $M03TypedExitBootServicesCallEnabled,
@@ -5974,6 +5992,8 @@ function Test-M01EvaluatedSourceClosure {
             $M03FirmwareEntropySeedEnabled.ToString().ToLowerInvariant()
         "EnableM04TypeManagerModuleRegistrationProbe" =
             $M04TypeManagerModuleRegistrationEnabled.ToString().ToLowerInvariant()
+        "EnableM04X64UnwindMetadataProbe" =
+            $M04X64UnwindMetadataEnabled.ToString().ToLowerInvariant()
         "EnableM04GcStaticRootMaterializationProbe" =
             $M04GcStaticRootMaterializationEnabled.ToString().ToLowerInvariant()
         "EnableM04SeededCollectorChurnProbe" =
@@ -6056,6 +6076,8 @@ function Test-M01EvaluatedSourceClosure {
             $M03FirmwareEntropySeedEnabled
         "M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE" =
             $M04TypeManagerModuleRegistrationEnabled
+        "M04_X64_UNWIND_METADATA_PROBE" =
+            $M04X64UnwindMetadataEnabled
         "M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE" =
             $M04GcStaticRootMaterializationEnabled
         "M04_SEEDED_COLLECTOR_CHURN_PROBE" =
@@ -6133,6 +6155,7 @@ function Test-M01EvaluatedSourceClosure {
             "EnableM03MemoryMapCaptureProbe," +
             "EnableM03FirmwareEntropySeedProbe," +
             "EnableM04TypeManagerModuleRegistrationProbe," +
+            "EnableM04X64UnwindMetadataProbe," +
             "EnableM04GcStaticRootMaterializationProbe," +
             "EnableM04SeededCollectorChurnProbe," +
             "EnableM03TypedExitBootServicesCallProbe," +
@@ -6325,6 +6348,10 @@ function Test-M01EvaluatedSourceClosure {
         if ($M04TypeManagerModuleRegistrationEnabled) {
             $arguments +=
                 "-p:EnableM04TypeManagerModuleRegistrationProbe=true"
+        }
+        if ($M04X64UnwindMetadataEnabled) {
+            $arguments +=
+                "-p:EnableM04X64UnwindMetadataProbe=true"
         }
         if ($M04GcStaticRootMaterializationEnabled) {
             $arguments +=
@@ -6921,6 +6948,7 @@ function Test-M01SourceClosure {
         [bool] $M03MemoryMapCaptureEnabled,
         [bool] $M03FirmwareEntropySeedEnabled,
         [bool] $M04TypeManagerModuleRegistrationEnabled,
+        [bool] $M04X64UnwindMetadataEnabled,
         [bool] $M04GcStaticRootMaterializationEnabled,
         [bool] $M04SeededCollectorChurnEnabled,
         [bool] $M03TypedExitBootServicesCallEnabled,
@@ -6980,7 +7008,7 @@ function Test-M01SourceClosure {
 
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "bddc7adf703ad240a1ac856fdb1ac6d7c3de56f1f66499361e1505f58fdaa97f") {
+        "b99d68b6ac3f3c1548fc3c4afd620a2f652e1175933629a97898d492342e018d") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `
@@ -7093,6 +7121,8 @@ function Test-M01SourceClosure {
             "M03_FIRMWARE_ENTROPY_SEED_PROBE"
         "EnableM04TypeManagerModuleRegistrationProbe" =
             "M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE"
+        "EnableM04X64UnwindMetadataProbe" =
+            "M04_X64_UNWIND_METADATA_PROBE"
         "EnableM04GcStaticRootMaterializationProbe" =
             "M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE"
         "EnableM04SeededCollectorChurnProbe" =
@@ -7406,6 +7436,8 @@ function Test-M01SourceClosure {
             "M03_FIRMWARE_ENTROPY_SEED_PROBE"
         "EnableM04TypeManagerModuleRegistrationProbe" =
             "M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE"
+        "EnableM04X64UnwindMetadataProbe" =
+            "M04_X64_UNWIND_METADATA_PROBE"
         "EnableM04GcStaticRootMaterializationProbe" =
             "M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE"
         "EnableM04SeededCollectorChurnProbe" =
@@ -8610,6 +8642,10 @@ function Test-M01SourceClosure {
         "'`$(EnableM04InterfaceDispatchProbe)' != '' and '`$(EnableM04InterfaceDispatchProbe)' != 'true' and '`$(EnableM04InterfaceDispatchProbe)' != 'false'",
         "'`$(EnableM04InterfaceDispatchProbe)' == 'true' and '`$(EnableM04ClassConstructorExecutionProbe)' != 'true'"
     )
+    $requiredErrorConditions += @(
+        "'`$(EnableM04X64UnwindMetadataProbe)' != '' and '`$(EnableM04X64UnwindMetadataProbe)' != 'true' and '`$(EnableM04X64UnwindMetadataProbe)' != 'false'",
+        "'`$(EnableM04X64UnwindMetadataProbe)' == 'true' and '`$(EnableM04TypeManagerModuleRegistrationProbe)' != 'true'"
+    )
     if ($errorConditions.Count -ne $requiredErrorConditions.Count -or
         $validationTargets[0].SelectNodes("*").Count -ne $errorNodes.Count) {
         return New-M01SourceClosureResult `
@@ -8945,6 +8981,7 @@ function Test-M01SourceClosure {
         -M03MemoryMapCaptureEnabled $M03MemoryMapCaptureEnabled `
         -M03FirmwareEntropySeedEnabled $M03FirmwareEntropySeedEnabled `
         -M04TypeManagerModuleRegistrationEnabled $M04TypeManagerModuleRegistrationEnabled `
+        -M04X64UnwindMetadataEnabled $M04X64UnwindMetadataEnabled `
         -M04GcStaticRootMaterializationEnabled $M04GcStaticRootMaterializationEnabled `
         -M04SeededCollectorChurnEnabled $M04SeededCollectorChurnEnabled `
         -M03TypedExitBootServicesCallEnabled $M03TypedExitBootServicesCallEnabled `
@@ -9127,8 +9164,8 @@ try {
             (Format-EvidenceValue $_.Exception.Message))
         exit 1
     }
-    if ($sourceSnapshotBeforePublish.InputCount -ne 130 -or
-        $sourceSnapshotAfterLock.InputCount -ne 130 -or
+    if ($sourceSnapshotBeforePublish.InputCount -ne 132 -or
+        $sourceSnapshotAfterLock.InputCount -ne 132 -or
         $sourceSnapshotBeforePublish.AggregateSha256 -cne
             $sourceSnapshotAfterLock.AggregateSha256 -or
         $sourceSnapshotBeforePublish.AuthoritySha256 -cne
@@ -9141,7 +9178,7 @@ try {
         exit 1
     }
     Write-Host "EFI_PUBLISH_SOURCE_LOCK status=ok"
-    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=130"
+    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=132"
 
 Write-EfiPreflightLine "EFI_PREFLIGHT_START"
 if ($EnableM03FirmwareAdapterRevocationProbe -and -not $EnableM03FirstRealExitBootServicesProbe) { Write-Output "TEST_FAIL efi.shell.publish m03_revocation_requires_first_exit"; exit 1 }
@@ -9151,6 +9188,7 @@ if ($EnableM03OwnedSubsystemSurvivalProbe -and $EnableM03FirmwareAdapterRevocati
 if ($EnableM04ClassConstructorExecutionProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Output "TEST_FAIL efi.shell.publish m04_cctor_requires_gc_profile"; exit 1 }
 if ($EnableM04ClassConstructorExecutionProbe -and $EnableM04SeededCollectorChurnProbe) { Write-Output "TEST_FAIL efi.shell.publish m04_cctor_churn_conflict"; exit 1 }
 if ($EnableM04InterfaceDispatchProbe -and -not $EnableM04ClassConstructorExecutionProbe) { Write-Output "TEST_FAIL efi.shell.publish m04_dispatch_requires_cctor_profile"; exit 1 }
+if ($EnableM04X64UnwindMetadataProbe -and -not $EnableM04TypeManagerModuleRegistrationProbe) { Write-Output "TEST_FAIL efi.shell.publish m04_x64_unwind_metadata_requires_original_module"; exit 1 }
 if ($EnableM04SeededCollectorChurnProbe -and -not $EnableM04GcStaticRootMaterializationProbe) {
     Write-Output "TEST_FAIL efi.shell.publish m04_churn_requires_gc_profile"; exit 1
 }
@@ -10471,6 +10509,7 @@ $m01SourceClosure = Test-M01SourceClosure `
     -M03MemoryMapCaptureEnabled $EnableM03MemoryMapCaptureProbe.IsPresent `
     -M03FirmwareEntropySeedEnabled $EnableM03FirmwareEntropySeedProbe.IsPresent `
     -M04TypeManagerModuleRegistrationEnabled $EnableM04TypeManagerModuleRegistrationProbe.IsPresent `
+    -M04X64UnwindMetadataEnabled $EnableM04X64UnwindMetadataProbe.IsPresent `
     -M04GcStaticRootMaterializationEnabled $EnableM04GcStaticRootMaterializationProbe.IsPresent `
     -M04SeededCollectorChurnEnabled $EnableM04SeededCollectorChurnProbe.IsPresent `
     -M03TypedExitBootServicesCallEnabled $EnableM03TypedExitBootServicesCallProbe.IsPresent `
@@ -11229,6 +11268,10 @@ if ($EnableM04TypeManagerModuleRegistrationProbe) {
     $arguments += "-p:EnableM04TypeManagerModuleRegistrationProbe=true"
     Write-Host "EFI_PROBE M04_TYPE_MANAGER_MODULE_REGISTRATION"
 }
+if ($EnableM04X64UnwindMetadataProbe) {
+    $arguments += "-p:EnableM04X64UnwindMetadataProbe=true"
+    Write-Host "EFI_PROBE M04_X64_UNWIND_METADATA"
+}
 if ($EnableM04GcStaticRootMaterializationProbe) {
     $arguments += "-p:EnableM04GcStaticRootMaterializationProbe=true"
     Write-Host "EFI_PROBE M04_GC_STATIC_ROOT_MATERIALIZATION"
@@ -11413,6 +11456,7 @@ $methodImplAttributeSourcePath = Join-Path $repositoryRoot (
         -M03MemoryMapCaptureEnabled $EnableM03MemoryMapCaptureProbe.IsPresent `
         -M03FirmwareEntropySeedEnabled $EnableM03FirmwareEntropySeedProbe.IsPresent `
         -M04TypeManagerModuleRegistrationEnabled $EnableM04TypeManagerModuleRegistrationProbe.IsPresent `
+        -M04X64UnwindMetadataEnabled $EnableM04X64UnwindMetadataProbe.IsPresent `
         -M04GcStaticRootMaterializationEnabled $EnableM04GcStaticRootMaterializationProbe.IsPresent `
         -M04SeededCollectorChurnEnabled $EnableM04SeededCollectorChurnProbe.IsPresent `
         -M03TypedExitBootServicesCallEnabled $EnableM03TypedExitBootServicesCallProbe.IsPresent `
@@ -11678,6 +11722,7 @@ try {
         -M03MemoryMapCaptureEnabled $EnableM03MemoryMapCaptureProbe.IsPresent `
         -M03FirmwareEntropySeedEnabled $EnableM03FirmwareEntropySeedProbe.IsPresent `
         -M04TypeManagerModuleRegistrationEnabled $EnableM04TypeManagerModuleRegistrationProbe.IsPresent `
+        -M04X64UnwindMetadataEnabled $EnableM04X64UnwindMetadataProbe.IsPresent `
         -M04GcStaticRootMaterializationEnabled $EnableM04GcStaticRootMaterializationProbe.IsPresent `
         -M04SeededCollectorChurnEnabled $EnableM04SeededCollectorChurnProbe.IsPresent `
         -M03TypedExitBootServicesCallEnabled $EnableM03TypedExitBootServicesCallProbe.IsPresent `
@@ -11891,6 +11936,7 @@ if ($exitCode -eq 0) {
                 -M03MemoryMapCaptureEnabled $EnableM03MemoryMapCaptureProbe.IsPresent `
                 -M03FirmwareEntropySeedEnabled $EnableM03FirmwareEntropySeedProbe.IsPresent `
                 -M04TypeManagerModuleRegistrationEnabled $EnableM04TypeManagerModuleRegistrationProbe.IsPresent `
+                -M04X64UnwindMetadataEnabled $EnableM04X64UnwindMetadataProbe.IsPresent `
                 -M04GcStaticRootMaterializationEnabled $EnableM04GcStaticRootMaterializationProbe.IsPresent `
                 -M04SeededCollectorChurnEnabled $EnableM04SeededCollectorChurnProbe.IsPresent `
                 -M03TypedExitBootServicesCallEnabled $EnableM03TypedExitBootServicesCallProbe.IsPresent `
@@ -12358,6 +12404,7 @@ if ($exitCode -eq 0) {
     $verificationArguments += @("-EnableM03MemoryMapCaptureProbe", $EnableM03MemoryMapCaptureProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM03FirmwareEntropySeedProbe", $EnableM03FirmwareEntropySeedProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM04TypeManagerModuleRegistrationProbe", $EnableM04TypeManagerModuleRegistrationProbe.IsPresent.ToString().ToLowerInvariant())
+    $verificationArguments += @("-EnableM04X64UnwindMetadataProbe", $EnableM04X64UnwindMetadataProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM04GcStaticRootMaterializationProbe", $EnableM04GcStaticRootMaterializationProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM04SeededCollectorChurnProbe", $EnableM04SeededCollectorChurnProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM03TypedExitBootServicesCallProbe", $EnableM03TypedExitBootServicesCallProbe.IsPresent.ToString().ToLowerInvariant())

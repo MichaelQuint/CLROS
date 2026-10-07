@@ -106,7 +106,7 @@ internal static class DiagnosticsTests
                 nameof(Probes.EnableM01LiveAllocatorProbe)) ||
             !IsCompileTimeFalseProbe(
                 nameof(Probes.EnableM01OwnedPagingProbe)) ||
-            Probes.ProbeCatalogCount != 20 ||
+            Probes.ProbeCatalogCount != 21 ||
             !IsCompileTimeFalseProbe(nameof(Probes.EnableM03FirstRealExitBootServicesProbe)) ||
             !Probes.TryGetProbe(16, out ProbeDefinition firstExit) ||
             firstExit.Name != nameof(Probes.EnableM03FirstRealExitBootServicesProbe) ||
@@ -126,7 +126,12 @@ internal static class DiagnosticsTests
             !Probes.TryGetProbe(19, out ProbeDefinition dispatch) ||
             dispatch.Name != nameof(Probes.EnableM04InterfaceDispatchProbe) ||
             dispatch.EnabledByDefault || dispatch.Risk != ProbeRisk.Destructive ||
-            dispatch.Group != "runtime.dispatch")
+            dispatch.Group != "runtime.dispatch" ||
+            !IsCompileTimeFalseProbe(nameof(Probes.EnableM04X64UnwindMetadataProbe)) ||
+            !Probes.TryGetProbe(20, out ProbeDefinition unwind) ||
+            unwind.Name != nameof(Probes.EnableM04X64UnwindMetadataProbe) ||
+            unwind.EnabledByDefault || unwind.Risk != ProbeRisk.Destructive ||
+            unwind.Group != "runtime.unwind-metadata")
         {
             return false;
         }

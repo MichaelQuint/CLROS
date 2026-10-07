@@ -71,6 +71,7 @@ param(
     [switch] $EnableM03MemoryMapCaptureProbe,
     [switch] $EnableM03FirmwareEntropySeedProbe,
     [switch] $EnableM04TypeManagerModuleRegistrationProbe,
+    [switch] $EnableM04X64UnwindMetadataProbe,
     [switch] $EnableM04GcStaticRootMaterializationProbe,
     [switch] $EnableM04SeededCollectorChurnProbe,
     [switch] $EnableM03TypedExitBootServicesCallProbe,
@@ -919,6 +920,14 @@ $script:M04TypeManagerRequiredMarkers = @(
     "TEST_PASS boot.sequence",
     "OS_SMOKE_PASS"
 )
+
+# The ancestor prefix and ordinary boot suffix keep their exact order.
+$script:M04X64UnwindMetadataRequiredMarkers = @($script:M04TypeManagerRequiredMarkers[0..36]) + @('TEST_START m04.020')
+for ($stage=0; $stage -lt 19; $stage++) { $script:M04X64UnwindMetadataRequiredMarkers += ('CLROS_M04_020_DATA stage='+$stage) }
+$script:M04X64UnwindMetadataRequiredMarkers += @(
+    'CLROS_M04_020_READY methods=2 lookups=4 version=1 hostConformance=false guestIntegrated=true unwindExecution=false',
+    'TEST_PASS m04.020'
+) + @($script:M04TypeManagerRequiredMarkers[37..44])
 
 function Invoke-NativeCommand {
     param(
@@ -3106,8 +3115,102 @@ function Assert-M03TypedExitBootServicesRunnerResult {
 }
 
 
+function Assert-M04X64UnwindMetadataSelection {
+    param([string] $Text, [bool] $Enabled)
+    # Classification rejects disguised unselected output; admission never normalizes it.
+    $claim = [regex]::Replace($Text, '[\x00-\x20\x7f-\uffff]', '')
+    if (-not $Enabled -and [regex]::IsMatch($claim, '(?i)CLROS_M04_020_|m04\.020')) { throw 'm04_x64_unwind_unselected_record' }
+}
+
+function Assert-M04X64UnwindMetadataTranscript {
+    param([string[]] $Lines, [hashtable] $Image, [hashtable] $ModuleStorage, [hashtable] $Registration)
+    if ($Lines.Count -ne 22 -or $Lines[0] -cne 'TEST_START m04.020' -or
+        $Lines[20] -cne 'CLROS_M04_020_READY methods=2 lookups=4 version=1 hostConformance=false guestIntegrated=true unwindExecution=false' -or
+        $Lines[21] -cne 'TEST_PASS m04.020') { throw 'm04_x64_unwind_record_count' }
+    $rows = @()
+    for ($i=0; $i -lt 19; $i++) {
+        $row = Read-M03MemoryMapCaptureRecord $Lines[$i+1] ('CLROS_M04_020_DATA stage='+$i) @('a:dec','b:dec','c:dec','d:dec')
+        $rows += ,@($row.a,$row.b,$row.c,$row.d)
+    }
+    $original=$rows[0]; $directory=$rows[1]; $storage=$rows[2]; $stack=$rows[3]; $initial=$rows[4]
+    $finalStack=$rows[16]; $final=$rows[17]; $retained=$rows[18]
+    if ($original[0] -ne $Image.base -or $original[1] -ne $Image.bytes -or
+        $original[2] -ne $ModuleStorage.storage -or $original[3] -ne $Registration.handle -or
+        $retained[0] -ne $original[2] -or $retained[1] -ne $original[3] -or
+        $retained[2] -ne $Registration.slot -or $retained[3] -ne $original[3]) { throw 'm04_x64_unwind_original_module' }
+    function InUnwindImage([UInt64] $at, [UInt64] $length, [UInt64] $alignment) {
+        return $length -gt 0 -and $at % $alignment -eq 0 -and $at -ge $Image.base -and
+            [decimal]$at+$length -le [decimal]$Image.base+$Image.bytes
+    }
+    function UnwindRva([UInt64] $rva, [UInt64] $length, [UInt64] $alignment) {
+        return $rva -gt 0 -and $rva % $alignment -eq 0 -and $rva -lt $Image.bytes -and
+            [decimal]$rva+$length -le [decimal]$Image.bytes
+    }
+    if ($storage[1] -ne 65536 -or $storage[2] -ne 65504 -or $storage[3] -ne 288 -or
+        -not (InUnwindImage $storage[0] 65536 8) -or
+        $directory[2] -lt 1 -or $directory[2] -gt 2048 -or [decimal]$directory[2]*12 -ne $directory[1] -or
+        -not (UnwindRva $directory[0] $directory[1] 4) -or $directory[3] -gt 65504 -or
+        [decimal]$directory[3] -lt [decimal]$storage[3]+$directory[1]+[decimal]$directory[2]*4 -or
+        $final[0] -ne $directory[3] -or $final[1] -ne $directory[3] -or
+        $final[2] -ne $directory[2] -or $final[3] -ne 4) { throw 'm04_x64_unwind_storage_directory' }
+    if (-not (InUnwindImage $stack[0] 768 8) -or $stack[1] -eq 0 -or $stack[1] % 4096 -ne 0 -or
+        [decimal]$stack[1]+135168 -ne [decimal]$stack[2] -or [decimal]$stack[2]-40 -ne [decimal]$stack[3] -or
+        ([decimal]$stack[1] -lt [decimal]$Image.base+$Image.bytes -and [decimal]$Image.base -lt [decimal]$stack[2])) { throw 'm04_x64_unwind_original_stack' }
+    $owners=@(@($ModuleStorage.storage,4096),@($storage[0],65536),@($stack[0],768),@($Registration.slot,16))
+    for ($i=0; $i -lt $owners.Count; $i++) {
+        for ($j=0; $j -lt $i; $j++) {
+            if ([decimal]$owners[$i][0] -lt [decimal]$owners[$j][0]+$owners[$j][1] -and
+                [decimal]$owners[$j][0] -lt [decimal]$owners[$i][0]+$owners[$i][1]) { throw 'm04_x64_unwind_owner_alias' }
+        }
+    }
+    foreach ($witness in @($initial[0],$initial[1],$finalStack[1])) {
+        if ($witness % 8 -ne 0 -or [decimal]$witness -lt [decimal]$stack[1]+16400 -or
+            [decimal]$witness -gt [decimal]$stack[3]-8) { throw 'm04_x64_unwind_stack_witness' }
+    }
+    $word0=[Convert]::ToUInt64('3D947E21A6C850BF',16); $word1=[Convert]::ToUInt64('C2715AB809E634DF',16)
+    if ($initial[1] -gt $initial[0] -or $finalStack[1] -gt $initial[1] -or $finalStack[0] -ne 7 -or
+        $initial[2] -ne $word0 -or $initial[3] -ne $word1 -or
+        $finalStack[2] -ne $word0 -or $finalStack[3] -ne $word1) { throw 'm04_x64_unwind_stack_preservation' }
+    $seed=([UInt64]$Image.base -bxor [UInt64]$Registration.handle)
+    foreach ($first in @(5,10)) {
+        $method=$rows[$first]; $metadata=$rows[$first+1]; $frame=$rows[$first+2]; $flags=$rows[$first+3]; $call=$rows[$first+4]
+        if ($method[1] -ge $directory[2] -or $method[2] -ge $method[3] -or
+            -not (UnwindRva $method[2] ($method[3]-$method[2]) 1) -or
+            [decimal]$method[0] -lt [decimal]$Image.base+$method[2] -or
+            [decimal]$method[0] -ge [decimal]$Image.base+$method[3] -or
+            [decimal]$call[3] -ne [decimal]$Image.base+$method[3]-1) { throw 'm04_x64_unwind_method_range' }
+        if (-not (UnwindRva $metadata[0] 4 4) -or -not (UnwindRva $metadata[1] 4 4) -or
+            $metadata[2] -gt 255 -or $metadata[2] -gt $method[3]-$method[2] -or
+            $metadata[3] -lt 1 -or $metadata[3] -gt 255 -or
+            $frame[0] -notin @(0,3,5,6,7,12,13,14,15) -or $frame[1] -gt 15 -or
+            ($frame[0] -eq 0 -and $frame[1] -ne 0) -or
+            [decimal]$frame[1]*16 -gt $frame[2] -or $frame[2] % 8 -ne 0 -or
+            $frame[2] -gt $frame[3] -or $frame[3] -eq 0 -or $frame[3] -gt [UInt32]::MaxValue -or $frame[3] % 8 -ne 0 -or
+            $flags[0] -gt 4 -or $flags[1] -gt 3 -or $flags[2] -gt 31) { throw 'm04_x64_unwind_metadata_shape' }
+        if (($flags[2] -eq 0 -and ($metadata[0] -ne $metadata[1] -or $flags[0] -ne $flags[1])) -or
+            ($flags[2] -ne 0 -and ($metadata[0] -eq $metadata[1] -or $flags[0] -ne 4))) { throw 'm04_x64_unwind_chain_identity' }
+        $prefix=4+([UInt64]($metadata[3]+($metadata[3]%2))*2)
+        $extra=if ($flags[0] -eq 4) {12} elseif ($flags[0] -ne 0) {4} else {0}
+        $recordBytes=$prefix+$extra
+        if (-not (UnwindRva $metadata[0] $recordBytes 4) -or
+            ([decimal]$metadata[0] -lt [decimal]$directory[0]+$directory[1] -and
+             [decimal]$directory[0] -lt [decimal]$metadata[0]+$recordBytes)) { throw 'm04_x64_unwind_metadata_extent' }
+        if ($flags[1] -eq 0) {
+            if ($flags[3] -ne 0 -or $call[0] -ne 0) { throw 'm04_x64_unwind_handler_absent' }
+        } elseif (-not (UnwindRva $flags[3] 1 1) -or [decimal]$call[0] -lt [decimal]$metadata[1]+8 -or
+            $call[0] -gt $Image.bytes -or ($flags[2] -eq 0 -and [decimal]$call[0] -ne [decimal]$metadata[0]+$prefix+4)) { throw 'm04_x64_unwind_handler_range' }
+        $mask=if ($first -eq 5) {[UInt64]255} else {[UInt64]85}
+        if ($call[1] -ne $seed -or $call[2] -ne ($seed -bxor $mask)) { throw 'm04_x64_unwind_actual_call' }
+    }
+    if ($rows[5][0] -eq $rows[10][0] -or $rows[5][1] -eq $rows[10][1] -or
+        ($rows[5][2] -lt $rows[10][3] -and $rows[10][2] -lt $rows[5][3]) -or
+        $rows[15][0] -ne 15 -or $rows[15][1] -ne 15 -or $rows[15][2] -ne 1 -or $rows[15][3] -ne 2) { throw 'm04_x64_unwind_lookup_call_counts' }
+    # Rows establish internal relationships, not native execution or deepest-frame proof.
+    # Same-image map/PE/disassembly and raw guest association are separate acceptance evidence.
+}
+
 function Assert-M04TypeManagerTranscript {
-    param([string] $SerialLogPath)
+    param([string] $SerialLogPath, [switch] $IncludeX64UnwindMetadata)
     $path=if([IO.Path]::IsPathRooted($SerialLogPath)){$SerialLogPath}else{Join-Path $root $SerialLogPath}
     $bytes=[IO.File]::ReadAllBytes($path)
     if($bytes.Length -lt 304 -or $bytes.Length -gt 32768){throw 'm04_type_manager_raw_extent'}
@@ -3125,8 +3228,13 @@ function Assert-M04TypeManagerTranscript {
     $owned=$text.Substring($start,$end-$start)
     if([regex]::IsMatch($owned,'[^\x20-\x7E\r\n]')){throw 'm04_type_manager_non_ascii'}
     $lines=$owned.Split([string[]]@("`r`n"),[StringSplitOptions]::None)
-    $count=45
+    $count=if($IncludeX64UnwindMetadata){67}else{45}
     if($lines.Count -ne $count+1 -or $lines[$count].Length -ne 0){throw 'm04_type_manager_line_count'}
+    $unwindLines=@()
+    if($IncludeX64UnwindMetadata){
+        $unwindLines=@($lines[37..58])
+        $lines=@($lines[0..36])+@($lines[59..67])
+    }
     $fixed=@{
         0='TEST_START efi.main'
         1='EFI_CONSOLE_READY'
@@ -3199,12 +3307,15 @@ function Assert-M04TypeManagerTranscript {
            ($i -eq 3 -and $section.start -ne 0)){throw 'm04_type_manager_section_identity'}
         if($i -eq 2 -and ([decimal]$section.start -lt [decimal]$image.base -or [decimal]$section.start -gt [decimal]$image.base+[decimal]$image.bytes)){throw 'm04_type_manager_present_empty'}
     }
+    if($IncludeX64UnwindMetadata){
+        Assert-M04X64UnwindMetadataTranscript -Lines $unwindLines -Image $image -ModuleStorage $v -Registration $r
+    }
 }
 
 function Assert-M04TypeManagerRunnerResult {
     param([string[]] $Lines,[string] $SummaryLogPath,[string] $SerialLogPath,
         [string[]] $RequiredMarkers,[string[]] $OrderedMarkers,[string[]] $UniqueMarkers,[string[]] $ForbiddenMarkers,
-        [string] $ImagePath,[string] $Profile)
+        [string] $ImagePath,[string] $Profile,[switch] $IncludeX64UnwindMetadata)
     # Closed ordinary stdout binds the source-configured 750ms quiet drain. It
     # does not claim a separately measured duration or an archived runner DLL.
     if($Lines.Count -ne 17){throw 'm04_type_manager_runner_count'}
@@ -3222,12 +3333,13 @@ function Assert-M04TypeManagerRunnerResult {
     $exit=[Int32]0;$m=[regex]::Match($lines[12],'\AQEMU_PROCESS_RESULT disposition=runner-terminated exitCode=(0|-?[1-9][0-9]*)\z')
     if(-not $m.Success -or -not [Int32]::TryParse($m.Groups[1].Value,[Globalization.NumberStyles]::AllowLeadingSign,[Globalization.CultureInfo]::InvariantCulture,[ref]$exit)){throw 'm04_type_manager_runner_exit'}
     $serialPath=if([IO.Path]::IsPathRooted($SerialLogPath)){$SerialLogPath}else{Join-Path $root $SerialLogPath}
-    Assert-M04TypeManagerTranscript $serialPath
+    Assert-M04TypeManagerTranscript $serialPath -IncludeX64UnwindMetadata:$IncludeX64UnwindMetadata
     $raw=[IO.File]::ReadAllBytes($serialPath);$serial=(New-Object Text.UTF8Encoding($false,$true)).GetString($raw)
     # The exact accepted firmware byte fixture contributes two prefix lines,
     # first prefix line contains non-marker bytes. No firmware return suffix is admitted.
     $invalid=0;foreach($b in $raw){if($b -ne 9 -and $b -ne 10 -and $b -ne 13 -and ($b -lt 32 -or $b -gt 126)){$invalid++}}
-    $stream='SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+$raw.Length+' lines=47 invalidBytes='+$invalid+' invalidLines=1 orderedSeen=45 outOfOrder=0 uniqueSeen=45 duplicateUnique=0'
+    $records=if($IncludeX64UnwindMetadata){67}else{45}
+    $stream='SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+$raw.Length+' lines='+($records+2)+' invalidBytes='+$invalid+' invalidLines=1 orderedSeen='+$records+' outOfOrder=0 uniqueSeen='+$records+' duplicateUnique=0'
     if(-not [string]::Equals($lines[10],$stream,[StringComparison]::Ordinal)){throw 'm04_type_manager_stream_accounting'}
     $summaryPath=if([IO.Path]::IsPathRooted($SummaryLogPath)){$SummaryLogPath}else{Join-Path $root $SummaryLogPath}
     $summary=New-Object 'System.Collections.Generic.List[string]';$summary.Add('QEMU_SMOKE_STATUS pass')
@@ -6853,6 +6965,7 @@ try {
     if ($EnableM03OwnedSubsystemPanicProbe -and -not $EnableM03OwnedSubsystemSurvivalProbe) { Write-Host "TEST_FAIL qemu.smoke m03_owned_panic_requires_survival"; exit 1 }
     if ($EnableM03OwnedSubsystemSurvivalProbe -and $EnableM03FirmwareAdapterRevocationProbe) { Write-Host "TEST_FAIL qemu.smoke m03_owned_revocation_conflict"; exit 1 }
 if ($EnableM04InterfaceDispatchProbe -and -not $EnableM04ClassConstructorExecutionProbe) { Write-Host "TEST_FAIL qemu.smoke m04_dispatch_requires_cctor_profile"; exit 1 }
+if ($EnableM04X64UnwindMetadataProbe -and -not $EnableM04TypeManagerModuleRegistrationProbe) { Write-Host "TEST_FAIL qemu.smoke m04_x64_unwind_metadata_requires_original_module"; exit 1 }
 if ($EnableM04ClassConstructorExecutionProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Host "TEST_FAIL qemu.smoke m04_cctor_requires_gc_profile"; exit 1 }
 if ($EnableM04ClassConstructorExecutionProbe -and $EnableM04SeededCollectorChurnProbe) { Write-Host "TEST_FAIL qemu.smoke m04_cctor_churn_conflict"; exit 1 }
 if ($EnableM04SeededCollectorChurnProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Host "TEST_FAIL qemu.smoke m04_churn_requires_gc_profile"; exit 1 }
@@ -7622,7 +7735,8 @@ $rhpReason = $arrayReason
         @([bool]$EnableM03OwnedSubsystemPanicProbe, '^M03_OWNED [78](?: |$)', 'm03_owned_panic'),
         @([bool]$EnableM03FirmwareAdapterRevocationProbe, '^(M03_ADAPTER_|CLROS_M03_008_READY|TEST_(START|PASS) m03\.008)', 'm03_revocation'),
         @([bool]$EnableM04ClassConstructorExecutionProbe, '^(M04_CCTOR|CLROS_M04_024_READY|TEST_(START|PASS) m04\.024)', 'm04_cctor'),
-        @([bool]$EnableM04InterfaceDispatchProbe, '^(M04_DISPATCH|CLROS_M04_016_READY|TEST_(START|PASS) m04\.016)', 'm04_dispatch')
+        @([bool]$EnableM04InterfaceDispatchProbe, '^(M04_DISPATCH|CLROS_M04_016_READY|TEST_(START|PASS) m04\.016)', 'm04_dispatch'),
+        @([bool]$EnableM04X64UnwindMetadataProbe, '^(CLROS_M04_020_|TEST_(START|PASS) m04\.020)', 'm04_x64_unwind')
     )) {
         if (-not $profile[0]) {
             foreach ($marker in @($requiredMarkers; $orderedMarkers; $uniqueMarkers)) {
@@ -7716,6 +7830,12 @@ $rhpReason = $arrayReason
         $orderedMarkers = @($script:M04GcStaticRootRequiredMarkers)
         $uniqueMarkers = @($script:M04GcStaticRootRequiredMarkers)
         $forbiddenMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($forbiddenMarkers; $script:M04ManagedHeapPageRangeForbiddenMarkers; 'M04_GC_ROOT 2 '; 'M04_GC_ROOT 255 '; 'TEST_FAIL'; 'OS_SMOKE_FAIL'))
+    }
+    elseif ($EnableM04X64UnwindMetadataProbe) {
+        $requiredMarkers = @($script:M04X64UnwindMetadataRequiredMarkers)
+        $orderedMarkers = @($script:M04X64UnwindMetadataRequiredMarkers)
+        $uniqueMarkers = @($script:M04X64UnwindMetadataRequiredMarkers)
+        $forbiddenMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($forbiddenMarkers; 'TEST_FAIL'; 'OS_SMOKE_FAIL'))
     }
     elseif ($EnableM04TypeManagerModuleRegistrationProbe) {
         $requiredMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($requiredMarkers; $script:M04TypeManagerRequiredMarkers))
@@ -9596,6 +9716,7 @@ $rhpReason = $arrayReason
         }
         if ($EnableM03FirmwareEntropySeedProbe) { $buildArguments += "-EnableM03FirmwareEntropySeedProbe" }
         if ($EnableM04TypeManagerModuleRegistrationProbe) { $buildArguments += "-EnableM04TypeManagerModuleRegistrationProbe" }
+        if ($EnableM04X64UnwindMetadataProbe) { $buildArguments += "-EnableM04X64UnwindMetadataProbe" }
         if ($EnableM04GcStaticRootMaterializationProbe) { $buildArguments += "-EnableM04GcStaticRootMaterializationProbe" }
         if ($EnableM04SeededCollectorChurnProbe) { $buildArguments += "-EnableM04SeededCollectorChurnProbe" }
         if ($EnableM03TypedExitBootServicesCallProbe) { $buildArguments += "-EnableM03TypedExitBootServicesCallProbe" }
@@ -9697,7 +9818,7 @@ $rhpReason = $arrayReason
     if ($EnableM03OwnedSubsystemPanicProbe) { $arguments += "--expect-owned-subsystem-panic" }
     if ($EnableM03FirmwareEntropySeedProbe) { $arguments += @("--firmware-rng-source", $FirmwareRngSource) }
 
-    if ($EnableM02OwnedGdtTssTerminalProbe -or $EnableM03FirstRealExitBootServicesProbe) {
+    if ($EnableM02OwnedGdtTssTerminalProbe -or $EnableM03FirstRealExitBootServicesProbe -or $EnableM04X64UnwindMetadataProbe) {
         $arguments += "--replace-default-required-markers"
     }
 
@@ -9898,9 +10019,13 @@ $rhpReason = $arrayReason
     }
     if ($EnableM04TypeManagerModuleRegistrationProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
         try {
-            Assert-M04TypeManagerRunnerResult -Lines $heapRunnerLines -SummaryLogPath $SummaryLog -SerialLogPath $SerialLog -RequiredMarkers $requiredMarkers -OrderedMarkers $orderedMarkers -UniqueMarkers $uniqueMarkers -ForbiddenMarkers $forbiddenMarkers -ImagePath $Image -Profile $WorkloadProfile
+            Assert-M04TypeManagerRunnerResult -Lines $heapRunnerLines -SummaryLogPath $SummaryLog -SerialLogPath $SerialLog -RequiredMarkers $requiredMarkers -OrderedMarkers $orderedMarkers -UniqueMarkers $uniqueMarkers -ForbiddenMarkers $forbiddenMarkers -ImagePath $Image -Profile $WorkloadProfile -IncludeX64UnwindMetadata:$EnableM04X64UnwindMetadataProbe
         } catch { Write-Host ('TEST_FAIL qemu.smoke '+$_.Exception.Message); exit 1 }
-        Write-Host 'QEMU_SCRIPT_M04_TYPE_MANAGER_TRANSCRIPT exactWholeLines=true lines=45 abiBytes=48 slotBytes=16 storage=4096 tailCanariesAfterRegistration=true'
+        if ($EnableM04X64UnwindMetadataProbe) {
+            Write-Host 'QEMU_SCRIPT_M04_X64_UNWIND_TRANSCRIPT exactWholeLines=true lines=67 unwindRecords=22 stages=19 methods=2 successfulLookups=4 totalLookups=6 stackChecks=7 unwindExecution=false'
+        } else {
+            Write-Host 'QEMU_SCRIPT_M04_TYPE_MANAGER_TRANSCRIPT exactWholeLines=true lines=45 abiBytes=48 slotBytes=16 storage=4096 tailCanariesAfterRegistration=true'
+        }
     }
     if ($EnableM03TypedExitBootServicesCallProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
         try {
@@ -10034,6 +10159,8 @@ $rhpReason = $arrayReason
         $rawProfileText = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($serialPath))
         try { Assert-M04InterfaceDispatchSelection -Text $rawProfileText -Enabled ([bool]$EnableM04InterfaceDispatchProbe) }
         catch { Write-Host 'TEST_FAIL qemu.smoke.m04.016 unexpected_profile_record'; exit 1 }
+        try { Assert-M04X64UnwindMetadataSelection -Text $rawProfileText -Enabled ([bool]$EnableM04X64UnwindMetadataProbe) }
+        catch { Write-Host 'TEST_FAIL qemu.smoke.m04.020 unexpected_profile_record'; exit 1 }
         if ((-not $EnableM03OwnedSubsystemSurvivalProbe -and [regex]::IsMatch($rawProfileText, '(?i)M03_OWNED|CLROS_M03_010_READY|m03\.010')) -or
             (-not $EnableM03OwnedSubsystemPanicProbe -and [regex]::IsMatch($rawProfileText, '(?m)^M03_OWNED [78](?: |$)')) -or
             (-not $EnableM03FirmwareAdapterRevocationProbe -and [regex]::IsMatch($rawProfileText, '(?i)M03_ADAPTER_|CLROS_M03_008_READY|m03\.008')) -or

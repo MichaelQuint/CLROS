@@ -37,6 +37,7 @@ param(
     [switch]$EnableM03MemoryMapCaptureProbe,
     [switch]$EnableM03FirmwareEntropySeedProbe,
     [switch]$EnableM04TypeManagerModuleRegistrationProbe,
+    [switch]$EnableM04X64UnwindMetadataProbe,
     [switch]$EnableM04GcStaticRootMaterializationProbe,
     [switch]$EnableM04SeededCollectorChurnProbe,
     [switch]$EnableM03TypedExitBootServicesCallProbe,
@@ -77,7 +78,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 130
+$expectedSourceClosureInputCount = 132
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -235,7 +236,9 @@ $expectedEfiCompileItems = @(
     'Runtime\ClassConstructorRunner.cs|',
     'Runtime\CompilerClassConstructorExecutionProbe.cs|',
     '..\OS.Kernel\Runtime\CompilerInterfaceDispatch.cs|Runtime\CompilerInterfaceDispatch.cs',
-    'Runtime\InterfaceDispatchProbe.cs|'
+    'Runtime\InterfaceDispatchProbe.cs|',
+    '..\OS.Kernel\Runtime\X64PERuntimeFunctionUnwindMetadataHostileInput.cs|Runtime\X64PERuntimeFunctionUnwindMetadataHostileInput.cs',
+    'Runtime\X64UnwindMetadataProbe.cs|'
 )
 $expectedPackageBuildClosure = @(
     [pscustomobject]@{
@@ -3917,6 +3920,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM03MemoryMapCaptureProbe," +
             "EnableM03FirmwareEntropySeedProbe," +
             "EnableM04TypeManagerModuleRegistrationProbe," +
+            "EnableM04X64UnwindMetadataProbe," +
             "EnableM04GcStaticRootMaterializationProbe," +
             "EnableM04SeededCollectorChurnProbe," +
             "EnableM03TypedExitBootServicesCallProbe," +
@@ -4086,6 +4090,9 @@ function Invoke-PostRestoreEvaluationSnapshot {
     }
     if ($EnableM04TypeManagerModuleRegistrationProbe) {
         $arguments += "-p:EnableM04TypeManagerModuleRegistrationProbe=true"
+    }
+    if ($EnableM04X64UnwindMetadataProbe) {
+        $arguments += "-p:EnableM04X64UnwindMetadataProbe=true"
     }
     if ($EnableM04GcStaticRootMaterializationProbe) {
         $arguments += "-p:EnableM04GcStaticRootMaterializationProbe=true"
@@ -4368,6 +4375,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM03FirmwareEntropySeedProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04TypeManagerModuleRegistrationProbe =
             $EnableM04TypeManagerModuleRegistrationProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM04X64UnwindMetadataProbe =
+            $EnableM04X64UnwindMetadataProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04GcStaticRootMaterializationProbe =
             $EnableM04GcStaticRootMaterializationProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04SeededCollectorChurnProbe =
@@ -4459,7 +4468,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 115 -or
+    if ($compileItems.Count -ne 117 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4596,6 +4605,7 @@ if ($EnableM03OwnedSubsystemSurvivalProbe -and $EnableM03FirmwareAdapterRevocati
 if ($EnableM04ClassConstructorExecutionProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Failure 'm04_cctor_requires_gc_profile'; exit 1 }
 if ($EnableM04ClassConstructorExecutionProbe -and $EnableM04SeededCollectorChurnProbe) { Write-Failure 'm04_cctor_churn_conflict'; exit 1 }
 if ($EnableM04InterfaceDispatchProbe -and -not $EnableM04ClassConstructorExecutionProbe) { Write-Failure 'm04_dispatch_requires_cctor_profile'; exit 1 }
+if ($EnableM04X64UnwindMetadataProbe -and -not $EnableM04TypeManagerModuleRegistrationProbe) { Write-Output "TEST_FAIL efi.artifact m04_x64_unwind_metadata_requires_original_module"; exit 1 }
 if ($EnableM04SeededCollectorChurnProbe -and -not $EnableM04GcStaticRootMaterializationProbe) {
     Write-Output "TEST_FAIL efi.artifact m04_churn_requires_gc_profile"; exit 1
 }
@@ -7961,6 +7971,51 @@ if ($selectedUnwindStructureSize -ne $expectedUnwindInfoBytes.Length) {
 if (-not (Test-ByteSequenceEqual $actualUnwindInfoBytes $expectedUnwindInfoBytes)) {
     Write-Failure "serializer_unwind_bytes_mismatch"
 }
+# These two managed function addresses originate in the reviewed probe's ldftn
+# expressions. Bind their emitted symbols to the same locked map and PE; actual
+# calls, full core decoding and reachable stack depth still require guest/native review.
+$unwindSampleNames=@('OS_OS_Runtime_X64UnwindMetadataProbe__SampleA','OS_OS_Runtime_X64UnwindMetadataProbe__SampleB')
+$unwindSampleRvas=@()
+$unwindSampleRows=@()
+foreach ($name in $unwindSampleNames) {
+    $sampleMatches=[regex]::Matches($linkerMapText, '(?m)^\s*([0-9A-Fa-f]{4}):([0-9A-Fa-f]{8})\s+'+[regex]::Escape($name)+'\s+([0-9A-Fa-f]{16})\s+(.+?)\s*$')
+    if (-not $EnableM04X64UnwindMetadataProbe) {
+        if ($sampleMatches.Count -ne 0) { Write-Failure 'x64_unwind_unrequested_sample' $name }
+        continue
+    }
+    if ($sampleMatches.Count -ne 1 -or $sampleMatches[0].Groups[4].Value -notmatch '(?i)(?:^|[\s\\/()])OS\.obj(?=$|[\s()])') {
+        Write-Failure 'x64_unwind_sample_map_identity' $name
+    }
+    $sampleAddress=Convert-HexUInt64 $sampleMatches[0].Groups[3].Value 'x64_unwind_sample_address'
+    if ($sampleAddress -le $imageBase -or [decimal]$sampleAddress-$imageBase -ge $sizeOfImage) { Write-Failure 'x64_unwind_sample_image_range' $name }
+    $sampleRva=[UInt64]($sampleAddress-$imageBase)
+    if ($unwindSampleRvas -contains $sampleRva) { Write-Failure 'x64_unwind_sample_alias' }
+    $unwindSampleRvas+=$sampleRva
+    $sampleRows=@()
+    for ($index=0; $index -lt $runtimeFunctionCount; $index++) {
+        $offset=[int]([UInt64]$exceptionBacking.FileOffset+[UInt64]$index*12)
+        $begin=[BitConverter]::ToUInt32($bytes,$offset); $end=[BitConverter]::ToUInt32($bytes,$offset+4)
+        if ($sampleRva -ge $begin -and $sampleRva -lt $end) {
+            $sampleRows+=,@($index,$begin,$end,[BitConverter]::ToUInt32($bytes,$offset+8))
+        }
+    }
+    if ($sampleRows.Count -ne 1) { Write-Failure 'x64_unwind_sample_runtime_row' $name }
+    $row=$sampleRows[0]
+    if ($unwindSampleRows -contains $row[0]) { Write-Failure 'x64_unwind_sample_runtime_row_alias' }
+    $unwindSampleRows+=$row[0]
+    $codeBacking=Resolve-FileBackedRvaRange $sections $row[1] ($row[2]-$row[1]) $bytes.LongLength 'x64_unwind_sample_code_backing' 'x64_unwind_sample_code_ambiguous'
+    Assert-CodeSectionCharacteristics $codeBacking.Section 'x64_unwind_sample_code_permissions'
+    if (-not $validatedUnwindFileOffsets.ContainsKey([UInt32]$row[3])) { Write-Failure 'x64_unwind_sample_metadata_unvalidated' }
+    $offset=[int]$validatedUnwindFileOffsets[[UInt32]$row[3]]
+    $version=$bytes[$offset] -band 7; $flags=$bytes[$offset] -shr 3
+    $prolog=$bytes[$offset+1]; $slots=$bytes[$offset+2]; $frame=$bytes[$offset+3]
+    if ($version -ne 1 -or $slots -eq 0 -or $prolog -gt $row[2]-$row[1]) { Write-Failure 'x64_unwind_sample_metadata_header' $name }
+    Write-Output ('EFI_ARTIFACT_X64_UNWIND_METHOD symbol='+$name+' rva='+$sampleRva+' functionIndex='+$row[0]+' beginRva='+$row[1]+' endRva='+$row[2]+' unwindRva='+$row[3]+' version='+$version+' flags='+$flags+' prolog='+$prolog+' codeSlots='+$slots+' frameRegister='+($frame -band 15)+' frameOffset='+($frame -shr 4))
+}
+if ($EnableM04X64UnwindMetadataProbe) {
+    Write-Output 'EFI_ARTIFACT_X64_UNWIND_METADATA methods=2 association=same-build-linker-map executionAccepted=false stackBoundAccepted=false unwindExecution=false'
+}
+
 $runtimeValidationStopwatch.Stop()
 
 # Churn selection must match the actual linked adapter, in both directions.

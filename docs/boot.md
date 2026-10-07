@@ -2,6 +2,14 @@
 
 ## Current Status
 
+The M04-020 metadata diagnostic is being integrated under #574 as a default-off
+child of original TypeManager registration. It retains that registration's
+image, storage and handle, uses the original M01 owned stack, and routes lookups
+through `BootSequence.RunX64UnwindMetadata`. Development publication and the
+ordinary QEMU wrapper pass the complete 67-record profile; see
+[step1057](../done/step1057.md). Frozen-commit acceptance remains pending. It
+neither walks a stack nor executes handlers and does not cross ExitBootServices.
+
 M03-009 extends the owned post-exit writer with five records ending in
 `TEST_PASS m03.009`. Its host checks cover partial writes, the final CRLF,
 canary failures and consumed reentry. Integration #572 now has accepted current
