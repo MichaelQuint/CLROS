@@ -1815,18 +1815,23 @@ runtime registry, GC/static initialization, collection, hosted .NET/Kestrel,
 real ExitBootServices or cloud-readiness acceptance. Tail canaries are internal
 post-registration checks; no external RAM or numeric guest stack proof follows.
 
-### M04-020 metadata consumption remains pending
+### M04-020 bounded metadata consumption accepted
 
 [Step1055](../done/step1055.md) records nine focused groups for the bounded x64
 PE runtime-function/unwind parser and retained-owner snapshot. Integration #574
 adds an original-module child with two actual sampled method pointers, four
 successful lookup observations and two misses. [Step1057](../done/step1057.md)
 records development native publication and a complete ordinary 67-record QEMU
-profile. Final native/stack review, original common acceptance and frozen guest
-evidence are still pending. #89 and #574 remain open. [Step1060](../done/step1060.md)
+profile. [Step1060](../done/step1060.md)
 adds indexed access through the same retained-owner/snapshot validator, with all
 nine original host groups passing. This supports a later nearest-root EH check;
-the changed decoder requires fresh native evidence at final integration.
+the changed decoder is included in the accepted `4625fd7` source in
+[step1071](../done/step1071.md). The original full gate passes 3,864 starts and
+3,865 passes with zero failures. Three fresh default/TypeManager/unwind captures
+pass 21/45/67 complete records, current native/ABI/stack review, complete raw
+framing/lifecycle review and actual postboot FAT payload comparison. This
+completes the bounded #89/#574 metadata prerequisite; numbered gates retain
+their broader requirements and status.
 This work does not establish stack unwinding, exception-object construction,
 language handlers, catch/finally, GC stack scanning or general runtime support.
 No completion gate is promoted by compilation or a host metadata fixture.

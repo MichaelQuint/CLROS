@@ -19,8 +19,11 @@ canonical decimal `CLROS_M04_020_DATA` rows, ready, pass. Those rows describe th
 original owner, measured metadata snapshot, actual sampled method PCs and
 function/unwind ranges, plus stack/storage preservation. Four successful range
 lookups and two expected misses remain distinct from unwinding execution.
-Development native publication and the complete 67-record guest profile pass
-in [step1057](../done/step1057.md); final acceptance remains pending #574.
+The complete 67-record guest profile, unchanged 45-record TypeManager profile
+and 21-record default profile pass at `4625fd7` in
+[step1071](../done/step1071.md), with original full host and independent native,
+stack, raw transcript, disk and lifecycle acceptance. Step1057 retains the
+earlier development evidence.
 
 The preceding accepted revocation profile extended
 the first-exit transcript to 73 application records: an admitted pre-entry
