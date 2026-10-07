@@ -775,3 +775,7 @@ permission changes, relocation, or native-tier or hosted .NET app launch.
 8. Add probe toggles for destructive fault tests.
 9. Promote future placeholder phases from documented ledger entries to emitted phases only when the required subsystem evidence exists.
 10. Prevent any subsystem from bypassing `BootSequence`.
+
+## Bounded throw/catch diagnostic order
+
+The disabled `EnableM04SimpleThrowCatchProbe` child follows the original collector graph. It allocates and explicitly roots the actual fixture exception, completes the prethrow collection, executes Thrower inside Catcher's typed clause, and retains the same receipt through the compiled continuation. Selection and continuation callbacks permit no allocation or collection. It is exclusive with churn, constructor, interface-dispatch and standalone unwind-metadata profiles. The `BootSequence`-guarded child adds no ordinary phase; [step1066](../done/step1066.md) records development evidence only.

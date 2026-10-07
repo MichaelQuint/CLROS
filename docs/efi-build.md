@@ -2881,3 +2881,9 @@ At the accepted `42a516e` revision, the runner's informational GC summary said
 70-record raw capture and `CLROS_M04_013_READY` establish the scoped acceptance.
 The first-exit/churn integration in [step1042](../done/step1042.md) corrects that summary. No general
 runtime, hosted .NET or real firmware-exit claim follows from this profile.
+
+## Bounded throw/catch development profile
+
+Issue #582 adds `EnableM04SimpleThrowCatchProbe`, false by default, beneath the existing GC-static profile and its complete ancestry. The source closure is 120 explicit Compile entries, 136 raw publication inputs, 49 public flags with 46 literal false defaults, and six C# generator files/eight declared generator inputs. The generator adds a 1,350-byte C#-authored COFF object; the existing objects retain their identities. The publisher and verifier bind the real throw helper, selection/continuation callbacks and exact EH contribution. Structural publication alone does not establish stack transfer.
+
+The successful development publication and its independent native review are preserved in [step1066](../done/step1066.md). Its single guest used the ordinary ImageBuilder/QemuRunner commands with the original wrapper's strict validators, because the wrapper requires `-BuildEfi` and this development capture intentionally reused the already reviewed image. Final acceptance must use fresh ordinary wrapper captures after prerequisite and common-gate acceptance.

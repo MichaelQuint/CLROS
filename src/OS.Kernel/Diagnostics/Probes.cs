@@ -38,8 +38,14 @@ public static partial class Probes
     public const bool EnableM04X64UnwindMetadataProbe = false;
 #endif
 
+#if M04_SIMPLE_THROW_CATCH_PROBE
+    public const bool EnableM04SimpleThrowCatchProbe = true;
+#else
+    public const bool EnableM04SimpleThrowCatchProbe = false;
+#endif
+
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 21;
+    public const int ProbeCatalogCount = 22;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -203,6 +209,11 @@ public static partial class Probes
         new("runtime.dispatch", nameof(EnableM04InterfaceDispatchProbe),
             EnableM04InterfaceDispatchProbe, ProbeRisk.Destructive,
             "Resolves compiler instance-interface cells with retained module, receiver and target authority.");
+
+    public static ProbeDefinition GetM04SimpleThrowCatchProbe() =>
+        new("runtime.exception", nameof(EnableM04SimpleThrowCatchProbe),
+            EnableM04SimpleThrowCatchProbe, ProbeRisk.Destructive,
+            "Opts into one original-image typed throw/catch on the collecting runtime owned stack.");
 
     public static ProbeDefinition GetM04X64UnwindMetadataProbe() =>
         new("runtime.unwind-metadata", nameof(EnableM04X64UnwindMetadataProbe),
@@ -373,6 +384,9 @@ public static partial class Probes
                 return true;
             case 19:
                 definition = GetM04InterfaceDispatchProbe();
+                return true;
+            case 21:
+                definition = GetM04SimpleThrowCatchProbe();
                 return true;
             case 20:
                 definition = GetM04X64UnwindMetadataProbe();

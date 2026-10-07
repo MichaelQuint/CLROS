@@ -52,15 +52,16 @@ internal static class M04GCStaticRootMaterializationEfiIntegrationTests
             Need(conditions.Count(x => x == "'$(" + Flag + ")' == 'true' and '$(" + prerequisite + ")' != 'true'") == 1, "explicit prerequisite " + prerequisite);
         string[] flags = Regex.Matches(project.ToString(), @"\$\((Enable\w+Probe)\)")
             .Select(x => x.Groups[1].Value).Distinct(StringComparer.Ordinal).ToArray();
-        Need(flags.Length == 48, "complete actual profile vector");
+        Need(flags.Length == 49, "complete actual profile vector");
         Need(conditions.Contains("'$(EnableM04SeededCollectorChurnProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'"),"churn inherits GC prerequisites and conflicts");
         Need(conditions.Count(x => x == "'$(EnableM04ClassConstructorExecutionProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'") == 1, "constructors inherit GC prerequisites and conflicts");
         Need(conditions.Count(x => x == "'$(EnableM04InterfaceDispatchProbe)' == 'true' and '$(EnableM04ClassConstructorExecutionProbe)' != 'true'") == 1, "dispatch inherits constructor and GC prerequisites and conflicts");
         Need(conditions.Count(x => x == "'$(EnableM04ClassConstructorExecutionProbe)' == 'true' and '$(EnableM04SeededCollectorChurnProbe)' == 'true'") == 1, "constructor and churn children are exclusive");
         Need(conditions.Count(x => x == "'$(EnableM03FirmwareAdapterRevocationProbe)' == 'true' and '$(EnableM03FirstRealExitBootServicesProbe)' != 'true'") == 1, "revocation inherits first-exit prerequisites and conflicts");
         Need(conditions.Count(x => x == "'$(EnableM04X64UnwindMetadataProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' != 'true'") == 1, "unwind inherits original TypeManager prerequisites and conflicts");
+        Need(project.Descendants("Error").Count(x => x.Attribute("Condition")?.Value == "'$(EnableM04SimpleThrowCatchProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'") == 1, "simple catch inherits exact GC prerequisites and conflicts");
         Need(conditions.Count(x => x == "'$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true' and '$(" + Flag + ")' == 'true'") == 1, "incoming original TypeManager conflict");
-        foreach (string other in flags.Except(Chain.Append(Flag).Append("EnableM04SeededCollectorChurnProbe").Append("EnableM04ClassConstructorExecutionProbe").Append("EnableM04InterfaceDispatchProbe"), StringComparer.Ordinal))
+        foreach (string other in flags.Except(Chain.Append(Flag).Append("EnableM04SeededCollectorChurnProbe").Append("EnableM04ClassConstructorExecutionProbe").Append("EnableM04InterfaceDispatchProbe").Append("EnableM04SimpleThrowCatchProbe"), StringComparer.Ordinal))
         {
             string profile = other == "EnableM03FirmwareAdapterRevocationProbe" ? "EnableM03FirstRealExitBootServicesProbe"
                 : other == "EnableM04X64UnwindMetadataProbe" ? "EnableM04TypeManagerModuleRegistrationProbe" : other;
@@ -69,7 +70,7 @@ internal static class M04GCStaticRootMaterializationEfiIntegrationTests
                 : "'$(" + Flag + ")' == 'true' and '$(" + profile + ")' == 'true'")) == 1, "conflict " + other);
         }
         string[] compile = project.Descendants("Compile").Select(x => (string)x.Attribute("Include")!).ToArray();
-        Need(compile.Length == 116 && compile.Distinct(StringComparer.Ordinal).Count() == 116, "unique complete closure");
+        Need(compile.Length == 120 && compile.Distinct(StringComparer.Ordinal).Count() == 120, "unique complete closure");
         foreach (string file in new[] { @"..\OS.Kernel\Runtime\GCStaticRootsMalformedMetadata.cs", @"Runtime\GCStaticRootMaterializationProbe.cs", @"..\OS.Kernel\Runtime\BoundedNonMovingCollectorExplicitRootEnumeration.cs", @"..\OS.Kernel\Diagnostics\GCStaticRootMaterializationProbeAuthority.cs" })
             Need(compile.Contains(file, StringComparer.Ordinal), "compiled source " + file);
     }

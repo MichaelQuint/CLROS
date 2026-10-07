@@ -4447,3 +4447,7 @@ invalidation remains required after a future real successful exit.
      `CpuFaultEntryFrameLayout`, and `CpuFaultPanicReadiness` contracts now
      define the expected register dump field order and caller-owned
      frame-to-panic-output readiness boundary before real handlers are added.
+
+## Bounded throw/catch development
+
+The optional #582 profile executes inside the original pre-exit collecting-GC diagnostic. It reuses the registered module, original allocation receipts, retained static storage and owned M01 stack. `BootSequence` guards the child and the one-frame interpreter entry; it introduces no normal boot phase or ExitBootServices behavior. The first finite development guest reaches the real typed catch and compiled continuation ([step1066](../done/step1066.md)); final integration acceptance remains pending.

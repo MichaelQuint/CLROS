@@ -1739,3 +1739,7 @@ stage.
 11. Keep M02-003 binding readiness, M02-004 configuration, M02-005 bounded
    payload output, M02-006 panic-safe routing, and future post-EBS claims
    distinct.
+
+## Bounded throw/catch diagnostic
+
+The #582 integration appends the default-off simple-catch probe at catalogue index 21. Its complete collecting-GC transcript contains 81 application records and 70 required/ordered/unique anchors. Eight numeric child stages bind original module/stack/receipt authority, the captured and selected caller contexts, typed handler, actual catch entry and actual returned continuation. `CLROS_M04_SIMPLE_CATCH_READY` and `TEST_PASS m04.021.simple-catch` require the compiled catch and continuation observations. Failures remain `TEST_FAIL m04.021.simple-catch <reason>`. One development guest passes; final common/profile acceptance and the targeted malformed-context criterion remain pending ([step1066](../done/step1066.md)).
