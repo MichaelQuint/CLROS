@@ -21,10 +21,12 @@ the current worktree is `C:\Projects\CLROS`, and the current Gitea repository is
 `admin/CLROS`. The local `references/` directory contains reference snapshots
 but they are not build inputs.
 
-All 29 supplied reference snapshots are inventoried and classified in
-`docs/reference-map.md`; detailed SharpOS adaptation decisions live in
-`docs/fork-diff.md`, and provenance/license/reuse limits live in
-`docs/license-audit.md`. SharpOS's DOOM and PowerShell done files and media are
+The 29 supplied snapshots plus ten pinned GitHub snapshots added on 2026-10-06
+are inventoried in `docs/reference-map.md`. SharpOS, RedPandaOS and the new
+kernel/foundation comparisons live in `docs/fork-diff.md`; immutable commits,
+archive hashes and license/reuse limits live in `docs/license-audit.md`. The
+2026-10-06 research adds issue guidance and two optional deferred scopes, not
+first-party implementation or changed completion gates; see `done/step1049.md`. SharpOS's DOOM and PowerShell done files and media are
 historical engineering evidence only. They are not independently reproduced
 CLROS evidence.
 

@@ -13,253 +13,128 @@
   Minimal API and Kestrel support is a mandatory milestone, not a demo claim.
 </p>
 
-> Current status: early boot/runtime boundary prototype with strong host-tested
-> contracts and QEMU/OVMF smoke evidence for the firmware-visible marker path.
-> It is not a functional kernel, not cloud-ready, and not production-ready.
+> Current status: an experimental C# NativeAOT boot/runtime prototype with
+> accepted QEMU/OVMF evidence for real firmware exit, owned serial diagnostics,
+> and bounded allocation, collection, constructors, and interface dispatch.
+> It does not yet run a standalone .NET application or Kestrel. It is not a
+> functional general-purpose kernel, not cloud-ready, and not production-ready.
 
 ## Progress
 
-Progress is gate-based; the repository does not publish a subjective completion
-percentage. The full goal is a production-ready CloudReady C# NativeAOT
-operating system that can run on Azure Virtual Machines and AWS EC2/Nitro
-instances with first-class hosted .NET 10 Minimal API app support.
+**Status snapshot: October 7, 2026, 12:58 a.m. EDT.** Accepted work is recorded
+through upstream `master` commit `7489823`; development work is listed separately
+below. Evidence links pin the accepted revisions so historical checkouts can
+still locate the corresponding records.
 
-`docs/completion-gates.md` remains the source of truth for claims. As of this
-snapshot, only Gate 2 passes, and that pass is limited to the documented
-QEMU/OVMF firmware-visible boot-smoke marker path. The project has several
-partial gates and many prerequisite contracts, but it has not yet passed
-`ExitBootServices`, owned-driver, live storage, live networking, native-app
-execution, exported PAL, hosted .NET, Kestrel, Azure, AWS, or production gates.
+Progress is gate-based; issue counts and test counts are not completion
+percentages. The goal remains a C#-first NativeAOT operating system for one
+configured workload, with .NET 10 applications and mandatory ASP.NET Minimal
+API/Kestrel support, followed by verified Azure and AWS deployment.
 
-### Current implementation checkpoint (updated through 2026-10-03)
+The [completion gates](docs/completion-gates.md) are the source of truth. In the
+[accepted gate ledger](http://localhost:3000/admin/CLROS/src/commit/7489823d0ad6668c76bff444418e252688f7a9ab/docs/completion-gates.md),
+only Gate 2 passes; all other numbered gates remain **Fail**. Gate 2 covers the
+firmware-visible boot smoke. Separate accepted default-off profiles now prove a
+bounded real `ExitBootServices` transition and runtime operations; those results
+do not complete the broader firmware, diagnostics, or runtime gates.
 
-- M04-004 now has independently reviewed host and fresh default/enabled
-  QEMU/OVMF evidence. The opt-in NativeAOT EFI profile executes 57 integer
-  arithmetic, shift, cast, enum and division/remainder vectors with fingerprint
-  `45FDFA24DD72EA28`; the default profile emits no M04 conformance markers.
-  The settled host gate passed 3,516 starts and 3,517 passes with zero failures.
-  See `done/step929.md` for exact source, artifact and serial identities,
-  including the corrected audit of OVMF output after firmware return.
-  This fixed-catalog proof leaves Gate 4 at **Fail**.
-- M02-014 now has independently reviewed default and opt-in terminal page-fault
-  QEMU/OVMF evidence at source `7c71e72`. The enabled profile observes vector 14,
-  CR2/error zero, an owned root, absent null/guard pages and IST2 frame capture
-  before `ExitBootServices`. The complete host suite passed 3,558 starts and
-  3,559 passes with zero failures. See [step944](done/step944.md) for the bounded
-  fault, source/artifact identities and image accounting. Defaults stay off;
-  recovery and persistent descriptor ownership remain unsupported. Gates 3/4
-  remain **Fail**.
-- M02-015 adds an independently reviewed host double-fault byte emitter and
-  armed-IDT audit. Focused tests pass 9 starts/10 passes with zero failures;
-  the actual no-stdlib closure has zero AssemblyRefs. This is data and modeled
-  execution evidence only. The complete host gate passes in
-  [step949](done/step949.md). The separate default-off EFI adapter now has
-  reviewed source and default/enabled NativeAOT artifact evidence in
-  [step950](done/step950.md). The settled-source host suite and fresh default,
-  page-fault and double-fault QEMU captures are independently accepted in
-  [step951](done/step951.md), including vector 8/error 0 and the complete capture
-  on original IST1. PR #522 merge and issue closure are separate tracker actions.
+### Latest accepted milestones
 
-- M04-007 has accepted bounded `RhpNewFast` guest allocation evidence over the
-  original retained heap authority. The complete host suite passes 3,573 starts
-  and 3,574 passes with zero failures. Five fresh QEMU profiles prove default
-  isolation, standalone heap behavior, four compiled-new/six direct allocations,
-  before-bind rejection and exhaustion. Native ABI, managed metadata, relocated
-  prefixes, raw transcripts, lifecycle and disk evidence are independently
-  reviewed in [step949](done/step949.md). General allocation, GC and Gate 4
-  remain incomplete.
+- **Real firmware exit and collector churn:** the first-exit profile leaves UEFI
+  boot services, adopts owned page tables and CPU descriptors, checks retained
+  state, and reports through owned COM1 before halting. A separate pre-exit
+  collector profile completes 192 rounds, 476 direct allocations/reclamations,
+  and 198 collections using explicit and retained-static roots.
+  [Step1051](done/step1051.md) records the accepted scope.
+- **Firmware-access revocation and static constructors:** all eight retained
+  firmware capabilities deny access before entering their backends after exit.
+  One eager and seven lazy compiler-generated constructors execute once, with
+  tested same-thread reentry and partial-static behavior. Exception caching and
+  rethrow remain separate work.
+  [Step1053](http://localhost:3000/admin/CLROS/src/commit/2f17dc1995197e305a32adfe5f406fd439db566e/done/step1053.md)
+  records the acceptance.
+- **Post-exit diagnostics and interface dispatch:** owned COM1 emits the complete
+  post-firmware readiness tail. The bounded interface profile executes 15 real
+  compiler-generated calls across two receiver types, including covariance,
+  contravariance, sealed/virtual resolution, ten cache entries, and five cache
+  hits. A same-image null-receiver control rejects before target entry.
+  [Step1063](http://localhost:3000/admin/CLROS/src/commit/96c3a7c945c618ef2f267a3cd4208c18cb0de824/done/step1063.md)
+  records the accepted integration.
+- **Exception-type matching, host-only:** a bounded, allocation-free matcher
+  validates retained object/module authority and class hierarchies. Seven
+  focused host test groups and independent review passed. This accepted helper
+  does not itself execute exceptions in the guest.
+  [Step1058](http://localhost:3000/admin/CLROS/src/commit/9e0afe190a6b7661a798f2894562ab9b5a71d106/done/step1058.md)
+  records its evidence boundary.
 
-- M04-008 has accepted bounded byte/long SZ-array guest evidence sharing that
-  original allocation page with fixed objects. The complete host suite passes
-  3,611 starts/3,612 passes with zero failures. Eight fresh profiles cover the
-  mixed allocations, before-bind rejection, exhaustion and default/heap/fixed/
-  page-fault/double-fault regressions. Independent native, transcript, lifecycle
-  and disk reviews are recorded in [step954](done/step954.md). General arrays,
-  managed reference stores, GC, strings and Gate 4 remain incomplete.
+The latest accepted full host suite completed with **3,845 `TEST_START`,
+3,846 `TEST_PASS` including the final `host.tests` summary, and zero failures**
+at implementation `d5bef46`. The solution build had zero warnings/errors.
+Six fresh ordinary QEMU/OVMF captures passed: default, collector churn, first
+exit, firmware revocation, constructors, and interface dispatch. Three fresh
+controls rejected canary corruption, static-payload corruption, and a null
+receiver. These are recorded results from step1063, not new runs for this README
+or a claim that every later development commit passed the same suite.
 
-- M02-016 has accepted bounded unexpected-vector panic evidence at `dee6df2`.
-  The complete host suite passes 3,636 starts/3,637 passes with zero failures.
-  Nine fresh QEMU profiles pass independent source, native, transcript,
-  lifecycle and disk review. The vector-32 experiment ends in the exact panic
-  record and expected-panic classification; ordinary defaults remain off.
-  [Step959](done/step959.md) records the evidence and the inherited firmware
-  entry prerequisite. Gates3/4 remain **Fail**.
+### In development, not yet accepted
 
-- M04-009 adds host-tested String storage to the same retained allocation page
-  and cursor. Complete fixed/array/String modules pass 31 starts/32 passes,
-  including UTF-16 storage, terminators, signed-length checks and unchanged
-  rejection storage. [Step955](done/step955.md) records this host checkpoint;
-  step959 adds the complete host gate and fixed/array compatibility evidence.
-  Compiled String constructors and String guest execution remain pending.
+| Work | Evidence and remaining boundary at this snapshot |
+| --- | --- |
+| [Unwind metadata (#89/#574)](http://localhost:3000/admin/CLROS/issues/574) | A development QEMU profile consumes the actual NativeAOT image's unwind metadata and locates compiled methods. The final full host suite is underway; final native/guest acceptance remains pending. Metadata lookup alone is not stack unwinding. |
+| [One-frame unwind (#578)](http://localhost:3000/admin/CLROS/issues/578) and [EH clauses (#579)](http://localhost:3000/admin/CLROS/issues/579) | Implementations and focused host reviews are complete; integration depends on accepted unwind metadata. Host tests do not prove restoration of live CPU state or execution of handlers. |
+| [First real throw/catch (#582)](http://localhost:3000/admin/CLROS/issues/582) | One development QEMU run threw across a frame into a typed catch and continued to `OS_SMOKE_PASS`. Freshness reconciliation, negative-control evidence, accepted dependencies, the full host gate, and fresh ordinary-wrapper acceptance remain pending. This is not general exception handling. |
+| [Post-exit subsystem survival (#67)](http://localhost:3000/admin/CLROS/issues/67) | A retained allocator round trip passes focused host tests. Integration of continuing allocator, descriptor, ACPI, and panic operations after exit is underway; guest acceptance is pending. |
 
-- The 2026-08-06 local Gitea snapshot had **273 open issues** (issues only,
-  excluding pull requests). That was ten fewer than the earlier 283-issue
-  snapshot even though narrowly scoped integration/review issues were added to
-  make shared-file ownership explicit. The reconstructed backlog is
-  intentionally granular: its raw count is a queue size, not a completion
-  percentage.
-- M02-004 is now reviewed, merged, evidence-backed, and closed together with
-  its three supplemental integration issues. Its production C# corrected the
-  Windows x64 `Out8` register flow, bound the checked port-I/O function
-  pointers, and executed exactly seven pre-`ExitBootServices` COM1
-  configuration writes under QEMU/OVMF. The exact guest marker records
-  `guestPortIo=true`, `guestIn8=false`, `markerTransport=uefiSerial`, and
-  `postExitBootServices=false`; it is not owned post-firmware serial evidence.
-- M04-002 is now reviewed, merged, evidence-backed, and closed. Its production
-  C# adds an allocation-free endian catalog with 25 explicit read vectors and
-  seven reverse vectors plus a no-stdlib EFI validation path. The accepted
-  QEMU/OVMF marker still records `hostConformance=false`,
-  `guestIntegrated=true`, and `gate4=Fail`; the slice did not complete general
-  `BinaryPrimitives` compatibility or NativeAOT runtime correctness.
-- M02-005 is reviewed, merged, evidence-backed, and closed. Its allocation-free
-  C# writer emits `OWNED_COM1_READY` directly through checked
-  `In8(0x3FD)`/`Out8(0x3F8)` under QEMU/OVMF, followed by a separately identified
-  UEFI-serial evidence line. This remains a bounded pre-`ExitBootServices`
-  marker path, not owned post-firmware diagnostics.
-- M02-006 is reviewed, merged, evidence-backed, and closed. Its production C#
-  is a no-stdlib-compatible, status-coded panic formatter/reporter over
-  `Com1OwnedPortIoBackend`. The accepted guest profile emitted its harmless
-  readiness marker directly through checked COM1 and separate evidence through
-  UEFI serial; it did not trigger a panic or prove post-firmware diagnostics.
-- M02-007 is reviewed, merged, and backed by real QEMU/OVMF evidence. Its
-  allocation-free encoder creates and reads back the exact 40-byte x64 GDT in
-  caller-owned guest memory without executing `lgdt` or `ltr`.
-- M02-008 is reviewed, merged, evidence-backed, and closed. Its serialized
-  integration links the reviewed guarded-IST
-  arena contract into the explicit no-stdlib EFI closure. The opt-in path uses
-  a temporary six-page UEFI LoaderData arena, validates the three guard/stack
-  layouts, writes and reads back only the stack ranges, releases the lease, and
-  frees the arena before returning. M02-008 does not install a TSS, IST, GDT, or IDT.
-  The development source closure is now 60
-  compile items and 73 source-authority inputs after the later default-off
-  M02-009 terminal stub, M02-010 normalized interrupt-entry page, and M04-003
-  span/memory catalog sources were added.
-  The complete host run caught an older M01-025 source-firewall regression in
-  the first implementation; the integration now uses a fixed-size local stack
-  workspace instead of `stackalloc`, preserving both the 104/40-byte caller-
-  owned contract and the established firewall. A corrected development
-  QEMU/OVMF run then accepted all 56 ordered/unique markers, rejected all 40
-  forbidden markers, and observed the intact `selectors=0,8,16,24` and
-  `CLROS_M02_008_READY` markers exactly once. The artifact SHA-256 is
-  `58464cd09ece7ce392252588d5c3327ccf64cfe19af4087454292e6646366d05`;
-  the serial-log SHA-256 is
-  `96eaea7e7126332514b3ffa1316152e7471d5b67a82e20839f18d3ed620f865c`.
-  The uncompromised host gate then completed 3,446 starts and 3,447 passes with
-  zero failures and one terminal `TEST_PASS host.tests`. Independent `admin`
-  review #20 approved exact head
-  `845798836c010c388262c062efdac04cefbb80d3`; PR #471 merged that exact tree as
-  `5b6de7d08b348c9094dcb38dc7183f2c8182cb16`. Supplemental issue #467 and
-  managed backlog issue #48 are closed, with the latter reconciled through the
-  canonical idempotent manifest synchronizer. That dependency closure makes
-  the next terminal integration possible without changing M02-008 evidence.
-- M02-009 is implemented in this development tree behind the default-false
-  `EnableM02OwnedGdtTssTerminalProbe` switch. It prepares one disjoint
-  `EfiLoaderCode` page and one `EfiLoaderData` page before normal boot markers,
-  validates the reviewed 2,987-byte terminal stub and 168-byte context, then
-  enters it only after `OS_SMOKE_PASS` through a serialized Windows-x64 call.
-  The expected path loads its private GDT/TSS, emits its final records through
-  checked owned COM1, and halts. Source-bound tests and build preflight are in
-  place. `done/step918.md` records the fresh real QEMU/OVMF acceptance for the
-  exact 59-required/43-forbidden terminal profile. This remains
-  pre-`ExitBootServices` development work and does not prove W^X, an IDT/fault path, post-firmware
-  diagnostics, hosted .NET, Kestrel, cloud readiness, or production readiness.
-- M02-010 is now integrated behind the default-false
-  `EnableM02NormalizedInterruptFramePageProbe` switch. The source-bound
-  NativeAOT EFI profile allocates one temporary 4,096-byte `EfiLoaderData`
-  page, materializes all 256 fixed interrupt-entry slots against a modeled
-  common-target delta of 4,096, validates all bytes through the production
-  readback operation, requires FNV-1a64 `428D0353A96B7ACE`, and releases the
-  page before ordinary memory-map capture. An EFI-successful allocation is
-  treated as owned even when its returned address is invalid or zero, so that
-  rejected result is also released exactly once. The final accepted QEMU/OVMF
-  run at exact source head
-  `b88a485c8562a0022ffaae760fb47ca9d5addba2` observed the exact start/ready/pass
-  transcript once under the 17-required/five-ordered/
-  three-unique/three-forbidden profile. Its 67,072-byte EFI artifact has
-  SHA-256 `9D7EE566D93ED876DDBE1825CC5629330CF46DEEB92F23473F8C6E3A06249B6D`;
-  the serial log has SHA-256
-  `4E03A7CFCF8BD78018E3ABF35897EE3371B6E299FED70F32E56D4CEDE6EEB678`.
-  `done/step920.md` records the bounded proof. No generated slot or common
-  target was executed, no executable mapping was established, no IDT/IDTR/IST
-  was installed, and no live interrupt or fault was produced.
-- A pinned SharpOS comparison has been preserved in seven detailed addenda on
-  existing Gitea issues #85, #94, #96, #229, #236, #315, and #316, plus three
-  new blocked supplemental issues: #468 for bounded in-place FAT32 boot-log
-  writes, #469 for bounded xHCI/USB discovery, and #470 for bounded console
-  input/wait/terminal-feed semantics. Every entry pins upstream source and
-  provenance, includes relevant source excerpts and CLROS C# contract sketches,
-  identifies dependencies and hostile tests, and preserves evidence/claim
-  boundaries. No SharpOS code has been imported into first-party CLROS source
-  by that review.
-- These changes do not advance a numbered completion gate. Gate 2 remains the
-  only passing gate, scoped to the firmware-visible QEMU/OVMF marker path;
-  Gate 4 remains `Fail`. The M04 marker proves only fixed-catalog validation in
-  the EFI guest. There is still no proof of general `BinaryPrimitives`
-  compatibility, allocation/GC/exception completion, real `ExitBootServices`,
-  owned storage/networking, guest app execution, hosted .NET, Kestrel,
-  Azure/AWS support, CloudReady status, or production readiness.
+The [live Gitea backlog](http://localhost:3000/admin/CLROS/issues) tracks current
+ownership and dependencies. Development evidence and issue closure do not
+substitute for the acceptance records and completion gates.
 
 ## What Works Today
 
+These capabilities have different evidence scopes. Optional guest profiles are
+disabled by default and are not all combined into one continuing kernel boot.
+
 | Area | Current evidence |
 | --- | --- |
-| Build baseline | `CLROS.slnx` builds locally with .NET 10/C# 14.0 project settings. Host tests emit stable `TEST_START`, `TEST_PASS`, and `TEST_FAIL` markers. Source naming and source-firewall scripts exist. |
-| EFI boot artifact | `src/OS` publishes a minimal explicit no-stdlib NativeAOT EFI application. It is included in `CLROS.slnx` but retains stricter no-stdlib build rules. |
-| QEMU/OVMF smoke path | The raw GPT/FAT32 ESP image boots under QEMU/OVMF to firmware-visible markers including `OS_BOOT_OK` and `OS_SMOKE_PASS`. |
-| Boot ordering | `src/OS.Kernel/Boot/BootSequence.cs` is the boot-order source of truth. Host tests verify ordered boot phases and marker emission. |
-| UEFI handoff | The EFI path captures UEFI memory-map metadata, copies descriptor bytes into OS-owned storage, normalizes compact boot-region records, and carries ACPI RSDP provenance into the handoff. |
-| ACPI discovery | The default path carries ACPI RSDP provenance. An explicit opt-in ACPI probe artifact has QEMU evidence for pre-`ExitBootServices` RSDP, root SDT, and MCFG discovery markers. |
-| Diagnostics planning | Host-tested COM1, panic-text, panic-serial, boot-event records, diagnostics-chain readiness, GDT, TSS/IST, IDT, descriptor-table, fault-entry, diagnostic-stub invocation, diagnostic-stub callable-binding formatting, and controlled-fault-probe planning contracts exist. The accepted M02-005/M02-006 profiles exercise bounded direct COM1 marker writes before `ExitBootServices`, M02-007 validates caller-owned GDT bytes in the EFI guest, and the accepted M02-008 profile executes the reviewed guarded-IST arena layout and lease contract against temporary UEFI memory. The default-off M02-009 profile has QEMU/OVMF evidence for loading and reading back a terminal private GDT/TSS after `OS_SMOKE_PASS`, then emitting the exact terminal transcript through owned COM1. The separate default-off M02-010 profile materializes and reads back the frozen 4,096-byte interrupt-entry page in one temporary LoaderData allocation and frees it before memory-map capture. Neither profile installs an IDT, triggers or handles a fault, or proves post-firmware diagnostics. |
-| `std/no-runtime` base | Host-tested no-runtime-compatible helpers exist for ASCII byte/text behavior, decimal and hexadecimal formatting/parsing, memory/buffer operations, endian primitives, native integer arithmetic, math helpers, CRC32, internet checksum, and `ArrayHelpers` search/sort contracts. The opt-in EFI path now validates the fixed 25-read/7-reverse M04-002 endian catalog under real QEMU/OVMF, but this does not create a canonical BCL surface or complete Gate 4. Runtime-helper gaps remain explicit. |
-| PAL contracts | `OSHost_*` POD-style status/result contracts and host-tested mock tables/facades exist for memory, package files, config/environment, sockets, socket connect metadata, timers, waits/events, threads, random bytes, status formatting, and app logs. Recent work hardened default/zero result values so they do not accidentally count as success evidence. |
-| Storage groundwork | GPT, caller-owned GPT partition selection, FAT32, package parser, package filesystem, package file staging, native-app package/payload staging, generated image package placement, manifest loading, caller-buffer package-loader GPT selector integration, and virtio-blk planning slices are host-tested. |
-| Networking groundwork | Ethernet, ARP, IPv4, ICMPv4, UDP, DHCP, DNS, TCP handshake/connection-table/close/payload planning, active close FIN/ACK generation, receive dispatch, checksum validation/generation, HTTP request parsing, HTTP response writing, static HTTP transactions, and mock HTTP GET transactions are host-tested. |
-| App model groundwork | Native app manifest parsing, package selection, payload header validation, executable mapping/planning, invocation metadata, lifecycle readiness, stdout/stderr log tables, and app status marker formatting are host-tested. |
-| Image tooling | Raw GPT/FAT32 image generation exists. QEMU smoke tooling, diagnostics marker presets, qcow2 conversion wrappers, libvirt intent/dry-run/preflight paths, baseline artifact summaries, and cloud-provider requirement docs are present. |
-| CI smoke scaffolding | A Gitea workflow skeleton and host-tested CI smoke wrapper dry-run path exist for Windows agents, including qemu-img discovery, baseline evidence planning, artifact upload metadata, and `git diff --check` coverage. Completion Gate 11 is guarded to remain failed until executed Gitea runner evidence is preserved. |
-| Recoverable backlog | `.gitea/backlog/clros-issues.json` preserves 16 milestones, 68 managed labels, 16 epics, and 303 small child issues. `scripts/sync-gitea-backlog.ps1` previews by default and idempotently synchronizes the local `admin/CLROS` tracker only with explicit `-Apply`. |
-| Documentation | Repository docs define the canonical architecture, host requirements, completion gates, boot flow, PAL boundary, Kestrel milestone, cloud-provider requirements, and immutable `done/stepNN.md` evidence history. |
+| Build and EFI image | .NET 10/C# 14 host builds and an explicit no-stdlib NativeAOT EFI artifact; host tools produce the GPT/FAT32 boot image. |
+| Default boot | QEMU/OVMF reaches the ordered `OS_BOOT_OK` and `OS_SMOKE_PASS` markers while firmware remains available. `BootSequence.cs` owns phase ordering and `Probes.cs` owns diagnostic toggles. |
+| Owned memory and firmware handoff | Separate bounded profiles exercise an owned stack, allocator arena, paging transitions, retained memory-map/ACPI data, real firmware exit, and typed capability revocation. General page reclamation and continuing platform services remain incomplete. |
+| Fault and serial diagnostics | Accepted bounded profiles cover owned descriptor/IST state, UD2, page fault, double fault, unexpected-vector panic, and direct COM1 output. Post-exit readiness reporting is accepted; general fault recovery is not. |
+| NativeAOT runtime subset | Guest evidence covers bounded fixed-object, byte/long-array and String allocation, checked reference helpers, one-module registration, static roots, nonmoving collection, compiler-generated constructors, and ordinary-instance interface dispatch. This is a limited runtime subset, not the full .NET libraries or GC. |
+| Shared utilities | Host-tested ASCII/text, numeric formatting, memory, endian, checksum, and collection helpers; selected fixed conformance catalogs also execute in the EFI guest. |
+| PAL, storage, networking, and app groundwork | Host-tested ABI contracts, parser/planner logic, mock PAL tables, disk/package/image tools, protocol frames, and app launch/lifecycle metadata. These do not establish live guest drivers, packet I/O, package loading, or app execution. |
+| Evidence tooling | Stable test/serial markers, source and artifact checks, host image tools, QEMU runners, CI dry-run scaffolding, and immutable `done/stepNN.md` records. Executed CI and cloud-provider acceptance remain separate gates. |
 
 ## What Is Not Complete
 
 | Area | Missing before claim |
 | --- | --- |
-| Real firmware transition | No live `ExitBootServices` transition has completed. Fresh-map and transition planning exist, but the real firmware shutdown path is still future work. |
-| Owned post-firmware diagnostics | The opt-in M02-005 and M02-006 profiles can emit bounded markers directly through COM1 before firmware exit, M02-007 validates GDT bytes in caller-owned guest memory, M02-008 remains a pre-firmware-exit temporary-arena profile, M02-009 is an explicitly pre-exit terminal profile, and M02-010 only materializes, reads back, and frees one LoaderData page before memory-map capture. The live boot path does not yet own serial output after firmware services are gone and panic routing is not live. |
-| Allocator and paging | The live EFI path initializes bounded static free-list state from conventional-memory records and emits `BOOT_PAGE_ALLOCATOR_READY`, but it does not yet subtract every reservation, execute a live allocation/free/coalesce cycle, configure page tables, enforce NX/W^X, or provide a managed heap. |
-| CPU fault handling | Descriptor and fault plans exist. The default-off M02-009 profile has real-QEMU evidence for loading and reading back its private GDT and TSS before halting, and M02-010 has separate real-QEMU evidence for materializing and reading back—but never executing—its 256 interrupt-entry slots. No live IDT, fault handlers, register capture, guard enforcement, or QEMU fault probe exists. |
-| Runtime correctness | GC, exceptions, interface dispatch, reflection policy, thread/runtime helpers, and hosted-runtime integration are not complete. |
-| Scheduler and synchronization | Wait/event/timer mock tables exist, but there is no scheduler, blocking wait, thread parking, hardware timer interrupt path, ThreadPool, `Monitor`, or `Task` runtime support. |
-| Live platform drivers | ACPI/PCI/virtio/ENA/NVMe/Hyper-V/VMBus work is parser/planning evidence only. There is no live PCI ECAM mapping, BAR mapping, interrupt setup, device probing, or DMA-safe driver execution. |
-| Live storage | GPT/FAT/package logic is host-tested, but the guest does not yet read manifests or packages from a live virtio-blk/NVMe disk after boot. |
-| Live networking | Protocol parsers and planners are host-tested, but there is no live virtio-net/ENA packet I/O, interrupt processing, DHCP lease acquisition, TCP listener, or HTTP server path. |
-| Exported PAL | The `OSHost_*` ABI shape is documented and host-tested through facades, but unmanaged PAL exports are not wired to a hosted runtime. |
-| Native app execution | Launch planning exists, but the guest does not yet map and invoke a packaged native workload in the live boot path. |
-| Hosted .NET 10 | No hosted .NET 10 runtime starts in the guest. No CoreCLR/NativeAOT hosted-app boundary is complete. |
-| ASP.NET Minimal API/Kestrel | No Minimal API app is loaded, bound, served, or externally probed. Kestrel remains a mandatory future milestone. |
-| Cloud provider proof | No Azure VM or AWS EC2/Nitro boot/import evidence exists. Local QEMU/OVMF evidence is not a cloud-provider claim. |
-| Production readiness | No production hardening, supervisor, app isolation, update story, release logging policy, or full security gate evidence exists. |
+| Continuing post-firmware kernel | General firmware-page reclamation, allocator/platform survival, interrupt/timer services, and recovery beyond the accepted bounded or terminal profiles. |
+| General runtime correctness | Automatic stack-root scanning, broader allocation/GC support, full throw/catch/finally/rethrow, constructor failure caching, thread statics, and remaining runtime helpers. Bounded dispatch does not support every interface/type shape or concurrent execution. |
+| Scheduler and synchronization | Live scheduling, thread lifecycle, blocking waits, hardware timer integration, ThreadPool, `Monitor`, and `Task` support. |
+| Live platform and storage | Device discovery, MMIO/interrupt/DMA integration, storage drivers, and post-exit disk-backed manifest/package loading. |
+| Live networking | Guest packet RX/TX, DHCP/DNS, working TCP connections/listeners, and externally observed HTTP traffic. |
+| App execution and PAL | A live app entry contract, executable loading/relocation/protection, app runtime registration, output routing, verified exit status, and working platform services for the supported app target. |
+| Hosted .NET and Kestrel | No standalone .NET 10 application or ASP.NET Minimal API server runs in the guest. The full Kestrel milestone below remains mandatory. |
+| Cloud and production | Azure/AWS import and boot evidence, production hardening, update/rollback, supervisor/isolation, and completed CI/security gates. Local QEMU results are not cloud-provider proof. |
 
-## Informal Subsystem Summary
+## Path To A NativeAOT Hello World
 
-This table is navigation context, not a second gate ledger. Its descriptive
-states do not override `docs/completion-gates.md`, where Gate 2 is `Pass` and
-every other gate is currently `Fail`.
+CLROS already executes NativeAOT-compiled C# boot and diagnostic code. It has
+**not yet loaded and run a separate .NET 10 console application**, including
+Hello World. The current image uses a deliberately small no-stdlib runtime;
+that does not establish standard `Console.WriteLine` or general .NET library
+compatibility.
 
-| Gate | Current state | Plain-language meaning |
-| --- | --- | --- |
-| Clean build | Partial | Local solution and focused host builds pass, but formal clean-checkout gate logs still need to be preserved as release evidence. |
-| Boot | Pass, scoped | QEMU/OVMF reaches the documented firmware-visible boot-smoke markers, but this does not prove `ExitBootServices`, owned drivers, storage, networking, or app execution. |
-| Fault diagnostics | In progress | Strong plans and host tests exist, but real descriptor-table installation and panic handling are not live. |
-| std/runtime | In progress | Useful no-runtime helpers exist, but runtime helpers, GC, exceptions, and dispatch are incomplete. |
-| UEFI encapsulation | Partial | Firmware-facing boundaries are taking shape; real `ExitBootServices` and owned post-firmware platform services remain. |
-| Platform/drivers | In progress | ACPI/PCI/virtio/Nitro/Azure planning is substantial, but live hardware interaction is not proven. |
-| Storage | In progress | Parsers, package models, and virtio-blk plans exist; live disk-backed package loading is not proven. |
-| Networking | In progress | Protocol and virtio-net planning coverage is broad; live packet I/O and a serving TCP stack do not exist yet. |
-| Native app model | In progress | Manifest/package/launch planning exists; no guest app is executed yet. |
-| Hosted .NET/Kestrel | Not passed | No hosted .NET 10 app or Kestrel server runs in the guest. |
-| Cloud images | Partial | Local image and QEMU tooling exist; Azure/AWS import and boot proof are missing. |
-| CI/security/docs | Mixed | Docs are strong, local scripts exist, and dry-run CI workflow scaffolding is host-tested. CI remains incomplete until a compatible Gitea Windows runner executes the workflow from a clean checkout and preserves logs/artifacts. Production security gates are not complete. |
+The [native workload milestone](http://localhost:3000/admin/CLROS/issues/161)
+requires a defined app entry contract, executable mapping and relocation,
+a guarded app stack, runtime metadata/root/constructor registration, log
+routing, and a verified return/exit status. The planned fixture is tracked by
+[compile/package #177](http://localhost:3000/admin/CLROS/issues/177) and
+[load/execute/log #178](http://localhost:3000/admin/CLROS/issues/178).
+Its current dependency chain includes runtime correctness and live storage.
+A NativeAOT app does not require a JIT, but it still needs a compatible runtime,
+library subset, and platform boundary. No console-app completion date is claimed.
 
 ## Kestrel Milestone Boundary
 
@@ -309,8 +184,10 @@ IST arena profile:
 That optional profile rebuilds the EFI/image inputs, preserves the accepted
 M02-005 marker pair, M02-006 reporter/evidence pair, and M02-007 encoder marker,
 then requires the fixed M02-008 marker exactly once. It forbids every cumulative
-failure marker. M02-008 proves only temporary guest-arena allocation, reviewed
-layout metadata, stack-range write/readback, lease release, and firmware
+failure marker. M02-008 uses a temporary six-page UEFI LoaderData arena and
+does not install a TSS, IST, GDT, or IDT. It proves only temporary guest-arena
+allocation, reviewed layout metadata, stack-range write/readback, lease release,
+and firmware
 `FreePages` before `ExitBootServices`. It does not make guard pages non-present,
 enforce NX, execute `lgdt`/`ltr`, install active descriptor state, trigger a
 panic or fault, or provide post-`ExitBootServices`, physical-device, provider,
@@ -327,8 +204,9 @@ record, and `TEST_PASS m02.009` to the ordered/unique contract. The guest then
 intentionally remains halted, so the runner must terminate QEMU and report
 `disposition=runner-terminated`. It uses the real QEMU path directly rather
 than the M01 raw-observation shim and rejects an explicit
-`-M01RawObservationLog`. `done/step918.md` records the fresh real QEMU/OVMF
-acceptance for the exact terminal contract; the implementation is still
+`-M01RawObservationLog`.
+`done/step918.md` records the fresh real QEMU/OVMF acceptance
+for the exact terminal contract; the implementation is still
 pre-`ExitBootServices` and does not prove page permission enforcement,
 W^X/NX, an IDT or fault handler, post-firmware diagnostics, hosted .NET,
 Kestrel, cloud readiness, or production readiness.

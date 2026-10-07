@@ -7,11 +7,16 @@ projects for CLROS implementation work. That direction does not erase
 third-party copyright, license notice, attribution, source-disclosure, patent,
 trademark, or asset-license obligations.
 
-The 29 local reference directories are archive snapshots without `.git`
+The original 29 supplied reference directories are archive snapshots without `.git`
 metadata. None has a top-level file named `LICENSE`, `LICENCE`, `COPYING`, or
 `NOTICE`. Some READMEs state or link a project license; some trees contain
 nested component licenses; some contain no local license evidence. An archive
 name ending in `-main` or `-master` is not a verified revision.
+
+Ten additional snapshots acquired on 2026-10-06 preserve immutable commit
+identity and upstream license files. Their separate ledger below supersedes
+the unknown-revision default only for those new directories. There are now 39
+local snapshots; none is a first-party build input.
 
 Therefore:
 
@@ -234,6 +239,72 @@ the primary runner, and 20 selected input pins are retained as research under
 `artifacts/orchestration-20261001/nativeaot-patcher-refresh-20261006`.
 No source was imported into production or the supplied reference archive.
 
+## New GitHub snapshot provenance (2026-10-06)
+
+Each directory was created from `https://codeload.github.com/<owner>/<repo>/zip/<full-commit>`.
+ZIP CRCs, safe relative paths, complete untruncated GitHub tree membership and
+file Git-blob identities were verified before copying. Every installed file
+was independently SHA-256 checked against its extraction manifest. No existing
+reference directory was edited. All ten new trees remain Git-ignored; their
+native source, binaries, assets and external instructions are reference data,
+not CLROS imports. No upstream restore/build/test/bootstrap command was run.
+
+| Local snapshot | Full upstream commit | Archive SHA-256 | Files | License evidence and disposition |
+| --- | --- | --- | --- | --- |
+| `references/RedPandaOS-3a2e08183847` | [3a2e08183847d4d9596fcfe1cd853474313c45b4](https://github.com/giawa/RedPandaOS/commit/3a2e08183847d4d9596fcfe1cd853474313c45b4) | `69a2982416e1757ce797cbdf5e7b0478e4d654606fcb5a0ca2b69a3c4233874d` | 178 | MIT; separate OFL font. [`references/RedPandaOS-3a2e08183847/LICENSE.md`](https://github.com/giawa/RedPandaOS/blob/3a2e08183847d4d9596fcfe1cd853474313c45b4/LICENSE.md). BIOS/x86, custom IL compiler and core library; no NativeAOT or .NET 10 compatibility implied. |
+| `references/ProtonOS-c4f6db236c0c` | [c4f6db236c0cf8e979500efecd1d4002b34572c2](https://github.com/ProtonOS/ProtonOS/commit/c4f6db236c0cf8e979500efecd1d4002b34572c2) | `d47ae66563c3f9c8f392ae02b36c73fc2d77253826c73d3f74b76efbcfd1506d` | 421 | AGPL-3.0. [`references/ProtonOS-c4f6db236c0c/LICENSE`](https://github.com/ProtonOS/ProtonOS/blob/c4f6db236c0cf8e979500efecd1d4002b34572c2/LICENSE). bflat, custom JIT, native assembly and Linux syscall surface are not the CLROS architecture. Independently author tests; no source import. |
+| `references/SharpMetal-b29c452f7d6c` | [b29c452f7d6c8d8609d1a007b0b6ae8bdcc84807](https://github.com/Sadik00789/SharpMetal/commit/b29c452f7d6c8d8609d1a007b0b6ae8bdcc84807) | `408a94eeb89e854f5b0ecc28eb4cad9f1d22c5d0cae74b9545797dfeedf6f2c1` | 245 | MIT. [`references/SharpMetal-b29c452f7d6c/LICENSE`](https://github.com/Sadik00789/SharpMetal/blob/b29c452f7d6c8d8609d1a007b0b6ae8bdcc84807/LICENSE). NativeAOT comparison only; native stubs, multi-server design and POSIX emulation stay outside CLROS. |
+| `references/DefenderOS-fb3b3290ef3d` | [fb3b3290ef3d79d00206034f64a478d1582f58ca](https://github.com/Nobody-Home21/Defender-OS/commit/fb3b3290ef3d79d00206034f64a478d1582f58ca) | `bb396ec135d4e273c11d2edbf9905064d7c4e2625c7f8ab8aece4432123d632e` | 1366 | MIT; review component notices. [`references/DefenderOS-fb3b3290ef3d/LICENSE`](https://github.com/Nobody-Home21/Defender-OS/blob/fb3b3290ef3d79d00206034f64a478d1582f58ca/LICENSE). Custom .NET 7 NativeAOT/no-stdlib kernel with C/MASM shims and a desktop/security product model. No Cosmos SDK reference in the inspected kernel project; do not import architecture, native code or unverified feature claims. |
+| `references/SingNextOS-ad156e965850` | [ad156e965850b449bcc2593a6098b3c6d4bb27ee](https://github.com/yuriyyak23/SingNextOS/commit/ad156e965850b449bcc2593a6098b3c6d4bb27ee) | `602c59da27e62b1621e803f2291dcc98f3c6d1bcd72b336b3c86d37be08966cc` | 1351 | AGPL-3.0. [`references/SingNextOS-ad156e965850/LICENSE.txt`](https://github.com/yuriyyak23/SingNextOS/blob/ad156e965850b449bcc2593a6098b3c6d4bb27ee/LICENSE.txt). Managed research/conformance model; empty kernel subsystem placeholders are not bare-metal proof. No source import. |
+| `references/Inu-8a1ede5246cb` | [8a1ede5246cbf7420d7627a13ae0dc45d8c6cdf6](https://github.com/ProjectLithos/Inu/commit/8a1ede5246cbf7420d7627a13ae0dc45d8c6cdf6) | `13446cc94af63bef84857f75f898bf82d84e517c59f9209cc8defa09a26dae27` | 1208 | Unknown project license. No root project license; `SDK/THIRD-PARTY-NOTICES.md` only covers named components. Third-party font/FatFs notices do not license the core. Independently author behavioral cases only. |
+| `references/Cosmos-gen3-81259dd941a3` | [81259dd941a39b60226dc6f9db14befd6558e592](https://github.com/CosmosOS/Cosmos/commit/81259dd941a39b60226dc6f9db14befd6558e592) | `b0de51bb268b9cda2f6c79778dedf708aa2a386984fc5b771f938558f0b71550` | 1093 | BSD-3-Clause; per-file vendor terms. [`references/Cosmos-gen3-81259dd941a3/LICENSE`](https://github.com/CosmosOS/Cosmos/blob/81259dd941a39b60226dc6f9db14befd6558e592/LICENSE). Separate pinned canonical snapshot, not a refresh of nativeaot-patcher-main. Do not import plugs, runtime patches or native code. |
+| `references/AsmResolver-0715000c1b3a` | [0715000c1b3a5104531d5ff189a14ebef0a9d5ac](https://github.com/Washi1337/AsmResolver/commit/0715000c1b3a5104531d5ff189a14ebef0a9d5ac) | `8c0d62dba9d6c761b5b42c08703564bb59effda7ecf506d1d9807e048346ecc3` | 1518 | MIT. [`references/AsmResolver-0715000c1b3a/LICENSE.md`](https://github.com/Washi1337/AsmResolver/blob/0715000c1b3a5104531d5ff189a14ebef0a9d5ac/LICENSE.md). Host PE tooling and synthetic fixture ideas only; allocating object model is unsuitable for freestanding parsers. |
+| `references/PacketDotNet-8752306350ee` | [8752306350ee8bfb8e88f8cf485110a11dddfe53](https://github.com/dotpcap/packetnet/commit/8752306350ee8bfb8e88f8cf485110a11dddfe53) | `78f250ce3937e995e96def6c188e885f793ea9be51727015ee3f95bfa9d1e794` | 469 | MPL-2.0. [`references/PacketDotNet-8752306350ee/LICENSE`](https://github.com/dotpcap/packetnet/blob/8752306350ee8bfb8e88f8cf485110a11dddfe53/LICENSE). Packet decoder, not a TCP stack. Preserve MPL file-level terms for any future reuse; no bundled captures imported. |
+| `references/DiscUtils-96e8f6bc4d8d` | [96e8f6bc4d8daa0da84e07556f5623c1e79a34a2](https://github.com/LTRData/DiscUtils/commit/96e8f6bc4d8daa0da84e07556f5623c1e79a34a2) | `2e2f7a315747f2d7bc0b9c0ea13b08ddc0b71b8ea9da5b0dc0fbca9067e6b3ba` | 1509 | MIT; ExFat attribution to picrap. [`references/DiscUtils-96e8f6bc4d8d/LICENSE.txt`](https://github.com/LTRData/DiscUtils/blob/96e8f6bc4d8daa0da84e07556f5623c1e79a34a2/LICENSE.txt). Stream-based storage/image library is an oracle candidate, not a kernel filesystem. exFAT and VHD code require independent bounded adaptations. |
+
+GitHub classified RedPandaOS as NOASSERTION, but its actual `LICENSE.md`
+contains MIT terms and separately identifies Inconsolata's OFL license. Record
+the inspected text rather than treating the API's heuristic as the license.
+ProtonOS and SingNextOS are conceptual/independent-test references under AGPL;
+this task imports no implementation. PacketDotNet is MPL-2.0, with file-level
+obligations for any later deliberate reuse. DiscUtils ExFat files retain
+picrap attribution. MIT/BSD project-level text does not automatically cover
+every bundled binary, third-party runtime, font, media asset or test fixture.
+
+The Inu core remains license-blocked for direct reuse. Its component notices
+do not supply a blanket license. Static observation and independently authored
+tests remain useful; no copied implementation is proposed.
+
+### Archive and dependency exceptions
+
+LTRData's archive exports 67 text files with line endings differing from the
+Git blob (its attributes select CRLF for some project/solution files). Each
+exception was matched to the immutable raw file and Git blob, then compared
+after CRLF/LF normalization solely for verification. Original archive bytes
+were preserved in `references/`; no source normalization or edit was applied.
+No LFS pointer files were found in that installed snapshot. Other accepted
+archives matched their Git blob bytes directly.
+
+GitHub archives omit submodule content. These gitlinks were recorded, not
+fetched, built or represented as complete runtime dependencies:
+
+| Snapshot | Omitted gitlink | Pinned commit |
+| --- | --- | --- |
+| RedPandaOS | `elfsharp` | `423816a115177950fe96f59e770d972426e484d5` |
+| ProtonOS | `dotnet` | `60629d14374c56f1cb51819049ad1fa529307f8d` |
+| ProtonOS | `tools/bflat` | `6c9d7ef7987dd19b350b79f44293ee8615b186ab` |
+| ProtonOS | `tools/runtime` | `fecbdace333abbe1b07be4c02340a0085ac9a0d5` |
+| Cosmos-gen3 | `dotnet/runtime` | `4271d88e0aebf3d04f188f1334c2220d80555ef6` |
+| Cosmos-gen3 | `src/Cosmos.Kernel.Native.MultiArch/ACPI/lai` | `8cc0b535e7c52dcda8f2afb6a7715b0f3bc76bd1` |
+
+Per-file SHA-256/Git-blob records, API metadata, ZIPs and installation checks
+are retained under `artifacts/reference-research-20261006`. That directory is
+generated local evidence and is not committed. The full revision, archive URL
+formula and hashes above allow retrieval without depending on a moving branch.
+No reference artifact satisfies a CLROS completion gate. Before any future
+source adaptation, add the exact file hash, author/notices and copied-versus-
+reimplemented boundary to the implementing issue and done step.
+
 ## First-Party and Distribution Rules
 
 - First-party kernel/std/app source remains C#; do not commit `.c`, `.cpp`,
@@ -260,7 +331,7 @@ Until dedicated tooling exists, validate this document with:
 
 ```powershell
 $references = Get-ChildItem .\references -Directory
-if ($references.Count -ne 29) { throw "reference inventory changed" }
+if ($references.Count -ne 39) { throw "reference inventory changed" }
 
 $repositoriesWithGitMetadata = $references |
   Where-Object { Test-Path (Join-Path $_.FullName ".git") }
