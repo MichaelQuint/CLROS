@@ -74,6 +74,9 @@
 		<EnableM03FirstRealExitBootServicesProbe Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == ''">false</EnableM03FirstRealExitBootServicesProbe>
 		<EnableM04GcStaticRootMaterializationProbe Condition="'$(EnableM04GcStaticRootMaterializationProbe)' == ''">false</EnableM04GcStaticRootMaterializationProbe>
 		<EnableM04SeededCollectorChurnProbe Condition="'$(EnableM04SeededCollectorChurnProbe)' == ''">false</EnableM04SeededCollectorChurnProbe>
+		<EnableM03FirmwareAdapterRevocationProbe Condition="'$(EnableM03FirmwareAdapterRevocationProbe)' == ''">false</EnableM03FirmwareAdapterRevocationProbe>
+		<EnableM04ClassConstructorExecutionProbe Condition="'$(EnableM04ClassConstructorExecutionProbe)' == ''">false</EnableM04ClassConstructorExecutionProbe>
+		<EnableM04InterfaceDispatchProbe Condition="'$(EnableM04InterfaceDispatchProbe)' == ''">false</EnableM04InterfaceDispatchProbe>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true'">
@@ -290,6 +293,17 @@
 		<DefineConstants>$(DefineConstants);M04_SEEDED_COLLECTOR_CHURN_PROBE</DefineConstants>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$(EnableM03FirmwareAdapterRevocationProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M03_FIRMWARE_ADAPTER_REVOCATION_PROBE</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EnableM04ClassConstructorExecutionProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM04InterfaceDispatchProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_INTERFACE_DISPATCH_PROBE</DefineConstants>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<Compile Include="..\OS.Kernel\Boot\BootHandoffRecord.cs" Link="Boot\BootHandoffRecord.cs" />
 		<Compile Include="..\OS.Kernel\Boot\BootMemoryRegionMaterializer.cs" Link="Boot\BootMemoryRegionMaterializer.cs" />
@@ -399,6 +413,12 @@
 		<Compile Include="..\..\std\no-runtime\shared\DeterministicRandom32.cs" Link="Std\DeterministicRandom32.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\SeededAllocationChurnCollectionRootRetentionGuestProbes.cs" Link="Runtime\SeededAllocationChurnCollectionRootRetentionGuestProbes.cs" />
 		<Compile Include="Runtime\SeededCollectorChurnProbe.cs" />
+		<Compile Include="..\OS.Kernel\Boot\ConsoleFilesystemTimerRNGConfigurationTablePhysicalMemory.cs" Link="Boot\ConsoleFilesystemTimerRNGConfigurationTablePhysicalMemory.cs" />
+		<Compile Include="..\OS.Kernel\Runtime\CompilerClassConstructorExecution.cs" Link="Runtime\CompilerClassConstructorExecution.cs" />
+		<Compile Include="Runtime\ClassConstructorRunner.cs" />
+		<Compile Include="Runtime\CompilerClassConstructorExecutionProbe.cs" />
+		<Compile Include="..\OS.Kernel\Runtime\CompilerInterfaceDispatch.cs" Link="Runtime\CompilerInterfaceDispatch.cs" />
+		<Compile Include="Runtime\InterfaceDispatchProbe.cs" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
 		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
 		<ResolvedILCompilerPack Include="runtime.win-x64.Microsoft.DotNet.ILCompiler">
@@ -1508,6 +1528,13 @@
 		<Error Condition="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableExitBootServicesFreshMapProbe)' == 'true'" Text="m03_first_exit_profile_conflict EnableExitBootServicesFreshMapProbe" />
 		<Error Condition="'$(EnableM04SeededCollectorChurnProbe)' != '' and '$(EnableM04SeededCollectorChurnProbe)' != 'true' and '$(EnableM04SeededCollectorChurnProbe)' != 'false'" Text="m04_churn_switch_invalid" />
 		<Error Condition="'$(EnableM04SeededCollectorChurnProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'" Text="m04_churn_requires_gc_profile" />
+		<Error Condition="'$(EnableM03FirmwareAdapterRevocationProbe)' != '' and '$(EnableM03FirmwareAdapterRevocationProbe)' != 'true' and '$(EnableM03FirmwareAdapterRevocationProbe)' != 'false'" Text="m03_revocation_switch_invalid" />
+		<Error Condition="'$(EnableM04ClassConstructorExecutionProbe)' != '' and '$(EnableM04ClassConstructorExecutionProbe)' != 'true' and '$(EnableM04ClassConstructorExecutionProbe)' != 'false'" Text="m04_cctor_switch_invalid" />
+		<Error Condition="'$(EnableM03FirmwareAdapterRevocationProbe)' == 'true' and '$(EnableM03FirstRealExitBootServicesProbe)' != 'true'" Text="m03_revocation_requires_first_exit_profile" />
+		<Error Condition="'$(EnableM04ClassConstructorExecutionProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'" Text="m04_cctor_requires_gc_profile" />
+		<Error Condition="'$(EnableM04ClassConstructorExecutionProbe)' == 'true' and '$(EnableM04SeededCollectorChurnProbe)' == 'true'" Text="m04_cctor_profile_conflict EnableM04SeededCollectorChurnProbe" />
+		<Error Condition="'$(EnableM04InterfaceDispatchProbe)' != '' and '$(EnableM04InterfaceDispatchProbe)' != 'true' and '$(EnableM04InterfaceDispatchProbe)' != 'false'" Text="m04_dispatch_switch_invalid" />
+		<Error Condition="'$(EnableM04InterfaceDispatchProbe)' == 'true' and '$(EnableM04ClassConstructorExecutionProbe)' != 'true'" Text="m04_dispatch_requires_cctor_profile" />
 	</Target>
 
 	<Target Name="CustomizeReferences"

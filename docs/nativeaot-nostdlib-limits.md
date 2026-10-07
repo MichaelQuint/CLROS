@@ -2,7 +2,45 @@
 
 ## Current Status
 
-The no-stdlib surface is not implemented beyond the first EFI shell boundary. `std/no-runtime/shared` contains small host-tested helper slices for shared compatible contracts, but it is not a complete BCL or runtime surface.
+CLROS implements a bounded no-stdlib NativeAOT subset for the EFI shell and the
+optional allocation, collection, metadata and constructor probes described
+below. `std/no-runtime/shared` contains compatible helper slices; it is not a
+complete BCL or general runtime surface.
+
+## Accepted bounded interface dispatch
+
+M04-016 uses the original registered module and current allocator receipt to
+admit a receiver before reading its method table. The core consumes the pinned
+compiler's two-word cells with relative interface references; it does not invent
+a ReadyToRun section ID for those cells. Cells remain unchanged. Caller-owned
+POD storage holds metadata snapshots and a finite cache keyed by cell, receiver
+and current allocation sequence. Cached calls recheck the original authorities.
+
+Resolution supports ordinary class implementations, exact interface matching,
+class-reference covariance/contravariance, receiver virtual slots and sealed
+slots belonging to the declaring class. A sealed table has no in-band count:
+the caller must supply the exact compiler contribution extent, including a
+folded contribution's identity. An address inside the image is insufficient.
+Limits are 64 cells, 64 cache entries, 1,024 metadata words, 16 hierarchy levels
+and 16 sealed-table owners. The maximum configured state occupies 32,056 bytes.
+
+The C# COFF generator emits an 828-byte object that bridges Win64 receiver
+`RCX` and cell `R11` to the ordinary `CLROS_InterfaceDispatch_Resolve` callback.
+It preserves GP/XMM argument state and the original stack arguments, then
+tail-jumps to the validated target. A rejected callback returns zero and the
+bridge halts locally. The bridge is not an exception/unwind implementation.
+
+Final native/QEMU acceptance at `d5bef46` binds 112 bytes for five cells plus two
+terminators and the four-byte base sealed table. All five consumers retain real
+R11 indirect calls. The fresh guest passes all 15 calls, ten cache entries and
+five cache hits while retaining the original stack, roots and counters.
+Current native ABI/stack/caller-storage review, the full 158-record stream and
+the same-image null-receiver rejection pass in [step1063](../done/step1063.md).
+That step also records the original complete host gate, ancestor/default
+regressions and preserved control failure. Dynamic types,
+arrays/boxing, generic receiver classes, generic virtual methods, default/static
+interface implementations, large struct returns, concurrency and throwing
+dispatch failures remain unsupported. This does not complete Gate4.
 
 ## Class-constructor implementation order
 
@@ -13,7 +51,12 @@ enables lazy initialization. The compiler allocates one pointer-sized context
 word immediately before the non-GC static base; named managed helpers return
 the incoming non-GC or GC base. Eager section 205 instead contains signed
 relative-32 entries on win-x64. These are source-derived ABI requirements,
-not implemented or guest-tested constructor behavior.
+now implemented by the bounded M04-024 core and profile-only compiler adapter.
+The original full host gate and fresh native/QEMU constructor capture are
+accepted at `2b5a4b0` in [step1053](../done/step1053.md). Same-image review proves
+the real eager target, seven lazy contexts, successful-return completion,
+original static-base returns and bounded direct/cyclic reentry. Development
+history remains in [step1052](../done/step1052.md).
 
 M04-024 separates real eager/lazy execution, once semantics and same-thread
 reentry from the full M04-015 failure requirement. After M04-014 it enables
@@ -37,7 +80,56 @@ constructor did not complete. Full M04-015 still requires a real throwing
 constructor, rooted/cached `TypeInitializationException`, and repeated-access
 rethrow without running the constructor again. The existing host state tables
 and token plans do not satisfy either guest boundary. Shared EFI/boot/project/
-probe/script integration requires its separately claimed lane.
+probe/script integration is owned by #570.
+
+`CompilerClassConstructorExecution` revalidates the original retained module
+owner and registered ranges on every entry. It snapshots and validates all
+eager targets before invocation, tracks once state per table entry (identical
+folded targets are allowed), and validates lazy mutable contexts and readable,
+executable, nonwritable targets. State lives outside the one-word compiler
+context. Active direct or cyclic same-thread access returns the partial static
+base without clearing the callable; only successful outer completion clears
+it. The EFI adapter uses zero-initialized retained POD storage, the original GC
+owner, and runtime-fed compiler fixtures. Host synthetic executable ranges are
+validated but never executed. Actual compiler targets, helper callsites and
+context/table identities still require same-image native and guest evidence.
+
+The pinned compiler also guards a constructor's accesses to its own static
+storage. The fixture therefore observes five depth-one and three depth-two
+active helper reentries while all eight constructor bodies execute once.
+These counts are derived from the emitted compiler callsites and checked
+against the real guest, not interpreted as repeated constructor invocation.
+The profile's empty `IsVolatile` metadata type exists only to encode the
+compiler-required volatile pointer field; it adds no runtime behavior.
+
+## Bounded exception-type predicate
+
+`ExceptionTypeMatch.Match` is a host-tested prerequisite for M04-021 handler
+search, scoped in #575 and [step1058](../done/step1058.md). For a nonnull object,
+it validates the original retained allocation and module authority, then admits
+both complete class chains before reporting exact/base identity or a nonmatch.
+Each chain is limited to 32 immutable same-image 24-byte MethodTable prefixes.
+The pinned ILC 10.0.8 accessor uses a direct absolute related-type pointer;
+imported, tagged and relative encodings are not resolved. Malformed metadata,
+cycles, excessive depth and unsupported types return distinct failure statuses.
+Null returns an admitted nonmatch after profile validation without dereferencing
+the target or owner. No partial successful match survives a later bad ancestor.
+
+The supported subset is canonical, non-generic fixed classes with no extended
+flags. Interfaces as targets, arrays, strings, value types, generics, dynamic
+types and finalizers are excluded. Interface/vtable/GC tails are not traversed;
+class identity is neither hash/size equality nor general assignability. Both
+classes need not derive from System.Exception. Callers retain exclusive stable
+image, registration, object and receipt lifetime. The existing collecting ledger
+rejects swept/replaced receipts; the predicate supplies no rooting or lifetime
+extension and cannot authenticate fabricated compiler metadata or POD authority.
+
+Seven focused host groups cover admission, identity, hostile inputs, bounded
+hierarchies, unchanged backing/canaries and zero managed allocation. The actual
+`RhTypeCast_IsInstanceOfException` export remains a halting placeholder. This
+core is not in the EFI Compile list and has no guest proof, EH-record search,
+exception construction, stack restoration, catch/finally/rethrow or cctor
+failure caching. #90 retains its unwind and real-execution acceptance gates.
 
 ## Implemented Behavior
 
@@ -270,8 +362,8 @@ allocation, GC, dispatch, exception or runtime-completion requirements.
 | Array allocation helpers | General support deferred; bounded opt-in EFI guest evidence accepted | Step952 adds the shared retained-page SZ-array leaf and separately classified `EfiSzArrayAllocation` exports. Step954 accepts the complete host gate and eight fresh profiles with independent native/metadata/prefix, transcript/lifecycle and disk review. Genuine byte/long allocations, length/index/store readback, before-bind rejection and shared-page exhaustion are bounded guest observations. General `ArrayAllocation` completion, managed reference stores and GC remain deferred |
 | String allocation helpers | Bounded retained-page EFI String guest accepted | `StringAllocation` remains incomplete. Step964 accepts the separately classified `EfiStringAllocation` path, compiled constructors and UTF-16 storage, with default/fixed/array regressions and three String rejection cases; general String/BCL, GC and write barriers remain unsupported |
 | Write barriers | General runtime support deferred; bounded returning-helper guest progress | Step967's opaque-word host leaf remains distinct from step977's profile-bound authenticated reference route and managed bulk bridge. Step981 accepts two live sentinel words/five checks in the bounded noncollecting profile; ledger entry `WriteBarriers` remains incomplete and no collecting-GC barrier support is established |
-| Interface dispatch | Deferred | Ledger entry `InterfaceDispatch`; EFI type-cast helpers fail fast and do not prove interface dispatch |
-| Class constructors | Deferred | Ledger entry `ClassConstructors`; `NativeAotClassConstructorStateTable` proves caller-owned state transitions, cycle detection, duplicate/missing/capacity errors, failed-cctor preservation, and caller-owned `NATIVEAOT_CCTOR_STATE` diagnostic formatting. `NativeAotClassConstructorRunnerPreflight` proves ready/default/failed/pending/missing-metadata preflight status, caller-owned `NATIVEAOT_CCTOR_RUNNER_PREFLIGHT` diagnostic formatting, and host-tested `BootSequence` readiness markers only. `NativeAotClassConstructorWorkItemPlanner` now proves caller-owned work-item metadata planning from already-supplied target tokens plus caller-owned `NATIVEAOT_CCTOR_WORK_ITEMS` diagnostic formatting and host-tested `NATIVEAOT_CCTOR_WORK_ITEMS_READY` / `NATIVEAOT_CCTOR_WORK_ITEMS_NOT_READY` BootSequence readiness markers while preserving no-delegate/no-reflection/no-execution boundaries. No cctor runner invocation, constructor execution, metadata discovery, or constructor-body failure diagnostics is implemented |
+| Interface dispatch | Bounded ordinary-instance dispatch accepted | Step1063 accepts the finite M04-016 native/guest slice and same-image rejection control. General ledger entry `InterfaceDispatch` remains incomplete; unsupported shapes and EFI type-cast helpers still fail fast |
+| Class constructors | Bounded eager/lazy execution accepted | Steps1053/1063 accept actual M04-024 invocation over the retained TypeManager owner, profile-only compiler helpers and same-thread reentry. The general `ClassConstructors` ledger remains deferred: exceptions, cached failure/rethrow and cross-thread initialization are unsupported. Earlier host planning contracts alone do not execute constructors. |
 | Thread statics | Deferred | Ledger entry `ThreadStatics`; no TLS bootstrap or NativeAOT thread-static base helper exists |
 | Exception handling/unwind | Deferred | Ledger entry `ExceptionUnwind`; throw helpers halt and catch/finally/unwind are not implemented |
 | Module initialization | Deferred | Ledger entry `ModuleInitialization`; no kernel/runtime module initialization helper behavior is implemented |

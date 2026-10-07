@@ -5,11 +5,15 @@ using System.Runtime.CompilerServices;
 
 namespace OS.Runtime;
 
-// One compiler-emitted GC-static cell. It has no initializer or class constructor;
-// RunGcStatics publishes its retained base before any accessor is called.
+// One compiler-emitted GC-static cell. Ordinary GC profiles have no class
+// constructor; the explicit cctor profile adds one only after retained binding.
+// RunGcStatics publishes the base before any accessor is called.
 internal static class GcStaticFixture
 {
     private static object s_value;
+#if M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE
+    static GcStaticFixture() { RhpNewFastAllocation.CctorEntered(7); }
+#endif
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void Set(object value) => s_value = value;
@@ -111,6 +115,9 @@ internal static unsafe partial class RhpNewFastAllocation
                 RejectGc(5);
             }
             CheckGcStack(0);
+#if M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE
+            BindAndRunCompilerClassConstructors(materialized.ObjectReference);
+#endif
             if (b->AllocationCount != 1 || materialized.SeriesBytes != 8 ||
                 Bits(GcStaticFixture.Get()) != 0) RejectGc(6);
             s_gcField = GcFieldAddress();
@@ -146,6 +153,9 @@ internal static unsafe partial class RhpNewFastAllocation
             GcLine(6, s_gcOperation, s_gcCalls, b->AllocationCount, b->UsedBytes);
             GcLine(8, s_gcStack.Checks, s_gcStack.Final0, s_gcStack.Final1, s_gcStack.MinimumWitness);
             RunCollectorGraph();
+#if M04_INTERFACE_DISPATCH_PROBE
+            if (OS.Kernel.Diagnostics.Probes.EnableM04InterfaceDispatchProbe) RunCompilerInterfaceDispatch();
+#endif
 #if M04_SEEDED_COLLECTOR_CHURN_PROBE
             if (OS.Kernel.Diagnostics.Probes.EnableM04SeededCollectorChurnProbe) RunSeededCollectorChurn();
 #endif
@@ -226,6 +236,9 @@ internal static unsafe partial class RhpNewFastAllocation
     // share the collecting owner; the six-role reference diagnostic stays separate.
     private static ulong AllocateGcValue(ulong token)
     {
+#if M04_INTERFACE_DISPATCH_PROBE
+        if (s_gcPhase == 5) return AllocateDispatchReceiver(token);
+#endif
         if (s_gcPhase == 4) return AllocateCollectorNode(token);
         if (s_gcPhase != 2 || token != TypePlain() || s_gcValue.ObjectReference != 0 ||
             !ReadGcRoot().Succeeded) RejectGc(12);

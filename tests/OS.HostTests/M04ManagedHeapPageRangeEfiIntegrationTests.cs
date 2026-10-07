@@ -42,7 +42,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
         string root = Root();
         XDocument project = XDocument.Load(Path.Combine(root, "src/OS/OS.csproj"));
         string[] keys = project.Descendants("Compile").Select(x => x.Attribute("Include")!.Value + "|" + (x.Attribute("Link")?.Value ?? "")).ToArray();
-        Require(keys.Length == 108 && Hash(string.Join('\n', keys) + "\n") == "e9e7264dd23b1f34596cd867f0a66346fe8009cb86edb688bb8bf33be44291a4", "ordered compile closure");
+        Require(keys.Length == 114 && Hash(string.Join('\n', keys) + "\n") == "7e1ccc7ff27d560e10ef512c09b0a8c1ec3f0c9d58ee98a11013e9a0de0a1f88", "ordered compile closure");
         Require(Hash(File.ReadAllText(Path.Combine(root, Leaf)).Replace("\r\n", "\n", StringComparison.Ordinal)) == LeafHash, "frozen leaf");
         Require(Hash(File.ReadAllText(Path.Combine(root, "tests/OS.HostTests/ManagedHeapPageRangeLiveAllocatorTests.cs")).Replace("\r\n", "\n", StringComparison.Ordinal)) == "aed8f7c32f80c5e600ed837e37c5f6de477324e57a9f9aa1ac0aedf43adf4bf6", "frozen host tests");
         XElement flag = project.Descendants(Flag).Single();
@@ -354,7 +354,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
             $snapshot.properties=$properties
             Assert-PostRestoreEvidenceMatchesSnapshot -Evidence $original -Snapshot $snapshot
             $names=@($properties.Keys | Where-Object {$_.StartsWith('Enable',[StringComparison]::Ordinal)})
-            if($names.Count -ne 44){throw 'complete vector'}
+            if($names.Count -ne 47){throw 'complete vector'}
             foreach($name in $names) {
                 $changed=($json | ConvertFrom-Json).postRestoreEvaluation
                 $changed.properties.$name=if($properties[$name] -eq 'true'){'false'}else{'true'}
@@ -370,7 +370,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
                 try {Assert-PostRestoreEvidenceMatchesSnapshot -Evidence $changed -Snapshot $snapshot} catch {$rejected=$true}
                 if(-not $rejected){throw $kind}
             }
-            Write-Output 'TEST_PASS m04.006.efi.authority flags=44 flipped=44 missing=1 embeddedNul=1'
+            Write-Output 'TEST_PASS m04.006.efi.authority flags=47 flipped=47 missing=1 embeddedNul=1'
             """);
         File.WriteAllText(Path.Combine(directory,"Authority.csproj"),"""
             <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
@@ -396,7 +396,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
             string[] enabled=["EnableM01LoadedImageStackProbe","EnableM01LiveAllocatorProbe","EnableM04IndependentEndianConformanceProbe","EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe","EnableM04ArithmeticConformanceProbe","EnableM04LayoutContractProbe","EnableM04ManagedHeapPageRangeProbe"];
             foreach(string flag in enabled)properties[flag]="true";
             string[] vector=properties.Select(x=>x.Key).Where(x=>x.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
-            if(vector.Length!=44)throw new Exception("complete 44-probe vector");
+            if(vector.Length!=47)throw new Exception("complete 47-probe vector");
             string[] verifierArgs=enabled.Select(x=>"-"+x).ToArray();
             void Verify(bool success,string context) {
                 File.WriteAllText(evidencePath,evidence.ToJsonString());
@@ -420,7 +420,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
             """);
         Result r=Process(root,"dotnet","run","--project",Path.Combine(directory,"Authority.csproj"),"-c","Release");
         File.WriteAllText(Path.Combine(directory,"run.log"),r.Output);
-        Require(r.Code==0 && r.Output.Contains("flags=44 flipped=44",StringComparison.Ordinal),r.Output);
+        Require(r.Code==0 && r.Output.Contains("flags=47 flipped=47",StringComparison.Ordinal),r.Output);
     }
 
     private static void TestFirewall()

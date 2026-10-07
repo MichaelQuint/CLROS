@@ -2,13 +2,31 @@
 
 ## Current Status
 
-No CloudReady release is complete as of 2026-08-25. The repository has a
+No CloudReady release is complete as of 2026-10-06. The repository has a
 current source-bound default EFI/QEMU smoke proof, separate source-bound
 opt-in pre-EBS M01/M02 tuples, a separate opt-in fixed-catalog M04-002 guest
 validation tuple, a combined default-off M04-002+M04-003 fixed-catalog guest
 tuple, and a default-off M02-010 LoaderData materialization/readback tuple, plus
 broad host-tested planning contracts, but it is not a functional kernel, not
 cloud-ready, and not production-ready.
+
+M03-009 and M04-016 have scoped acceptance under shared issue #572 at
+`d5bef46006e4f36aaeabc48f3f460fd533093700` ([step1063](../done/step1063.md)). The
+original unfiltered host gate passes 3,845 starts/3,846 passes, including terminal
+`host.tests`, with zero failures. Six fresh default/churn/first-exit/revocation/
+constructor/dispatch captures pass 21/82/66/78/82/158 records and independent
+source/native/ABI/stack/raw/lifecycle/disk review. Three current-image controls
+reject canary corruption, static-payload corruption and a real null receiver.
+The earlier failed timed-stop control is preserved separately; the passing
+controls retain unchanged serial at the original loops after full quiet intervals.
+
+This accepts the owned five-record post-exit tail and finite ordinary-instance
+interface calls, including mandatory variance and declaring-owner behavior:
+15 actual calls, ten cache entries and five hits. Exact compiler cell/sealed
+extents and original module/heap/stack authority remain required. It does not
+establish general exception handling, concurrency or full runtime correctness.
+Steps1054/1056 retain development, catalog failure and recovery history.
+Gates3/4/5 remain **Fail**.
 
 M03-007 and M04-014 now have scoped integrated acceptance under shared lane
 #560 at `e64e9dc1bd1f66ca522bd22aafe8bcd3388428ff` ([step1051](../done/step1051.md)).
@@ -19,8 +37,33 @@ bounded real-exit/permanent-owned-CR3 and pre-EBS collector-churn evidence.
 Steps1032/1042/1043/1050 retain staged integration, failed attempts, fixture
 corrections and supplementary diagnostics. They are not substituted for this
 final acceptance. Gates3/4/5 remain **Fail**; general adapter revocation,
-firmware-page reclamation, compiler cctors and general runtime support remain
-incomplete.
+firmware-page reclamation and general runtime support remain incomplete.
+
+M03-008 and M04-024 have scoped acceptance under shared issue #570 / PR571 at
+`2b5a4b08863f135e39133bb1dc9f4490bb63c870` ([step1053](../done/step1053.md)). The
+original unfiltered host gate passed 3833 starts, 3834 passes including the
+terminal `host.tests`, and zero failures. Independent source/PDB/metadata review
+accounts for all 430 original test files and 425 actual module initializers.
+Fresh default/churn/first-exit/revocation/constructor captures passed their
+21/82/61/73/82-record contracts and exact source/native/lifecycle/disk review.
+The changed churn image has two fresh, independently reviewed canary and
+static-payload rejection controls; old image results were not reused.
+
+This accepts eight retained typed capability denials after real firmware exit
+and actual compiler eager/lazy once execution with same-thread partial-static
+reentry. It does not close a gate or establish general firmware revocation,
+optional provider functionality, firmware reclamation, exception caching/rethrow,
+cross-thread initialization, hosted .NET, Kestrel or cloud readiness. Historical
+development and failed attempts remain in [step1052](../done/step1052.md).
+
+#575 adds a bounded host-only exception-type predicate
+([step1058](../done/step1058.md)). Seven focused groups validate retained
+object/module authority, exact/base class identity, invalid/unsupported input,
+32-node hierarchy bounds, unchanged storage and zero managed allocation.
+The EFI export remains halting; no compiled catch, EH search, stack restoration,
+root lifetime or exception execution is established. #90 remains dependent on
+accepted unwind metadata and its own real throw/catch/finally/rethrow evidence.
+This leaf changes no completion-gate status.
 
 Gate status is explicit:
 

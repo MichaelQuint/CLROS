@@ -8,6 +8,33 @@ advance the ordinary `BootSequence` plan or ExitBootServices boundary.
 
 ## Current Status
 
+The M04-016 dispatch diagnostic is a default-off child of M04-024. It starts
+after `RunCollectorGraph` has completed, while the original registered module,
+collecting allocator, retained roots and owned stack remain live. The callback
+enters `BootSequence.RunInterfaceDispatch`, guarded by
+`Probes.EnableM04InterfaceDispatchProbe`. It adds no ordinary boot phase.
+Final source-bound native/QEMU acceptance at `d5bef46` passes the complete
+158-record dispatch stream, 15 real calls and current-image null-receiver
+control ([step1063](../done/step1063.md)). The constructor-only profile keeps
+its existing order and record contract. No ordinary phase is advanced.
+
+The M03-008 child profile binds typed capabilities before original owned-stack
+entry and proves one admitted console operation. Entry consumes the original
+authority; after real firmware exit and permanent owned-CR3 adoption, all eight
+copied handles must deny before backend entry and preserve caller outputs.
+`BootSequence.IsFirmwareAdapterRevocationEnabled` uses the destructive,
+default-off `Probes.EnableM03FirmwareAdapterRevocationProbe` toggle.
+
+The separate M04-024 child profile binds constructor state only after the
+original TypeManager registration and GC-static materialization, before the
+first constructor-bearing static accessor. `BootSequence.RunCompilerClassConstructors`
+runs the eager table, followed by actual compiler lazy helpers. Its toggle is
+`Probes.EnableM04ClassConstructorExecutionProbe`; it is exclusive with seeded
+collector churn. These are optional diagnostic substeps, not new ordinary boot
+phases. Their accepted source-bound execution and current limitations are
+recorded in [step1053](../done/step1053.md); [step1052](../done/step1052.md)
+preserves development history.
+
 `src/OS.Kernel/Boot/BootSequence.cs` is the managed boot-order boundary. `BootSequencePlan.cs` is the allocation-free marker plan used by both `BootSequence.Run` and the no-stdlib EFI artifact so firmware smoke output cannot bypass the ordered phase markers.
 
 The default-off M03-007 profile also source-links the no-stdlib slice of

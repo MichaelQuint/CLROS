@@ -113,9 +113,9 @@ public static unsafe class FirstExitPostExitDiagnostics
         if (!FirstExitOwnedArena.ValidateCanaries(arena)) return false;
         state.Status = FirstExitDiagnosticStatus.SerialFailed;
         if (!WriteMarker(backend, 2)) return false;
-        // Readiness and the terminal pass line use the same owned transport.
-        // Recheck canaries before either claim; a partial write never completes.
-        for (uint marker = 3; marker < 5; marker++)
+        // Both diagnostic groups use the original owned transport. Recheck
+        // canaries before every claim; a partial write consumes this attempt.
+        for (uint marker = 3; marker < 10; marker++)
         {
             state.Status = FirstExitDiagnosticStatus.ValidationFailed;
             if (!FirstExitOwnedArena.ValidateCanaries(arena)) return false;
@@ -130,7 +130,9 @@ public static unsafe class FirstExitPostExitDiagnostics
     {
         // Fixed ASCII payloads include CRLF. No strings, formatting allocation or
         // arbitrary callback is used between observations and the owned UART.
-        ulong* words = stackalloc ulong[4];
+        // POST_FIRMWARE_DIAGNOSTICS_READY plus CRLF needs 33 bytes.
+        ulong* words = stackalloc ulong[5];
+        words[4] = 0;
         uint bytes;
         if (marker == 0)
         {
@@ -156,6 +158,32 @@ public static unsafe class FirstExitPostExitDiagnostics
         {
             words[0] = 0x5341505f54534554UL; words[1] = 0x30302e33306d2053UL;
             words[2] = 0x00000000000a0d37UL; words[3] = 0; bytes = 19;
+        }
+        else if (marker == 5)
+        {
+            words[0] = 0x4154535f54534554UL; words[1] = 0x302e33306d205452UL;
+            words[2] = 0x000000000a0d3930UL; words[3] = 0; bytes = 20;
+        }
+        else if (marker == 6)
+        {
+            words[0] = 0x5342455f49464555UL; words[1] = 0x535345434355535fUL;
+            words[2] = 0x0000000000000a0dUL; words[3] = 0; bytes = 18;
+        }
+        else if (marker == 7)
+        {
+            words[0] = 0x5249465f54534f50UL; words[1] = 0x49445f455241574dUL;
+            words[2] = 0x434954534f4e4741UL; words[3] = 0x0d59444145525f53UL;
+            words[4] = 0x000000000000000aUL; bytes = 33;
+        }
+        else if (marker == 8)
+        {
+            words[0] = 0x304d5f534f524c43UL; words[1] = 0x45525f3930305f33UL;
+            words[2] = 0x0000000a0d594441UL; words[3] = 0; bytes = 21;
+        }
+        else if (marker == 9)
+        {
+            words[0] = 0x5341505f54534554UL; words[1] = 0x30302e33306d2053UL;
+            words[2] = 0x00000000000a0d39UL; words[3] = 0; bytes = 19;
         }
         else return false;
         for (uint index = 0; index < bytes; index++)

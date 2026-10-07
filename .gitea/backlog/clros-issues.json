@@ -8068,7 +8068,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M03: Real Firmware Exit.",
-      "currentEvidence": "Prerequisite #56 and children #58-#63 are accepted/closed after step1010 and the PR549/550 batch. Five children #64-#68 remain incomplete. Controlled pre-exit map/retry proof does not establish real firmware exit, permanent owned-CR3 adoption, post-firmware operation or the M03 exit criterion. The epic remains open/blocked.",
+      "currentEvidence": "Prerequisite #56 and children #58-#65 have scoped accepted evidence. Step1051/PR559 accepts #64 first real firmware exit with permanent owned CR3 and terminal owned COM1; step1053/PR571 accepts #65 retained typed adapter revocation. Three children #66-#68 remain incomplete. Optional provider functionality, firmware-page reclamation and the full M03 exit criterion remain unproved. The epic remains open/blocked; bounded opt-in evidence does not promote Gate3.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -8764,7 +8764,7 @@
         "M03-007"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -8780,7 +8780,7 @@
         "docs/efi-build.md"
       ],
       "forbiddenPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -8791,7 +8791,7 @@
       ],
       "collisionLane": null,
       "summary": "Invalidate console, map, filesystem, timer, RNG, configuration-table, physical-memory, and framebuffer firmware adapters after success.",
-      "currentEvidence": "The EFI path captures a map but deliberately skips the ExitBootServices call; post-firmware execution is unproven.",
+      "currentEvidence": "Step1053 accepts implementation 2b5a4b08863f135e39133bb1dc9f4490bb63c870 under shared #570 / PR571: original full common gate 3833 START / 3834 PASS / 0 FAIL, fresh 73-record revocation guest and independent exact source/native/lifecycle/disk association. All eight copied typed capabilities retain original arena authority and deny before backend access after real firmware exit/owned CR3, with unchanged outputs and zero backend delta. Step1052 preserves development history. Optional provider functionality, firmware-page reclamation and the broader M03 criterion remain outside this scope.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Invalidate console, map, filesystem, timer, RNG, configuration-table, physical-memory, and framebuffer firmware adapters after success.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -8837,14 +8837,14 @@
         "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun",
         "git diff --check",
         "git status --short",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M03_008_READY\""
+        "$clrosRunId = [Guid]::NewGuid().ToString('N')\n$clrosRunDir = Join-Path (Get-Location).Path ('artifacts/m03-008-' + $clrosRunId)\n$clrosEfiPath = Join-Path (Get-Location).Path ('artifacts/efi/m03-008-' + $clrosRunId + '.EFI')\nNew-Item -ItemType Directory -Path $clrosRunDir | Out-Null\n& powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-qemu-smoke.ps1 -BuildEfi -Qemu 'C:/Program Files/qemu/qemu-system-x86_64.exe' -OvmfCode 'C:/Program Files/qemu/share/edk2-x86_64-code.fd' -TimeoutSeconds 30 -EfiArtifact $clrosEfiPath -Image (Join-Path $clrosRunDir 'clros.raw') -SerialLog (Join-Path $clrosRunDir 'serial.log') -SummaryLog (Join-Path $clrosRunDir 'summary.log') -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableAcpiPhysicalDiscoveryProbe -EnableM03FirstRealExitBootServicesProbe -EnableM03FirmwareAdapterRevocationProbe"
       ],
       "documentationPaths": [
         "docs/boot.md",
         "docs/efi-build.md"
       ],
       "evidenceBoundary": "This issue proves only \"Invalidate console, map, filesystem, timer, RNG, configuration-table, physical-memory, and framebuffer firmware adapters after success.\" It does not by itself prove the M03 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M03-009",
@@ -8855,7 +8855,7 @@
         "M03-008"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -8865,13 +8865,11 @@
       ],
       "priority": "priority:p1",
       "ownedPaths": [
-        "src/OS.Kernel/Boot/UEFIEBSSUCCESSPOSTFIRMWAREDIAGNOSTICSREADYOwned.cs",
-        "tests/OS.HostTests/UEFIEBSSUCCESSPOSTFIRMWAREDIAGNOSTICSREADYOwnedTests.cs",
-        "docs/boot.md",
-        "docs/efi-build.md"
+        "src/OS.Kernel/Boot/FirstOptRealExitBootServicesTransition.cs",
+        "tests/OS.HostTests/FirstOptRealExitBootServicesTransitionTests.cs"
       ],
       "forbiddenPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -8882,17 +8880,16 @@
       ],
       "collisionLane": null,
       "summary": "Emit UEFI_EBS_SUCCESS and POST_FIRMWARE_DIAGNOSTICS_READY through owned COM1.",
-      "currentEvidence": "The EFI path captures a map but deliberately skips the ExitBootServices call; post-firmware execution is unproven.",
+      "currentEvidence": "Prerequisite M03-008 is accepted in step1053 / merged PR571 at 3ba0dd55235625aba4af394e4b55c3fd6586c573. Core754471d725ff38191f8ae240bc5bcff22b015148 appends the five owned-COM1 M03-009 records, with a40-byte buffer, 235-byte complete report, canary-gated claims and consumed partial attempts. Ten focused host groups pass; the shared66/78-record first-exit/revocation grammar and final native/guest acceptance belong to #572. The default profile still does not exit firmware. This issue remains open.",
       "implementationNotes": [
-        "Implement exactly one bounded slice: Emit UEFI_EBS_SUCCESS and POST_FIRMWARE_DIAGNOSTICS_READY through owned COM1.",
-        "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
-        "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
-        "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
-        "The proposed owned paths are exact for this slice: src/OS.Kernel/Boot/UEFIEBSSUCCESSPOSTFIRMWAREDIAGNOSTICSREADYOwned.cs, tests/OS.HostTests/UEFIEBSSUCCESSPOSTFIRMWAREDIAGNOSTICSREADYOwnedTests.cs, docs/boot.md, docs/efi-build.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Exercise the valid firmware handoff sequence for: Emit UEFI_EBS_SUCCESS and POST_FIRMWARE_DIAGNOSTICS_READY through owned COM1.",
-        "Failure cases: Cover EFI_BUFFER_TOO_SMALL, descriptor growth, stale map key, retry exhaustion, copied-range overflow, missing tables, invalid signatures/checksums, and prohibited firmware use after exit as applicable.",
-        "Explicitly inapplicable here: TCP retransmission, application imports, and provider resource cleanup are outside this firmware slice.",
-        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
+        "Reuse FirstExitPostExitDiagnostics.Report with unchanged original arena, mapping, transition and owned-COM1 authority. No new reporter, EFI entry, Compile item, probe or boot phase is required for this slice.",
+        "The proposed owned paths are exact for this slice: src/OS.Kernel/Boot/FirstOptRealExitBootServicesTransition.cs, tests/OS.HostTests/FirstOptRealExitBootServicesTransitionTests.cs. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Append TEST_START m03.009, UEFI_EBS_SUCCESS, POST_FIRMWARE_DIAGNOSTICS_READY, CLROS_M03_009_READY, TEST_PASS m03.009 after the existing five records. The longest record with CRLF is33bytes.",
+        "Check canaries before claims and mark Completed only after the entire tail. Partial/failed attempts remain consumed; repeated calls produce no output or polls. No firmware fallback.",
+        "Preserve17 existing admission/mapping/serial/canary scenarios; add focused tail, partial-write/CRLF boundary, readiness canary and consumed-reentry checks. Do not repeat accepted map-sizing/retry/ACPI suites.",
+        "Shared #572 owns scripts/run-qemu-smoke.ps1, exact existing grammar/freshness fixtures, catalog and canonical docs. Core ownership is only the two listed paths; old generated filenames did not exist.",
+        "First-exit/revocation strict streams become66/78 records with original admission insertion and eight denials preserved. Reject unselected M03-009 claims while retaining the unrelated generic simulation-readiness marker.",
+        "One parent-owned final common gate and fresh ordinary source/native/image/lifecycle-bound QEMU evidence are required. Focused and dry-run results are development evidence only."
       ],
       "referenceInfluences": [
         {
@@ -8912,9 +8909,9 @@
         "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
         "Affected canonical documentation is updated without promoting unsupported completion gates.",
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Exercise the valid firmware handoff sequence for: Emit UEFI_EBS_SUCCESS and POST_FIRMWARE_DIAGNOSTICS_READY through owned COM1.",
-        "Applicable failure cases are asserted: Cover EFI_BUFFER_TOO_SMALL, descriptor growth, stale map key, retry exhaustion, copied-range overflow, missing tables, invalid signatures/checksums, and prohibited firmware use after exit as applicable.",
-        "The evidence report explicitly records these non-goals: TCP retransmission, application imports, and provider resource cleanup are outside this firmware slice."
+        "Demonstrate the complete ordered M03-009 tail through the original bounded UART after actual successful exit and owned CR3/descriptor/stack installation.",
+        "Reject partial output, canary failure and consumed reentry without advancing readiness or falling back to firmware. Preserve original authority checks and prerequisite controls.",
+        "Fresh first-exit and revocation captures preserve complete grammar, actual disk payload, current native call path and process lifecycle. No full M03, reclamation, general runtime, hosted .NET/Kestrel or cloud claim."
       ],
       "requiredMarkers": [
         "TEST_START m03.009",
@@ -8928,7 +8925,7 @@
         "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun",
         "git diff --check",
         "git status --short",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M03_009_READY\""
+        "Shared #572 must record the implemented ordinary run-qemu-smoke.ps1 -BuildEfi profile with all actual prerequisites, fresh EFI/image/serial/summary paths, installed QEMU/OVMF identities and30-second timeout. Enforce the entire current ordered/unique stream plus native/cell/table/disk/lifecycle association; a lone RequireMarker or historical image is insufficient. Use one common unfiltered host gate after final source and freshness preflight, not repeated full runs during editing."
       ],
       "documentationPaths": [
         "docs/boot.md",
@@ -9142,7 +9139,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M04: NativeAOT Runtime Correctness.",
-      "currentEvidence": "Prerequisite #425 and children #70-#81 are closed with scoped accepted evidence. Step1041 accepts #82/#552 bounded collection and allocator reuse at 42a516e: full common suite 3800START/3801PASS/0FAIL and fresh default/GC QEMU captures with final source/native/lifecycle/disk association. PR553 merged at 8501315af1bbdd03adc9db1a23b082540cb67038; #82/#552 are closed/done. The epic remains open/blocked by incomplete children #83-#92 and the M04-024 constructor-execution precursor and the runtime milestone criterion. General runtime initialization, exceptions, hosted .NET/Kestrel and completion Gate4 are not established.",
+      "currentEvidence": "Prerequisite #425 and children #70-#83 have scoped accepted evidence, including step1041/PR553 bounded collection/reuse and step1051/PR559 seeded churn. Step1053/PR571 accepts the M04-024 (#562) eager/lazy execution precursor at 2b5a4b0, with the original full common gate and fresh constructor/changed-churn evidence. Children #84-#92 and the full runtime milestone criterion remain incomplete. Full #84 still requires #90 exception/unwind support. General runtime initialization, exceptions, hosted .NET/Kestrel and Gate4 are not established; the epic remains open/blocked.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -10561,9 +10558,9 @@
         "M04-024"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
-        "type:research",
+        "type:implementation",
         "evidence:qemu",
         "component:runtime",
         "phase:m04-runtime",
@@ -10571,10 +10568,8 @@
       ],
       "priority": "priority:p1",
       "ownedPaths": [
-        "src/OS.Kernel/Runtime/InterfaceDispatchCopyingSharpOSSRuntimeWholesale.cs",
-        "tests/OS.HostTests/InterfaceDispatchCopyingSharpOSSRuntimeWholesaleTests.cs",
-        "docs/nativeaot-nostdlib-limits.md",
-        "docs/completion-gates.md"
+        "src/OS.Kernel/Runtime/CompilerInterfaceDispatch.cs",
+        "tests/OS.HostTests/CompilerInterfaceDispatchTests.cs"
       ],
       "forbiddenPaths": [
         "src/OS/Boot/EfiEntry.cs",
@@ -10587,17 +10582,23 @@
       ],
       "collisionLane": null,
       "summary": "Implement interface dispatch without copying SharpOS's runtime wholesale.",
-      "currentEvidence": "NativeAOT helper ledgers/plans exist, while allocation, GC, metadata, dispatch, and exception helpers still fail fast or remain host-only.",
+      "currentEvidence": "Prerequisite M04-024 is accepted in step1053 / merged PR571. Core788e007cbe5d4020b21785cb6824c9202e3f4572 (integrated e35149cc6324b922f4add1547c06a23f5a403e9a) implements bounded original module/cell/receiver authority, external POD cache, class reference variance and declaring-owner slot resolution. Eight focused host groups pass, including collector address reuse and rejection of adjacent valid RX data outside the declared sealed table. The three-export Win64 bridge and actual five indirect callsites have development native proof: 112-byte cell contribution and one four-byte base sealed table. The first development guest passes 158 records and 15 calls; final frozen common/guest/control acceptance remains pending under #572. Full M04-015 constructor exception caching still requires M04-021.",
       "implementationNotes": [
         "Implement actual compiler-emitted interface dispatch using the accepted constructor-execution precursor M04-024. Full constructor exception caching remains with M04-015 after unwind, rather than forming a dependency cycle.",
+        "The proposed owned paths are exact for this slice: src/OS.Kernel/Runtime/CompilerInterfaceDispatch.cs, tests/OS.HostTests/CompilerInterfaceDispatchTests.cs. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
-        "The proposed owned paths are exact for this slice: src/OS.Kernel/Runtime/InterfaceDispatchCopyingSharpOSSRuntimeWholesale.cs, tests/OS.HostTests/InterfaceDispatchCopyingSharpOSSRuntimeWholesaleTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Positive case: A compiler-emitted interface call reaches the intended receiver implementation through the actual dispatch cell/resolver/helper path, with the emitted image and returned value associated with that path; repeated calls exercise the documented cache behavior.",
         "Failure cases: Reject null receivers, absent or incompatible interface implementations, malformed or stale dispatch metadata/cells, invalid slots and non-executable targets before an unsafe call; preserve module/receiver authority and bounded cache capacity.",
         "Direct calls and compiler devirtualization can bypass the resolver and do not alone prove interface dispatch. Record actual pinned ILC callsites; throwing error semantics remain deferred to M04-021 and must not be replaced by fabricated successful results.",
-        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
+        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only.",
+        "Core ownership is CompilerInterfaceDispatch.cs and CompilerInterfaceDispatchTests.cs only. Shared #572 owns the guest/probe, BootSequence, explicit project, C# COFF bridge, publisher/verifier/runner, exact freshness fixtures and canonical docs.",
+        "Win64 cellR11/receiverRCX require an independently authored argument-preserving bridge to ordinary CLROS_InterfaceDispatch_Resolve. Compiler cells remain unchanged; no fabricated ReadyToRun dispatch section ID.",
+        "Bind original compiler cell-section bounds and exact native owner/sealed-table extents. The compiler sealed-table format has no in-band count; image bounds plus a maximum index do not prove table bounds.",
+        "Mandatory cases include actual covariant IProducer<Derived> as IProducer<Base>, contravariant IConsumer<Base> as IConsumer<Derived>, declaring-owner sealed slots, original-receiver virtual overrides, unrelated interface ordering, alternating receiver/instantiation at one cell, and current allocation lifetime before cache reuse.",
+        "Use non-generic concrete receiver classes and ordinary scalar calls including a stack argument. Default/static interface implementations, generic virtual methods, large struct returns, dynamic types, boxing, concurrency and throwing failure semantics remain unsupported.",
+        "Normalize authored source and synchronize complete source/Compile/generator/property authorities before the expensive unfiltered acceptance gate. No old-image control or devirtualized direct call can substitute for current actual dispatch proof."
       ],
       "referenceInfluences": [
         {
@@ -10619,7 +10620,9 @@
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
         "A real compiler-emitted interface call is bound to its dispatch metadata and actual resolver/helper invocation in the same native image, returns the correct implementation result, and preserves receiver and module ownership.",
         "Null, incompatible, malformed, stale, out-of-range and non-executable dispatch inputs are rejected within the documented pre-unwind policy; repeated valid dispatch and cache behavior are demonstrated without unsafe fallback calls.",
-        "Optimized direct calls, host-only plans and token-only simulations do not count as guest dispatch proof. Constructor exception caching remains mandatory in M04-015 and is not a prerequisite of this returning dispatch slice."
+        "Optimized direct calls, host-only plans and token-only simulations do not count as guest dispatch proof. Constructor exception caching remains mandatory in M04-015 and is not a prerequisite of this returning dispatch slice.",
+        "Demonstrate both required variance directions and exact declaring-owner sealed versus receiver virtual behavior on actual emitted metadata.",
+        "Reject a malformed sealed slot even if adjacent readable image bytes decode to a valid executable address; exact caller-admitted table extents must match final native contributions."
       ],
       "requiredMarkers": [
         "TEST_START m04.016",
@@ -10633,7 +10636,7 @@
         "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun",
         "git diff --check",
         "git status --short",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M04_016_READY\""
+        "Shared #572 must record the implemented ordinary run-qemu-smoke.ps1 -BuildEfi profile with all actual prerequisites, fresh EFI/image/serial/summary paths, installed QEMU/OVMF identities and30-second timeout. Enforce the entire current ordered/unique stream plus native/cell/table/disk/lifecycle association; a lone RequireMarker or historical image is insufficient. Use one common unfiltered host gate after final source and freshness preflight, not repeated full runs during editing."
       ],
       "documentationPaths": [
         "docs/nativeaot-nostdlib-limits.md",
@@ -11283,7 +11286,7 @@
         "M04-014"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -11313,7 +11316,7 @@
       ],
       "collisionLane": null,
       "summary": "Execute real pinned ILC eager/lazy class constructors once, with CLR-compatible same-thread partial-static reentry, using the original retained module and bounded caller-owned state.",
-      "currentEvidence": "Read-only preparation pins installed ILC 10.0.8 to dotnet/dotnet 94ea82652cdd4e0f8046b5bd5becbd11461482ca. Compiler source establishes eager section205 signed rel32 entries, one-word lazy contexts and named managed ClassConstructorRunner helpers. The retained staged churn PE contains no section205 or ClassConstructorRunner; existing host state/work-item plans do not execute constructors. M04-014 acceptance and a separately claimed shared integration lane are still required; no constructor execution evidence is claimed.",
+      "currentEvidence": "Step1053 accepts implementation 2b5a4b08863f135e39133bb1dc9f4490bb63c870 under shared #570 / PR571: original full common gate 3833 START / 3834 PASS / 0 FAIL, fresh 82-record constructor guest and independent exact compiler/native/source/lifecycle/disk association. Actual section205 eager and seven lazy constructors execute once; direct and A-B-A reentry preserves partial statics, original bases and successful-return completion. Compiler own-static guards account for five depth-one and three depth-two helper reentries. Step1052 preserves development history. Full M04-015 remains open for cached failure/rethrow after M04-021; threading/general runtime and Gate4 are not established.",
       "implementationNotes": [
         "Implement one bounded precursor with real compiler-emitted managed void constructor invocation; retain full M04-015 for actual exception caching/rethrow after M04-021. Do not replace the original full constructor issue with terminal-only acceptance.",
         "Read docs/nativeaot-nostdlib-limits.md, docs/efi-build.md, docs/boot.md, docs/boot-order.md and docs/reference-map.md, plus the existing retained TypeManager and GC-static owner. The source-pinned handoff is artifacts/m04-cctor-preparation/handoff.md; primary source must be independently checked if that generated artifact is unavailable.",
@@ -11324,7 +11327,7 @@
         "Heap/module/GC-static storage must be ready, then bind the runner, invoke eager constructors and only then enter dependent consumers through BootSequence. Preserve the current one-cell GC-static materializer unless a separately owned slice explicitly expands it. Force selected fixture initialization to require actual runtime execution rather than compile-time preinitialization.",
         "The exact new core/test paths are src/OS.Kernel/Runtime/CompilerClassConstructorExecution.cs and tests/OS.HostTests/CompilerClassConstructorExecutionTests.cs. Extend the existing host harness with that focused fixture through its shared registration lane. Full M04-015 must reuse/extend this core via explicit ownership transfer instead of implementing a second runner.",
         "The proposed owned paths are exact for this slice: src/OS.Kernel/Runtime/CompilerClassConstructorExecution.cs, tests/OS.HostTests/CompilerClassConstructorExecutionTests.cs, docs/nativeaot-nostdlib-limits.md, docs/completion-gates.md. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Runtime compiler adapter, retained-owner executable-range validation, entry, BootSequence, probe toggles, explicit project closure and publisher/smoke/host-runner registration remain a separate unclaimed integration lane. This issue grants no ownership of those shared paths; acquire that lane before guest integration.",
+        "Runtime compiler adapter, retained-owner executable-range validation, entry, BootSequence, probe toggles, explicit project closure and publisher/smoke integration are claimed in #570. Core agents retain only their declared paths; shared edits follow that lane's exact ownership.",
         "Pre-invocation malformed/foreign/stale authority and capacity failures return explicit failure without executing a target. Any real constructor terminal failure must preserve noncompletion and cannot return a success marker. A status-returning callback is not evidence of a compiled cctor failure, exception capture or retry.",
         "Reserve a new done step only after implementation/evidence exists. Real QEMU/OVMF serial evidence and same-image compiler-call/target association are required; host-only plans, dry runs and empty eager tables do not close this issue."
       ],
@@ -11357,14 +11360,14 @@
         "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun",
         "git diff --check",
         "git status --short",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M04_024_READY\""
+        "$clrosRunId = [Guid]::NewGuid().ToString('N')\n$clrosRunDir = Join-Path (Get-Location).Path ('artifacts/m04-024-' + $clrosRunId)\n$clrosEfiPath = Join-Path (Get-Location).Path ('artifacts/efi/m04-024-' + $clrosRunId + '.EFI')\nNew-Item -ItemType Directory -Path $clrosRunDir | Out-Null\n& powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-qemu-smoke.ps1 -BuildEfi -Qemu 'C:/Program Files/qemu/qemu-system-x86_64.exe' -OvmfCode 'C:/Program Files/qemu/share/edk2-x86_64-code.fd' -TimeoutSeconds 30 -EfiArtifact $clrosEfiPath -Image (Join-Path $clrosRunDir 'clros.raw') -SerialLog (Join-Path $clrosRunDir 'serial.log') -SummaryLog (Join-Path $clrosRunDir 'summary.log') -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM04IndependentEndianConformanceProbe -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe -EnableM04ArithmeticConformanceProbe -EnableM04LayoutContractProbe -EnableM04ManagedHeapPageRangeProbe -EnableM04RhpNewFastProbe -EnableM04GcStaticRootMaterializationProbe -EnableM04ClassConstructorExecutionProbe"
       ],
       "documentationPaths": [
         "docs/nativeaot-nostdlib-limits.md",
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "Proves only actual eager/lazy constructor execution, once and CLR-compatible same-thread reentry in the declared bounded single-thread module profile. Eager once state is runner-owned; lazy completion uses the compiler context word. It does not prove caught/cached constructor exceptions, repeated-access exception rethrow, multiple-thread initialization, full M04-015/M04-023 completion, hosted .NET/Kestrel or the runtime milestone.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-EPIC",

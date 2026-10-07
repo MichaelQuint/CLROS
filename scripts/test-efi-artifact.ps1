@@ -41,6 +41,9 @@ param(
     [switch]$EnableM04SeededCollectorChurnProbe,
     [switch]$EnableM03TypedExitBootServicesCallProbe,
     [switch]$EnableM03FirstRealExitBootServicesProbe,
+    [switch]$EnableM03FirmwareAdapterRevocationProbe,
+    [switch]$EnableM04ClassConstructorExecutionProbe,
+    [switch]$EnableM04InterfaceDispatchProbe,
     [switch]$EnableM04CheckedReferenceBarrierProbe,
     [switch]$EnableM01LoadedImageStackProbe,
     [switch]$EnableM01LiveAllocatorProbe,
@@ -72,7 +75,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 122
+$expectedSourceClosureInputCount = 129
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -223,7 +226,13 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Diagnostics\GCStaticRootMaterializationProbeAuthority.cs|Diagnostics\GCStaticRootMaterializationProbeAuthority.cs',
     '..\..\std\no-runtime\shared\DeterministicRandom32.cs|Std\DeterministicRandom32.cs',
     '..\OS.Kernel\Runtime\SeededAllocationChurnCollectionRootRetentionGuestProbes.cs|Runtime\SeededAllocationChurnCollectionRootRetentionGuestProbes.cs',
-    'Runtime\SeededCollectorChurnProbe.cs|'
+    'Runtime\SeededCollectorChurnProbe.cs|',
+    '..\OS.Kernel\Boot\ConsoleFilesystemTimerRNGConfigurationTablePhysicalMemory.cs|Boot\ConsoleFilesystemTimerRNGConfigurationTablePhysicalMemory.cs',
+    '..\OS.Kernel\Runtime\CompilerClassConstructorExecution.cs|Runtime\CompilerClassConstructorExecution.cs',
+    'Runtime\ClassConstructorRunner.cs|',
+    'Runtime\CompilerClassConstructorExecutionProbe.cs|',
+    '..\OS.Kernel\Runtime\CompilerInterfaceDispatch.cs|Runtime\CompilerInterfaceDispatch.cs',
+    'Runtime\InterfaceDispatchProbe.cs|'
 )
 $expectedPackageBuildClosure = @(
     [pscustomobject]@{
@@ -1584,7 +1593,8 @@ function Get-ExpectedSourceClosurePaths {
         "tools/OS.X64TextSerializerGenerator/Program.cs",
         "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs",
             "tools/OS.X64TextSerializerGenerator/CheckedReferenceBarrierThunkGenerator.cs",
-        "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs"
+        "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs",
+        "tools/OS.X64TextSerializerGenerator/InterfaceDispatchThunkGenerator.cs"
     )
     foreach ($explicitPath in $explicitPaths) {
         $explicitFullPath = Get-AbsolutePath `
@@ -3908,6 +3918,9 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM04SeededCollectorChurnProbe," +
             "EnableM03TypedExitBootServicesCallProbe," +
             "EnableM03FirstRealExitBootServicesProbe," +
+            "EnableM03FirmwareAdapterRevocationProbe," +
+            "EnableM04ClassConstructorExecutionProbe," +
+            "EnableM04InterfaceDispatchProbe," +
             "EnableM01LoadedImageStackProbe," +
             "EnableM01LiveAllocatorProbe," +
             "EnableM01OwnedPagingProbe," +
@@ -4080,6 +4093,15 @@ function Invoke-PostRestoreEvaluationSnapshot {
     }
     if ($EnableM03FirstRealExitBootServicesProbe) {
         $arguments += "-p:EnableM03FirstRealExitBootServicesProbe=true"
+    }
+    if ($EnableM03FirmwareAdapterRevocationProbe) {
+        $arguments += "-p:EnableM03FirmwareAdapterRevocationProbe=true"
+    }
+    if ($EnableM04ClassConstructorExecutionProbe) {
+        $arguments += "-p:EnableM04ClassConstructorExecutionProbe=true"
+    }
+    if ($EnableM04InterfaceDispatchProbe) {
+        $arguments += "-p:EnableM04InterfaceDispatchProbe=true"
     }
     if ($EnableM04CheckedReferenceBarrierProbe) {
         $arguments += "-p:EnableM04CheckedReferenceBarrierProbe=true"
@@ -4343,6 +4365,12 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM03TypedExitBootServicesCallProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM03FirstRealExitBootServicesProbe =
             $EnableM03FirstRealExitBootServicesProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM03FirmwareAdapterRevocationProbe =
+            $EnableM03FirmwareAdapterRevocationProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM04ClassConstructorExecutionProbe =
+            $EnableM04ClassConstructorExecutionProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM04InterfaceDispatchProbe =
+            $EnableM04InterfaceDispatchProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04CheckedReferenceBarrierProbe =
             $EnableM04CheckedReferenceBarrierProbe.IsPresent.ToString().ToLowerInvariant()
         ImportProjectExtensionProps = "false"
@@ -4416,7 +4444,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 108 -or
+    if ($compileItems.Count -ne 114 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4546,6 +4574,10 @@ function Assert-PostRestoreEvidenceMatchesSnapshot {
 }
 
 Write-Output "TEST_START $testName"
+if ($EnableM03FirmwareAdapterRevocationProbe -and -not $EnableM03FirstRealExitBootServicesProbe) { Write-Failure 'm03_revocation_requires_first_exit'; exit 1 }
+if ($EnableM04ClassConstructorExecutionProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Failure 'm04_cctor_requires_gc_profile'; exit 1 }
+if ($EnableM04ClassConstructorExecutionProbe -and $EnableM04SeededCollectorChurnProbe) { Write-Failure 'm04_cctor_churn_conflict'; exit 1 }
+if ($EnableM04InterfaceDispatchProbe -and -not $EnableM04ClassConstructorExecutionProbe) { Write-Failure 'm04_dispatch_requires_cctor_profile'; exit 1 }
 if ($EnableM04SeededCollectorChurnProbe -and -not $EnableM04GcStaticRootMaterializationProbe) {
     Write-Output "TEST_FAIL efi.artifact m04_churn_requires_gc_profile"; exit 1
 }
@@ -5980,6 +6012,9 @@ $requiredEvidenceProperties = @(
 )
 if ($EnableM04CheckedReferenceBarrierProbe -or $EnableM04GcStaticRootMaterializationProbe) {
     $requiredEvidenceProperties += @("checkedReferenceLinkedObjectPath", "checkedReferenceObjectPath", "checkedReferenceObjectBytes", "checkedReferenceObjectSha256")
+}
+if ($EnableM04InterfaceDispatchProbe) {
+    $requiredEvidenceProperties += @("interfaceDispatchLinkedObjectPath", "interfaceDispatchObjectPath", "interfaceDispatchObjectBytes", "interfaceDispatchObjectSha256")
 }
 foreach ($propertyName in $requiredEvidenceProperties) {
     if ($null -eq $linkEvidence.PSObject.Properties[$propertyName]) {
@@ -7428,6 +7463,7 @@ $forceIncludeOptions = [System.Text.RegularExpressions.Regex]::Matches(
     '(?im)^\s*/INCLUDE:(?:"([^"]+)"|([^\s"]+))\s*$')
 $expectedForceIncludes = @($serializerSymbol)
 if ($EnableM04CheckedReferenceBarrierProbe -or $EnableM04GcStaticRootMaterializationProbe) { $expectedForceIncludes += @('RhpAssignRef','RhpCheckedAssignRef','RhpByRefAssignRef') }
+if ($EnableM04InterfaceDispatchProbe) { $expectedForceIncludes += @('RhpInitialDynamicInterfaceDispatch','CLROS_InterfaceDispatch_GetCellSection','CLROS_InterfaceDispatch_GetInitialStub') }
 $actualForceIncludes = @($forceIncludeOptions | ForEach-Object {
     if ($_.Groups[1].Success) { $_.Groups[1].Value } else { $_.Groups[2].Value }
 })
@@ -7920,6 +7956,49 @@ if ($EnableM04SeededCollectorChurnProbe) {
     Assert-CodeSectionCharacteristics $backing.Section 'churn_adapter_section_invalid'
 } elseif ($churnBinding.Count -ne 0) { Write-Failure 'churn_unrequested_native_adapter' $churnSymbol }
 
+# Bind each child profile to its actual retained adapters and managed compiler
+# helpers. RX containment establishes provenance only; guest callsite/ordering
+# review is still required for constructor invocation and firmware revocation.
+$retainedProfiles = @(
+    [pscustomobject]@{
+        Enabled=[bool]$EnableM03FirmwareAdapterRevocationProbe; Name='firmware_revocation'; Symbols=@(
+            'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__ReportRevokedAdapters',
+            'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__AdapterConsole',
+            'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__AdapterMemoryMap',
+            'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__AdapterFileSystem',
+            'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__AdapterTimer',
+            'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__AdapterRandom',
+            'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__AdapterConfiguration',
+            'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__AdapterPhysicalMemory',
+            'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__AdapterFramebuffer'
+        )
+    },
+    [pscustomobject]@{
+        Enabled=[bool]$EnableM04ClassConstructorExecutionProbe; Name='compiler_cctor'; Symbols=@(
+            'OS_OS_Runtime_RhpNewFastAllocation__BindAndRunCompilerClassConstructors',
+            'OS_OS_Runtime_RhpNewFastAllocation__CctorDirectRead',
+            'OS_System_Runtime_CompilerServices_ClassConstructorRunner__EnsureClassConstructorRun',
+            'OS_System_Runtime_CompilerServices_ClassConstructorRunner__CheckStaticClassConstructionReturnNonGCStaticBase',
+            'OS_System_Runtime_CompilerServices_ClassConstructorRunner__CheckStaticClassConstructionReturnGCStaticBase'
+        )
+    }
+)
+foreach ($profile in $retainedProfiles) {
+    foreach ($symbol in $profile.Symbols) {
+        $binding = [regex]::Matches($linkerMapText, '(?m)^\s*([0-9A-Fa-f]{4}):([0-9A-Fa-f]{8})\s+'+[regex]::Escape($symbol)+'\s+([0-9A-Fa-f]{16})\s+(.+?)\s*$')
+        if (-not $profile.Enabled) {
+            if ($binding.Count -ne 0) { Write-Failure ($profile.Name+'_unrequested_native_adapter') $symbol }
+            continue
+        }
+        if ($binding.Count -ne 1 -or $binding[0].Groups[4].Value -notmatch '(?i)(?:^|[\s\\/()])OS\.obj(?=$|[\s()])') { Write-Failure ($profile.Name+'_native_adapter_missing') $symbol }
+        $address = Convert-HexUInt64 $binding[0].Groups[3].Value ($profile.Name+'_address_invalid')
+        if ($address -le $imageBase -or [decimal]$address-$imageBase -ge $sizeOfImage) { Write-Failure ($profile.Name+'_rva_invalid') $symbol }
+        $backing = Resolve-FileBackedRvaRange $sections ($address-$imageBase) 1 $bytes.LongLength ($profile.Name+'_not_backed') ($profile.Name+'_ambiguous')
+        Assert-CodeSectionCharacteristics $backing.Section ($profile.Name+'_section_invalid')
+    }
+}
+if ([regex]::IsMatch($linkerMapText, 'ClassConstructorRunner__[^\s]*ThreadStatic')) { Write-Failure 'compiler_cctor_thread_static_unsupported' }
+
 # Bind the real-exit profile to actual linked callbacks, not only replayed properties.
 $firstExitSymbols = @(
     'OS_OS_Boot_EfiEntry_M03FirstExitAdapter__Enter',
@@ -8004,6 +8083,77 @@ if ($EnableM04CheckedReferenceBarrierProbe -or $EnableM04GcStaticRootMaterializa
         if ([decimal]$addresses[0] + $offset + 4 + $displacement -ne [decimal]$addresses[3]) { Write-Failure 'reference_callback_rel32_mismatch' }
     }
     Write-Output 'EFI_ARTIFACT_CHECKED_REFERENCE_THUNKS bytes=1645 text=1390 exports=3 callbackRel32=3 callbackGraphAccepted=false unwindSupported=false'
+}
+
+# The optional bridge has one function and one data REL32 field. Compare all
+# other linked bytes exactly; callback graph and guest dispatch semantics remain
+# independent acceptance requirements.
+$dispatchNames = @('RhpInitialDynamicInterfaceDispatch','CLROS_InterfaceDispatch_GetCellSection','CLROS_InterfaceDispatch_GetInitialStub','CLROS_InterfaceDispatch_Resolve','__InterfaceDispatchCellSection_Start')
+if (-not $EnableM04InterfaceDispatchProbe) {
+    # The compiler's empty cell-section start also exists in ordinary images.
+    foreach ($name in $dispatchNames[0..3]) {
+        if ([regex]::IsMatch($linkerMapText, '(?m)^\s*[0-9A-Fa-f]{4}:[0-9A-Fa-f]{8}\s+'+[regex]::Escape($name)+'\s+')) { Write-Failure 'dispatch_unrequested_native_symbol' $name }
+    }
+    if ([regex]::IsMatch($linkResponseText,'(?i)CLROS\.X64\.InterfaceDispatch\.obj')) { Write-Failure 'dispatch_unrequested_native_object' }
+}
+else {
+    $dispatchHash = '228630b0ad4d6ab298414fda0fcf07e76cb4699a63339fa59ba331afdc3aeb61'
+    $dispatchPreserved = Get-AbsolutePath ([string]$linkEvidence.interfaceDispatchObjectPath) 'dispatch_object_path_invalid'
+    $dispatchLinked = Get-AbsolutePath ([string]$linkEvidence.interfaceDispatchLinkedObjectPath) 'dispatch_linked_object_path_invalid'
+    $dispatchExpectedLinked = Join-Path (Split-Path -Parent $serializerLinkedObjectFullPath) 'CLROS.X64.InterfaceDispatch.obj'
+    if (-not [string]::Equals($dispatchPreserved,$artifactPath+'.dispatch.obj',[StringComparison]::OrdinalIgnoreCase) -or
+        -not [string]::Equals($dispatchLinked,$dispatchExpectedLinked,[StringComparison]::OrdinalIgnoreCase) -or
+        ($linkEvidence.interfaceDispatchObjectBytes -isnot [int] -and $linkEvidence.interfaceDispatchObjectBytes -isnot [long]) -or
+        $linkEvidence.interfaceDispatchObjectBytes -ne 828 -or
+        [string]$linkEvidence.interfaceDispatchObjectSha256 -cne $dispatchHash) { Write-Failure 'dispatch_object_contract_invalid' }
+    $dispatchPreservedAuthority = Open-AuthorityReadHandle -Path $dispatchPreserved -RootPath (Get-AuthorityRootPath -Path $dispatchPreserved) `
+        -Purpose 'dispatch-preserved-object' -FailurePrefix 'dispatch_object' -MaximumBytes 828 -RequireSingleLink
+    $dispatchLinkedAuthority = Open-AuthorityReadHandle -Path $dispatchLinked -RootPath $repositoryRoot `
+        -Purpose 'dispatch-linked-object' -FailurePrefix 'dispatch_linked_object' -MaximumBytes 828 -RequireSingleLink
+    foreach ($authority in @($dispatchPreservedAuthority,$dispatchLinkedAuthority)) {
+        if ($authority.InitialLength -ne 828 -or [string]$authority.InitialSha256 -cne $dispatchHash) { Write-Failure 'dispatch_object_identity_mismatch' }
+    }
+    Assert-DistinctAuthorityFiles -Records @($dispatchPreservedAuthority,$dispatchLinkedAuthority,$referencePreservedAuthority,$referenceLinkedAuthority,$artifactAuthority,$linkerMapAuthority,$linkResponseAuthority,$linkEvidenceAuthority,$serializerObjectAuthority,$serializerLinkedObjectAuthority,$managedAssemblyAuthority,$linkedMapAuthority)
+    $dispatchResponseCount=0
+    foreach ($token in $linkResponseTokens) {
+        if ([string]::IsNullOrWhiteSpace($token) -or $token[0] -eq '/' -or $token[0] -eq '-') { continue }
+        try {
+            $candidate = if ([IO.Path]::IsPathRooted($token)) { [IO.Path]::GetFullPath($token) } else { [IO.Path]::GetFullPath((Join-Path $responseDirectory $token)) }
+        } catch { continue }
+        if ([string]::Equals($candidate,$dispatchLinked,[StringComparison]::OrdinalIgnoreCase)) { $dispatchResponseCount++ }
+    }
+    if ($dispatchResponseCount -ne 1) { Write-Failure 'dispatch_object_link_response_missing' }
+    [byte[]]$dispatchObject = Read-AuthorityBytes -Record $dispatchPreservedAuthority -MaximumBytes 828 -Reason 'dispatch_object_read_failed'
+    $dispatchAddresses=@()
+    for ($i=0;$i -lt $dispatchNames.Count;$i++) {
+        $binding=[regex]::Matches($linkerMapText,'(?m)^\s*([0-9A-Fa-f]{4}):([0-9A-Fa-f]{8})\s+'+[regex]::Escape($dispatchNames[$i])+'\s+([0-9A-Fa-f]{16})\s+(.+?)\s*$')
+        $owner=if($i -lt 3){'CLROS.X64.InterfaceDispatch.obj'}else{'OS.obj'}
+        if ($binding.Count -ne 1 -or $binding[0].Groups[4].Value -notmatch ('(?i)(?:^|[\s\\/()])'+[regex]::Escape($owner)+'(?=$|[\s()])')) { Write-Failure 'dispatch_symbol_owner' $dispatchNames[$i] }
+        $address=Convert-HexUInt64 $binding[0].Groups[3].Value 'dispatch_symbol_address_invalid'
+        if ($address -le $imageBase -or [decimal]$address-$imageBase -ge $sizeOfImage) { Write-Failure 'dispatch_symbol_rva_invalid' $dispatchNames[$i] }
+        $dispatchAddresses += [UInt64]$address
+    }
+    if ($dispatchAddresses[1] -ne $dispatchAddresses[0]+448 -or $dispatchAddresses[2] -ne $dispatchAddresses[0]+464 -or
+        $dispatchAddresses[0]%16 -ne 0 -or $dispatchAddresses[4]%8 -ne 0 -or
+        ($dispatchAddresses[3] -ge $dispatchAddresses[0] -and $dispatchAddresses[3] -lt $dispatchAddresses[0]+472)) { Write-Failure 'dispatch_symbol_layout' }
+    $dispatchBacking=Resolve-FileBackedRvaRange $sections ($dispatchAddresses[0]-$imageBase) 472 $bytes.LongLength 'dispatch_text_not_backed' 'dispatch_text_ambiguous'
+    Assert-CodeSectionCharacteristics $dispatchBacking.Section 'dispatch_text_section_invalid'
+    $dispatchCallbackBacking=Resolve-FileBackedRvaRange $sections ($dispatchAddresses[3]-$imageBase) 1 $bytes.LongLength 'dispatch_callback_not_backed' 'dispatch_callback_ambiguous'
+    Assert-CodeSectionCharacteristics $dispatchCallbackBacking.Section 'dispatch_callback_section_invalid'
+    $dispatchCellBacking=Resolve-FileBackedRvaRange $sections ($dispatchAddresses[4]-$imageBase) 16 $bytes.LongLength 'dispatch_cell_not_backed' 'dispatch_cell_ambiguous'
+    $cellCharacteristics=[UInt64]$dispatchCellBacking.Section.Characteristics
+    if (($cellCharacteristics -band 0xC0000040L) -ne 0xC0000040L -or
+        ($cellCharacteristics -band 0x22000020) -ne 0) { Write-Failure 'dispatch_cell_section_invalid' }
+    [byte[]]$dispatchText=Copy-ByteRange $bytes $dispatchBacking.FileOffset 472 'dispatch_text_truncated'
+    for ($i=0;$i -lt 472;$i++) {
+        if (($i -ge 221 -and $i -lt 225) -or ($i -ge 451 -and $i -lt 455)) { continue }
+        if ($dispatchText[$i] -ne $dispatchObject[60+$i]) { Write-Failure 'dispatch_text_mismatch' ('offset='+$i) }
+    }
+    $callbackDisplacement=[BitConverter]::ToInt32($dispatchText,221)
+    $cellDisplacement=[BitConverter]::ToInt32($dispatchText,451)
+    if ([decimal]$dispatchAddresses[0]+225+$callbackDisplacement -ne [decimal]$dispatchAddresses[3]) { Write-Failure 'dispatch_callback_rel32_mismatch' }
+    if ([decimal]$dispatchAddresses[0]+455+$cellDisplacement -ne [decimal]$dispatchAddresses[4]) { Write-Failure 'dispatch_cell_rel32_mismatch' }
+    Write-Output 'EFI_ARTIFACT_INTERFACE_DISPATCH_THUNKS bytes=828 text=472 exports=3 callbackRel32=1 dataRel32=1 callbackGraphAccepted=false unwindSupported=false'
 }
 
 Assert-DistinctAuthorityFiles -Records @(
