@@ -10920,7 +10920,7 @@
         "M04-011"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -10996,7 +10996,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves bounded per-image x64 PE runtime-function/unwind metadata decoding, lookup and real-image consumption only. It does not prove actual stack unwinding, catch/finally execution, restored registers, general exception support, GC stack scanning, M04 completion, hosted .NET/Kestrel or cloud readiness. Fresh guest evidence remains mandatory; the integration owner must add its exact implemented profile command before closure.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M04-021",

@@ -2752,7 +2752,7 @@ accounted for as OVMF NVVARS/FAT bookkeeping. Internal tail canaries were
 initialized after registration; no external RAM oracle or numeric guest stack
 canary measurement is claimed.
 
-### M04-020 current-image unwind metadata development
+### M04-020 current-image unwind metadata acceptance
 
 `EnableM04X64UnwindMetadataProbe` is disabled by default and requires
 `EnableM04TypeManagerModuleRegistrationProbe`, which retains its original
@@ -2776,10 +2776,16 @@ Development native publication and the ordinary QEMU wrapper passed the complete
 in [step1060](../done/step1060.md) changes decoder identity; those older native
 bytes are not evidence for the changed source. Its exact publisher source guard
 and dependent aggregate fixtures are reconciled in [step1062](../done/step1062.md).
-Fresh current-source native and guest acceptance remain pending. The decoder's bounded
+Fresh current-source native and guest acceptance pass at `4625fd7` in
+[step1071](../done/step1071.md), including the indexed decoder. The original full
+host gate has 3,864 starts, 3,865 passes and no failures. Current default,
+TypeManager and unwind profiles have 21/45/67 complete application records.
+Independent reviews bind all current publisher inputs, emitted code, stack
+bounds, raw serial, runner lifecycle and actual postboot FAT payloads. The
+unwind graph uses 7,440 bytes below module entry and 8,768 below the original
+continuation; firmware callback bodies are excluded. The decoder's bounded
 stack buffer uses the existing fixed RX cookie-anchor convention; randomized
-initialization remains separate hardening work. Frozen common acceptance and
-final native/stack/raw-serial/image/lifecycle review remain #574 obligations.
+initialization remains separate hardening work.
 The original TypeManager records remain intact; selected guest output adds a strict
 22-record metadata tail. Do not accept a marker override or a host fixture as
 real-image consumption. Version-one/listed-chain bounds remain enforced even if
