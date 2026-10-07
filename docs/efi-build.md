@@ -2907,20 +2907,31 @@ At the accepted `42a516e` revision, the runner's informational GC summary said
 The first-exit/churn integration in [step1042](../done/step1042.md) corrects that summary. No general
 runtime, hosted .NET or real firmware-exit claim follows from this profile.
 
-## Bounded throw/catch development profile
+## Bounded throw/catch profile
 
-Issue #582 adds `EnableM04SimpleThrowCatchProbe`, false by default, beneath the existing GC-static profile and its complete ancestry. The combined owned-subsystem/throw-catch source closure has 121 explicit Compile entries, 137 raw publication inputs, 51 public flags with 48 literal false defaults, and six C# generator files/eight declared generator inputs. The original development counts are preserved in step1066. The generator adds a 1,350-byte C#-authored COFF object; the existing objects retain their identities. The publisher and verifier bind the real throw helper, selection/continuation callbacks and exact EH contribution. Structural publication alone does not establish stack transfer.
+`EnableM04SimpleThrowCatchProbe` remains false by default and requires the
+collecting-GC profile with its complete ancestry. The accepted `ead4fca` closure
+has 121 explicit `Compile` items, 137 raw publication inputs, 51 public flags
+with 48 literal false defaults, and six C# generator files with eight declared
+inputs. The C# generator supplies the 1,350-byte COFF object; publisher/verifier
+checks bind its actual throw, selection/continuation callbacks and exact EH
+contribution.
 
-The current source also calls the same capture-admission predicate with one
-invalid local RIP value before selecting a handler. It preserves the live
-capture and transfer state. The strict transcript now requires 82 application
-records, including the local rejection and subsequent real catch/continuation.
-Current native and guest acceptance of this addition remains pending; it is not
-a corrupted-live-context or terminal-rejection claim.
+[Step1075](../done/step1075.md) records the original common gate and three fresh
+ordinary `-BuildEfi` captures: default, GC and simple-catch profiles emit 21, 70
+and 82 application records respectively. The catch transcript includes rejection
+of an invalid local RIP through the production admission predicate, then the
+required real catch and continuation. Live context stays unchanged; this is not
+terminal corrupted-context proof. Complete commands and final source, native,
+raw, lifecycle and disk identities are retained in the step and each original
+`wrapper.command.json`.
 
-The successful development publication and its independent native review are preserved in [step1066](../done/step1066.md). Its single guest used the ordinary ImageBuilder/QemuRunner commands with the original wrapper's strict validators, because the wrapper requires `-BuildEfi` and this development capture intentionally reused the already reviewed image. Final acceptance must use fresh ordinary wrapper captures after prerequisite and common-gate acceptance.
+[Step1066](../done/step1066.md) retains the 81-record development guest and its
+CLI-versus-wrapper limitation. Final acceptance uses fresh ordinary wrappers;
+older counts and images are not relabeled. General EH and broader gates remain
+incomplete.
 
-## Owned subsystem development profile
+## Owned subsystem survival and panic profiles
 
 The disabled #67 survival profile requires EnableM01LoadedImageStackProbe,
 EnableM01LiveAllocatorProbe, EnableAcpiPhysicalDiscoveryProbe,
@@ -2936,16 +2947,28 @@ Original locked preflight passes. Native compilation/linking produced an image,
 but the original artifact verifier hit its unchanged 60-second limit without a
 verdict. One unchanged verifier-only invocation later passed in 52,906 ms under
 the same 60-second bound, with all 130 source, 56 native and 28 tool inputs
-unchanged. Independent native review found no scoped blocker; no guest has run.
-Preserve the original failed publication, earlier Desktop module-resolution
-failure and all archives in [step1067](../done/step1067.md). Final merged source pins and original
-verification must pass before guest acceptance.
+unchanged. Independent native review found no scoped blocker; no guest had run
+at that development checkpoint. Preserve the original failed publication,
+earlier Desktop module-resolution failure and all archives in
+[step1067](../done/step1067.md). The fresh acceptance below supersedes that
+pending status without changing the original failed receipt.
 
-The merged development source now has 117 ordered Compile items, 132 raw
+At step1069, the merged development source had 117 ordered Compile items, 132 raw
 publication inputs, 50 profile flags and 47 literal false defaults. Its fixture
 reconciliation includes the final step1068 verifier identity. One fresh managed
 build and 45 original focused checks plus two existing authority helpers pass;
 the kernel, runner and shared DLLs are bound to that build. [Step1069](../done/step1069.md)
 records the exact current hashes and preserved historical contracts. This is
-focused source/profile evidence; the original full gate and fresh default,
-first-exit parent, survival and panic captures remain pending.
+focused source/profile evidence. [Step1074](../done/step1074.md) now accepts the
+frozen 4ef299f source with the original full gate and four fresh ordinary
+publications/captures: default 21, first-exit 66, survival 76 and panic 77 application
+records. The panic runner returns 19; only its exact terminal transcript and
+measured quiet interval allow the wrapper to return 0. Fresh native, raw/lifecycle
+and GPT/FAT/EFI payload association pass. Complete executed command vectors and
+source/tool/producer identities are retained per profile. All selected flags
+remain disabled by default; this does not promote broader completion gates.
+
+The step1068 verifier path-walk optimization is included in that accepted source.
+Its approximately 8.74x measured gain applies to the helper benchmark only, with
+unchanged authority checks and deadline. Symlink creation and ACL-denial fixture
+coverage remain unavailable on this host, as recorded in the original results.

@@ -2,7 +2,7 @@
 
 ## Current Status
 
-The probe catalogue has 21 entries. M03-008 and M04-024 occupy indices 17 and
+The probe catalogue has 24 entries. M03-008 and M04-024 occupy indices 17 and
 18; the new destructive, default-off M04-016 dispatch entry is index 19 in
 `runtime.dispatch`. Integration #572 is accepted at `d5bef46` in
 [step1063](../done/step1063.md). M03-009 adds five owned-writer records to the
@@ -24,6 +24,12 @@ and 21-record default profile pass at `4625fd7` in
 [step1071](../done/step1071.md), with original full host and independent native,
 stack, raw transcript, disk and lifecycle acceptance. Step1057 retains the
 earlier development evidence.
+
+Owned survival and panic occupy indices 21 and 22, accepted in
+[step1074](../done/step1074.md). The default-off simple-catch child is index 23;
+[step1075](../done/step1075.md) accepts its 82-record collecting-GC profile at
+`ead4fca`, including the real catch/continuation and local-input admission
+rejection. These finite profiles do not establish general exception handling.
 
 The preceding accepted revocation profile extended
 the first-exit transcript to 73 application records: an admitted pre-entry
@@ -1753,7 +1759,7 @@ stage.
 
 ## Bounded throw/catch diagnostic
 
-The combined #67/#582 integration places the default-off simple-catch probe at
+The accepted `ead4fca` integration places the default-off simple-catch probe at
 catalogue index 23, after the two owned-subsystem profiles. Its complete
 collecting-GC transcript requires 82 application records and 71
 required/ordered/unique anchors. Nine numeric child stages bind original
@@ -1764,21 +1770,27 @@ only a local RIP scalar; it does not mutate the live capture or enter a handler.
 `CLROS_M04_SIMPLE_CATCH_READY` and `TEST_PASS m04.021.simple-catch` still require
 the real compiled catch and continuation. Failures remain
 `TEST_FAIL m04.021.simple-catch <reason>`. The earlier 81-record development
-guest is preserved in [step1066](../done/step1066.md); final common/profile,
-native and current 82-record guest acceptance remain pending.
+guest is preserved in [step1066](../done/step1066.md). [Step1075](../done/step1075.md)
+accepts the original common gate and current 82-record guest with final native,
+raw, lifecycle and disk association. Local-input admission rejection does not
+prove terminal rejection after live context corruption or general exception
+recovery.
 
-## Owned subsystem result and panic profiles in development
+## Owned subsystem result and panic profiles
 
-Issue #67 adds two destructive, default-off children. Positive output preserves
-the original 66 first-exit application records and adds ten: test-start, one
-allocator row, five original copied-ACPI rows, a descriptor row, ready and pass.
-The panic form has 77 application records: it replaces ready/pass with armed,
-entered and the existing terminal fault record. With the fixed firmware
-preamble, the respective stream counts are 78 and 79. Every M03_OWNED stage
-contains eight fixed-width hexadecimal fields tied to the original authorities.
+Issue #67 adds two destructive, default-off children at catalogue indices 21
+and 22. Positive output preserves the original 66 first-exit application records
+and adds ten: test-start, one allocator row, five original copied-ACPI rows, a
+descriptor row, ready and pass. The panic form has 77 application records: it
+replaces ready/pass with armed, entered and the terminal fault record. With the
+fixed firmware preamble, the respective stream counts are 78 and 79. Every
+`M03_OWNED` stage contains eight fixed-width hexadecimal fields tied to the
+original authorities.
 
-The separate expected-panic runner mode retains the measured 750 ms unchanged
-serial drain, owned teardown and exit 19 classification. Its terminal fault
-cannot count as ordinary boot success. The original M02 panic mode is retained.
-Controlled parser cases pass; no actual #67 positive or panic guest has run.
-See [step1067](../done/step1067.md) for source/native evidence and limitations.
+[Step1074](../done/step1074.md) accepts both actual guests at `4ef299f`, with
+independent native and raw/process/disk review. The panic capture binds the
+faulting instruction and guard address to original CR3 and the 184-byte IST2
+frame. Runner exit 19 becomes wrapper exit 0 only after the exact terminal
+transcript and measured 757 ms quiet interval; no success follows the fault.
+This remains distinct from ordinary boot success, recovery and the unchanged
+M02 panic mode. [Step1067](../done/step1067.md) preserves development failures.

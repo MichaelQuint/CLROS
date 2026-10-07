@@ -983,7 +983,7 @@ zero failures and unchanged launch binaries. All nine fresh default, panic,
 UD2, page-fault, double-fault, fixed, mixed-array, before-bind and exhaustion
 profiles pass their independent source/native/raw/lifecycle/disk reviews.
 The panic has76 records,650-byte/24-field current-state metadata and the exact
-vector32 fault, followed by EOF. Actual wrapper0, source-bound runner19,
+vector32 fault, followed by EOF. Actual wrapper 0, source-bound runner19,
 QEMU signed-1/owned termination and measured760ms quiet agree. The intended
 OS_SMOKE_FAIL is accepted only as that complete expected-panic outcome.
 
@@ -2047,25 +2047,44 @@ reuse; it does not prove compiler-created allocation or general runtime startup.
 The retained corruption controls remain associated with the reviewed same-image
 behavior. Gates3/4/5 remain **Fail**.
 
-## Bounded throw/catch development evidence
+## Bounded throw/catch accepted boundary
 
-Issue #582 has one independently reviewed development native image and one same-image QEMU/OVMF execution reaching the real typed catch and compiled continuation with the original rooted object. The complete 81-record transcript passes its original validators; [step1066](../done/step1066.md) preserves source, native, command and artifact identities. This does not close #582 or #90: final accepted dependencies, frozen-source common/profile acceptance and the targeted malformed-context criterion remain outstanding. General EH, finally/filter/rethrow, nested exceptions, constructor-failure caching, automatic stack roots, hosted .NET/Kestrel and all broader readiness gates remain incomplete.
+[Step1075](../done/step1075.md) accepts #582 at frozen `ead4fca`: the original full
+common gate passes 3,888 starts, 3,889 passes and zero failures. Fresh default,
+GC and simple-catch ordinary wrappers supply 21, 70 and 82 application records
+with final source, native, raw, lifecycle and disk review. One real compiler
+throw crosses a frame into a typed catch and resumes the compiled continuation
+with the original rooted object. Before selection, the production admission
+predicate rejects an invalid local RIP without modifying live capture or
+transfer state. This is admission rejection, not terminal corrupted-live-context
+evidence.
 
-## Owned subsystem survival development boundary
+[Step1066](../done/step1066.md) remains the original 81-record development history.
+This accepted result supports closure of only #582; the actual PR #583 merge and
+tracker readback are recorded separately after integration. #90 remains open.
+General search/cleanup, finally/filter/rethrow, nested/collided exceptions,
+broader lifetime and root support, CET, constructor-failure caching, hosted
+.NET/Kestrel, cloud and production readiness remain incomplete. No numbered
+gate changes.
 
-Issue #67 implements the post-exit original-allocator operation, original copied
-ACPI readback and descriptor/canary checks, with a separate disabled installed
-page-fault panic path. Selected EFI C#, kernel and runner compilation and three
-controlled integration groups pass. The original publication timed out; a
-separate unchanged verifier-only invocation passes and independent native review
-finds no scoped blocker. There is no positive or panic guest evidence for these
-new paths, and full acceptance remains pending. [Step1067](../done/step1067.md) records
-the preserved failures, source/tool/native identities and pending final common,
-native, raw/lifecycle/FAT and guest proof. #67 and all broader gates remain open;
-these checks do not establish a continuing workload or general kernel readiness.
+## Owned subsystem survival accepted boundary
 
-[Step1069](../done/step1069.md) reconciles the current owned-subsystem and unwind
-source/profile guards after the verifier optimization. All 47 selected checks
-pass with newly built managed dependencies and unchanged production inputs.
-This completes the focused reconciliation only; it does not satisfy the full
-host, current native-image, positive-guest or separate terminal-guest gates.
+[Step1074](../done/step1074.md) accepts the bounded #67 integration and #584
+verifier optimization at frozen source 4ef299f. The original solution build/full
+harness, naming, default dry run and diff check pass. All 2,061 source records and
+16 producer artifacts remain bound to the unfiltered 3,872-start/3,873-pass result.
+Four fresh ordinary captures contain 21/66/76/77 application records for default,
+first exit, owned survival and the separate controlled installed page fault.
+
+The positive guest uses the original allocator for a restored one-page operation,
+rereads original copied ACPI and checks installed descriptor/canary identities.
+The terminal control binds its actual faulting MOV, RIP/CR2, original CR3 and
+184-byte IST2 frame to the fresh native image. Runner 19 becomes wrapper 0 only
+after exact raw validation and the measured 757-ms quiet interval; no success
+follows the fault. Independent native and raw/process/GPT/FAT/EFI review passes.
+
+Steps 1065, 1067, 1068 and 1069 retain the leaf, initial failed publication, helper-only
+benchmark and focused reconciliation history. The original publication timeout
+remains failed; the fresh current captures establish acceptance. General firmware
+reclamation, interrupts/recovery, continuing drivers/workloads, hosted .NET/Kestrel,
+cloud and production readiness remain incomplete. No numbered gate changes.

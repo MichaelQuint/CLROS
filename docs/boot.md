@@ -17,8 +17,9 @@ native/QEMU evidence at `d5bef46`: first-exit and revocation emit 66 and 78 comp
 application records through the original owned COM1 backend. The full host gate,
 actual writer/stack review and fresh disk/lifecycle association pass in
 [step1063](../done/step1063.md). Development remains in step1054; the older
-captures below retain their original source boundary. Continuing post-firmware
-allocator/platform work remains #67.
+captures below retain their original source boundary. The bounded owned-subsystem
+continuation is accepted below; general reclamation and continuing platform
+services remain separate work.
 
 The allocator portion of M03-010 is host-tested in
 [step1065](../done/step1065.md). It consumes the original diagnostic admission,
@@ -27,10 +28,14 @@ words, frees the exact receipt and verifies the original accounting. Four
 focused groups cover restoration, owner/alias refusal and consumed failure paths.
 Prior native observations are modeled by that host fixture. Shared EFI
 integration is implemented in [step1067](../done/step1067.md), with current
-source/profile reconciliation in [step1069](../done/step1069.md). Fresh guest
-proof of copied-ACPI use, installed-descriptor validation and the separate
-terminal fault control remains pending; the allocator leaf alone does not
-complete #67.
+source/profile reconciliation in [step1069](../done/step1069.md). The complete
+bounded integration is accepted at 4ef299f in [step1074](../done/step1074.md):
+four fresh ordinary captures cover default boot, first exit, survival and the
+separate installed page-fault/IST2 panic. The positive path emits 76 application
+records, including copied-ACPI readback, installed descriptor/canary checks and
+restored original allocator accounting. The 77-record panic path terminates
+without the success tail. These profiles do not establish general reclamation,
+fault recovery or continuing drivers/workloads.
 
 M03-008 adds a default-off typed firmware-capability revocation profile under
 integration issue #570. It binds console, memory-map, filesystem, timer, RNG,
@@ -4464,23 +4469,33 @@ invalidation remains required after a future real successful exit.
      define the expected register dump field order and caller-owned
      frame-to-panic-output readiness boundary before real handlers are added.
 
-## Bounded throw/catch development
+## Bounded throw/catch accepted scope
 
-The optional #582 profile executes inside the original pre-exit collecting-GC diagnostic. It reuses the registered module, original allocation receipts, retained static storage and owned M01 stack. `BootSequence` guards the child and the one-frame interpreter entry; it introduces no normal boot phase or ExitBootServices behavior. The first finite development guest reaches the real typed catch and compiled continuation ([step1066](../done/step1066.md)); final integration acceptance remains pending.
+The default-off #582 child runs inside the original pre-exit collecting-GC
+diagnostic, using the registered module, retained allocation receipt/root and
+owned M01 stack. `BootSequence` guards the child and one-frame interpreter;
+no ordinary boot phase or `ExitBootServices` behavior is added.
+[Step1075](../done/step1075.md) accepts one real compiled throw across a frame
+into a typed catch and its continuation at `ead4fca`. The same-image invalid
+local RIP check rejects through the shared capture-admission predicate before
+selection, without modifying live context. [Step1066](../done/step1066.md)
+preserves the earlier development guest; general EH remains #90 work.
 
-## Owned subsystem survival development
+## Owned subsystem survival accepted scope
 
-Issue #67 now wires the original allocator round trip through BootSequence
-after the original real-exit transition. The operation invokes the owned
+The default-off #67 child runs the original allocator round trip through
+`BootSequence` after the real exit transition. The operation invokes the owned
 diagnostic reporter once, restores the allocation and accounting, then admits
 and reads the original copied ACPI state. Descriptor checks use retained native
 adoption observations and current storage/canaries; they are not fresh reads of
-descriptor registers. The separate disabled panic child reads the original
-unmapped arena guard and admits the installed fault callback's original
-vector/error/CR2/CR3 and IST2 frame before owned terminal reporting.
+descriptor registers. The separate panic child reads the original unmapped arena
+guard and admits the installed fault callback's vector/error/CR2/CR3 and IST2
+frame before owned terminal reporting.
 
-Managed compilation and controlled parser checks pass. The original native
-publication timed out in artifact verification. One unchanged verifier-only
-invocation then passed in 52.9 seconds; independent native review found no scoped
-blocker. No guest has run. [Step1067](../done/step1067.md) records the evidence and
-remaining original common/native/guest acceptance. #67 remains open.
+[Step1074](../done/step1074.md) accepts frozen `4ef299f` with the original full
+host gate and four fresh ordinary captures. Survival emits 76 application
+records; the separate 77-record fault path terminates without the success tail.
+Actual native, raw/process and GPT/FAT/EFI associations pass. Step1067 retains
+the original development publication timeout and its later verifier-only result;
+they are not relabeled as a passing publication. General reclamation, fault
+recovery and continuing platform services remain separate work.

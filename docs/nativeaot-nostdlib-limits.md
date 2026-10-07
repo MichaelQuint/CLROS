@@ -164,7 +164,9 @@ Typed-prefix range admission does not validate a class or perform matching.
 Chains, reverse-PInvoke, unknown kinds/flags, split code and cross-module targets
 remain unsupported. The leaf changes no EFI export/profile and supplies no
 exception construction/rooting, handler search, invocation, stack restoration
-or actual throw/catch/finally/rethrow. Merge acceptance waits for #89/#574.
+or actual throw/catch/finally/rethrow. The leaf is accepted after #89/#574
+integration; the separate bounded #582 execution evidence below does not extend
+the metadata reader's contract to general EH.
 
 ## Implemented Behavior
 
@@ -1957,10 +1959,30 @@ execution/once/reentry (#562), full cached exception/rethrow (#84), concurrent
 initialization, general GC/runtime startup and hosted .NET/Kestrel remain
 unproved; Gates3/4/5 remain **Fail**.
 
-## Bounded throw/catch development
+## Bounded throw/catch accepted scope
 
-Issue #582 adds a disabled child of the collecting-GC profile. It allocates a compiler-generated derived exception through the original allocator, retains its explicit receipt root through collection, then executes a real non-inlined throw into a typed base-class catch. The original module metadata, one-frame interpreter and exception-type predicate select the actual compiler funclet. A C# COFF bridge preserves the captured and post-catch nonvolatile state, validates the funclet's returned continuation and resumes it on the selected caller stack.
+The default-off #582 child allocates a compiler-generated derived exception
+through the original allocator, retains its explicit receipt root through
+prethrow collection, then executes a non-inlined throw into a typed base-class
+catch. Original module metadata, the one-frame interpreter and bounded type
+predicate select the actual compiler funclet. The C# COFF bridge captures real
+GP/XMM state, validates the returned continuation, and restores post-catch state
+on the selected caller stack. [Step1075](../done/step1075.md) accepts this exact
+`ead4fca` profile; [step1066](../done/step1066.md) remains its earlier development
+boundary.
 
-One development native image and guest pass the finite same-object/payload/catch/continuation path; see [step1066](../done/step1066.md). This is not final #582 acceptance. The profile requires the observed Win64 frames, exact ILC/COFF contributions, stable original module/heap/stack authority, disabled CET and no allocation or collection during dispatch. Finally, filters, rethrow, nested exceptions, general construction, automatic stack roots, constructor-failure caching and general EH remain unsupported.
+The same-image negative check changes only a local RIP scalar and uses the
+production capture-admission predicate before any unwind/handler selection.
+Live capture, roots, phase and transfer state stay unchanged. This is bounded
+input rejection, not a corrupted-live-context terminal-halt result. Actual
+compiled catch entry and continuation remain required by the positive path.
+
+The profile requires measured Win64 frames, exact ILC/COFF contribution lengths,
+stable original module/heap/stack authority, disabled CET and no allocation or
+collection during dispatch. General finally/filter/rethrow, nested/collided
+exceptions, automatic stack roots, EH-safe collection, constructor-failure
+caching and general exception construction remain unsupported. The accepted
+host-only #578/#579 leaf contracts are unchanged; this profile supplies only its
+additional finite execution proof. #90 and Gate 4 remain incomplete.
 
 The guarded empty `System.Exception` declaration is only the compiler-required identity for this fixture hierarchy. The canonical declaration ledger appends identity 49 as `CoreType/Stubbed`; it supplies no message, stack trace, inner exception or other exception service. All runtime-completion fields remain false.
