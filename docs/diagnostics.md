@@ -1750,3 +1750,22 @@ stage.
 11. Keep M02-003 binding readiness, M02-004 configuration, M02-005 bounded
    payload output, M02-006 panic-safe routing and accepted bounded post-EBS
    diagnostics distinct from general continuing-execution claims.
+
+## Owned subsystem result and panic profiles
+
+Issue #67 adds two destructive, default-off children. Positive output preserves
+the original 66 first-exit application records and adds ten: test-start, one
+allocator row, five original copied-ACPI rows, a descriptor row, ready and pass.
+The panic form has 77 application records: it replaces ready/pass with armed,
+entered and the existing terminal fault record. With the fixed firmware
+preamble, the respective stream counts are 78 and 79. Every M03_OWNED stage
+contains eight fixed-width hexadecimal fields tied to the original authorities.
+
+The separate expected-panic mode requires at least 750 ms of measured unchanged
+serial output, owned teardown and runner exit 19. The strict wrapper accepts
+that terminal control only after validating the complete fault transcript.
+The original M02 panic mode is retained. [Step1074](../done/step1074.md) accepts
+the fresh positive and panic captures at 4ef299f, including current native
+guard/RIP/CR2/IST2 association and an actual 757-ms quiet interval. No owned-survival
+success tail or bytes follow the fault. This does not establish general recovery.
+[Step1067](../done/step1067.md) retains the earlier development evidence/failures.

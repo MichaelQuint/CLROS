@@ -1950,6 +1950,16 @@ The canonical 57-source closure receives the same single-link and
 distinct-identity requirement. Package and tool inputs are reparse-checked and
 mutation-locked; they are not claimed to be globally unique file identities.
 
+The verifier's component walk uses `Path.Combine` and `File.GetAttributes`
+on successful paths, retaining the original literal PowerShell provider lookup
+and failure handling when the attribute lookup fails. It still visits every
+component at every existing authority checkpoint; it does not cache ancestry,
+skip reparse checks, reduce hashing or extend the verifier timeout. The focused
+Windows PowerShell 5.1 comparison in [step1068](../done/step1068.md) preserves
+strict-mode behavior and measured about 88.6% less helper wall time across the
+same 1,030 paths. This measures only the component walk; full current-source
+artifact acceptance and whole-verifier timing remain separate evidence.
+
 The final frozen-source artifact counts, scan timings, source and restore
 closure hashes, and two-copy wall-clock-separated reproducibility results are
 recorded in `done/step886.md`. The lifecycle check separately proves that build
@@ -2896,3 +2906,45 @@ At the accepted `42a516e` revision, the runner's informational GC summary said
 70-record raw capture and `CLROS_M04_013_READY` establish the scoped acceptance.
 The first-exit/churn integration in [step1042](../done/step1042.md) corrects that summary. No general
 runtime, hosted .NET or real firmware-exit claim follows from this profile.
+
+## Owned subsystem survival and panic profiles
+
+The disabled #67 survival profile requires EnableM01LoadedImageStackProbe,
+EnableM01LiveAllocatorProbe, EnableAcpiPhysicalDiscoveryProbe,
+EnableM03FirstRealExitBootServicesProbe and EnableM03OwnedSubsystemSurvivalProbe.
+The separate terminal profile additionally selects EnableM03OwnedSubsystemPanicProbe.
+All existing first-exit prerequisites and exclusions remain; survival and
+firmware revocation are explicitly exclusive.
+
+The initial development closure has 115 Compile entries, 130 raw publication
+inputs and 49 referenced flags with 46 literal false defaults. These are the
+specific pre-integration image's identities, not unconditional future counts.
+Original locked preflight passes. Native compilation/linking produced an image,
+but the original artifact verifier hit its unchanged 60-second limit without a
+verdict. One unchanged verifier-only invocation later passed in 52,906 ms under
+the same 60-second bound, with all 130 source, 56 native and 28 tool inputs
+unchanged. Independent native review found no scoped blocker; no guest had run
+at that development checkpoint. Preserve the original failed publication,
+earlier Desktop module-resolution failure and all archives in
+[step1067](../done/step1067.md). The fresh acceptance below supersedes that
+pending status without changing the original failed receipt.
+
+The accepted 4ef299f source has 117 ordered Compile items, 132 raw
+publication inputs, 50 profile flags and 47 literal false defaults. Its fixture
+reconciliation includes the final step1068 verifier identity. One fresh managed
+build and 45 original focused checks plus two existing authority helpers pass;
+the kernel, runner and shared DLLs are bound to that build. [Step1069](../done/step1069.md)
+records the exact current hashes and preserved historical contracts. This is
+focused source/profile evidence. [Step1074](../done/step1074.md) now accepts the
+frozen 4ef299f source with the original full gate and four fresh ordinary
+publications/captures: default 21, first-exit 66, survival 76 and panic 77 application
+records. The panic runner returns 19; only its exact terminal transcript and
+measured quiet interval allow the wrapper to return 0. Fresh native, raw/lifecycle
+and GPT/FAT/EFI payload association pass. Complete executed command vectors and
+source/tool/producer identities are retained per profile. All selected flags
+remain disabled by default; this does not promote broader completion gates.
+
+The step1068 verifier path-walk optimization is included in that accepted source.
+Its approximately 8.74x measured gain applies to the helper benchmark only, with
+unchanged authority checks and deadline. Symlink creation and ACL-denial fixture
+coverage remain unavailable on this host, as recorded in the original results.

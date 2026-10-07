@@ -90,7 +90,7 @@ try
         return qemu.Path is null ? 3 : 6;
     }
 
-    if (options.ExpectedUnexpectedVectorPanic)
+    if (options.ExpectedUnexpectedVectorPanic || options.ExpectedOwnedSubsystemPanic)
     {
         return RunExpectedUnexpectedVectorPanic(options, qemu.Path, ovmf.Path);
     }
@@ -686,6 +686,12 @@ catch (ArgumentException ex)
 
 static int RunExpectedUnexpectedVectorPanic(RunnerOptions options, string qemu, string ovmf)
 {
+    bool owned = options.ExpectedOwnedSubsystemPanic;
+    string profile = owned ? "m03.owned-subsystem" : "m02.unexpected-vector";
+    string acceptedReason = owned ? "expected_owned_subsystem_panic" : "expected_unexpected_vector_panic";
+    int Evaluate(string text, out string prefix) => owned
+        ? OwnedSubsystemPanicCapture.Evaluate(text, out prefix)
+        : UnexpectedVectorPanicCapture.Evaluate(text, out prefix);
     Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(options.SerialLogPath)) ?? ".");
     if (File.Exists(options.SerialLogPath)) File.Delete(options.SerialLogPath);
     if (!string.IsNullOrWhiteSpace(options.SummaryLogPath) && File.Exists(options.SummaryLogPath)) File.Delete(options.SummaryLogPath);
@@ -700,7 +706,7 @@ static int RunExpectedUnexpectedVectorPanic(RunnerOptions options, string qemu, 
     Console.WriteLine("ORDERED_MARKERS " + FormatSummaryList(options.OrderedMarkers));
     Console.WriteLine("UNIQUE_MARKERS " + FormatSummaryList(options.UniqueMarkers));
     Console.WriteLine("FORBIDDEN_MARKERS " + FormatSummaryList(options.ForbiddenMarkers));
-    Console.WriteLine("EXPECTED_PANIC_PROFILE m02.unexpected-vector");
+    Console.WriteLine("EXPECTED_PANIC_PROFILE " + profile);
     using Process process = new Process();
     process.StartInfo.FileName = qemu;
     process.StartInfo.UseShellExecute = false;
@@ -724,7 +730,7 @@ static int RunExpectedUnexpectedVectorPanic(RunnerOptions options, string qemu, 
             if (terminal is not null && !string.Equals(serial, terminal, StringComparison.Ordinal))
             { failure = "bytes_after_expected_panic"; break; }
             prior = serial;
-            int parsed = UnexpectedVectorPanicCapture.Evaluate(serial, out string prerequisites);
+            int parsed = Evaluate(serial, out string prerequisites);
             if (parsed < 0) { failure = "unexpected_vector_panic_capture_rejected"; break; }
             if (parsed == 1 && terminal is null)
             {
@@ -751,19 +757,19 @@ static int RunExpectedUnexpectedVectorPanic(RunnerOptions options, string qemu, 
         else if (!string.Equals(finalSerial, serial, StringComparison.Ordinal)) failure = "bytes_after_expected_panic";
         serial = finalSerial;
         if (failure is null && (terminal is null || measuredQuiet < quietMilliseconds ||
-            !string.Equals(serial, terminal, StringComparison.Ordinal) || UnexpectedVectorPanicCapture.Evaluate(serial, out _) != 1))
+            !string.Equals(serial, terminal, StringComparison.Ordinal) || Evaluate(serial, out _) != 1))
             failure = "unexpected_vector_panic_incomplete";
         bool accepted = failure is null;
         Console.WriteLine("SERIAL_MARKER_STREAM status=" + (accepted ? "ExpectedPanic" : "Rejected") +
             " terminal=" + (accepted ? "ExpectedPanic" : "Rejected") + " bytes=" + Encoding.UTF8.GetByteCount(serial) +
-            " lines=" + (accepted ? 76 : 0) + " invalidBytes=" + (accepted ? "0" : "unknown") +
-            " invalidLines=" + (accepted ? "0" : "unknown") + " orderedSeen=" + prefixResult.OrderedSeenCount +
+            " lines=" + (accepted ? owned ? 79 : 76 : 0) + " invalidBytes=" + (accepted ? owned ? OwnedSubsystemPanicCapture.InvalidBytes(serial).ToString(System.Globalization.CultureInfo.InvariantCulture) : "0" : "unknown") +
+            " invalidLines=" + (accepted ? owned ? "1" : "0" : "unknown") + " orderedSeen=" + prefixResult.OrderedSeenCount +
             " outOfOrder=" + prefixResult.OutOfOrderOccurrenceCount + " uniqueSeen=" + prefixResult.UniqueSeenCount +
             " duplicateUnique=" + prefixResult.DuplicateUniqueOccurrenceCount);
         Console.WriteLine("SERIAL_MARKER_DRAIN milliseconds=750 observedMilliseconds=" + measuredQuiet);
         Console.WriteLine("QEMU_PROCESS_RESULT disposition=" + (cleanupFailed ? "cleanup-failed" : terminated ? "runner-terminated" : spontaneous ? "exited" : "running") +
             " exitCode=" + (nativeExit.HasValue ? nativeExit.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "none"));
-        string reason = accepted ? "expected_unexpected_vector_panic" : failure!;
+        string reason = accepted ? acceptedReason : failure!;
         if (!WriteExpectedPanicSummary(options, serial, accepted, reason, measuredQuiet, terminated, spontaneous, cleanupFailed, nativeExit))
         { Console.Error.WriteLine("TEST_FAIL qemu.smoke expected_panic_summary_failed"); return 16; }
         if (!accepted)
@@ -771,7 +777,7 @@ static int RunExpectedUnexpectedVectorPanic(RunnerOptions options, string qemu, 
             Console.Error.WriteLine("TEST_FAIL qemu.smoke " + reason);
             return failure == "timeout" ? 4 : cleanupFailed ? 15 : spontaneous ? 18 : 8;
         }
-        Console.WriteLine("QEMU_EXPECTED_PANIC outcome=expected-panic reason=expected_unexpected_vector_panic");
+        Console.WriteLine("QEMU_EXPECTED_PANIC outcome=expected-panic reason=" + acceptedReason);
         return 19;
     }
     finally
@@ -1910,6 +1916,8 @@ sealed class RunnerOptions
 
     public bool ExpectedUnexpectedVectorPanic { get; private set; }
 
+    public bool ExpectedOwnedSubsystemPanic { get; private set; }
+
     public bool DryRun { get; private set; }
 
     public bool Preflight { get; private set; }
@@ -1944,6 +1952,10 @@ sealed class RunnerOptions
                 case "--expect-unexpected-vector-panic":
                     if (options.ExpectedUnexpectedVectorPanic) throw new ArgumentException("--expect-unexpected-vector-panic may be specified only once.");
                     options.ExpectedUnexpectedVectorPanic = true;
+                    break;
+                case "--expect-owned-subsystem-panic":
+                    if (options.ExpectedOwnedSubsystemPanic) throw new ArgumentException("--expect-owned-subsystem-panic may be specified only once.");
+                    options.ExpectedOwnedSubsystemPanic = true;
                     break;
                 case "--dry-run":
                     options.DryRun = true;
@@ -2029,7 +2041,7 @@ sealed class RunnerOptions
 
     public static void PrintHelp()
     {
-        Console.WriteLine("OS.QemuRunner [preflight|--preflight] --image <raw|qcow2 image> [--disk-format raw|qcow2] [--workload-profile SingleMinimalApi|MultiMinimalApi] [--ovmf-code <OVMF_CODE.fd>] [--serial-log <path>] [--summary-log <path>] [--timeout <seconds>] [--replace-default-required-markers] [--require-marker <marker>]... [--require-ordered-marker <marker>]... [--require-unique-marker <marker>]... [--marker-preset " + SmokeMarkerPreset.SupportedValues + "]... [--forbid-marker <marker>]... [--http-probe-url <http-url>] [--http-probe-expected-status <100-599>] [--http-probe-expected-body <text>] [--http-probe-timeout <seconds>] [--expect-unexpected-vector-panic] [--firmware-rng-source virtio|missing] [--dry-run]");
+        Console.WriteLine("OS.QemuRunner [preflight|--preflight] --image <raw|qcow2 image> [--disk-format raw|qcow2] [--workload-profile SingleMinimalApi|MultiMinimalApi] [--ovmf-code <OVMF_CODE.fd>] [--serial-log <path>] [--summary-log <path>] [--timeout <seconds>] [--replace-default-required-markers] [--require-marker <marker>]... [--require-ordered-marker <marker>]... [--require-unique-marker <marker>]... [--marker-preset " + SmokeMarkerPreset.SupportedValues + "]... [--forbid-marker <marker>]... [--http-probe-url <http-url>] [--http-probe-expected-status <100-599>] [--http-probe-expected-body <text>] [--http-probe-timeout <seconds>] [--expect-unexpected-vector-panic|--expect-owned-subsystem-panic] [--firmware-rng-source virtio|missing] [--dry-run]");
         Console.WriteLine("preflight validates local runner inputs and image format hints without launching QEMU or requiring libvirt.");
     }
 
@@ -2156,7 +2168,9 @@ sealed class RunnerOptions
             throw new ArgumentException("--dry-run and preflight are mutually exclusive.");
         }
 
-        if (ExpectedUnexpectedVectorPanic && (httpProbeConfigured || string.IsNullOrWhiteSpace(SummaryLogPath) || MarkerPresets.Count != 0))
+        if (ExpectedUnexpectedVectorPanic && ExpectedOwnedSubsystemPanic)
+            throw new ArgumentException("Expected-panic profiles are mutually exclusive.");
+        if ((ExpectedUnexpectedVectorPanic || ExpectedOwnedSubsystemPanic) && (httpProbeConfigured || string.IsNullOrWhiteSpace(SummaryLogPath) || MarkerPresets.Count != 0))
             throw new ArgumentException("Expected unexpected-vector panic requires a summary log and forbids HTTP probing or marker presets.");
 
         ValidateArtifactPathSeparation();
@@ -2585,5 +2599,198 @@ static class UnexpectedVectorPanicCapture
             m[20] == c + 5056 && m[21] != 0 && (m[21] & ~0x000fffffffffffffUL) == 0 &&
             (m[21] & 0xfe7) == 0 && (m[21] & ~4095UL) != 0 && m[22] == m[21] &&
             m[23] <= uint.MaxValue && (m[23] & 0x00f0fe00) == 0x00a09a00;
+    }
+}
+
+// The explicit M03 terminal control uses the common measured-quiet/cleanup path.
+// The script separately validates the complete first-exit/ACPI numeric grammar.
+public static class OwnedSubsystemPanicCapture
+{
+    private static readonly string[] Prefix =
+    [
+        "TEST_START efi.main",
+        "EFI_CONSOLE_READY",
+        "UEFI_MEMORY_MAP_READY",
+        "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT",
+        "UEFI_MEMORY_MAP_OWNED",
+        "BOOT_HANDOFF_READY",
+        "UEFI_MEMORY_MAP_NORMALIZED",
+        "BOOT_MEMORY_MAP_ACCEPTED",
+        "BOOT_MEMORY_REGIONS_READY",
+        "BOOT_MEMORY_REGION_COUNT",
+        "BOOT_PAGE_ALLOCATOR_READY",
+        "BOOT_ACPI_RSDP_HANDOFF_READY",
+        "UEFI_ACPI_RSDP_READY",
+        "ACPI_RSDP_SNAPSHOT_READY",
+        "ACPI_RSDP_VALIDATED",
+        "ACPI_ROOT_SDT_SNAPSHOT_READY",
+        "ACPI_ROOT_SDT_VALIDATED",
+        "ACPI_MCFG_DISCOVERY_READY",
+        "TEST_START m03.002",
+        "CLROS_M03_002_TABLE role=rsdp",
+        "CLROS_M03_002_TABLE role=root",
+        "CLROS_M03_002_TABLE role=mcfg",
+        "CLROS_M03_002_TABLE role=apic",
+        "CLROS_M03_002_TABLE role=hpet",
+        "CLROS_M03_002_RETAIN",
+        "CLROS_M03_002_READY firmwareAvailable=true exitBootServices=false",
+        "TEST_PASS m03.002",
+        "TEST_START m01.stage1",
+        "M01_LOADED_IMAGE_CAPTURED",
+        "M01_STACK_SWITCH_STUB_READY",
+        "M01_STACK_ARENA_ALLOCATED",
+        "M01_STACK_GUARD_RESERVED",
+        "M01_STAGE1_MAP_RECAPTURED",
+        "M01_STAGE1_RESERVATIONS_VALIDATED",
+        "M01_OWNED_STACK_READY",
+        "M01_OWNED_STACK_SWITCHED",
+        "M01_RSP_CONTAINED",
+        "TEST_PASS m01.stage1",
+        "TEST_START m01.stage2",
+        "M01_ALLOCATOR_ARENA_ALLOCATED",
+        "M01_STAGE2_MAP_RECAPTURED",
+        "M01_RESERVATIONS_APPLIED",
+        "M01_LIVE_ALLOCATED_4K",
+        "M01_LIVE_PAGE_WITHIN_ARENA",
+        "M01_LIVE_FREED_4K",
+        "M01_DOUBLE_FREE_REJECTED",
+        "TEST_PASS m01.stage2",
+        "TEST_START boot.sequence",
+        "BOOT_PHASE PhaseA.Audit START",
+        "BOOT_PHASE PhaseA.Audit PASS",
+        "BOOT_PHASE PhaseA.Diagnostics START",
+        "BOOT_PHASE PhaseA.Diagnostics PASS",
+        "OS_BOOT_OK",
+        "TEST_PASS boot.sequence",
+        "OS_SMOKE_PASS",
+        "TEST_START m03.007",
+        "M03_EBS_RETURNED_SUCCESS",
+        "M03_PERMANENT_CR3_ADOPTED",
+        "M03_POST_EBS_OWNED_DIAGNOSTIC",
+        "CLROS_M03_007_READY",
+        "TEST_PASS m03.007",
+        "TEST_START m03.009",
+        "UEFI_EBS_SUCCESS",
+        "POST_FIRMWARE_DIAGNOSTICS_READY",
+        "CLROS_M03_009_READY",
+        "TEST_PASS m03.009",
+    ];
+    private static readonly string[] FaultNames =
+        ["rip","rsp","rbp","rflags","cr2","cr3","rax","rbx","rcx","rdx","rsi","rdi","r8","r9","r10","r11","r12","r13","r14","r15"];
+    private const string FaultHeading = "OS_SMOKE_FAIL subsystem=boot reason=exit-fault vector=14 errorCodePresent=true errorCode=0x0000000000000000";
+    private const ulong LowEnd = 0x0000800000000000;
+
+    public static int InvalidBytes(string text)
+    {
+        int count = 0;
+        foreach (byte b in Encoding.UTF8.GetBytes(text))
+            if (b != 9 && b != 10 && b != 13 && (b < 32 || b > 126)) count++;
+        return count;
+    }
+
+    // -1 rejected, 0 unfinished, 1 exact terminal capture; never a normal boot pass.
+    public static int Evaluate(string text, out string prerequisiteText)
+    {
+        prerequisiteText = string.Empty;
+        if (text.Length > 32768) return -1;
+        if (text.Length < 304) return 0;
+        byte[] preamble = Encoding.UTF8.GetBytes(text[..304]);
+        if (preamble.Length != 304 || Convert.ToHexString(SHA256.HashData(preamble)) != "BB50E913C752428AE49AE6C20879196F507926CC685CAD83986494244299D124") return -1;
+        string body = text[304..];
+        for (int i = 0; i < body.Length; i++)
+        {
+            char c = body[i];
+            if (c == '\r') { if (i + 1 < body.Length && body[i + 1] != '\n') return -1; }
+            else if (c == '\n') { if (i == 0 || body[i - 1] != '\r') return -1; }
+            else if (c < 32 || c > 126) return -1;
+        }
+        string[] lines = body.Split("\r\n", StringSplitOptions.None);
+        int complete = lines.Length - 1;
+        if (complete > 77 || (complete == 77 && lines[77].Length != 0)) return -1;
+        for (int i = 0; i < Math.Min(complete, 66); i++)
+        {
+            bool variable = i is 3 or 9 or 10 or >= 19 and <= 24;
+            if (variable ? !lines[i].StartsWith(Prefix[i] + " ", StringComparison.Ordinal) : lines[i] != Prefix[i]) return -1;
+        }
+        if (complete > 66 && lines[66] != "TEST_START m03.010") return -1;
+        for (int i = 67; i < Math.Min(complete, 76); i++)
+            if (!Row(lines[i], i - 67, out _)) return -1;
+        if (complete < 77) return 0;
+        if (!ValidateRecords(lines[..77])) return -1;
+        prerequisiteText = string.Join("\r\n", lines.AsSpan(0, 76).ToArray()) + "\r\n";
+        return 1;
+    }
+
+    private static bool ValidateRecords(string[] lines)
+    {
+        var rows = new ulong[9][];
+        for (int i = 0; i < 9; i++) if (!Row(lines[67 + i], i, out rows[i])) return false;
+        ulong[] allocation = rows[0], descriptor = rows[6], armed = rows[7], entered = rows[8];
+        if (!Extent(allocation[0], 312, 8) || !Extent(allocation[2], 8192, 4096) ||
+            allocation[1] != allocation[2] || allocation[3] != 2 || allocation[4] != 2 || allocation[5] != 8192 || allocation[6] != 0 || allocation[7] != 0) return false;
+        ulong workspace = rows[1][0], copied = rows[1][1], offset = 0;
+        if (!Extent(workspace, 1, 8) || copied < 16 || !Extent(copied - 16, 266272, 8)) return false;
+        string[] roles = ["rsdp", "root", "mcfg", "apic", "hpet"];
+        string[] names = ["physical", "owned", "offset", "length", "signature", "rootIndex", "compared", "mismatches"];
+        for (int i = 0; i < 5; i++)
+        {
+            ulong[] row = rows[i + 1];
+            if (!DecimalFields(lines[19 + i], "CLROS_M03_002_TABLE role=" + roles[i], names, out ulong[] prior) ||
+                row[0] != workspace || row[1] != copied || row[2] != prior[0] || copied + offset != prior[1] || row[3] != offset ||
+                row[3] != prior[2] || row[4] != prior[3] || row[5] != prior[4] || row[6] != prior[5] || row[7] != row[4] ||
+                row[7] != prior[6] || prior[7] != 0 || row[4] == 0 || row[4] > (i == 0 ? 4096UL : 65536UL)) return false;
+            offset += row[4];
+        }
+        if (offset > 266240 || !Extent(descriptor[0], 105 * 4096, 4096) || !Extent(descriptor[1], 55 * 4096, 4096) ||
+            descriptor[1] >= 0x100000000UL - 55 * 4096 || !Extent(descriptor[2], 3 * 4096, 4096) ||
+            descriptor[3] != descriptor[0] + 4096 || descriptor[4] != descriptor[0] + 8192 || descriptor[5] != descriptor[0] + 12288 ||
+            descriptor[6] != 24 || descriptor[7] <= descriptor[0] + 22 * 4096 + 8 || descriptor[7] >= descriptor[0] + 86 * 4096 - 16 ||
+            (descriptor[7] & 15) != 8) return false;
+        if (armed[0] != descriptor[0] + 21 * 4096 || armed[1] != descriptor[1] || armed[2] != descriptor[0] + 1024 ||
+            armed[3] != descriptor[2] || armed[4] != descriptor[0] || armed[5] != descriptor[0] + 22 * 4096 + 8 ||
+            armed[6] != descriptor[0] + 86 * 4096 - 16 || armed[7] != descriptor[0] + 98 * 4096 - 16 ||
+            entered[0] != armed[0] || entered[1] != armed[1] || entered[2] != armed[2] ||
+            entered[4] != descriptor[0] + 94 * 4096 + 8 || entered[5] != armed[7] || entered[3] < entered[4] ||
+            entered[3] > entered[5] - 184 || (entered[3] & 7) != 0 || entered[6] != 14 || entered[7] != 0) return false;
+        if (!HexFields(lines[76], FaultHeading, FaultNames, out ulong[] fault)) return false;
+        return Extent(fault[0], 1, 1) && fault[1] >= armed[5] && fault[1] < armed[6] &&
+            (fault[3] & 0x202) == 2 && fault[4] == armed[0] && fault[5] == armed[1];
+    }
+
+    private static bool Extent(ulong start, ulong bytes, ulong alignment)
+        => start != 0 && start < LowEnd && (start & (alignment - 1)) == 0 && bytes < LowEnd - start;
+    private static bool Row(string line, int stage, out ulong[] values)
+        => HexFields(line, "M03_OWNED " + stage.ToString(System.Globalization.CultureInfo.InvariantCulture), [], out values, 8);
+    private static bool HexFields(string line, string heading, string[] names, out ulong[] values, int positional = 0)
+    {
+        values = new ulong[positional == 0 ? names.Length : positional];
+        if (!line.StartsWith(heading + " ", StringComparison.Ordinal)) return false;
+        string[] fields = line[(heading.Length + 1)..].Split(' ');
+        if (fields.Length != values.Length) return false;
+        for (int i = 0; i < fields.Length; i++)
+        {
+            string key = positional == 0 ? names[i] + "=0x" : "0x";
+            if (!fields[i].StartsWith(key, StringComparison.Ordinal) || fields[i].Length != key.Length + 16) return false;
+            foreach (char c in fields[i].AsSpan(key.Length)) if (!(c is >= '0' and <= '9' or >= 'A' and <= 'F')) return false;
+            if (!ulong.TryParse(fields[i].AsSpan(key.Length), System.Globalization.NumberStyles.AllowHexSpecifier, System.Globalization.CultureInfo.InvariantCulture, out values[i])) return false;
+        }
+        return true;
+    }
+    private static bool DecimalFields(string line, string heading, string[] names, out ulong[] values)
+    {
+        values = new ulong[names.Length];
+        if (!line.StartsWith(heading + " ", StringComparison.Ordinal)) return false;
+        string[] fields = line[(heading.Length + 1)..].Split(' ');
+        if (fields.Length != names.Length) return false;
+        for (int i = 0; i < names.Length; i++)
+        {
+            string key = names[i] + "=";
+            if (!fields[i].StartsWith(key, StringComparison.Ordinal)) return false;
+            ReadOnlySpan<char> digits = fields[i].AsSpan(key.Length);
+            if (digits.Length == 0 || (digits.Length > 1 && digits[0] == '0')) return false;
+            foreach (char c in digits) if (c < '0' || c > '9') return false;
+            if (!ulong.TryParse(digits, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out values[i])) return false;
+        }
+        return true;
     }
 }

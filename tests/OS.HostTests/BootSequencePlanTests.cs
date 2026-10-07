@@ -761,6 +761,7 @@ internal static class BootSequencePlanTests
              "public static unsafe OS.Kernel.Runtime.CompilerClassConstructorStatus RunCompilerClassConstructors(",
              "public static bool IsFirmwareAdapterRevocationEnabled() =>",
              "public static unsafe OS.Kernel.Runtime.X64UnwindMetadataResult RunX64UnwindMetadata(",
+             "public static unsafe OS.Boot.OwnedAllocatorRoundTripStatus RunOwnedSubsystemAllocatorRoundTrip(",
              "public static unsafe OS.Kernel.Runtime.CompilerInterfaceDispatchStatus RunInterfaceDispatch("])
             && HasGuardedSurface("src/OS.Kernel/Diagnostics/Probes.cs", 2,
             ["public static partial class Probes",
@@ -770,6 +771,10 @@ internal static class BootSequencePlanTests
              "public const bool EnableM03FirstRealExitBootServicesProbe = false;",
              "public const bool EnableM03FirmwareAdapterRevocationProbe = true;",
              "public const bool EnableM03FirmwareAdapterRevocationProbe = false;",
+             "public const bool EnableM03OwnedSubsystemSurvivalProbe = true;",
+             "public const bool EnableM03OwnedSubsystemSurvivalProbe = false;",
+             "public const bool EnableM03OwnedSubsystemPanicProbe = true;",
+             "public const bool EnableM03OwnedSubsystemPanicProbe = false;",
              "public const bool EnableM04ClassConstructorExecutionProbe = true;",
              "public const bool EnableM04ClassConstructorExecutionProbe = false;",
              "public const bool EnableM04InterfaceDispatchProbe = true;",
