@@ -1950,6 +1950,16 @@ The canonical 57-source closure receives the same single-link and
 distinct-identity requirement. Package and tool inputs are reparse-checked and
 mutation-locked; they are not claimed to be globally unique file identities.
 
+The verifier's component walk uses `Path.Combine` and `File.GetAttributes`
+on successful paths, retaining the original literal PowerShell provider lookup
+and failure handling when the attribute lookup fails. It still visits every
+component at every existing authority checkpoint; it does not cache ancestry,
+skip reparse checks, reduce hashing or extend the verifier timeout. The focused
+Windows PowerShell 5.1 comparison in [step1068](../done/step1068.md) preserves
+strict-mode behavior and measured about 88.6% less helper wall time across the
+same 1,030 paths. This measures only the component walk; full current-source
+artifact acceptance and whole-verifier timing remain separate evidence.
+
 The final frozen-source artifact counts, scan timings, source and restore
 closure hashes, and two-copy wall-clock-separated reproducibility results are
 recorded in `done/step886.md`. The lifecycle check separately proves that build
