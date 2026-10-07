@@ -2,7 +2,9 @@
 
 ## Current Status
 
-No first-party hosted-tier PAL implementation exists. The authoritative reference design is available at `references/daniilvaino-SharpOS-main/work/PAL/pal-design.md`.
+No first-party hosted-tier PAL implementation exists. The canonical CLROS
+boundary is documented here and in `work/PAL/pal-design.md`. The upstream
+reference design is available at `references/SharpOS-main/work/PAL/pal-design.md`.
 
 Current work is limited to boundary design, Kestrel-critical ABI contract definition, mock socket/package/config/timer/wait/app-log/random tables and facades, host-only socket and timer/wait bridge composition, and platform-interface preparation for UEFI encapsulation. It is not hosted CoreCLR integration, it does not run .NET 10 applications, and it must not introduce a WinAPI/POSIX compatibility surface.
 
@@ -798,7 +800,9 @@ git diff --check -- .\src\OS.Kernel\Pal\OSHostAbi.cs .\tests\OS.HostTests\PalAbi
 
 ## Known Limitations
 
-`work/PAL/pal-design.md` is a baseline document, not an implementation. The full reference PAL design lives under `references/daniilvaino-SharpOS-main/work/PAL/`.
+`work/PAL/pal-design.md` is a baseline document, not an implementation. The
+upstream reference PAL design lives under `references/SharpOS-main/work/PAL/`;
+its architecture does not override the CLROS boundary.
 
 The Kestrel-critical ABI list is intentionally minimal. It does not include TLS, certificates, HTTP parsing, HTTP/2, HTTP/3, WebSockets, QUIC, filesystem writes, dynamic package mutation, host process APIs, or POSIX-style file descriptors.
 

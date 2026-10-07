@@ -411,13 +411,13 @@ allocation, GC, dispatch, exception or runtime-completion requirements.
 
 ## Unsupported Behavior
 
-The required BCL subset, real NativeAOT helpers, GC, class constructor runner,
-exceptions, thread statics, TypeManager/RTR scans, hosted .NET 10 runtime
-boundary, ASP.NET Minimal API hosting, and Kestrel prerequisites are not
-implemented. The `OS.Std.NoRuntime` declaration/export ledger is
-classification metadata only: it does not make the EFI shim callable by the
-kernel, replace the canonical `System.*` stubs, or promote any narrowly
-implemented, stubbed, or forbidden entry into Gate 4 evidence.
+The full BCL/runtime surface remains incomplete beyond the accepted bounded
+helper, retained-heap/collector, constructor, module and dispatch slices described
+above. General exception handling, thread statics, hosted .NET 10, ASP.NET
+Minimal API hosting and Kestrel remain unsupported. The `OS.Std.NoRuntime`
+declaration/export ledger is classification metadata only: it does not make
+the EFI shim callable by the kernel, replace the canonical `System.*` stubs,
+or promote a classified entry into full Gate 4 acceptance.
 
 ### M04-004 integer operator conformance
 
@@ -1488,7 +1488,8 @@ preflight, and work-item plan results for future runner diagnostics.
    than changing the M04-002 vector identities.
 5. Migrate IPv4, ICMP, UDP, and TCP checksum paths onto `OS.Std.Net.InternetChecksum` where it reduces duplicated packet-local checksum loops.
 6. Replace shell-only runtime placeholders with tested runtime helpers as the boot path starts using them.
-7. Reserve heap pages from a live allocator state and define GC root/write-barrier ownership before changing object allocation helper status.
+7. Preserve the accepted retained-heap, root and write-barrier authority when
+   extending allocation or collection beyond their bounded profiles.
 8. Add helper-specific QEMU probes before changing any panic-stubbed helper to successful behavior.
 
 ### M04-010 returning-helper integration checkpoint

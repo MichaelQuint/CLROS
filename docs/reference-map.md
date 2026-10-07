@@ -2,22 +2,25 @@
 
 ## Current Status
 
-The local `references/` directory contains 29 external project snapshots. They
-are inspection inputs for CLROS; they are not first-party source, are not
-included by `CLROS.slnx`, and cannot supply completion-gate evidence.
+The local `references/` directory contains 39 external project snapshots: the
+29 originally supplied archives and ten immutable GitHub snapshots added on
+2026-10-06. They are inspection inputs, excluded from `CLROS.slnx`, and cannot
+supply completion-gate evidence. The new research and issue crosswalk are
+[below](#github-discovery-and-selection-2026-10-06).
 
-The snapshots have no `.git` metadata. A directory suffix such as `-main` or
-`-master` identifies the archive name, not a verified branch or commit. No
-snapshot has a top-level file named `LICENSE`, `LICENCE`, `COPYING`, or
-`NOTICE`; some READMEs identify a license and some trees contain component
-licenses. `docs/license-audit.md` records those distinctions. Until an exact
-upstream revision and applicable license are recorded, use a snapshot for
-architecture study and independently authored tests only.
+All snapshots lack `.git` metadata. The original 29 archive names did not
+identify verified revisions and omitted top-level license files; the later
+SharpOS/nativeaot-patcher investigations establish specific exceptions. The
+ten new directories encode a commit prefix, preserve upstream license files,
+and were verified against immutable GitHub trees and archive hashes. See
+`docs/license-audit.md` for full commits, license scope and archive provenance.
+Missing or incompatible license evidence permits conceptual study and
+independently authored tests only, not source import.
 
 Older documentation named `references/nanos-master`,
 `references/Cosmos-master`, and
 `references/daniilvaino-SharpOS-main`; none of those paths exists in this
-workspace. The actual corresponding modern Cosmos and SharpOS snapshots are
+workspace. The corresponding originally supplied Cosmos and SharpOS snapshots are
 `references/Cosmos-gen2` and `references/SharpOS-main`. There is no local Nanos
 snapshot, so its appliance model may be discussed as product context but not
 as inspected local source.
@@ -258,13 +261,168 @@ This was static source research with no reference build, code import or gate
 promotion. The next concrete use is #84's real discovery/invocation boundary,
 after its existing churn dependency is accepted.
 
+## GitHub discovery and selection (2026-10-06)
+
+The user requested useful active/new C# OS and kernel references plus supporting
+foundations, then identified SharpMetal as the desired kind of find. Selection
+therefore favors inspectable boot/runtime/driver work, not a Cosmos-based shell,
+desktop, README feature list, stars or the word "kernel" in an application name.
+
+"Recent" here means observed repository/commit activity since 2025-10-06;
+"new" means created since 2024-10-06. These are search filters, not maintenance
+or quality guarantees. Commit dates and substantive examples are recorded
+separately from `pushed_at`; a dependency/doc bump is identified as such.
+
+GitHub REST repository search used `language:csharp` throughout the discovery
+queries, with topic, UEFI, NativeAOT, virtio, filesystem and parser/network terms.
+Twelve initial query families yielded 519 distinct repository results for
+metadata triage. Source review focused on the accepted projects and named
+near-misses below; 519 is not a count of code-audited projects. Small topic and
+specialist result sets were paginated to exhaustion. The exact queries and
+coverage returned at retrieval time were:
+
+| Query (all prefixed by `language:csharp`) | Retrieved / reported total |
+| --- | --- |
+| `topic:operating-system archived:false` | 90 / 90 |
+| `topic:osdev archived:false` | 17 / 17 |
+| `topic:kernel archived:false -semantic` | 16 / 16 |
+| `topic:uefi archived:false` | 20 / 20 |
+| `topic:bare-metal archived:false` | 6 / 6 |
+| `nativeaot kernel in:name,description,readme archived:false` | 125 / 125 |
+| `"operating system" created:>=2024-10-06 archived:false -"semantic"` | 0 / 0 |
+| `virtio in:name,description,readme archived:false` | 47 / 47 |
+| `filesystem FAT32 in:name,description archived:false` | 5 / 5 |
+| `PE parser in:name,description archived:false` | 83 / 83 |
+| `network stack in:name,description archived:false` | 86 / 86 |
+| `UEFI in:name,description archived:false` | 59 / 59 |
+
+The quoted broad `"operating system"`/creation-date query returned zero and was
+not accepted as proof of absence. Supplemental name/description discovery
+sampled 100 of 355 results for `operating-system created:>=2024-10-06`, 100 of
+1,137 for `kernel created:>=2024-10-06`, and all four new `topic:osdev` results.
+The broad kernel results were heavily polluted by AI/application libraries.
+Follow-up searches for `nativeaot topic:operating-system`, `UEFI kernel in:readme
+created:>=2025-01-01`, `Limine in:readme`, and `bare-metal in:name,description`
+returned 1/1, 85/85, 10/10 and 36/36; a newest-first kernel-name pass sampled
+100/721. Results overlapped. Forks were separately considered, which surfaced
+the maintained LTRData DiscUtils fork. Supplemental exFAT, DiscUtils and packet
+searches and primary GitHub web searches completed the foundation discovery.
+This is a documented deep sample, not an exhaustive census of GitHub.
+
+Raw API responses, exact URLs/sort/page/incomplete flags, source trees, commit
+history, per-file hashes, archives, drafts and read-back receipts are retained
+locally in `artifacts/reference-research-20261006`. No search result, repository
+instruction file or upstream setup script was executed. Public profile/site
+claims were used only to locate possible source, not as proof of functionality.
+
+### Accepted snapshots
+
+All ten are static, ignored reference snapshots. No first-party code or package
+dependency was imported and no upstream build/test was run. Full archive hashes
+and license files are in [the provenance ledger](license-audit.md#new-github-snapshot-provenance-2026-10-06).
+
+| Snapshot and immutable upstream | Activity and novelty | Use and boundary |
+| --- | --- | --- |
+| `references/RedPandaOS-3a2e08183847`; [giawa/RedPandaOS@3a2e08183847](https://github.com/giawa/RedPandaOS/tree/3a2e08183847d4d9596fcfe1cd853474313c45b4) | Created 2021-04-18; tip 2025-11-11. Low cadence: November 2025 BGA repair and .NET 6 test update; not a new project. | **Selective/test-vector.** BIOS/x86, custom IL compiler and core library; no NativeAOT or .NET 10 compatibility implied. |
+| `references/ProtonOS-c4f6db236c0c`; [ProtonOS/ProtonOS@c4f6db236c0c](https://github.com/ProtonOS/ProtonOS/tree/c4f6db236c0cf8e979500efecd1d4002b34572c2) | Created 2025-12-04; tip 2026-01-27. Created December 2025; January 2026 context-switch and join corrections. | **Conceptual/test-vector.** bflat, custom JIT, native assembly and Linux syscall surface are not the CLROS architecture. Independently author tests; no source import. |
+| `references/SharpMetal-b29c452f7d6c`; [Sadik00789/SharpMetal@b29c452f7d6c](https://github.com/Sadik00789/SharpMetal/tree/b29c452f7d6c8d8609d1a007b0b6ae8bdcc84807) | Created 2026-09-05; tip 2026-09-19. Created September 2026; September 19 storage, CI and release changes. | **Selective/test-vector.** NativeAOT comparison only; native stubs, multi-server design and POSIX emulation stay outside CLROS. |
+| `references/DefenderOS-fb3b3290ef3d`; [Nobody-Home21/Defender-OS@fb3b3290ef3d](https://github.com/Nobody-Home21/Defender-OS/tree/fb3b3290ef3d79d00206034f64a478d1582f58ca) | Created 2026-07-17; tip 2026-08-15. Created July 17, 2026; August 15 source tip. Specific virtio/MMIO and pre-timer DHCP corrections inspected. | **Selective/test-vector.** Custom .NET 7 NativeAOT/no-stdlib kernel with C/MASM shims and a desktop/security product model. No Cosmos SDK reference in the inspected kernel project; do not import architecture, native code or unverified feature claims. |
+| `references/SingNextOS-ad156e965850`; [yuriyyak23/SingNextOS@ad156e965850](https://github.com/yuriyyak23/SingNextOS/tree/ad156e965850b449bcc2593a6098b3c6d4bb27ee) | Created 2026-09-28; tip 2026-10-02. Created September 28, 2026; October 2 revision, with host conformance tests inspected. | **Conceptual/test-vector.** Managed research/conformance model; empty kernel subsystem placeholders are not bare-metal proof. No source import. |
+| `references/Inu-8a1ede5246cb`; [ProjectLithos/Inu@8a1ede5246cb](https://github.com/ProjectLithos/Inu/tree/8a1ede5246cbf7420d7627a13ae0dc45d8c6cdf6) | Created 2026-09-06; tip 2026-10-06. Created September 2026; repeated October 6 build revisions, with DNS/TCP codec source inspected. | **License-blocked/test-vector.** Third-party font/FatFs notices do not license the core. Independently author behavioral cases only. |
+| `references/Cosmos-gen3-81259dd941a3`; [CosmosOS/Cosmos@81259dd941a3](https://github.com/CosmosOS/Cosmos/tree/81259dd941a39b60226dc6f9db14befd6558e592) | Created 2014-12-04; tip 2026-09-27. Canonical gen3 branch: September 27 .NET runtime 10.0.12 update; pushed_at is later and is not the commit date. | **Selective/test-vector.** Separate pinned canonical snapshot, not a refresh of nativeaot-patcher-main. Do not import plugs, runtime patches or native code. |
+| `references/AsmResolver-0715000c1b3a`; [Washi1337/AsmResolver@0715000c1b3a](https://github.com/Washi1337/AsmResolver/tree/0715000c1b3a5104531d5ff189a14ebef0a9d5ac) | Created 2013-02-20; tip 2026-08-29. August 29 contribution-doc update; July release/dependency activity. Recent repository maintenance is not a claim that the inspected parser just changed. | **Host/test-vector.** Host PE tooling and synthetic fixture ideas only; allocating object model is unsuitable for freestanding parsers. |
+| `references/PacketDotNet-8752306350ee`; [dotpcap/packetnet@8752306350ee](https://github.com/dotpcap/packetnet/tree/8752306350ee8bfb8e88f8cf485110a11dddfe53) | Created 2015-05-27; tip 2025-12-22. November 12, 2025 .NET 10 support; December 22 test-adapter update. | **Host/test-vector.** Packet decoder, not a TCP stack. Preserve MPL file-level terms for any future reuse; no bundled captures imported. |
+| `references/DiscUtils-96e8f6bc4d8d`; [LTRData/DiscUtils@96e8f6bc4d8d](https://github.com/LTRData/DiscUtils/tree/96e8f6bc4d8daa0da84e07556f5623c1e79a34a2) | Created 2020-03-04; tip 2026-09-22. Maintained fork, September 22, 2026 version and tool updates; original DiscUtils default-branch commit is from 2021. | **Host/test-vector.** Stream-based storage/image library is an oracle candidate, not a kernel filesystem. exFAT and VHD code require independent bounded adaptations. |
+
+ProtonOS is not classified as a Cosmos derivative: the inspected README,
+Makefile/build inputs and gitmodules identify its bflat/runtime forks, while
+the tree contains its own JIT, scheduler and driver framework. Its source
+license and native ABI still prevent a direct architectural transplant.
+
+The canonical Cosmos Gen3 snapshot is retained for a concrete delta, not counted
+as another independent OS design. Compared with `nativeaot-patcher-main`,
+`UartMessageParserTests.cs` adds incomplete-suite/missing-result cases and its
+parser changes accordingly. `Virtqueue.cs` has largely the same relevant queue
+logic (the inspected differences are license header/class visibility); those
+queue observations are newly documented audit cases, not new upstream features.
+The old snapshots remain untouched.
+
+### Rejected or deferred candidates
+
+| Candidate | Inspected evidence and decision |
+| --- | --- |
+| `shirakibaka/Novellium` | `Novellium.csproj` directly consumes Cosmos.Sdk/Kernel 3.0.88; README emphasizes shell, jobs, syslog and CLI utilities. No incremental CLROS core implementation was established. Excluded. |
+| `tails1154/TailsOS`, `yggdrasil-au/yindows`, `valentinbreiz/GlieseOS` | Repository metadata explicitly identifies Cosmos-based projects. Deferred without a full code audit because no unique needed core contribution was established. This is not a judgment that every derivative lacks value. |
+| `xharp-cs/xharp` at `86a89a3aca28a64c673cdfde5a8b8b8b0ca2fd93` | Real small .NET 10 NativeAOT/Limine kernel candidate; tree/build/project inspection shows early corelib, framebuffer/font and native bridges. No additional bounded driver/runtime contribution beyond existing zero-runtime references established in this pass. Deferred, not a Cosmos rejection. |
+| `RPDevJesco/tos-x86` at `a9a6c2902813063c96fbf260fdfacbbc6c2efb20` | Sixteen-file bflat/native boot demonstration with simulated task selection; no root license. Redundant early-boot concept, not an implementation source. |
+| `meow-sci/gatOS` | README/project inspection identifies a game integration that runs Alpine Linux in a VM, not a C# kernel. Excluded. |
+| `s6ft256/PhantomOS` | SentinelGuard architecture/desktop security project with hosted net8 service projects; source inspected at project/README level. No freestanding driver value established. Excluded. |
+| KatanaOS website | Site points to the NinjahZ profile, not an identified public source repository. No immutable source snapshot could be established from that lead; hardware-proof claims are not adopted. |
+| `nifanfa/BootTo.NET` at `57622afd2f4ab2dd38e737af2fab850d59ab489a` | Recent and substantial UEFI application/runtime work, but relies on firmware services and an MSIL-to-LLVM toolchain. Metadata/tree/README inspection only; large bundled binaries/assets and unresolved project license. No snapshot added in this pass. Revisit only for a specific pre-EBS contract. |
+| `DiscUtils/DiscUtils` at `59d7cadab839c6d8dfcf52f8be5efe6d2ced190f` | Default-branch tip is from 2021 despite later push metadata. The maintained LTRData fork provides the useful current storage/image surface. |
+| `picrap/ExFat` at `5827117d5f742ac7b6c665862f7d2facaa11664c` | 2018 MIT ancestor already represented by the LTRData exFAT subtree; not added as a duplicate. |
+| `dot-sys/VortexFAT` | Metadata/tree indicate an active recovery GUI including exFAT. Implementation was not audited; deferred because DiscUtils provides a better-scoped first reference for bounded parsing. |
+| Existing SharpOS, nativeaot-patcher, MOSA, MOOS, zerosharp | Preserve existing reviews and snapshots. No blanket reimport, duplicate issue or new readiness claim. |
+
+### Existing issue crosswalk
+
+Each issue receives a pinned-file comment containing the useful observation,
+adaptation limits, exact issue-owned paths and independent acceptance cases.
+Comments preserve managed bodies, labels, dependencies, assignment and state.
+Several issue-owned paths are plans; listing them does not claim implementation.
+
+| Issue | Reference purpose | Files to analyze |
+| --- | --- | --- |
+| [#89](http://localhost:3000/admin/CLROS/issues/89) | AsmResolver: unwind field layout and padding rejection cases | [`references/AsmResolver-0715000c1b3a/src/AsmResolver.PE/Exceptions/X64UnwindInfo.cs`](https://github.com/Washi1337/AsmResolver/blob/0715000c1b3a5104531d5ff189a14ebef0a9d5ac/src/AsmResolver.PE/Exceptions/X64UnwindInfo.cs)<br>[`references/AsmResolver-0715000c1b3a/src/AsmResolver.PE/Exceptions/X64RuntimeFunction.cs`](https://github.com/Washi1337/AsmResolver/blob/0715000c1b3a5104531d5ff189a14ebef0a9d5ac/src/AsmResolver.PE/Exceptions/X64RuntimeFunction.cs) |
+| [#99](http://localhost:3000/admin/CLROS/issues/99) | RedPandaOS: PCI scan completeness and multifunction cases | [`references/RedPandaOS-3a2e08183847/RedPandaOS/Kernel/Devices/PCI.cs`](https://github.com/giawa/RedPandaOS/blob/3a2e08183847d4d9596fcfe1cd853474313c45b4/RedPandaOS/Kernel/Devices/PCI.cs) |
+| [#101](http://localhost:3000/admin/CLROS/issues/101) | RedPandaOS and SharpMetal: BAR pairing, extents and restoration | [`references/RedPandaOS-3a2e08183847/RedPandaOS/Kernel/Devices/PCI.cs`](https://github.com/giawa/RedPandaOS/blob/3a2e08183847d4d9596fcfe1cd853474313c45b4/RedPandaOS/Kernel/Devices/PCI.cs)<br>[`references/SharpMetal-b29c452f7d6c/src/servers/drivers/net.virtio/VirtioNetDriver.cs`](https://github.com/Sadik00789/SharpMetal/blob/b29c452f7d6c8d8609d1a007b0b6ae8bdcc84807/src/servers/drivers/net.virtio/VirtioNetDriver.cs) |
+| [#105](http://localhost:3000/admin/CLROS/issues/105) | DefenderOS and SharpMetal: capability parser trust boundaries | [`references/DefenderOS-fb3b3290ef3d/src/Defender.Kernel/LinuxDriverPortFoundation.cs`](https://github.com/Nobody-Home21/Defender-OS/blob/fb3b3290ef3d79d00206034f64a478d1582f58ca/src/Defender.Kernel/LinuxDriverPortFoundation.cs)<br>[`references/DefenderOS-fb3b3290ef3d/src/Defender.Kernel/ModernStorage.cs`](https://github.com/Nobody-Home21/Defender-OS/blob/fb3b3290ef3d79d00206034f64a478d1582f58ca/src/Defender.Kernel/ModernStorage.cs)<br>[`references/DefenderOS-fb3b3290ef3d/FIX_V0509_VIRTIO_CAPABILITY_LAYOUT.md`](https://github.com/Nobody-Home21/Defender-OS/blob/fb3b3290ef3d79d00206034f64a478d1582f58ca/FIX_V0509_VIRTIO_CAPABILITY_LAYOUT.md)<br>[`references/SharpMetal-b29c452f7d6c/src/servers/drivers/net.virtio/VirtioNetDriver.cs`](https://github.com/Sadik00789/SharpMetal/blob/b29c452f7d6c8d8609d1a007b0b6ae8bdcc84807/src/servers/drivers/net.virtio/VirtioNetDriver.cs) |
+| [#106](http://localhost:3000/admin/CLROS/issues/106) | DefenderOS: high physical BAR mapped to a distinct virtual window | [`references/DefenderOS-fb3b3290ef3d/src/Defender.Kernel/DefenderKernel.cs`](https://github.com/Nobody-Home21/Defender-OS/blob/fb3b3290ef3d79d00206034f64a478d1582f58ca/src/Defender.Kernel/DefenderKernel.cs)<br>[`references/DefenderOS-fb3b3290ef3d/src/Defender.Kernel/LinuxDriverPortFoundation.cs`](https://github.com/Nobody-Home21/Defender-OS/blob/fb3b3290ef3d79d00206034f64a478d1582f58ca/src/Defender.Kernel/LinuxDriverPortFoundation.cs)<br>[`references/DefenderOS-fb3b3290ef3d/src/Defender.Kernel/VirtioNetRuntime.cs`](https://github.com/Nobody-Home21/Defender-OS/blob/fb3b3290ef3d79d00206034f64a478d1582f58ca/src/Defender.Kernel/VirtioNetRuntime.cs)<br>[`references/DefenderOS-fb3b3290ef3d/FIX_V0510_HIGH_PCI_MMIO_WINDOW.md`](https://github.com/Nobody-Home21/Defender-OS/blob/fb3b3290ef3d79d00206034f64a478d1582f58ca/FIX_V0510_HIGH_PCI_MMIO_WINDOW.md) |
+| [#107](http://localhost:3000/admin/CLROS/issues/107) | ProtonOS: observable virtio feature negotiation | [`references/ProtonOS-c4f6db236c0c/src/drivers/shared/virtio/VirtioDevice.cs`](https://github.com/ProtonOS/ProtonOS/blob/c4f6db236c0cf8e979500efecd1d4002b34572c2/src/drivers/shared/virtio/VirtioDevice.cs) |
+| [#109](http://localhost:3000/admin/CLROS/issues/109) | Cosmos Gen3: queue-width and zero-size hazards | [`references/Cosmos-gen3-81259dd941a3/src/Cosmos.Kernel.HAL/Devices/Virtio/Virtqueue.cs`](https://github.com/CosmosOS/Cosmos/blob/81259dd941a39b60226dc6f9db14befd6558e592/src/Cosmos.Kernel.HAL/Devices/Virtio/Virtqueue.cs) |
+| [#110](http://localhost:3000/admin/CLROS/issues/110) | Cosmos Gen3: descriptor ownership and double free | [`references/Cosmos-gen3-81259dd941a3/src/Cosmos.Kernel.HAL/Devices/Virtio/Virtqueue.cs`](https://github.com/CosmosOS/Cosmos/blob/81259dd941a39b60226dc6f9db14befd6558e592/src/Cosmos.Kernel.HAL/Devices/Virtio/Virtqueue.cs) |
+| [#127](http://localhost:3000/admin/CLROS/issues/127) | RedPandaOS and DiscUtils: bounded FAT chain traversal | [`references/RedPandaOS-3a2e08183847/RedPandaOS/Kernel/Filesystem/FAT32.cs`](https://github.com/giawa/RedPandaOS/blob/3a2e08183847d4d9596fcfe1cd853474313c45b4/RedPandaOS/Kernel/Filesystem/FAT32.cs)<br>[`references/DiscUtils-96e8f6bc4d8d/Tests/LibraryTests/Fat/FatFileSystemTest.cs`](https://github.com/LTRData/DiscUtils/blob/96e8f6bc4d8daa0da84e07556f5623c1e79a34a2/Tests/LibraryTests/Fat/FatFileSystemTest.cs) |
+| [#128](http://localhost:3000/admin/CLROS/issues/128) | RedPandaOS and DiscUtils: directory boundaries and VFAT sequences | [`references/RedPandaOS-3a2e08183847/RedPandaOS/Kernel/Filesystem/FAT32.cs`](https://github.com/giawa/RedPandaOS/blob/3a2e08183847d4d9596fcfe1cd853474313c45b4/RedPandaOS/Kernel/Filesystem/FAT32.cs)<br>[`references/DiscUtils-96e8f6bc4d8d/Tests/LibraryTests/Fat/FatFileNameTest.cs`](https://github.com/LTRData/DiscUtils/blob/96e8f6bc4d8daa0da84e07556f5623c1e79a34a2/Tests/LibraryTests/Fat/FatFileNameTest.cs)<br>[`references/DiscUtils-96e8f6bc4d8d/Tests/LibraryTests/Fat/FreeDirectoryEntryTableTest.cs`](https://github.com/LTRData/DiscUtils/blob/96e8f6bc4d8daa0da84e07556f5623c1e79a34a2/Tests/LibraryTests/Fat/FreeDirectoryEntryTableTest.cs) |
+| [#146](http://localhost:3000/admin/CLROS/issues/146) | ProtonOS: DHCP renewal/expiry arithmetic and state cases | [`references/ProtonOS-c4f6db236c0c/src/ddk/Network/Stack/DhcpClient.cs`](https://github.com/ProtonOS/ProtonOS/blob/c4f6db236c0cf8e979500efecd1d4002b34572c2/src/ddk/Network/Stack/DhcpClient.cs)<br>[`references/DefenderOS-fb3b3290ef3d/src/Defender.Kernel/NetworkStack.cs`](https://github.com/Nobody-Home21/Defender-OS/blob/fb3b3290ef3d79d00206034f64a478d1582f58ca/src/Defender.Kernel/NetworkStack.cs)<br>[`references/DefenderOS-fb3b3290ef3d/FIX_V059_BOOT_TIME_DHCP_DEADLOCK.md`](https://github.com/Nobody-Home21/Defender-OS/blob/fb3b3290ef3d79d00206034f64a478d1582f58ca/FIX_V059_BOOT_TIME_DHCP_DEADLOCK.md)<br>[`references/DefenderOS-fb3b3290ef3d/build/Test-v059BootNetworkDeferral.ps1`](https://github.com/Nobody-Home21/Defender-OS/blob/fb3b3290ef3d79d00206034f64a478d1582f58ca/build/Test-v059BootNetworkDeferral.ps1) |
+| [#156](http://localhost:3000/admin/CLROS/issues/156) | Inu: DNS transaction binding and hostile name cases | [`references/Inu-8a1ede5246cb/SDK/src/Inu.Kernel.Networking/KernelDnsCodec.cs`](https://github.com/ProjectLithos/Inu/blob/8a1ede5246cbf7420d7627a13ae0dc45d8c6cdf6/SDK/src/Inu.Kernel.Networking/KernelDnsCodec.cs) |
+| [#160](http://localhost:3000/admin/CLROS/issues/160) | PacketDotNet: independent wire-format corpus and checksum oracles | [`references/PacketDotNet-8752306350ee/Test/PacketType/TcpPacketTest.cs`](https://github.com/dotpcap/packetnet/blob/8752306350ee8bfb8e88f8cf485110a11dddfe53/Test/PacketType/TcpPacketTest.cs)<br>[`references/PacketDotNet-8752306350ee/Test/PacketType/IPv4PacketTest.cs`](https://github.com/dotpcap/packetnet/blob/8752306350ee8bfb8e88f8cf485110a11dddfe53/Test/PacketType/IPv4PacketTest.cs)<br>[`references/PacketDotNet-8752306350ee/PacketDotNet/Utils/ChecksumUtils.cs`](https://github.com/dotpcap/packetnet/blob/8752306350ee8bfb8e88f8cf485110a11dddfe53/PacketDotNet/Utils/ChecksumUtils.cs)<br>[`references/PacketDotNet-8752306350ee/Test/Misc/ChecksumUtilsTest.cs`](https://github.com/dotpcap/packetnet/blob/8752306350ee8bfb8e88f8cf485110a11dddfe53/Test/Misc/ChecksumUtilsTest.cs) |
+| [#172](http://localhost:3000/admin/CLROS/issues/172) | RedPandaOS and AsmResolver: PE32+ and file/mapped address domains | [`references/RedPandaOS-3a2e08183847/PELoader/PortableExecutableFile.cs`](https://github.com/giawa/RedPandaOS/blob/3a2e08183847d4d9596fcfe1cd853474313c45b4/PELoader/PortableExecutableFile.cs)<br>[`references/RedPandaOS-3a2e08183847/PELoader/VirtualMemory.cs`](https://github.com/giawa/RedPandaOS/blob/3a2e08183847d4d9596fcfe1cd853474313c45b4/PELoader/VirtualMemory.cs)<br>[`references/AsmResolver-0715000c1b3a/test/AsmResolver.PE.File.Tests/PEFileTest.cs`](https://github.com/Washi1337/AsmResolver/blob/0715000c1b3a5104531d5ff189a14ebef0a9d5ac/test/AsmResolver.PE.File.Tests/PEFileTest.cs) |
+| [#179](http://localhost:3000/admin/CLROS/issues/179) | PE negative corpus: range checks and relocation interpretation | [`references/RedPandaOS-3a2e08183847/PELoader/VirtualMemory.cs`](https://github.com/giawa/RedPandaOS/blob/3a2e08183847d4d9596fcfe1cd853474313c45b4/PELoader/VirtualMemory.cs)<br>[`references/RedPandaOS-3a2e08183847/PELoader/PortableExecutableFile.cs`](https://github.com/giawa/RedPandaOS/blob/3a2e08183847d4d9596fcfe1cd853474313c45b4/PELoader/PortableExecutableFile.cs)<br>[`references/AsmResolver-0715000c1b3a/test/AsmResolver.PE.Tests/Relocations/BaseRelocationTest.cs`](https://github.com/Washi1337/AsmResolver/blob/0715000c1b3a5104531d5ff189a14ebef0a9d5ac/test/AsmResolver.PE.Tests/Relocations/BaseRelocationTest.cs)<br>[`references/AsmResolver-0715000c1b3a/test/AsmResolver.PE.File.Tests/PEFileTest.cs`](https://github.com/Washi1337/AsmResolver/blob/0715000c1b3a5104531d5ff189a14ebef0a9d5ac/test/AsmResolver.PE.File.Tests/PEFileTest.cs) |
+| [#183](http://localhost:3000/admin/CLROS/issues/183) | RedPandaOS versus ProtonOS: explicit context-state ownership | [`references/RedPandaOS-3a2e08183847/RedPandaOS/Kernel/Scheduler.cs`](https://github.com/giawa/RedPandaOS/blob/3a2e08183847d4d9596fcfe1cd853474313c45b4/RedPandaOS/Kernel/Scheduler.cs)<br>[`references/ProtonOS-c4f6db236c0c/src/kernel/Threading/Scheduler.cs`](https://github.com/ProtonOS/ProtonOS/blob/c4f6db236c0cf8e979500efecd1d4002b34572c2/src/kernel/Threading/Scheduler.cs)<br>[`references/ProtonOS-c4f6db236c0c/src/kernel/Threading/Thread.cs`](https://github.com/ProtonOS/ProtonOS/blob/c4f6db236c0cf8e979500efecd1d4002b34572c2/src/kernel/Threading/Thread.cs) |
+| [#186](http://localhost:3000/admin/CLROS/issues/186) | RedPandaOS and ProtonOS: interrupt-mask and switch ordering | [`references/RedPandaOS-3a2e08183847/RedPandaOS/Runtime/InterruptDisabler.cs`](https://github.com/giawa/RedPandaOS/blob/3a2e08183847d4d9596fcfe1cd853474313c45b4/RedPandaOS/Runtime/InterruptDisabler.cs)<br>[`references/RedPandaOS-3a2e08183847/RedPandaOS/Kernel/Scheduler.cs`](https://github.com/giawa/RedPandaOS/blob/3a2e08183847d4d9596fcfe1cd853474313c45b4/RedPandaOS/Kernel/Scheduler.cs)<br>[`references/ProtonOS-c4f6db236c0c/src/kernel/Threading/Scheduler.cs`](https://github.com/ProtonOS/ProtonOS/blob/c4f6db236c0cf8e979500efecd1d4002b34572c2/src/kernel/Threading/Scheduler.cs) |
+| [#188](http://localhost:3000/admin/CLROS/issues/188) | ProtonOS and RedPandaOS: exit/join and deferred reclamation | [`references/ProtonOS-c4f6db236c0c/src/kernel/Threading/Scheduler.cs`](https://github.com/ProtonOS/ProtonOS/blob/c4f6db236c0cf8e979500efecd1d4002b34572c2/src/kernel/Threading/Scheduler.cs)<br>[`references/ProtonOS-c4f6db236c0c/src/kernel/PAL/Thread.cs`](https://github.com/ProtonOS/ProtonOS/blob/c4f6db236c0cf8e979500efecd1d4002b34572c2/src/kernel/PAL/Thread.cs)<br>[`references/RedPandaOS-3a2e08183847/RedPandaOS/Kernel/Scheduler.cs`](https://github.com/giawa/RedPandaOS/blob/3a2e08183847d4d9596fcfe1cd853474313c45b4/RedPandaOS/Kernel/Scheduler.cs) |
+| [#236](http://localhost:3000/admin/CLROS/issues/236) | SharpMetal and Cosmos Gen3: negative smoke-harness cases | [`references/SharpMetal-b29c452f7d6c/build/scripts/Test-Harness.py`](https://github.com/Sadik00789/SharpMetal/blob/b29c452f7d6c8d8609d1a007b0b6ae8bdcc84807/build/scripts/Test-Harness.py)<br>[`references/Cosmos-gen3-81259dd941a3/tests/Cosmos.Tests.Patcher/UartMessageParserTests.cs`](https://github.com/CosmosOS/Cosmos/blob/81259dd941a39b60226dc6f9db14befd6558e592/tests/Cosmos.Tests.Patcher/UartMessageParserTests.cs)<br>[`references/Cosmos-gen3-81259dd941a3/tests/Cosmos.TestRunner.Engine/Protocol/UartMessageParser.cs`](https://github.com/CosmosOS/Cosmos/blob/81259dd941a39b60226dc6f9db14befd6558e592/tests/Cosmos.TestRunner.Engine/Protocol/UartMessageParser.cs) |
+| [#243](http://localhost:3000/admin/CLROS/issues/243) | RedPandaOS: allocator and pool state must survive rejection | [`references/RedPandaOS-3a2e08183847/RedPandaOS/Kernel/Memory/BumpHeap.cs`](https://github.com/giawa/RedPandaOS/blob/3a2e08183847d4d9596fcfe1cd853474313c45b4/RedPandaOS/Kernel/Memory/BumpHeap.cs)<br>[`references/RedPandaOS-3a2e08183847/RedPandaOS/Kernel/Memory/SplitBumpHeap.cs`](https://github.com/giawa/RedPandaOS/blob/3a2e08183847d4d9596fcfe1cd853474313c45b4/RedPandaOS/Kernel/Memory/SplitBumpHeap.cs)<br>[`references/RedPandaOS-3a2e08183847/Runtime/Memory/GCHeap.cs`](https://github.com/giawa/RedPandaOS/blob/3a2e08183847d4d9596fcfe1cd853474313c45b4/Runtime/Memory/GCHeap.cs)<br>[`references/RedPandaOS-3a2e08183847/Runtime/Collections/ObjectPool.cs`](https://github.com/giawa/RedPandaOS/blob/3a2e08183847d4d9596fcfe1cd853474313c45b4/Runtime/Collections/ObjectPool.cs) |
+| [#245](http://localhost:3000/admin/CLROS/issues/245) | DiscUtils: fixed VHD construction and independent artifact checks | [`references/DiscUtils-96e8f6bc4d8d/Tests/LibraryTests/Vhd/DiskBuilderTest.cs`](https://github.com/LTRData/DiscUtils/blob/96e8f6bc4d8daa0da84e07556f5623c1e79a34a2/Tests/LibraryTests/Vhd/DiskBuilderTest.cs)<br>[`references/DiscUtils-96e8f6bc4d8d/Library/DiscUtils.Vhd/DiskBuilder.cs`](https://github.com/LTRData/DiscUtils/blob/96e8f6bc4d8daa0da84e07556f5623c1e79a34a2/Library/DiscUtils.Vhd/DiskBuilder.cs) |
+| [#257](http://localhost:3000/admin/CLROS/issues/257) | SharpMetal: NVMe queue initialization, DMA and completion audit | [`references/SharpMetal-b29c452f7d6c/src/servers/drivers/storage.nvme/NvmeDriver.cs`](https://github.com/Sadik00789/SharpMetal/blob/b29c452f7d6c8d8609d1a007b0b6ae8bdcc84807/src/servers/drivers/storage.nvme/NvmeDriver.cs) |
+| [#290](http://localhost:3000/admin/CLROS/issues/290) | SingNextOS: owner/generation checks for private process handles | [`references/SingNextOS-ad156e965850/tests/SingPlus.Tests/Capabilities/CapabilityAuthorityTests.cs`](https://github.com/yuriyyak23/SingNextOS/blob/ad156e965850b449bcc2593a6098b3c6d4bb27ee/tests/SingPlus.Tests/Capabilities/CapabilityAuthorityTests.cs)<br>[`references/SingNextOS-ad156e965850/tests/SingPlus.Tests/Ownership/RegionUseTests.cs`](https://github.com/yuriyyak23/SingNextOS/blob/ad156e965850b449bcc2593a6098b3c6d4bb27ee/tests/SingPlus.Tests/Ownership/RegionUseTests.cs) |
+| [#291](http://localhost:3000/admin/CLROS/issues/291) | SingNextOS: resource budgets and failed teardown accounting | [`references/SingNextOS-ad156e965850/tests/SingPlus.Tests/Runtime/Phase05ResourceBudgetTests.cs`](https://github.com/yuriyyak23/SingNextOS/blob/ad156e965850b449bcc2593a6098b3c6d4bb27ee/tests/SingPlus.Tests/Runtime/Phase05ResourceBudgetTests.cs)<br>[`references/SingNextOS-ad156e965850/tests/SingPlus.Tests/Ownership/RegionUseTests.cs`](https://github.com/yuriyyak23/SingNextOS/blob/ad156e965850b449bcc2593a6098b3c6d4bb27ee/tests/SingPlus.Tests/Ownership/RegionUseTests.cs) |
+| [#309](http://localhost:3000/admin/CLROS/issues/309) | RedPandaOS and SharpMetal: progress sources and timeout recovery | [`references/RedPandaOS-3a2e08183847/RedPandaOS/Kernel/Devices/PATA.cs`](https://github.com/giawa/RedPandaOS/blob/3a2e08183847d4d9596fcfe1cd853474313c45b4/RedPandaOS/Kernel/Devices/PATA.cs)<br>[`references/SharpMetal-b29c452f7d6c/src/servers/drivers/storage.nvme/NvmeDriver.cs`](https://github.com/Sadik00789/SharpMetal/blob/b29c452f7d6c8d8609d1a007b0b6ae8bdcc84807/src/servers/drivers/storage.nvme/NvmeDriver.cs)<br>[`references/DefenderOS-fb3b3290ef3d/src/Defender.Kernel/VirtioNetRuntime.cs`](https://github.com/Nobody-Home21/Defender-OS/blob/fb3b3290ef3d79d00206034f64a478d1582f58ca/src/Defender.Kernel/VirtioNetRuntime.cs) |
+| [#468](http://localhost:3000/admin/CLROS/issues/468) | RedPandaOS: distinguish data writes from durable FAT metadata | [`references/RedPandaOS-3a2e08183847/RedPandaOS/Kernel/Filesystem/FAT32.cs`](https://github.com/giawa/RedPandaOS/blob/3a2e08183847d4d9596fcfe1cd853474313c45b4/RedPandaOS/Kernel/Filesystem/FAT32.cs) |
+
+### Optional future work
+
+Only two narrow gaps were selected: a host-only exFAT boot-region parser and a
+host-only owned framebuffer/glyph surface. Their bodies state exact source
+paths, blocked dependencies, acceptance cases, commands, stable markers and
+deferred work. They have no milestone assignment and do not extend current
+M05/M06 exit criteria or precede the main kernel/runtime path. Created as [#568](http://localhost:3000/admin/CLROS/issues/568)
+(exFAT) and [#569](http://localhost:3000/admin/CLROS/issues/569)
+(framebuffer), both open with `agent:blocked`/`priority:p3`. Read-back receipts
+are recorded in [step1049](../done/step1049.md).
+
+RedPandaOS has FAT32, VGA and Bochs BGA source; **exFAT is only a roadmap item**
+at the pinned revision. DiscUtils is the actual exFAT implementation reference.
+Graphics does not imply a GUI, default shell, remote administration or cloud GPU
+support. Detailed static findings are in [the comparison](fork-diff.md#redpandaos-deep-static-review-2026-10-06).
+
 ## Tests
 
 Documentation-only changes run:
 
 ```powershell
 $directories = Get-ChildItem .\references -Directory
-if ($directories.Count -ne 29) { throw "reference inventory changed" }
+if ($directories.Count -ne 39) { throw "reference inventory changed" }
 Test-Path .\references\SharpOS-main\done\step143.md
 Test-Path .\references\nativeaot-patcher-main\src\Cosmos.Kernel.HAL\Devices\Virtio
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-naming.ps1

@@ -309,9 +309,9 @@ execution boundaries remain with M01-026 and later hardware evidence.
 
 ## Next Steps
 
-1. Review and close M01-035 only after its focused mutation suite, complete
-   host gate, fresh all-switch EFI build, and inherited M01-034 final-artifact
-   verifier pass; then obtain M01-026's cumulative real-QEMU/OVMF evidence.
+1. Preserve the accepted M01-035/M01-026 publication and owned-root evidence.
+   General live W^X/NX enforcement and broader security claims require their
+   own source-bound evidence beyond those finite profiles.
 2. Move manifest validation contract into the package/image path and later kernel parser.
 3. Add license/provenance metadata for any adapted reference source.
 4. Implement real page-permission transitions for generated stubs using the W^X policy, materialization, and transition-plan contracts.

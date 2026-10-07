@@ -1,4 +1,4 @@
-# CLROS and SharpOS Reference Diff
+# CLROS Reference Architecture and Implementation Comparisons
 
 ## Current Status
 
@@ -291,6 +291,156 @@ scope. This source review did not build, execute or import SharpOS code.
 - The reference kernel/app tier is net8, while CLROS is a .NET 10 project.
 - No reference path proves live CLROS virtio, ENA, NVMe, VMBus, NetVSC,
   StorVSC, hosted .NET, Kestrel, AWS, Azure, or production behavior.
+
+## RedPandaOS deep static review (2026-10-06)
+
+Pinned source: [giawa/RedPandaOS](https://github.com/giawa/RedPandaOS/tree/3a2e08183847d4d9596fcfe1cd853474313c45b4),
+178 files under `references/RedPandaOS-3a2e08183847`. The November 2025 tip
+contains a BGA compile correction and test framework refresh after a long
+gap; it is useful low-cadence source, not a newly created project. Inspection
+covers source/control flow, not executed defect reproduction or an upstream
+build certification. File links below are immutable; absence statements apply
+only to this complete pinned source tree.
+
+### Architecture and boot
+
+`Bootloader/Stage1.cs`, `Bootloader/Stage2.cs`, `IL2Asm/`, `CPUHelper/` and
+`RedPandaOS/Kernel/Init.cs` describe BIOS/x86 boot, a custom IL-to-NASM path,
+fixed addresses and a custom core library. CLROS uses UEFI/x64 and the .NET 10
+NativeAOT boundary. The useful comparison is explicit initialization order and
+failure dependencies, not the compiler, BIOS calls, ABI or memory layout.
+
+`Init.Start` sequences serial, TSS, heap, PIC/PIT, PCI, paging, storage and app
+work. Its SMAP memory classification tests bit 0 of the type instead of an
+exact usable-memory type. The sample-app loader reads into fixed 0x400000 and
+skips 512 bytes, rather than validating an arbitrary PE image. The syscall path
+that marks kernel mappings accessible to users is incompatible with CLROS
+ownership/isolation. Do not adopt these behaviors or bypass `BootSequence.cs`.
+
+### Memory, runtime and scheduling
+
+`RedPandaOS/Kernel/Memory/BumpHeap.cs` and `SplitBumpHeap.cs` use fixed memory
+areas and implicit ownership. Bump advancement is unchecked; freeing changes
+accounting without reclaiming storage. Word-at-a-time initialization needs an
+exact-length test for non-word-sized allocations. Large split allocations use
+`(size >> 12) + 1`, so an exact page multiple is over-rounded, and large-free
+behavior is not a general allocator. Derive exhaustion, overflow, alignment,
+canary and no-mutation-on-error cases for #243 instead of porting either heap.
+
+`Runtime/Memory/GCHeap.cs` contains a `StackHeap.Pop` unsigned decrement followed
+by an impossible negative test. Its Allocate branch requires `!Borrow` with a
+non-null result, opposite to the inspected `Runtime/Collections/ObjectPool.cs`
+success contract. That pool truncates the bitmap word count for capacities not
+divisible by 32 and does not establish safe double-return ownership. These
+objects are not evidence of tracing-GC/root/write-barrier correctness. The
+currently active #83 acceptance scope is intentionally not expanded.
+
+`RedPandaOS/Kernel/Memory/Paging.cs` uses 32-bit two-level page structures and
+raw mapping/copy operations, including disabling paging for a copy. It cannot
+become a CLROS x64 paging implementation. `Scheduler.cs` saves a uint[16]
+interrupt frame, allocates some scheduling/idle state lazily, and removes a
+terminated task without a complete owned stack/page reclamation protocol.
+`RedPandaOS/Runtime/InterruptDisabler.cs` uses one static nesting counter and
+unconditionally enables interrupts at final unlock, losing the entering IF
+state. Existing #183/#186/#188 cover full x64 context, switching and lifecycle;
+their new comments contrast this design with ProtonOS extended-state/TLS save
+and deferred cleanup. No assembly or custom-runtime source is imported.
+
+### PCI and block-device behavior
+
+`RedPandaOS/Kernel/Devices/PCI.cs` is a small readable config-port example with
+important completeness failures: missing device 0/function 0 ends the bus scan;
+multifunction slot 0 is omitted; endpoint classification uses the unmasked
+header byte. `ProbeMemorySize` probes separate 32-bit BAR values without a
+paired 64-bit resource/restoration transaction. #99/#101 get explicit hole,
+multifunction, high-BAR and failed-restoration cases. Do not mistake these
+diagnostic helpers for a cloud PCI discovery implementation.
+
+`RedPandaOS/Kernel/Devices/PATA.cs` shows command/status sequencing but includes
+unbounded busy and DMA waits. #309 derives progress-source, timeout, reset and
+ambiguous-DMA ownership cases. CLROS still prioritizes virtio-blk; no PATA/AHCI
+driver milestone is created simply because the reference has a driver.
+
+### FAT32 and the exFAT distinction
+
+`RedPandaOS/Kernel/Filesystem/FAT32.cs` provides a concrete sector/FAT/directory
+walk, but it is not a complete robust filesystem. The initial data base already
+includes root displacement, then SectorHandler adds cluster displacement again:
+root-cluster-not-2 is an important geometry test. The real nested
+`SectorHandler.GetNextCluster` reads FAT entries; the separate private method
+that returns current+1 is a placeholder and must not be confused with it.
+Unbounded chain walking needs cycle/hop limits; a failed advance cannot silently
+authorize another read. `ExploreDirectory` handles only sixteen entries from
+one sector and skips VFAT, motivating #127/#128 boundary cases alongside
+DiscUtils host fixtures. Validate existing CLROS tests before duplicating them.
+
+`ReserveEmptyCluster`/`AdvanceWrite` mutate freshly read FAT buffers without
+corresponding persistence of those buffers in the inspected methods. This
+supports #468's narrow in-place-write rejection and image/reboot proof cases,
+not a proposal for cluster allocation or file growth. `BuildTools/FAT32Writer.cs`
+is a host image-layout example with its own fixed assumptions, not a replacement
+for the CLROS image builder.
+
+No exFAT source exists in this snapshot; README lists it as planned. The future
+boot-region parser uses `DiscUtils.ExFat/Internal/Partition/ExFatBootSector.cs`
+and Microsoft's specification. Allocation bitmap, upcase tables, directory-set
+checksums and NoFatChain files remain later slices; no general writable exFAT
+issue is introduced.
+
+### PE/app loading and diagnostics
+
+`PELoader/PortableExecutableFile.cs` advances the PE32+ directory position using
+the 32-bit optional-header size and unconditionally accesses the CLI directory.
+That is unsuitable for a native NativeAOT image. `PELoader/VirtualMemory.cs`
+illustrates the difference between validating a starting RVA and validating the
+entire requested span. #172/#179 receive raw/mapped, no-CLI, truncated header,
+cross-section, relocation and overflow fixture guidance, with AsmResolver as a
+separate host comparison. The fixed-address sample app path is not a PE-loader
+alternative.
+
+`RedPandaOS/Kernel/Exceptions.cs` logs and spins, and its raw stack/symbol scanning is
+not structured unwind evidence. `ILInterpreter.Tests/TestPrograms.cs` exercises
+an IsPrime interpreter example; it is not a kernel regression suite. A project
+having a test directory does not establish subsystem coverage.
+
+### VGA, BGA and framebuffer future use
+
+`RedPandaOS/Kernel/Devices/VGA.cs` demonstrates text cells at 0xB8000 and fixed
+80x25 geometry. Coordinate/format parsing needs bounds, and this mode is not a
+universal cloud console. `BGA.cs` demonstrates Bochs ports 0x1CE/0x1CF, mode
+selection and vertical offset, but guesses between low 32-bit BARs and checks
+little beyond width divisibility. It does not validate complete mode/aperture
+or y-offset extents. `BitmapFont.cs` supplies signed glyph-offset and clipping
+scenarios; its Inconsolata texture assets have separate OFL terms.
+
+The optional future issue starts with caller-owned RGBX/BGRX bytes and a tiny
+independent glyph, with no firmware/device calls. GOP/BGA integration, mode
+setting, font assets, GUI and input remain out of scope. Serial stays primary.
+
+## New kernel and foundation comparisons (2026-10-06)
+
+Full immutable paths/commits, activity and issue links are in
+[the reference map](reference-map.md#accepted-snapshots); exact copy boundaries
+and license text paths are in [the license audit](license-audit.md#new-github-snapshot-provenance-2026-10-06).
+Findings below are static observations, not tested upstream defects.
+
+| Project | Useful implementation to study | CLROS adaptation and observed limits |
+| --- | --- | --- |
+| SharpMetal | `src/servers/drivers/storage.nvme/NvmeDriver.cs`: class discovery, 64-bit BAR pair, CAP stride, controller readiness, admin/I/O queues and PRPs. `src/servers/drivers/net.virtio/VirtioNetDriver.cs`: capability/transport path. | #257 studies a real driver sequence but rejects fixed ECAM/virtual addresses, unchecked DMA return, continuing after timeout, phase-only completion and arbitrary LBA 65535 canary writes. PRP construction assumes contiguous pages and needs capacity checks. #101/#105 preserve full BAR/capability extents. .NET 10 NativeAOT does not make native bridges/POSIX/multi-server ABI compatible. |
+| SharpMetal harness | `build/scripts/Test-Harness.py`: bounded-looking runner and required regex set. | #236/#309 distinguish a budget from correct failure handling. Blocking readline can defeat a wall-clock deadline; collected panic/fault lines can coexist with reported success when required patterns match. CLROS must reject failure anywhere in the complete run. |
+| DefenderOS | `src/Defender.Kernel/LinuxDriverPortFoundation.cs`, `ModernStorage.cs`, `DefenderKernel.cs`, `VirtioNetRuntime.cs`, `NetworkStack.cs`, and the named v0.50.9/v0.50.10/v0.59 fix notes. | #105/#106: preserve physical versus returned virtual MMIO address, including a reported 768-GiB BAR. Do not inherit its PML4 choices or advisory-BAR-size trust. Capability walking can stop on a cycle after finding required entries and still succeed; validate complete record extent before field reads. Partial mapping rollback needs explicit handling. #146 models pre-timer DHCP deferral; its regression script checks source tokens/order, not runtime progress. |
+| ProtonOS | `src/kernel/Threading/Scheduler.cs`, `Thread.cs`, `src/kernel/PAL/Thread.cs`, `src/drivers/shared/virtio/VirtioDevice.cs`, `src/ddk/Network/Stack/DhcpClient.cs`. | #183/#186/#188: extended state, TLS, off-stack deferred cleanup and join ordering. #107: explicit status negotiation/read-back, with a separate required-Version1 check. #146: advertised T1 TODO and integer T2 overflow case. Independently reauthor AGPL scenarios; neither Linux syscalls nor custom JIT/bflat ABI replace OSHost_* or NativeAOT. |
+| Inu | `SDK/src/Inu.Kernel.Networking/KernelDnsCodec.cs`, `KernelDhcpCodec.cs`, `KernelTcpObservationProtocol.cs`. | #156: question/server/rcode binding, pointer/name validation and bounded cache. The DNS parser can select an A answer using transaction/QR/class/type without the complete original-question identity. TCP flag observation is not sequence/checksum/retransmission proof. No core project license established; test concepts only. |
+| SingNextOS | CapabilityAuthorityTests, RegionUseTests and Phase05ResourceBudgetTests under `tests/SingPlus.Tests`. | #290/#291: wrong owner, stale generation, revoked authority, allocation/transfer-versus-teardown and exact charge retention on refused cleanup. Hosted Tasks/reflection and capability/domain framework are not a freestanding isolation implementation. AGPL code is not copied. |
+| Cosmos Gen3 | `Virtqueue.cs` and UART parser/patcher tests at canonical `81259dd941a3...`. | #109/#110: uint queue size versus ushort links/counts; zero-size final-index underflow; unchecked descriptor free. #236: incomplete suite and orphan/missing result records. The upstream completed-suite case can preserve a placeholder pass without an individual result; CLROS still requires complete explicit evidence. New UART tests justify the pinned canonical snapshot; queue logic mostly overlaps the original patcher. |
+| AsmResolver | `test/AsmResolver.PE.File.Tests/PEFileTest.cs`, `test/AsmResolver.PE.Tests/Relocations/BaseRelocationTest.cs`, `src/AsmResolver.PE/Exceptions/X64UnwindInfo.cs`. | #172/#179: explicit raw/mapped and expected relocation records. The example relocation fixture is HIGHLOW/ABSOLUTE, not DIR64 coverage. #89: FromReader omits odd-count unwind padding before handler/chain; GetPhysicalSize handles exception-only versus termination inconsistently with Write. Use Microsoft's x64 ABI as the authority and independent malformed fixtures, not round-trip agreement. |
+| PacketDotNet | `Test/PacketType/TcpPacketTest.cs`, `IPv4PacketTest.cs`, `PacketDotNet/Utils/ChecksumUtils.cs`. | #160: packet backing-length/header/option/checksum cases. `Test/Misc/ChecksumUtilsTest.cs` OnesSum prints without asserting; it is not a standalone oracle. Optional host differential comparison only, MPL file terms retained; captures require separate fixture provenance. |
+| LTRData DiscUtils | `Library/DiscUtils.ExFat`, `Tests/LibraryTests/Fat`, `Tests/LibraryTests/Vhd/DiskBuilderTest.cs`, `Library/DiscUtils.Vhd/DiskBuilder.cs`. | #127/#128: filesystem fixture scenarios. #245: fixed VHD footer/type/size/payload cross-check. Future exFAT: checksum/geometry first, independent bounds before reading/shifting. Streams/arrays and volume-wide allocation behavior cannot be transplanted into no-runtime code. Neither decoded VHD nor reference tests prove provider import. |
+
+The first-party result of this review is documentation and backlog guidance.
+No runtime helper, boot ordering, ABI, project dependency, image, firmware or
+completion gate changes. Source-level findings need independent reproduction
+when the corresponding CLROS implementation issue is taken up.
 
 ## Validation
 

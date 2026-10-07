@@ -4128,8 +4128,7 @@ Firmware smoke proof:
 .\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -RequireMarker OS_BOOT_OK,"TEST_PASS boot.sequence",OS_SMOKE_PASS,UEFI_MEMORY_MAP_OWNED,BOOT_HANDOFF_READY,UEFI_MEMORY_MAP_NORMALIZED,BOOT_MEMORY_MAP_ACCEPTED,BOOT_MEMORY_REGIONS_READY,BOOT_MEMORY_REGION_COUNT,BOOT_PAGE_ALLOCATOR_READY,BOOT_ACPI_RSDP_HANDOFF_READY,UEFI_ACPI_RSDP_READY
 .\scripts\build-efi-shell.ps1 -EnableUefiGoneSimulationProbe -EfiOutputPath artifacts/efi/BOOTX64-SIM.EFI -LogPath artifacts/logs/efi-shell-publish-sim.log
 .\scripts\run-qemu-smoke.ps1 -EfiArtifact artifacts/efi/BOOTX64-SIM.EFI -Image artifacts/images/os-sim.raw -SerialLog artifacts/logs/qemu-smoke-sim.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -MarkerPreset uefi-gone
-.\scripts\build-efi-shell.ps1 -EnableAcpiPhysicalDiscoveryProbe -EfiOutputPath artifacts/efi/BOOTX64-ACPI.EFI -LogPath artifacts/logs/efi-shell-publish-acpi.log
-.\scripts\run-qemu-smoke.ps1 -EfiArtifact artifacts/efi/BOOTX64-ACPI.EFI -Image artifacts/images/os-acpi.raw -SerialLog artifacts/logs/qemu-smoke-acpi.log -SummaryLog artifacts/logs/qemu-smoke-acpi.summary.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -MarkerPreset acpi
+.\scripts\run-qemu-smoke.ps1 -BuildEfi -EnableAcpiPhysicalDiscoveryProbe -MarkerPreset acpi -EfiArtifact artifacts/efi/BOOTX64-ACPI.EFI -Image artifacts/images/os-acpi.raw -SerialLog artifacts/logs/qemu-smoke-acpi.log -SummaryLog artifacts/logs/qemu-smoke-acpi.summary.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30
 ```
 
 Evidence from 2026-05-21:
@@ -4406,7 +4405,10 @@ state, and emits only through owned COM1. No firmware memory is reclaimed and no
 general adapter revocation is claimed. [Step1032](../done/step1032.md) retains
 staged preparation; [step1051](../done/step1051.md) records the accepted integrated
 common run and fresh source/native/lifecycle/disk association at `e64e9dc`.
-The next firmware-boundary work is general adapter revocation under #65.
+The subsequent eight-capability adapter revocation and owned post-exit
+diagnostics scopes are accepted in [step1053](../done/step1053.md) and
+[step1063](../done/step1063.md). General firmware-page reclamation and continuing
+platform/driver/workload services remain later boundaries.
 
 The preparatory M03-005 `NoAllocationOrUnrelatedFirmwareCallOccursBetween`
 window accepts an already-owned writable map buffer and one retained state.

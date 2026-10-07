@@ -11,9 +11,13 @@ closed after their reviewed merges. [Step966](../done/step966.md) records the
 state-only closure of milestone 4: all 40 members stayed closed and unchanged,
 and the repaired read-only sync preserved that closure. Its 12 unrelated
 issue updates remain unapplied. Numbered completion-gate states remain
-unchanged; real EBS, hosted .NET/Kestrel and cloud readiness remain unproved.
+unchanged. Separate opt-in profiles have bounded real `ExitBootServices`,
+eight-capability adapter revocation and owned post-exit diagnostics acceptance
+in [step1051](../done/step1051.md), [step1053](../done/step1053.md) and
+[step1063](../done/step1063.md). Hosted .NET/Kestrel and cloud readiness remain
+unproved.
 
-Audit date: 2026-07-30.
+Original audit date: 2026-07-30.
 
 The first-party workspace began as an empty baseline under the former `OS`
 solution/repository identity. The current canonical solution is `CLROS.slnx`,
@@ -21,10 +25,12 @@ the current worktree is `C:\Projects\CLROS`, and the current Gitea repository is
 `admin/CLROS`. The local `references/` directory contains reference snapshots
 but they are not build inputs.
 
-All 29 supplied reference snapshots are inventoried and classified in
-`docs/reference-map.md`; detailed SharpOS adaptation decisions live in
-`docs/fork-diff.md`, and provenance/license/reuse limits live in
-`docs/license-audit.md`. SharpOS's DOOM and PowerShell done files and media are
+The 29 supplied snapshots plus ten pinned GitHub snapshots added on 2026-10-06
+are inventoried in `docs/reference-map.md`. SharpOS, RedPandaOS and the new
+kernel/foundation comparisons live in `docs/fork-diff.md`; immutable commits,
+archive hashes and license/reuse limits live in `docs/license-audit.md`. The
+2026-10-06 research adds issue guidance and two optional deferred scopes, not
+first-party implementation or changed completion gates; see `done/step1049.md`. SharpOS's DOOM and PowerShell done files and media are
 historical engineering evidence only. They are not independently reproduced
 CLROS evidence.
 

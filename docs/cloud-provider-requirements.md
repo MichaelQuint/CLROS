@@ -2,7 +2,9 @@
 
 ## Current Status
 
-This document reconciles the Azure and AWS requirement notes with the current OS milestone ledger. It is a traceability document only. It does not claim that OS boots on Azure or AWS.
+This document reconciles the Azure and AWS requirement notes with the current
+CLROS milestone ledger. It is a traceability document only. It does not claim
+that CLROS boots on Azure or AWS.
 
 Current provider status:
 
@@ -48,11 +50,11 @@ Related provider-neutral gates:
 
 ## Traceability Matrix
 
-| Requirement area | Azure requirement | AWS requirement | Current OS evidence | Completion gate | Gap / deferred work |
+| Requirement area | Azure requirement | AWS requirement | Current CLROS evidence | Completion gate | Gap / deferred work |
 | --- | --- | --- | --- | --- | --- |
 | Provider boot artifact | Fixed-size VHD, 1 MiB aligned, Azure Compute Gallery, `osType=Linux`, specialized image first, agent disabled. | HVM AMI, x86_64 first, EBS-backed root volume, boot mode metadata matching disk layout, ENA support flag for Nitro. | Local raw GPT/FAT32 image exists for QEMU. Optional qcow2 conversion wrapper exists. No provider image import has been tested. | Gate 11 | Add fixed VHD builder/import validation for Azure. Add AMI import/register path for AWS. Keep provider import evidence separate from local QEMU evidence. |
 | Firmware boot path | Gen1 BIOS or Gen2 UEFI, one selected first. Long-term Azure path is Hyper-V-compatible boot with serial diagnostics. | Legacy BIOS or UEFI for x86_64 Nitro, one selected first. UEFI import requires fallback `EFI/BOOT/BOOTX64.EFI`. | QEMU/OVMF reaches current EFI markers and `OS_SMOKE_PASS`. This is not Azure or EC2 boot proof. | Gates 2, 5, 11 | Prove selected provider firmware path on real Azure VM and EC2 instance with serial logs. Do not infer provider boot from local OVMF. |
-| Kernel substrate | x86-64 long mode, firmware memory map, paging, interrupts, timer, panic path, serial output. | x86-64 long mode first, ACPI, PCIe, interrupts, timer, serial output, panic path. | Boot handoff, memory-map ownership, ACPI RSDP provenance, and ordered boot markers are partially proven locally. No real ExitBootServices or owned driver substrate. | Gates 2, 3, 5, 6 | Implement post-firmware ownership, real descriptor/fault setup, timers, ACPI walking, and provider-safe serial diagnostics. |
+| Kernel substrate | x86-64 long mode, firmware memory map, paging, interrupts, timer, panic path, serial output. | x86-64 long mode first, ACPI, PCIe, interrupts, timer, serial output, panic path. | Local opt-in profiles have bounded real ExitBootServices, owned descriptor/serial diagnostics and adapter revocation evidence; see [step1063](../done/step1063.md). General owned drivers and provider boot remain unproved. | Gates 2, 3, 5, 6 | Extend the accepted bounded local ownership/descriptor/fault paths to continuing platform services, timers and provider-safe serial diagnostics. |
 | Platform bus and discovery | Hyper-V detection, MSRs, hypercall page, SynIC, VMBus negotiation, channel offers, ring buffers, GPADL/shared memory. | ACPI table walking, PCIe ECAM/live config access, BAR sizing/mapping, MSI/MSI-X, DMA-safe memory, Nitro device discovery. | ACPI/PCI parsers, virtio discovery contracts, Hyper-V CPUID snapshot identification with default-result rejection, and VMBus offer descriptor fixtures are host-tested over caller-provided bytes. No live Hyper-V or Nitro discovery. | Gate 6 | Add live Azure Hyper-V/VMBus negotiation and AWS Nitro PCIe tracks as separate issues. Do not collapse them into one generic virtio track. |
 | Network device | NetVSC synthetic NIC over VMBus. | ENA PCIe NIC on Nitro. | Virtio-net metadata, queue planning, receive classification, and VMBus NetVSC offer class recognition are host-tested only. No live packet I/O. | Gate 8 | Implement live NetVSC for Azure and ENA for AWS after provider platform discovery exists. Local virtio-net can remain a QEMU milestone path. |
 | Storage device | StorVSC synthetic SCSI over VMBus. | NVMe block driver for EBS and instance-store devices. | GPT/FAT32/package parser, virtio-blk planning contracts, and VMBus StorVSC offer class recognition are host-tested only. No live disk I/O after firmware. | Gate 7 | Implement live StorVSC and NVMe separately. Multi-app ASP.NET deployment practically requires storage-backed app manifests, binaries, config, and logs. |
@@ -186,7 +188,7 @@ per-app metadata access policy
 per-app resource limits
 ```
 
-Acceptance must prove at least two ASP.NET Minimal API apps running in separate processes on separate ports, with one app crash not corrupting the OS or the other app. Until that evidence exists, OS remains a single-workload-by-default system with future multi-app requirements documented.
+Acceptance must prove at least two ASP.NET Minimal API apps running in separate processes on separate ports, with one app crash not corrupting the OS or the other app. Until that evidence exists, CLROS remains a single-workload-by-default system with future multi-app requirements documented.
 
 ## Claim Rules
 
@@ -200,7 +202,7 @@ Use these rules in issues, docs, and completion-gate updates:
    to an external HTTP probe through the OS guest network path or a documented
    hosted-tier boundary; use
    [`docs/completion-gates.md`](completion-gates.md#gate-14-provider-split)
-   and [`docs/kestrel.md`](kestrel.md#cloud-provider-claim-boundaries) for
+   and [`docs/kestrel.md`](kestrel.md#claim-boundary-and-non-goals) for
    provider-scoped marker and evidence requirements.
 6. Do not claim multi-app ASP.NET support until isolated processes, supervisor lifecycle, per-app ports, and crash isolation are proven.
 7. Do not treat local QEMU virtio evidence as Azure Hyper-V or AWS Nitro evidence.
