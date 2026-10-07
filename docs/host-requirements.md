@@ -23,14 +23,15 @@ Required for all current host builds:
 
 - Windows 10 or Windows 11 x64.
 - PowerShell 5.1 or newer.
-- A stable .NET SDK in the `10.0.300` feature band. `global.json` requests
-  `10.0.300`, permits latest-patch roll-forward, and rejects prerelease SDKs;
-  the current host resolves that contract to `10.0.302`.
+- A stable .NET SDK in the `10.0.400` feature band. `global.json` requests
+  `10.0.401`, permits latest-patch roll-forward within that band, and rejects
+  prerelease SDKs. The new Windows host selects `10.0.401`.
 - NuGet access to restore .NET 10 packages.
 
 Required for `scripts/build-efi-shell.ps1`:
 
-- Visual Studio Build Tools 2022 or Visual Studio with C++ build tools.
+- Visual Studio Build Tools or Visual Studio with C++ build tools, including
+  Visual Studio 2026 Insiders. Discovery includes prerelease installations.
 - MSVC x64 toolchain, including `link.exe` and `cl.exe`.
 - Windows SDK with x64 UM libraries, including `kernel32.lib`.
 - NativeAOT runtime packs restored by `dotnet restore`.
@@ -150,7 +151,7 @@ Verify Visual Studio Build Tools are installed:
 
 ```powershell
 $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
-$vsInstall = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+$vsInstall = & $vswhere -latest -prerelease -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
 $vsInstall
 ```
 
@@ -289,7 +290,7 @@ proof.
 Required agent capabilities:
 
 - Windows 10 or Windows 11 x64 with PowerShell 5.1 or newer.
-- The stable .NET SDK 10.0.300 feature band with patch selection governed by `global.json`.
+- The stable .NET SDK 10.0.400 feature band, minimum `10.0.401`, with patch selection governed by `global.json`.
 - Visual Studio or Build Tools with `Microsoft.VisualStudio.Workload.VCTools`
   and `Microsoft.VisualStudio.Component.VC.Tools.x86.x64`.
 - Windows 10/11 SDK UM x64 libraries, including `kernel32.lib`.

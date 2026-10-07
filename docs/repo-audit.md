@@ -257,8 +257,9 @@ and the reachable local Gitea tracker:
 
 ## Build Status
 
-- Stable SDK installed for the current baseline: .NET SDK `10.0.302`,
-  selected by `global.json` from the `10.0.300` feature band.
+- The new development host selects stable .NET SDK `10.0.401` through
+  `global.json`, with latest-patch roll-forward within the `10.0.400` feature
+  band. Earlier accepted evidence retains its original SDK and source identity.
 - Before scaffolding, `dotnet build CLROS.slnx` was a no-op because the solution had no projects.
 - The current baseline build command passes with 0 warnings and 0 errors:
 

@@ -24,8 +24,9 @@
 **Status snapshot: October 7, 2026.** Accepted implementation is recorded through
 `master` commit `1e6a8dbd11e3220c1ca433b72d57e418cdc86b05`, including [step1075](done/step1075.md).
 Evidence records retain their original tested revisions; acceptance does not
-extend automatically to later source changes. The broader backlog is paused
-at a clean stopping point for the Windows handoff.
+extend automatically to later source changes. Development has resumed on the
+new Windows host, starting with a separately validated SDK/toolchain migration.
+The Windows handoff remains the preserved record of the preceding clean stop.
 
 Progress is gate-based; issue counts and test counts are not completion
 percentages. The goal remains a C#-first NativeAOT operating system for one
