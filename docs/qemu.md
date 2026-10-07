@@ -6,7 +6,7 @@ QEMU smoke now has real OVMF boot proof for the EFI smoke path from both raw and
 
 This is an EFI application smoke, not a complete OS boot. It proves OVMF can load `\EFI\BOOT\BOOTX64.EFI` from the raw image and that the EFI entry path emits firmware-visible markers.
 
-The current source-bound raw-image proof was captured on 2026-07-25 from
+The historical baseline raw-image proof was captured on 2026-07-25 from
 clean, pushed commit
 `32a8f3b91e17e1fc7e4b296730a5ea6565c38369`. QEMU `11.0.50` and the
 OVMF file with SHA-256
@@ -24,7 +24,9 @@ and
 `C190355FB48902635AB4BC7EBD4BAEBD3E029619C851407A599D3BC9FB412BC7`.
 The generated tuple is under
 `artifacts/logs/m00-final/32a8f3b91e17-20260725T213702Z/`; it is ignored
-build evidence, while `done/step846.md` is the committed ledger.
+build evidence, while `done/step846.md` is the committed ledger. Later accepted
+source-bound profiles are recorded in [completion gates](completion-gates.md),
+including the diagnostics/dispatch acceptance in [step1063](../done/step1063.md).
 
 A separate opt-in M01-022 proof was captured on 2026-07-27 from clean
 implementation commit
@@ -2133,8 +2135,7 @@ Build and boot the UEFI-gone simulation EFI variant:
 Build and boot the ACPI physical discovery EFI variant:
 
 ```powershell
-.\scripts\build-efi-shell.ps1 -EnableAcpiPhysicalDiscoveryProbe -EfiOutputPath artifacts/efi/BOOTX64-ACPI.EFI -LogPath artifacts/logs/efi-shell-publish-acpi.log
-.\scripts\run-qemu-smoke.ps1 -EfiArtifact artifacts/efi/BOOTX64-ACPI.EFI -Image artifacts/images/os-acpi.raw -SerialLog artifacts/logs/qemu-smoke-acpi.log -SummaryLog artifacts/logs/qemu-smoke-acpi.summary.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -MarkerPreset acpi
+.\scripts\run-qemu-smoke.ps1 -BuildEfi -EnableAcpiPhysicalDiscoveryProbe -MarkerPreset acpi -EfiArtifact artifacts/efi/BOOTX64-ACPI.EFI -Image artifacts/images/os-acpi.raw -SerialLog artifacts/logs/qemu-smoke-acpi.log -SummaryLog artifacts/logs/qemu-smoke-acpi.summary.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30
 ```
 
 Real smoke on the current Windows host:
@@ -2162,7 +2163,10 @@ If `-OvmfCode` is omitted, the runner checks `OS_OVMF_CODE`, `OVMF_CODE`, `QEMU_
 - WHPX/KVM acceleration selection is not implemented; QEMU uses TCG.
 - ISO launch paths are not implemented in `tools/OS.QemuRunner`.
 - libvirt real boot is not implemented.
-- No ExitBootServices or owned driver path exists after the EFI smoke marker.
+- The default EFI smoke retains firmware services. Separate opt-in profiles
+  have bounded real `ExitBootServices`, adapter revocation and owned post-exit
+  diagnostics acceptance; general continuing drivers and workloads remain
+  unsupported.
 - QEMU runner HTTP probing is host-runner behavior only until it is pointed at a real guest endpoint. Local-loopback tests prove probe evaluation, not any hosted-workload completion gate; see `docs/completion-gates.md` and `docs/kestrel.md` for the full Kestrel/hosted .NET evidence boundary.
 - QEMU runner `APP_EXIT` parsing is summary-parser behavior only. It does not prove a guest app ran, a live app exit was observed, a supervisor captured status, or restart policy executed.
 - `-MarkerPreset http-static-response` is a required-marker preset only. It does not prove a live HTTP server, sockets, Kestrel, hosted .NET, or cloud readiness unless a real QEMU serial log from a matching guest image emits `HTTP_STATIC_RESPONSE_READY` and `HTTP_STATIC_RESPONSE`.

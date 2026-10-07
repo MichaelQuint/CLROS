@@ -2,7 +2,18 @@
 
 ## Current Status
 
-The architecture is a staged CloudReady NativeAOT OS plan. The first-class application goal is .NET 10 workload hosting, with ASP.NET Minimal API apps as the primary cloud target. Kestrel support is mandatory for the CloudReady milestone. The implementation is currently at the first EFI/QEMU smoke boundary, an opt-in QEMU-proven pre-`ExitBootServices` ACPI physical discovery probe, separate opt-in QEMU-proven loaded-image/owned-stack and allocator-arena transitions, and one source-bound all-switch local-QEMU/OVMF tuple that observed a reversible pre-EBS owned-root interval with restoration, a scoped protection probe, and page-zero checks. The default profile still does not run that paging adapter. The repository also contains host-tested parser/planning contracts for early diagnostics, ACPI/PCI/virtio, storage, networking, PAL, manifest, and native-app readiness.
+CLROS follows a staged CloudReady NativeAOT architecture. The first-class
+application goal is .NET 10 workload hosting, with ASP.NET Minimal API apps as
+the primary cloud target. Kestrel support is mandatory for that milestone.
+Accepted local QEMU/OVMF profiles include the default EFI smoke, opt-in owned
+stack/allocator/paging and ACPI discovery, bounded real `ExitBootServices`,
+eight-capability adapter revocation, and owned post-exit diagnostics. The exact
+source-bound scopes are recorded in [completion gates](completion-gates.md),
+including [step1063](../done/step1063.md). The default profile retains firmware
+services. The repository also contains bounded runtime slices and host-tested
+planning contracts for ACPI/PCI/virtio, storage, networking, PAL, manifest and
+native-app readiness; these do not establish a complete kernel or hosted
+workload execution.
 
 `docs/workload-profiles.md` defines the workload profile decision. `SingleMinimalApi` is the near-term default path: one ASP.NET Minimal API workload, no process-table or per-process isolation requirement, but still with the required Kestrel runtime/network prerequisites. `MultiMinimalApi` is a later platform profile that requires process, isolation, scheduler, and supervisor semantics before it can be claimed.
 
@@ -69,12 +80,13 @@ The architecture is a staged CloudReady NativeAOT OS plan. The first-class appli
 
 ## Unsupported Behavior
 
-No real kernel runtime, complete exported PAL, `ExitBootServices` path, owned
-hardware drivers, scheduler, runtime storage I/O, live network I/O, app
-launcher execution, hosted .NET 10 runtime, ASP.NET Minimal API path, Kestrel
-path, or completed workload profile exists. ACPI probe evidence does not imply
-ECAM mapping, PCI enumeration, APIC/timer use, or post-firmware physical-memory
-access.
+A complete kernel runtime, exported hosted-tier PAL, general owned hardware
+drivers, scheduler, runtime storage I/O, live network I/O, app launcher,
+hosted .NET 10 runtime, ASP.NET Minimal API path, Kestrel path and completed
+workload profile remain unsupported. The accepted opt-in firmware-exit and
+owned-diagnostics profiles retain their bounded terminal scopes. ACPI probe
+evidence does not imply ECAM mapping, PCI enumeration, APIC/timer use or a
+general post-firmware physical-memory interface.
 
 The source-bound M01-022 opt-in run narrows the earlier loaded-image/stack
 nonclaim: on the recorded OVMF tuple, the EFI adapter opened the native
@@ -669,10 +681,10 @@ Minimal API, Kestrel, CloudReady status, or production readiness.
 
 ## Next Steps
 
-1. After tracker review and readiness synchronization, begin the released M02
-   diagnostics and M04 UEFI/PAL leaves without treating the bounded M01 tuple
-   as evidence for their acceptance criteria.
-2. Finish UEFI platform interfaces and post-firmware diagnostics before real firmware shutdown.
+1. Preserve the accepted bounded boot, diagnostics and runtime profiles while
+   keeping their exact source and evidence boundaries distinct.
+2. Extend reusable post-firmware platform interfaces and continuing execution
+   only through the issues that own those remaining boundaries.
 3. Add post-firmware physical-memory and MMIO ownership rules so the ACPI probe evidence can become durable platform discovery and PCI contracts can move from caller-owned bytes to live platform enumeration.
 4. Keep all shared utility implementation in `std/no-runtime/shared` before kernel/app use.
 5. Use `docs/workload-profiles.md` to keep the first hosted workload target on `SingleMinimalApi` while tracking the additional process/isolation work needed before `MultiMinimalApi`.

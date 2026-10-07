@@ -1661,16 +1661,16 @@ The `kestrel.smoke.package.v0` contract is documentation evidence only. It defin
 
 ## Next Steps
 
-1. Preserve the accepted M02-010 materialization/readback/free boundary, then
-   implement executable publication, a reviewed common interrupt entry, and
-   IDT/IDTR/IST-backed controlled fault evidence only in the later issues that
-   own those risks.
-2. Complete general firmware-adapter revocation (#65) and remaining UEFI
-   platform interfaces after the bounded M03-007 transition.
+1. Preserve the distinct accepted materialization/readback/free, executable
+   publication, common-entry and IDT/IDTR/IST-backed terminal fault scopes.
+   General interrupt service and safe continuation require separate evidence.
+2. Preserve the exact eight-capability firmware-adapter revocation accepted in
+   [step1053](../done/step1053.md) while extending remaining platform interfaces
+   and general firmware-memory reclamation.
 3. Extend reusable post-firmware diagnostic and continuing driver/workload paths
    without treating the terminal M03-007 probe as that broader implementation.
-4. Start diagnostics-first IDT/fault panic infrastructure after post-UEFI
-   diagnostics requirements are represented by tests.
+4. Extend the accepted terminal diagnostic and fault infrastructure only with
+   explicit recovery, continuation and persistent ownership requirements.
 5. Add libvirt real boot once local raw/qcow2 QEMU smoke remains stable.
 
 ### M03-002 / M04-010 focused native-publication checkpoint

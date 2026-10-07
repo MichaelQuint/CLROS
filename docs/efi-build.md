@@ -2008,9 +2008,11 @@ rights are source/path predicates, not separately printed descriptor dumps.
 The project is not yet a functional kernel. The default path retains firmware
 services. The accepted default-off M03-007 profile proves only its bounded real
 exit, retained mappings and terminal owned diagnostics ([step1051](../done/step1051.md)).
-General adapter revocation (#65), firmware-page reclamation, reusable
-post-firmware physical/MMIO interfaces, continuing drivers/workloads and broader
-panic-safe diagnostics remain incomplete. The host-tested
+The accepted revocation profile covers exactly eight retained capabilities
+([step1053](../done/step1053.md)); owned post-exit diagnostics have their separate
+bounded acceptance ([step1063](../done/step1063.md)). Firmware-page reclamation,
+general post-firmware physical/MMIO interfaces, continuing drivers/workloads
+and broader panic recovery remain incomplete. The host-tested
 `UefiExitBootServicesLiveWiringPlan` and `PlatformFirmwareExitBootServicesResult`
 contracts alone do not establish the accepted live transition.
 
@@ -2066,8 +2068,7 @@ dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 .\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -RequireMarker OS_SMOKE_PASS,UEFI_MEMORY_MAP_OWNED,BOOT_HANDOFF_READY,UEFI_MEMORY_MAP_NORMALIZED,BOOT_MEMORY_MAP_ACCEPTED,BOOT_MEMORY_REGIONS_READY,BOOT_MEMORY_REGION_COUNT
 .\scripts\build-efi-shell.ps1 -EnableUefiGoneSimulationProbe -EfiOutputPath artifacts/efi/BOOTX64-SIM.EFI -LogPath artifacts/logs/efi-shell-publish-sim.log
 .\scripts\run-qemu-smoke.ps1 -EfiArtifact artifacts/efi/BOOTX64-SIM.EFI -Image artifacts/images/os-sim.raw -SerialLog artifacts/logs/qemu-smoke-sim.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -MarkerPreset uefi-gone
-.\scripts\build-efi-shell.ps1 -EnableAcpiPhysicalDiscoveryProbe -EfiOutputPath artifacts/efi/BOOTX64-ACPI.EFI -LogPath artifacts/logs/efi-shell-publish-acpi.log
-.\scripts\run-qemu-smoke.ps1 -EfiArtifact artifacts/efi/BOOTX64-ACPI.EFI -Image artifacts/images/os-acpi.raw -SerialLog artifacts/logs/qemu-smoke-acpi.log -SummaryLog artifacts/logs/qemu-smoke-acpi.summary.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -MarkerPreset acpi
+.\scripts\run-qemu-smoke.ps1 -BuildEfi -EnableAcpiPhysicalDiscoveryProbe -MarkerPreset acpi -EfiArtifact artifacts/efi/BOOTX64-ACPI.EFI -Image artifacts/images/os-acpi.raw -SerialLog artifacts/logs/qemu-smoke-acpi.log -SummaryLog artifacts/logs/qemu-smoke-acpi.summary.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30
 ```
 
 Current evidence from 2026-05-21:

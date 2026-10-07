@@ -11,9 +11,13 @@ closed after their reviewed merges. [Step966](../done/step966.md) records the
 state-only closure of milestone 4: all 40 members stayed closed and unchanged,
 and the repaired read-only sync preserved that closure. Its 12 unrelated
 issue updates remain unapplied. Numbered completion-gate states remain
-unchanged; real EBS, hosted .NET/Kestrel and cloud readiness remain unproved.
+unchanged. Separate opt-in profiles have bounded real `ExitBootServices`,
+eight-capability adapter revocation and owned post-exit diagnostics acceptance
+in [step1051](../done/step1051.md), [step1053](../done/step1053.md) and
+[step1063](../done/step1063.md). Hosted .NET/Kestrel and cloud readiness remain
+unproved.
 
-Audit date: 2026-07-30.
+Original audit date: 2026-07-30.
 
 The first-party workspace began as an empty baseline under the former `OS`
 solution/repository identity. The current canonical solution is `CLROS.slnx`,
