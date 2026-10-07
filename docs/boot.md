@@ -12,6 +12,15 @@ actual writer/stack review and fresh disk/lifecycle association pass in
 captures below retain their original source boundary. Continuing post-firmware
 allocator/platform work remains #67.
 
+The allocator portion of M03-010 is host-tested in
+[step1065](../done/step1065.md). It consumes the original diagnostic admission,
+allocates one page from the retained M01 owner, writes and restores two bounded
+words, frees the exact receipt and verifies the original accounting. Four
+focused groups cover restoration, owner/alias refusal and consumed failure paths.
+Prior native observations are modeled by that host fixture. Actual post-exit
+EFI integration, copied-ACPI use, installed-descriptor validation and a separate
+terminal fault control remain pending; this leaf does not complete #67.
+
 M03-008 adds a default-off typed firmware-capability revocation profile under
 integration issue #570. It binds console, memory-map, filesystem, timer, RNG,
 configuration-table, physical-memory and framebuffer handles to the original
