@@ -38,6 +38,7 @@ param(
     [switch]$EnableM03FirmwareEntropySeedProbe,
     [switch]$EnableM04TypeManagerModuleRegistrationProbe,
     [switch]$EnableM04X64UnwindMetadataProbe,
+    [switch]$EnableM04SimpleThrowCatchProbe,
     [switch]$EnableM04GcStaticRootMaterializationProbe,
     [switch]$EnableM04SeededCollectorChurnProbe,
     [switch]$EnableM03TypedExitBootServicesCallProbe,
@@ -78,7 +79,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 132
+$expectedSourceClosureInputCount = 137
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -183,9 +184,9 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Diagnostics\CpuFaultFrame.cs|Diagnostics\CpuFaultFrame.cs',
     '..\OS.Kernel\Diagnostics\DisabledDefaultUd2VectorState.cs|Diagnostics\DisabledDefaultUd2VectorState.cs',
     '..\OS.Kernel\Diagnostics\DisabledDefaultUd2VectorStateTransition.cs|Diagnostics\DisabledDefaultUd2VectorStateTransition.cs',
-    '..\..\std\no-runtime\shared\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs',
-    '..\..\std\no-runtime\shared\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs|Std\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs',
-    '..\..\std\no-runtime\shared\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs|Std\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs',
+    '..\..\std\no-runtime\shared\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs',
+    '..\..\std\no-runtime\shared\Memory\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs|Std\Memory\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs',
+    '..\..\std\no-runtime\shared\Numerics\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs|Std\Numerics\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs',
     '..\OS.Kernel\Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs|Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs',
     '..\OS.Kernel\Runtime\ManagedHeapPageRangeLiveAllocator.cs|Runtime\ManagedHeapPageRangeLiveAllocator.cs',
     '..\OS.Kernel\Boot\M01LoadedImageStackIntegration.cs|Boot\M01LoadedImageStackIntegration.cs',
@@ -238,7 +239,11 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Runtime\CompilerInterfaceDispatch.cs|Runtime\CompilerInterfaceDispatch.cs',
     'Runtime\InterfaceDispatchProbe.cs|',
     '..\OS.Kernel\Runtime\X64PERuntimeFunctionUnwindMetadataHostileInput.cs|Runtime\X64PERuntimeFunctionUnwindMetadataHostileInput.cs',
-    'Runtime\X64UnwindMetadataProbe.cs|'
+    'Runtime\X64UnwindMetadataProbe.cs|',
+    '..\OS.Kernel\Runtime\ExceptionTypeMatch.cs|Runtime\ExceptionTypeMatch.cs',
+    '..\OS.Kernel\Runtime\X64FrameUnwind.cs|Runtime\X64FrameUnwind.cs',
+    '..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs|Runtime\NativeAotEhClauseMetadata.cs',
+    'Runtime\ExceptionCatchProbe.cs|'
 )
 $expectedPackageBuildClosure = @(
     [pscustomobject]@{
@@ -1607,7 +1612,8 @@ function Get-ExpectedSourceClosurePaths {
         "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs",
             "tools/OS.X64TextSerializerGenerator/CheckedReferenceBarrierThunkGenerator.cs",
         "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs",
-        "tools/OS.X64TextSerializerGenerator/InterfaceDispatchThunkGenerator.cs"
+        "tools/OS.X64TextSerializerGenerator/InterfaceDispatchThunkGenerator.cs",
+        "tools/OS.X64TextSerializerGenerator/ExceptionHandlingThunkGenerator.cs"
     )
     foreach ($explicitPath in $explicitPaths) {
         $explicitFullPath = Get-AbsolutePath `
@@ -3928,6 +3934,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM03FirmwareEntropySeedProbe," +
             "EnableM04TypeManagerModuleRegistrationProbe," +
             "EnableM04X64UnwindMetadataProbe," +
+            "EnableM04SimpleThrowCatchProbe," +
             "EnableM04GcStaticRootMaterializationProbe," +
             "EnableM04SeededCollectorChurnProbe," +
             "EnableM03TypedExitBootServicesCallProbe," +
@@ -4100,6 +4107,9 @@ function Invoke-PostRestoreEvaluationSnapshot {
     }
     if ($EnableM04X64UnwindMetadataProbe) {
         $arguments += "-p:EnableM04X64UnwindMetadataProbe=true"
+    }
+    if ($EnableM04SimpleThrowCatchProbe) {
+        $arguments += "-p:EnableM04SimpleThrowCatchProbe=true"
     }
     if ($EnableM04GcStaticRootMaterializationProbe) {
         $arguments += "-p:EnableM04GcStaticRootMaterializationProbe=true"
@@ -4384,6 +4394,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM04TypeManagerModuleRegistrationProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04X64UnwindMetadataProbe =
             $EnableM04X64UnwindMetadataProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM04SimpleThrowCatchProbe =
+            $EnableM04SimpleThrowCatchProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04GcStaticRootMaterializationProbe =
             $EnableM04GcStaticRootMaterializationProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04SeededCollectorChurnProbe =
@@ -4475,7 +4487,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 117 -or
+    if ($compileItems.Count -ne 121 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4613,6 +4625,8 @@ if ($EnableM04ClassConstructorExecutionProbe -and -not $EnableM04GcStaticRootMat
 if ($EnableM04ClassConstructorExecutionProbe -and $EnableM04SeededCollectorChurnProbe) { Write-Failure 'm04_cctor_churn_conflict'; exit 1 }
 if ($EnableM04InterfaceDispatchProbe -and -not $EnableM04ClassConstructorExecutionProbe) { Write-Failure 'm04_dispatch_requires_cctor_profile'; exit 1 }
 if ($EnableM04X64UnwindMetadataProbe -and -not $EnableM04TypeManagerModuleRegistrationProbe) { Write-Output "TEST_FAIL efi.artifact m04_x64_unwind_metadata_requires_original_module"; exit 1 }
+if ($EnableM04SimpleThrowCatchProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Output "TEST_FAIL efi.artifact m04_simple_catch_requires_gc_profile"; exit 1 }
+if ($EnableM04SimpleThrowCatchProbe -and ($EnableM04SeededCollectorChurnProbe -or $EnableM04ClassConstructorExecutionProbe -or $EnableM04InterfaceDispatchProbe -or $EnableM04X64UnwindMetadataProbe)) { Write-Output "TEST_FAIL efi.artifact m04_simple_catch_profile_conflict"; exit 1 }
 if ($EnableM04SeededCollectorChurnProbe -and -not $EnableM04GcStaticRootMaterializationProbe) {
     Write-Output "TEST_FAIL efi.artifact m04_churn_requires_gc_profile"; exit 1
 }
@@ -6050,6 +6064,9 @@ if ($EnableM04CheckedReferenceBarrierProbe -or $EnableM04GcStaticRootMaterializa
 }
 if ($EnableM04InterfaceDispatchProbe) {
     $requiredEvidenceProperties += @("interfaceDispatchLinkedObjectPath", "interfaceDispatchObjectPath", "interfaceDispatchObjectBytes", "interfaceDispatchObjectSha256")
+}
+if ($EnableM04SimpleThrowCatchProbe) {
+    $requiredEvidenceProperties += @("simpleCatchLinkedObjectPath", "simpleCatchObjectPath", "simpleCatchObjectBytes", "simpleCatchObjectSha256")
 }
 foreach ($propertyName in $requiredEvidenceProperties) {
     if ($null -eq $linkEvidence.PSObject.Properties[$propertyName]) {
@@ -7499,6 +7516,7 @@ $forceIncludeOptions = [System.Text.RegularExpressions.Regex]::Matches(
 $expectedForceIncludes = @($serializerSymbol)
 if ($EnableM04CheckedReferenceBarrierProbe -or $EnableM04GcStaticRootMaterializationProbe) { $expectedForceIncludes += @('RhpAssignRef','RhpCheckedAssignRef','RhpByRefAssignRef') }
 if ($EnableM04InterfaceDispatchProbe) { $expectedForceIncludes += @('RhpInitialDynamicInterfaceDispatch','CLROS_InterfaceDispatch_GetCellSection','CLROS_InterfaceDispatch_GetInitialStub') }
+if ($EnableM04SimpleThrowCatchProbe) { $expectedForceIncludes += @('RhpThrowEx','CLROS_Eh_GetClauseTable') }
 $actualForceIncludes = @($forceIncludeOptions | ForEach-Object {
     if ($_.Groups[1].Success) { $_.Groups[1].Value } else { $_.Groups[2].Value }
 })
@@ -8236,6 +8254,75 @@ else {
     if ([decimal]$dispatchAddresses[0]+225+$callbackDisplacement -ne [decimal]$dispatchAddresses[3]) { Write-Failure 'dispatch_callback_rel32_mismatch' }
     if ([decimal]$dispatchAddresses[0]+455+$cellDisplacement -ne [decimal]$dispatchAddresses[4]) { Write-Failure 'dispatch_cell_rel32_mismatch' }
     Write-Output 'EFI_ARTIFACT_INTERFACE_DISPATCH_THUNKS bytes=828 text=472 exports=3 callbackRel32=1 dataRel32=1 callbackGraphAccepted=false unwindSupported=false'
+}
+
+# Bounded throw bridge. This binds emitted bytes/relocations; independent native
+# review still owns full callback stack, exact ILC contributions and transfer ABI.
+$catchNames=@('RhpThrowEx','CLROS_Eh_GetClauseTable','CLROS_Eh_Select','CLROS_Eh_ValidateContinuation','__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__Catcher')
+if (-not $EnableM04SimpleThrowCatchProbe) {
+    foreach ($name in $catchNames) {
+        if ([regex]::IsMatch($linkerMapText,'(?m)^\s*[0-9A-Fa-f]{4}:[0-9A-Fa-f]{8}\s+'+[regex]::Escape($name)+'\s+')) { Write-Failure 'simple_catch_unrequested_native_symbol' $name }
+    }
+    if ([regex]::IsMatch($linkResponseText,'(?i)CLROS\.X64\.SimpleThrowCatch\.obj')) { Write-Failure 'simple_catch_unrequested_native_object' }
+} else {
+    $catchHash = 'dd32dc30808c3b6dd42981df652b95f62236bdc8c45c1daa3dde32bab1c981ab'
+    $catchPreserved = Get-AbsolutePath ([string]$linkEvidence.simpleCatchObjectPath) 'catch_object_path_invalid'
+    $catchLinked = Get-AbsolutePath ([string]$linkEvidence.simpleCatchLinkedObjectPath) 'catch_linked_object_path_invalid'
+    $catchExpectedLinked = Join-Path (Split-Path -Parent $serializerLinkedObjectFullPath) 'CLROS.X64.SimpleThrowCatch.obj'
+    if (-not [string]::Equals($catchPreserved,$artifactPath+'.catch.obj',[StringComparison]::OrdinalIgnoreCase) -or
+        -not [string]::Equals($catchLinked,$catchExpectedLinked,[StringComparison]::OrdinalIgnoreCase) -or
+        ($linkEvidence.simpleCatchObjectBytes -isnot [int] -and $linkEvidence.simpleCatchObjectBytes -isnot [long]) -or
+        $linkEvidence.simpleCatchObjectBytes -ne 1350 -or
+        [string]$linkEvidence.simpleCatchObjectSha256 -cne $catchHash) { Write-Failure 'catch_object_contract_invalid' }
+    $catchPreservedAuthority = Open-AuthorityReadHandle -Path $catchPreserved -RootPath (Get-AuthorityRootPath -Path $catchPreserved) `
+        -Purpose 'catch-preserved-object' -FailurePrefix 'catch_object' -MaximumBytes 1350 -RequireSingleLink
+    $catchLinkedAuthority = Open-AuthorityReadHandle -Path $catchLinked -RootPath $repositoryRoot `
+        -Purpose 'catch-linked-object' -FailurePrefix 'catch_linked_object' -MaximumBytes 1350 -RequireSingleLink
+    foreach ($authority in @($catchPreservedAuthority,$catchLinkedAuthority)) {
+        if ($authority.InitialLength -ne 1350 -or [string]$authority.InitialSha256 -cne $catchHash) { Write-Failure 'catch_object_identity_mismatch' }
+    }
+    Assert-DistinctAuthorityFiles -Records @($catchPreservedAuthority,$catchLinkedAuthority,$referencePreservedAuthority,$referenceLinkedAuthority,$artifactAuthority,$linkerMapAuthority,$linkResponseAuthority,$linkEvidenceAuthority,$serializerObjectAuthority,$serializerLinkedObjectAuthority,$managedAssemblyAuthority,$linkedMapAuthority)
+    $catchResponseCount=0
+    foreach ($token in $linkResponseTokens) {
+        if ([string]::IsNullOrWhiteSpace($token) -or $token[0] -eq '/' -or $token[0] -eq '-') { continue }
+        try {
+            $candidate = if ([IO.Path]::IsPathRooted($token)) { [IO.Path]::GetFullPath($token) } else { [IO.Path]::GetFullPath((Join-Path $responseDirectory $token)) }
+        } catch { continue }
+        if ([string]::Equals($candidate,$catchLinked,[StringComparison]::OrdinalIgnoreCase)) { $catchResponseCount++ }
+    }
+    if ($catchResponseCount -ne 1) { Write-Failure 'catch_object_link_response_missing' }
+    [byte[]]$catchObject = Read-AuthorityBytes -Record $catchPreservedAuthority -MaximumBytes 1350 -Reason 'catch_object_read_failed'
+
+    $catchAddresses=@()
+    for($i=0;$i -lt $catchNames.Count;$i++) {
+        $binding=[regex]::Matches($linkerMapText,'(?m)^\s*([0-9A-Fa-f]{4}):([0-9A-Fa-f]{8})\s+'+[regex]::Escape($catchNames[$i])+'\s+([0-9A-Fa-f]{16})\s+(.+?)\s*$')
+        $owner=if($i -lt 2){'CLROS.X64.SimpleThrowCatch.obj'}else{'OS.obj'}
+        if($binding.Count -ne 1 -or $binding[0].Groups[4].Value -notmatch ('(?i)(?:^|[\s\\/()])'+[regex]::Escape($owner)+'(?=$|[\s()])')) { Write-Failure 'simple_catch_symbol_owner' $catchNames[$i] }
+        $at=Convert-HexUInt64 $binding[0].Groups[3].Value 'simple_catch_symbol_address'
+        if($at -le $imageBase -or [decimal]$at-$imageBase -ge $sizeOfImage) { Write-Failure 'simple_catch_symbol_rva' }
+        $catchAddresses += [UInt64]$at
+    }
+    if($catchAddresses[0]%16 -ne 0 -or $catchAddresses[1] -ne $catchAddresses[0]+1024) { Write-Failure 'simple_catch_bridge_layout' }
+    $backing=Resolve-FileBackedRvaRange $sections ($catchAddresses[0]-$imageBase) 1032 $bytes.LongLength 'simple_catch_text_not_backed' 'simple_catch_text_ambiguous'
+    Assert-CodeSectionCharacteristics $backing.Section 'simple_catch_text_permissions'
+    [byte[]]$text=Copy-ByteRange $bytes $backing.FileOffset 1032 'simple_catch_text_truncated'
+    for($i=0;$i -lt 1032;$i++) {
+        if(($i -ge 330 -and $i -lt 334) -or ($i -ge 811 -and $i -lt 815) -or ($i -ge 1027 -and $i -lt 1031)){continue}
+        if($text[$i] -ne $catchObject[60+$i]) { Write-Failure 'simple_catch_text_mismatch' ('offset='+$i) }
+    }
+    $fields=@(330,811,1027);$targets=@(2,3,4)
+    for($i=0;$i -lt 3;$i++) {
+        if([decimal]$catchAddresses[0]+$fields[$i]+4+[BitConverter]::ToInt32($text,$fields[$i]) -ne [decimal]$catchAddresses[$targets[$i]]) { Write-Failure 'simple_catch_rel32_mismatch' }
+    }
+    foreach($i in @(2,3)) {
+        if($catchAddresses[$i] -ge $catchAddresses[0] -and $catchAddresses[$i] -lt $catchAddresses[0]+1032) { Write-Failure 'simple_catch_callback_alias' }
+        $b=Resolve-FileBackedRvaRange $sections ($catchAddresses[$i]-$imageBase) 1 $bytes.LongLength 'simple_catch_callback_not_backed' 'simple_catch_callback_ambiguous'
+        Assert-CodeSectionCharacteristics $b.Section 'simple_catch_callback_permissions'
+    }
+    $table=Resolve-FileBackedRvaRange $sections ($catchAddresses[4]-$imageBase) 8 $bytes.LongLength 'simple_catch_table_not_backed' 'simple_catch_table_ambiguous'
+    $flags=[UInt64]$table.Section.Characteristics
+    if(($flags -band 0x40000040) -ne 0x40000040 -or ($flags -band 0xA2000020L) -ne 0) { Write-Failure 'simple_catch_table_permissions' }
+    Write-Output 'EFI_ARTIFACT_SIMPLE_CATCH_THUNK bytes=1350 text=1032 callbackRel32=2 tableRel32=1 tableBytes=8 transferAccepted=false callbackStackAccepted=false'
 }
 
 Assert-DistinctAuthorityFiles -Records @(

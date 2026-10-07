@@ -26,6 +26,13 @@ namespace System
 #pragma warning restore 169
     }
 
+#if M04_SIMPLE_THROW_CATCH_PROBE
+    // CS0234 from the real throw/catch profile requires this compiler identity.
+    // Only the scalar fixture hierarchy is supported: no messages, stack trace,
+    // nested exception, constructor failure or general exception services.
+    public class Exception { }
+#endif
+
     public struct Void { }
     public struct Boolean { }
     public struct Char { }

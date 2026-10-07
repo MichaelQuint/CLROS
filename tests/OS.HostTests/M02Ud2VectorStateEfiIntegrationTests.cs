@@ -19,16 +19,16 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
         "TEST_FAIL m02.013 vector_or_register_mismatch";
     private const ulong ValidCodeAddress = 0x0020_0000UL;
     private const ulong ValidDataAddress = 0x0030_0000UL;
-    private const int ExpectedSourceInputCount = 132;
-    private const int ExpectedCompileCount = 117;
+    private const int ExpectedSourceInputCount = 137;
+    private const int ExpectedCompileCount = 121;
     private const string ExpectedSourceClosureSha256 =
-        "d22bc7173979910f2c72967651e7ebb87eb00aa76b0a0a9d7ded6ce91d87afe2";
+        "d9c63fc10ab2d6f38df5ddfc717311ded712f3d96d3467b311a8bbf2500691a2";
     private const string ExpectedProjectSha256 =
-        "7d0fbe7e3bcd63da642ac39113c62cc2b1b24e475204ea71497ede2e5cf91147";
+        "df29e044ab2d22947b9753d9601df6f3c82f1cb551d935be9d3fff821ce7a8dc";
     private const string ExpectedEntrySha256 =
         "620243ee983ebb8cf96dda83f191098fd6e02151e8bb7e6e53c1fca22a9e657d";
     private const string ExpectedCompileSha256 =
-        "70a0a63c6bb5a2673d5df58e6bd8758cc620d061abac9c027a3d4bb7f16bb652";
+        "8f97464a82c221d17190da6d5347e5fa998a5863dae0edb4a7012f8ec9bb8ab1";
     private const string ExpectedTransitionSha256 =
         "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     private const string HostReadyMarker =
@@ -1640,6 +1640,7 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
             "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs",
             "tools/OS.X64TextSerializerGenerator/CheckedReferenceBarrierThunkGenerator.cs",
             "tools/OS.X64TextSerializerGenerator/InterfaceDispatchThunkGenerator.cs",
+            "tools/OS.X64TextSerializerGenerator/ExceptionHandlingThunkGenerator.cs",
             "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs",
             "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.csproj",
             "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.targets",

@@ -19,8 +19,11 @@ post-exit use of the original allocator, copied ACPI and installed descriptor
 identities, plus one terminal page-fault control and the included verifier
 optimization. Current-image unwind metadata is accepted in
 [step1071](../done/step1071.md); one-frame restoration and EH-clause decoding
-remain accepted host-only prerequisites. The first throw/catch integration
-awaits final acceptance. Hosted .NET/Kestrel and cloud readiness remain unproved.
+retain their accepted host-only contracts. [Step1075](../done/step1075.md)
+accepts the separate bounded throw/catch profile at `ead4fca`, including the real
+typed catch, compiled continuation and local-input admission rejection. PR #583
+merged as `1e6a8dbd11e3220c1ca433b72d57e418cdc86b05`. General EH, hosted
+.NET/Kestrel and cloud readiness remain unproved.
 
 Original audit date: 2026-07-30.
 

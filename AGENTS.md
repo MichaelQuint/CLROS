@@ -26,9 +26,11 @@ intended deployment model is a minimal single-workload cloud appliance:
 Current implementation is bounded boot/runtime work with host-tested contracts
 and accepted QEMU/OVMF profiles for real firmware exit, owned diagnostics and
 subsystem use, allocation/collection, constructors, dispatch and unwind metadata.
-One-frame restoration and EH-clause decoding have host-only acceptance; the first
-throw/catch integration still awaits final acceptance. See `docs/completion-gates.md`
-for each scope.
+One-frame restoration and EH-clause decoding retain their accepted host-only
+contracts. The separate bounded throw/catch profile has final acceptance in
+`done/step1075.md`: one real throw, typed catch and compiled continuation, with
+local-input admission rejection. General EH remains incomplete. See
+`docs/completion-gates.md` for each scope.
 Storage, PAL, app-model, and networking progress is still host-tested
 contract/planning evidence only; networking now includes UDP/TCP checksum
 slices through active/passive handshakes, HTTP GET payload frames, and active

@@ -240,7 +240,7 @@ internal static class IndependentArithmeticShiftCastN64BitDivisionRemainderTests
             }
             """, new UTF8Encoding(false));
         string production = System.Security.SecurityElement.Escape(Path.Combine(root, "std",
-            "no-runtime", "shared", "IndependentArithmeticShiftCastN64BitDivisionRemainder.cs"))!;
+            "no-runtime", "shared", "Numerics", "IndependentArithmeticShiftCastN64BitDivisionRemainder.cs"))!;
         File.WriteAllText(Path.Combine(directory, "Compile.csproj"), $$"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>

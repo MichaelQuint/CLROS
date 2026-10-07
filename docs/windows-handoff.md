@@ -1,5 +1,12 @@
 # Windows development-machine handoff
 
+The October 7 clean stop is recorded in [step1076](../done/step1076.md).
+Use `artifacts/clean-stop-20261007/handoff-manifest.json` for the final master
+identity, all-ref bundle, tracker snapshot and evidence inventory. That generated
+manifest is finalized after the documentation merge so the bundle includes it.
+The accepted throw/catch implementation and commands remain in
+[step1075](../done/step1075.md); the broader backlog is paused.
+
 CLROS source history, tracker state and generated evidence are separate parts of
 the handoff. The destination already has Windows, Codex, .NET 10, `C:/Projects`
 and its own Gitea. The default is to keep using the source computer's Gitea over

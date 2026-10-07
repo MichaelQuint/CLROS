@@ -1505,8 +1505,10 @@ passing numbered gate; Gate 3 and Gate 4 remain `Fail`.
 `EnableM04IndependentEndianConformanceProbe` is a default-false, independent
 profile. At its acceptance head it added exactly one explicit compile item:
 `std/no-runtime/shared/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs`.
+Its current source location is
+`std/no-runtime/shared/Binary/IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs`.
 That historical accepted project closure had 53 compile items and the canonical
-build/verifier authority had 66 inputs. The current development tree has 62/75
+build/verifier authority had 66 inputs. The then-current development tree had 62/75
 after the later M02-005 writer, M02-006 reporter, M02-007 GDT encoder, and
 M02-008 guarded-IST arena contract plus the default-off M02-009 terminal stub,
 M02-010 normalized interrupt-entry page, M02-011 owned-IDT materializer,
@@ -1568,10 +1570,10 @@ returning opt-in profile. It requires
 terminal `EnableM02OwnedGdtTssTerminalProbe` profile is enabled. The explicit
 project links exactly one frozen source immediately after the M04-002 endian
 catalog and before `M01LoadedImageStackIntegration.cs`:
-`std/no-runtime/shared/SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs`.
+`std/no-runtime/shared/Memory/SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs`.
 At the accepted M04-003 source head the build and artifact-verifier closure was
-59 compile items and 72 source-authority inputs. The current development closure
-was 62/75 after the later M02-010, M02-011, and M02-012 sources; the current
+59 compile items and 72 source-authority inputs. The then-current development closure
+was 62/75 after the later M02-010, M02-011, and M02-012 sources; the later historical
 68/81 closure is described in the M04-004 section below. Both scripts
 carry the exact property and
 `M04_SPAN_OVERLAP_MEMORY_CAST_UNSAFE_WIDTH_CONFORMANCE_PROBE` symbol without
@@ -2907,6 +2909,30 @@ At the accepted `42a516e` revision, the runner's informational GC summary said
 70-record raw capture and `CLROS_M04_013_READY` establish the scoped acceptance.
 The first-exit/churn integration in [step1042](../done/step1042.md) corrects that summary. No general
 runtime, hosted .NET or real firmware-exit claim follows from this profile.
+
+## Bounded throw/catch profile
+
+`EnableM04SimpleThrowCatchProbe` remains false by default and requires the
+collecting-GC profile with its complete ancestry. The accepted `ead4fca` closure
+has 121 explicit `Compile` items, 137 raw publication inputs, 51 public flags
+with 48 literal false defaults, and six C# generator files with eight declared
+inputs. The C# generator supplies the 1,350-byte COFF object; publisher/verifier
+checks bind its actual throw, selection/continuation callbacks and exact EH
+contribution.
+
+[Step1075](../done/step1075.md) records the original common gate and three fresh
+ordinary `-BuildEfi` captures: default, GC and simple-catch profiles emit 21, 70
+and 82 application records respectively. The catch transcript includes rejection
+of an invalid local RIP through the production admission predicate, then the
+required real catch and continuation. Live context stays unchanged; this is not
+terminal corrupted-context proof. Complete commands and final source, native,
+raw, lifecycle and disk identities are retained in the step and each original
+`wrapper.command.json`.
+
+[Step1066](../done/step1066.md) retains the 81-record development guest and its
+CLI-versus-wrapper limitation. Final acceptance uses fresh ordinary wrappers;
+older counts and images are not relabeled. General EH and broader gates remain
+incomplete.
 
 ## Owned subsystem survival and panic profiles
 

@@ -4465,16 +4465,28 @@ are recorded above; their evidence must not be inferred from this fixture.
 3. Keep general reclamation, interrupts/recovery and continuing drivers or
    workloads separate until their own completion-gate evidence is accepted.
 
-## Owned subsystem survival
+## Bounded throw/catch accepted scope
 
-Issue #67 now wires the original allocator round trip through BootSequence
-after the original real-exit transition. The operation invokes the owned
+The default-off #582 child runs inside the original pre-exit collecting-GC
+diagnostic, using the registered module, retained allocation receipt/root and
+owned M01 stack. `BootSequence` guards the child and one-frame interpreter;
+no ordinary boot phase or `ExitBootServices` behavior is added.
+[Step1075](../done/step1075.md) accepts one real compiled throw across a frame
+into a typed catch and its continuation at `ead4fca`. The same-image invalid
+local RIP check rejects through the shared capture-admission predicate before
+selection, without modifying live context. [Step1066](../done/step1066.md)
+preserves the earlier development guest; general EH remains #90 work.
+
+## Owned subsystem survival accepted scope
+
+The default-off #67 child runs the original allocator round trip through
+`BootSequence` after the real exit transition. The operation invokes the owned
 diagnostic reporter once, restores the allocation and accounting, then admits
 and reads the original copied ACPI state. Descriptor checks use retained native
 adoption observations and current storage/canaries; they are not fresh reads of
-descriptor registers. The separate disabled panic child reads the original
-unmapped arena guard and admits the installed fault callback's original
-vector/error/CR2/CR3 and IST2 frame before owned terminal reporting.
+descriptor registers. The separate panic child reads the original unmapped arena
+guard and admits the installed fault callback's vector/error/CR2/CR3 and IST2
+frame before owned terminal reporting.
 
 [Step1067](../done/step1067.md) preserves the initial publication timeout and
 subsequent unchanged verifier-only result. [Step1074](../done/step1074.md)

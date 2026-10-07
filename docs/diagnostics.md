@@ -2,11 +2,12 @@
 
 ## Current Status
 
-The accepted probe catalogue has 23 entries: M03-008 and M04-024 at indices 17
-and 18, unwind metadata at 20, and owned survival/panic at 21/22. These counts
-belong to accepted source 4ef299f ([step1069](../done/step1069.md)); the pending
-throw/catch integration adds its own entry and is not included here. The
-destructive, default-off M04-016 dispatch entry is index 19 in
+The accepted probe catalogue has 24 entries at `ead4fca`: M03-008 and
+M04-024 occupy indices 17 and 18, unwind metadata is index 20, owned survival
+and panic are indices 21/22, and simple catch is index 23. The earlier accepted
+`4ef299f` source had 23 entries ([step1069](../done/step1069.md)); that historical
+count remains source-specific. The destructive, default-off M04-016 dispatch
+entry is index 19 in
 `runtime.dispatch`. Integration #572 is accepted at `d5bef46` in
 [step1063](../done/step1063.md). M03-009 adds five owned-writer records to the
 first-exit/revocation profiles, now accepted at 66/78 application records.
@@ -27,6 +28,12 @@ and 21-record default profile pass at `4625fd7` in
 [step1071](../done/step1071.md), with original full host and independent native,
 stack, raw transcript, disk and lifecycle acceptance. Step1057 retains the
 earlier development evidence.
+
+Owned survival and panic occupy indices 21 and 22, accepted in
+[step1074](../done/step1074.md). The default-off simple-catch child is index 23;
+[step1075](../done/step1075.md) accepts its 82-record collecting-GC profile at
+`ead4fca`, including the real catch/continuation and local-input admission
+rejection. These finite profiles do not establish general exception handling.
 
 The preceding accepted revocation profile extended
 the first-exit transcript to 73 application records: an admitted pre-entry
@@ -1754,21 +1761,41 @@ stage.
    payload output, M02-006 panic-safe routing and accepted bounded post-EBS
    diagnostics distinct from general continuing-execution claims.
 
+## Bounded throw/catch diagnostic
+
+The accepted `ead4fca` integration places the default-off simple-catch probe at
+catalogue index 23, after the two owned-subsystem profiles. Its complete
+collecting-GC transcript requires 82 application records and 71
+required/ordered/unique anchors. Nine numeric child stages bind original
+module/stack/receipt authority, a local input rejected by the production
+capture-admission predicate, the captured and selected caller contexts, typed
+handler, actual catch entry and actual returned continuation. Stage 2 changes
+only a local RIP scalar; it does not mutate the live capture or enter a handler.
+`CLROS_M04_SIMPLE_CATCH_READY` and `TEST_PASS m04.021.simple-catch` still require
+the real compiled catch and continuation. Failures remain
+`TEST_FAIL m04.021.simple-catch <reason>`. The earlier 81-record development
+guest is preserved in [step1066](../done/step1066.md). [Step1075](../done/step1075.md)
+accepts the original common gate and current 82-record guest with final native,
+raw, lifecycle and disk association. Local-input admission rejection does not
+prove terminal rejection after live context corruption or general exception
+recovery.
+
 ## Owned subsystem result and panic profiles
 
-Issue #67 adds two destructive, default-off children. Positive output preserves
-the original 66 first-exit application records and adds ten: test-start, one
-allocator row, five original copied-ACPI rows, a descriptor row, ready and pass.
-The panic form has 77 application records: it replaces ready/pass with armed,
-entered and the existing terminal fault record. With the fixed firmware
-preamble, the respective stream counts are 78 and 79. Every M03_OWNED stage
-contains eight fixed-width hexadecimal fields tied to the original authorities.
+Issue #67 adds two destructive, default-off children at catalogue indices 21
+and 22. Positive output preserves the original 66 first-exit application records
+and adds ten: test-start, one allocator row, five original copied-ACPI rows, a
+descriptor row, ready and pass. The panic form has 77 application records: it
+replaces ready/pass with armed, entered and the terminal fault record. With the
+fixed firmware preamble, the respective stream counts are 78 and 79. Every
+`M03_OWNED` stage contains eight fixed-width hexadecimal fields tied to the
+original authorities.
 
-The separate expected-panic mode requires at least 750 ms of measured unchanged
-serial output, owned teardown and runner exit 19. The strict wrapper accepts
-that terminal control only after validating the complete fault transcript.
-The original M02 panic mode is retained. [Step1074](../done/step1074.md) accepts
-the fresh positive and panic captures at 4ef299f, including current native
-guard/RIP/CR2/IST2 association and an actual 757-ms quiet interval. No owned-survival
-success tail or bytes follow the fault. This does not establish general recovery.
-[Step1067](../done/step1067.md) retains the earlier development evidence/failures.
+[Step1074](../done/step1074.md) accepts both actual guests at `4ef299f`, with
+independent native and raw/process/disk review. The panic capture binds the
+faulting instruction and guard address to original CR3 and the 184-byte IST2
+frame. The expected-panic mode requires at least 750 ms of measured unchanged serial
+output and owned teardown. Runner exit 19 becomes wrapper exit 0 only after the
+exact terminal transcript; the accepted capture measures 757 ms. No owned-survival
+success tail or bytes follow the fault. This remains distinct from ordinary boot
+success, recovery and the unchanged M02 panic mode. [Step1067](../done/step1067.md) preserves development failures.

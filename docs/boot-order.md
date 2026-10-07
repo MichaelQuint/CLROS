@@ -784,6 +784,19 @@ permission changes, relocation, or native-tier or hosted .NET app launch.
 9. Promote future placeholder phases from documented ledger entries to emitted phases only when the required subsystem evidence exists.
 10. Prevent any subsystem from bypassing `BootSequence`.
 
+## Bounded throw/catch diagnostic order
+
+The default-off `EnableM04SimpleThrowCatchProbe` child follows the original
+collector graph. It explicitly roots the fixture exception and completes
+prethrow collection before `Thrower` enters `Catcher`'s typed clause. The shared
+admission predicate rejects one invalid local RIP before handler selection;
+original live capture and transfer state remain unchanged. The real catch and
+compiled continuation retain the same receipt. Selection, catch and continuation
+permit no allocation or collection. The child excludes churn, constructors,
+interface dispatch and standalone unwind-metadata profiles and adds no ordinary
+phase. [Step1075](../done/step1075.md) records bounded acceptance at `ead4fca`;
+[step1066](../done/step1066.md) remains the original development record.
+
 ## Owned subsystem diagnostic order
 
 The disabled #67 survival child runs inside the original first-exit Diagnose
@@ -793,5 +806,7 @@ then precede the finite owned result tail. The panic child replaces its final
 ready/pass with armed/entered/fault records and the original terminal halt path.
 It requires survival, which requires first-exit and its existing prerequisites;
 survival excludes firmware revocation. Neither child adds an ordinary boot
-phase. Managed evidence and the unaccepted development image are recorded in
-[step1067](../done/step1067.md); actual post-exit survival/fault proof is pending.
+phase. [Step1067](../done/step1067.md) retains the initial development evidence;
+[step1074](../done/step1074.md) accepts the bounded post-exit survival and separate
+terminal fault at `4ef299f`. This does not establish default continuation,
+reclamation or recoverable fault handling.

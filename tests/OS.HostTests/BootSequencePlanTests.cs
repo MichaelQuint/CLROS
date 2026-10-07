@@ -760,6 +760,8 @@ internal static class BootSequencePlanTests
              "private static bool IsFirstRealExitBootServicesEnabled() =>",
              "public static unsafe OS.Kernel.Runtime.CompilerClassConstructorStatus RunCompilerClassConstructors(",
              "public static bool IsFirmwareAdapterRevocationEnabled() =>",
+             "public static bool IsSimpleThrowCatchEnabled() =>",
+             "public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunSimpleThrowCatchUnwind(",
              "public static unsafe OS.Kernel.Runtime.X64UnwindMetadataResult RunX64UnwindMetadata(",
              "public static unsafe OS.Boot.OwnedAllocatorRoundTripStatus RunOwnedSubsystemAllocatorRoundTrip(",
              "public static unsafe OS.Kernel.Runtime.CompilerInterfaceDispatchStatus RunInterfaceDispatch("])
@@ -780,7 +782,9 @@ internal static class BootSequencePlanTests
              "public const bool EnableM04InterfaceDispatchProbe = true;",
              "public const bool EnableM04InterfaceDispatchProbe = false;",
              "public const bool EnableM04X64UnwindMetadataProbe = true;",
-             "public const bool EnableM04X64UnwindMetadataProbe = false;"]);
+             "public const bool EnableM04X64UnwindMetadataProbe = false;",
+             "public const bool EnableM04SimpleThrowCatchProbe = true;",
+             "public const bool EnableM04SimpleThrowCatchProbe = false;"]);
 
         bool HasGuardedSurface(string relativePath, int expectedRegions, string[] declarations)
         {
