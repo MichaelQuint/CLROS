@@ -271,7 +271,7 @@ internal static unsafe class GCStaticRootsMalformedMetadataTests
         byte[] before=f.Snapshot();var repeat=f.Call();f.Unchanged(before);
         Check(repeat.Succeeded && repeat.ObjectReference==first.ObjectReference,"same published allocation");
         var value=GuestTestRhpNewFast.TryAllocate(f.Access,f.Heap.Bump,f.BumpCapacity,
-            NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian,new(0x50000000,24,0,0,0,0),f.Image.Object);
+            NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,new(0x50000000,24,0,0,0,0),f.Image.Object);
         Check(value.AllocationSucceeded && value.UsedBefore==24 && f.Heap.Bump->AllocationCount==2,"later same cursor");
         // Mapped bytes only; this host test never fabricates a CLR object/reference.
         *(ulong*)first.SeriesStart=value.ObjectReference;
@@ -349,7 +349,7 @@ internal static unsafe class GCStaticRootsMalformedMetadataTests
         using(RootFixture f=new())
         {
             var full=GuestTestRhpNewFast.TryAllocate(f.Access,f.Heap.Bump,f.BumpCapacity,
-                NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian,new(0x50000000,4096,0,0,0,0),f.Image.Object);
+                NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,new(0x50000000,4096,0,0,0,0),f.Image.Object);
             Check(full.AllocationSucceeded,"fill page");var r=f.Reject(GCStaticRootStatus.HeapRejected);
             Check(r.HeapStatus==RhpNewFastStatus.Exhausted && *(ulong*)f.Root==0,"exhaustion stays unattempted");
         }

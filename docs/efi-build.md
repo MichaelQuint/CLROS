@@ -1,5 +1,29 @@
 # EFI Build
 
+## Current toolchain migration
+
+Issue #590 moves the selected freestanding ILCompiler and NativeAOT runtime pack
+to `10.0.12`, with stable SDK `10.0.401`. All three compiler/runtime packages
+identify dotnet/dotnet revision `95017c711e6afc1085133d440e42b4bd78155701`.
+The active layout profile is `ilc10.0.12-win-x64-le`. The reviewed 67 upstream
+ABI sources match the previous `10.0.8` sources byte for byte; compiler binaries
+differ, so new native geometry and guest behavior still require validation.
+
+The aligned restore has three asset-library identities and four package
+directories/archives: ILCompiler, ILLink.Tasks, the win-x64 host compiler and
+NativeAOT runtime. Five consumed-tree records retain the separate restored and
+externally selected runtime roots. All archive hashes, complete tree identities,
+nine build-input hashes, import edges and task bindings remain checked. There
+is no duplicate restore-only host compiler after version alignment.
+
+[Step1077](../done/step1077.md) records the separate SDK401/ILC108 default
+checkpoint on the destination host. [Step1078](../done/step1078.md) records the
+new compiler qualification as it progresses. Historical acceptance sections
+below retain their original source, toolchain, counts and hashes. Their package
+counts and versioned markers must not be substituted for the current source
+contracts in the publisher, verifier and runner. No optional-profile acceptance
+or completion gate is renewed by changing package versions.
+
 ## Accepted diagnostics and dispatch integration
 
 Shared issue #572 adds `EnableM04InterfaceDispatchProbe`, disabled by default.

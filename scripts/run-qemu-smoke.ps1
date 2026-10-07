@@ -447,7 +447,7 @@ $script:M04ArithmeticConformanceForbiddenMarkers = @(
 )
 
 $script:M04LayoutContractReadyMarker =
-    "CLROS_M04_005_READY profile=ilc10.0.8-win-x64-le checks=19 shapes=3 prefixBytes=24 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail"
+    "CLROS_M04_005_READY profile=ilc10.0.12-win-x64-le checks=19 shapes=3 prefixBytes=24 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail"
 $script:M04LayoutContractRequiredMarkers = @(
     "EFI_CONSOLE_READY"
     $script:M04IndependentEndianConformanceReadyMarker

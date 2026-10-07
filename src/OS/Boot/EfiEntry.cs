@@ -12270,7 +12270,7 @@ public static unsafe class EfiEntry
         EfiSimpleTextOutputProtocol* console,
         EfiSerialIoProtocol* serial)
     {
-        NativeAotLayoutProfile profile = NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian;
+        NativeAotLayoutProfile profile = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
         // Independent scalar expectations; large modeled sizes allocate no memory.
         if (
             !CheckM04LayoutResult(profile, 0x50000008, 24, 0, 24UL,
@@ -12341,23 +12341,23 @@ public static unsafe class EfiEntry
         WriteM04LayoutAscii(console, serial, (byte)'4', (byte)'_', (byte)'0', (byte)'0', (byte)'5', (byte)'_', (byte)'R', (byte)'E');
         WriteM04LayoutAscii(console, serial, (byte)'A', (byte)'D', (byte)'Y', (byte)' ', (byte)'p', (byte)'r', (byte)'o', (byte)'f');
         WriteM04LayoutAscii(console, serial, (byte)'i', (byte)'l', (byte)'e', (byte)'=', (byte)'i', (byte)'l', (byte)'c', (byte)'1');
-        WriteM04LayoutAscii(console, serial, (byte)'0', (byte)'.', (byte)'0', (byte)'.', (byte)'8', (byte)'-', (byte)'w', (byte)'i');
-        WriteM04LayoutAscii(console, serial, (byte)'n', (byte)'-', (byte)'x', (byte)'6', (byte)'4', (byte)'-', (byte)'l', (byte)'e');
-        WriteM04LayoutAscii(console, serial, (byte)' ', (byte)'c', (byte)'h', (byte)'e', (byte)'c', (byte)'k', (byte)'s', (byte)'=');
-        WriteM04LayoutAscii(console, serial, (byte)'1', (byte)'9', (byte)' ', (byte)'s', (byte)'h', (byte)'a', (byte)'p', (byte)'e');
-        WriteM04LayoutAscii(console, serial, (byte)'s', (byte)'=', (byte)'3', (byte)' ', (byte)'p', (byte)'r', (byte)'e', (byte)'f');
-        WriteM04LayoutAscii(console, serial, (byte)'i', (byte)'x', (byte)'B', (byte)'y', (byte)'t', (byte)'e', (byte)'s', (byte)'=');
-        WriteM04LayoutAscii(console, serial, (byte)'2', (byte)'4', (byte)' ', (byte)'r', (byte)'e', (byte)'f', (byte)'e', (byte)'r');
-        WriteM04LayoutAscii(console, serial, (byte)'e', (byte)'n', (byte)'c', (byte)'e', (byte)'F', (byte)'i', (byte)'l', (byte)'e');
-        WriteM04LayoutAscii(console, serial, (byte)'s', (byte)'R', (byte)'e', (byte)'q', (byte)'u', (byte)'i', (byte)'r', (byte)'e');
-        WriteM04LayoutAscii(console, serial, (byte)'d', (byte)'=', (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ');
-        WriteM04LayoutAscii(console, serial, (byte)'h', (byte)'o', (byte)'s', (byte)'t', (byte)'C', (byte)'o', (byte)'n', (byte)'f');
-        WriteM04LayoutAscii(console, serial, (byte)'o', (byte)'r', (byte)'m', (byte)'a', (byte)'n', (byte)'c', (byte)'e', (byte)'=');
-        WriteM04LayoutAscii(console, serial, (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ', (byte)'g', (byte)'u');
-        WriteM04LayoutAscii(console, serial, (byte)'e', (byte)'s', (byte)'t', (byte)'I', (byte)'n', (byte)'t', (byte)'e', (byte)'g');
-        WriteM04LayoutAscii(console, serial, (byte)'r', (byte)'a', (byte)'t', (byte)'e', (byte)'d', (byte)'=', (byte)'t', (byte)'r');
-        WriteM04LayoutAscii(console, serial, (byte)'u', (byte)'e', (byte)' ', (byte)'g', (byte)'a', (byte)'t', (byte)'e', (byte)'4');
-        WriteM04LayoutAscii(console, serial, (byte)'=', (byte)'F', (byte)'a', (byte)'i', (byte)'l', 0, 0, 0);
+        WriteM04LayoutAscii(console, serial, (byte)'0', (byte)'.', (byte)'0', (byte)'.', (byte)'1', (byte)'2', (byte)'-', (byte)'w');
+        WriteM04LayoutAscii(console, serial, (byte)'i', (byte)'n', (byte)'-', (byte)'x', (byte)'6', (byte)'4', (byte)'-', (byte)'l');
+        WriteM04LayoutAscii(console, serial, (byte)'e', (byte)' ', (byte)'c', (byte)'h', (byte)'e', (byte)'c', (byte)'k', (byte)'s');
+        WriteM04LayoutAscii(console, serial, (byte)'=', (byte)'1', (byte)'9', (byte)' ', (byte)'s', (byte)'h', (byte)'a', (byte)'p');
+        WriteM04LayoutAscii(console, serial, (byte)'e', (byte)'s', (byte)'=', (byte)'3', (byte)' ', (byte)'p', (byte)'r', (byte)'e');
+        WriteM04LayoutAscii(console, serial, (byte)'f', (byte)'i', (byte)'x', (byte)'B', (byte)'y', (byte)'t', (byte)'e', (byte)'s');
+        WriteM04LayoutAscii(console, serial, (byte)'=', (byte)'2', (byte)'4', (byte)' ', (byte)'r', (byte)'e', (byte)'f', (byte)'e');
+        WriteM04LayoutAscii(console, serial, (byte)'r', (byte)'e', (byte)'n', (byte)'c', (byte)'e', (byte)'F', (byte)'i', (byte)'l');
+        WriteM04LayoutAscii(console, serial, (byte)'e', (byte)'s', (byte)'R', (byte)'e', (byte)'q', (byte)'u', (byte)'i', (byte)'r');
+        WriteM04LayoutAscii(console, serial, (byte)'e', (byte)'d', (byte)'=', (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e');
+        WriteM04LayoutAscii(console, serial, (byte)' ', (byte)'h', (byte)'o', (byte)'s', (byte)'t', (byte)'C', (byte)'o', (byte)'n');
+        WriteM04LayoutAscii(console, serial, (byte)'f', (byte)'o', (byte)'r', (byte)'m', (byte)'a', (byte)'n', (byte)'c', (byte)'e');
+        WriteM04LayoutAscii(console, serial, (byte)'=', (byte)'f', (byte)'a', (byte)'l', (byte)'s', (byte)'e', (byte)' ', (byte)'g');
+        WriteM04LayoutAscii(console, serial, (byte)'u', (byte)'e', (byte)'s', (byte)'t', (byte)'I', (byte)'n', (byte)'t', (byte)'e');
+        WriteM04LayoutAscii(console, serial, (byte)'g', (byte)'r', (byte)'a', (byte)'t', (byte)'e', (byte)'d', (byte)'=', (byte)'t');
+        WriteM04LayoutAscii(console, serial, (byte)'r', (byte)'u', (byte)'e', (byte)' ', (byte)'g', (byte)'a', (byte)'t', (byte)'e');
+        WriteM04LayoutAscii(console, serial, (byte)'4', (byte)'=', (byte)'F', (byte)'a', (byte)'i', (byte)'l', 0, 0);
         WriteCrLf(console, serial);
     }
 

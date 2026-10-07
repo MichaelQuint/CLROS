@@ -17,7 +17,7 @@ using Status = OS.Kernel.Runtime.RhpNewFastStatus;
 internal static unsafe class GuestTestStringAllocationCharacterStorageTests
 {
     private const ulong Token = 0x1234567800000008;
-    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian;
+    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
 
     [ModuleInitializer]
     internal static void Run()

@@ -8,7 +8,7 @@ using Status = OS.Kernel.Runtime.X64FrameUnwindStatus;
 
 internal static unsafe class X64FrameUnwindTests
 {
-    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian;
+    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
     private static readonly byte[] Registers = [3, 5, 6, 7, 12, 13, 14, 15];
 
     [ModuleInitializer]

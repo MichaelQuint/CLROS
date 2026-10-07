@@ -4,7 +4,7 @@ namespace System.Runtime.CompilerServices;
 // Compiler metadata modifier required by the volatile pointer field below.
 public static class IsVolatile { }
 
-// Pinned ILC 10.0.8 win-x64 ABI: the compiler reserves exactly one pointer
+// Pinned ILC 10.0.12 win-x64 ABI: the compiler reserves exactly one pointer
 // immediately before the non-GC static base. Runner state must live elsewhere.
 public struct StaticClassConstructionContext
 {

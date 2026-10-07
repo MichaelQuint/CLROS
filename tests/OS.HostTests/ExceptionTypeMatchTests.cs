@@ -9,7 +9,7 @@ using Status = OS.Kernel.Runtime.ExceptionTypeMatchStatus;
 
 internal static unsafe class ExceptionTypeMatchTests
 {
-    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian;
+    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
     private const uint ClassFlags = 0x50000000;
 
     [ModuleInitializer]

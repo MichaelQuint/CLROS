@@ -38,7 +38,7 @@ public static unsafe class SeededAllocationChurnCollectionRootRetentionGuestProb
 {
     public const uint MaximumRounds = 64;
     private const uint Slots = 4;
-    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian;
+    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
 
     public static SeededChurnResult Run(CollectorModuleAccess module, RhpNewFastHeapAccess heap,
         RhpNewFastBumpState* owner, ulong capacity, ulong methodTable, uint seed, uint rounds,

@@ -7,6 +7,11 @@ optional allocation, collection, metadata and constructor probes described
 below. `std/no-runtime/shared` contains compatible helper slices; it is not a
 complete BCL or general runtime surface.
 
+The active compiler/runtime profile is migrating to `10.0.12` on SDK `10.0.401`.
+See [the current EFI toolchain](efi-build.md#current-toolchain-migration) and
+[step1078](../done/step1078.md) for its qualification boundary. Historical
+`10.0.8` acceptance below remains tied to its original source and artifacts.
+
 ## Accepted bounded interface dispatch
 
 M04-016 uses the original registered module and current allocator receipt to
@@ -44,8 +49,8 @@ dispatch failures remain unsupported. This does not complete Gate4.
 
 ## Class-constructor implementation order
 
-The pinned ILC 10.0.8 package identifies source revision
-[`94ea82652cdd4e0f8046b5bd5becbd11461482ca`](https://github.com/dotnet/dotnet/tree/94ea82652cdd4e0f8046b5bd5becbd11461482ca/src/runtime).
+The selected ILC 10.0.12 package identifies source revision
+[`95017c711e6afc1085133d440e42b4bd78155701`](https://github.com/dotnet/dotnet/tree/95017c711e6afc1085133d440e42b4bd78155701/src/runtime).
 Its presence check for `System.Runtime.CompilerServices.ClassConstructorRunner`
 enables lazy initialization. The compiler allocates one pointer-sized context
 word immediately before the non-GC static base; named managed helpers return
@@ -109,7 +114,7 @@ search, scoped in #575 and [step1058](../done/step1058.md). For a nonnull object
 it validates the original retained allocation and module authority, then admits
 both complete class chains before reporting exact/base identity or a nonmatch.
 Each chain is limited to 32 immutable same-image 24-byte MethodTable prefixes.
-The pinned ILC 10.0.8 accessor uses a direct absolute related-type pointer;
+The pinned ILC 10.0.12 accessor uses a direct absolute related-type pointer;
 imported, tagged and relative encodings are not resolved. Malformed metadata,
 cycles, excessive depth and unsupported types return distinct failure statuses.
 Null returns an admitted nonmatch after profile validation without dereferencing
@@ -137,7 +142,7 @@ failure caching remain unsupported. #90 retains its unwind and real-execution ac
 `NativeAotEhClauseMetadata.ReadClause` implements #579's host-only Windows
 NativeAOT metadata leaf ([step1061](../done/step1061.md)). It revalidates the
 original module and unwind snapshot, discovers the EH RVA in the pinned
-ILC 10.0.8 trailer, and reads one physical clause only after validating the
+ILC 10.0.12 trailer, and reads one physical clause only after validating the
 complete table and every referenced funclet's nearest preceding root.
 An intervening root rejects even an earlier selected row. Failure payloads
 are zero; no-EH and out-of-range results have distinct statuses.
@@ -502,8 +507,8 @@ reviewed integration merge.
 
 `ObjectArrayStringEETypeMethodTableLayoutContracts` evaluates scalar
 descriptions of fixed canonical objects, zero-based single-dimensional arrays
-and strings for x64 little-endian NativeAOT 10.0.8. It uses
-`dotnet/dotnet` source commit `94ea82652cdd4e0f8046b5bd5becbd11461482ca`,
+and strings for x64 little-endian NativeAOT 10.0.12. It uses
+`dotnet/dotnet` source commit `95017c711e6afc1085133d440e42b4bd78155701`,
 identified by both pinned compiler/runtime package metadata. The source
 authorities are `ObjectLayout.h`, `MethodTable.cs`, `MethodTable.Constants.cs`,
 `EETypeBuilderHelpers.cs`, `TargetDetails.cs`, `GCHelpers.cpp` and
@@ -644,7 +649,7 @@ heap slot, mapped/physical page and allocation-origin cursor/count. Binding
 requires a zero state prefix and currently pristine page; later allocations
 accept existing nonzero objects without clearing the whole page.
 
-The pinned 10.0.8 win-x64 scalar policy admits the seventeen fixed element
+The pinned 10.0.12 win-x64 scalar policy admits the seventeen fixed element
 values for ordinary/reference-bearing/generic classes, primitives, enums as
 their underlying encoding, structs and nullable shapes. `HasPointers` and
 `IsGeneric` are permitted. Value-padding and nullable-offset flags are checked

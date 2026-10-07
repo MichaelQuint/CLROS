@@ -2,6 +2,12 @@
 
 ## Current Status
 
+The new Windows host completed a scoped SDK401/ILC108 native/default guest
+checkpoint ([step1077](../done/step1077.md)). The active compiler/runtime pack
+is migrating to `10.0.12` under #590 ([step1078](../done/step1078.md)); its
+combined full-host and selected native/guest qualification remains pending.
+Historical accepted tuples below keep their original identities and scope.
+
 The 2026-10-03 M02 epic audit found all 20 keyed children, dependency #425 and
 27 related supplements closed with the required evidence. The technical exit
 is the bounded pre-EBS local-QEMU diagnostics milestone recorded in

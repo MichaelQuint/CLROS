@@ -98,7 +98,7 @@ public readonly struct GCStaticRootResult
 }
 
 /// <summary>
-/// Pinned .NET 10.0.8 x64/little-endian, one uninitialized GC-static entry and
+/// Pinned .NET 10.0.12 x64/little-endian, one uninitialized GC-static entry and
 /// one positive GCDesc series. ValidateOne performs no writes, callbacks,
 /// allocations or payload object reads. The image/owner must remain mapped and exclusively
 /// stable through the call, under the TypeManager unsafe caller contract.
@@ -290,7 +290,7 @@ public static unsafe class GCStaticRootsMalformedMetadata
         Copy(candidate.Snapshot + 44, (byte*)decoded.RelatedType, 24);
 
         RhpNewFastResult receipt = GuestTestRhpNewFast.TryAllocateStaticBase(heap, bump, bumpCapacity,
-            NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian, decoded.Flags, decoded.BaseSize, decoded.MethodTable);
+            NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, decoded.Flags, decoded.BaseSize, decoded.MethodTable);
         if (!receipt.AllocationSucceeded) return new(GCStaticRootStatus.HeapRejected, heapStatus: receipt.Status);
         candidate.Receipt = receipt;
         *root = candidate; // First root write: the allocation is now consumed.

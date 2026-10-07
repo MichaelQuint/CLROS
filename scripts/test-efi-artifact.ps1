@@ -247,28 +247,28 @@ $expectedEfiCompileItems = @(
 )
 $expectedPackageBuildClosure = @(
     [pscustomobject]@{
-        Path = 'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets'
+        Path = 'microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets'
         Sha256 = '345c9448182507befa430e80622f68c7ab09debe9c419d98b418f7f1cb79c34e'
     },
     [pscustomobject]@{
-        Path = 'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.Publish.targets'
+        Path = 'microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.Publish.targets'
         Sha256 = '6fcb3f0491a79fd5a67281b44439e0685c17fe4c848a07477ab2a57a10a68c60'
     },
     [pscustomobject]@{
-        Path = 'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.Windows.targets'
+        Path = 'microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.Windows.targets'
         Sha256 = '547266fbf1e772518edda8194413ce99906d3deb8bef074bbcca1033c31bc54c'
     },
     [pscustomobject]@{
-        Path = 'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.targets'
+        Path = 'microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.targets'
         Sha256 = '22516102af0e4bdafa004795d3bbc30d617efe5bb7b809005d1ea3a00c436f6d'
     },
     [pscustomobject]@{
-        Path = 'microsoft.dotnet.ilcompiler/10.0.8/tools/netstandard/ILCompiler.Build.Tasks.dll'
-        Sha256 = '4c8cd85bcf8e2d51d69c0fce3eaea55c2c8b23765da747c0c6cbfc38f9cccd88'
+        Path = 'microsoft.dotnet.ilcompiler/10.0.12/tools/netstandard/ILCompiler.Build.Tasks.dll'
+        Sha256 = 'dbd168e677d11e9a3daeac5839c63a22d66b3719d5f9d1b4b7dffe3eda05c6c0'
     },
     [pscustomobject]@{
-        Path = 'microsoft.dotnet.ilcompiler/10.0.8/tools/netstandard/ILCompiler.Build.Tasks.deps.json'
-        Sha256 = '893364a48ebfd6ca97a440e32fc2252f53dbc4f4c64d63f62ac9a583365ec7c6'
+        Path = 'microsoft.dotnet.ilcompiler/10.0.12/tools/netstandard/ILCompiler.Build.Tasks.deps.json'
+        Sha256 = 'e7e496a9c07e33a18adaf561c5ec26fb283b813d10fb418bc8dd651c8d013e03'
     },
     [pscustomobject]@{
         Path = 'microsoft.net.illink.tasks/10.0.12/build/Microsoft.NET.ILLink.targets'
@@ -284,9 +284,9 @@ $expectedPackageBuildClosure = @(
     }
 )
 $expectedRestoreLibraries = [ordered]@{
-    'Microsoft.DotNet.ILCompiler/10.0.8' = [pscustomobject]@{
-        Path = 'microsoft.dotnet.ilcompiler/10.0.8'
-        Sha512 = 'RJxitcN5CCyZDcPNXKLsecwKvACzmy8C1z8hGM9+hFcnPhv1jDysJFFIeUHIPWaZ6wDAfYtZcgKEtegvL2Nz8A=='
+    'Microsoft.DotNet.ILCompiler/10.0.12' = [pscustomobject]@{
+        Path = 'microsoft.dotnet.ilcompiler/10.0.12'
+        Sha512 = 'AawF393Q+VkdrnrnI1gu612zh5iqpa1AGSvnKCQ3IkMgSKJXIQbO1sXYRgEzOU4f0cPZ6MaCCF29xZSGWlmbuQ=='
         FileCount = 20
     }
     'Microsoft.NET.ILLink.Tasks/10.0.12' = [pscustomobject]@{
@@ -294,20 +294,20 @@ $expectedRestoreLibraries = [ordered]@{
         Sha512 = 'xi+BDjFpW+Sb+MHFHaH6Y/gV9I8BluFwRXc1QyCdoZbIK26eNiBeFuMTe/FMwc33G1wdHCyDg7CVTmb8OdQrMQ=='
         FileCount = 42
     }
-    'runtime.win-x64.Microsoft.DotNet.ILCompiler/10.0.8' = [pscustomobject]@{
-        Path = 'runtime.win-x64.microsoft.dotnet.ilcompiler/10.0.8'
-        Sha512 = 'S+9omeowlFjRReD0VB/Q4u3DcN7+vueJSF37saFj0U2OSJIkfI7gGKQRsDxGIf0MwLha14qGrjRC3bDGhvF0Gg=='
+    'runtime.win-x64.Microsoft.DotNet.ILCompiler/10.0.12' = [pscustomobject]@{
+        Path = 'runtime.win-x64.microsoft.dotnet.ilcompiler/10.0.12'
+        Sha512 = 'clsgU9GnioCJ+PBzQTCoJHxLXRU+7O/BzYrwRT8CUP7jgyYjNgJmNsQ/kbzAA7MG5kDvFoFvIBGHGzYdINh/EQ=='
         FileCount = 13
     }
 }
 $expectedConsumedPackageTrees = @(
     [pscustomobject]@{
         Id = 'microsoft.dotnet.ilcompiler'
-        Version = '10.0.8'
-        ContentHashSha512 = 'RJxitcN5CCyZDcPNXKLsecwKvACzmy8C1z8hGM9+hFcnPhv1jDysJFFIeUHIPWaZ6wDAfYtZcgKEtegvL2Nz8A=='
+        Version = '10.0.12'
+        ContentHashSha512 = 'AawF393Q+VkdrnrnI1gu612zh5iqpa1AGSvnKCQ3IkMgSKJXIQbO1sXYRgEzOU4f0cPZ6MaCCF29xZSGWlmbuQ=='
         FileCount = 20
-        TotalBytes = 404859L
-        AggregateSha256 = 'b9c5a195c93e515f34066c9d8b0b3827cf1a32ce681454d284c489622a5bfcde'
+        TotalBytes = 404890L
+        AggregateSha256 = '0262658f79a7fd731130a31b423b28f8bf11810c6bf46f09cbd014af7d9e25fd'
         RootKind = 'restore'
     },
     [pscustomobject]@{
@@ -321,21 +321,12 @@ $expectedConsumedPackageTrees = @(
     },
     [pscustomobject]@{
         Id = 'runtime.win-x64.microsoft.dotnet.ilcompiler'
-        Version = '10.0.8'
-        ContentHashSha512 = 'S+9omeowlFjRReD0VB/Q4u3DcN7+vueJSF37saFj0U2OSJIkfI7gGKQRsDxGIf0MwLha14qGrjRC3bDGhvF0Gg=='
-        FileCount = 13
-        TotalBytes = 37461393L
-        AggregateSha256 = 'c5aff04c7a4abcca691fc0e6a8539628cded3250a7777d6c407dc64c07ca858e'
-        RootKind = 'restore'
-    },
-    [pscustomobject]@{
-        Id = 'runtime.win-x64.microsoft.dotnet.ilcompiler'
         Version = '10.0.12'
         ContentHashSha512 = 'clsgU9GnioCJ+PBzQTCoJHxLXRU+7O/BzYrwRT8CUP7jgyYjNgJmNsQ/kbzAA7MG5kDvFoFvIBGHGzYdINh/EQ=='
         FileCount = 13
         TotalBytes = 37502842L
         AggregateSha256 = '117ebd47725e7f105b1f3014e610839b88168d8607877e126827316eb1355bc7'
-        RootKind = 'restore-only'
+        RootKind = 'restore'
     },
     [pscustomobject]@{
         Id = 'microsoft.netcore.app.runtime.nativeaot.win-x64'
@@ -348,32 +339,26 @@ $expectedConsumedPackageTrees = @(
     },
     [pscustomobject]@{
         Id = 'microsoft.netcore.app.runtime.nativeaot.win-x64'
-        Version = '10.0.8'
-        ContentHashSha512 = '4OPm4RaS1aAEf0GOcA/IsdD/ml9o6Hw2BaiHy/iceHxExoj+38QFAyNTxcNAz73SDPHXpUp4SL046vBq5RkuEQ=='
+        Version = '10.0.12'
+        ContentHashSha512 = 'MPm78CKSJf8Sb0nbXgvzedp2uwFQX4JONl618NhEeAEznK9JLzQ6ETfJZ+UcoW5ScTqa27a+JGQDXD3bUAMTrA=='
         FileCount = 406
-        TotalBytes = 109016717L
-        AggregateSha256 = '73972c0d17f29fa389de9c4a87051b372fa15afe5cdadf55bef731a3d8144fbc'
+        TotalBytes = 109239870L
+        AggregateSha256 = 'c4048f1c42c12a119d30b5d432e957a961689d72ea3fe44091ade5d54d1324be'
         RootKind = 'runtime'
     }
 )
 $expectedRestoreArchives = @(
     [pscustomobject]@{
         Id = 'microsoft.dotnet.ilcompiler'
-        Version = '10.0.8'
-        FileName = 'microsoft.dotnet.ilcompiler.10.0.8.nupkg'
-        Sha256 = 'ccdc381bbc7672c48bc755311fdf2f5907433933c295198172d2ad6958ed10b4'
+        Version = '10.0.12'
+        FileName = 'microsoft.dotnet.ilcompiler.10.0.12.nupkg'
+        Sha256 = '0b340ade975c2cf3d93d518adddec1e5d910c090b7756e6d37d19b772edc7b8d'
     },
     [pscustomobject]@{
         Id = 'microsoft.net.illink.tasks'
         Version = '10.0.12'
         FileName = 'microsoft.net.illink.tasks.10.0.12.nupkg'
         Sha256 = '37aa984da51fdc01cc7d57a8647893392f3539cdd5a1d32ce4982be5309bc08b'
-    },
-    [pscustomobject]@{
-        Id = 'runtime.win-x64.microsoft.dotnet.ilcompiler'
-        Version = '10.0.8'
-        FileName = 'runtime.win-x64.microsoft.dotnet.ilcompiler.10.0.8.nupkg'
-        Sha256 = '49f15032ef981172b8c25360f97b76d8abab75348f8e16da0a3fbb970c10bec8'
     },
     [pscustomobject]@{
         Id = 'runtime.win-x64.microsoft.dotnet.ilcompiler'
@@ -389,14 +374,14 @@ $expectedRestoreArchives = @(
     }
 )
 $expectedActivePackageImportEdges = @(
-    'sdk|microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets',
-    'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets|microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.targets',
-    'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.targets|microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.Windows.targets',
-    'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.targets|microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.Publish.targets',
+    'sdk|microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets',
+    'microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets|microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.targets',
+    'microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.targets|microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.Windows.targets',
+    'microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.targets|microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.Publish.targets',
     'sdk|microsoft.net.illink.tasks/10.0.12/build/Microsoft.NET.ILLink.targets'
 )
 $expectedPackageTaskBindings = @(
-    'ComputeManagedAssembliesToCompileToNative|microsoft.dotnet.ilcompiler/10.0.8/tools/netstandard/ILCompiler.Build.Tasks.dll',
+    'ComputeManagedAssembliesToCompileToNative|microsoft.dotnet.ilcompiler/10.0.12/tools/netstandard/ILCompiler.Build.Tasks.dll',
     'ComputeManagedAssemblies|microsoft.net.illink.tasks/10.0.12/tools/net/ILLink.Tasks.dll'
 )
 
@@ -2335,8 +2320,8 @@ function Assert-RestoreGeneratedSemanticClosure {
     $expectedImports = [ordered]@{
         '$(NuGetPackageRoot)\microsoft.net.illink.tasks\10.0.12\build\Microsoft.NET.ILLink.Tasks.props' =
             "Exists('`$(NuGetPackageRoot)\microsoft.net.illink.tasks\10.0.12\build\Microsoft.NET.ILLink.Tasks.props')"
-        '$(NuGetPackageRoot)\microsoft.dotnet.ilcompiler\10.0.8\build\Microsoft.DotNet.ILCompiler.props' =
-            "Exists('`$(NuGetPackageRoot)\microsoft.dotnet.ilcompiler\10.0.8\build\Microsoft.DotNet.ILCompiler.props')"
+        '$(NuGetPackageRoot)\microsoft.dotnet.ilcompiler\10.0.12\build\Microsoft.DotNet.ILCompiler.props' =
+            "Exists('`$(NuGetPackageRoot)\microsoft.dotnet.ilcompiler\10.0.12\build\Microsoft.DotNet.ILCompiler.props')"
     }
     if ($imports.Count -ne $expectedImports.Count) {
         Write-Failure "restore_generated_props_import_count_invalid"
@@ -2415,11 +2400,11 @@ function Assert-RestoreGeneratedSemanticClosure {
         NuGetProjectStyle = "PackageReference"
         NuGetToolVersion = "7.0.0"
         'Pkgruntime_win-x64_Microsoft_DotNet_ILCompiler' = Join-Path (
-            $PackageRootFullPath) "runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.8"
+            $PackageRootFullPath) "runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.12"
         'PkgMicrosoft_NET_ILLink_Tasks' = Join-Path (
             $PackageRootFullPath) "microsoft.net.illink.tasks\10.0.12"
         'PkgMicrosoft_DotNet_ILCompiler' = Join-Path (
-            $PackageRootFullPath) "microsoft.dotnet.ilcompiler\10.0.8"
+            $PackageRootFullPath) "microsoft.dotnet.ilcompiler\10.0.12"
     }
     foreach ($propertyName in $expectedPropertyValues.Keys) {
         $matchingPropertyNodes = @(
@@ -2562,7 +2547,7 @@ function Assert-RestoreGeneratedSemanticClosure {
             }
             $targetLibrary = $targetLibraryProperty.Value
             $isCompiler = $libraryName -ceq
-                "Microsoft.DotNet.ILCompiler/10.0.8"
+                "Microsoft.DotNet.ILCompiler/10.0.12"
             $isLinker = $libraryName -ceq
                 "Microsoft.NET.ILLink.Tasks/10.0.12"
             $isRidTarget = $targetName -ceq "net10.0/win-x64"
@@ -2605,7 +2590,7 @@ function Assert-RestoreGeneratedSemanticClosure {
                 if ($dependencies.Count -ne 1 -or
                     $dependencies[0].Name -cne
                         "runtime.win-x64.Microsoft.DotNet.ILCompiler" -or
-                    [string]$dependencies[0].Value -cne "10.0.8") {
+                    [string]$dependencies[0].Value -cne "10.0.12") {
                     Write-Failure "restore_project_assets_compiler_dependency_invalid"
                 }
             }
@@ -6727,14 +6712,14 @@ $ilCompilerPackageVersion = [string]$linkEvidence.ilCompilerPackageVersion
 $ilCompilerFileVersion = [string]$linkEvidence.ilCompilerFileVersion
 $expectedIlCompilerFullPath = [System.IO.Path]::GetFullPath(
     (Join-Path $packageRootFullPath (
-        "runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.8\tools\ilc.exe")))
+        "runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.12\tools\ilc.exe")))
 $ilCompilerAuthority = Open-AuthorityReadHandle `
     -Path $ilCompilerFullPath `
     -RootPath $packageRootFullPath `
     -Purpose "ilcompiler" `
     -FailurePrefix "ilcompiler" `
     -MaximumBytes $maximumPackageFileBytes
-if ($ilCompilerPackageVersion -cne "10.0.8" -or
+if ($ilCompilerPackageVersion -cne "10.0.12" -or
     [string]::IsNullOrWhiteSpace($ilCompilerFileVersion) -or
     -not (Test-Path -LiteralPath $ilCompilerFullPath -PathType Leaf) -or
     [System.IO.Path]::GetFileName($ilCompilerFullPath) -ine "ilc.exe" -or
@@ -6755,7 +6740,7 @@ $ilCompilerDiscoverySourceFullPath = Get-AbsolutePath `
     "ilcompiler_discovery_source_path_invalid"
 $expectedIlCompilerDiscoverySourceFullPath = [System.IO.Path]::GetFullPath(
     (Join-Path $restoreArchiveSourceRootFullPath (
-        "runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.8\tools\ilc.exe")))
+        "runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.12\tools\ilc.exe")))
 $ilCompilerDiscoveryAuthority = Open-AuthorityReadHandle `
     -Path $ilCompilerDiscoverySourceFullPath `
     -RootPath $restoreArchiveSourceRootFullPath `
@@ -6788,7 +6773,7 @@ $nativeAotRuntimePackFullPath = Get-AbsolutePath `
     ([string]$linkEvidence.nativeAotRuntimePackPath) `
     "nativeaot_runtime_pack_path_invalid"
 $nativeAotRuntimePackVersion = [string]$linkEvidence.nativeAotRuntimePackVersion
-if ($nativeAotRuntimePackVersion -cne "10.0.8" -or
+if ($nativeAotRuntimePackVersion -cne "10.0.12" -or
     -not (Test-Path -LiteralPath $nativeAotRuntimePackFullPath -PathType Container) -or
     [System.IO.Path]::GetFileName($nativeAotRuntimePackFullPath) -cne
         $nativeAotRuntimePackVersion -or
@@ -7098,10 +7083,10 @@ if ($actualPackageTaskBindingsSha256 -cne
 
 $ilCompilerBuildPackageRoot = Join-Path `
     $packageRootFullPath `
-    "microsoft.dotnet.ilcompiler\10.0.8"
+    "microsoft.dotnet.ilcompiler\10.0.12"
 $ilCompilerHostPackageRoot = Join-Path `
     $packageRootFullPath `
-    "runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.8"
+    "runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.12"
 $ilLinkPackageRoot = Join-Path `
     $packageRootFullPath `
     "microsoft.net.illink.tasks\10.0.12"

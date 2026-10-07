@@ -2,6 +2,11 @@
 
 ## Current Status
 
+The current `10.0.12` compiler qualification is tracked in
+[EFI build](efi-build.md#current-toolchain-migration). Historical diagnostic
+captures below remain source-bound. Dangerous probes retain their false
+defaults, and no new guest result follows from the version change alone.
+
 The accepted probe catalogue has 24 entries at `ead4fca`: M03-008 and
 M04-024 occupy indices 17 and 18, unwind metadata is index 20, owned survival
 and panic are indices 21/22, and simple catch is index 23. The earlier accepted

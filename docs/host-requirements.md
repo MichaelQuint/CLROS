@@ -95,23 +95,23 @@ Retain the failed command when diagnosing a launch problem. A standalone
 the same effective module context. See [step1077](../done/step1077.md).
 ### Restore the pinned EFI runtime pack
 
-The EFI project selects NativeAOT runtime pack `10.0.8` through
-`ClrosRuntimePackagePath`. A normal solution restore can populate the SDK's
-newer runtime pack without populating this separately selected version.
-The EFI artifact verifier also needs the actual `10.0.8` package tree;
+The EFI project selects NativeAOT runtime pack `10.0.12` through
+`ClrosRuntimePackagePath`. Its ILCompiler metapackage and win-x64 host compiler
+are also pinned to `10.0.12`; the current SDK is `10.0.401`.
+The EFI artifact verifier needs the actual selected `10.0.12` package tree;
 an ordinary managed build alone does not establish that prerequisite.
 
 If the expected directory below is missing, restore the exact package through
 NuGet (do not rename another version's directory):
 
 ```powershell
-Test-Path "$env:USERPROFILE\.nuget\packages\microsoft.netcore.app.runtime.nativeaot.win-x64\10.0.8"
+Test-Path "$env:USERPROFILE\.nuget\packages\microsoft.netcore.app.runtime.nativeaot.win-x64\10.0.12"
 New-Item -ItemType Directory -Force artifacts/pinned-efi-runtime | Out-Null
 @'
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>
   <ItemGroup>
-    <PackageDownload Include="Microsoft.NETCore.App.Runtime.NativeAOT.win-x64" Version="[10.0.8]" />
+    <PackageDownload Include="Microsoft.NETCore.App.Runtime.NativeAOT.win-x64" Version="[10.0.12]" />
   </ItemGroup>
 </Project>
 '@ | Set-Content artifacts/pinned-efi-runtime/Restore.csproj
@@ -119,11 +119,17 @@ dotnet restore artifacts/pinned-efi-runtime/Restore.csproj --source https://api.
 ```
 
 This restores a host prerequisite without changing the project's toolchain
-selection or weakening artifact checks. On 2026-10-01, the full host suite
-reported 19 EFI verifier failures because this directory was absent. Restoring
+selection or weakening artifact checks. On the earlier `10.0.8` baseline,
+the 2026-10-01 full host suite reported 19 EFI verifier failures because that
+version's directory was absent. Restoring
 it made the existing linked-artifact acceptance test pass independently; the
 subsequent full suite passed with 3,509 pass markers and zero failures (see
 `done/step925.md`). Package presence and host checks are not EFI boot evidence.
+
+The new `10.0.12` compiler qualification is recorded in
+[step1078](../done/step1078.md); the preceding SDK401/ILC108 development
+checkpoint is [step1077](../done/step1077.md). These are freestanding build
+inputs, not a hosted .NET runtime running inside CLROS.
 
 ## Focused host fixture runs
 

@@ -17,7 +17,7 @@ internal static unsafe class GuestTestArrayAllocationLengthOverflowChecksTests
 {
     private const ulong Token = 0x1234567800000008;
     private const ulong Token2 = 0xABCD987600000018;
-    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian;
+    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
 
     [ModuleInitializer]
     internal static void Run()

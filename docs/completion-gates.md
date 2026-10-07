@@ -2,6 +2,12 @@
 
 ## Current Status
 
+The SDK401/ILC108 default checkpoint on the new Windows host is recorded in
+[step1077](../done/step1077.md). Selected compiler/runtime `10.0.12`
+qualification is in progress under #590 and [step1078](../done/step1078.md).
+This changes no gate status and does not renew the older optional-profile
+tuples; see [current EFI toolchain](efi-build.md#current-toolchain-migration).
+
 No CloudReady release is complete as of 2026-10-07. The repository has a
 current source-bound default EFI/QEMU smoke proof, separate source-bound
 opt-in pre-EBS M01/M02 tuples, a separate opt-in fixed-catalog M04-002 guest
