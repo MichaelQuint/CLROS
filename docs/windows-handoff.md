@@ -26,17 +26,28 @@ Preserve these components together:
 - The primary `artifacts` evidence tree: successful and failed commands,
   receipts, source/native binaries, raw logs, independent reviews and acceptance
   records. Keep original path-bearing receipts unchanged; add an old-to-new path
-  map. Copy required reference snapshots/licenses and nested-repository history
-  separately; the main bundle does not contain their Git objects.
+  map. The main Git bundle does not preserve the ordinary reference snapshots.
+  The completed `artifacts/clean-stop-20261007/reference-retention/` package has
+  `reference-snapshots.zip` with its `.files.json` and `.verified.json` companions.
+  Carry all three and restore relative entries under the destination
+  `references/` directory, using the retained path map. The October 7 audit found
+  no embedded Git repositories in those 39 snapshots; no nested bundle is needed
+  for that set.
 - Verified retained-worktree ZIPs and their `.files.json`/`.verified.json`
   companions, retention plans and reviews. These preserve ordinary file bytes,
   not NTFS permissions, alternate streams or every empty directory.
-- A final read-only CLROS tracker snapshot and concise resume state. This copy
-  is a recovery/reference record; the selected Gitea server remains authoritative.
+- A final read-only CLROS public tracker export and concise resume state. Keep
+  raw responses and the explicit incomplete/error manifest. Gitea 1.26.2 filters
+  timeline pages after pagination, so this exporter cannot prove exhaustion and
+  must retain its timeline gaps (`Complete=false`); it is not a complete tracker
+  backup or restore image. The source Gitea remains authoritative.
 
 Use a new package directory outside the trees being included. Record relative
 paths, sizes and SHA-256 values, then verify every copied file at the destination.
-Verify the actual ZIP/bundle bytes, not only their JSON receipts. Do not include
+Create the transfer inventory only after the source tree is quiescent; it is not
+an atomic filesystem snapshot. Reparse links are recorded as metadata, not
+followed as ordinary payload, and any required destination links need separate
+review. Verify the actual ZIP/bundle bytes, not only their JSON receipts. Do not include
 credentials, credential stores, Gitea `app.ini`/databases, account tokens or
 unrelated user profiles. Git snapshot refs and saved evidence do not promise
 migration of Codex chat sessions.

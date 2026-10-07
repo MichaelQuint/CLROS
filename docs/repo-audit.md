@@ -14,8 +14,13 @@ issue updates remain unapplied. Numbered completion-gate states remain
 unchanged. Separate opt-in profiles have bounded real `ExitBootServices`,
 eight-capability adapter revocation and owned post-exit diagnostics acceptance
 in [step1051](../done/step1051.md), [step1053](../done/step1053.md) and
-[step1063](../done/step1063.md). Hosted .NET/Kestrel and cloud readiness remain
-unproved.
+[step1063](../done/step1063.md). [Step1074](../done/step1074.md) accepts bounded
+post-exit use of the original allocator, copied ACPI and installed descriptor
+identities, plus one terminal page-fault control and the included verifier
+optimization. Current-image unwind metadata is accepted in
+[step1071](../done/step1071.md); one-frame restoration and EH-clause decoding
+remain accepted host-only prerequisites. The first throw/catch integration
+awaits final acceptance. Hosted .NET/Kestrel and cloud readiness remain unproved.
 
 Original audit date: 2026-07-30.
 

@@ -174,13 +174,14 @@ Windows SDK, QEMU, and OVMF installed. `scripts/build-efi-shell.ps1` publishes a
 NativeAOT x64 PE with EFI application subsystem and stages it as
 `artifacts/efi/BOOTX64.EFI`.
 
-The most recent staged artifact enables `M01_LOADED_IMAGE_STACK_PROBE`,
+The historical M01 staging checkpoint below enabled `M01_LOADED_IMAGE_STACK_PROBE`,
 `M01_LIVE_ALLOCATOR_PROBE`, and `M01_OWNED_PAGING_PROBE`. It contains the
 M01-021 loaded-image/page-allocation/map/ledger/owned-stack wiring, the M01-023
 allocator-arena adapter, and M01-025's stage-three source wiring. M01-024 owns
-the accepted stage-two QEMU/OVMF tuple. The M01-025 stage-three artifact has
-host/source and PE-verification evidence only; it has not executed under
-QEMU/OVMF.
+the accepted stage-two QEMU/OVMF tuple. The M01-025 stage-three artifact had
+host/source and PE-verification evidence only at that checkpoint; it had not
+executed under QEMU/OVMF. Later accepted profiles are recorded above and in
+the owned-subsystem section below.
 
 A separate default-off M02-010 artifact has now been built, independently
 verified, and executed under QEMU/OVMF from exact source head
@@ -2189,7 +2190,7 @@ They are not a complete firmware abstraction layer.
 
 `IPlatformConsole` is host-tested as a guardable platform contract only. `EfiEntry` now routes byte writes through a no-stdlib `EfiConsoleAdapter`, but this is still not the full managed `IPlatformConsole` implementation and it does not prove post-ExitBootServices owned serial output.
 
-The memory-map source buffer is firmware-allocated by the source-linked capture helper, but the descriptor bytes are copied into a static OS-owned buffer before `UEFI_MEMORY_MAP_OWNED` is emitted, the owned handoff validates before `BOOT_HANDOFF_READY` is emitted, the compact live summary normalizes before `UEFI_MEMORY_MAP_NORMALIZED` is emitted, and compact boot-region records materialize before `BOOT_MEMORY_REGIONS_READY` is emitted. A later step must still keep a valid map-key retry path for `ExitBootServices` and turn the compact records into allocator-owned usable/reserved page ranges.
+The memory-map source buffer is firmware-allocated by the source-linked capture helper, but the descriptor bytes are copied into a static OS-owned buffer before `UEFI_MEMORY_MAP_OWNED` is emitted, the owned handoff validates before `BOOT_HANDOFF_READY` is emitted, the compact live summary normalizes before `UEFI_MEMORY_MAP_NORMALIZED` is emitted, and compact boot-region records materialize before `BOOT_MEMORY_REGIONS_READY` is emitted. The separate accepted first-exit profile supplies the bounded fresh-map/key-retry transition and retained allocator ownership; this default-path capture alone does not establish those operations or general firmware-page reclamation.
 
 The logged default-path memory-map metadata proves the map captured at that
 point in the EFI path. M01-022 provides one accepted guest log for the

@@ -23,8 +23,12 @@ intended deployment model is a minimal single-workload cloud appliance:
 - .NET 10 applications as first-class workloads.
 - ASP.NET Minimal API/Kestrel support as a mandatory milestone.
 
-Current implementation is early boot/runtime boundary work with host-tested
-contracts and QEMU/OVMF smoke evidence for the firmware-visible marker path.
+Current implementation is bounded boot/runtime work with host-tested contracts
+and accepted QEMU/OVMF profiles for real firmware exit, owned diagnostics and
+subsystem use, allocation/collection, constructors, dispatch and unwind metadata.
+One-frame restoration and EH-clause decoding have host-only acceptance; the first
+throw/catch integration still awaits final acceptance. See `docs/completion-gates.md`
+for each scope.
 Storage, PAL, app-model, and networking progress is still host-tested
 contract/planning evidence only; networking now includes UDP/TCP checksum
 slices through active/passive handshakes, HTTP GET payload frames, and active

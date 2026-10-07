@@ -8068,7 +8068,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M03: Real Firmware Exit.",
-      "currentEvidence": "Prerequisite #56 and children #58-#65 have scoped accepted evidence. Step1051/PR559 accepts #64 first real firmware exit with permanent owned CR3 and terminal owned COM1; step1053/PR571 accepts #65 retained typed adapter revocation. Three children #66-#68 remain incomplete. Optional provider functionality, firmware-page reclamation and the full M03 exit criterion remain unproved. The epic remains open/blocked; bounded opt-in evidence does not promote Gate3.",
+      "currentEvidence": "Prerequisite #56 and children #58-#66 have scoped accepted evidence. Step1051/PR559 accepts #64 first real firmware exit with permanent owned CR3 and terminal owned COM1; step1053/PR571 accepts #65 retained typed adapter revocation. Step1063/PR573 now accepts and closes #66 post-exit owned diagnostics at merge a6f5229e4f2a32be12ff3378dc51c0b28882fda0. Child #67 now has accepted final original-allocator/copied-ACPI/descriptor/panic evidence in step1074 / PR586, merged as `19475d4f2f808f0ef8ba68e15065780c574f2a14` ([closure evidence](http://localhost:3000/admin/CLROS/issues/67#issuecomment-16598)); #68 default promotion remains incomplete. Optional provider functionality, firmware-page reclamation and the full M03 criterion remain unproved. The epic stays blocked; bounded opt-in evidence does not promote Gate3.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -9029,7 +9029,7 @@
         "M03-010"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -9056,7 +9056,7 @@
       ],
       "collisionLane": "lane:boot-sequence",
       "summary": "Promote the verified exit path from opt-in to default after repeated clean QEMU runs.",
-      "currentEvidence": "The EFI path captures a map but deliberately skips the ExitBootServices call; post-firmware execution is unproven.",
+      "currentEvidence": "The opt-in real ExitBootServices transition, permanent owned CR3, owned diagnostics, firmware-adapter revocation, and the original retained allocator/copied-ACPI/descriptor/panic exercise have accepted evidence in #64-#67. #67 is accepted and closed in step1074 / PR586, merged as `19475d4f2f808f0ef8ba68e15065780c574f2a14`; its [closure evidence](http://localhost:3000/admin/CLROS/issues/67#issuecomment-16598) records the exact tested source and profiles. Default boot promotion and the repeated clean QEMU runs required by this issue are still unimplemented. The allocator exercise reuses and restores the original retained arena; it does not reclaim firmware pages or prove that arbitrary boot-services/firmware allocations are reusable. Preserve conservative firmware reservations unless a separately reviewed lifetime/ownership proof authorizes reclamation. This issue remains open and ready for later work; the user-paused backlog is not resumed by that label.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Promote the verified exit path from opt-in to default after repeated clean QEMU runs.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -10371,7 +10371,7 @@
         "M04-013"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -10397,7 +10397,7 @@
       ],
       "collisionLane": "lane:probes",
       "summary": "Add seeded allocation/churn/collection and root-retention guest probes.",
-      "currentEvidence": "Prerequisite #82 and collector integration #552 are closed after accepted PR553 merge 8501315. Steps1035-1040 implement seeded churn, the deterministic helper, native adapter and strict 82-record validation with staged native/QEMU evidence. Step1042 integrates the first-exit/churn profiles under separately claimed shared lane #560 on codex/m04-014-seeded-churn; PR559 now targets master. All 122 publisher inputs and 108 compile items match reviewed staging. One final integrated common run and fresh per-profile source/native/lifecycle/disk acceptance remain required. #83 is open/claimed; general runtime, hosted .NET/Kestrel and Gates3/4 are not established.",
+      "currentEvidence": "Accepted at implementation e64e9dc1bd1f66ca522bd22aafe8bcd3388428ff, recorded in step1051 / evidence commit 32ed478e9b48221abfbf07f91ce4b69957cc647e, and merged by PR559 at 69b49591995cf8dc226d4d189540cf890c04af23. The original full suite passed 3814 starts/3815 passes/zero failures; fresh ordinary default/churn/first-exit captures and current source/native/lifecycle/disk reviews passed. This closes #83 for bounded pre-EBS direct-allocator churn and collection with explicit and retained-static roots: three seeds, 192 rounds, 476 allocations/reclamations and 198 collections. Step1051 retains both same-image corruption controls and the original failed native review. It does not prove compiler-created allocation, general runtime initialization, firmware-page reclamation, hosted .NET/Kestrel or Gates 3/4. Successful compiled constructors are separately accepted in step1053; full constructor failure caching/rethrow remains #84.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add seeded allocation/churn/collection and root-retention guest probes.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -10450,7 +10450,7 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "This issue proves only \"Add seeded allocation/churn/collection and root-retention guest probes.\" It does not by itself prove the M04 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M04-015",
@@ -10488,7 +10488,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement class-constructor discovery, state transitions, execution, and recursion/failure handling.",
-      "currentEvidence": "The retained ILC 10.0.8 module, allocation and explicit-root collector are accepted, but compiled class-constructor execution and cached failure semantics are not. M04-024 supplies the real eager/lazy invocation, once and same-thread reentry precursor; M04-021 supplies actual exception handling and unwind. This issue remains open for full constructor failure integration and may not close on terminal-only or successful-path evidence.",
+      "currentEvidence": "The retained ILC 10.0.8 module, allocation and explicit-root collector are accepted. M04-024 (#562) compiled eager/lazy constructor execution, once-only behavior and same-thread reentry are accepted in done/step1053.md and PR #571 (implementation commit 2b5a4b0). Cached constructor failure semantics remain unimplemented; M04-021 (#90) must supply actual exception handling and unwind. This issue remains open and blocked on #90 for full constructor failure integration, and may not close on terminal-only or successful-path evidence.",
       "implementationNotes": [
         "Complete the original constructor discovery, state transitions, execution, recursion and failure behavior by reusing M04-024 execution and M04-021 unwind; do not replace it with a narrower terminal-only scope.",
         "Extend the accepted M04-024 execution core through an explicit ownership transfer when needed, without creating a second constructor runner, module owner or competing state table. Constructor-specific exception caching belongs here; the general unwind mechanism belongs to M04-021.",
@@ -10676,7 +10676,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement boxing, unboxing, and checked cast helpers.",
-      "currentEvidence": "The allocation, original module owner, explicit-root collector and successful constructor precursors have accepted evidence. M04-016 (#85) is implemented but still awaiting current frozen acceptance. Full boxing/unboxing/checked casts remain unimplemented; invalid casts and null unboxing need M04-021 (#90) actual exception execution. A status return or terminal stub cannot fulfill those failures.",
+      "currentEvidence": "M04-016 (#85) is accepted in step1063 / PR573, merge a6f5229e4f2a32be12ff3378dc51c0b28882fda0, and closed. The allocation, original module owner, explicit-root collector and successful constructor precursors also have accepted evidence. Full boxing/unboxing/checked casts remain unimplemented; invalid casts and null unboxing still need M04-021 (#90) actual exception execution. The first bounded catch has development evidence under #582, but full #90 remains incomplete. A status return or terminal stub cannot fulfill these failure semantics. This issue remains blocked on #90.",
       "implementationNotes": [
         "Implement actual pinned boxing, unboxing and checked-cast helpers only after M04-016 and M04-021 acceptance. The dotnet/dotnet 94ea82652cdd4e0f8046b5bd5becbd11461482ca RuntimeExports.cs RhUnboxAny/RhUnbox2 and TypeCast.cs checked casts require real NullReference/InvalidCast exceptions; preserve those semantics.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -10944,7 +10944,7 @@
       ],
       "collisionLane": null,
       "summary": "Parse x64 PE runtime-function/unwind metadata with hostile-input tests.",
-      "currentEvidence": "M04-011 (#80) is accepted: the original NativeAOT image registration, immutable metadata/RX range authority and module revalidation are available on accepted master 3ba0dd5 (step989, PR543). PE runtime-function parsing does not require delegates or TLS, so the former M04-019 dependency is removed. Core implementation is claimed in the isolated codex/m04-unwind-metadata worktree; no parser or guest acceptance is claimed yet. Current #66/#85/#572 acceptance remains separate and frozen.",
+      "currentEvidence": "Accepted bounded original-image metadata decoding and consumption at implementation 4625fd74128e28207d66e6cd7865c21dfd87546b; evidence-only commit 9e165c166934a1f156512aec14e5226cf4766ef1 records step1071. PR576 merged at 347391f7357e895568146866c7ff005d6ee853da; #89/#574 are closed. The original solution build and full 3864-start/3865-pass/zero-failure suite passed. Fresh ordinary default/TypeManager/unwind captures passed 21/45/67 complete application records with current native, raw framing, lifecycle and postboot FAT-payload reviews. Full commands, hashes and retained failures are in step1071; parent-final-acceptance.json SHA256 CB1563F0965714F43057EC35F62A4106811E98A877E9ECCD1683E664F3062D3D. This evidence proves metadata decoding/lookup, not actual register restoration or language-handler execution.",
       "implementationNotes": [
         "Implement a small C# 14/.NET 10 status-returning decoder/index over the original registered x64 PE, using caller-owned storage and explicit capacities. Revalidate the retained module before metadata payload reads. Do not invent a ReadyToRun section for the PE exception directory.",
         "The proposed owned paths are exact for this slice: src/OS.Kernel/Runtime/X64PERuntimeFunctionUnwindMetadataHostileInput.cs, tests/OS.HostTests/X64PERuntimeFunctionUnwindMetadataHostileInputTests.cs. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -10995,7 +10995,7 @@
         "docs/nativeaot-nostdlib-limits.md",
         "docs/completion-gates.md"
       ],
-      "evidenceBoundary": "This issue proves bounded per-image x64 PE runtime-function/unwind metadata decoding, lookup and real-image consumption only. It does not prove actual stack unwinding, catch/finally execution, restored registers, general exception support, GC stack scanning, M04 completion, hosted .NET/Kestrel or cloud readiness. Fresh guest evidence remains mandatory; the integration owner must add its exact implemented profile command before closure.",
+      "evidenceBoundary": "This issue proves bounded per-image x64 PE runtime-function/unwind metadata decoding, lookup and real-image consumption only. It does not prove actual stack unwinding, catch/finally execution, restored registers, general exception support, GC stack scanning, M04 completion, hosted .NET/Kestrel or cloud readiness. Accepted ordinary-wrapper commands and guest/native evidence are preserved in done/step1071.md; later changes require evidence for their actual source and profile.",
       "desiredState": "closed"
     },
     {

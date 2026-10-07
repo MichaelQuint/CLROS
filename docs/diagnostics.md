@@ -2,8 +2,11 @@
 
 ## Current Status
 
-The probe catalogue has 21 entries. M03-008 and M04-024 occupy indices 17 and
-18; the new destructive, default-off M04-016 dispatch entry is index 19 in
+The accepted probe catalogue has 23 entries: M03-008 and M04-024 at indices 17
+and 18, unwind metadata at 20, and owned survival/panic at 21/22. These counts
+belong to accepted source 4ef299f ([step1069](../done/step1069.md)); the pending
+throw/catch integration adds its own entry and is not included here. The
+destructive, default-off M04-016 dispatch entry is index 19 in
 `runtime.dispatch`. Integration #572 is accepted at `d5bef46` in
 [step1063](../done/step1063.md). M03-009 adds five owned-writer records to the
 first-exit/revocation profiles, now accepted at 66/78 application records.

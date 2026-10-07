@@ -69,8 +69,13 @@ This leaf changes no completion-gate status.
 ([step1061](../done/step1061.md)). Six focused groups pass for real wire formats,
 complete-table validation, exact bounds, nearest-root funclet association and
 zero-allocation reads. The caller still supplies compiler-contribution extents;
-live ILC/COFF association and actual exception execution remain unproved.
-This leaf changes no EFI export or completion gate and awaits #89/#574 acceptance.
+host-only acceptance does not establish live ILC/COFF association or actual
+exception execution.
+This host-only leaf is accepted and merged through PR #581; its #89/#574
+metadata prerequisite is accepted in [step1071](../done/step1071.md). It changes
+no EFI export or completion gate. The combined #582 throw/catch integration
+has reviewed development/native evidence, but its original full host gate and
+fresh final guest acceptance remain pending. General EH remains #90 work.
 
 Gate status is explicit:
 
