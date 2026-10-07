@@ -77,6 +77,22 @@ C:\Program Files\qemu\qemu-system-x86_64.exe
 C:\Program Files\qemu\share\edk2-x86_64-code.fd
 ```
 
+### Invoke Windows PowerShell from a Core host
+
+When an orchestration host uses PowerShell Core, invoke receipt-bound EFI/QEMU
+commands through `powershell.exe`. On the new destination, one nested publish
+failed to resolve `Get-FileHash` with the inherited module search path; a retry
+using the Desktop module paths passed that restore stage. Use this process-local
+setup for that invocation (it does not change the machine environment):
+
+```powershell
+$env:PSModulePath = 'C:\Windows\system32\WindowsPowerShell\v1.0\Modules;C:\Program Files\WindowsPowerShell\Modules'
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-efi-shell.ps1
+```
+
+Retain the failed command when diagnosing a launch problem. A standalone
+`Get-Command Get-FileHash` success does not establish that a nested publish has
+the same effective module context. See [step1077](../done/step1077.md).
 ### Restore the pinned EFI runtime pack
 
 The EFI project selects NativeAOT runtime pack `10.0.8` through
