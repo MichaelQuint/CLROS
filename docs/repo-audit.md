@@ -9,6 +9,15 @@ combined full-host and selected native/guest qualification passes: 3,892 host
 groups plus the suite summary, ten profile captures and three rejection controls.
 Historical accepted tuples below keep their original identities and scope.
 
+The subsequent bounded compiler-finally child is accepted in
+[step1088](../done/step1088.md). Its original full host gate passes 3,898 groups
+plus the suite summary at `3bfa349`; enabled native review and fresh ordinary
+default/GC/legacy-catch/finally captures pass at `736d10d`. Later changes are
+reviewed host-fixture repairs and documentation, with all 137 native authority
+inputs unchanged. R01/R02 failures and their focused repairs remain recorded in
+steps1086/1087. This adds one pre-exit cleanup before typed catch and continuation;
+general EH, rethrow, #90 and Gate4 remain incomplete.
+
 The first new unfiltered host run stopped on four inherited backlog ownership
 notes that violate the unchanged manifest fixture. The current repair changes
 only their narration and preserves M04-021's explicit withdrawal of ownership.

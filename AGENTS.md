@@ -29,7 +29,10 @@ subsystem use, allocation/collection, constructors, dispatch and unwind metadata
 One-frame restoration and EH-clause decoding retain their accepted host-only
 contracts. The separate bounded throw/catch profile has final acceptance in
 `done/step1075.md`: one real throw, typed catch and compiled continuation, with
-local-input admission rejection. General EH remains incomplete. See
+local-input admission rejection. `done/step1088.md` accepts a separate bounded
+compiler-finally profile: one cleanup before typed catch and compiled continuation,
+with the original exception and checked parent-stack side effect. General EH and
+rethrow remain incomplete. See
 `docs/completion-gates.md` for each scope.
 Storage, PAL, app-model, and networking progress is still host-tested
 contract/planning evidence only; networking now includes UDP/TCP checksum

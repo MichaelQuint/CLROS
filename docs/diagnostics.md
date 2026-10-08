@@ -40,10 +40,11 @@ Owned survival and panic occupy indices 21 and 22, accepted in
 `ead4fca`, including the real catch/continuation and local-input admission
 rejection. These finite profiles do not establish general exception handling.
 
-The unaccepted single-finally development sibling adds index 24, for 25 current
-catalogue entries. Its complete 84-record grammar is host-tested in
-[step1084](../done/step1084.md). [Step1085](../done/step1085.md) permits bounded
-development transfer after corrected native review; fresh guest evidence is pending.
+The default-off single-finally sibling occupies index 24, for 25 catalogue
+entries. [Step1088](../done/step1088.md) accepts its complete 84-record ordinary
+guest capture after enabled-image review: one compiler cleanup, typed catch and
+compiled continuation, with local-input admission rejection. General EH remains
+incomplete.
 
 The preceding accepted revocation profile extended
 the first-exit transcript to 73 application records: an admitted pre-entry
@@ -1822,9 +1823,14 @@ not prove finally; frozen C# and native contribution review provide provenance.
 The strict parser rejects incomplete/control-bearing lines, missing/duplicate/
 reordered rows, wrong identities or frame/stamp associations, disguised failures
 and all post-terminal noise. Local scalar rejection is distinct from corrupting
-a live context. Host grammar tests do not prove cleanup, catch or continuation
-ran. The profile requires explicit selection and its existing collecting-GC
-ancestry. Its newly enabled image requires review before fresh guest captures.
+a live context. Host grammar tests alone do not prove execution. The accepted
+ordinary guest capture in [step1088](../done/step1088.md) binds all 84 records to
+the reviewed native image and retained disk payload. Its raw serial SHA256 is
+`567B4E6684039F55ED2EB728FBBA3054A81C64998D7F1702B14D9ABDB4854F6C`;
+it has all 73 ordered/unique markers and no post-terminal bytes. Fourteen altered
+copies and unselected-profile replay are rejected by the production parser on
+the host; these are not additional guest executions. Explicit profile selection
+and collecting-GC ancestry remain required. The fixture runs before firmware exit.
 
 ## Owned subsystem result and panic profiles
 

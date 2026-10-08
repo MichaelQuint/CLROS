@@ -2965,40 +2965,34 @@ incomplete.
 
 ## Single-finally development profile
 
-Issue #589 adds the default-off `EnableM04SingleFinallyCatchProbe` sibling with
+[Step1088](../done/step1088.md) accepts the bounded #589 execution profile.
+The default-off `EnableM04SingleFinallyCatchProbe` sibling uses
 the same collecting-GC ancestry. It excludes simple catch, churn, constructors,
 interface dispatch and the separate unwind-metadata profile. The current source
 closure retains 121 explicit Compile items and 137 publication inputs, while
 the flag vector expands to 52 with 49 literal false defaults.
 
 The generator's `--single-finally-catch` mode emits a distinct 1,707-byte object
-and `.finally.obj` publication sidecar. Its host instruction models are recorded
-in [step1079](../done/step1079.md). The compiler-generated managed fixture has
-one inner finally and one outer typed catch; this establishes managed metadata
-shape only. The first publish-only candidate in [step1081](../done/step1081.md)
-measures a 136-byte Catcher contribution and 11-byte EH table, joined exactly
-from archived COFF to PE. [Step1082](../done/step1082.md) adds disabled selector
-and validator implementations bound to that measured nested clause pair,
-parent-frame stamp, saved context and control fields. Host tests compile and
-exercise their actual pure predicates. Final native calling convention and
-reachable stack bounds are measured for the disabled implemented candidate in
-[step1083](../done/step1083.md). [Step1084](../done/step1084.md) corrects the
-Thrower-to-parent RSP delta to 48, adds exact EH/unwind artifact checks and the
-[84-line transcript](diagnostics.md#single-finally-development-transcript).
-The corrected disabled image and pointer-access review in
-[step1085](../done/step1085.md) permit bounded development admission. The enabled
-image must still be republished and inspected before QEMU. Managed
-DLL/PDB identity, project/smoke rejection and existing heap/GC/subsystem fixture
-results are retained in [step1080](../done/step1080.md).
+and `.finally.obj` publication sidecar. The accepted enabled image has 643 ILC
+methods and 646 runtime-function rows. Its 136-byte Catcher and exact 11-byte
+EH table select one returning cleanup, then one typed catch and its compiled
+continuation. The bridge checks the parent-stack stamp, original exception/root,
+register context and control fields; the Thrower-to-parent RSP delta is 48.
+The measured CLROS stack bound is 14,240 bytes, excluding firmware body depth
+and arbitrary interrupts. Steps1079–1085 retain implementation and native-review
+history, including the corrected frame admission.
 
-The runtime selector now permits this bounded development transfer when its
-explicit profile is compiled. The public probe default remains false. Smoke
-constructs the full profile in dry-run and applies exact artifact and raw
-transcript validation in launch mode. Passing dry-run or managed compilation
-does not prove guest execution. Final enabled-image inspection and fresh guest
-captures remain required for acceptance.
-No finally guest, general EH, hosted .NET or Kestrel support
-is accepted by this development profile.
+The fresh ordinary QEMU/OVMF capture has the complete
+[84-line transcript](diagnostics.md#single-finally-development-transcript), one
+cleanup/catch/continuation, and local-input rejection without live corruption.
+Default, collecting-GC and legacy-catch regression captures also pass. The full
+host gate at `3bfa349` passes 3,898 groups plus the suite summary; step1088 joins
+that source to the guest source `736d10d` and records the retained failed runs.
+
+The public probe remains false by default. Explicit smoke selection applies
+exact artifact and whole-transcript checks. Dry-run alone is not boot proof.
+This finite pre-exit fixture does not establish general EH, rethrow, hosted .NET,
+Kestrel, cloud or production readiness; #90 and Gate4 remain incomplete.
 
 ## Owned subsystem survival and panic profiles
 

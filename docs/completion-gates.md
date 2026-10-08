@@ -71,8 +71,9 @@ object/module authority, exact/base class identity, invalid/unsupported input,
 This leaf alone supplies no compiled catch, EH search, stack restoration or
 exception execution. The separate #582 profile below adds one bounded real
 throw/catch/continuation using its own retained root and native-image authority.
-#90 still requires general exception handling, including finally and rethrow.
-Neither acceptance changes a completion-gate status.
+#90 still requires general exception handling and rethrow. The separate #589
+profile adds only the bounded cleanup execution described below. None of these
+acceptances changes a completion-gate status.
 
 #579 adds a host-only decoder for pinned NativeAOT Windows EH clauses
 ([step1061](../done/step1061.md)). Six focused groups pass for real wire formats,
@@ -88,6 +89,19 @@ default/GC/simple-catch captures pass, with independent native, raw, lifecycle
 and disk review. One real throw crosses a frame into a typed catch and compiled
 continuation; the local RIP scalar rejection does not mutate live context or
 prove terminal corrupted-context handling. General EH remains #90 work.
+
+[Step1088](../done/step1088.md) accepts #589's default-off compiler-finally child:
+one inner cleanup runs before the typed catch and compiled continuation, with
+the original retained exception and a checked parent-stack side effect. The
+enabled native image is reviewed, and fresh ordinary default/GC/legacy-catch/
+finally captures pass with 21/70/82/84 application records. The original full
+host gate at `3bfa349` passes 3,898 groups plus the suite summary with zero
+failures. Exact source joins preserve the guest source `736d10d` and distinguish
+the later host-fixture repairs. Local-input rejection and altered-transcript
+host replay do not prove corrupted-live-context recovery or new guest controls.
+This pre-exit fixture does not establish general finally/search, filters,
+rethrow, collided exceptions, stack-root scanning, hosted .NET/Kestrel, cloud
+or production readiness. #90 stays open and Gate4 stays Fail.
 
 Gate status is explicit:
 
