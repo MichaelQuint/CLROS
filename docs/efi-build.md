@@ -1,5 +1,22 @@
 # EFI Build
 
+## Default-exit development
+
+The #68/#594 core checkpoint in [step1089](../done/step1089.md) introduces
+`ClrosBootPolicy` in `src/OS/OS.csproj`: an unqualified project build selects
+`VerifiedExit`; selecting any existing diagnostic probe chooses `Diagnostic`.
+An explicit `ClrosBootPolicy=Diagnostic` retains firmware-visible ordinary
+compatibility when no probe is selected. Combining `VerifiedExit` with a probe,
+or supplying an unknown policy, fails project validation. Diagnostic probe
+defaults themselves remain false; the normal policy has its own compile symbol.
+
+Publication and runner integration are unfinished. The existing strict publisher
+rejects this development project's changed canonical shape; its source inventory,
+policy evidence, artifact checks and transcript contract must be updated together.
+The successful managed solution build is not a native EFI publication or QEMU
+proof. Do not infer default-exit acceptance from this checkpoint or from older
+firmware-visible smoke captures. Current accepted evidence remains scoped below.
+
 ## Current toolchain migration
 
 Issue #590 moves the selected freestanding ILCompiler and NativeAOT runtime pack

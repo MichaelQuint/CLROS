@@ -326,6 +326,68 @@
 		<DefineConstants>$(DefineConstants);M04_INTERFACE_DISPATCH_PROBE</DefineConstants>
 	</PropertyGroup>
 
+	<!-- Ordinary publication exits firmware. An explicitly selected diagnostic
+	     retains its historical profile; it does not enable the ordinary policy. -->
+	<PropertyGroup>
+		<ClrosBootPolicy Condition="'$(ClrosBootPolicy)' == '' and (
+			'$(EnableAcpiPhysicalDiscoveryProbe)' == 'true' or
+			'$(EnableExitBootServicesFreshMapProbe)' == 'true' or
+			'$(EnableM01LiveAllocatorProbe)' == 'true' or
+			'$(EnableM01LoadedImageStackProbe)' == 'true' or
+			'$(EnableM01OwnedPagingProbe)' == 'true' or
+			'$(EnableM02CheckedPortIoBindingProbe)' == 'true' or
+			'$(EnableM02Com1OwnedPortIoProbe)' == 'true' or
+			'$(EnableM02DoubleFaultIstProbe)' == 'true' or
+			'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' or
+			'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' or
+			'$(EnableM02NormalizedInterruptFramePageProbe)' == 'true' or
+			'$(EnableM02OwnedCom1ReadyProbe)' == 'true' or
+			'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' or
+			'$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' or
+			'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' or
+			'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' or
+			'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' or
+			'$(EnableM02SafeStubProbe)' == 'true' or
+			'$(EnableM02Ud2VectorStateProbe)' == 'true' or
+			'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' or
+			'$(EnableM03FirmwareAdapterRevocationProbe)' == 'true' or
+			'$(EnableM03FirmwareEntropySeedProbe)' == 'true' or
+			'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' or
+			'$(EnableM03MemoryMapCaptureProbe)' == 'true' or
+			'$(EnableM03OwnedSubsystemPanicProbe)' == 'true' or
+			'$(EnableM03OwnedSubsystemSurvivalProbe)' == 'true' or
+			'$(EnableM03TypedExitBootServicesCallProbe)' == 'true' or
+			'$(EnableM04ArithmeticConformanceProbe)' == 'true' or
+			'$(EnableM04CheckedReferenceBarrierProbe)' == 'true' or
+			'$(EnableM04ClassConstructorExecutionProbe)' == 'true' or
+			'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' or
+			'$(EnableM04IndependentEndianConformanceProbe)' == 'true' or
+			'$(EnableM04InterfaceDispatchProbe)' == 'true' or
+			'$(EnableM04LayoutContractProbe)' == 'true' or
+			'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' or
+			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
+			'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' or
+			'$(EnableM04RhpNewFastProbe)' == 'true' or
+			'$(EnableM04SeededCollectorChurnProbe)' == 'true' or
+			'$(EnableM04SimpleThrowCatchProbe)' == 'true' or
+			'$(EnableM04SingleFinallyCatchProbe)' == 'true' or
+			'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true' or
+			'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' or
+			'$(EnableM04StringAllocationExhaustionProbe)' == 'true' or
+			'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' or
+			'$(EnableM04StringAllocationProbe)' == 'true' or
+			'$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true' or
+			'$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true' or
+			'$(EnableM04SzArrayAllocationProbe)' == 'true' or
+			'$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true' or
+			'$(EnableM04X64UnwindMetadataProbe)' == 'true' or
+			'$(EnableUefiGoneSimulationProbe)' == 'true')">Diagnostic</ClrosBootPolicy>
+		<ClrosBootPolicy Condition="'$(ClrosBootPolicy)' == ''">VerifiedExit</ClrosBootPolicy>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(ClrosBootPolicy)' == 'VerifiedExit'">
+		<DefineConstants>$(DefineConstants);CLROS_NORMAL_VERIFIED_EXIT</DefineConstants>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<Compile Include="..\OS.Kernel\Boot\BootHandoffRecord.cs" Link="Boot\BootHandoffRecord.cs" />
 		<Compile Include="..\OS.Kernel\Boot\BootMemoryRegionMaterializer.cs" Link="Boot\BootMemoryRegionMaterializer.cs" />
@@ -337,6 +399,7 @@
 		<Compile Include="..\OS.Kernel\Boot\UefiMemoryMapCapture.cs" Link="Boot\UefiMemoryMapCapture.cs" />
 		<Compile Include="..\OS.Kernel\Boot\UefiMemoryMapCopyPlan.cs" Link="Boot\UefiMemoryMapCopyPlan.cs" />
 		<Compile Include="..\OS.Kernel\Boot\BootSequencePlan.cs" Link="Boot\BootSequencePlan.cs" />
+		<Compile Include="..\OS.Kernel\Boot\VerifiedExitPathOptDefaultRepeatedCleanQEMU.cs" Link="Boot\VerifiedExitPathOptDefaultRepeatedCleanQEMU.cs" />
 		<Compile Include="..\OS.Kernel\Boot\TypedPhysicalVirtualDeviceAddressPODWrappers.cs" Link="Boot\TypedPhysicalVirtualDeviceAddressPODWrappers.cs" />
 		<Compile Include="..\OS.Kernel\Memory\BootReservedRange.cs" Link="Memory\BootReservedRange.cs" />
 		<Compile Include="..\OS.Kernel\Memory\BootReservationTableValidator.cs" Link="Memory\BootReservationTableValidator.cs" />
@@ -466,6 +529,63 @@
 		<Error
 			Condition="'$(RuntimePackagePath)' != '$(ClrosRuntimePackagePath)'"
 			Text="NativeAOT runtime package path escaped the CLROS pinned package root." />
+	</Target>
+
+	<Target Name="ValidateClrosBootPolicy" BeforeTargets="BeforeCompile">
+		<Error Condition="'$(ClrosBootPolicy)' != 'VerifiedExit' and '$(ClrosBootPolicy)' != 'Diagnostic'" Text="clros_boot_policy_invalid" />
+		<Error Condition="'$(ClrosBootPolicy)' == 'VerifiedExit' and (
+			'$(EnableAcpiPhysicalDiscoveryProbe)' == 'true' or
+			'$(EnableExitBootServicesFreshMapProbe)' == 'true' or
+			'$(EnableM01LiveAllocatorProbe)' == 'true' or
+			'$(EnableM01LoadedImageStackProbe)' == 'true' or
+			'$(EnableM01OwnedPagingProbe)' == 'true' or
+			'$(EnableM02CheckedPortIoBindingProbe)' == 'true' or
+			'$(EnableM02Com1OwnedPortIoProbe)' == 'true' or
+			'$(EnableM02DoubleFaultIstProbe)' == 'true' or
+			'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' or
+			'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' or
+			'$(EnableM02NormalizedInterruptFramePageProbe)' == 'true' or
+			'$(EnableM02OwnedCom1ReadyProbe)' == 'true' or
+			'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' or
+			'$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' or
+			'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' or
+			'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' or
+			'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' or
+			'$(EnableM02SafeStubProbe)' == 'true' or
+			'$(EnableM02Ud2VectorStateProbe)' == 'true' or
+			'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' or
+			'$(EnableM03FirmwareAdapterRevocationProbe)' == 'true' or
+			'$(EnableM03FirmwareEntropySeedProbe)' == 'true' or
+			'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' or
+			'$(EnableM03MemoryMapCaptureProbe)' == 'true' or
+			'$(EnableM03OwnedSubsystemPanicProbe)' == 'true' or
+			'$(EnableM03OwnedSubsystemSurvivalProbe)' == 'true' or
+			'$(EnableM03TypedExitBootServicesCallProbe)' == 'true' or
+			'$(EnableM04ArithmeticConformanceProbe)' == 'true' or
+			'$(EnableM04CheckedReferenceBarrierProbe)' == 'true' or
+			'$(EnableM04ClassConstructorExecutionProbe)' == 'true' or
+			'$(EnableM04GcStaticRootMaterializationProbe)' == 'true' or
+			'$(EnableM04IndependentEndianConformanceProbe)' == 'true' or
+			'$(EnableM04InterfaceDispatchProbe)' == 'true' or
+			'$(EnableM04LayoutContractProbe)' == 'true' or
+			'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' or
+			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
+			'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' or
+			'$(EnableM04RhpNewFastProbe)' == 'true' or
+			'$(EnableM04SeededCollectorChurnProbe)' == 'true' or
+			'$(EnableM04SimpleThrowCatchProbe)' == 'true' or
+			'$(EnableM04SingleFinallyCatchProbe)' == 'true' or
+			'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true' or
+			'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' or
+			'$(EnableM04StringAllocationExhaustionProbe)' == 'true' or
+			'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' or
+			'$(EnableM04StringAllocationProbe)' == 'true' or
+			'$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true' or
+			'$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true' or
+			'$(EnableM04SzArrayAllocationProbe)' == 'true' or
+			'$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true' or
+			'$(EnableM04X64UnwindMetadataProbe)' == 'true' or
+			'$(EnableUefiGoneSimulationProbe)' == 'true')" Text="clros_boot_policy_probe_conflict" />
 	</Target>
 
 	<Target Name="ValidateM01ProbeSwitches"
