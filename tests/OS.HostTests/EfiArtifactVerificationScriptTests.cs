@@ -5283,6 +5283,7 @@ internal static class EfiArtifactVerificationScriptTests
             ["EnableM03OwnedSubsystemSurvivalProbe"] = "false",
             ["EnableM03OwnedSubsystemPanicProbe"] = "false",
             ["EnableM04SimpleThrowCatchProbe"] = "false",
+            ["EnableM04SingleFinallyCatchProbe"] = "false",
             ["EnableM03TypedExitBootServicesCallProbe"] = "false",
             ["EnableM03FirstRealExitBootServicesProbe"] = "false",
             ["EnableM04GcStaticRootMaterializationProbe"] = "false",

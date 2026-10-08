@@ -397,7 +397,7 @@ internal static class M04ArrayAllocationEfiIntegrationTests
             foreach(var input in inputs)Need(Hash(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))==input.GetProperty("sha256").GetString(),"actual raw source unchanged");
             var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==121,"actual121 compile items");
             var flags=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
-            Need(flags.Length==51,"complete51 evaluated flags");
+            Need(flags.Length==52,"complete52 evaluated flags");
             foreach(var f in flags)Need(f.Value.GetString()==(lane.Item2.Contains(f.Name,StringComparer.Ordinal)?"true":"false"),"actual requested/evaluated profile "+f.Name);
             TestMetadata(directory,lane.Item1!="default");
             if(lane.Item1!="default")TestLinkedRoutes(root,directory,lane.Item1=="before-bind");

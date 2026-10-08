@@ -96,17 +96,22 @@ do not complete the broader firmware, diagnostics, or runtime gates.
   into a typed base-class catch and resumes its compiled continuation with the
   original rooted exception. The same-image invalid-local-RIP check rejects
   through the production admission predicate before selection, without changing
-  live context. [Step1075](done/step1075.md) records final acceptance. General
-  exception handling, including finally and rethrow, remains incomplete.
+  live context. [Step1075](done/step1075.md) records final acceptance.
+- **Bounded compiler finally (#589):** one inner cleanup runs before the typed
+  catch and compiled continuation, preserving the original exception and
+  validating its parent-stack side effect. [Step1088](done/step1088.md) accepts
+  the reviewed native image and fresh ordinary guest capture. General EH and
+  rethrow remain incomplete.
 
-The latest accepted full host suite passed at implementation `ead4fca`, with
-**3,888 `TEST_START`, 3,889 `TEST_PASS` including `host.tests`, and zero failures**.
-The clean solution build and three fresh ordinary captures passed: default,
-collecting GC, and bounded throw/catch, with 21/70/82 application records.
-[Step1075](done/step1075.md) binds the actual sources, native images, complete
-transcripts, process results and disk evidence. Step1074 preserves the separate
-owned-subsystem acceptance; step1063 retains the earlier runtime profiles and
-rejection controls. No broad kernel or runtime gate is promoted.
+The latest accepted full host suite passed at implementation `3bfa349`, with
+**3,898 `TEST_START`, 3,899 `TEST_PASS` including `host.tests`, and zero failures**.
+The clean solution build and four fresh ordinary captures passed: default,
+collecting GC, bounded throw/catch, and bounded finally/catch, with 21/70/82/84
+application records. [Step1088](done/step1088.md) binds the guest source
+`736d10d`, native images, complete transcripts and disk evidence to the later
+host source and its test-only repairs. Step1075 preserves the earlier catch
+acceptance, step1074 the separate owned-subsystem acceptance, and step1063 the
+earlier runtime profiles and controls. No broad kernel or runtime gate is promoted.
 
 The [live Gitea backlog](http://192.168.4.35:3000/admin/CLROS/issues) tracks current
 ownership and dependencies. Development evidence and issue closure do not

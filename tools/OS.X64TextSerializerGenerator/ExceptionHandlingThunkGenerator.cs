@@ -9,6 +9,7 @@ public static class ExceptionHandlingThunkGenerator
     public const string Entry = "RhpThrowEx";
     public const string Select = "CLROS_Eh_Select";
     public const string Validate = "CLROS_Eh_ValidateContinuation";
+    public const string ValidateFinally = "CLROS_Eh_ValidateFinally";
     public const string GetClauseTable = "CLROS_Eh_GetClauseTable";
     public const string ClauseTable = "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__Catcher";
     public const int ContextBytes = 240;
@@ -16,7 +17,9 @@ public static class ExceptionHandlingThunkGenerator
     public const int Exception = 768, EntryControl = 776, PostControl = 808;
     public const int FrameBytes = 840;
 
-    public static Amd64CoffObjectDefinition Define()
+    public static Amd64CoffObjectDefinition Define() => Define(false);
+
+    public static Amd64CoffObjectDefinition Define(bool singleFinally)
     {
         List<byte> code = [];
         List<int> rejects = [];
@@ -72,6 +75,19 @@ public static class ExceptionHandlingThunkGenerator
         Mem(true, 0, EntryControl); Control(EntryControl, true);
         Mem(true, 1, Exception); Lea(2, Capture); Lea(8, Transfer); Lea(9, EntryControl);
         Call(1); Add(0x83, 0xF8, 0x01); Reject(0x85);
+        if (singleFinally)
+        {
+            // The selector admits both targets before any special call. The
+            // returning cleanup shares the handling frame, but its registers
+            // and RAX are not the catch's eventual continuation state.
+            Registers(true, Selected);
+            Add(0xFF, 0x94, 0x24); I32(Transfer + 8);
+            Control(PostControl, false);
+            Lea(1, Transfer); Lea(2, EntryControl); Lea(8, PostControl);
+            Call(5); Add(0x83, 0xF8, 0x01); Reject(0x85);
+            Add(0x0F, 0xAE, 0x94, 0x24); I32(EntryControl + 16);
+            Add(0xD9, 0xAC, 0x24); I32(EntryControl + 20);
+        }
         // No original RBX/RBP is used for bookkeeping across the special call.
         Registers(true, Selected);
         Mem(true, 1, Exception);
@@ -101,14 +117,19 @@ public static class ExceptionHandlingThunkGenerator
         Add(0x48, 0x8D, 0x05);
         relocations.Add(new((uint)code.Count, 4, 4)); I32(0);
         Add(0xC3); // Ordinary Win64 leaf: original linker-resolved EH contribution.
-        return new(0x8664, 0, [new(".text", code.ToArray(), 0x60500020, relocations.ToArray())],
+        List<CoffSymbolDefinition> symbols =
             [new(Entry, 0, 1, 0x20, 2), new(Select, 0, 0, 0x20, 2), new(Validate, 0, 0, 0x20, 2),
-             new(GetClauseTable, getter, 1, 0x20, 2), new(ClauseTable, 0, 0, 0, 2)]);
+             new(GetClauseTable, getter, 1, 0x20, 2), new(ClauseTable, 0, 0, 0, 2)];
+        if (singleFinally) symbols.Add(new(ValidateFinally, 0, 0, 0x20, 2));
+        return new(0x8664, 0, [new(".text", code.ToArray(), 0x60500020, relocations.ToArray())], symbols.ToArray());
     }
 
     public static bool TryGenerate(Span<byte> destination, out int written, out CoffWriteError error)
+        => TryGenerate(destination, out written, out error, false);
+
+    public static bool TryGenerate(Span<byte> destination, out int written, out CoffWriteError error, bool singleFinally)
     {
-        var definition = Define();
+        var definition = Define(singleFinally);
         return Amd64CoffWriter.TryWrite(in definition, destination, true, true, out written, out error);
     }
 }

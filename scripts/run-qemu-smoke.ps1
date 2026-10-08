@@ -82,6 +82,7 @@ param(
     [switch] $EnableM04ClassConstructorExecutionProbe,
     [switch] $EnableM04InterfaceDispatchProbe,
     [switch] $EnableM04SimpleThrowCatchProbe,
+    [switch] $EnableM04SingleFinallyCatchProbe,
     [string] $FirmwareRngSource = "",
     [switch] $EnableM04CheckedReferenceBarrierProbe,
     [switch] $SkipImageBuild
@@ -528,6 +529,14 @@ $script:M04SimpleCatchRequiredMarkers = @(
     foreach ($stage in 0..8) { "M04_CATCH $stage" }
     'TEST_PASS m04.021.simple-catch'
     'CLROS_M04_SIMPLE_CATCH_READY'
+    $script:M04GcStaticRootRequiredMarkers[($script:M04GcStaticRootRequiredMarkers.Count - 8)..($script:M04GcStaticRootRequiredMarkers.Count - 1)]
+)
+$script:M04SingleFinallyRequiredMarkers = @(
+    $script:M04GcStaticRootRequiredMarkers[0..($script:M04GcStaticRootRequiredMarkers.Count - 9)]
+    'TEST_START m04.021.single-finally'
+    foreach ($stage in @(0,1,2,3,4,9,10,5,6,7,8)) { "M04_FINALLY $stage" }
+    'TEST_PASS m04.021.single-finally'
+    'CLROS_M04_SINGLE_FINALLY_READY'
     $script:M04GcStaticRootRequiredMarkers[($script:M04GcStaticRootRequiredMarkers.Count - 8)..($script:M04GcStaticRootRequiredMarkers.Count - 1)]
 )
 $script:M04SeededChurnRequiredMarkers = @(
@@ -2066,13 +2075,14 @@ function Assert-M02UnexpectedVectorPanicPrefix {
 }
 
 function Assert-M04ManagedHeapPageRangeTranscript {
-    param([string] $SerialLogPath, [switch] $IncludeFixedAllocation, [switch] $IncludeArrayAllocation, [switch] $IncludeStringAllocation, [switch] $IncludeCheckedReferences, [switch] $IncludeGcStatics, [switch] $IncludeSeededChurn, [switch] $IncludeClassConstructors, [switch] $IncludeInterfaceDispatch, [switch] $IncludeSimpleCatch)
+    param([string] $SerialLogPath, [switch] $IncludeFixedAllocation, [switch] $IncludeArrayAllocation, [switch] $IncludeStringAllocation, [switch] $IncludeCheckedReferences, [switch] $IncludeGcStatics, [switch] $IncludeSeededChurn, [switch] $IncludeClassConstructors, [switch] $IncludeInterfaceDispatch, [switch] $IncludeSimpleCatch, [switch] $IncludeSingleFinally)
     if (([int][bool]$IncludeFixedAllocation + [int][bool]$IncludeArrayAllocation + [int][bool]$IncludeStringAllocation + [int][bool]$IncludeCheckedReferences + [int][bool]$IncludeGcStatics) -gt 1) { throw 'm04_allocation_profile_collision' }
     if ($IncludeSeededChurn -and -not $IncludeGcStatics) { throw 'm04_churn_requires_gc_records' }
     if ($IncludeClassConstructors -and (-not $IncludeGcStatics -or $IncludeSeededChurn)) { throw 'm04_cctor_profile_collision' }
     if ($IncludeInterfaceDispatch -and -not $IncludeClassConstructors) { throw 'm04_dispatch_requires_cctor_records' }
     if ($IncludeSimpleCatch -and (-not $IncludeGcStatics -or $IncludeSeededChurn -or $IncludeClassConstructors -or $IncludeInterfaceDispatch)) { throw 'm04_simple_catch_profile_collision' }
-    $lineCount = if ($IncludeSimpleCatch) { 82 } elseif ($IncludeInterfaceDispatch) { 158 } elseif ($IncludeClassConstructors) { 82 } elseif ($IncludeSeededChurn) { 82 } elseif ($IncludeGcStatics) { 70 } elseif ($IncludeCheckedReferences) { 71 } elseif ($IncludeStringAllocation) { 72 } elseif ($IncludeArrayAllocation) { 68 } elseif ($IncludeFixedAllocation) { 78 } else { 52 }
+    if ($IncludeSingleFinally -and (-not $IncludeGcStatics -or $IncludeSimpleCatch -or $IncludeSeededChurn -or $IncludeClassConstructors -or $IncludeInterfaceDispatch)) { throw 'm04_single_finally_profile_collision' }
+    $lineCount = if ($IncludeSingleFinally) { 84 } elseif ($IncludeSimpleCatch) { 82 } elseif ($IncludeInterfaceDispatch) { 158 } elseif ($IncludeClassConstructors) { 82 } elseif ($IncludeSeededChurn) { 82 } elseif ($IncludeGcStatics) { 70 } elseif ($IncludeCheckedReferences) { 71 } elseif ($IncludeStringAllocation) { 72 } elseif ($IncludeArrayAllocation) { 68 } elseif ($IncludeFixedAllocation) { 78 } else { 52 }
     $path = if ([IO.Path]::IsPathRooted($SerialLogPath)) { $SerialLogPath } else { Join-Path $root $SerialLogPath }
     # No BOM sniffing, trimming, Unicode folding or control removal for acceptance.
     $text = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($path))
@@ -2104,7 +2114,7 @@ function Assert-M04ManagedHeapPageRangeTranscript {
             }
         }
         if ($captured.Count -ge $lineCount) {
-            if ((-not $IncludeInterfaceDispatch -and -not $IncludeSimpleCatch -and $complete -and $line.Length -eq 0) -or ($i -eq $raw.Length - 1 -and $line.Length -eq 0)) { continue }
+            if ((-not $IncludeInterfaceDispatch -and -not $IncludeSimpleCatch -and -not $IncludeSingleFinally -and $complete -and $line.Length -eq 0) -or ($i -eq $raw.Length - 1 -and $line.Length -eq 0)) { continue }
             throw 'm04_heap_post_terminal_noise'
         }
         if (-not $complete -or [regex]::IsMatch($line, '[\x00-\x1f\x7f-\uffff]')) { throw 'm04_heap_incomplete_or_control_record' }
@@ -2120,6 +2130,11 @@ function Assert-M04ManagedHeapPageRangeTranscript {
     $cctorRecords = @()
     $dispatchRecords = @()
     $catchRecords = @()
+    $finallyRecords = @()
+    if ($IncludeSingleFinally) {
+        $finallyRecords = @($captured.GetRange(62,14))
+        $captured.RemoveRange(62,14)
+    }
     if ($IncludeSimpleCatch) {
         $catchRecords = @($captured.GetRange(62,12))
         $captured.RemoveRange(62,12)
@@ -2289,12 +2304,14 @@ function Assert-M04ManagedHeapPageRangeTranscript {
     if ($IncludeClassConstructors) { Assert-M04ClassConstructorRecords -Lines $cctorRecords -GcLines $gcRecords -Heap $retained }
     if ($IncludeInterfaceDispatch) { Assert-M04InterfaceDispatchRecords -Lines $dispatchRecords -GcLines $gcRecords -CctorLines $cctorRecords -Heap $retained }
     if ($IncludeSimpleCatch) { Assert-M04SimpleCatchRecords -Lines $catchRecords -GcLines $gcRecords -Heap $retained }
+    if ($IncludeSingleFinally) { Assert-M04SingleFinallyRecords -Lines $finallyRecords -GcLines $gcRecords -Heap $retained }
 }
 
 function Assert-M04SimpleCatchSelection {
-    param([string] $Text, [bool] $Enabled)
+    param([string] $Text, [bool] $Enabled, [bool] $FinallyEnabled = $false)
     $claim=[regex]::Replace($Text,'[\x00-\x20\x7f-\uffff]','')
-    if(-not $Enabled -and [regex]::IsMatch($claim,'(?i)M04_CATCH|CLROS_M04_SIMPLE_CATCH_READY|m04\.021')) { throw 'm04_simple_catch_unselected_record' }
+    $pattern = if ($FinallyEnabled) { '(?i)M04_CATCH|CLROS_M04_SIMPLE_CATCH_READY|m04\.021\.simple-catch' } else { '(?i)M04_CATCH|CLROS_M04_SIMPLE_CATCH_READY|m04\.021' }
+    if(-not $Enabled -and [regex]::IsMatch($claim,$pattern)) { throw 'm04_simple_catch_unselected_record' }
 }
 
 function Assert-M04SimpleCatchRecords {
@@ -2343,6 +2360,60 @@ function Assert-M04SimpleCatchRecords {
     if($caught[0] -ne $object[0] -or $caught[1] -ne $seed -or $caught[2] -ne $match[1] -or $caught[3] -ne 1 -or
         $continued[0] -ne $object[0] -or $continued[1] -ne $seed -or $continued[2] -ne $seed+1 -or $continued[3] -ne 1 -or
         $checked[0] -ne 6 -or $checked[2] -ne $canaries[1] -or $checked[3] -ne $canaries[2]) { throw 'm04_simple_catch_execution_identity' }
+}
+
+function Assert-M04SingleFinallySelection {
+    param([string] $Text, [bool] $Enabled)
+    $claim=[regex]::Replace($Text,'[\x00-\x20\x7f-\uffff]','')
+    if(-not $Enabled -and [regex]::IsMatch($claim,'(?i)M04_FINALLY|CLROS_M04_SINGLE_FINALLY_READY|m04\.021\.single-finally')) { throw 'm04_single_finally_unselected_record' }
+}
+
+function Assert-M04SingleFinallyRecords {
+    param([string[]] $Lines, [string[]] $GcLines, [hashtable] $Heap)
+    if($Lines.Count -ne 14 -or $Lines[0] -cne 'TEST_START m04.021.single-finally' -or
+        $Lines[12] -cne 'TEST_PASS m04.021.single-finally' -or $Lines[13] -cne 'CLROS_M04_SINGLE_FINALLY_READY') { throw 'm04_single_finally_count' }
+    $stages=@(0,1,2,3,4,9,10,5,6,7,8);$rows=@{}
+    for($i=0;$i -lt $stages.Count;$i++) {
+        $stage=$stages[$i]
+        $m=[regex]::Match($Lines[$i+1],('\AM04_FINALLY '+$stage+' (0x[0-9A-F]{16}) (0x[0-9A-F]{16}) (0x[0-9A-F]{16}) (0x[0-9A-F]{16})\z'))
+        if(-not $m.Success){throw 'm04_single_finally_row_shape'}
+        $rows[$stage]=@((1..4|ForEach-Object{[Convert]::ToUInt64($m.Groups[$_].Value.Substring(2),16)}))
+    }
+    # Ancestor grammar and semantics have already passed in the same raw capture.
+    $parents=@()
+    foreach($i in @(0,1,2,7)) {
+        $parts=$GcLines[$i].Split(' ')
+        $parents+=,@((2..5|ForEach-Object{[Convert]::ToUInt64($parts[$_].Substring(2),16)}))
+    }
+    $image=$parents[0];$module=$parents[1];$stack=$parents[2];$canaries=$parents[3]
+    $bind=$rows[0];$object=$rows[1];$rejected=$rows[2];$frames=$rows[3];$match=$rows[4]
+    $cleanup=$rows[9];$validated=$rows[10];$caught=$rows[5];$resume=$rows[6];$continued=$rows[7];$checked=$rows[8]
+    $imageEnd=[decimal]$image[0]+$image[1];$catcher=[decimal]$frames[2]-32
+    if($bind[0] -ne $module[3] -or $bind[1]%8 -ne 0 -or $bind[1] -lt $image[0] -or
+        [decimal]$bind[1]+65536 -gt $imageEnd -or $bind[2] -lt 288 -or $bind[2] -ge 65536 -or
+        $bind[3] -eq 0 -or $bind[3] -gt 2048 -or [decimal]$bind[2] -lt 288+12*[decimal]$bind[3]) { throw 'm04_single_finally_snapshot' }
+    if($object[0]%8 -ne 0 -or [decimal]$object[0] -lt [decimal]$Heap.retainedStart+8 -or
+        [decimal]$object[0]+16 -gt [decimal]$Heap.retainedEnd -or $object[2] -ne 9 -or $object[3] -ne 3 -or
+        $object[1] -eq $match[0]) {throw 'm04_single_finally_original_receipt'}
+    foreach($at in @($object[1],$match[0])) {
+        if($at%8 -ne 0 -or $at -lt $image[0] -or [decimal]$at+24 -gt $imageEnd) { throw 'm04_single_finally_type_range' }
+    }
+    if([decimal]$frames[0]-9 -lt $image[0] -or [decimal]$frames[0]+1 -gt $imageEnd -or
+        $catcher -lt $image[0] -or $catcher+136 -gt $imageEnd) { throw 'm04_single_finally_code_range' }
+    if($rejected[0] -ne $frames[0] -or $rejected[1] -ne ([UInt64]$frames[0] -bxor [UInt64]1) -or
+        $rejected[2] -ne $frames[1] -or $rejected[3] -ne 0) { throw 'm04_single_finally_local_admission' }
+    if([decimal]$frames[3] -ne [decimal]$frames[1]+48 -or [decimal]$match[2] -ne [decimal]$frames[3]+64 -or
+        [decimal]$match[3] -ne [decimal]$frames[1]+40 -or [decimal]$match[1] -ne $catcher+94 -or
+        [decimal]$resume[0] -ne $catcher+47 -or $resume[1] -ne $frames[3] -or $resume[2] -ne $match[2] -or $resume[3] -ne 1) { throw 'm04_single_finally_native_frame_association' }
+    foreach($range in @(@($frames[1],8),@($frames[3],88),@($checked[1],8))) {
+        if($range[0]%8 -ne 0 -or [decimal]$range[0] -lt [decimal]$stack[0]+16400 -or [decimal]$range[0]+$range[1] -gt [decimal]$stack[2]) { throw 'm04_single_finally_stack_range' }
+    }
+    $seed=([UInt64]$module[3] -bxor [UInt64]$Heap.backing) -band 0xFFFF
+    if($cleanup[0] -ne $object[0] -or [decimal]$cleanup[1] -ne [decimal]$match[2]-24 -or $cleanup[2] -ne $seed+2 -or $cleanup[3] -ne 1 -or
+        [decimal]$validated[0] -ne $catcher+71 -or $validated[1] -ne $match[1] -or $validated[2] -ne $cleanup[1] -or $validated[3] -ne $cleanup[2] -or
+        $caught[0] -ne $object[0] -or $caught[1] -ne $seed -or $caught[2] -ne $cleanup[2] -or $caught[3] -ne 1 -or
+        $continued[0] -ne $object[0] -or $continued[1] -ne $seed -or $continued[2] -ne $seed+1 -or $continued[3] -ne 1 -or
+        $checked[0] -ne 8 -or $checked[2] -ne $canaries[1] -or $checked[3] -ne $canaries[2]) { throw 'm04_single_finally_execution_identity' }
 }
 
 function Assert-M04InterfaceDispatchSelection {
@@ -7037,7 +7108,11 @@ try {
 if ($EnableM04InterfaceDispatchProbe -and -not $EnableM04ClassConstructorExecutionProbe) { Write-Host "TEST_FAIL qemu.smoke m04_dispatch_requires_cctor_profile"; exit 1 }
 if ($EnableM04X64UnwindMetadataProbe -and -not $EnableM04TypeManagerModuleRegistrationProbe) { Write-Host "TEST_FAIL qemu.smoke m04_x64_unwind_metadata_requires_original_module"; exit 1 }
 if ($EnableM04SimpleThrowCatchProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Host 'TEST_FAIL qemu.smoke m04_simple_catch_requires_gc_profile'; exit 1 }
+if ($EnableM04SingleFinallyCatchProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Host 'TEST_FAIL qemu.smoke m04_single_finally_requires_gc_profile'; exit 1 }
 if ($EnableM04SimpleThrowCatchProbe -and ($EnableM04SeededCollectorChurnProbe -or $EnableM04ClassConstructorExecutionProbe -or $EnableM04InterfaceDispatchProbe -or $EnableM04X64UnwindMetadataProbe)) { Write-Host 'TEST_FAIL qemu.smoke m04_simple_catch_profile_conflict'; exit 1 }
+if ($EnableM04SingleFinallyCatchProbe -and ($EnableM04SeededCollectorChurnProbe -or $EnableM04ClassConstructorExecutionProbe -or $EnableM04InterfaceDispatchProbe -or $EnableM04X64UnwindMetadataProbe -or $EnableM04SimpleThrowCatchProbe)) { Write-Host 'TEST_FAIL qemu.smoke m04_single_finally_profile_conflict'; exit 1 }
+# This bounded profile has reviewed native geometry and a strict transcript.
+# Its default remains false. Dry-run constructs commands; it is not boot proof.
 if ($EnableM04ClassConstructorExecutionProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Host "TEST_FAIL qemu.smoke m04_cctor_requires_gc_profile"; exit 1 }
 if ($EnableM04ClassConstructorExecutionProbe -and $EnableM04SeededCollectorChurnProbe) { Write-Host "TEST_FAIL qemu.smoke m04_cctor_churn_conflict"; exit 1 }
 if ($EnableM04SeededCollectorChurnProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Host "TEST_FAIL qemu.smoke m04_churn_requires_gc_profile"; exit 1 }
@@ -7808,7 +7883,8 @@ $rhpReason = $arrayReason
         @([bool]$EnableM03FirmwareAdapterRevocationProbe, '^(M03_ADAPTER_|CLROS_M03_008_READY|TEST_(START|PASS) m03\.008)', 'm03_revocation'),
         @([bool]$EnableM04ClassConstructorExecutionProbe, '^(M04_CCTOR|CLROS_M04_024_READY|TEST_(START|PASS) m04\.024)', 'm04_cctor'),
         @([bool]$EnableM04InterfaceDispatchProbe, '^(M04_DISPATCH|CLROS_M04_016_READY|TEST_(START|PASS) m04\.016)', 'm04_dispatch'),
-        @([bool]$EnableM04SimpleThrowCatchProbe, '^(M04_CATCH|CLROS_M04_SIMPLE_CATCH_READY|TEST_(START|PASS) m04\.021)', 'm04_simple_catch'),
+        @([bool]$EnableM04SimpleThrowCatchProbe, '^(M04_CATCH|CLROS_M04_SIMPLE_CATCH_READY|TEST_(START|PASS) m04\.021\.simple-catch)', 'm04_simple_catch'),
+        @([bool]$EnableM04SingleFinallyCatchProbe, '^(M04_FINALLY|CLROS_M04_SINGLE_FINALLY_READY|TEST_(START|PASS) m04\.021\.single-finally)', 'm04_single_finally'),
         @([bool]$EnableM04X64UnwindMetadataProbe, '^(CLROS_M04_020_|TEST_(START|PASS) m04\.020)', 'm04_x64_unwind')
     )) {
         if (-not $profile[0]) {
@@ -7879,6 +7955,12 @@ $rhpReason = $arrayReason
         $orderedMarkers = @(ConvertTo-QemuSmokeMarkerList -Values $script:M03TypedExitBootServicesRequiredMarkers)
         $uniqueMarkers = @(ConvertTo-QemuSmokeMarkerList -Values $script:M03TypedExitBootServicesRequiredMarkers)
         $forbiddenMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($forbiddenMarkers; 'TEST_FAIL'; 'OS_SMOKE_FAIL'; 'UEFI_EBS_CALLED'; 'UEFI_BOOT_SERVICES_EXITED'))
+    }
+    elseif ($EnableM04SingleFinallyCatchProbe) {
+        $requiredMarkers = @($script:M04SingleFinallyRequiredMarkers)
+        $orderedMarkers = @($script:M04SingleFinallyRequiredMarkers)
+        $uniqueMarkers = @($script:M04SingleFinallyRequiredMarkers)
+        $forbiddenMarkers = @(ConvertTo-QemuSmokeMarkerList -Values @($forbiddenMarkers; $script:M04ManagedHeapPageRangeForbiddenMarkers; 'TEST_FAIL'; 'OS_SMOKE_FAIL'))
     }
     elseif ($EnableM04SimpleThrowCatchProbe) {
         $requiredMarkers = @($script:M04SimpleCatchRequiredMarkers)
@@ -9806,6 +9888,7 @@ $rhpReason = $arrayReason
         if ($EnableM04ClassConstructorExecutionProbe) { $buildArguments += "-EnableM04ClassConstructorExecutionProbe" }
         if ($EnableM04InterfaceDispatchProbe) { $buildArguments += "-EnableM04InterfaceDispatchProbe" }
         if ($EnableM04SimpleThrowCatchProbe) { $buildArguments += "-EnableM04SimpleThrowCatchProbe" }
+        if ($EnableM04SingleFinallyCatchProbe) { $buildArguments += "-EnableM04SingleFinallyCatchProbe" }
         if ($EnableM04CheckedReferenceBarrierProbe) {
             $buildArguments +=
                 "-EnableM04CheckedReferenceBarrierProbe"
@@ -10136,10 +10219,12 @@ $rhpReason = $arrayReason
     elseif ($EnableM04GcStaticRootMaterializationProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
         try {
             Assert-M04ManagedHeapRunnerResult -Lines $heapRunnerLines
-            Assert-M04ManagedHeapPageRangeTranscript -SerialLogPath $SerialLog -IncludeGcStatics -IncludeSeededChurn:$EnableM04SeededCollectorChurnProbe -IncludeClassConstructors:$EnableM04ClassConstructorExecutionProbe -IncludeInterfaceDispatch:$EnableM04InterfaceDispatchProbe -IncludeSimpleCatch:$EnableM04SimpleThrowCatchProbe
+            Assert-M04ManagedHeapPageRangeTranscript -SerialLogPath $SerialLog -IncludeGcStatics -IncludeSeededChurn:$EnableM04SeededCollectorChurnProbe -IncludeClassConstructors:$EnableM04ClassConstructorExecutionProbe -IncludeInterfaceDispatch:$EnableM04InterfaceDispatchProbe -IncludeSimpleCatch:$EnableM04SimpleThrowCatchProbe -IncludeSingleFinally:$EnableM04SingleFinallyCatchProbe
         }
         catch { Write-Host ("TEST_FAIL qemu.smoke.m04.012 strict_transcript_invalid reason=" + $_.Exception.Message); exit 1 }
-        if ($EnableM04SimpleThrowCatchProbe) {
+        if ($EnableM04SingleFinallyCatchProbe) {
+            Write-Host 'QEMU_SCRIPT_M04_SINGLE_FINALLY_TRANSCRIPT exactWholeLines=true lines=84 stages=11 localAdmissionRejections=1 exceptionalFinally=1 typedCatch=1 compiledContinuation=1 originalReceipt=9 stackChecks=8'
+        } elseif ($EnableM04SimpleThrowCatchProbe) {
             Write-Host 'QEMU_SCRIPT_M04_SIMPLE_CATCH_TRANSCRIPT exactWholeLines=true lines=82 stages=9 localAdmissionRejections=1 typedCatch=1 compiledContinuation=1 originalReceipt=9 stackChecks=6'
         } elseif ($EnableM04InterfaceDispatchProbe) {
             Write-Host 'QEMU_SCRIPT_M04_DISPATCH_TRANSCRIPT exactWholeLines=true lines=158 orderedMarkers=74 dispatchStages=73 calls=15 operations=5 allocations=2 cacheEntries=10 cacheHits=5 stackChecks=17'
@@ -10239,7 +10324,9 @@ $rhpReason = $arrayReason
     if (-not $DryRun -and $runnerExitCode -eq 0) {
         $serialPath = if ([IO.Path]::IsPathRooted($SerialLog)) { $SerialLog } else { Join-Path $root $SerialLog }
         $rawProfileText = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($serialPath))
-        try { Assert-M04SimpleCatchSelection -Text $rawProfileText -Enabled ([bool]$EnableM04SimpleThrowCatchProbe) }
+        try { Assert-M04SimpleCatchSelection -Text $rawProfileText -Enabled ([bool]$EnableM04SimpleThrowCatchProbe) -FinallyEnabled ([bool]$EnableM04SingleFinallyCatchProbe) }
+        catch { Write-Host ('TEST_FAIL qemu.smoke '+$_.Exception.Message); exit 1 }
+        try { Assert-M04SingleFinallySelection -Text $rawProfileText -Enabled ([bool]$EnableM04SingleFinallyCatchProbe) }
         catch { Write-Host ('TEST_FAIL qemu.smoke '+$_.Exception.Message); exit 1 }
         try { Assert-M04InterfaceDispatchSelection -Text $rawProfileText -Enabled ([bool]$EnableM04InterfaceDispatchProbe) }
         catch { Write-Host 'TEST_FAIL qemu.smoke.m04.016 unexpected_profile_record'; exit 1 }

@@ -2963,6 +2963,37 @@ CLI-versus-wrapper limitation. Final acceptance uses fresh ordinary wrappers;
 older counts and images are not relabeled. General EH and broader gates remain
 incomplete.
 
+## Single-finally development profile
+
+[Step1088](../done/step1088.md) accepts the bounded #589 execution profile.
+The default-off `EnableM04SingleFinallyCatchProbe` sibling uses
+the same collecting-GC ancestry. It excludes simple catch, churn, constructors,
+interface dispatch and the separate unwind-metadata profile. The current source
+closure retains 121 explicit Compile items and 137 publication inputs, while
+the flag vector expands to 52 with 49 literal false defaults.
+
+The generator's `--single-finally-catch` mode emits a distinct 1,707-byte object
+and `.finally.obj` publication sidecar. The accepted enabled image has 643 ILC
+methods and 646 runtime-function rows. Its 136-byte Catcher and exact 11-byte
+EH table select one returning cleanup, then one typed catch and its compiled
+continuation. The bridge checks the parent-stack stamp, original exception/root,
+register context and control fields; the Thrower-to-parent RSP delta is 48.
+The measured CLROS stack bound is 14,240 bytes, excluding firmware body depth
+and arbitrary interrupts. Steps1079–1085 retain implementation and native-review
+history, including the corrected frame admission.
+
+The fresh ordinary QEMU/OVMF capture has the complete
+[84-line transcript](diagnostics.md#single-finally-development-transcript), one
+cleanup/catch/continuation, and local-input rejection without live corruption.
+Default, collecting-GC and legacy-catch regression captures also pass. The full
+host gate at `3bfa349` passes 3,898 groups plus the suite summary; step1088 joins
+that source to the guest source `736d10d` and records the retained failed runs.
+
+The public probe remains false by default. Explicit smoke selection applies
+exact artifact and whole-transcript checks. Dry-run alone is not boot proof.
+This finite pre-exit fixture does not establish general EH, rethrow, hosted .NET,
+Kestrel, cloud or production readiness; #90 and Gate4 remain incomplete.
+
 ## Owned subsystem survival and panic profiles
 
 The disabled #67 survival profile requires EnableM01LoadedImageStackProbe,

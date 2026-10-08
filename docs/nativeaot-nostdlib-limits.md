@@ -1993,4 +1993,30 @@ caching and general exception construction remain unsupported. The accepted
 host-only #578/#579 leaf contracts are unchanged; this profile supplies only its
 additional finite execution proof. #90 and Gate 4 remain incomplete.
 
+The #589 generator checkpoint adds `--single-finally-catch` and a separate
+1,707-byte COFF bridge proposal. Its host instruction models check cleanup
+before catch, restoration of the selected register context after cleanup, and
+preservation of the catch-produced continuation state. The legacy 1,350-byte
+object remains byte-identical. [Step1079](../done/step1079.md) records this
+host-only checkpoint. It does not admit a compiler finally funclet or prove
+guest execution. [Step1081](../done/step1081.md) records the first disabled
+native candidate: exact COFF/PE joins measure Catcher at 136 bytes and its EH
+table at 11 bytes. [Step1082](../done/step1082.md) implements the disabled
+selector and both validators with host-tested clause, context and control
+predicates. [Step1083](../done/step1083.md) binds the implemented disabled image,
+both funclets, ordinary ABI and transitive stack bounds. Its disabled selector
+still had an incorrect RSP delta; [step1084](../done/step1084.md) corrects it from
+16 to the measured 48 and adds exact metadata and transcript guards.
+[Step1085](../done/step1085.md) completes corrected disabled-image pointer review
+and permits bounded development transfer. [Step1088](../done/step1088.md) now
+accepts the enabled image and fresh ordinary guest execution: one compiler
+finally runs before the typed catch and compiled continuation, preserving the
+original rooted exception and observing the parent-stack cleanup stamp.
+Enabled-image comparison covers all 643 methods and 646 runtime rows; the
+1,336 linked bridge text bytes match the reviewed object. The original full host
+gate and default/GC/legacy-catch regressions pass. This finite pre-exit profile
+does not provide general cleanup search, rethrow, filters, collided exceptions,
+automatic stack roots, EH-safe collection or hosted .NET. #90 and Gate4 remain
+incomplete.
+
 The guarded empty `System.Exception` declaration is only the compiler-required identity for this fixture hierarchy. The canonical declaration ledger appends identity 49 as `CoreType/Stubbed`; it supplies no message, stack trace, inner exception or other exception service. All runtime-completion fields remain false.
