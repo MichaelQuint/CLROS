@@ -2977,13 +2977,16 @@ in [step1079](../done/step1079.md). The compiler-generated managed fixture has
 one inner finally and one outer typed catch; this establishes managed metadata
 shape only. The first publish-only candidate in [step1081](../done/step1081.md)
 measures a 136-byte Catcher contribution and 11-byte EH table, joined exactly
-from archived COFF to PE. Cleanup calling convention, complete EH admission
-and reachable stack bounds still require review and implementation. Managed
+from archived COFF to PE. [Step1082](../done/step1082.md) adds disabled selector
+and validator implementations bound to that measured nested clause pair,
+parent-frame stamp, saved context and control fields. Host tests compile and
+exercise their actual pure predicates. Final native calling convention and
+reachable stack bounds still require review. Managed
 DLL/PDB identity, project/smoke rejection and existing heap/GC/subsystem fixture
 results are retained in [step1080](../done/step1080.md).
 
 The current candidate is for publication and inspection only. Its runtime
-selector and validators reject transfer, and `run-qemu-smoke.ps1` rejects this
+selector retains `EhTransferAdmitted=false`, and `run-qemu-smoke.ps1` rejects this
 profile with `m04_single_finally_native_admission_pending` in both dry-run and
 launch modes. Passing source preflight or managed compilation does not authorize
 guest execution; the disabled native publication does not authorize it either.

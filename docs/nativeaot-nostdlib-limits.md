@@ -2001,7 +2001,9 @@ object remains byte-identical. [Step1079](../done/step1079.md) records this
 host-only checkpoint. It does not admit a compiler finally funclet or prove
 guest execution. [Step1081](../done/step1081.md) records the first disabled
 native candidate: exact COFF/PE joins measure Catcher at 136 bytes and its EH
-table at 11 bytes. Complete native ABI/stack review, actual admission/runtime
-integration and captured guest evidence remain required before acceptance.
+table at 11 bytes. [Step1082](../done/step1082.md) implements the disabled
+selector and both validators with host-tested clause, context and control
+predicates. Complete final native ABI/stack review and captured guest evidence
+remain required before transfer admission or acceptance.
 
 The guarded empty `System.Exception` declaration is only the compiler-required identity for this fixture hierarchy. The canonical declaration ledger appends identity 49 as `CoreType/Stubbed`; it supplies no message, stack trace, inner exception or other exception service. All runtime-completion fields remain false.
