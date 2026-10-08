@@ -42,6 +42,26 @@ Recommended Visual Studio components:
 - `Microsoft.VisualStudio.Component.VC.Tools.x86.x64`
 - Windows 11 SDK `10.0.26100.0` or another SDK version compatible with the installed .NET SDK.
 
+Required for the complete `OS.HostTests` native-inspection fixtures:
+
+- Visual Studio's **C++ Clang Compiler for Windows** individual component,
+  ID `Microsoft.VisualStudio.Component.VC.Llvm.Clang`. The object, array and
+  String fixtures use its x64 `llvm-objdump.exe` to inspect actual native
+  instructions and relocations. MSVC x64 tools alone do not install this
+  optional component. A successful managed build or EFI publish does not
+  establish that the disassembler is available.
+- Add the component through Visual Studio Installer → Modify → Individual
+  components. See Microsoft's [component inventory](https://learn.microsoft.com/en-us/visualstudio/install/workload-component-id-vs-community?view=visualstudio).
+
+Check the same x64 discovery used by those fixtures before a full host run:
+
+```powershell
+$clrosLlvmObjdump = Get-ChildItem "$env:ProgramFiles\Microsoft Visual Studio" -Filter llvm-objdump.exe -File -Recurse |
+    Where-Object FullName -Match '\\x64\\' | Sort-Object FullName | Select-Object -First 1
+if ($null -eq $clrosLlvmObjdump) { throw 'Install the C++ Clang Compiler for Windows component before full HostTests.' }
+& $clrosLlvmObjdump.FullName --version
+```
+
 Required for real QEMU smoke:
 
 - `qemu-system-x86_64`.
