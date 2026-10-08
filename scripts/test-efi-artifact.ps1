@@ -1,5 +1,6 @@
 [CmdletBinding()]
 param(
+    [string] $BootPolicy = "",
     [string]$EfiArtifact = "artifacts/efi/BOOTX64.EFI",
     [string]$ProjectPath = "src/OS/OS.csproj",
     [string]$EntrySourcePath = "src/OS/Boot/EfiEntry.cs",
@@ -62,6 +63,19 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# A normal boot policy never turns diagnostic probe switches on.
+$selectedDiagnosticProbe = @($PSBoundParameters.Keys | Where-Object {
+    $_ -match '^Enable\w+Probe$' -and [bool]$PSBoundParameters[$_]
+}).Count -ne 0
+if ($BootPolicy -ne '' -and $BootPolicy -notin @('VerifiedExit', 'Diagnostic')) {
+    Write-Host 'TEST_FAIL efi.artifact clros_boot_policy_invalid'; exit 1
+}
+if ($BootPolicy -eq '') { $BootPolicy = if ($selectedDiagnosticProbe) { 'Diagnostic' } else { 'VerifiedExit' } }
+$BootPolicy = if ($BootPolicy -eq 'VerifiedExit') { 'VerifiedExit' } else { 'Diagnostic' }
+if ($BootPolicy -eq 'VerifiedExit' -and $selectedDiagnosticProbe) {
+    Write-Host 'TEST_FAIL efi.artifact clros_boot_policy_probe_conflict'; exit 1
+}
 Set-StrictMode -Version Latest
 
 $testName = "efi.artifact.verify"
@@ -80,7 +94,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 137
+$expectedSourceClosureInputCount = 138
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -134,6 +148,7 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Boot\UefiMemoryMapCapture.cs|Boot\UefiMemoryMapCapture.cs',
     '..\OS.Kernel\Boot\UefiMemoryMapCopyPlan.cs|Boot\UefiMemoryMapCopyPlan.cs',
     '..\OS.Kernel\Boot\BootSequencePlan.cs|Boot\BootSequencePlan.cs',
+    '..\OS.Kernel\Boot\VerifiedExitPathOptDefaultRepeatedCleanQEMU.cs|Boot\VerifiedExitPathOptDefaultRepeatedCleanQEMU.cs',
     '..\OS.Kernel\Boot\TypedPhysicalVirtualDeviceAddressPODWrappers.cs|Boot\TypedPhysicalVirtualDeviceAddressPODWrappers.cs',
     '..\OS.Kernel\Memory\BootReservedRange.cs|Memory\BootReservedRange.cs',
     '..\OS.Kernel\Memory\BootReservationTableValidator.cs|Memory\BootReservationTableValidator.cs',
@@ -3864,6 +3879,7 @@ function Invoke-BoundedJobProcess {
 
 function Invoke-PostRestoreEvaluationSnapshot {
     param(
+        [string] $BootPolicy = "VerifiedExit",
         [Parameter(Mandatory = $true)]
         [string]$DotnetHostPath,
         [Parameter(Mandatory = $true)]
@@ -3919,12 +3935,13 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $arguments = @(
         "msbuild",
         $ProjectFullPath,
+        ("-p:ClrosBootPolicy=" + $BootPolicy),
         "-noAutoResponse",
         "-nodeReuse:false",
         "-nologo",
         "-getItem:Compile,ProjectReference,Reference,Analyzer",
         (
-            "-getProperty:" +
+            "-getProperty:ClrosBootPolicy," +
             "_targetOS,_targetArchitecture,RuntimeIdentifier," +
             "TargetFramework,PublishAot,SelfContained,PublishTrimmed," +
             "EnableM02OwnedCom1ReadyProbe," +
@@ -4354,6 +4371,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     }
 
     $expectedProperties = [ordered]@{
+        ClrosBootPolicy = $BootPolicy
         _targetOS = "win"
         _targetArchitecture = "x64"
         RuntimeIdentifier = $RuntimeIdentifier
@@ -4518,7 +4536,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 121 -or
+    if ($compileItems.Count -ne 122 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -6001,6 +6019,7 @@ $linkResponseValidationStopwatch.Stop()
 $requiredEvidenceProperties = @(
     "schemaVersion",
     "configuration",
+    "bootPolicy",
     "runtimeIdentifier",
     "artifactSha256",
     "artifactBytes",
@@ -6232,6 +6251,10 @@ if ([string]$linkEvidence.artifactSha256 -cne $sha256 -or
     [string]$linkEvidence.entrySourceSha256 -cne $entrySourceSha256 -or
     [string]$linkEvidence.solutionSha256 -cne $solutionSha256) {
     Write-Failure "link_evidence_hash_mismatch"
+}
+
+if ($linkEvidence.bootPolicy -isnot [string] -or $linkEvidence.bootPolicy -cne $BootPolicy) {
+    Write-Failure 'boot_policy_evidence_mismatch'
 }
 
 $sourceClosureInputs = @($linkEvidence.sourceClosureInputs)
@@ -7307,6 +7330,7 @@ foreach ($pathBinding in $canonicalEvidencePathBindings) {
 }
 
 $postRestoreSnapshot = Invoke-PostRestoreEvaluationSnapshot `
+    -BootPolicy $BootPolicy `
     -DotnetHostPath $dotnetHostFullPath `
     -ProjectFullPath $projectFullPath `
     -Configuration $configuration `
@@ -8094,7 +8118,8 @@ if ($EnableM04SeededCollectorChurnProbe) {
 # helpers. RX containment establishes provenance only; guest callsite/ordering
 # review is still required for constructor invocation and firmware revocation.
 $retainedProfiles = @(
-    [pscustomobject]@{ Enabled=[bool]$EnableM03OwnedSubsystemSurvivalProbe; Name='owned_subsystem'; Symbols=@('OS_OS_Boot_EfiEntry_M03FirstExitAdapter__ReportOwnedSubsystems') },
+    [pscustomobject]@{ Enabled=($BootPolicy -eq 'VerifiedExit'); Name='normal_verified_exit'; Symbols=@('OS_OS_Boot_EfiEntry_M03FirstExitAdapter__WriteVerifiedExitBytes') },
+    [pscustomobject]@{ Enabled=([bool]$EnableM03OwnedSubsystemSurvivalProbe -or $BootPolicy -eq 'VerifiedExit'); Name='owned_subsystem'; Symbols=@('OS_OS_Boot_EfiEntry_M03FirstExitAdapter__ReportOwnedSubsystems') },
     [pscustomobject]@{ Enabled=[bool]$EnableM03OwnedSubsystemPanicProbe; Name='owned_subsystem_panic'; Symbols=@('OS_OS_Boot_EfiEntry_M03FirstExitAdapter__ReadOwnedGuard') },
     [pscustomobject]@{
         Enabled=[bool]$EnableM03FirmwareAdapterRevocationProbe; Name='firmware_revocation'; Symbols=@(
@@ -8143,7 +8168,7 @@ $firstExitSymbols = @(
 )
 foreach ($symbol in $firstExitSymbols) {
     $binding = [regex]::Matches($linkerMapText, '(?m)^\s*([0-9A-Fa-f]{4}):([0-9A-Fa-f]{8})\s+' + [regex]::Escape($symbol) + '\s+([0-9A-Fa-f]{16})\s+(.+?)\s*$')
-    if (-not $EnableM03FirstRealExitBootServicesProbe) {
+    if (-not $EnableM03FirstRealExitBootServicesProbe -and $BootPolicy -ne 'VerifiedExit') {
         if ($binding.Count -ne 0) { Write-Failure 'first_exit_unrequested_native_callback' $symbol }
         continue
     }

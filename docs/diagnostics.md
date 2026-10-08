@@ -2,6 +2,10 @@
 
 ## Current Status
 
+Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
+
+Normal exit is a separate boot policy, not an enabled diagnostic probe. All 52 probe properties remain false. Its 79-record stream ends with the three M03-011 completion records followed by ordinary success, all after the positive owned checks. Explicit diagnostic profiles preserve their earlier record contracts and evidence limits.
+
 The accepted finite `10.0.12` compiler qualification is recorded in
 [EFI build](efi-build.md#current-toolchain-migration). Historical diagnostic
 captures below remain source-bound. Dangerous probes retain their false

@@ -8,6 +8,10 @@ advance the ordinary `BootSequence` plan or ExitBootServices boundary.
 
 ## Current Status
 
+Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
+
+The ordinary policy uses `BootSequence.RunFirstRealExitBootServicesTransition` after copied ACPI, the original M01 stack/allocator preparation and only the five non-success boot-plan records. After real exit, permanent CR3/descriptor adoption and positive owned-subsystem checks, `ReportVerifiedExitCompletion` emits its three M03-011 records and the three ordinary success records through owned COM1. The existing halt remains terminal; no scheduler or workload follows.
+
 M04-020 runs inside the original module-registration diagnostic after its
 existing records. `Probes.EnableM04X64UnwindMetadataProbe` guards the
 `BootSequence.RunX64UnwindMetadata` lookup boundary. The child reuses the retained
@@ -53,7 +57,8 @@ plan, first-exit preparation, owned stack entry, one consumed firmware binding,
 final map/bounded exit retry, then terminal owned descriptor/CR3 adoption and COM1
 reporting. The adapter cannot resume the boot plan after entering the owned stack.
 `Probes.EnableM03FirstRealExitBootServicesProbe` owns its compile-time toggle;
-without the explicit symbol the boundary refuses before touching arena storage.
+without either its explicit diagnostic symbol or the normal-policy symbol,
+the boundary refuses before touching arena storage.
 The normal managed boot path is unchanged. [Step1032](../done/step1032.md)
 retains preparation; [step1051](../done/step1051.md) records the accepted terminal
 profile at `e64e9dc`. It does not establish general adapter revocation or a

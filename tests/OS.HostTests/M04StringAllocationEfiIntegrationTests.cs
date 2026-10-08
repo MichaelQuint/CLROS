@@ -285,8 +285,8 @@ internal static class M04StringAllocationEfiIntegrationTests
     {
         string root=HostToolProcess.FindRepositoryRoot();XDocument project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
         string[] items=project.Descendants("Compile").Select(x=>x.Attribute("Include")!.Value+"|"+(x.Attribute("Link")?.Value??"")).ToArray();
-        Need(items.Length==121 && items[81]=="..\\OS.Kernel\\Runtime\\GuestTestStringAllocationCharacterStorage.cs|Runtime\\GuestTestStringAllocationCharacterStorage.cs" &&
-            items[82]=="..\\OS.Kernel\\Diagnostics\\StringAllocationProbeAuthority.cs|Diagnostics\\StringAllocationProbeAuthority.cs","two exact String includes");
+        Need(items.Length==122 && items[82]=="..\\OS.Kernel\\Runtime\\GuestTestStringAllocationCharacterStorage.cs|Runtime\\GuestTestStringAllocationCharacterStorage.cs" &&
+            items[83]=="..\\OS.Kernel\\Diagnostics\\StringAllocationProbeAuthority.cs|Diagnostics\\StringAllocationProbeAuthority.cs","two exact String includes");
         foreach(var pair in new[]{(Flag,"M04_STRING_ALLOCATION_PROBE"),("EnableM04StringAllocationBeforeBindProbe","M04_STRING_ALLOCATION_BEFORE_BIND_PROBE"),("EnableM04StringAllocationExhaustionProbe","M04_STRING_ALLOCATION_EXHAUSTION_PROBE"),("EnableM04StringAllocationInvalidLengthProbe","M04_STRING_ALLOCATION_INVALID_LENGTH_PROBE")})
         {
             var value=project.Descendants(pair.Item1).Single();Need(value.Value=="false" && value.Attribute("Condition")?.Value=="'$("+pair.Item1+")' == ''","default false");
@@ -297,7 +297,7 @@ internal static class M04StringAllocationEfiIntegrationTests
             ("src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs","7a14fa23e28548fa94d30e5569f786a1ce4c5bbe2375ac5b23a493d06f20ebd5"),
             ("tests/OS.HostTests/GuestTestStringAllocationCharacterStorageTests.cs","ca62c5e77851f4b6d85e5be713abcbab21056681b1c1a463efdc076d0d991267"),
             ("tests/OS.HostTests/GuestTestRhpNewFastTests.cs","7a89abb2719a94e51a218370e62fe6a4cf217252eb9ba8ff7ae693fdbc8b940e"),
-            ("src/OS/Boot/EfiEntry.cs","ed928b6c966a76d27b108d7acf37ebe6d287d6a70ffd658105782360100dc5a5")})
+            ("src/OS/Boot/EfiEntry.cs","b68bc18fa8734829c03161ce874b192c683a8b13269387469cba916e71b69583")})
             Need(Hash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(root,file.Item1)).Replace("\r\n","\n",StringComparison.Ordinal)))==file.Item2,"reviewed host/entry source "+file.Item1);
         string adapter=File.ReadAllText(Path.Combine(root,"src/OS/Runtime/RhpNewFastAllocation.cs"));
         Need(adapter.Contains("GuestTestStringAllocationCharacterStorage.TryAllocate(*access, bump, 80,",StringComparison.Ordinal) &&
@@ -329,12 +329,12 @@ internal static class M04StringAllocationEfiIntegrationTests
         foreach(string[] flags in invalid)foreach(bool runner in new[]{false,true})
         {
             Result r=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(root,"scripts",runner?"run-qemu-smoke.ps1":"build-efi-shell.ps1"),
-                ..(runner?new[]{"-DryRun","-BuildEfi"}:new[]{"-PreflightOnly","-LogPath",Path.Combine(directory,"preflight-"+id+".log")}),..flags.Select(x=>"-"+x)]);
+                ..(runner?new[]{"-BootPolicy", "Diagnostic", "-DryRun","-BuildEfi"}:new[]{"-PreflightOnly","-LogPath",Path.Combine(directory,"preflight-"+id+".log")}),..flags.Select(x=>"-"+x)]);
             Save(Path.Combine(directory,(id++).ToString()),r);Need(r.Code!=0 && (r.Output.Contains("m04_",StringComparison.Ordinal) || (flags.Contains("EnableM03FirmwareEntropySeedProbe",StringComparer.Ordinal) && r.Output.Contains("m03_firmware_entropy_profile_conflict property=EnableM01LiveAllocatorProbe",StringComparison.Ordinal)) || (flags.Contains("EnableM03MemoryMapCaptureProbe",StringComparer.Ordinal) && r.Output.Contains("m03_memory_map_capture_profile_conflict property=EnableM01LoadedImageStackProbe",StringComparison.Ordinal))),"explicit profile rejection "+string.Join(',',flags)+" "+r.Output);
         }
         foreach(string[] flags in negatives.Select(x=>all.Append(x).ToArray()).Prepend(all))
         {
-            Result r=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(root,"scripts/run-qemu-smoke.ps1"),"-DryRun","-BuildEfi",..flags.Select(x=>"-"+x)]);
+            Result r=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(root,"scripts/run-qemu-smoke.ps1"),"-BootPolicy", "Diagnostic", "-DryRun","-BuildEfi",..flags.Select(x=>"-"+x)]);
             Save(Path.Combine(directory,(id++).ToString()),r);Need(r.Code==0,r.Output);
             Need(r.Output.Contains("TEST_FAIL m04.009",StringComparison.Ordinal),"negative profile keeps generic failure classification");
         }
@@ -352,9 +352,9 @@ internal static class M04StringAllocationEfiIntegrationTests
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
             foreach(var file in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(directory,file.Item2));
             using var document=System.Text.Json.JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=document.RootElement;
-            var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==137,"actual137 raw sources");
+            var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==138,"actual138 raw sources");
             foreach(var input in inputs)Need(Hash(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))==input.GetProperty("sha256").GetString(),"actual raw source unchanged");
-            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==121,"actual121 compile items");
+            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==122,"actual122 compile items");
             var flags=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
             Need(flags.Length==52,"complete52 evaluated flags");
             foreach(var f in flags)Need(f.Value.GetString()==(lane.Item2.Contains(f.Name,StringComparer.Ordinal)?"true":"false"),"actual requested/evaluated profile "+f.Name);
@@ -544,7 +544,7 @@ internal static class M04StringAllocationEfiIntegrationTests
         Need(source.Contains("QEMU_SCRIPT_M04_STRING_TRANSCRIPT exactWholeLines=true lines=72 allocations=7 used=200 count=7 terminal=true",StringComparison.Ordinal),"reported exact transcript line count");
         string defs=Between(source,"$script:M04IndependentEndianConformanceReadyMarker =","function Invoke-NativeCommand {");
         string functions=Between(source,"function Assert-M04ManagedHeapPageRangeTranscript {","function Assert-M04LayoutContractTranscript {");
-        Result dry=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(root,"scripts/run-qemu-smoke.ps1"),"-DryRun","-BuildEfi",..Chain.Append(Flag).Select(x=>"-"+x)]);
+        Result dry=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(root,"scripts/run-qemu-smoke.ps1"),"-BootPolicy", "Diagnostic", "-DryRun","-BuildEfi",..Chain.Append(Flag).Select(x=>"-"+x)]);
         Save(Path.Combine(directory,"dryrun"),dry);Need(dry.Code==0,dry.Output);
         string[] chain=dry.Output.Replace("\r","").Split('\n').Single(x=>x.StartsWith("ORDERED_MARKERS ",StringComparison.Ordinal))[16..].Split(';');
         List<string> lines=["TEST_START efi.main",..chain.Take(6),"UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 3","UEFI_MEMORY_MAP_OWNED","BOOT_HANDOFF_READY","UEFI_MEMORY_MAP_NORMALIZED","BOOT_MEMORY_MAP_ACCEPTED","BOOT_MEMORY_REGIONS_READY","BOOT_MEMORY_REGION_COUNT 3","BOOT_PAGE_ALLOCATOR_READY status=Ready regions=3 conventionalPages=20 conventionalBytes=81920 freeNodes=2 freePages=20 freeBytes=81920 pageSize=4096 statusCode=0","BOOT_ACPI_RSDP_HANDOFF_READY","UEFI_ACPI_RSDP_READY",..chain.Skip(6)];

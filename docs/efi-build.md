@@ -1,5 +1,30 @@
 # EFI Build
 
+## Ordinary verified-exit policy
+
+The #68/#594 core checkpoint in [step1089](../done/step1089.md) introduces
+`ClrosBootPolicy` in `src/OS/OS.csproj`: an unqualified project build selects
+`VerifiedExit`; selecting any existing diagnostic probe chooses `Diagnostic`.
+An explicit `ClrosBootPolicy=Diagnostic` retains firmware-visible ordinary
+compatibility when no probe is selected. Combining `VerifiedExit` with a probe,
+or supplying an unknown policy, fails project validation. Diagnostic probe
+defaults themselves remain false; the normal policy has its own compile symbol.
+
+The publication and runner integration in [step1090](../done/step1090.md) adds
+`-BootPolicy VerifiedExit|Diagnostic` to the build, artifact-verification and smoke
+scripts. Omitting it selects normal exit unless an explicit diagnostic probe is
+requested. The ordinary smoke command automatically builds a fresh EFI and image;
+explicitly disabling that build or overriding its marker contract is rejected.
+The native evidence records the selected policy and verifies it again against
+MSBuild and the requested artifact profile. The normal image has 122 explicit
+compile items, 138 source-authority inputs and all 52 diagnostic properties false.
+
+Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
+
+The five diagnostic regressions are firmware-visible compatibility, first exit, owned survival, adapter revocation and expected owned panic. Their EFI bytes exactly match their retained accepted images. Failed full runs and fixture corrections remain in steps1091–1093; the earlier failed wrapper is preserved in step1090.
+
+This is a bounded terminal boot path. It reuses the original retained allocator and copied ACPI, adopts owned descriptors/page tables and reports through owned COM1. It does not reclaim firmware pages or start a continuing workload. General EH, hosted .NET/Kestrel, live storage/networking, cloud and production readiness remain unproved; numbered gate statuses are unchanged.
+
 ## Current toolchain migration
 
 Issue #590 moves the selected freestanding ILCompiler and NativeAOT runtime pack

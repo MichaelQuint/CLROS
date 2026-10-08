@@ -15,9 +15,9 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
     private const string FailureMarker =
         "M04_SPAN_MEMORY_CONFORMANCE_FAILED";
     private const string CompileClosureSha256 =
-        "8f97464a82c221d17190da6d5347e5fa998a5863dae0edb4a7012f8ec9bb8ab1";
+        "96f295814495f98ed4cc3b394429a5ea8206004c0806a22f0ab8144856a0058d";
     private const string ProjectFileSha256 =
-        "747371752dabbf531a847b4928a991e219151913ad2972e225b7f8306ee96aee";
+        "ef6bc679f6411780b5e31fe82ab7651eecbe3785046b35ce9462c514ec384705";
     private const string FrozenProductionSha256 =
         "0c818f89ecc761a4e5692ce3970e98d577381b98bbe540f6ec5f154130c12153";
     private const string FrozenHostTestSha256 =
@@ -145,7 +145,7 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
             "SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests.cs");
         string production = File.ReadAllText(productionPath);
 
-        return compileItems.Length == 121
+        return compileItems.Length == 122
             && compileHash == CompileClosureSha256
             && Sha256File(projectPath) == ProjectFileSha256
             && endianIndex >= 0
@@ -183,7 +183,7 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
     {
         string root = FindRepositoryRoot();
         string source = File.ReadAllText(
-            Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs"));
+            Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs")).Replace("\r\n", "\n", StringComparison.Ordinal);
         string probe = ExtractMethod(
             source,
             "private static bool WriteM04SpanMemoryConformanceProbe(");
@@ -330,7 +330,7 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
         return build.Contains("[switch] $" + Flag, StringComparison.Ordinal)
             && build.Contains(CompileKey, StringComparison.Ordinal)
             && build.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=137",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=138",
                 StringComparison.Ordinal)
             && build.Contains(
                 "-p:" + Flag + "=true",
@@ -352,20 +352,20 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
                 StringComparison.Ordinal)
             && verifier.Contains("[switch]$" + Flag, StringComparison.Ordinal)
             && verifier.Contains(
-                "$expectedSourceClosureInputCount = 137",
+                "$expectedSourceClosureInputCount = 138",
                 StringComparison.Ordinal)
             && verifierTests.Contains(
-                "ExpectedSourceClosureInputCount = 137",
+                "ExpectedSourceClosureInputCount = 138",
                 StringComparison.Ordinal)
             && verifierTests.Contains(
-                "[\"compileCount\"] = 121",
+                "[\"compileCount\"] = 122",
                 StringComparison.Ordinal)
             && verifierTests.Contains(
                 "[\"EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe\"] =\n                \"false\"",
                 StringComparison.Ordinal)
             && verifier.Contains(CompileKey, StringComparison.Ordinal)
             && verifier.Contains(
-                "$compileItems.Count -ne 121",
+                "$compileItems.Count -ne 122",
                 StringComparison.Ordinal)
             && verifier.Contains(
                 "-p:" + Flag + "=true",
@@ -513,6 +513,8 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
         start.ArgumentList.Add("Bypass");
         start.ArgumentList.Add("-File");
         start.ArgumentList.Add(script);
+        start.ArgumentList.Add("-BootPolicy");
+        start.ArgumentList.Add("Diagnostic");
         start.ArgumentList.Add("-DryRun");
         foreach (string argument in extraArguments)
         {

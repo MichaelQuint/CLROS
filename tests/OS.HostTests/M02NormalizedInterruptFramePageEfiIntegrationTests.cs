@@ -26,9 +26,9 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
     private const string FailureTestMarker =
         "TEST_FAIL m02.010 guest_materialization_readback_or_cleanup";
     private const string CompileClosureSha256 =
-        "8f97464a82c221d17190da6d5347e5fa998a5863dae0edb4a7012f8ec9bb8ab1";
+        "96f295814495f98ed4cc3b394429a5ea8206004c0806a22f0ab8144856a0058d";
     private const string CanonicalProjectShapeSha256 =
-        "522ed563b04cf92e693e11b76f03c05c0da00cfa4c8a2adad5ac3f5eee07adbb";
+        "70b5a8737c78658b7f702f3deaa881d224ef2a4ce04116a8ee92523568748f5a";
     private const string FrozenProductionSha256 =
         "B66CD19B45E8198897B837DF9EDA6934AFBE087DC141C468BD0DB44E62724DA1";
     private const string FrozenHostLeafSha256 =
@@ -170,7 +170,7 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
                 "Probes.cs"));
 
         return ReadyMarker.Length == 370
-            && compileItems.Length == 121
+            && compileItems.Length == 122
             && compileHash == CompileClosureSha256
             && terminalIndex >= 0
             && normalizedIndex == terminalIndex + 1
@@ -203,7 +203,7 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
                 CanonicalProjectShapeSha256,
                 StringComparison.Ordinal)
             && build.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=137",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=138",
                 StringComparison.Ordinal)
             && build.Contains(NormalizedKey, StringComparison.Ordinal)
             && build.Contains(
@@ -213,10 +213,10 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
                 "[switch]$EnableM02NormalizedInterruptFramePageProbe",
                 StringComparison.Ordinal)
             && verifier.Contains(
-                "$expectedSourceClosureInputCount = 137",
+                "$expectedSourceClosureInputCount = 138",
                 StringComparison.Ordinal)
             && verifier.Contains(
-                "$compileItems.Count -ne 121",
+                "$compileItems.Count -ne 122",
                 StringComparison.Ordinal)
             && verifier.Contains(NormalizedKey, StringComparison.Ordinal)
             && verifier.Contains(
@@ -247,7 +247,7 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
     {
         string root = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
-            Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs"));
+            Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs")).Replace("\r\n", "\n", StringComparison.Ordinal);
         string probe = ExtractMethod(
             source,
             "private static bool WriteM02NormalizedInterruptFramePageProbe(");
@@ -876,6 +876,8 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
         start.ArgumentList.Add("-File");
         start.ArgumentList.Add(script);
         start.ArgumentList.Add("-DryRun");
+        start.ArgumentList.Add("-BootPolicy");
+        start.ArgumentList.Add("Diagnostic");
         foreach (string argument in arguments)
         {
             start.ArgumentList.Add(argument);

@@ -15,7 +15,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
         "guestPortIo=true guestIn8=true postExitBootServices=false";
     private const string FailureMarker = "M02_OWNED_COM1_READY_FAILED";
     private const string CompileClosureSha256 =
-        "8f97464a82c221d17190da6d5347e5fa998a5863dae0edb4a7012f8ec9bb8ab1";
+        "96f295814495f98ed4cc3b394429a5ea8206004c0806a22f0ab8144856a0058d";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -150,7 +150,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 121
+        return compileItems.Length == 122
             && compileHash == CompileClosureSha256
             && backendIndex >= 0
             && writerIndex == backendIndex + 1
@@ -224,7 +224,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
                 "m02_owned_com1_ready_requires_com1_owned_port_io",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=137",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=138",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 "\"-EnableM02OwnedCom1ReadyProbe\",\n            \"true\"",
@@ -236,10 +236,10 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
                 "[switch]$EnableM02OwnedCom1ReadyProbe",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 137",
+                "$expectedSourceClosureInputCount = 138",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 121",
+                "$compileItems.Count -ne 122",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
                 "-p:EnableM02OwnedCom1ReadyProbe=true",
@@ -250,7 +250,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
     {
         string root = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
-            Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs"));
+            Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs")).Replace("\r\n", "\n", StringComparison.Ordinal);
 
         int m02Configuration = source.IndexOf(
             "M02Com1OwnedPortIoBackendIntegration.Configure(",
@@ -362,7 +362,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
     {
         string root = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
-            Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs"));
+            Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs")).Replace("\r\n", "\n", StringComparison.Ordinal);
         string reconstructedReady = ExtractAsciiMarker(
             source,
             "private static void WriteM02OwnedCom1ReadySuccessLine(");

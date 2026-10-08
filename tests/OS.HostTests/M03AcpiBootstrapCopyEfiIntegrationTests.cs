@@ -324,7 +324,7 @@ internal static class M03AcpiBootstrapCopyEfiIntegrationTests
         var flags=Regex.Matches(File.ReadAllText(script).Split("$ErrorActionPreference",StringSplitOptions.None)[0],@"\[switch\]\s+\$(Enable\w+)").Select(m=>m.Groups[1].Value).ToArray();
         Need(flags.Length==52,"actual current requested profile vector");
         foreach(string other in flags.Where(x=>x!="EnableAcpiPhysicalDiscoveryProbe"))Reject([..positive,"-"+other]);
-        Result markerOnly=Dry("-MarkerPreset","acpi");Passed(markerOnly);
+        Result markerOnly=Dry("-BootPolicy","Diagnostic","-MarkerPreset","acpi");Passed(markerOnly);
         Need(!markerOnly.Output.Contains("CLROS_M03_002_",StringComparison.Ordinal),"historical marker-only preset remains separate");
         Need(Hash(script)==before,"unchanged actual smoke source");
     }
@@ -460,7 +460,7 @@ internal static class M03AcpiBootstrapCopyEfiIntegrationTests
         foreach(bool enabled in new[]{false,true})
         {
             string directory=Scratch(enabled?"enabled":"default"),artifact=Path.Combine(root,"artifacts/efi/issue539-"+Guid.NewGuid().ToString("N")+".EFI");
-            Result result=Process(directory,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(root,"scripts/build-efi-shell.ps1"),"-EfiOutputPath",artifact,"-LogPath",Path.Combine(directory,"publish.log"),..(enabled?new[]{"-EnableAcpiPhysicalDiscoveryProbe"}:Array.Empty<string>())]);Passed(result);
+            Result result=Process(directory,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(root,"scripts/build-efi-shell.ps1"),"-BootPolicy","Diagnostic","-EfiOutputPath",artifact,"-LogPath",Path.Combine(directory,"publish.log"),..(enabled?new[]{"-EnableAcpiPhysicalDiscoveryProbe"}:Array.Empty<string>())]);Passed(result);
             Need(result.Output.Contains("TEST_PASS efi.shell.publish",StringComparison.Ordinal)&&result.Output.Contains("TEST_PASS efi.artifact.verify",StringComparison.Ordinal),"actual producer/verifier");
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
             foreach(var pair in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,pair.Item1),Path.Combine(directory,pair.Item2));

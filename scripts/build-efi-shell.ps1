@@ -1,5 +1,6 @@
 [CmdletBinding()]
 param(
+    [string] $BootPolicy = "",
     [ValidateSet("Release", "Debug")]
     [string] $Configuration = "Release",
     [string] $Runtime = "win-x64",
@@ -83,6 +84,19 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# A normal boot policy never turns diagnostic probe switches on.
+$selectedDiagnosticProbe = @($PSBoundParameters.Keys | Where-Object {
+    $_ -match '^Enable\w+Probe$' -and [bool]$PSBoundParameters[$_]
+}).Count -ne 0
+if ($BootPolicy -ne '' -and $BootPolicy -notin @('VerifiedExit', 'Diagnostic')) {
+    Write-Host 'TEST_FAIL efi.shell.publish clros_boot_policy_invalid'; exit 1
+}
+if ($BootPolicy -eq '') { $BootPolicy = if ($selectedDiagnosticProbe) { 'Diagnostic' } else { 'VerifiedExit' } }
+$BootPolicy = if ($BootPolicy -eq 'VerifiedExit') { 'VerifiedExit' } else { 'Diagnostic' }
+if ($BootPolicy -eq 'VerifiedExit' -and $selectedDiagnosticProbe) {
+    Write-Host 'TEST_FAIL efi.shell.publish clros_boot_policy_probe_conflict'; exit 1
+}
+
 $script:EfiPreflightLines = New-Object System.Collections.Generic.List[string]
 
 $script:ExpectedEfiCompileItems = @(
@@ -96,6 +110,7 @@ $script:ExpectedEfiCompileItems = @(
     '..\OS.Kernel\Boot\UefiMemoryMapCapture.cs|Boot\UefiMemoryMapCapture.cs',
     '..\OS.Kernel\Boot\UefiMemoryMapCopyPlan.cs|Boot\UefiMemoryMapCopyPlan.cs',
     '..\OS.Kernel\Boot\BootSequencePlan.cs|Boot\BootSequencePlan.cs',
+    '..\OS.Kernel\Boot\VerifiedExitPathOptDefaultRepeatedCleanQEMU.cs|Boot\VerifiedExitPathOptDefaultRepeatedCleanQEMU.cs',
     '..\OS.Kernel\Boot\TypedPhysicalVirtualDeviceAddressPODWrappers.cs|Boot\TypedPhysicalVirtualDeviceAddressPODWrappers.cs',
     '..\OS.Kernel\Memory\BootReservedRange.cs|Memory\BootReservedRange.cs',
     '..\OS.Kernel\Memory\BootReservationTableValidator.cs|Memory\BootReservationTableValidator.cs',
@@ -1872,6 +1887,7 @@ function Get-M01MsbuildIsolationContract {
 
 function Invoke-M01PostRestoreEvaluation {
     param(
+        [string] $BootPolicy = "",
         [string] $RepositoryRoot,
         [string] $ProjectPath,
         [string] $Configuration,
@@ -1946,6 +1962,13 @@ function Invoke-M01PostRestoreEvaluation {
         [bool] $ExitBootServicesFreshMapEnabled,
         [bool] $AcpiPhysicalDiscoveryEnabled
     )
+    if ($BootPolicy -eq '') {
+        $diagnosticSelected = @($PSBoundParameters.Keys | Where-Object {
+            $_ -like '*Enabled' -and [bool]$PSBoundParameters[$_]
+        }).Count -ne 0
+        $BootPolicy = if ($diagnosticSelected) { 'Diagnostic' } else { 'VerifiedExit' }
+    }
+
 
     $canonicalRootPropsPath = Join-Path $RepositoryRoot "Directory.Build.props"
     $canonicalRootTargetsPath = Join-Path $RepositoryRoot "Directory.Build.targets"
@@ -1954,11 +1977,12 @@ function Invoke-M01PostRestoreEvaluation {
     $arguments = @(
         "msbuild",
         $ProjectPath,
+        ("-p:ClrosBootPolicy=" + $BootPolicy),
         "-noAutoResponse",
         "-nologo",
         "-getItem:Compile,ProjectReference,Reference,Analyzer",
         (
-            "-getProperty:" +
+            "-getProperty:ClrosBootPolicy," +
             "_targetOS,_targetArchitecture,RuntimeIdentifier," +
             "TargetFramework,PublishAot,SelfContained,PublishTrimmed," +
             "EnableM02OwnedCom1ReadyProbe," +
@@ -2250,6 +2274,7 @@ function Invoke-M01PostRestoreEvaluation {
     }
 
     $expectedProperties = [ordered] @{
+        ClrosBootPolicy = $BootPolicy
         _targetOS = "win"
         _targetArchitecture = "x64"
         RuntimeIdentifier = $Runtime
@@ -5086,6 +5111,14 @@ function Test-M01ActiveSourceSurface {
         [string] $SourceName
     )
 
+    # Reviewed normal-policy branches and bounded owned completion formatter.
+    # Do not admit other conditional source or changed bytes by filename alone.
+    if ([string]::Equals($SourceName, '..\OS.Kernel\Boot\VerifiedExitPathOptDefaultRepeatedCleanQEMU.cs', [StringComparison]::Ordinal)) {
+        $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
+        if ($identity -cne '88bcd72084f8398e8dd97bcc878976af7c90e2e859b9c2268ac97215049eb9a8') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_normal_exit_policy_identity'; ActiveText='' } }
+        return [pscustomobject]@{ Succeeded=$true; Reason='ok'; Detail=''; ActiveText=$SourceText }
+    }
+
     # The reviewed scalar layout leaf uses compiler attributes, const version
     # strings and an enum member named String. Admit only that complete frozen
     # source, not those constructs in arbitrary kernel input. Normalize CRLF
@@ -5876,6 +5909,7 @@ function Test-M01BuildCustomizationSurface {
 
 function Test-M01EvaluatedSourceClosure {
     param(
+        [string] $BootPolicy = "",
         [string] $RepositoryRoot,
         [string] $ProjectPath,
         [string] $Configuration,
@@ -5932,6 +5966,13 @@ function Test-M01EvaluatedSourceClosure {
         [bool] $ExitBootServicesFreshMapEnabled,
         [bool] $AcpiPhysicalDiscoveryEnabled
     )
+    if ($BootPolicy -eq '') {
+        $diagnosticSelected = @($PSBoundParameters.Keys | Where-Object {
+            $_ -like '*Enabled' -and [bool]$PSBoundParameters[$_]
+        }).Count -ne 0
+        $BootPolicy = if ($diagnosticSelected) { 'Diagnostic' } else { 'VerifiedExit' }
+    }
+
 
     $projectDirectory = Split-Path -Parent $ProjectPath
     $canonicalRootPropsPath = Join-Path $RepositoryRoot "Directory.Build.props"
@@ -5948,6 +5989,7 @@ function Test-M01EvaluatedSourceClosure {
     $evaluationIsolation = Get-M01MsbuildIsolationContract `
         -ProjectExtensionsDirectory $evaluationExtensionsPath
     $expectedSwitchValues = [ordered] @{
+        ClrosBootPolicy = $BootPolicy
         "EnableM01LoadedImageStackProbe" =
             $LoadedImageStackEnabled.ToString().ToLowerInvariant()
         "EnableM01LiveAllocatorProbe" =
@@ -6048,6 +6090,7 @@ function Test-M01EvaluatedSourceClosure {
             $M04CheckedReferenceBarrierEnabled.ToString().ToLowerInvariant()
     }
     $expectedSwitchSymbols = [ordered] @{
+        CLROS_NORMAL_VERIFIED_EXIT = ($BootPolicy -eq "VerifiedExit")
         "M01_LOADED_IMAGE_STACK_PROBE" = $LoadedImageStackEnabled
         "M01_LIVE_ALLOCATOR_PROBE" = $LiveAllocatorEnabled
         "M01_OWNED_PAGING_PROBE" = $OwnedPagingEnabled
@@ -6144,6 +6187,7 @@ function Test-M01EvaluatedSourceClosure {
         $arguments = @(
             "msbuild",
             $ProjectPath,
+            ("-p:ClrosBootPolicy=" + $BootPolicy),
             "-noAutoResponse",
             "-nologo",
             (
@@ -6152,7 +6196,7 @@ function Test-M01EvaluatedSourceClosure {
                 "_ClrosX64SerializerGeneratorInput"
             ),
             (
-                "-getProperty:" +
+                "-getProperty:ClrosBootPolicy," +
                 "Configuration," +
                 "EnableM01LoadedImageStackProbe," +
                 "EnableM01LiveAllocatorProbe," +
@@ -6957,6 +7001,7 @@ function Test-M01EvaluatedSourceClosure {
 
 function Test-M01SourceClosure {
     param(
+        [string] $BootPolicy = "",
         [string] $RepositoryRoot,
         [string] $ProjectPath,
         [string] $Configuration,
@@ -7013,6 +7058,13 @@ function Test-M01SourceClosure {
         [bool] $ExitBootServicesFreshMapEnabled,
         [bool] $AcpiPhysicalDiscoveryEnabled
     )
+    if ($BootPolicy -eq '') {
+        $diagnosticSelected = @($PSBoundParameters.Keys | Where-Object {
+            $_ -like '*Enabled' -and [bool]$PSBoundParameters[$_]
+        }).Count -ne 0
+        $BootPolicy = if ($diagnosticSelected) { 'Diagnostic' } else { 'VerifiedExit' }
+    }
+
 
     $canonicalProjectPath = [System.IO.Path]::GetFullPath(
         (Join-Path $RepositoryRoot "src\OS\OS.csproj"))
@@ -7058,7 +7110,7 @@ function Test-M01SourceClosure {
 
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "522ed563b04cf92e693e11b76f03c05c0da00cfa4c8a2adad5ac3f5eee07adbb") {
+        "70b5a8737c78658b7f702f3deaa881d224ef2a4ce04116a8ee92523568748f5a") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `
@@ -7201,7 +7253,7 @@ function Test-M01SourceClosure {
         "EnableExitBootServicesFreshMapProbe" = "EXIT_BOOT_SERVICES_FRESH_MAP_PROBE"
         "EnableAcpiPhysicalDiscoveryProbe" = "ACPI_PHYSICAL_DISCOVERY_PROBE"
     }
-    if ($defineNodes.Count -ne (1 + $allowedConditionalSymbols.Count)) {
+    if ($defineNodes.Count -ne (2 + $allowedConditionalSymbols.Count)) {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "define_constants_shape_invalid" `
@@ -7248,6 +7300,36 @@ function Test-M01SourceClosure {
                 -Reason "switch_symbol_invalid" `
             -Detail $entry.Key
         }
+    }
+
+    $probeConditions = @($allowedConditionalSymbols.Keys | Sort-Object | ForEach-Object {
+        "'`$(" + $_ + ")' == 'true'"
+    })
+    $probeCondition = $probeConditions -join ' or '
+    $policyNodes = @($project.SelectNodes('/Project/PropertyGroup/ClrosBootPolicy'))
+    $policySymbol = @($project.SelectNodes('/Project/PropertyGroup') | Where-Object {
+        $_.GetAttribute('Condition') -ceq "'`$(ClrosBootPolicy)' == 'VerifiedExit'"
+    })
+    $policyTargets = @($project.SelectNodes('/Project/Target[@Name="ValidateClrosBootPolicy"]'))
+    $policyErrors = @($project.SelectNodes('/Project/Target[@Name="ValidateClrosBootPolicy"]/Error'))
+    $policyShapeValid = $policyNodes.Count -eq 2 -and $policySymbol.Count -eq 1 -and
+        $policyTargets.Count -eq 1 -and $policyErrors.Count -eq 2
+    if ($policyShapeValid) {
+        $policyShapeValid = $policyNodes[0].InnerText -ceq 'Diagnostic' -and
+            ($policyNodes[0].GetAttribute('Condition') -replace '\s+', ' ') -ceq ("'`$(ClrosBootPolicy)' == '' and ( " + $probeCondition + ')') -and
+            $policyNodes[1].InnerText -ceq 'VerifiedExit' -and
+            $policyNodes[1].GetAttribute('Condition') -ceq "'`$(ClrosBootPolicy)' == ''" -and
+            $policySymbol[0].SelectNodes('*').Count -eq 1 -and
+            $policySymbol[0].DefineConstants -ceq '$(DefineConstants);CLROS_NORMAL_VERIFIED_EXIT' -and
+            $policyTargets[0].GetAttribute('BeforeTargets') -ceq 'BeforeCompile' -and
+            $policyTargets[0].SelectNodes('*').Count -eq 2 -and
+            $policyErrors[0].GetAttribute('Condition') -ceq "'`$(ClrosBootPolicy)' != 'VerifiedExit' and '`$(ClrosBootPolicy)' != 'Diagnostic'" -and
+            $policyErrors[0].GetAttribute('Text') -ceq 'clros_boot_policy_invalid' -and
+            ($policyErrors[1].GetAttribute('Condition') -replace '\s+', ' ') -ceq ("'`$(ClrosBootPolicy)' == 'VerifiedExit' and ( " + $probeCondition + ')') -and
+            $policyErrors[1].GetAttribute('Text') -ceq 'clros_boot_policy_probe_conflict'
+    }
+    if (-not $policyShapeValid) {
+        return New-M01SourceClosureResult -Succeeded $false -Reason 'boot_policy_shape_invalid' -Detail 'ClrosBootPolicy'
     }
 
     $m02Ud2VectorStateImplications = [ordered] @{
@@ -9010,6 +9092,7 @@ function Test-M01SourceClosure {
     }
 
     $evaluatedClosure = Test-M01EvaluatedSourceClosure `
+        -BootPolicy $BootPolicy `
         -RepositoryRoot $RepositoryRoot `
         -ProjectPath $canonicalProjectPath `
         -Configuration $Configuration `
@@ -9251,8 +9334,8 @@ try {
             (Format-EvidenceValue $_.Exception.Message))
         exit 1
     }
-    if ($sourceSnapshotBeforePublish.InputCount -ne 137 -or
-        $sourceSnapshotAfterLock.InputCount -ne 137 -or
+    if ($sourceSnapshotBeforePublish.InputCount -ne 138 -or
+        $sourceSnapshotAfterLock.InputCount -ne 138 -or
         $sourceSnapshotBeforePublish.AggregateSha256 -cne
             $sourceSnapshotAfterLock.AggregateSha256 -or
         $sourceSnapshotBeforePublish.AuthoritySha256 -cne
@@ -9265,7 +9348,8 @@ try {
         exit 1
     }
     Write-Host "EFI_PUBLISH_SOURCE_LOCK status=ok"
-    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=137"
+    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=138"
+    Write-Host ("EFI_PREFLIGHT_BOOT_POLICY policy=" + $BootPolicy)
 
 Write-EfiPreflightLine "EFI_PREFLIGHT_START"
 if ($EnableM03FirmwareAdapterRevocationProbe -and -not $EnableM03FirstRealExitBootServicesProbe) { Write-Output "TEST_FAIL efi.shell.publish m03_revocation_requires_first_exit"; exit 1 }
@@ -10562,6 +10646,7 @@ Write-EfiPreflightLine (
     "EFI_PREFLIGHT_M04_SWITCHES status=ok " + $m04SwitchEvidence)
 
 $m01SourceClosure = Test-M01SourceClosure `
+    -BootPolicy $BootPolicy `
     -RepositoryRoot $repositoryRoot `
     -ProjectPath $efiProjectPath `
     -Configuration $Configuration `
@@ -11118,6 +11203,7 @@ $ilcMibcPath = (
     [System.IO.Path]::DirectorySeparatorChar
 
 $projectExtensionArguments = @(
+    ("-p:ClrosBootPolicy=" + $BootPolicy),
     ("-p:MSBuildProjectExtensionsPath=" + $projectExtensionsArgumentPath),
     ("-p:RestoreOutputPath=" + $projectExtensionsArgumentPath),
     ("-p:ProjectAssetsFile=" + $projectAssetsArgumentPath),
@@ -11521,6 +11607,7 @@ $methodImplAttributeSourcePath = Join-Path $repositoryRoot (
     }
 
     $m01LockedSourceClosure = Test-M01SourceClosure `
+        -BootPolicy $BootPolicy `
         -RepositoryRoot $repositoryRoot `
         -ProjectPath $efiProjectPath `
         -Configuration $Configuration `
@@ -11771,6 +11858,7 @@ try {
         throw "package closure changed before lock"
     }
     $postRestoreEvaluation = Invoke-M01PostRestoreEvaluation `
+        -BootPolicy $BootPolicy `
         -RepositoryRoot $repositoryRoot `
         -ProjectPath $efiProjectPath `
         -Configuration $Configuration `
@@ -12290,6 +12378,7 @@ if ($exitCode -eq 0) {
     $linkEvidence = [ordered] @{
         schemaVersion = 3
         configuration = $Configuration
+        bootPolicy = $BootPolicy
         runtimeIdentifier = $Runtime
         artifactSha256 = $artifactHash
         artifactBytes = (Get-Item -LiteralPath $efiFullPath).Length
@@ -12515,6 +12604,8 @@ if ($exitCode -eq 0) {
         "Bypass",
         "-File",
         $verifierScript,
+        "-BootPolicy",
+        $BootPolicy,
         "-EfiArtifact",
         $efiFullPath,
         "-ProjectPath",

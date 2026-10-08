@@ -48,7 +48,7 @@ internal static unsafe class M03OwnedSubsystemSurvivalEfiIntegrationTests
         int vectorCount = System.Text.RegularExpressions.Regex.Matches(project.ToString(), @"\$\((Enable\w+Probe)\)")
             .Select(m => m.Groups[1].Value).Distinct(StringComparer.Ordinal).Count();
         Need(vectorCount == 52 && flags.Length == 49 && flags.All(e => e.Value == "false"), "actual 52-property / 49-literal-default profile");
-        Need(project.Descendants("Compile").Count() == 121, "actual explicit 121-file compile closure");
+        Need(project.Descendants("Compile").Count() == 122, "actual explicit 122-file compile closure including the normal policy");
         foreach (string flag in new[] { "EnableM03OwnedSubsystemSurvivalProbe", "EnableM03OwnedSubsystemPanicProbe" })
         {
             Need(flags.Single(e => e.Name.LocalName == flag).Value == "false", "literal child default " + flag);
@@ -57,12 +57,12 @@ internal static unsafe class M03OwnedSubsystemSurvivalEfiIntegrationTests
                     (Read(path).Contains("-" + flag, StringComparison.Ordinal) || Read(path).Contains("-p:" + flag + "=", StringComparison.Ordinal)),
                     "explicit propagated child " + path);
         }
-        Need(Read("scripts/test-efi-artifact.ps1").Contains("$expectedSourceClosureInputCount = 137", StringComparison.Ordinal), "raw source count includes allocator leaf");
+        Need(Read("scripts/test-efi-artifact.ps1").Contains("$expectedSourceClosureInputCount = 138", StringComparison.Ordinal), "raw source count includes allocator and normal-policy leaves");
         string publisher = Read("scripts/build-efi-shell.ps1");
-        Need(publisher.Contains("$sourceSnapshotBeforePublish.InputCount -ne 137", StringComparison.Ordinal) &&
-            publisher.Contains("$sourceSnapshotAfterLock.InputCount -ne 137", StringComparison.Ordinal) &&
-            publisher.Contains("EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=137", StringComparison.Ordinal),
-            "original unlocked/locked publisher authority admits the actual 137 inputs");
+        Need(publisher.Contains("$sourceSnapshotBeforePublish.InputCount -ne 138", StringComparison.Ordinal) &&
+            publisher.Contains("$sourceSnapshotAfterLock.InputCount -ne 138", StringComparison.Ordinal) &&
+            publisher.Contains("EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=138", StringComparison.Ordinal),
+            "original unlocked/locked publisher authority admits the actual 138 inputs");
         string entry = Read("src/OS/Boot/EfiEntry.cs");
         int start = entry.IndexOf("private static bool ReportOwnedSubsystems", StringComparison.Ordinal);
         int end = entry.IndexOf("private static bool OwnedFailure", start, StringComparison.Ordinal);
@@ -135,6 +135,11 @@ internal static unsafe class M03OwnedSubsystemSurvivalEfiIntegrationTests
         string[] positive = Capture(false);
         Need(positive.Length == 76 && Frame(positive).Count(c => c == '\n') == 78, "positive application/stream counts");
         File.WriteAllText(Path.Combine(scratch, "positive.log"), Frame(positive), new UTF8Encoding(false));
+        string[] normal = [..positive.Take(52), ..positive.Skip(55),
+            "TEST_START m03.011", "CLROS_M03_011_READY", "TEST_PASS m03.011", ..positive.Skip(52).Take(3)];
+        Need(normal.Length == 79 && normal[52] == "TEST_START m03.007" && normal[63] == "TEST_START m03.010" &&
+            normal[78] == "OS_SMOKE_PASS", "normal success follows real-exit and positive-owned records");
+        File.WriteAllText(Path.Combine(scratch, "normal.log"), Frame(normal), new UTF8Encoding(false));
     }
     private static void WholeTranscript()
     {
@@ -149,6 +154,7 @@ internal static unsafe class M03OwnedSubsystemSurvivalEfiIntegrationTests
         File.WriteAllText(Path.Combine(scratch, "stdout.log"), stdout); File.WriteAllText(Path.Combine(scratch, "stderr.log"), stderr);
         File.WriteAllText(Path.Combine(scratch, "process.json"), JsonSerializer.Serialize(new { start.FileName, Args = start.ArgumentList, process.ExitCode }));
         Need(process.ExitCode == 0 && stderr.Length == 0 && stdout.Contains("TEST_PASS m03.010.parser controls=12", StringComparison.Ordinal), "whole transcript controls: " + stdout + stderr);
+        Need(stdout.Contains("TEST_PASS m03.011.parser controls=248", StringComparison.Ordinal), "complete normal transcript rejection coverage");
     }
     private const string Script = """
         param([string]$Source,[string]$Directory)
@@ -164,9 +170,9 @@ internal static unsafe class M03OwnedSubsystemSurvivalEfiIntegrationTests
             Invoke-Expression $a[0].Extent.Text
         }
         $positive=[IO.File]::ReadAllText((Join-Path $Directory 'positive.log'));$panic=[IO.File]::ReadAllText((Join-Path $Directory 'panic.log'));$script:cases=0
-        function Check([string]$text,[bool]$control,[bool]$expected){
+        function Check([string]$text,[bool]$control,[bool]$expected,[bool]$normal=$false){
             $path=Join-Path $Directory ('case-'+$script:cases+'.log');[IO.File]::WriteAllText($path,$text,(New-Object Text.UTF8Encoding($false)))
-            $accepted=$true;try{Assert-M03AcpiBootstrapTranscript $path -FirstRealExit -OwnedSurvival -OwnedPanic:$control}catch{$accepted=$false;$reason=$_.Exception.Message}
+            $accepted=$true;try{Assert-M03AcpiBootstrapTranscript $path -FirstRealExit -OwnedSurvival -OwnedPanic:$control -NormalBoot:$normal}catch{$accepted=$false;$reason=$_.Exception.Message}
             if($accepted -ne $expected){throw ('case '+$script:cases+' '+$reason)};$script:cases++
         }
         Check $positive $false $true
@@ -182,6 +188,34 @@ internal static unsafe class M03OwnedSubsystemSurvivalEfiIntegrationTests
         Check ($panic.Replace("`r`n","`n")) $true $false
         Check ('X'+$panic.Substring(1)) $true $false
         Write-Output ('TEST_PASS m03.010.parser controls='+$script:cases)
+        $before=$script:cases
+        $normal=[IO.File]::ReadAllText((Join-Path $Directory 'normal.log'))
+        Check $normal $false $true $true
+        Check $positive $false $false $true
+        Check $normal $false $false $false
+        Check $normal $true $false $true
+        $prefix=$normal.Substring(0,304)
+        $rows=@($normal.Substring(304).Split([string[]]@("`r`n"),[StringSplitOptions]::None)[0..78])
+        for($i=0;$i -lt 79;$i++){
+            $deleted=@();$duplicated=@()
+            for($j=0;$j -lt 79;$j++){
+                if($i -ne $j){$deleted+=$rows[$j]}
+                $duplicated+=$rows[$j];if($i -eq $j){$duplicated+=$rows[$j]}
+            }
+            Check ($prefix+[string]::Join("`r`n",$deleted)+"`r`n") $false $false $true
+            Check ($prefix+[string]::Join("`r`n",$duplicated)+"`r`n") $false $false $true
+            if($i -lt 78){
+                $swapped=@($rows);$swapped[$i]=$rows[$i+1];$swapped[$i+1]=$rows[$i]
+                Check ($prefix+[string]::Join("`r`n",$swapped)+"`r`n") $false $false $true
+            }
+        }
+        foreach($bad in @($normal.Replace("`r`n","`n"),$normal.Substring(0,$normal.Length-1),
+            ($normal+"EXTRA`r`n"),$normal.Replace('0x0000000041000000','0x0000000040000000'),
+            $normal.Replace('M03_OWNED 0','M03_OWNED 1'),$normal.Replace('mismatches=0','mismatches=1'),
+            $normal.Replace('OS_BOOT_OK','OS_SMOKE_FAIL'),$normal.Replace('CLROS_M03_011_READY','CLROS_M03_011_READY extra=1'))){
+            Check $bad $false $false $true
+        }
+        Write-Output ('TEST_PASS m03.011.parser controls='+($script:cases-$before))
         """;
 
     private const string Parent = """

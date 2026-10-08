@@ -200,7 +200,7 @@ internal static class M03MemoryMapCaptureEfiIntegrationTests
     private static void TestSource()
     {
         string root=Root();var project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));var compile=project.Descendants("Compile").ToArray();
-        Need(compile.Length==121&&compile[84].Attribute("Include")!.Value=="..\\OS.Kernel\\Diagnostics\\MemoryMapCaptureProbeAuthority.cs"&&compile[84].Attribute("Link")!.Value=="Diagnostics\\MemoryMapCaptureProbeAuthority.cs","exact one appended source");
+        Need(compile.Length==122&&compile[85].Attribute("Include")!.Value=="..\\OS.Kernel\\Diagnostics\\MemoryMapCaptureProbeAuthority.cs"&&compile[85].Attribute("Link")!.Value=="Diagnostics\\MemoryMapCaptureProbeAuthority.cs","exact one appended source");
         var flag=project.Descendants(Flag).Single();Need(flag.Value=="false"&&flag.Attribute("Condition")!.Value=="'$("+Flag+")' == ''","explicit false default");
         Need(project.Descendants("PropertyGroup").Single(x=>x.Attribute("Condition")?.Value=="'$("+Flag+")' == 'true'").Element("DefineConstants")!.Value=="$(DefineConstants);M03_MEMORY_MAP_CAPTURE_PROBE","exact compiler symbol");
         string[] flags=Flags();Need(flags.Length==41&&flags.Distinct(StringComparer.Ordinal).Count()==41,"all41 conflicts");
@@ -267,7 +267,7 @@ internal static class M03MemoryMapCaptureEfiIntegrationTests
         string directory=Scratch("profiles");int index=0;
         foreach(string other in Flags())foreach(string file in new[]{"build-efi-shell.ps1","test-efi-artifact.ps1","run-qemu-smoke.ps1"})
         {
-            string[] extra=file.StartsWith("build-",StringComparison.Ordinal)?["-PreflightOnly","-LogPath",Path.Combine(directory,"preflight-"+index+".log")]:file.StartsWith("test-",StringComparison.Ordinal)?["-EfiArtifact","missing.EFI"]:["-DryRun","-BuildEfi"];
+            string[] extra=file.StartsWith("build-",StringComparison.Ordinal)?["-PreflightOnly","-LogPath",Path.Combine(directory,"preflight-"+index+".log")]:file.StartsWith("test-",StringComparison.Ordinal)?["-EfiArtifact","missing.EFI"]:["-BootPolicy","Diagnostic","-DryRun","-BuildEfi"];
             // The new reference profile validates first; admit its prerequisites to test the actual reciprocal conflict.
             string[] companion=other=="EnableM04CheckedReferenceBarrierProbe"?
                 ["-EnableM01LoadedImageStackProbe","-EnableM01LiveAllocatorProbe","-EnableM04IndependentEndianConformanceProbe",
@@ -280,7 +280,7 @@ internal static class M03MemoryMapCaptureEfiIntegrationTests
         }
         foreach(bool enabled in new[]{false,true})
         {
-            Result r=Process(Path.Combine(directory,(index++).ToString()),"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(Root(),"scripts/run-qemu-smoke.ps1"),"-DryRun","-BuildEfi",..(enabled?new[]{"-"+Flag}:Array.Empty<string>())]);Passed(r);
+            Result r=Process(Path.Combine(directory,(index++).ToString()),"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(Root(),"scripts/run-qemu-smoke.ps1"),"-BootPolicy","Diagnostic","-DryRun","-BuildEfi",..(enabled?new[]{"-"+Flag}:Array.Empty<string>())]);Passed(r);
             string ordered=r.Output.Replace("\r","").Split('\n').Single(x=>x.StartsWith("ORDERED_MARKERS ",StringComparison.Ordinal));
             Need(enabled?ordered.Split(';').Length==31:!ordered.Contains("m03.001.capture",StringComparison.Ordinal),"default/enabled exact ordered marker selection");
             if(enabled)
@@ -300,9 +300,9 @@ internal static class M03MemoryMapCaptureEfiIntegrationTests
             Need(r.Output.Contains("TEST_PASS efi.shell.publish",StringComparison.Ordinal)&&r.Output.Contains("TEST_PASS efi.artifact.verify",StringComparison.Ordinal),"complete artifact producer/verifier");
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
             foreach(var pair in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(Root(),pair.Item1),Path.Combine(directory,pair.Item2));
-            using var json=JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=json.RootElement;var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==137,"actual137 raw inputs");
+            using var json=JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=json.RootElement;var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==138,"actual138 raw inputs");
             foreach(var input in inputs)Need(Hash(File.ReadAllBytes(Path.Combine(Root(),input.GetProperty("path").GetString()!)))==input.GetProperty("sha256").GetString(),"actual raw hash");
-            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==121,"actual121 Compile");
+            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==122,"actual122 Compile");
             var properties=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Need(properties.Length==52,"actual52 profile flags");
             foreach(var p in properties)Need(p.Value.GetString()==(enabled&&p.Name==Flag?"true":"false"),"exact requested/evaluated "+p.Name);
             InspectMetadata(Path.Combine(directory,"OS.dll"),enabled);

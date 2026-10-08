@@ -242,8 +242,8 @@ internal static class M01LivePagingEfiEntryTests
 
         string source = LoadEfiEntrySource();
         string project = LoadOsProjectSource();
-        if (CountExactIf(source, StageOneSymbol) != 1
-            || CountExactIf(source, StageTwoSymbol) != 2
+        if (CountExactIf(source, "(" + StageOneSymbol + " || CLROS_NORMAL_VERIFIED_EXIT)") != 1
+            || CountExactIf(source, "(" + StageTwoSymbol + " || CLROS_NORMAL_VERIFIED_EXIT)") != 2
             || CountExactIf(source, StageThreeSymbol) != 2)
         {
             return Failure("guard-cardinality");
@@ -3219,7 +3219,7 @@ internal static class M01LivePagingEfiEntryTests
 
     private static bool TestKnownFalsePanicSelector()
     {
-        foreach (string disabledSymbol in new[] { UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol, TypeManagerSymbol, TypedEbsSymbol, GcStaticSymbol, TypeManagerSymbol + " || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol + " || M04_X64_UNWIND_METADATA_PROBE", FirstExitSymbol })
+        foreach (string disabledSymbol in new[] { UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol, TypeManagerSymbol, TypedEbsSymbol, GcStaticSymbol, TypeManagerSymbol + " || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol + " || M04_X64_UNWIND_METADATA_PROBE", FirstExitSymbol, "(" + FirstExitSymbol + " || CLROS_NORMAL_VERIFIED_EXIT)" })
         {
         string fixture = "#if " + disabledSymbol + "\nPanicOnly();\n#else\nPanicOff();\n#endif\n"
             + "#if " + StageOneSymbol + "\n#if " + disabledSymbol
@@ -3270,6 +3270,12 @@ internal static class M01LivePagingEfiEntryTests
             if (trimmed.StartsWith("#if ", StringComparison.Ordinal))
             {
                 string condition = trimmed[4..].Trim();
+                // Explicit Diagnostic selection leaves the normal policy false.
+                // Reduce only the reviewed wrappers; preserve unknown terms.
+                foreach (string symbol in new[] { StageOneSymbol, StageTwoSymbol,
+                    FirstExitSymbol, "ACPI_PHYSICAL_DISCOVERY_PROBE" })
+                    condition = condition.Replace("(" + symbol + " || CLROS_NORMAL_VERIFIED_EXIT)",
+                        symbol, StringComparison.Ordinal);
                 bool selected =
                     string.Equals(
                         condition,
@@ -3937,7 +3943,7 @@ internal static class M01LivePagingEfiEntryTests
                 "src",
                 "OS",
                 "Boot",
-                "EfiEntry.cs"));
+                "EfiEntry.cs")).Replace("\r\n", "\n", StringComparison.Ordinal);
     }
 
     private static string LoadOsProjectSource()

@@ -73,7 +73,7 @@ internal static class M04GCStaticRootMaterializationEfiIntegrationTests
                 : "'$(" + Flag + ")' == 'true' and '$(" + profile + ")' == 'true'")) == 1, "conflict " + other);
         }
         string[] compile = project.Descendants("Compile").Select(x => (string)x.Attribute("Include")!).ToArray();
-        Need(compile.Length == 121 && compile.Distinct(StringComparer.Ordinal).Count() == 121, "unique complete closure");
+        Need(compile.Length == 122 && compile.Distinct(StringComparer.Ordinal).Count() == 122, "unique complete closure");
         foreach (string file in new[] { @"..\OS.Kernel\Runtime\GCStaticRootsMalformedMetadata.cs", @"Runtime\GCStaticRootMaterializationProbe.cs", @"..\OS.Kernel\Runtime\BoundedNonMovingCollectorExplicitRootEnumeration.cs", @"..\OS.Kernel\Diagnostics\GCStaticRootMaterializationProbeAuthority.cs" })
             Need(compile.Contains(file, StringComparer.Ordinal), "compiled source " + file);
     }
@@ -107,7 +107,7 @@ internal static class M04GCStaticRootMaterializationEfiIntegrationTests
     private static void Profile()
     {
         string directory = Scratch("profile");
-        var enabled = PowerShell(directory, [Path.Combine(Root, "scripts/run-qemu-smoke.ps1"), "-DryRun", "-BuildEfi", ..Chain.Append(Flag).Select(x => "-" + x)]);
+        var enabled = PowerShell(directory, [Path.Combine(Root, "scripts/run-qemu-smoke.ps1"), "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", ..Chain.Append(Flag).Select(x => "-" + x)]);
         Need(enabled.Exit == 0 && enabled.Error.Length == 0, enabled.Output + enabled.Error);
         string[] Markers(string key) => enabled.Output.Split('\n').Single(x => x.StartsWith(key, StringComparison.Ordinal))[key.Length..].TrimEnd('\r').Split(';', StringSplitOptions.RemoveEmptyEntries);
         string[] required = Markers("REQUIRED_MARKERS "), forbidden = Markers("FORBIDDEN_MARKERS "), ordered = Markers("ORDERED_MARKERS "), unique = Markers("UNIQUE_MARKERS ");
@@ -126,11 +126,11 @@ internal static class M04GCStaticRootMaterializationEfiIntegrationTests
             string[] swapped = [..Lines]; (swapped[index], swapped[index - 1]) = (swapped[index - 1], swapped[index]);
             Need(Stream(swapped).OutOfOrderOccurrenceCount > 0, "early GC stage");
         }
-        var baseline = PowerShell(Path.Combine(directory, "default"), Path.Combine(Root, "scripts/run-qemu-smoke.ps1"), "-DryRun");
+        var baseline = PowerShell(Path.Combine(directory, "default"), Path.Combine(Root, "scripts/run-qemu-smoke.ps1"), "-BootPolicy", "Diagnostic", "-DryRun");
         Need(baseline.Exit == 0 && !baseline.Output.Split('\n').Where(x => x.StartsWith("ORDERED_MARKERS ", StringComparison.Ordinal)).Any(x => x.Contains("M04_GC_ROOT", StringComparison.Ordinal)), "default marker isolation");
-        var missing = PowerShell(Path.Combine(directory, "missing"), [Path.Combine(Root, "scripts/run-qemu-smoke.ps1"), "-DryRun", "-BuildEfi", "-" + Flag, ..Chain.SkipLast(1).Select(x => "-" + x)]);
+        var missing = PowerShell(Path.Combine(directory, "missing"), [Path.Combine(Root, "scripts/run-qemu-smoke.ps1"), "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", "-" + Flag, ..Chain.SkipLast(1).Select(x => "-" + x)]);
         Need(missing.Exit != 0 && missing.Output.Contains("m04_gc_static_profile_invalid property=EnableM04RhpNewFastProbe", StringComparison.Ordinal), "incomplete chain refused");
-        var collision = PowerShell(Path.Combine(directory, "conflict"), [Path.Combine(Root, "scripts/run-qemu-smoke.ps1"), "-DryRun", "-BuildEfi", "-EnableM04CheckedReferenceBarrierProbe", ..Chain.Append(Flag).Select(x => "-" + x)]);
+        var collision = PowerShell(Path.Combine(directory, "conflict"), [Path.Combine(Root, "scripts/run-qemu-smoke.ps1"), "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", "-EnableM04CheckedReferenceBarrierProbe", ..Chain.Append(Flag).Select(x => "-" + x)]);
         Need(collision.Exit != 0 && collision.Output.Contains("m04_gc_static_profile_conflict property=EnableM04CheckedReferenceBarrierProbe", StringComparison.Ordinal), "overlapping allocator role refused");
     }
 

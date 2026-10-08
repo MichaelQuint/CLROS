@@ -2,9 +2,21 @@
 
 ## Current Status
 
+Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
+
+An unqualified raw-image smoke selects `VerifiedExit`, publishes a fresh EFI/image and requires the complete 79-record post-exit transcript with empty child stderr. See [boot](boot.md) and [EFI build](efi-build.md) for policy and evidence limits.
+
+Historical firmware-visible default results below describe the retained
+`-BootPolicy Diagnostic` compatibility path. Explicit probe switches select
+Diagnostic automatically. Named marker presets and native-app marker fixtures
+must select it explicitly; CI and baseline planning do so. The separate qcow2
+conversion/reuse wrapper builds and selects Diagnostic and does not establish
+normal verified-exit acceptance. Marker presets and dry runs remain host-side
+contracts, not proof of the named guest subsystem.
+
 QEMU smoke now has real OVMF boot proof for the EFI smoke path from both raw and qcow2 image artifacts. `scripts/run-qemu-smoke.ps1` builds `artifacts/images/os.raw` through `OS.ImageBuilder`, boots it with QEMU/OVMF, captures serial output to `artifacts/logs/qemu-smoke.log`, writes a concise summary artifact to `artifacts/logs/qemu-smoke.summary.log`, and requires the current boot boundary markers by default. `scripts/run-qemu-qcow2-smoke.ps1` converts the raw image to `artifacts/images/os.qcow2` through `qemu-img`, boots it with `--disk-format qcow2`, and writes separate qcow2 serial and summary artifacts.
 
-This is an EFI application smoke, not a complete OS boot. It proves OVMF can load `\EFI\BOOT\BOOTX64.EFI` from the raw image and that the EFI entry path emits firmware-visible markers.
+The compatibility smoke proves OVMF loads `\EFI\BOOT\BOOTX64.EFI` and emits the firmware-visible records. Ordinary verified exit additionally requires the owned post-exit checks and then halts; neither path starts an application workload.
 
 The historical baseline raw-image proof was captured on 2026-07-25 from
 clean, pushed commit
@@ -1691,10 +1703,20 @@ CI_SMOKE_QCOW2_CONVERSION_INTENT mode=<dry-run|real> status=<planned|blocked_by_
 TEST_PASS ci.smoke.qemu_img.discovery
 ```
 
-Dry run:
+Ordinary verified-exit dry run:
 
 ```powershell
 .\scripts\run-qemu-smoke.ps1 -DryRun
+```
+
+This selects `VerifiedExit` and the complete 79-record transcript, with
+`CLROS_M03_011_READY` and the ordinary success tail after owned-subsystem
+checks. It validates the launch plan only.
+
+The following historical 12-marker plan is available explicitly:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 -DryRun -BootPolicy Diagnostic
 ```
 
 Expected workload profile evidence includes:
@@ -1704,7 +1726,7 @@ WORKLOAD_PROFILE SingleMinimalApi
 TEST_PASS workload.profile.tooling default single
 ```
 
-Expected default dry-run marker evidence includes:
+Expected Diagnostic dry-run marker evidence includes:
 
 ```text
 REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MAP_OWNED;BOOT_HANDOFF_READY;UEFI_MEMORY_MAP_NORMALIZED;BOOT_MEMORY_MAP_ACCEPTED;BOOT_MEMORY_REGIONS_READY;BOOT_MEMORY_REGION_COUNT;BOOT_PAGE_ALLOCATOR_READY;BOOT_ACPI_RSDP_HANDOFF_READY;UEFI_ACPI_RSDP_READY
@@ -1729,7 +1751,7 @@ TEST_PASS qemu.runner.preflight
 Dry run with the native app readiness preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -RequireNativeAppMarkers
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -RequireNativeAppMarkers
 ```
 
 Expected dry-run marker evidence includes the default smoke markers plus the host-tested app readiness markers:
@@ -1741,7 +1763,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the opt-in ACPI physical discovery marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -MarkerPreset acpi
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset acpi
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in ACPI validation markers:
@@ -1755,7 +1777,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future app-exit observer marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -MarkerPreset app-exit
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset app-exit
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in app-exit observer readiness marker:
@@ -1769,7 +1791,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future native app lifecycle marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -MarkerPreset app-lifecycle
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset app-lifecycle
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in native app lifecycle readiness marker:
@@ -1783,7 +1805,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future app-selection marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -MarkerPreset app-selection
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset app-selection
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in app-selection readiness marker:
@@ -1797,7 +1819,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future native app argument-vector marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -MarkerPreset app-args
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset app-args
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in native app argument-vector readiness marker:
@@ -1811,7 +1833,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future NativeAOT cctor preflight marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -MarkerPreset cctor-preflight
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset cctor-preflight
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in runtime cctor preflight readiness marker:
@@ -1825,7 +1847,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future NativeAOT cctor work-item marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -MarkerPreset cctor-work-items
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset cctor-work-items
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in runtime cctor work-item readiness marker:
@@ -1839,7 +1861,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the host-only diagnostics readiness marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -MarkerPreset diagnostics
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset diagnostics
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the diagnostics readiness-chain markers:
@@ -1854,7 +1876,7 @@ ORDERED_MARKERS FAULT_INFRA_READY;EARLY_DIAGNOSTICS_READY;DIAGNOSTIC_STUBS_MATER
 Dry run with the future FetchApp HTTP completion marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -MarkerPreset fetch-http
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset fetch-http
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in FetchApp completion readiness marker:
@@ -1868,7 +1890,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future FetchApp HTTP endpoint marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -MarkerPreset fetch-http-endpoint
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset fetch-http-endpoint
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in FetchApp endpoint readiness marker:
@@ -1882,7 +1904,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future FetchApp HTTP TCP exchange marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -MarkerPreset fetch-http-tcp-exchange
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset fetch-http-tcp-exchange
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in FetchApp HTTP TCP exchange marker:
@@ -1896,7 +1918,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future tiny HTTP static response marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -MarkerPreset http-static-response
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset http-static-response
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in HTTP static response readiness and diagnostic markers:
@@ -1910,7 +1932,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future tiny HTTP static TCP response marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -MarkerPreset http-static-tcp-response
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset http-static-tcp-response
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the
@@ -1925,7 +1947,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future native manifest environment marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -MarkerPreset manifest-env
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset manifest-env
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in native manifest environment readiness marker:
@@ -1939,7 +1961,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future UEFI-gone and owned-serial readiness marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -MarkerPreset uefi-gone
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset uefi-gone
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the future firmware-denial and owned-serial readiness markers:
@@ -2019,13 +2041,13 @@ This keeps the libvirt lanes in dry-run/missing-tool mode and only changes the q
 Dry run with an alternate required marker:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -RequireMarker UEFI_GONE_SIM_PASS
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -RequireMarker UEFI_GONE_SIM_PASS
 ```
 
 Dry run with disabled firmware probe markers forbidden:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -ForbidMarker UEFI_EBS_FRESH_MAP_PROBE_START,UEFI_EBS_CALL_SKIPPED
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -ForbidMarker UEFI_EBS_FRESH_MAP_PROBE_START,UEFI_EBS_CALL_SKIPPED
 ```
 
 Expected forbidden-marker evidence includes:
@@ -2037,7 +2059,7 @@ FORBIDDEN_MARKERS UEFI_EBS_FRESH_MAP_PROBE_START;UEFI_EBS_CALL_SKIPPED
 Dry run requiring multiple serial markers:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -RequireMarker OS_BOOT_OK,UEFI_GONE_SIM_PASS
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -RequireMarker OS_BOOT_OK,UEFI_GONE_SIM_PASS
 ```
 
 Direct runner dry run with the future Kestrel HTTP probe contract:
@@ -2129,13 +2151,13 @@ Build and boot the UEFI-gone simulation EFI variant:
 
 ```powershell
 .\scripts\build-efi-shell.ps1 -EnableUefiGoneSimulationProbe -EfiOutputPath artifacts/efi/BOOTX64-SIM.EFI -LogPath artifacts/logs/efi-shell-publish-sim.log
-.\scripts\run-qemu-smoke.ps1 -EfiArtifact artifacts/efi/BOOTX64-SIM.EFI -Image artifacts/images/os-sim.raw -SerialLog artifacts/logs/qemu-smoke-sim.log -MarkerPreset uefi-gone
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -EfiArtifact artifacts/efi/BOOTX64-SIM.EFI -Image artifacts/images/os-sim.raw -SerialLog artifacts/logs/qemu-smoke-sim.log -MarkerPreset uefi-gone
 ```
 
 Build and boot the ACPI physical discovery EFI variant:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BuildEfi -EnableAcpiPhysicalDiscoveryProbe -MarkerPreset acpi -EfiArtifact artifacts/efi/BOOTX64-ACPI.EFI -Image artifacts/images/os-acpi.raw -SerialLog artifacts/logs/qemu-smoke-acpi.log -SummaryLog artifacts/logs/qemu-smoke-acpi.summary.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -BuildEfi -EnableAcpiPhysicalDiscoveryProbe -MarkerPreset acpi -EfiArtifact artifacts/efi/BOOTX64-ACPI.EFI -Image artifacts/images/os-acpi.raw -SerialLog artifacts/logs/qemu-smoke-acpi.log -SummaryLog artifacts/logs/qemu-smoke-acpi.summary.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30
 ```
 
 Real smoke on the current Windows host:
@@ -2147,13 +2169,13 @@ Real smoke on the current Windows host:
 Real qcow2 smoke on the current Windows host:
 
 ```powershell
-.\scripts\run-qemu-qcow2-smoke.ps1 -RawImage artifacts/images/os.raw -Qcow2Image artifacts/images/os.qcow2 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -QemuImg "C:\Program Files\qemu\qemu-img.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
+.\scripts\run-qemu-qcow2-smoke.ps1 -BuildEfi -RawImage artifacts/images/os.raw -Qcow2Image artifacts/images/os.qcow2 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -QemuImg "C:\Program Files\qemu\qemu-img.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
 ```
 
 Real smoke proving disabled fresh-map probe markers are absent:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -ForbidMarker UEFI_EBS_FRESH_MAP_PROBE_START,UEFI_EBS_CALL_SKIPPED
+.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -ForbidMarker UEFI_EBS_FRESH_MAP_PROBE_START,UEFI_EBS_CALL_SKIPPED
 ```
 
 If `-OvmfCode` is omitted, the runner checks `OS_OVMF_CODE`, `OVMF_CODE`, `QEMU_OVMF_CODE`, the QEMU install directory, and common Windows/Linux OVMF locations.

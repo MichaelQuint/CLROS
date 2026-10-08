@@ -31,7 +31,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const int MaximumRuntimeFunctionRecords = 2048;
     private const int MaximumLinkResponseTokens = 4096;
     private const int VerifierFixtureProcessTimeoutMilliseconds = 120_000;
-    private const int ExpectedSourceClosureInputCount = 137;
+    private const int ExpectedSourceClosureInputCount = 138;
     private const string SerializerSymbol =
         "CLROS_X64_SerializeInstructionPublication";
     private const string ToolDirectoryBuildPropsPath =
@@ -45,7 +45,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const string EmptySha256 =
         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     private const string CompileClosureSha256 =
-        "8f97464a82c221d17190da6d5347e5fa998a5863dae0edb4a7012f8ec9bb8ab1";
+        "96f295814495f98ed4cc3b394429a5ea8206004c0806a22f0ab8144856a0058d";
     private const string AnalyzerClosureSha256 =
         "bea3e700acbeec374acb02a39b8c154e03291cf380edf850fea2114193b7ea14";
     private const string ManagedFixtureConfiguration = "Release";
@@ -2615,7 +2615,7 @@ internal static class EfiArtifactVerificationScriptTests
                 "MSBUILDDISABLENODEREUSE",
                 StringComparison.Ordinal)
             && verifierSource.Contains(
-                "$expectedSourceClosureInputCount = 137",
+                "$expectedSourceClosureInputCount = 138",
                 StringComparison.Ordinal)
             && stableReasons.All(reason => verifierSource.Contains(
                 reason,
@@ -4346,6 +4346,7 @@ internal static class EfiArtifactVerificationScriptTests
         var evidence = new Dictionary<string, object?>
         {
             ["schemaVersion"] = 3,
+            ["bootPolicy"] = "Diagnostic",
             ["configuration"] = ManagedFixtureConfiguration,
             ["runtimeIdentifier"] = "win-x64",
             ["artifactSha256"] = GetSha256(artifactPath),
@@ -5247,6 +5248,7 @@ internal static class EfiArtifactVerificationScriptTests
             Path.DirectorySeparatorChar.ToString(CultureInfo.InvariantCulture);
         var properties = new Dictionary<string, string>
         {
+            ["ClrosBootPolicy"] = "Diagnostic",
             ["_targetOS"] = "win",
             ["_targetArchitecture"] = "x64",
             ["RuntimeIdentifier"] = "win-x64",
@@ -5412,7 +5414,7 @@ internal static class EfiArtifactVerificationScriptTests
         };
         return new Dictionary<string, object?>
         {
-            ["compileCount"] = 121,
+            ["compileCount"] = 122,
             ["compileSha256"] = CompileClosureSha256,
             ["projectReferenceCount"] = 0,
             ["projectReferenceSha256"] = EmptySha256,
@@ -5884,6 +5886,8 @@ internal static class EfiArtifactVerificationScriptTests
         start.ArgumentList.Add("Bypass");
         start.ArgumentList.Add("-File");
         start.ArgumentList.Add(scriptPath);
+        start.ArgumentList.Add("-BootPolicy");
+        start.ArgumentList.Add("Diagnostic");
         start.ArgumentList.Add("-EfiArtifact");
         start.ArgumentList.Add(artifactPath);
 

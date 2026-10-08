@@ -183,7 +183,7 @@ internal static class M03FirmwareEntropySeedEfiIntegrationTests
         var defaults=project.Descendants(Flag).ToArray();Need(defaults.Length==1&&defaults[0].Value=="false"&&(string?)defaults[0].Attribute("Condition")=="'$("+Flag+")' == ''","one false default");
         var define=project.Descendants("DefineConstants").Single(x=>x.Value.Contains("M03_FIRMWARE_ENTROPY_SEED_PROBE",StringComparison.Ordinal));
         Need((string?)define.Parent?.Attribute("Condition")=="'$("+Flag+")' == 'true'"&&define.Value=="$(DefineConstants);M03_FIRMWARE_ENTROPY_SEED_PROBE","exact enabled symbol");
-        var compile=project.Descendants("Compile").ToArray();Need(compile.Length==121&&(string?)compile[88].Attribute("Include")=="..\\OS.Kernel\\Diagnostics\\FirmwareEntropySeedCaptureProbeAuthority.cs","one appended authority");
+        var compile=project.Descendants("Compile").ToArray();Need(compile.Length==122&&(string?)compile[89].Attribute("Include")=="..\\OS.Kernel\\Diagnostics\\FirmwareEntropySeedCaptureProbeAuthority.cs","one appended authority");
         string entry=File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.cs"));string core=entry[entry.IndexOf("    internal static class FirmwareEntropyCapture",StringComparison.Ordinal)..entry.IndexOf("    private const int OwnedMemoryMapBufferSize",StringComparison.Ordinal)];
         foreach(string forbidden in new[]{"new byte[","stackalloc","throw ","new object","string ","GetHash","Console.","AllocatePool(","AllocatePages("})Need(!core.Contains(forbidden,StringComparison.Ordinal),"finite native core "+forbidden);
         Need(core.Contains("s->Locate(&guid, null, (void**)&s->Rng)",StringComparison.Ordinal)&&core.Contains("get(rng, null, (nuint)RequestedBytes, s->Scratch->Data)",StringComparison.Ordinal),"original pointer call shapes");
@@ -363,7 +363,7 @@ internal static class M03FirmwareEntropySeedEfiIntegrationTests
     private static void TestProfile()
     {
         string root=Root(),directory=Scratch("profile"),script=Path.Combine(root,"scripts/run-qemu-smoke.ps1"),before=Hash(script);int n=0;
-        Result Dry(params string[] args)=>Process(Path.Combine(directory,(n++).ToString("D3")),"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",script,"-DryRun",..args]);
+        Result Dry(params string[] args)=>Process(Path.Combine(directory,(n++).ToString("D3")),"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",script,"-BootPolicy","Diagnostic","-DryRun",..args]);
         string[] positive=["-BuildEfi","-"+Flag,"-FirmwareRngSource","virtio"];
         Result result=Dry(positive);Passed(result);Need(result.Output.Contains("TEST_PASS qemu.runner.dryrun",StringComparison.Ordinal),"actual dry-run terminal");
         string[] Vector(string prefix)=>result.Output.Split('\n').Single(x=>x.StartsWith(prefix+" ",StringComparison.Ordinal))[(prefix.Length+1)..].TrimEnd('\r').Split(';').Select(x=>x.Trim()).ToArray();

@@ -766,6 +766,7 @@ internal static class BootSequencePlanTests
              "public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunSingleFinallyCatchUnwind(",
              "public static unsafe OS.Kernel.Runtime.X64UnwindMetadataResult RunX64UnwindMetadata(",
              "public static unsafe OS.Boot.OwnedAllocatorRoundTripStatus RunOwnedSubsystemAllocatorRoundTrip(",
+             "public static unsafe bool ReportVerifiedExitCompletion(void* context,",
              "public static unsafe OS.Kernel.Runtime.CompilerInterfaceDispatchStatus RunInterfaceDispatch("])
             && HasGuardedSurface("src/OS.Kernel/Diagnostics/Probes.cs", 2,
             ["public static partial class Probes",
@@ -851,7 +852,7 @@ internal static class BootSequencePlanTests
             "EfiEntry.cs");
         string efiEntrySource = File.ReadAllText(efiEntryPath);
         const string probeStart =
-            "#if M01_LOADED_IMAGE_STACK_PROBE";
+            "#if (M01_LOADED_IMAGE_STACK_PROBE || CLROS_NORMAL_VERIFIED_EXIT)";
         int probeStartIndex = efiEntrySource.IndexOf(
             probeStart,
             StringComparison.Ordinal);

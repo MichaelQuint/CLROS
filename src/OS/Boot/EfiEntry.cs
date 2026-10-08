@@ -1,13 +1,13 @@
 #if M04_LAYOUT_CONTRACT_PROBE
 using OS.Kernel.Runtime;
 #endif
-#if M04_MANAGED_HEAP_PAGE_RANGE_PROBE || M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE
+#if M04_MANAGED_HEAP_PAGE_RANGE_PROBE || (M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
 using OS.Kernel.Memory;
 #endif
-#if M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE
+#if (M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
 using OS.Kernel.Diagnostics;
 using OS.Kernel.Platform;
-#if !M01_LOADED_IMAGE_STACK_PROBE || !M01_LIVE_ALLOCATOR_PROBE || !ACPI_PHYSICAL_DISCOVERY_PROBE
+#if !(M01_LOADED_IMAGE_STACK_PROBE || CLROS_NORMAL_VERIFIED_EXIT) || !(M01_LIVE_ALLOCATOR_PROBE || CLROS_NORMAL_VERIFIED_EXIT) || !(ACPI_PHYSICAL_DISCOVERY_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
 #error The first real exit requires the original loaded-image, live allocator and copied ACPI adapters.
 #endif
 #if M01_OWNED_PAGING_PROBE || M04_MANAGED_HEAP_PAGE_RANGE_PROBE || M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE || M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE
@@ -24,7 +24,7 @@ namespace OS.Boot;
 
 public static unsafe class EfiEntry
 {
-#if M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE
+#if (M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
     // Explicit default-off profile. BootSequence consumes the prepared firmware
     // binding only after M01, copied ACPI and the ordinary boot marker plan.
     private static class M03FirstExitAdapter
@@ -44,7 +44,7 @@ public static unsafe class EfiEntry
             internal ulong PreparationCheckpoint;
             internal uint TableMemoryType;
             internal fixed ulong PageMetadata[165]; // 55 * 24 bytes, naturally aligned
-#if M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE
+#if (M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
             internal OwnedAllocatorRoundTripState OwnedAllocator;
             internal ulong OwnedPhase; // 0 fresh, 1 consumed, 2 positive complete, 3 armed, 4 fault entered, 5 reported
             internal ulong AcpiWorkspace, AcpiWorkspaceBytes;
@@ -142,7 +142,7 @@ public static unsafe class EfiEntry
                 if (workspace->Phase != 3 || !ReadBackAcpiBootstrap(workspace, copied->Bytes, AcpiOwnedPayloadCapacity)) return false;
                 references.CopiedAcpi = (ulong)copied;
                 references.CopiedAcpiBytes = (ulong)sizeof(AcpiBootstrapOwnedBuffer);
-#if M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE
+#if (M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
                 state->AcpiWorkspace = (ulong)workspace;
                 state->AcpiWorkspaceBytes = (ulong)sizeof(AcpiBootstrapWorkspace);
 #endif
@@ -181,7 +181,7 @@ public static unsafe class EfiEntry
                 Pages = (X64PageTableImagePage*)state->PageMetadata, PageCapacity = TablePages,
                 Entries = (ulong*)tables, EntryCapacity = TablePages * 512
             };
-#if M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE
+#if (M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
             if (!AdmitOwnedAcpiState(state)) return false;
 #endif
             for (ulong i = 0; i < TablePages * 512; i++) state->Memory.Entries[i] = 0;
@@ -459,8 +459,13 @@ public static unsafe class EfiEntry
             {
                 if (state->Phase != 4 || !state->Arena.IsReady || transition != state->Arena.Transition ||
                     context != state->Arena.Permanent || context->DiagnosticContext != state) return;
-#if M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE
-                _ = ReportOwnedSubsystems(state);
+#if (M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
+                if (ReportOwnedSubsystems(state))
+                {
+#if CLROS_NORMAL_VERIFIED_EXIT
+                    _ = BootSequence.ReportVerifiedExitCompletion(state, &WriteVerifiedExitBytes);
+#endif
+                }
 #elif M03_FIRMWARE_ADAPTER_REVOCATION_PROBE
                 if (FirstExitPostExitDiagnostics.Report(ref state->Diagnostic, ref state->Arena, state->Memory))
                     _ = ReportRevokedAdapters(state);
@@ -494,7 +499,7 @@ public static unsafe class EfiEntry
             }
         }
 
-#if M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE
+#if (M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
         // Every mutable source and metadata owner read by AcpiSnapshotAdmission
         // is original image storage; physical addresses in the rows are identities.
         private static bool AdmitOwnedAcpiState(Storage* state)
@@ -581,6 +586,14 @@ public static unsafe class EfiEntry
 #if M03_OWNED_SUBSYSTEM_PANIC_PROBE
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         private static ulong ReadOwnedGuard(ulong* address) => *address;
+#endif
+
+#if CLROS_NORMAL_VERIFIED_EXIT
+        private static bool WriteVerifiedExitBytes(void* context, byte* text, uint bytes)
+        {
+            Storage* state = (Storage*)context;
+            return state->OwnedPhase == 2 && WriteOwnedBytes(state, text, bytes);
+        }
 #endif
 
         private static bool OwnedFailure(Storage* state) { _ = WriteOwnedLiteral(state, 3); return false; }
@@ -1638,7 +1651,7 @@ public static unsafe class EfiEntry
     private const int BootPageAllocatorNodePageCountSlot = 3;
     private const int BootPageAllocatorNodeByteLengthSlot = 4;
     private const int BootPageAllocatorNodeNextIndexSlot = 5;
-#if ACPI_PHYSICAL_DISCOVERY_PROBE
+#if (ACPI_PHYSICAL_DISCOVERY_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
     private const int AcpiRsdpScratchSize = 4096;
     private const int AcpiRootSdtBufferSize = 65536;
     private const int AcpiChildHeaderScratchSize = 36;
@@ -8757,7 +8770,7 @@ public static unsafe class EfiEntry
     private static EfiBootPageAllocatorReadinessResult s_bootPageAllocatorReadiness;
     private static EfiConfigurationTableScanResult s_acpiRsdpScanResult;
     private static UefiMemoryMapCopyPlanStatus s_memoryMapCopyStatus;
-#if ACPI_PHYSICAL_DISCOVERY_PROBE
+#if (ACPI_PHYSICAL_DISCOVERY_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
     private static AcpiBootstrapWorkspace s_acpiBootstrap;
     private static AcpiBootstrapOwnedBuffer s_acpiBootstrapOwned;
 #endif
@@ -11177,7 +11190,7 @@ public static unsafe class EfiEntry
     [System.Runtime.RuntimeExport("EfiMain")]
     private static long EfiMain(void* imageHandle, EfiSystemTable* systemTable)
     {
-#if M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE
+#if (M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
         if (!M03FirstExitAdapter.CaptureOriginalEntry(imageHandle, systemTable)) return 0;
 #endif
         EfiSimpleTextOutputProtocol* console = GetFirmwareConsole(systemTable);
@@ -11370,7 +11383,7 @@ public static unsafe class EfiEntry
                     return;
                 }
 
-#if ACPI_PHYSICAL_DISCOVERY_PROBE
+#if (ACPI_PHYSICAL_DISCOVERY_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
                 if (!WriteAcpiPhysicalDiscoveryProbe(console, serial))
                 {
                     return;
@@ -15045,7 +15058,7 @@ public static unsafe class EfiEntry
         WriteCrLf(console, serial);
     }
 
-#if ACPI_PHYSICAL_DISCOVERY_PROBE
+#if (ACPI_PHYSICAL_DISCOVERY_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
     // Only this conditional probe owns these buffers. Phase 1 is one-shot
     // acquisition, 2 is admitted snapshots, and 3 publishes all five copies.
     private static bool WriteAcpiPhysicalDiscoveryProbe(
@@ -16258,7 +16271,9 @@ public static unsafe class EfiEntry
 
     private static void WriteBootSequencePlan(EfiSimpleTextOutputProtocol* console, EfiSerialIoProtocol* serial)
     {
-        for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
+        int count = VerifiedExitPathOptDefaultRepeatedCleanQEMU.Enabled
+            ? BootSequencePlan.NonSmokeLineCount : BootSequencePlan.LineCount;
+        for (int lineIndex = 0; lineIndex < count; lineIndex++)
         {
             int length = BootSequencePlan.GetLineLength(lineIndex);
             for (int offset = 0; offset < length; offset++)
@@ -17265,7 +17280,7 @@ public static unsafe class EfiEntry
         return s_memoryMapSnapshot.DescriptorCount != 0;
     }
 
-#if M01_LOADED_IMAGE_STACK_PROBE
+#if (M01_LOADED_IMAGE_STACK_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
     private static byte s_m01InstructionPublicationInitialized;
     private static byte s_m01InstructionPublicationEpochMask;
 
@@ -18696,8 +18711,8 @@ public static unsafe class EfiEntry
             }
         }
 
-#if M04_RHP_NEW_FAST_PROBE || M02_UNEXPECTED_VECTOR_PANIC_PROBE || M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE || M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE
-#if M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE
+#if M04_RHP_NEW_FAST_PROBE || M02_UNEXPECTED_VECTOR_PANIC_PROBE || M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE || (M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
+#if (M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
         internal static bool TryGetOriginalExitStackProbe(out ulong page)
         {
             page = 0;
@@ -18737,7 +18752,7 @@ public static unsafe class EfiEntry
             return true;
         }
 
-#if M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE || M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE || M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE
+#if M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE || M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE || (M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
         internal static bool TryGetOriginalTypeManagerImage(out EfiLoadedImageRangeCapturePlan capture,
             out M01LoadedImageVirtualMappingEvidence mapping)
         {
@@ -18981,7 +18996,7 @@ public static unsafe class EfiEntry
                         lineIndex);
                 }
 
-#if M01_LIVE_ALLOCATOR_PROBE
+#if (M01_LIVE_ALLOCATOR_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
                 fixed (M01StageOneReservationLedgerBuffer*
                     stageOneLedgerStorage = &s_reservationLedger)
                 {
@@ -19019,7 +19034,7 @@ public static unsafe class EfiEntry
                 EfiEntry.WriteBootSequencePlan(
                     s_console,
                     s_serial);
-#if M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE
+#if (M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
                 M03FirstExitAdapter.Run(s_console, s_serial, s_bootServices);
                 Spin();
 #endif
@@ -19542,7 +19557,7 @@ public static unsafe class EfiEntry
     }
 #endif
 
-#if M01_LIVE_ALLOCATOR_PROBE
+#if (M01_LIVE_ALLOCATOR_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
     private static class M01StageTwoAdapter
     {
         private const ulong EfiSuccess = 0;
@@ -19567,7 +19582,7 @@ public static unsafe class EfiEntry
         private static M01StageTwoReservationLedgerBuffer
             s_reservationLedger;
         private static M01LiveAllocatorStaticState s_staticState;
-#if M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE
+#if (M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
         internal static bool TryGetOriginalExitAllocator(out ulong address,
             out SeparatePageFaultMappingRange backing)
         {
@@ -21280,7 +21295,7 @@ internal struct EfiBootPageAllocatorReadinessResult
     public ulong PageSize;
 }
 
-#if ACPI_PHYSICAL_DISCOVERY_PROBE
+#if (ACPI_PHYSICAL_DISCOVERY_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
 // One contiguous workspace makes every scratch/descriptor capacity an explicit
 // source exclusion. The final aggregate is separate and untouched on admission failure.
 internal unsafe struct AcpiBootstrapWorkspace

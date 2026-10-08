@@ -202,8 +202,9 @@ public enum NativeAppArgumentHandoffReadinessStatus
 public static class BootSequence
 {
     /// <summary>
-    /// Opt-in terminal boot boundary, after the original M01 allocator, copied
-    /// ACPI and boot marker plan. The adapter enters on the prepared owned stack;
+    /// Terminal boot boundary, after the original M01 allocator and copied
+    /// ACPI. The ordinary policy defers success markers until owned post-exit checks.
+    /// The adapter enters on the prepared owned stack;
     /// this boundary consumes firmware authority before the final map/exit window.
     /// Success transfers directly to owned descriptor/CR3 adoption and cannot return.
     /// </summary>
@@ -228,6 +229,7 @@ public static class BootSequence
     }
 
     private static bool IsFirstRealExitBootServicesEnabled() =>
+        VerifiedExitPathOptDefaultRepeatedCleanQEMU.Enabled ||
         OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe;
 
     /// <summary>After retained module/static publication and before constructor consumers.</summary>
@@ -279,10 +281,17 @@ public static class BootSequence
         ref OS.Boot.OwnedAllocatorRoundTripState state, ref OS.Boot.FirstExitDiagnosticState diagnostic,
         ref OS.Boot.FirstExitOwnedArenaState arena, OS.Boot.FirstExitDiagnosticMemory memory,
         OS.Boot.M01LiveAllocatorStaticState* owner) =>
-        OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe
+        (VerifiedExitPathOptDefaultRepeatedCleanQEMU.Enabled ||
+            OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe)
             ? OS.Boot.OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.RunAllocatorRoundTrip(
                 ref state, ref diagnostic, ref arena, memory, owner)
             : OS.Boot.OwnedAllocatorRoundTripStatus.AdmissionFailed;
+
+    /// <summary>Normal success is emitted only by the admitted owned post-exit writer.</summary>
+    public static unsafe bool ReportVerifiedExitCompletion(void* context,
+        delegate*<void*, byte*, uint, bool> write) =>
+        VerifiedExitPathOptDefaultRepeatedCleanQEMU.Enabled &&
+        VerifiedExitPathOptDefaultRepeatedCleanQEMU.WriteCompletion(context, write);
 
     /// <summary>Resolve only after the retained module, allocator and compiler-cell snapshot are bound.</summary>
     public static unsafe OS.Kernel.Runtime.CompilerInterfaceDispatchStatus RunInterfaceDispatch(
