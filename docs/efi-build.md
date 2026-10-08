@@ -2981,7 +2981,9 @@ from archived COFF to PE. [Step1082](../done/step1082.md) adds disabled selector
 and validator implementations bound to that measured nested clause pair,
 parent-frame stamp, saved context and control fields. Host tests compile and
 exercise their actual pure predicates. Final native calling convention and
-reachable stack bounds still require review. Managed
+reachable stack bounds are measured for the disabled implemented candidate in
+[step1083](../done/step1083.md). Complete pointer-access review, strict transcript
+handling and enabled-source reinspection remain pending. Managed
 DLL/PDB identity, project/smoke rejection and existing heap/GC/subsystem fixture
 results are retained in [step1080](../done/step1080.md).
 
