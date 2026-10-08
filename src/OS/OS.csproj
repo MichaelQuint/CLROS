@@ -81,6 +81,7 @@
 		<EnableM04ClassConstructorExecutionProbe Condition="'$(EnableM04ClassConstructorExecutionProbe)' == ''">false</EnableM04ClassConstructorExecutionProbe>
 		<EnableM04SimpleThrowCatchProbe Condition="'$(EnableM04SimpleThrowCatchProbe)' == ''">false</EnableM04SimpleThrowCatchProbe>
 		<EnableM04SingleFinallyCatchProbe Condition="'$(EnableM04SingleFinallyCatchProbe)' == ''">false</EnableM04SingleFinallyCatchProbe>
+		<EnableM04RethrowProbe Condition="'$(EnableM04RethrowProbe)' == ''">false</EnableM04RethrowProbe>
 		<EnableM04InterfaceDispatchProbe Condition="'$(EnableM04InterfaceDispatchProbe)' == ''">false</EnableM04InterfaceDispatchProbe>
 	</PropertyGroup>
 
@@ -322,6 +323,9 @@
 	<PropertyGroup Condition="'$(EnableM04SingleFinallyCatchProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_SINGLE_FINALLY_CATCH_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM04RethrowProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_RETHROW_PROBE</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM04InterfaceDispatchProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_INTERFACE_DISPATCH_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -371,6 +375,7 @@
 			'$(EnableM04SeededCollectorChurnProbe)' == 'true' or
 			'$(EnableM04SimpleThrowCatchProbe)' == 'true' or
 			'$(EnableM04SingleFinallyCatchProbe)' == 'true' or
+			'$(EnableM04RethrowProbe)' == 'true' or
 			'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true' or
 			'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' or
 			'$(EnableM04StringAllocationExhaustionProbe)' == 'true' or
@@ -511,6 +516,7 @@
 		<Compile Include="..\OS.Kernel\Runtime\X64FrameUnwind.cs" Link="Runtime\X64FrameUnwind.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs" Link="Runtime\NativeAotEhClauseMetadata.cs" />
 		<Compile Include="Runtime\ExceptionCatchProbe.cs" />
+		<Compile Include="Runtime\ExceptionRethrowProbe.cs" Condition="'$(EnableM04RethrowProbe)' == 'true'" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.12" PrivateAssets="all" />
 		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.12" PrivateAssets="all" />
 		<ResolvedILCompilerPack Include="runtime.win-x64.Microsoft.DotNet.ILCompiler">
@@ -575,6 +581,7 @@
 			'$(EnableM04SeededCollectorChurnProbe)' == 'true' or
 			'$(EnableM04SimpleThrowCatchProbe)' == 'true' or
 			'$(EnableM04SingleFinallyCatchProbe)' == 'true' or
+			'$(EnableM04RethrowProbe)' == 'true' or
 			'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true' or
 			'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' or
 			'$(EnableM04StringAllocationExhaustionProbe)' == 'true' or
@@ -1695,6 +1702,9 @@
 		<Error Condition="'$(EnableM04SingleFinallyCatchProbe)' != '' and '$(EnableM04SingleFinallyCatchProbe)' != 'true' and '$(EnableM04SingleFinallyCatchProbe)' != 'false'" Text="m04_single_finally_switch_invalid" />
 		<Error Condition="'$(EnableM04SingleFinallyCatchProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'" Text="m04_single_finally_requires_gc_profile" />
 		<Error Condition="'$(EnableM04SingleFinallyCatchProbe)' == 'true' and ('$(EnableM04SeededCollectorChurnProbe)' == 'true' or '$(EnableM04ClassConstructorExecutionProbe)' == 'true' or '$(EnableM04InterfaceDispatchProbe)' == 'true' or '$(EnableM04X64UnwindMetadataProbe)' == 'true' or '$(EnableM04SimpleThrowCatchProbe)' == 'true')" Text="m04_single_finally_profile_conflict" />
+		<Error Condition="'$(EnableM04RethrowProbe)' != '' and '$(EnableM04RethrowProbe)' != 'true' and '$(EnableM04RethrowProbe)' != 'false'" Text="m04_rethrow_switch_invalid" />
+		<Error Condition="'$(EnableM04RethrowProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'" Text="m04_rethrow_requires_gc_profile" />
+		<Error Condition="'$(EnableM04RethrowProbe)' == 'true' and ('$(EnableM04SeededCollectorChurnProbe)' == 'true' or '$(EnableM04ClassConstructorExecutionProbe)' == 'true' or '$(EnableM04InterfaceDispatchProbe)' == 'true' or '$(EnableM04X64UnwindMetadataProbe)' == 'true' or '$(EnableM04SimpleThrowCatchProbe)' == 'true' or '$(EnableM04SingleFinallyCatchProbe)' == 'true')" Text="m04_rethrow_profile_conflict" />
 		<Error Condition="'$(EnableM04InterfaceDispatchProbe)' != '' and '$(EnableM04InterfaceDispatchProbe)' != 'true' and '$(EnableM04InterfaceDispatchProbe)' != 'false'" Text="m04_dispatch_switch_invalid" />
 		<Error Condition="'$(EnableM04InterfaceDispatchProbe)' == 'true' and '$(EnableM04ClassConstructorExecutionProbe)' != 'true'" Text="m04_dispatch_requires_cctor_profile" />
 	</Target>

@@ -25,17 +25,23 @@ Existing simple-catch and single-finally object bytes remain unchanged.
 [Step1096](../done/step1096.md) records an actual no-stdlib ILC compiler
 fixture's inner cleanup, typed catch, `throw;`, outer catch and compiled
 continuation, including frame and exception-table geometry. This fixture was
-compiled to COFF only. The new bridges are not linked into an EFI profile;
-active-context admission, linked-image/stack review and guest validation remain
-unfinished. These development results do not accept rethrow or general EH.
+compiled to COFF only. These development results do not accept rethrow or
+general EH.
 
 [Step1097](../done/step1097.md) adds the original-source admission predicates
 for these measured frames, exact inner/outer clauses, active-exception phase
 and compiled continuation. Focused host tests mutate every captured context
 word, clause field, lifecycle counter and relevant authority input. The
-predicates are not yet called from EFI: runtime callbacks must still bind them
-to the actual retained module/root, stack mapping, control state and bridge
-lifetime before any transfer can be admitted.
+predicates form part of the EFI callbacks added in [step1098](../done/step1098.md).
+That disabled candidate compiles and links the actual cleanup, inner catch,
+`throw;`, outer catch and continuation. Callbacks check the retained module,
+root, stack, controls and original handling context before selection; after
+the jump, the continuation does not read discarded bridge frames. Transfer
+admission remains false. Native byte/relocation/frame/clause checks pass, but
+complete reachable-path/stack review, wrapper/verifier/runner integration,
+negative guest controls, regressions and the full host gate remain pending.
+The strict publication wrapper currently rejects the new target contract;
+direct publication here is development evidence only.
 
 ## Accepted bounded interface dispatch
 

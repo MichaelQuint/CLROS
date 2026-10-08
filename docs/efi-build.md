@@ -1,5 +1,15 @@
 # EFI Build
 
+The #596 rethrow branch has a development-only MSBuild property
+`EnableM04RethrowProbe`, default false, using the existing GC-static ancestry.
+It selects `Diagnostic`, compiles the explicit rethrow source and links two
+pinned generated bridges. [Step1098](../done/step1098.md) records the direct
+NativeAOT publication and limited linked-native review with transfer admission
+still false. The standard build wrapper currently rejects its new serializer
+target contract; script/verifier/runner integration must be completed before
+using this as an accepted build profile. No boot result follows from that
+development publication.
+
 ## Ordinary verified-exit policy
 
 The #68/#594 core checkpoint in [step1089](../done/step1089.md) introduces

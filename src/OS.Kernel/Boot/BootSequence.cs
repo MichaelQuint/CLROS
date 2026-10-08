@@ -268,6 +268,18 @@ public static class BootSequence
                 owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
             : default;
 
+    public static bool IsRethrowEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04RethrowProbe;
+
+    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunRethrowUnwind(
+        OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping,
+        byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity,
+        byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
+        IsRethrowEnabled()
+            ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
+                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, capture, mapping,
+                owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
+            : default;
+
     /// <summary>Look up current-image metadata after binding the original retained module.</summary>
     public static unsafe OS.Kernel.Runtime.X64UnwindMetadataResult RunX64UnwindMetadata(
         byte* storage, ulong capacity, ulong instructionPointer) =>

@@ -802,6 +802,17 @@ interface dispatch and standalone unwind-metadata profiles and adds no ordinary
 phase. [Step1075](../done/step1075.md) records bounded acceptance at `ead4fca`;
 [step1066](../done/step1066.md) remains the original development record.
 
+## Bounded rethrow diagnostic order
+
+The separate development `EnableM04RethrowProbe` also follows the collector
+graph through `BootSequence.IsRethrowEnabled`; both one-frame transitions use
+`BootSequence.RunRethrowUnwind`. Its intended order is rooted collection,
+throw, inner cleanup, inner catch, compiler rethrow, outer catch, compiled
+continuation and receipt release. It excludes other EH/churn/constructor/
+dispatch/unwind profiles and adds no ordinary phase. [Step1098](../done/step1098.md)
+records disabled native publication only. Transfer admission is false; wrapper
+and guest acceptance are pending.
+
 ## Owned subsystem diagnostic order
 
 The disabled #67 survival child runs inside the original first-exit Diagnose

@@ -153,7 +153,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Xml.Linq;
 
-internal static class M04RethrowCatchEfiIntegrationTests
+internal static unsafe class M04RethrowCatchEfiIntegrationTests
 {
     [ModuleInitializer]
     internal static void Run()
@@ -165,6 +165,7 @@ internal static class M04RethrowCatchEfiIntegrationTests
             string root = HostToolProcess.FindRepositoryRoot();
             string folder = Path.Combine(root, "artifacts/rethrow-admission-core", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(folder);
+            ProjectAdmission(root, folder);
             string project = Path.Combine(folder, "RethrowAdmission.Core.csproj");
             new XDocument(new XElement("Project", new XAttribute("Sdk", "Microsoft.NET.Sdk"),
                 new XElement("PropertyGroup", new XElement("OutputType", "Exe"), new XElement("TargetFramework", "net10.0"),
@@ -184,7 +185,38 @@ internal static class M04RethrowCatchEfiIntegrationTests
         }
         catch (Exception ex) { Console.WriteLine("TEST_FAIL " + name + " " + ex); throw; }
     }
-    private static string Invoke(string root, string folder, string name, string[] arguments)
+    private static void ProjectAdmission(string root, string folder)
+    {
+        const string flag = "EnableM04RethrowProbe";
+        var probe = OS.Kernel.Diagnostics.Probes.GetM04RethrowProbe();
+        var disabled = OS.Boot.BootSequence.RunRethrowUnwind(default, default, null, 0, 0, null, 0, null, 0, default);
+        if (OS.Boot.BootSequence.IsRethrowEnabled() || disabled.Succeeded || disabled.Caller.Rip != 0 ||
+            disabled.Caller.Rsp != 0 || probe.Name != flag || probe.EnabledByDefault || probe.Risk != OS.Kernel.Diagnostics.ProbeRisk.Destructive)
+            throw new InvalidOperationException("Default boot authority must not dispatch rethrow");
+        string[] common = ["msbuild", Path.Combine(root, "src/OS/OS.csproj"), "-nologo",
+            "-t:ValidateClrosBootPolicy;ValidateM01ProbeSwitches"];
+        string[] ancestry = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
+            "EnableM04IndependentEndianConformanceProbe", "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe",
+            "EnableM04ArithmeticConformanceProbe", "EnableM04LayoutContractProbe", "EnableM04ManagedHeapPageRangeProbe",
+            "EnableM04RhpNewFastProbe", "EnableM04GcStaticRootMaterializationProbe"];
+        string[] chain = ancestry.Select(x => "-p:" + x + "=true").ToArray();
+        Invoke(root, folder, "profile-default", common);
+        string enabled = Invoke(root, folder, "profile-enabled", [..common, ..chain, "-p:" + flag + "=true", "-getProperty:DefineConstants"]);
+        if (!enabled.Contains("M04_RETHROW_PROBE", StringComparison.Ordinal)) throw new InvalidOperationException("Missing explicit rethrow compile authority");
+        void Reject(string name, string[] arguments, string reason)
+        {
+            string output = Invoke(root, folder, name, [..common, ..arguments], 1);
+            if (!output.Contains(reason, StringComparison.Ordinal)) throw new InvalidOperationException(name + ": " + output);
+        }
+        Reject("profile-invalid", [..chain, "-p:" + flag + "=invalid"], "m04_rethrow_switch_invalid");
+        Reject("profile-missing-gc", ["-p:" + flag + "=true"], "m04_rethrow_requires_gc_profile");
+        Reject("profile-policy-conflict", [..chain, "-p:" + flag + "=true", "-p:ClrosBootPolicy=VerifiedExit"], "clros_boot_policy_probe_conflict");
+        foreach (string collision in new[] { "EnableM04SimpleThrowCatchProbe", "EnableM04SingleFinallyCatchProbe",
+            "EnableM04SeededCollectorChurnProbe", "EnableM04ClassConstructorExecutionProbe" })
+            Reject("profile-conflict-" + collision, [..chain, "-p:" + flag + "=true", "-p:" + collision + "=true"], "m04_rethrow_profile_conflict");
+        Console.WriteLine("RETHROW_PROJECT_ADMISSION_PASS");
+    }
+    private static string Invoke(string root, string folder, string name, string[] arguments, int expectedExit = 0)
     {
         var start = new ProcessStartInfo("dotnet") { WorkingDirectory = root, UseShellExecute = false,
             CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
@@ -197,7 +229,7 @@ internal static class M04RethrowCatchEfiIntegrationTests
         string output = stdout.GetAwaiter().GetResult(), error = stderr.GetAwaiter().GetResult();
         File.WriteAllText(Path.Combine(folder, name + ".out"), output);
         File.WriteAllText(Path.Combine(folder, name + ".err"), error);
-        if (!ended || process.ExitCode != 0 || error.Length != 0)
+        if (!ended || process.ExitCode != expectedExit || error.Length != 0)
             throw new InvalidOperationException(name + " exit=" + process.ExitCode + " " + output + error);
         return output;
     }
