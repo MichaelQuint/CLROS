@@ -13,6 +13,22 @@ See [the current EFI toolchain](efi-build.md#current-toolchain-migration) and
 [step1078](../done/step1078.md) for its qualification boundary. Historical
 `10.0.8` acceptance below remains tied to its original source and artifacts.
 
+## Bounded rethrow development
+
+[Issue #596](http://192.168.4.35:3000/admin/CLROS/issues/596) implements the
+next part of M04-021. The host generator now emits distinct inner-throw and
+outer-rethrow bridges with deterministic COFF and instruction-model tests.
+`RhpRethrow` takes no exception argument: its bridge clears the incoming slot
+and obtains the original rooted exception from the selector's active state.
+Existing simple-catch and single-finally object bytes remain unchanged.
+
+[Step1096](../done/step1096.md) records an actual no-stdlib ILC compiler
+fixture's inner cleanup, typed catch, `throw;`, outer catch and compiled
+continuation, including frame and exception-table geometry. This fixture was
+compiled to COFF only. The new bridges are not linked into an EFI profile;
+active-context admission, linked-image/stack review and guest validation remain
+unfinished. These development results do not accept rethrow or general EH.
+
 ## Accepted bounded interface dispatch
 
 M04-016 uses the original registered module and current allocator receipt to

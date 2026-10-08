@@ -10,7 +10,9 @@ internal static class Program
 
     private static int Main(string[] args)
     {
-        string testName = Array.IndexOf(args, "--single-finally-catch") >= 0 ? "m04.021.finally.thunk.generate"
+        string testName = Array.IndexOf(args, "--rethrow-inner") >= 0 || Array.IndexOf(args, "--rethrow-outer") >= 0
+            ? "m04.021.rethrow.thunk.generate"
+            : Array.IndexOf(args, "--single-finally-catch") >= 0 ? "m04.021.finally.thunk.generate"
             : Array.IndexOf(args, "--simple-throw-catch") >= 0 ? "m04.021.thunk.generate"
             : Array.IndexOf(args, "--interface-dispatch") >= 0 ? DispatchTestName
             : Array.IndexOf(args, "--checked-reference-barriers") >= 0 ? BarrierTestName : TestName;
@@ -33,7 +35,9 @@ internal static class Program
 
         byte[] objectBytes;
         CoffWriteError generationError;
-        bool generated = parseResult.SingleFinallyCatch
+        bool generated = parseResult.RethrowMode != 0
+            ? TryGenerateRethrow(parseResult.RethrowMode == 2, out objectBytes, out generationError)
+            : parseResult.SingleFinallyCatch
             ? TryGenerateSingleFinallyCatch(out objectBytes, out generationError)
             : parseResult.SimpleThrowCatch
             ? TryGenerateSimpleThrowCatch(out objectBytes, out generationError)
@@ -58,12 +62,24 @@ internal static class Program
         }
 
         string hash = Convert.ToHexString(SHA256.HashData(objectBytes));
-        string ready = parseResult.SingleFinallyCatch ? "M04_SINGLE_FINALLY_THUNK_READY" : parseResult.SimpleThrowCatch ? "M04_SIMPLE_CATCH_THUNK_READY" : parseResult.InterfaceDispatch ? "M04_INTERFACE_DISPATCH_THUNK_READY" : parseResult.CheckedReferences ? "M04_CHECKED_REFERENCE_THUNKS_READY" : "X64_SERIALIZER_OBJECT_READY";
+        string ready = parseResult.RethrowMode != 0 ? "M04_RETHROW_THUNK_READY role=" + (parseResult.RethrowMode == 2 ? "outer" : "inner") : parseResult.SingleFinallyCatch ? "M04_SINGLE_FINALLY_THUNK_READY" : parseResult.SimpleThrowCatch ? "M04_SIMPLE_CATCH_THUNK_READY" : parseResult.InterfaceDispatch ? "M04_INTERFACE_DISPATCH_THUNK_READY" : parseResult.CheckedReferences ? "M04_CHECKED_REFERENCE_THUNKS_READY" : "X64_SERIALIZER_OBJECT_READY";
         Console.WriteLine(
             $"{ready} bytes={objectBytes.Length} " +
             $"sha256={hash} state={writeResult.State}");
         Console.WriteLine($"TEST_PASS {testName}");
         return 0;
+    }
+
+    private static bool TryGenerateRethrow(bool outer, out byte[] objectBytes, out CoffWriteError error)
+    {
+        var definition = ExceptionHandlingThunkGenerator.DefineRethrow(outer);
+        objectBytes = new byte[outer ? 1382 : 1732];
+        if (!Amd64CoffWriter.TryWrite(in definition, objectBytes, true, true, out int written, out error)) return false;
+        string expected = outer ? "635C903FF77EE3C7DE3D1EDCE3E6F015DDEF204454A50432DFCF9692686E337B"
+            : "D30D37F5AD93A70A66D2ED2E69A184A75DB903C5A1D69C4E31571569016E7A10";
+        if (written != objectBytes.Length || Convert.ToHexString(SHA256.HashData(objectBytes)) != expected)
+        { error = CoffWriteError.InternalInvariant; return false; }
+        return true;
     }
 
     private static bool TryGenerateSimpleThrowCatch(out byte[] objectBytes, out CoffWriteError error)
@@ -126,34 +142,44 @@ internal static class Program
         bool interfaceDispatch = false;
         bool simpleThrowCatch = false;
         bool singleFinallyCatch = false;
+        int rethrowMode = 0;
 
         for (int index = 0; index < args.Length; index++)
         {
             string option = args[index];
+            if (option is "--rethrow-inner" or "--rethrow-outer")
+            {
+                int mode = option == "--rethrow-inner" ? 1 : 2;
+                if (rethrowMode == mode) return CliParseResult.Fail("argument_duplicate");
+                if (rethrowMode != 0 || singleFinallyCatch || simpleThrowCatch || interfaceDispatch || checkedReferences)
+                    return CliParseResult.Fail("argument_mode_conflict");
+                rethrowMode = mode;
+                continue;
+            }
             if (option == "--single-finally-catch")
             {
                 if (singleFinallyCatch) return CliParseResult.Fail("argument_duplicate");
-                if (simpleThrowCatch || interfaceDispatch || checkedReferences) return CliParseResult.Fail("argument_mode_conflict");
+                if (rethrowMode != 0 || simpleThrowCatch || interfaceDispatch || checkedReferences) return CliParseResult.Fail("argument_mode_conflict");
                 singleFinallyCatch = true;
                 continue;
             }
             if (option == "--simple-throw-catch")
             {
                 if (simpleThrowCatch) return CliParseResult.Fail("argument_duplicate");
-                if (singleFinallyCatch || interfaceDispatch || checkedReferences) return CliParseResult.Fail("argument_mode_conflict");
+                if (rethrowMode != 0 || singleFinallyCatch || interfaceDispatch || checkedReferences) return CliParseResult.Fail("argument_mode_conflict");
                 simpleThrowCatch = true;
                 continue;
             }
             if (option == "--interface-dispatch")
             {
                 if (interfaceDispatch) return CliParseResult.Fail("argument_duplicate");
-                if (singleFinallyCatch || checkedReferences || simpleThrowCatch) return CliParseResult.Fail("argument_mode_conflict");
+                if (rethrowMode != 0 || singleFinallyCatch || checkedReferences || simpleThrowCatch) return CliParseResult.Fail("argument_mode_conflict");
                 interfaceDispatch = true;
                 continue;
             }
             if (option == "--checked-reference-barriers")
             {
-                if (singleFinallyCatch || interfaceDispatch || simpleThrowCatch) return CliParseResult.Fail("argument_mode_conflict");
+                if (rethrowMode != 0 || singleFinallyCatch || interfaceDispatch || simpleThrowCatch) return CliParseResult.Fail("argument_mode_conflict");
                 if (checkedReferences) return CliParseResult.Fail("argument_duplicate");
                 checkedReferences = true;
                 continue;
@@ -195,7 +221,7 @@ internal static class Program
             return CliParseResult.Fail("arguments_missing");
         }
 
-        return new(true, outputRoot, outputFile, null, checkedReferences, interfaceDispatch, simpleThrowCatch, singleFinallyCatch);
+        return new(true, outputRoot, outputFile, null, checkedReferences, interfaceDispatch, simpleThrowCatch, singleFinallyCatch, rethrowMode);
     }
 
     private static bool TryResolveOutput(
@@ -468,7 +494,8 @@ internal static class Program
         bool CheckedReferences = false,
         bool InterfaceDispatch = false,
         bool SimpleThrowCatch = false,
-        bool SingleFinallyCatch = false)
+        bool SingleFinallyCatch = false,
+        int RethrowMode = 0)
     {
         public static CliParseResult Fail(string errorCode) =>
             new(false, null, null, errorCode);

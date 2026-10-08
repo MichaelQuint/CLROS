@@ -41,6 +41,7 @@ internal static class ExceptionHandlingThunkGeneratorTests
             for (int failure = 0; failure <= 6; failure++) VerifyTransfer(code, failure);
             VerifyFinallyDefinition(tool, folder, code);
             VerifyFinallyCli(root, tool, folder);
+            VerifyRethrow(root, tool, folder);
             Console.WriteLine("TEST_PASS " + name);
         }
         catch (Exception ex) { Console.WriteLine("TEST_FAIL " + name + " " + ex); throw; }
@@ -142,14 +143,91 @@ internal static class ExceptionHandlingThunkGeneratorTests
     // observes real saved/loaded bytes; callbacks deliberately clobber scratch
     // state and the catch changes nonvolatile GP/XMM values that must survive
     // resume. Cleanup and validation scratch sets must not replace selection.
-    private static void VerifyTransfer(byte[] code, int failure, bool singleFinally = false, int finallyValidator = -1, int continuationValidator = 810)
+    private static void VerifyRethrow(string root, string tool, string folder)
+    {
+        const string name = "m04.021.rethrow.thunk";
+        Console.WriteLine("TEST_START " + name);
+        try
+        {
+            Type generator = Assembly.LoadFile(Path.GetFullPath(tool))
+                .GetType("OS.X64TextSerializerGenerator.ExceptionHandlingThunkGenerator", true)!;
+            MethodInfo define = generator.GetMethod("DefineRethrow", [typeof(bool)])!;
+            static T Read<T>(object value, string property) => (T)value.GetType().GetProperty(property)!.GetValue(value)!;
+            foreach (bool outer in new[] { false, true })
+            {
+                string role = outer ? "outer" : "inner";
+                object definition = define.Invoke(null, [outer])!;
+                Array sections = Read<Array>(definition, "Sections"), symbols = Read<Array>(definition, "Symbols");
+                Need(Read<ushort>(definition, "Machine") == 0x8664 && Read<uint>(definition, "TimeDateStamp") == 0,
+                    "deterministic rethrow AMD64 definition");
+                Need(sections.Length == 1, "one executable section");
+                string[] names = outer
+                    ? ["RhpRethrow", "CLROS_Rethrow_SelectOuter", "CLROS_Rethrow_ValidateOuter", "CLROS_Rethrow_OuterClauses",
+                       "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__RethrowOuter"]
+                    : ["RhpThrowEx", "CLROS_Rethrow_SelectInner", "CLROS_Rethrow_RejectInnerReturn", "CLROS_Rethrow_InnerClauses",
+                       "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__RethrowInner", "CLROS_Rethrow_ValidateFinally"];
+                Need(symbols.Cast<object>().Select(s => Read<string>(s, "Name")).SequenceEqual(names), "role-specific symbols");
+                object section = sections.GetValue(0)!;
+                byte[] code = Read<byte[]>(section, "RawData");
+                Array relocs = Read<Array>(section, "Relocations");
+                Need(relocs.Length == (outer ? 3 : 4), "all callbacks and one clause table");
+                uint[] targets = outer ? [1U, 2U, 4U] : [1U, 5U, 2U, 4U];
+                int[] offsets = new int[relocs.Length];
+                for (int i = 0; i < offsets.Length; i++)
+                {
+                    object rel = relocs.GetValue(i)!;
+                    offsets[i] = checked((int)Read<uint>(rel, "Offset"));
+                    Need(Read<uint>(rel, "SymbolIndex") == targets[i] && Read<ushort>(rel, "Type") == 4,
+                        "relocation target and REL32 type");
+                    Need(code.AsSpan(offsets[i], 4).SequenceEqual(new byte[4]), "unbound displacement remains zero");
+                }
+                if (!outer) Need(code.SequenceEqual(File.ReadAllBytes(Path.Combine(folder, "finally.text.bin"))),
+                    "inner bridge preserves the already-modeled finally instruction stream");
+                for (int failure = 0; failure <= (outer ? 6 : 9); failure++)
+                    VerifyTransfer(code, failure, !outer, outer ? -1 : offsets[1] - 1,
+                        offsets[outer ? 1 : 2] - 1, outer, offsets[0] - 1);
+                string[] args = [tool, "--rethrow-" + role, "--output-root", folder, "--output-file", role + ".obj"];
+                string output = Run(root, folder, role + "-emit", args);
+                byte[] obj = File.ReadAllBytes(Path.Combine(folder, role + ".obj"));
+                string expectedHash = outer ? "635C903FF77EE3C7DE3D1EDCE3E6F015DDEF204454A50432DFCF9692686E337B"
+                    : "D30D37F5AD93A70A66D2ED2E69A184A75DB903C5A1D69C4E31571569016E7A10";
+                Need(obj.Length == (outer ? 1382 : 1732) && Convert.ToHexString(SHA256.HashData(obj)) == expectedHash,
+                    "fixed complete rethrow object");
+                Need(obj.AsSpan(60, code.Length).SequenceEqual(code), "modeled bytes are exactly serialized");
+                Need(output.Contains("TEST_PASS m04.021.rethrow.thunk.generate", StringComparison.Ordinal) &&
+                    output.Contains("M04_RETHROW_THUNK_READY role=" + role + " bytes=" + obj.Length + " sha256=" +
+                        Convert.ToHexString(SHA256.HashData(obj)), StringComparison.Ordinal), "complete object receipt");
+                Run(root, folder, role + "-repeat", args);
+                Need(obj.SequenceEqual(File.ReadAllBytes(Path.Combine(folder, role + ".obj"))), "deterministic repeat");
+            }
+            string[] modes = ["--rethrow-inner", "--rethrow-outer", "--single-finally-catch", "--simple-throw-catch",
+                "--interface-dispatch", "--checked-reference-barriers"];
+            var pairs = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string first in modes.Take(2))
+            foreach (string second in modes)
+            foreach (var pair in new[] { (first, second), (second, first) })
+            {
+                if (!pairs.Add(pair.Item1 + " " + pair.Item2)) continue;
+                string file = "rejected-rethrow-" + pairs.Count + ".obj";
+                string output = Run(root, folder, "rethrow-conflict-" + pairs.Count,
+                    [tool, pair.Item1, pair.Item2, "--output-root", folder, "--output-file", file], 2);
+                Need(output.Contains(pair.Item1 == pair.Item2 ? "argument_duplicate" : "argument_mode_conflict", StringComparison.Ordinal)
+                    && !File.Exists(Path.Combine(folder, file)), "invalid mode leaves no artifact");
+            }
+            Console.WriteLine("TEST_PASS " + name);
+        }
+        catch (Exception ex) { Console.WriteLine("TEST_FAIL " + name + " " + ex); throw; }
+    }
+
+    private static void VerifyTransfer(byte[] code, int failure, bool singleFinally = false, int finallyValidator = -1,
+        int continuationValidator = 810, bool rethrow = false, int selector = 329)
     {
         ulong[] g = Enumerable.Range(0,16).Select(i => 0x100000UL+(ulong)i).ToArray();
         byte[][] xmm = Enumerable.Range(0,16).Select(i => Enumerable.Repeat((byte)(i+1),16).ToArray()).ToArray();
         byte[] memory = new byte[8192];
         const ulong entry = 6008, rawRip = 0x180010009, continuation = 0x18002001b, exception = 0x700000;
         ulong frame = entry-840, selectedSp = entry+8+48;
-        g[4]=entry;g[1]=exception;
+        g[4]=entry;g[1]=rethrow ? 0xDEADC0DEUL : exception;
         ulong[] original=(ulong[])g.Clone(), selected=(ulong[])g.Clone(), post=(ulong[])g.Clone();
         int[] nv=[3,5,6,7,12,13,14,15];
         byte[][] originalXmm=xmm.Select(x=>(byte[])x.Clone()).ToArray(), selectedXmm=xmm.Select(x=>(byte[])x.Clone()).ToArray();
@@ -183,6 +261,7 @@ internal static class ExceptionHandlingThunkGeneratorTests
             if(code[ip]==0x9c){g[4]-=8;Put(g[4],flags);ip++;continue;}
             if(code[ip]==0x58){g[0]=Get(g[4]);g[4]+=8;ip++;continue;}
             if(At(0x48,0x81,0xec)){g[4]-=(uint)I32(ip+3);ip+=7;continue;}
+            if(At(0x31,0xc9)){Need(rethrow,"zero argument only at no-argument rethrow entry");g[1]=0;zero=true;ip+=2;continue;}
             if(At(0x0f,0x20,0xe0)){g[0]=cr4;ip+=3;continue;}
             if(At(0x4c,0x89,0xdc)){g[4]=g[11];ip+=3;continue;}
             if(At(0x48,0xf7,0x84,0x24)){zero=(Get(g[4]+(uint)I32(ip+4))&(uint)I32(ip+8))==0;ip+=12;continue;}
@@ -209,13 +288,14 @@ internal static class ExceptionHandlingThunkGeneratorTests
             {
                 Need(g[4]==frame && g[4]%16==0,"ordinary callback alignment");
                 memory.AsSpan((int)frame,32).Fill(0xCC); // each callback owns its home area
-                if(ip==329)
+                if(ip==selector)
                 {
-                    selectCalls++;Need(g[1]==exception&&g[2]==frame+32&&g[8]==frame+272&&g[9]==frame+776,"selector args");
+                    selectCalls++;Need(g[1]==(rethrow?0:exception)&&g[2]==frame+32&&g[8]==frame+272&&g[9]==frame+776,"selector args");
+                    Need(Get(frame+768)==(rethrow?0:exception),"rethrow does not retain or trust incoming RCX");
                     Need(Get(frame+32)==rawRip&&Get(frame+40)==entry+8,"raw preprolog input");
                     for(int i=0;i<nv.Length;i++)Need(Get(frame+48+(ulong)i*8)==original[nv[i]],"captured nonvolatile");
                     for(int r=6;r<16;r++)Need(memory.AsSpan((int)frame+112+(r-6)*16,16).SequenceEqual(originalXmm[r]),"captured XMM");
-                    Put(frame+272,0x180020033);Put(frame+280,singleFinally?cleanupTarget:0);Put(frame+288,0x18002001a);Put(frame+296,selectedSp);
+                    Put(frame+272,0x180020033);Put(frame+280,rethrow?exception:singleFinally?cleanupTarget:0);Put(frame+288,0x18002001a);Put(frame+296,selectedSp);
                     for(int i=0;i<nv.Length;i++){selected[nv[i]]+=0x10000;Put(frame+304+(ulong)i*8,selected[nv[i]]);}
                     selected[5]=selectedSp+48;Put(frame+312,selected[5]);
                     for(int r=6;r<16;r++){selectedXmm[r]=Enumerable.Repeat((byte)(0x40+r),16).ToArray();selectedXmm[r].CopyTo(memory,(int)frame+368+(r-6)*16);}
