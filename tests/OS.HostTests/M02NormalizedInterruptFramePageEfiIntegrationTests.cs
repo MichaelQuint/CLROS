@@ -28,7 +28,7 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
     private const string CompileClosureSha256 =
         "8f97464a82c221d17190da6d5347e5fa998a5863dae0edb4a7012f8ec9bb8ab1";
     private const string CanonicalProjectShapeSha256 =
-        "e83930c6826daf69fb5d814b9f3a0e0dabaa9bdf8c3d9d8a36f890d862f01d6b";
+        "522ed563b04cf92e693e11b76f03c05c0da00cfa4c8a2adad5ac3f5eee07adbb";
     private const string FrozenProductionSha256 =
         "B66CD19B45E8198897B837DF9EDA6934AFBE087DC141C468BD0DB44E62724DA1";
     private const string FrozenHostLeafSha256 =

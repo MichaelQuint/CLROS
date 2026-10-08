@@ -354,7 +354,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
             $snapshot.properties=$properties
             Assert-PostRestoreEvidenceMatchesSnapshot -Evidence $original -Snapshot $snapshot
             $names=@($properties.Keys | Where-Object {$_.StartsWith('Enable',[StringComparison]::Ordinal)})
-            if($names.Count -ne 51){throw 'complete vector'}
+            if($names.Count -ne 52){throw 'complete vector'}
             foreach($name in $names) {
                 $changed=($json | ConvertFrom-Json).postRestoreEvaluation
                 $changed.properties.$name=if($properties[$name] -eq 'true'){'false'}else{'true'}
@@ -370,7 +370,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
                 try {Assert-PostRestoreEvidenceMatchesSnapshot -Evidence $changed -Snapshot $snapshot} catch {$rejected=$true}
                 if(-not $rejected){throw $kind}
             }
-            Write-Output 'TEST_PASS m04.006.efi.authority flags=51 flipped=51 missing=1 embeddedNul=1'
+            Write-Output 'TEST_PASS m04.006.efi.authority flags=52 flipped=52 missing=1 embeddedNul=1'
             """);
         File.WriteAllText(Path.Combine(directory,"Authority.csproj"),"""
             <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
@@ -396,7 +396,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
             string[] enabled=["EnableM01LoadedImageStackProbe","EnableM01LiveAllocatorProbe","EnableM04IndependentEndianConformanceProbe","EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe","EnableM04ArithmeticConformanceProbe","EnableM04LayoutContractProbe","EnableM04ManagedHeapPageRangeProbe"];
             foreach(string flag in enabled)properties[flag]="true";
             string[] vector=properties.Select(x=>x.Key).Where(x=>x.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
-            if(vector.Length!=51)throw new Exception("complete 51-probe vector");
+            if(vector.Length!=52)throw new Exception("complete 52-probe vector");
             string[] verifierArgs=enabled.Select(x=>"-"+x).ToArray();
             void Verify(bool success,string context) {
                 File.WriteAllText(evidencePath,evidence.ToJsonString());
@@ -420,7 +420,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
             """);
         Result r=Process(root,"dotnet","run","--project",Path.Combine(directory,"Authority.csproj"),"-c","Release");
         File.WriteAllText(Path.Combine(directory,"run.log"),r.Output);
-        Require(r.Code==0 && r.Output.Contains("flags=51 flipped=51",StringComparison.Ordinal),r.Output);
+        Require(r.Code==0 && r.Output.Contains("flags=52 flipped=52",StringComparison.Ordinal),r.Output);
     }
 
     private static void TestFirewall()

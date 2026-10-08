@@ -39,6 +39,7 @@ param(
     [switch]$EnableM04TypeManagerModuleRegistrationProbe,
     [switch]$EnableM04X64UnwindMetadataProbe,
     [switch]$EnableM04SimpleThrowCatchProbe,
+    [switch]$EnableM04SingleFinallyCatchProbe,
     [switch]$EnableM04GcStaticRootMaterializationProbe,
     [switch]$EnableM04SeededCollectorChurnProbe,
     [switch]$EnableM03TypedExitBootServicesCallProbe,
@@ -3939,6 +3940,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM04TypeManagerModuleRegistrationProbe," +
             "EnableM04X64UnwindMetadataProbe," +
             "EnableM04SimpleThrowCatchProbe," +
+            "EnableM04SingleFinallyCatchProbe," +
             "EnableM04GcStaticRootMaterializationProbe," +
             "EnableM04SeededCollectorChurnProbe," +
             "EnableM03TypedExitBootServicesCallProbe," +
@@ -4114,6 +4116,9 @@ function Invoke-PostRestoreEvaluationSnapshot {
     }
     if ($EnableM04SimpleThrowCatchProbe) {
         $arguments += "-p:EnableM04SimpleThrowCatchProbe=true"
+    }
+    if ($EnableM04SingleFinallyCatchProbe) {
+        $arguments += "-p:EnableM04SingleFinallyCatchProbe=true"
     }
     if ($EnableM04GcStaticRootMaterializationProbe) {
         $arguments += "-p:EnableM04GcStaticRootMaterializationProbe=true"
@@ -4400,6 +4405,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM04X64UnwindMetadataProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04SimpleThrowCatchProbe =
             $EnableM04SimpleThrowCatchProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM04SingleFinallyCatchProbe =
+            $EnableM04SingleFinallyCatchProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04GcStaticRootMaterializationProbe =
             $EnableM04GcStaticRootMaterializationProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04SeededCollectorChurnProbe =
@@ -4630,7 +4637,9 @@ if ($EnableM04ClassConstructorExecutionProbe -and $EnableM04SeededCollectorChurn
 if ($EnableM04InterfaceDispatchProbe -and -not $EnableM04ClassConstructorExecutionProbe) { Write-Failure 'm04_dispatch_requires_cctor_profile'; exit 1 }
 if ($EnableM04X64UnwindMetadataProbe -and -not $EnableM04TypeManagerModuleRegistrationProbe) { Write-Output "TEST_FAIL efi.artifact m04_x64_unwind_metadata_requires_original_module"; exit 1 }
 if ($EnableM04SimpleThrowCatchProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Output "TEST_FAIL efi.artifact m04_simple_catch_requires_gc_profile"; exit 1 }
+if ($EnableM04SingleFinallyCatchProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Output "TEST_FAIL efi.artifact m04_single_finally_requires_gc_profile"; exit 1 }
 if ($EnableM04SimpleThrowCatchProbe -and ($EnableM04SeededCollectorChurnProbe -or $EnableM04ClassConstructorExecutionProbe -or $EnableM04InterfaceDispatchProbe -or $EnableM04X64UnwindMetadataProbe)) { Write-Output "TEST_FAIL efi.artifact m04_simple_catch_profile_conflict"; exit 1 }
+if ($EnableM04SingleFinallyCatchProbe -and ($EnableM04SeededCollectorChurnProbe -or $EnableM04ClassConstructorExecutionProbe -or $EnableM04InterfaceDispatchProbe -or $EnableM04X64UnwindMetadataProbe -or $EnableM04SimpleThrowCatchProbe)) { Write-Output "TEST_FAIL efi.artifact m04_single_finally_profile_conflict"; exit 1 }
 if ($EnableM04SeededCollectorChurnProbe -and -not $EnableM04GcStaticRootMaterializationProbe) {
     Write-Output "TEST_FAIL efi.artifact m04_churn_requires_gc_profile"; exit 1
 }
@@ -6071,6 +6080,9 @@ if ($EnableM04InterfaceDispatchProbe) {
 }
 if ($EnableM04SimpleThrowCatchProbe) {
     $requiredEvidenceProperties += @("simpleCatchLinkedObjectPath", "simpleCatchObjectPath", "simpleCatchObjectBytes", "simpleCatchObjectSha256")
+}
+if ($EnableM04SingleFinallyCatchProbe) {
+    $requiredEvidenceProperties += @("singleFinallyLinkedObjectPath", "singleFinallyObjectPath", "singleFinallyObjectBytes", "singleFinallyObjectSha256")
 }
 foreach ($propertyName in $requiredEvidenceProperties) {
     if ($null -eq $linkEvidence.PSObject.Properties[$propertyName]) {
@@ -7520,6 +7532,7 @@ $expectedForceIncludes = @($serializerSymbol)
 if ($EnableM04CheckedReferenceBarrierProbe -or $EnableM04GcStaticRootMaterializationProbe) { $expectedForceIncludes += @('RhpAssignRef','RhpCheckedAssignRef','RhpByRefAssignRef') }
 if ($EnableM04InterfaceDispatchProbe) { $expectedForceIncludes += @('RhpInitialDynamicInterfaceDispatch','CLROS_InterfaceDispatch_GetCellSection','CLROS_InterfaceDispatch_GetInitialStub') }
 if ($EnableM04SimpleThrowCatchProbe) { $expectedForceIncludes += @('RhpThrowEx','CLROS_Eh_GetClauseTable') }
+if ($EnableM04SingleFinallyCatchProbe) { $expectedForceIncludes += @('RhpThrowEx','CLROS_Eh_GetClauseTable') }
 $actualForceIncludes = @($forceIncludeOptions | ForEach-Object {
     if ($_.Groups[1].Success) { $_.Groups[1].Value } else { $_.Groups[2].Value }
 })
@@ -8262,27 +8275,39 @@ else {
 # Bounded throw bridge. This binds emitted bytes/relocations; independent native
 # review still owns full callback stack, exact ILC contributions and transfer ABI.
 $catchNames=@('RhpThrowEx','CLROS_Eh_GetClauseTable','CLROS_Eh_Select','CLROS_Eh_ValidateContinuation','__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__Catcher')
-if (-not $EnableM04SimpleThrowCatchProbe) {
+if ($EnableM04SingleFinallyCatchProbe) { $catchNames += 'CLROS_Eh_ValidateFinally' }
+elseif ([regex]::IsMatch($linkerMapText,'(?m)^\s*[0-9A-Fa-f]{4}:[0-9A-Fa-f]{8}\s+CLROS_Eh_ValidateFinally\s+')) {
+    Write-Failure 'single_finally_unrequested_native_symbol'
+}
+if (-not $EnableM04SingleFinallyCatchProbe -and [regex]::IsMatch($linkResponseText,'(?i)CLROS\.X64\.SingleFinallyCatch\.obj')) { Write-Failure 'single_finally_unrequested_native_object' }
+if (-not $EnableM04SimpleThrowCatchProbe -and [regex]::IsMatch($linkResponseText,'(?i)CLROS\.X64\.SimpleThrowCatch\.obj')) { Write-Failure 'simple_catch_unrequested_native_object' }
+if (-not $EnableM04SimpleThrowCatchProbe -and -not $EnableM04SingleFinallyCatchProbe) {
     foreach ($name in $catchNames) {
         if ([regex]::IsMatch($linkerMapText,'(?m)^\s*[0-9A-Fa-f]{4}:[0-9A-Fa-f]{8}\s+'+[regex]::Escape($name)+'\s+')) { Write-Failure 'simple_catch_unrequested_native_symbol' $name }
     }
     if ([regex]::IsMatch($linkResponseText,'(?i)CLROS\.X64\.SimpleThrowCatch\.obj')) { Write-Failure 'simple_catch_unrequested_native_object' }
 } else {
-    $catchHash = 'dd32dc30808c3b6dd42981df652b95f62236bdc8c45c1daa3dde32bab1c981ab'
-    $catchPreserved = Get-AbsolutePath ([string]$linkEvidence.simpleCatchObjectPath) 'catch_object_path_invalid'
-    $catchLinked = Get-AbsolutePath ([string]$linkEvidence.simpleCatchLinkedObjectPath) 'catch_linked_object_path_invalid'
-    $catchExpectedLinked = Join-Path (Split-Path -Parent $serializerLinkedObjectFullPath) 'CLROS.X64.SimpleThrowCatch.obj'
-    if (-not [string]::Equals($catchPreserved,$artifactPath+'.catch.obj',[StringComparison]::OrdinalIgnoreCase) -or
+    $catchBytes = if ($EnableM04SingleFinallyCatchProbe) { 1707 } else { 1350 }
+    $catchTextBytes = if ($EnableM04SingleFinallyCatchProbe) { 1336 } else { 1032 }
+    $catchGetterOffset = if ($EnableM04SingleFinallyCatchProbe) { 1328 } else { 1024 }
+    $catchObjectName = if ($EnableM04SingleFinallyCatchProbe) { 'CLROS.X64.SingleFinallyCatch.obj' } else { 'CLROS.X64.SimpleThrowCatch.obj' }
+    $catchSidecar = if ($EnableM04SingleFinallyCatchProbe) { '.finally.obj' } else { '.catch.obj' }
+    $catchPrefix = if ($EnableM04SingleFinallyCatchProbe) { 'singleFinally' } else { 'simpleCatch' }
+    $catchHash = if ($EnableM04SingleFinallyCatchProbe) { 'd24da7653745da1d37f1fc9d286a2e370c32b687a0415e90fc626a597326025a' } else { 'dd32dc30808c3b6dd42981df652b95f62236bdc8c45c1daa3dde32bab1c981ab' }
+    $catchPreserved = Get-AbsolutePath ([string]$linkEvidence.($catchPrefix+'ObjectPath')) 'catch_object_path_invalid'
+    $catchLinked = Get-AbsolutePath ([string]$linkEvidence.($catchPrefix+'LinkedObjectPath')) 'catch_linked_object_path_invalid'
+    $catchExpectedLinked = Join-Path (Split-Path -Parent $serializerLinkedObjectFullPath) $catchObjectName
+    if (-not [string]::Equals($catchPreserved,$artifactPath+$catchSidecar,[StringComparison]::OrdinalIgnoreCase) -or
         -not [string]::Equals($catchLinked,$catchExpectedLinked,[StringComparison]::OrdinalIgnoreCase) -or
-        ($linkEvidence.simpleCatchObjectBytes -isnot [int] -and $linkEvidence.simpleCatchObjectBytes -isnot [long]) -or
-        $linkEvidence.simpleCatchObjectBytes -ne 1350 -or
-        [string]$linkEvidence.simpleCatchObjectSha256 -cne $catchHash) { Write-Failure 'catch_object_contract_invalid' }
+        ($linkEvidence.($catchPrefix+'ObjectBytes') -isnot [int] -and $linkEvidence.($catchPrefix+'ObjectBytes') -isnot [long]) -or
+        $linkEvidence.($catchPrefix+'ObjectBytes') -ne $catchBytes -or
+        [string]$linkEvidence.($catchPrefix+'ObjectSha256') -cne $catchHash) { Write-Failure 'catch_object_contract_invalid' }
     $catchPreservedAuthority = Open-AuthorityReadHandle -Path $catchPreserved -RootPath (Get-AuthorityRootPath -Path $catchPreserved) `
-        -Purpose 'catch-preserved-object' -FailurePrefix 'catch_object' -MaximumBytes 1350 -RequireSingleLink
+        -Purpose 'catch-preserved-object' -FailurePrefix 'catch_object' -MaximumBytes $catchBytes -RequireSingleLink
     $catchLinkedAuthority = Open-AuthorityReadHandle -Path $catchLinked -RootPath $repositoryRoot `
-        -Purpose 'catch-linked-object' -FailurePrefix 'catch_linked_object' -MaximumBytes 1350 -RequireSingleLink
+        -Purpose 'catch-linked-object' -FailurePrefix 'catch_linked_object' -MaximumBytes $catchBytes -RequireSingleLink
     foreach ($authority in @($catchPreservedAuthority,$catchLinkedAuthority)) {
-        if ($authority.InitialLength -ne 1350 -or [string]$authority.InitialSha256 -cne $catchHash) { Write-Failure 'catch_object_identity_mismatch' }
+        if ($authority.InitialLength -ne $catchBytes -or [string]$authority.InitialSha256 -cne $catchHash) { Write-Failure 'catch_object_identity_mismatch' }
     }
     Assert-DistinctAuthorityFiles -Records @($catchPreservedAuthority,$catchLinkedAuthority,$referencePreservedAuthority,$referenceLinkedAuthority,$artifactAuthority,$linkerMapAuthority,$linkResponseAuthority,$linkEvidenceAuthority,$serializerObjectAuthority,$serializerLinkedObjectAuthority,$managedAssemblyAuthority,$linkedMapAuthority)
     $catchResponseCount=0
@@ -8294,38 +8319,48 @@ if (-not $EnableM04SimpleThrowCatchProbe) {
         if ([string]::Equals($candidate,$catchLinked,[StringComparison]::OrdinalIgnoreCase)) { $catchResponseCount++ }
     }
     if ($catchResponseCount -ne 1) { Write-Failure 'catch_object_link_response_missing' }
-    [byte[]]$catchObject = Read-AuthorityBytes -Record $catchPreservedAuthority -MaximumBytes 1350 -Reason 'catch_object_read_failed'
+    [byte[]]$catchObject = Read-AuthorityBytes -Record $catchPreservedAuthority -MaximumBytes $catchBytes -Reason 'catch_object_read_failed'
 
     $catchAddresses=@()
     for($i=0;$i -lt $catchNames.Count;$i++) {
         $binding=[regex]::Matches($linkerMapText,'(?m)^\s*([0-9A-Fa-f]{4}):([0-9A-Fa-f]{8})\s+'+[regex]::Escape($catchNames[$i])+'\s+([0-9A-Fa-f]{16})\s+(.+?)\s*$')
-        $owner=if($i -lt 2){'CLROS.X64.SimpleThrowCatch.obj'}else{'OS.obj'}
+        $owner=if($i -lt 2){$catchObjectName}else{'OS.obj'}
         if($binding.Count -ne 1 -or $binding[0].Groups[4].Value -notmatch ('(?i)(?:^|[\s\\/()])'+[regex]::Escape($owner)+'(?=$|[\s()])')) { Write-Failure 'simple_catch_symbol_owner' $catchNames[$i] }
         $at=Convert-HexUInt64 $binding[0].Groups[3].Value 'simple_catch_symbol_address'
         if($at -le $imageBase -or [decimal]$at-$imageBase -ge $sizeOfImage) { Write-Failure 'simple_catch_symbol_rva' }
         $catchAddresses += [UInt64]$at
     }
-    if($catchAddresses[0]%16 -ne 0 -or $catchAddresses[1] -ne $catchAddresses[0]+1024) { Write-Failure 'simple_catch_bridge_layout' }
-    $backing=Resolve-FileBackedRvaRange $sections ($catchAddresses[0]-$imageBase) 1032 $bytes.LongLength 'simple_catch_text_not_backed' 'simple_catch_text_ambiguous'
+    if($catchAddresses[0]%16 -ne 0 -or $catchAddresses[1] -ne $catchAddresses[0]+$catchGetterOffset) { Write-Failure 'simple_catch_bridge_layout' }
+    $backing=Resolve-FileBackedRvaRange $sections ($catchAddresses[0]-$imageBase) $catchTextBytes $bytes.LongLength 'simple_catch_text_not_backed' 'simple_catch_text_ambiguous'
     Assert-CodeSectionCharacteristics $backing.Section 'simple_catch_text_permissions'
-    [byte[]]$text=Copy-ByteRange $bytes $backing.FileOffset 1032 'simple_catch_text_truncated'
-    for($i=0;$i -lt 1032;$i++) {
-        if(($i -ge 330 -and $i -lt 334) -or ($i -ge 811 -and $i -lt 815) -or ($i -ge 1027 -and $i -lt 1031)){continue}
+    [byte[]]$text=Copy-ByteRange $bytes $backing.FileOffset $catchTextBytes 'simple_catch_text_truncated'
+    $fields = if ($EnableM04SingleFinallyCatchProbe) { @(330,609,1105,1331) } else { @(330,811,1027) }
+    $targets = if ($EnableM04SingleFinallyCatchProbe) { @(2,5,3,4) } else { @(2,3,4) }
+    for($i=0;$i -lt $catchTextBytes;$i++) {
+        $relocated = $false
+        foreach ($field in $fields) { if ($i -ge $field -and $i -lt $field+4) { $relocated=$true; break } }
+        if($relocated){continue}
         if($text[$i] -ne $catchObject[60+$i]) { Write-Failure 'simple_catch_text_mismatch' ('offset='+$i) }
     }
-    $fields=@(330,811,1027);$targets=@(2,3,4)
-    for($i=0;$i -lt 3;$i++) {
+    for($i=0;$i -lt $fields.Count;$i++) {
         if([decimal]$catchAddresses[0]+$fields[$i]+4+[BitConverter]::ToInt32($text,$fields[$i]) -ne [decimal]$catchAddresses[$targets[$i]]) { Write-Failure 'simple_catch_rel32_mismatch' }
     }
-    foreach($i in @(2,3)) {
-        if($catchAddresses[$i] -ge $catchAddresses[0] -and $catchAddresses[$i] -lt $catchAddresses[0]+1032) { Write-Failure 'simple_catch_callback_alias' }
+    $callbacks = if ($EnableM04SingleFinallyCatchProbe) { @(2,3,5) } else { @(2,3) }
+    foreach($i in $callbacks) {
+        if($catchAddresses[$i] -ge $catchAddresses[0] -and $catchAddresses[$i] -lt $catchAddresses[0]+$catchTextBytes) { Write-Failure 'simple_catch_callback_alias' }
         $b=Resolve-FileBackedRvaRange $sections ($catchAddresses[$i]-$imageBase) 1 $bytes.LongLength 'simple_catch_callback_not_backed' 'simple_catch_callback_ambiguous'
         Assert-CodeSectionCharacteristics $b.Section 'simple_catch_callback_permissions'
     }
-    $table=Resolve-FileBackedRvaRange $sections ($catchAddresses[4]-$imageBase) 8 $bytes.LongLength 'simple_catch_table_not_backed' 'simple_catch_table_ambiguous'
+    # New finally metadata remains unmeasured; this only binds its table pointer.
+    $tableBytes = if ($EnableM04SingleFinallyCatchProbe) { 1 } else { 8 }
+    $table=Resolve-FileBackedRvaRange $sections ($catchAddresses[4]-$imageBase) $tableBytes $bytes.LongLength 'simple_catch_table_not_backed' 'simple_catch_table_ambiguous'
     $flags=[UInt64]$table.Section.Characteristics
     if(($flags -band 0x40000040) -ne 0x40000040 -or ($flags -band 0xA2000020L) -ne 0) { Write-Failure 'simple_catch_table_permissions' }
-    Write-Output 'EFI_ARTIFACT_SIMPLE_CATCH_THUNK bytes=1350 text=1032 callbackRel32=2 tableRel32=1 tableBytes=8 transferAccepted=false callbackStackAccepted=false'
+    if ($EnableM04SingleFinallyCatchProbe) {
+        Write-Output 'EFI_ARTIFACT_SINGLE_FINALLY_THUNK bytes=1707 text=1336 callbackRel32=3 tableRel32=1 tableBytes=unmeasured transferAccepted=false callbackStackAccepted=false'
+    } else {
+        Write-Output 'EFI_ARTIFACT_SIMPLE_CATCH_THUNK bytes=1350 text=1032 callbackRel32=2 tableRel32=1 tableBytes=8 transferAccepted=false callbackStackAccepted=false'
+    }
 }
 
 Assert-DistinctAuthorityFiles -Records @(

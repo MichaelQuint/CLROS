@@ -2958,6 +2958,30 @@ CLI-versus-wrapper limitation. Final acceptance uses fresh ordinary wrappers;
 older counts and images are not relabeled. General EH and broader gates remain
 incomplete.
 
+## Single-finally development profile
+
+Issue #589 adds the default-off `EnableM04SingleFinallyCatchProbe` sibling with
+the same collecting-GC ancestry. It excludes simple catch, churn, constructors,
+interface dispatch and the separate unwind-metadata profile. The current source
+closure retains 121 explicit Compile items and 137 publication inputs, while
+the flag vector expands to 52 with 49 literal false defaults.
+
+The generator's `--single-finally-catch` mode emits a distinct 1,707-byte object
+and `.finally.obj` publication sidecar. Its host instruction models are recorded
+in [step1079](../done/step1079.md). The compiler-generated managed fixture has
+one inner finally and one outer typed catch; this establishes managed metadata
+shape only. Native contribution extents, cleanup calling convention, complete
+EH metadata and reachable stack bounds still require measurement. Managed
+DLL/PDB identity, project/smoke rejection and existing heap/GC/subsystem fixture
+results are retained in [step1080](../done/step1080.md).
+
+The current candidate is for publication and inspection only. Its runtime
+selector and validators reject transfer, and `run-qemu-smoke.ps1` rejects this
+profile with `m04_single_finally_native_admission_pending` in both dry-run and
+launch modes. Passing source preflight or managed compilation does not authorize
+guest execution. No finally guest, general EH, hosted .NET or Kestrel support
+is accepted by this development profile.
+
 ## Owned subsystem survival and panic profiles
 
 The disabled #67 survival profile requires EnableM01LoadedImageStackProbe,

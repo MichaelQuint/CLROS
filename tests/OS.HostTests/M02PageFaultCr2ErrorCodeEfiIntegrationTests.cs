@@ -286,7 +286,7 @@ internal static class M02PageFaultCr2ErrorCodeEfiIntegrationTests
             var inputs=evidence.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Require(inputs.Length==137,"137 raw authority inputs");
             foreach(var input in inputs)Require(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))).Equals(input.GetProperty("sha256").GetString(),StringComparison.OrdinalIgnoreCase),"raw source identity");
             var evaluation=evidence.GetProperty("postRestoreEvaluation");Require(evaluation.GetProperty("compileCount").GetInt32()==121,"121 evaluated files");
-            var properties=evaluation.GetProperty("properties");var flags=properties.EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Require(flags.Length==51,"complete 51-switch vector");
+            var properties=evaluation.GetProperty("properties");var flags=properties.EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Require(flags.Length==52,"complete 52-switch vector");
             foreach(var flag in flags)Require(flag.Value.GetString()==(enabled&&(Prerequisites.Contains(flag.Name,StringComparer.Ordinal)||flag.Name==Flag)?"true":"false"),"actual evaluated "+flag.Name);
             string assembly=Path.Combine(root,"src/OS/bin/Release/net10.0/win-x64/OS.dll");using var reader=new PEReader(File.OpenRead(assembly));Require(reader.GetMetadataReader().AssemblyReferences.Count==0,"actual no-stdlib metadata");
         }

@@ -1,4 +1,4 @@
-#if NOSTDLIB_EFI && M04_SIMPLE_THROW_CATCH_PROBE
+#if NOSTDLIB_EFI && (M04_SIMPLE_THROW_CATCH_PROBE || M04_SINGLE_FINALLY_CATCH_PROBE)
 using OS.Boot;
 using OS.Kernel.Runtime;
 using System.Runtime.CompilerServices;
@@ -18,6 +18,13 @@ internal sealed class SimpleCatchDerived : SimpleCatchBase
 
 internal static unsafe partial class RhpNewFastAllocation
 {
+#if M04_SINGLE_FINALLY_CATCH_PROBE
+    // Publish-only candidate. No cleanup/catch transfer is admitted until this
+    // fixture's actual compiler contributions and complete ABI are measured.
+    private const bool EhTransferAdmitted = false;
+    private const ulong EhCompletedPhase = 9, EhReleasedPhase = 10;
+    private static ulong s_ehFinallyEntries, s_ehFinallyLocal;
+#else
     // Measured from publish-2's original ILC/COFF contributions and complete
     // linked bytes. Enabled development publication now requires independent
     // reachable-path review before guest execution. No inferred tail bounds.
@@ -27,6 +34,8 @@ internal static unsafe partial class RhpNewFastAllocation
     private const uint EhThrowReturnOffset = 9, EhCatchReturnOffset = 26;
     private const uint EhContinuationOffset = 27, EhHandlerOffset = 51;
     private const uint EhCatchFrameBytes = 40;
+    private const ulong EhCompletedPhase = 6, EhReleasedPhase = 7;
+#endif
     private const ulong EhStorageBytes = 65536;
     private struct EhStorage { internal fixed ulong Words[8192]; }
     // These POD fields are written by the generated native bridge.
@@ -46,9 +55,12 @@ internal static unsafe partial class RhpNewFastAllocation
 #pragma warning restore CS0649
     private static EhStorage s_ehStorage;
     private static RhpNewFastResult s_ehReceipt;
+#if !M04_SINGLE_FINALLY_CATCH_PROBE
     private static X64UnwindContext s_ehCaller;
+    private static ulong s_ehSelected, s_ehTransferAddress;
+#endif
     private static ulong s_ehPhase, s_ehSeed, s_ehCatchEntries, s_ehContinuations;
-    private static ulong s_ehSelected, s_ehTransferAddress, s_ehChecks, s_ehMinimum;
+    private static ulong s_ehChecks, s_ehMinimum;
 
     [System.Runtime.RuntimeImport("*", "CLROS_Eh_GetClauseTable")]
     [MethodImpl(MethodImplOptions.InternalCall)]
@@ -57,7 +69,12 @@ internal static unsafe partial class RhpNewFastAllocation
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void RunSimpleThrowCatch()
     {
-        if (!BootSequence.IsSimpleThrowCatchEnabled() || s_ehPhase != 0 ||
+#if M04_SINGLE_FINALLY_CATCH_PROBE
+        bool enabled = BootSequence.IsSingleFinallyCatchEnabled();
+#else
+        bool enabled = BootSequence.IsSimpleThrowCatchEnabled();
+#endif
+        if (!enabled || s_ehPhase != 0 ||
             s_gcPhase != 5 || s_collectorPhase != 7 || s_gcStack.Checks != 10 ||
             s_control.ConstructorCount != 7 || !ReadGcRoot().Succeeded || !CollectorReceiptValid(5))
             RejectEh(1);
@@ -87,12 +104,15 @@ internal static unsafe partial class RhpNewFastAllocation
             s_ehReceipt.AllocationCount, collected.LiveObjects);
         s_ehPhase = 3;
         ulong result = Catcher(exception);
-        if (s_ehPhase != 6 || s_ehCatchEntries != 1 || s_ehContinuations != 1 ||
+        if (s_ehPhase != EhCompletedPhase || s_ehCatchEntries != 1 || s_ehContinuations != 1 ||
             result != s_ehSeed + 1 || !EhObjectIntact() || !CheckEhStack()) RejectEh(6);
+#if M04_SINGLE_FINALLY_CATCH_PROBE
+        if (s_ehFinallyEntries != 1) RejectEh(22);
+#endif
         EhLine(8, s_ehChecks, s_ehMinimum, GcReadWord(s_gcStack.Start), GcReadWord(s_gcStack.Start + 8));
         // No collection occurs between the explicit rooted collection and the
         // actual compiled continuation. Root lifetime ends only here.
-        s_ehPhase = 7; s_ehReceipt = default;
+        s_ehPhase = EhReleasedPhase; s_ehReceipt = default;
         EhText(1); EhText(2);
     }
 
@@ -104,16 +124,58 @@ internal static unsafe partial class RhpNewFastAllocation
     private static ulong Catcher(SimpleCatchBase value)
     {
         ulong result = 0;
+#if M04_SINGLE_FINALLY_CATCH_PROBE
+        ulong cleanupStamp = 0;
+        try
+        {
+            try { Thrower(value); }
+            finally { FinallyEntered(value, ref cleanupStamp); }
+        }
+        catch (SimpleCatchBase caught)
+        {
+            CatchEntered(caught, cleanupStamp);
+            result = caught.Payload + 1;
+        }
+#else
         try { Thrower(value); }
         catch (SimpleCatchBase caught)
         {
             CatchEntered(caught);
             result = caught.Payload + 1;
         }
+#endif
         CatchContinued(value, result);
         return result;
     }
 
+#if M04_SINGLE_FINALLY_CATCH_PROBE
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void FinallyEntered(SimpleCatchBase value, ref ulong stamp)
+    {
+        fixed (ulong* local = &stamp)
+        {
+            if (s_ehPhase != 4 || s_ehFinallyEntries != 0 || s_ehCatchEntries != 0 ||
+                s_ehContinuations != 0 || stamp != 0 || !StackSpan((ulong)local, 8) ||
+                Bits(value) != s_ehReceipt.ObjectReference || value.Payload != s_ehSeed ||
+                !EhObjectIntact() || !CheckEhStack()) RejectEh(23);
+            s_ehFinallyLocal = (ulong)local;
+            stamp = s_ehSeed + 2;
+            s_ehFinallyEntries = 1; s_ehPhase = 5;
+            EhLine(9, Bits(value), (ulong)local, stamp, s_ehFinallyEntries);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void CatchEntered(SimpleCatchBase value, ulong stamp)
+    {
+        if (s_ehPhase != 6 || s_ehFinallyEntries != 1 || stamp != s_ehSeed + 2 ||
+            !StackSpan(s_ehFinallyLocal, 8) || GcReadWord(s_ehFinallyLocal) != stamp ||
+            s_ehCatchEntries != 0 || Bits(value) != s_ehReceipt.ObjectReference ||
+            value.Payload != s_ehSeed || !EhObjectIntact() || !CheckEhStack()) RejectEh(24);
+        s_ehCatchEntries = 1; s_ehPhase = 7;
+        EhLine(5, Bits(value), value.Payload, stamp, s_ehCatchEntries);
+    }
+#else
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void CatchEntered(SimpleCatchBase value)
     {
@@ -122,13 +184,20 @@ internal static unsafe partial class RhpNewFastAllocation
         s_ehCatchEntries++;
         EhLine(5, Bits(value), value.Payload, s_ehSelected, s_ehCatchEntries);
     }
+#endif
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void CatchContinued(SimpleCatchBase value, ulong result)
     {
-        if (s_ehPhase != 5 || s_ehCatchEntries != 1 || s_ehContinuations != 0 ||
+#if M04_SINGLE_FINALLY_CATCH_PROBE
+        const ulong expectedPhase = 8;
+        if (s_ehFinallyEntries != 1) RejectEh(25);
+#else
+        const ulong expectedPhase = 5;
+#endif
+        if (s_ehPhase != expectedPhase || s_ehCatchEntries != 1 || s_ehContinuations != 0 ||
             Bits(value) != s_ehReceipt.ObjectReference || result != s_ehSeed + 1 ||
             !EhObjectIntact() || !CheckEhStack()) RejectEh(8);
-        s_ehContinuations++; s_ehPhase = 6;
+        s_ehContinuations++; s_ehPhase = EhCompletedPhase;
         EhLine(7, Bits(value), value.Payload, result, s_ehContinuations);
     }
 
@@ -166,6 +235,20 @@ internal static unsafe partial class RhpNewFastAllocation
     [MethodImpl(MethodImplOptions.NoInlining)] private static ulong EhBaseType() => (ulong)Internal.Runtime.MethodTable.Of<SimpleCatchBase>();
     [MethodImpl(MethodImplOptions.NoInlining)] private static bool EhGeometryReady() => EhTransferAdmitted;
 
+#if M04_SINGLE_FINALLY_CATCH_PROBE
+    [System.Runtime.RuntimeExport("CLROS_Eh_Select")]
+    private static uint SelectCatch(ulong exception, X64UnwindContext* captured, EhTransfer* transfer, EhControl* control)
+    {
+        if (EhGeometryReady()) return RejectEh(26);
+        return RejectEh(13);
+    }
+
+    [System.Runtime.RuntimeExport("CLROS_Eh_ValidateFinally")]
+    private static uint ValidateFinally(EhTransfer* transfer, EhControl* entry, EhControl* post) => RejectEh(26);
+
+    [System.Runtime.RuntimeExport("CLROS_Eh_ValidateContinuation")]
+    private static uint ValidateCatchContinuation(ulong rip, X64UnwindContext* post, EhTransfer* transfer, EhControl* controls) => RejectEh(26);
+#else
     [System.Runtime.RuntimeExport("CLROS_Eh_Select")]
     private static uint SelectCatch(ulong exception, X64UnwindContext* captured, EhTransfer* transfer, EhControl* control)
     {
@@ -256,6 +339,7 @@ internal static unsafe partial class RhpNewFastAllocation
         rip == thrower + EhThrowReturnOffset && rsp == capturedAddress + 816 &&
         rip != 0 && rsp >= s_gcStack.Start + 16400 && rsp <= s_gcStack.InitialRsp;
 
+#endif
     private static bool BridgeLayout(X64UnwindContext* input, EhTransfer* output, EhControl* controls) =>
         (ulong)input >= 32 && StackSpan((ulong)input - 32, 848) &&
         ((ulong)input & 15) == 0 && (ulong)output == (ulong)input + 240 &&
@@ -289,10 +373,17 @@ internal static unsafe partial class RhpNewFastAllocation
     private static void EhText(uint kind)
     {
         // Constant string access is already supported by the admitted shell.
+#if M04_SINGLE_FINALLY_CATCH_PROBE
+        string text = kind == 0 ? "TEST_START m04.021.single-finally\r\n" :
+            kind == 1 ? "TEST_PASS m04.021.single-finally\r\n" :
+            kind == 2 ? "CLROS_M04_SINGLE_FINALLY_READY\r\n" :
+            kind == 3 ? "TEST_FAIL m04.021.single-finally " : "M04_FINALLY ";
+#else
         string text = kind == 0 ? "TEST_START m04.021.simple-catch\r\n" :
             kind == 1 ? "TEST_PASS m04.021.simple-catch\r\n" :
             kind == 2 ? "CLROS_M04_SIMPLE_CATCH_READY\r\n" :
             kind == 3 ? "TEST_FAIL m04.021.simple-catch " : "M04_CATCH ";
+#endif
         for (int i = 0; i < text.Length; i++) Write((byte)text[i]);
     }
 }

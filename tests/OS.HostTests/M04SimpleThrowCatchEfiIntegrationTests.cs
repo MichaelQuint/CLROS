@@ -42,7 +42,7 @@ internal static class M04SimpleThrowCatchEfiIntegrationTests
             Need(Marshal.OffsetOf<X64UnwindContext>(offset.Item1).ToInt32()==offset.Item2,"actual capture field "+offset.Item1);
         Need(Marshal.SizeOf<X64UnwindVector>()==16&&Marshal.OffsetOf<X64UnwindVector>("High").ToInt32()==8,"whole 128-bit nonvolatile vector");
         string probe=File.ReadAllText(Path.Combine(Root,"src/OS/Runtime/ExceptionCatchProbe.cs"));
-        Need(probe.StartsWith("#if NOSTDLIB_EFI && M04_SIMPLE_THROW_CATCH_PROBE",StringComparison.Ordinal)&&
+        Need(probe.StartsWith("#if NOSTDLIB_EFI && (M04_SIMPLE_THROW_CATCH_PROBE || M04_SINGLE_FINALLY_CATCH_PROBE)",StringComparison.Ordinal)&&
             probe.Contains("throw value;",StringComparison.Ordinal)&&probe.Contains("catch (SimpleCatchBase caught)",StringComparison.Ordinal)&&
             probe.Contains("CollectGcGraph(&root, 1)",StringComparison.Ordinal)&&probe.Contains("post->Rbp != s_ehCaller.Rbp",StringComparison.Ordinal)&&
             probe.Contains("unwound.Caller.Rip - 1 - catcher",StringComparison.Ordinal),"actual throw/catch/root/body contract");

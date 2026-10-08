@@ -47,7 +47,7 @@ internal static unsafe class M03OwnedSubsystemSurvivalEfiIntegrationTests
             e.Name.LocalName.EndsWith("Probe", StringComparison.Ordinal) && e.Attribute("Condition") != null).ToArray();
         int vectorCount = System.Text.RegularExpressions.Regex.Matches(project.ToString(), @"\$\((Enable\w+Probe)\)")
             .Select(m => m.Groups[1].Value).Distinct(StringComparer.Ordinal).Count();
-        Need(vectorCount == 51 && flags.Length == 48 && flags.All(e => e.Value == "false"), "actual 51-property / 48-literal-default profile");
+        Need(vectorCount == 52 && flags.Length == 49 && flags.All(e => e.Value == "false"), "actual 52-property / 49-literal-default profile");
         Need(project.Descendants("Compile").Count() == 121, "actual explicit 121-file compile closure");
         foreach (string flag in new[] { "EnableM03OwnedSubsystemSurvivalProbe", "EnableM03OwnedSubsystemPanicProbe" })
         {

@@ -82,6 +82,7 @@ param(
     [switch] $EnableM04ClassConstructorExecutionProbe,
     [switch] $EnableM04InterfaceDispatchProbe,
     [switch] $EnableM04SimpleThrowCatchProbe,
+    [switch] $EnableM04SingleFinallyCatchProbe,
     [string] $FirmwareRngSource = "",
     [switch] $EnableM04CheckedReferenceBarrierProbe,
     [switch] $SkipImageBuild
@@ -7037,7 +7038,12 @@ try {
 if ($EnableM04InterfaceDispatchProbe -and -not $EnableM04ClassConstructorExecutionProbe) { Write-Host "TEST_FAIL qemu.smoke m04_dispatch_requires_cctor_profile"; exit 1 }
 if ($EnableM04X64UnwindMetadataProbe -and -not $EnableM04TypeManagerModuleRegistrationProbe) { Write-Host "TEST_FAIL qemu.smoke m04_x64_unwind_metadata_requires_original_module"; exit 1 }
 if ($EnableM04SimpleThrowCatchProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Host 'TEST_FAIL qemu.smoke m04_simple_catch_requires_gc_profile'; exit 1 }
+if ($EnableM04SingleFinallyCatchProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Host 'TEST_FAIL qemu.smoke m04_single_finally_requires_gc_profile'; exit 1 }
 if ($EnableM04SimpleThrowCatchProbe -and ($EnableM04SeededCollectorChurnProbe -or $EnableM04ClassConstructorExecutionProbe -or $EnableM04InterfaceDispatchProbe -or $EnableM04X64UnwindMetadataProbe)) { Write-Host 'TEST_FAIL qemu.smoke m04_simple_catch_profile_conflict'; exit 1 }
+if ($EnableM04SingleFinallyCatchProbe -and ($EnableM04SeededCollectorChurnProbe -or $EnableM04ClassConstructorExecutionProbe -or $EnableM04InterfaceDispatchProbe -or $EnableM04X64UnwindMetadataProbe -or $EnableM04SimpleThrowCatchProbe)) { Write-Host 'TEST_FAIL qemu.smoke m04_single_finally_profile_conflict'; exit 1 }
+# This development profile is publish-only until actual native geometry and
+# the final complete transcript have been reviewed. Dry-run is not acceptance.
+if ($EnableM04SingleFinallyCatchProbe) { Write-Host 'TEST_FAIL qemu.smoke m04_single_finally_native_admission_pending'; exit 1 }
 if ($EnableM04ClassConstructorExecutionProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Host "TEST_FAIL qemu.smoke m04_cctor_requires_gc_profile"; exit 1 }
 if ($EnableM04ClassConstructorExecutionProbe -and $EnableM04SeededCollectorChurnProbe) { Write-Host "TEST_FAIL qemu.smoke m04_cctor_churn_conflict"; exit 1 }
 if ($EnableM04SeededCollectorChurnProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Host "TEST_FAIL qemu.smoke m04_churn_requires_gc_profile"; exit 1 }
