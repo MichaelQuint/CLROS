@@ -8,6 +8,14 @@ is migrating to `10.0.12` under #590 ([step1078](../done/step1078.md)); its
 combined full-host and selected native/guest qualification remains pending.
 Historical accepted tuples below keep their original identities and scope.
 
+The first new unfiltered host run stopped on four inherited backlog ownership
+notes that violate the unchanged manifest fixture. The current repair changes
+only their narration and preserves M04-021's explicit withdrawal of ownership.
+All ten selected native/guest captures have bounded independent reviews, but
+the full host retry and current-image rejection controls remain required;
+the first canary control failed its quiet-timer measurement. See step1078 for
+the preserved failures and exact source/evidence boundaries.
+
 The 2026-10-03 M02 epic audit found all 20 keyed children, dependency #425 and
 27 related supplements closed with the required evidence. The technical exit
 is the bounded pre-EBS local-QEMU diagnostics milestone recorded in
