@@ -1574,7 +1574,7 @@ internal static class BuildEfiShellPreflightTests
                 "missing-import",
                 source => ReplaceOnce(
                     source.ProjectPath,
-                    "\t<Import Project=\"..\\..\\tools\\OS.X64TextSerializerGenerator\\OS.X64TextSerializerGenerator.targets\" />\n",
+                    "<Import Project=\"..\\..\\tools\\OS.X64TextSerializerGenerator\\OS.X64TextSerializerGenerator.targets\" />",
                     string.Empty),
                 "serializer_import_count_mismatch"),
             (
