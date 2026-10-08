@@ -15,9 +15,9 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
     private const string CompileClosureSha256 =
         "8f97464a82c221d17190da6d5347e5fa998a5863dae0edb4a7012f8ec9bb8ab1";
     private const string ProjectFileSha256 =
-        "81fc1709735ab3e7cccf512a7dfbb099e52fe0cbd30e11fe6b09c836977396d9";
+        "747371752dabbf531a847b4928a991e219151913ad2972e225b7f8306ee96aee";
     private const string CanonicalProjectShapeSha256 =
-        "e83930c6826daf69fb5d814b9f3a0e0dabaa9bdf8c3d9d8a36f890d862f01d6b";
+        "522ed563b04cf92e693e11b76f03c05c0da00cfa4c8a2adad5ac3f5eee07adbb";
 
     [ModuleInitializer]
     internal static void RunAll()
