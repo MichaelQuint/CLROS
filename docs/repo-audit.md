@@ -21,7 +21,14 @@ provenance. The next full run passed that provenance check but stopped on an
 M02-010 fixture still requiring the old canonical project hash. The three
 remaining matching canonical pins are now updated; their original focused
 fixtures pass all 17 checks. The audit covered canonical XML identities in
-addition to raw source hashes. A complete coherent host retry remains required.
+addition to raw source hashes. Full r05 then passed both repaired assertions
+but stopped after 1,620 passing checks because the array native-route fixture
+could not find Visual Studio's optional x64 `llvm-objdump.exe`. The same tool
+is required by object and String inspection. Source and producer identities
+remained unchanged; the failed run and two preceding publications are retained.
+The missing host prerequisite is now documented in
+[host-requirements.md](host-requirements.md). Install it, validate the three
+original inspection fixtures, and complete a coherent full host retry.
 The first canary control failed its quiet-timer measurement; the independently
 reviewed timer repair and fresh successful controls preserve that failed run.
 See step1078 for the exact source/evidence boundaries and combined PR #592.
