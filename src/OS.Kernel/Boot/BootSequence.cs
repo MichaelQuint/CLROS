@@ -249,7 +249,7 @@ public static class BootSequence
         byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
         IsSimpleThrowCatchEnabled()
             ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
-                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian, capture, mapping,
+                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, capture, mapping,
                 owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
             : default;
 

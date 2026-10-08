@@ -21,6 +21,9 @@ internal static class BuildEfiShellPreflightTests
         {
             Directory.CreateDirectory(tempRoot);
 
+            Run("efi preflight enforces stable SDK 401 band and reports exact failures", () => TestSdkVersionContract(tempRoot), ref failures);
+            Run("efi preflight discovers Visual Studio prerelease toolchains", () => TestPrereleaseVisualStudioDiscovery(tempRoot), ref failures);
+
             Console.WriteLine("TEST_START m01.020");
             int m01Failures = 0;
             Run(
@@ -190,6 +193,84 @@ internal static class BuildEfiShellPreflightTests
             failures++;
             Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
         }
+    }
+
+    private static bool TestSdkVersionContract(string tempRoot)
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        string probe = Path.Combine(tempRoot, "sdk-version-contract.ps1");
+        File.WriteAllText(probe, """
+            param([string] $BuildScriptPath)
+            $ErrorActionPreference = "Stop"
+            $tokens = $null; $errors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $BuildScriptPath, [ref] $tokens, [ref] $errors)
+            if ($errors.Count -ne 0) { throw "publisher_parse_failed" }
+            $functions = @($ast.FindAll({ param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                    $node.Name -ceq "Get-EfiSdkVersionFailureReason"
+            }, $true))
+            if ($functions.Count -ne 1) { throw "sdk_helper_missing" }
+            . ([scriptblock]::Create($functions[0].Extent.Text))
+            foreach ($version in @("10.0.401", "10.0.402", "10.0.499")) {
+                if ((Get-EfiSdkVersionFailureReason "ok" @($version)) -cne "ok") {
+                    throw "supported_sdk_rejected $version"
+                }
+            }
+            foreach ($version in @("", "10.0.300", "10.0.302", "10.0.400", "10.0.500",
+                    "11.0.401", "10.1.401", "10.0.401-preview.1", "10.0.401+extra", "invalid")) {
+                if ((Get-EfiSdkVersionFailureReason "ok" @($version)) -cne "dotnet_sdk_version_unsupported") {
+                    throw "unsupported_sdk_not_classified $version"
+                }
+            }
+            if ((Get-EfiSdkVersionFailureReason "ok" @()) -cne "dotnet_sdk_version_output_invalid" -or
+                (Get-EfiSdkVersionFailureReason "ok" @("10.0.401", "10.0.402")) -cne "dotnet_sdk_version_output_invalid" -or
+                (Get-EfiSdkVersionFailureReason "timed_out" @()) -cne "dotnet_sdk_version_timed_out") {
+                throw "sdk_process_failure_not_classified"
+            }
+            Write-Output "SDK_VERSION_CONTRACT_PASS"
+            """, new UTF8Encoding(false));
+        ProcessResult result = RunProcess("powershell.exe", root, 30_000,
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", probe,
+            Path.Combine(root, "scripts", "build-efi-shell.ps1"));
+        if (result.ExitCode != 0) Console.WriteLine(result.Output);
+        return result.ExitCode == 0 && result.Output.Contains("SDK_VERSION_CONTRACT_PASS", StringComparison.Ordinal);
+    }
+
+    private static bool TestPrereleaseVisualStudioDiscovery(string tempRoot)
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        string probe = Path.Combine(tempRoot, "prerelease-discovery.ps1");
+        string vswhere = Path.Combine(tempRoot, "fixture-vswhere.ps1");
+        File.WriteAllText(vswhere, """
+            if ($args -notcontains "-prerelease" -or $args -notcontains "Microsoft.VisualStudio.Component.VC.Tools.x86.x64") {
+                throw "required_vswhere_arguments_missing"
+            }
+            Write-Output $PSScriptRoot
+            """, new UTF8Encoding(false));
+        File.WriteAllText(probe, """
+            param([string] $BuildScriptPath, [string] $VsWherePath)
+            $ErrorActionPreference = "Stop"
+            $tokens = $null; $errors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $BuildScriptPath, [ref] $tokens, [ref] $errors)
+            if ($errors.Count -ne 0) { throw "publisher_parse_failed" }
+            $functions = @($ast.FindAll({ param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                    $node.Name -ceq "Get-DefaultMsvcLinkerSearchRoot"
+            }, $true))
+            if ($functions.Count -ne 1) { throw "discovery_helper_missing" }
+            . ([scriptblock]::Create($functions[0].Extent.Text))
+            $roots = @(Get-DefaultMsvcLinkerSearchRoot $VsWherePath)
+            $expected = Join-Path (Split-Path -Parent $VsWherePath) "VC\Tools\MSVC"
+            if ($roots -cnotcontains $expected) { throw "prerelease_install_not_discovered" }
+            Write-Output "PRERELEASE_VS_DISCOVERY_PASS"
+            """, new UTF8Encoding(false));
+        ProcessResult result = RunProcess("powershell.exe", root, 30_000,
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", probe,
+            Path.Combine(root, "scripts", "build-efi-shell.ps1"), vswhere);
+        if (result.ExitCode != 0) Console.WriteLine(result.Output);
+        return result.ExitCode == 0 && result.Output.Contains("PRERELEASE_VS_DISCOVERY_PASS", StringComparison.Ordinal);
     }
 
     internal static bool HasExactCanonicalEfiCompileItem(
@@ -1249,8 +1330,8 @@ internal static class BuildEfiShellPreflightTests
                 "duplicate-package-reference",
                 source => ReplaceOnce(
                     source.ProjectPath,
-                    "<PackageReference Include=\"runtime.win-x64.Microsoft.DotNet.ILCompiler\" Version=\"10.0.8\" PrivateAssets=\"all\" />",
-                    "<PackageReference Include=\"Microsoft.DotNet.ILCompiler\" Version=\"10.0.8\" PrivateAssets=\"all\" />")),
+                    "<PackageReference Include=\"runtime.win-x64.Microsoft.DotNet.ILCompiler\" Version=\"10.0.12\" PrivateAssets=\"all\" />",
+                    "<PackageReference Include=\"Microsoft.DotNet.ILCompiler\" Version=\"10.0.12\" PrivateAssets=\"all\" />")),
             (
                 "define-constants-override",
                 source => InsertBeforeProjectEnd(
@@ -1940,21 +2021,18 @@ internal static class BuildEfiShellPreflightTests
 
         string[] expectedArchives =
         [
-            "microsoft.dotnet.ilcompiler|10.0.8|" +
-                "microsoft.dotnet.ilcompiler.10.0.8.nupkg|" +
-                "ccdc381bbc7672c48bc755311fdf2f5907433933c295198172d2ad6958ed10b4",
-            "microsoft.net.illink.tasks|10.0.10|" +
-                "microsoft.net.illink.tasks.10.0.10.nupkg|" +
-                "97a0eca2030901738f070f142aaf02b3b1aead2bc984c08c428847910b4be312",
-            "runtime.win-x64.microsoft.dotnet.ilcompiler|10.0.8|" +
-                "runtime.win-x64.microsoft.dotnet.ilcompiler.10.0.8.nupkg|" +
-                "49f15032ef981172b8c25360f97b76d8abab75348f8e16da0a3fbb970c10bec8",
-            "runtime.win-x64.microsoft.dotnet.ilcompiler|10.0.10|" +
-                "runtime.win-x64.microsoft.dotnet.ilcompiler.10.0.10.nupkg|" +
-                "0ae1c40ef28915e63c257999d4cd860db9086878c3a6f8e30388e00056ab350a",
-            "microsoft.netcore.app.runtime.nativeaot.win-x64|10.0.10|" +
-                "microsoft.netcore.app.runtime.nativeaot.win-x64.10.0.10.nupkg|" +
-                "5fd7129af9eed4b5a2ed04219b636f7ba0dd965569275d3379fc4d02f623e626"
+            "microsoft.dotnet.ilcompiler|10.0.12|" +
+                "microsoft.dotnet.ilcompiler.10.0.12.nupkg|" +
+                "0b340ade975c2cf3d93d518adddec1e5d910c090b7756e6d37d19b772edc7b8d",
+            "microsoft.net.illink.tasks|10.0.12|" +
+                "microsoft.net.illink.tasks.10.0.12.nupkg|" +
+                "37aa984da51fdc01cc7d57a8647893392f3539cdd5a1d32ce4982be5309bc08b",
+            "runtime.win-x64.microsoft.dotnet.ilcompiler|10.0.12|" +
+                "runtime.win-x64.microsoft.dotnet.ilcompiler.10.0.12.nupkg|" +
+                "7f63d47aea10cd7ac3dd7a2ca04474c7cb683e36ef86b49190382b0c891fbe99",
+            "microsoft.netcore.app.runtime.nativeaot.win-x64|10.0.12|" +
+                "microsoft.netcore.app.runtime.nativeaot.win-x64.10.0.12.nupkg|" +
+                "94e38c861bdd0ef6e5f04492538b66ada2f30876907363a61aa9f03f42fb3406"
         ];
         string[] actualArchives = restoreArchives
             .Select(record =>
@@ -1966,12 +2044,11 @@ internal static class BuildEfiShellPreflightTests
 
         string[] expectedPackageTrees =
         [
-            "microsoft.dotnet.ilcompiler|10.0.8|restore",
-            "microsoft.net.illink.tasks|10.0.10|restore",
-            "runtime.win-x64.microsoft.dotnet.ilcompiler|10.0.8|restore",
-            "runtime.win-x64.microsoft.dotnet.ilcompiler|10.0.10|restore-only",
-            "microsoft.netcore.app.runtime.nativeaot.win-x64|10.0.10|restore-only",
-            "microsoft.netcore.app.runtime.nativeaot.win-x64|10.0.8|runtime"
+            "microsoft.dotnet.ilcompiler|10.0.12|restore",
+            "microsoft.net.illink.tasks|10.0.12|restore",
+            "runtime.win-x64.microsoft.dotnet.ilcompiler|10.0.12|restore",
+            "microsoft.netcore.app.runtime.nativeaot.win-x64|10.0.12|restore-only",
+            "microsoft.netcore.app.runtime.nativeaot.win-x64|10.0.12|runtime"
         ];
         string[] actualPackageTrees = packageTrees
             .Select(record =>
@@ -1994,23 +2071,23 @@ internal static class BuildEfiShellPreflightTests
 
         string[] expectedBuildInputs =
         [
-            "microsoft.dotnet.ilcompiler/10.0.8/build/" +
+            "microsoft.dotnet.ilcompiler/10.0.12/build/" +
                 "Microsoft.DotNet.ILCompiler.SingleEntry.targets",
-            "microsoft.dotnet.ilcompiler/10.0.8/build/" +
+            "microsoft.dotnet.ilcompiler/10.0.12/build/" +
                 "Microsoft.NETCore.Native.Publish.targets",
-            "microsoft.dotnet.ilcompiler/10.0.8/build/" +
+            "microsoft.dotnet.ilcompiler/10.0.12/build/" +
                 "Microsoft.NETCore.Native.Windows.targets",
-            "microsoft.dotnet.ilcompiler/10.0.8/build/" +
+            "microsoft.dotnet.ilcompiler/10.0.12/build/" +
                 "Microsoft.NETCore.Native.targets",
-            "microsoft.dotnet.ilcompiler/10.0.8/tools/netstandard/" +
+            "microsoft.dotnet.ilcompiler/10.0.12/tools/netstandard/" +
                 "ILCompiler.Build.Tasks.dll",
-            "microsoft.dotnet.ilcompiler/10.0.8/tools/netstandard/" +
+            "microsoft.dotnet.ilcompiler/10.0.12/tools/netstandard/" +
                 "ILCompiler.Build.Tasks.deps.json",
-            "microsoft.net.illink.tasks/10.0.10/build/" +
+            "microsoft.net.illink.tasks/10.0.12/build/" +
                 "Microsoft.NET.ILLink.targets",
-            "microsoft.net.illink.tasks/10.0.10/tools/net/" +
+            "microsoft.net.illink.tasks/10.0.12/tools/net/" +
                 "ILLink.Tasks.dll",
-            "microsoft.net.illink.tasks/10.0.10/tools/net/" +
+            "microsoft.net.illink.tasks/10.0.12/tools/net/" +
                 "ILLink.Tasks.deps.json"
         ];
         string[] actualBuildInputs = buildInputs
@@ -4927,11 +5004,11 @@ internal static class BuildEfiShellPreflightTests
             "EFI_PREFLIGHT_M02_SWITCHES status=ok enabled=false loadedImageStack=false liveAllocator=false ownedPaging=false checkedPortIoBinding=false",
             "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=121 prerequisiteGap=UefiMemoryType",
             "EFI_PREFLIGHT_DOTNET path=\"",
-            "sdkVersion=\"10.0.3",
+            "sdkVersion=\"10.0.4",
             "EFI_PREFLIGHT_MSVC_LINKER path=\"" + Path.GetFullPath(tools.LinkerPath) + "\" version=\"14.40.33807\"",
             "EFI_PREFLIGHT_WINDOWS_SDK path=\"" + Path.GetFullPath(tools.SdkLibPath) + "\" version=\"10.0.26100.0\"",
-            "EFI_PREFLIGHT_ILCOMPILER path=\"" + Path.GetFullPath(tools.IlCompilerPath) + "\" packageVersion=\"10.0.8\"",
-            "EFI_PREFLIGHT_NATIVEAOT_RUNTIME_PACK path=\"" + Path.GetFullPath(tools.NativeAotRuntimePackPath) + "\" packageVersion=\"10.0.8\"",
+            "EFI_PREFLIGHT_ILCOMPILER path=\"" + Path.GetFullPath(tools.IlCompilerPath) + "\" packageVersion=\"10.0.12\"",
+            "EFI_PREFLIGHT_NATIVEAOT_RUNTIME_PACK path=\"" + Path.GetFullPath(tools.NativeAotRuntimePackPath) + "\" packageVersion=\"10.0.12\"",
             "EFI_PREFLIGHT_QEMU path=\"" + Path.GetFullPath(tools.QemuPath) + "\" version=\"QEMU emulator version 99.1-test\"",
             "EFI_PREFLIGHT_QEMU_IMG path=\"" + Path.GetFullPath(tools.QemuImgPath) + "\" version=\"qemu-img version 99.1-test\"",
             "EFI_PREFLIGHT_OVMF path=\"" + Path.GetFullPath(tools.OvmfCodePath) + "\" bytes=65536 sha256=",
@@ -4970,7 +5047,7 @@ internal static class BuildEfiShellPreflightTests
         WriteCoffArchive(sdkLibPath);
 
         string ilCompilerSearchRoot = Path.Combine(root, "ilcompiler");
-        string ilCompilerDirectory = Path.Combine(ilCompilerSearchRoot, "10.0.8", "tools");
+        string ilCompilerDirectory = Path.Combine(ilCompilerSearchRoot, "10.0.12", "tools");
         string ilCompilerPath = Path.Combine(ilCompilerDirectory, "ilc.exe");
         WriteMinimalPeX64(ilCompilerPath);
 
@@ -4978,7 +5055,7 @@ internal static class BuildEfiShellPreflightTests
         string runtimePackPath = Path.Combine(
             runtimePackSearchRoot,
             "microsoft.netcore.app.runtime.nativeaot.win-x64",
-            "10.0.8");
+            "10.0.12");
         string runtimePackData = Path.Combine(runtimePackPath, "data");
         Directory.CreateDirectory(runtimePackData);
         File.WriteAllText(

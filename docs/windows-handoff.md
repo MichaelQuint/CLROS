@@ -5,8 +5,32 @@ Use `artifacts/clean-stop-20261007/handoff-manifest.json` for the final master
 identity, all-ref bundle, tracker snapshot and evidence inventory. That generated
 manifest is finalized after the documentation merge so the bundle includes it.
 The accepted throw/catch implementation and commands remain in
-[step1075](../done/step1075.md); the broader backlog is paused.
+[step1075](../done/step1075.md); the broader backlog was paused at that stop.
 
+On October 7, development resumed on the destination at `C:/Projects/CLROS`.
+The source Gitea at `192.168.4.35:3000` was verified as repository `admin/CLROS`,
+ID 9, with `master` at `69f9c53085a3a218c1547f2199a7a1c464703058` before
+changing `origin` from localhost to the LAN address. The destination's localhost
+Gitea is unrelated. Use the explicit source endpoint for tracker operations;
+the loopback-only plugin and backlog synchronizer remain source-host tools.
+
+The user selected migration to SDK `10.0.401` with Visual Studio 2026 Insiders
+MSVC and the new QEMU installation. See [host requirements](host-requirements.md)
+for the current SDK policy. Pinned ILCompiler and selected NativeAOT runtime
+are qualified at `10.0.12` under #590; SDK-selected and selected-runtime roots
+retain separate ownership identities even when their package versions agree.
+Copied evidence retains its historical scope. Fresh host/native/guest validation
+of the finite migration matrix passed on October 8 in
+[step1078](../done/step1078.md). Other historical optional-profile acceptance
+is not repeated by copying build outputs or changing SDK selection.
+
+The destination copy audit and recovery are recorded in [step1077](../done/step1077.md).
+It verified the original manifest references, bundle refs and 190,179 of 190,181
+artifact files on the initial pass. Both differences were subsequently recovered
+from exact retained duplicates, with independent hash readback: a missing archived
+synthetic fixture and a generic publish log overwritten by the initial destination
+preflight. The failed command and initial audit remain preserved. These records
+verify historical file recovery, not fresh execution on the destination.
 CLROS source history, tracker state and generated evidence are separate parts of
 the handoff. The destination already has Windows, Codex, .NET 10, `C:/Projects`
 and its own Gitea. The default is to keep using the source computer's Gitea over

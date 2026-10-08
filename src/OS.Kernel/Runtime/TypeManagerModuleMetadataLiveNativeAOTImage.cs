@@ -33,7 +33,7 @@ public enum TypeManagerRegisteredRangeKind : byte
 }
 
 /// <summary>
-/// The pinned .NET 10.0.8 x64 TypeManager data layout, not the CLROS owner.
+/// The pinned .NET 10.0.12 x64 TypeManager data layout, not the CLROS owner.
 /// Class-library fields stay zero; recording GC/TLS addresses initializes neither.
 /// Explicit trailing padding makes all 48 bytes deterministic.
 /// </summary>

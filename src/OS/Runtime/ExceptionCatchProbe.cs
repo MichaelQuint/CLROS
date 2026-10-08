@@ -140,11 +140,11 @@ internal static unsafe partial class RhpNewFastAllocation
         fixed (GcCollectingStorage* owner = &s_gcCollecting)
         {
             var map = BoundedNonMovingCollectorExplicitRootEnumeration.InspectType(
-                NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian, s_gcCapture, s_gcMapping,
+                NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, s_gcCapture, s_gcMapping,
                 (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle, s_gcImage, token);
             if (!map.Succeeded || map.SeriesCount != 0 || map.Prefix.BaseSize != 24) RejectEh(10);
             var allocated = GuestTestRhpNewFast.TryAllocate(s_access, &owner->State,
-                (ulong)sizeof(GcCollectingStorage), NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian,
+                (ulong)sizeof(GcCollectingStorage), NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
                 map.Prefix, token);
             if (!allocated.AllocationSucceeded || allocated.AllocationCount != 9 ||
                 allocated.BytesConsumed != 24 || GcReadWord(allocated.ObjectReference + 8) != 0)
@@ -192,7 +192,7 @@ internal static unsafe partial class RhpNewFastAllocation
         fixed (GcCollectingStorage* owner = &s_gcCollecting)
         fixed (EhStorage* storage = &s_ehStorage)
         {
-            var noEh = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian,
+            var noEh = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                 (byte*)storage, EhStorageBytes, new((uint)(thrower - s_gcImage.Start), EhThrowCodeBytes, 0, 0), 0);
             if (noEh.Status != NativeAotEhClauseStatus.NoEhInfo) return RejectEh(15);
@@ -214,14 +214,14 @@ internal static unsafe partial class RhpNewFastAllocation
                 return RejectEh(17);
             ulong table = EhClauseTable();
             if (table < s_gcImage.Start || table - s_gcImage.Start > 0x7FFFFFFF) return RejectEh(18);
-            var clause = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian,
+            var clause = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                 (byte*)storage, EhStorageBytes, new((uint)(catcher - s_gcImage.Start), EhCatchCodeBytes, (uint)(table - s_gcImage.Start), EhTableBytes), 0);
             if (!clause.Succeeded || clause.Count != 1 || clause.IsTryGroupBoundary ||
                 clause.Kind != NativeAotEhClauseKind.Typed || clause.FilterAddress != 0 ||
                 clause.TypeAddress != EhBaseType() || clause.HandlerAddress != catcher + EhHandlerOffset ||
                 !clause.ContainsOffset((uint)(unwound.Caller.Rip - 1 - catcher))) return RejectEh(18);
-            var match = ExceptionTypeMatch.Match(NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian,
+            var match = ExceptionTypeMatch.Match(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                 s_access, &owner->State, (ulong)sizeof(GcCollectingStorage), s_ehReceipt, exception, clause.TypeAddress);
             if (!match.Succeeded || !match.Matches || !EhObjectIntact()) return RejectEh(19);

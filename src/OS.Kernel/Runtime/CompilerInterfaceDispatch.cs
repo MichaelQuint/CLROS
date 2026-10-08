@@ -39,8 +39,8 @@ public struct CompilerInterfaceDispatchSealedTable
 }
 
 /// <summary>
-/// Exclusive, finite .NET 10.0.8 Win64 ordinary instance dispatch. Layout facts
-/// are pinned to dotnet/dotnet 94ea82652cdd4e0f8046b5bd5becbd11461482ca.
+/// Exclusive, finite .NET 10.0.12 Win64 ordinary instance dispatch. Layout facts
+/// are pinned to dotnet/dotnet 95017c711e6afc1085133d440e42b4bd78155701.
 /// The caller authenticates the compiler cell section and initial stub, retains
 /// original image/heap mappings and owns the zero POD buffer for its lifetime.
 /// Address checks are not mapping probes or a forgery detector. No target is

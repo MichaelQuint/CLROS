@@ -2,6 +2,44 @@
 
 ## Current Status
 
+The new Windows host completed a scoped SDK401/ILC108 native/default guest
+checkpoint ([step1077](../done/step1077.md)). The active compiler/runtime pack
+is qualified at `10.0.12` under #590 ([step1078](../done/step1078.md)). The
+combined full-host and selected native/guest qualification passes: 3,892 host
+groups plus the suite summary, ten profile captures and three rejection controls.
+Historical accepted tuples below keep their original identities and scope.
+
+The first new unfiltered host run stopped on four inherited backlog ownership
+notes that violate the unchanged manifest fixture. The current repair changes
+only their narration and preserves M04-021's explicit withdrawal of ownership.
+All ten selected native/guest captures and three fresh current-image rejection
+controls have bounded independent reviews. The full host retry passed the
+manifest check, then stopped on a stale M02-012 fixture provenance constant.
+The two retained constants are now repaired against the actual 137-input closure
+without weakening the remaining checks. Both original focused fixtures passed
+all 14 checks, including their default/enabled native publications and exact
+provenance. The next full run passed that provenance check but stopped on an
+M02-010 fixture still requiring the old canonical project hash. The three
+remaining matching canonical pins are now updated; their original focused
+fixtures pass all 17 checks. The audit covered canonical XML identities in
+addition to raw source hashes. Full r05 then passed both repaired assertions
+but stopped after 1,620 passing checks because the array native-route fixture
+could not find Visual Studio's optional x64 `llvm-objdump.exe`. The same tool
+is required by object and String inspection. Source and producer identities
+remained unchanged; the failed run and two preceding publications are retained.
+The missing host prerequisite is now documented in
+[host-requirements.md](host-requirements.md). A SHA-pinned user-local LLVM
+disassembler is configured through `CLROS_LLVM_OBJDUMP`; the shared locator
+preserves default VS x64 discovery and rejects bad explicit paths. Its 17
+focused repository/discovery checks pass. The three original native inspection
+fixtures also pass all 18 groups, including fresh default/positive/rejection
+publications. The coherent unfiltered R06 host gate then passed at `46ad1a2`
+in 5,459.701 seconds, followed by naming/firewall, default dry-run and diff checks.
+All 2,091 tracked sources, 16 producers and the LLVM identity stayed unchanged.
+The first canary control failed its quiet-timer measurement; the independently
+reviewed timer repair and fresh successful controls preserve that failed run.
+See step1078 for the exact source/evidence boundaries and combined PR #592.
+
 The 2026-10-03 M02 epic audit found all 20 keyed children, dependency #425 and
 27 related supplements closed with the required evidence. The technical exit
 is the bounded pre-EBS local-QEMU diagnostics milestone recorded in
@@ -257,8 +295,9 @@ and the reachable local Gitea tracker:
 
 ## Build Status
 
-- Stable SDK installed for the current baseline: .NET SDK `10.0.302`,
-  selected by `global.json` from the `10.0.300` feature band.
+- The new development host selects stable .NET SDK `10.0.401` through
+  `global.json`, with latest-patch roll-forward within the `10.0.400` feature
+  band. Earlier accepted evidence retains its original SDK and source identity.
 - Before scaffolding, `dotnet build CLROS.slnx` was a no-op because the solution had no projects.
 - The current baseline build command passes with 0 warnings and 0 errors:
 

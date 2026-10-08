@@ -28,8 +28,8 @@
 		<NativeDebugSymbols>false</NativeDebugSymbols>
 		<EnableSourceLink>false</EnableSourceLink>
 		<SuppressGenerateILCompilerExplicitPackageReferenceWarning>true</SuppressGenerateILCompilerExplicitPackageReferenceWarning>
-		<ClrosIlcHostPackagePath Condition="'$(ClrosIlcHostPackagePath)' == ''">$(UserProfile)\.nuget\packages\runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.8</ClrosIlcHostPackagePath>
-		<ClrosRuntimePackagePath Condition="'$(ClrosRuntimePackagePath)' == ''">$(UserProfile)\.nuget\packages\microsoft.netcore.app.runtime.nativeaot.win-x64\10.0.8</ClrosRuntimePackagePath>
+		<ClrosIlcHostPackagePath Condition="'$(ClrosIlcHostPackagePath)' == ''">$(UserProfile)\.nuget\packages\runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.12</ClrosIlcHostPackagePath>
+		<ClrosRuntimePackagePath Condition="'$(ClrosRuntimePackagePath)' == ''">$(UserProfile)\.nuget\packages\microsoft.netcore.app.runtime.nativeaot.win-x64\10.0.12</ClrosRuntimePackagePath>
 		<EntryPointSymbol>EfiMain</EntryPointSymbol>
 		<LinkerSubsystem>EFI_APPLICATION</LinkerSubsystem>
 		<DefineConstants>$(DefineConstants);NOSTDLIB_EFI</DefineConstants>
@@ -444,8 +444,8 @@
 		<Compile Include="..\OS.Kernel\Runtime\X64FrameUnwind.cs" Link="Runtime\X64FrameUnwind.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs" Link="Runtime\NativeAotEhClauseMetadata.cs" />
 		<Compile Include="Runtime\ExceptionCatchProbe.cs" />
-		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
-		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.8" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.12" PrivateAssets="all" />
+		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.12" PrivateAssets="all" />
 		<ResolvedILCompilerPack Include="runtime.win-x64.Microsoft.DotNet.ILCompiler">
 			<PackageDirectory>$(ClrosIlcHostPackagePath)</PackageDirectory>
 		</ResolvedILCompilerPack>

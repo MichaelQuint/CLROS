@@ -294,14 +294,14 @@ internal static class M04StringAllocationEfiIntegrationTests
         }
         foreach(string required in Chain)Need(project.Descendants("Error").Any(x=>x.Attribute("Condition")?.Value=="'$("+Flag+")' == 'true' and '$("+required+")' != 'true'"),"explicit prerequisite "+required);
         foreach(var file in new[]{("src/OS.Kernel/Runtime/GuestTestStringAllocationCharacterStorage.cs","0676ab5b69838bd12575a9d3c2059f8c39872cfa67c5b9fd0c37227568822aba"),
-            ("src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs","e7cd46a4c35de92cb9085f198737916697f7479dd0947fd591e4874aa347617e"),
-            ("tests/OS.HostTests/GuestTestStringAllocationCharacterStorageTests.cs","27f774d0f1123a7be7b14cbd4c8d41e22b8fb0b29b16d113745741894aac88b8"),
-            ("tests/OS.HostTests/GuestTestRhpNewFastTests.cs","b4ec1e95244041f4071ce6293a3f31924ecd960308529a352a13347d92e8e6c4"),
-            ("src/OS/Boot/EfiEntry.cs","620243ee983ebb8cf96dda83f191098fd6e02151e8bb7e6e53c1fca22a9e657d")})
+            ("src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs","7a14fa23e28548fa94d30e5569f786a1ce4c5bbe2375ac5b23a493d06f20ebd5"),
+            ("tests/OS.HostTests/GuestTestStringAllocationCharacterStorageTests.cs","ca62c5e77851f4b6d85e5be713abcbab21056681b1c1a463efdc076d0d991267"),
+            ("tests/OS.HostTests/GuestTestRhpNewFastTests.cs","7a89abb2719a94e51a218370e62fe6a4cf217252eb9ba8ff7ae693fdbc8b940e"),
+            ("src/OS/Boot/EfiEntry.cs","ed928b6c966a76d27b108d7acf37ebe6d287d6a70ffd658105782360100dc5a5")})
             Need(Hash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(root,file.Item1)).Replace("\r\n","\n",StringComparison.Ordinal)))==file.Item2,"reviewed host/entry source "+file.Item1);
         string adapter=File.ReadAllText(Path.Combine(root,"src/OS/Runtime/RhpNewFastAllocation.cs"));
         Need(adapter.Contains("GuestTestStringAllocationCharacterStorage.TryAllocate(*access, bump, 80,",StringComparison.Ordinal) &&
-            adapter.Contains("NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian, prefix, token, length)",StringComparison.Ordinal) &&
+            adapter.Contains("NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, prefix, token, length)",StringComparison.Ordinal) &&
             adapter.Contains("expectedElement == token",StringComparison.Ordinal) && adapter.Contains("token != expectedToken",StringComparison.Ordinal) &&
             adapter.Contains("RejectedAllocationUnchanged(bump, bumpBefore, access->Backing, records->BeforeAttempt)",StringComparison.Ordinal) &&
             !adapter.Contains("Serialize(",StringComparison.Ordinal),"actual shared allocator and metadata/rejection/data publication boundary");
@@ -458,7 +458,7 @@ internal static class M04StringAllocationEfiIntegrationTests
             Need(sections.Length==1,"one initialized native extent");var s=sections[0];return image.AsSpan(checked(s.PointerToRawData+(int)(rva-(ulong)s.VirtualAddress)),bytes).ToArray();
         }
         var symbols=Regex.Matches(File.ReadAllText(Path.Combine(directory,"image.EFI.link.map")),@"^\s*[0-9A-Fa-f]{4}:[0-9A-Fa-f]{8}\s+(\S+)\s+([0-9A-Fa-f]{16})\s+",RegexOptions.Multiline).ToDictionary(m=>m.Groups[1].Value,m=>Convert.ToUInt64(m.Groups[2].Value,16)-header.ImageBase,StringComparer.Ordinal);
-        string llvm=Directory.GetFiles(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"Microsoft Visual Studio"),"llvm-objdump.exe",SearchOption.AllDirectories).Where(p=>p.Contains("\\x64\\",StringComparison.OrdinalIgnoreCase)).Order(StringComparer.Ordinal).First();
+        string llvm=HostToolProcess.FindLlvmObjdump();
         Result dis=Process(root,llvm,["--disassemble","--reloc","--x86-asm-syntax=intel",Path.Combine(directory,"OS.obj")]);Save(Path.Combine(directory,"disassembly"),dis);Need(dis.Code==0,dis.Output);
         File.WriteAllText(Path.Combine(directory,"disassembler.json"),System.Text.Json.JsonSerializer.Serialize(new{Path=llvm,Sha256=Hash(File.ReadAllBytes(llvm))}));
         string Body(string name){var m=Regex.Match(dis.Output,@"^[0-9a-f]+ <"+Regex.Escape(name)+@">:\r?\n(.*?)(?=^[0-9a-f]+ <|\z)",RegexOptions.Multiline|RegexOptions.Singleline);Need(m.Success,"decoded native method "+name);return m.Value;}

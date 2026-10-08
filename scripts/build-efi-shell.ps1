@@ -219,167 +219,152 @@ $script:ExpectedSerializerSuccessCookie = 1397902403
 
 $script:ExpectedPackageBuildClosure = @(
     [ordered] @{
-        Path = 'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets'
+        Path = 'microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets'
         Sha256 = '345c9448182507befa430e80622f68c7ab09debe9c419d98b418f7f1cb79c34e'
     },
     [ordered] @{
-        Path = 'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.Publish.targets'
+        Path = 'microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.Publish.targets'
         Sha256 = '6fcb3f0491a79fd5a67281b44439e0685c17fe4c848a07477ab2a57a10a68c60'
     },
     [ordered] @{
-        Path = 'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.Windows.targets'
+        Path = 'microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.Windows.targets'
         Sha256 = '547266fbf1e772518edda8194413ce99906d3deb8bef074bbcca1033c31bc54c'
     },
     [ordered] @{
-        Path = 'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.targets'
+        Path = 'microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.targets'
         Sha256 = '22516102af0e4bdafa004795d3bbc30d617efe5bb7b809005d1ea3a00c436f6d'
     },
     [ordered] @{
-        Path = 'microsoft.dotnet.ilcompiler/10.0.8/tools/netstandard/ILCompiler.Build.Tasks.dll'
-        Sha256 = '4c8cd85bcf8e2d51d69c0fce3eaea55c2c8b23765da747c0c6cbfc38f9cccd88'
+        Path = 'microsoft.dotnet.ilcompiler/10.0.12/tools/netstandard/ILCompiler.Build.Tasks.dll'
+        Sha256 = 'dbd168e677d11e9a3daeac5839c63a22d66b3719d5f9d1b4b7dffe3eda05c6c0'
     },
     [ordered] @{
-        Path = 'microsoft.dotnet.ilcompiler/10.0.8/tools/netstandard/ILCompiler.Build.Tasks.deps.json'
-        Sha256 = '893364a48ebfd6ca97a440e32fc2252f53dbc4f4c64d63f62ac9a583365ec7c6'
+        Path = 'microsoft.dotnet.ilcompiler/10.0.12/tools/netstandard/ILCompiler.Build.Tasks.deps.json'
+        Sha256 = 'e7e496a9c07e33a18adaf561c5ec26fb283b813d10fb418bc8dd651c8d013e03'
     },
     [ordered] @{
-        Path = 'microsoft.net.illink.tasks/10.0.10/build/Microsoft.NET.ILLink.targets'
+        Path = 'microsoft.net.illink.tasks/10.0.12/build/Microsoft.NET.ILLink.targets'
         Sha256 = 'f1bbe7e9e79badb900a594691fe4c6738e906d911ee3e50975434d09035a2568'
     },
     [ordered] @{
-        Path = 'microsoft.net.illink.tasks/10.0.10/tools/net/ILLink.Tasks.dll'
-        Sha256 = '9c5ffc1e594b75c1c716173c12f501ff4a7aa0cfb7a84019c7176f2a3f4c6120'
+        Path = 'microsoft.net.illink.tasks/10.0.12/tools/net/ILLink.Tasks.dll'
+        Sha256 = '4d5509b95e246eef7b3fb5f38cc200bf3c199a3268cb62293d02af9d4776e01e'
     },
     [ordered] @{
-        Path = 'microsoft.net.illink.tasks/10.0.10/tools/net/ILLink.Tasks.deps.json'
-        Sha256 = '4bd1d4ac7c249fa1911c53106c757fd390fb40aad0d690368bcda0941ff8bbae'
+        Path = 'microsoft.net.illink.tasks/10.0.12/tools/net/ILLink.Tasks.deps.json'
+        Sha256 = '518f0256eb3699c88d7c798cbb1f8cfd42845754f4cba8726b499a25d20da6eb'
     }
 )
 
 $script:ExpectedRestoreLibraries = [ordered] @{
-    'Microsoft.DotNet.ILCompiler/10.0.8' = [ordered] @{
-        Path = 'microsoft.dotnet.ilcompiler/10.0.8'
-        Sha512 = 'RJxitcN5CCyZDcPNXKLsecwKvACzmy8C1z8hGM9+hFcnPhv1jDysJFFIeUHIPWaZ6wDAfYtZcgKEtegvL2Nz8A=='
+    'Microsoft.DotNet.ILCompiler/10.0.12' = [ordered] @{
+        Path = 'microsoft.dotnet.ilcompiler/10.0.12'
+        Sha512 = 'AawF393Q+VkdrnrnI1gu612zh5iqpa1AGSvnKCQ3IkMgSKJXIQbO1sXYRgEzOU4f0cPZ6MaCCF29xZSGWlmbuQ=='
         FileCount = 20
-        TotalBytes = 404859
-        AggregateSha256 = 'b9c5a195c93e515f34066c9d8b0b3827cf1a32ce681454d284c489622a5bfcde'
+        TotalBytes = 404890
+        AggregateSha256 = '0262658f79a7fd731130a31b423b28f8bf11810c6bf46f09cbd014af7d9e25fd'
     }
-    'Microsoft.NET.ILLink.Tasks/10.0.10' = [ordered] @{
-        Path = 'microsoft.net.illink.tasks/10.0.10'
-        Sha512 = 'f5VCIE7AJpd5YvzNTeMGVzQIgyE9tX+AreTYwQF+REbu+DZo/2Ae+jNSwhPEYrVz6RRkd7y8ubXjk6Nn6Ka+Cg=='
+    'Microsoft.NET.ILLink.Tasks/10.0.12' = [ordered] @{
+        Path = 'microsoft.net.illink.tasks/10.0.12'
+        Sha512 = 'xi+BDjFpW+Sb+MHFHaH6Y/gV9I8BluFwRXc1QyCdoZbIK26eNiBeFuMTe/FMwc33G1wdHCyDg7CVTmb8OdQrMQ=='
         FileCount = 42
-        TotalBytes = 5337318
-        AggregateSha256 = '0edc00810e9462f8d6a7468835861db6d2833f970539e6d4eb82cde5eb42ffb6'
+        TotalBytes = 5339152
+        AggregateSha256 = '11d0abb4c856d2c2e8ccce942fa9843df34a026d2c589936e5878b228f859834'
     }
-    'runtime.win-x64.Microsoft.DotNet.ILCompiler/10.0.8' = [ordered] @{
-        Path = 'runtime.win-x64.microsoft.dotnet.ilcompiler/10.0.8'
-        Sha512 = 'S+9omeowlFjRReD0VB/Q4u3DcN7+vueJSF37saFj0U2OSJIkfI7gGKQRsDxGIf0MwLha14qGrjRC3bDGhvF0Gg=='
+    'runtime.win-x64.Microsoft.DotNet.ILCompiler/10.0.12' = [ordered] @{
+        Path = 'runtime.win-x64.microsoft.dotnet.ilcompiler/10.0.12'
+        Sha512 = 'clsgU9GnioCJ+PBzQTCoJHxLXRU+7O/BzYrwRT8CUP7jgyYjNgJmNsQ/kbzAA7MG5kDvFoFvIBGHGzYdINh/EQ=='
         FileCount = 13
-        TotalBytes = 37461393
-        AggregateSha256 = 'c5aff04c7a4abcca691fc0e6a8539628cded3250a7777d6c407dc64c07ca858e'
+        TotalBytes = 37502842
+        AggregateSha256 = '117ebd47725e7f105b1f3014e610839b88168d8607877e126827316eb1355bc7'
     }
 }
 
 $script:ExpectedConsumedPackageTrees = @(
     [ordered] @{
         Id = 'microsoft.dotnet.ilcompiler'
-        Version = '10.0.8'
-        ContentHashSha512 = 'RJxitcN5CCyZDcPNXKLsecwKvACzmy8C1z8hGM9+hFcnPhv1jDysJFFIeUHIPWaZ6wDAfYtZcgKEtegvL2Nz8A=='
+        Version = '10.0.12'
+        ContentHashSha512 = 'AawF393Q+VkdrnrnI1gu612zh5iqpa1AGSvnKCQ3IkMgSKJXIQbO1sXYRgEzOU4f0cPZ6MaCCF29xZSGWlmbuQ=='
         FileCount = 20
-        TotalBytes = 404859
-        AggregateSha256 = 'b9c5a195c93e515f34066c9d8b0b3827cf1a32ce681454d284c489622a5bfcde'
+        TotalBytes = 404890
+        AggregateSha256 = '0262658f79a7fd731130a31b423b28f8bf11810c6bf46f09cbd014af7d9e25fd'
         RootKind = 'restore'
     },
     [ordered] @{
         Id = 'microsoft.net.illink.tasks'
-        Version = '10.0.10'
-        ContentHashSha512 = 'f5VCIE7AJpd5YvzNTeMGVzQIgyE9tX+AreTYwQF+REbu+DZo/2Ae+jNSwhPEYrVz6RRkd7y8ubXjk6Nn6Ka+Cg=='
+        Version = '10.0.12'
+        ContentHashSha512 = 'xi+BDjFpW+Sb+MHFHaH6Y/gV9I8BluFwRXc1QyCdoZbIK26eNiBeFuMTe/FMwc33G1wdHCyDg7CVTmb8OdQrMQ=='
         FileCount = 42
-        TotalBytes = 5337318
-        AggregateSha256 = '0edc00810e9462f8d6a7468835861db6d2833f970539e6d4eb82cde5eb42ffb6'
+        TotalBytes = 5339152
+        AggregateSha256 = '11d0abb4c856d2c2e8ccce942fa9843df34a026d2c589936e5878b228f859834'
         RootKind = 'restore'
     },
     [ordered] @{
         Id = 'runtime.win-x64.microsoft.dotnet.ilcompiler'
-        Version = '10.0.8'
-        ContentHashSha512 = 'S+9omeowlFjRReD0VB/Q4u3DcN7+vueJSF37saFj0U2OSJIkfI7gGKQRsDxGIf0MwLha14qGrjRC3bDGhvF0Gg=='
+        Version = '10.0.12'
+        ContentHashSha512 = 'clsgU9GnioCJ+PBzQTCoJHxLXRU+7O/BzYrwRT8CUP7jgyYjNgJmNsQ/kbzAA7MG5kDvFoFvIBGHGzYdINh/EQ=='
         FileCount = 13
-        TotalBytes = 37461393
-        AggregateSha256 = 'c5aff04c7a4abcca691fc0e6a8539628cded3250a7777d6c407dc64c07ca858e'
+        TotalBytes = 37502842
+        AggregateSha256 = '117ebd47725e7f105b1f3014e610839b88168d8607877e126827316eb1355bc7'
         RootKind = 'restore'
     },
     [ordered] @{
-        Id = 'runtime.win-x64.microsoft.dotnet.ilcompiler'
-        Version = '10.0.10'
-        ContentHashSha512 = 'e5P00ObvdmAl49KkvGvqDLE5+EXu/IdXCDsLghgKFXKrNybyxMmH12HuGrsO7LTIGjXI58tyN3Hwxwr/MR0d8A=='
-        FileCount = 13
-        TotalBytes = 37473738
-        AggregateSha256 = '17a69cfcd4a3a770d27b7315313c85f68b3a956878af4b95699f4011572e63fb'
+        Id = 'microsoft.netcore.app.runtime.nativeaot.win-x64'
+        Version = '10.0.12'
+        ContentHashSha512 = 'MPm78CKSJf8Sb0nbXgvzedp2uwFQX4JONl618NhEeAEznK9JLzQ6ETfJZ+UcoW5ScTqa27a+JGQDXD3bUAMTrA=='
+        FileCount = 406
+        TotalBytes = 109239870
+        AggregateSha256 = 'c4048f1c42c12a119d30b5d432e957a961689d72ea3fe44091ade5d54d1324be'
         RootKind = 'restore-only'
     },
     [ordered] @{
         Id = 'microsoft.netcore.app.runtime.nativeaot.win-x64'
-        Version = '10.0.10'
-        ContentHashSha512 = 'NHkgRRE/Fbaw/z0eLdC7rNF7ZRoR+2KQGSPh2ZiKgXpuZOz3Cjhv0srLOaeYnvYMDtT+KzjyyZGgChXx1W18wA=='
+        Version = '10.0.12'
+        ContentHashSha512 = 'MPm78CKSJf8Sb0nbXgvzedp2uwFQX4JONl618NhEeAEznK9JLzQ6ETfJZ+UcoW5ScTqa27a+JGQDXD3bUAMTrA=='
         FileCount = 406
-        TotalBytes = 109133220
-        AggregateSha256 = '389ade21d811efc6fc4d6f0f1aa492ba71f5fabfb39e4780b83c5a65e9a680c4'
-        RootKind = 'restore-only'
-    },
-    [ordered] @{
-        Id = 'microsoft.netcore.app.runtime.nativeaot.win-x64'
-        Version = '10.0.8'
-        ContentHashSha512 = '4OPm4RaS1aAEf0GOcA/IsdD/ml9o6Hw2BaiHy/iceHxExoj+38QFAyNTxcNAz73SDPHXpUp4SL046vBq5RkuEQ=='
-        FileCount = 406
-        TotalBytes = 109016717
-        AggregateSha256 = '73972c0d17f29fa389de9c4a87051b372fa15afe5cdadf55bef731a3d8144fbc'
+        TotalBytes = 109239870
+        AggregateSha256 = 'c4048f1c42c12a119d30b5d432e957a961689d72ea3fe44091ade5d54d1324be'
         RootKind = 'runtime'
     }
 )
 
 $script:ExpectedActivePackageImportEdges = @(
-    'sdk|microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets',
-    'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets|microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.targets',
-    'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.targets|microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.Windows.targets',
-    'microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.targets|microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.Publish.targets',
-    'sdk|microsoft.net.illink.tasks/10.0.10/build/Microsoft.NET.ILLink.targets'
+    'sdk|microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets',
+    'microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets|microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.targets',
+    'microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.targets|microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.Windows.targets',
+    'microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.targets|microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.Publish.targets',
+    'sdk|microsoft.net.illink.tasks/10.0.12/build/Microsoft.NET.ILLink.targets'
 )
 
 $script:ExpectedPackageTaskBindings = @(
-    'ComputeManagedAssembliesToCompileToNative|microsoft.dotnet.ilcompiler/10.0.8/tools/netstandard/ILCompiler.Build.Tasks.dll',
-    'ComputeManagedAssemblies|microsoft.net.illink.tasks/10.0.10/tools/net/ILLink.Tasks.dll'
+    'ComputeManagedAssembliesToCompileToNative|microsoft.dotnet.ilcompiler/10.0.12/tools/netstandard/ILCompiler.Build.Tasks.dll',
+    'ComputeManagedAssemblies|microsoft.net.illink.tasks/10.0.12/tools/net/ILLink.Tasks.dll'
 )
 
 $script:ExpectedRestoreArchives = @(
     [ordered] @{
         Id = 'microsoft.dotnet.ilcompiler'
-        Version = '10.0.8'
-        FileName = 'microsoft.dotnet.ilcompiler.10.0.8.nupkg'
-        Sha256 = 'ccdc381bbc7672c48bc755311fdf2f5907433933c295198172d2ad6958ed10b4'
+        Version = '10.0.12'
+        FileName = 'microsoft.dotnet.ilcompiler.10.0.12.nupkg'
+        Sha256 = '0b340ade975c2cf3d93d518adddec1e5d910c090b7756e6d37d19b772edc7b8d'
     },
     [ordered] @{
         Id = 'microsoft.net.illink.tasks'
-        Version = '10.0.10'
-        FileName = 'microsoft.net.illink.tasks.10.0.10.nupkg'
-        Sha256 = '97a0eca2030901738f070f142aaf02b3b1aead2bc984c08c428847910b4be312'
+        Version = '10.0.12'
+        FileName = 'microsoft.net.illink.tasks.10.0.12.nupkg'
+        Sha256 = '37aa984da51fdc01cc7d57a8647893392f3539cdd5a1d32ce4982be5309bc08b'
     },
     [ordered] @{
         Id = 'runtime.win-x64.microsoft.dotnet.ilcompiler'
-        Version = '10.0.8'
-        FileName = 'runtime.win-x64.microsoft.dotnet.ilcompiler.10.0.8.nupkg'
-        Sha256 = '49f15032ef981172b8c25360f97b76d8abab75348f8e16da0a3fbb970c10bec8'
-    },
-    [ordered] @{
-        Id = 'runtime.win-x64.microsoft.dotnet.ilcompiler'
-        Version = '10.0.10'
-        FileName = 'runtime.win-x64.microsoft.dotnet.ilcompiler.10.0.10.nupkg'
-        Sha256 = '0ae1c40ef28915e63c257999d4cd860db9086878c3a6f8e30388e00056ab350a'
+        Version = '10.0.12'
+        FileName = 'runtime.win-x64.microsoft.dotnet.ilcompiler.10.0.12.nupkg'
+        Sha256 = '7f63d47aea10cd7ac3dd7a2ca04474c7cb683e36ef86b49190382b0c891fbe99'
     },
     [ordered] @{
         Id = 'microsoft.netcore.app.runtime.nativeaot.win-x64'
-        Version = '10.0.10'
-        FileName = 'microsoft.netcore.app.runtime.nativeaot.win-x64.10.0.10.nupkg'
-        Sha256 = '5fd7129af9eed4b5a2ed04219b636f7ba0dd965569275d3379fc4d02f623e626'
+        Version = '10.0.12'
+        FileName = 'microsoft.netcore.app.runtime.nativeaot.win-x64.10.0.12.nupkg'
+        Sha256 = '94e38c861bdd0ef6e5f04492538b66ada2f30876907363a61aa9f03f42fb3406'
     }
 )
 
@@ -2536,10 +2521,10 @@ function Test-M01RestoreSemanticClosure {
 
     $imports = @($props.SelectNodes("//*[local-name()='Import']"))
     $expectedImports = [ordered] @{
-        '$(NuGetPackageRoot)\microsoft.net.illink.tasks\10.0.10\build\Microsoft.NET.ILLink.Tasks.props' =
-            "Exists('`$(NuGetPackageRoot)\microsoft.net.illink.tasks\10.0.10\build\Microsoft.NET.ILLink.Tasks.props')"
-        '$(NuGetPackageRoot)\microsoft.dotnet.ilcompiler\10.0.8\build\Microsoft.DotNet.ILCompiler.props' =
-            "Exists('`$(NuGetPackageRoot)\microsoft.dotnet.ilcompiler\10.0.8\build\Microsoft.DotNet.ILCompiler.props')"
+        '$(NuGetPackageRoot)\microsoft.net.illink.tasks\10.0.12\build\Microsoft.NET.ILLink.Tasks.props' =
+            "Exists('`$(NuGetPackageRoot)\microsoft.net.illink.tasks\10.0.12\build\Microsoft.NET.ILLink.Tasks.props')"
+        '$(NuGetPackageRoot)\microsoft.dotnet.ilcompiler\10.0.12\build\Microsoft.DotNet.ILCompiler.props' =
+            "Exists('`$(NuGetPackageRoot)\microsoft.dotnet.ilcompiler\10.0.12\build\Microsoft.DotNet.ILCompiler.props')"
     }
     if ($imports.Count -ne $expectedImports.Count) {
         throw "restore generated props import count invalid"
@@ -2611,13 +2596,13 @@ function Test-M01RestoreSemanticClosure {
         NuGetToolVersion = "7.0.0"
         'Pkgruntime_win-x64_Microsoft_DotNet_ILCompiler' =
             (Join-Path $packageCacheFullPath (
-                "runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.8"))
+                "runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.12"))
         'PkgMicrosoft_NET_ILLink_Tasks' =
             (Join-Path $packageCacheFullPath (
-                "microsoft.net.illink.tasks\10.0.10"))
+                "microsoft.net.illink.tasks\10.0.12"))
         'PkgMicrosoft_DotNet_ILCompiler' =
             (Join-Path $packageCacheFullPath (
-                "microsoft.dotnet.ilcompiler\10.0.8"))
+                "microsoft.dotnet.ilcompiler\10.0.12"))
     }
     foreach ($propertyName in $expectedPropertyValues.Keys) {
         $propertyNode = @(
@@ -2725,9 +2710,9 @@ function Test-M01RestoreSemanticClosure {
             }
             $targetLibrary = $targetLibraryProperty.Value
             $isCompiler = $libraryName -ceq
-                "Microsoft.DotNet.ILCompiler/10.0.8"
+                "Microsoft.DotNet.ILCompiler/10.0.12"
             $isLinker = $libraryName -ceq
-                "Microsoft.NET.ILLink.Tasks/10.0.10"
+                "Microsoft.NET.ILLink.Tasks/10.0.12"
             $isRidTarget = $targetName -ceq "net10.0/win-x64"
             $expectedNames = if ($isCompiler -and $isRidTarget) {
                 @("type", "dependencies", "build")
@@ -2764,7 +2749,7 @@ function Test-M01RestoreSemanticClosure {
                 if ($dependencies.Count -ne 1 -or
                     $dependencies[0].Name -cne
                         "runtime.win-x64.Microsoft.DotNet.ILCompiler" -or
-                    [string] $dependencies[0].Value -cne "10.0.8") {
+                    [string] $dependencies[0].Value -cne "10.0.12") {
                     throw "restore project assets compiler dependency invalid"
                 }
             }
@@ -5101,7 +5086,7 @@ function Test-M01ActiveSourceSurface {
             [System.StringComparison]::Ordinal)) {
         $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
         if (-not [string]::Equals($identity,
-                '44f8a34e2f1911aae4fd5b028adb88bf1d8bf06ce915625e9f13d11964f579aa',
+                'ab9fd84a8010567c58111ab8c336ddac3e27c1942676c34e3ef31b51aa550225',
                 [System.StringComparison]::Ordinal)) {
             return [pscustomobject] @{
                 Succeeded = $false
@@ -5149,7 +5134,7 @@ function Test-M01ActiveSourceSurface {
             [System.StringComparison]::Ordinal)) {
         $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
         if (-not [string]::Equals($identity,
-                'e7cd46a4c35de92cb9085f198737916697f7479dd0947fd591e4874aa347617e',
+                '7a14fa23e28548fa94d30e5569f786a1ce4c5bbe2375ac5b23a493d06f20ebd5',
                 [System.StringComparison]::Ordinal)) {
             return [pscustomobject] @{ Succeeded=$false; Reason="forbidden_active_source"; Detail=$SourceName + ":reviewed_rhp_new_fast_source_identity"; ActiveText="" }
         }
@@ -5164,30 +5149,30 @@ function Test-M01ActiveSourceSurface {
     }
     if ([string]::Equals($SourceName, '..\OS.Kernel\Runtime\CompilerClassConstructorExecution.cs', [StringComparison]::Ordinal)) {
         $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
-        if ($identity -cne '1c57cb96a890c9bfdb551d770826ce40a7f2ba0f86bbb305edb20eb386bd5d7f') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_retained_authority_source_identity'; ActiveText='' } }
+        if ($identity -cne 'a445fe4795291164be348c785e138b53d1648695c5e78ba93012413128269ade') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_retained_authority_source_identity'; ActiveText='' } }
         return [pscustomobject]@{ Succeeded=$true; Reason='ok'; Detail=''; ActiveText=$SourceText }
     }
 
     # Reviewed bounded dispatch core: original module/allocator authority and exact native extents.
     if ([string]::Equals($SourceName, '..\OS.Kernel\Runtime\CompilerInterfaceDispatch.cs', [StringComparison]::Ordinal)) {
         $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
-        if ($identity -cne '6c95c98406305e84e9653aaaedcee7812a6dc1c4a516bba3db04256d3f068a64') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_dispatch_source_identity'; ActiveText='' } }
+        if ($identity -cne 'fcab48599866752748409c9ef7b900b91341dc1f09620826009a789ed092f3dd') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_dispatch_source_identity'; ActiveText='' } }
         return [pscustomobject]@{ Succeeded=$true; Reason='ok'; Detail=''; ActiveText=$SourceText }
     }
 
     if ([string]::Equals($SourceName, '..\OS.Kernel\Runtime\ExceptionTypeMatch.cs', [StringComparison]::Ordinal)) {
         $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
-        if ($identity -cne 'e45c75ad8e6286c25d02346555a54b85f93dc6123755821a355012569f3138d5') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_exception_leaf_source_identity'; ActiveText='' } }
+        if ($identity -cne 'b51523326e1ecaa87e20fe43f1fb7ab1b587fcbb3f3e7c28a7d2830d6d32146e') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_exception_leaf_source_identity'; ActiveText='' } }
         return [pscustomobject]@{ Succeeded=$true; Reason='ok'; Detail=''; ActiveText=$SourceText }
     }
     if ([string]::Equals($SourceName, '..\OS.Kernel\Runtime\X64FrameUnwind.cs', [StringComparison]::Ordinal)) {
         $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
-        if ($identity -cne 'e8ef25590186dbcf872deed818ffc508c5db7a2f092592e3c09a1127a8a122ce') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_exception_leaf_source_identity'; ActiveText='' } }
+        if ($identity -cne 'b7cc8b10a5c1a0e819745d31e81b4915164645b17f172063522f32167afb3733') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_exception_leaf_source_identity'; ActiveText='' } }
         return [pscustomobject]@{ Succeeded=$true; Reason='ok'; Detail=''; ActiveText=$SourceText }
     }
     if ([string]::Equals($SourceName, '..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs', [StringComparison]::Ordinal)) {
         $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
-        if ($identity -cne '7f770a669630c568dbf782bf89a4e1bdc990ed2c966c0a1e1efb55b1b47d5f62') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_exception_leaf_source_identity'; ActiveText='' } }
+        if ($identity -cne 'b01c67219c897cce58c756b72849a90f8032f10a222f0b4fe9e37e91bacc4d03') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_exception_leaf_source_identity'; ActiveText='' } }
         return [pscustomobject]@{ Succeeded=$true; Reason='ok'; Detail=''; ActiveText=$SourceText }
     }
 
@@ -5233,7 +5218,7 @@ function Test-M01ActiveSourceSurface {
     }
     if ([string]::Equals($SourceName, '..\OS.Kernel\Runtime\SeededAllocationChurnCollectionRootRetentionGuestProbes.cs', [StringComparison]::Ordinal)) {
         $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
-        if ($identity -cne '43cbaad55c19a90b4f763792cf974ab9c9dfe3b5ce76dd1ebffa716de12241a9') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_seeded_churn_source_identity'; ActiveText='' } }
+        if ($identity -cne 'f708e1192e6964dc43f5cdda86caee6656dbc155c3699be71566381b9725fc5c') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_seeded_churn_source_identity'; ActiveText='' } }
         return [pscustomobject]@{ Succeeded=$true; Reason='ok'; Detail=''; ActiveText=$SourceText }
     }
     if ([string]::Equals($SourceName, 'Runtime\SeededCollectorChurnProbe.cs', [StringComparison]::Ordinal)) {
@@ -5273,7 +5258,7 @@ function Test-M01ActiveSourceSurface {
             [System.StringComparison]::Ordinal)) {
         $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
         if (-not [string]::Equals($identity,
-                '3cfa1d3a627a6c9f7230fa368b3c7b6f025cd744784e75e506cf9b8cb5f51421',
+                '691f6e243d175dbc83db1446a8e1863fab3a2cfa1497c975f43608c3456165da',
                 [System.StringComparison]::Ordinal)) {
             return [pscustomobject] @{ Succeeded=$false; Reason="forbidden_active_source"; Detail=$SourceName + ":reviewed_type_manager_source_identity"; ActiveText="" }
         }
@@ -5287,7 +5272,7 @@ function Test-M01ActiveSourceSurface {
             [System.StringComparison]::Ordinal)) {
         $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
         if (-not [string]::Equals($identity,
-                '16c927badb80ebcdea56485463d0bd043ff985253a60621cee12ea7e7c80b519',
+                '9f9e2efbfbdec20067dc9e6402f79df4c1e0affc29b7affc92049e7ce6d1a313',
                 [System.StringComparison]::Ordinal)) {
             return [pscustomobject] @{ Succeeded=$false; Reason="forbidden_active_source"; Detail=$SourceName + ":reviewed_gc_static_source_identity"; ActiveText="" }
         }
@@ -5301,7 +5286,7 @@ function Test-M01ActiveSourceSurface {
             [System.StringComparison]::Ordinal)) {
         $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
         if (-not [string]::Equals($identity,
-                '48b0007e97704b6337793682311b6257498e21d8adacaaf44b287fac5b975461',
+                'c97db9db55ba766c9ebb6e8979993c24268886d3da2b2f46289ea15e99841b04',
                 [System.StringComparison]::Ordinal)) {
             return [pscustomobject] @{ Succeeded=$false; Reason="forbidden_active_source"; Detail=$SourceName + ":reviewed_bounded_collector_source_identity"; ActiveText="" }
         }
@@ -7052,7 +7037,7 @@ function Test-M01SourceClosure {
 
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "52b4d0078a27607575f02e2b1c21c750281d746badf5d354db5b40ccb27d7c5a") {
+        "e83930c6826daf69fb5d814b9f3a0e0dabaa9bdf8c3d9d8a36f890d862f01d6b") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `
@@ -8738,8 +8723,8 @@ function Test-M01SourceClosure {
     $packageReferences = @($project.SelectNodes(
         "/Project/ItemGroup/PackageReference"))
     $expectedPackages = [ordered] @{
-        "Microsoft.DotNet.ILCompiler" = "10.0.8"
-        "runtime.win-x64.Microsoft.DotNet.ILCompiler" = "10.0.8"
+        "Microsoft.DotNet.ILCompiler" = "10.0.12"
+        "runtime.win-x64.Microsoft.DotNet.ILCompiler" = "10.0.12"
     }
     if ($packageReferences.Count -ne $expectedPackages.Count) {
         return New-M01SourceClosureResult `
@@ -9088,6 +9073,23 @@ function Stop-EfiPreflight {
     exit 1
 }
 
+function Get-EfiSdkVersionFailureReason {
+    param([string] $ProcessFailure, [string[]] $VersionLines)
+
+    if ($ProcessFailure -cne "ok") {
+        return "dotnet_sdk_version_" + $ProcessFailure
+    }
+    if ($VersionLines.Count -ne 1) {
+        return "dotnet_sdk_version_output_invalid"
+    }
+    $version = $VersionLines[0].Trim()
+    if ($version -cnotmatch '^10\.0\.4[0-9]{2}$' -or
+        [System.Version] $version -lt [System.Version] "10.0.401") {
+        return "dotnet_sdk_version_unsupported"
+    }
+    return "ok"
+}
+
 function Get-DefaultMsvcLinkerSearchRoot {
     param([string] $VsWhere)
 
@@ -9095,7 +9097,7 @@ function Get-DefaultMsvcLinkerSearchRoot {
 
     if (-not [string]::IsNullOrWhiteSpace($VsWhere) -and (Test-Path -LiteralPath $VsWhere)) {
         try {
-            $installationPaths = & $VsWhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null
+            $installationPaths = & $VsWhere -latest -prerelease -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null
             foreach ($installationPath in $installationPaths) {
                 if (-not [string]::IsNullOrWhiteSpace($installationPath)) {
                     $roots.Add((Join-Path $installationPath.Trim() "VC\Tools\MSVC"))
@@ -10482,12 +10484,13 @@ $dotnetVersionLines = @(
         Where-Object { -not [string]::IsNullOrWhiteSpace([string] $_) } |
         ForEach-Object { [string] $_ }
 )
-if ($dotnetVersionFailure -cne "ok" -or
-    $dotnetVersionLines.Count -ne 1 -or
-    $dotnetVersionLines[0].Trim() -cnotmatch '^10\.0\.3[0-9]{2}$') {
+$dotnetSdkFailure = Get-EfiSdkVersionFailureReason `
+    -ProcessFailure $dotnetVersionFailure `
+    -VersionLines $dotnetVersionLines
+if ($dotnetSdkFailure -cne "ok") {
     Stop-EfiPreflight `
         -Marker "EFI_PREFLIGHT_DOTNET" `
-        -Reason ("dotnet_sdk_version_" + $dotnetVersionFailure) `
+        -Reason $dotnetSdkFailure `
         -LogFullPath $logFullPath `
         -ReportedLogPath $LogPath `
         -Status "version_unavailable"
@@ -11046,12 +11049,12 @@ foreach ($archive in $script:ExpectedRestoreArchives) {
 }
 
 $ilCompilerBuildPackageRoot = Join-Path (
-    $restorePackagesDirectory) "microsoft.dotnet.ilcompiler\10.0.8"
+    $restorePackagesDirectory) "microsoft.dotnet.ilcompiler\10.0.12"
 $ilCompilerHostPackageRoot = Join-Path (
     $restorePackagesDirectory) (
-        "runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.8")
+        "runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.12")
 $ilLinkPackageRoot = Join-Path (
-    $restorePackagesDirectory) "microsoft.net.illink.tasks\10.0.10"
+    $restorePackagesDirectory) "microsoft.net.illink.tasks\10.0.12"
 $actualIlCompilerPath = Join-Path (
     $ilCompilerHostPackageRoot) "tools\ilc.exe"
 $ilCompilerTargetsPath = Join-Path (

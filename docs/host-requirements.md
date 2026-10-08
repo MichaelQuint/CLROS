@@ -23,14 +23,15 @@ Required for all current host builds:
 
 - Windows 10 or Windows 11 x64.
 - PowerShell 5.1 or newer.
-- A stable .NET SDK in the `10.0.300` feature band. `global.json` requests
-  `10.0.300`, permits latest-patch roll-forward, and rejects prerelease SDKs;
-  the current host resolves that contract to `10.0.302`.
+- A stable .NET SDK in the `10.0.400` feature band. `global.json` requests
+  `10.0.401`, permits latest-patch roll-forward within that band, and rejects
+  prerelease SDKs. The new Windows host selects `10.0.401`.
 - NuGet access to restore .NET 10 packages.
 
 Required for `scripts/build-efi-shell.ps1`:
 
-- Visual Studio Build Tools 2022 or Visual Studio with C++ build tools.
+- Visual Studio Build Tools or Visual Studio with C++ build tools, including
+  Visual Studio 2026 Insiders. Discovery includes prerelease installations.
 - MSVC x64 toolchain, including `link.exe` and `cl.exe`.
 - Windows SDK with x64 UM libraries, including `kernel32.lib`.
 - NativeAOT runtime packs restored by `dotnet restore`.
@@ -40,6 +41,47 @@ Recommended Visual Studio components:
 - `Microsoft.VisualStudio.Workload.VCTools`
 - `Microsoft.VisualStudio.Component.VC.Tools.x86.x64`
 - Windows 11 SDK `10.0.26100.0` or another SDK version compatible with the installed .NET SDK.
+
+Required for the complete `OS.HostTests` native-inspection fixtures:
+
+- An x64 `llvm-objdump.exe`, supplied by Visual Studio's **C++ Clang Compiler
+  for Windows** individual component (`Microsoft.VisualStudio.Component.VC.Llvm.Clang`)
+  or a verified user-local LLVM tool cache. The object, array and
+  String fixtures use it to inspect actual native
+  instructions and relocations. MSVC x64 tools alone do not install this
+  optional component. A successful managed build or EFI publish does not
+  establish that the disassembler is available.
+- Add the component through Visual Studio Installer → Modify → Individual
+  components. See Microsoft's [component inventory](https://learn.microsoft.com/en-us/visualstudio/install/workload-component-id-vs-community?view=visualstudio).
+
+For a user-local copy, retain the publisher/package checksum and tool identity,
+then set `CLROS_LLVM_OBJDUMP` to its absolute executable path. An explicit missing,
+relative or differently named path is rejected rather than silently falling back.
+Without an override, the existing Visual Studio x64 discovery is used.
+The native fixtures still record the selected executable and SHA-256.
+
+Check discovery before a full host run:
+
+```powershell
+$clrosLlvmObjdump = $env:CLROS_LLVM_OBJDUMP
+if ([string]::IsNullOrEmpty($clrosLlvmObjdump)) {
+    $clrosLlvmObjdump = (Get-ChildItem "$env:ProgramFiles\Microsoft Visual Studio" -Filter llvm-objdump.exe -File -Recurse |
+        Where-Object FullName -Match '\\x64\\' | Sort-Object FullName | Select-Object -First 1).FullName
+}
+if ([string]::IsNullOrEmpty($clrosLlvmObjdump) -or !(Test-Path -LiteralPath $clrosLlvmObjdump -PathType Leaf)) {
+    throw 'Install the C++ Clang Compiler component or configure CLROS_LLVM_OBJDUMP before full HostTests.'
+}
+& $clrosLlvmObjdump --version
+```
+
+To persist a verified user-local selection for new processes, set both the
+current process and user environment; already running apps need the process
+setting or a restart to inherit it:
+
+```powershell
+$env:CLROS_LLVM_OBJDUMP = 'C:\Tools\LLVM\bin\llvm-objdump.exe' # replace with the verified actual path
+[Environment]::SetEnvironmentVariable('CLROS_LLVM_OBJDUMP', $env:CLROS_LLVM_OBJDUMP, 'User')
+```
 
 Required for real QEMU smoke:
 
@@ -76,25 +118,41 @@ C:\Program Files\qemu\qemu-system-x86_64.exe
 C:\Program Files\qemu\share\edk2-x86_64-code.fd
 ```
 
+### Invoke Windows PowerShell from a Core host
+
+When an orchestration host uses PowerShell Core, invoke receipt-bound EFI/QEMU
+commands through `powershell.exe`. On the new destination, one nested publish
+failed to resolve `Get-FileHash` with the inherited module search path; a retry
+using the Desktop module paths passed that restore stage. Use this process-local
+setup for that invocation (it does not change the machine environment):
+
+```powershell
+$env:PSModulePath = 'C:\Windows\system32\WindowsPowerShell\v1.0\Modules;C:\Program Files\WindowsPowerShell\Modules'
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-efi-shell.ps1
+```
+
+Retain the failed command when diagnosing a launch problem. A standalone
+`Get-Command Get-FileHash` success does not establish that a nested publish has
+the same effective module context. See [step1077](../done/step1077.md).
 ### Restore the pinned EFI runtime pack
 
-The EFI project selects NativeAOT runtime pack `10.0.8` through
-`ClrosRuntimePackagePath`. A normal solution restore can populate the SDK's
-newer runtime pack without populating this separately selected version.
-The EFI artifact verifier also needs the actual `10.0.8` package tree;
+The EFI project selects NativeAOT runtime pack `10.0.12` through
+`ClrosRuntimePackagePath`. Its ILCompiler metapackage and win-x64 host compiler
+are also pinned to `10.0.12`; the current SDK is `10.0.401`.
+The EFI artifact verifier needs the actual selected `10.0.12` package tree;
 an ordinary managed build alone does not establish that prerequisite.
 
 If the expected directory below is missing, restore the exact package through
 NuGet (do not rename another version's directory):
 
 ```powershell
-Test-Path "$env:USERPROFILE\.nuget\packages\microsoft.netcore.app.runtime.nativeaot.win-x64\10.0.8"
+Test-Path "$env:USERPROFILE\.nuget\packages\microsoft.netcore.app.runtime.nativeaot.win-x64\10.0.12"
 New-Item -ItemType Directory -Force artifacts/pinned-efi-runtime | Out-Null
 @'
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>
   <ItemGroup>
-    <PackageDownload Include="Microsoft.NETCore.App.Runtime.NativeAOT.win-x64" Version="[10.0.8]" />
+    <PackageDownload Include="Microsoft.NETCore.App.Runtime.NativeAOT.win-x64" Version="[10.0.12]" />
   </ItemGroup>
 </Project>
 '@ | Set-Content artifacts/pinned-efi-runtime/Restore.csproj
@@ -102,11 +160,17 @@ dotnet restore artifacts/pinned-efi-runtime/Restore.csproj --source https://api.
 ```
 
 This restores a host prerequisite without changing the project's toolchain
-selection or weakening artifact checks. On 2026-10-01, the full host suite
-reported 19 EFI verifier failures because this directory was absent. Restoring
+selection or weakening artifact checks. On the earlier `10.0.8` baseline,
+the 2026-10-01 full host suite reported 19 EFI verifier failures because that
+version's directory was absent. Restoring
 it made the existing linked-artifact acceptance test pass independently; the
 subsequent full suite passed with 3,509 pass markers and zero failures (see
 `done/step925.md`). Package presence and host checks are not EFI boot evidence.
+
+The new `10.0.12` compiler qualification is recorded in
+[step1078](../done/step1078.md); the preceding SDK401/ILC108 development
+checkpoint is [step1077](../done/step1077.md). These are freestanding build
+inputs, not a hosted .NET runtime running inside CLROS.
 
 ## Focused host fixture runs
 
@@ -150,7 +214,7 @@ Verify Visual Studio Build Tools are installed:
 
 ```powershell
 $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
-$vsInstall = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+$vsInstall = & $vswhere -latest -prerelease -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
 $vsInstall
 ```
 
@@ -289,7 +353,7 @@ proof.
 Required agent capabilities:
 
 - Windows 10 or Windows 11 x64 with PowerShell 5.1 or newer.
-- The stable .NET SDK 10.0.300 feature band with patch selection governed by `global.json`.
+- The stable .NET SDK 10.0.400 feature band, minimum `10.0.401`, with patch selection governed by `global.json`.
 - Visual Studio or Build Tools with `Microsoft.VisualStudio.Workload.VCTools`
   and `Microsoft.VisualStudio.Component.VC.Tools.x86.x64`.
 - Windows 10/11 SDK UM x64 libraries, including `kernel32.lib`.

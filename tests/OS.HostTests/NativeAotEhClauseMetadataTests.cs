@@ -118,10 +118,10 @@ internal static unsafe class NativeAotEhClauseMetadataTests
         f.Bounds = new(0x6000, 0x400, 0x1600, 1); f.Snapshot[Unwind.StateBytes] ^= 1;
         Failure(f.Read(), Status.SnapshotRejected, "stale snapshot precedes payload decode"); f.Snapshot[Unwind.StateBytes] ^= 1;
         using Fixture other = new(); other.Bind();
-        Failure(Core.ReadClause(NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian, f.Capture, f.Mapping, f.Owner,
+        Failure(Core.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, f.Capture, f.Mapping, f.Owner,
             Fixture.Capacity, f.Handle, other.Snapshot, Fixture.Capacity, f.Bounds, 0), Status.SnapshotRejected, "different valid original image snapshot");
         new ReadOnlySpan<byte>(f.Snapshot, (int)Fixture.Capacity).CopyTo(new Span<byte>(other.Snapshot, (int)Fixture.Capacity));
-        Failure(Core.ReadClause(NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian, f.Capture, f.Mapping, f.Owner,
+        Failure(Core.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, f.Capture, f.Mapping, f.Owner,
             Fixture.Capacity, f.Handle, other.Snapshot, Fixture.Capacity, f.Bounds, 0), Status.SnapshotRejected, "copied snapshot not original");
         f.Image[0x1201] = 1;
         Failure(f.Read(), Status.SnapshotRejected, "changed original unwind prefix"); f.Image[0x1201] = 0;
@@ -281,7 +281,7 @@ internal static unsafe class NativeAotEhClauseMetadataTests
             var snapshot = Unwind.Bind(Capture, Mapping, Owner, Capacity, Handle, Snapshot, Capacity);
             Check(snapshot.Succeeded, "unwind snapshot " + snapshot.Status);
         }
-        internal NativeAotEhClauseResult Read(uint index = 0) => Core.ReadClause(NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian,
+        internal NativeAotEhClauseResult Read(uint index = 0) => Core.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
             Capture, Mapping, Owner, Capacity, Handle, Snapshot, Capacity, Bounds, index);
         private void Function(uint index, uint begin, uint unwind)
         {

@@ -2,6 +2,11 @@
 
 ## Current Status
 
+The new-host SDK checkpoint and accepted finite compiler/runtime qualification are scoped
+in [EFI build](efi-build.md#current-toolchain-migration). Historical boot tuples
+below keep their original compiler and source identities; version selection
+alone does not repeat their guest evidence or promote default firmware exit.
+
 The M04-020 metadata diagnostic is accepted under #574 as a default-off
 child of original TypeManager registration. It retains that registration's
 image, storage and handle, uses the original M01 owned stack, and routes lookups

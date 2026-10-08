@@ -282,7 +282,7 @@ public static unsafe class GuestTestRhpNewFast
         if (status != RhpNewFastStatus.Success) return Fail(status, heapStatus: heap.Status);
 
         // Existing objects can make ContentsAreZeroNow false without losing ownership.
-        if (profile != NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian)
+        if (profile != NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian)
             return Fail(RhpNewFastStatus.UnsupportedProfile);
         if (!ValidToken(access, state, stateCapacity, methodTableToken, staticBase ? 16UL : 24UL))
             return Fail(RhpNewFastStatus.InvalidMethodTableToken);
@@ -501,7 +501,7 @@ public static unsafe class GuestTestRhpNewFast
             !Overlaps(token, tokenBytes, (ulong)state, stateCapacity);
     }
 
-    // Pinned dotnet/dotnet 94ea82652cdd4e0f8046b5bd5becbd11461482ca:
+    // Pinned dotnet/dotnet 95017c711e6afc1085133d440e42b4bd78155701:
     // MethodTable.Constants.cs / EETypeBuilderHelpers.cs define these scalar flags;
     // RuntimeExports.RhBox/RhNewObject also route fixed value types to RhpNewFast.
     // Admission does not prove actual compiler metadata, generic identity or field layout.

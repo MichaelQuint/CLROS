@@ -478,12 +478,12 @@ internal static class M01InstructionPublicationBuildIntegrationTests
                 "ClrosIlcHostPackagePath",
                 "'$(ClrosIlcHostPackagePath)' == ''",
                 @"$(UserProfile)\.nuget\packages\" +
-                    @"runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.8"),
+                    @"runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.12"),
             (
                 "ClrosRuntimePackagePath",
                 "'$(ClrosRuntimePackagePath)' == ''",
                 @"$(UserProfile)\.nuget\packages\" +
-                    @"microsoft.netcore.app.runtime.nativeaot.win-x64\10.0.8")
+                    @"microsoft.netcore.app.runtime.nativeaot.win-x64\10.0.12")
         ];
         foreach ((string name, string condition, string value) in
                  pinnedProperties)

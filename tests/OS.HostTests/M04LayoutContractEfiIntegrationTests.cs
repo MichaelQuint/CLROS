@@ -16,15 +16,15 @@ internal static class M04LayoutContractEfiIntegrationTests
     private const string SpanFlag = "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe";
     private const string EndianFlag = "EnableM04IndependentEndianConformanceProbe";
     private const string Symbol = "M04_LAYOUT_CONTRACT_PROBE";
-    private const string Ready = "CLROS_M04_005_READY profile=ilc10.0.8-win-x64-le checks=19 shapes=3 prefixBytes=24 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail";
+    private const string Ready = "CLROS_M04_005_READY profile=ilc10.0.12-win-x64-le checks=19 shapes=3 prefixBytes=24 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail";
     private const string Failed = "M04_LAYOUT_CONTRACT_FAILED";
     private const string Leaf = "src/OS.Kernel/Runtime/ObjectArrayStringEETypeMethodTableLayoutContracts.cs";
     private const string LeafTests = "tests/OS.HostTests/ObjectArrayStringEETypeMethodTableLayoutContractsTests.cs";
     private const string CompileHash = "8f97464a82c221d17190da6d5347e5fa998a5863dae0edb4a7012f8ec9bb8ab1";
     // Reviewed source identity uses UTF-8 text with only CRLF normalized to LF.
     // EFI artifact and same-build source-authority hashes remain raw byte hashes.
-    private const string LeafSourceHash = "44f8a34e2f1911aae4fd5b028adb88bf1d8bf06ce915625e9f13d11964f579aa";
-    private const string LeafTestSourceHash = "d22ab6680e73713844c62e2fc66c4dc474f96955fd66d94740618de16dfb249b";
+    private const string LeafSourceHash = "ab9fd84a8010567c58111ab8c336ddac3e27c1942676c34e3ef31b51aa550225";
+    private const string LeafTestSourceHash = "a134d5a11676f97a63054065ebb616b32b3e9fd81d9e4842447897640e73bf7a";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -332,7 +332,7 @@ internal static class M04LayoutContractEfiIntegrationTests
             cases.Add((good + record + "\n", false));
             cases.Add((record + "\n" + good, false));
         }
-        foreach (string token in new[] { "checks=19", "profile=ilc10.0.8-win-x64-le", "shapes=3", "prefixBytes=24", "gate4=Fail" })
+        foreach (string token in new[] { "checks=19", "profile=ilc10.0.12-win-x64-le", "shapes=3", "prefixBytes=24", "gate4=Fail" })
             cases.Add((good.Replace(token, token + "x", StringComparison.Ordinal), false));
         cases.Add((good.Replace(chain[2] + "\n" + chain[3], chain[3] + "\n" + chain[2], StringComparison.Ordinal), false));
         cases.Add((good.Replace("OS_SMOKE_PASS\n", "OS_SMOKE_PASS", StringComparison.Ordinal), false));
@@ -389,7 +389,7 @@ internal static class M04LayoutContractEfiIntegrationTests
             foreach ($valid in @($lf,$lf.Replace("`n","`r`n"))) {
                 if (-not (Test-M01ActiveSourceSurface -SourceText $valid -SourceName $name).Succeeded) { throw 'line endings' }
             }
-            foreach ($changed in @($lf+' ',$lf+"`r",$lf.Replace('10.0.8','10.0.9'),$lf+"`n// changed")) {
+            foreach ($changed in @($lf+' ',$lf+"`r",$lf.Replace('10.0.12','10.0.13'),$lf+"`n// changed")) {
                 if ((Test-M01ActiveSourceSurface -SourceText $changed -SourceName $name).Succeeded) { throw 'content identity' }
             }
             foreach ($other in @('..\OS.Kernel\Runtime\Other.cs',($name+' '),$name.ToLowerInvariant(),

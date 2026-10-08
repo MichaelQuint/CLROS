@@ -4,6 +4,34 @@ internal static class HostToolProcess
 {
     public const string RepositorySolutionFileName = "CLROS.slnx";
 
+    public static string FindLlvmObjdump()
+    {
+        const string variable = "CLROS_LLVM_OBJDUMP";
+        string? configured = Environment.GetEnvironmentVariable(variable);
+        if (!string.IsNullOrEmpty(configured))
+        {
+            if (!Path.IsPathFullyQualified(configured) ||
+                !string.Equals(Path.GetFileName(configured), "llvm-objdump.exe", StringComparison.OrdinalIgnoreCase) ||
+                !File.Exists(configured))
+            {
+                throw new InvalidOperationException(variable + " must name an existing absolute llvm-objdump.exe path.");
+            }
+
+            return Path.GetFullPath(configured);
+        }
+
+        string visualStudio = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Microsoft Visual Studio");
+        string? discovered = Directory.Exists(visualStudio)
+            ? Directory.EnumerateFiles(visualStudio, "llvm-objdump.exe", SearchOption.AllDirectories)
+                .Where(path => path.Contains("\\x64\\", StringComparison.OrdinalIgnoreCase))
+                .Order(StringComparer.Ordinal).FirstOrDefault()
+            : null;
+        return discovered ?? throw new InvalidOperationException(
+            "Missing x64 llvm-objdump.exe. Install Visual Studio's C++ Clang Compiler for Windows component " +
+            "or set " + variable + " to a verified user-local tool before running native inspection fixtures.");
+    }
+
     public static string FindRepositoryRoot()
     {
         DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);

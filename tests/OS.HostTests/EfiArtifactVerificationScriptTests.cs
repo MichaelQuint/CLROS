@@ -80,109 +80,96 @@ internal static class EfiArtifactVerificationScriptTests
     [
         new(
             "microsoft.dotnet.ilcompiler",
-            "10.0.8",
-            "microsoft.dotnet.ilcompiler.10.0.8.nupkg",
-            "ccdc381bbc7672c48bc755311fdf2f5907433933c295198172d2ad6958ed10b4"),
+            "10.0.12",
+            "microsoft.dotnet.ilcompiler.10.0.12.nupkg",
+            "0b340ade975c2cf3d93d518adddec1e5d910c090b7756e6d37d19b772edc7b8d"),
         new(
             "microsoft.net.illink.tasks",
-            "10.0.10",
-            "microsoft.net.illink.tasks.10.0.10.nupkg",
-            "97a0eca2030901738f070f142aaf02b3b1aead2bc984c08c428847910b4be312"),
+            "10.0.12",
+            "microsoft.net.illink.tasks.10.0.12.nupkg",
+            "37aa984da51fdc01cc7d57a8647893392f3539cdd5a1d32ce4982be5309bc08b"),
         new(
             "runtime.win-x64.microsoft.dotnet.ilcompiler",
-            "10.0.8",
-            "runtime.win-x64.microsoft.dotnet.ilcompiler.10.0.8.nupkg",
-            "49f15032ef981172b8c25360f97b76d8abab75348f8e16da0a3fbb970c10bec8"),
-        new(
-            "runtime.win-x64.microsoft.dotnet.ilcompiler",
-            "10.0.10",
-            "runtime.win-x64.microsoft.dotnet.ilcompiler.10.0.10.nupkg",
-            "0ae1c40ef28915e63c257999d4cd860db9086878c3a6f8e30388e00056ab350a"),
+            "10.0.12",
+            "runtime.win-x64.microsoft.dotnet.ilcompiler.10.0.12.nupkg",
+            "7f63d47aea10cd7ac3dd7a2ca04474c7cb683e36ef86b49190382b0c891fbe99"),
         new(
             "microsoft.netcore.app.runtime.nativeaot.win-x64",
-            "10.0.10",
-            "microsoft.netcore.app.runtime.nativeaot.win-x64.10.0.10.nupkg",
-            "5fd7129af9eed4b5a2ed04219b636f7ba0dd965569275d3379fc4d02f623e626")
+            "10.0.12",
+            "microsoft.netcore.app.runtime.nativeaot.win-x64.10.0.12.nupkg",
+            "94e38c861bdd0ef6e5f04492538b66ada2f30876907363a61aa9f03f42fb3406")
     ];
 
     private static readonly PackageDescriptor[] ExpectedPackages =
     [
         new(
             "microsoft.dotnet.ilcompiler",
-            "10.0.8",
+            "10.0.12",
             "restore",
-            "RJxitcN5CCyZDcPNXKLsecwKvACzmy8C1z8hGM9+hFcnPhv1jDysJFFIeUHIPWaZ6wDAfYtZcgKEtegvL2Nz8A==",
+            "AawF393Q+VkdrnrnI1gu612zh5iqpa1AGSvnKCQ3IkMgSKJXIQbO1sXYRgEzOU4f0cPZ6MaCCF29xZSGWlmbuQ==",
             20,
-            404859,
-            "b9c5a195c93e515f34066c9d8b0b3827cf1a32ce681454d284c489622a5bfcde"),
+            404890,
+            "0262658f79a7fd731130a31b423b28f8bf11810c6bf46f09cbd014af7d9e25fd"),
         new(
             "microsoft.net.illink.tasks",
-            "10.0.10",
+            "10.0.12",
             "restore",
-            "f5VCIE7AJpd5YvzNTeMGVzQIgyE9tX+AreTYwQF+REbu+DZo/2Ae+jNSwhPEYrVz6RRkd7y8ubXjk6Nn6Ka+Cg==",
+            "xi+BDjFpW+Sb+MHFHaH6Y/gV9I8BluFwRXc1QyCdoZbIK26eNiBeFuMTe/FMwc33G1wdHCyDg7CVTmb8OdQrMQ==",
             42,
-            5337318,
-            "0edc00810e9462f8d6a7468835861db6d2833f970539e6d4eb82cde5eb42ffb6"),
+            5339152,
+            "11d0abb4c856d2c2e8ccce942fa9843df34a026d2c589936e5878b228f859834"),
         new(
             "runtime.win-x64.microsoft.dotnet.ilcompiler",
-            "10.0.8",
+            "10.0.12",
             "restore",
-            "S+9omeowlFjRReD0VB/Q4u3DcN7+vueJSF37saFj0U2OSJIkfI7gGKQRsDxGIf0MwLha14qGrjRC3bDGhvF0Gg==",
+            "clsgU9GnioCJ+PBzQTCoJHxLXRU+7O/BzYrwRT8CUP7jgyYjNgJmNsQ/kbzAA7MG5kDvFoFvIBGHGzYdINh/EQ==",
             13,
-            37461393,
-            "c5aff04c7a4abcca691fc0e6a8539628cded3250a7777d6c407dc64c07ca858e"),
-        new(
-            "runtime.win-x64.microsoft.dotnet.ilcompiler",
-            "10.0.10",
-            "restore-only",
-            "e5P00ObvdmAl49KkvGvqDLE5+EXu/IdXCDsLghgKFXKrNybyxMmH12HuGrsO7LTIGjXI58tyN3Hwxwr/MR0d8A==",
-            13,
-            37473738,
-            "17a69cfcd4a3a770d27b7315313c85f68b3a956878af4b95699f4011572e63fb"),
+            37502842,
+            "117ebd47725e7f105b1f3014e610839b88168d8607877e126827316eb1355bc7"),
         new(
             "microsoft.netcore.app.runtime.nativeaot.win-x64",
-            "10.0.10",
+            "10.0.12",
             "restore-only",
-            "NHkgRRE/Fbaw/z0eLdC7rNF7ZRoR+2KQGSPh2ZiKgXpuZOz3Cjhv0srLOaeYnvYMDtT+KzjyyZGgChXx1W18wA==",
+            "MPm78CKSJf8Sb0nbXgvzedp2uwFQX4JONl618NhEeAEznK9JLzQ6ETfJZ+UcoW5ScTqa27a+JGQDXD3bUAMTrA==",
             406,
-            109133220,
-            "389ade21d811efc6fc4d6f0f1aa492ba71f5fabfb39e4780b83c5a65e9a680c4"),
+            109239870,
+            "c4048f1c42c12a119d30b5d432e957a961689d72ea3fe44091ade5d54d1324be"),
         new(
             "microsoft.netcore.app.runtime.nativeaot.win-x64",
-            "10.0.8",
+            "10.0.12",
             "runtime",
-            "4OPm4RaS1aAEf0GOcA/IsdD/ml9o6Hw2BaiHy/iceHxExoj+38QFAyNTxcNAz73SDPHXpUp4SL046vBq5RkuEQ==",
+            "MPm78CKSJf8Sb0nbXgvzedp2uwFQX4JONl618NhEeAEznK9JLzQ6ETfJZ+UcoW5ScTqa27a+JGQDXD3bUAMTrA==",
             406,
-            109016717,
-            "73972c0d17f29fa389de9c4a87051b372fa15afe5cdadf55bef731a3d8144fbc")
+            109239870,
+            "c4048f1c42c12a119d30b5d432e957a961689d72ea3fe44091ade5d54d1324be")
     ];
 
     private static readonly string[] PackageBuildClosurePaths =
     [
-        "microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets",
-        "microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.Publish.targets",
-        "microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.Windows.targets",
-        "microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.targets",
-        "microsoft.dotnet.ilcompiler/10.0.8/tools/netstandard/ILCompiler.Build.Tasks.dll",
-        "microsoft.dotnet.ilcompiler/10.0.8/tools/netstandard/ILCompiler.Build.Tasks.deps.json",
-        "microsoft.net.illink.tasks/10.0.10/build/Microsoft.NET.ILLink.targets",
-        "microsoft.net.illink.tasks/10.0.10/tools/net/ILLink.Tasks.dll",
-        "microsoft.net.illink.tasks/10.0.10/tools/net/ILLink.Tasks.deps.json"
+        "microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets",
+        "microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.Publish.targets",
+        "microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.Windows.targets",
+        "microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.targets",
+        "microsoft.dotnet.ilcompiler/10.0.12/tools/netstandard/ILCompiler.Build.Tasks.dll",
+        "microsoft.dotnet.ilcompiler/10.0.12/tools/netstandard/ILCompiler.Build.Tasks.deps.json",
+        "microsoft.net.illink.tasks/10.0.12/build/Microsoft.NET.ILLink.targets",
+        "microsoft.net.illink.tasks/10.0.12/tools/net/ILLink.Tasks.dll",
+        "microsoft.net.illink.tasks/10.0.12/tools/net/ILLink.Tasks.deps.json"
     ];
 
     private static readonly string[] ActivePackageImportEdges =
     [
-        "sdk|microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets",
-        "microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets|microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.targets",
-        "microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.targets|microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.Windows.targets",
-        "microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.targets|microsoft.dotnet.ilcompiler/10.0.8/build/Microsoft.NETCore.Native.Publish.targets",
-        "sdk|microsoft.net.illink.tasks/10.0.10/build/Microsoft.NET.ILLink.targets"
+        "sdk|microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets",
+        "microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets|microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.targets",
+        "microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.targets|microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.Windows.targets",
+        "microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.targets|microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.Publish.targets",
+        "sdk|microsoft.net.illink.tasks/10.0.12/build/Microsoft.NET.ILLink.targets"
     ];
 
     private static readonly string[] PackageTaskBindings =
     [
-        "ComputeManagedAssembliesToCompileToNative|microsoft.dotnet.ilcompiler/10.0.8/tools/netstandard/ILCompiler.Build.Tasks.dll",
-        "ComputeManagedAssemblies|microsoft.net.illink.tasks/10.0.10/tools/net/ILLink.Tasks.dll"
+        "ComputeManagedAssembliesToCompileToNative|microsoft.dotnet.ilcompiler/10.0.12/tools/netstandard/ILCompiler.Build.Tasks.dll",
+        "ComputeManagedAssemblies|microsoft.net.illink.tasks/10.0.12/tools/net/ILLink.Tasks.dll"
     ];
 
     [ModuleInitializer]
@@ -196,6 +183,10 @@ internal static class EfiArtifactVerificationScriptTests
         try
         {
             Directory.CreateDirectory(tempRoot);
+            Run(
+                "efi artifact verifier enforces latestPatch SDK feature band",
+                () => TestSdkLatestPatchVersion(tempRoot),
+                ref failures);
             Run(
                 "efi artifact verifier preserves literal path and reparse admission",
                 () => TestReparsePathHelper(tempRoot),
@@ -2391,6 +2382,11 @@ internal static class EfiArtifactVerificationScriptTests
             "ilcompiler_identity_mismatch");
         passed &= EvidenceMutationFails(
             tempRoot,
+            "retired-runtime-package-version",
+            evidence => evidence["nativeAotRuntimePackVersion"] = "10.0.8",
+            "nativeaot_runtime_pack_identity_mismatch");
+        passed &= EvidenceMutationFails(
+            tempRoot,
             "canonical-runtime-path",
             evidence =>
             {
@@ -2400,9 +2396,9 @@ internal static class EfiArtifactVerificationScriptTests
                 evidence["nativeAotRuntimePackPath"] = Path.Combine(
                     fixture.PackageRootPath,
                     "microsoft.netcore.app.runtime.nativeaot.win-x64",
-                    "10.0.10");
+                    "10.0.12");
             },
-            "nativeaot_runtime_pack_identity_mismatch");
+            "package_evidence_root_path_mismatch");
         passed &= EvidenceMutationFails(
             tempRoot,
             "external-package-root",
@@ -3028,7 +3024,7 @@ internal static class EfiArtifactVerificationScriptTests
         string metadataPath = Path.Combine(
             fixture.PackageRootPath,
             "microsoft.dotnet.ilcompiler",
-            "10.0.8",
+            "10.0.12",
             ".nupkg.metadata");
         byte[] originalBytes = File.ReadAllBytes(metadataPath);
         ProcessResult result;
@@ -3078,6 +3074,53 @@ internal static class EfiArtifactVerificationScriptTests
         return FailedWith(
             result,
             "post_restore_user_extensions_path_present");
+    }
+
+    private static bool TestSdkLatestPatchVersion(string tempRoot)
+    {
+        string probe = Path.Combine(tempRoot, "sdk-latest-patch.ps1");
+        File.WriteAllText(probe, """
+            param([string] $VerifierPath)
+            $ErrorActionPreference = "Stop"
+            Set-StrictMode -Version Latest
+            $tokens = $null; $errors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $VerifierPath, [ref] $tokens, [ref] $errors)
+            if ($errors.Count -ne 0) { throw "verifier_parse_failed" }
+            $functions = @($ast.FindAll({ param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                    $node.Name -ceq "Test-SdkLatestPatchVersion"
+            }, $true))
+            if ($functions.Count -ne 1) { throw "sdk_helper_missing" }
+            . ([scriptblock]::Create($functions[0].Extent.Text))
+            foreach ($version in @("10.0.401", "10.0.402", "10.0.499")) {
+                if (-not (Test-SdkLatestPatchVersion $version "10.0.401")) {
+                    throw "latest_patch_rejected $version"
+                }
+            }
+            foreach ($version in @("", "10.0.302", "10.0.400", "10.0.500", "10.0.501",
+                    "10.1.401", "11.0.401", "10.0.401-preview.1", "10.0.401+extra", "invalid")) {
+                if (Test-SdkLatestPatchVersion $version "10.0.401") {
+                    throw "invalid_latest_patch_accepted $version"
+                }
+            }
+            if (-not (Test-SdkLatestPatchVersion "10.0.399" "10.0.300") -or
+                (Test-SdkLatestPatchVersion "10.0.400" "10.0.300") -or
+                (Test-SdkLatestPatchVersion "10.0.401" "invalid") -or
+                (Test-SdkLatestPatchVersion "10.0.401" "10.0.401-preview.1")) {
+                throw "minimum_version_boundary_failed"
+            }
+            Write-Output "SDK_LATEST_PATCH_PASS"
+            """, new UTF8Encoding(false));
+        ProcessResult result = RunBoundedProcess(
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+                "WindowsPowerShell", "v1.0", "powershell.exe"),
+            ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", probe,
+                Path.Combine(HostToolProcess.FindRepositoryRoot(), "scripts", "test-efi-artifact.ps1")],
+            30_000);
+        if (result.ExitCode != 0) Console.WriteLine(result.Output);
+        return result.ExitCode == 0 && !result.TimedOut &&
+            result.Output.Contains("SDK_LATEST_PATCH_PASS", StringComparison.Ordinal);
     }
 
     private static bool TestReparsePathHelper(string tempRoot)
@@ -3419,7 +3462,7 @@ internal static class EfiArtifactVerificationScriptTests
         string targetPath = Path.Combine(
             fixture.PackageRootPath,
             "microsoft.dotnet.ilcompiler",
-            "10.0.8",
+            "10.0.12",
             "build",
             "Microsoft.DotNet.ILCompiler.props");
         long originalLength = new FileInfo(targetPath).Length;
@@ -3491,7 +3534,7 @@ internal static class EfiArtifactVerificationScriptTests
         string linkPath = Path.Combine(
             fixture.PackageRootPath,
             "microsoft.dotnet.ilcompiler",
-            "10.0.8",
+            "10.0.12",
             "fixture-reparse");
         string targetPath = Path.Combine(
             Path.GetDirectoryName(artifact)!,
@@ -4201,13 +4244,13 @@ internal static class EfiArtifactVerificationScriptTests
         File.WriteAllBytes(
             windowsSdkLibraryPath,
             Encoding.ASCII.GetBytes("fixture Windows SDK library"));
-        string ilCompilerPackageVersion = "10.0.8";
+        string ilCompilerPackageVersion = "10.0.12";
         string ilCompilerPath = schemaFixture.IlCompilerPath;
         string ilCompilerFileVersion =
             FileVersionInfo.GetVersionInfo(ilCompilerPath).FileVersion
             ?? throw new InvalidOperationException(
                 "Fixture ILCompiler file version is unavailable.");
-        string nativeAotRuntimePackVersion = "10.0.8";
+        string nativeAotRuntimePackVersion = "10.0.12";
         string nativeAotRuntimePackPath = schemaFixture.NativeAotRuntimePackPath;
         string runtimeListPath = Path.Combine(
             nativeAotRuntimePackPath,
@@ -4614,31 +4657,31 @@ internal static class EfiArtifactVerificationScriptTests
             string nativeAotRuntimePackPath = Path.Combine(
                 globalPackageRoot,
                 "microsoft.netcore.app.runtime.nativeaot.win-x64",
-                "10.0.8");
+                "10.0.12");
             string ilCompilerPath = Path.Combine(
                 packageRootPath,
                 "runtime.win-x64.microsoft.dotnet.ilcompiler",
-                "10.0.8",
+                "10.0.12",
                 "tools",
                 "ilc.exe");
             string ilCompilerDiscoverySourcePath = Path.Combine(
                 globalPackageRoot,
                 "runtime.win-x64.microsoft.dotnet.ilcompiler",
-                "10.0.8",
+                "10.0.12",
                 "tools",
                 "ilc.exe");
             string ilCompilerBuildPackageRoot = Path.Combine(
                 packageRootPath,
                 "microsoft.dotnet.ilcompiler",
-                "10.0.8");
+                "10.0.12");
             string ilLinkPackageRoot = Path.Combine(
                 packageRootPath,
                 "microsoft.net.illink.tasks",
-                "10.0.10");
+                "10.0.12");
             string ilCompilerHostPackageRoot = Path.Combine(
                 packageRootPath,
                 "runtime.win-x64.microsoft.dotnet.ilcompiler",
-                "10.0.8");
+                "10.0.12");
             string dotnetSdkDirectory = Path.Combine(
                 Path.GetDirectoryName(dotnetHostPath)!,
                 "sdk",
@@ -5191,15 +5234,15 @@ internal static class EfiArtifactVerificationScriptTests
         string ilCompilerBuildPackageRoot = Path.Combine(
             packageRootPath,
             "microsoft.dotnet.ilcompiler",
-            "10.0.8");
+            "10.0.12");
         string ilCompilerHostPackageRoot = Path.Combine(
             packageRootPath,
             "runtime.win-x64.microsoft.dotnet.ilcompiler",
-            "10.0.8");
+            "10.0.12");
         string ilLinkPackageRoot = Path.Combine(
             packageRootPath,
             "microsoft.net.illink.tasks",
-            "10.0.10");
+            "10.0.12");
         string trailingSeparator =
             Path.DirectorySeparatorChar.ToString(CultureInfo.InvariantCulture);
         var properties = new Dictionary<string, string>

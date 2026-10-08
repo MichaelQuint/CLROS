@@ -55,7 +55,7 @@ public readonly struct NativeAotEhClauseResult
 
 /// <summary>
 /// Original C# reader for the Windows NativeAOT EH format at Layout.RuntimeSourceCommit
-/// (ILC 10.0.8 Win64): unwind trailer flags, optional associated-data RVA, EH RVA,
+/// (ILC 10.0.12 Win64): unwind trailer flags, optional associated-data RVA, EH RVA,
 /// and compressed count/start/length-kind/handler, plus fixed type RVA or compressed filter.
 /// Fault and finally share kind1; physical ordering and empty try-group markers are retained.
 /// </summary>
@@ -90,7 +90,7 @@ public static unsafe class NativeAotEhClauseMetadata
         byte* moduleOwner, ulong moduleCapacity, ulong moduleHandle,
         byte* unwindSnapshot, ulong unwindCapacity, NativeAotEhMethodBounds bounds, uint index)
     {
-        if (profile != NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian)
+        if (profile != NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian)
             return new(NativeAotEhClauseStatus.UnsupportedProfile);
         // Authenticate the supplied original owner before using any image payload.
         if (!TypeManagerModuleMetadataLiveNativeAOTImage.TryGetSection(capture, mapping,

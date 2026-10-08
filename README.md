@@ -21,11 +21,19 @@
 
 ## Progress
 
-**Status snapshot: October 7, 2026.** Accepted implementation is recorded through
+**Status snapshot: October 8, 2026.** The preceding accepted runtime implementation is recorded through
 `master` commit `1e6a8dbd11e3220c1ca433b72d57e418cdc86b05`, including [step1075](done/step1075.md).
 Evidence records retain their original tested revisions; acceptance does not
-extend automatically to later source changes. The broader backlog is paused
-at a clean stopping point for the Windows handoff.
+extend automatically to later source changes. Development has resumed on the
+new Windows host, with a separately validated SDK/toolchain migration below.
+The Windows handoff remains the preserved record of the preceding clean stop.
+
+The development toolchain now qualifies SDK `10.0.401` and NativeAOT
+compiler/runtime pack `10.0.12` for the finite profile matrix in
+[step1078](done/step1078.md): the full host gate, ten native/guest profiles and
+three current-image rejection controls pass. [Step1077](done/step1077.md)
+retains the preceding SDK-only checkpoint. This does not establish a hosted
+.NET runtime or expand the accepted runtime feature set.
 
 Progress is gate-based; issue counts and test counts are not completion
 percentages. The goal remains a C#-first NativeAOT operating system for one
@@ -33,7 +41,7 @@ configured workload, with .NET 10 applications and mandatory ASP.NET Minimal
 API/Kestrel support, followed by verified Azure and AWS deployment.
 
 The [completion gates](docs/completion-gates.md) are the source of truth. In the
-[accepted gate ledger](http://localhost:3000/admin/CLROS/src/commit/1e6a8dbd11e3220c1ca433b72d57e418cdc86b05/docs/completion-gates.md),
+[accepted gate ledger](http://192.168.4.35:3000/admin/CLROS/src/commit/1e6a8dbd11e3220c1ca433b72d57e418cdc86b05/docs/completion-gates.md),
 only Gate 2 passes; all other numbered gates remain **Fail**. Gate 2 covers the
 firmware-visible boot smoke. Separate accepted default-off profiles now prove a
 bounded real `ExitBootServices` transition and runtime operations; those results
@@ -52,20 +60,20 @@ do not complete the broader firmware, diagnostics, or runtime gates.
   One eager and seven lazy compiler-generated constructors execute once, with
   tested same-thread reentry and partial-static behavior. Exception caching and
   rethrow remain separate work.
-  [Step1053](http://localhost:3000/admin/CLROS/src/commit/2f17dc1995197e305a32adfe5f406fd439db566e/done/step1053.md)
+  [Step1053](http://192.168.4.35:3000/admin/CLROS/src/commit/2f17dc1995197e305a32adfe5f406fd439db566e/done/step1053.md)
   records the acceptance.
 - **Post-exit diagnostics and interface dispatch:** owned COM1 emits the complete
   post-firmware readiness tail. The bounded interface profile executes 15 real
   compiler-generated calls across two receiver types, including covariance,
   contravariance, sealed/virtual resolution, ten cache entries, and five cache
   hits. A same-image null-receiver control rejects before target entry.
-  [Step1063](http://localhost:3000/admin/CLROS/src/commit/96c3a7c945c618ef2f267a3cd4208c18cb0de824/done/step1063.md)
+  [Step1063](http://192.168.4.35:3000/admin/CLROS/src/commit/96c3a7c945c618ef2f267a3cd4208c18cb0de824/done/step1063.md)
   records the accepted integration.
 - **Exception-type matching, host-only:** a bounded, allocation-free matcher
   validates retained object/module authority and class hierarchies. Seven
   focused host test groups and independent review passed. This accepted helper
   does not itself execute exceptions in the guest.
-  [Step1058](http://localhost:3000/admin/CLROS/src/commit/9e0afe190a6b7661a798f2894562ab9b5a71d106/done/step1058.md)
+  [Step1058](http://192.168.4.35:3000/admin/CLROS/src/commit/9e0afe190a6b7661a798f2894562ab9b5a71d106/done/step1058.md)
   records its evidence boundary.
 - **Current-image unwind metadata (#89/#574):** the guest validates retained
   runtime-function/unwind metadata and locates actual compiled methods through
@@ -100,7 +108,7 @@ transcripts, process results and disk evidence. Step1074 preserves the separate
 owned-subsystem acceptance; step1063 retains the earlier runtime profiles and
 rejection controls. No broad kernel or runtime gate is promoted.
 
-The [live Gitea backlog](http://localhost:3000/admin/CLROS/issues) tracks current
+The [live Gitea backlog](http://192.168.4.35:3000/admin/CLROS/issues) tracks current
 ownership and dependencies. Development evidence and issue closure do not
 substitute for the acceptance records and completion gates.
 
@@ -141,12 +149,12 @@ Hello World. The current image uses a deliberately small no-stdlib runtime;
 that does not establish standard `Console.WriteLine` or general .NET library
 compatibility.
 
-The [native workload milestone](http://localhost:3000/admin/CLROS/issues/161)
+The [native workload milestone](http://192.168.4.35:3000/admin/CLROS/issues/161)
 requires a defined app entry contract, executable mapping and relocation,
 a guarded app stack, runtime metadata/root/constructor registration, log
 routing, and a verified return/exit status. The planned fixture is tracked by
-[compile/package #177](http://localhost:3000/admin/CLROS/issues/177) and
-[load/execute/log #178](http://localhost:3000/admin/CLROS/issues/178).
+[compile/package #177](http://192.168.4.35:3000/admin/CLROS/issues/177) and
+[load/execute/log #178](http://192.168.4.35:3000/admin/CLROS/issues/178).
 Its current dependency chain includes runtime correctness and live storage.
 A NativeAOT app does not require a JIT, but it still needs a compatible runtime,
 library subset, and platform boundary. No console-app completion date is claimed.

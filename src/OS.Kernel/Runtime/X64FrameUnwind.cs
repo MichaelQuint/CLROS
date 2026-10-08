@@ -47,8 +47,8 @@ public struct X64FrameUnwindResult
 }
 
 /// <summary>
-/// One non-chained version-one AMD64 frame, ILC 10.0.8 runtime revision
-/// 94ea82652cdd4e0f8046b5bd5becbd11461482ca. Semantics: Windows
+/// One non-chained version-one AMD64 frame, ILC 10.0.12 runtime revision
+/// 95017c711e6afc1085133d440e42b4bd78155701. Semantics: Windows
 /// CoffNativeCodeManager/regdisplay and unwinder/amd64/unwinder.cpp.
 /// No handler/language-data calls, CPU transfer, leaf inference, machine frame,
 /// cross-image return, volatile register or shadow-stack support.
@@ -71,7 +71,7 @@ public static unsafe class X64FrameUnwind
         byte* moduleOwner, ulong moduleCapacity, ulong moduleHandle,
         byte* metadataStorage, ulong metadataCapacity, byte* stack, ulong stackBytes, X64UnwindContext input)
     {
-        if (profile != NativeAotLayoutProfile.Ilc10_0_8WinX64LittleEndian) return Fail(X64FrameUnwindStatus.UnsupportedProfile);
+        if (profile != NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian) return Fail(X64FrameUnwindStatus.UnsupportedProfile);
         var metadata = X64PERuntimeFunctionUnwindMetadataHostileInput.Lookup(metadataStorage, metadataCapacity, input.Rip);
         if (!metadata.Succeeded) return Fail(X64FrameUnwindStatus.MetadataRejected);
         if (metadata.ModuleOwner != (ulong)moduleOwner || metadata.ModuleHandle != moduleHandle ||

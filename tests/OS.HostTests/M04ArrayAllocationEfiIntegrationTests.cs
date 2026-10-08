@@ -268,7 +268,7 @@ internal static class M04ArrayAllocationEfiIntegrationTests
             Need(project.Descendants("PropertyGroup").Single(x=>x.Attribute("Condition")?.Value=="'$("+pair.Item1+")' == 'true'").Element("DefineConstants")?.Value=="$(DefineConstants);"+pair.Item2,"exact selected compiler symbol");
         }
         foreach(string required in Chain)Need(project.Descendants("Error").Any(x=>x.Attribute("Condition")?.Value=="'$("+Flag+")' == 'true' and '$("+required+")' != 'true'"),"explicit prerequisite "+required);
-        foreach(var file in new[]{("GuestTestArrayAllocationLengthOverflowChecks.cs","3181b70d4a9bad1dd957ecba9e9d6c860275780cc26b61961019f9341c1138a9"),("GuestTestRhpNewFast.cs","e7cd46a4c35de92cb9085f198737916697f7479dd0947fd591e4874aa347617e")})
+        foreach(var file in new[]{("GuestTestArrayAllocationLengthOverflowChecks.cs","3181b70d4a9bad1dd957ecba9e9d6c860275780cc26b61961019f9341c1138a9"),("GuestTestRhpNewFast.cs","7a14fa23e28548fa94d30e5569f786a1ce4c5bbe2375ac5b23a493d06f20ebd5")})
             Need(Hash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(root,"src/OS.Kernel/Runtime",file.Item1)).Replace("\r\n","\n",StringComparison.Ordinal)))==file.Item2,"frozen host source");
         string shim=File.ReadAllText(Path.Combine(root,"src/OS/Runtime/MinimalRuntime.cs")),adapter=File.ReadAllText(Path.Combine(root,"src/OS/Runtime/RhpNewFastAllocation.cs"));
         Need(shim.Contains("private int _numComponents;",StringComparison.Ordinal) && shim.Contains("public int Length => _numComponents;",StringComparison.Ordinal),"minimal actual compiler Array contract");
@@ -480,7 +480,7 @@ internal static class M04ArrayAllocationEfiIntegrationTests
             Need(sections.Length==1,"one initialized native extent");var s=sections[0];return image.AsSpan(checked(s.PointerToRawData+(int)(rva-(ulong)s.VirtualAddress)),bytes).ToArray();
         }
         var symbols=Regex.Matches(File.ReadAllText(Path.Combine(directory,"image.EFI.link.map")),@"^\s*[0-9A-Fa-f]{4}:[0-9A-Fa-f]{8}\s+(\S+)\s+([0-9A-Fa-f]{16})\s+",RegexOptions.Multiline).ToDictionary(m=>m.Groups[1].Value,m=>Convert.ToUInt64(m.Groups[2].Value,16)-header.ImageBase,StringComparer.Ordinal);
-        string llvm=Directory.GetFiles(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"Microsoft Visual Studio"),"llvm-objdump.exe",SearchOption.AllDirectories).Where(p=>p.Contains("\\x64\\",StringComparison.OrdinalIgnoreCase)).Order(StringComparer.Ordinal).First();
+        string llvm=HostToolProcess.FindLlvmObjdump();
         Result dis=Process(root,llvm,["--disassemble","--reloc","--x86-asm-syntax=intel",Path.Combine(directory,"OS.obj")]);Save(Path.Combine(directory,"disassembly"),dis);Need(dis.Code==0,dis.Output);
         File.WriteAllText(Path.Combine(directory,"disassembler.json"),System.Text.Json.JsonSerializer.Serialize(new{Path=llvm,Sha256=Hash(File.ReadAllBytes(llvm))}));
         string Body(string name){var m=Regex.Match(dis.Output,@"^[0-9a-f]+ <"+Regex.Escape(name)+@">:\r?\n(.*?)(?=^[0-9a-f]+ <|\z)",RegexOptions.Multiline|RegexOptions.Singleline);Need(m.Success,"decoded native method "+name);return m.Value;}
