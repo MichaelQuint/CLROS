@@ -17,7 +17,11 @@ manifest check, then stopped on a stale M02-012 fixture provenance constant.
 The two retained constants are now repaired against the actual 137-input closure
 without weakening the remaining checks. Both original focused fixtures passed
 all 14 checks, including their default/enabled native publications and exact
-provenance. A complete coherent host retry remains required.
+provenance. The next full run passed that provenance check but stopped on an
+M02-010 fixture still requiring the old canonical project hash. The three
+remaining matching canonical pins are now updated; their original focused
+fixtures pass all 17 checks. The audit covered canonical XML identities in
+addition to raw source hashes. A complete coherent host retry remains required.
 The first canary control failed its quiet-timer measurement; the independently
 reviewed timer repair and fresh successful controls preserve that failed run.
 See step1078 for the exact source/evidence boundaries and combined PR #592.
