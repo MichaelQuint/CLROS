@@ -29,6 +29,14 @@ compiled to COFF only. The new bridges are not linked into an EFI profile;
 active-context admission, linked-image/stack review and guest validation remain
 unfinished. These development results do not accept rethrow or general EH.
 
+[Step1097](../done/step1097.md) adds the original-source admission predicates
+for these measured frames, exact inner/outer clauses, active-exception phase
+and compiled continuation. Focused host tests mutate every captured context
+word, clause field, lifecycle counter and relevant authority input. The
+predicates are not yet called from EFI: runtime callbacks must still bind them
+to the actual retained module/root, stack mapping, control state and bridge
+lifetime before any transfer can be admitted.
+
 ## Accepted bounded interface dispatch
 
 M04-016 uses the original registered module and current allocator receipt to
