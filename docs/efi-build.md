@@ -2985,15 +2985,18 @@ reachable stack bounds are measured for the disabled implemented candidate in
 [step1083](../done/step1083.md). [Step1084](../done/step1084.md) corrects the
 Thrower-to-parent RSP delta to 48, adds exact EH/unwind artifact checks and the
 [84-line transcript](diagnostics.md#single-finally-development-transcript).
-Complete pointer-access review and enabled-source reinspection remain pending. Managed
+The corrected disabled image and pointer-access review in
+[step1085](../done/step1085.md) permit bounded development admission. The enabled
+image must still be republished and inspected before QEMU. Managed
 DLL/PDB identity, project/smoke rejection and existing heap/GC/subsystem fixture
 results are retained in [step1080](../done/step1080.md).
 
-The current candidate is for publication and inspection only. Its runtime
-selector retains `EhTransferAdmitted=false`, and `run-qemu-smoke.ps1` rejects this
-profile with `m04_single_finally_native_admission_pending` in both dry-run and
-launch modes. Passing source preflight or managed compilation does not authorize
-guest execution; the disabled native publication does not authorize it either.
+The runtime selector now permits this bounded development transfer when its
+explicit profile is compiled. The public probe default remains false. Smoke
+constructs the full profile in dry-run and applies exact artifact and raw
+transcript validation in launch mode. Passing dry-run or managed compilation
+does not prove guest execution. Final enabled-image inspection and fresh guest
+captures remain required for acceptance.
 No finally guest, general EH, hosted .NET or Kestrel support
 is accepted by this development profile.
 

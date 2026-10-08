@@ -7111,9 +7111,8 @@ if ($EnableM04SimpleThrowCatchProbe -and -not $EnableM04GcStaticRootMaterializat
 if ($EnableM04SingleFinallyCatchProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Host 'TEST_FAIL qemu.smoke m04_single_finally_requires_gc_profile'; exit 1 }
 if ($EnableM04SimpleThrowCatchProbe -and ($EnableM04SeededCollectorChurnProbe -or $EnableM04ClassConstructorExecutionProbe -or $EnableM04InterfaceDispatchProbe -or $EnableM04X64UnwindMetadataProbe)) { Write-Host 'TEST_FAIL qemu.smoke m04_simple_catch_profile_conflict'; exit 1 }
 if ($EnableM04SingleFinallyCatchProbe -and ($EnableM04SeededCollectorChurnProbe -or $EnableM04ClassConstructorExecutionProbe -or $EnableM04InterfaceDispatchProbe -or $EnableM04X64UnwindMetadataProbe -or $EnableM04SimpleThrowCatchProbe)) { Write-Host 'TEST_FAIL qemu.smoke m04_single_finally_profile_conflict'; exit 1 }
-# This development profile is publish-only until actual native geometry and
-# the final complete transcript have been reviewed. Dry-run is not acceptance.
-if ($EnableM04SingleFinallyCatchProbe) { Write-Host 'TEST_FAIL qemu.smoke m04_single_finally_native_admission_pending'; exit 1 }
+# This bounded profile has reviewed native geometry and a strict transcript.
+# Its default remains false. Dry-run constructs commands; it is not boot proof.
 if ($EnableM04ClassConstructorExecutionProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Host "TEST_FAIL qemu.smoke m04_cctor_requires_gc_profile"; exit 1 }
 if ($EnableM04ClassConstructorExecutionProbe -and $EnableM04SeededCollectorChurnProbe) { Write-Host "TEST_FAIL qemu.smoke m04_cctor_churn_conflict"; exit 1 }
 if ($EnableM04SeededCollectorChurnProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Host "TEST_FAIL qemu.smoke m04_churn_requires_gc_profile"; exit 1 }

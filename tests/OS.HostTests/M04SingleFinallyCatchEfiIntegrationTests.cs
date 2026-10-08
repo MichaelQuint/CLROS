@@ -120,7 +120,7 @@ internal static class M04SingleFinallyCatchEfiIntegrationTests
     {
         Run("default authority", Defaults);
         Run("project switch admission", Switches);
-        Run("unadmitted smoke refuses execution", UnadmittedSmoke);
+        Run("explicit profile dry run", Profile);
         Run("actual admission guard core", GuardCore);
         Run("strict complete finally transcript", Transcript);
         Run("exact native clause and unwind guards", NativeMetadata);
@@ -177,21 +177,20 @@ internal static class M04SingleFinallyCatchEfiIntegrationTests
         }
     }
 
-    private static void UnadmittedSmoke()
+    private static void Profile()
     {
-        // Both command construction and real launch must remain closed before
-        // native contribution/ABI review. The sentinel path cannot launch QEMU.
-        foreach (bool dry in new[] { true, false })
-        {
-            string[] mode = dry ? ["-DryRun"] : [];
-            string output = RunCommand("smoke-" + dry, "powershell.exe",
-                ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", "scripts/run-qemu-smoke.ps1",
-                 "-BuildEfi", "-" + Flag, ..Ancestry.Select(x => "-" + x), ..mode,
-                 "-Qemu", "artifacts/unadmitted-finally-must-not-launch.exe"],
-                1, "m04_single_finally_native_admission_pending");
-            Need(output.Trim() == "TEST_FAIL qemu.smoke m04_single_finally_native_admission_pending",
-                "reject before build, process launch or smoke acceptance");
-        }
+        string output = RunCommand("finally-profile-dryrun", "powershell.exe",
+            ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", "scripts/run-qemu-smoke.ps1",
+             "-BuildEfi", "-DryRun", "-" + Flag, ..Ancestry.Select(x => "-" + x)], 0, "TEST_PASS qemu.runner.dryrun");
+        string[] Read(string key) => output.Split('\n').Single(x => x.StartsWith(key, StringComparison.Ordinal))[key.Length..]
+            .TrimEnd('\r').Split(';', StringSplitOptions.RemoveEmptyEntries);
+        string[] ordered = Read("ORDERED_MARKERS "), required = Read("REQUIRED_MARKERS "), unique = Read("UNIQUE_MARKERS ");
+        string[] expected = new[] { "OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS" }.Concat(ordered).Distinct(StringComparer.Ordinal).ToArray();
+        Need(ordered.Length == 73 && required.SequenceEqual(expected, StringComparer.Ordinal) && unique.SequenceEqual(ordered, StringComparer.Ordinal),
+            "complete ancestor and fourteen child markers");
+        Need(ordered[51] == "TEST_START m04.021.single-finally" && ordered[64] == "CLROS_M04_SINGLE_FINALLY_READY" &&
+            ordered[65] == "TEST_START boot.sequence", "child follows collector and precedes boot");
+        Need(Read("FORBIDDEN_MARKERS ").Contains("TEST_FAIL", StringComparer.Ordinal), "failure markers forbidden");
     }
 
     private static void Check(string name, string[] properties, int expectedExit, string? expectedReason)

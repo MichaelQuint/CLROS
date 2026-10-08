@@ -2006,8 +2006,10 @@ selector and both validators with host-tested clause, context and control
 predicates. [Step1083](../done/step1083.md) binds the implemented disabled image,
 both funclets, ordinary ABI and transitive stack bounds. Its disabled selector
 still had an incorrect RSP delta; [step1084](../done/step1084.md) corrects it from
-16 to the measured 48 and adds exact metadata and transcript guards. Remaining
-pointer-access review, enabled-source reinspection and captured guest evidence
-are required before transfer admission or acceptance.
+16 to the measured 48 and adds exact metadata and transcript guards.
+[Step1085](../done/step1085.md) completes corrected disabled-image pointer review
+and permits bounded development transfer. Enabled-source reinspection is
+required before QEMU; captured guest and full host evidence remain required
+for acceptance.
 
 The guarded empty `System.Exception` declaration is only the compiler-required identity for this fixture hierarchy. The canonical declaration ledger appends identity 49 as `CoreType/Stubbed`; it supplies no message, stack trace, inner exception or other exception service. All runtime-completion fields remain false.

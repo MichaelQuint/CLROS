@@ -42,7 +42,8 @@ rejection. These finite profiles do not establish general exception handling.
 
 The unaccepted single-finally development sibling adds index 24, for 25 current
 catalogue entries. Its complete 84-record grammar is host-tested in
-[step1084](../done/step1084.md); transfer and guest execution remain disabled.
+[step1084](../done/step1084.md). [Step1085](../done/step1085.md) permits bounded
+development transfer after corrected native review; fresh guest evidence is pending.
 
 The preceding accepted revocation profile extended
 the first-exit transcript to 73 application records: an admitted pre-entry
@@ -1822,7 +1823,8 @@ The strict parser rejects incomplete/control-bearing lines, missing/duplicate/
 reordered rows, wrong identities or frame/stamp associations, disguised failures
 and all post-terminal noise. Local scalar rejection is distinct from corrupting
 a live context. Host grammar tests do not prove cleanup, catch or continuation
-ran. Smoke still rejects this profile before launch pending native admission.
+ran. The profile requires explicit selection and its existing collecting-GC
+ancestry. Its newly enabled image requires review before fresh guest captures.
 
 ## Owned subsystem result and panic profiles
 

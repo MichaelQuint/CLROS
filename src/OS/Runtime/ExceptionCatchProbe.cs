@@ -19,11 +19,10 @@ internal sealed class SimpleCatchDerived : SimpleCatchBase
 internal static unsafe partial class RhpNewFastAllocation
 {
 #if M04_SINGLE_FINALLY_CATCH_PROBE
-    // Publish-only candidate. No cleanup/catch transfer is admitted until this
-    // fixture's actual compiler contributions and complete ABI are measured.
-    private const bool EhTransferAdmitted = false;
-    // Initial native candidate df1ebf5: exact ILC/COFF/PE contributions and
-    // three pdata rows. Final source must be republished and reviewed again.
+    // Bounded development admission follows corrected candidate 545af36's
+    // exact native clause/frame, callback, stack and pointer review. The
+    // enabled image must be republished and reviewed before guest execution.
+    private const bool EhTransferAdmitted = true;
     private const uint EhThrowCodeBytes = 10, EhCatchCodeBytes = SingleFinallyAdmission.CatchCodeBytes, EhTableBytes = 11;
     private const uint EhThrowReturnOffset = 9, EhCatchReturnOffset = SingleFinallyAdmission.CatchReturnOffset;
     private const uint EhContinuationOffset = 47, EhCleanupOffset = SingleFinallyAdmission.CleanupOffset, EhHandlerOffset = SingleFinallyAdmission.HandlerOffset;
