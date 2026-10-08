@@ -2975,8 +2975,10 @@ The generator's `--single-finally-catch` mode emits a distinct 1,707-byte object
 and `.finally.obj` publication sidecar. Its host instruction models are recorded
 in [step1079](../done/step1079.md). The compiler-generated managed fixture has
 one inner finally and one outer typed catch; this establishes managed metadata
-shape only. Native contribution extents, cleanup calling convention, complete
-EH metadata and reachable stack bounds still require measurement. Managed
+shape only. The first publish-only candidate in [step1081](../done/step1081.md)
+measures a 136-byte Catcher contribution and 11-byte EH table, joined exactly
+from archived COFF to PE. Cleanup calling convention, complete EH admission
+and reachable stack bounds still require review and implementation. Managed
 DLL/PDB identity, project/smoke rejection and existing heap/GC/subsystem fixture
 results are retained in [step1080](../done/step1080.md).
 
@@ -2984,7 +2986,8 @@ The current candidate is for publication and inspection only. Its runtime
 selector and validators reject transfer, and `run-qemu-smoke.ps1` rejects this
 profile with `m04_single_finally_native_admission_pending` in both dry-run and
 launch modes. Passing source preflight or managed compilation does not authorize
-guest execution. No finally guest, general EH, hosted .NET or Kestrel support
+guest execution; the disabled native publication does not authorize it either.
+No finally guest, general EH, hosted .NET or Kestrel support
 is accepted by this development profile.
 
 ## Owned subsystem survival and panic profiles
