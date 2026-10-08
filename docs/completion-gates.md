@@ -2,6 +2,12 @@
 
 ## Current Status
 
+The bounded M03 firmware-exit milestone satisfies its declared technical exit:
+all 11 keyed children have reviewed closure evidence, including ordinary
+default promotion in [step1094](../done/step1094.md). [Step1095](../done/step1095.md)
+records the parent/milestone and dependent-checklist reconciliation. This
+administrative closure changes no numbered gate status or runtime claim.
+
 Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
 
 This is a bounded terminal boot path. It reuses the original retained allocator and copied ACPI, adopts owned descriptors/page tables and reports through owned COM1. It does not reclaim firmware pages or start a continuing workload. General EH, hosted .NET/Kestrel, live storage/networking, cloud and production readiness remain unproved; numbered gate statuses are unchanged.

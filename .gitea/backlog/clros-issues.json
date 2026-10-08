@@ -53,7 +53,7 @@
     {
       "key": "M03",
       "title": "M03 Real Firmware Exit",
-      "state": "open",
+      "state": "closed",
       "description": "Exit UEFI boot services and retain owned memory, diagnostics, and platform snapshots. Milestones carry no fabricated due date and close only from preserved evidence.",
       "exitCriteria": "Exit UEFI boot services and retain owned memory, diagnostics, and platform snapshots."
     },
@@ -8054,7 +8054,7 @@
         "M02-016"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:epic",
         "evidence:qemu",
@@ -8068,7 +8068,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M03: Real Firmware Exit.",
-      "currentEvidence": "Prerequisite #56 and children #58-#66 have scoped accepted evidence. Step1051/PR559 accepts #64 first real firmware exit with permanent owned CR3 and terminal owned COM1; step1053/PR571 accepts #65 retained typed adapter revocation. Step1063/PR573 now accepts and closes #66 post-exit owned diagnostics at merge a6f5229e4f2a32be12ff3378dc51c0b28882fda0. Child #67 now has accepted final original-allocator/copied-ACPI/descriptor/panic evidence in step1074 / PR586, merged as `19475d4f2f808f0ef8ba68e15065780c574f2a14` ([closure evidence](http://localhost:3000/admin/CLROS/issues/67#issuecomment-16598)); #68 default promotion remains incomplete. Optional provider functionality, firmware-page reclamation and the full M03 criterion remain unproved. The epic stays blocked; bounded opt-in evidence does not promote Gate3.",
+      "currentEvidence": "All 11 keyed children #58-#68 are closed with reviewed evidence. The bounded M03 criterion is satisfied: Exit UEFI boot services and retain owned memory, diagnostics, and platform snapshots. Steps1051, 1053, 1063 and 1074 accept real exit, retained adapter revocation, owned COM1 diagnostics and original allocator/copied-ACPI/descriptor/panic use. Step1094 accepts ordinary VerifiedExit at frozen source 3c986e83447e2955efb25566ecd611676f054b30: 3903 paired host groups plus summary, three fresh ordinary 79-record QEMU/OVMF captures and five diagnostic regressions. PR595 merged as 2efd208a01e198cdd7817de0d7ed8931114dc802; #68 and integration #594 are closed/agent:done. Step1095 records the tracker reconciliation. This bounded terminal milestone does not establish firmware-page reclamation, continuing workloads, general EH, live device/storage/networking, hosted .NET/Kestrel, cloud or production readiness; numbered gates are unchanged.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -8103,8 +8103,8 @@
         "docs/boot.md",
         "docs/efi-build.md"
       ],
-      "evidenceBoundary": "The epic records coordination only; it proves none of Real Firmware Exit until every child and exit criterion passes.",
-      "desiredState": "open"
+      "evidenceBoundary": "Accepted M03 technical exit is the bounded local QEMU/OVMF firmware-exit path with retained owned memory, diagnostics and platform snapshots, including ordinary default promotion. Child evidence retains its original source and profile boundaries. Tracker reconciliation adds no guest execution or runtime capability and changes no numbered completion gate. Firmware-page reclamation, continuing workloads, general EH, live device/storage/networking, hosted .NET/Kestrel, cloud and production readiness remain separate.",
+      "desiredState": "closed"
     },
     {
       "key": "M03-001",
@@ -9102,7 +9102,7 @@
         "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -DryRun",
         "git diff --check",
         "git status --short",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M03_011_READY\""
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -BuildEfi"
       ],
       "documentationPaths": [
         "docs/boot.md",
@@ -11395,7 +11395,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M05: Platform, PCI, and Common Virtio.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Dependency #68 (M03-011) is accepted in done/step1094.md and closed with agent:done after PR595 merged as 2efd208a01e198cdd7817de0d7ed8931114dc802. ACPI, PCI, BAR, virtio, and DMA contracts remain host-tested; no live PCI/MMIO/virtqueue transaction is proven. The epic stays open/agent:blocked while its 21 children remain incomplete; #94 is the next ready platform leaf.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -11437,7 +11437,7 @@
         "M03-011"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:docs",
         "evidence:qemu",
@@ -11464,7 +11464,7 @@
       ],
       "collisionLane": null,
       "summary": "Define post-firmware physical mapping with explicit UC/WC/WB cache policy.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Dependency #68 (M03-011) is accepted in done/step1094.md and closed with agent:done after PR595 merged as 2efd208a01e198cdd7817de0d7ed8931114dc802. ACPI, PCI, BAR, virtio, and DMA contracts remain host-tested; no live PCI/MMIO/virtqueue transaction is proven. This leaf is now agent:ready; implementation has not started.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Define post-firmware physical mapping with explicit UC/WC/WB cache policy.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

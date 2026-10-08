@@ -2,6 +2,14 @@
 
 ## Current Status
 
+The October 8 M03 reconciliation in [step1095](../done/step1095.md) aligns
+epic #57 and milestone 5 with the accepted #68/#594 closure. The canonical
+manifest records M03 closed, M03-EPIC closed/agent:done, and M05-001 (#94)
+open/agent:ready. M05-EPIC (#93) remains open/agent:blocked by its incomplete
+children, with its #68 prerequisite checked. Use the verified source Gitea at
+`192.168.4.35:3000` from this destination host as documented in
+[Windows handoff](windows-handoff.md); loopback-only tools target another server.
+
 The canonical backlog taxonomy and desired issue state are version-controlled in
 `.gitea/backlog/clros-issues.json`. The local Gitea repository at
 `http://localhost:3000/admin/CLROS` is synchronized additively by
