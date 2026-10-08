@@ -21,17 +21,19 @@
 
 ## Progress
 
-**Status snapshot: October 7, 2026.** Accepted implementation is recorded through
+**Status snapshot: October 8, 2026.** The preceding accepted runtime implementation is recorded through
 `master` commit `1e6a8dbd11e3220c1ca433b72d57e418cdc86b05`, including [step1075](done/step1075.md).
 Evidence records retain their original tested revisions; acceptance does not
 extend automatically to later source changes. Development has resumed on the
-new Windows host, starting with a separately validated SDK/toolchain migration.
+new Windows host, with a separately validated SDK/toolchain migration below.
 The Windows handoff remains the preserved record of the preceding clean stop.
 
-The development toolchain selects SDK `10.0.401` and is qualifying NativeAOT
-compiler/runtime pack `10.0.12`. [Step1077](done/step1077.md) records the
-preceding SDK-only checkpoint; [step1078](done/step1078.md) tracks the combined
-qualification. These build inputs do not establish a hosted .NET runtime.
+The development toolchain now qualifies SDK `10.0.401` and NativeAOT
+compiler/runtime pack `10.0.12` for the finite profile matrix in
+[step1078](done/step1078.md): the full host gate, ten native/guest profiles and
+three current-image rejection controls pass. [Step1077](done/step1077.md)
+retains the preceding SDK-only checkpoint. This does not establish a hosted
+.NET runtime or expand the accepted runtime feature set.
 
 Progress is gate-based; issue counts and test counts are not completion
 percentages. The goal remains a C#-first NativeAOT operating system for one

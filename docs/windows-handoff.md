@@ -17,11 +17,12 @@ the loopback-only plugin and backlog synchronizer remain source-host tools.
 The user selected migration to SDK `10.0.401` with Visual Studio 2026 Insiders
 MSVC and the new QEMU installation. See [host requirements](host-requirements.md)
 for the current SDK policy. Pinned ILCompiler and selected NativeAOT runtime
-are migrating to `10.0.12` under #590; SDK-selected and selected-runtime roots
+are qualified at `10.0.12` under #590; SDK-selected and selected-runtime roots
 retain separate ownership identities even when their package versions agree.
 Copied evidence retains its historical scope. Fresh host/native/guest validation
-of the migration is required before acceptance; copying build outputs or
-changing SDK selection does not repeat earlier optional-profile acceptance.
+of the finite migration matrix passed on October 8 in
+[step1078](../done/step1078.md). Other historical optional-profile acceptance
+is not repeated by copying build outputs or changing SDK selection.
 
 The destination copy audit and recovery are recorded in [step1077](../done/step1077.md).
 It verified the original manifest references, bundle refs and 190,179 of 190,181

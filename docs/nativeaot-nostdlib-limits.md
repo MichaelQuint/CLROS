@@ -7,7 +7,8 @@ optional allocation, collection, metadata and constructor probes described
 below. `std/no-runtime/shared` contains compatible helper slices; it is not a
 complete BCL or general runtime surface.
 
-The active compiler/runtime profile is migrating to `10.0.12` on SDK `10.0.401`.
+The active compiler/runtime profile is qualified at `10.0.12` on SDK `10.0.401`
+for the finite host/native/guest matrix recorded in step1078.
 See [the current EFI toolchain](efi-build.md#current-toolchain-migration) and
 [step1078](../done/step1078.md) for its qualification boundary. Historical
 `10.0.8` acceptance below remains tied to its original source and artifacts.
