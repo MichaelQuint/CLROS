@@ -1,6 +1,6 @@
 # EFI Build
 
-## Default-exit development
+## Ordinary verified-exit policy
 
 The #68/#594 core checkpoint in [step1089](../done/step1089.md) introduces
 `ClrosBootPolicy` in `src/OS/OS.csproj`: an unqualified project build selects
@@ -19,12 +19,11 @@ The native evidence records the selected policy and verifies it again against
 MSBuild and the requested artifact profile. The normal image has 122 explicit
 compile items, 138 source-authority inputs and all 52 diagnostic properties false.
 
-A native publication and one clean development QEMU run pass, including the
-complete 79-record post-exit transcript. The artifact verifier rejects treating
-that image as a `Diagnostic` artifact. The earlier failed wrapper run is retained.
-Broader host fixture reconciliation, profile regressions, complete native/disk
-review and three frozen-source captures remain before final acceptance. Older
-firmware-visible smoke captures do not supply that evidence.
+Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
+
+The five diagnostic regressions are firmware-visible compatibility, first exit, owned survival, adapter revocation and expected owned panic. Their EFI bytes exactly match their retained accepted images. Failed full runs and fixture corrections remain in steps1091–1093; the earlier failed wrapper is preserved in step1090.
+
+This is a bounded terminal boot path. It reuses the original retained allocator and copied ACPI, adopts owned descriptors/page tables and reports through owned COM1. It does not reclaim firmware pages or start a continuing workload. General EH, hosted .NET/Kestrel, live storage/networking, cloud and production readiness remain unproved; numbered gate statuses are unchanged.
 
 ## Current toolchain migration
 

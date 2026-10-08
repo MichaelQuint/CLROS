@@ -40,15 +40,11 @@ percentages. The goal remains a C#-first NativeAOT operating system for one
 configured workload, with .NET 10 applications and mandatory ASP.NET Minimal
 API/Kestrel support, followed by verified Azure and AWS deployment.
 
-The [completion gates](docs/completion-gates.md) are the source of truth. In the
-[accepted gate ledger](http://192.168.4.35:3000/admin/CLROS/src/commit/1e6a8dbd11e3220c1ca433b72d57e418cdc86b05/docs/completion-gates.md),
-only Gate 2 passes; all other numbered gates remain **Fail**. Gate 2 covers the
-firmware-visible boot smoke. Separate accepted default-off profiles now prove a
-bounded real `ExitBootServices` transition and runtime operations; those results
-do not complete the broader firmware, diagnostics, or runtime gates.
+The [completion gates](docs/completion-gates.md) are the source of truth. Only Gate 2 passes; all other numbered gates remain **Fail**. Ordinary boot now requires bounded verified firmware exit, while explicit diagnostic profiles retain their separate contracts. This does not complete the broader firmware, diagnostics or runtime gates, or establish application hosting.
 
 ### Latest accepted milestones
 
+- **Ordinary verified firmware exit:** [step1094](done/step1094.md) accepts #68/#594 at tested source `3c986e8`. The full host gate passes 3,903 groups plus its summary; three fresh ordinary 79-record boots and five diagnostic regressions pass with reviewed native and image evidence. Ordinary success follows the original owned allocator, copied ACPI and descriptor checks, then halts. Probe defaults stay false.
 - **Real firmware exit and collector churn:** the first-exit profile leaves UEFI
   boot services, adopts owned page tables and CPU descriptors, checks retained
   state, and reports through owned COM1 before halting. A separate pre-exit

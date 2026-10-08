@@ -2,26 +2,11 @@
 
 ## Current Status
 
-Default-exit promotion is in development under #68/#594 ([step1089](../done/step1089.md),
-[step1090](../done/step1090.md)).
-The ordinary EFI project now selects the separate `VerifiedExit` policy and
-reuses the original first-exit and positive owned-subsystem adapters. It defers
-`OS_BOOT_OK`, `TEST_PASS boot.sequence` and `OS_SMOKE_PASS` until those post-exit
-checks succeed, then uses owned COM1 for the completion tail before the existing
-terminal halt. Dangerous probe defaults remain false. Explicit diagnostic
-profiles select `Diagnostic` and retain their earlier execution boundaries.
+Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
 
-Publication and the ordinary runner now carry and validate that policy. The
-first clean development QEMU/OVMF run passed the complete 79-record transcript,
-including original allocator restoration, copied ACPI association and installed
-descriptor checks before the normal success tail. An earlier run reached the
-same guest tail but failed a stale wrapper selection check; it remains a failed
-run. Ordinary smoke automatically builds a fresh EFI/image without probe flags.
+The ordinary `VerifiedExit` policy defers `OS_BOOT_OK`, `TEST_PASS boot.sequence` and `OS_SMOKE_PASS` until the original positive post-exit subsystem checks succeed. Six completion records use owned COM1 before the existing terminal halt. All 52 diagnostic properties remain false. Explicit `Diagnostic` profiles retain their separate boundaries.
 
-This development result is not final default-exit acceptance. Three clean
-captures from one frozen source, the coherent full host gate, remaining profile
-regressions and complete native/disk review are still required. Earlier accepted
-tuples below retain their original source and opt-in boundaries.
+This is a bounded terminal boot path. It reuses the original retained allocator and copied ACPI, adopts owned descriptors/page tables and reports through owned COM1. It does not reclaim firmware pages or start a continuing workload. General EH, hosted .NET/Kestrel, live storage/networking, cloud and production readiness remain unproved; numbered gate statuses are unchanged.
 
 The new-host SDK checkpoint and accepted finite compiler/runtime qualification are scoped
 in [EFI build](efi-build.md#current-toolchain-migration). Historical boot tuples

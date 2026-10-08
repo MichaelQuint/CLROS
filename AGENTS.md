@@ -23,6 +23,12 @@ intended deployment model is a minimal single-workload cloud appliance:
 - .NET 10 applications as first-class workloads.
 - ASP.NET Minimal API/Kestrel support as a mandatory milestone.
 
+Ordinary `VerifiedExit` is accepted in `done/step1094.md`: three frozen-source
+79-record QEMU/OVMF captures leave boot services and finish original owned
+subsystem checks before terminal success. Explicit `Diagnostic` retains the
+legacy profiles; dangerous probe defaults remain false. This does not add
+firmware-page reclamation or a continuing workload.
+
 Current implementation is bounded boot/runtime work with host-tested contracts
 and accepted QEMU/OVMF profiles for real firmware exit, owned diagnostics and
 subsystem use, allocation/collection, constructors, dispatch and unwind metadata.

@@ -2,13 +2,9 @@
 
 ## Current Status
 
-Default-exit promotion is in development under #68/#594 and draft PR595.
-The unqualified raw-image smoke now selects `VerifiedExit`, publishes a fresh
-EFI automatically, and requires the complete 79-record post-exit transcript.
-Step1090 records one clean development capture; step1091 records diagnostic
-fixture and command compatibility checks. Frozen repeated acceptance
-and the full host gate are still pending. See `docs/boot.md` and
-`docs/efi-build.md` for the current policy and evidence boundary.
+Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
+
+An unqualified raw-image smoke selects `VerifiedExit`, publishes a fresh EFI/image and requires the complete 79-record post-exit transcript with empty child stderr. See [boot](boot.md) and [EFI build](efi-build.md) for policy and evidence limits.
 
 Historical firmware-visible default results below describe the retained
 `-BootPolicy Diagnostic` compatibility path. Explicit probe switches select
@@ -20,7 +16,7 @@ contracts, not proof of the named guest subsystem.
 
 QEMU smoke now has real OVMF boot proof for the EFI smoke path from both raw and qcow2 image artifacts. `scripts/run-qemu-smoke.ps1` builds `artifacts/images/os.raw` through `OS.ImageBuilder`, boots it with QEMU/OVMF, captures serial output to `artifacts/logs/qemu-smoke.log`, writes a concise summary artifact to `artifacts/logs/qemu-smoke.summary.log`, and requires the current boot boundary markers by default. `scripts/run-qemu-qcow2-smoke.ps1` converts the raw image to `artifacts/images/os.qcow2` through `qemu-img`, boots it with `--disk-format qcow2`, and writes separate qcow2 serial and summary artifacts.
 
-This is an EFI application smoke, not a complete OS boot. It proves OVMF can load `\EFI\BOOT\BOOTX64.EFI` from the raw image and that the EFI entry path emits firmware-visible markers.
+The compatibility smoke proves OVMF loads `\EFI\BOOT\BOOTX64.EFI` and emits the firmware-visible records. Ordinary verified exit additionally requires the owned post-exit checks and then halts; neither path starts an application workload.
 
 The historical baseline raw-image proof was captured on 2026-07-25 from
 clean, pushed commit

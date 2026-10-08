@@ -9029,7 +9029,7 @@
         "M03-010"
       ],
       "labels": [
-        "agent:ready",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -9056,7 +9056,7 @@
       ],
       "collisionLane": "lane:boot-sequence",
       "summary": "Promote the verified exit path from opt-in to default after repeated clean QEMU runs.",
-      "currentEvidence": "The opt-in real ExitBootServices transition, permanent owned CR3, owned diagnostics, firmware-adapter revocation, and the original retained allocator/copied-ACPI/descriptor/panic exercise have accepted evidence in #64-#67. #67 is accepted and closed in step1074 / PR586, merged as `19475d4f2f808f0ef8ba68e15065780c574f2a14`; its [closure evidence](http://localhost:3000/admin/CLROS/issues/67#issuecomment-16598) records the exact tested source and profiles. Default boot promotion and the repeated clean QEMU runs required by this issue are still unimplemented. The allocator exercise reuses and restores the original retained arena; it does not reclaim firmware pages or prove that arbitrary boot-services/firmware allocations are reusable. Preserve conservative firmware reservations unless a separately reviewed lifetime/ownership proof authorizes reclamation. The user resumed the backlog on the new Windows host on 2026-10-07. This issue remains open and ready; host migration #588 is under validation, and default promotion still requires separately claimed shared integration ownership and repeated fresh QEMU evidence. The read-only implementation scope audit is retained at artifacts/backlog-resume-20261007/boot-scope/issue-68-scope.md. No default boot behavior has changed.",
+      "currentEvidence": "Accepted in done/step1094.md at frozen source 3c986e83447e2955efb25566ecd611676f054b30: original full host gate passes 3903 paired groups plus summary, three fresh ordinary 79-record QEMU/OVMF captures pass, and firmware-visible Diagnostic/first-exit/owned/revocation/panic regressions preserve their exact accepted EFI images. Native delta, raw transcript, source and post-capture GPT/FAT/EFI reviews pass. All 52 probes remain false for ordinary VerifiedExit; ordinary success follows real exit and original positive owned-subsystem checks. The path then halts. No firmware-page reclamation, continuing workload, general EH, hosted .NET/Kestrel, live storage/network, cloud or production claim.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Promote the verified exit path from opt-in to default after repeated clean QEMU runs.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -9109,7 +9109,7 @@
         "docs/efi-build.md"
       ],
       "evidenceBoundary": "This issue proves only \"Promote the verified exit path from opt-in to default after repeated clean QEMU runs.\" It does not by itself prove the M03 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M04-EPIC",

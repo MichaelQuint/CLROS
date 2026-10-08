@@ -2,6 +2,8 @@
 
 ## Current Status
 
+Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
+
 CLROS follows a staged CloudReady NativeAOT architecture. The first-class
 application goal is .NET 10 workload hosting, with ASP.NET Minimal API apps as
 the primary cloud target. Kestrel support is mandatory for that milestone.
@@ -9,8 +11,9 @@ Accepted local QEMU/OVMF profiles include the default EFI smoke, opt-in owned
 stack/allocator/paging and ACPI discovery, bounded real `ExitBootServices`,
 eight-capability adapter revocation, and owned post-exit diagnostics. The exact
 source-bound scopes are recorded in [completion gates](completion-gates.md),
-including [step1063](../done/step1063.md). The default profile retains firmware
-services. The repository also contains bounded runtime slices and host-tested
+including [step1063](../done/step1063.md). Ordinary `VerifiedExit` now requires bounded real firmware exit and owned
+post-exit checks before halting. Explicit `-BootPolicy Diagnostic` without
+probes retains the firmware-visible compatibility path. The repository also contains bounded runtime slices and host-tested
 planning contracts for ACPI/PCI/virtio, storage, networking, PAL, manifest and
 native-app readiness; these do not establish a complete kernel or hosted
 workload execution.
