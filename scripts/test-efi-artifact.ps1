@@ -538,6 +538,26 @@ function Get-RvaRangeEnd {
     return [uint64]($Rva + $Size)
 }
 
+function Test-SingleFinallyEhTable {
+    param([byte[]] $Table, [UInt64] $TypeRva)
+    if($null -eq $Table -or $Table.Length -ne 11 -or $TypeRva -eq 0 -or $TypeRva -gt [UInt32]::MaxValue) { return $false }
+    # Exact measured two-clause stream: inner [27,33) cleanup at +71,
+    # then outer [27,47) typed catch at +94 and its same-image type RVA.
+    [byte[]]$prefix=@(0x04,0x36,0x32,0x8e,0x36,0xa0,0xbc)
+    for($i=0;$i -lt $prefix.Length;$i++){if($Table[$i] -ne $prefix[$i]){return $false}}
+    return [UInt64][BitConverter]::ToUInt32($Table,7) -eq $TypeRva
+}
+
+function Test-SingleFinallyUnwindBytes {
+    param([byte[]] $Data, [bool] $Root, [UInt64] $TableRva)
+    # NativeAOT's trailer follows the slots without DWORD padding here.
+    [byte[]]$prefix=if($Root){@(0x01,0x06,0x03,0x00,0x06,0x62,0x02,0x30,0x01,0x50,0x04)}else{@(0x01,0x04,0x01,0x00,0x04,0x42,0x01)}
+    $expectedBytes=if($Root){15}else{7}
+    if($null -eq $Data -or $Data.Length -ne $expectedBytes){return $false}
+    for($i=0;$i -lt $prefix.Length;$i++){if($Data[$i] -ne $prefix[$i]){return $false}}
+    return -not $Root -or ($TableRva -gt 0 -and $TableRva -le [UInt32]::MaxValue -and [UInt64][BitConverter]::ToUInt32($Data,11) -eq $TableRva)
+}
+
 function Read-UInt16LittleEndian {
     param(
         [Parameter(Mandatory = $true)]
@@ -8275,7 +8295,7 @@ else {
 # Bounded throw bridge. This binds emitted bytes/relocations; independent native
 # review still owns full callback stack, exact ILC contributions and transfer ABI.
 $catchNames=@('RhpThrowEx','CLROS_Eh_GetClauseTable','CLROS_Eh_Select','CLROS_Eh_ValidateContinuation','__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__Catcher')
-if ($EnableM04SingleFinallyCatchProbe) { $catchNames += 'CLROS_Eh_ValidateFinally' }
+if ($EnableM04SingleFinallyCatchProbe) { $catchNames += @('CLROS_Eh_ValidateFinally','OS_OS_Runtime_RhpNewFastAllocation__Catcher','??_7OS_OS_Runtime_SimpleCatchBase@@6B@') }
 elseif ([regex]::IsMatch($linkerMapText,'(?m)^\s*[0-9A-Fa-f]{4}:[0-9A-Fa-f]{8}\s+CLROS_Eh_ValidateFinally\s+')) {
     Write-Failure 'single_finally_unrequested_native_symbol'
 }
@@ -8351,13 +8371,38 @@ if (-not $EnableM04SimpleThrowCatchProbe -and -not $EnableM04SingleFinallyCatchP
         $b=Resolve-FileBackedRvaRange $sections ($catchAddresses[$i]-$imageBase) 1 $bytes.LongLength 'simple_catch_callback_not_backed' 'simple_catch_callback_ambiguous'
         Assert-CodeSectionCharacteristics $b.Section 'simple_catch_callback_permissions'
     }
-    # New finally metadata remains unmeasured; this only binds its table pointer.
-    $tableBytes = if ($EnableM04SingleFinallyCatchProbe) { 1 } else { 8 }
+    $tableBytes = if ($EnableM04SingleFinallyCatchProbe) { 11 } else { 8 }
     $table=Resolve-FileBackedRvaRange $sections ($catchAddresses[4]-$imageBase) $tableBytes $bytes.LongLength 'simple_catch_table_not_backed' 'simple_catch_table_ambiguous'
     $flags=[UInt64]$table.Section.Characteristics
     if(($flags -band 0x40000040) -ne 0x40000040 -or ($flags -band 0xA2000020L) -ne 0) { Write-Failure 'simple_catch_table_permissions' }
     if ($EnableM04SingleFinallyCatchProbe) {
-        Write-Output 'EFI_ARTIFACT_SINGLE_FINALLY_THUNK bytes=1707 text=1336 callbackRel32=3 tableRel32=1 tableBytes=unmeasured transferAccepted=false callbackStackAccepted=false'
+        $catcherRva=[UInt64]($catchAddresses[6]-$imageBase);$typeRva=[UInt64]($catchAddresses[7]-$imageBase)
+        $tableRva=[UInt64]($catchAddresses[4]-$imageBase)
+        [byte[]]$tableData=Copy-ByteRange $bytes $table.FileOffset 11 'single_finally_table_truncated'
+        if(-not (Test-SingleFinallyEhTable -Table $tableData -TypeRva $typeRva)){Write-Failure 'single_finally_clause_table_mismatch'}
+        $code=Resolve-FileBackedRvaRange $sections $catcherRva 136 $bytes.LongLength 'single_finally_catcher_not_backed' 'single_finally_catcher_ambiguous'
+        Assert-CodeSectionCharacteristics $code.Section 'single_finally_catcher_permissions'
+        $type=Resolve-FileBackedRvaRange $sections $typeRva 24 $bytes.LongLength 'single_finally_type_not_backed' 'single_finally_type_ambiguous'
+        if(([UInt64]$type.Section.Characteristics -band 0x40000040) -ne 0x40000040 -or
+            ([UInt64]$type.Section.Characteristics -band 0xA2000020L) -ne 0){Write-Failure 'single_finally_type_permissions'}
+        $rows=@()
+        for($index=0;$index -lt $runtimeFunctionCount;$index++){
+            $offset=[int]([UInt64]$exceptionBacking.FileOffset+[UInt64]$index*12)
+            $begin=[BitConverter]::ToUInt32($bytes,$offset);$end=[BitConverter]::ToUInt32($bytes,$offset+4)
+            if($begin -lt $catcherRva+136 -and $end -gt $catcherRva){$rows+=,@($begin,$end,[BitConverter]::ToUInt32($bytes,$offset+8))}
+        }
+        if($rows.Count -ne 3){Write-Failure 'single_finally_runtime_rows'}
+        $starts=@(0,71,94);$ends=@(71,94,136)
+        for($i=0;$i -lt 3;$i++){
+            $row=$rows[$i]
+            if($row[0] -ne $catcherRva+$starts[$i] -or $row[1] -ne $catcherRva+$ends[$i] -or
+                -not $validatedUnwindFileOffsets.ContainsKey([UInt32]$row[2])){Write-Failure 'single_finally_runtime_row_shape'}
+            $length=if($i -eq 0){15}else{7}
+            $unwind=Resolve-FileBackedRvaRange $sections $row[2] $length $bytes.LongLength 'single_finally_unwind_not_backed' 'single_finally_unwind_ambiguous'
+            [byte[]]$data=Copy-ByteRange $bytes $unwind.FileOffset $length 'single_finally_unwind_truncated'
+            if(-not (Test-SingleFinallyUnwindBytes -Data $data -Root ($i -eq 0) -TableRva $tableRva)){Write-Failure 'single_finally_unwind_mismatch'}
+        }
+        Write-Output 'EFI_ARTIFACT_SINGLE_FINALLY_THUNK bytes=1707 text=1336 callbackRel32=3 tableRel32=1 tableBytes=11 clauses=2 runtimeRows=3 transferAccepted=false callbackStackAccepted=false'
     } else {
         Write-Output 'EFI_ARTIFACT_SIMPLE_CATCH_THUNK bytes=1350 text=1032 callbackRel32=2 tableRel32=1 tableBytes=8 transferAccepted=false callbackStackAccepted=false'
     }

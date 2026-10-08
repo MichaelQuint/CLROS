@@ -2982,8 +2982,10 @@ and validator implementations bound to that measured nested clause pair,
 parent-frame stamp, saved context and control fields. Host tests compile and
 exercise their actual pure predicates. Final native calling convention and
 reachable stack bounds are measured for the disabled implemented candidate in
-[step1083](../done/step1083.md). Complete pointer-access review, strict transcript
-handling and enabled-source reinspection remain pending. Managed
+[step1083](../done/step1083.md). [Step1084](../done/step1084.md) corrects the
+Thrower-to-parent RSP delta to 48, adds exact EH/unwind artifact checks and the
+[84-line transcript](diagnostics.md#single-finally-development-transcript).
+Complete pointer-access review and enabled-source reinspection remain pending. Managed
 DLL/PDB identity, project/smoke rejection and existing heap/GC/subsystem fixture
 results are retained in [step1080](../done/step1080.md).
 

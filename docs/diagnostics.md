@@ -40,6 +40,10 @@ Owned survival and panic occupy indices 21 and 22, accepted in
 `ead4fca`, including the real catch/continuation and local-input admission
 rejection. These finite profiles do not establish general exception handling.
 
+The unaccepted single-finally development sibling adds index 24, for 25 current
+catalogue entries. Its complete 84-record grammar is host-tested in
+[step1084](../done/step1084.md); transfer and guest execution remain disabled.
+
 The preceding accepted revocation profile extended
 the first-exit transcript to 73 application records: an admitted pre-entry
 console operation, then eight post-exit `M03_ADAPTER_DENIED` rows with unchanged
@@ -1784,6 +1788,41 @@ accepts the original common gate and current 82-record guest with final native,
 raw, lifecycle and disk association. Local-input admission rejection does not
 prove terminal rejection after live context corruption or general exception
 recovery.
+
+## Single-finally development transcript
+
+The default-off #589 profile inserts fourteen lines after the existing 70-line
+GC profile's `CLROS_M04_013_READY` and before `TEST_START boot.sequence`, for 84
+complete application lines. Start is `TEST_START m04.021.single-finally`; the
+eleven `M04_FINALLY` rows have exactly four uppercase, 16-digit hexadecimal
+fields prefixed with `0x`, followed by pass and `CLROS_M04_SINGLE_FINALLY_READY`.
+The stage order is deliberately `0,1,2,3,4,9,10,5,6,7,8`:
+
+| Stage | Four fields |
+| --- | --- |
+| 0 | Module handle, retained snapshot, used bytes, function count |
+| 1 | Original exception, method table, allocation count 9, live objects 3 |
+| 2 | Original raw RIP, locally rejected RIP xor 1, original RSP, rejection result 0 |
+| 3 | Raw throw RIP/RSP, unwound parent RIP/RSP |
+| 4 | Matched base type, typed handler, parent RBP, throw return slot |
+| 9 | Original exception, parent stamp address, seed+2, cleanup count 1 |
+| 10 | Cleanup handler, typed handler, same stamp address, same stamp value |
+| 5 | Original exception, seed, observed stamp, catch count 1 |
+| 6 | Compiled continuation RIP, parent RSP/RBP, catch count 1 |
+| 7 | Original exception, seed, result seed+1, continuation count 1 |
+| 8 | Stack-check count 8, lowest witness, both original canaries |
+
+The native associations are Thrower allocation 40 plus return 8, parent RBP at
+parent RSP+64, stamp at RBP-24, and Catcher offsets 32/71/94/47 for raw return,
+cleanup, catch and continuation. The verifier admits only the exact 11-byte
+two-clause table and three associated unwind rows. Metadata kind 1 alone does
+not prove finally; frozen C# and native contribution review provide provenance.
+
+The strict parser rejects incomplete/control-bearing lines, missing/duplicate/
+reordered rows, wrong identities or frame/stamp associations, disguised failures
+and all post-terminal noise. Local scalar rejection is distinct from corrupting
+a live context. Host grammar tests do not prove cleanup, catch or continuation
+ran. Smoke still rejects this profile before launch pending native admission.
 
 ## Owned subsystem result and panic profiles
 

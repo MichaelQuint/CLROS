@@ -273,14 +273,14 @@ internal static unsafe partial class RhpNewFastAllocation
                 (ulong)sizeof(GcTypeStorage), s_gcHandle, (byte*)storage, EhStorageBytes,
                 (byte*)(s_gcStack.Start + 16), s_gcStack.End - s_gcStack.Start - 16, *captured);
             if (!unwound.Succeeded || unwound.InEpilog || unwound.Caller.Rip != catcher + EhCatchReturnOffset ||
-                unwound.Caller.Rsp != captured->Rsp + 16) return RejectEh(16);
+                !SingleFinallyAdmission.ParentFrameMatches(captured->Rsp, unwound.Caller.Rsp, unwound.Caller.Rbp)) return RejectEh(16);
             var metadata = X64PERuntimeFunctionUnwindMetadataHostileInput.Lookup((byte*)storage, EhStorageBytes, unwound.Caller.Rip);
             if (!metadata.Succeeded || metadata.ChainDepth != 0 || metadata.FrameRegister != 0 ||
                 metadata.FrameOffset != 0 || metadata.FixedAllocationBytes != EhCatchFrameBytes ||
                 metadata.StackBytes != 72 || metadata.PrologBytes != 6 ||
                 metadata.BeginRva != catcher - s_gcImage.Start ||
                 metadata.EndRva != catcher - s_gcImage.Start + EhCleanupOffset ||
-                unwound.Caller.Rbp != unwound.Caller.Rsp + 64 || !StackSpan(unwound.Caller.Rsp, 88) ||
+                !StackSpan(unwound.Caller.Rsp, 88) ||
                 GcReadWord(unwound.Caller.Rbp + 16) != exception ||
                 GcReadWord(unwound.Caller.Rbp - 24) != 0 || GcReadWord(unwound.Caller.Rbp - 16) != 0)
                 return RejectEh(17);
@@ -523,6 +523,11 @@ namespace OS.Runtime;
 internal static unsafe class SingleFinallyAdmission
 {
     internal const uint CatchCodeBytes = 136, CatchReturnOffset = 32, CleanupOffset = 71, HandlerOffset = 94;
+    // Actual Thrower is SUB RSP,40; CALL RhpThrowEx; INT3. Unwind consumes
+    // its 40-byte allocation and the caller return slot before restoring Catcher.
+    internal static bool ParentFrameMatches(ulong capturedRsp, ulong callerRsp, ulong callerRbp) =>
+        capturedRsp != 0 && capturedRsp <= ulong.MaxValue - 112 &&
+        callerRsp == capturedRsp + 48 && callerRbp == callerRsp + 64;
     internal readonly struct Control(ulong flags, ulong cr4, uint mxcsr, ushort x87)
     {
         internal readonly ulong Flags = flags, Cr4 = cr4;

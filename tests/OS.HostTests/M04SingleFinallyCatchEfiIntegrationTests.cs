@@ -9,6 +9,7 @@ internal static unsafe class FinallyAdmissionCoreProgram
     private static int Main()
     {
         Run("complete saved contexts", Contexts);
+        Run("measured throwing and parent frames", Frames);
         Run("control fields and allowed status flags", Controls);
         Run("measured nested clause pair", Clauses);
         Console.WriteLine("FINALLY_ADMISSION_CORE_PASS"); return 0;
@@ -34,6 +35,16 @@ internal static unsafe class FinallyAdmissionCoreProgram
         }
         Need(!SingleFinallyAdmission.ContextsMatch(null, &saved, false) &&
             !SingleFinallyAdmission.ContextsMatch(&actual, null, true), "null contexts rejected");
+    }
+    private static void Frames()
+    {
+        Need(SingleFinallyAdmission.ParentFrameMatches(0x10000, 0x10030, 0x10070), "40-byte thrower plus return; parent RBP +64");
+        foreach (ulong delta in new ulong[] { 0, 8, 16, 40, 56 })
+            Need(!SingleFinallyAdmission.ParentFrameMatches(0x10000, 0x10000 + delta, 0x10040 + delta), "wrong throwing-frame extent");
+        Need(!SingleFinallyAdmission.ParentFrameMatches(0x10000, 0x10030, 0x10060), "wrong parent RBP");
+        Need(!SingleFinallyAdmission.ParentFrameMatches(0, 48, 112), "null capture");
+        Need(!SingleFinallyAdmission.ParentFrameMatches(ulong.MaxValue - 47, 0, 64), "wrapped caller");
+        Need(!SingleFinallyAdmission.ParentFrameMatches(ulong.MaxValue - 111, ulong.MaxValue - 63, 0), "wrapped parent RBP");
     }
     private static SingleFinallyAdmission.Control Control(ulong flags = 0x202, ulong cr4 = 0x620,
         uint mxcsr = 0x1F80, ushort x87 = 0x37F) => new(flags, cr4, mxcsr, x87);
@@ -111,6 +122,8 @@ internal static class M04SingleFinallyCatchEfiIntegrationTests
         Run("project switch admission", Switches);
         Run("unadmitted smoke refuses execution", UnadmittedSmoke);
         Run("actual admission guard core", GuardCore);
+        Run("strict complete finally transcript", Transcript);
+        Run("exact native clause and unwind guards", NativeMetadata);
     }
 
     private static void Run(string name, Action action)
@@ -202,6 +215,154 @@ internal static class M04SingleFinallyCatchEfiIntegrationTests
         RunCommand("guard-core-build", "dotnet", ["build", project, "--nologo", "-m:1"], 0, null);
         string output = RunCommand("guard-core-run", "dotnet", ["run", "--project", project, "--no-build"], 0, "FINALLY_ADMISSION_CORE_PASS");
         Need(!output.Contains("TEST_FAIL ", StringComparison.Ordinal), "actual guard rejection cases pass");
+    }
+
+    private static void Transcript()
+    {
+        string directory = Path.Combine(Root, "artifacts/finally-transcript", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        string source = File.ReadAllText(Path.Combine(Root, "tests/OS.HostTests/M04GCStaticRootMaterializationEfiIntegrationTests.cs")).Replace("\r\n", "\n", StringComparison.Ordinal);
+        const string marker = "private const string Protocol = \"\"\"\n";
+        int at = source.IndexOf(marker, StringComparison.Ordinal);
+        Need(at >= 0 && source.IndexOf(marker, at + 1, StringComparison.Ordinal) < 0, "unique ancestor transcript");
+        at += marker.Length; int end = source.IndexOf("        \"\"\";", at, StringComparison.Ordinal);
+        Need(end > at, "complete ancestor literal");
+        string[] lines = source[at..end].TrimEnd('\n').Split('\n').Select(x => x[8..]).ToArray();
+        Need(lines.Length == 70, "unchanged complete GC ancestor");
+        string ancestor = Path.Combine(directory, "ancestor.serial");
+        File.WriteAllText(ancestor, string.Join("\r\n", lines) + "\r\n", new System.Text.UTF8Encoding(false));
+        string script = Path.Combine(directory, "controls.ps1");
+        File.WriteAllText(script, TranscriptControls, new System.Text.UTF8Encoding(false));
+        RunCommand("transcript", "powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script,
+            "-Source", Path.Combine(Root, "scripts/run-qemu-smoke.ps1"), "-Ancestor", ancestor], 0, "TEST_PASS single.finally.transcript");
+    }
+
+    private const string TranscriptControls = """
+        param([string]$Source,[string]$Ancestor)
+        $ErrorActionPreference='Stop'
+        $tokens=$null;$errors=$null
+        $ast=[Management.Automation.Language.Parser]::ParseFile($Source,[ref]$tokens,[ref]$errors)
+        if($errors.Count){throw 'parser syntax'}
+        foreach($statement in $ast.EndBlock.Statements){
+            if($statement.Extent.Text -cmatch '^\$script:M04(?:IndependentEndianConformance|SpanMemoryConformance|ArithmeticConformance|LayoutContract)\w+ =' -or
+               $statement.Extent.Text -cmatch '^\$script:M04(?:ManagedHeapPageRange|GcStaticRoot|SingleFinally)RequiredMarkers ='){
+                . ([scriptblock]::Create($statement.Extent.Text))
+            }
+        }
+        foreach($name in @('Assert-M04ManagedHeapPageRangeTranscript','Assert-M04GcStaticRootRecords','Assert-M04SingleFinallyRecords','Assert-M04SingleFinallySelection','Assert-M04SimpleCatchSelection')){
+            $f=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq $name},$true))
+            if($f.Count -ne 1){throw 'one actual function'};. ([scriptblock]::Create($f[0].Extent.Text))
+        }
+        $stages=@(0,1,2,3,4,9,10,5,6,7,8)
+        $markers=@($script:M04SingleFinallyRequiredMarkers)
+        if($markers.Count -ne 73 -or $markers[50] -cne 'CLROS_M04_013_READY' -or $markers[51] -cne 'TEST_START m04.021.single-finally' -or
+            $markers[64] -cne 'CLROS_M04_SINGLE_FINALLY_READY' -or $markers[65] -cne 'TEST_START boot.sequence'){throw 'whole marker vector'}
+        for($i=0;$i -lt $stages.Count;$i++){if($markers[52+$i] -cne ('M04_FINALLY '+$stages[$i])){throw 'ordered child marker'}}
+        $base=[IO.File]::ReadAllText($Ancestor).Split(@("`r`n"),[StringSplitOptions]::RemoveEmptyEntries)
+        function Fields($line){$p=$line.Split(' ');,@((2..5|ForEach-Object{[Convert]::ToUInt64($p[$_].Substring(2),16)}))}
+        function Row($stage,$v){'M04_FINALLY '+$stage+' '+(($v|ForEach-Object{'0x'+([UInt64]$_).ToString('X16')})-join ' ')}
+        $image=Fields $base[44];$module=Fields $base[45];$stack=Fields $base[46];$old=Fields $base[48];$checked=Fields $base[51]
+        $heap=[UInt64]$old[0]-32;$seed=([UInt64]$module[3] -bxor $heap)-band 0xFFFF;$sp=[UInt64]$stack[1]-1024
+        $rip=[UInt64]$image[0]+4105;$catcher=[UInt64]$image[0]+8192;$parent=$sp+48;$rbp=$parent+64;$stamp=$rbp-24
+        $rows=@{
+            0=@($module[3],($image[0]+65536),512,3);1=@($old[0],($old[1]+64),9,3)
+            2=@($rip,($rip -bxor [UInt64]1),$sp,0);3=@($rip,$sp,($catcher+32),$parent)
+            4=@(($old[1]+32),($catcher+94),$rbp,($sp+40));9=@($old[0],$stamp,($seed+2),1)
+            10=@(($catcher+71),($catcher+94),$stamp,($seed+2));5=@($old[0],$seed,($seed+2),1)
+            6=@(($catcher+47),$parent,$rbp,1);7=@($old[0],$seed,($seed+1),1);8=@(8,($sp-4096),$checked[1],$checked[2])
+        }
+        $child=@('TEST_START m04.021.single-finally';foreach($stage in $stages){Row $stage $rows[$stage]};'TEST_PASS m04.021.single-finally';'CLROS_M04_SINGLE_FINALLY_READY')
+        $lines=@($base[0..61])+$child+@($base[62..69]);$good=($lines -join "`r`n")+"`r`n"
+        $serial=Join-Path (Split-Path -Parent $Ancestor) 'case.serial';$script:cases=0
+        function Check([string]$text,[bool]$accept){
+            [IO.File]::WriteAllText($serial,$text,[Text.UTF8Encoding]::new($false));$ok=$true
+            try{Assert-M04ManagedHeapPageRangeTranscript -SerialLogPath $serial -IncludeGcStatics -IncludeSingleFinally}catch{if($accept){throw};$ok=$false}
+            if($ok -ne $accept){throw ('unexpected admission case='+$script:cases+' expected='+$accept)};$script:cases++
+        }
+        Check $good $true
+        foreach($i in 62..75){
+            Check ((@($lines[0..($i-1)])+@($lines[($i+1)..83])-join "`r`n")+"`r`n") $false
+            Check ((@($lines[0..$i])+@($lines[$i..83])-join "`r`n")+"`r`n") $false
+            $bad=$lines.Clone();$bad[$i]+=' ';Check (($bad-join "`r`n")+"`r`n") $false
+        }
+        for($i=0;$i -lt $stages.Count;$i++){
+            for($field=0;$field -lt 4;$field++){
+                $bad=$lines.Clone();$values=$rows[$stages[$i]].Clone();$values[$field]=[UInt64]::MaxValue
+                $bad[63+$i]=Row $stages[$i] $values;Check (($bad-join "`r`n")+"`r`n") $false
+            }
+        }
+        foreach($pair in @(@(67,68),@(68,69),@(69,70),@(70,71),@(71,72),@(72,73))){
+            $bad=$lines.Clone();$tmp=$bad[$pair[0]];$bad[$pair[0]]=$bad[$pair[1]];$bad[$pair[1]]=$tmp
+            Check (($bad-join "`r`n")+"`r`n") $false
+        }
+        foreach($value in @($rip,($rip -bxor [UInt64]2))){
+            $bad=$lines.Clone();$v=$rows[2].Clone();$v[1]=$value;$bad[65]=Row 2 $v;Check (($bad-join "`r`n")+"`r`n") $false
+        }
+        foreach($tail in @("`r`n","noise`r`n","TEST_FAIL m04.021.single-finally 1`r`n","T E S T_`tFAIL bad`r`n")){Check ($good+$tail) $false}
+        Check ($good.Replace("`r`n","`n")) $false;Check ($good.TrimEnd([char]10)) $false
+        Check ("M04_`tFINALLY 9`r`n"+$good) $false;Check ($good.Replace('M04_FINALLY 9 ',"M04_FINALLY`t9 ")) $false
+        Check ($good.Replace('TEST_START m04.021.single-finally','TEST_START m04.021.simple-catch')) $false
+        Assert-M04SingleFinallySelection -Text $good -Enabled $true
+        Assert-M04SimpleCatchSelection -Text $good -Enabled $false -FinallyEnabled $true
+        foreach($text in @('M04_FINALLY','CLROS_M04_SINGLE_FINALLY_READY',"m04.`t021.single-finally")){
+            $ok=$true;try{Assert-M04SingleFinallySelection -Text $text -Enabled $false}catch{$ok=$false};if($ok){throw 'unselected finally claim accepted'}
+        }
+        $ok=$true;try{Assert-M04SimpleCatchSelection -Text 'M04_CATCH' -Enabled $false -FinallyEnabled $true}catch{$ok=$false};if($ok){throw 'sibling collision'}
+        Write-Output ('FINALLY_TRANSCRIPT_CASES '+$script:cases)
+        Write-Output 'TEST_PASS single.finally.transcript'
+        """;
+
+    private static void NativeMetadata()
+    {
+        string directory = Path.Combine(Root, "artifacts/finally-native-metadata-guards", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        string script = Path.Combine(directory, "controls.ps1");
+        File.WriteAllText(script, """
+            param([string]$Source)
+            $ErrorActionPreference='Stop'
+            $tokens=$null;$errors=$null
+            $ast=[Management.Automation.Language.Parser]::ParseFile($Source,[ref]$tokens,[ref]$errors)
+            if($errors.Count){throw 'parser syntax'}
+            foreach($name in @('Test-SingleFinallyEhTable','Test-SingleFinallyUnwindBytes')){
+                $f=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq $name},$true))
+                if($f.Count -ne 1){throw 'one actual guard'};. ([scriptblock]::Create($f[0].Extent.Text))
+            }
+            $type=[UInt64]0x12340;$tableRva=[UInt64]0x45670
+            [byte[]]$table=@(0x04,0x36,0x32,0x8e,0x36,0xa0,0xbc)+[BitConverter]::GetBytes([UInt32]$type)
+            [byte[]]$rootData=@(0x01,0x06,0x03,0x00,0x06,0x62,0x02,0x30,0x01,0x50,0x04)+[BitConverter]::GetBytes([UInt32]$tableRva)
+            [byte[]]$funclet=@(0x01,0x04,0x01,0x00,0x04,0x42,0x01)
+            if(-not (Test-SingleFinallyEhTable $table $type) -or -not (Test-SingleFinallyUnwindBytes $rootData $true $tableRva) -or
+               -not (Test-SingleFinallyUnwindBytes $funclet $false $tableRva)){throw 'exact measured positives'}
+            for($i=0;$i -lt $table.Length;$i++){
+                [byte[]]$bad=$table.Clone();$bad[$i]=$bad[$i] -bxor 1
+                if(Test-SingleFinallyEhTable $bad $type){throw ('table mutation '+$i)}
+            }
+            foreach($isRoot in @($true,$false)){
+                [byte[]]$original=if($isRoot){$rootData}else{$funclet}
+                for($i=0;$i -lt $original.Length;$i++){
+                    [byte[]]$bad=$original.Clone();$bad[$i]=$bad[$i] -bxor 1
+                    if(Test-SingleFinallyUnwindBytes $bad $isRoot $tableRva){throw ('unwind mutation '+$isRoot+' '+$i)}
+                }
+                for($length=0;$length -lt $original.Length;$length++){
+                    [byte[]]$bad=New-Object byte[] $length;[Array]::Copy($original,$bad,$length)
+                    if(Test-SingleFinallyUnwindBytes $bad $isRoot $tableRva){throw 'truncated unwind'}
+                }
+                if(Test-SingleFinallyUnwindBytes ([byte[]]($original+0)) $isRoot $tableRva){throw 'extended unwind'}
+            }
+            for($length=0;$length -lt $table.Length;$length++){
+                [byte[]]$bad=New-Object byte[] $length;[Array]::Copy($table,$bad,$length)
+                if(Test-SingleFinallyEhTable $bad $type){throw 'truncated table'}
+            }
+            foreach($badType in @([UInt64]0,($type+1),([UInt64][UInt32]::MaxValue+1))){
+                if(Test-SingleFinallyEhTable $table $badType){throw 'wrong type RVA'}
+            }
+            if((Test-SingleFinallyEhTable ([byte[]]($table+0)) $type) -or (Test-SingleFinallyEhTable $null $type) -or
+                (Test-SingleFinallyUnwindBytes $rootData $true ($tableRva+1)) -or (Test-SingleFinallyUnwindBytes $rootData $true 0) -or
+                (Test-SingleFinallyUnwindBytes $null $false $tableRva)){throw 'length null or table association'}
+            Write-Output 'TEST_PASS single.finally.native.metadata'
+            """, new System.Text.UTF8Encoding(false));
+        RunCommand("native-metadata", "powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script,
+            "-Source", Path.Combine(Root, "scripts/test-efi-artifact.ps1")], 0, "TEST_PASS single.finally.native.metadata");
     }
 
     private static string RunCommand(string name, string executable, string[] arguments, int expectedExit, string? expectedReason)
