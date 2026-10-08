@@ -458,7 +458,7 @@ internal static class M04StringAllocationEfiIntegrationTests
             Need(sections.Length==1,"one initialized native extent");var s=sections[0];return image.AsSpan(checked(s.PointerToRawData+(int)(rva-(ulong)s.VirtualAddress)),bytes).ToArray();
         }
         var symbols=Regex.Matches(File.ReadAllText(Path.Combine(directory,"image.EFI.link.map")),@"^\s*[0-9A-Fa-f]{4}:[0-9A-Fa-f]{8}\s+(\S+)\s+([0-9A-Fa-f]{16})\s+",RegexOptions.Multiline).ToDictionary(m=>m.Groups[1].Value,m=>Convert.ToUInt64(m.Groups[2].Value,16)-header.ImageBase,StringComparer.Ordinal);
-        string llvm=Directory.GetFiles(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"Microsoft Visual Studio"),"llvm-objdump.exe",SearchOption.AllDirectories).Where(p=>p.Contains("\\x64\\",StringComparison.OrdinalIgnoreCase)).Order(StringComparer.Ordinal).First();
+        string llvm=HostToolProcess.FindLlvmObjdump();
         Result dis=Process(root,llvm,["--disassemble","--reloc","--x86-asm-syntax=intel",Path.Combine(directory,"OS.obj")]);Save(Path.Combine(directory,"disassembly"),dis);Need(dis.Code==0,dis.Output);
         File.WriteAllText(Path.Combine(directory,"disassembler.json"),System.Text.Json.JsonSerializer.Serialize(new{Path=llvm,Sha256=Hash(File.ReadAllBytes(llvm))}));
         string Body(string name){var m=Regex.Match(dis.Output,@"^[0-9a-f]+ <"+Regex.Escape(name)+@">:\r?\n(.*?)(?=^[0-9a-f]+ <|\z)",RegexOptions.Multiline|RegexOptions.Singleline);Need(m.Success,"decoded native method "+name);return m.Value;}

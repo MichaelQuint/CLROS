@@ -44,22 +44,43 @@ Recommended Visual Studio components:
 
 Required for the complete `OS.HostTests` native-inspection fixtures:
 
-- Visual Studio's **C++ Clang Compiler for Windows** individual component,
-  ID `Microsoft.VisualStudio.Component.VC.Llvm.Clang`. The object, array and
-  String fixtures use its x64 `llvm-objdump.exe` to inspect actual native
+- An x64 `llvm-objdump.exe`, supplied by Visual Studio's **C++ Clang Compiler
+  for Windows** individual component (`Microsoft.VisualStudio.Component.VC.Llvm.Clang`)
+  or a verified user-local LLVM tool cache. The object, array and
+  String fixtures use it to inspect actual native
   instructions and relocations. MSVC x64 tools alone do not install this
   optional component. A successful managed build or EFI publish does not
   establish that the disassembler is available.
 - Add the component through Visual Studio Installer → Modify → Individual
   components. See Microsoft's [component inventory](https://learn.microsoft.com/en-us/visualstudio/install/workload-component-id-vs-community?view=visualstudio).
 
-Check the same x64 discovery used by those fixtures before a full host run:
+For a user-local copy, retain the publisher/package checksum and tool identity,
+then set `CLROS_LLVM_OBJDUMP` to its absolute executable path. An explicit missing,
+relative or differently named path is rejected rather than silently falling back.
+Without an override, the existing Visual Studio x64 discovery is used.
+The native fixtures still record the selected executable and SHA-256.
+
+Check discovery before a full host run:
 
 ```powershell
-$clrosLlvmObjdump = Get-ChildItem "$env:ProgramFiles\Microsoft Visual Studio" -Filter llvm-objdump.exe -File -Recurse |
-    Where-Object FullName -Match '\\x64\\' | Sort-Object FullName | Select-Object -First 1
-if ($null -eq $clrosLlvmObjdump) { throw 'Install the C++ Clang Compiler for Windows component before full HostTests.' }
-& $clrosLlvmObjdump.FullName --version
+$clrosLlvmObjdump = $env:CLROS_LLVM_OBJDUMP
+if ([string]::IsNullOrEmpty($clrosLlvmObjdump)) {
+    $clrosLlvmObjdump = (Get-ChildItem "$env:ProgramFiles\Microsoft Visual Studio" -Filter llvm-objdump.exe -File -Recurse |
+        Where-Object FullName -Match '\\x64\\' | Sort-Object FullName | Select-Object -First 1).FullName
+}
+if ([string]::IsNullOrEmpty($clrosLlvmObjdump) -or !(Test-Path -LiteralPath $clrosLlvmObjdump -PathType Leaf)) {
+    throw 'Install the C++ Clang Compiler component or configure CLROS_LLVM_OBJDUMP before full HostTests.'
+}
+& $clrosLlvmObjdump --version
+```
+
+To persist a verified user-local selection for new processes, set both the
+current process and user environment; already running apps need the process
+setting or a restart to inherit it:
+
+```powershell
+$env:CLROS_LLVM_OBJDUMP = 'C:\Tools\LLVM\bin\llvm-objdump.exe' # replace with the verified actual path
+[Environment]::SetEnvironmentVariable('CLROS_LLVM_OBJDUMP', $env:CLROS_LLVM_OBJDUMP, 'User')
 ```
 
 Required for real QEMU smoke:

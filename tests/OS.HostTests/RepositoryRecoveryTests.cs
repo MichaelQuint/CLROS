@@ -44,6 +44,7 @@ internal static class RepositoryRecoveryTests
         RunTest("m00.014", () => ValidateSourceFirewallContract(root), ref failures);
         RunTest("m00.015", () => ValidateCiWorkflow(root), ref failures);
         RunTest("m00.016", () => ValidateGlobalJson(root), ref failures);
+        RunTest("host.tools explicit LLVM inspection path", () => ValidateLlvmOverride(root), ref failures);
 
         if (failures != 0)
         {
@@ -262,6 +263,48 @@ internal static class RepositoryRecoveryTests
             && workflow.Contains(@"dotnet build .\CLROS.slnx", StringComparison.Ordinal)
             && workflow.Contains("name: clros-ci-smoke-logs", StringComparison.Ordinal)
             && !workflow.Contains("name: os-ci-smoke-logs", StringComparison.Ordinal);
+    }
+
+    private static bool ValidateLlvmOverride(string root)
+    {
+        const string variable = "CLROS_LLVM_OBJDUMP";
+        string? original = Environment.GetEnvironmentVariable(variable);
+        string directory = Path.Combine(root, "artifacts", "host-tool-discovery", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        string selected = Path.Combine(directory, "llvm-objdump.exe");
+        // Discovery only: the controlled file is never executed.
+        File.WriteAllBytes(selected, []);
+        string wrongName = Path.Combine(directory, "another-tool.exe");
+        File.WriteAllBytes(wrongName, []);
+        try
+        {
+            Environment.SetEnvironmentVariable(variable, selected);
+            if (HostToolProcess.FindLlvmObjdump() != selected)
+            {
+                return false;
+            }
+
+            foreach (string invalid in new[] { "llvm-objdump.exe", wrongName,
+                Path.Combine(directory, "missing", "llvm-objdump.exe") })
+            {
+                Environment.SetEnvironmentVariable(variable, invalid);
+                try
+                {
+                    HostToolProcess.FindLlvmObjdump();
+                    return false;
+                }
+                catch (InvalidOperationException ex) when (ex.Message.StartsWith(variable, StringComparison.Ordinal))
+                {
+                    // An explicit bad path must not silently select another tool.
+                }
+            }
+
+            return true;
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(variable, original);
+        }
     }
 
     private static bool ValidateGlobalJson(string root)
