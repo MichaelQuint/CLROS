@@ -10,7 +10,8 @@ internal static class Program
 
     private static int Main(string[] args)
     {
-        string testName = Array.IndexOf(args, "--simple-throw-catch") >= 0 ? "m04.021.thunk.generate"
+        string testName = Array.IndexOf(args, "--single-finally-catch") >= 0 ? "m04.021.finally.thunk.generate"
+            : Array.IndexOf(args, "--simple-throw-catch") >= 0 ? "m04.021.thunk.generate"
             : Array.IndexOf(args, "--interface-dispatch") >= 0 ? DispatchTestName
             : Array.IndexOf(args, "--checked-reference-barriers") >= 0 ? BarrierTestName : TestName;
         Console.WriteLine($"TEST_START {testName}");
@@ -32,7 +33,9 @@ internal static class Program
 
         byte[] objectBytes;
         CoffWriteError generationError;
-        bool generated = parseResult.SimpleThrowCatch
+        bool generated = parseResult.SingleFinallyCatch
+            ? TryGenerateSingleFinallyCatch(out objectBytes, out generationError)
+            : parseResult.SimpleThrowCatch
             ? TryGenerateSimpleThrowCatch(out objectBytes, out generationError)
             : parseResult.InterfaceDispatch
             ? TryGenerateInterfaceDispatch(out objectBytes, out generationError)
@@ -55,7 +58,7 @@ internal static class Program
         }
 
         string hash = Convert.ToHexString(SHA256.HashData(objectBytes));
-        string ready = parseResult.SimpleThrowCatch ? "M04_SIMPLE_CATCH_THUNK_READY" : parseResult.InterfaceDispatch ? "M04_INTERFACE_DISPATCH_THUNK_READY" : parseResult.CheckedReferences ? "M04_CHECKED_REFERENCE_THUNKS_READY" : "X64_SERIALIZER_OBJECT_READY";
+        string ready = parseResult.SingleFinallyCatch ? "M04_SINGLE_FINALLY_THUNK_READY" : parseResult.SimpleThrowCatch ? "M04_SIMPLE_CATCH_THUNK_READY" : parseResult.InterfaceDispatch ? "M04_INTERFACE_DISPATCH_THUNK_READY" : parseResult.CheckedReferences ? "M04_CHECKED_REFERENCE_THUNKS_READY" : "X64_SERIALIZER_OBJECT_READY";
         Console.WriteLine(
             $"{ready} bytes={objectBytes.Length} " +
             $"sha256={hash} state={writeResult.State}");
@@ -87,6 +90,16 @@ internal static class Program
         return true;
     }
 
+    private static bool TryGenerateSingleFinallyCatch(out byte[] objectBytes, out CoffWriteError error)
+    {
+        objectBytes = new byte[1707];
+        if (!ExceptionHandlingThunkGenerator.TryGenerate(objectBytes, out int written, out error, singleFinally: true)) return false;
+        if (written != 1707 || Convert.ToHexString(SHA256.HashData(objectBytes)) !=
+            "D24DA7653745DA1D37F1FC9D286A2E370C32B687A0415E90FC626A597326025A")
+        { error = CoffWriteError.InternalInvariant; return false; }
+        return true;
+    }
+
     private static bool TryGenerateInterfaceDispatch(out byte[] objectBytes, out CoffWriteError error)
     {
         objectBytes = new byte[828];
@@ -112,27 +125,35 @@ internal static class Program
         bool checkedReferences = false;
         bool interfaceDispatch = false;
         bool simpleThrowCatch = false;
+        bool singleFinallyCatch = false;
 
         for (int index = 0; index < args.Length; index++)
         {
             string option = args[index];
+            if (option == "--single-finally-catch")
+            {
+                if (singleFinallyCatch) return CliParseResult.Fail("argument_duplicate");
+                if (simpleThrowCatch || interfaceDispatch || checkedReferences) return CliParseResult.Fail("argument_mode_conflict");
+                singleFinallyCatch = true;
+                continue;
+            }
             if (option == "--simple-throw-catch")
             {
                 if (simpleThrowCatch) return CliParseResult.Fail("argument_duplicate");
-                if (interfaceDispatch || checkedReferences) return CliParseResult.Fail("argument_mode_conflict");
+                if (singleFinallyCatch || interfaceDispatch || checkedReferences) return CliParseResult.Fail("argument_mode_conflict");
                 simpleThrowCatch = true;
                 continue;
             }
             if (option == "--interface-dispatch")
             {
                 if (interfaceDispatch) return CliParseResult.Fail("argument_duplicate");
-                if (checkedReferences || simpleThrowCatch) return CliParseResult.Fail("argument_mode_conflict");
+                if (singleFinallyCatch || checkedReferences || simpleThrowCatch) return CliParseResult.Fail("argument_mode_conflict");
                 interfaceDispatch = true;
                 continue;
             }
             if (option == "--checked-reference-barriers")
             {
-                if (interfaceDispatch || simpleThrowCatch) return CliParseResult.Fail("argument_mode_conflict");
+                if (singleFinallyCatch || interfaceDispatch || simpleThrowCatch) return CliParseResult.Fail("argument_mode_conflict");
                 if (checkedReferences) return CliParseResult.Fail("argument_duplicate");
                 checkedReferences = true;
                 continue;
@@ -174,7 +195,7 @@ internal static class Program
             return CliParseResult.Fail("arguments_missing");
         }
 
-        return new(true, outputRoot, outputFile, null, checkedReferences, interfaceDispatch, simpleThrowCatch);
+        return new(true, outputRoot, outputFile, null, checkedReferences, interfaceDispatch, simpleThrowCatch, singleFinallyCatch);
     }
 
     private static bool TryResolveOutput(
@@ -446,7 +467,8 @@ internal static class Program
         string? ErrorCode,
         bool CheckedReferences = false,
         bool InterfaceDispatch = false,
-        bool SimpleThrowCatch = false)
+        bool SimpleThrowCatch = false,
+        bool SingleFinallyCatch = false)
     {
         public static CliParseResult Fail(string errorCode) =>
             new(false, null, null, errorCode);

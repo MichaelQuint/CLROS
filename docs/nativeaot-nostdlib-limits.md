@@ -1992,4 +1992,13 @@ caching and general exception construction remain unsupported. The accepted
 host-only #578/#579 leaf contracts are unchanged; this profile supplies only its
 additional finite execution proof. #90 and Gate 4 remain incomplete.
 
+The #589 generator checkpoint adds `--single-finally-catch` and a separate
+1,707-byte COFF bridge proposal. Its host instruction models check cleanup
+before catch, restoration of the selected register context after cleanup, and
+preservation of the catch-produced continuation state. The legacy 1,350-byte
+object remains byte-identical. [Step1079](../done/step1079.md) records this
+host-only checkpoint. It does not admit a compiler finally funclet or prove
+guest execution; current compiler geometry, runtime integration and captured
+guest evidence are still required before this child can be accepted.
+
 The guarded empty `System.Exception` declaration is only the compiler-required identity for this fixture hierarchy. The canonical declaration ledger appends identity 49 as `CoreType/Stubbed`; it supplies no message, stack trace, inner exception or other exception service. All runtime-completion fields remain false.
