@@ -2,7 +2,7 @@
 
 ## Current Status
 
-The current `10.0.12` compiler qualification is tracked in
+The accepted finite `10.0.12` compiler qualification is recorded in
 [EFI build](efi-build.md#current-toolchain-migration). Historical diagnostic
 captures below remain source-bound. Dangerous probes retain their false
 defaults, and no new guest result follows from the version change alone.

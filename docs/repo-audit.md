@@ -4,8 +4,9 @@
 
 The new Windows host completed a scoped SDK401/ILC108 native/default guest
 checkpoint ([step1077](../done/step1077.md)). The active compiler/runtime pack
-is migrating to `10.0.12` under #590 ([step1078](../done/step1078.md)); its
-combined full-host and selected native/guest qualification remains pending.
+is qualified at `10.0.12` under #590 ([step1078](../done/step1078.md)). The
+combined full-host and selected native/guest qualification passes: 3,892 host
+groups plus the suite summary, ten profile captures and three rejection controls.
 Historical accepted tuples below keep their original identities and scope.
 
 The first new unfiltered host run stopped on four inherited backlog ownership
@@ -32,7 +33,9 @@ disassembler is configured through `CLROS_LLVM_OBJDUMP`; the shared locator
 preserves default VS x64 discovery and rejects bad explicit paths. Its 17
 focused repository/discovery checks pass. The three original native inspection
 fixtures also pass all 18 groups, including fresh default/positive/rejection
-publications. The coherent unfiltered full host retry remains required.
+publications. The coherent unfiltered R06 host gate then passed at `46ad1a2`
+in 5,459.701 seconds, followed by naming/firewall, default dry-run and diff checks.
+All 2,091 tracked sources, 16 producers and the LLVM identity stayed unchanged.
 The first canary control failed its quiet-timer measurement; the independently
 reviewed timer repair and fresh successful controls preserve that failed run.
 See step1078 for the exact source/evidence boundaries and combined PR #592.
