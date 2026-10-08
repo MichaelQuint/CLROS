@@ -4010,6 +4010,12 @@ internal static class M01InstructionPublicationEfiEntryTests
             if (trimmed.StartsWith("#if ", StringComparison.Ordinal))
             {
                 string condition = trimmed[4..].Trim();
+                // Explicit Diagnostic selection leaves the normal policy false.
+                // Reduce only the reviewed wrappers; preserve unknown terms.
+                foreach (string symbol in new[] { StageOneSymbol, StageTwoSymbol,
+                    FirstExitSymbol, "ACPI_PHYSICAL_DISCOVERY_PROBE" })
+                    condition = condition.Replace("(" + symbol + " || CLROS_NORMAL_VERIFIED_EXIT)",
+                        symbol, StringComparison.Ordinal);
                 bool firstExitCondition = string.Equals(condition, FirstExitSymbol, StringComparison.Ordinal)
                     || string.Equals(condition, "M04_MANAGED_HEAP_PAGE_RANGE_PROBE || " + FirstExitSymbol, StringComparison.Ordinal)
                     || string.Equals(condition, TypeManagerSymbol + " || " + GcStaticSymbol + " || " + FirstExitSymbol, StringComparison.Ordinal);

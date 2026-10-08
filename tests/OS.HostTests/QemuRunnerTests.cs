@@ -8643,6 +8643,10 @@ catch {
         startInfo.ArgumentList.Add("Bypass");
         startInfo.ArgumentList.Add("-File");
         startInfo.ArgumentList.Add(scriptPath);
+        // These fake-QEMU and marker-preset fixtures exercise the retained
+        // diagnostic contract. VerifiedExit has its own complete-profile tests.
+        startInfo.ArgumentList.Add("-BootPolicy");
+        startInfo.ArgumentList.Add("Diagnostic");
 
         foreach (string arg in args)
         {

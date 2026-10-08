@@ -12,7 +12,7 @@ internal static class M01LiveAllocatorEfiEntryTests
     private const string EntropySymbol = "M03_FIRMWARE_ENTROPY_SEED_PROBE";
     private const string FirstExitSymbol = "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE";
     private const string FirstExitPrerequisiteCondition =
-        "!M01_LOADED_IMAGE_STACK_PROBE || !M01_LIVE_ALLOCATOR_PROBE || !ACPI_PHYSICAL_DISCOVERY_PROBE";
+        "!(M01_LOADED_IMAGE_STACK_PROBE || CLROS_NORMAL_VERIFIED_EXIT) || !(M01_LIVE_ALLOCATOR_PROBE || CLROS_NORMAL_VERIFIED_EXIT) || !(ACPI_PHYSICAL_DISCOVERY_PROBE || CLROS_NORMAL_VERIFIED_EXIT)";
     private const string IssueTestName = "m01.023";
     private const string UnexpectedPanicSymbol =
         "M02_UNEXPECTED_VECTOR_PANIC_PROBE";
@@ -20,6 +20,8 @@ internal static class M01LiveAllocatorEfiEntryTests
         "M01_LOADED_IMAGE_STACK_PROBE";
     private const string StageTwoSymbol =
         "M01_LIVE_ALLOCATOR_PROBE";
+    private const string StageOneCondition = "(" + StageOneSymbol + " || CLROS_NORMAL_VERIFIED_EXIT)";
+    private const string StageTwoCondition = "(" + StageTwoSymbol + " || CLROS_NORMAL_VERIFIED_EXIT)";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -126,10 +128,10 @@ internal static class M01LiveAllocatorEfiEntryTests
         // The first-exit prerequisite rejects an invalid profile; it does not
         // enable another stage-two implementation block.
         int firstExitPrerequisiteBlocks = CountExactIf(source, FirstExitPrerequisiteCondition);
-        if (CountExactIf(source, StageOneSymbol) != 1
-            || CountExactIf(source, StageTwoSymbol) != 2
+        if (CountExactIf(source, StageOneCondition) != 1
+            || CountExactIf(source, StageTwoCondition) != 2
             || firstExitPrerequisiteBlocks != 1
-            || CountExactIf(source, StageTwoSymbol) + firstExitPrerequisiteBlocks != Regex.Matches(
+            || CountExactIf(source, StageTwoCondition) + firstExitPrerequisiteBlocks != Regex.Matches(
                 source,
                 @"(?m)^[ \t]*#(?:if|elif)[^\r\n]*\b"
                     + Regex.Escape(StageTwoSymbol)
@@ -1240,7 +1242,7 @@ internal static class M01LiveAllocatorEfiEntryTests
         [
             (
                 "guard",
-                "#if M01_LIVE_ALLOCATOR_PROBE",
+                "#if " + StageTwoCondition,
                 "#if true"
             ),
             (
@@ -1412,8 +1414,8 @@ internal static class M01LiveAllocatorEfiEntryTests
     {
         try
         {
-            if (CountExactIf(source, StageOneSymbol) != 1
-                || CountExactIf(source, StageTwoSymbol) != 2)
+            if (CountExactIf(source, StageOneCondition) != 1
+                || CountExactIf(source, StageTwoCondition) != 2)
             {
                 failure = "guards";
                 return false;
@@ -1549,7 +1551,7 @@ internal static class M01LiveAllocatorEfiEntryTests
 
     private static bool TestKnownFalsePanicSelector()
     {
-        foreach (string disabledSymbol in new[] { UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol, TypeManagerSymbol, TypedEbsSymbol, GcStaticSymbol, TypeManagerSymbol + " || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol + " || M04_X64_UNWIND_METADATA_PROBE", FirstExitSymbol, "M04_MANAGED_HEAP_PAGE_RANGE_PROBE || " + FirstExitSymbol, TypeManagerSymbol + " || " + GcStaticSymbol + " || " + FirstExitSymbol, "M04_RHP_NEW_FAST_PROBE || " + UnexpectedPanicSymbol + " || " + TypeManagerSymbol + " || " + FirstExitSymbol })
+        foreach (string disabledSymbol in new[] { UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol, TypeManagerSymbol, TypedEbsSymbol, GcStaticSymbol, TypeManagerSymbol + " || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol + " || M04_X64_UNWIND_METADATA_PROBE", FirstExitSymbol, "(" + FirstExitSymbol + " || CLROS_NORMAL_VERIFIED_EXIT)", "M04_MANAGED_HEAP_PAGE_RANGE_PROBE || " + FirstExitSymbol, TypeManagerSymbol + " || " + GcStaticSymbol + " || " + FirstExitSymbol, "M04_RHP_NEW_FAST_PROBE || " + UnexpectedPanicSymbol + " || " + TypeManagerSymbol + " || " + FirstExitSymbol })
         {
         string fixture = "#if " + disabledSymbol + "\nPanicOnly();\n#else\nPanicOff();\n#endif\n"
             + "#if " + StageOneSymbol + "\n#if " + disabledSymbol
@@ -1599,6 +1601,12 @@ internal static class M01LiveAllocatorEfiEntryTests
             if (trimmed.StartsWith("#if ", StringComparison.Ordinal))
             {
                 string condition = trimmed[4..].Trim();
+                // Model explicit Diagnostic selection, where the normal policy
+                // symbol is false, while preserving unknown or misspelled terms.
+                foreach (string symbol in new[] { StageOneSymbol, StageTwoSymbol,
+                    FirstExitSymbol, "ACPI_PHYSICAL_DISCOVERY_PROBE" })
+                    condition = condition.Replace("(" + symbol + " || CLROS_NORMAL_VERIFIED_EXIT)",
+                        symbol, StringComparison.Ordinal);
                 bool isStageOne = string.Equals(
                     condition,
                     StageOneSymbol,
@@ -2172,7 +2180,7 @@ internal static class M01LiveAllocatorEfiEntryTests
                 "src",
                 "OS",
                 "Boot",
-                "EfiEntry.cs"));
+                "EfiEntry.cs")).Replace("\r\n", "\n", StringComparison.Ordinal);
     }
 
     private static string LoadOsProjectSource()

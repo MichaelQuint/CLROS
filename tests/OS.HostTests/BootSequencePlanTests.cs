@@ -851,7 +851,7 @@ internal static class BootSequencePlanTests
             "EfiEntry.cs");
         string efiEntrySource = File.ReadAllText(efiEntryPath);
         const string probeStart =
-            "#if M01_LOADED_IMAGE_STACK_PROBE";
+            "#if (M01_LOADED_IMAGE_STACK_PROBE || CLROS_NORMAL_VERIFIED_EXIT)";
         int probeStartIndex = efiEntrySource.IndexOf(
             probeStart,
             StringComparison.Ordinal);

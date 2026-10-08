@@ -714,6 +714,7 @@ $steps = @(
             "-DryRun",
             "-WorkloadProfile",
             $WorkloadProfile,
+            "-BootPolicy", "Diagnostic",
             "-MarkerPreset",
             "diagnostics",
             "-SerialLog",

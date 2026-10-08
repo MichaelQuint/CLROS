@@ -11,7 +11,7 @@ internal static class M01LoadedImageStackEfiEntryTests
     private const string EntropySymbol = "M03_FIRMWARE_ENTROPY_SEED_PROBE";
     private const string FirstExitSymbol = "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE";
     private const string FirstExitPrerequisiteCondition =
-        "!M01_LOADED_IMAGE_STACK_PROBE || !M01_LIVE_ALLOCATOR_PROBE || !ACPI_PHYSICAL_DISCOVERY_PROBE";
+        "!(M01_LOADED_IMAGE_STACK_PROBE || CLROS_NORMAL_VERIFIED_EXIT) || !(M01_LIVE_ALLOCATOR_PROBE || CLROS_NORMAL_VERIFIED_EXIT) || !(ACPI_PHYSICAL_DISCOVERY_PROBE || CLROS_NORMAL_VERIFIED_EXIT)";
     private const string IssueTestName = "m01.021";
     private const string ProbeSymbol = "M01_LOADED_IMAGE_STACK_PROBE";
     private const string DoubleFaultSymbol = "M02_DOUBLE_FAULT_IST_PROBE";
@@ -118,7 +118,7 @@ internal static class M01LoadedImageStackEfiEntryTests
 
     private static bool TestDefaultOffProfile()
     {
-        foreach (string disabledSymbol in new[] { DoubleFaultSymbol, UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol, TypeManagerSymbol, TypedEbsSymbol, GcStaticSymbol, TypeManagerSymbol + " || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol + " || M04_X64_UNWIND_METADATA_PROBE", FirstExitSymbol, "M04_MANAGED_HEAP_PAGE_RANGE_PROBE || " + FirstExitSymbol, TypeManagerSymbol + " || " + GcStaticSymbol + " || " + FirstExitSymbol, "M04_RHP_NEW_FAST_PROBE || " + UnexpectedPanicSymbol + " || " + TypeManagerSymbol + " || " + FirstExitSymbol })
+        foreach (string disabledSymbol in new[] { DoubleFaultSymbol, UnexpectedPanicSymbol, MemoryMapSymbol, EntropySymbol, TypeManagerSymbol, TypedEbsSymbol, GcStaticSymbol, TypeManagerSymbol + " || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol, "M04_CHECKED_REFERENCE_BARRIER_PROBE || " + GcStaticSymbol + " || M04_X64_UNWIND_METADATA_PROBE", FirstExitSymbol, "(" + FirstExitSymbol + " || CLROS_NORMAL_VERIFIED_EXIT)", "M04_MANAGED_HEAP_PAGE_RANGE_PROBE || " + FirstExitSymbol, TypeManagerSymbol + " || " + GcStaticSymbol + " || " + FirstExitSymbol, "M04_RHP_NEW_FAST_PROBE || " + UnexpectedPanicSymbol + " || " + TypeManagerSymbol + " || " + FirstExitSymbol })
         {
             string selectorFixture = "#if " + disabledSymbol + "\nDfOnly();\n#else\nDfOff();\n#endif\n"
                 + "#if UNRELATED_PROBE\nUnknown();\n#else\nUnknownElse();\n#endif\n";
@@ -156,7 +156,7 @@ internal static class M01LoadedImageStackEfiEntryTests
         int exactProbeBlocks = Regex.Matches(
             source,
             @"(?m)^[ \t]*#if[ \t]+"
-                + ProbeSymbol
+                + Regex.Escape("(" + ProbeSymbol + " || CLROS_NORMAL_VERIFIED_EXIT)")
                 + @"[ \t]*$",
             RegexOptions.CultureInvariant).Count;
         // The first-exit prerequisite rejects an invalid profile; it does not
@@ -2034,7 +2034,7 @@ internal static class M01LoadedImageStackEfiEntryTests
         (string Search, string Replacement, string Name)[] mutations =
         [
             (
-                "#if " + ProbeSymbol,
+                "#if (" + ProbeSymbol + " || CLROS_NORMAL_VERIFIED_EXIT)",
                 "#if true",
                 "unguarded-probe"),
             (
@@ -3082,6 +3082,12 @@ internal static class M01LoadedImageStackEfiEntryTests
             if (trimmed.StartsWith("#if ", StringComparison.Ordinal))
             {
                 string condition = trimmed[4..].Trim();
+                // This finite selector models the explicit Diagnostic profile,
+                // where the normal policy symbol is false. Keep unknown terms.
+                foreach (string symbol in new[] { ProbeSymbol, FirstExitSymbol,
+                    "M01_LIVE_ALLOCATOR_PROBE", "ACPI_PHYSICAL_DISCOVERY_PROBE" })
+                    condition = condition.Replace("(" + symbol + " || CLROS_NORMAL_VERIFIED_EXIT)",
+                        symbol, StringComparison.Ordinal);
                 bool isStageOne = string.Equals(
                     condition,
                     ProbeSymbol,
@@ -3232,10 +3238,13 @@ internal static class M01LoadedImageStackEfiEntryTests
             string trimmed = line.Trim();
             if (trimmed.StartsWith("#if ", StringComparison.Ordinal))
             {
+                string condition = trimmed[4..].Trim();
                 bool isProbe = string.Equals(
-                    trimmed[4..].Trim(),
+                    condition,
                     ProbeSymbol,
-                    StringComparison.Ordinal);
+                    StringComparison.Ordinal) || string.Equals(condition,
+                        "(" + ProbeSymbol + " || CLROS_NORMAL_VERIFIED_EXIT)",
+                        StringComparison.Ordinal);
                 stack.Push(
                     new PreprocessorFrame(
                         isProbe,
@@ -3339,7 +3348,7 @@ internal static class M01LoadedImageStackEfiEntryTests
                 "src",
                 "OS",
                 "Boot",
-                "EfiEntry.cs"));
+                "EfiEntry.cs")).Replace("\r\n", "\n", StringComparison.Ordinal);
     }
 
     private static string LoadMinimalRuntimeSource()

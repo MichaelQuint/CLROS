@@ -163,7 +163,7 @@ internal static class M04NativeAotModuleRegistrationEfiIntegrationTests
         var defaults=project.Descendants(Flag).ToArray();Need(defaults.Length==1&&defaults[0].Value=="false"&&(string?)defaults[0].Attribute("Condition")=="'$("+Flag+")' == ''","one false default");
         var define=project.Descendants("DefineConstants").Single(x=>x.Value.Contains("M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE",StringComparison.Ordinal));
         Need((string?)define.Parent?.Attribute("Condition")=="'$("+Flag+")' == 'true'"&&define.Value=="$(DefineConstants);M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE","exact symbol");
-        var compile=project.Descendants("Compile").ToArray();Need(compile.Length==121,"actual complete source closure");
+        var compile=project.Descendants("Compile").ToArray();Need(compile.Length==122,"actual complete source closure");
         foreach(string name in new[]{"..\\OS.Kernel\\Runtime\\TypeManagerModuleMetadataLiveNativeAOTImage.cs","Runtime\\NativeAotModuleRegistrationProbe.cs","..\\OS.Kernel\\Diagnostics\\TypeManagerModuleRegistrationProbeAuthority.cs"})Need(compile.Count(x=>(string?)x.Attribute("Include")==name)==1,"one real source "+name);
         Need(Hash(Path.Combine(root,"src/OS.Kernel/Runtime/TypeManagerModuleMetadataLiveNativeAOTImage.cs"))=="691F6E243D175DBC83DB1446A8E1863FAB3A2CFA1497C975F43608C3456165DA","reviewed registered-range core");
         string entry=File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.cs"));
@@ -442,7 +442,7 @@ internal static class M04NativeAotModuleRegistrationEfiIntegrationTests
     private static void TestProfile()
     {
         string root=Root(),directory=Scratch("profile"),script=Path.Combine(root,"scripts/run-qemu-smoke.ps1"),before=Hash(script);int n=0;
-        Result Dry(params string[] args)=>Process(Path.Combine(directory,(n++).ToString("D3")),"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",script,"-DryRun",..args]);
+        Result Dry(params string[] args)=>Process(Path.Combine(directory,(n++).ToString("D3")),"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",script,"-BootPolicy", "Diagnostic", "-DryRun",..args]);
         string[] positive=["-BuildEfi","-"+Flag,"-EnableM01LoadedImageStackProbe"];
         Result result=Dry(positive);Passed(result);Need(result.Output.Contains("TEST_PASS qemu.runner.dryrun",StringComparison.Ordinal),"actual dry-run terminal");
         string[] Vector(string prefix)=>result.Output.Split('\n').Single(x=>x.StartsWith(prefix+" ",StringComparison.Ordinal))[(prefix.Length+1)..].TrimEnd('\r').Split(';').Select(x=>x.Trim()).ToArray();

@@ -19,16 +19,16 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
         "TEST_FAIL m02.013 vector_or_register_mismatch";
     private const ulong ValidCodeAddress = 0x0020_0000UL;
     private const ulong ValidDataAddress = 0x0030_0000UL;
-    private const int ExpectedSourceInputCount = 137;
-    private const int ExpectedCompileCount = 121;
+    private const int ExpectedSourceInputCount = 138;
+    private const int ExpectedCompileCount = 122;
     private const string ExpectedSourceClosureSha256 =
-        "dd03b100cdd20ecd875e8868c3be2d5f2aaa86f18211ea76d7797abe6d8e5d2c";
+        "1499540f03bcd994d06ccc0c4fe11aea213055c9efa18ddfafa8f8834c5ab1bf";
     private const string ExpectedProjectSha256 =
-        "747371752dabbf531a847b4928a991e219151913ad2972e225b7f8306ee96aee";
+        "ef6bc679f6411780b5e31fe82ab7651eecbe3785046b35ce9462c514ec384705";
     private const string ExpectedEntrySha256 =
-        "ed928b6c966a76d27b108d7acf37ebe6d287d6a70ffd658105782360100dc5a5";
+        "173348ce6be83cc9ee437e20e9ab0a926393c3e4debdfa7892b67df6f3e4e0ae";
     private const string ExpectedCompileSha256 =
-        "8f97464a82c221d17190da6d5347e5fa998a5863dae0edb4a7012f8ec9bb8ab1";
+        "96f295814495f98ed4cc3b394429a5ea8206004c0806a22f0ab8144856a0058d";
     private const string ExpectedTransitionSha256 =
         "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     private const string HostReadyMarker =
@@ -1689,7 +1689,7 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
             "src",
             "OS",
             "Boot",
-            "EfiEntry.cs"));
+            "EfiEntry.cs")).Replace("\r\n", "\n", StringComparison.Ordinal);
     }
 
     private static string ReadTransitionSource()

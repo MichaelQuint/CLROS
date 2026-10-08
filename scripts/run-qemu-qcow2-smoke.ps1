@@ -127,6 +127,7 @@ try {
 
         $smokeArguments = @(
             "-DryRun",
+            "-BootPolicy", "Diagnostic",
             "-SkipImageBuild",
             "-Image", $Qcow2Image,
             "-DiskFormat", "qcow2",
@@ -160,7 +161,7 @@ try {
 
     if ($BuildEfi) {
         Invoke-NativeCommand {
-            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "build-efi-shell.ps1") -EfiOutputPath $EfiArtifact
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "build-efi-shell.ps1") -BootPolicy Diagnostic -EfiOutputPath $EfiArtifact
         }
         if ($script:LastNativeExitCode -ne 0) {
             Fail-Step -Step "build-efi" -ExitCode $script:LastNativeExitCode
@@ -197,6 +198,7 @@ try {
     }
 
     $realSmokeArguments = @(
+        "-BootPolicy", "Diagnostic",
         "-SkipImageBuild",
         "-Image", $Qcow2Image,
         "-DiskFormat", "qcow2",

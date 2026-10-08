@@ -3092,7 +3092,7 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
                 "Boot",
                 "EfiEntry.cs"));
         const string probeStart =
-            "#if M01_LOADED_IMAGE_STACK_PROBE";
+            "#if (M01_LOADED_IMAGE_STACK_PROBE || CLROS_NORMAL_VERIFIED_EXIT)";
         const string probeElse = "#else";
         const string probeEnd = "#endif";
         int probeStartIndex = efiEntry.IndexOf(
