@@ -10,12 +10,21 @@ compatibility when no probe is selected. Combining `VerifiedExit` with a probe,
 or supplying an unknown policy, fails project validation. Diagnostic probe
 defaults themselves remain false; the normal policy has its own compile symbol.
 
-Publication and runner integration are unfinished. The existing strict publisher
-rejects this development project's changed canonical shape; its source inventory,
-policy evidence, artifact checks and transcript contract must be updated together.
-The successful managed solution build is not a native EFI publication or QEMU
-proof. Do not infer default-exit acceptance from this checkpoint or from older
-firmware-visible smoke captures. Current accepted evidence remains scoped below.
+The publication and runner integration in [step1090](../done/step1090.md) adds
+`-BootPolicy VerifiedExit|Diagnostic` to the build, artifact-verification and smoke
+scripts. Omitting it selects normal exit unless an explicit diagnostic probe is
+requested. The ordinary smoke command automatically builds a fresh EFI and image;
+explicitly disabling that build or overriding its marker contract is rejected.
+The native evidence records the selected policy and verifies it again against
+MSBuild and the requested artifact profile. The normal image has 122 explicit
+compile items, 138 source-authority inputs and all 52 diagnostic properties false.
+
+A native publication and one clean development QEMU run pass, including the
+complete 79-record post-exit transcript. The artifact verifier rejects treating
+that image as a `Diagnostic` artifact. The earlier failed wrapper run is retained.
+Broader host fixture reconciliation, profile regressions, complete native/disk
+review and three frozen-source captures remain before final acceptance. Older
+firmware-visible smoke captures do not supply that evidence.
 
 ## Current toolchain migration
 

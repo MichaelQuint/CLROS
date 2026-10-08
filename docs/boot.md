@@ -2,7 +2,8 @@
 
 ## Current Status
 
-Default-exit promotion is in development under #68/#594 ([step1089](../done/step1089.md)).
+Default-exit promotion is in development under #68/#594 ([step1089](../done/step1089.md),
+[step1090](../done/step1090.md)).
 The ordinary EFI project now selects the separate `VerifiedExit` policy and
 reuses the original first-exit and positive owned-subsystem adapters. It defers
 `OS_BOOT_OK`, `TEST_PASS boot.sequence` and `OS_SMOKE_PASS` until those post-exit
@@ -10,13 +11,17 @@ checks succeed, then uses owned COM1 for the completion tail before the existing
 terminal halt. Dangerous probe defaults remain false. Explicit diagnostic
 profiles select `Diagnostic` and retain their earlier execution boundaries.
 
-This is compiled core integration with focused host evidence, not accepted
-default boot evidence. Publication/source manifests and the ordinary runner's
-complete-transcript checks still need integration; the publisher currently
-rejects the changed project shape. No new EFI publish or guest run is claimed.
-The three fresh ordinary QEMU captures and coherent full host gate remain
-required before promotion is accepted. Earlier accepted tuples below retain
-their original source and opt-in boundaries.
+Publication and the ordinary runner now carry and validate that policy. The
+first clean development QEMU/OVMF run passed the complete 79-record transcript,
+including original allocator restoration, copied ACPI association and installed
+descriptor checks before the normal success tail. An earlier run reached the
+same guest tail but failed a stale wrapper selection check; it remains a failed
+run. Ordinary smoke automatically builds a fresh EFI/image without probe flags.
+
+This development result is not final default-exit acceptance. Three clean
+captures from one frozen source, the coherent full host gate, remaining profile
+regressions and complete native/disk review are still required. Earlier accepted
+tuples below retain their original source and opt-in boundaries.
 
 The new-host SDK checkpoint and accepted finite compiler/runtime qualification are scoped
 in [EFI build](efi-build.md#current-toolchain-migration). Historical boot tuples

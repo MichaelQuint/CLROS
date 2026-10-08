@@ -1,4 +1,5 @@
 param(
+    [string] $BootPolicy = "",
     [string] $Image = "artifacts/images/os.raw",
     [string] $EfiArtifact = "artifacts/efi/BOOTX64.EFI",
     [string] $SerialLog = "artifacts/logs/qemu-smoke.log",
@@ -89,6 +90,22 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+$selectedDiagnosticProbe = @($PSBoundParameters.Keys | Where-Object {
+    $_ -match '^Enable\w+Probe$' -and [bool]$PSBoundParameters[$_]
+}).Count -ne 0
+if ($BootPolicy -ne '' -and $BootPolicy -notin @('VerifiedExit', 'Diagnostic')) {
+    Write-Host 'TEST_FAIL qemu.smoke clros_boot_policy_invalid'; exit 1
+}
+if ($BootPolicy -eq '') { $BootPolicy = if ($selectedDiagnosticProbe) { 'Diagnostic' } else { 'VerifiedExit' } }
+$BootPolicy = if ($BootPolicy -eq 'VerifiedExit') { 'VerifiedExit' } else { 'Diagnostic' }
+$normalVerifiedExit = $BootPolicy -eq 'VerifiedExit'
+if ($normalVerifiedExit -and -not $PSBoundParameters.ContainsKey('BuildEfi')) {
+    $BuildEfi = [System.Management.Automation.SwitchParameter]$true
+}
+if ($normalVerifiedExit -and $selectedDiagnosticProbe) {
+    Write-Host 'TEST_FAIL qemu.smoke clros_boot_policy_probe_conflict'; exit 1
+}
 . (Join-Path $PSScriptRoot 'seeded-collector-churn-records.ps1')
 $script:LastNativeExitCode = 0
 $nativeAppRequiredMarkers = @(
@@ -803,6 +820,16 @@ $script:M03OwnedSubsystemMarkers = @(
     foreach ($index in 0..6) { "M03_OWNED $index" }
     'CLROS_M03_010_READY'
     'TEST_PASS m03.010'
+)
+# Normal boot moves the three ordinary success records after the positive
+# owned-subsystem path and its three dedicated completion records.
+$script:M03NormalVerifiedExitMarkers = @(
+    $script:M03OwnedSubsystemMarkers[0..51]
+    $script:M03OwnedSubsystemMarkers[55..75]
+    'TEST_START m03.011'
+    'CLROS_M03_011_READY'
+    'TEST_PASS m03.011'
+    $script:M03OwnedSubsystemMarkers[52..54]
 )
 $script:M03OwnedSubsystemPanicMarkers = @(
     $script:M03FirstExitRequiredMarkers
@@ -2959,13 +2986,15 @@ function Assert-M03MemoryMapCaptureRunnerResult {
 }
 
 function Assert-M03OwnedSubsystemRecords {
-    param([string[]] $Lines,[object[]] $AcpiRows,[switch] $Panic)
-    $count=if($Panic){77}else{76}
-    if($Lines.Count -ne $count -or $Lines[66] -cne 'TEST_START m03.010' -or $AcpiRows.Count -ne 5){throw 'm03_owned_record_count'}
-    if(-not $Panic -and ($Lines[74] -cne 'CLROS_M03_010_READY' -or $Lines[75] -cne 'TEST_PASS m03.010')){throw 'm03_owned_terminal'}
+    param([string[]] $Lines,[object[]] $AcpiRows,[switch] $Panic,[switch] $NormalBoot)
+    if ($NormalBoot -and $Panic) { throw 'm03_normal_panic_conflict' }
+    $start=if($NormalBoot){63}else{66}
+    $count=if($NormalBoot){79}elseif($Panic){77}else{76}
+    if($Lines.Count -ne $count -or $Lines[$start] -cne 'TEST_START m03.010' -or $AcpiRows.Count -ne 5){throw 'm03_owned_record_count'}
+    if(-not $Panic -and ($Lines[$start+8] -cne 'CLROS_M03_010_READY' -or $Lines[$start+9] -cne 'TEST_PASS m03.010')){throw 'm03_owned_terminal'}
     $rows=@();$last=if($Panic){8}else{6}
     for($stage=0;$stage -le $last;$stage++){
-        $match=[regex]::Match($Lines[67+$stage],('\AM03_OWNED '+$stage+'((?: 0x[0-9A-F]{16}){8})\z'))
+        $match=[regex]::Match($Lines[$start+1+$stage],('\AM03_OWNED '+$stage+'((?: 0x[0-9A-F]{16}){8})\z'))
         if(-not $match.Success){throw ('m03_owned_row_'+$stage)}
         $rows+=,@(($match.Groups[1].Value.TrimStart().Split(' ') | ForEach-Object {[Convert]::ToUInt64($_.Substring(2),16)}))
     }
@@ -3014,15 +3043,16 @@ function Assert-M03OwnedSubsystemRecords {
 }
 
 function Assert-M03AcpiBootstrapTranscript {
-    param([string] $SerialLogPath,[switch] $FirstRealExit,[switch] $FirmwareRevocation,[switch] $OwnedSurvival,[switch] $OwnedPanic)
+    param([string] $SerialLogPath,[switch] $FirstRealExit,[switch] $FirmwareRevocation,[switch] $OwnedSurvival,[switch] $OwnedPanic,[switch] $NormalBoot)
     if (($OwnedSurvival -and (-not $FirstRealExit -or $FirmwareRevocation)) -or ($OwnedPanic -and -not $OwnedSurvival)) { throw 'm03_owned_profile_invalid' }
+    if ($NormalBoot -and (-not $FirstRealExit -or -not $OwnedSurvival -or $FirmwareRevocation -or $OwnedPanic)) { throw 'm03_normal_profile_invalid' }
     if ($FirmwareRevocation -and -not $FirstRealExit) { throw 'm03_revocation_requires_first_exit' }
     $path=if([IO.Path]::IsPathRooted($SerialLogPath)){$SerialLogPath}else{Join-Path $root $SerialLogPath}
     $bytes=[IO.File]::ReadAllBytes($path)
     if(($FirstRealExit -and $bytes.Length -lt 304) -or (-not $FirstRealExit -and $bytes.Length -lt 7249) -or $bytes.Length -gt 32768){throw 'm03_acpi_raw_extent'}
     $text=(New-Object Text.UTF8Encoding($false,$true)).GetString($bytes)
     $start=$text.IndexOf("TEST_START efi.main`r`n",[StringComparison]::Ordinal)
-    $end=if($OwnedPanic){$text.Length}elseif($OwnedSurvival){$text.IndexOf("TEST_PASS m03.010`r`n",[StringComparison]::Ordinal)+19}elseif($FirmwareRevocation){$text.IndexOf("TEST_PASS m03.008`r`n",[StringComparison]::Ordinal)+19}elseif($FirstRealExit){$text.IndexOf("TEST_PASS m03.009`r`n",[StringComparison]::Ordinal)+19}else{$text.IndexOf("OS_SMOKE_PASS`r`n",[StringComparison]::Ordinal)+15}
+    $end=if($NormalBoot){$text.IndexOf("OS_SMOKE_PASS`r`n",[StringComparison]::Ordinal)+15}elseif($OwnedPanic){$text.Length}elseif($OwnedSurvival){$text.IndexOf("TEST_PASS m03.010`r`n",[StringComparison]::Ordinal)+19}elseif($FirmwareRevocation){$text.IndexOf("TEST_PASS m03.008`r`n",[StringComparison]::Ordinal)+19}elseif($FirstRealExit){$text.IndexOf("TEST_PASS m03.009`r`n",[StringComparison]::Ordinal)+19}else{$text.IndexOf("OS_SMOKE_PASS`r`n",[StringComparison]::Ordinal)+15}
     if($start -ne 304 -or $end -lt 319){throw 'm03_acpi_protocol_extent'}
     # The accepted firmware framing is fixed; new captures cannot extend it.
     $sha=[Security.Cryptography.SHA256]::Create()
@@ -3035,7 +3065,7 @@ function Assert-M03AcpiBootstrapTranscript {
     $owned=$text.Substring($start,$end-$start)
     if([regex]::IsMatch($owned,'[^\x20-\x7E\r\n]')){throw 'm03_acpi_non_ascii'}
     $lines=$owned.Split([string[]]@("`r`n"),[StringSplitOptions]::None)
-    $lineCount=if($OwnedPanic){77}elseif($OwnedSurvival){76}elseif($FirmwareRevocation){78}elseif($FirstRealExit){66}else{35}
+    $lineCount=if($NormalBoot){79}elseif($OwnedPanic){77}elseif($OwnedSurvival){76}elseif($FirmwareRevocation){78}elseif($FirstRealExit){66}else{35}
     if($lines.Count -ne $lineCount+1 -or $lines[$lineCount].Length -ne 0){throw 'm03_acpi_line_count'}
     $fixed=@{
         0='TEST_START efi.main';1='EFI_CONSOLE_READY';2='UEFI_MEMORY_MAP_READY';4='UEFI_MEMORY_MAP_OWNED'
@@ -3055,6 +3085,12 @@ function Assert-M03AcpiBootstrapTranscript {
             $fixed[56]='M03_ADAPTER_ADMITTED 1 0'
             for ($i=0; $i -lt 11; $i++) { $fixed[67+$i]=$script:M03RevocationTerminalMarkers[$i] }
         }
+    }
+    if ($NormalBoot) {
+        foreach ($i in 52..54) { $fixed.Remove($i) }
+        for ($i=55; $i -le 65; $i++) { $fixed[$i-3]=$fixed[$i]; $fixed.Remove($i) }
+        $fixed[73]='TEST_START m03.011'; $fixed[74]='CLROS_M03_011_READY'; $fixed[75]='TEST_PASS m03.011'
+        $fixed[76]='OS_BOOT_OK'; $fixed[77]='TEST_PASS boot.sequence'; $fixed[78]='OS_SMOKE_PASS'
     }
     foreach($index in $fixed.Keys){if(-not [string]::Equals($lines[$index],$fixed[$index],[StringComparison]::Ordinal)){throw ('m03_acpi_literal_'+$index)}}
     $counts=@()
@@ -3100,7 +3136,7 @@ function Assert-M03AcpiBootstrapTranscript {
     $retain=Read-M03MemoryMapCaptureRecord $lines[24] 'CLROS_M03_002_RETAIN' @('total:dec','descriptors:dec','guards:dec','tail:dec','mismatches:dec')
     if($total -gt 266240 -or $retain.total -ne $total -or $retain.descriptors -ne 5 -or $retain.guards -ne 32 -or
        $retain.tail -ne 266240-$total -or $retain.mismatches -ne 0){throw 'm03_acpi_retained_accounting'}
-    if ($OwnedSurvival) { Assert-M03OwnedSubsystemRecords -Lines @($lines[0..($lineCount-1)]) -AcpiRows $rows -Panic:$OwnedPanic }
+    if ($OwnedSurvival) { Assert-M03OwnedSubsystemRecords -Lines @($lines[0..($lineCount-1)]) -AcpiRows $rows -Panic:$OwnedPanic -NormalBoot:$NormalBoot }
 }
 
 function Assert-M03TypedExitBootServicesTranscript {
@@ -3612,7 +3648,7 @@ function Assert-M03FirmwareEntropyRunnerResult {
 function Assert-M03AcpiBootstrapRunnerResult {
     param([string[]] $Lines,[string] $SummaryLogPath,[string] $SerialLogPath,
         [string[]] $RequiredMarkers,[string[]] $OrderedMarkers,[string[]] $UniqueMarkers,[string[]] $ForbiddenMarkers,
-        [string] $ImagePath,[string] $Profile,[switch] $FirstRealExit,[switch] $FirmwareRevocation,[switch] $OwnedSurvival)
+        [string] $ImagePath,[string] $Profile,[switch] $FirstRealExit,[switch] $FirmwareRevocation,[switch] $OwnedSurvival,[switch] $NormalBoot)
     # Closed ordinary stdout binds the source-configured 750ms quiet drain. It
     # does not claim a separately measured duration or an archived runner DLL.
     if($Lines.Count -ne 17){throw 'm03_acpi_runner_count'}
@@ -3630,7 +3666,7 @@ function Assert-M03AcpiBootstrapRunnerResult {
     $exit=[Int32]0;$m=[regex]::Match($lines[12],'\AQEMU_PROCESS_RESULT disposition=runner-terminated exitCode=(0|-?[1-9][0-9]*)\z')
     if(-not $m.Success -or -not [Int32]::TryParse($m.Groups[1].Value,[Globalization.NumberStyles]::AllowLeadingSign,[Globalization.CultureInfo]::InvariantCulture,[ref]$exit)){throw 'm03_acpi_runner_exit'}
     $serialPath=if([IO.Path]::IsPathRooted($SerialLogPath)){$SerialLogPath}else{Join-Path $root $SerialLogPath}
-    Assert-M03AcpiBootstrapTranscript $serialPath -FirstRealExit:$FirstRealExit -FirmwareRevocation:$FirmwareRevocation -OwnedSurvival:$OwnedSurvival
+    Assert-M03AcpiBootstrapTranscript $serialPath -FirstRealExit:$FirstRealExit -FirmwareRevocation:$FirmwareRevocation -OwnedSurvival:$OwnedSurvival -NormalBoot:$NormalBoot
     $raw=[IO.File]::ReadAllBytes($serialPath);$serial=(New-Object Text.UTF8Encoding($false,$true)).GetString($raw)
     # The exact accepted firmware byte fixture contributes two prefix lines,
     # two suffix lines and one unterminated console line; only the latter and
@@ -3640,6 +3676,7 @@ function Assert-M03AcpiBootstrapRunnerResult {
     if($FirstRealExit){$stream='SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+$raw.Length+' lines=68 invalidBytes='+$invalid+' invalidLines=1 orderedSeen=66 outOfOrder=0 uniqueSeen=66 duplicateUnique=0'}
     if($OwnedSurvival){$stream='SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+$raw.Length+' lines=78 invalidBytes='+$invalid+' invalidLines=1 orderedSeen=76 outOfOrder=0 uniqueSeen=76 duplicateUnique=0'}
     if($FirmwareRevocation){$stream='SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+$raw.Length+' lines=80 invalidBytes='+$invalid+' invalidLines=1 orderedSeen=78 outOfOrder=0 uniqueSeen=78 duplicateUnique=0'}
+    if($NormalBoot){$stream='SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+$raw.Length+' lines=81 invalidBytes='+$invalid+' invalidLines=1 orderedSeen=79 outOfOrder=0 uniqueSeen=79 duplicateUnique=0'}
     if(-not [string]::Equals($lines[10],$stream,[StringComparison]::Ordinal)){throw 'm03_acpi_stream_accounting'}
     $summaryPath=if([IO.Path]::IsPathRooted($SummaryLogPath)){$SummaryLogPath}else{Join-Path $root $SummaryLogPath}
     $summary=New-Object 'System.Collections.Generic.List[string]';$summary.Add('QEMU_SMOKE_STATUS pass')
@@ -7095,6 +7132,19 @@ function Normalize-MarkerPreset {
 Push-Location $root
 try {
     Assert-WorkloadProfile -Profile $WorkloadProfile
+    Write-Host ("QEMU_SCRIPT_BOOT_POLICY policy=" + $BootPolicy)
+    if ($normalVerifiedExit) {
+        if (-not $BuildEfi -or $SkipImageBuild -or
+            $PSBoundParameters.ContainsKey('M01RawObservationLog') -or $RequireNativeAppMarkers -or
+            @($args).Count -ne 0 -or @($MarkerPreset).Count -ne 0) {
+            Write-Host 'TEST_FAIL qemu.smoke m03_normal_requires_original_capture'; exit 1
+        }
+        foreach ($key in @('RequireMarker','RequireOrderedMarker','RequireUniqueMarker','ForbidMarker')) {
+            if ($PSBoundParameters.ContainsKey($key)) {
+                Write-Host ('TEST_FAIL qemu.smoke m03_normal_forbids_override parameter='+$key); exit 1
+            }
+        }
+    }
     $DiskFormat = $DiskFormat.ToLowerInvariant()
     if ($DiskFormat -ne "raw" -and $DiskFormat -ne "qcow2") {
         Write-Host ("TEST_FAIL qemu.smoke.invalid_args disk_format=" + $DiskFormat + " valid=raw,qcow2")
@@ -7878,6 +7928,7 @@ $rhpReason = $arrayReason
         }
     }
     foreach ($profile in @(
+        @($normalVerifiedExit, '^(CLROS_M03_011_READY|TEST_(START|PASS) m03\.011)', 'm03_normal'),
         @([bool]$EnableM03OwnedSubsystemSurvivalProbe, '^(M03_OWNED|CLROS_M03_010_READY|TEST_(START|PASS) m03\.010)', 'm03_owned'),
         @([bool]$EnableM03OwnedSubsystemPanicProbe, '^M03_OWNED [78](?: |$)', 'm03_owned_panic'),
         @([bool]$EnableM03FirmwareAdapterRevocationProbe, '^(M03_ADAPTER_|CLROS_M03_008_READY|TEST_(START|PASS) m03\.008)', 'm03_revocation'),
@@ -7925,7 +7976,13 @@ $rhpReason = $arrayReason
             }
         }
     }
-    if ($EnableM03OwnedSubsystemSurvivalProbe) {
+    if ($normalVerifiedExit) {
+        $requiredMarkers = @($script:M03NormalVerifiedExitMarkers)
+        $orderedMarkers = @($script:M03NormalVerifiedExitMarkers)
+        $uniqueMarkers = @($script:M03NormalVerifiedExitMarkers)
+        $forbiddenMarkers = @('OS_SMOKE_FAIL','TEST_FAIL','ACPI_DISCOVERY_FAIL','M03_OWNED 7','M03_OWNED 8')
+    }
+    elseif ($EnableM03OwnedSubsystemSurvivalProbe) {
         $selected = if ($EnableM03OwnedSubsystemPanicProbe) { $script:M03OwnedSubsystemPanicMarkers } else { $script:M03OwnedSubsystemMarkers }
         $requiredMarkers = @($selected); $orderedMarkers = @($selected); $uniqueMarkers = @($selected)
         $forbiddenMarkers = @('OS_SMOKE_FAIL','TEST_FAIL','ACPI_DISCOVERY_FAIL')
@@ -9719,6 +9776,8 @@ $rhpReason = $arrayReason
             "Bypass",
             "-File",
             (Join-Path $PSScriptRoot "build-efi-shell.ps1"),
+            "-BootPolicy",
+            $BootPolicy,
             "-EfiOutputPath",
             $EfiArtifact
         )
@@ -9981,7 +10040,7 @@ $rhpReason = $arrayReason
     if ($EnableM03OwnedSubsystemPanicProbe) { $arguments += "--expect-owned-subsystem-panic" }
     if ($EnableM03FirmwareEntropySeedProbe) { $arguments += @("--firmware-rng-source", $FirmwareRngSource) }
 
-    if ($EnableM02OwnedGdtTssTerminalProbe -or $EnableM03FirstRealExitBootServicesProbe -or $EnableM04X64UnwindMetadataProbe) {
+    if ($normalVerifiedExit -or $EnableM02OwnedGdtTssTerminalProbe -or $EnableM03FirstRealExitBootServicesProbe -or $EnableM04X64UnwindMetadataProbe) {
         $arguments += "--replace-default-required-markers"
     }
 
@@ -10032,7 +10091,7 @@ $rhpReason = $arrayReason
             $m01RawObservationCapture.EnvironmentState = $null
         }
     }
-    elseif (($EnableM03TypedExitBootServicesCallProbe -or $EnableM04TypeManagerModuleRegistrationProbe -or $EnableM03FirmwareEntropySeedProbe -or $EnableAcpiPhysicalDiscoveryProbe -or $EnableM03MemoryMapCaptureProbe -or $EnableM04ManagedHeapPageRangeProbe -or $EnableM02PageFaultCr2ErrorCodeProbe -or $EnableM02DoubleFaultIstProbe -or $EnableM02UnexpectedVectorPanicProbe) -and -not $DryRun) {
+    elseif (($normalVerifiedExit -or $EnableM03TypedExitBootServicesCallProbe -or $EnableM04TypeManagerModuleRegistrationProbe -or $EnableM03FirmwareEntropySeedProbe -or $EnableAcpiPhysicalDiscoveryProbe -or $EnableM03MemoryMapCaptureProbe -or $EnableM04ManagedHeapPageRangeProbe -or $EnableM02PageFaultCr2ErrorCodeProbe -or $EnableM02DoubleFaultIstProbe -or $EnableM02UnexpectedVectorPanicProbe) -and -not $DryRun) {
         $heapRunnerLines = @(Invoke-NativeCommand -Command { & dotnet run @arguments } -RequireEmptyError:($EnableM03TypedExitBootServicesCallProbe -or $EnableM04TypeManagerModuleRegistrationProbe -or $EnableM03FirmwareEntropySeedProbe -or $EnableAcpiPhysicalDiscoveryProbe -or $EnableM02UnexpectedVectorPanicProbe -or $EnableM03MemoryMapCaptureProbe))
         foreach ($line in $heapRunnerLines) { Write-Host $line }
     }
@@ -10164,12 +10223,13 @@ $rhpReason = $arrayReason
         }
         Write-Host "QEMU_SCRIPT_M02_DF_TRANSCRIPT postSmokeSequence=true rawObservations=true guardAbsence=true postPassMarkerNoise=false"
     }
-    if ($EnableM03FirstRealExitBootServicesProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
+    if (($normalVerifiedExit -or $EnableM03FirstRealExitBootServicesProbe) -and -not $DryRun -and $runnerExitCode -eq 0) {
         try {
-            Assert-M03AcpiBootstrapRunnerResult -Lines $heapRunnerLines -SummaryLogPath $SummaryLog -SerialLogPath $SerialLog -RequiredMarkers $requiredMarkers -OrderedMarkers $orderedMarkers -UniqueMarkers $uniqueMarkers -ForbiddenMarkers $forbiddenMarkers -ImagePath $Image -Profile $WorkloadProfile -FirstRealExit -FirmwareRevocation:$EnableM03FirmwareAdapterRevocationProbe -OwnedSurvival:$EnableM03OwnedSubsystemSurvivalProbe
+            Assert-M03AcpiBootstrapRunnerResult -Lines $heapRunnerLines -SummaryLogPath $SummaryLog -SerialLogPath $SerialLog -RequiredMarkers $requiredMarkers -OrderedMarkers $orderedMarkers -UniqueMarkers $uniqueMarkers -ForbiddenMarkers $forbiddenMarkers -ImagePath $Image -Profile $WorkloadProfile -FirstRealExit -FirmwareRevocation:$EnableM03FirmwareAdapterRevocationProbe -OwnedSurvival:($EnableM03OwnedSubsystemSurvivalProbe -or $normalVerifiedExit) -NormalBoot:$normalVerifiedExit
         }
         catch { Write-Host ('TEST_FAIL qemu.smoke.m03.007 strict_transcript_invalid reason='+$_.Exception.Message); exit 1 }
-        if ($EnableM03OwnedSubsystemSurvivalProbe) { Write-Host 'QEMU_SCRIPT_M03_OWNED_SUBSYSTEM_TRANSCRIPT exactWholeLines=true lines=76 allocatorRestored=true acpiTables=5 installedDescriptors=true terminal=true' }
+        if ($normalVerifiedExit) { Write-Host 'QEMU_SCRIPT_M03_NORMAL_EXIT_TRANSCRIPT exactWholeLines=true lines=79 allocatorRestored=true acpiTables=5 installedDescriptors=true successAfterExit=true terminal=true' }
+        elseif ($EnableM03OwnedSubsystemSurvivalProbe) { Write-Host 'QEMU_SCRIPT_M03_OWNED_SUBSYSTEM_TRANSCRIPT exactWholeLines=true lines=76 allocatorRestored=true acpiTables=5 installedDescriptors=true terminal=true' }
         elseif ($EnableM03FirmwareAdapterRevocationProbe) { Write-Host 'QEMU_SCRIPT_M03_REVOCATION_TRANSCRIPT exactWholeLines=true lines=78 capabilities=8 backendCallsAfterExit=0 outputBytesPreserved=true terminal=true' }
         else { Write-Host 'QEMU_SCRIPT_M03_FIRST_EXIT_TRANSCRIPT exactWholeLines=true lines=66 terminal=true' }
     }
@@ -10315,7 +10375,7 @@ $rhpReason = $arrayReason
             exit 97
         }
     }
-    if (-not $EnableM03FirstRealExitBootServicesProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
+    if (-not $normalVerifiedExit -and -not $EnableM03FirstRealExitBootServicesProbe -and -not $DryRun -and $runnerExitCode -eq 0) {
         $serialPath = if ([IO.Path]::IsPathRooted($SerialLog)) { $SerialLog } else { Join-Path $root $SerialLog }
         if ([regex]::IsMatch([Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($serialPath)), '(?i)M03_EBS_|M03_PERMANENT_|M03_POST_EBS_|CLROS_M03_007_READY|m03\.007|UEFI_EBS_SUCCESS|CLROS_M03_009_READY|m03\.009')) {
             Write-Host 'TEST_FAIL qemu.smoke.m03.007 unexpected_profile_record'; exit 1
@@ -10324,6 +10384,9 @@ $rhpReason = $arrayReason
     if (-not $DryRun -and $runnerExitCode -eq 0) {
         $serialPath = if ([IO.Path]::IsPathRooted($SerialLog)) { $SerialLog } else { Join-Path $root $SerialLog }
         $rawProfileText = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($serialPath))
+        if (-not $normalVerifiedExit -and [regex]::IsMatch($rawProfileText, '(?i)CLROS_M03_011_READY|m03\.011')) {
+            Write-Host 'TEST_FAIL qemu.smoke.m03.011 unexpected_profile_record'; exit 1
+        }
         try { Assert-M04SimpleCatchSelection -Text $rawProfileText -Enabled ([bool]$EnableM04SimpleThrowCatchProbe) -FinallyEnabled ([bool]$EnableM04SingleFinallyCatchProbe) }
         catch { Write-Host ('TEST_FAIL qemu.smoke '+$_.Exception.Message); exit 1 }
         try { Assert-M04SingleFinallySelection -Text $rawProfileText -Enabled ([bool]$EnableM04SingleFinallyCatchProbe) }
@@ -10332,7 +10395,7 @@ $rhpReason = $arrayReason
         catch { Write-Host 'TEST_FAIL qemu.smoke.m04.016 unexpected_profile_record'; exit 1 }
         try { Assert-M04X64UnwindMetadataSelection -Text $rawProfileText -Enabled ([bool]$EnableM04X64UnwindMetadataProbe) }
         catch { Write-Host 'TEST_FAIL qemu.smoke.m04.020 unexpected_profile_record'; exit 1 }
-        if ((-not $EnableM03OwnedSubsystemSurvivalProbe -and [regex]::IsMatch($rawProfileText, '(?i)M03_OWNED|CLROS_M03_010_READY|m03\.010')) -or
+        if ((-not $normalVerifiedExit -and -not $EnableM03OwnedSubsystemSurvivalProbe -and [regex]::IsMatch($rawProfileText, '(?i)M03_OWNED|CLROS_M03_010_READY|m03\.010')) -or
             (-not $EnableM03OwnedSubsystemPanicProbe -and [regex]::IsMatch($rawProfileText, '(?m)^M03_OWNED [78](?: |$)')) -or
             (-not $EnableM03FirmwareAdapterRevocationProbe -and [regex]::IsMatch($rawProfileText, '(?i)M03_ADAPTER_|CLROS_M03_008_READY|m03\.008')) -or
             (-not $EnableM04ClassConstructorExecutionProbe -and [regex]::IsMatch($rawProfileText, '(?i)M04_CCTOR|CLROS_M04_024_READY|m04\.024'))) {

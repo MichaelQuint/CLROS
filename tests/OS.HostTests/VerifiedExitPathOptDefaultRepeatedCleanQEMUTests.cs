@@ -22,6 +22,7 @@ internal static unsafe class VerifiedExitPathOptDefaultRepeatedCleanQEMUTests
         Run("every partial write stops before later success records", PartialWrites);
         Run("missing writer and host policy cannot emit success", MissingWriter);
         Run("ordinary project policy is independent of diagnostic switches", ProjectPolicy);
+        Run("entry scripts reject policy conflicts and preserve complete default markers", ScriptPolicy);
     }
 
     private static string Expected => "TEST_START m03.011\r\nCLROS_M03_011_READY\r\nTEST_PASS m03.011\r\n" +
@@ -102,6 +103,53 @@ internal static unsafe class VerifiedExitPathOptDefaultRepeatedCleanQEMUTests
         var result = MsBuild(root, ["-getProperty:ClrosBootPolicy,DefineConstants", .. properties]);
         Need(result.Exit == 0, "project evaluation: " + result.Output);
         return JsonDocument.Parse(result.Output);
+    }
+
+    private static void ScriptPolicy()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        foreach (string script in new[] { "build-efi-shell.ps1", "test-efi-artifact.ps1", "run-qemu-smoke.ps1" })
+        {
+            var invalid = PowerShell(root, script, ["-BootPolicy", "Unknown"]);
+            Need(invalid.Exit == 1 && invalid.Output.Contains("clros_boot_policy_invalid", StringComparison.Ordinal), script + " invalid policy");
+            var conflict = PowerShell(root, script, ["-BootPolicy", "VerifiedExit", "-EnableM03FirstRealExitBootServicesProbe"]);
+            Need(conflict.Exit == 1 && conflict.Output.Contains("clros_boot_policy_probe_conflict", StringComparison.Ordinal), script + " mixed policy");
+        }
+        var ordinary = PowerShell(root, "run-qemu-smoke.ps1", ["-DryRun"]);
+        Need(ordinary.Exit == 0 && ordinary.Output.Contains("QEMU_SCRIPT_BOOT_POLICY policy=VerifiedExit", StringComparison.Ordinal),
+            "unqualified ordinary dry-run: " + ordinary.Output);
+        string[] ordered = ordinary.Output.Split('\n').Single(line => line.StartsWith("ORDERED_MARKERS ", StringComparison.Ordinal))
+            .TrimEnd('\r')["ORDERED_MARKERS ".Length..].Split(';');
+        string[] expectedTail = Expected.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+        Need(ordered.Length == 79 && ordered.TakeLast(6).SequenceEqual(expectedTail) && ordered.Distinct(StringComparer.Ordinal).Count() == 79,
+            "complete unique post-exit marker ordering");
+        foreach (string option in new[] { "-RequireMarker", "-RequireOrderedMarker", "-RequireUniqueMarker", "-ForbidMarker" })
+        {
+            var rejected = PowerShell(root, "run-qemu-smoke.ps1", ["-DryRun", option, "OS_SMOKE_PASS"]);
+            Need(rejected.Exit == 1 && rejected.Output.Contains("m03_normal_forbids_override", StringComparison.Ordinal), "closed marker contract " + option);
+        }
+        var reused = PowerShell(root, "run-qemu-smoke.ps1", ["-DryRun", "-SkipImageBuild"]);
+        Need(reused.Exit == 1 && reused.Output.Contains("m03_normal_requires_original_capture", StringComparison.Ordinal), "normal image reuse rejected");
+        var legacy = PowerShell(root, "run-qemu-smoke.ps1", ["-DryRun", "-BootPolicy", "Diagnostic"]);
+        Need(legacy.Exit == 0 && legacy.Output.Contains("QEMU_SCRIPT_BOOT_POLICY policy=Diagnostic", StringComparison.Ordinal) &&
+            !legacy.Output.Contains("CLROS_M03_011_READY", StringComparison.Ordinal), "explicit diagnostic compatibility: " + legacy.Output);
+    }
+
+    private static (int Exit, string Output) PowerShell(string root, string script, string[] arguments)
+    {
+        var start = new ProcessStartInfo("powershell.exe")
+        {
+            WorkingDirectory = root, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true
+        };
+        foreach (string argument in new[] { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/" + script }.Concat(arguments))
+            start.ArgumentList.Add(argument);
+        using Process process = Process.Start(start)!;
+        var stdout = process.StandardOutput.ReadToEndAsync();
+        var stderr = process.StandardError.ReadToEndAsync();
+        if (!process.WaitForExit(90_000)) { process.Kill(entireProcessTree: true); throw new Exception("script policy timeout: " + script); }
+        string error = stderr.GetAwaiter().GetResult();
+        Need(error.Length == 0, "script policy stderr: " + error);
+        return (process.ExitCode, stdout.GetAwaiter().GetResult());
     }
 
     private static (int Exit, string Output) MsBuild(string root, string[] arguments)
