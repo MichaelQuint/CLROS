@@ -27,8 +27,12 @@ could not find Visual Studio's optional x64 `llvm-objdump.exe`. The same tool
 is required by object and String inspection. Source and producer identities
 remained unchanged; the failed run and two preceding publications are retained.
 The missing host prerequisite is now documented in
-[host-requirements.md](host-requirements.md). Install it, validate the three
-original inspection fixtures, and complete a coherent full host retry.
+[host-requirements.md](host-requirements.md). A SHA-pinned user-local LLVM
+disassembler is configured through `CLROS_LLVM_OBJDUMP`; the shared locator
+preserves default VS x64 discovery and rejects bad explicit paths. Its 17
+focused repository/discovery checks pass. The three original native inspection
+fixtures also pass all 18 groups, including fresh default/positive/rejection
+publications. The coherent unfiltered full host retry remains required.
 The first canary control failed its quiet-timer measurement; the independently
 reviewed timer repair and fresh successful controls preserve that failed run.
 See step1078 for the exact source/evidence boundaries and combined PR #592.

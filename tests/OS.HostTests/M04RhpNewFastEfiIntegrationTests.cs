@@ -520,8 +520,7 @@ internal static class M04RhpNewFastEfiIntegrationTests
             .ToDictionary(m=>m.Groups[1].Value,m=>Convert.ToUInt64(m.Groups[2].Value,16)-header.ImageBase,StringComparer.Ordinal);
         Need(symbols.ContainsKey("RhpNewFast"),"named actual native export");
         // LLVM provides decoded instructions/relocations. Never search arbitrary bytes for E8.
-        string llvm=Directory.GetFiles(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"Microsoft Visual Studio"),"llvm-objdump.exe",SearchOption.AllDirectories)
-            .Where(p=>p.Contains("\\x64\\",StringComparison.OrdinalIgnoreCase)).Order(StringComparer.Ordinal).First();
+        string llvm=HostToolProcess.FindLlvmObjdump();
         Result dis=Process(root,llvm,["--disassemble","--reloc","--x86-asm-syntax=intel",Path.Combine(directory,"OS.obj")]);Save(Path.Combine(directory,"disassembly"),dis);Need(dis.Code==0,dis.Output);
         File.WriteAllText(Path.Combine(directory,"disassembler.json"),System.Text.Json.JsonSerializer.Serialize(new{Path=llvm,Sha256=Hash(File.ReadAllBytes(llvm))}));
         const string prefix="OS_OS_Runtime_RhpNewFastAllocation__";
