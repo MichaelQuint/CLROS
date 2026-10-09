@@ -15,6 +15,8 @@ internal static class EfiProfileTestControls
             ("M05PhysicalMapping", "M03OwnedSubsystemSurvival", "m05_mapping_requires_owned_first_exit"),
             ("M05OwnedAcpiSelection", "M03FirstRealExitBootServices", "m05_acpi_requires_owned_first_exit"),
             ("M05OwnedAcpiSelection", "M03OwnedSubsystemSurvival", "m05_acpi_requires_owned_first_exit"),
+            ("M05MonotonicClock", "M03FirstRealExitBootServices", "m05_clock_requires_owned_first_exit"),
+            ("M05MonotonicClock", "M03OwnedSubsystemSurvival", "m05_clock_requires_owned_first_exit"),
             ("M04ClassConstructorExecution", "M04GcStaticRootMaterialization", "m04_cctor_requires_gc_profile"),
             ("M04InterfaceDispatch", "M04ClassConstructorExecution", "m04_dispatch_requires_cctor_profile"),
             ("M04X64UnwindMetadata", "M04TypeManagerModuleRegistration", "m04_x64_unwind_metadata_requires_original_module"),
