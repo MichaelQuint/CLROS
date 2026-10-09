@@ -80,3 +80,7 @@ The default lane is fast and emits `host.tests.fast`. Filtered runs emit
 `host.tests.focused`. Native/full runs include real compiler and artifact checks;
 do not relabel fast evidence as complete acceptance. Input changes
 since compilation are rejected before execution and checked again afterward.
+Use `--results <empty-directory>` to name a run and `--resume <directory>` to
+continue its saved lane and selection. Reused groups emit `HOST_FIXTURE_REUSED`,
+never replayed test passes. Keep unknown artifact/native dependencies fresh;
+review ownership before adding a group to `HostNativeResumePolicy`.
