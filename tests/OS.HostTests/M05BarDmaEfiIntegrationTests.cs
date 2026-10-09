@@ -36,11 +36,14 @@ internal static unsafe class M05BarDmaEfiIntegrationTests
         try
         {
             Check(lines);
+            string[] alreadyDisabled = [.. lines];
+            alreadyDisabled[98] = alreadyDisabled[98].Replace("0x0000000000000007", "0x0000000000000003", StringComparison.Ordinal);
+            Check(alreadyDisabled);
             Reject(() => QemuTranscripts.AssertM03AcpiBootstrapTranscript(path, firstRealExit: true, ownedSurvival: true, pciEnumeration: true));
             int[] rowIndices = Enumerable.Range(0, lines.Length).Where(i => lines[i].StartsWith("M05_BAR_DMA ", StringComparison.Ordinal)).ToArray();
             foreach ((int row, int col, ulong wrong) in new (int,int,ulong)[]
-            { (0,0,0x700), (0,1,0x12341af4), (0,2,7), (0,3,0xe0031000), (1,0,0), (1,1,4095), (1,3,1),
-              (2,0,0xfffffffffffff000), (2,2,2), (2,3,0), (3,1,0), (3,3,0), (4,1,0), (5,0,1), (6,0,0),
+            { (0,0,0x700), (0,1,0x12341af4), (0,2,0x10000), (0,3,0xe0031000), (1,0,0), (1,1,4095), (1,3,1),
+              (2,0,0xfffffffffffff000), (2,2,2), (2,3,0), (3,0,7), (3,1,7), (3,1,0), (3,3,0), (4,1,0), (5,0,1), (6,0,0),
               (6,2,0x400000), (7,1,0x101000), (8,1,0), (9,2,2), (10,2,1), (11,0,1), (12,1,1), (12,2,1) })
             {
                 string[] changed = [.. lines]; string[] parts = changed[rowIndices[row]].Split(' '); parts[col + 2] = "0x" + wrong.ToString("X16");
@@ -63,7 +66,7 @@ internal static unsafe class M05BarDmaEfiIntegrationTests
         int[] pciIndices = [77,78,82,83,87,88,89,93,94];
         for (int i = 0; i < pci.Length; i++) lines[pciIndices[i]] = Row("M05_PCI", i, pci[i]);
         string[] owner = prefix[67].Split(' '); ulong page = Convert.ToUInt64(owner[4][2..], 16);
-        ulong[][] values = [[0x600,0x00051b36,3,0xe0030000],[0x80000000,4096,2,0],[0x100000000,0x200000,3,1],[3,3,1,1],
+        ulong[][] values = [[0x600,0x00051b36,7,0xe0030000],[0x80000000,4096,2,0],[0x100000000,0x200000,3,1],[3,3,1,1],
             [0,1,2,3],[7,7,8,9],[page,page,page,4096],[0x101000,0x201000,0x301000,4096],[0,7,4,0],
             [page,2,1,1],[1,1,13,1],[12,12,9,1],[2,2,0,1]];
         int stage = 0;

@@ -3162,3 +3162,8 @@ EFI and disk. Its runner automatically adds `pci-testdev,addr=06.0,membar=2M`;
 this device is absent from ordinary runs. The 122-record stream includes the
 original 97 PCI records and four bounded issue suffixes through m05.011. This
 profile remains unaccepted until step1128's deferred gates have actual evidence.
+OVMF can leave Command bus mastering enabled on this synthetic non-DMA function.
+Only this diagnostic adapter clears that bit with a 16-bit write and verifies
+readback before sizing; the general BAR probe still rejects enabled bus mastering.
+Row 0 records the firmware Command; row 3 proves both probes restore the owned
+Command with bit 2 cleared. The terminal diagnostic leaves that bit disabled.

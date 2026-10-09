@@ -716,21 +716,31 @@ public static unsafe class EfiEntry
             uint identity = 0, command = 0, after = 0;
             // The runner installs exactly this non-DMA test function. Never probe
             // an arbitrary firmware-owned storage/network function for this profile.
-            if (read(null, page, &identity) != 1 || identity != 0x00051b36 ||
-                read(null, page + 4, &command) != 1 || (command & 4) != 0) return false;
+            if (read(null, page, &identity) != 1 || read(null, page + 4, &command) != 1 ||
+                !WriteBarRow(state, 0, 0x600, identity, command & 0xffff, page) ||
+                identity != 0x00051b36) return false;
+            // OVMF may enable bus mastering even on this synthetic non-DMA device.
+            // Take ownership only here: clear that bit with a WORD write and prove
+            // readback before entering the general probe, which still rejects it.
+            // This terminal diagnostic never re-enables bus mastering.
+            command &= 0xfffb;
+            if (write16(null, page + 4, command) != 1 || read(null, page + 4, &after) != 1 ||
+                (after & 0xffff) != command) return false;
             PciSizedBar* first = stackalloc PciSizedBar[6];
             PciSizedBar* repeat = stackalloc PciSizedBar[6];
             var result = N32BitN64BitBARsWhileAlwaysRestoring.Probe(state->PciWindow, 0, 6, 0, null, read, write32, write16, first, 6);
-            if (!result.Succeeded) return false;
+            if (!result.Succeeded)
+            { _ = WriteBarRow(state, 13, 1, (ulong)result.Status, (ulong)result.OperationStatus, result.Restored ? 1UL : 0); return false; }
             var again = N32BitN64BitBARsWhileAlwaysRestoring.Probe(state->PciWindow, 0, 6, 0, null, read, write32, write16, repeat, 6);
-            if (!again.Succeeded || read(null, page + 4, &after) != 1 || (command & 0xffff) != (after & 0xffff)) return false;
+            if (!again.Succeeded)
+            { _ = WriteBarRow(state, 13, 2, (ulong)again.Status, (ulong)again.OperationStatus, again.Restored ? 1UL : 0); return false; }
+            if (read(null, page + 4, &after) != 1 || (command & 0xffff) != (after & 0xffff)) return false;
             for (uint i = 0; i < 6; i++)
                 if (first[i].Kind != repeat[i].Kind || first[i].Base != repeat[i].Base ||
                     first[i].Bytes != repeat[i].Bytes || first[i].Prefetchable != repeat[i].Prefetchable) return false;
             if (first[0].Kind != PciSizedBarKind.Memory32 || first[0].Bytes != 4096 || !first[0].IsAssigned || first[0].Prefetchable ||
                 first[2].Kind != PciSizedBarKind.Memory64 || first[2].Bytes != 0x200000 || !first[2].IsAssigned || !first[2].Prefetchable ||
                 first[3].Kind != PciSizedBarKind.UpperHalf ||
-                !WriteBarRow(state, 0, 0x600, identity, command & 0xffff, page) ||
                 !WriteBarRow(state, 1, first[0].Base, first[0].Bytes, (ulong)first[0].Kind, 0) ||
                 !WriteBarRow(state, 2, first[2].Base, first[2].Bytes, (ulong)first[2].Kind, 1) ||
                 !WriteBarRow(state, 3, command & 0xffff, after & 0xffff, result.Restored ? 1UL : 0, again.Restored ? 1UL : 0) ||
@@ -838,7 +848,7 @@ public static unsafe class EfiEntry
 
         private static bool WriteBarRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d)
         {
-            if (stage > 12) return false;
+            if (stage > 13) return false;
             byte* text = stackalloc byte[96];
             *(ulong*)text = 0x5f5241425f35304dUL; *(uint*)(text + 8) = 0x20414d44; uint length = 12;
             if (stage >= 10) text[length++] = (byte)'1'; text[length++] = (byte)('0' + stage % 10);
