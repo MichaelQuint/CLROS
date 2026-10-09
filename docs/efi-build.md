@@ -16,8 +16,8 @@ dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --BootPolicy Diag
 The strict 83-record stream ends in `CLROS_M05_003_READY` and
 `TEST_PASS m05.003` after HPET motion, frequency and rejection checks. The four
 `M05_CLOCK` rows bind device/capability metadata, source/recovery, tick progress
-and rejection controls. [Step1124](../done/step1124.md) records development
-evidence; full batch acceptance is pending. See [drivers](drivers.md) for limits.
+and rejection controls. [Step1125](../done/step1125.md) records accepted full-host,
+native and guest evidence. See [drivers](drivers.md) for limits.
 
 ## Owned ACPI selection profile
 

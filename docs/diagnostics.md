@@ -5,8 +5,8 @@
 `EnableM05MonotonicClockProbe` defaults false and is exclusive with the other
 M05 diagnostics. Its 83-record stream adds four `M05_CLOCK` records and the
 `m05.003`/`CLROS_M05_003_READY` markers only after owned subsystem success and
-bounded HPET motion checks. The first guest capture passes; acceptance remains
-pending in [step1124](../done/step1124.md).
+bounded HPET motion checks. Full-host, native and guest qualification, including
+the ordinary regression, are accepted in [step1125](../done/step1125.md).
 
 `EnableM05OwnedAcpiSelectionProbe` defaults false. Its 83-record diagnostic
 stream appends three selections and one rejected-length control to owned

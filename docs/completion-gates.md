@@ -1,9 +1,9 @@
 # CLROS Completion Gates
 
-Clock work #96/#608 is implemented but not accepted. [Step1124](../done/step1124.md)
-records focused checks and one real 83-record HPET capture; full-host, native
-review and ordinary-regression acceptance remain pending. This development
-evidence does not change Gate 6 or claim live TSC fallback, timer interrupts,
+Clock work #96/#608 is accepted in [step1125](../done/step1125.md): 4,172 full-host
+checks across 486 groups, native review, independent disk association and real
+83-record HPET/79-record ordinary captures pass. This bounded single-CPU polled
+clock does not change Gate 6 or claim live TSC fallback, timer interrupts,
 PCI, hosted .NET/Kestrel, cloud readiness or production readiness.
 
 ## Current Status

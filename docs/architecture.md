@@ -2,10 +2,10 @@
 
 ## Current Status
 
-An opt-in owned monotonic clock is under qualification in
-[step1124](../done/step1124.md). It adds one uncached HPET page, bounded startup
-recovery and a qualified single-CPU TSC fallback contract. The first real HPET
-capture passes; full-host and native-review acceptance remain pending. See
+An opt-in owned monotonic clock is accepted in
+[step1125](../done/step1125.md). It adds one uncached HPET page, bounded startup
+recovery and a host-tested qualified single-CPU TSC fallback contract. Full-host,
+native review and real HPET/ordinary captures pass. See
 [drivers](drivers.md) for the limits. Scheduler interrupts, PCI and later gates
 remain incomplete.
 
