@@ -5,8 +5,8 @@
 The default-off PCI diagnostic uses `BootSequence.RunOwnedPciEnumeration` after
 positive owned subsystem checks. Retained MCFG and the original memory map admit
 one uncached read-only/NX ECAM bus before exit; all reads use an authenticated
-DWORD native leaf after exit. [Step1126](../done/step1126.md) records development
-status; guest/native/full-host acceptance is pending.
+DWORD native leaf after exit. [Step1127](../done/step1127.md) accepts full-host,
+native review, real PCI/ordinary captures and independent disk association.
 
 The default-off `EnableM05MonotonicClockProbe` now runs through BootSequence only
 after successful owned subsystem diagnostics. Preparation validates retained

@@ -5,8 +5,8 @@
 `EnableM05PciEnumerationProbe` defaults false and requires Diagnostic policy,
 loaded-image stack, live allocator, retained ACPI, first real firmware exit and
 owned subsystem survival. It conflicts with the other M05 diagnostics, owned
-panic and adapter revocation. The implementation is under qualification in
-[step1126](../done/step1126.md); this command is not itself acceptance evidence.
+panic and adapter revocation. [Step1127](../done/step1127.md) records the accepted
+native publication, full host gate and real diagnostic/ordinary captures.
 
 ```powershell
 dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --BootPolicy Diagnostic --EnableM01LoadedImageStackProbe --EnableM01LiveAllocatorProbe --EnableAcpiPhysicalDiscoveryProbe --EnableM03FirstRealExitBootServicesProbe --EnableM03OwnedSubsystemSurvivalProbe --EnableM05PciEnumerationProbe --Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" --OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" --TimeoutSeconds 15

@@ -2,8 +2,8 @@
 
 `RunOwnedPciEnumeration` is an optional diagnostic substep after original owned
 subsystem survival, with no added ordinary boot phase. It uses retained ECAM
-authority and makes no firmware calls. Its development evidence in
-[step1126](../done/step1126.md) does not advance later boot gates.
+authority and makes no firmware calls. Its bounded acceptance in
+[step1127](../done/step1127.md) does not advance later boot gates.
 
 The optional M05 monotonic clock diagnostic follows successful original owned
 subsystem checks through `BootSequence.RunOwnedMonotonicClock`. It uses a
