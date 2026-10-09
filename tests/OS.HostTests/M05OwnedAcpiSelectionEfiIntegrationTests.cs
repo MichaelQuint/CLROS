@@ -30,6 +30,10 @@ internal static unsafe class M05OwnedAcpiSelectionEfiIntegrationTests
     [HostTest("m05.002.efi profile admission and fresh image")]
     private static void Profile()
     {
+        var project = System.Xml.Linq.XDocument.Load(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS/OS.csproj"));
+        string[] guards = project.Descendants("Error").Select(x => (string?)x.Attribute("Condition") ?? "").ToArray();
+        HostCheck.Equal(1, guards.Count(x => x == "'$(EnableM05OwnedAcpiSelectionProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM03FirstRealExitBootServicesProbe)' != 'true' or '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true')"));
+        HostCheck.Equal(1, guards.Count(x => x == "'$(EnableM05OwnedAcpiSelectionProbe)' == 'true' and ('$(EnableM03OwnedSubsystemPanicProbe)' == 'true' or '$(EnableM03FirmwareAdapterRevocationProbe)' == 'true' or '$(EnableM05PhysicalMappingProbe)' == 'true')"));
         string[] flags = ["--EnableM01LoadedImageStackProbe", "--EnableM01LiveAllocatorProbe",
             "--EnableAcpiPhysicalDiscoveryProbe", "--EnableM03FirstRealExitBootServicesProbe",
             "--EnableM03OwnedSubsystemSurvivalProbe", "--EnableM05OwnedAcpiSelectionProbe"];
