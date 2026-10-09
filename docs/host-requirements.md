@@ -291,6 +291,11 @@ after editing tests; then resume the same directory. The exact selected cases,
 their ordering, lane and `--case` filter form part of each worker group's key.
 A focused or fast pass cannot satisfy a full/native selection of the same type.
 
+For a test-only edit with unchanged production/tooling dependencies, use
+`dotnet build tests/OS.HostTests --no-dependencies` before resuming. This preserves
+the previously built dependency identities. Use a normal build when dependencies
+changed or have not been built.
+
 Failed, interrupted, new or invalidated groups execute again. An unchanged pass
 emits `HOST_FIXTURE_REUSED` with its original run ID; its test markers are not
 replayed. Receipts distinguish executed and reused groups/checks and retain the
@@ -307,6 +312,11 @@ Global imports and assembly attributes are shared inputs. Unknown external,
 artifact or dynamic source dependencies run fresh. Do not edit sources or share
 native output directories between simultaneous suites. Checkpoints are local to
 the same workspace and machine, and do not import legacy runner receipts.
+
+The build manifest captures SDK-generated assembly attributes after generation.
+Pointer-probe and finally-guard builds use `--no-dependencies` so they cannot rebuild libraries
+already admitted by the running harness. Step1117 records the commit-version
+staleness failures that led to these fixes and their focused checks.
 
 Native reuse is deliberately explicit. The owned-IDT group and the individually
 selected IDTR publication case produce every artifact they read. Their keys also
