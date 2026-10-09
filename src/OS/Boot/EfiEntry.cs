@@ -7,6 +7,9 @@ using OS.Kernel.Memory;
 #if (M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
 using OS.Kernel.Diagnostics;
 using OS.Kernel.Platform;
+#if M05_PCI_ENUMERATION_PROBE
+using OS.Drivers;
+#endif
 #if !(M01_LOADED_IMAGE_STACK_PROBE || CLROS_NORMAL_VERIFIED_EXIT) || !(M01_LIVE_ALLOCATOR_PROBE || CLROS_NORMAL_VERIFIED_EXIT) || !(ACPI_PHYSICAL_DISCOVERY_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
 #error The first real exit requires the original loaded-image, live allocator and copied ACPI adapters.
 #endif
@@ -49,6 +52,10 @@ public static unsafe class EfiEntry
 #endif
 #if M05_OWNED_ACPI_SELECTION_PROBE
             internal ulong AcpiSelectionPhase;
+#endif
+#if M05_PCI_ENUMERATION_PROBE
+            internal ulong PciPhase;
+            internal BoundedPciWindow PciWindow;
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE
             internal ulong ClockPhase;
@@ -153,6 +160,16 @@ public static unsafe class EfiEntry
                 if (workspace->Phase != 3 || !ReadBackAcpiBootstrap(workspace, copied->Bytes, AcpiOwnedPayloadCapacity)) return false;
                 references.CopiedAcpi = (ulong)copied;
                 references.CopiedAcpiBytes = (ulong)sizeof(AcpiBootstrapOwnedBuffer);
+#if M05_PCI_ENUMERATION_PROBE
+                var selected = OwnedACPIDirectorySelectMADTHPETMCFG.Select(
+                    copied->Bytes + 16, workspace->TotalBytes, workspace->Descriptors, 30);
+                if (!selected.Succeeded || selected.Mcfg.Length < 60) return false;
+                byte* mcfg = copied->Bytes + 16 + selected.Mcfg.Offset;
+                byte firstBus = mcfg[54];
+                if (!ECAMPageVendorDeviceHeader.TryWindow(mcfg, selected.Mcfg.Length, 0, firstBus, firstBus, out state->PciWindow) ||
+                    !ECAMPageVendorDeviceHeader.AdmitWindow(state->PciWindow, s_bootHandoff.MemoryMap)) return false;
+                references.EcamStart = state->PciWindow.Start; references.EcamPages = state->PciWindow.Bytes / 4096;
+#endif
 #if M05_MONOTONIC_CLOCK_PROBE
                 var selected = OwnedACPIDirectorySelectMADTHPETMCFG.Select(
                     copied->Bytes + 16, workspace->TotalBytes, workspace->Descriptors, 30);
@@ -498,6 +515,9 @@ public static unsafe class EfiEntry
 #if M05_MONOTONIC_CLOCK_PROBE
                     _ = BootSequence.RunOwnedMonotonicClock(state->OwnedPhase == 2, state, &RunOwnedMonotonicClock);
 #endif
+#if M05_PCI_ENUMERATION_PROBE
+                    _ = BootSequence.RunOwnedPciEnumeration(state->OwnedPhase == 2, state, &RunOwnedPciEnumeration);
+#endif
 #if M05_OWNED_ACPI_SELECTION_PROBE
                     _ = BootSequence.RunOwnedAcpiSelection(state->OwnedPhase == 2, state, &RunOwnedAcpiSelection);
 #endif
@@ -517,6 +537,149 @@ public static unsafe class EfiEntry
                 // All returns, including success, terminate in the native stub.
             }
         }
+
+#if M05_PCI_ENUMERATION_PROBE
+        private static bool RunOwnedPciEnumeration(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->PciPhase != 0 || state->OwnedPhase != 2 ||
+                state->Diagnostic.Status != FirstExitDiagnosticStatus.Completed) return false;
+            state->PciPhase = 4;
+            if (!WritePciLiteral(state, 4, 0)) return false;
+            if (!RunPciCore(state)) { _ = WritePciLiteral(state, (uint)state->PciPhase, 3); return false; }
+            state->PciPhase = 8;
+            return true;
+        }
+
+        private static bool RunPciCore(Storage* state)
+        {
+            fixed (AcpiBootstrapWorkspace* workspace = &s_acpiBootstrap)
+            fixed (AcpiBootstrapOwnedBuffer* copied = &s_acpiBootstrapOwned)
+            {
+                if (!AdmitOwnedAcpiState(state) || workspace->Phase != 3 ||
+                    !ReadBackAcpiBootstrap(workspace, copied->Bytes, AcpiOwnedPayloadCapacity) ||
+                    !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+                var selected = OwnedACPIDirectorySelectMADTHPETMCFG.Select(
+                    copied->Bytes + 16, workspace->TotalBytes, workspace->Descriptors, 30);
+                if (!selected.Succeeded || !ECAMPageVendorDeviceHeader.TryWindow(
+                    copied->Bytes + 16 + selected.Mcfg.Offset, selected.Mcfg.Length, 0,
+                    state->PciWindow.FirstBus, state->PciWindow.LastBus, out var window) ||
+                    window.Start != state->PciWindow.Start || window.Bytes != 0x100000 ||
+                    window.BusZeroBase != state->PciWindow.BusZeroBase || window.Segment != state->PciWindow.Segment ||
+                    window.AllocationFirst != state->PciWindow.AllocationFirst || window.AllocationLast != state->PciWindow.AllocationLast ||
+                    window.Start != state->Memory.References.EcamStart || state->Memory.References.EcamPages != 256) return false;
+            }
+            byte* readCode = state->Memory.Code + FirstExitCodeBundle.PciReadOffset;
+            if (!X64PciConfigurationRead.Validate(readCode, X64PciConfigurationRead.Bytes) ||
+                !BoundedPCIConfigurationSpaceInterface.TryOpen(state->PciWindow, null,
+                    (delegate* unmanaged<void*, ulong, uint>)readCode, out var access)) return false;
+            byte bus = state->PciWindow.FirstBus;
+            var invalidRegister = BoundedPCIConfigurationSpaceInterface.Read32(ref access, bus, 0, 0, 4096, out _);
+            var outside = BoundedPCIConfigurationSpaceInterface.Address(state->PciWindow, bus == 255 ? (byte)0 : (byte)(bus + 1), 0, 0, 0, out _);
+            BoundedPciAccess revoked = default;
+            var inactive = BoundedPCIConfigurationSpaceInterface.Read32(ref revoked, bus, 0, 0, 0, out _);
+            if (invalidRegister != BoundedPciStatus.InvalidRegister || outside != BoundedPciStatus.OutsideWindow || inactive != BoundedPciStatus.InvalidAccess ||
+                !WritePciRow(state, 0, state->PciWindow.BusZeroBase, state->PciWindow.Start, state->PciWindow.Bytes, state->PciWindow.Segment) ||
+                !WritePciRow(state, 1, (ulong)invalidRegister, (ulong)outside, (ulong)inactive, 1) ||
+                !WritePciLiteral(state, 4, 1) || !WritePciLiteral(state, 4, 2)) return false;
+
+            state->PciPhase = 5;
+            if (!WritePciLiteral(state, 5, 0) ||
+                ECAMPageVendorDeviceHeader.ReadHeader(ref access, bus, 0, 0, out var first) != BoundedPciStatus.Success ||
+                BoundedPCIConfigurationSpaceInterface.Address(state->PciWindow, bus, 0, 0, 0, out ulong page) != BoundedPciStatus.Success ||
+                !WritePciRow(state, 2, page, first.Identity, first.HeaderType, first.ClassRevision) ||
+                !WritePciRow(state, 3, 1, 1, 1, 4096) || !WritePciLiteral(state, 5, 1) || !WritePciLiteral(state, 5, 2)) return false;
+
+            state->PciPhase = 6;
+            if (!WritePciLiteral(state, 6, 0)) return false;
+            BoundedPciFunction* devices = stackalloc BoundedPciFunction[16];
+            BoundedPciFunction* repeat = stackalloc BoundedPciFunction[16];
+            var scan = PCIBusesDevicesFunctionsBoundedDiagnostics.Scan(ref access, devices, 16, 256);
+            var again = PCIBusesDevicesFunctionsBoundedDiagnostics.Scan(ref access, repeat, 16, 256);
+            if (!scan.Complete || !again.Complete || scan.Count < 2 || scan.Count != again.Count || scan.Visited != again.Visited ||
+                !scan.HasLast || !again.HasLast || PciTuple(scan.LastSegment, scan.LastBus, scan.LastDevice, scan.LastFunction) !=
+                PciTuple(again.LastSegment, again.LastBus, again.LastDevice, again.LastFunction)) return false;
+            for (uint i = 0; i < scan.Count; i++)
+            {
+                if (PciTuple(devices[i].Segment, devices[i].Bus, devices[i].Device, devices[i].Function) !=
+                    PciTuple(repeat[i].Segment, repeat[i].Bus, repeat[i].Device, repeat[i].Function) ||
+                    devices[i].Header.Identity != repeat[i].Header.Identity || devices[i].Header.HeaderType != repeat[i].Header.HeaderType ||
+                    devices[i].Header.ClassRevision != repeat[i].Header.ClassRevision || devices[i].Header.CommandStatus != repeat[i].Header.CommandStatus ||
+                    devices[i].Header.BusNumbers != repeat[i].Header.BusNumbers || devices[i].Header.CapabilityPointer != repeat[i].Header.CapabilityPointer) return false;
+            }
+            var partial = PCIBusesDevicesFunctionsBoundedDiagnostics.Scan(ref access, repeat, 1, 256);
+            if (partial.Status != BoundedPciStatus.Capacity || partial.Count != 1 || partial.RequiredCapacity != 2 || partial.CanEstablishAbsenceInAllocation ||
+                !WritePciRow(state, 4, scan.Count, scan.Visited, PciTuple(scan.LastSegment, scan.LastBus, scan.LastDevice, scan.LastFunction), scan.CanEstablishAbsenceInAllocation ? 1UL : 0) ||
+                !WritePciRow(state, 5, again.Count, again.Visited, 1, scan.HasUnscannedBridge ? 1UL : 0) ||
+                !WritePciRow(state, 6, (ulong)partial.Status, partial.Count, partial.RequiredCapacity, 0) ||
+                !WritePciLiteral(state, 6, 1) || !WritePciLiteral(state, 6, 2)) return false;
+
+            state->PciPhase = 7;
+            if (!WritePciLiteral(state, 7, 0)) return false;
+            uint* snapshot = stackalloc uint[66];
+            snapshot[0] = 0xabcddcba; snapshot[65] = 0x13579bdf;
+            byte* config = (byte*)(snapshot + 1);
+            bool found = false;
+            for (uint i = 0; i < scan.Count; i++)
+            {
+                if ((devices[i].Header.CommandStatus & 0x00100000) == 0) continue;
+                if (ECAMPageVendorDeviceHeader.ReadSnapshot(ref access, devices[i].Bus, devices[i].Device, devices[i].Function,
+                    snapshot + 1, 64) != BoundedPciStatus.Success || snapshot[1] != devices[i].Header.Identity) return false;
+                var walk = PciCapabilityWalk.Validate(config, 256);
+                if (!walk.Succeeded) return false;
+                if (walk.Count == 0) continue;
+                if (!WritePciRow(state, 7, devices[i].Header.Identity, PciTuple(devices[i].Segment, devices[i].Bus, devices[i].Device, devices[i].Function), walk.Count, (ulong)walk.Status)) return false;
+                found = true; break;
+            }
+            if (!found) return false;
+            config[0x34] = 0x40; config[0x41] = 0x40;
+            var cycle = PciCapabilityWalk.Validate(config, 256);
+            config[0x41] = 0x41;
+            var alignment = PciCapabilityWalk.Validate(config, 256);
+            config[0x41] = 0x3c;
+            var range = PciCapabilityWalk.Validate(config, 256);
+            BoundedPCIConfigurationSpaceInterface.Revoke(ref access);
+            return cycle.Status == PciCapabilityWalkStatus.LoopDetected && alignment.Status == PciCapabilityWalkStatus.OffsetUnaligned &&
+                range.Status == PciCapabilityWalkStatus.OffsetOutOfRange && !access.IsActive &&
+                snapshot[0] == 0xabcddcba && snapshot[65] == 0x13579bdf && FirstExitOwnedArena.ValidateCanaries(state->Arena) &&
+                WritePciRow(state, 8, (ulong)cycle.Status, (ulong)alignment.Status, (ulong)range.Status, 1) &&
+                WritePciLiteral(state, 7, 1) && WritePciLiteral(state, 7, 2);
+        }
+
+        private static ulong PciTuple(ushort segment, byte bus, byte device, byte function) =>
+            ((ulong)segment << 24) | ((ulong)bus << 16) | ((ulong)device << 8) | function;
+
+        private static bool WritePciRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d)
+        {
+            if (stage > 8) return false;
+            byte* text = stackalloc byte[90];
+            *(ulong*)text = 0x204943505f35304dUL; text[8] = (byte)('0' + stage); uint length = 9;
+            ulong* values = stackalloc ulong[4]; values[0] = a; values[1] = b; values[2] = c; values[3] = d;
+            for (int i = 0; i < 4; i++)
+            {
+                text[length++] = (byte)' '; text[length++] = (byte)'0'; text[length++] = (byte)'x';
+                for (int shift = 60; shift >= 0; shift -= 4)
+                {
+                    uint digit = (uint)((values[i] >> shift) & 15);
+                    text[length++] = (byte)(digit < 10 ? '0' + digit : 'A' + digit - 10);
+                }
+            }
+            text[length++] = 13; text[length++] = 10;
+            return WriteOwnedBytes(state, text, length);
+        }
+
+        private static bool WritePciLiteral(Storage* state, uint issue, uint kind)
+        {
+            if (issue < 4 || issue > 7 || kind > 3) return false;
+            ulong* words = stackalloc ulong[4]; uint bytes, digit;
+            if (kind == 0) { words[0] = 0x4154535f54534554UL; words[1] = 0x302e35306d205452UL; words[2] = 0xa0d3030UL; bytes = 20; digit = 17; }
+            else if (kind == 1) { words[0] = 0x304d5f534f524c43UL; words[1] = 0x45525f3030305f35UL; words[2] = 0xa0d594441UL; bytes = 21; digit = 12; }
+            else if (kind == 2) { words[0] = 0x5341505f54534554UL; words[1] = 0x30302e35306d2053UL; words[2] = 0xa0d30UL; bytes = 19; digit = 16; }
+            else { words[0] = 0x4941465f54534554UL; words[1] = 0x30302e35306d204cUL; words[2] = 0x74735f6963702030UL; words[3] = 0xa0d657461UL; bytes = 29; digit = 16; }
+            ((byte*)words)[digit] = (byte)('0' + issue);
+            return WriteOwnedBytes(state, (byte*)words, bytes);
+        }
+#endif
 
 #if M05_MONOTONIC_CLOCK_PROBE
         private static bool RunOwnedMonotonicClock(void* context)
@@ -1126,7 +1289,7 @@ public static unsafe class EfiEntry
                 (observation.Ia32Efer & 0xd00) != 0xd00 || (observation.Rflags & 0x24702) != 0x202) return false;
             ulong pat = 0;
             ((delegate* unmanaged<ulong*, void>)(code + 192))(&pat);
-#if M05_MONOTONIC_CLOCK_PROBE
+#if M05_MONOTONIC_CLOCK_PROBE || M05_PCI_ENUMERATION_PROBE
             byte uncached = 255;
             for (byte i = 0; i < 8; i++) if (((pat >> (i * 8)) & 255) == 0) { uncached = i; break; }
             if (uncached == 255 || X64PatMappingToken.TryCreate(pat, 0, uncached, 255, out var cache) != X64PageTableEntryStatus.Success) return false;

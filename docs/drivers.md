@@ -2,6 +2,21 @@
 
 ## Current Status
 
+The #97-#100 PCI batch and shared integration #610 are implemented but unaccepted
+in [step1126](../done/step1126.md). A default-off diagnostic admits one retained
+MCFG allocation's first bus as uncached read-only/NX ECAM after firmware exit.
+The allocation-free interface reads aligned DWORDs, checks function-page bounds
+and performs no config writes. MCFG addresses remain relative to bus zero,
+including nonzero allocation start buses (see the
+[PCI host-bridge authority rule](https://kernel.org/doc/html/v5.19/PCI/acpi-info.html)).
+Scans preserve last visited tuple, capacity/read-budget failure and requested
+scope; complete window scans cannot establish absence outside that window.
+Conventional capability snapshots reject loops, misalignment and invalid offsets.
+Host contracts support at most four buses; the guest diagnostic selects one bus,
+16 output records and 256 function visits. No BAR, DMA, queue, interrupt, hotplug
+or driver activation is included. Full-host, strict native and guest qualification
+remain pending.
+
 The default-off `EnableM05MonotonicClockProbe` is implemented for #96/#608.
 It admits one aligned HPET page from retained ACPI, rejects overlap with RAM or
 owned allocations, uses the observed PAT's uncached encoding, and starts a

@@ -2,6 +2,11 @@
 
 ## Current Status
 
+The bounded read-only PCI ECAM batch #97-#100/#610 is under qualification in
+[step1126](../done/step1126.md). It reads headers after firmware exit, exposes
+explicit enumeration scope/truncation and validates conventional capability
+links. It does not activate devices or advance Gate 6. See [drivers](drivers.md).
+
 An opt-in owned monotonic clock is accepted in
 [step1125](../done/step1125.md). It adds one uncached HPET page, bounded startup
 recovery and a host-tested qualified single-CPU TSC fallback contract. Full-host,

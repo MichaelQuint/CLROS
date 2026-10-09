@@ -6,9 +6,9 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "62039c0e348389ec8867da2d23187f160b0ea51d5d77eabf699ec599c367c84c";
-    public const string CanonicalProjectSha256 = "139b2385b968513fb3682c11a30de9da3dc3d62ab2da9aa50c2ccb662fb33e6f";
-    public const string EfiEntrySourceSha256 = "bd1d3a42ceebfae3a206f07a693ed793c4bdbfa502c4de2d77e4a65a012db10e";
+    public const string ProjectSourceSha256 = "6f92d7d76b3ee32a4073e51ebe6f85a193fc944326c416f8dca4c716ed089040";
+    public const string CanonicalProjectSha256 = "15492469ba97032e3e6e8f94301f47673da11129c2affd759aa6f629689b3762";
+    public const string EfiEntrySourceSha256 = "a09fc8e1922ca509749665c49f464e1874ebb0ad462d990e3ede10d8829e9083";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -124,6 +124,10 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs|Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs",
         @"..\OS.Kernel\Platform\OwnedACPIDirectorySelectMADTHPETMCFG.cs|Platform\OwnedACPIDirectorySelectMADTHPETMCFG.cs",
         @"..\OS.Kernel\Platform\OwnedMonotonicClock.cs|Platform\OwnedMonotonicClock.cs",
+        @"..\OS.Kernel\Drivers\BoundedPCIConfigurationSpaceInterface.cs|Drivers\BoundedPCIConfigurationSpaceInterface.cs",
+        @"..\OS.Kernel\Drivers\ECAMPageVendorDeviceHeader.cs|Drivers\ECAMPageVendorDeviceHeader.cs",
+        @"..\OS.Kernel\Drivers\PCIBusesDevicesFunctionsBoundedDiagnostics.cs|Drivers\PCIBusesDevicesFunctionsBoundedDiagnostics.cs",
+        @"..\OS.Kernel\Drivers\CyclicOutRangePCICapabilityListTests.cs|Drivers\CyclicOutRangePCICapabilityListTests.cs",
         @"..\OS.Kernel\Platform\MonotonicHPETTSCClockWrapFrequencyTests.cs|Platform\MonotonicHPETTSCClockWrapFrequencyTests.cs",
         @"..\..\std\no-runtime\shared\Binary\EndianPrimitives.Pointer.cs|Std\Binary\EndianPrimitives.Pointer.cs",
         @"..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs|Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs",
@@ -210,6 +214,7 @@ public static partial class EfiContracts
         "EnableM04X64UnwindMetadataProbe",
         "EnableM05MonotonicClockProbe",
         "EnableM05OwnedAcpiSelectionProbe",
+        "EnableM05PciEnumerationProbe",
         "EnableM05PhysicalMappingProbe",
         "EnableUefiGoneSimulationProbe",
     ]);

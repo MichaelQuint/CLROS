@@ -1,5 +1,12 @@
 # QEMU
 
+## Bounded PCI enumeration
+
+The default-off PCI diagnostic uses the [fresh-image command](efi-build.md#bounded-pci-profile).
+Its strict 97-record stream requires read-only ECAM header access, repeatable
+bounded enumeration and capability rejection controls. Full/native/guest
+acceptance remains pending in [step1126](../done/step1126.md).
+
 ## Owned monotonic clock
 
 The default-off M05 clock diagnostic uses the fresh-image command in

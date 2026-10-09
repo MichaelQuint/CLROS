@@ -11394,7 +11394,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M05: Platform, PCI, and Common Virtio.",
-      "currentEvidence": "Dependency #68 is accepted in done/step1094.md. #94 (M05-001) is accepted in step1120 for bounded owned UC/WC/WB mapping; #95 (M05-002) is accepted in step1123 for retained ACPI selection; #96 (M05-003) is accepted in step1125 for a bounded post-exit HPET clock. The epic remains open/agent:blocked with 18 remaining children; #97 is the next ready leaf. No live PCI/virtqueue transaction or Gate6 completion is proven.",
+      "currentEvidence": "Dependency #68 is accepted in done/step1094.md. #94 (M05-001) is accepted in step1120 for bounded owned UC/WC/WB mapping; #95 (M05-002) is accepted in step1123 for retained ACPI selection; #96 (M05-003) is accepted in step1125 for a bounded post-exit HPET clock. The epic remains open/agent:blocked with 18 remaining children; the #97-#100 batch is claimed under shared integration #610 and remains unaccepted. No live PCI/virtqueue transaction or Gate6 completion is proven.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -11694,7 +11694,7 @@
         "M05-003"
       ],
       "labels": [
-        "agent:ready",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -11721,7 +11721,7 @@
       ],
       "collisionLane": null,
       "summary": "Define a bounded PCI configuration-space interface.",
-      "currentEvidence": "Dependency #96 (M05-003) is accepted in done/step1125.md for a bounded post-exit HPET clock. This PCI interface issue is ready and remains unimplemented; existing ACPI, PCI, BAR, virtio and DMA contracts are host-tested. No live PCI/virtqueue transaction is proven.",
+      "currentEvidence": "Implemented in the dependency-compatible #97-#100 batch with shared integration #610; development evidence is in done/step1126.md. Fourteen focused contract checks, 89 integration/affected checks and managed/no-stdlib compilation pass. Full-host, strict native review, real diagnostic/ordinary QEMU and disk-association acceptance remain pending. Do not close or advance later dependencies from development evidence.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Define a bounded PCI configuration-space interface.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -11780,7 +11780,7 @@
         "M05-004"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -11807,7 +11807,7 @@
       ],
       "collisionLane": null,
       "summary": "Map one ECAM page and read a vendor/device header.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Implemented in the dependency-compatible #97-#100 batch with shared integration #610; development evidence is in done/step1126.md. Fourteen focused contract checks, 89 integration/affected checks and managed/no-stdlib compilation pass. Full-host, strict native review, real diagnostic/ordinary QEMU and disk-association acceptance remain pending. Do not close or advance later dependencies from development evidence.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Map one ECAM page and read a vendor/device header.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -11866,7 +11866,7 @@
         "M05-005"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -11893,7 +11893,7 @@
       ],
       "collisionLane": null,
       "summary": "Enumerate PCI buses/devices/functions with bounded diagnostics.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Implemented in the dependency-compatible #97-#100 batch with shared integration #610; development evidence is in done/step1126.md. Fourteen focused contract checks, 89 integration/affected checks and managed/no-stdlib compilation pass. Full-host, strict native review, real diagnostic/ordinary QEMU and disk-association acceptance remain pending. Do not close or advance later dependencies from development evidence.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Enumerate PCI buses/devices/functions with bounded diagnostics.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -11952,7 +11952,7 @@
         "M05-006"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:test",
         "evidence:qemu",
@@ -11979,7 +11979,7 @@
       ],
       "collisionLane": null,
       "summary": "Add cyclic/out-of-range PCI capability-list tests.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Implemented in the dependency-compatible #97-#100 batch with shared integration #610; development evidence is in done/step1126.md. Fourteen focused contract checks, 89 integration/affected checks and managed/no-stdlib compilation pass. Full-host, strict native review, real diagnostic/ordinary QEMU and disk-association acceptance remain pending. Do not close or advance later dependencies from development evidence.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add cyclic/out-of-range PCI capability-list tests.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

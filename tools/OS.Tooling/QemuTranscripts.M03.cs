@@ -5,7 +5,7 @@ namespace OS.Tooling;
 public static partial class QemuTranscripts
 {
     public static void AssertM03AcpiBootstrapTranscript(string path, bool firstRealExit = false, bool firmwareRevocation = false,
-        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false, bool monotonicClock = false)
+        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false, bool monotonicClock = false, bool pciEnumeration = false)
     {
         Need(!ownedSurvival || firstRealExit && !firmwareRevocation, "m03_owned_profile_invalid");
         Need(!ownedPanic || ownedSurvival, "m03_owned_profile_invalid");
@@ -14,13 +14,14 @@ public static partial class QemuTranscripts
         Need(!physicalMapping || firstRealExit && ownedSurvival && !ownedPanic && !normalBoot && !firmwareRevocation, "m05_mapping_profile_invalid");
         Need(!ownedAcpiSelection || firstRealExit && ownedSurvival && !ownedPanic && !normalBoot && !firmwareRevocation && !physicalMapping, "m05_acpi_profile_invalid");
         Need(!monotonicClock || firstRealExit && ownedSurvival && !ownedPanic && !normalBoot && !firmwareRevocation && !physicalMapping && !ownedAcpiSelection, "m05_clock_profile_invalid");
-        string terminal = monotonicClock ? "TEST_PASS m05.003\r\n" : ownedAcpiSelection ? "TEST_PASS m05.002\r\n" : physicalMapping ? "TEST_PASS m05.001\r\n" : normalBoot || !firstRealExit ? "OS_SMOKE_PASS\r\n" : ownedPanic ? "" : ownedSurvival ? "TEST_PASS m03.010\r\n" : firmwareRevocation ? "TEST_PASS m03.008\r\n" : "TEST_PASS m03.009\r\n";
+        Need(!pciEnumeration || firstRealExit && ownedSurvival && !ownedPanic && !normalBoot && !firmwareRevocation && !physicalMapping && !ownedAcpiSelection && !monotonicClock, "m05_pci_profile_invalid");
+        string terminal = pciEnumeration ? "TEST_PASS m05.007\r\n" : monotonicClock ? "TEST_PASS m05.003\r\n" : ownedAcpiSelection ? "TEST_PASS m05.002\r\n" : physicalMapping ? "TEST_PASS m05.001\r\n" : normalBoot || !firstRealExit ? "OS_SMOKE_PASS\r\n" : ownedPanic ? "" : ownedSurvival ? "TEST_PASS m03.010\r\n" : firmwareRevocation ? "TEST_PASS m03.008\r\n" : "TEST_PASS m03.009\r\n";
         string[] lines = FirmwareProtocol(path, terminal, firstRealExit, false, "m03_acpi");
-        IReadOnlyList<string> expected = monotonicClock ? QemuContracts.M05MonotonicClockMarkers : ownedAcpiSelection ? QemuContracts.M05OwnedAcpiSelectionMarkers : physicalMapping ? QemuContracts.M05PhysicalMappingMarkers : normalBoot ? QemuContracts.M03NormalVerifiedExitMarkers : ownedPanic ? QemuContracts.M03OwnedSubsystemPanicMarkers :
+        IReadOnlyList<string> expected = pciEnumeration ? QemuContracts.M05PciEnumerationMarkers : monotonicClock ? QemuContracts.M05MonotonicClockMarkers : ownedAcpiSelection ? QemuContracts.M05OwnedAcpiSelectionMarkers : physicalMapping ? QemuContracts.M05PhysicalMappingMarkers : normalBoot ? QemuContracts.M03NormalVerifiedExitMarkers : ownedPanic ? QemuContracts.M03OwnedSubsystemPanicMarkers :
             ownedSurvival ? QemuContracts.M03OwnedSubsystemMarkers : firmwareRevocation ? QemuContracts.M03RevocationRequiredMarkers :
             firstRealExit ? QemuContracts.M03FirstExitRequiredMarkers : QemuContracts.M03AcpiBootstrapRequiredMarkers;
         int ownedStart = normalBoot ? 63 : 66;
-        int[] varying = [3, 9, 10, 19, 20, 21, 22, 23, 24, .. ownedSurvival ? Enumerable.Range(ownedStart, ownedPanic ? 11 : 10) : [], .. physicalMapping ? Enumerable.Range(77, 7) : [], .. ownedAcpiSelection || monotonicClock ? Enumerable.Range(77, 4) : []];
+        int[] varying = [3, 9, 10, 19, 20, 21, 22, 23, 24, .. ownedSurvival ? Enumerable.Range(ownedStart, ownedPanic ? 11 : 10) : [], .. physicalMapping ? Enumerable.Range(77, 7) : [], .. ownedAcpiSelection || monotonicClock ? Enumerable.Range(77, 4) : [], .. pciEnumeration ? new[] { 77, 78, 82, 83, 87, 88, 89, 93, 94 } : []];
         if (ownedPanic) expected = [.. expected, lines[^1]];
         ExactInventory(lines, expected, varying);
         ValidateAllocator(lines);
@@ -68,6 +69,7 @@ public static partial class QemuTranscripts
         if (ownedSurvival) AssertM03OwnedSubsystemRecords(physicalMapping || ownedAcpiSelection || monotonicClock ? lines[..76] : lines, rows, ownedPanic, normalBoot);
         if (physicalMapping) AssertM05PhysicalMappingRecords(lines);
         if (ownedAcpiSelection) AssertM05OwnedAcpiSelectionRecords(lines);
+        if (pciEnumeration) AssertM05PciEnumerationRecords(lines);
         if (monotonicClock) AssertM05MonotonicClockRecords(lines);
     }
 

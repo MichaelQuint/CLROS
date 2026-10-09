@@ -1,5 +1,9 @@
 # CLROS Completion Gates
 
+The PCI interface/header/enumeration/capability batch #97-#100/#610 is implemented
+but unaccepted in [step1126](../done/step1126.md). Full-host, native and guest
+qualification remain pending. Gate 6 and later gates remain unchanged.
+
 Clock work #96/#608 is accepted in [step1125](../done/step1125.md): 4,172 full-host
 checks across 486 groups, native review, independent disk association and real
 83-record HPET/79-record ordinary captures pass. This bounded single-CPU polled

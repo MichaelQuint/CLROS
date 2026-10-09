@@ -662,6 +662,15 @@ public static class QemuContracts
         .. M03OwnedSubsystemMarkers, "TEST_START m05.002", .. Enumerable.Range(0, 4).Select(stage => "M05_ACPI " + stage),
         "CLROS_M05_002_READY", "TEST_PASS m05.002"
     ]);
+    public static IReadOnlyList<string> M05PciEnumerationMarkers { get; } = Array.AsReadOnly<string>(
+    [
+        .. M03OwnedSubsystemMarkers,
+        "TEST_START m05.004", "M05_PCI 0", "M05_PCI 1", "CLROS_M05_004_READY", "TEST_PASS m05.004",
+        "TEST_START m05.005", "M05_PCI 2", "M05_PCI 3", "CLROS_M05_005_READY", "TEST_PASS m05.005",
+        "TEST_START m05.006", "M05_PCI 4", "M05_PCI 5", "M05_PCI 6", "CLROS_M05_006_READY", "TEST_PASS m05.006",
+        "TEST_START m05.007", "M05_PCI 7", "M05_PCI 8", "CLROS_M05_007_READY", "TEST_PASS m05.007"
+    ]);
+
     public static IReadOnlyList<string> M05MonotonicClockMarkers { get; } = Array.AsReadOnly<string>(
     [
         .. M03OwnedSubsystemMarkers, "TEST_START m05.003", .. Enumerable.Range(0, 4).Select(stage => "M05_CLOCK " + stage),
