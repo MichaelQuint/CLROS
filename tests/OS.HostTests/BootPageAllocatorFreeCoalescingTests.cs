@@ -2622,7 +2622,8 @@ internal static class BootPageAllocatorFreeCoalescingTests
             ToolResult build = RunDotnetBuild(
                 workspace,
                 "M01.009.PointerPreflightProbe.csproj",
-                timeoutMilliseconds: 120_000);
+                timeoutMilliseconds: 120_000,
+                noDependencies: true);
             if (build.TimedOut || build.ExitCode != 0)
             {
                 Console.WriteLine(

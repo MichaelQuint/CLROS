@@ -16,7 +16,7 @@ public static partial class QemuTranscripts
             if (Enabled("M04GcStaticRootMaterialization"))
                 AssertM04ManagedHeapPageRangeTranscript(path, includeGcStatics: true, includeSeededChurn: Enabled("M04SeededCollectorChurn"),
                     includeClassConstructors: Enabled("M04ClassConstructorExecution"), includeInterfaceDispatch: Enabled("M04InterfaceDispatch"),
-                    includeSimpleCatch: Enabled("M04SimpleThrowCatch"), includeSingleFinally: Enabled("M04SingleFinallyCatch"));
+                    includeSimpleCatch: Enabled("M04SimpleThrowCatch"), includeSingleFinally: Enabled("M04SingleFinallyCatch"), includeRethrow: Enabled("M04Rethrow"));
             else if (Enabled("M04CheckedReferenceBarrier")) AssertM04CheckedReferenceBarrierTranscript(path);
             else if (Enabled("M04StringAllocation")) AssertM04StringAllocationTranscript(path);
             else if (Enabled("M04SzArrayAllocation")) AssertM04SzArrayAllocationTranscript(path);

@@ -50,12 +50,16 @@ public sealed class EfiProfile
         Need("M03OwnedSubsystemSurvival", "M03FirstRealExitBootServices", "m03_owned_requires_first_exit");
         Need("M03OwnedSubsystemPanic", "M03OwnedSubsystemSurvival", "m03_owned_panic_requires_survival");
         Conflict("M03OwnedSubsystemSurvival", "M03FirmwareAdapterRevocation", "m03_owned_revocation_conflict");
+        Set("M05PhysicalMapping", ["M03FirstRealExitBootServices", "M03OwnedSubsystemSurvival"], true, "m05_mapping_requires_owned_first_exit");
+        Set("M05PhysicalMapping", ["M03OwnedSubsystemPanic", "M03FirmwareAdapterRevocation"], false, "m05_mapping_profile_conflict");
         Need("M04ClassConstructorExecution", "M04GcStaticRootMaterialization", "m04_cctor_requires_gc_profile");
         Conflict("M04ClassConstructorExecution", "M04SeededCollectorChurn", "m04_cctor_churn_conflict");
         Need("M04InterfaceDispatch", "M04ClassConstructorExecution", "m04_dispatch_requires_cctor_profile");
         Need("M04X64UnwindMetadata", "M04TypeManagerModuleRegistration", "m04_x64_unwind_metadata_requires_original_module");
         Need("M04SimpleThrowCatch", "M04GcStaticRootMaterialization", "m04_simple_catch_requires_gc_profile");
         Need("M04SingleFinallyCatch", "M04GcStaticRootMaterialization", "m04_single_finally_requires_gc_profile");
+        Need("M04Rethrow", "M04GcStaticRootMaterialization", "m04_rethrow_requires_gc_profile");
+        Set("M04Rethrow", ["M04SeededCollectorChurn", "M04ClassConstructorExecution", "M04InterfaceDispatch", "M04X64UnwindMetadata", "M04SimpleThrowCatch", "M04SingleFinallyCatch"], false, "m04_rethrow_profile_conflict");
         Set("M04SimpleThrowCatch", ["M04SeededCollectorChurn", "M04ClassConstructorExecution", "M04InterfaceDispatch", "M04X64UnwindMetadata"], false, "m04_simple_catch_profile_conflict");
         Set("M04SingleFinallyCatch", ["M04SeededCollectorChurn", "M04ClassConstructorExecution", "M04InterfaceDispatch", "M04X64UnwindMetadata", "M04SimpleThrowCatch"], false, "m04_single_finally_profile_conflict");
         Need("M04SeededCollectorChurn", "M04GcStaticRootMaterialization", "m04_churn_requires_gc_profile");

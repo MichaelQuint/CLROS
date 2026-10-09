@@ -246,6 +246,11 @@ public static class EfiBuild
         if (profile.IsEnabled("M04InterfaceDispatch")) yield return new("interfaceDispatch", ".dispatch.obj", "CLROS.X64.InterfaceDispatch.obj", EfiContracts.InterfaceDispatchObjectBytes, EfiContracts.InterfaceDispatchObjectSha256);
         if (profile.IsEnabled("M04SimpleThrowCatch")) yield return new("simpleCatch", ".catch.obj", "CLROS.X64.SimpleThrowCatch.obj", EfiContracts.SimpleCatchObjectBytes, EfiContracts.SimpleCatchObjectSha256);
         if (profile.IsEnabled("M04SingleFinallyCatch")) yield return new("singleFinally", ".finally.obj", "CLROS.X64.SingleFinallyCatch.obj", EfiContracts.SingleFinallyObjectBytes, EfiContracts.SingleFinallyObjectSha256);
+        if (profile.IsEnabled("M04Rethrow"))
+        {
+            yield return new("rethrowInner", ".rethrow-inner.obj", "CLROS.X64.RethrowInner.obj", EfiContracts.RethrowInnerObjectBytes, EfiContracts.RethrowInnerObjectSha256);
+            yield return new("rethrowOuter", ".rethrow-outer.obj", "CLROS.X64.RethrowOuter.obj", EfiContracts.RethrowOuterObjectBytes, EfiContracts.RethrowOuterObjectSha256);
+        }
     }
     private static void AddNativeObjects(EfiProfile profile, string native, EfiOutputPlan output, AuthorityFiles locks, JsonObject evidence)
     {

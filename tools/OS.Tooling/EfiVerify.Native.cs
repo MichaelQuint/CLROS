@@ -114,6 +114,7 @@ internal sealed partial class EfiVerification
             emit($"EFI_ARTIFACT_INTERFACE_DISPATCH_THUNKS bytes={EfiContracts.InterfaceDispatchObjectBytes} text=472 exports=3 callbackRel32=1 dataRel32=1 callbackGraphAccepted=false unwindSupported=false");
         }
         VerifyCatchBridge();
+        VerifyRethrowBridges();
     }
     private void VerifyCatchBridge()
     {
@@ -123,7 +124,13 @@ internal sealed partial class EfiVerification
         else Require(Symbols(map, "CLROS_Eh_ValidateFinally").Count == 0, "single_finally_unrequested_native_symbol");
         if (!finallyProbe) Require(!response.Contains("CLROS.X64.SingleFinallyCatch.obj", StringComparison.OrdinalIgnoreCase), "single_finally_unrequested_native_object");
         if (!simple) Require(!response.Contains("CLROS.X64.SimpleThrowCatch.obj", StringComparison.OrdinalIgnoreCase), "simple_catch_unrequested_native_object");
-        if (!finallyProbe && !simple) { foreach (string name in names) Require(Symbols(map, name).Count == 0, "simple_catch_unrequested_native_symbol", name); return; }
+        if (!finallyProbe && !simple)
+        {
+            foreach (string name in names)
+                if (name != "RhpThrowEx" || !profile.IsEnabled("M04Rethrow"))
+                    Require(Symbols(map, name).Count == 0, "simple_catch_unrequested_native_symbol", name);
+            return;
+        }
         int size = finallyProbe ? EfiContracts.SingleFinallyObjectBytes : EfiContracts.SimpleCatchObjectBytes, textSize = finallyProbe ? 1336 : 1032, getterOffset = finallyProbe ? 1328 : 1024;
         string objectName = finallyProbe ? "CLROS.X64.SingleFinallyCatch.obj" : "CLROS.X64.SimpleThrowCatch.obj";
         byte[] obj = NativeObject(finallyProbe ? "singleFinally" : "simpleCatch", finallyProbe ? ".finally.obj" : ".catch.obj", objectName, size, finallyProbe ? EfiContracts.SingleFinallyObjectSha256 : EfiContracts.SimpleCatchObjectSha256, "catch");

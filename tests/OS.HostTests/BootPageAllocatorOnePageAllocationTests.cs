@@ -1619,6 +1619,9 @@ internal static class BootPageAllocatorOnePageAllocationTests
         start.ArgumentList.Add(
             "M01.008.PointerPreflightProbe.csproj");
         start.ArgumentList.Add("--nologo");
+        // Use the dependency already admitted by the host runner. Rebuilding it
+        // here can change assembly provenance while the suite is executing.
+        start.ArgumentList.Add("--no-dependencies");
         start.ArgumentList.Add("-m:1");
         start.ArgumentList.Add("--no-incremental");
         start.ArgumentList.Add("--disable-build-servers");

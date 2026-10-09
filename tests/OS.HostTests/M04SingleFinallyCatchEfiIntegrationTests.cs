@@ -198,7 +198,7 @@ internal static class M04SingleFinallyCatchEfiIntegrationTests
                 new XElement("Compile", new XAttribute("Include", Path.Combine(Root, "src/OS/Runtime/ExceptionCatchProbe.cs"))),
                 new XElement("Compile", new XAttribute("Include", Path.Combine(Root, "tests/OS.HostTests/M04SingleFinallyCatchEfiIntegrationTests.cs"))),
                 new XElement("ProjectReference", new XAttribute("Include", Path.Combine(Root, "src/OS.Kernel/OS.Kernel.csproj")))))).Save(project);
-        RunCommand("guard-core-build", "dotnet", ["build", project, "--nologo", "-m:1"], 0, null);
+        RunCommand("guard-core-build", "dotnet", ["build", project, "--nologo", "-m:1", "--no-dependencies"], 0, null);
         string output = RunCommand("guard-core-run", "dotnet", ["run", "--project", project, "--no-build"], 0, "FINALLY_ADMISSION_CORE_PASS");
         Need(!output.Contains("TEST_FAIL ", StringComparison.Ordinal), "actual guard rejection cases pass");
     }

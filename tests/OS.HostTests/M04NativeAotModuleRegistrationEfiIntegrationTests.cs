@@ -163,17 +163,18 @@ internal static class M04NativeAotModuleRegistrationEfiIntegrationTests
         Need(errors.Count(x=>x=="'$("+Flag+")' == 'true' and '$(EnableM01LoadedImageStackProbe)' != 'true'")==1,"exact original M01 prerequisite");
         Need(errors.Count(x=>x=="'$(EnableM04X64UnwindMetadataProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' != 'true'") == 1, "exact unwind child original-module prerequisite");
         foreach(string other in flags.Where(x=>x!=Flag&&x!="EnableM01LoadedImageStackProbe"&&x!="EnableM04X64UnwindMetadataProbe")){
-            if(other=="EnableM03FirstRealExitBootServicesProbe"||other=="EnableM03FirmwareAdapterRevocationProbe"||other=="EnableM03OwnedSubsystemSurvivalProbe"||other=="EnableM03OwnedSubsystemPanicProbe"){
+            if(other=="EnableM03FirstRealExitBootServicesProbe"||other=="EnableM03FirmwareAdapterRevocationProbe"||other=="EnableM03OwnedSubsystemSurvivalProbe"||other=="EnableM03OwnedSubsystemPanicProbe"||other=="EnableM05PhysicalMappingProbe"){
                 if(other=="EnableM03FirmwareAdapterRevocationProbe")
                     Need(errors.Count(x=>x=="'$(EnableM03FirmwareAdapterRevocationProbe)' == 'true' and '$(EnableM03FirstRealExitBootServicesProbe)' != 'true'")==1,"exact inherited revocation prerequisite");
                 if(other=="EnableM03OwnedSubsystemPanicProbe")
                     Need(errors.Count(x=>x=="'$(EnableM03OwnedSubsystemPanicProbe)' == 'true' and '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true'")==1,"exact inherited owned panic prerequisite");
                 if(other=="EnableM03OwnedSubsystemSurvivalProbe"||other=="EnableM03OwnedSubsystemPanicProbe")
                     Need(errors.Count(x=>x=="'$(EnableM03OwnedSubsystemSurvivalProbe)' == 'true' and '$(EnableM03FirstRealExitBootServicesProbe)' != 'true'")==1,"exact inherited owned survival prerequisite");
+                if(other=="EnableM05PhysicalMappingProbe") Need(errors.Count(x=>x=="'$(EnableM05PhysicalMappingProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM03FirstRealExitBootServicesProbe)' != 'true' or '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true')")==1,"exact inherited mapping prerequisite");
                 Need(errors.Count(x=>x=="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$("+Flag+")' == 'true'")==1,"exact incoming first-exit conflict");
                 continue;
             }
-            if(other=="EnableM04SeededCollectorChurnProbe"||other=="EnableM04ClassConstructorExecutionProbe"||other=="EnableM04InterfaceDispatchProbe"||other=="EnableM04SimpleThrowCatchProbe"||other=="EnableM04SingleFinallyCatchProbe"){
+            if(other=="EnableM04SeededCollectorChurnProbe"||other=="EnableM04ClassConstructorExecutionProbe"||other=="EnableM04InterfaceDispatchProbe"||other=="EnableM04SimpleThrowCatchProbe"||other=="EnableM04SingleFinallyCatchProbe"||other=="EnableM04RethrowProbe"){
                 string gcChild=other;
                 if(other=="EnableM04InterfaceDispatchProbe"){
                     Need(errors.Count(x=>x=="'$(EnableM04InterfaceDispatchProbe)' == 'true' and '$(EnableM04ClassConstructorExecutionProbe)' != 'true'")==1,"exact inherited dispatch prerequisite");
