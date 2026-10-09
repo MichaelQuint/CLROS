@@ -26,7 +26,7 @@ public static partial class QemuTranscripts
         if (plan.IsNormalBoot || Enabled("M03FirstRealExitBootServices") || Enabled("AcpiPhysicalDiscovery"))
         {
             Need(runner.StandardError.Length == 0, "qemu_runner_stderr_not_empty");
-            AssertM03AcpiBootstrapTranscript(path, plan.IsNormalBoot || Enabled("M03FirstRealExitBootServices"), Enabled("M03FirmwareAdapterRevocation"), plan.IsNormalBoot || Enabled("M03OwnedSubsystemSurvival"), Enabled("M03OwnedSubsystemPanic"), plan.IsNormalBoot, Enabled("M05PhysicalMapping"));
+            AssertM03AcpiBootstrapTranscript(path, plan.IsNormalBoot || Enabled("M03FirstRealExitBootServices"), Enabled("M03FirmwareAdapterRevocation"), plan.IsNormalBoot || Enabled("M03OwnedSubsystemSurvival"), Enabled("M03OwnedSubsystemPanic"), plan.IsNormalBoot, Enabled("M05PhysicalMapping"), Enabled("M05OwnedAcpiSelection"));
             if (Enabled("M03OwnedSubsystemPanic")) AssertExpectedPanicRunner(root, options, plan, runner, lines, ownedSubsystem: true);
             else AssertStandardRunnerResult(root, options, plan, lines);
         }
@@ -115,6 +115,7 @@ public static partial class QemuTranscripts
             ("M04SingleFinallyCatch", "M04_FINALLY|CLROS_M04_SINGLE_FINALLY|m04\\.021\\.single-finally"),
             ("M04Rethrow", @"M04_RETHROW|CLROS_M04_RETHROW_READY|m04\.021\.rethrow"),
             ("M05PhysicalMapping", @"M05_MAP|CLROS_M05_001_READY|m05\.001"),
+            ("M05OwnedAcpiSelection", @"M05_ACPI|CLROS_M05_002_READY|m05\.002"),
             ("M04InterfaceDispatch", "M04_DISPATCH|CLROS_M04_016|m04\\.016"),
             ("M04X64UnwindMetadata", "CLROS_M04_020|m04\\.020"),
             ("M04SeededCollectorChurn", "M04_CHURN|CLROS_M04_014"),

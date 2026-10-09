@@ -8,6 +8,12 @@ advance the ordinary `BootSequence` plan or ExitBootServices boundary.
 
 ## Current Status
 
+`RunOwnedAcpiSelection` is a diagnostic substep after positive M03 owned
+subsystem survival. Its default-off probe requires original stack, allocator,
+ACPI retention and first real exit; it is exclusive with mapping, revocation
+and panic diagnostics. It adds no ordinary boot phase. Acceptance is recorded in
+[step1123](../done/step1123.md).
+
 The rethrow diagnostic remains inside the original GC probe before firmware
 exit. Physical mapping follows the original post-exit owned-subsystem checks
 and must complete before its diagnostic success. Both route through

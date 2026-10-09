@@ -85,6 +85,7 @@ public static class QemuProfiles
         }
         if (normal) { Select(QemuContracts.M03NormalVerifiedExitMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true); }
         else if (Enabled("M05PhysicalMapping")) Select(QemuContracts.M05PhysicalMappingMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M05OwnedAcpiSelection")) Select(QemuContracts.M05OwnedAcpiSelectionMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (owned) { Select(ownedPanic ? QemuContracts.M03OwnedSubsystemPanicMarkers : QemuContracts.M03OwnedSubsystemMarkers,
             ownedPanic ? ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "CLROS_M03_010_READY", "TEST_PASS m03.010"] : ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true); }
         else if (Enabled("M03FirmwareAdapterRevocation")) Select(QemuContracts.M03RevocationRequiredMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL"], true);
@@ -177,6 +178,7 @@ public static class QemuProfiles
         ("M04SingleFinallyCatch", @"^(M04_FINALLY|CLROS_M04_SINGLE_FINALLY|TEST_(START|PASS) m04\.021\.single-finally)", "m04_single_finally"),
         ("M04Rethrow", @"^(M04_RETHROW|CLROS_M04_RETHROW_READY|TEST_(START|PASS) m04\.021\.rethrow)", "m04_rethrow"),
         ("M05PhysicalMapping", @"^(M05_MAP|CLROS_M05_001_READY|TEST_(START|PASS) m05\.001)", "m05_mapping"),
+        ("M05OwnedAcpiSelection", @"^(M05_ACPI|CLROS_M05_002_READY|TEST_(START|PASS) m05\.002)", "m05_acpi"),
         ("M04X64UnwindMetadata", @"^(CLROS_M04_020_|TEST_(START|PASS) m04\.020)", "m04_x64_unwind"),
         ("M04TypeManagerModuleRegistration", @"^(CLROS_M04_011_|TEST_(START|PASS) m04\.011)", "m04_type_manager"),
         ("M04SeededCollectorChurn", @"^(M04_CHURN|CLROS_M04_014_READY)", "m04_churn"),

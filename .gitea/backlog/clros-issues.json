@@ -11394,7 +11394,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M05: Platform, PCI, and Common Virtio.",
-      "currentEvidence": "Dependency #68 is accepted in done/step1094.md. The first platform child #94 (M05-001) is accepted in done/step1120.md for bounded owned UC/WC/WB mapping with full host and real guest evidence. The epic remains open/agent:blocked while the remaining 20 children are incomplete; #95 is the next ready leaf. No live PCI/MMIO/virtqueue transaction or Gate6 completion is proven.",
+      "currentEvidence": "Dependency #68 is accepted in done/step1094.md. #94 (M05-001) is accepted in step1120 for bounded owned UC/WC/WB mapping; #95 (M05-002) is accepted in step1123 for retained ACPI selection. The epic remains open/agent:blocked with 19 remaining children; #96 is the next ready leaf. No live PCI/MMIO/virtqueue transaction or Gate6 completion is proven.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -11522,7 +11522,7 @@
         "M05-001"
       ],
       "labels": [
-        "agent:ready",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -11549,7 +11549,7 @@
       ],
       "collisionLane": null,
       "summary": "Parse the owned ACPI directory and select MADT, HPET, and MCFG.",
-      "currentEvidence": "Dependency #94 (M05-001) is accepted in done/step1120.md. This leaf is ready for owned ACPI directory selection of MADT, HPET and MCFG. Existing ACPI contracts remain host-tested; this leaf has no new guest acceptance, and no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Accepted with shared integration #606 in done/step1123.md: 4,157 full-host checks, strict native publication and linked-byte/stack review, an 83-record real post-exit selection capture, and a 79-record ordinary regression. The original retained MADT/HPET/MCFG selections and rejected-length control preserve input data. No timer programming, live PCI/MMIO/virtqueue transaction or Gate6 completion is proven.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Parse the owned ACPI directory and select MADT, HPET, and MCFG.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -11597,7 +11597,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only \"Parse the owned ACPI directory and select MADT, HPET, and MCFG.\" It does not by itself prove the M05 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-003",
@@ -11608,7 +11608,7 @@
         "M05-002"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -11635,7 +11635,7 @@
       ],
       "collisionLane": null,
       "summary": "Initialize a monotonic HPET/TSC clock with wrap and frequency tests.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Dependency #95 (M05-002) is accepted in done/step1123.md for retained ACPI directory selection after firmware exit. This clock slice is ready but unimplemented; timer motion, frequency, wrap handling and bounded stalled-HPET recovery still require focused host and real guest evidence.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Initialize a monotonic HPET/TSC clock with wrap and frequency tests.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

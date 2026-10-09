@@ -2,6 +2,13 @@
 
 ## Current Status
 
+`EnableM05OwnedAcpiSelectionProbe` defaults false. Its 83-record diagnostic
+stream appends three selections and one rejected-length control to owned
+survival, followed by `CLROS_M05_002_READY` and `TEST_PASS m05.002`.
+The parser requires exact correspondence with the original retained descriptors
+and rejects malformed, unselected or trailing records. The real guest capture and
+ordinary regression are accepted in [step1123](../done/step1123.md).
+
 `EnableM04RethrowProbe` and `EnableM05PhysicalMappingProbe` are false by default.
 The rethrow profile extends the GC stream to 88 application records and proves
 same-object catch/rethrow/outer continuation. Mapping extends owned survival to

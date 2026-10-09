@@ -5,20 +5,21 @@ namespace OS.Tooling;
 public static partial class QemuTranscripts
 {
     public static void AssertM03AcpiBootstrapTranscript(string path, bool firstRealExit = false, bool firmwareRevocation = false,
-        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false)
+        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false)
     {
         Need(!ownedSurvival || firstRealExit && !firmwareRevocation, "m03_owned_profile_invalid");
         Need(!ownedPanic || ownedSurvival, "m03_owned_profile_invalid");
         Need(!normalBoot || firstRealExit && ownedSurvival && !firmwareRevocation && !ownedPanic, "m03_normal_profile_invalid");
         Need(!firmwareRevocation || firstRealExit, "m03_revocation_requires_first_exit");
         Need(!physicalMapping || firstRealExit && ownedSurvival && !ownedPanic && !normalBoot && !firmwareRevocation, "m05_mapping_profile_invalid");
-        string terminal = physicalMapping ? "TEST_PASS m05.001\r\n" : normalBoot || !firstRealExit ? "OS_SMOKE_PASS\r\n" : ownedPanic ? "" : ownedSurvival ? "TEST_PASS m03.010\r\n" : firmwareRevocation ? "TEST_PASS m03.008\r\n" : "TEST_PASS m03.009\r\n";
+        Need(!ownedAcpiSelection || firstRealExit && ownedSurvival && !ownedPanic && !normalBoot && !firmwareRevocation && !physicalMapping, "m05_acpi_profile_invalid");
+        string terminal = ownedAcpiSelection ? "TEST_PASS m05.002\r\n" : physicalMapping ? "TEST_PASS m05.001\r\n" : normalBoot || !firstRealExit ? "OS_SMOKE_PASS\r\n" : ownedPanic ? "" : ownedSurvival ? "TEST_PASS m03.010\r\n" : firmwareRevocation ? "TEST_PASS m03.008\r\n" : "TEST_PASS m03.009\r\n";
         string[] lines = FirmwareProtocol(path, terminal, firstRealExit, false, "m03_acpi");
-        IReadOnlyList<string> expected = physicalMapping ? QemuContracts.M05PhysicalMappingMarkers : normalBoot ? QemuContracts.M03NormalVerifiedExitMarkers : ownedPanic ? QemuContracts.M03OwnedSubsystemPanicMarkers :
+        IReadOnlyList<string> expected = ownedAcpiSelection ? QemuContracts.M05OwnedAcpiSelectionMarkers : physicalMapping ? QemuContracts.M05PhysicalMappingMarkers : normalBoot ? QemuContracts.M03NormalVerifiedExitMarkers : ownedPanic ? QemuContracts.M03OwnedSubsystemPanicMarkers :
             ownedSurvival ? QemuContracts.M03OwnedSubsystemMarkers : firmwareRevocation ? QemuContracts.M03RevocationRequiredMarkers :
             firstRealExit ? QemuContracts.M03FirstExitRequiredMarkers : QemuContracts.M03AcpiBootstrapRequiredMarkers;
         int ownedStart = normalBoot ? 63 : 66;
-        int[] varying = [3, 9, 10, 19, 20, 21, 22, 23, 24, .. ownedSurvival ? Enumerable.Range(ownedStart, ownedPanic ? 11 : 10) : [], .. physicalMapping ? Enumerable.Range(77, 7) : []];
+        int[] varying = [3, 9, 10, 19, 20, 21, 22, 23, 24, .. ownedSurvival ? Enumerable.Range(ownedStart, ownedPanic ? 11 : 10) : [], .. physicalMapping ? Enumerable.Range(77, 7) : [], .. ownedAcpiSelection ? Enumerable.Range(77, 4) : []];
         if (ownedPanic) expected = [.. expected, lines[^1]];
         ExactInventory(lines, expected, varying);
         ValidateAllocator(lines);
@@ -63,8 +64,9 @@ public static partial class QemuTranscripts
         var retained = ReadRecord(lines[24], "CLROS_M03_002_RETAIN", "total:dec", "descriptors:dec", "guards:dec", "tail:dec", "mismatches:dec");
         Need(total <= 266240 && retained["total"] == total && retained["descriptors"] == 5 && retained["guards"] == 32 &&
             retained["tail"] == 266240 - total && retained["mismatches"] == 0, "m03_acpi_retained_accounting");
-        if (ownedSurvival) AssertM03OwnedSubsystemRecords(physicalMapping ? lines[..76] : lines, rows, ownedPanic, normalBoot);
+        if (ownedSurvival) AssertM03OwnedSubsystemRecords(physicalMapping || ownedAcpiSelection ? lines[..76] : lines, rows, ownedPanic, normalBoot);
         if (physicalMapping) AssertM05PhysicalMappingRecords(lines);
+        if (ownedAcpiSelection) AssertM05OwnedAcpiSelectionRecords(lines);
     }
 
     public static void AssertM03OwnedSubsystemRecords(IReadOnlyList<string> lines, IReadOnlyList<Dictionary<string, ulong>> acpiRows, bool panic = false, bool normalBoot = false)

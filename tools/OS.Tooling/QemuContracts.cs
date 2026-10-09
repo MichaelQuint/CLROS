@@ -657,4 +657,9 @@ public static class QemuContracts
         .. M03OwnedSubsystemMarkers, "TEST_START m05.001", .. Enumerable.Range(0, 7).Select(stage => "M05_MAP " + stage),
         "CLROS_M05_001_READY", "TEST_PASS m05.001"
     ]);
+    public static IReadOnlyList<string> M05OwnedAcpiSelectionMarkers { get; } = Array.AsReadOnly<string>(
+    [
+        .. M03OwnedSubsystemMarkers, "TEST_START m05.002", .. Enumerable.Range(0, 4).Select(stage => "M05_ACPI " + stage),
+        "CLROS_M05_002_READY", "TEST_PASS m05.002"
+    ]);
 }

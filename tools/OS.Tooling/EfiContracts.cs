@@ -6,9 +6,9 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "63758c4a3795c301e0746d6b8e2395568c801302731af37cf08c2a13aef9c8d5";
-    public const string CanonicalProjectSha256 = "840c077a6d406f948293f65ed82c8f0f31e83d9c8e2c9629554056a016e30636";
-    public const string EfiEntrySourceSha256 = "8fb9724d1d6b5f8142af065ba4848c437289577304d46b593c162c4e4528c255";
+    public const string ProjectSourceSha256 = "22d34178afea6bbfe73f34186d0715367f33db552b593a26d6de6313255b54ee";
+    public const string CanonicalProjectSha256 = "cb5b2b0422077b330b397d9f9e4ecf46322dd05b9e63b428c05fc1e2fd437aaa";
+    public const string EfiEntrySourceSha256 = "60fcd737e9b4c14649d4293dc29520f6daf84c72993e5dd3ae5785e66c9f181e";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -122,6 +122,8 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Boot\BoundedRetryStaleKeyStatus.cs|Boot\BoundedRetryStaleKeyStatus.cs",
         @"..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs|Boot\FirstOptRealExitBootServicesTransition.cs",
         @"..\OS.Kernel\Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs|Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs",
+        @"..\OS.Kernel\Platform\OwnedACPIDirectorySelectMADTHPETMCFG.cs|Platform\OwnedACPIDirectorySelectMADTHPETMCFG.cs",
+        @"..\..\std\no-runtime\shared\Binary\EndianPrimitives.Pointer.cs|Std\Binary\EndianPrimitives.Pointer.cs",
         @"..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs|Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs",
         @"..\OS.Kernel\Boot\BootSequence.cs|Boot\BootSequence.cs",
         @"..\OS.Kernel\Diagnostics\Probes.cs|Diagnostics\Probes.cs",
@@ -204,6 +206,7 @@ public static partial class EfiContracts
         "EnableM04SzArrayAllocationProbe",
         "EnableM04TypeManagerModuleRegistrationProbe",
         "EnableM04X64UnwindMetadataProbe",
+        "EnableM05OwnedAcpiSelectionProbe",
         "EnableM05PhysicalMappingProbe",
         "EnableUefiGoneSimulationProbe",
     ]);

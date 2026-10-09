@@ -68,6 +68,12 @@ public static partial class Probes
     public const bool EnableM04RethrowProbe = false;
 #endif
 
+#if M05_OWNED_ACPI_SELECTION_PROBE
+    public const bool EnableM05OwnedAcpiSelectionProbe = true;
+#else
+    public const bool EnableM05OwnedAcpiSelectionProbe = false;
+#endif
+
 #if M05_PHYSICAL_MAPPING_PROBE
     public const bool EnableM05PhysicalMappingProbe = true;
 #else
@@ -75,7 +81,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 27;
+    public const int ProbeCatalogCount = 28;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -254,6 +260,11 @@ public static partial class Probes
         new("runtime.exception", nameof(EnableM04RethrowProbe),
             EnableM04RethrowProbe, ProbeRisk.Destructive,
             "Opts into one compiler rethrow from inner catch to outer handler; transfer requires measured admission.");
+
+    public static ProbeDefinition GetM05OwnedAcpiSelectionProbe() =>
+        new("platform.acpi-selection", nameof(EnableM05OwnedAcpiSelectionProbe),
+            EnableM05OwnedAcpiSelectionProbe, ProbeRisk.Destructive,
+            "Selects MADT, HPET and MCFG from the original retained directory after real firmware exit.");
 
     public static ProbeDefinition GetM05PhysicalMappingProbe() =>
         new("platform.mapping", nameof(EnableM05PhysicalMappingProbe),
@@ -460,6 +471,9 @@ public static partial class Probes
                 return true;
             case 26:
                 definition = GetM05PhysicalMappingProbe();
+                return true;
+            case 27:
+                definition = GetM05OwnedAcpiSelectionProbe();
                 return true;
             default:
                 definition = default;

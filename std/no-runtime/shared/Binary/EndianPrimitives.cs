@@ -1,6 +1,6 @@
 namespace OS.Std.Binary;
 
-public static class EndianPrimitives
+public static partial class EndianPrimitives
 {
     public static ushort ReadUInt16LittleEndian(ReadOnlySpan<byte> source)
     {

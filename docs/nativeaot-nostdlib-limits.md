@@ -2,6 +2,12 @@
 
 ## Current Status
 
+`OS.Std.Binary.EndianPrimitives` now has pointer overloads for 32-bit and
+64-bit little-endian reads. They use unaligned-safe byte loads without allocation
+or exceptions; the caller must retain readable four/eight-byte storage. Only
+the pointer partial is linked into the EFI closure. Independent byte vectors
+pass. This adds no general BCL or pointer-lifetime guarantee; see [step1122](../done/step1122.md).
+
 The default-off `EnableM04RethrowProbe` implements one bounded compiler-generated
 rethrow: original throw, one finally cleanup, inner typed catch, rethrow of the
 same object, outer typed catch and compiled continuation. Two generated bridges

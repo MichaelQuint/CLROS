@@ -83,6 +83,7 @@
 		<EnableM04SingleFinallyCatchProbe Condition="'$(EnableM04SingleFinallyCatchProbe)' == ''">false</EnableM04SingleFinallyCatchProbe>
 		<EnableM04RethrowProbe Condition="'$(EnableM04RethrowProbe)' == ''">false</EnableM04RethrowProbe>
 		<EnableM05PhysicalMappingProbe Condition="'$(EnableM05PhysicalMappingProbe)' == ''">false</EnableM05PhysicalMappingProbe>
+		<EnableM05OwnedAcpiSelectionProbe Condition="'$(EnableM05OwnedAcpiSelectionProbe)' == ''">false</EnableM05OwnedAcpiSelectionProbe>
 		<EnableM04InterfaceDispatchProbe Condition="'$(EnableM04InterfaceDispatchProbe)' == ''">false</EnableM04InterfaceDispatchProbe>
 	</PropertyGroup>
 
@@ -327,6 +328,9 @@
 	<PropertyGroup Condition="'$(EnableM04RethrowProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_RETHROW_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM05OwnedAcpiSelectionProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M05_OWNED_ACPI_SELECTION_PROBE</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM05PhysicalMappingProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M05_PHYSICAL_MAPPING_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -391,6 +395,7 @@
 			'$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true' or
 			'$(EnableM04X64UnwindMetadataProbe)' == 'true' or
 			'$(EnableM05PhysicalMappingProbe)' == 'true' or
+			'$(EnableM05OwnedAcpiSelectionProbe)' == 'true' or
 			'$(EnableUefiGoneSimulationProbe)' == 'true')">Diagnostic</ClrosBootPolicy>
 		<ClrosBootPolicy Condition="'$(ClrosBootPolicy)' == ''">VerifiedExit</ClrosBootPolicy>
 	</PropertyGroup>
@@ -497,6 +502,8 @@
 		<Compile Include="..\OS.Kernel\Boot\BoundedRetryStaleKeyStatus.cs" Link="Boot\BoundedRetryStaleKeyStatus.cs" />
 		<Compile Include="..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs" Link="Boot\FirstOptRealExitBootServicesTransition.cs" />
 		<Compile Include="..\OS.Kernel\Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs" Link="Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs" />
+		<Compile Include="..\OS.Kernel\Platform\OwnedACPIDirectorySelectMADTHPETMCFG.cs" Link="Platform\OwnedACPIDirectorySelectMADTHPETMCFG.cs" />
+		<Compile Include="..\..\std\no-runtime\shared\Binary\EndianPrimitives.Pointer.cs" Link="Std\Binary\EndianPrimitives.Pointer.cs" />
 		<Compile Include="..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs" Link="Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs" />
 		<Compile Include="..\OS.Kernel\Boot\BootSequence.cs" Link="Boot\BootSequence.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\Probes.cs" Link="Diagnostics\Probes.cs" />
@@ -599,6 +606,7 @@
 			'$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true' or
 			'$(EnableM04X64UnwindMetadataProbe)' == 'true' or
 			'$(EnableM05PhysicalMappingProbe)' == 'true' or
+			'$(EnableM05OwnedAcpiSelectionProbe)' == 'true' or
 			'$(EnableUefiGoneSimulationProbe)' == 'true')" Text="clros_boot_policy_probe_conflict" />
 	</Target>
 
@@ -1709,6 +1717,9 @@
 		<Error Condition="'$(EnableM04SingleFinallyCatchProbe)' != '' and '$(EnableM04SingleFinallyCatchProbe)' != 'true' and '$(EnableM04SingleFinallyCatchProbe)' != 'false'" Text="m04_single_finally_switch_invalid" />
 		<Error Condition="'$(EnableM04SingleFinallyCatchProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'" Text="m04_single_finally_requires_gc_profile" />
 		<Error Condition="'$(EnableM04SingleFinallyCatchProbe)' == 'true' and ('$(EnableM04SeededCollectorChurnProbe)' == 'true' or '$(EnableM04ClassConstructorExecutionProbe)' == 'true' or '$(EnableM04InterfaceDispatchProbe)' == 'true' or '$(EnableM04X64UnwindMetadataProbe)' == 'true' or '$(EnableM04SimpleThrowCatchProbe)' == 'true')" Text="m04_single_finally_profile_conflict" />
+		<Error Condition="'$(EnableM05OwnedAcpiSelectionProbe)' != 'true' and '$(EnableM05OwnedAcpiSelectionProbe)' != 'false'" Text="m05_acpi_switch_invalid" />
+		<Error Condition="'$(EnableM05OwnedAcpiSelectionProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM03FirstRealExitBootServicesProbe)' != 'true' or '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true')" Text="m05_acpi_requires_owned_first_exit" />
+        <Error Condition="'$(EnableM05OwnedAcpiSelectionProbe)' == 'true' and ('$(EnableM03OwnedSubsystemPanicProbe)' == 'true' or '$(EnableM03FirmwareAdapterRevocationProbe)' == 'true' or '$(EnableM05PhysicalMappingProbe)' == 'true')" Text="m05_acpi_profile_conflict" />
 		<Error Condition="'$(EnableM05PhysicalMappingProbe)' != 'true' and '$(EnableM05PhysicalMappingProbe)' != 'false'" Text="m05_mapping_switch_invalid" />
 		<Error Condition="'$(EnableM05PhysicalMappingProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM03FirstRealExitBootServicesProbe)' != 'true' or '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true')" Text="m05_mapping_requires_owned_first_exit" />
 		<Error Condition="'$(EnableM05PhysicalMappingProbe)' == 'true' and ('$(EnableM03OwnedSubsystemPanicProbe)' == 'true' or '$(EnableM03FirmwareAdapterRevocationProbe)' == 'true')" Text="m05_mapping_profile_conflict" />
