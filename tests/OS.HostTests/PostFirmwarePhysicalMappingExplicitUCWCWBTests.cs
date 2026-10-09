@@ -21,6 +21,7 @@ internal static unsafe class PostFirmwarePhysicalMappingExplicitUCWCWBTests
         Run("identity audit prepares only unused table", IdentityImagePreparation);
         Run("identity audit rejects aliases and bad ownership", IdentityImageRejection);
         Run("MTRR WB coverage and unsupported environment", MtrrCoverage);
+        Run("native emission bounds and readback", NativeEmission);
         Console.WriteLine("TEST_PASS m05.001.split-preparation");
     }
 
@@ -276,6 +277,34 @@ internal static unsafe class PostFirmwarePhysicalMappingExplicitUCWCWBTests
     {
         PhysicalAddress.TryCreateFromHardwareRegisterBoundary(raw, out var address);
         return address;
+    }
+
+    private static void NativeEmission()
+    {
+        byte* code = stackalloc byte[1024];
+        for (int i = 0; i < 1024; i++) code[i] = 0xA5;
+        Require(!X64PhysicalMappingPublication.Emit(code + 1, X64PhysicalMappingPublication.RequiredBytes - 1)
+            && !X64PhysicalMappingPublication.Emit(null, 1024), "publication capacity");
+        for (int i = 0; i < 1024; i++) Require(code[i] == 0xA5, "failed emission wrote storage");
+        Require(X64PhysicalMappingPublication.Emit(code + 1, X64PhysicalMappingPublication.RequiredBytes)
+            && X64PhysicalMappingPublication.ValidateReadBack(code + 1, X64PhysicalMappingPublication.RequiredBytes),
+            "publication bytes");
+        Require(code[0] == 0xA5 && code[1 + X64PhysicalMappingPublication.RequiredBytes] == 0xA5,
+            "publication bounds");
+        code[1 + 0x93] ^= 1;
+        Require(!X64PhysicalMappingPublication.ValidateReadBack(code + 1, X64PhysicalMappingPublication.RequiredBytes),
+            "mutated CR3 instruction admitted");
+        Require(X64PhysicalMappingPublication.WritePatBytes == 263
+            && !X64PhysicalMappingPublication.EmitWritePat(code + 512, 262), "PAT capacity");
+        Require(X64PhysicalMappingPublication.EmitWritePat(code + 512, 263)
+            && X64PhysicalMappingPublication.ValidateWritePatReadBack(code + 512, 263), "PAT bytes");
+        Require(code[511] == 0xA5 && code[775] == 0xA5, "PAT bounds");
+        code[512 + 230] ^= 1;
+        Require(!X64PhysicalMappingPublication.ValidateWritePatReadBack(code + 512, 263), "PAT mutation admitted");
+        Require(X64PhysicalMappingPublication.EmitReadMsr(code, 14)
+            && !X64PhysicalMappingPublication.EmitReadMsr(code, 13), "MSR bytes");
+        Require(X64PhysicalMappingPublication.EmitReadCapabilities(code, 55)
+            && !X64PhysicalMappingPublication.EmitReadCapabilities(code, 54), "CPUID bytes");
     }
 
     private static void MtrrCoverage()

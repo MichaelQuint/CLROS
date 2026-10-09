@@ -2,6 +2,12 @@
 
 ## Current Status
 
+Platform mapping issues #94/#598 now have a linked, artifact-verified,
+default-off EFI scratch profile with emitted UC/WC/WB publication and PAT/MSR
+helpers. The native execution gate remains closed; linked stack review and
+guest transcript validation are outstanding. [Step1106](../done/step1106.md)
+does not advance Gate 6 or establish live device access.
+
 The bounded M03 firmware-exit milestone satisfies its declared technical exit:
 all 11 keyed children have reviewed closure evidence, including ordinary
 default promotion in [step1094](../done/step1094.md). [Step1095](../done/step1095.md)

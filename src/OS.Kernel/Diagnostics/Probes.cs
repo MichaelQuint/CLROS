@@ -68,8 +68,14 @@ public static partial class Probes
     public const bool EnableM04RethrowProbe = false;
 #endif
 
+#if M05_PHYSICAL_MAPPING_PROBE
+    public const bool EnableM05PhysicalMappingProbe = true;
+#else
+    public const bool EnableM05PhysicalMappingProbe = false;
+#endif
+
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 26;
+    public const int ProbeCatalogCount = 27;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -248,6 +254,11 @@ public static partial class Probes
         new("runtime.exception", nameof(EnableM04RethrowProbe),
             EnableM04RethrowProbe, ProbeRisk.Destructive,
             "Opts into one compiler rethrow from inner catch to outer handler; transfer requires measured admission.");
+
+    public static ProbeDefinition GetM05PhysicalMappingProbe() =>
+        new("platform.mapping", nameof(EnableM05PhysicalMappingProbe),
+            EnableM05PhysicalMappingProbe, ProbeRisk.Destructive,
+            "Changes one exclusive scratch span between WB, UC and WC after real firmware exit.");
 
     public static ProbeDefinition GetM04X64UnwindMetadataProbe() =>
         new("runtime.unwind-metadata", nameof(EnableM04X64UnwindMetadataProbe),
@@ -446,6 +457,9 @@ public static partial class Probes
                 return true;
             case 25:
                 definition = GetM04RethrowProbe();
+                return true;
+            case 26:
+                definition = GetM05PhysicalMappingProbe();
                 return true;
             default:
                 definition = default;

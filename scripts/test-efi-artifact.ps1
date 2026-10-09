@@ -42,6 +42,7 @@ param(
     [switch]$EnableM04SimpleThrowCatchProbe,
     [switch]$EnableM04SingleFinallyCatchProbe,
     [switch]$EnableM04RethrowProbe,
+    [switch]$EnableM05PhysicalMappingProbe,
     [switch]$EnableM04GcStaticRootMaterializationProbe,
     [switch]$EnableM04SeededCollectorChurnProbe,
     [switch]$EnableM03TypedExitBootServicesCallProbe,
@@ -95,7 +96,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 139
+$expectedSourceClosureInputCount = 140
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -236,6 +237,7 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Boot\NoAllocationOrUnrelatedFirmwareCallOccursBetween.cs|Boot\NoAllocationOrUnrelatedFirmwareCallOccursBetween.cs',
     '..\OS.Kernel\Boot\BoundedRetryStaleKeyStatus.cs|Boot\BoundedRetryStaleKeyStatus.cs',
     '..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs|Boot\FirstOptRealExitBootServicesTransition.cs',
+    '..\OS.Kernel\Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs|Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs',
     '..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs|Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs',
     '..\OS.Kernel\Boot\BootSequence.cs|Boot\BootSequence.cs',
     '..\OS.Kernel\Diagnostics\Probes.cs|Diagnostics\Probes.cs',
@@ -4001,6 +4003,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM04SimpleThrowCatchProbe," +
             "EnableM04SingleFinallyCatchProbe," +
             "EnableM04RethrowProbe," +
+            "EnableM05PhysicalMappingProbe," +
             "EnableM04GcStaticRootMaterializationProbe," +
             "EnableM04SeededCollectorChurnProbe," +
             "EnableM03TypedExitBootServicesCallProbe," +
@@ -4182,6 +4185,9 @@ function Invoke-PostRestoreEvaluationSnapshot {
     }
     if ($EnableM04RethrowProbe) {
         $arguments += "-p:EnableM04RethrowProbe=true"
+    }
+    if ($EnableM05PhysicalMappingProbe) {
+        $arguments += "-p:EnableM05PhysicalMappingProbe=true"
     }
     if ($EnableM04GcStaticRootMaterializationProbe) {
         $arguments += "-p:EnableM04GcStaticRootMaterializationProbe=true"
@@ -4473,6 +4479,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM04SingleFinallyCatchProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04RethrowProbe =
             $EnableM04RethrowProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM05PhysicalMappingProbe =
+            $EnableM05PhysicalMappingProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04GcStaticRootMaterializationProbe =
             $EnableM04GcStaticRootMaterializationProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04SeededCollectorChurnProbe =
@@ -4564,7 +4572,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 123 -or
+    if ($compileItems.Count -ne 124 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or

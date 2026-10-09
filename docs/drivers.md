@@ -83,8 +83,17 @@ The live sequence is governed by Intel SDM volume 3A, September 2026:
 [5.10.4.2 and 14.12.4](https://cdrdv2-public.intel.com/929359/253668-093-sdm-vol-3a.pdf)
 require making the old mapping nonpresent, invalidating translations, installing
 the changed mapping, then completing required cache maintenance before access.
-The separately claimed #598 lane owns this pending boot/build integration. No
-hardware transition is performed by the preparation helpers.
+The #598 lane now links a default-off EFI profile with an exclusive 2 MiB
+scratch span, original owned diagnostics first, observed PAT/MTRR admission,
+large-page coalescing/splitting, UC/WC/WB publication and restoration checks.
+The emitted publisher checks stale entries before making the mapping
+nonpresent, reloading CR3, installing its replacement and executing WBINVD.
+The PAT writer changes only the proven-unused slot 4 and checks readback.
+The profile builds, links and passes artifact verification, but its separate
+`MappingExecutionReady` gate remains false pending native graph/stack review
+and QEMU transcript integration. No guest cache transition is accepted. See
+[step1106](../done/step1106.md). The preparation helpers themselves never
+publish a hardware mapping.
 
 - `EfiConfigurationTableScanner` recognizes UEFI ACPI 2.0 and ACPI 1.0 configuration table GUIDs, prefers ACPI 2.0 when both are present, supports ACPI 1.0 fallback, rejects zero RSDP pointers, and returns status-coded results.
 - `EfiMain` source-links the pointer scanner and emits `BOOT_ACPI_RSDP_HANDOFF_READY`, `UEFI_ACPI_RSDP_READY`, `UEFI_ACPI_RSDP_MISSING`, or `UEFI_ACPI_RSDP_INVALID <status-code>` on the default path without dereferencing the RSDP.

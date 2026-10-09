@@ -270,6 +270,13 @@ public static class BootSequence
 
     public static bool IsRethrowEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04RethrowProbe;
 
+    // Runs only after the original owned diagnostics and allocator/ACPI checks.
+    // The adapter authenticates its state and halts on every return.
+    public static unsafe bool RunPostFirmwarePhysicalMapping(
+        bool ownedSubsystemsComplete, void* context, delegate*<void*, bool> execute) =>
+        OS.Kernel.Diagnostics.Probes.EnableM05PhysicalMappingProbe &&
+        ownedSubsystemsComplete && context != null && execute != null && execute(context);
+
     public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunRethrowUnwind(
         OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping,
         byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity,

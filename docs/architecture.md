@@ -31,8 +31,10 @@ workload execution.
   policy. Live ownership/CR3 association, register capture, publication and
   cache/TLB maintenance remain required before mapping success; see
   [drivers](drivers.md), [step1102](../done/step1102.md) and
-  [step1104](../done/step1104.md). These helpers are not linked into EFI yet;
-  the shared boot/build integration is claimed under #598.
+  [step1104](../done/step1104.md). The #598 integration now builds and links a
+  separate default-off EFI scratch-mapping profile. Its native execution gate
+  remains closed pending linked graph/stack review and guest validation; see
+  [step1106](../done/step1106.md). This is not accepted live mapping support.
 
 - First-party project areas exist for `OS.Kernel`, `OS.Std.NoRuntime.Shared`, host tools, tests, and native-tier apps.
 - Boot ordering starts in `src/OS.Kernel/Boot/BootSequence.cs` and the no-stdlib EFI shell emits the shared `BootSequencePlan` marker order.
