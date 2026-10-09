@@ -280,6 +280,13 @@ all 4,120 full checks across 450 fixture groups in 1,398.014 seconds (23 minutes
 18 seconds), with unchanged compiled inputs and no failures. The 582 guest
 source inputs and four tool assemblies still match the step1097 real-run receipt.
 
+Selected tests execute freshly; this runner does not reuse earlier checkpoint
+passes. The earlier resumable-runner proposal in
+[issue #600](http://192.168.4.35:3000/admin/CLROS/issues/600) and stacked PR #601
+is separate from the mainline migration in
+[PR #602](http://192.168.4.35:3000/admin/CLROS/pulls/602). Its unmerged runtime
+profiles and checkpoint reuse retain their own qualification requirements.
+
 ## Verification
 
 Verify the .NET SDK:

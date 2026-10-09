@@ -18,6 +18,13 @@ them. All original producer invocations and rejection checks remain. It removes
 9,312 redundant file copies in the current source inventory and adds a fast
 restoration control; production tooling and guest source identities are unchanged.
 
+[Step1099](../done/step1099.md) records publication through
+[PR #602](http://192.168.4.35:3000/admin/CLROS/pulls/602) and migration of the
+matching Gitea command/path documentation. Custom issue context and runtime
+acceptance states are preserved. The older checkpoint/resume proposal in
+[issue #600](http://192.168.4.35:3000/admin/CLROS/issues/600) remains separate;
+the current runner always executes selected tests freshly.
+
 The M03 tracker reconciliation in [step1095](../done/step1095.md) records all
 11 keyed children accepted, closes epic #57 and milestone 5, and refreshes the
 #68 dependency in #93/#94. #94 is the next ready platform leaf; #93 remains an
