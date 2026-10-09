@@ -44,6 +44,22 @@ The first ENA/Nitro slices are also metadata-only. `EnaPciCandidateSelector` can
 
 ## Implemented Behavior
 
+`PostFirmwarePhysicalMappingExplicitUCWCWB.PrepareTwoMiBSplit` prepares a
+caller-owned, detached 512-entry table from one admitted 2 MiB leaf. Explicit
+Normal, Device and Framebuffer usage selects WB, UC and WC respectively, with
+no fallback when the observed PAT token lacks the requested policy. Only the
+requested aligned physical range changes policy; neighboring translations,
+permissions and conservative accessed/dirty observations are preserved. The
+existing strict x64 entry decoder defines the admitted inherited-map subset.
+Validation completes before any destination write. Focused development checks
+and limits are recorded in [step1102](../done/step1102.md).
+
+This is preparation for #94, not a live mapping service. Its `Prepared` result
+does not establish ownership, effective MTRR/PAT compatibility, absence of cache
+aliases, publication or cache/TLB maintenance. The destination must be detached
+and exclusively owned by the caller. Those live requirements, including guest
+evidence, remain outstanding; no device access or new boot profile is enabled.
+
 - `EfiConfigurationTableScanner` recognizes UEFI ACPI 2.0 and ACPI 1.0 configuration table GUIDs, prefers ACPI 2.0 when both are present, supports ACPI 1.0 fallback, rejects zero RSDP pointers, and returns status-coded results.
 - `EfiMain` source-links the pointer scanner and emits `BOOT_ACPI_RSDP_HANDOFF_READY`, `UEFI_ACPI_RSDP_READY`, `UEFI_ACPI_RSDP_MISSING`, or `UEFI_ACPI_RSDP_INVALID <status-code>` on the default path without dereferencing the RSDP.
 - `scripts/build-efi-shell.ps1 -EnableAcpiPhysicalDiscoveryProbe` publishes an opt-in EFI artifact that dereferences the firmware-provided ACPI pointers before `ExitBootServices`, validates live RSDP/root SDT/MCFG bytes into fixed scratch storage, and emits `ACPI_RSDP_SNAPSHOT_READY`, `ACPI_RSDP_VALIDATED`, `ACPI_ROOT_SDT_SNAPSHOT_READY`, `ACPI_ROOT_SDT_VALIDATED`, and `ACPI_MCFG_DISCOVERY_READY`.

@@ -22,6 +22,14 @@ workload execution.
 
 ## Implemented Behavior
 
+- #94 now has a bounded 2 MiB-to-4 KiB table preparation primitive in
+  `PostFirmwarePhysicalMappingExplicitUCWCWB`: Normal/Device/Framebuffer map to
+  explicit WB/UC/WC policy, with unchanged neighboring physical translations and
+  permissions. It writes detached caller-owned storage only. Alias/ownership
+  admission, effective cache policy, live publication and cache/TLB maintenance
+  remain required before mapping success; see [drivers](drivers.md) and
+  [step1102](../done/step1102.md). This helper is not linked into the EFI profile.
+
 - First-party project areas exist for `OS.Kernel`, `OS.Std.NoRuntime.Shared`, host tools, tests, and native-tier apps.
 - Boot ordering starts in `src/OS.Kernel/Boot/BootSequence.cs` and the no-stdlib EFI shell emits the shared `BootSequencePlan` marker order.
 - Diagnostics toggles start in `src/OS.Kernel/Diagnostics/Probes.cs`.
