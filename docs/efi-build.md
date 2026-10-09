@@ -1,14 +1,15 @@
 # EFI Build
 
-## Owned ACPI selection development profile
+## Owned ACPI selection profile
 
 `EnableM05OwnedAcpiSelectionProbe` is default off and requires
 `Diagnostic`, loaded-image stack, live allocator, ACPI physical discovery,
 first real exit and owned-subsystem survival. Publisher, project and verifier
 guards reject missing prerequisites and mapping/revocation/panic combinations.
 The source-linked selector and pointer endian partial use no framework assembly.
-Focused checks and strict native publication pass; batch qualification is pending
-in [step1122](../done/step1122.md). See [QEMU](qemu.md#owned-acpi-selection).
+Full-host qualification, strict native publication, linked-byte/stack review and
+real guest captures are accepted in [step1123](../done/step1123.md).
+See [QEMU](qemu.md#owned-acpi-selection).
 
 ## Bounded rethrow and mapping profiles
 

@@ -6,7 +6,8 @@ The default-off M05 owned-ACPI selection diagnostic follows the successful
 M03 owned-subsystem checks through `BootSequence.RunOwnedAcpiSelection`.
 It reads the original retained table bytes, validates their envelopes and root
 associations, and returns selected offsets. The ordinary boot path is unchanged.
-Implementation evidence and pending qualification are in [step1122](../done/step1122.md).
+Implementation is in [step1122](../done/step1122.md); full-host and real guest
+acceptance are in [step1123](../done/step1123.md).
 
 Two explicit diagnostic profiles are integrated through the C# tools:
 pre-exit bounded rethrow and post-exit physical mapping after owned subsystem

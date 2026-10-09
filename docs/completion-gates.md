@@ -3,9 +3,10 @@
 ## Current Status
 
 Issue #95/shared integration #606 implements a post-exit selection of the
-original retained MADT, HPET and MCFG tables. [Step1122](../done/step1122.md)
-records focused host/native development evidence; full-host and guest acceptance
-remain pending. Gate 6 remains Fail: selection does not program timers, APIC,
+original retained MADT, HPET and MCFG tables. [Step1123](../done/step1123.md)
+accepts 4,157 full-host checks, strict native publication, an 83-record real
+diagnostic capture and a 79-record ordinary regression. Gate 6 remains Fail:
+selection does not program timers, APIC,
 ECAM or other devices.
 
 The bounded C# profiles for #596 and #94/#598 are accepted in
