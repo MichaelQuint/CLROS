@@ -250,7 +250,7 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
         foreach(string name in new[]{"UnexpectedVectorPanicProbeAuthority.cs","UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassification.cs"})
             Require(items.Count(x=>x.Attribute("Include")?.Value=="..\\OS.Kernel\\Diagnostics\\"+name && x.Attribute("Link")?.Value=="Diagnostics\\"+name)==1,"one linked declaration "+name);
         var defaults=project.Descendants().Where(x=>x.Attribute("Condition")?.Value=="'$("+x.Name.LocalName+")' == ''" && x.Name.LocalName.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
-        Require(defaults.Length==49 && defaults.All(x=>x.Value=="false") && defaults.Count(x=>x.Name.LocalName==Flag)==1,"49 literal false defaults");
+        Require(defaults.Length==50 && defaults.All(x=>x.Value=="false") && defaults.Count(x=>x.Name.LocalName==Flag)==1,"50 literal false defaults");
         foreach(string addedFlag in new[]{"EnableM03FirstRealExitBootServicesProbe","EnableM04SeededCollectorChurnProbe","EnableM03FirmwareAdapterRevocationProbe","EnableM04ClassConstructorExecutionProbe","EnableM04InterfaceDispatchProbe","EnableM04X64UnwindMetadataProbe","EnableM03OwnedSubsystemSurvivalProbe","EnableM03OwnedSubsystemPanicProbe","EnableM04SimpleThrowCatchProbe","EnableM04SingleFinallyCatchProbe"})
             Require(defaults.Count(x=>x.Name.LocalName==addedFlag && x.Value=="false")==1,"one literal false default "+addedFlag);
         var errors=project.Descendants("Error").Where(x=>x.Attribute("Condition")!.Value.Contains("$("+Flag+")",StringComparison.Ordinal)).ToArray();
