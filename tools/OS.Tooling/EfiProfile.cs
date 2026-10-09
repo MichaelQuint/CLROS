@@ -53,6 +53,8 @@ public sealed class EfiProfile
         Set("M05PhysicalMapping", ["M03FirstRealExitBootServices", "M03OwnedSubsystemSurvival"], true, "m05_mapping_requires_owned_first_exit");
         Set("M05OwnedAcpiSelection", ["M03FirstRealExitBootServices", "M03OwnedSubsystemSurvival"], true, "m05_acpi_requires_owned_first_exit");
         Set("M05OwnedAcpiSelection", ["M03OwnedSubsystemPanic", "M03FirmwareAdapterRevocation", "M05PhysicalMapping"], false, "m05_acpi_profile_conflict");
+        Set("M05MonotonicClock", ["M03FirstRealExitBootServices", "M03OwnedSubsystemSurvival"], true, "m05_clock_requires_owned_first_exit");
+        Set("M05MonotonicClock", ["M03OwnedSubsystemPanic", "M03FirmwareAdapterRevocation", "M05PhysicalMapping", "M05OwnedAcpiSelection"], false, "m05_clock_profile_conflict");
         Set("M05PhysicalMapping", ["M03OwnedSubsystemPanic", "M03FirmwareAdapterRevocation"], false, "m05_mapping_profile_conflict");
         Need("M04ClassConstructorExecution", "M04GcStaticRootMaterialization", "m04_cctor_requires_gc_profile");
         Conflict("M04ClassConstructorExecution", "M04SeededCollectorChurn", "m04_cctor_churn_conflict");

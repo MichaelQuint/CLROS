@@ -695,6 +695,7 @@ internal static class BootSequencePlanTests
              "public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunSingleFinallyCatchUnwind(",
              "public static bool IsRethrowEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04RethrowProbe;",
              "public static unsafe bool RunOwnedAcpiSelection(",
+             "public static unsafe bool RunOwnedMonotonicClock(",
              "public static unsafe bool RunPostFirmwarePhysicalMapping(",
              "public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunRethrowUnwind(",
              "public static unsafe OS.Kernel.Runtime.X64UnwindMetadataResult RunX64UnwindMetadata(",
@@ -728,7 +729,9 @@ internal static class BootSequencePlanTests
              "public const bool EnableM05OwnedAcpiSelectionProbe = true;",
              "public const bool EnableM05OwnedAcpiSelectionProbe = false;",
              "public const bool EnableM05PhysicalMappingProbe = true;",
-             "public const bool EnableM05PhysicalMappingProbe = false;"]);
+             "public const bool EnableM05PhysicalMappingProbe = false;",
+             "public const bool EnableM05MonotonicClockProbe = true;",
+             "public const bool EnableM05MonotonicClockProbe = false;"]);
 
         bool HasGuardedSurface(string relativePath, int expectedRegions, string[] declarations)
         {

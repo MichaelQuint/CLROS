@@ -11394,7 +11394,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M05: Platform, PCI, and Common Virtio.",
-      "currentEvidence": "Dependency #68 is accepted in done/step1094.md. #94 (M05-001) is accepted in step1120 for bounded owned UC/WC/WB mapping; #95 (M05-002) is accepted in step1123 for retained ACPI selection. The epic remains open/agent:blocked with 19 remaining children; #96 is the next ready leaf. No live PCI/MMIO/virtqueue transaction or Gate6 completion is proven.",
+      "currentEvidence": "Dependency #68 is accepted in done/step1094.md. #94 (M05-001) is accepted in step1120 for bounded owned UC/WC/WB mapping; #95 (M05-002) is accepted in step1123 for retained ACPI selection; #96 (M05-003) is accepted in step1125 for a bounded post-exit HPET clock. The epic remains open/agent:blocked with 18 remaining children; #97 is the next ready leaf. No live PCI/virtqueue transaction or Gate6 completion is proven.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -11608,7 +11608,7 @@
         "M05-002"
       ],
       "labels": [
-        "agent:ready",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -11635,7 +11635,7 @@
       ],
       "collisionLane": null,
       "summary": "Initialize a monotonic HPET/TSC clock with wrap and frequency tests.",
-      "currentEvidence": "Dependency #95 (M05-002) is accepted in done/step1123.md for retained ACPI directory selection after firmware exit. This clock slice is ready but unimplemented; timer motion, frequency, wrap handling and bounded stalled-HPET recovery still require focused host and real guest evidence.",
+      "currentEvidence": "Accepted in done/step1125.md under #96 and shared integration #608. The full host gate passes 4,172 checks across 486 groups; strict native review, independent disk association and real 83-record HPET/79-record ordinary captures pass on frozen implementation 0cb3c1a7e16829e35425ef8fef89e6909ad6a067. QEMU demonstrates post-exit HPET at 100 MHz with one recovery and increasing ticks. TSC frequency was unavailable in that guest; fallback is host-tested only. No interrupts, SMP, arbitrary hardware or Gate6 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Initialize a monotonic HPET/TSC clock with wrap and frequency tests.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -11683,7 +11683,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only \"Initialize a monotonic HPET/TSC clock with wrap and frequency tests.\" It does not by itself prove the M05 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-004",
@@ -11694,7 +11694,7 @@
         "M05-003"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -11721,7 +11721,7 @@
       ],
       "collisionLane": null,
       "summary": "Define a bounded PCI configuration-space interface.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Dependency #96 (M05-003) is accepted in done/step1125.md for a bounded post-exit HPET clock. This PCI interface issue is ready and remains unimplemented; existing ACPI, PCI, BAR, virtio and DMA contracts are host-tested. No live PCI/virtqueue transaction is proven.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Define a bounded PCI configuration-space interface.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

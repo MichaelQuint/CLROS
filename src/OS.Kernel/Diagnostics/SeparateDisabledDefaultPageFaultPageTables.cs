@@ -156,7 +156,8 @@ public readonly struct SeparatePageFaultPageTableResult
 /// including the arena itself, without recursive allocation/self-map planning.
 /// No guards, huge pages, firmware hierarchy, live mode reads or instruction bytes.
 /// Separately named retained-image entry points allow larger bounded RO/RX/RW
-/// ranges and count distinct hierarchy prefixes before writing. Omitted pages,
+/// ranges and single-page uncached RW device declarations, and count distinct
+/// hierarchy prefixes before writing. Device provenance remains caller-owned. Omitted pages,
 /// including declared guard gaps, remain absent; no allocation provenance is inferred.
 /// Callers must keep input/output spans accessible, exclusively owned and stable
 /// for the operation. This API cannot validate a raw pointer's physical lifetime.
@@ -230,6 +231,7 @@ public static unsafe class SeparateDisabledDefaultPageFaultPageTables
             ulong start = range == rangeCount ? root : ranges[range].Start;
             ulong count = range == rangeCount ? request.ArenaPageCount : ranges[range].PageCount;
             PageProtection protection = range == rangeCount ? Data : ranges[range].Protection;
+            PageCachePolicy cache = range == rangeCount ? PageCachePolicy.WriteBack : ranges[range].CachePolicy;
             for (ulong page = 0; page < count; page++)
             {
                 ulong address = start + page * PageSize;
@@ -247,7 +249,7 @@ public static unsafe class SeparateDisabledDefaultPageFaultPageTables
                     table = ((entries[entry] & 0x000f_ffff_ffff_f000UL) - root) / PageSize;
                 }
                 entries[table * EntriesPerPage + ((address >> 12) & 511)] =
-                    Encode(address, X64PageTableLevel.Pte, protection, request.Preconditions);
+                    Encode(address, X64PageTableLevel.Pte, protection, request.Preconditions, cache);
             }
         }
         return AuditCore(request, ranges, rangeCount, rangeCapacity, pages, pageCapacity,
@@ -391,9 +393,11 @@ public static unsafe class SeparateDisabledDefaultPageFaultPageTables
             if (!range.IsInitialized || range.PageCount == 0 || range.PageCount > maximumRangePages ||
                 (range.Protection != Code && range.Protection != Data &&
                     (!retainedImage || range.Protection != PageProtection.Read)) ||
-                range.CachePolicy != PageCachePolicy.WriteBack ||
+                (range.CachePolicy != PageCachePolicy.WriteBack &&
+                    (!retainedImage || range.CachePolicy != PageCachePolicy.Uncached ||
+                        range.Protection != Data || range.PageCount != 1)) ||
                 !ValidInterval(range.Start, range.PageCount, request.Preconditions, maximumRangePages) ||
-                !EncodingValid(range.Start, X64PageTableLevel.Pte, range.Protection, request.Preconditions))
+                !EncodingValid(range.Start, X64PageTableLevel.Pte, range.Protection, request.Preconditions, range.CachePolicy))
                 return SeparatePageFaultPageTableStatus.InvalidRange;
             ulong length = range.PageCount * PageSize;
             if (Overlap(range.Start, length, root, request.ArenaPageCount * PageSize))
@@ -476,11 +480,11 @@ public static unsafe class SeparateDisabledDefaultPageFaultPageTables
             }
             else
             {
-                PageProtection expected = ExpectedProtection(request, ranges, rangeCount, root, address);
+                PageProtection expected = ExpectedProtection(request, ranges, rangeCount, root, address, out PageCachePolicy cache);
                 if (expected == PageProtection.None)
                     return SeparatePageFaultPageTableStatus.UnexpectedMapping;
                 ulong hardwareBits = accessedImage ? (expected == Data ? 0x60UL : 0x20UL) : 0;
-                if (physical != address || (raw & ~hardwareBits) != Encode(address, level, expected, request.Preconditions))
+                if (physical != address || (raw & ~hardwareBits) != Encode(address, level, expected, request.Preconditions, cache))
                     return SeparatePageFaultPageTableStatus.MappingMismatch;
                 leaves++;
             }
@@ -491,12 +495,16 @@ public static unsafe class SeparateDisabledDefaultPageFaultPageTables
     }
 
     private static PageProtection ExpectedProtection(SeparatePageFaultPageTableRequest request,
-        SeparatePageFaultMappingRange* ranges, ulong count, ulong root, ulong address)
+        SeparatePageFaultMappingRange* ranges, ulong count, ulong root, ulong address, out PageCachePolicy cache)
     {
+        cache = PageCachePolicy.WriteBack;
         if (address >= root && address - root < request.ArenaPageCount * PageSize) return Data;
         for (ulong index = 0; index < count; index++)
             if (address >= ranges[index].Start && address - ranges[index].Start < ranges[index].PageCount * PageSize)
+            {
+                cache = ranges[index].CachePolicy;
                 return ranges[index].Protection;
+            }
         return PageProtection.None;
     }
 
@@ -524,16 +532,16 @@ public static unsafe class SeparateDisabledDefaultPageFaultPageTables
     }
 
     private static X64PageTableEntryResult Encoded(ulong address, X64PageTableLevel level,
-        PageProtection protection, X64PageTableEncodingPreconditions mode) =>
+        PageProtection protection, X64PageTableEncodingPreconditions mode, PageCachePolicy cache = PageCachePolicy.WriteBack) =>
         X64PageTableEntry.TryEncode(new X64PageTableEntryRequest(level,
             level == X64PageTableLevel.Pte ? X64PageTableEntryKind.Leaf : X64PageTableEntryKind.TablePointer,
-            Address(address), protection, PageCachePolicy.WriteBack), mode);
+            Address(address), protection, cache), mode);
 
     private static bool EncodingValid(ulong address, X64PageTableLevel level,
-        PageProtection protection, X64PageTableEncodingPreconditions mode) => Encoded(address, level, protection, mode).Succeeded;
+        PageProtection protection, X64PageTableEncodingPreconditions mode, PageCachePolicy cache = PageCachePolicy.WriteBack) => Encoded(address, level, protection, mode, cache).Succeeded;
 
     private static ulong Encode(ulong address, X64PageTableLevel level,
-        PageProtection protection, X64PageTableEncodingPreconditions mode) => Encoded(address, level, protection, mode).Entry.RawValue;
+        PageProtection protection, X64PageTableEncodingPreconditions mode, PageCachePolicy cache = PageCachePolicy.WriteBack) => Encoded(address, level, protection, mode, cache).Entry.RawValue;
 
     private static SeparatePageFaultPageTableResult Failure(SeparatePageFaultPageTableStatus status,
         SeparatePageFaultPageTableRequest request, ulong rangeCount) => new(status, request, rangeCount);

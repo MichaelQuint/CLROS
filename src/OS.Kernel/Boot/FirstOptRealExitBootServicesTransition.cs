@@ -16,6 +16,10 @@ public struct FirstExitImageReferences
     // Optional in host-only compositions. The EFI adapter must retain its
     // original installed NativeAOT stack-probe page, outside the loaded image.
     public ulong RuntimeSupportCode, RuntimeSupportCodeBytes;
+#if M05_MONOTONIC_CLOCK_PROBE
+    // Original retained ACPI HPET GAS, admitted against the owned firmware map.
+    public ulong HpetDevicePage;
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
     // Original EFI allocation containing one exclusive aligned 2 MiB test span.
     public ulong MappingScratchBacking, MappingScratchBackingPages, MappingScratchStart;
@@ -219,6 +223,9 @@ public static unsafe class FirstExitRetainedMappings
 #if M05_PHYSICAL_MAPPING_PROBE
         + 1
 #endif
+#if M05_MONOTONIC_CLOCK_PROBE
+        + 1
+#endif
         ;
     private const ulong LowEnd = 0x0000800000000000;
     private const PageProtection Data = PageProtection.Read | PageProtection.Write;
@@ -274,7 +281,7 @@ public static unsafe class FirstExitRetainedMappings
             if ((ulong)state < references.AdapterState || references.AdapterStateBytes < (ulong)sizeof(FirstExitOwnedArenaState) ||
                 (ulong)state - references.AdapterState > references.AdapterStateBytes - (ulong)sizeof(FirstExitOwnedArenaState)) return false;
 
-#if M05_PHYSICAL_MAPPING_PROBE
+#if M05_PHYSICAL_MAPPING_PROBE || M05_MONOTONIC_CLOCK_PROBE
         ulong* starts = stackalloc ulong[7];
         ulong* lengths = stackalloc ulong[7];
 #else
@@ -298,6 +305,11 @@ public static unsafe class FirstExitRetainedMappings
         starts[6] = references.MappingScratchBacking; lengths[6] = 1023 * 4096;
         allocations = 7;
 #endif
+#if M05_MONOTONIC_CLOCK_PROBE
+        if (references.RuntimeSupportCode == 0 || references.HpetDevicePage < 0x100000 ||
+            references.HpetDevicePage > 0xfffff000 || (references.HpetDevicePage & 4095) != 0) return false;
+        starts[6] = references.HpetDevicePage; lengths[6] = 4096; allocations = 7;
+#endif
         for (int i = 0; i < allocations; i++) for (int j = 0; j < i; j++)
             if (FirstExitDescriptors.Overlaps(starts[i], lengths[i], starts[j], lengths[j])) return false;
 
@@ -309,6 +321,9 @@ public static unsafe class FirstExitRetainedMappings
         if (references.RuntimeSupportCode != 0) pending[count++] = new SeparatePageFaultMappingRange(references.RuntimeSupportCode, 1, Code);
 #if M05_PHYSICAL_MAPPING_PROBE
         pending[count++] = new SeparatePageFaultMappingRange(references.MappingScratchStart, 512, Data);
+#endif
+#if M05_MONOTONIC_CLOCK_PROBE
+        pending[count++] = new SeparatePageFaultMappingRange(references.HpetDevicePage, 1, Data, PageCachePolicy.Uncached);
 #endif
         ulong totalPages = 0;
         for (ulong i = 0; i < count; i++) totalPages += pending[i].PageCount;
@@ -340,6 +355,9 @@ public static unsafe class FirstExitCodeBundle
     public const uint FaultOffset = 4096;
     public const uint Out8Offset = 4352;
     public const uint In8Offset = 4368;
+#if M05_MONOTONIC_CLOCK_PROBE
+    public const uint ClockAccessOffset = 4608;
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
     public const uint MappingPublishOffset = 4608;
     public const uint MappingReadMsrOffset = 4800;
@@ -363,6 +381,9 @@ public static unsafe class FirstExitCodeBundle
             PortIoStubPlan.In8.Emit(code + In8Offset, PortIoStubPlan.In8RequiredByteLength).Succeeded &&
             FirstExitOwnedStackStub.Emit(code + StackEntryOffset, PermanentOffset - StackEntryOffset, out _) &&
             FirstExitPermanentCr3Stub.Emit(code + PermanentOffset, Bytes - PermanentOffset, out _) &&
+#if M05_MONOTONIC_CLOCK_PROBE
+            X64OwnedClockAccess.Emit(code + ClockAccessOffset, StackEntryOffset - ClockAccessOffset) &&
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
             X64PhysicalMappingPublication.Emit(code + MappingPublishOffset, MappingReadMsrOffset - MappingPublishOffset) &&
             X64PhysicalMappingPublication.EmitReadMsr(code + MappingReadMsrOffset, MappingWritePatOffset - MappingReadMsrOffset) &&
@@ -444,6 +465,9 @@ public static unsafe class FirstExitCodeBundle
             !Equal(scratch, code + StackEntryOffset, entryBytes) ||
             !FirstExitPermanentCr3Stub.Emit(scratch, 1024, out uint permanentBytes) ||
             !Equal(scratch, code + PermanentOffset, permanentBytes)) return false;
+#if M05_MONOTONIC_CLOCK_PROBE
+        if (!X64OwnedClockAccess.Validate(code + ClockAccessOffset, X64OwnedClockAccess.Bytes)) return false;
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
         if (!X64PhysicalMappingPublication.ValidateReadBack(code + MappingPublishOffset, X64PhysicalMappingPublication.RequiredBytes) ||
             !X64PhysicalMappingPublication.EmitReadMsr(scratch, 1024) ||
@@ -455,6 +479,9 @@ public static unsafe class FirstExitCodeBundle
         for (uint index = 4096; index < Bytes; index++)
             if (!Inside(index, FaultOffset, faultBytes) && !Inside(index, Out8Offset, PortIoStubPlan.Out8RequiredByteLength) &&
                 !Inside(index, In8Offset, PortIoStubPlan.In8RequiredByteLength) && !Inside(index, StackEntryOffset, entryBytes) &&
+#if M05_MONOTONIC_CLOCK_PROBE
+                !Inside(index, ClockAccessOffset, X64OwnedClockAccess.Bytes) &&
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
                 !Inside(index, MappingPublishOffset, X64PhysicalMappingPublication.RequiredBytes) &&
                 !Inside(index, MappingReadMsrOffset, X64PhysicalMappingPublication.ReadMsrBytes) &&

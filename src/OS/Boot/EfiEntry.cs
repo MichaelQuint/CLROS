@@ -50,6 +50,11 @@ public static unsafe class EfiEntry
 #if M05_OWNED_ACPI_SELECTION_PROBE
             internal ulong AcpiSelectionPhase;
 #endif
+#if M05_MONOTONIC_CLOCK_PROBE
+            internal ulong ClockPhase;
+            internal HpetMmioDescription HpetDescription;
+            internal OwnedMonotonicClockState Clock;
+#endif
 #if (M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
             internal OwnedAllocatorRoundTripState OwnedAllocator;
             internal ulong OwnedPhase; // 0 fresh, 1 consumed, 2 positive complete, 3 armed, 4 fault entered, 5 reported
@@ -148,6 +153,14 @@ public static unsafe class EfiEntry
                 if (workspace->Phase != 3 || !ReadBackAcpiBootstrap(workspace, copied->Bytes, AcpiOwnedPayloadCapacity)) return false;
                 references.CopiedAcpi = (ulong)copied;
                 references.CopiedAcpiBytes = (ulong)sizeof(AcpiBootstrapOwnedBuffer);
+#if M05_MONOTONIC_CLOCK_PROBE
+                var selected = OwnedACPIDirectorySelectMADTHPETMCFG.Select(
+                    copied->Bytes + 16, workspace->TotalBytes, workspace->Descriptors, 30);
+                if (!selected.Succeeded || !OwnedMonotonicClock.TryReadDescription(
+                        copied->Bytes + 16 + selected.Hpet.Offset, selected.Hpet.Length, out state->HpetDescription) ||
+                    !OwnedMonotonicClock.AdmitDescription(state->HpetDescription, s_bootHandoff.MemoryMap)) return false;
+                references.HpetDevicePage = state->HpetDescription.Address;
+#endif
 #if (M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
                 state->AcpiWorkspace = (ulong)workspace;
                 state->AcpiWorkspaceBytes = (ulong)sizeof(AcpiBootstrapWorkspace);
@@ -482,6 +495,9 @@ public static unsafe class EfiEntry
 #if (M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
                 if (ReportOwnedSubsystems(state))
                 {
+#if M05_MONOTONIC_CLOCK_PROBE
+                    _ = BootSequence.RunOwnedMonotonicClock(state->OwnedPhase == 2, state, &RunOwnedMonotonicClock);
+#endif
 #if M05_OWNED_ACPI_SELECTION_PROBE
                     _ = BootSequence.RunOwnedAcpiSelection(state->OwnedPhase == 2, state, &RunOwnedAcpiSelection);
 #endif
@@ -501,6 +517,124 @@ public static unsafe class EfiEntry
                 // All returns, including success, terminate in the native stub.
             }
         }
+
+#if M05_MONOTONIC_CLOCK_PROBE
+        private static bool RunOwnedMonotonicClock(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->ClockPhase != 0 || state->OwnedPhase != 2 ||
+                state->Diagnostic.Status != FirstExitDiagnosticStatus.Completed) return false;
+            state->ClockPhase = 1;
+            if (!WriteClockLiteral(state, 0)) return false;
+            if (!RunClockCore(state)) { _ = WriteClockLiteral(state, 3); return false; }
+            state->ClockPhase = 2;
+            return WriteClockLiteral(state, 1) && WriteClockLiteral(state, 2);
+        }
+
+        private static bool RunClockCore(Storage* state)
+        {
+            fixed (AcpiBootstrapWorkspace* workspace = &s_acpiBootstrap)
+            fixed (AcpiBootstrapOwnedBuffer* copied = &s_acpiBootstrapOwned)
+            {
+                if (!AdmitOwnedAcpiState(state) || workspace->Phase != 3 ||
+                    !ReadBackAcpiBootstrap(workspace, copied->Bytes, AcpiOwnedPayloadCapacity) ||
+                    !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+                var selected = OwnedACPIDirectorySelectMADTHPETMCFG.Select(
+                    copied->Bytes + 16, workspace->TotalBytes, workspace->Descriptors, 30);
+                if (!selected.Succeeded || !OwnedMonotonicClock.TryReadDescription(
+                        copied->Bytes + 16 + selected.Hpet.Offset, selected.Hpet.Length, out var description) ||
+                    description.Address != state->HpetDescription.Address || description.HardwareId != state->HpetDescription.HardwareId ||
+                    description.Address != state->Memory.References.HpetDevicePage) return false;
+            }
+            byte* access = state->Memory.Code + FirstExitCodeBundle.ClockAccessOffset;
+            if (!X64OwnedClockAccess.Validate(access, X64OwnedClockAccess.Bytes)) return false;
+            OwnedTscAccess tsc = ReadClockCpu(access);
+            OwnedHpetAccess hpet = new OwnedHpetAccess
+            {
+                Context = (void*)state->HpetDescription.Address, HardwareId = state->HpetDescription.HardwareId,
+                Read = (delegate* unmanaged<void*, uint, ulong>)(access + X64OwnedClockAccess.ReadOffset),
+                Write = (delegate* unmanaged<void*, uint, ulong, void>)(access + X64OwnedClockAccess.WriteOffset)
+            };
+            if (!OwnedMonotonicClock.Start(ref state->Clock, hpet, tsc) || state->Clock.Source != OwnedClockSource.Hpet ||
+                !ReadClockProgress(state, out ulong first) || !ReadClockProgress(state, out ulong second)) return false;
+            ulong capabilities = hpet.Read(hpet.Context, 0);
+            bool tscAvailable = OwnedMonotonicClock.TryTscFrequency(tsc, out ulong tscFrequency) && tsc.Read != null;
+            if (!tscAvailable) tscFrequency = 0;
+            var invalidPeriod = MonotonicHpetTscClockMath.DecodeHpetCapabilities(0);
+            var ambiguous = MonotonicHpetTscClockMath.Accumulate(0, 0x80000000, 32, 0);
+            bool invalidTscRefused = !OwnedMonotonicClock.TryTscFrequency(default, out ulong invalidFrequency) && invalidFrequency == 0;
+            if (invalidPeriod.Status != MonotonicClockMathStatus.InvalidPeriod ||
+                ambiguous.Status != MonotonicClockMathStatus.AmbiguousDelta || !invalidTscRefused ||
+                !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+            return WriteClockRow(state, 0, state->HpetDescription.Address, capabilities, state->Clock.PeriodFemtoseconds, state->Clock.CounterWidth) &&
+                WriteClockRow(state, 1, (ulong)state->Clock.Source, state->Clock.FrequencyHz, state->Clock.RecoveryAttempts, (ulong)state->Clock.HpetStatus) &&
+                WriteClockRow(state, 2, first, second, tscAvailable ? 1UL : 0UL, tscFrequency) &&
+                WriteClockRow(state, 3, (ulong)invalidPeriod.Status, (ulong)ambiguous.Status, 1, 1);
+        }
+
+        private static bool ReadClockProgress(Storage* state, out ulong ticks)
+        {
+            ulong previous = state->Clock.Ticks;
+            ticks = previous;
+            for (uint i = 0; i < OwnedMonotonicClock.MaximumMotionSamples; i++)
+            {
+                if (!OwnedMonotonicClock.Read(ref state->Clock)) return false;
+                ticks = state->Clock.Ticks;
+                if (ticks > previous) return true;
+            }
+            return false;
+        }
+
+        private static OwnedTscAccess ReadClockCpu(byte* access)
+        {
+            var cpuid = (delegate* unmanaged<uint, uint, uint*, void>)(access + X64OwnedClockAccess.CpuidOffset);
+            uint* words = stackalloc uint[4];
+            cpuid(0, 0, words);
+            OwnedTscAccess tsc = default;
+            tsc.MaximumBasicLeaf = words[0];
+            tsc.IntelVendor = words[1] == 0x756e6547 && words[3] == 0x49656e69 && words[2] == 0x6c65746e;
+            cpuid(0x80000000, 0, words); tsc.MaximumExtendedLeaf = words[0];
+            if (tsc.MaximumBasicLeaf >= 1) { cpuid(1, 0, words); tsc.Leaf1Edx = words[3]; }
+            if (tsc.MaximumExtendedLeaf >= 0x80000007) { cpuid(0x80000007, 0, words); tsc.Leaf80000007Edx = words[3]; }
+            if (tsc.IntelVendor && tsc.MaximumBasicLeaf >= 0x15)
+            {
+                cpuid(0x15, 0, words); tsc.Denominator = words[0]; tsc.Numerator = words[1]; tsc.CrystalHz = words[2];
+            }
+            if (tsc.IntelVendor && (tsc.Leaf1Edx & 0x04000010) == 0x04000010)
+                tsc.Read = (delegate* unmanaged<ulong>)(access + X64OwnedClockAccess.TscOffset);
+            return tsc;
+        }
+
+        private static bool WriteClockRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d)
+        {
+            if (stage > 3) return false;
+            byte* text = stackalloc byte[90];
+            *(ulong*)text = 0x434f4c435f35304dUL; text[8] = (byte)'K'; text[9] = (byte)' ';
+            text[10] = (byte)('0' + stage); uint length = 11;
+            ulong* values = stackalloc ulong[4]; values[0] = a; values[1] = b; values[2] = c; values[3] = d;
+            for (int i = 0; i < 4; i++)
+            {
+                text[length++] = (byte)' '; text[length++] = (byte)'0'; text[length++] = (byte)'x';
+                for (int shift = 60; shift >= 0; shift -= 4)
+                {
+                    uint digit = (uint)((values[i] >> shift) & 15);
+                    text[length++] = (byte)(digit < 10 ? '0' + digit : 'A' + digit - 10);
+                }
+            }
+            text[length++] = 13; text[length++] = 10;
+            return WriteOwnedBytes(state, text, length);
+        }
+
+        private static bool WriteClockLiteral(Storage* state, uint marker)
+        {
+            ulong* words = stackalloc ulong[4]; uint bytes;
+            if (marker == 0) { words[0] = 0x4154535f54534554UL; words[1] = 0x302e35306d205452UL; words[2] = 0xa0d3330UL; bytes = 20; }
+            else if (marker == 1) { words[0] = 0x304d5f534f524c43UL; words[1] = 0x45525f3330305f35UL; words[2] = 0xa0d594441UL; bytes = 21; }
+            else if (marker == 2) { words[0] = 0x5341505f54534554UL; words[1] = 0x30302e35306d2053UL; words[2] = 0xa0d33UL; bytes = 19; }
+            else { words[0] = 0x4941465f54534554UL; words[1] = 0x30302e35306d204cUL; words[2] = 0x5f6b636f6c632033UL; words[3] = 0xa0d6574617473UL; bytes = 31; }
+            return WriteOwnedBytes(state, (byte*)words, bytes);
+        }
+#endif
 
 #if M05_OWNED_ACPI_SELECTION_PROBE
         private static bool RunOwnedAcpiSelection(void* context)
@@ -992,7 +1126,13 @@ public static unsafe class EfiEntry
                 (observation.Ia32Efer & 0xd00) != 0xd00 || (observation.Rflags & 0x24702) != 0x202) return false;
             ulong pat = 0;
             ((delegate* unmanaged<ulong*, void>)(code + 192))(&pat);
+#if M05_MONOTONIC_CLOCK_PROBE
+            byte uncached = 255;
+            for (byte i = 0; i < 8; i++) if (((pat >> (i * 8)) & 255) == 0) { uncached = i; break; }
+            if (uncached == 255 || X64PatMappingToken.TryCreate(pat, 0, uncached, 255, out var cache) != X64PageTableEntryStatus.Success) return false;
+#else
             if (X64PatMappingToken.TryCreate(pat, 0, 255, 255, out var cache) != X64PageTableEntryStatus.Success) return false;
+#endif
             conditions = X64PageTableEncodingPreconditions.CreateObserved(observation.PhysicalAddressWidth, true, true, false, false, cache);
             cpu = observation; cs = selectors[0];
             return conditions.Validate() == X64PageTableEntryStatus.Success;
