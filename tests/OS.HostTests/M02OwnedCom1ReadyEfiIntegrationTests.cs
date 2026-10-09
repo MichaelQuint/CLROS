@@ -146,7 +146,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
             .ToArray();
 
         string buildScript = File.ReadAllText(
-            Path.Combine(root, "scripts", "build-efi-shell.ps1"));
+            Path.Combine(root, "scripts", "build-efi-shell.ps1")).ReplaceLineEndings("\n");
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 

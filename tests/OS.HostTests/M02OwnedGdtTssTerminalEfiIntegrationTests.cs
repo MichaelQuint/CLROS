@@ -14,8 +14,9 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
         "terminalHalt=true postExitBootServices=false";
     private const string CompileClosureSha256 =
         "901575b1a6c8a4a766ed47c60579c997596769aa8b5a51132349ae62eedc1fe0";
+    // Text contract: portable across LF/CRLF checkouts. Artifact provenance remains byte-exact.
     private const string ProjectFileSha256 =
-        "d4d0d8745ff78477c9d49e8f518cbc88900494c70cff637a7203f64496c9c326";
+        "63758c4a3795c301e0746d6b8e2395568c801302731af37cf08c2a13aef9c8d5";
     private const string CanonicalProjectShapeSha256 =
         "840c077a6d406f948293f65ed82c8f0f31e83d9c8e2c9629554056a016e30636";
 
@@ -103,7 +104,7 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
                     Encoding.UTF8.GetBytes(string.Join("\n", compileKeys) + "\n")))
             .ToLowerInvariant();
         string projectHash = Convert.ToHexString(
-                SHA256.HashData(File.ReadAllBytes(projectPath)))
+                SHA256.HashData(Encoding.UTF8.GetBytes(File.ReadAllText(projectPath).ReplaceLineEndings("\n"))))
             .ToLowerInvariant();
 
         const string GuardedIstKey =

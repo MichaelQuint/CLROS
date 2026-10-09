@@ -43,7 +43,7 @@ function Invoke-FocusedCommand {
 Write-Host 'TEST_START host.tests.focused'
 Push-Location -LiteralPath $repositoryRoot
 try {
-    $selected = @('HostToolProcess.cs')
+    $selected = @('HostToolProcess.cs', 'HostFixtureAttribute.cs')
     foreach ($name in $TestFile) {
         if ($name -notmatch '^[A-Za-z_][A-Za-z0-9_.-]*\.cs$' -or $name -ieq 'Program.cs') {
             throw "invalid_test_file name=$name"
@@ -62,7 +62,28 @@ try {
     $null = New-Item -ItemType Directory -Path $runDirectory
     $projectPath = Join-Path $runDirectory 'Focused.HostTests.csproj'
     $entryPath = Join-Path $runDirectory 'FocusedEntry.cs'
-    [IO.File]::WriteAllText($entryPath, 'System.Console.WriteLine("FOCUSED_HOST_ENTRY_REACHED");', $utf8)
+    $entry = @'
+using System.Reflection;
+int failures = 0, count = 0;
+foreach (var method in Assembly.GetExecutingAssembly().GetTypes()
+    .SelectMany(type => type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
+    .Where(method => method.IsDefined(typeof(HostFixtureAttribute), false))
+    .OrderBy(method => method.DeclaringType!.FullName + "." + method.Name, StringComparer.Ordinal))
+{
+    count++;
+    try { method.Invoke(null, null); }
+    catch (Exception error)
+    {
+        failures++;
+        Console.WriteLine("TEST_FAIL host.tests.focused.fixture " + method.DeclaringType!.Name + "." + method.Name);
+        Console.Error.WriteLine(error is TargetInvocationException ? error.InnerException : error);
+    }
+}
+if (count == 0 || failures != 0) return 1;
+Console.WriteLine("FOCUSED_HOST_ENTRY_REACHED");
+return 0;
+'@
+    [IO.File]::WriteAllText($entryPath, $entry, $utf8)
 
     # Retain the original framework, language, unsafe settings and project references.
     [xml]$project = [IO.File]::ReadAllText((Join-Path $testRoot 'OS.HostTests.csproj'))
@@ -73,6 +94,9 @@ try {
     $null = $project.Project.AppendChild($propertyGroup)
     foreach ($reference in $project.SelectNodes('//ProjectReference')) {
         $reference.SetAttribute('Include', [IO.Path]::GetFullPath((Join-Path $testRoot $reference.GetAttribute('Include'))))
+    }
+    foreach ($resource in $project.SelectNodes('//EmbeddedResource')) {
+        $resource.SetAttribute('Include', [IO.Path]::GetFullPath((Join-Path $testRoot $resource.GetAttribute('Include'))))
     }
     $compileGroup = $project.CreateElement('ItemGroup')
     foreach ($path in @($result.Inputs | ForEach-Object { $_.Path }) + @($entryPath)) {

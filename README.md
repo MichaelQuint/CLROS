@@ -198,6 +198,12 @@ dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 git diff --check
 ```
 
+For cheap contract checks use `scripts/run-host-tests.ps1 -Contracts`. For a
+resumable complete run use `scripts/run-host-tests.ps1 -Results artifacts/host-suite/current`,
+then `scripts/run-host-tests.ps1 -Resume artifacts/host-suite/current` after a fix.
+See [host execution and resume](docs/host-requirements.md#host-suite-execution-and-resume)
+for selection, input invalidation and evidence boundaries.
+
 Real QEMU smoke on the current Windows host:
 
 ```powershell

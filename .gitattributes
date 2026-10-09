@@ -3,6 +3,12 @@
 ###############################################################################
 * text=auto
 
+# Preserve the accepted raw NativeAOT source-authority bytes on fresh checkouts.
+# Source-text assertions normalize line endings; artifact provenance stays exact.
+/scripts/build-efi-shell.ps1 text eol=crlf
+/scripts/test-efi-artifact.ps1 text eol=crlf
+/src/OS/OS.csproj text eol=crlf
+
 ###############################################################################
 # Set default behavior for command prompt diff.
 #

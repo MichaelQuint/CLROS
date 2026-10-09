@@ -172,6 +172,76 @@ The new `10.0.12` compiler qualification is recorded in
 checkpoint is [step1077](../done/step1077.md). These are freestanding build
 inputs, not a hosted .NET runtime running inside CLROS.
 
+## Host suite execution and resume
+
+Prefer the incremental-build wrapper during implementation:
+
+```powershell
+.\scripts\run-host-tests.ps1 -Contracts
+.\scripts\run-host-tests.ps1 -List
+.\scripts\run-host-tests.ps1 -Fixture BootInfoTests.RunAll
+.\scripts\run-host-tests.ps1 -Results artifacts/host-suite/current
+.\scripts\run-host-tests.ps1 -Resume artifacts/host-suite/current
+```
+
+Copy exact fixture IDs from `-List`. `-Resume` also accepts the printed
+`result.json` path. Keep the same fixture selection when resuming a partial run;
+omitting `-Fixture` selects the full current catalog. Unknown selections fail.
+
+The harness explicitly discovers its attributed fixtures. A project-local alias
+preserves existing `[ModuleInitializer]` source annotations for independent
+capture projects, while preventing initialization-time execution in the host
+harness. Each selected fixture runs serially in a separate process. A thrown
+exception, native crash, or `TEST_FAIL` output fails that fixture and the runner
+continues with the remaining fixtures. Existing group markers remain unchanged.
+The two original boot smoke checks run through `BootSmokeTests.RunAll`.
+
+Before expensive fixtures, the runner executes all 273 catalogued source
+contracts (or those belonging to selected fixtures), collecting every failure.
+`-Contracts` stops there and never claims full-suite success. The catalog in
+`tests/OS.HostTests/HostSourceChecks.txt` contains reviewed lightweight methods;
+do not add build, subprocess, native-execution or network methods. A compiled
+input manifest rejects stale binaries after source edits, including `--no-build`.
+
+Each run writes atomic per-fixture state, individual logs and `result.json` under
+the printed results directory. Resume reruns failed, interrupted, new or changed
+fixtures. It reuses passes only when their fingerprints and retained evidence
+match. Fingerprints cover shared source/scripts/docs/configuration, host producer
+binaries, runtime/SDK, environment (digest only), native compiler/linker/LLVM and
+NativeAOT package bytes, plus the fixture source and transitive lexical references
+to other fixture/helper source. Broad source scans conservatively include all
+test files. The rebuilt host assembly itself is checked against its build
+manifest but excluded from individual resume keys, so an unrelated fixture edit
+does not automatically discard every pass.
+
+Fixture logs and generated retained artifacts are hash-checked on reuse. Existing
+caller console logs are excluded from artifact capture. Reused results emit
+`HOST_FIXTURE_REUSED` with their originating run; they never replay `TEST_PASS`.
+`HOST_RUN_SUMMARY` and the receipt distinguish executed and reused coverage.
+`TEST_PASS host.tests` means every currently selected full-suite fixture passed
+or has valid reused evidence. Partial selection emits `host.tests.selected`.
+Old marker-count-only acceptance scripts must inspect the receipt for reused
+coverage, or use a new results directory for wholly fresh execution.
+
+Resume is local to the same workspace and machine. Do not run two suites against
+shared outputs, change inputs while running, or move/edit checkpoint files. A
+results-directory lock prevents duplicate owners; a surviving fixture process
+blocks resumption after a hard parent interruption. Ctrl+C terminates the active
+fixture process tree and leaves the remaining work pending. Corrupt receipts are
+rejected. Unclassified environment-selected inputs and external reference checkouts disable
+reuse conservatively. Other dynamic external inputs are outside this local
+fingerprint model: fixtures consuming them must run fresh, and reuse is not guest/native acceptance
+by itself. The audit found cross-fixture source dependencies but did not prove
+complete artifact independence for every existing integration fixture.
+
+Byte-exact native provenance remains strict. Three new cheap source-authority
+guards catch stale frozen native inputs before publication. LF/CRLF text-only
+contracts normalize line endings; artifact/source-closure provenance does not.
+Git attributes preserve the accepted CRLF bytes for the project and two EFI
+authority scripts on fresh checkouts. A checkout whose raw bytes still differ
+from accepted frozen inputs fails that guard early. Do not refresh provenance
+pins merely to make it pass.
+
 ## Focused host fixture runs
 
 During implementation, run selected existing fixture files with PowerShell:
@@ -185,21 +255,22 @@ Use basenames from `tests/OS.HostTests`; add any required helper or companion
 fixture files to the explicit list. `HostToolProcess.cs` is included automatically.
 The script builds a unique project under `artifacts/host-tests-focused`, retaining
 the original project references and settings. It compiles the selected original
-files directly, including their module initializers, without rewriting tests.
+files directly, dispatching their attributed fixtures without rewriting tests.
 `Program.cs` and paths outside the fixture directory are rejected.
 
 Each run retains the selected paths/hashes, native commands and exits, build/run
 logs and `result.json`. Success requires actual fixture markers, no failure
 markers, unchanged selected sources and `TEST_PASS host.tests.focused`.
-Fixtures without module initializers do not run automatically; selecting only
+Fixtures without fixture attributes do not run automatically; selecting only
 helpers fails the marker check. Selected fixtures can still publish EFI images
 or invoke external tools, so choose the smallest relevant set and serialize
 fixtures that share outputs. `-Configuration Release` selects a release build.
 
 Focused success is partial host evidence. It does not emit `TEST_PASS host.tests`
-or replace a required complete suite or guest capture. Use the unchanged
+or replace a required complete suite or guest capture. The existing
 `dotnet run --project tests/OS.HostTests/OS.HostTests.csproj --no-build` command
-for the complete harness after a coherent implementation batch.
+still runs the complete harness after a coherent implementation batch; the
+wrapper above builds changed assertions first and also exposes resume.
 
 ## Verification
 

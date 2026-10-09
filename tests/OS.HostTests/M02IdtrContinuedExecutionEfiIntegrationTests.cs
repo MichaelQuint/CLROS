@@ -2296,6 +2296,15 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
             && inputHashesExact;
     }
 
+    private static bool TestFrozenSourceAuthority()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        string[] paths = ExpectedSourceAuthorityPaths(root);
+        string closure = string.Concat(paths.Select(path => path + "|" +
+            Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(root, path)))).ToLowerInvariant() + "\n"));
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(closure))).ToLowerInvariant() == SourceClosureSha256;
+    }
+
     private static string[] ExpectedSourceAuthorityPaths(string root)
     {
         string projectPath = Path.Combine(root, "src", "OS", "OS.csproj");

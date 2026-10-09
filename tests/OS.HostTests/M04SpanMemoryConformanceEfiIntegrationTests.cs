@@ -16,8 +16,9 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
         "M04_SPAN_MEMORY_CONFORMANCE_FAILED";
     private const string CompileClosureSha256 =
         "901575b1a6c8a4a766ed47c60579c997596769aa8b5a51132349ae62eedc1fe0";
+    // Text contract: portable across LF/CRLF checkouts. Artifact provenance remains byte-exact.
     private const string ProjectFileSha256 =
-        "d4d0d8745ff78477c9d49e8f518cbc88900494c70cff637a7203f64496c9c326";
+        "63758c4a3795c301e0746d6b8e2395568c801302731af37cf08c2a13aef9c8d5";
     private const string FrozenProductionSha256 =
         "0c818f89ecc761a4e5692ce3970e98d577381b98bbe540f6ec5f154130c12153";
     private const string FrozenHostTestSha256 =
@@ -147,7 +148,7 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
 
         return compileItems.Length == 124
             && compileHash == CompileClosureSha256
-            && Sha256File(projectPath) == ProjectFileSha256
+            && Sha256Text(File.ReadAllText(projectPath).ReplaceLineEndings("\n")) == ProjectFileSha256
             && endianIndex >= 0
             && spanMemoryIndex == endianIndex + 1
             && loadedImageIndex == spanMemoryIndex + 4
@@ -313,7 +314,7 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
     {
         string root = FindRepositoryRoot();
         string build = File.ReadAllText(
-            Path.Combine(root, "scripts", "build-efi-shell.ps1"));
+            Path.Combine(root, "scripts", "build-efi-shell.ps1")).ReplaceLineEndings("\n");
         string verifier = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
         string verifierTests = File.ReadAllText(

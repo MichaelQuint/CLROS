@@ -8,7 +8,7 @@ using OS.Kernel.Diagnostics;
 
 internal static unsafe class M03OwnedSubsystemSurvivalEfiIntegrationTests
 {
-    private static string root = null!, scratch = null!;
+    private static string root = HostToolProcess.FindRepositoryRoot(), scratch = null!;
     [ModuleInitializer]
     internal static void Run()
     {

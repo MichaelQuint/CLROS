@@ -10,6 +10,9 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<!-- Keep capture projects unchanged; only this harness dispatches fixtures explicitly. -->
+		<Using Include="HostFixtureAttribute" Alias="ModuleInitializerAttribute" />
+		<EmbeddedResource Include="HostSourceChecks.txt" />
 		<ProjectReference Include="..\..\src\OS.Kernel\OS.Kernel.csproj" />
 		<ProjectReference Include="..\..\std\no-runtime\shared\OS.Std.NoRuntime.Shared.csproj" />
 		<ProjectReference Include="..\..\tools\OS.ImageBuilder\OS.ImageBuilder.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
@@ -17,5 +20,14 @@
 		<ProjectReference Include="..\..\tools\OS.ManifestTool\OS.ManifestTool.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
 		<ProjectReference Include="..\..\tools\OS.QemuRunner\OS.QemuRunner.csproj" />
 	</ItemGroup>
+
+	<!-- Bind execution without rebuilding to the source actually compiled, without putting the whole
+	     host assembly hash into every fixture's resume key. -->
+	<Target Name="RecordHostCompiledInputs" AfterTargets="Build" Condition="'$(MSBuildProjectName)' == 'OS.HostTests'">
+		<GetFileHash Files="@(Compile);$(TargetPath);$(MSBuildProjectFullPath);HostSourceChecks.txt" Algorithm="SHA256">
+			<Output TaskParameter="Items" ItemName="HostCompiledInputs" />
+		</GetFileHash>
+		<WriteLinesToFile File="$(TargetDir)OS.HostTests.inputs.sha256" Lines="@(HostCompiledInputs->'%(FullPath)|%(FileHash)')" Overwrite="true" WriteOnlyWhenDifferent="true" />
+	</Target>
 
 </Project>

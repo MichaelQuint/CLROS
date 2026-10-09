@@ -1586,6 +1586,19 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
             && inputHashesExact;
     }
 
+    private static bool TestFrozenSourceAuthority()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        SourceAuthoritySnapshot current = CaptureSourceAuthoritySnapshot(root);
+        return current.ProjectSha256 == ExpectedProjectSha256
+            && current.EntrySha256 == ExpectedEntrySha256
+            && current.SourceClosureSha256 == ExpectedSourceClosureSha256
+            && current.CompileSha256 == ExpectedCompileSha256
+            && current.SourceInputCount == ExpectedSourceInputCount
+            && current.CompileCount == ExpectedCompileCount
+            && Sha256File(Path.Combine(root, "src", "OS.Kernel", "Diagnostics", "DisabledDefaultUd2VectorStateTransition.cs")) == ExpectedTransitionSha256;
+    }
+
     private static SourceAuthoritySnapshot CaptureSourceAuthoritySnapshot(
         string root)
     {

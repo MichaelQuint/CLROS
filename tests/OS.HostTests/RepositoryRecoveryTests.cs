@@ -181,7 +181,7 @@ internal static class RepositoryRecoveryTests
         string readme = File.ReadAllText(Path.Combine(root, "README.md"));
         return readme.Contains("alt=\"CLROS logo\"", StringComparison.Ordinal)
             && readme.Contains("included in `CLROS.slnx` under stricter build rules", StringComparison.Ordinal)
-            && readme.Contains("only Gate 2 passes", StringComparison.Ordinal)
+            && readme.Contains("only Gate 2 passes", StringComparison.OrdinalIgnoreCase)
             && readme.Contains("not cloud-ready", StringComparison.Ordinal);
     }
 

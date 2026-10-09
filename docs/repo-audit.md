@@ -2,6 +2,18 @@
 
 ## Current Status
 
+The host-harness audit in [step1114](../done/step1114.md), issue #600, scans all
+447 original host C# files and 10,173 methods/helpers. It identifies 942 brittle
+assertion candidates and checks 1,550 literal-source comparisons; these are
+inspection counts, not failures or executed test counts. Seven literal-source
+mismatches and three checkout-sensitive project-text pins were corrected.
+The new runner collects 273 cheap source-contract results before expensive
+fixtures, isolates fixture failures, and saves resumable local evidence with
+explicit reuse and dependency invalidation. Targeted runner/source checks pass;
+this does not constitute a new full native/host gate or guest acceptance.
+The original rethrow R06 failed on the COM1 newline assertion; platform R05 was
+stopped before reaching the inherited failure. Their acceptance remains pending.
+
 The M03 tracker reconciliation in [step1095](../done/step1095.md) records all
 11 keyed children accepted, closes epic #57 and milestone 5, and refreshes the
 #68 dependency in #93/#94. #94 is the next ready platform leaf; #93 remains an

@@ -23,6 +23,17 @@ The full harness must emit:
 
 Keep names stable because scripts and future CI will parse them.
 
+The host project aliases `[ModuleInitializer]` to `HostFixtureAttribute` and
+dispatches fixtures explicitly. New fixtures can use `[HostFixture]`; do not
+introduce real qualified CLR module initializers. Capture projects retain their
+own initialization behavior. Keep fixtures self-contained: execution is serial
+but each fixture has its own process. Never depend on a prior fixture's static
+state or artifacts. Put cheap source-only checks in `HostSourceChecks.txt` so
+stale assertions fail before expensive builds. Do not put process/build checks
+in that catalog. Resume reports reused evidence with `HOST_FIXTURE_REUSED`,
+never replayed pass markers; read `docs/host-requirements.md` before interpreting
+full-run checkpoint evidence. Use a fresh run for dynamic external inputs.
+
 ## Test Style
 
 - Keep tests deterministic.
