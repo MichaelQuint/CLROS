@@ -2,6 +2,12 @@
 
 ## Current Status
 
+The default-off `EnableM05MonotonicClockProbe` now runs through BootSequence only
+after successful owned subsystem diagnostics. Preparation validates retained
+HPET metadata and installs one uncached RW/NX device page; after exit it checks
+bounded counter motion and allows one recovery. [Step1124](../done/step1124.md)
+records the first successful guest capture and pending batch qualification.
+
 The default-off M05 owned-ACPI selection diagnostic follows the successful
 M03 owned-subsystem checks through `BootSequence.RunOwnedAcpiSelection`.
 It reads the original retained table bytes, validates their envelopes and root

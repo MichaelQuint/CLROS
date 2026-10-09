@@ -2,6 +2,13 @@
 
 ## Current Status
 
+An opt-in owned monotonic clock is under qualification in
+[step1124](../done/step1124.md). It adds one uncached HPET page, bounded startup
+recovery and a qualified single-CPU TSC fallback contract. The first real HPET
+capture passes; full-host and native-review acceptance remain pending. See
+[drivers](drivers.md) for the limits. Scheduler interrupts, PCI and later gates
+remain incomplete.
+
 The default-off `EnableM05OwnedAcpiSelectionProbe` revalidates the original
 retained RSDP/root/MCFG/MADT/HPET directory after owned subsystem survival. It
 selects offsets into retained bytes and rejects a shortened input bound without

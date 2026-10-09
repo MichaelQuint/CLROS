@@ -53,7 +53,7 @@ internal static class M04GCStaticRootMaterializationEfiIntegrationTests
         Need(conditions.Count(x => x == "'$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true' and '$(" + Flag + ")' == 'true'") == 1, "incoming original TypeManager conflict");
         foreach (string other in flags.Except(Chain.Append(Flag).Append("EnableM04SeededCollectorChurnProbe").Append("EnableM04ClassConstructorExecutionProbe").Append("EnableM04InterfaceDispatchProbe").Append("EnableM04SimpleThrowCatchProbe").Append("EnableM04SingleFinallyCatchProbe").Append("EnableM04RethrowProbe"), StringComparer.Ordinal))
         {
-            string profile = other is "EnableM03FirmwareAdapterRevocationProbe" or "EnableM03OwnedSubsystemSurvivalProbe" or "EnableM03OwnedSubsystemPanicProbe" or "EnableM05PhysicalMappingProbe" or "EnableM05OwnedAcpiSelectionProbe" ? "EnableM03FirstRealExitBootServicesProbe"
+            string profile = other is "EnableM03FirmwareAdapterRevocationProbe" or "EnableM03OwnedSubsystemSurvivalProbe" or "EnableM03OwnedSubsystemPanicProbe" or "EnableM05PhysicalMappingProbe" or "EnableM05OwnedAcpiSelectionProbe" or "EnableM05MonotonicClockProbe" ? "EnableM03FirstRealExitBootServicesProbe"
                 : other == "EnableM04X64UnwindMetadataProbe" ? "EnableM04TypeManagerModuleRegistrationProbe" : other;
             Need(conditions.Count(x => x == (profile == "EnableM03FirstRealExitBootServicesProbe"
                 ? "'$(" + profile + ")' == 'true' and '$(" + Flag + ")' == 'true'"

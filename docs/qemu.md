@@ -1,5 +1,14 @@
 # QEMU
 
+## Owned monotonic clock development
+
+The default-off M05 clock diagnostic uses the fresh-image command in
+[EFI build](efi-build.md#owned-monotonic-clock-profile). Its strict 83-record
+transcript requires increasing HPET ticks, a valid period/frequency, at most one
+recovery and explicit rejection controls. The first real capture passes in
+[step1124](../done/step1124.md); full-host, ordinary-regression and native-review
+acceptance remain pending. The QEMU CPU did not enumerate a usable TSC frequency.
+
 ## Owned ACPI selection
 
 Issue #95/#606 adds a default-off 83-record post-exit selection diagnostic.

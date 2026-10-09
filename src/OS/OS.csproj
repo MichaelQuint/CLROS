@@ -84,6 +84,7 @@
 		<EnableM04RethrowProbe Condition="'$(EnableM04RethrowProbe)' == ''">false</EnableM04RethrowProbe>
 		<EnableM05PhysicalMappingProbe Condition="'$(EnableM05PhysicalMappingProbe)' == ''">false</EnableM05PhysicalMappingProbe>
 		<EnableM05OwnedAcpiSelectionProbe Condition="'$(EnableM05OwnedAcpiSelectionProbe)' == ''">false</EnableM05OwnedAcpiSelectionProbe>
+		<EnableM05MonotonicClockProbe Condition="'$(EnableM05MonotonicClockProbe)' == ''">false</EnableM05MonotonicClockProbe>
 		<EnableM04InterfaceDispatchProbe Condition="'$(EnableM04InterfaceDispatchProbe)' == ''">false</EnableM04InterfaceDispatchProbe>
 	</PropertyGroup>
 
@@ -331,6 +332,9 @@
 	<PropertyGroup Condition="'$(EnableM05OwnedAcpiSelectionProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M05_OWNED_ACPI_SELECTION_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM05MonotonicClockProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M05_MONOTONIC_CLOCK_PROBE</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM05PhysicalMappingProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M05_PHYSICAL_MAPPING_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -396,6 +400,7 @@
 			'$(EnableM04X64UnwindMetadataProbe)' == 'true' or
 			'$(EnableM05PhysicalMappingProbe)' == 'true' or
 			'$(EnableM05OwnedAcpiSelectionProbe)' == 'true' or
+			'$(EnableM05MonotonicClockProbe)' == 'true' or
 			'$(EnableUefiGoneSimulationProbe)' == 'true')">Diagnostic</ClrosBootPolicy>
 		<ClrosBootPolicy Condition="'$(ClrosBootPolicy)' == ''">VerifiedExit</ClrosBootPolicy>
 	</PropertyGroup>
@@ -503,6 +508,8 @@
 		<Compile Include="..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs" Link="Boot\FirstOptRealExitBootServicesTransition.cs" />
 		<Compile Include="..\OS.Kernel\Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs" Link="Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs" />
 		<Compile Include="..\OS.Kernel\Platform\OwnedACPIDirectorySelectMADTHPETMCFG.cs" Link="Platform\OwnedACPIDirectorySelectMADTHPETMCFG.cs" />
+		<Compile Include="..\OS.Kernel\Platform\OwnedMonotonicClock.cs" Link="Platform\OwnedMonotonicClock.cs" />
+		<Compile Include="..\OS.Kernel\Platform\MonotonicHPETTSCClockWrapFrequencyTests.cs" Link="Platform\MonotonicHPETTSCClockWrapFrequencyTests.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\Binary\EndianPrimitives.Pointer.cs" Link="Std\Binary\EndianPrimitives.Pointer.cs" />
 		<Compile Include="..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs" Link="Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs" />
 		<Compile Include="..\OS.Kernel\Boot\BootSequence.cs" Link="Boot\BootSequence.cs" />
@@ -607,6 +614,7 @@
 			'$(EnableM04X64UnwindMetadataProbe)' == 'true' or
 			'$(EnableM05PhysicalMappingProbe)' == 'true' or
 			'$(EnableM05OwnedAcpiSelectionProbe)' == 'true' or
+			'$(EnableM05MonotonicClockProbe)' == 'true' or
 			'$(EnableUefiGoneSimulationProbe)' == 'true')" Text="clros_boot_policy_probe_conflict" />
 	</Target>
 
@@ -1718,6 +1726,9 @@
 		<Error Condition="'$(EnableM04SingleFinallyCatchProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'" Text="m04_single_finally_requires_gc_profile" />
 		<Error Condition="'$(EnableM04SingleFinallyCatchProbe)' == 'true' and ('$(EnableM04SeededCollectorChurnProbe)' == 'true' or '$(EnableM04ClassConstructorExecutionProbe)' == 'true' or '$(EnableM04InterfaceDispatchProbe)' == 'true' or '$(EnableM04X64UnwindMetadataProbe)' == 'true' or '$(EnableM04SimpleThrowCatchProbe)' == 'true')" Text="m04_single_finally_profile_conflict" />
 		<Error Condition="'$(EnableM05OwnedAcpiSelectionProbe)' != 'true' and '$(EnableM05OwnedAcpiSelectionProbe)' != 'false'" Text="m05_acpi_switch_invalid" />
+		<Error Condition="'$(EnableM05MonotonicClockProbe)' != 'true' and '$(EnableM05MonotonicClockProbe)' != 'false'" Text="m05_clock_switch_invalid" />
+		<Error Condition="'$(EnableM05MonotonicClockProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM03FirstRealExitBootServicesProbe)' != 'true' or '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true')" Text="m05_clock_requires_owned_first_exit" />
+		<Error Condition="'$(EnableM05MonotonicClockProbe)' == 'true' and ('$(EnableM03OwnedSubsystemPanicProbe)' == 'true' or '$(EnableM03FirmwareAdapterRevocationProbe)' == 'true' or '$(EnableM05PhysicalMappingProbe)' == 'true' or '$(EnableM05OwnedAcpiSelectionProbe)' == 'true')" Text="m05_clock_profile_conflict" />
 		<Error Condition="'$(EnableM05OwnedAcpiSelectionProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM03FirstRealExitBootServicesProbe)' != 'true' or '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true')" Text="m05_acpi_requires_owned_first_exit" />
         <Error Condition="'$(EnableM05OwnedAcpiSelectionProbe)' == 'true' and ('$(EnableM03OwnedSubsystemPanicProbe)' == 'true' or '$(EnableM03FirmwareAdapterRevocationProbe)' == 'true' or '$(EnableM05PhysicalMappingProbe)' == 'true')" Text="m05_acpi_profile_conflict" />
 		<Error Condition="'$(EnableM05PhysicalMappingProbe)' != 'true' and '$(EnableM05PhysicalMappingProbe)' != 'false'" Text="m05_mapping_switch_invalid" />

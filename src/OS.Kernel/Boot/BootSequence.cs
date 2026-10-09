@@ -277,6 +277,11 @@ public static class BootSequence
         OS.Kernel.Diagnostics.Probes.EnableM05OwnedAcpiSelectionProbe &&
         ownedSubsystemsComplete && context != null && execute != null && execute(context);
 
+    public static unsafe bool RunOwnedMonotonicClock(
+        bool ownedSubsystemsComplete, void* context, delegate*<void*, bool> execute) =>
+        OS.Kernel.Diagnostics.Probes.EnableM05MonotonicClockProbe &&
+        ownedSubsystemsComplete && context != null && execute != null && execute(context);
+
     public static unsafe bool RunPostFirmwarePhysicalMapping(
         bool ownedSubsystemsComplete, void* context, delegate*<void*, bool> execute) =>
         OS.Kernel.Diagnostics.Probes.EnableM05PhysicalMappingProbe &&

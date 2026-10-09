@@ -11608,7 +11608,7 @@
         "M05-002"
       ],
       "labels": [
-        "agent:ready",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -11635,7 +11635,7 @@
       ],
       "collisionLane": null,
       "summary": "Initialize a monotonic HPET/TSC clock with wrap and frequency tests.",
-      "currentEvidence": "Dependency #95 (M05-002) is accepted in done/step1123.md for retained ACPI directory selection after firmware exit. This clock slice is ready but unimplemented; timer motion, frequency, wrap handling and bounded stalled-HPET recovery still require focused host and real guest evidence.",
+      "currentEvidence": "Implemented under #96 and shared integration #608; development evidence is in done/step1124.md. Focused clock, mapping, profile and boot-authority checks pass, and the first strict 83-record real QEMU/OVMF capture demonstrates post-exit HPET at 100 MHz with one recovery and increasing ticks. TSC frequency was unavailable in that guest; fallback is host-tested only. Full-host, ordinary-regression, native-review and image-association acceptance remain pending. Do not close or advance dependent issues yet.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Initialize a monotonic HPET/TSC clock with wrap and frequency tests.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

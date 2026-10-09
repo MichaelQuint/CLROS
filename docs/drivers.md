@@ -2,6 +2,21 @@
 
 ## Current Status
 
+The default-off `EnableM05MonotonicClockProbe` is implemented for #96/#608.
+It admits one aligned HPET page from retained ACPI, rejects overlap with RAM or
+owned allocations, uses the observed PAT's uncached encoding, and starts a
+single-CPU polled clock after firmware exit. Startup samples counter motion for
+at most 4,096 reads per check and permits one stop/reset/start recovery. It
+disables timer interrupts and legacy routing while preserving reserved bits.
+Modular deltas require sampling within half the counter range and no external
+reset; published clocks never reset or change sources. The optional Intel TSC
+fallback requires invariant-TSC metadata and an exact CPUID.15H crystal ratio.
+Missing frequency information fails closed rather than guessing CPU MHz.
+Focused host checks and the first real 83-record QEMU capture pass; full-host,
+ordinary-regression and native-review acceptance remain pending in
+[step1124](../done/step1124.md). QEMU demonstrated HPET at 100 MHz with one recovery;
+its TSC frequency was unavailable. No live TSC fallback or interrupt clock is claimed.
+
 The default-off `EnableM05OwnedAcpiSelectionProbe` revalidates the original
 retained RSDP/root/MCFG/MADT/HPET directory after owned subsystem survival. It
 selects offsets into retained bytes and rejects a shortened input bound without

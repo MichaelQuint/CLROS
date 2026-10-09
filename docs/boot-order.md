@@ -1,5 +1,11 @@
 # Boot Order
 
+The optional M05 monotonic clock diagnostic follows successful original owned
+subsystem checks through `BootSequence.RunOwnedMonotonicClock`. It uses a
+retained uncached HPET mapping prepared before exit, makes no firmware calls,
+and leaves the ordinary default path unchanged. Qualification is pending in
+[step1124](../done/step1124.md).
+
 The optional seeded churn diagnostic is a substep of the existing GC diagnostic,
 after `RunCollectorGraph` has established the retained static child and checked
 the original stack. `Probes.EnableM04SeededCollectorChurnProbe` owns its
