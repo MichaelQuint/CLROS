@@ -294,6 +294,11 @@ public static partial class Probes
             EnableM05PciEnumerationProbe, ProbeRisk.Destructive,
             "Reads one retained ECAM bus with bounded enumeration after real firmware exit.");
 
+    public static ProbeDefinition GetM05BarDmaProbe() =>
+        new("platform.bar-dma", nameof(EnableM05BarDmaProbe),
+            EnableM05BarDmaProbe, ProbeRisk.Destructive,
+            "Sizes quiescent PCI BARs and exercises owned DMA buffer lifetime.");
+
     public static ProbeDefinition GetM05MonotonicClockProbe() =>
         new("platform.clock", nameof(EnableM05MonotonicClockProbe),
             EnableM05MonotonicClockProbe, ProbeRisk.Destructive,
@@ -504,9 +509,7 @@ public static partial class Probes
                 definition = GetM05OwnedAcpiSelectionProbe();
                 return true;
             case 30:
-                definition = new("platform.bar-dma", nameof(EnableM05BarDmaProbe),
-                    EnableM05BarDmaProbe, ProbeRisk.Destructive,
-                    "Sizes quiescent PCI BARs and exercises owned DMA buffer lifetime.");
+                definition = GetM05BarDmaProbe();
                 return true;
             case 29:
                 definition = GetM05PciEnumerationProbe();
