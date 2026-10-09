@@ -2,6 +2,14 @@
 
 ## Current Status
 
+The default-off `EnableM04RethrowProbe` implements one bounded compiler-generated
+rethrow: original throw, one finally cleanup, inner typed catch, rethrow of the
+same object, outer typed catch and compiled continuation. Two generated bridges
+retain the reviewed parent-frame, stack and register contract from step1100.
+The C# publication/verifier and 88-record guest path pass in
+[step1118](../done/step1118.md); final host acceptance is pending. Filters,
+collided exceptions, arbitrary nested rethrow and general EH remain unsupported.
+
 CLROS implements a bounded no-stdlib NativeAOT subset for the EFI shell and the
 optional allocation, collection, metadata and constructor probes described
 below. `std/no-runtime/shared` contains compatible helper slices; it is not a

@@ -2,6 +2,12 @@
 
 ## Current Status
 
+The C# integration of #596 and #94/#598 is implemented in
+[step1118](../done/step1118.md). Fresh rethrow/mapping/ordinary captures pass
+88/86/79 application records and reproduce the prior reviewed EFI bytes.
+This is development evidence pending the complete host gate and final acceptance.
+General EH, arbitrary mappings, live devices and numbered gate status are unchanged.
+
 The compiled host-tooling migration is accepted in
 [step1097](../done/step1097.md): the unfiltered fast and full host lanes pass,
 along with all 39 declared real QEMU/OVMF captures. The full host gate takes

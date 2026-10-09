@@ -1,5 +1,20 @@
 # EFI Build
 
+## Bounded rethrow and mapping development profiles
+
+The compiled builder, verifier and smoke planner share profile prerequisites in
+`EfiProfile`. Rethrow requires the original GC chain and excludes other EH,
+constructor, dispatch and unwind profiles. Mapping requires first firmware exit
+and owned subsystem survival and excludes the panic/revocation variants.
+
+The rethrow verifier binds both retained generated COFF objects, every bridge
+byte and relocation, and the exact compiler clause/unwind/runtime-function rows.
+That structural check remains separate from callback stack review. Both new
+profiles reproduce their previously reviewed EFI and map bytes in
+[step1118](../done/step1118.md). Current [QEMU commands](qemu.md#rethrow-and-mapping-development-captures)
+run the complete C# publication/verifier/image/guest path. Full-host acceptance
+is still pending; dangerous probe defaults remain false.
+
 ## Ordinary verified-exit policy
 
 The #68/#594 core checkpoint in [step1089](../done/step1089.md) introduces

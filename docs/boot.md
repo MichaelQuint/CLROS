@@ -2,9 +2,14 @@
 
 ## Current Status
 
+Two explicit diagnostic profiles are integrated through the C# tools:
+pre-exit bounded rethrow and post-exit physical mapping after owned subsystem
+survival. [Step1118](../done/step1118.md) records passing development captures
+and an unchanged ordinary-boot image. Full-host acceptance remains pending.
+
 Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
 
-The ordinary `VerifiedExit` policy defers `OS_BOOT_OK`, `TEST_PASS boot.sequence` and `OS_SMOKE_PASS` until the original positive post-exit subsystem checks succeed. Six completion records use owned COM1 before the existing terminal halt. All 52 diagnostic properties remain false. Explicit `Diagnostic` profiles retain their separate boundaries.
+The ordinary `VerifiedExit` policy defers `OS_BOOT_OK`, `TEST_PASS boot.sequence` and `OS_SMOKE_PASS` until the original positive post-exit subsystem checks succeed. Six completion records use owned COM1 before the existing terminal halt. All diagnostic properties remain false. Explicit `Diagnostic` profiles retain their separate boundaries.
 
 This is a bounded terminal boot path. It reuses the original retained allocator and copied ACPI, adopts owned descriptors/page tables and reports through owned COM1. It does not reclaim firmware pages or start a continuing workload. General EH, hosted .NET/Kestrel, live storage/networking, cloud and production readiness remain unproved; numbered gate statuses are unchanged.
 

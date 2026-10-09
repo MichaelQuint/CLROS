@@ -2,6 +2,11 @@
 
 ## Current Status
 
+[Step1118](../done/step1118.md) ports the owned rethrow/mapping development batch
+to these compiled tools. Three fresh guest profiles pass and preserve reviewed
+native bytes. Full-host qualification and issue acceptance remain pending.
+Checkpoint resume and subprocess build isolation are recorded in steps1116/1117.
+
 The C# tooling migration in [step1097](../done/step1097.md) completes the
 implementation begun in [step1096](../done/step1096.md). Explicit test discovery,
 isolated fast workers, exclusive native workers, bounded process cleanup and

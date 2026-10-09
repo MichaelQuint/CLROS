@@ -21,6 +21,12 @@
 
 ## Progress
 
+The current development batch ports bounded rethrow and post-firmware UC/WC/WB
+mapping to the compiled C# tools. Fresh rethrow, mapping and ordinary QEMU
+captures pass with unchanged reviewed EFI bytes. Full-host qualification is
+pending; [step1118](done/step1118.md) records the exact boundary. Host runs now
+support validated [checkpoint resume](docs/host-requirements.md#resume-an-interrupted-or-failed-host-run).
+
 Host tests now use explicit C# discovery and a fast default lane:
 `dotnet run --project tests/OS.HostTests`. Use `-- --list` or
 `-- --filter <fixture-or-case>` for selection; full host execution requires

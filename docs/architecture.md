@@ -2,6 +2,11 @@
 
 ## Current Status
 
+The current development batch adds bounded rethrow and a retained scratch-page
+UC/WC/WB transition after owned subsystem survival. Both are explicit diagnostic
+profiles; [step1118](../done/step1118.md) records native/guest continuity and the
+pending full-host gate. They do not introduce a scheduler or continuing workload.
+
 Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
 
 CLROS follows a staged CloudReady NativeAOT architecture. The first-class
