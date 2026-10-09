@@ -4,8 +4,8 @@
 
 Two explicit diagnostic profiles are integrated through the C# tools:
 pre-exit bounded rethrow and post-exit physical mapping after owned subsystem
-survival. [Step1118](../done/step1118.md) records passing development captures
-and an unchanged ordinary-boot image. Full-host acceptance remains pending.
+survival. [Step1120](../done/step1120.md) records full-host qualification, six
+fresh guest captures, independent disk association and unchanged reviewed native images.
 
 Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
 

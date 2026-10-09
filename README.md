@@ -21,11 +21,12 @@
 
 ## Progress
 
-The current development batch ports bounded rethrow and post-firmware UC/WC/WB
-mapping to the compiled C# tools. Fresh rethrow, mapping and ordinary QEMU
-captures pass with unchanged reviewed EFI bytes. Full-host qualification is
-pending; [step1118](done/step1118.md) records the exact boundary. Host runs now
-support validated [checkpoint resume](docs/host-requirements.md#resume-an-interrupted-or-failed-host-run).
+Bounded rethrow and post-firmware UC/WC/WB mapping are qualified in
+[step1120](done/step1120.md): the resumed full host run passes 4,146 checks and
+six fresh QEMU profiles pass with independent image association. General EH,
+live devices and workload execution remain incomplete. Host runs support
+validated [checkpoint resume](docs/host-requirements.md#resume-an-interrupted-or-failed-host-run)
+and finish the fast phase before admitting native work.
 
 Host tests now use explicit C# discovery and a fast default lane:
 `dotnet run --project tests/OS.HostTests`. Use `-- --list` or
@@ -116,8 +117,14 @@ The [completion gates](docs/completion-gates.md) are the source of truth. Only G
 - **Bounded compiler finally (#589):** one inner cleanup runs before the typed
   catch and compiled continuation, preserving the original exception and
   validating its parent-stack side effect. [Step1088](done/step1088.md) accepts
-  the reviewed native image and fresh ordinary guest capture. General EH and
-  rethrow remain incomplete.
+  the reviewed native image and fresh ordinary guest capture.
+- **Bounded compiler rethrow (#596):** the same rooted exception reaches an
+  outer typed catch and compiled continuation after the original cleanup and
+  inner catch. [Step1120](done/step1120.md) accepts this finite profile; general
+  EH and arbitrary rethrow remain incomplete.
+- **Post-firmware physical mapping (#94/#598):** an owned scratch leaf changes
+  through UC/WC/WB with required invalidation, serialization and neighbor
+  preservation. Step1120 accepts this bounded primitive, without live devices.
 
 The bounded compiler-finally acceptance full host suite passed at implementation `3bfa349`, with
 **3,898 `TEST_START`, 3,899 `TEST_PASS` including `host.tests`, and zero failures**.

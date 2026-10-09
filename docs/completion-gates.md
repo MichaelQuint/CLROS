@@ -2,10 +2,13 @@
 
 ## Current Status
 
-The C# integration of #596 and #94/#598 is implemented in
-[step1118](../done/step1118.md). Fresh rethrow/mapping/ordinary captures pass
-88/86/79 application records and reproduce the prior reviewed EFI bytes.
-This is development evidence pending the complete host gate and final acceptance.
+The bounded C# profiles for #596 and #94/#598 are accepted in
+[step1120](../done/step1120.md). The frozen runtime source passes the resumed
+full host gate: 4,146 checks, 455 groups, 331 reused groups and unchanged inputs.
+Fresh rethrow/mapping/ordinary captures pass 88/86/79 application records;
+GC/catch/finally regressions pass 70/82/84. All six disks pass independent
+GPT/FAT/EFI association checks. Final test-only phase ordering and semantic
+normalization changes have separate focused evidence in step1119 and step1120.
 General EH, arbitrary mappings, live devices and numbered gate status are unchanged.
 
 The compiled host-tooling migration is accepted in

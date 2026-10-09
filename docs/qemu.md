@@ -1,6 +1,6 @@
 # QEMU
 
-## Rethrow and mapping development captures
+## Rethrow and mapping captures
 
 Build the solution, then select one profile below and run the common command.
 Both require a fresh EFI/image and original capture; arbitrary marker overrides
@@ -21,9 +21,10 @@ dotnet run --project tools/OS.Tooling --no-build -- qemu smoke --BuildEfi @probe
   --OvmfCode 'C:\Program Files\qemu\share\edk2-x86_64-code.fd' --TimeoutSeconds 15
 ```
 
-[Step1118](../done/step1118.md) records fresh C# captures for both profiles and
-ordinary boot, their unchanged reviewed EFI identities, and pending full-host
-acceptance. Historical step1100/1107 commands retain their original provenance.
+[Step1120](../done/step1120.md) records fresh C# captures for both profiles,
+ordinary boot and GC/catch/finally regressions, plus reviewed native continuity,
+the full host gate and independent disk association. Historical step1100/1107
+commands retain their original provenance.
 
 ## Current Status
 

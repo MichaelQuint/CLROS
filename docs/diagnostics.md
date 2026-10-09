@@ -7,8 +7,8 @@ The rethrow profile extends the GC stream to 88 application records and proves
 same-object catch/rethrow/outer continuation. Mapping extends owned survival to
 86 records and requires positive cache-policy, leaf, readback and neighbor checks
 before `TEST_PASS m05.001`. The C# parsers reject unselected claims and malformed
-or reordered records. [Step1118](../done/step1118.md) records development validation;
-the full-host gate is pending.
+or reordered records. [Step1120](../done/step1120.md) records full-host and
+guest qualification with independent image association.
 
 Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
 

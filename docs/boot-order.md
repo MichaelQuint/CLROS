@@ -12,7 +12,7 @@ The rethrow diagnostic remains inside the original GC probe before firmware
 exit. Physical mapping follows the original post-exit owned-subsystem checks
 and must complete before its diagnostic success. Both route through
 `BootSequence`, default off, and add no normal boot phase. The compiled C#
-integration has development evidence in [step1118](../done/step1118.md).
+integration is qualified in [step1120](../done/step1120.md).
 
 Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
 
