@@ -41,6 +41,7 @@ param(
     [switch]$EnableM04X64UnwindMetadataProbe,
     [switch]$EnableM04SimpleThrowCatchProbe,
     [switch]$EnableM04SingleFinallyCatchProbe,
+    [switch]$EnableM04RethrowProbe,
     [switch]$EnableM04GcStaticRootMaterializationProbe,
     [switch]$EnableM04SeededCollectorChurnProbe,
     [switch]$EnableM03TypedExitBootServicesCallProbe,
@@ -94,7 +95,7 @@ $maximumPackageFileBytes = 67108864L
 $maximumPackageTreeBytes = 134217728L
 $maximumPackageTreeEntries = 1024
 $maximumPackageTreeFiles = 512
-$expectedSourceClosureInputCount = 138
+$expectedSourceClosureInputCount = 139
 $postRestoreEvaluationTimeoutSeconds = 120
 $postRestoreEvaluationOutputCharacterLimit = 4194304
 $minimumExternalProcessTimeoutSeconds = 5
@@ -260,6 +261,7 @@ $expectedEfiCompileItems = @(
     '..\OS.Kernel\Runtime\X64FrameUnwind.cs|Runtime\X64FrameUnwind.cs',
     '..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs|Runtime\NativeAotEhClauseMetadata.cs',
     'Runtime\ExceptionCatchProbe.cs|'
+    'Runtime\ExceptionRethrowProbe.cs|'
 )
 $expectedPackageBuildClosure = @(
     [pscustomobject]@{
@@ -571,6 +573,26 @@ function Test-SingleFinallyUnwindBytes {
     if($null -eq $Data -or $Data.Length -ne $expectedBytes){return $false}
     for($i=0;$i -lt $prefix.Length;$i++){if($Data[$i] -ne $prefix[$i]){return $false}}
     return -not $Root -or ($TableRva -gt 0 -and $TableRva -le [UInt32]::MaxValue -and [UInt64][BitConverter]::ToUInt32($Data,11) -eq $TableRva)
+}
+
+function Test-RethrowEhTable {
+    param([byte[]] $Table, [bool] $Inner, [UInt64] $TypeRva)
+    [byte[]]$prefix = if ($Inner) { @(4,40,50,92,40,160,138) } else { @(2,42,48,102) }
+    if ($null -eq $Table -or $Table.Length -ne $prefix.Length+4 -or $TypeRva -eq 0 -or
+        $TypeRva -gt [UInt32]::MaxValue) { return $false }
+    for ($i=0; $i -lt $prefix.Length; $i++) { if ($Table[$i] -ne $prefix[$i]) { return $false } }
+    return [UInt64][BitConverter]::ToUInt32($Table,$prefix.Length) -eq $TypeRva
+}
+
+function Test-RethrowUnwindBytes {
+    param([byte[]] $Data, [bool] $Inner, [bool] $Root, [UInt64] $TableRva)
+    [byte[]]$prefix = if (-not $Root) { @(1,4,1,0,4,66,1) }
+        elseif ($Inner) { @(1,5,2,0,5,82,1,80,4) } else { @(1,6,3,0,6,66,2,48,1,80,4) }
+    $length = $prefix.Length + $(if ($Root) { 4 } else { 0 })
+    if ($null -eq $Data -or $Data.Length -ne $length) { return $false }
+    for ($i=0; $i -lt $prefix.Length; $i++) { if ($Data[$i] -ne $prefix[$i]) { return $false } }
+    return -not $Root -or ($TableRva -gt 0 -and $TableRva -le [UInt32]::MaxValue -and
+        [UInt64][BitConverter]::ToUInt32($Data,$prefix.Length) -eq $TableRva)
 }
 
 function Read-UInt16LittleEndian {
@@ -3978,6 +4000,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
             "EnableM04X64UnwindMetadataProbe," +
             "EnableM04SimpleThrowCatchProbe," +
             "EnableM04SingleFinallyCatchProbe," +
+            "EnableM04RethrowProbe," +
             "EnableM04GcStaticRootMaterializationProbe," +
             "EnableM04SeededCollectorChurnProbe," +
             "EnableM03TypedExitBootServicesCallProbe," +
@@ -4156,6 +4179,9 @@ function Invoke-PostRestoreEvaluationSnapshot {
     }
     if ($EnableM04SingleFinallyCatchProbe) {
         $arguments += "-p:EnableM04SingleFinallyCatchProbe=true"
+    }
+    if ($EnableM04RethrowProbe) {
+        $arguments += "-p:EnableM04RethrowProbe=true"
     }
     if ($EnableM04GcStaticRootMaterializationProbe) {
         $arguments += "-p:EnableM04GcStaticRootMaterializationProbe=true"
@@ -4445,6 +4471,8 @@ function Invoke-PostRestoreEvaluationSnapshot {
             $EnableM04SimpleThrowCatchProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04SingleFinallyCatchProbe =
             $EnableM04SingleFinallyCatchProbe.IsPresent.ToString().ToLowerInvariant()
+        EnableM04RethrowProbe =
+            $EnableM04RethrowProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04GcStaticRootMaterializationProbe =
             $EnableM04GcStaticRootMaterializationProbe.IsPresent.ToString().ToLowerInvariant()
         EnableM04SeededCollectorChurnProbe =
@@ -4536,7 +4564,7 @@ function Invoke-PostRestoreEvaluationSnapshot {
     $projectReferences = @($evaluation.Items.ProjectReference)
     $references = @($evaluation.Items.Reference)
     $analyzers = @($evaluation.Items.Analyzer)
-    if ($compileItems.Count -ne 122 -or
+    if ($compileItems.Count -ne 123 -or
         $compileItems.Count -ne $expectedEfiCompileItems.Count -or
         $projectReferences.Count -ne 0 -or
         $references.Count -ne 0 -or
@@ -4676,8 +4704,10 @@ if ($EnableM04InterfaceDispatchProbe -and -not $EnableM04ClassConstructorExecuti
 if ($EnableM04X64UnwindMetadataProbe -and -not $EnableM04TypeManagerModuleRegistrationProbe) { Write-Output "TEST_FAIL efi.artifact m04_x64_unwind_metadata_requires_original_module"; exit 1 }
 if ($EnableM04SimpleThrowCatchProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Output "TEST_FAIL efi.artifact m04_simple_catch_requires_gc_profile"; exit 1 }
 if ($EnableM04SingleFinallyCatchProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Output "TEST_FAIL efi.artifact m04_single_finally_requires_gc_profile"; exit 1 }
+if ($EnableM04RethrowProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Output "TEST_FAIL efi.artifact m04_rethrow_requires_gc_profile"; exit 1 }
 if ($EnableM04SimpleThrowCatchProbe -and ($EnableM04SeededCollectorChurnProbe -or $EnableM04ClassConstructorExecutionProbe -or $EnableM04InterfaceDispatchProbe -or $EnableM04X64UnwindMetadataProbe)) { Write-Output "TEST_FAIL efi.artifact m04_simple_catch_profile_conflict"; exit 1 }
 if ($EnableM04SingleFinallyCatchProbe -and ($EnableM04SeededCollectorChurnProbe -or $EnableM04ClassConstructorExecutionProbe -or $EnableM04InterfaceDispatchProbe -or $EnableM04X64UnwindMetadataProbe -or $EnableM04SimpleThrowCatchProbe)) { Write-Output "TEST_FAIL efi.artifact m04_single_finally_profile_conflict"; exit 1 }
+if ($EnableM04RethrowProbe -and ($EnableM04SeededCollectorChurnProbe -or $EnableM04ClassConstructorExecutionProbe -or $EnableM04InterfaceDispatchProbe -or $EnableM04X64UnwindMetadataProbe -or $EnableM04SimpleThrowCatchProbe -or $EnableM04SingleFinallyCatchProbe)) { Write-Output "TEST_FAIL efi.artifact m04_rethrow_profile_conflict"; exit 1 }
 if ($EnableM04SeededCollectorChurnProbe -and -not $EnableM04GcStaticRootMaterializationProbe) {
     Write-Output "TEST_FAIL efi.artifact m04_churn_requires_gc_profile"; exit 1
 }
@@ -6122,6 +6152,9 @@ if ($EnableM04SimpleThrowCatchProbe) {
 }
 if ($EnableM04SingleFinallyCatchProbe) {
     $requiredEvidenceProperties += @("singleFinallyLinkedObjectPath", "singleFinallyObjectPath", "singleFinallyObjectBytes", "singleFinallyObjectSha256")
+}
+if ($EnableM04RethrowProbe) {
+    $requiredEvidenceProperties += @("rethrowInnerLinkedObjectPath", "rethrowInnerObjectPath", "rethrowInnerObjectBytes", "rethrowInnerObjectSha256", "rethrowOuterLinkedObjectPath", "rethrowOuterObjectPath", "rethrowOuterObjectBytes", "rethrowOuterObjectSha256")
 }
 foreach ($propertyName in $requiredEvidenceProperties) {
     if ($null -eq $linkEvidence.PSObject.Properties[$propertyName]) {
@@ -7577,6 +7610,7 @@ if ($EnableM04CheckedReferenceBarrierProbe -or $EnableM04GcStaticRootMaterializa
 if ($EnableM04InterfaceDispatchProbe) { $expectedForceIncludes += @('RhpInitialDynamicInterfaceDispatch','CLROS_InterfaceDispatch_GetCellSection','CLROS_InterfaceDispatch_GetInitialStub') }
 if ($EnableM04SimpleThrowCatchProbe) { $expectedForceIncludes += @('RhpThrowEx','CLROS_Eh_GetClauseTable') }
 if ($EnableM04SingleFinallyCatchProbe) { $expectedForceIncludes += @('RhpThrowEx','CLROS_Eh_GetClauseTable') }
+if ($EnableM04RethrowProbe) { $expectedForceIncludes += @('RhpThrowEx','RhpRethrow','CLROS_Rethrow_InnerClauses','CLROS_Rethrow_OuterClauses') }
 $actualForceIncludes = @($forceIncludeOptions | ForEach-Object {
     if ($_.Groups[1].Success) { $_.Groups[1].Value } else { $_.Groups[2].Value }
 })
@@ -8319,6 +8353,117 @@ else {
 
 # Bounded throw bridge. This binds emitted bytes/relocations; independent native
 # review still owns full callback stack, exact ILC contributions and transfer ABI.
+# Rethrow keeps each preserved and linked object under an independent retained
+# authority. Full generated text, all relocations, clauses and unwind rows must
+# match; this does not replace callback stack or actual guest-transfer review.
+if (-not $EnableM04RethrowProbe) {
+    if ([regex]::IsMatch($linkResponseText,'(?i)CLROS\.X64\.Rethrow(?:Inner|Outer)\.obj') -or
+        [regex]::IsMatch($linkerMapText,'(?m)^\s*[0-9A-Fa-f]{4}:[0-9A-Fa-f]{8}\s+(?:RhpRethrow|CLROS_Rethrow_\S+|__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__Rethrow\S+)\s+')) {
+        Write-Failure 'rethrow_unrequested_native_input'
+    }
+} else {
+    $rethrowAuthorities = @()
+    foreach ($role in @('Inner','Outer')) {
+        $inner = $role -ceq 'Inner'
+        $prefix = 'rethrow'+$role
+        $objectName = 'CLROS.X64.Rethrow'+$role+'.obj'
+        $objectBytes = if ($inner) { 1732 } else { 1382 }
+        $textBytes = if ($inner) { 1336 } else { 1048 }
+        $getterOffset = if ($inner) { 1328 } else { 1040 }
+        $hash = if ($inner) { 'd30d37f5ad93a70a66d2ed2e69a184a75db903c5a1d69c4e31571569016e7a10' }
+            else { '635c903ff77ee3c7de3d1edce3e6f015ddef204454a50432dfcf9692686e337b' }
+        $linked = [IO.Path]::GetFullPath([string]$linkEvidence.($prefix+'LinkedObjectPath'))
+        $preserved = [IO.Path]::GetFullPath([string]$linkEvidence.($prefix+'ObjectPath'))
+        if ($linked -cne (Join-Path (Split-Path -Parent $serializerLinkedObjectFullPath) $objectName) -or
+            $preserved -cne ($artifactPath+'.rethrow-'+$role.ToLowerInvariant()+'.obj') -or
+            $linkEvidence.($prefix+'ObjectBytes') -ne $objectBytes -or
+            [string]$linkEvidence.($prefix+'ObjectSha256') -cne $hash) { Write-Failure 'rethrow_object_contract_invalid' $role }
+        $preservedAuthority = Open-AuthorityReadHandle -Path $preserved -RootPath (Get-AuthorityRootPath -Path $preserved) `
+            -Purpose ('rethrow-preserved-'+$role) -FailurePrefix 'rethrow_object' -MaximumBytes $objectBytes -RequireSingleLink
+        $linkedAuthority = Open-AuthorityReadHandle -Path $linked -RootPath $repositoryRoot `
+            -Purpose ('rethrow-linked-'+$role) -FailurePrefix 'rethrow_linked_object' -MaximumBytes $objectBytes -RequireSingleLink
+        $rethrowAuthorities += @($preservedAuthority,$linkedAuthority)
+        foreach ($authority in @($preservedAuthority,$linkedAuthority)) {
+            if ($authority.InitialLength -ne $objectBytes -or [string]$authority.InitialSha256 -cne $hash) { Write-Failure 'rethrow_object_identity_mismatch' $role }
+        }
+        $responseCount=0
+        foreach ($token in $linkResponseTokens) {
+            if ([string]::IsNullOrWhiteSpace($token) -or $token[0] -eq '/' -or $token[0] -eq '-') { continue }
+            try { $candidate = if ([IO.Path]::IsPathRooted($token)) { [IO.Path]::GetFullPath($token) } else { [IO.Path]::GetFullPath((Join-Path $responseDirectory $token)) } }
+            catch { continue }
+            if ([string]::Equals($candidate,$linked,[StringComparison]::OrdinalIgnoreCase)) { $responseCount++ }
+        }
+        if ($responseCount -ne 1) { Write-Failure 'rethrow_object_link_response_missing' $role }
+        [byte[]]$object = Read-AuthorityBytes -Record $preservedAuthority -MaximumBytes $objectBytes -Reason 'rethrow_object_read_failed'
+        $names = if ($inner) { @('RhpThrowEx','CLROS_Rethrow_InnerClauses','CLROS_Rethrow_SelectInner','CLROS_Rethrow_RejectInnerReturn',
+            '__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__RethrowInner','CLROS_Rethrow_ValidateFinally') }
+            else { @('RhpRethrow','CLROS_Rethrow_OuterClauses','CLROS_Rethrow_SelectOuter','CLROS_Rethrow_ValidateOuter',
+            '__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__RethrowOuter') }
+        $methodIndex=$names.Count
+        $names += @(('OS_OS_Runtime_RhpNewFastAllocation__Rethrow'+$role),'??_7OS_OS_Runtime_SimpleCatchBase@@6B@')
+        $addresses=@()
+        for ($i=0; $i -lt $names.Count; $i++) {
+            $binding=[regex]::Matches($linkerMapText,'(?m)^\s*([0-9A-Fa-f]{4}):([0-9A-Fa-f]{8})\s+'+[regex]::Escape($names[$i])+'\s+([0-9A-Fa-f]{16})\s+(.+?)\s*$')
+            $owner=if($i -lt 2){$objectName}else{'OS.obj'}
+            if ($binding.Count -ne 1 -or $binding[0].Groups[4].Value -notmatch ('(?i)(?:^|[\s\\/()])'+[regex]::Escape($owner)+'(?=$|[\s()])')) { Write-Failure 'rethrow_symbol_owner' $names[$i] }
+            $at=Convert-HexUInt64 $binding[0].Groups[3].Value 'rethrow_symbol_address'
+            if ($at -le $imageBase -or [decimal]$at-$imageBase -ge $sizeOfImage) { Write-Failure 'rethrow_symbol_rva' $names[$i] }
+            $addresses += [UInt64]$at
+        }
+        if ($addresses[0]%16 -ne 0 -or $addresses[1] -ne $addresses[0]+$getterOffset) { Write-Failure 'rethrow_bridge_layout' $role }
+        $backing=Resolve-FileBackedRvaRange $sections ($addresses[0]-$imageBase) $textBytes $bytes.LongLength 'rethrow_text_not_backed' 'rethrow_text_ambiguous'
+        Assert-CodeSectionCharacteristics $backing.Section 'rethrow_text_permissions'
+        [byte[]]$text=Copy-ByteRange $bytes $backing.FileOffset $textBytes 'rethrow_text_truncated'
+        $fields=if($inner){@(330,609,1105,1331)}else{@(332,813,1043)}
+        $targets=if($inner){@(2,5,3,4)}else{@(2,3,4)}
+        for ($i=0; $i -lt $textBytes; $i++) {
+            $relocated=$false
+            foreach ($field in $fields) { if ($i -ge $field -and $i -lt $field+4) { $relocated=$true; break } }
+            if (-not $relocated -and $text[$i] -ne $object[60+$i]) { Write-Failure 'rethrow_text_mismatch' ($role+' offset='+$i) }
+        }
+        for ($i=0; $i -lt $fields.Count; $i++) {
+            if ([decimal]$addresses[0]+$fields[$i]+4+[BitConverter]::ToInt32($text,$fields[$i]) -ne [decimal]$addresses[$targets[$i]]) { Write-Failure 'rethrow_rel32_mismatch' $role }
+        }
+        $callbacks=if($inner){@(2,3,5)}else{@(2,3)}
+        foreach ($i in $callbacks) {
+            if ($addresses[$i] -ge $addresses[0] -and $addresses[$i] -lt $addresses[0]+$textBytes) { Write-Failure 'rethrow_callback_alias' }
+            $b=Resolve-FileBackedRvaRange $sections ($addresses[$i]-$imageBase) 1 $bytes.LongLength 'rethrow_callback_not_backed' 'rethrow_callback_ambiguous'
+            Assert-CodeSectionCharacteristics $b.Section 'rethrow_callback_permissions'
+        }
+        $methodRva=[UInt64]($addresses[$methodIndex]-$imageBase); $typeRva=[UInt64]($addresses[$methodIndex+1]-$imageBase)
+        $tableRva=[UInt64]($addresses[4]-$imageBase); $tableBytes=if($inner){11}else{8}; $codeBytes=if($inner){88}else{89}
+        $table=Resolve-FileBackedRvaRange $sections $tableRva $tableBytes $bytes.LongLength 'rethrow_table_not_backed' 'rethrow_table_ambiguous'
+        $type=Resolve-FileBackedRvaRange $sections $typeRva 24 $bytes.LongLength 'rethrow_type_not_backed' 'rethrow_type_ambiguous'
+        foreach ($metadataBacking in @($table,$type)) {
+            $flags=[UInt64]$metadataBacking.Section.Characteristics
+            if (($flags -band 0x40000040) -ne 0x40000040 -or ($flags -band 0xA2000020L) -ne 0) { Write-Failure 'rethrow_metadata_permissions' }
+        }
+        [byte[]]$tableData=Copy-ByteRange $bytes $table.FileOffset $tableBytes 'rethrow_table_truncated'
+        if (-not (Test-RethrowEhTable -Table $tableData -Inner $inner -TypeRva $typeRva)) { Write-Failure 'rethrow_clause_table_mismatch' $role }
+        $code=Resolve-FileBackedRvaRange $sections $methodRva $codeBytes $bytes.LongLength 'rethrow_method_not_backed' 'rethrow_method_ambiguous'
+        Assert-CodeSectionCharacteristics $code.Section 'rethrow_method_permissions'
+        $rows=@()
+        for ($index=0; $index -lt $runtimeFunctionCount; $index++) {
+            $offset=[int]([UInt64]$exceptionBacking.FileOffset+[UInt64]$index*12)
+            $begin=[BitConverter]::ToUInt32($bytes,$offset);$end=[BitConverter]::ToUInt32($bytes,$offset+4)
+            if ($begin -lt $methodRva+$codeBytes -and $end -gt $methodRva) { $rows+=,@($begin,$end,[BitConverter]::ToUInt32($bytes,$offset+8)) }
+        }
+        $starts=if($inner){@(0,46,69)}else{@(0,51)}; $ends=if($inner){@(46,69,88)}else{@(51,89)}
+        if ($rows.Count -ne $starts.Count) { Write-Failure 'rethrow_runtime_rows' $role }
+        for ($i=0; $i -lt $rows.Count; $i++) {
+            $row=$rows[$i]
+            if ($row[0] -ne $methodRva+$starts[$i] -or $row[1] -ne $methodRva+$ends[$i] -or
+                -not $validatedUnwindFileOffsets.ContainsKey([UInt32]$row[2])) { Write-Failure 'rethrow_runtime_row_shape' $role }
+            $length=if($i -gt 0){7}elseif($inner){13}else{15}
+            $unwind=Resolve-FileBackedRvaRange $sections $row[2] $length $bytes.LongLength 'rethrow_unwind_not_backed' 'rethrow_unwind_ambiguous'
+            [byte[]]$data=Copy-ByteRange $bytes $unwind.FileOffset $length 'rethrow_unwind_truncated'
+            if (-not (Test-RethrowUnwindBytes -Data $data -Inner $inner -Root ($i -eq 0) -TableRva $tableRva)) { Write-Failure 'rethrow_unwind_mismatch' $role }
+        }
+        Write-Output ('EFI_ARTIFACT_RETHROW_THUNK role='+$role.ToLowerInvariant()+' bytes='+$objectBytes+' text='+$textBytes+' tableBytes='+$tableBytes+' runtimeRows='+$rows.Count+' transferAccepted=false callbackStackAccepted=false')
+    }
+    Assert-DistinctAuthorityFiles -Records (@($referencePreservedAuthority,$referenceLinkedAuthority,$artifactAuthority,$linkerMapAuthority,$linkResponseAuthority,$linkEvidenceAuthority,$serializerObjectAuthority,$serializerLinkedObjectAuthority,$managedAssemblyAuthority,$linkedMapAuthority)+$rethrowAuthorities)
+}
+
 $catchNames=@('RhpThrowEx','CLROS_Eh_GetClauseTable','CLROS_Eh_Select','CLROS_Eh_ValidateContinuation','__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__Catcher')
 if ($EnableM04SingleFinallyCatchProbe) { $catchNames += @('CLROS_Eh_ValidateFinally','OS_OS_Runtime_RhpNewFastAllocation__Catcher','??_7OS_OS_Runtime_SimpleCatchBase@@6B@') }
 elseif ([regex]::IsMatch($linkerMapText,'(?m)^\s*[0-9A-Fa-f]{4}:[0-9A-Fa-f]{8}\s+CLROS_Eh_ValidateFinally\s+')) {
@@ -8328,6 +8473,7 @@ if (-not $EnableM04SingleFinallyCatchProbe -and [regex]::IsMatch($linkResponseTe
 if (-not $EnableM04SimpleThrowCatchProbe -and [regex]::IsMatch($linkResponseText,'(?i)CLROS\.X64\.SimpleThrowCatch\.obj')) { Write-Failure 'simple_catch_unrequested_native_object' }
 if (-not $EnableM04SimpleThrowCatchProbe -and -not $EnableM04SingleFinallyCatchProbe) {
     foreach ($name in $catchNames) {
+        if ($EnableM04RethrowProbe -and $name -ceq 'RhpThrowEx') { continue }
         if ([regex]::IsMatch($linkerMapText,'(?m)^\s*[0-9A-Fa-f]{4}:[0-9A-Fa-f]{8}\s+'+[regex]::Escape($name)+'\s+')) { Write-Failure 'simple_catch_unrequested_native_symbol' $name }
     }
     if ([regex]::IsMatch($linkResponseText,'(?i)CLROS\.X64\.SimpleThrowCatch\.obj')) { Write-Failure 'simple_catch_unrequested_native_object' }

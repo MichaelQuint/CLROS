@@ -166,6 +166,7 @@ internal static unsafe class M04RethrowCatchEfiIntegrationTests
             string folder = Path.Combine(root, "artifacts/rethrow-admission-core", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(folder);
             ProjectAdmission(root, folder);
+            VerifierContracts(root, folder);
             string project = Path.Combine(folder, "RethrowAdmission.Core.csproj");
             new XDocument(new XElement("Project", new XAttribute("Sdk", "Microsoft.NET.Sdk"),
                 new XElement("PropertyGroup", new XElement("OutputType", "Exe"), new XElement("TargetFramework", "net10.0"),
@@ -216,9 +217,111 @@ internal static unsafe class M04RethrowCatchEfiIntegrationTests
             Reject("profile-conflict-" + collision, [..chain, "-p:" + flag + "=true", "-p:" + collision + "=true"], "m04_rethrow_profile_conflict");
         Console.WriteLine("RETHROW_PROJECT_ADMISSION_PASS");
     }
-    private static string Invoke(string root, string folder, string name, string[] arguments, int expectedExit = 0)
+    private static void VerifierContracts(string root, string folder)
     {
-        var start = new ProcessStartInfo("dotnet") { WorkingDirectory = root, UseShellExecute = false,
+        string script = Path.Combine(folder, "verifier-contracts.ps1");
+        File.WriteAllText(script, """
+            param([string]$Root)
+            $ErrorActionPreference='Stop'
+            $tokens=$null; $errors=$null
+            $ast=[Management.Automation.Language.Parser]::ParseFile(
+                (Join-Path $Root 'scripts/test-efi-artifact.ps1'),[ref]$tokens,[ref]$errors)
+            if($errors.Count){throw 'Verifier parse failure'}
+            foreach($name in @('Test-RethrowEhTable','Test-RethrowUnwindBytes')) {
+                $nodes=@($ast.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq $name},$true))
+                if($nodes.Count -ne 1){throw 'Missing exact predicate'}
+                . ([scriptblock]::Create($nodes[0].Extent.Text))
+            }
+            function Need([bool]$Value,[string]$Reason){if(-not $Value){throw $Reason}}
+            foreach($inner in @($true,$false)) {
+                [byte[]]$table=if($inner){@(4,40,50,92,40,160,138,88,152,5,0)}else{@(2,42,48,102,88,152,5,0)}
+                Need (Test-RethrowEhTable $table $inner 0x59858) 'measured clauses'
+                foreach($badRva in @(0,0x59859,0x100000000L)) {
+                    Need (-not (Test-RethrowEhTable $table $inner $badRva)) 'wrong type identity'
+                }
+                Need (-not (Test-RethrowEhTable $null $inner 0x59858)) 'missing table'
+                Need (-not (Test-RethrowEhTable ($table+[byte]0) $inner 0x59858)) 'trailing table byte'
+                for($length=0;$length -lt $table.Length;$length++) {
+                    [byte[]]$short=New-Object byte[] $length; [Array]::Copy($table,$short,$length)
+                    Need (-not (Test-RethrowEhTable $short $inner 0x59858)) 'truncated table'
+                }
+                for($at=0;$at -lt $table.Length;$at++) {
+                    [byte[]]$bad=$table.Clone(); $bad[$at]=$bad[$at] -bxor 1
+                    Need (-not (Test-RethrowEhTable $bad $inner 0x59858)) 'changed table byte'
+                }
+                foreach($rootRow in @($true,$false)) {
+                    [byte[]]$data=if(-not $rootRow){@(1,4,1,0,4,66,1)}elseif($inner){@(1,5,2,0,5,82,1,80,4,0,176,5,0)}else{@(1,6,3,0,6,66,2,48,1,80,4,0,176,5,0)}
+                    Need (Test-RethrowUnwindBytes $data $inner $rootRow 0x5B000) 'measured unwind'
+                    Need (-not (Test-RethrowUnwindBytes $null $inner $rootRow 0x5B000)) 'missing unwind'
+                    Need (-not (Test-RethrowUnwindBytes ($data+[byte]0) $inner $rootRow 0x5B000)) 'trailing unwind'
+                    for($at=0;$at -lt $data.Length;$at++) {
+                        [byte[]]$bad=$data.Clone(); $bad[$at]=$bad[$at] -bxor 1
+                        Need (-not (Test-RethrowUnwindBytes $bad $inner $rootRow 0x5B000)) 'changed unwind byte'
+                    }
+                    for($length=0;$length -lt $data.Length;$length++) {
+                        [byte[]]$short=New-Object byte[] $length; [Array]::Copy($data,$short,$length)
+                        Need (-not (Test-RethrowUnwindBytes $short $inner $rootRow 0x5B000)) 'truncated unwind'
+                    }
+                    if($rootRow) {
+                        foreach($badRva in @(0,0x5B001,0x100000000L)) {
+                            Need (-not (Test-RethrowUnwindBytes $data $inner $rootRow $badRva)) 'wrong EH trailer'
+                        }
+                    }
+                }
+            }
+            $ast=[Management.Automation.Language.Parser]::ParseFile(
+                (Join-Path $Root 'scripts/run-qemu-smoke.ps1'),[ref]$tokens,[ref]$errors)
+            if($errors.Count){throw 'Runner parse failure'}
+            foreach($name in @('Assert-M04RethrowRecords','Assert-M04RethrowSelection','Assert-M04SimpleCatchSelection')) {
+                $nodes=@($ast.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq $name},$true))
+                if($nodes.Count -ne 1){throw 'Missing runner predicate'}
+                . ([scriptblock]::Create($nodes[0].Extent.Text))
+            }
+            $heap=@{retainedStart=0x300000;retainedEnd=0x301000;backing=0x300000}
+            $parents=@(@(0x100000,0x100000,0,0),@(0,0,0,0x70007),@(0x800000,0x20000,0x81FFF0,0),@(0,0xCAFE,0xBEEF,0))
+            $gc=New-Object string[] 17; $indices=@(0,1,2,7)
+            for($i=0;$i -lt 4;$i++){$gc[$indices[$i]]='M04_GC_ROOT '+$indices[$i]+' '+(($parents[$i]|ForEach-Object{'0x{0:X16}' -f [UInt64]$_}) -join ' ')}
+            $rows=@{
+                0=@(0x70007,0x180000,400,5);1=@(0x300008,0x140000,9,3)
+                2=@(0x111009,0x111008,0x818000,0);3=@(0x111009,0x818000,0x110019,0x818030)
+                4=@(0x140040,0x110045,0x818060,0x818028);9=@(0x300008,0x818058,9,1)
+                10=@(0x11002E,0x110045,0x818058,9);5=@(0x300008,7,9,1)
+                14=@(0x110057,0x817C80,0x817DC0,0x300008);11=@(0x110019,0x818030,0x11201A,0x818070)
+                12=@(0x140040,0x112033,0x8180A0,0x818068);13=@(0x300008,7,0x112033,1)
+                6=@(0x11201B,0x818070,0x8180A0,1);7=@(0x300008,7,8,1);8=@(10,0x810000,0xCAFE,0xBEEF)
+            }
+            function Records {
+                'TEST_START m04.021.rethrow'
+                foreach($stage in @(0,1,2,3,4,9,10,5,14,11,12,13,6,7,8)) {
+                    'M04_RETHROW '+$stage+' '+(($rows[$stage]|ForEach-Object{'0x{0:X16}' -f [UInt64]$_}) -join ' ')
+                }
+                'TEST_PASS m04.021.rethrow';'CLROS_M04_RETHROW_READY'
+            }
+            $valid=@(Records)
+            Assert-M04RethrowRecords $valid $gc $heap
+            foreach($stage in @(1,2,3,4,5,6,7,9,10,11,12,13,14)) {
+                $saved=$rows[$stage][0];$rows[$stage][0]=$saved -bxor 1
+                $rejected=$false;try{Assert-M04RethrowRecords @(Records) $gc $heap}catch{$rejected=$true}
+                Need $rejected ('changed identity or native association '+$stage);$rows[$stage][0]=$saved
+            }
+            $reordered=$valid.Clone();$reordered[6]=$valid[8];$reordered[8]=$valid[6]
+            $rejected=$false;try{Assert-M04RethrowRecords $reordered $gc $heap}catch{$rejected=$true}
+            Need $rejected 'cleanup/catch order'
+            foreach($claim in @('M04_RETHROW 0',"M04_`nRETHROW 0",'CLROS_M04_RETHROW_READY','TEST_PASS m04.021.rethrow')) {
+                $rejected=$false;try{Assert-M04RethrowSelection $claim $false}catch{$rejected=$true}
+                Need $rejected 'unselected rethrow claim'
+            }
+            Assert-M04SimpleCatchSelection 'TEST_PASS m04.021.rethrow' $false $false $true
+            'RETHROW_VERIFIER_CONTRACT_PASS'
+            """);
+        string output = Invoke(root, folder, "verifier-contracts",
+            ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-Root", root], executable: "powershell");
+        if (!output.Contains("RETHROW_VERIFIER_CONTRACT_PASS", StringComparison.Ordinal))
+            throw new InvalidOperationException("Missing verifier predicate result");
+    }
+    private static string Invoke(string root, string folder, string name, string[] arguments, int expectedExit = 0, string executable = "dotnet")
+    {
+        var start = new ProcessStartInfo(executable) { WorkingDirectory = root, UseShellExecute = false,
             CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
         foreach (string argument in arguments) start.ArgumentList.Add(argument);
         File.WriteAllText(Path.Combine(folder, name + ".arguments.json"), JsonSerializer.Serialize(arguments));

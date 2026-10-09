@@ -70,6 +70,7 @@ param(
     [switch] $EnableM04X64UnwindMetadataProbe,
     [switch] $EnableM04SimpleThrowCatchProbe,
     [switch] $EnableM04SingleFinallyCatchProbe,
+    [switch] $EnableM04RethrowProbe,
     [switch] $EnableM04GcStaticRootMaterializationProbe,
     [switch] $EnableM04SeededCollectorChurnProbe,
     [switch] $EnableM03TypedExitBootServicesCallProbe,
@@ -222,6 +223,7 @@ $script:ExpectedEfiCompileItems = @(
     '..\OS.Kernel\Runtime\X64FrameUnwind.cs|Runtime\X64FrameUnwind.cs',
     '..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs|Runtime\NativeAotEhClauseMetadata.cs',
     'Runtime\ExceptionCatchProbe.cs|'
+    'Runtime\ExceptionRethrowProbe.cs|'
 )
 
 $script:ExpectedSerializerTargetsImport =
@@ -1295,6 +1297,7 @@ function Get-M01OutputPublicationPlan {
     if ($EnableM04InterfaceDispatchProbe) { $paths += $efiFullPath + ".dispatch.obj" }
     if ($EnableM04SimpleThrowCatchProbe) { $paths += $efiFullPath + ".catch.obj" }
     if ($EnableM04SingleFinallyCatchProbe) { $paths += $efiFullPath + ".finally.obj" }
+    if ($EnableM04RethrowProbe) { $paths += @(($efiFullPath + ".rethrow-inner.obj"), ($efiFullPath + ".rethrow-outer.obj")) }
     $seenPaths = New-Object 'System.Collections.Generic.HashSet[string]' (
         [System.StringComparer]::OrdinalIgnoreCase)
     $volumeRoot = [System.IO.Path]::GetPathRoot($outputDirectory)
@@ -1942,6 +1945,7 @@ function Invoke-M01PostRestoreEvaluation {
         [bool] $M04X64UnwindMetadataEnabled,
         [bool] $M04SimpleThrowCatchEnabled,
         [bool] $M04SingleFinallyCatchEnabled,
+        [bool] $M04RethrowEnabled,
         [bool] $M04GcStaticRootMaterializationEnabled,
         [bool] $M04SeededCollectorChurnEnabled,
         [bool] $M03TypedExitBootServicesCallEnabled,
@@ -2019,6 +2023,7 @@ function Invoke-M01PostRestoreEvaluation {
             "EnableM04X64UnwindMetadataProbe," +
             "EnableM04SimpleThrowCatchProbe," +
             "EnableM04SingleFinallyCatchProbe," +
+            "EnableM04RethrowProbe," +
             "EnableM04GcStaticRootMaterializationProbe," +
             "EnableM04SeededCollectorChurnProbe," +
             "EnableM03TypedExitBootServicesCallProbe," +
@@ -2208,6 +2213,8 @@ function Invoke-M01PostRestoreEvaluation {
         $M04SimpleThrowCatchEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM04SingleFinallyCatchProbe=" +
         $M04SingleFinallyCatchEnabled.ToString().ToLowerInvariant())
+    $arguments += ("-p:EnableM04RethrowProbe=" +
+        $M04RethrowEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM04GcStaticRootMaterializationProbe=" +
         $M04GcStaticRootMaterializationEnabled.ToString().ToLowerInvariant())
     $arguments += ("-p:EnableM04SeededCollectorChurnProbe=" +
@@ -2348,6 +2355,8 @@ function Invoke-M01PostRestoreEvaluation {
             $M04SimpleThrowCatchEnabled.ToString().ToLowerInvariant()
         EnableM04SingleFinallyCatchProbe =
             $M04SingleFinallyCatchEnabled.ToString().ToLowerInvariant()
+        EnableM04RethrowProbe =
+            $M04RethrowEnabled.ToString().ToLowerInvariant()
         EnableM04GcStaticRootMaterializationProbe =
             $M04GcStaticRootMaterializationEnabled.ToString().ToLowerInvariant()
         EnableM04SeededCollectorChurnProbe =
@@ -4377,6 +4386,7 @@ for ($index = 5; $index -lt $verifierArguments.Count; $index += 2) {
         $parameterName -ceq "EnableM04X64UnwindMetadataProbe" -or
         $parameterName -ceq "EnableM04SimpleThrowCatchProbe" -or
         $parameterName -ceq "EnableM04SingleFinallyCatchProbe" -or
+        $parameterName -ceq "EnableM04RethrowProbe" -or
         $parameterName -ceq "EnableM04GcStaticRootMaterializationProbe" -or
         $parameterName -ceq "EnableM04SeededCollectorChurnProbe" -or
         $parameterName -ceq "EnableM03TypedExitBootServicesCallProbe" -or
@@ -5229,7 +5239,7 @@ function Test-M01ActiveSourceSurface {
     # Native compilation excludes the managed catalog and retains the explicit toggle.
     if ([string]::Equals($SourceName, '..\OS.Kernel\Diagnostics\Probes.cs', [StringComparison]::Ordinal)) {
         $identity = Get-M01Utf8Sha256 -Text ($SourceText.Replace("`r`n", "`n"))
-        if ($identity -cne 'da2f06f4272585b92ed393822f3d7e05fe7642a54aa0279ea197222773da8bc7') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_first_exit_probe_identity'; ActiveText='' } }
+        if ($identity -cne '133f4e645a748be42bd0d5655473c3a8dbec25df44da26416859b21b8d4e7ebd') { return [pscustomobject]@{ Succeeded=$false; Reason='forbidden_active_source'; Detail=$SourceName+':reviewed_first_exit_probe_identity'; ActiveText='' } }
         return [pscustomobject]@{ Succeeded=$true; Reason='ok'; Detail=''; ActiveText=$SourceText }
     }
 
@@ -5695,7 +5705,9 @@ function Test-M01SerializerTargetsImport {
         "_ClrosCheckedReferenceActualSha256",
         "_ClrosInterfaceDispatchActualSha256",
         "_ClrosSimpleCatchActualSha256",
-        "_ClrosSingleFinallyActualSha256"
+        "_ClrosSingleFinallyActualSha256",
+        "_ClrosRethrowInnerActualSha256",
+        "_ClrosRethrowOuterActualSha256"
     )
     $outputNodes = @($targets.SelectNodes("//Output"))
     if ($outputNodes.Count -ne $expectedHashOutputs.Count) {
@@ -5752,7 +5764,7 @@ function Test-M01SerializerTargetsImport {
     }
 
     $expectedTargetsHash =
-        "07d63d0b9ffe0813e5c96cf02a94138cf27912141c2c50a827fc9127adf471f2"
+        "b4a4af65b70a3cb28a0db14fc532d2127741ae94d974e0bcbd8aa26d227cfbe7"
     $targetsHash = Get-M01CanonicalXmlSha256 -Document $targets
     if ($targetsHash -ne $expectedTargetsHash) {
         return [pscustomobject] @{
@@ -5952,6 +5964,7 @@ function Test-M01EvaluatedSourceClosure {
         [bool] $M04X64UnwindMetadataEnabled,
         [bool] $M04SimpleThrowCatchEnabled,
         [bool] $M04SingleFinallyCatchEnabled,
+        [bool] $M04RethrowEnabled,
         [bool] $M04GcStaticRootMaterializationEnabled,
         [bool] $M04SeededCollectorChurnEnabled,
         [bool] $M03TypedExitBootServicesCallEnabled,
@@ -6068,6 +6081,8 @@ function Test-M01EvaluatedSourceClosure {
             $M04SimpleThrowCatchEnabled.ToString().ToLowerInvariant()
         "EnableM04SingleFinallyCatchProbe" =
             $M04SingleFinallyCatchEnabled.ToString().ToLowerInvariant()
+        "EnableM04RethrowProbe" =
+            $M04RethrowEnabled.ToString().ToLowerInvariant()
         "EnableM04GcStaticRootMaterializationProbe" =
             $M04GcStaticRootMaterializationEnabled.ToString().ToLowerInvariant()
         "EnableM04SeededCollectorChurnProbe" =
@@ -6157,6 +6172,8 @@ function Test-M01EvaluatedSourceClosure {
             $M04SimpleThrowCatchEnabled
         "M04_SINGLE_FINALLY_CATCH_PROBE" =
             $M04SingleFinallyCatchEnabled
+        "M04_RETHROW_PROBE" =
+            $M04RethrowEnabled
         "M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE" =
             $M04GcStaticRootMaterializationEnabled
         "M04_SEEDED_COLLECTOR_CHURN_PROBE" =
@@ -6238,6 +6255,7 @@ function Test-M01EvaluatedSourceClosure {
             "EnableM04X64UnwindMetadataProbe," +
             "EnableM04SimpleThrowCatchProbe," +
             "EnableM04SingleFinallyCatchProbe," +
+            "EnableM04RethrowProbe," +
             "EnableM04GcStaticRootMaterializationProbe," +
             "EnableM04SeededCollectorChurnProbe," +
             "EnableM03TypedExitBootServicesCallProbe," +
@@ -6442,6 +6460,10 @@ function Test-M01EvaluatedSourceClosure {
         if ($M04SingleFinallyCatchEnabled) {
             $arguments +=
                 "-p:EnableM04SingleFinallyCatchProbe=true"
+        }
+        if ($M04RethrowEnabled) {
+            $arguments +=
+                "-p:EnableM04RethrowProbe=true"
         }
         if ($M04GcStaticRootMaterializationEnabled) {
             $arguments +=
@@ -7044,6 +7066,7 @@ function Test-M01SourceClosure {
         [bool] $M04X64UnwindMetadataEnabled,
         [bool] $M04SimpleThrowCatchEnabled,
         [bool] $M04SingleFinallyCatchEnabled,
+        [bool] $M04RethrowEnabled,
         [bool] $M04GcStaticRootMaterializationEnabled,
         [bool] $M04SeededCollectorChurnEnabled,
         [bool] $M03TypedExitBootServicesCallEnabled,
@@ -7110,7 +7133,7 @@ function Test-M01SourceClosure {
 
     $canonicalProjectHash = Get-M01CanonicalXmlSha256 -Document $project
     if ($canonicalProjectHash -ne
-        "70b5a8737c78658b7f702f3deaa881d224ef2a4ce04116a8ee92523568748f5a") {
+        "b4678afa95bc8be45d6c659e32e763ccedba7b4427cfab0eb8fcb9a22e0020d8") {
         return New-M01SourceClosureResult `
             -Succeeded $false `
             -Reason "noncanonical_project_shape" `
@@ -7229,6 +7252,8 @@ function Test-M01SourceClosure {
             "M04_SIMPLE_THROW_CATCH_PROBE"
         "EnableM04SingleFinallyCatchProbe" =
             "M04_SINGLE_FINALLY_CATCH_PROBE"
+        "EnableM04RethrowProbe" =
+            "M04_RETHROW_PROBE"
         "EnableM04GcStaticRootMaterializationProbe" =
             "M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE"
         "EnableM04SeededCollectorChurnProbe" =
@@ -7578,6 +7603,8 @@ function Test-M01SourceClosure {
             "M04_SIMPLE_THROW_CATCH_PROBE"
         "EnableM04SingleFinallyCatchProbe" =
             "M04_SINGLE_FINALLY_CATCH_PROBE"
+        "EnableM04RethrowProbe" =
+            "M04_RETHROW_PROBE"
         "EnableM04GcStaticRootMaterializationProbe" =
             "M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE"
         "EnableM04SeededCollectorChurnProbe" =
@@ -8796,6 +8823,11 @@ function Test-M01SourceClosure {
         "'`$(EnableM04SingleFinallyCatchProbe)' == 'true' and '`$(EnableM04GcStaticRootMaterializationProbe)' != 'true'",
         "'`$(EnableM04SingleFinallyCatchProbe)' == 'true' and ('`$(EnableM04SeededCollectorChurnProbe)' == 'true' or '`$(EnableM04ClassConstructorExecutionProbe)' == 'true' or '`$(EnableM04InterfaceDispatchProbe)' == 'true' or '`$(EnableM04X64UnwindMetadataProbe)' == 'true' or '`$(EnableM04SimpleThrowCatchProbe)' == 'true')"
     )
+    $requiredErrorConditions += @(
+        "'`$(EnableM04RethrowProbe)' != '' and '`$(EnableM04RethrowProbe)' != 'true' and '`$(EnableM04RethrowProbe)' != 'false'",
+        "'`$(EnableM04RethrowProbe)' == 'true' and '`$(EnableM04GcStaticRootMaterializationProbe)' != 'true'",
+        "'`$(EnableM04RethrowProbe)' == 'true' and ('`$(EnableM04SeededCollectorChurnProbe)' == 'true' or '`$(EnableM04ClassConstructorExecutionProbe)' == 'true' or '`$(EnableM04InterfaceDispatchProbe)' == 'true' or '`$(EnableM04X64UnwindMetadataProbe)' == 'true' or '`$(EnableM04SimpleThrowCatchProbe)' == 'true' or '`$(EnableM04SingleFinallyCatchProbe)' == 'true')"
+    )
     if ($errorConditions.Count -ne $requiredErrorConditions.Count -or
         $validationTargets[0].SelectNodes("*").Count -ne $errorNodes.Count) {
         return New-M01SourceClosureResult `
@@ -9135,6 +9167,7 @@ function Test-M01SourceClosure {
         -M04X64UnwindMetadataEnabled $M04X64UnwindMetadataEnabled `
         -M04SimpleThrowCatchEnabled $M04SimpleThrowCatchEnabled `
         -M04SingleFinallyCatchEnabled $M04SingleFinallyCatchEnabled `
+        -M04RethrowEnabled $M04RethrowEnabled `
         -M04GcStaticRootMaterializationEnabled $M04GcStaticRootMaterializationEnabled `
         -M04SeededCollectorChurnEnabled $M04SeededCollectorChurnEnabled `
         -M03TypedExitBootServicesCallEnabled $M03TypedExitBootServicesCallEnabled `
@@ -9334,8 +9367,8 @@ try {
             (Format-EvidenceValue $_.Exception.Message))
         exit 1
     }
-    if ($sourceSnapshotBeforePublish.InputCount -ne 138 -or
-        $sourceSnapshotAfterLock.InputCount -ne 138 -or
+    if ($sourceSnapshotBeforePublish.InputCount -ne 139 -or
+        $sourceSnapshotAfterLock.InputCount -ne 139 -or
         $sourceSnapshotBeforePublish.AggregateSha256 -cne
             $sourceSnapshotAfterLock.AggregateSha256 -or
         $sourceSnapshotBeforePublish.AuthoritySha256 -cne
@@ -9348,7 +9381,7 @@ try {
         exit 1
     }
     Write-Host "EFI_PUBLISH_SOURCE_LOCK status=ok"
-    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=138"
+    Write-Host "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=139"
     Write-Host ("EFI_PREFLIGHT_BOOT_POLICY policy=" + $BootPolicy)
 
 Write-EfiPreflightLine "EFI_PREFLIGHT_START"
@@ -9362,8 +9395,10 @@ if ($EnableM04InterfaceDispatchProbe -and -not $EnableM04ClassConstructorExecuti
 if ($EnableM04X64UnwindMetadataProbe -and -not $EnableM04TypeManagerModuleRegistrationProbe) { Write-Output "TEST_FAIL efi.shell.publish m04_x64_unwind_metadata_requires_original_module"; exit 1 }
 if ($EnableM04SimpleThrowCatchProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Output "TEST_FAIL efi.shell.publish m04_simple_catch_requires_gc_profile"; exit 1 }
 if ($EnableM04SingleFinallyCatchProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Output "TEST_FAIL efi.shell.publish m04_single_finally_requires_gc_profile"; exit 1 }
+if ($EnableM04RethrowProbe -and -not $EnableM04GcStaticRootMaterializationProbe) { Write-Output "TEST_FAIL efi.shell.publish m04_rethrow_requires_gc_profile"; exit 1 }
 if ($EnableM04SimpleThrowCatchProbe -and ($EnableM04SeededCollectorChurnProbe -or $EnableM04ClassConstructorExecutionProbe -or $EnableM04InterfaceDispatchProbe -or $EnableM04X64UnwindMetadataProbe)) { Write-Output "TEST_FAIL efi.shell.publish m04_simple_catch_profile_conflict"; exit 1 }
 if ($EnableM04SingleFinallyCatchProbe -and ($EnableM04SeededCollectorChurnProbe -or $EnableM04ClassConstructorExecutionProbe -or $EnableM04InterfaceDispatchProbe -or $EnableM04X64UnwindMetadataProbe -or $EnableM04SimpleThrowCatchProbe)) { Write-Output "TEST_FAIL efi.shell.publish m04_single_finally_profile_conflict"; exit 1 }
+if ($EnableM04RethrowProbe -and ($EnableM04SeededCollectorChurnProbe -or $EnableM04ClassConstructorExecutionProbe -or $EnableM04InterfaceDispatchProbe -or $EnableM04X64UnwindMetadataProbe -or $EnableM04SimpleThrowCatchProbe -or $EnableM04SingleFinallyCatchProbe)) { Write-Output "TEST_FAIL efi.shell.publish m04_rethrow_profile_conflict"; exit 1 }
 if ($EnableM04SeededCollectorChurnProbe -and -not $EnableM04GcStaticRootMaterializationProbe) {
     Write-Output "TEST_FAIL efi.shell.publish m04_churn_requires_gc_profile"; exit 1
 }
@@ -10689,6 +10724,7 @@ $m01SourceClosure = Test-M01SourceClosure `
     -M04X64UnwindMetadataEnabled $EnableM04X64UnwindMetadataProbe.IsPresent `
     -M04SimpleThrowCatchEnabled $EnableM04SimpleThrowCatchProbe.IsPresent `
     -M04SingleFinallyCatchEnabled $EnableM04SingleFinallyCatchProbe.IsPresent `
+    -M04RethrowEnabled $EnableM04RethrowProbe.IsPresent `
     -M04GcStaticRootMaterializationEnabled $EnableM04GcStaticRootMaterializationProbe.IsPresent `
     -M04SeededCollectorChurnEnabled $EnableM04SeededCollectorChurnProbe.IsPresent `
     -M03TypedExitBootServicesCallEnabled $EnableM03TypedExitBootServicesCallProbe.IsPresent `
@@ -11460,6 +11496,10 @@ if ($EnableM04SingleFinallyCatchProbe) {
     $arguments += "-p:EnableM04SingleFinallyCatchProbe=true"
     Write-Host "EFI_PROBE M04_SINGLE_FINALLY_CATCH"
 }
+if ($EnableM04RethrowProbe) {
+    $arguments += "-p:EnableM04RethrowProbe=true"
+    Write-Host "EFI_PROBE M04_RETHROW"
+}
 if ($EnableM04GcStaticRootMaterializationProbe) {
     $arguments += "-p:EnableM04GcStaticRootMaterializationProbe=true"
     Write-Host "EFI_PROBE M04_GC_STATIC_ROOT_MATERIALIZATION"
@@ -11559,6 +11599,8 @@ $linkResponseWorkingPath = Join-Path $nativeIntermediateDirectory "link.rsp"
     $dispatchObjectPath = Join-Path $nativeIntermediateDirectory "CLROS.X64.InterfaceDispatch.obj"
     $catchObjectPath = Join-Path $nativeIntermediateDirectory "CLROS.X64.SimpleThrowCatch.obj"
     $finallyObjectPath = Join-Path $nativeIntermediateDirectory "CLROS.X64.SingleFinallyCatch.obj"
+    $rethrowInnerObjectPath = Join-Path $nativeIntermediateDirectory "CLROS.X64.RethrowInner.obj"
+    $rethrowOuterObjectPath = Join-Path $nativeIntermediateDirectory "CLROS.X64.RethrowOuter.obj"
     $solutionPath = Join-Path $repositoryRoot "CLROS.slnx"
 $managedAssemblyPath = Join-Path $repositoryRoot (
     "src\OS\bin\$Configuration\net10.0\$Runtime\OS.dll")
@@ -11650,6 +11692,7 @@ $methodImplAttributeSourcePath = Join-Path $repositoryRoot (
         -M04X64UnwindMetadataEnabled $EnableM04X64UnwindMetadataProbe.IsPresent `
         -M04SimpleThrowCatchEnabled $EnableM04SimpleThrowCatchProbe.IsPresent `
         -M04SingleFinallyCatchEnabled $EnableM04SingleFinallyCatchProbe.IsPresent `
+        -M04RethrowEnabled $EnableM04RethrowProbe.IsPresent `
         -M04GcStaticRootMaterializationEnabled $EnableM04GcStaticRootMaterializationProbe.IsPresent `
         -M04SeededCollectorChurnEnabled $EnableM04SeededCollectorChurnProbe.IsPresent `
         -M03TypedExitBootServicesCallEnabled $EnableM03TypedExitBootServicesCallProbe.IsPresent `
@@ -11919,6 +11962,7 @@ try {
         -M04X64UnwindMetadataEnabled $EnableM04X64UnwindMetadataProbe.IsPresent `
         -M04SimpleThrowCatchEnabled $EnableM04SimpleThrowCatchProbe.IsPresent `
         -M04SingleFinallyCatchEnabled $EnableM04SingleFinallyCatchProbe.IsPresent `
+        -M04RethrowEnabled $EnableM04RethrowProbe.IsPresent `
         -M04GcStaticRootMaterializationEnabled $EnableM04GcStaticRootMaterializationProbe.IsPresent `
         -M04SeededCollectorChurnEnabled $EnableM04SeededCollectorChurnProbe.IsPresent `
         -M03TypedExitBootServicesCallEnabled $EnableM03TypedExitBootServicesCallProbe.IsPresent `
@@ -12135,6 +12179,7 @@ if ($exitCode -eq 0) {
                 -M04X64UnwindMetadataEnabled $EnableM04X64UnwindMetadataProbe.IsPresent `
                 -M04SimpleThrowCatchEnabled $EnableM04SimpleThrowCatchProbe.IsPresent `
                 -M04SingleFinallyCatchEnabled $EnableM04SingleFinallyCatchProbe.IsPresent `
+                -M04RethrowEnabled $EnableM04RethrowProbe.IsPresent `
                 -M04GcStaticRootMaterializationEnabled $EnableM04GcStaticRootMaterializationProbe.IsPresent `
                 -M04SeededCollectorChurnEnabled $EnableM04SeededCollectorChurnProbe.IsPresent `
                 -M03TypedExitBootServicesCallEnabled $EnableM03TypedExitBootServicesCallProbe.IsPresent `
@@ -12208,6 +12253,8 @@ if ($exitCode -eq 0) {
     }
     $catchObjectOutputPath = $efiFullPath + ".catch.obj"
     $finallyObjectOutputPath = $efiFullPath + ".finally.obj"
+    $rethrowInnerObjectOutputPath = $efiFullPath + ".rethrow-inner.obj"
+    $rethrowOuterObjectOutputPath = $efiFullPath + ".rethrow-outer.obj"
     if ($EnableM04SimpleThrowCatchProbe) {
         Assert-M01NoReparsePoints -RootPath $repositoryRoot -Path $catchObjectPath -Reason "catch_object_authority"
         if (-not (Test-Path -LiteralPath $catchObjectPath -PathType Leaf) -or
@@ -12224,6 +12271,24 @@ if ($exitCode -eq 0) {
             (Get-FileHash -LiteralPath $finallyObjectPath -Algorithm SHA256).Hash -cne
                 'D24DA7653745DA1D37F1FC9D286A2E370C32B687A0415E90FC626A597326025A') {
             throw 'single_finally_object_identity_mismatch'
+        }
+    }
+    if ($EnableM04RethrowProbe) {
+        Assert-M01NoReparsePoints -RootPath $repositoryRoot -Path $rethrowInnerObjectPath -Reason "rethrow_inner_object_authority"
+        if (-not (Test-Path -LiteralPath $rethrowInnerObjectPath -PathType Leaf) -or
+            (Get-Item -LiteralPath $rethrowInnerObjectPath).Length -ne 1732 -or
+            (Get-FileHash -LiteralPath $rethrowInnerObjectPath -Algorithm SHA256).Hash -cne
+                'D30D37F5AD93A70A66D2ED2E69A184A75DB903C5A1D69C4E31571569016E7A10') {
+            throw 'rethrow_inner_object_identity_mismatch'
+        }
+    }
+    if ($EnableM04RethrowProbe) {
+        Assert-M01NoReparsePoints -RootPath $repositoryRoot -Path $rethrowOuterObjectPath -Reason "rethrow_outer_object_authority"
+        if (-not (Test-Path -LiteralPath $rethrowOuterObjectPath -PathType Leaf) -or
+            (Get-Item -LiteralPath $rethrowOuterObjectPath).Length -ne 1382 -or
+            (Get-FileHash -LiteralPath $rethrowOuterObjectPath -Algorithm SHA256).Hash -cne
+                '635C903FF77EE3C7DE3D1EDCE3E6F015DDEF204454A50432DFCF9692686E337B') {
+            throw 'rethrow_outer_object_identity_mismatch'
         }
     }
     $referenceObjectOutputPath = $efiFullPath + ".references.obj"
@@ -12311,6 +12376,16 @@ if ($exitCode -eq 0) {
             Copy-M01FileCreateNew -SourcePath $finallyObjectPath -SourceRootPath $repositoryRoot `
                 -DestinationPath $finallyObjectOutputPath -DestinationRootPath $outputPublicationPlan.Directory `
                 -Purpose "preserved-single-finally-object"
+        }
+        if ($EnableM04RethrowProbe) {
+            Copy-M01FileCreateNew -SourcePath $rethrowInnerObjectPath -SourceRootPath $repositoryRoot `
+                -DestinationPath $rethrowInnerObjectOutputPath -DestinationRootPath $outputPublicationPlan.Directory `
+                -Purpose "preserved-rethrow-inner-object"
+        }
+        if ($EnableM04RethrowProbe) {
+            Copy-M01FileCreateNew -SourcePath $rethrowOuterObjectPath -SourceRootPath $repositoryRoot `
+                -DestinationPath $rethrowOuterObjectOutputPath -DestinationRootPath $outputPublicationPlan.Directory `
+                -Purpose "preserved-rethrow-outer-object"
         }
         if ($EnableM04CheckedReferenceBarrierProbe -or $EnableM04GcStaticRootMaterializationProbe) {
             Copy-M01FileCreateNew -SourcePath $referenceObjectPath -SourceRootPath $repositoryRoot `
@@ -12513,6 +12588,18 @@ if ($exitCode -eq 0) {
         $linkEvidence.singleFinallyObjectBytes = 1707
         $linkEvidence.singleFinallyObjectSha256 = 'd24da7653745da1d37f1fc9d286a2e370c32b687a0415e90fc626a597326025a'
     }
+    if ($EnableM04RethrowProbe) {
+        $linkEvidence.rethrowInnerLinkedObjectPath = $rethrowInnerObjectPath
+        $linkEvidence.rethrowInnerObjectPath = $rethrowInnerObjectOutputPath
+        $linkEvidence.rethrowInnerObjectBytes = 1732
+        $linkEvidence.rethrowInnerObjectSha256 = 'd30d37f5ad93a70a66d2ed2e69a184a75db903c5a1d69c4e31571569016e7a10'
+    }
+    if ($EnableM04RethrowProbe) {
+        $linkEvidence.rethrowOuterLinkedObjectPath = $rethrowOuterObjectPath
+        $linkEvidence.rethrowOuterObjectPath = $rethrowOuterObjectOutputPath
+        $linkEvidence.rethrowOuterObjectBytes = 1382
+        $linkEvidence.rethrowOuterObjectSha256 = '635c903ff77ee3c7de3d1edce3e6f015ddef204454a50432dfcf9692686e337b'
+    }
     $linkEvidenceJson = $linkEvidence | ConvertTo-Json -Depth 10
     try {
         Write-M01Utf8CreateNew `
@@ -12577,11 +12664,20 @@ if ($exitCode -eq 0) {
             $verifierInputs += [pscustomobject]@{Path=$finallyObjectPath; RootPath=$repositoryRoot; Purpose="linked-finally-object"}
             $verifierInputs += [pscustomobject]@{Path=$finallyObjectOutputPath; RootPath=$outputPublicationPlan.Directory; Purpose="preserved-finally-object"}
         }
+        if ($EnableM04RethrowProbe) {
+            $verifierInputs += [pscustomobject]@{Path=$rethrowInnerObjectPath; RootPath=$repositoryRoot; Purpose="linked-rethrow-inner-object"}
+            $verifierInputs += [pscustomobject]@{Path=$rethrowInnerObjectOutputPath; RootPath=$outputPublicationPlan.Directory; Purpose="preserved-rethrow-inner-object"}
+        }
+        if ($EnableM04RethrowProbe) {
+            $verifierInputs += [pscustomobject]@{Path=$rethrowOuterObjectPath; RootPath=$repositoryRoot; Purpose="linked-rethrow-outer-object"}
+            $verifierInputs += [pscustomobject]@{Path=$rethrowOuterObjectOutputPath; RootPath=$outputPublicationPlan.Directory; Purpose="preserved-rethrow-outer-object"}
+        }
         $verifierInputLocks = Open-M01VerifierInputLocks -Inputs $verifierInputs
         $expectedVerifierInputCount = if ($EnableM04CheckedReferenceBarrierProbe -or $EnableM04GcStaticRootMaterializationProbe) { 10 } else { 8 }
         if ($EnableM04InterfaceDispatchProbe) { $expectedVerifierInputCount += 2 }
         if ($EnableM04SimpleThrowCatchProbe) { $expectedVerifierInputCount += 2 }
         if ($EnableM04SingleFinallyCatchProbe) { $expectedVerifierInputCount += 2 }
+        if ($EnableM04RethrowProbe) { $expectedVerifierInputCount += 4 }
         if ($verifierInputLocks.Count -ne $expectedVerifierInputCount) {
             throw "verifier input authority count mismatch"
         }
@@ -12660,6 +12756,7 @@ if ($exitCode -eq 0) {
     $verificationArguments += @("-EnableM04X64UnwindMetadataProbe", $EnableM04X64UnwindMetadataProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM04SimpleThrowCatchProbe", $EnableM04SimpleThrowCatchProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM04SingleFinallyCatchProbe", $EnableM04SingleFinallyCatchProbe.IsPresent.ToString().ToLowerInvariant())
+    $verificationArguments += @("-EnableM04RethrowProbe", $EnableM04RethrowProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM04GcStaticRootMaterializationProbe", $EnableM04GcStaticRootMaterializationProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM04SeededCollectorChurnProbe", $EnableM04SeededCollectorChurnProbe.IsPresent.ToString().ToLowerInvariant())
     $verificationArguments += @("-EnableM03TypedExitBootServicesCallProbe", $EnableM03TypedExitBootServicesCallProbe.IsPresent.ToString().ToLowerInvariant())

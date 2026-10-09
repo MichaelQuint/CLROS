@@ -369,13 +369,13 @@
 			'$(EnableM04InterfaceDispatchProbe)' == 'true' or
 			'$(EnableM04LayoutContractProbe)' == 'true' or
 			'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' or
+			'$(EnableM04RethrowProbe)' == 'true' or
 			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastProbe)' == 'true' or
 			'$(EnableM04SeededCollectorChurnProbe)' == 'true' or
 			'$(EnableM04SimpleThrowCatchProbe)' == 'true' or
 			'$(EnableM04SingleFinallyCatchProbe)' == 'true' or
-			'$(EnableM04RethrowProbe)' == 'true' or
 			'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true' or
 			'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' or
 			'$(EnableM04StringAllocationExhaustionProbe)' == 'true' or
@@ -516,7 +516,7 @@
 		<Compile Include="..\OS.Kernel\Runtime\X64FrameUnwind.cs" Link="Runtime\X64FrameUnwind.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs" Link="Runtime\NativeAotEhClauseMetadata.cs" />
 		<Compile Include="Runtime\ExceptionCatchProbe.cs" />
-		<Compile Include="Runtime\ExceptionRethrowProbe.cs" Condition="'$(EnableM04RethrowProbe)' == 'true'" />
+		<Compile Include="Runtime\ExceptionRethrowProbe.cs" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.12" PrivateAssets="all" />
 		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.12" PrivateAssets="all" />
 		<ResolvedILCompilerPack Include="runtime.win-x64.Microsoft.DotNet.ILCompiler">
@@ -575,13 +575,13 @@
 			'$(EnableM04InterfaceDispatchProbe)' == 'true' or
 			'$(EnableM04LayoutContractProbe)' == 'true' or
 			'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' or
+			'$(EnableM04RethrowProbe)' == 'true' or
 			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastProbe)' == 'true' or
 			'$(EnableM04SeededCollectorChurnProbe)' == 'true' or
 			'$(EnableM04SimpleThrowCatchProbe)' == 'true' or
 			'$(EnableM04SingleFinallyCatchProbe)' == 'true' or
-			'$(EnableM04RethrowProbe)' == 'true' or
 			'$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true' or
 			'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' or
 			'$(EnableM04StringAllocationExhaustionProbe)' == 'true' or

@@ -2,6 +2,16 @@
 
 ## Current Status
 
+The development `-EnableM04RethrowProbe` profile requires `-BuildEfi` and the
+GC-static ancestry listed in [step1098](../done/step1098.md). It forwards the
+switch to publication and expects 88 complete records, including 15 ordered
+rethrow stages. The validator joins both native frame transitions, the original
+exception receipt, cleanup side effect, two catches, active rethrow context,
+continuation and stack canaries to the same capture's validated ancestors.
+Unselected/disguised rethrow claims are rejected. [Step1099](../done/step1099.md)
+records focused synthetic checks and dry-run evidence only; no real rethrow
+guest capture exists and native transfer admission remains disabled.
+
 Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
 
 An unqualified raw-image smoke selects `VerifiedExit`, publishes a fresh EFI/image and requires the complete 79-record post-exit transcript with empty child stderr. See [boot](boot.md) and [EFI build](efi-build.md) for policy and evidence limits.
