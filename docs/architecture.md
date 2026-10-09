@@ -25,10 +25,14 @@ workload execution.
 - #94 now has a bounded 2 MiB-to-4 KiB table preparation primitive in
   `PostFirmwarePhysicalMappingExplicitUCWCWB`: Normal/Device/Framebuffer map to
   explicit WB/UC/WC policy, with unchanged neighboring physical translations and
-  permissions. It writes detached caller-owned storage only. Alias/ownership
-  admission, effective cache policy, live publication and cache/TLB maintenance
-  remain required before mapping success; see [drivers](drivers.md) and
-  [step1102](../done/step1102.md). This helper is not linked into the EFI profile.
+  permissions. Its identity-image audit checks table containment, alias absence,
+  WB/RW/NX table storage and a free split page before writing detached storage.
+  Its observed-MTRR validator checks uniform WB coverage under a bounded CPU
+  policy. Live ownership/CR3 association, register capture, publication and
+  cache/TLB maintenance remain required before mapping success; see
+  [drivers](drivers.md), [step1102](../done/step1102.md) and
+  [step1104](../done/step1104.md). These helpers are not linked into EFI yet;
+  the shared boot/build integration is claimed under #598.
 
 - First-party project areas exist for `OS.Kernel`, `OS.Std.NoRuntime.Shared`, host tools, tests, and native-tier apps.
 - Boot ordering starts in `src/OS.Kernel/Boot/BootSequence.cs` and the no-stdlib EFI shell emits the shared `BootSequencePlan` marker order.

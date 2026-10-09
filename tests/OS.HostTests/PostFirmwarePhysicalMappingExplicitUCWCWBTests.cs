@@ -18,6 +18,9 @@ internal static unsafe class PostFirmwarePhysicalMappingExplicitUCWCWBTests
         Run("large PAT conversion and permissions", PatAndPermissions);
         Run("range and input rejection is atomic", RejectionIsAtomic);
         Run("last page and full span", RangeBoundaries);
+        Run("identity audit prepares only unused table", IdentityImagePreparation);
+        Run("identity audit rejects aliases and bad ownership", IdentityImageRejection);
+        Run("MTRR WB coverage and unsupported environment", MtrrCoverage);
         Console.WriteLine("TEST_PASS m05.001.split-preparation");
     }
 
@@ -160,12 +163,113 @@ internal static unsafe class PostFirmwarePhysicalMappingExplicitUCWCWBTests
         ulong pde, ulong start, ulong length, PhysicalMappingUsage usage,
         ulong* destination, uint capacity = 512, ulong table = Table, bool supportsWc = true)
     {
+        return PostFirmwarePhysicalMappingExplicitUCWCWB.PrepareTwoMiBSplit(
+            pde, Address(start), length, usage, Address(table), destination, capacity, Conditions(supportsWc));
+    }
+
+    private static X64PageTableEncodingPreconditions Conditions(bool supportsWc = true)
+    {
         Require(X64PatMappingToken.TryCreate(0x0006_0501_0007_0406, 0, 3,
             supportsWc ? (byte)4 : X64PatMappingToken.UnsupportedIndex, out var pat)
             == X64PageTableEntryStatus.Success, "PAT fixture");
-        return PostFirmwarePhysicalMappingExplicitUCWCWB.PrepareTwoMiBSplit(
-            pde, Address(start), length, usage, Address(table), destination, capacity,
-            X64PageTableEncodingPreconditions.CreateObserved(48, true, true, false, false, pat));
+        return X64PageTableEncodingPreconditions.CreateObserved(48, true, true, false, false, pat);
+    }
+
+    private static ulong[] IdentityImage()
+    {
+        // Four used tables plus one mapped but unused page for the split.
+        ulong[] entries = new ulong[5 * 512];
+        entries[0] = Table + 4096 | 3;
+        entries[512] = Table + 8192 | 3;
+        entries[1025] = Base | Nx | 0xE3;
+        entries[1028] = Table + 12288 | 3;
+        for (int i = 0; i < 5; i++) entries[1536 + i] = Table + (ulong)i * 4096 | Nx | 3;
+        return entries;
+    }
+
+    private static void IdentityImagePreparation()
+    {
+        ulong[] entries = IdentityImage();
+        ulong[] before = (ulong[])entries.Clone();
+        fixed (ulong* image = entries)
+        {
+            var result = PostFirmwarePhysicalMappingExplicitUCWCWB.PrepareIdentitySplit(
+                Address(Table), image, 5, Address(Base + 4096), 4096,
+                PhysicalMappingUsage.Device, Conditions());
+            Require(result.IsPrepared && result.ParentEntryIndex == 1025
+                && result.ChildTablePageIndex == 4 && result.OriginalPde == before[1025]
+                && result.ReplacementPde == (Table + 16384 | 0x23), "prepared ownership indices");
+            for (int i = 0; i < 2048; i++) Require(entries[i] == before[i], "reachable entry changed");
+            for (int i = 0; i < 512; i++)
+                Require(entries[2048 + i] == (Base + (ulong)i * 4096 | Nx | (i == 1 ? 0x7BUL : 0x63UL)),
+                    "split leaf " + i);
+
+            // Simulate publication in host storage. A repeat request cannot
+            // reuse the table now linked into the image or split an existing PTE.
+            image[result.ParentEntryIndex] = result.ReplacementPde;
+            ulong[] published = (ulong[])entries.Clone();
+            var repeat = PostFirmwarePhysicalMappingExplicitUCWCWB.PrepareIdentitySplit(
+                Address(Table), image, 5, Address(Base + 4096), 4096,
+                PhysicalMappingUsage.Framebuffer, Conditions());
+            Require(repeat.Status == PhysicalMappingPreparationStatus.TargetNotLargePage
+                && entries.SequenceEqual(published), "repeat altered image");
+        }
+    }
+
+    private static void IdentityImageRejection()
+    {
+        foreach ((int index, ulong replacement, PhysicalMappingPreparationStatus expected) in new[]
+        {
+            (1026, Base | Nx | 0x83, PhysicalMappingPreparationStatus.NonIdentityMapping),
+            (513, Table + 8192 | 3, PhysicalMappingPreparationStatus.SharedOrCyclicTable),
+            (0, Table | 3, PhysicalMappingPreparationStatus.SharedOrCyclicTable),
+            (512, Table + 5 * 4096 | 3, PhysicalMappingPreparationStatus.InvalidTableArena),
+            (1536, Table | Nx | 0x1B, PhysicalMappingPreparationStatus.UnmappedTableStorage),
+            (1540, 0UL, PhysicalMappingPreparationStatus.UnmappedTableStorage),
+            (2048, 1UL, PhysicalMappingPreparationStatus.NonzeroUnusedTable),
+            (1025, Base | 0x83, PhysicalMappingPreparationStatus.MalformedTable)
+        })
+        {
+            ulong[] entries = IdentityImage();
+            entries[index] = replacement;
+            ulong[] before = (ulong[])entries.Clone();
+            fixed (ulong* image = entries)
+            {
+                var result = PostFirmwarePhysicalMappingExplicitUCWCWB.PrepareIdentitySplit(
+                    Address(Table), image, 5, Address(Base), 4096, PhysicalMappingUsage.Device, Conditions());
+                Require(result.Status == expected && entries.SequenceEqual(before),
+                    "image rejection expected=" + expected + " actual=" + result.Status);
+            }
+        }
+        ulong[] exhausted = IdentityImage();
+        fixed (ulong* image = exhausted)
+        {
+            foreach (uint count in new uint[] { 0, 65 })
+                Require(PostFirmwarePhysicalMappingExplicitUCWCWB.PrepareIdentitySplit(Address(Table), image,
+                    count, Address(Base), 4096, PhysicalMappingUsage.Normal, Conditions()).Status
+                    == PhysicalMappingPreparationStatus.InvalidTableArena, "arena bound");
+            ulong[] before = (ulong[])exhausted.Clone();
+            Require(PostFirmwarePhysicalMappingExplicitUCWCWB.PrepareIdentitySplit(Address(Table), image,
+                4, Address(Base), 4096, PhysicalMappingUsage.Device, Conditions()).Status
+                == PhysicalMappingPreparationStatus.NoFreeTablePage && exhausted.SequenceEqual(before), "exhaustion");
+        }
+
+        // Root/PDPT occupy the end of one large leaf; the free child table is
+        // across the 2 MiB boundary. Checking only the new child misses this.
+        ulong[] straddling = new ulong[5 * 512];
+        straddling[0] = 0x7FF003;
+        straddling[512] = 0x800003;
+        straddling[1027] = 0x600083 | Nx;
+        straddling[1028] = 0x801003;
+        for (int i = 0; i < 3; i++) straddling[1536 + i] = 0x800000 + (ulong)i * 4096 | Nx | 3;
+        ulong[] original = (ulong[])straddling.Clone();
+        fixed (ulong* image = straddling)
+        {
+            Require(PostFirmwarePhysicalMappingExplicitUCWCWB.PrepareIdentitySplit(Address(0x7FE000), image,
+                5, Address(0x7FF000), 4096, PhysicalMappingUsage.Device, Conditions()).Status
+                == PhysicalMappingPreparationStatus.TableOverlapsMappedRange && straddling.SequenceEqual(original),
+                "split would unmap or recache existing table storage");
+        }
     }
 
     private static PhysicalAddress Address(ulong raw)
@@ -173,6 +277,69 @@ internal static unsafe class PostFirmwarePhysicalMappingExplicitUCWCWBTests
         PhysicalAddress.TryCreateFromHardwareRegisterBoundary(raw, out var address);
         return address;
     }
+
+    private static void MtrrCoverage()
+    {
+        ulong* bases = stackalloc ulong[2];
+        ulong* masks = stackalloc ulong[2];
+        const ulong addressMask = 0x0000_FFFF_FFFF_F000;
+        const ulong enabled = 0x800;
+        const ulong cr0 = 0x80010001;
+        Require(PostFirmwarePhysicalMappingExplicitUCWCWB.ValidateWriteBackMtrrRange(Address(Base), 4096,
+            48, cr0, 0, enabled | 6, false, null, null, 0) == PhysicalMappingPreparationStatus.Prepared,
+            "default WB with no variable ranges");
+        bases[0] = Base | 6; bases[1] = Base + 0x200000 | 6;
+        masks[0] = masks[1] = (addressMask & ~0x1FFFFFUL) | enabled;
+        Require(Mtrr(bases, masks, 0x400000) == PhysicalMappingPreparationStatus.Prepared,
+            "adjacent WB union over default UC");
+        bases[1] = Base + 0x400000 | 6;
+        Require(Mtrr(bases, masks, 0x400000) == PhysicalMappingPreparationStatus.MtrrRangeNotWriteBack,
+            "gap in WB union");
+        bases[1] = Base + 0x200000;
+        Require(Mtrr(bases, masks, 0x400000, enabled | 6) == PhysicalMappingPreparationStatus.MtrrRangeNotWriteBack,
+            "overlapping UC overrides default WB");
+        bases[1] = Base + 0x200000 | 6;
+        masks[0] ^= 1UL << 23;
+        Require(Mtrr(bases, masks, 0x400000) == PhysicalMappingPreparationStatus.InvalidMtrrSnapshot,
+            "discontinuous mask");
+        masks[0] ^= 1UL << 23;
+        bases[0] |= 0x1000;
+        Require(Mtrr(bases, masks, 0x400000) == PhysicalMappingPreparationStatus.InvalidMtrrSnapshot,
+            "base misaligned to size");
+        bases[0] = Base | 6;
+        masks[0] |= 1UL << 48;
+        Require(Mtrr(bases, masks, 0x400000) == PhysicalMappingPreparationStatus.InvalidMtrrSnapshot,
+            "mask exceeds physical width");
+        masks[0] &= ~(1UL << 48);
+        foreach ((ulong control, ulong cap, bool tme) in new[]
+        {
+            (cr0 | 0x40000000, 2UL, false), (cr0 | 0x20000000, 2UL, false),
+            (cr0, 2UL | 0x800, false), (cr0, 2UL, true)
+        })
+            Require(PostFirmwarePhysicalMappingExplicitUCWCWB.ValidateWriteBackMtrrRange(Address(Base), 4096,
+                48, control, cap, enabled, tme, bases, masks, 2)
+                == PhysicalMappingPreparationStatus.UnsupportedCacheEnvironment, "unsupported controls/SMRR/TME");
+        Require(Mtrr(bases, masks, 4096, 0) == PhysicalMappingPreparationStatus.InvalidMtrrSnapshot,
+            "disabled MTRRs");
+        Require(PostFirmwarePhysicalMappingExplicitUCWCWB.ValidateWriteBackMtrrRange(Address(0x80000), 4096,
+            48, cr0, 2, enabled, false, bases, masks, 2) == PhysicalMappingPreparationStatus.InvalidRange,
+            "fixed-MTRR range not admitted");
+        Require(PostFirmwarePhysicalMappingExplicitUCWCWB.ValidateWriteBackMtrrRange(Address(Base), 4096,
+            48, cr0, 3, enabled, false, bases, masks, 2) == PhysicalMappingPreparationStatus.InvalidMtrrSnapshot,
+            "incomplete snapshot");
+        bases[1] = Base + 0x200000 | 1;
+        Require(Mtrr(bases, masks, 4096, enabled | 6) == PhysicalMappingPreparationStatus.InvalidMtrrSnapshot,
+            "unsupported WC outside target still invalidates snapshot");
+        Require(Mtrr(bases, masks, 4096, enabled | 1) == PhysicalMappingPreparationStatus.InvalidMtrrSnapshot,
+            "unsupported WC default");
+        bases[1] = Base + 0x200000 | 6;
+        Require(Mtrr(bases, masks, 4096, 0xC06) == PhysicalMappingPreparationStatus.InvalidMtrrSnapshot,
+            "enabled fixed MTRRs require capability");
+    }
+
+    private static PhysicalMappingPreparationStatus Mtrr(ulong* bases, ulong* masks, ulong bytes,
+        ulong defaultType = 0x800) => PostFirmwarePhysicalMappingExplicitUCWCWB.ValidateWriteBackMtrrRange(
+            Address(Base), bytes, 48, 0x80010001, 2, defaultType, false, bases, masks, 2);
 
     private static void Rejected(PhysicalMappingPreparationResult result,
         PhysicalMappingPreparationStatus expected, ulong* entries)

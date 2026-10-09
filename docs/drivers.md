@@ -60,6 +60,32 @@ aliases, publication or cache/TLB maintenance. The destination must be detached
 and exclusively owned by the caller. Those live requirements, including guest
 evidence, remain outstanding; no device access or new boot profile is enabled.
 
+`PrepareIdentitySplit` additionally audits the caller's complete bounded image:
+all reachable tables must belong to its contiguous arena of at most 64 pages;
+all leaves must be low-canonical identity mappings; and table storage must be
+WB/RW/NX. Shared/cyclic tables, aliases, nonzero unused tables, unmapped table
+storage and exhaustion are rejected. Only an unused table page is materialized;
+the original parent remains unchanged. A split cannot remove a large leaf that
+contains any arena page, including when the arena crosses a 2 MiB boundary.
+These checks establish properties of the supplied image, not its live CR3 or
+ownership provenance.
+
+`ValidateWriteBackMtrrRange` admits a supplied hardware snapshot only when MTRRs
+give uniform WB coverage above 1 MiB: default WB with no overlapping non-WB
+range, or complete coverage by WB variable ranges. It rejects malformed enabled
+ranges, unavailable WC/fixed-MTRR capabilities, disabled cache/MTRR modes, and
+unsupported SMRR/TME environments. The initial profile deliberately rejects
+SMRR or TME support instead of assuming those mechanisms inactive. Actual MSR
+capture and effective PAT selection remain live-adapter obligations. See
+[step1104](../done/step1104.md) for focused checks and review corrections.
+
+The live sequence is governed by Intel SDM volume 3A, September 2026:
+[5.10.4.2 and 14.12.4](https://cdrdv2-public.intel.com/929359/253668-093-sdm-vol-3a.pdf)
+require making the old mapping nonpresent, invalidating translations, installing
+the changed mapping, then completing required cache maintenance before access.
+The separately claimed #598 lane owns this pending boot/build integration. No
+hardware transition is performed by the preparation helpers.
+
 - `EfiConfigurationTableScanner` recognizes UEFI ACPI 2.0 and ACPI 1.0 configuration table GUIDs, prefers ACPI 2.0 when both are present, supports ACPI 1.0 fallback, rejects zero RSDP pointers, and returns status-coded results.
 - `EfiMain` source-links the pointer scanner and emits `BOOT_ACPI_RSDP_HANDOFF_READY`, `UEFI_ACPI_RSDP_READY`, `UEFI_ACPI_RSDP_MISSING`, or `UEFI_ACPI_RSDP_INVALID <status-code>` on the default path without dereferencing the RSDP.
 - `scripts/build-efi-shell.ps1 -EnableAcpiPhysicalDiscoveryProbe` publishes an opt-in EFI artifact that dereferences the firmware-provided ACPI pointers before `ExitBootServices`, validates live RSDP/root SDT/MCFG bytes into fixed scratch storage, and emits `ACPI_RSDP_SNAPSHOT_READY`, `ACPI_RSDP_VALIDATED`, `ACPI_ROOT_SDT_SNAPSHOT_READY`, `ACPI_ROOT_SDT_VALIDATED`, and `ACPI_MCFG_DISCOVERY_READY`.
