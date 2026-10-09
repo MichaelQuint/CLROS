@@ -33,15 +33,17 @@ for these measured frames, exact inner/outer clauses, active-exception phase
 and compiled continuation. Focused host tests mutate every captured context
 word, clause field, lifecycle counter and relevant authority input. The
 predicates form part of the EFI callbacks added in [step1098](../done/step1098.md).
-That disabled candidate compiles and links the actual cleanup, inner catch,
+That candidate compiles and links the actual cleanup, inner catch,
 `throw;`, outer catch and continuation. Callbacks check the retained module,
 root, stack, controls and original handling context before selection; after
 the jump, the continuation does not read discarded bridge frames. Transfer
-admission remains false. Native byte/relocation/frame/clause checks pass, but
-complete reachable-path/stack review, wrapper/verifier/runner integration,
-negative guest controls, regressions and the full host gate remain pending.
-The strict publication wrapper currently rejects the new target contract;
-direct publication here is development evidence only.
+admission was opened after complete linked native/ABI/stack review. The strict
+publication wrapper and runner accept the explicit default-off profile. Its
+88-record QEMU capture demonstrates the original rooted exception, one cleanup,
+inner and outer typed catches and compiled continuation, with admission
+rejections and stack checks. Ordinary, GC, catch and finally regressions pass;
+see [step1100](../done/step1100.md). Final full-host acceptance remains pending.
+This does not establish parent #90's broader EH requirements.
 
 ## Accepted bounded interface dispatch
 
