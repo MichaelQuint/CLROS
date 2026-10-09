@@ -75,9 +75,9 @@ string marker = "m03.010.integration." + name;
     }
 
     private const string Firmware = "G1syShtbMDE7MDFIG1s9M2gbWzJKG1swMTswMUgbWzJKG1swMTswMUgbWz0zaBtbMkobWzAxOzAxSBtbMkobWzAxOzAxSBtbPTNoG1syShtbMDE7MDFIQmRzRHhlOiBsb2FkaW5nIEJvb3QwMDAxICJVRUZJIFFFTVUgSEFSRERJU0sgUU0wMDAxMyAiIGZyb20gUGNpUm9vdCgweDApL1BjaSgweDIsMHgwKS9TYXRhKDB4MCwweEZGRkYsMHgwKQ0KQmRzRHhlOiBzdGFydGluZyBCb290MDAwMSAiVUVGSSBRRU1VIEhBUkRESVNLIFFNMDAwMTMgIiBmcm9tIFBjaVJvb3QoMHgwKS9QY2koMHgyLDB4MCkvU2F0YSgweDAsMHhGRkZGLDB4MCkNCg==";
-    private static string Frame(string[] lines) => Encoding.ASCII.GetString(Convert.FromBase64String(Firmware)) + string.Join("\r\n", lines) + "\r\n";
+    internal static string Frame(string[] lines) => Encoding.ASCII.GetString(Convert.FromBase64String(Firmware)) + string.Join("\r\n", lines) + "\r\n";
     private static string Row(int stage, params ulong[] values) => "M03_OWNED " + stage + string.Concat(values.Select(v => " 0x" + v.ToString("X16")));
-    private static string[] Capture(bool panic)
+    internal static string[] Capture(bool panic)
     {
         // Independent synthetic original-parent transcript, with distinct static,
         // copied, allocator, table, code and arena owners. This is not guest proof.

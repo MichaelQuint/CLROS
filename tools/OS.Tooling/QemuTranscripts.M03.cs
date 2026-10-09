@@ -66,7 +66,7 @@ public static partial class QemuTranscripts
         var retained = ReadRecord(lines[24], "CLROS_M03_002_RETAIN", "total:dec", "descriptors:dec", "guards:dec", "tail:dec", "mismatches:dec");
         Need(total <= 266240 && retained["total"] == total && retained["descriptors"] == 5 && retained["guards"] == 32 &&
             retained["tail"] == 266240 - total && retained["mismatches"] == 0, "m03_acpi_retained_accounting");
-        if (ownedSurvival) AssertM03OwnedSubsystemRecords(physicalMapping || ownedAcpiSelection || monotonicClock ? lines[..76] : lines, rows, ownedPanic, normalBoot);
+        if (ownedSurvival) AssertM03OwnedSubsystemRecords(physicalMapping || ownedAcpiSelection || monotonicClock || pciEnumeration ? lines[..76] : lines, rows, ownedPanic, normalBoot);
         if (physicalMapping) AssertM05PhysicalMappingRecords(lines);
         if (ownedAcpiSelection) AssertM05OwnedAcpiSelectionRecords(lines);
         if (pciEnumeration) AssertM05PciEnumerationRecords(lines);

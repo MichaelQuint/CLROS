@@ -54,6 +54,20 @@ internal static unsafe class M05PciEfiIntegrationTests
         string[] swapped = [.. lines]; (swapped[start + 3], swapped[start + 4]) = (swapped[start + 4], swapped[start + 3]);
         Reject(() => QemuTranscripts.AssertM05PciEnumerationRecords(swapped));
         Reject(() => QemuTranscripts.AssertM05PciEnumerationRecords([.. lines, "extra"]));
+        // Exercise the complete parser, not only the PCI suffix. The shared M03
+        // ownership check must receive exactly its original 76-record prefix.
+        string[] whole = [.. M03OwnedSubsystemSurvivalEfiIntegrationTests.Capture(false), .. lines.Skip(start)];
+        string path = Path.Combine(Path.GetTempPath(), "clros-pci-transcript-" + Guid.NewGuid().ToString("N") + ".log");
+        try
+        {
+            File.WriteAllText(path, M03OwnedSubsystemSurvivalEfiIntegrationTests.Frame(whole));
+            QemuTranscripts.AssertM03AcpiBootstrapTranscript(path, firstRealExit: true, ownedSurvival: true, pciEnumeration: true);
+            Reject(() => QemuTranscripts.AssertM03AcpiBootstrapTranscript(path, firstRealExit: true, ownedSurvival: true));
+            whole[67] = whole[67].Replace("M03_OWNED 0", "M03_OWNED 1", StringComparison.Ordinal);
+            File.WriteAllText(path, M03OwnedSubsystemSurvivalEfiIntegrationTests.Frame(whole));
+            Reject(() => QemuTranscripts.AssertM03AcpiBootstrapTranscript(path, firstRealExit: true, ownedSurvival: true, pciEnumeration: true));
+        }
+        finally { File.Delete(path); }
     }
     private static void Reject(Action action)
     {
