@@ -10,6 +10,9 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<!-- Parse source dependencies with the installed compiler; no additional package. -->
+		<Reference Include="Microsoft.CodeAnalysis" HintPath="$(MSBuildToolsPath)\Roslyn\bincore\Microsoft.CodeAnalysis.dll" />
+		<Reference Include="Microsoft.CodeAnalysis.CSharp" HintPath="$(MSBuildToolsPath)\Roslyn\bincore\Microsoft.CodeAnalysis.CSharp.dll" />
 		<!-- Keep capture projects unchanged; only this harness dispatches fixtures explicitly. -->
 		<Using Include="HostFixtureAttribute" Alias="ModuleInitializerAttribute" />
 		<EmbeddedResource Include="HostSourceChecks.txt" />
@@ -24,7 +27,13 @@
 	<!-- Bind execution without rebuilding to the source actually compiled, without putting the whole
 	     host assembly hash into every fixture's resume key. -->
 	<Target Name="RecordHostCompiledInputs" AfterTargets="Build" Condition="'$(MSBuildProjectName)' == 'OS.HostTests'">
-		<GetFileHash Files="@(Compile);$(TargetPath);$(MSBuildProjectFullPath);HostSourceChecks.txt" Algorithm="SHA256">
+		<ItemGroup>
+			<HostReferenceInputs Include="..\..\src\OS.Kernel\**\*.cs;..\..\std\no-runtime\shared\**\*.cs;..\..\tools\OS.ImageBuilder\**\*.cs;..\..\tools\OS.LibvirtRunner\**\*.cs;..\..\tools\OS.ManifestTool\**\*.cs;..\..\tools\OS.QemuRunner\**\*.cs" Exclude="..\..\**\obj\**;..\..\**\bin\**" />
+			<HostReferenceInputs Include="@(ProjectReference);..\..\Directory.Build.*;..\..\tools\Directory.Build.*;..\..\global.json;@(ReferenceCopyLocalPaths)" />
+			<HostReferenceInputs Include="..\..\tools\OS.ImageBuilder\bin\$(Configuration)\net10.0\OS.ImageBuilder.dll;..\..\tools\OS.LibvirtRunner\bin\$(Configuration)\net10.0\OS.LibvirtRunner.dll;..\..\tools\OS.ManifestTool\bin\$(Configuration)\net10.0\OS.ManifestTool.dll" />
+		</ItemGroup>
+		<WriteLinesToFile File="$(TargetDir)OS.HostTests.options.txt" Lines="$(Configuration)|$(TargetFramework)|$(LangVersion)|$(DefineConstants)|$(Optimize)|$(PlatformTarget)|$(AllowUnsafeBlocks)|$(CheckForOverflowUnderflow)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+		<GetFileHash Files="@(Compile);@(HostReferenceInputs);$(TargetPath);$(MSBuildProjectFullPath);HostSourceChecks.txt;$(TargetDir)OS.HostTests.options.txt" Algorithm="SHA256">
 			<Output TaskParameter="Items" ItemName="HostCompiledInputs" />
 		</GetFileHash>
 		<WriteLinesToFile File="$(TargetDir)OS.HostTests.inputs.sha256" Lines="@(HostCompiledInputs->'%(FullPath)|%(FileHash)')" Overwrite="true" WriteOnlyWhenDifferent="true" />

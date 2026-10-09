@@ -122,10 +122,11 @@ internal static class HostTestRunner
                 throw new InvalidOperationException("Compiled inputs changed; rebuild OS.HostTests before running: " + (separator > 0 ? line[..separator] : path));
             compiled.Add(line[..separator]);
         }
-        string sourceRoot = Path.Combine(HostToolProcess.FindRepositoryRoot(), "tests", "OS.HostTests");
-        foreach (string source in Directory.GetFiles(sourceRoot, "*.cs", SearchOption.AllDirectories)
+        string root = HostToolProcess.FindRepositoryRoot();
+        foreach (string relative in new[] { "tests/OS.HostTests", "src/OS.Kernel", "std/no-runtime/shared", "tools/OS.ImageBuilder", "tools/OS.LibvirtRunner", "tools/OS.ManifestTool", "tools/OS.QemuRunner" })
+        foreach (string source in Directory.GetFiles(Path.GetFullPath(Path.Combine(root, relative)), "*.cs", SearchOption.AllDirectories)
             .Where(p => !p.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar) && !p.Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar)))
-            if (!compiled.Contains(source)) throw new InvalidOperationException("New test source is not compiled; rebuild OS.HostTests: " + source);
+            if (!compiled.Contains(source)) throw new InvalidOperationException("New source is not compiled; rebuild OS.HostTests: " + source);
     }
 
     private static int Contracts(HashSet<string>? selected)
@@ -186,8 +187,6 @@ internal static class HostTestRunner
         }
         process.OutputDataReceived += (_, e) => Write(e.Data);
         process.ErrorDataReceived += (_, e) => Write(e.Data);
-        process.Start();
-        started(process);
         bool interrupted = false;
         ConsoleCancelEventHandler cancel = (_, e) =>
         {
@@ -195,11 +194,27 @@ internal static class HostTestRunner
             interrupted = true;
             if (!process.HasExited) process.Kill(entireProcessTree: true);
         };
-        Console.CancelKeyPress += cancel;
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-        try { process.WaitForExit(); }
-        finally { Console.CancelKeyPress -= cancel; }
+        bool launched = false;
+        try
+        {
+            process.Start();
+            launched = true;
+            started(process);
+            Console.CancelKeyPress += cancel;
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+            process.WaitForExit();
+        }
+        finally
+        {
+            Console.CancelKeyPress -= cancel;
+            // A failed checkpoint write or pipe setup must not leave a detached fixture behind.
+            if (launched && !process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+                process.WaitForExit();
+            }
+        }
         failureMarker = failed;
         cancelled = interrupted;
         return process.ExitCode;

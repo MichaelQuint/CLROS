@@ -11,8 +11,9 @@ internal static class HostRunnerTests
         foreach (string area in new[] { "src", "std", "tools", "tests/OS.HostTests" }) Directory.CreateDirectory(Path.Combine(root, area));
         Write("tests/OS.HostTests/AlphaTests.cs", "class AlphaTests { HiddenType dependency; }");
         Write("tests/OS.HostTests/BetaTests.cs", "class HiddenType {}");
-        Write("tests/OS.HostTests/OtherTests.cs", "class OtherTests {}");
+        Write("tests/OS.HostTests/OtherTests.cs", "class OtherTests { class HiddenType {} string generated = \"class HiddenType { artifacts/input.bin }\"; }");
         Write("tests/OS.HostTests/ExternalTests.cs", "class ExternalTests { /* Environment.GetEnvironmentVariable(variable) */ }");
+        Write("tests/OS.HostTests/ArtifactReaderTests.cs", "class ArtifactReaderTests { /* artifacts/input.bin */ }");
         Write("tests/OS.HostTests/ScannerTests.cs", "class ScannerTests { /* Directory.EnumerateFiles(root) */ }");
         Write("src/input.txt", "original");
         ProcessStartInfo start = new("git") { WorkingDirectory = root, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
@@ -23,12 +24,22 @@ internal static class HostRunnerTests
         using (HostRunCheckpoint checkpoint = new(root, results, false))
         {
             alpha = checkpoint.Fingerprint("AlphaTests");
+            Need(!alpha.StartsWith("fresh:", StringComparison.Ordinal), "nested and generated declarations do not connect unrelated fixtures");
             scanner = checkpoint.Fingerprint("ScannerTests");
             string log = checkpoint.Start("alpha", alpha);
             File.WriteAllText(log, "TEST_PASS synthetic.alpha\n");
             Write("artifacts/required.bin", "required evidence");
             checkpoint.Finish("alpha", true);
             Need(checkpoint.TryReuse("alpha", alpha, out _), "pass reused");
+            Write("artifacts/required.bin", "overwritten shared output");
+            Need(checkpoint.TryReuse("alpha", alpha, out _), "shared output overwrite preserves retained pass");
+            Need(checkpoint.Fingerprint("ArtifactReaderTests").StartsWith("fresh:", StringComparison.Ordinal), "unclassified artifact reader runs fresh");
+            Write("artifacts/input.bin", "input one");
+            string artifactInput = checkpoint.Fingerprint("ArtifactReaderTests", ["artifacts/input.bin"]);
+            Write("artifacts/input.bin", "input two");
+            Need(checkpoint.Fingerprint("ArtifactReaderTests", ["artifacts/input.bin"]) != artifactInput, "declared artifact input changes invalidate");
+            File.Delete(Path.Combine(root, "artifacts/input.bin"));
+            Need(checkpoint.Fingerprint("ArtifactReaderTests", ["artifacts/input.bin"]).StartsWith("fresh:", StringComparison.Ordinal), "missing declared input runs fresh");
             string external = checkpoint.Fingerprint("ExternalTests");
             string externalLog = checkpoint.Start("external", external);
             File.WriteAllText(externalLog, "TEST_PASS synthetic.external\n");
@@ -57,10 +68,12 @@ internal static class HostRunnerTests
         using (HostRunCheckpoint checkpoint = new(root, results, true))
             Need(checkpoint.Fingerprint("AlphaTests") != alpha, "shared input invalidated");
         Write("src/input.txt", "original");
-        File.Delete(Path.Combine(root, "artifacts", "required.bin"));
+        var retainedReceipt = System.Text.Json.JsonSerializer.Deserialize<HostRunCheckpoint.Receipt>(File.ReadAllText(Path.Combine(results, "result.json")))!;
+        string retainedArtifact = retainedReceipt.Fixtures["alpha"].ArtifactSources[Path.Combine(root, "artifacts", "required.bin")];
+        File.Delete(retainedArtifact);
         using (HostRunCheckpoint checkpoint = new(root, results, true))
             Need(!checkpoint.TryReuse("alpha", alpha, out _), "missing evidence rerun");
-        Write("artifacts/required.bin", "required evidence");
+        File.WriteAllText(retainedArtifact, "required evidence");
         using (HostRunCheckpoint checkpoint = new(root, results, true))
         {
             Need(checkpoint.TryReuse("alpha", alpha, out _), "restored exact evidence");

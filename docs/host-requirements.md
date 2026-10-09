@@ -202,6 +202,8 @@ contracts (or those belonging to selected fixtures), collecting every failure.
 `tests/OS.HostTests/HostSourceChecks.txt` contains reviewed lightweight methods;
 do not add build, subprocess, native-execution or network methods. A compiled
 input manifest rejects stale binaries after source edits, including `--no-build`.
+It covers referenced kernel/shared/tool source, producer binaries and compiler
+options as well as test source. New source files also require a rebuild.
 
 Each run writes atomic per-fixture state, individual logs and `result.json` under
 the printed results directory. Resume reruns failed, interrupted, new or changed
@@ -209,13 +211,20 @@ fixtures. It reuses passes only when their fingerprints and retained evidence
 match. Fingerprints cover shared source/scripts/docs/configuration, host producer
 binaries, runtime/SDK, environment (digest only), native compiler/linker/LLVM and
 NativeAOT package bytes, plus the fixture source and transitive lexical references
-to other fixture/helper source. Broad source scans conservatively include all
+to other fixture/helper source. The installed SDK parser identifies actual
+top-level declarations, avoiding false dependencies on generated C# strings
+and unrelated nested helper names. Broad source scans conservatively include all
 test files. The rebuilt host assembly itself is checked against its build
 manifest but excluded from individual resume keys, so an unrelated fixture edit
 does not automatically discard every pass.
 
-Fixture logs and generated retained artifacts are hash-checked on reuse. Existing
-caller console logs are excluded from artifact capture. Reused results emit
+Changed outputs still present when a fixture finishes are copied into the run's
+content-addressed `evidence` directory. Their original paths remain in the
+receipt. Later fixtures may overwrite shared output paths without invalidating
+these retained copies. Logs and retained outputs are hash-checked on reuse and
+again before completion. Outputs deleted inside a fixture cannot be archived
+this way; its host result does not establish retained native artifact acceptance.
+Existing caller console logs are excluded from artifact capture. Reused results emit
 `HOST_FIXTURE_REUSED` with their originating run; they never replay `TEST_PASS`.
 `HOST_RUN_SUMMARY` and the receipt distinguish executed and reused coverage.
 `TEST_PASS host.tests` means every currently selected full-suite fixture passed
@@ -228,8 +237,13 @@ shared outputs, change inputs while running, or move/edit checkpoint files. A
 results-directory lock prevents duplicate owners; a surviving fixture process
 blocks resumption after a hard parent interruption. Ctrl+C terminates the active
 fixture process tree and leaves the remaining work pending. Corrupt receipts are
-rejected. Unclassified environment-selected inputs and external reference checkouts disable
-reuse conservatively. Other dynamic external inputs are outside this local
+rejected. A failure during child setup also terminates that child.
+Unclassified artifact consumers, environment-selected inputs and external
+reference checkouts disable reuse conservatively. Three reviewed native fixtures
+(M02 IDTR continuation, owned IDT population and UD2 vector state) always publish
+their own outputs before reading them and have no prior artifact inputs. Other
+artifact readers require explicit input hashes or review before reuse is enabled.
+Missing declared artifact inputs force fresh execution. Other dynamic external inputs are outside this local
 fingerprint model: fixtures consuming them must run fresh, and reuse is not guest/native acceptance
 by itself. The audit found cross-fixture source dependencies but did not prove
 complete artifact independence for every existing integration fixture.

@@ -3,6 +3,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 // A local checkpoint is evidence reuse, not a second execution of a passing test.
 internal sealed class HostRunCheckpoint : IDisposable
@@ -17,6 +19,7 @@ internal sealed class HostRunCheckpoint : IDisposable
         public int ProcessId { get; set; }
         public long ProcessStartedUtcTicks { get; set; }
         public Dictionary<string, string> Artifacts { get; set; } = new(StringComparer.Ordinal);
+        public Dictionary<string, string> ArtifactSources { get; set; } = new(StringComparer.Ordinal);
     }
 
     internal sealed class Receipt
@@ -38,11 +41,21 @@ internal sealed class HostRunCheckpoint : IDisposable
     private readonly Receipt receipt;
     private readonly Dictionary<string, string> testSources;
     private readonly Dictionary<string, HashSet<string>> typeSources = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, HashSet<string>> sourceTokens = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> sourceHashes = new(StringComparer.Ordinal);
     private readonly string shared;
     private Dictionary<string, (long Length, long Modified)> before = [];
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
     private static readonly HashSet<string> SharedSources = new(StringComparer.Ordinal)
         { "Program", "HostTestRunner", "HostRunCheckpoint", "HostFixtureAttribute", "HostToolProcess" };
+    // Reviewed: both native profiles are always published before their outputs are read.
+    // No prior artifact inputs. Keep this small; unclassified artifact consumers run fresh.
+    private static readonly HashSet<string> OwnArtifactFixtures = new(StringComparer.Ordinal)
+    {
+        "M02IdtrContinuedExecutionEfiIntegrationTests",
+        "M02OwnedIdtGatePopulationEfiIntegrationTests",
+        "M02Ud2VectorStateEfiIntegrationTests"
+    };
 
     internal HostRunCheckpoint(string root, string directory, bool resume)
     {
@@ -74,20 +87,38 @@ internal sealed class HostRunCheckpoint : IDisposable
             testSources = Directory.GetFiles(Path.Combine(root, "tests", "OS.HostTests"), "*.cs")
                 .ToDictionary(p => Path.GetFileNameWithoutExtension(p), File.ReadAllText, StringComparer.Ordinal);
             foreach (var source in testSources)
-                foreach (Match declaration in Regex.Matches(source.Value, @"\b(?:class|struct|enum|interface|record(?:\s+(?:class|struct))?)\s+(?<name>[A-Za-z_]\w*)"))
+            {
+                // Use the SDK parser so generated C# strings and private nested helper names
+                // cannot connect otherwise unrelated fixtures. References to nested types
+                // also name their containing top-level type (including aliases/base types).
+                var syntax = CSharpSyntaxTree.ParseText(source.Value).GetRoot();
+                foreach (var declaration in syntax.DescendantNodes().OfType<BaseTypeDeclarationSyntax>()
+                    .Where(d => !d.Ancestors().OfType<BaseTypeDeclarationSyntax>().Any()))
                 {
-                    string name = declaration.Groups["name"].Value;
+                    string name = declaration.Identifier.ValueText;
                     if (!typeSources.TryGetValue(name, out var paths)) typeSources[name] = paths = new(StringComparer.Ordinal);
                     paths.Add(source.Key);
                 }
+                foreach (var declaration in syntax.DescendantNodes().OfType<DelegateDeclarationSyntax>()
+                    .Where(d => !d.Ancestors().OfType<BaseTypeDeclarationSyntax>().Any()))
+                {
+                    string name = declaration.Identifier.ValueText;
+                    if (!typeSources.TryGetValue(name, out var paths)) typeSources[name] = paths = new(StringComparer.Ordinal);
+                    paths.Add(source.Key);
+                }
+                sourceTokens[source.Key] = Regex.Matches(source.Value, @"[A-Za-z_][A-Za-z_0-9]*")
+                    .Select(m => m.Value).ToHashSet(StringComparer.Ordinal);
+                sourceHashes[source.Key] = HashText(source.Value);
+            }
             shared = SharedFingerprint();
             Save();
         }
         catch { runLock.Dispose(); throw; }
     }
 
-    internal string Fingerprint(string type)
+    internal string Fingerprint(string type, string[]? artifactInputs = null)
     {
+        if (artifactInputs == null && OwnArtifactFixtures.Contains(type)) artifactInputs = [];
         HashSet<string> dependencies = new(StringComparer.Ordinal);
         HashSet<string> visited = new(StringComparer.Ordinal);
         bool externalInput = false;
@@ -98,6 +129,7 @@ internal sealed class HostRunCheckpoint : IDisposable
             if (!visited.Add(name)) continue;
             dependencies.Add(name);
             string source = testSources[name];
+            if (artifactInputs == null && Regex.IsMatch(source, @"(?i)(?:""artifacts""|artifacts[/\\])")) externalInput = true;
             // Unknown environment-selected inputs and reference checkouts are not safe cache inputs.
             if (source.Contains("\"references\"", StringComparison.Ordinal)) externalInput = true;
             foreach (Match read in Regex.Matches(source, @"Environment\.GetEnvironmentVariable\s*\(\s*(?<argument>[^)]*)\)"))
@@ -107,7 +139,7 @@ internal sealed class HostRunCheckpoint : IDisposable
             // Broad/dynamic source discovery gets the entire test-source set, never a guessed subset.
             bool broad = source.Contains("EnumerateFiles", StringComparison.Ordinal) || source.Contains("GetFiles", StringComparison.Ordinal)
                 || source.Contains("Assembly.Load", StringComparison.Ordinal);
-            HashSet<string> tokens = Regex.Matches(source, @"[A-Za-z_][A-Za-z_0-9]*").Select(m => m.Value).ToHashSet(StringComparer.Ordinal);
+            HashSet<string> tokens = sourceTokens[name];
             if (broad) dependencies.UnionWith(testSources.Keys);
             foreach (string token in tokens)
                 if (typeSources.TryGetValue(token, out var sources))
@@ -117,7 +149,16 @@ internal sealed class HostRunCheckpoint : IDisposable
                 if (!SharedSources.Contains(other) && tokens.Contains(other) && !visited.Contains(other)) pending.Enqueue(other);
         }
         string inputs = shared + "\n" + string.Join("\n", dependencies.Order(StringComparer.Ordinal)
-            .Select(name => name + ":" + HashText(testSources[name])));
+            .Select(name => name + ":" + sourceHashes[name]));
+        foreach (string input in artifactInputs ?? [])
+        {
+            string path = Path.GetFullPath(Path.Combine(root, input));
+            if (!path.StartsWith(Path.Combine(root, "artifacts") + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Declared artifact input must be under artifacts: " + input);
+            bool exists = File.Exists(path);
+            inputs += "\n" + path + ":" + (exists ? HashFile(path) : "MISSING");
+            if (!exists) externalInput = true;
+        }
         string? externalRoot = Environment.GetEnvironmentVariable("CLROS_TEST_ROOT");
         if (!string.IsNullOrEmpty(externalRoot) && Path.GetFullPath(externalRoot) != root) externalInput = true;
         return (externalInput ? "fresh:" : "") + HashText(inputs);
@@ -157,7 +198,15 @@ internal sealed class HostRunCheckpoint : IDisposable
             if ((!before.TryGetValue(item.Key, out var old) || old != item.Value)
                 // Existing live console logs belong to the caller. Each fixture's own log is hashed above.
                 && !(before.ContainsKey(item.Key) && item.Key.EndsWith(".log", StringComparison.OrdinalIgnoreCase)))
-                record.Artifacts[item.Key] = HashFile(item.Key);
+            {
+                string hash = HashFile(item.Key);
+                string retained = Path.Combine(directory, "evidence", hash);
+                Directory.CreateDirectory(Path.GetDirectoryName(retained)!);
+                if (!File.Exists(retained)) File.Copy(item.Key, retained);
+                if (HashFile(retained) != hash) throw new IOException("Artifact changed while retaining evidence: " + item.Key);
+                record.Artifacts[retained] = hash;
+                record.ArtifactSources[item.Key] = retained;
+            }
         Save();
     }
 
@@ -170,6 +219,12 @@ internal sealed class HostRunCheckpoint : IDisposable
 
     internal void Complete(string[] selected, bool fullSuite, int failures, int executed, int reused)
     {
+        foreach (string id in selected)
+        {
+            Record record = receipt.Fixtures[id];
+            if (record.State == "passed" && (!Matches(record.Log, record.LogHash) || record.Artifacts.Any(item => !Matches(item.Key, item.Value))))
+                throw new InvalidOperationException("Retained evidence changed during this run: " + id);
+        }
         if (SharedFingerprint() != shared) throw new InvalidOperationException("Shared inputs changed during this run; results are not a stable batch.");
         foreach (var source in testSources)
             if (File.ReadAllText(Path.Combine(root, "tests", "OS.HostTests", source.Key + ".cs")) != source.Value)
@@ -217,6 +272,8 @@ internal sealed class HostRunCheckpoint : IDisposable
         inputs.Add(System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
         inputs.Add(System.Runtime.InteropServices.RuntimeInformation.OSDescription);
         inputs.Add(Environment.MachineName);
+        string options = Path.Combine(AppContext.BaseDirectory, "OS.HostTests.options.txt");
+        inputs.Add(File.Exists(options) ? HashFile(options) : "NO_HOST_COMPILER_OPTIONS");
         using (Process sdk = new() { StartInfo = new ProcessStartInfo("dotnet", "--info")
             { WorkingDirectory = root, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true } })
         {
@@ -238,7 +295,7 @@ internal sealed class HostRunCheckpoint : IDisposable
                     inputs.Add(file + ":" + HashFile(file));
         string packages = Environment.GetEnvironmentVariable("NUGET_PACKAGES")
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
-        foreach (string name in new[] { "runtime.win-x64.microsoft.dotnet.ilcompiler", "microsoft.dotnet.ilcompiler" })
+        foreach (string name in new[] { "runtime.win-x64.microsoft.dotnet.ilcompiler", "microsoft.dotnet.ilcompiler", "microsoft.net.illink.tasks", "microsoft.netcore.app.runtime.nativeaot.win-x64" })
         {
             string package = Path.Combine(packages, name);
             if (!Directory.Exists(package)) { inputs.Add(package + ":MISSING"); continue; }
