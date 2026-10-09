@@ -374,7 +374,7 @@ private static void TestFirewall()
             using var document=System.Text.Json.JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=document.RootElement;
             var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==OS.Tooling.EfiEvidence.SourceClosurePaths(root).Count,"complete raw source inventory");
             foreach(var input in inputs)Need(Hash(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))==input.GetProperty("sha256").GetString(),"actual raw source unchanged");
-            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==OS.Tooling.EfiContracts.CompileItems.Count,"actual122 compile items");
+            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==OS.Tooling.EfiContracts.CompileItems.Count,"complete compile item inventory");
             var flags=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
             Need(flags.Length==OS.Tooling.EfiContracts.DiagnosticProbes.Count,"complete52 evaluated flags");
             foreach(var f in flags)Need(f.Value.GetString()==(lane.Item2.Contains(f.Name,StringComparer.Ordinal)?"true":"false"),"actual requested/evaluated profile "+f.Name);

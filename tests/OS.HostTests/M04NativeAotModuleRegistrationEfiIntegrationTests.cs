@@ -248,7 +248,7 @@ internal static class M04NativeAotModuleRegistrationEfiIntegrationTests
         Result result=Dry(positive);Passed(result);Need(result.Output.Contains("TEST_PASS qemu.runner.dryrun",StringComparison.Ordinal),"actual dry-run terminal");
         string[] Vector(string prefix)=>result.Output.Split('\n').Single(x=>x.StartsWith(prefix+" ",StringComparison.Ordinal))[(prefix.Length+1)..].TrimEnd('\r').Split(';').Select(x=>x.Trim()).ToArray();
         var required=Vector("REQUIRED_MARKERS");var ordered=Vector("ORDERED_MARKERS");var unique=Vector("UNIQUE_MARKERS");var forbidden=Vector("FORBIDDEN_MARKERS");
-        foreach(var vector in new[]{required,ordered,unique})Need(vector.Length==QemuContracts.M04TypeManagerRequiredMarkers.Count&&vector.Distinct(StringComparer.Ordinal).Count()==vector.Length,"actual45 canonical unique vectors");
+        foreach(var vector in new[]{required,ordered,unique})Need(vector.Length==QemuContracts.M04TypeManagerRequiredMarkers.Count&&vector.Distinct(StringComparer.Ordinal).Count()==vector.Length,"canonical unique marker inventories");
         Need(required.Order(StringComparer.Ordinal).SequenceEqual(ordered.Order(StringComparer.Ordinal),StringComparer.Ordinal)&&ordered.SequenceEqual(unique,StringComparer.Ordinal),"actual complete set and ordered/unique sequence");
         OS.Tools.QemuRunner.SerialMarkerCompletionResult Stream(string[] lines){var state=new OS.Tools.QemuRunner.SerialMarkerStateMachine(required,forbidden,orderedMarkers:ordered,uniqueMarkers:unique);Need(state.Feed(Encoding.ASCII.GetBytes(string.Join("\r\n",lines)+"\r\n")).Succeeded,"actual streamer Feed");return state.Complete();}
         var accepted=Stream(ProtocolLines);Need(accepted.Passed&&accepted.LinesProcessed==ProtocolLines.Length&&accepted.OrderedSeenCount==ordered.Length&&accepted.UniqueSeenCount==unique.Length,"genuine full-token streamer success");
@@ -258,7 +258,7 @@ internal static class M04NativeAotModuleRegistrationEfiIntegrationTests
             string[] swapped=[..ProtocolLines];(swapped[index],swapped[index+1])=(swapped[index+1],swapped[index]);Need(Stream(swapped).OutOfOrderOccurrenceCount>0,"reordered registration row");
         }
         void Reject(string[] args,string reason){Result failure=Dry(args);Need(failure.Exit!=0&&!failure.Timeout&&(failure.Output+failure.Error).Contains(reason,StringComparison.Ordinal),"profile rejection "+reason);}
-        string project=File.ReadAllText(Path.Combine(root,"src/OS/OS.csproj"));string[] flags=Regex.Matches(project,@"\$\((Enable\w+Probe)\)").Select(x=>x.Groups[1].Value).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();Need(flags.Length==OS.Tooling.EfiContracts.DiagnosticProbes.Count,"actual52 profile flags");
+        string project=File.ReadAllText(Path.Combine(root,"src/OS/OS.csproj"));string[] flags=Regex.Matches(project,@"\$\((Enable\w+Probe)\)").Select(x=>x.Groups[1].Value).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();Need(flags.Length==OS.Tooling.EfiContracts.DiagnosticProbes.Count,"complete profile inventory");
         foreach(string other in flags.Where(x=>x!=Flag&&x!="EnableM01LoadedImageStackProbe"&&x!="EnableM04X64UnwindMetadataProbe"))
         {
             Result failure=Dry([..positive,"-"+other]);
