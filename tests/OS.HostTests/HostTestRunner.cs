@@ -104,8 +104,22 @@ internal static class HostCheck
 internal static class HostTestRunner
 {
     internal sealed record Fixture(string Id, HostLane Lane, MethodInfo Method, string? Name = null, int Order = 0);
+    internal sealed record FixtureGroup(string Id, HostLane Lane, Fixture[] Fixtures);
+
+    internal static FixtureGroup[] GroupByLane(Fixture[] fixtures) => fixtures
+        .GroupBy(fixture => fixture.Method.DeclaringType!.Name)
+        .SelectMany(owner => owner.GroupBy(fixture => fixture.Lane).Select(lane =>
+            new FixtureGroup(owner.Key + (owner.Select(fixture => fixture.Lane).Distinct().Count() > 1 ? "." + lane.Key : ""),
+                lane.Key, lane.ToArray())))
+        .ToArray();
+
     internal sealed record FixtureResult(string Id, string Lane, int ExitCode, bool TimedOut,
-        double Seconds, string Log, int Started, int Passed, int Failed, string? Error);
+        double Seconds, string Log, int Started, int Passed, int Failed, string? Error)
+    {
+        public bool Reused { get; init; }
+        public string Origin { get; init; } = "";
+        public int ProcessId { get; init; }
+    }
 
     internal static Fixture[] Discover() => typeof(HostTestRunner).Assembly.GetTypes()
         .SelectMany(type => type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
@@ -130,6 +144,11 @@ internal static class HostTestRunner
         {
             switch (args[1])
             {
+                case "fingerprint":
+                    var fingerprintFixtures = Discover().Where(f => f.Method.DeclaringType!.Name == args[2]).ToArray();
+                    if (fingerprintFixtures.Length == 0) return 2;
+                    Console.WriteLine(HostTestFingerprint.Create(HostToolProcess.FindRepositoryRoot()).For(fingerprintFixtures, null));
+                    return 0;
                 case "failures":
                     int failures = 0;
                     HostCheck.Run("control.first", () => false, ref failures);
@@ -186,7 +205,7 @@ internal static class HostTestRunner
             }
         }
         string lane = "fast";
-        string? filter = null, worker = null, caseFilter = null;
+        string? filter = null, worker = null, caseFilter = null, resultsPath = null, resume = null, workerLease = null;
         int jobs = Math.Clamp(Environment.ProcessorCount, 1, 4);
         bool list = false;
         try
@@ -199,13 +218,26 @@ internal static class HostTestRunner
                     case "--filter": filter = args[++i]; break;
                     case "--case": caseFilter = args[++i]; break;
                     case "--worker": worker = args[++i]; break;
+                    case "--worker-lease": workerLease = args[++i]; break;
+                    case "--results": resultsPath = args[++i]; break;
+                    case "--resume": resume = args[++i]; break;
                     case "--list": list = true; break;
                     case "--jobs": jobs = int.Parse(args[++i], System.Globalization.CultureInfo.InvariantCulture); break;
                     case "--help":
-                        Console.WriteLine("CLROS host tests: [--lane fast|native|full] [--filter fixture] [--case name] [--jobs 1..64] [--list]");
+                        Console.WriteLine("CLROS host tests: [--lane fast|native|full] [--filter fixture] [--case name] [--jobs 1..64] [--list] [--results directory | --resume directory-or-results.json]");
                         return 0;
                     default: throw new ArgumentException("unknown_option " + args[i]);
                 }
+            }
+            if (resume is not null)
+            {
+                if (resultsPath is not null || worker is not null || list) throw new ArgumentException("resume_options_conflict");
+                resume = Path.GetFullPath(resume);
+                if (File.Exists(resume)) resume = Path.GetDirectoryName(resume)!;
+                var saved = HostRunCheckpoint.ReadSelection(resume);
+                if (!args.Contains("--lane")) lane = saved.Lane;
+                if (!args.Contains("--filter")) filter = saved.Filter;
+                if (!args.Contains("--case")) caseFilter = saved.CaseFilter;
             }
             if (lane is not ("fast" or "native" or "full")) throw new ArgumentException("invalid_lane " + lane);
             if (jobs is < 1 or > 64) throw new ArgumentException("invalid_jobs " + jobs);
@@ -216,6 +248,12 @@ internal static class HostTestRunner
                 throw new InvalidOperationException("invalid_fixture_inventory");
             if (worker is not null)
             {
+                using var workerLock = workerLease is null ? null : File.Open(workerLease, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
+                if (workerLock is not null)
+                {
+                    workerLock.Write(System.Text.Encoding.UTF8.GetBytes(Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+                    workerLock.Flush();
+                }
                 string[] requested = worker.Split(';');
                 Fixture[] fixtures = requested.Select(id => all.Single(f => f.Id == id)).ToArray();
                 HostCheck.Filter = caseFilter;
@@ -265,40 +303,75 @@ internal static class HostTestRunner
                 return 1;
             }
             string root = HostToolProcess.FindRepositoryRoot();
-            string directory = Path.Combine(root, "artifacts", "logs", "host-tests", DateTime.UtcNow.ToString("yyyyMMddTHHmmss") + "-" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(directory);
+            string directory = resume ?? (resultsPath is null ? Path.Combine(root, "artifacts", "logs", "host-tests", DateTime.UtcNow.ToString("yyyyMMddTHHmmss") + "-" + Guid.NewGuid().ToString("N")) : Path.GetFullPath(resultsPath));
+            using var checkpoint = new HostRunCheckpoint(root, directory, resume is not null, new(lane, filter, caseFilter));
+            var fingerprints = HostTestFingerprint.Create(root);
+            string producer = HostRunCheckpoint.HashFile(typeof(HostTestRunner).Assembly.Location);
             List<FixtureResult> results = [];
-            var groups = selected.GroupBy(f => f.Method.DeclaringType!.Name).ToArray();
+            var groups = GroupByLane(selected);
             object receiptLock = new();
             Stopwatch elapsed = Stopwatch.StartNew();
             Console.WriteLine($"HOST_TEST_SELECTION lane={lane} fixtures={groups.Length} cases={selected.Length} inventory={all.Length} jobs={jobs} report={directory}");
+            void SaveProgress() => SaveReceipt(directory, new
+            {
+                Lane = lane, Filter = filter, CaseFilter = caseFilter, Inventory = all.Length, Jobs = jobs,
+                Run = checkpoint.Run, ProducerSha256 = producer,
+                Executed = results.Count(r => !r.Reused), Reused = results.Count(r => r.Reused),
+                WallSeconds = elapsed.Elapsed.TotalSeconds, WorkerSeconds = results.Where(r => !r.Reused).Sum(r => r.Seconds),
+                Selected = selected.Select(f => new { f.Id, f.Name, Lane = f.Lane.ToString() }),
+                Complete = false, Succeeded = false, Results = results.OrderBy(r => r.Id, StringComparer.Ordinal)
+            });
+            SaveProgress();
             using CancellationTokenSource cancellation = new();
             ConsoleCancelEventHandler cancel = (_, signal) => { signal.Cancel = true; cancellation.Cancel(); };
             Console.CancelKeyPress += cancel;
             try
             {
-                await HostWorkerScheduler.RunAsync(groups, group => group.Any(f => f.Lane == HostLane.Native), jobs, async (_, group) =>
+                bool phasesComplete = await HostWorkerScheduler.RunPhasesAsync(groups, group => group.Lane == HostLane.Native, jobs, async group =>
                 {
-                    Console.WriteLine($"HOST_FIXTURE_START {group.Key}");
-                    FixtureResult result = await RunFixture(group.ToArray(), root, directory, caseFilter, cancellation);
-                    Console.WriteLine($"HOST_FIXTURE_RESULT {group.Key} exit={result.ExitCode} failures={result.Failed} seconds={result.Seconds:F3}");
+                    Fixture[] fixtures = group.Fixtures;
+                    string fingerprint = fingerprints.For(fixtures, caseFilter);
+                    FixtureResult result;
+                    if (checkpoint.TryReuse(group.Id, fingerprint, out var previous) &&
+                        HostNativeResumePolicy.Outputs(root, fixtures, previous!.Result).All(previous.ArtifactSources.ContainsKey))
+                    {
+                        result = previous!.Result with { Reused = true, Origin = previous.Origin };
+                        Console.WriteLine($"HOST_FIXTURE_REUSED {group.Id} origin={previous.Origin}");
+                    }
+                    else
+                    {
+                        string log = checkpoint.Start(group.Id);
+                        Console.WriteLine($"HOST_FIXTURE_START {group.Id}");
+                        result = (await RunFixture(fixtures, root, log, caseFilter, cancellation)) with { Id = group.Id, Origin = checkpoint.Run };
+                        if (HostRunCheckpoint.Passed(result) && !fingerprint.StartsWith("fresh:", StringComparison.Ordinal) &&
+                            !fingerprints.InputsUnchanged(root, fixtures))
+                        {
+                            result = result with { ExitCode = 1, Error = "inputs_changed_during_fixture" };
+                            Console.Error.WriteLine("TEST_FAIL host.tests.inputs changed_during_fixture " + group.Id);
+                            cancellation.Cancel();
+                        }
+                        checkpoint.Finish(group.Id, fingerprint, result, HostNativeResumePolicy.Outputs(root, fixtures, result));
+                        Console.WriteLine($"HOST_FIXTURE_RESULT {group.Id} exit={result.ExitCode} failures={result.Failed} seconds={result.Seconds:F3}");
+                    }
                     // Persist progress after every fixture; only final input validation can complete a run.
                     lock (receiptLock)
                     {
                         results.Add(result);
-                        SaveReceipt(directory, new
-                        {
-                            Lane = lane, Filter = filter, CaseFilter = caseFilter, Inventory = all.Length, Jobs = jobs,
-                            WallSeconds = elapsed.Elapsed.TotalSeconds, WorkerSeconds = results.Sum(r => r.Seconds),
-                            Selected = selected.Select(f => new { f.Id, f.Name, Lane = f.Lane.ToString() }),
-                            Complete = false, Succeeded = false, Results = results.OrderBy(r => r.Id, StringComparer.Ordinal)
-                        });
+                        SaveProgress();
                     }
-                }, cancellation.Token);
+                }, () => results.All(HostRunCheckpoint.Passed), cancellation.Token);
+                if (!phasesComplete && !cancellation.IsCancellationRequested)
+                    Console.WriteLine("HOST_NATIVE_BLOCKED reason=fast_failures");
             }
             finally { Console.CancelKeyPress -= cancel; }
             int failures = results.Count(r => r.ExitCode != 0 || r.TimedOut || r.Failed != 0 || r.Started == 0 || r.Passed < r.Started);
-            var changed = HostBuildInputs.Validate();
+            List<string> changed = [.. HostBuildInputs.Validate()];
+            var finalFingerprints = HostTestFingerprint.Create(root);
+            foreach (var group in groups)
+                if (fingerprints.For(group.Fixtures, caseFilter) != finalFingerprints.For(group.Fixtures, caseFilter))
+                    changed.Add("checkpoint_inputs_changed " + group.Id);
+            if (changed.Count != 0) checkpoint.InvalidateRun();
+            failures += checkpoint.ValidateResults(results);
             foreach (string failure in changed) Console.Error.WriteLine("TEST_FAIL host.tests.inputs " + failure);
             failures += changed.Count;
             if (cancellation.IsCancellationRequested || results.Count != groups.Length) failures++;
@@ -306,14 +379,16 @@ internal static class HostTestRunner
             SaveReceipt(directory, new
             {
                 Scope = scope, Lane = lane, Filter = filter, CaseFilter = caseFilter, Inventory = all.Length, Jobs = jobs,
-                WallSeconds = elapsed.Elapsed.TotalSeconds, WorkerSeconds = results.Sum(r => r.Seconds),
+                Run = checkpoint.Run, ProducerSha256 = producer,
+                Executed = results.Count(r => !r.Reused), Reused = results.Count(r => r.Reused),
+                WallSeconds = elapsed.Elapsed.TotalSeconds, WorkerSeconds = results.Where(r => !r.Reused).Sum(r => r.Seconds),
                 Selected = selected.Select(f => new { f.Id, f.Name, Lane = f.Lane.ToString() }),
                 Complete = results.Count == groups.Length && !cancellation.IsCancellationRequested, Succeeded = failures == 0,
                 Cancelled = cancellation.IsCancellationRequested,
                 InputsUnchanged = changed.Count == 0, InputFailures = changed, Results = results.OrderBy(r => r.Id, StringComparer.Ordinal)
             });
-            Console.WriteLine($"HOST_TEST_TIMING wallSeconds={elapsed.Elapsed.TotalSeconds:F3} workerSeconds={results.Sum(r => r.Seconds):F3} checks={results.Sum(r => r.Started)}");
-            foreach (var result in results.OrderByDescending(r => r.Seconds).Take(5))
+            Console.WriteLine($"HOST_TEST_TIMING wallSeconds={elapsed.Elapsed.TotalSeconds:F3} workerSeconds={results.Where(r => !r.Reused).Sum(r => r.Seconds):F3} checks={results.Where(r => !r.Reused).Sum(r => r.Started)} reusedChecks={results.Where(r => r.Reused).Sum(r => r.Started)}");
+            foreach (var result in results.Where(r => !r.Reused).OrderByDescending(r => r.Seconds).Take(5))
                 Console.WriteLine($"HOST_TEST_SLOWEST {result.Id} seconds={result.Seconds:F3} checks={result.Started}");
             Console.WriteLine(failures == 0 ? "TEST_PASS " + scope : $"TEST_FAIL {scope} failures={failures}");
             return failures == 0 ? 0 : 1;
@@ -343,12 +418,11 @@ internal static class HostTestRunner
             process.OutputLimitExceeded ? "output_limit_exceeded" : null;
     }
 
-    private static async Task<FixtureResult> RunFixture(Fixture[] fixtures, string root, string directory, string? filter, CancellationTokenSource scheduling)
+    private static async Task<FixtureResult> RunFixture(Fixture[] fixtures, string root, string log, string? filter, CancellationTokenSource scheduling)
     {
         string id = fixtures[0].Method.DeclaringType!.Name;
         HostLane lane = fixtures.Any(f => f.Lane == HostLane.Native) ? HostLane.Native : HostLane.Fast;
-        string log = Path.Combine(directory, id + ".log");
-        List<string> arguments = [typeof(HostTestRunner).Assembly.Location, "--worker", string.Join(';', fixtures.Select(f => f.Id))];
+        List<string> arguments = [typeof(HostTestRunner).Assembly.Location, "--worker", string.Join(';', fixtures.Select(f => f.Id)), "--worker-lease", log + ".worker.lock"];
         if (filter is not null) arguments.AddRange(["--case", filter]);
         Stopwatch time = Stopwatch.StartNew();
         try
@@ -391,7 +465,8 @@ internal static class HostTestRunner
             int exit = process.ExitCode;
             if (!process.Succeeded || starts == 0 || failed != 0 || !paired || error.Length != 0) exit = 1;
             return new(id, lane.ToString(), exit, process.TimedOut, time.Elapsed.TotalSeconds, log, starts, passes, failed,
-                processFailure ?? (!paired ? "unpaired_case_markers" : null));
+                processFailure ?? (!paired ? "unpaired_case_markers" : null))
+                { ProcessId = File.Exists(log + ".worker.lock") && int.TryParse(File.ReadAllText(log + ".worker.lock"), out int pid) ? pid : 0 };
         }
         catch (Exception error)
         {

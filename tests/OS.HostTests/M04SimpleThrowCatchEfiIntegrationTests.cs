@@ -32,7 +32,7 @@ internal static class M04SimpleThrowCatchEfiIntegrationTests
         foreach(var offset in new[]{("Rip",0),("Rsp",8),("Rbx",16),("Rbp",24),("Rsi",32),("Rdi",40),("R12",48),("R13",56),("R14",64),("R15",72),("Xmm6",80),("Xmm15",224)})
             Need(Marshal.OffsetOf<X64UnwindContext>(offset.Item1).ToInt32()==offset.Item2,"actual capture field "+offset.Item1);
         Need(Marshal.SizeOf<X64UnwindVector>()==16&&Marshal.OffsetOf<X64UnwindVector>("High").ToInt32()==8,"whole 128-bit nonvolatile vector");
-        string probe=File.ReadAllText(Path.Combine(Root,"src/OS/Runtime/ExceptionCatchProbe.cs"));
+        string probe=File.ReadAllText(Path.Combine(Root,"src/OS/Runtime/ExceptionCatchProbe.cs")).ReplaceLineEndings("\n");
         Need(probe.StartsWith("#if NOSTDLIB_EFI && (M04_SIMPLE_THROW_CATCH_PROBE || M04_SINGLE_FINALLY_CATCH_PROBE)",StringComparison.Ordinal)&&
             probe.Contains("throw value;",StringComparison.Ordinal)&&probe.Contains("catch (SimpleCatchBase caught)",StringComparison.Ordinal)&&
             probe.Contains("CollectGcGraph(&root, 1)",StringComparison.Ordinal)&&probe.Contains("post->Rbp != s_ehCaller.Rbp",StringComparison.Ordinal)&&

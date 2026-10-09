@@ -205,6 +205,8 @@ dotnet run --project tests/OS.HostTests -- --filter StdArrayHelpersTests --case 
 dotnet run --project tests/OS.HostTests -- --lane full --filter DiagnosticsTests
 dotnet run --project tests/OS.HostTests -- --lane full --filter M02OwnedX64Gdt
 dotnet run --project tests/OS.HostTests -- --lane full
+dotnet run --project tests/OS.HostTests -- --lane full --results artifacts/host-run
+dotnet run --project tests/OS.HostTests -- --resume artifacts/host-run
 dotnet run --project tools/OS.Tooling -- contracts check
 dotnet run --project tools/OS.Tooling -- repo check
 dotnet run --project tools/OS.Tooling -- done reserve
@@ -218,9 +220,13 @@ is explicit with `--lane native` or `--lane full`. A filtered run only emits
 
 Fast fixtures run in isolated worker processes with bounded parallelism (up to
 four workers by default). Use `--jobs 1` for a serial comparison or `--jobs N`
-to set the bound. Native fixtures wait for active fast workers and execute
-exclusively because they share native build outputs. Ordinary failures do not
-stop subsequent cases; a crashed or timed-out fixture does not stop other fixtures
+to set the bound. A full run completes every selected fast case before starting
+native work, including fast cases in otherwise native fixtures. Fast failures
+are collected together and block the native phase; the receipt stays incomplete
+and can be resumed after repair. Mixed fixtures have separate `.Fast` and
+`.Native` checkpoint groups. Native fixtures execute exclusively because they
+share native build outputs. Ordinary failures do not stop subsequent cases in
+the active phase; a crashed or timed-out fixture does not stop other fixtures
 when process cleanup is confirmed. Unconfirmed cleanup cancels remaining work and
 drains already active workers before returning failure.
 Output is bounded and streamed to disk immediately. Ctrl+C cancels the active
@@ -280,12 +286,56 @@ all 4,120 full checks across 450 fixture groups in 1,398.014 seconds (23 minutes
 18 seconds), with unchanged compiled inputs and no failures. The 582 guest
 source inputs and four tool assemblies still match the step1097 real-run receipt.
 
-Selected tests execute freshly; this runner does not reuse earlier checkpoint
-passes. The earlier resumable-runner proposal in
-[issue #600](http://192.168.4.35:3000/admin/CLROS/issues/600) and stacked PR #601
-is separate from the mainline migration in
-[PR #602](http://192.168.4.35:3000/admin/CLROS/pulls/602). Its unmerged runtime
-profiles and checkpoint reuse retain their own qualification requirements.
+### Resume an interrupted or failed host run
+
+Every run saves `checkpoint.json` alongside `results.json`. `--results` selects
+a new or empty directory. `--resume` accepts that directory or its receipt path
+and inherits the previous lane and filters unless explicitly overridden. Rebuild
+after editing tests; then resume the same directory. The exact selected cases,
+their ordering, lane and `--case` filter form part of each worker group's key.
+A focused or fast pass cannot satisfy a full/native selection of the same type.
+
+For a test-only edit with unchanged production/tooling dependencies, use
+`dotnet build tests/OS.HostTests --no-dependencies` before resuming. This preserves
+the previously built dependency identities. Use a normal build when dependencies
+changed or have not been built.
+
+Failed, interrupted, new or invalidated groups execute again. An unchanged pass
+emits `HOST_FIXTURE_REUSED` with its original run ID; its test markers are not
+replayed. Receipts distinguish executed and reused groups/checks and retain the
+original logs and host producer assembly. Completion rechecks compiled inputs,
+source fingerprints and retained evidence. Missing or changed evidence prevents
+reuse; corrupt receipts fail before launching fixtures. Directory and worker
+leases prevent resuming an active run. Normal Ctrl+C still terminates workers.
+
+Fingerprints include shared production/tooling/configuration/documentation,
+producer dependencies, compiler options, runtime/SDK and environment identity
+(digest only). Test-file changes invalidate their transitive test dependencies,
+without invalidating every result merely because the host DLL was rebuilt.
+Global imports and assembly attributes are shared inputs. Unknown external,
+artifact or dynamic source dependencies run fresh. Do not edit sources or share
+native output directories between simultaneous suites. Checkpoints are local to
+the same workspace and machine, and do not import legacy runner receipts.
+
+The build manifest captures SDK-generated assembly attributes after generation.
+Pointer-probe and finally-guard builds use `--no-dependencies` so they cannot rebuild libraries
+already admitted by the running harness. Step1117 records the commit-version
+staleness failures that led to these fixes and their focused checks.
+
+Native reuse is deliberately explicit. The owned-IDT group and the individually
+selected IDTR publication case produce every artifact they read. Their keys also
+hash the resolved SDK, linker/support files, Windows library, LLVM, runtime and
+pinned package contents. Twelve original outputs per publication fixture are
+copied into content-addressed storage; later builds cannot overwrite that
+evidence. The full IDTR group and other unclassified native groups still execute
+fresh. Retained publication records are historical host evidence, not restored
+canonical build outputs or new guest execution. Broader native reuse requires
+reviewed input/output ownership in `HostNativeResumePolicy`.
+
+This C# implementation continues [issue #600](http://192.168.4.35:3000/admin/CLROS/issues/600)
+on the merged [PR #602](http://192.168.4.35:3000/admin/CLROS/pulls/602) runner.
+The old stacked PR #601 is not its implementation base; unmerged rethrow and
+mapping profiles retain their separate qualification requirements.
 
 ## Verification
 
